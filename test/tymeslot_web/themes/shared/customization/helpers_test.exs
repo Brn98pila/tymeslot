@@ -36,7 +36,7 @@ defmodule TymeslotWeb.Themes.Shared.Customization.HelpersTest do
              } = updated.assigns.theme_customization
 
       assert updated.assigns.custom_css =~ "--theme-background: linear-gradient("
-      assert %{color: _color, background: _background} = updated.assigns.customization_options
+      refute Map.has_key?(updated.assigns, :customization_options)
     end
   end
 

@@ -6,14 +6,13 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
 
   alias Tymeslot.Demo
   alias Tymeslot.ThemeCustomizations
-  alias Tymeslot.ThemeCustomizations.Capability
   alias Tymeslot.ThemeCustomizations.Defaults
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
   alias Tymeslot.ThemeCustomizations.Validation
 
   @doc """
   Assigns theme customization data to a socket for a specific theme.
-  Uses capability-based customization when available.
+  Falls back to the theme's default customisation when the organiser has none.
   """
   @spec assign_theme_customization(Phoenix.LiveView.Socket.t(), map(), String.t()) ::
           Phoenix.LiveView.Socket.t()
@@ -34,7 +33,6 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
     |> assign(:has_custom_theme, customization != nil)
     |> assign(:theme_customization, effective_customization)
     |> assign(:custom_css, custom_css)
-    |> assign(:customization_options, Capability.get_customization_options(theme_id))
   end
 
   @doc """
