@@ -46,6 +46,18 @@ defmodule TymeslotWeb.Themes.Quill.Theme do
   end
 
   @impl TymeslotWeb.Themes.Core.Behaviour
+  def metadata do
+    %{
+      preview_image: "/images/ui/theme-previews/quill-theme-preview.webp",
+      description:
+        dgettext(
+          "dashboard_appearance",
+          "Glass morphism design with elegant transparency effects and a 4-step booking flow."
+        )
+    }
+  end
+
+  @impl TymeslotWeb.Themes.Core.Behaviour
   def theme_config do
     %{
       name: "Quill",

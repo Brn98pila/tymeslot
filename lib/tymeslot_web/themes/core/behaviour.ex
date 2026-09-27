@@ -37,6 +37,13 @@ defmodule TymeslotWeb.Themes.Core.Behaviour do
   @callback live_view_module() :: module()
 
   @doc """
+  Presentation metadata for the dashboard's theme picker: `preview_image`, a
+  path under `priv/static`, and `description`, translated into the current
+  Gettext locale.
+  """
+  @callback metadata() :: %{preview_image: String.t(), description: String.t()}
+
+  @doc """
   Returns theme-specific configuration or options.
   """
   @callback theme_config() :: map()

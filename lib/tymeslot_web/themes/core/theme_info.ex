@@ -2,9 +2,8 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfo do
   @moduledoc """
   Convenience accessors over the theme system for the web layer.
 
-  Resolves full theme metadata, loads theme modules, and exposes per-theme
-  runtime details (LiveView module, name, description) by combining the registry
-  definitions with the theme behaviour callbacks. This is a
+  Resolves a theme's picker data (catalogue facts plus the theme module's
+  `metadata/0`) and loads theme modules for the web layer. This is a
   presentation-layer concern: domain code reads theme facts from
   `Tymeslot.Themes.Catalog` instead.
   """
@@ -14,30 +13,22 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfo do
   alias TymeslotWeb.Themes.Core.{Loader, Registry}
 
   @doc """
-  Returns all available themes with their metadata.
+  Returns every registered theme's picker data, keyed by theme id.
   """
-  @spec all_themes() :: list(map())
+  @spec all_themes() :: %{String.t() => map()}
   def all_themes do
-    Registry.all_themes()
-    |> Enum.map(fn {_key, theme} ->
-      config = theme.module.theme_config()
-      {theme.id, Map.put(config, :id, theme.id)}
-    end)
-    |> Enum.into(%{})
+    Map.new(Registry.all_themes(), fn {_key, theme} -> {theme.id, describe(theme)} end)
   end
 
   @doc """
-  Gets theme metadata by ID.
+  Gets a theme's picker data by id: the catalogue facts (`id`, `key`, `name`,
+  `status`) merged with the theme module's `metadata/0`.
   """
   @spec get_theme(term()) :: map() | nil
   def get_theme(id) do
     case Registry.get_theme_by_id(to_string(id)) do
-      {:ok, theme} ->
-        config = theme.module.theme_config()
-        Map.put(config, :id, theme.id)
-
-      {:error, :theme_not_found} ->
-        nil
+      {:ok, theme} -> describe(theme)
+      {:error, :theme_not_found} -> nil
     end
   end
 
@@ -122,5 +113,11 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfo do
   @spec get_live_view_module(term()) :: module() | nil
   def get_live_view_module(id) do
     Loader.get_live_view_module(to_string(id))
+  end
+
+  defp describe(theme) do
+    theme
+    |> Map.take([:id, :key, :name, :status])
+    |> Map.merge(theme.module.metadata())
   end
 end

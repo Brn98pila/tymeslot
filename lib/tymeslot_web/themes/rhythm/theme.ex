@@ -46,6 +46,18 @@ defmodule TymeslotWeb.Themes.Rhythm.Theme do
   end
 
   @impl TymeslotWeb.Themes.Core.Behaviour
+  def metadata do
+    %{
+      preview_image: "/images/ui/theme-previews/rhythm-theme-preview.webp",
+      description:
+        dgettext(
+          "dashboard_appearance",
+          "Modern sliding design with video background and a 4-slide booking flow."
+        )
+    }
+  end
+
+  @impl TymeslotWeb.Themes.Core.Behaviour
   def theme_config do
     %{
       name: "Rhythm",

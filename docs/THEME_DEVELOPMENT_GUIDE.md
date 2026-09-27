@@ -90,6 +90,7 @@ assets/css/scheduling/themes/[theme_name]/
 @callback css_file() :: String.t()
 @callback components() :: map()
 @callback live_view_module() :: module()
+@callback metadata() :: %{preview_image: String.t(), description: String.t()}
 @callback theme_config() :: map()
 @callback validate_theme() :: :ok | {:error, String.t()}
 @callback initial_state_for_action(atom()) :: atom()

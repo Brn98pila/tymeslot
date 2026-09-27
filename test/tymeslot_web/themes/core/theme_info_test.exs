@@ -5,6 +5,7 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfoTest do
   @moduletag :unit
 
   alias TymeslotWeb.Themes.Core.ThemeInfo
+  alias TymeslotWeb.Themes.Rhythm.Theme, as: Rhythm
 
   describe "theme_options/0" do
     test "offers every shipping theme by name, in id order" do
@@ -30,6 +31,39 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfoTest do
       }
 
       assert ThemeInfo.theme_options(themes) == [{"One", "1"}, {"Two", "2"}, {"Ten", "10"}]
+    end
+  end
+
+  describe "get_theme/1" do
+    test "combines the catalogue facts with the theme's own metadata" do
+      assert %{
+               id: "2",
+               key: :rhythm,
+               name: "Rhythm",
+               status: :active,
+               preview_image: "/images/ui/theme-previews/rhythm-theme-preview.webp",
+               description:
+                 "Modern sliding design with video background and a 4-slide booking flow."
+             } = ThemeInfo.get_theme("2")
+    end
+
+    test "is nil for an unknown id" do
+      assert ThemeInfo.get_theme("999") == nil
+    end
+  end
+
+  describe "metadata/0" do
+    test "translates the description into the current locale" do
+      Gettext.put_locale(TymeslotWeb.Gettext, "de")
+
+      assert Rhythm.metadata().description ==
+               Gettext.dgettext(
+                 TymeslotWeb.Gettext,
+                 "dashboard_appearance",
+                 "Modern sliding design with video background and a 4-slide booking flow."
+               )
+
+      refute Rhythm.metadata().description =~ "Modern sliding design"
     end
   end
 end
