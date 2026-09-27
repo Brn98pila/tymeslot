@@ -13,6 +13,7 @@ defmodule TymeslotWeb.Themes.Shared.BookingTextTest do
   import Tymeslot.Factory
 
   alias Tymeslot.Profiles.ProfileSchema
+  alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Themes.Shared.BookingText
 
   describe "custom wording" do
@@ -47,6 +48,20 @@ defmodule TymeslotWeb.Themes.Shared.BookingTextTest do
   end
 
   describe "defaults" do
+    test "follow each theme's catalogue heading style" do
+      themes = Catalog.all()
+      assert map_size(themes) > 0
+
+      for {key, facts} <- themes do
+        heading = BookingText.default_heading(key, "Sam")
+
+        case facts.heading_style do
+          :named -> assert heading =~ "Sam"
+          :generic -> refute heading =~ "Sam"
+        end
+      end
+    end
+
     test "differ per theme, which is what the dashboard has to show an organiser" do
       quill = BookingText.default_heading(:quill, "Sam")
       rhythm = BookingText.default_heading(:rhythm, "Sam")

@@ -177,6 +177,7 @@ aurora: %{
   id: "3",
   key: :aurora,
   name: "Aurora",
+  heading_style: :generic, # or :named, to open with "Schedule with <organiser>"
   features: %{
     supports_video_background: true,
     supports_image_background: true,

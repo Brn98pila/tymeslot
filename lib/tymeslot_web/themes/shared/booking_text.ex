@@ -5,9 +5,10 @@ defmodule TymeslotWeb.Themes.Shared.BookingText do
   otherwise.
 
   Every theme with an overview step renders the same three slots, so the
-  resolution lives here rather than in each theme. The heading default differs
-  by theme (Quill opens with a generic greeting, Rhythm names the organiser)
-  and is therefore keyed by theme; the greeting and instruction defaults are
+  resolution lives here rather than in each theme. The heading default follows
+  the theme's `heading_style` catalogue fact (`:generic` for a greeting,
+  `:named` to name the organiser), so a new theme picks a style in the
+  catalogue rather than a clause here; the greeting and instruction defaults are
   identical everywhere.
 
   The defaults live here rather than inline in each theme because the dashboard
@@ -27,8 +28,9 @@ defmodule TymeslotWeb.Themes.Shared.BookingText do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Profiles.ProfileSchema
+  alias Tymeslot.Themes.Catalog
 
-  @type theme_key :: :quill | :rhythm
+  @type theme_key :: Catalog.theme_key()
 
   @doc """
   The page's introductory heading, given the theme whose default applies and the
@@ -58,12 +60,23 @@ defmodule TymeslotWeb.Themes.Shared.BookingText do
   heading when there is no name, rather than to a filler word.
   """
   @spec default_heading(theme_key(), String.t() | nil) :: String.t()
-  def default_heading(_theme_key, nil), do: dgettext("booking", "Let's Connect!")
+  def default_heading(theme_key, name) do
+    case {heading_style(theme_key), name} do
+      {:named, name} when is_binary(name) ->
+        dgettext("booking", "Schedule with %{name}", name: name)
 
-  def default_heading(:rhythm, name),
-    do: dgettext("booking", "Schedule with %{name}", name: name)
+      _generic_or_nameless ->
+        dgettext("booking", "Let's Connect!")
+    end
+  end
 
-  def default_heading(_theme_key, _name), do: dgettext("booking", "Let's Connect!")
+  # A key the catalogue does not know takes the default theme's style.
+  defp heading_style(theme_key) do
+    case Map.fetch(Catalog.all(), theme_key) do
+      {:ok, %{heading_style: style}} -> style
+      :error -> Catalog.default().heading_style
+    end
+  end
 
   @doc """
   The greeting shown when the organiser has not supplied one, or `nil` when

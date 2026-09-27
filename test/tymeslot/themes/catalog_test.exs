@@ -25,4 +25,12 @@ defmodule Tymeslot.Themes.CatalogTest do
 
     assert map_size(Catalog.all()) > 0
   end
+
+  test "gives every theme a heading style" do
+    for {_key, facts} <- Catalog.all() do
+      assert facts.heading_style in [:named, :generic]
+    end
+
+    assert Catalog.default().heading_style == :generic
+  end
 end

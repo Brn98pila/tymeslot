@@ -3,24 +3,29 @@ defmodule Tymeslot.Themes.Catalog do
   Domain source of truth for theme *facts* — which themes exist and what they
   can do.
 
-  Holds each theme's id, key, name, capability `features`, and status. This is
-  pure data with no web or presentation dependency: profiles and
+  Holds each theme's id, key, name, capability `features`, `heading_style`, and
+  status. This is pure data with no web or presentation dependency: profiles and
   theme customizations validate and drive behaviour off these facts without ever
   reaching up into the web layer.
 
   The web layer (`TymeslotWeb.Themes.Core.Registry`) augments these facts with
   presentation bindings (the theme module, CSS file, preview image), but the
   facts themselves live here so the dependency only ever flows web → domain.
+
+  `heading_style` says whether the booking page's default heading names the
+  organiser (`:named`) or greets generically (`:generic`).
   """
 
   @type theme_id :: String.t()
   @type theme_key :: atom()
   @type status :: :active | :beta | :deprecated
+  @type heading_style :: :named | :generic
   @type theme_facts :: %{
           id: theme_id(),
           key: theme_key(),
           name: String.t(),
           features: map(),
+          heading_style: heading_style(),
           status: status()
         }
 
@@ -35,6 +40,7 @@ defmodule Tymeslot.Themes.Catalog do
         supports_gradient_background: true,
         supports_custom_colors: true
       },
+      heading_style: :generic,
       status: :active
     },
     rhythm: %{
@@ -47,6 +53,7 @@ defmodule Tymeslot.Themes.Catalog do
         supports_gradient_background: true,
         supports_custom_colors: true
       },
+      heading_style: :named,
       status: :active
     }
   }
