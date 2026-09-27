@@ -72,6 +72,22 @@ defmodule TymeslotWeb.Live.Themes.ThemeHookTest do
     assert html =~ ~s(id="rhythm-background-video-2")
   end
 
+  test "?theme=9 renders the organiser's own theme, stylesheet and page", %{
+    conn: conn,
+    profile: profile
+  } do
+    update_profile(profile, %{booking_theme: "2"})
+
+    html = html_response(get(conn, "/#{profile.username}?theme=9"), 200)
+    assert html =~ "scheduling-theme-rhythm.css"
+    refute html =~ "theme-9"
+
+    {:ok, _view, live_html} = live(conn, "/#{profile.username}?theme=9")
+    assert live_html =~ "rhythm-theme-wrapper"
+    refute live_html =~ "Theme Error"
+    refute live_html =~ "Failed to load theme context"
+  end
+
   defp update_profile(profile, attrs) do
     profile
     |> Changeset.change(attrs)

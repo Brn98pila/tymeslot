@@ -258,11 +258,10 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
     theme_id =
       case socket.assigns do
         %{theme_id: current_theme_id} ->
-          override = params["theme"]
-          if override && override != current_theme_id, do: override, else: current_theme_id
+          Registry.requested_theme_id(params) || current_theme_id
 
         _no_theme ->
-          params["theme"] || params["theme_id"] || Registry.default_theme_id()
+          Registry.requested_theme_id(params) || Registry.default_theme_id()
       end
 
     socket = assign(socket, :theme_id, theme_id)

@@ -73,8 +73,7 @@ defmodule TymeslotWeb.Themes.Core.Context do
   @spec from_params(map(), map() | nil) :: t() | nil
   def from_params(params, profile \\ nil) do
     theme_id =
-      params["theme"] || params["theme_id"] ||
-        (profile && profile.booking_theme) ||
+      Registry.requested_theme_id(params) || organiser_theme_id(profile) ||
         Registry.default_theme_id()
 
     preview_mode = PreviewMode.claimed?(params)
@@ -89,6 +88,12 @@ defmodule TymeslotWeb.Themes.Core.Context do
       nil
     end
   end
+
+  defp organiser_theme_id(%{booking_theme: theme_id}) when is_binary(theme_id) do
+    if Registry.valid_theme_id?(theme_id), do: theme_id
+  end
+
+  defp organiser_theme_id(_no_profile), do: nil
 
   # Validate hex color format to prevent CSS injection.
   defp apply_primary_color(context, params) do

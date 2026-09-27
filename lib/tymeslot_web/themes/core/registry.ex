@@ -140,4 +140,22 @@ defmodule TymeslotWeb.Themes.Core.Registry do
   def default_theme_key do
     default_theme().key
   end
+
+  @doc """
+  The theme a URL asks for with `?theme=` (or the older `?theme_id=`), or
+  `nil` when it names no registered theme.
+
+  An unknown id counts as no request at all, so callers fall through to the
+  organiser's theme and then the default, and the layout and the page always
+  agree on which theme is showing.
+  """
+  @spec requested_theme_id(map()) :: theme_id() | nil
+  def requested_theme_id(params) when is_map(params) do
+    Enum.find_value(["theme", "theme_id"], fn key ->
+      case params[key] do
+        id when is_binary(id) -> if valid_theme_id?(id), do: id
+        _absent -> nil
+      end
+    end)
+  end
 end

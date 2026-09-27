@@ -37,7 +37,9 @@ defmodule TymeslotWeb.Live.Scheduling.ThemeUtils do
   @spec assign_theme_with_preview(Phoenix.LiveView.Socket.t(), map()) ::
           Phoenix.LiveView.Socket.t()
   def assign_theme_with_preview(socket, params) do
-    theme_id = params["theme"] || socket.assigns[:theme_id] || Registry.default_theme_id()
+    theme_id =
+      Registry.requested_theme_id(params) || socket.assigns[:theme_id] ||
+        Registry.default_theme_id()
 
     socket
     |> assign(:scheduling_theme_id, theme_id)
