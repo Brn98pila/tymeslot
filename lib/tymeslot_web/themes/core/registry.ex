@@ -51,6 +51,10 @@ defmodule TymeslotWeb.Themes.Core.Registry do
                    |> Enum.map(fn {_key, theme} -> {theme.id, theme} end)
                    |> Map.new()
 
+  @slug_to_theme_map @themes
+                     |> Enum.map(fn {key, theme} -> {Atom.to_string(key), theme} end)
+                     |> Map.new()
+
   @doc """
   Returns all theme definitions.
 
@@ -79,6 +83,20 @@ defmodule TymeslotWeb.Themes.Core.Registry do
   @spec get_theme_by_id(theme_id()) :: {:ok, theme_definition()} | {:error, :theme_not_found}
   def get_theme_by_id(id) when is_binary(id) do
     case Map.get(@id_to_theme_map, id) do
+      nil -> {:error, :theme_not_found}
+      theme -> {:ok, theme}
+    end
+  end
+
+  @doc """
+  Gets a theme by its URL slug: the key as a string (`"quill"`).
+
+  The payment return URLs carry the slug. Matching the string against
+  precomputed keys never creates an atom from user input.
+  """
+  @spec get_theme_by_slug(String.t()) :: {:ok, theme_definition()} | {:error, :theme_not_found}
+  def get_theme_by_slug(slug) when is_binary(slug) do
+    case Map.get(@slug_to_theme_map, slug) do
       nil -> {:error, :theme_not_found}
       theme -> {:ok, theme}
     end

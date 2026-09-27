@@ -1,11 +1,12 @@
 defmodule TymeslotWeb.Themes.Shared.PaymentReturn do
   @moduledoc """
-  Authorisation/lookup helpers for the post-Stripe-Checkout return pages.
+  Authorisation and lookup for the post-Stripe-Checkout return pages.
 
-  Each theme exposes its own LiveView for `/themes/<slug>/payment-processing/<id>`
-  and `/themes/<slug>/payment-cancelled/<id>`; this module shares the
-  cross-cutting checks (meeting lookup, theme match, session id match) so
-  the theme LiveViews can stay focused on rendering.
+  `Shared.PaymentReturnLive.Processing` and `.Cancelled` serve
+  `/themes/<slug>/payment-processing/<id>` and `/themes/<slug>/payment-cancelled/<id>`
+  for every theme; this module holds their cross-cutting checks (theme slug,
+  meeting lookup, theme match, session id match) so the LiveViews stay
+  focused on rendering.
 
   Returns `{:ok, %{meeting:, payment:, profile:}}` only when:
 
@@ -98,7 +99,37 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturn do
   def topic(meeting_id), do: "meeting_payment:#{meeting_id}"
 
   @doc """
-  Mounts a per-theme payment-processing LiveView. Authorises the meeting,
+  Resolves the URL's theme slug and assigns `:theme_id` and `:theme_module`.
+
+  The scheduling root layout reads `:theme_id` to choose the theme's
+  stylesheet and class, so this runs on the dead render too, before any data
+  is read. An unknown slug is `{:error, :unknown_theme}`.
+  """
+  @spec assign_theme(LiveView.Socket.t(), String.t()) ::
+          {:ok, LiveView.Socket.t()} | {:error, :unknown_theme}
+  def assign_theme(socket, slug) do
+    case ThemeRegistry.get_theme_by_slug(slug) do
+      {:ok, theme} ->
+        {:ok, Component.assign(socket, theme_id: theme.id, theme_module: theme.module)}
+
+      {:error, :theme_not_found} ->
+        {:error, :unknown_theme}
+    end
+  end
+
+  @doc """
+  Sends the attendee home with a generic flash, so the page never reveals
+  which check failed.
+  """
+  @spec reject(LiveView.Socket.t()) :: LiveView.Socket.t()
+  def reject(socket) do
+    socket
+    |> LiveView.put_flash(:error, dgettext("booking", "Payment not found."))
+    |> LiveView.redirect(to: "/")
+  end
+
+  @doc """
+  Mounts the payment-processing page. Authorises the meeting,
   subscribes to the payment topic, then reads meeting/payment state and
   assigns `:meeting`, `:payment` and `:rebook_path` (where a failed checkout
   can start again) on success. On failure the socket is
@@ -132,12 +163,7 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturn do
           {:ok, socket}
 
         {:error, _reason} ->
-          socket =
-            socket
-            |> LiveView.put_flash(:error, dgettext("booking", "Payment not found."))
-            |> LiveView.redirect(to: "/")
-
-          {:ok, socket}
+          {:ok, reject(socket)}
       end
     else
       {:ok, Component.assign(socket, loading: true, meeting: nil, payment: nil, rebook_path: nil)}

@@ -38,15 +38,18 @@ lib/tymeslot_web/themes/[theme_name]/
 │   ├── reschedule.ex
 │   ├── cancel.ex
 │   └── cancel_confirmed.ex
-├── payment_processing/         # Optional: paid-booking return pages
-│   └── live.ex
-└── payment_cancelled/
-    └── live.ex
+├── poll/
+│   └── voting.ex               # Poll voting page shell
+└── payment/                    # Payment return page shells (Stripe success / cancel)
+    ├── processing.ex
+    └── cancelled.ex
 ```
 
 > **No per-theme `state_machine.ex`.** State transitions live in the shared
 > `TymeslotWeb.Themes.Shared.StateMachineHelpers`. Both Quill and Rhythm have
 > deleted their local state machine. See [Common Patterns](#common-patterns).
+>
+> **Payment return pages are shared.** `Shared.PaymentReturnLive.Processing` and `.Cancelled` serve `/themes/<key>/payment-processing/<id>` and `/themes/<key>/payment-cancelled/<id>` for every theme, assigning `:theme_id` from the slug so the layout loads the theme's own stylesheet. A theme only draws its shell, in `payment/processing.ex` and `payment/cancelled.ex`, around `Shared.PaymentReturnComponents`; it adds no route and no LiveView.
 >
 > Themes may add their own internal structure beyond the above — Quill nests
 > `scheduling/components/schedule/panels.ex`, and Rhythm keeps a theme-local

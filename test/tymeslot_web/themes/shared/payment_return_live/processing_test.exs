@@ -1,7 +1,7 @@
-defmodule TymeslotWeb.Themes.Quill.PaymentProcessingTest do
+defmodule TymeslotWeb.Themes.Shared.PaymentReturnLive.ProcessingTest do
   @moduledoc """
-  Covers the Quill `payment-processing` return page reached after a
-  successful Stripe Checkout redirect.
+  Covers the payment-processing return page (shared by every theme; driven
+  here under the Quill slug).
 
   Locks in:
     * the processing UI when the payment is still pending,
