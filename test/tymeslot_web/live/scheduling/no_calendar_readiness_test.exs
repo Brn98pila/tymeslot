@@ -12,6 +12,8 @@ defmodule TymeslotWeb.Live.Scheduling.NoCalendarReadinessTest do
 
   import Tymeslot.Factory
 
+  alias TymeslotWeb.ThemeTestMatrix
+
   # The card's own strings, from the `errors` gettext domain. The heading is
   # matched from its apostrophe onwards, which HEEx escapes to `&#39;`.
   @heading "show this scheduling page yet"
@@ -20,8 +22,6 @@ defmodule TymeslotWeb.Live.Scheduling.NoCalendarReadinessTest do
   # `LinkAccessPolicy.reason_to_message(:no_calendar)`, from `booking`. The
   # apostrophe is typographic in the catalogue and survives HTML escaping.
   @explanation "This scheduling page isn’t available right now. The organizer hasn’t connected a calendar yet."
-
-  @themes [{"1", "quill"}, {"2", "rhythm"}]
 
   defp seed_organizer(theme_id, username) do
     user = insert(:user)
@@ -42,10 +42,10 @@ defmodule TymeslotWeb.Live.Scheduling.NoCalendarReadinessTest do
   defp occurrences(haystack, needle),
     do: haystack |> String.split(needle) |> length() |> Kernel.-(1)
 
-  for {theme_id, theme_name} <- @themes do
-    describe "booking page with no bookable calendar (#{theme_name})" do
+  for theme <- ThemeTestMatrix.all() do
+    describe "booking page with no bookable calendar (#{theme.slug})" do
       setup do
-        seed_organizer(unquote(theme_id), "no-cal-#{unquote(theme_name)}")
+        seed_organizer(unquote(theme.id), "no-cal-#{unquote(theme.slug)}")
       end
 
       test "renders the readiness card inside the organiser's theme", %{
@@ -57,7 +57,7 @@ defmodule TymeslotWeb.Live.Scheduling.NoCalendarReadinessTest do
 
         # The theme wrapper proves the theme's own LiveView rendered: the
         # dispatcher's fallback card carries no wrapper and no branding.
-        assert html =~ "#{unquote(theme_name)}-theme-wrapper"
+        assert html =~ unquote(theme.wrapper_class)
         assert has_element?(view, "[data-testid='readiness-notice']")
         assert html =~ @heading
         assert html =~ @explanation
