@@ -15,4 +15,14 @@ defmodule Tymeslot.Themes.CatalogTest do
     assert %{key: :quill, id: "1", status: :active} = Catalog.default()
     assert Catalog.valid_id?(Catalog.default_id())
   end
+
+  test "holds facts only, not display copy or flow shape" do
+    for {_key, facts} <- Catalog.all() do
+      refute Map.has_key?(facts, :description)
+      refute Map.has_key?(facts.features, :flow_type)
+      refute Map.has_key?(facts.features, :step_count)
+    end
+
+    assert map_size(Catalog.all()) > 0
+  end
 end

@@ -177,18 +177,18 @@ aurora: %{
   id: "3",
   key: :aurora,
   name: "Aurora",
-  description: "Beautiful northern lights theme",
   features: %{
     supports_video_background: true,
     supports_image_background: true,
     supports_gradient_background: true,
-    supports_custom_colors: true,
-    flow_type: :multi_step,
-    step_count: 4
+    supports_custom_colors: true
   },
   status: :active
 }
 ```
+
+The description shown in the dashboard is the theme's own, translated, not a
+catalogue fact.
 
 **b. Presentation bindings** — add an entry to `@bindings` (keyed by theme **id**)
 in `lib/tymeslot_web/themes/core/registry.ex`:

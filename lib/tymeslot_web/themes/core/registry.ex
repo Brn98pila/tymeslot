@@ -19,7 +19,6 @@ defmodule TymeslotWeb.Themes.Core.Registry do
           id: theme_id(),
           key: theme_key(),
           name: String.t(),
-          description: String.t(),
           module: module(),
           css_file: String.t(),
           features: map(),

@@ -3,8 +3,8 @@ defmodule Tymeslot.Themes.Catalog do
   Domain source of truth for theme *facts* — which themes exist and what they
   can do.
 
-  Holds each theme's id, key, name, description, capability `features`, and
-  status. This is pure data with no web or presentation dependency: profiles and
+  Holds each theme's id, key, name, capability `features`, and status. This is
+  pure data with no web or presentation dependency: profiles and
   theme customizations validate and drive behaviour off these facts without ever
   reaching up into the web layer.
 
@@ -20,7 +20,6 @@ defmodule Tymeslot.Themes.Catalog do
           id: theme_id(),
           key: theme_key(),
           name: String.t(),
-          description: String.t(),
           features: map(),
           status: status()
         }
@@ -30,14 +29,11 @@ defmodule Tymeslot.Themes.Catalog do
       id: "1",
       key: :quill,
       name: "Quill",
-      description: "Professional glassmorphism theme with elegant transparency effects",
       features: %{
         supports_video_background: true,
         supports_image_background: true,
         supports_gradient_background: true,
-        supports_custom_colors: true,
-        flow_type: :multi_step,
-        step_count: 4
+        supports_custom_colors: true
       },
       status: :active
     },
@@ -45,14 +41,11 @@ defmodule Tymeslot.Themes.Catalog do
       id: "2",
       key: :rhythm,
       name: "Rhythm",
-      description: "Modern sliding theme with immersive video backgrounds",
       features: %{
         supports_video_background: true,
         supports_image_background: true,
         supports_gradient_background: true,
-        supports_custom_colors: true,
-        flow_type: :multi_step,
-        step_count: 4
+        supports_custom_colors: true
       },
       status: :active
     }
@@ -165,6 +158,9 @@ defmodule Tymeslot.Themes.Catalog do
 
   @doc """
   Returns the capability features map for a theme ID.
+
+  Still read by the test-account provisioning task; it goes when that task
+  reads the customisation spec instead.
   """
   @spec features_for(theme_id()) :: {:ok, map()} | {:error, :theme_not_found}
   def features_for(id) when is_binary(id) do
