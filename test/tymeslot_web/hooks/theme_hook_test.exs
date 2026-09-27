@@ -52,11 +52,10 @@ defmodule TymeslotWeb.Hooks.ThemeHookTest do
   alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Hooks.ThemeHook
 
-  defp build_socket(private \\ %{}) do
+  defp build_socket do
     %Socket{
       assigns: %{__changed__: %{}},
-      endpoint: TymeslotWeb.Endpoint,
-      private: private
+      endpoint: TymeslotWeb.Endpoint
     }
   end
 
@@ -110,7 +109,7 @@ defmodule TymeslotWeb.Hooks.ThemeHookTest do
       assert updated_socket.assigns.theme_id == "2"
     end
 
-    test "defaults to theme 1 when neither params nor socket.private carry a theme" do
+    test "defaults to theme 1 when neither the params nor the organiser name a theme" do
       assert {:cont, updated_socket} =
                ThemeHook.on_mount(:default, %{}, %{}, build_socket())
 

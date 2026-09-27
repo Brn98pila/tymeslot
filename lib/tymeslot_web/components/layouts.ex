@@ -109,13 +109,12 @@ defmodule TymeslotWeb.Layouts do
   # the layout never names a theme that does not exist.
   @spec resolve_theme(String.t() | nil) :: {String.t(), atom()}
   defp resolve_theme(theme_id) do
-    id =
-      if is_binary(theme_id) and Registry.valid_theme_id?(theme_id),
-        do: theme_id,
-        else: Catalog.default_id()
-
-    {:ok, key} = Registry.id_to_key(id)
-    {id, key}
+    with id when is_binary(id) <- theme_id,
+         {:ok, key} <- Registry.id_to_key(id) do
+      {id, key}
+    else
+      _invalid -> {Catalog.default_id(), Catalog.default_key()}
+    end
   end
 
   @spec render_theme_css(String.t() | nil) :: Phoenix.LiveView.Rendered.t()
