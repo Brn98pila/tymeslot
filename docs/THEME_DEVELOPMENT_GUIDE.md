@@ -86,15 +86,8 @@ assets/css/scheduling/themes/[theme_name]/
 ### Required Behaviour Callbacks
 
 ```elixir
-@callback states() :: map()
-@callback css_file() :: String.t()
-@callback components() :: map()
 @callback live_view_module() :: module()
 @callback metadata() :: %{preview_image: String.t(), description: String.t()}
-@callback theme_config() :: map()
-@callback validate_theme() :: :ok | {:error, String.t()}
-@callback initial_state_for_action(atom()) :: atom()
-@callback supports_feature?(atom()) :: boolean()
 @callback render_meeting_action(map(), atom()) :: Phoenix.LiveView.Rendered.t()
 @callback render_poll_action(map()) :: Phoenix.LiveView.Rendered.t()
 @callback render_payment_page(map(), :processing | :cancelled) :: Phoenix.LiveView.Rendered.t()
@@ -226,115 +219,47 @@ defmodule TymeslotWeb.Themes.Aurora.Theme do
   Aurora theme implementation with northern lights design and 4-step flow.
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   @behaviour TymeslotWeb.Themes.Core.Behaviour
 
-  alias TymeslotWeb.Themes.Aurora.Scheduling.Components.{
-    BookingComponent,
-    ConfirmationComponent,
-    OverviewComponent,
-    ScheduleComponent
-  }
-
   alias TymeslotWeb.Themes.Aurora.Meeting.{Cancel, CancelConfirmed, Reschedule}
+  alias TymeslotWeb.Themes.Aurora.Payment.{Cancelled, Processing}
 
   @impl TymeslotWeb.Themes.Core.Behaviour
-  def states do
+  def live_view_module, do: TymeslotWeb.Themes.Aurora.Scheduling.Live
+
+  @impl TymeslotWeb.Themes.Core.Behaviour
+  def metadata do
     %{
-      overview: %{step: 1, next: :schedule, prev: nil},
-      schedule: %{step: 2, next: :booking, prev: :overview},
-      booking: %{step: 3, next: :confirmation, prev: :schedule},
-      confirmation: %{step: 4, prev: :booking}
-    }
-  end
-
-  @impl TymeslotWeb.Themes.Core.Behaviour
-  def css_file, do: "/assets/scheduling-theme-aurora.css"
-
-  @impl TymeslotWeb.Themes.Core.Behaviour
-  def components do
-    %{
-      overview: OverviewComponent,
-      schedule: ScheduleComponent,
-      booking: BookingComponent,
-      confirmation: ConfirmationComponent
-    }
-  end
-
-  @impl TymeslotWeb.Themes.Core.Behaviour
-  def live_view_module do
-    TymeslotWeb.Themes.Aurora.Scheduling.Live
-  end
-
-  @impl TymeslotWeb.Themes.Core.Behaviour
-  def theme_config do
-    %{
-      name: "Aurora",
-      description: "Beautiful northern lights theme with smooth animations.",
       preview_image: "/images/ui/theme-previews/aurora-theme-preview.webp",
-      flow_steps: 4,
-      design_system: :northern_lights,
-      supports_duration_selection: true,
-      supports_inline_booking: false
+      description: dgettext("dashboard_appearance", "Northern lights design with a 4-step booking flow.")
     }
   end
 
   @impl TymeslotWeb.Themes.Core.Behaviour
-  def validate_theme do
-    required_components = [:overview, :schedule, :booking, :confirmation]
-
-    missing_components =
-      Enum.filter(required_components, fn component ->
-        not Code.ensure_loaded?(components()[component])
-      end)
-
-    if Enum.empty?(missing_components) do
-      :ok
-    else
-      {:error, "Missing components: #{inspect(missing_components)}"}
-    end
-  end
+  def render_meeting_action(assigns, :reschedule), do: Reschedule.render(assigns)
+  def render_meeting_action(assigns, :cancel), do: Cancel.render(assigns)
+  def render_meeting_action(assigns, :cancel_confirmed), do: CancelConfirmed.render(assigns)
+  def render_meeting_action(_assigns, action), do: raise("Unsupported meeting action: #{action}")
 
   @impl TymeslotWeb.Themes.Core.Behaviour
-  def initial_state_for_action(live_action) do
-    case live_action do
-      :index -> :overview
-      :overview -> :overview
-      :schedule -> :schedule
-      :booking -> :booking
-      :confirmation -> :confirmation
-      _other -> :overview
-    end
-  end
+  defdelegate render_poll_action(assigns), to: TymeslotWeb.Themes.Aurora.Poll.Voting, as: :render
 
   @impl TymeslotWeb.Themes.Core.Behaviour
-  def supports_feature?(feature) do
-    case feature do
-      :duration_selection -> true
-      :inline_booking -> false
-      :step_navigation -> true
-      :video_background -> true
-      :aurora_effects -> true
-      _other -> false
-    end
-  end
-
-  @impl TymeslotWeb.Themes.Core.Behaviour
-  def render_meeting_action(assigns, action) do
-    case action do
-      :reschedule -> Reschedule.render(assigns)
-      :cancel -> Cancel.render(assigns)
-      :cancel_confirmed -> CancelConfirmed.render(assigns)
-      _other -> raise "Unsupported meeting action: #{action}"
-    end
-  end
+  def render_payment_page(assigns, :processing), do: Processing.render(assigns)
+  def render_payment_page(assigns, :cancelled), do: Cancelled.render(assigns)
 end
 ```
 
 ### 4. Test It Works
 
-The production checklist automatically tests all registered themes:
+Add the theme to `TymeslotWeb.ThemeTestMatrix`. `test/tymeslot_web/themes/theme_contract_test.exs`
+then holds it to the contract (LiveView, picker metadata, meeting, poll and payment
+pages), and the shared flow suites run it through a booking:
 
 ```bash
+mix test test/tymeslot_web/themes/theme_contract_test.exs
 # Run the production checklist
 mix test test/tymeslot_web/live/themes/theme_production_checklist_test.exs
 ```
@@ -1446,7 +1371,7 @@ Logger.debug("Socket assigns: #{inspect(socket.assigns)}")
 
 ✅ **Use the `SchedulingLive` macro** - It provides all common LiveView callbacks
 ✅ **Use shared modules** - StateMachineHelpers, EventHandlers, InfoHandlers, BookingFlow
-✅ **Implement all required callbacks** - Theme behaviour defines the contract
+✅ **Implement all required callbacks** - the compiler checks the behaviour; `theme_contract_test.exs` checks what each callback renders
 ✅ **Keep LiveView thin** - It should hold little beyond `render/1`; delegate to the wrapper and components
 ✅ **Use LocalizationHelpers** - For all date/time formatting
 ✅ **Test with production checklist** - Automated validation catches issues early

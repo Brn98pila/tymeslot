@@ -8,8 +8,6 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfo do
   `Tymeslot.Themes.Catalog` instead.
   """
 
-  require Logger
-
   alias TymeslotWeb.Themes.Core.{Loader, Registry}
 
   @doc """
@@ -67,27 +65,12 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfo do
   end
 
   @doc """
-  Validates if a theme ID is valid and theme is properly implemented.
+  Whether `id` names a registered theme whose module loads.
   """
   @spec valid_theme_id?(term()) :: boolean()
   def valid_theme_id?(id) do
     theme_id = to_string(id)
-
-    with true <- Registry.valid_theme_id?(theme_id),
-         module when is_atom(module) <- get_theme_module(theme_id),
-         :ok <- module.validate_theme() do
-      true
-    else
-      false ->
-        false
-
-      nil ->
-        false
-
-      {:error, reason} ->
-        Logger.warning("Theme validation failed", theme_id: id, reason: reason)
-        false
-    end
+    Registry.valid_theme_id?(theme_id) and not is_nil(get_theme_module(theme_id))
   end
 
   @doc """
