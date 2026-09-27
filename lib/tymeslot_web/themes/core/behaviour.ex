@@ -72,4 +72,11 @@ defmodule TymeslotWeb.Themes.Core.Behaviour do
   Renders the public poll voting page for this theme.
   """
   @callback render_poll_action(assigns :: map()) :: Phoenix.LiveView.Rendered.t()
+
+  @doc """
+  Renders a payment return page, `:processing` or `:cancelled`: the theme's
+  shell around `Shared.PaymentReturnComponents`.
+  """
+  @callback render_payment_page(assigns :: map(), page :: :processing | :cancelled) ::
+              Phoenix.LiveView.Rendered.t()
 end

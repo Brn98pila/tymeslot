@@ -7,9 +7,9 @@ defmodule TymeslotWeb.Themes.Rhythm.PaymentCancelledLive do
   """
 
   use TymeslotWeb, :live_view
-  use Gettext, backend: TymeslotWeb.Gettext
 
   alias Phoenix.LiveView
+  alias TymeslotWeb.Themes.Rhythm.Theme, as: RhythmTheme
   alias TymeslotWeb.Themes.Shared.PaymentReturn
 
   @impl Phoenix.LiveView
@@ -28,30 +28,5 @@ defmodule TymeslotWeb.Themes.Rhythm.PaymentCancelledLive do
   end
 
   @impl Phoenix.LiveView
-  def render(assigns) do
-    ~H"""
-    <div class="rhythm-theme-wrapper theme-2" data-testid="rhythm-payment-cancelled">
-      <div class="payment-page-layout">
-        <div class="payment-page-inner">
-          <div class="payment-page-card">
-            <div class="payment-page-card-body">
-              <h1 class="payment-page-heading">
-                {dgettext("booking", "Payment cancelled")}
-              </h1>
-              <p class="payment-page-body">
-                {dgettext(
-                  "booking",
-                  "Your booking is not confirmed. You can return and try again at any time."
-                )}
-              </p>
-              <a :if={@rebook_path} href={@rebook_path} class="payment-page-link">
-                {dgettext("booking", "Return to booking")}
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    """
-  end
+  def render(assigns), do: RhythmTheme.render_payment_page(assigns, :cancelled)
 end

@@ -92,6 +92,8 @@ assets/css/scheduling/themes/[theme_name]/
 @callback initial_state_for_action(atom()) :: atom()
 @callback supports_feature?(atom()) :: boolean()
 @callback render_meeting_action(map(), atom()) :: Phoenix.LiveView.Rendered.t()
+@callback render_poll_action(map()) :: Phoenix.LiveView.Rendered.t()
+@callback render_payment_page(map(), :processing | :cancelled) :: Phoenix.LiveView.Rendered.t()
 ```
 
 ### Shared Modules You'll Use

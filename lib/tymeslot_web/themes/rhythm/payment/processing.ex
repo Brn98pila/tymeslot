@@ -1,0 +1,36 @@
+defmodule TymeslotWeb.Themes.Rhythm.Payment.Processing do
+  @moduledoc """
+  Rhythm's shell for the payment-processing return page, around the shared
+  `PaymentReturnComponents.processing_body/1`.
+  """
+  use Phoenix.Component
+
+  alias TymeslotWeb.Themes.Shared.PaymentReturnComponents
+
+  attr :loading, :boolean, required: true
+  attr :payment, :any, required: true
+  attr :meeting, :any, required: true
+  attr :rebook_path, :string, default: nil
+
+  @spec render(map()) :: Phoenix.LiveView.Rendered.t()
+  def render(assigns) do
+    ~H"""
+    <div class="rhythm-theme-wrapper theme-2" data-testid="rhythm-payment-processing">
+      <div class="payment-page-layout">
+        <div class="payment-page-inner">
+          <div class="payment-page-card">
+            <div class="payment-page-card-body">
+              <PaymentReturnComponents.processing_body
+                loading={@loading}
+                payment={@payment}
+                meeting={@meeting}
+                rebook_path={@rebook_path}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+end

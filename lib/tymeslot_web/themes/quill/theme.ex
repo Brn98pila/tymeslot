@@ -15,6 +15,7 @@ defmodule TymeslotWeb.Themes.Quill.Theme do
   }
 
   alias TymeslotWeb.Themes.Quill.Meeting.{Cancel, CancelConfirmed, Reschedule}
+  alias TymeslotWeb.Themes.Quill.Payment.{Cancelled, Processing}
 
   @impl TymeslotWeb.Themes.Core.Behaviour
   def states do
@@ -113,4 +114,8 @@ defmodule TymeslotWeb.Themes.Quill.Theme do
 
   @impl TymeslotWeb.Themes.Core.Behaviour
   defdelegate render_poll_action(assigns), to: TymeslotWeb.Themes.Quill.Poll.Voting, as: :render
+
+  @impl TymeslotWeb.Themes.Core.Behaviour
+  def render_payment_page(assigns, :processing), do: Processing.render(assigns)
+  def render_payment_page(assigns, :cancelled), do: Cancelled.render(assigns)
 end
