@@ -15,6 +15,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeBookingFlowTest do
   alias Tymeslot.Test.LogCapture
   alias Tymeslot.TestMocks
   alias TymeslotWeb.Live.Scheduling.PreviewToken
+  alias TymeslotWeb.ThemeTestMatrix
 
   setup :verify_on_exit!
 
@@ -31,26 +32,21 @@ defmodule TymeslotWeb.Live.Themes.ThemeBookingFlowTest do
     :ok
   end
 
-  @themes %{
-    "1" => %{name: "quill", duration_selector: "quick-chat"},
-    "2" => %{name: "rhythm", duration_selector: "quick-chat"}
-  }
-
   describe "theme booking flow (feature-level)" do
-    for {theme_id, meta} <- @themes do
+    for theme <- ThemeTestMatrix.all() do
       @tag :capture_log
-      test "visitor can book end-to-end with #{meta.name} theme", %{conn: conn} do
+      test "visitor can book end-to-end with #{theme.slug} theme", %{conn: conn} do
         timezone = "America/New_York"
 
         %{user: user, profile: profile} =
-          seed_booking_account(unquote(theme_id), "book-#{unquote(meta.name)}", timezone)
+          seed_booking_account(unquote(theme.id), "book-#{unquote(theme.slug)}", timezone)
 
         {:ok, view, _html} = live(conn, ~p"/#{profile.username}?timezone=#{timezone}")
 
-        attendee_email = "attendee-#{unquote(meta.name)}@example.com"
+        attendee_email = "attendee-#{unquote(theme.slug)}@example.com"
 
         confirmation_html =
-          complete_booking_flow(view, unquote(meta.name), unquote(theme_id), %{
+          complete_booking_flow(view, unquote(theme.slug), unquote(theme.id), %{
             name: "Test Attendee",
             email: attendee_email,
             message: "Hello!"
@@ -76,12 +72,12 @@ defmodule TymeslotWeb.Live.Themes.ThemeBookingFlowTest do
       # This is the Sunday-evening case, where the day's last slot has already
       # passed, reproduced at any hour.
       @tag :capture_log
-      test "visitor can book with #{meta.name} theme when the first bookable day is a week out",
+      test "visitor can book with #{theme.slug} theme when the first bookable day is a week out",
            %{conn: conn} do
         timezone = "America/New_York"
 
         %{user: user, profile: profile} =
-          seed_booking_account(unquote(theme_id), "notice-#{unquote(meta.name)}", timezone)
+          seed_booking_account(unquote(theme.id), "notice-#{unquote(theme.slug)}", timezone)
 
         Repo.update_all(
           from(s in AvailabilityScheduleSchema, where: s.profile_id == ^profile.id),
@@ -89,9 +85,9 @@ defmodule TymeslotWeb.Live.Themes.ThemeBookingFlowTest do
         )
 
         {:ok, view, _html} = live(conn, ~p"/#{profile.username}?timezone=#{timezone}")
-        attendee_email = "notice-#{unquote(meta.name)}@example.com"
+        attendee_email = "notice-#{unquote(theme.slug)}@example.com"
 
-        complete_booking_flow(view, unquote(meta.name), unquote(theme_id), %{
+        complete_booking_flow(view, unquote(theme.slug), unquote(theme.id), %{
           name: "Test Attendee",
           email: attendee_email,
           message: "Hello!"
@@ -351,17 +347,17 @@ defmodule TymeslotWeb.Live.Themes.ThemeBookingFlowTest do
   end
 
   describe "theme deep-link/refresh contract" do
-    for {theme_id, meta} <- @themes do
+    for theme <- ThemeTestMatrix.all() do
       @tag :capture_log
-      test "visitor can open schedule route directly with #{meta.name} theme", %{conn: conn} do
+      test "visitor can open schedule route directly with #{theme.slug} theme", %{conn: conn} do
         timezone = "America/New_York"
         user = insert(:user)
 
         profile =
           insert(:profile,
             user: user,
-            username: "deeplink-#{unquote(meta.name)}",
-            booking_theme: unquote(theme_id),
+            username: "deeplink-#{unquote(theme.slug)}",
+            booking_theme: unquote(theme.id),
             timezone: timezone
           )
 
@@ -407,15 +403,15 @@ defmodule TymeslotWeb.Live.Themes.ThemeBookingFlowTest do
       end
 
       @tag :capture_log
-      test "visitor can open booking route directly with #{meta.name} theme", %{conn: conn} do
+      test "visitor can open booking route directly with #{theme.slug} theme", %{conn: conn} do
         timezone = "America/New_York"
         user = insert(:user)
 
         profile =
           insert(:profile,
             user: user,
-            username: "deeplink-book-#{unquote(meta.name)}",
-            booking_theme: unquote(theme_id),
+            username: "deeplink-book-#{unquote(theme.slug)}",
+            booking_theme: unquote(theme.id),
             timezone: timezone
           )
 
@@ -463,17 +459,17 @@ defmodule TymeslotWeb.Live.Themes.ThemeBookingFlowTest do
   end
 
   describe "meeting types ordering" do
-    for {theme_id, meta} <- @themes do
+    for theme <- ThemeTestMatrix.all() do
       @tag :capture_log
-      test "preserves user-configured sort_order on the overview step with #{meta.name} theme",
+      test "preserves user-configured sort_order on the overview step with #{theme.slug} theme",
            %{conn: conn} do
         user = insert(:user)
 
         profile =
           insert(:profile,
             user: user,
-            username: "order-#{unquote(meta.name)}",
-            booking_theme: unquote(theme_id),
+            username: "order-#{unquote(theme.slug)}",
+            booking_theme: unquote(theme.id),
             timezone: "America/New_York"
           )
 
@@ -527,16 +523,16 @@ defmodule TymeslotWeb.Live.Themes.ThemeBookingFlowTest do
   end
 
   describe "meeting cancel flow (feature-level)" do
-    for {theme_id, meta} <- @themes do
+    for theme <- ThemeTestMatrix.all() do
       @tag :capture_log
-      test "visitor can keep meeting on cancel page with #{meta.name} theme", %{conn: conn} do
+      test "visitor can keep meeting on cancel page with #{theme.slug} theme", %{conn: conn} do
         user = insert(:user)
 
         profile =
           insert(:profile,
             user: user,
-            username: "cancel-keep-#{unquote(meta.name)}",
-            booking_theme: unquote(theme_id)
+            username: "cancel-keep-#{unquote(theme.slug)}",
+            booking_theme: unquote(theme.id)
           )
 
         meeting =
@@ -560,14 +556,14 @@ defmodule TymeslotWeb.Live.Themes.ThemeBookingFlowTest do
       end
 
       @tag :capture_log
-      test "visitor can cancel meeting from cancel page with #{meta.name} theme", %{conn: conn} do
+      test "visitor can cancel meeting from cancel page with #{theme.slug} theme", %{conn: conn} do
         user = insert(:user)
 
         profile =
           insert(:profile,
             user: user,
-            username: "cancel-cancel-#{unquote(meta.name)}",
-            booking_theme: unquote(theme_id)
+            username: "cancel-cancel-#{unquote(theme.slug)}",
+            booking_theme: unquote(theme.id)
           )
 
         meeting =
