@@ -432,3 +432,13 @@ msgstr "той, хто бронював"
 #, elixir-autogen, elixir-format
 msgid "%{minutes} min"
 msgstr "%{minutes} хв"
+
+#: lib/tymeslot_web/themes/core/meeting_management.ex
+#, elixir-autogen, elixir-format
+msgid "Failed to cancel meeting. Please try again."
+msgstr "Не вдалося скасувати зустріч. Спробуйте ще раз."
+
+#: lib/tymeslot_web/themes/core/meeting_management.ex
+#, elixir-autogen, elixir-format
+msgid "This meeting can no longer be changed."
+msgstr "Цю зустріч більше не можна змінити."

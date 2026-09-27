@@ -432,3 +432,13 @@ msgstr "la personne qui a réservé"
 #, elixir-autogen, elixir-format
 msgid "%{minutes} min"
 msgstr "%{minutes} min"
+
+#: lib/tymeslot_web/themes/core/meeting_management.ex
+#, elixir-autogen, elixir-format
+msgid "Failed to cancel meeting. Please try again."
+msgstr "Échec de l’annulation de la réunion. Veuillez réessayer."
+
+#: lib/tymeslot_web/themes/core/meeting_management.ex
+#, elixir-autogen, elixir-format
+msgid "This meeting can no longer be changed."
+msgstr "Cette réunion ne peut plus être modifiée."

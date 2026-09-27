@@ -33,6 +33,7 @@ defmodule TymeslotWeb.Live.Scheduling.DispatcherCancelCompositionTest do
   import Tymeslot.Factory
 
   alias Ecto.Changeset
+  alias Ecto.UUID
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
@@ -218,5 +219,38 @@ defmodule TymeslotWeb.Live.Scheduling.DispatcherCancelCompositionTest do
       live(conn, "/#{profile.username}/meeting/#{meeting.uid}/cancel?locale=de")
 
     assert html =~ "60 Min."
+  end
+
+  @tag :capture_log
+  test "a refused cancel explains itself in the visitor's language",
+       %{conn: conn, user: user, profile: profile} do
+    meeting =
+      insert(:meeting, organizer_user: user, organizer_user_id: user.id, status: "cancelled")
+
+    assert {:error, {:redirect, %{to: "/", flash: flash}}} =
+             live(conn, "/#{profile.username}/meeting/#{meeting.uid}/cancel?locale=de")
+
+    assert flash["error"] == "Der Termin wurde bereits abgesagt"
+  end
+
+  @tag :capture_log
+  test "an unknown meeting is reported without the internal wording",
+       %{conn: conn, profile: profile} do
+    assert {:error, {:redirect, %{to: "/", flash: flash}}} =
+             live(conn, "/#{profile.username}/meeting/#{UUID.generate()}/cancel")
+
+    assert flash["error"] == "This meeting could not be found. Please refresh and try again."
+  end
+
+  @tag :capture_log
+  test "an expired meeting's refusal is translated too",
+       %{conn: conn, user: user, profile: profile} do
+    meeting =
+      insert(:meeting, organizer_user: user, organizer_user_id: user.id, status: "expired")
+
+    assert {:error, {:redirect, %{to: "/", flash: flash}}} =
+             live(conn, "/#{profile.username}/meeting/#{meeting.uid}/cancel?locale=de")
+
+    assert flash["error"] == "Ein abgelaufener Termin kann nicht abgesagt werden"
   end
 end

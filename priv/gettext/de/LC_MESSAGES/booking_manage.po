@@ -432,3 +432,13 @@ msgstr "die buchende Person"
 #, elixir-autogen, elixir-format
 msgid "%{minutes} min"
 msgstr "%{minutes} Min."
+
+#: lib/tymeslot_web/themes/core/meeting_management.ex
+#, elixir-autogen, elixir-format
+msgid "Failed to cancel meeting. Please try again."
+msgstr "Termin konnte nicht abgesagt werden. Bitte versuchen Sie es erneut."
+
+#: lib/tymeslot_web/themes/core/meeting_management.ex
+#, elixir-autogen, elixir-format
+msgid "This meeting can no longer be changed."
+msgstr "Dieser Termin kann nicht mehr geändert werden."

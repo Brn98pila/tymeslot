@@ -1,14 +1,19 @@
 defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   @moduledoc "Meeting cancel/keep/reschedule flow helpers for the scheduling dispatcher."
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [put_flash: 3, redirect: 2]
+
+  require Logger
 
   alias Tymeslot.Bookings.Policy
   alias Tymeslot.Meetings
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Utils.DateTimeUtils.Duration
   alias TymeslotWeb.Helpers.ClientIP
+  alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
   alias TymeslotWeb.Themes.Core.MountHelpers
 
   @doc """
@@ -17,6 +22,8 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   The `organizer_user_id` from the resolved profile is used to scope the lookup,
   ensuring that only the meeting belonging to the profile owner can be accessed.
   This prevents IDOR attacks on the cancel and reschedule routes.
+
+  The error is a translated, user-facing message, never the raw policy reason.
   """
   @spec validate_and_load_meeting(String.t(), atom(), integer()) ::
           {:ok, map()} | {:error, String.t()}
@@ -24,12 +31,19 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
     case Meetings.get_meeting_by_uid_for_organizer(meeting_uid, organizer_user_id) do
       {:ok, meeting} ->
         case validate_meeting_action(meeting, action) do
-          :ok -> {:ok, meeting}
-          {:error, reason} -> {:error, reason}
+          :ok ->
+            {:ok, meeting}
+
+          {:error, reason} ->
+            {:error,
+             BookingErrorMessage.message(
+               reason,
+               dgettext("booking_manage", "This meeting can no longer be changed.")
+             )}
         end
 
       {:error, :not_found} ->
-        {:error, "Meeting not found"}
+        {:error, BookingErrorMessage.message(:meeting_not_found)}
     end
   end
 
@@ -63,7 +77,20 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
               {:noreply, redirect(socket, to: cancel_confirmed_url)}
 
             {:error, reason} ->
-              {:noreply, put_flash(socket, :error, "Failed to cancel meeting: #{reason}")}
+              Logger.warning("Guest cancellation failed",
+                meeting_uid: meeting.uid,
+                reason: inspect(reason)
+              )
+
+              {:noreply,
+               put_flash(
+                 socket,
+                 :error,
+                 BookingErrorMessage.message(
+                   reason,
+                   dgettext("booking_manage", "Failed to cancel meeting. Please try again.")
+                 )
+               )}
           end
 
         {:error, :rate_limited, message} ->
