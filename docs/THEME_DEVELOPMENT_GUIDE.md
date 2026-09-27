@@ -9,7 +9,7 @@ The theme system uses a centralized registry pattern that eliminates magic strin
 ### Key Components
 
 1. **Theme Catalog** (`Tymeslot.Themes.Catalog`) - Domain source of truth for theme *facts* (id, key, name, features, status)
-2. **Theme Registry** (`TymeslotWeb.Themes.Core.Registry`) - Web layer; merges catalog facts with presentation bindings (module, CSS file, preview image)
+2. **Theme Registry** (`TymeslotWeb.Themes.Core.Registry`) - Web layer; merges catalog facts with presentation bindings (the theme module)
 3. **Theme Behaviour** (`TymeslotWeb.Themes.Core.Behaviour`) - Interface that all themes must implement
 4. **SchedulingLive Macro** (`TymeslotWeb.Themes.Shared.SchedulingLive`) - Injects all common LiveView callbacks; a theme's `live.ex` is built on it
 5. **Shared State Machine** (`TymeslotWeb.Themes.Shared.StateMachineHelpers`) - Owns state transitions and routing for all themes (no per-theme state machine)
@@ -194,12 +194,12 @@ catalogue fact.
 in `lib/tymeslot_web/themes/core/registry.ex`:
 
 ```elixir
-"3" => %{
-  module: TymeslotWeb.Themes.Aurora.Theme,
-  css_file: "/assets/scheduling-theme-aurora.css",
-  preview_image: "/images/themes/aurora-preview.png"
-}
+"3" => %{module: TymeslotWeb.Themes.Aurora.Theme}
 ```
+
+The booking layout loads `/assets/scheduling-theme-<key>.css` and sets the class
+`<key>-theme` on `<html>` and `<body>`, so the Tailwind profile for the theme must
+write exactly that file.
 
 `Registry` merges the two at compile time (`Catalog.all/0` ⨝ `@bindings`) into the
 full `theme_definition` the web layer consumes. Domain code (profiles, theme

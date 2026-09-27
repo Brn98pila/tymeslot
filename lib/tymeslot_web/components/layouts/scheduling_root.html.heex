@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html
   lang={assigns[:locale] || "en"}
-  class={"scheduling-app theme-#{assigns[:theme_id] || "1"} #{theme_class(assigns[:theme_id] || "1")}"}
+  class={"scheduling-app #{theme_class(assigns[:theme_id])}"}
   data-embed-layout={to_string(assigns[:embed_layout] || :default)}
 >
   <head>
@@ -35,7 +35,7 @@
     <link rel="icon" type="image/svg+xml" href={~p"/images/brand/favicon.svg"} />
 
     <%!-- Theme-specific CSS --%>
-    {render_theme_css(assigns[:theme_id] || "1")}
+    {render_theme_css(assigns[:theme_id])}
 
     <%!-- Additional CSS from external layers (e.g., SaaS branding) --%>
     <%= for css_path <- Application.get_env(:tymeslot, :scheduling_additional_css, []) do %>
@@ -52,7 +52,7 @@
     <.nomodule_fallback context={:scheduling_page} nonce={assigns[:csp_nonce]} />
     <.analytics_scripts nonce={assigns[:csp_nonce]} live_module={assigns[:live_module]} />
   </head>
-  <body class={"theme-#{assigns[:theme_id] || "1"} #{theme_class(assigns[:theme_id] || "1")}"}>
+  <body class={theme_class(assigns[:theme_id])}>
     <.noscript_warning message={
       dgettext(
         "booking",

@@ -9,6 +9,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeIntegrationTest do
   alias Tymeslot.MeetingTypes.MeetingTypeQueries
   alias Tymeslot.Repo
   alias Tymeslot.TestMocks
+  alias TymeslotWeb.ThemeTestMatrix
 
   @moduledoc """
   Tests that themes actually work for booking meetings.
@@ -69,6 +70,36 @@ defmodule TymeslotWeb.Live.Themes.ThemeIntegrationTest do
       Mox.set_mox_from_context(tags)
       TestMocks.setup_calendar_mocks()
       :ok
+    end
+
+    for theme <- ThemeTestMatrix.all() do
+      test "loads the #{theme.slug} stylesheet and classes from the theme's key", %{conn: conn} do
+        user = insert(:user)
+
+        profile =
+          insert(:profile,
+            user: user,
+            username: "layout-#{unquote(theme.slug)}",
+            booking_theme: unquote(theme.id)
+          )
+
+        html = html_response(get(conn, "/#{profile.username}"), 200)
+
+        assert html =~ "/assets/scheduling-theme-#{unquote(theme.slug)}.css"
+
+        assert html =~
+                 ~s(class="scheduling-app theme-#{unquote(theme.id)} #{unquote(theme.slug)}-theme")
+      end
+    end
+
+    test "an unknown theme id never reaches the page's classes", %{conn: conn} do
+      user = insert(:user)
+      profile = insert(:profile, user: user, username: "layout-unknown", booking_theme: "999")
+
+      html = html_response(get(conn, "/#{profile.username}"), 200)
+
+      refute html =~ "theme-999"
+      assert html =~ "theme-1 quill-theme"
     end
 
     for {theme_name, theme_id} <- [{"quill", "1"}, {"rhythm", "2"}] do

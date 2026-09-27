@@ -4,7 +4,7 @@ defmodule TymeslotWeb.Themes.Core.Registry do
 
   This module provides a single source of truth for theme *definitions* —
   theme facts (sourced from `Tymeslot.Themes.Catalog`) merged with the
-  presentation bindings the web layer owns: the theme module and its CSS file.
+  presentation bindings the web layer owns: the theme module.
   The preview image lives in each theme's `theme_config/0` callback. Domain code
   reads facts directly from the catalog; only the web layer needs these full
   definitions.
@@ -20,7 +20,6 @@ defmodule TymeslotWeb.Themes.Core.Registry do
           key: theme_key(),
           name: String.t(),
           module: module(),
-          css_file: String.t(),
           features: map(),
           status: :active | :beta | :deprecated
         }
@@ -29,12 +28,10 @@ defmodule TymeslotWeb.Themes.Core.Registry do
   # theme facts they are merged with live in Tymeslot.Themes.Catalog.
   @bindings %{
     "1" => %{
-      module: TymeslotWeb.Themes.Quill.Theme,
-      css_file: "/assets/scheduling-theme-quill.css"
+      module: TymeslotWeb.Themes.Quill.Theme
     },
     "2" => %{
-      module: TymeslotWeb.Themes.Rhythm.Theme,
-      css_file: "/assets/scheduling-theme-rhythm.css"
+      module: TymeslotWeb.Themes.Rhythm.Theme
     }
   }
 
