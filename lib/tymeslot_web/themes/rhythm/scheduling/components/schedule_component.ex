@@ -129,7 +129,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.ScheduleComponent do
                         {dgettext("booking", "Your timezone")}:
                       </span>
                       <div class="timezone-display">
-                        <%= if country_code = Timezones.country_code(@user_timezone || "America/New_York") do %>
+                        <%= if country_code = Timezones.country_code(@user_timezone) do %>
                           <%= if Timezones.flag_exists?(country_code) do %>
                             <Flagpack.flag name={country_code} class="timezone-flag" />
                           <% else %>
@@ -137,7 +137,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.ScheduleComponent do
                           <% end %>
                         <% end %>
                         <span class="timezone-text">
-                          {Timezones.format(@user_timezone || "America/New_York")}
+                          {Timezones.format(@user_timezone)}
                         </span>
                       </div>
                       <div class="timezone-arrow">▼</div>

@@ -133,7 +133,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.BookingComponent do
                   <.icon name="hero-globe-alt" class="summary-icon hero-icon hero-icon--md" />
                   <div>
                     <div class="summary-value">
-                      {Timezones.format(@user_timezone || "America/New_York")}
+                      {Timezones.format(@user_timezone)}
                     </div>
                     <div class="summary-label">
                       <%= if @meeting_type do %>
