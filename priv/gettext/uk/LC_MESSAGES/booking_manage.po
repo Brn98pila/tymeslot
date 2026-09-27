@@ -424,3 +424,11 @@ msgstr "Вашу відповідь надіслано організатору 
 #, elixir-autogen, elixir-format
 msgid "the person who booked"
 msgstr "той, хто бронював"
+
+#: lib/tymeslot_web/themes/quill/meeting/cancel.ex
+#: lib/tymeslot_web/themes/quill/meeting/reschedule.ex
+#: lib/tymeslot_web/themes/rhythm/meeting/cancel.ex
+#: lib/tymeslot_web/themes/rhythm/meeting/reschedule.ex
+#, elixir-autogen, elixir-format
+msgid "%{minutes} min"
+msgstr "%{minutes} хв"

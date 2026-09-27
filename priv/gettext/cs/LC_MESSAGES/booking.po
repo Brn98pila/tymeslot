@@ -1418,3 +1418,13 @@ msgstr "Která videoslužba?"
 #, elixir-autogen, elixir-format
 msgid "Your phone number"
 msgstr "Vaše telefonní číslo"
+
+#: lib/tymeslot_web/themes/rhythm/scheduling/components/confirmation_component.ex
+#, elixir-autogen, elixir-format
+msgid "%{minutes} min"
+msgstr "%{minutes} min"
+
+#: lib/tymeslot_web/themes/shared/live_helpers.ex
+#, elixir-autogen, elixir-format
+msgid "Guest"
+msgstr "Host"

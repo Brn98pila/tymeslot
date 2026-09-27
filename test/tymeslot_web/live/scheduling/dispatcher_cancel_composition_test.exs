@@ -32,6 +32,7 @@ defmodule TymeslotWeb.Live.Scheduling.DispatcherCancelCompositionTest do
   import Mox
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
@@ -193,5 +194,29 @@ defmodule TymeslotWeb.Live.Scheduling.DispatcherCancelCompositionTest do
     assert rendered =~ "still scheduled as planned"
 
     assert Repo.get!(MeetingSchema, meeting.id).status == "confirmed"
+  end
+
+  @tag :capture_log
+  test "the cancel page states the duration in the visitor's language (Quill)",
+       %{conn: conn, user: user, profile: profile} do
+    meeting = insert(:meeting, organizer_user: user, organizer_user_id: user.id, duration: 60)
+
+    {:ok, _view, html} =
+      live(conn, "/#{profile.username}/meeting/#{meeting.uid}/cancel?locale=de")
+
+    assert html =~ "60 Min."
+    refute html =~ "60 min<"
+  end
+
+  @tag :capture_log
+  test "the cancel page states the duration in the visitor's language (Rhythm)",
+       %{conn: conn, user: user, profile: profile} do
+    profile |> Changeset.change(booking_theme: "2") |> Repo.update!()
+    meeting = insert(:meeting, organizer_user: user, organizer_user_id: user.id, duration: 60)
+
+    {:ok, _view, html} =
+      live(conn, "/#{profile.username}/meeting/#{meeting.uid}/cancel?locale=de")
+
+    assert html =~ "60 Min."
   end
 end

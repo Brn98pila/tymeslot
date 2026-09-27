@@ -71,6 +71,16 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.OverviewComponentTest 
       refute html =~ "Ready to grow your business?"
     end
 
+    test "never introduces a nameless organiser by a filler word" do
+      profile = build(:profile, full_name: nil, user: build(:user, name: nil))
+
+      html = render_overview(organizer_profile: profile)
+
+      refute html =~ "there"
+      assert html =~ "Let&#39;s Connect!"
+      refute html =~ "Hi! I&#39;m"
+    end
+
     test "escapes wording the organiser typed rather than rendering it as markup" do
       profile =
         build(:profile,

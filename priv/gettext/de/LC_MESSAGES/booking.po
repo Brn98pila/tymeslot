@@ -1419,3 +1419,13 @@ msgstr "Welcher Videodienst?"
 #, elixir-autogen, elixir-format
 msgid "Your phone number"
 msgstr "Ihre Telefonnummer"
+
+#: lib/tymeslot_web/themes/rhythm/scheduling/components/confirmation_component.ex
+#, elixir-autogen, elixir-format
+msgid "%{minutes} min"
+msgstr "%{minutes} Min."
+
+#: lib/tymeslot_web/themes/shared/live_helpers.ex
+#, elixir-autogen, elixir-format
+msgid "Guest"
+msgstr "Gast"

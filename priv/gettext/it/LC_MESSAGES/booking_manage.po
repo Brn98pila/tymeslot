@@ -424,3 +424,11 @@ msgstr "La tua risposta è stata inviata a %{name}."
 #, elixir-autogen, elixir-format
 msgid "the person who booked"
 msgstr "la persona che ha prenotato"
+
+#: lib/tymeslot_web/themes/quill/meeting/cancel.ex
+#: lib/tymeslot_web/themes/quill/meeting/reschedule.ex
+#: lib/tymeslot_web/themes/rhythm/meeting/cancel.ex
+#: lib/tymeslot_web/themes/rhythm/meeting/reschedule.ex
+#, elixir-autogen, elixir-format
+msgid "%{minutes} min"
+msgstr "%{minutes} min"

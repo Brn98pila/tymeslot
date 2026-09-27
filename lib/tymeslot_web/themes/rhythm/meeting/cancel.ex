@@ -99,7 +99,9 @@ defmodule TymeslotWeb.Themes.Rhythm.Meeting.Cancel do
                 <div class="meeting-ticket">
                   <div class="ticket-header">
                     <span class="ticket-label">{dgettext("booking_manage", "Meeting Details")}</span>
-                    <span class="ticket-badge">{@meeting.duration} min</span>
+                    <span class="ticket-badge">{dgettext("booking_manage", "%{minutes} min",
+                      minutes: @meeting.duration
+                    )}</span>
                   </div>
 
                   <.meeting_detail_rows

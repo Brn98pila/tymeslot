@@ -482,6 +482,15 @@ defmodule TymeslotWeb.Live.Scheduling.CustomFieldsBookingFlowTest do
       # Same guard as the Quill confirmation component — see comment above.
       refute html =~ ~s(data-testid="add-to-calendar")
     end
+
+    @tag :capture_log
+    test "names an anonymous guest in the visitor's language",
+         %{conn: conn, profile: profile} do
+      {:ok, view, _html} =
+        live(conn, "/#{profile.username}/thank-you?timezone=#{profile.timezone}&locale=de")
+
+      assert :sys.get_state(view.pid).socket.assigns.name == "Gast"
+    end
   end
 
   # ---------------------------------------------------------------------------

@@ -96,7 +96,9 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.ConfirmationComponent 
                 <div class="ticket-header">
                   <span class="ticket-label">{dgettext("booking", "Meeting Details")}</span>
                   <span class="ticket-badge">
-                    {if @meeting_type, do: @meeting_type.duration_minutes, else: @duration} min
+                    {dgettext("booking", "%{minutes} min",
+                      minutes: if(@meeting_type, do: @meeting_type.duration_minutes, else: @duration)
+                    )}
                   </span>
                 </div>
 

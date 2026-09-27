@@ -50,7 +50,11 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.OverviewComponent do
         <div class="slide active">
           <div class="slide-content">
             <h1 class="slide-title">
-              {BookingText.heading(@organizer_profile, :rhythm, display_name(@organizer_profile))}
+              {BookingText.heading(
+                @organizer_profile,
+                :rhythm,
+                Profiles.display_name(@organizer_profile)
+              )}
             </h1>
 
             <div class="organizer-profile">
@@ -64,7 +68,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.OverviewComponent do
               </div>
               <div class="organizer-info">
                 <p class="organizer-greeting">
-                  {BookingText.greeting(@organizer_profile, display_name(@organizer_profile))}
+                  {BookingText.greeting(@organizer_profile, Profiles.display_name(@organizer_profile))}
                 </p>
                 <p class="organizer-instruction">
                   {BookingText.instruction(@organizer_profile)}
@@ -134,10 +138,6 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.OverviewComponent do
   end
 
   # Helpers
-  defp display_name(profile) do
-    Profiles.display_name(profile) || "there"
-  end
-
   defp get_default_icon(meeting_type) do
     case meeting_type.duration_minutes do
       15 -> "hero-bolt"

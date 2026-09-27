@@ -248,9 +248,8 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers do
     if socket.assigns[:live_action] == :confirmation do
       name =
         case params["name"] do
-          nil -> "Guest"
           val when is_binary(val) -> URI.decode(val)
-          _other -> "Guest"
+          _missing -> dgettext("booking", "Guest")
         end
 
       socket

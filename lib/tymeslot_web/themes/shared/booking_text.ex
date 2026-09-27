@@ -53,8 +53,13 @@ defmodule TymeslotWeb.Themes.Shared.BookingText do
 
   @doc """
   The heading a theme shows when the organiser has not supplied one.
+
+  A theme that introduces the organiser by name falls back to the generic
+  heading when there is no name, rather than to a filler word.
   """
   @spec default_heading(theme_key(), String.t() | nil) :: String.t()
+  def default_heading(_theme_key, nil), do: dgettext("booking", "Let's Connect!")
+
   def default_heading(:rhythm, name),
     do: dgettext("booking", "Schedule with %{name}", name: name)
 

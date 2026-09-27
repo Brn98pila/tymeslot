@@ -1417,3 +1417,13 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Your phone number"
 msgstr ""
+
+#: lib/tymeslot_web/themes/rhythm/scheduling/components/confirmation_component.ex
+#, elixir-autogen, elixir-format
+msgid "%{minutes} min"
+msgstr ""
+
+#: lib/tymeslot_web/themes/shared/live_helpers.ex
+#, elixir-autogen, elixir-format
+msgid "Guest"
+msgstr ""

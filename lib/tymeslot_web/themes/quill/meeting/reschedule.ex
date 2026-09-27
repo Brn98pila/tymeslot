@@ -78,7 +78,7 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Reschedule do
                       class="px-3 py-1 rounded-full text-sm font-medium"
                       style="background: var(--theme-primary); color: white;"
                     >
-                      {@meeting.duration} min
+                      {dgettext("booking_manage", "%{minutes} min", minutes: @meeting.duration)}
                     </span>
                   </div>
 
