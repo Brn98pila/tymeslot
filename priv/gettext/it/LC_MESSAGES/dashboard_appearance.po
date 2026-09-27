@@ -57,11 +57,6 @@ msgstr "Chiudi"
 msgid "Color Palette"
 msgstr "Tavolozza dei colori"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/theme_preview_inline.ex
-#, elixir-autogen, elixir-format
-msgid "Confirm"
-msgstr "Conferma"
-
 #: lib/tymeslot_web/live/dashboard/theme_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "Connect Calendar to Preview"
@@ -152,16 +147,6 @@ msgstr "Oppure carica il tuo"
 msgid "Our design team is busy crafting new themes to help you express your unique professional style."
 msgstr "Il nostro team di design è al lavoro su nuovi temi per aiutarti a esprimere il tuo stile professionale unico."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/theme_preview_inline.ex
-#, elixir-autogen, elixir-format
-msgid "Primary"
-msgstr "Primario"
-
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/theme_preview_inline.ex
-#, elixir-autogen, elixir-format
-msgid "Secondary"
-msgstr "Secondario"
-
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Select Image"
@@ -198,7 +183,6 @@ msgstr "Tinta unita"
 msgid "Theme Customization"
 msgstr "Personalizzazione del tema"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/theme_preview_inline.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_preview.ex
 #, elixir-autogen, elixir-format
 msgid "Theme Preview"
@@ -208,11 +192,6 @@ msgstr "Anteprima del tema"
 #, elixir-autogen, elixir-format
 msgid "Theme updated to %{theme_name}"
 msgstr "Tema aggiornato a %{theme_name}"
-
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/theme_preview_inline.ex
-#, elixir-autogen, elixir-format
-msgid "This preview reflects your current color scheme and background."
-msgstr "Questa anteprima riflette lo schema di colori e lo sfondo attuali."
 
 #: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
 #, elixir-autogen, elixir-format

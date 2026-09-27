@@ -57,11 +57,6 @@ msgstr "Закрити"
 msgid "Color Palette"
 msgstr "Колірна палітра"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/theme_preview_inline.ex
-#, elixir-autogen, elixir-format
-msgid "Confirm"
-msgstr "Підтвердити"
-
 #: lib/tymeslot_web/live/dashboard/theme_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "Connect Calendar to Preview"
@@ -152,16 +147,6 @@ msgstr "Або завантажте свій файл"
 msgid "Our design team is busy crafting new themes to help you express your unique professional style."
 msgstr "Наша команда дизайнерів активно працює над новими темами, щоб допомогти вам виразити свій унікальний професійний стиль."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/theme_preview_inline.ex
-#, elixir-autogen, elixir-format
-msgid "Primary"
-msgstr "Основний"
-
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/theme_preview_inline.ex
-#, elixir-autogen, elixir-format
-msgid "Secondary"
-msgstr "Додатковий"
-
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Select Image"
@@ -198,7 +183,6 @@ msgstr "Суцільний колір"
 msgid "Theme Customization"
 msgstr "Налаштування теми"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/theme_preview_inline.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_preview.ex
 #, elixir-autogen, elixir-format
 msgid "Theme Preview"
@@ -208,11 +192,6 @@ msgstr "Попередній перегляд теми"
 #, elixir-autogen, elixir-format
 msgid "Theme updated to %{theme_name}"
 msgstr "Тему оновлено на %{theme_name}"
-
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/theme_preview_inline.ex
-#, elixir-autogen, elixir-format
-msgid "This preview reflects your current color scheme and background."
-msgstr "Цей попередній перегляд відображає вашу поточну колірну схему та фон."
 
 #: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
 #, elixir-autogen, elixir-format

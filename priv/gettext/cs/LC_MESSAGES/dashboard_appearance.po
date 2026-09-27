@@ -57,11 +57,6 @@ msgstr "Zavřít"
 msgid "Color Palette"
 msgstr "Barevná paleta"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/theme_preview_inline.ex
-#, elixir-autogen, elixir-format
-msgid "Confirm"
-msgstr "Potvrdit"
-
 #: lib/tymeslot_web/live/dashboard/theme_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "Connect Calendar to Preview"
@@ -152,16 +147,6 @@ msgstr "Nebo nahrajte vlastní"
 msgid "Our design team is busy crafting new themes to help you express your unique professional style."
 msgstr "Náš designový tým pilně připravuje nové motivy, se kterými vyjádříte svůj jedinečný profesní styl."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/theme_preview_inline.ex
-#, elixir-autogen, elixir-format
-msgid "Primary"
-msgstr "Primární"
-
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/theme_preview_inline.ex
-#, elixir-autogen, elixir-format
-msgid "Secondary"
-msgstr "Sekundární"
-
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Select Image"
@@ -198,7 +183,6 @@ msgstr "Jednolitá barva"
 msgid "Theme Customization"
 msgstr "Přizpůsobení motivu"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/theme_preview_inline.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_preview.ex
 #, elixir-autogen, elixir-format
 msgid "Theme Preview"
@@ -208,11 +192,6 @@ msgstr "Náhled motivu"
 #, elixir-autogen, elixir-format
 msgid "Theme updated to %{theme_name}"
 msgstr "Motiv byl změněn na %{theme_name}."
-
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/theme_preview_inline.ex
-#, elixir-autogen, elixir-format
-msgid "This preview reflects your current color scheme and background."
-msgstr "Náhled odpovídá vašemu aktuálnímu barevnému schématu a pozadí."
 
 #: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
 #, elixir-autogen, elixir-format
