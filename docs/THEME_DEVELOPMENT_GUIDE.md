@@ -197,17 +197,15 @@ catalogue fact.
 in `lib/tymeslot_web/themes/core/registry.ex`:
 
 ```elixir
-"3" => %{module: TymeslotWeb.Themes.Aurora.Theme}
+"3" => TymeslotWeb.Themes.Aurora.Theme
 ```
 
-The booking layout loads `/assets/scheduling-theme-<key>.css` and sets the class
-`<key>-theme` on `<html>` and `<body>`, so the Tailwind profile for the theme must
-write exactly that file.
-
-`Registry` merges the two at compile time (`Catalog.all/0` ⨝ `@bindings`) into the
-full `theme_definition` the web layer consumes. Domain code (profiles, theme
-customizations) reads facts directly from `Catalog` and never reaches into the web
-layer.
+`Registry` joins the two at compile time (`Catalog.all/0` ⨝ `@bindings`) into the
+`theme_definition` the web layer consumes. Nothing else is bound: the stylesheet
+path (`/assets/scheduling-theme-aurora.css`) and the `aurora-theme` class derive
+from the key, and the picker's preview image and description come from the theme
+module's `metadata/0`. Domain code (profiles, theme customisations) reads facts
+from `Catalog` directly and never reaches into the web layer.
 
 ### 3. Implement Required Functions
 
