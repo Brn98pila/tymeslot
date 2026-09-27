@@ -23,11 +23,13 @@ defmodule TymeslotWeb.OnboardingLive.LivePreview do
   import TymeslotWeb.Components.CoreComponents, only: [icon: 1]
 
   alias Tymeslot.ThemeCustomizations.Presets
+  alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Helpers.LocaleFormat
   alias TymeslotWeb.OnboardingLive.TextHelpers
   alias TymeslotWeb.Themes.Core.Registry
 
   @default_scheme "default"
+  @default_theme_id Catalog.default_id()
 
   @doc """
   Renders the live booking-page preview.
@@ -36,7 +38,7 @@ defmodule TymeslotWeb.OnboardingLive.LivePreview do
   LiveView's assigns and reflect the in-progress onboarding state.
   """
   attr :current_step, :atom, required: true
-  attr :booking_theme, :string, default: "1"
+  attr :booking_theme, :string, default: @default_theme_id
   attr :name, :string, default: ""
   attr :username, :string, default: ""
   attr :avatar_url, :string, default: nil

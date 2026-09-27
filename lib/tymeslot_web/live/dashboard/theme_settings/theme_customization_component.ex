@@ -22,6 +22,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   alias Phoenix.LiveView.Socket
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components
   alias TymeslotWeb.Live.Shared.Flash
@@ -94,7 +95,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   end
 
   def update(assigns, socket) do
-    theme_id = assigns[:theme_id] || "1"
+    theme_id = assigns[:theme_id] || Catalog.default_id()
 
     # Initialize customization data from the domain
     %{

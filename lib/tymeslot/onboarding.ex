@@ -6,6 +6,7 @@ defmodule Tymeslot.Onboarding do
   alias Tymeslot.Onboarding.OnboardingQueries
   alias Tymeslot.Profiles
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.Themes.Catalog
 
   @manual_dashboard_setup_items ~w(theme meeting_types share)
 
@@ -18,7 +19,7 @@ defmodule Tymeslot.Onboarding do
       full_name: nil,
       timezone: Profiles.get_default_timezone(),
       avatar: nil,
-      booking_theme: "1"
+      booking_theme: Catalog.default_id()
     }
   end
 
