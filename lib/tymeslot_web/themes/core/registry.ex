@@ -144,15 +144,4 @@ defmodule TymeslotWeb.Themes.Core.Registry do
   def default_theme_key do
     default_theme().key
   end
-
-  @doc """
-  Gets theme CSS file by ID.
-  """
-  @spec get_css_file_by_id(theme_id()) :: {:ok, String.t()} | {:error, :theme_not_found}
-  def get_css_file_by_id(id) when is_binary(id) do
-    case get_theme_by_id(id) do
-      {:ok, theme} -> {:ok, theme.css_file}
-      error -> error
-    end
-  end
 end

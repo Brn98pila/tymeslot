@@ -13,7 +13,6 @@ defmodule TymeslotWeb.Live.Scheduling.ThemeUtils do
   alias Tymeslot.Timezones
   alias TymeslotWeb.Live.Scheduling.PreviewMode
   alias TymeslotWeb.Themes.Core.Registry
-  alias TymeslotWeb.Themes.Core.ThemeInfo
 
   @doc """
   Assigns theme-related data including preview mode detection.
@@ -42,7 +41,6 @@ defmodule TymeslotWeb.Live.Scheduling.ThemeUtils do
 
     socket
     |> assign(:scheduling_theme_id, theme_id)
-    |> assign(:scheduling_theme_css, ThemeInfo.get_css_file(theme_id))
     |> assign(:theme_preview, PreviewMode.claimed?(params))
   end
 

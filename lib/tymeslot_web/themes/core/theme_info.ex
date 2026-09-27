@@ -3,7 +3,7 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfo do
   Convenience accessors over the theme system for the web layer.
 
   Resolves full theme metadata, loads theme modules, and exposes per-theme
-  runtime details (states, LiveView module, CSS file) by combining the registry
+  runtime details (LiveView module, name, description) by combining the registry
   definitions with the theme behaviour callbacks. This is a
   presentation-layer concern: domain code reads theme facts from
   `Tymeslot.Themes.Catalog` instead.
@@ -110,33 +110,11 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfo do
   end
 
   @doc """
-  Gets the CSS file path for a theme.
-  """
-  @spec get_css_file(term()) :: String.t() | nil
-  def get_css_file(id) do
-    case Registry.get_css_file_by_id(to_string(id)) do
-      {:ok, css_file} -> css_file
-      {:error, :theme_not_found} -> nil
-    end
-  end
-
-  @doc """
   Gets the LiveView module for a theme.
   Uses dynamic loading to ensure the module is available.
   """
   @spec get_live_view_module(term()) :: module() | nil
   def get_live_view_module(id) do
     Loader.get_live_view_module(to_string(id))
-  end
-
-  @doc """
-  Checks if a theme supports a specific feature.
-  """
-  @spec supports_feature?(term(), atom()) :: boolean()
-  def supports_feature?(id, feature) do
-    case get_theme_module(id) do
-      nil -> false
-      module -> module.supports_feature?(feature)
-    end
   end
 end

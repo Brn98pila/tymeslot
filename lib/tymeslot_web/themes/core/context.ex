@@ -19,7 +19,6 @@ defmodule TymeslotWeb.Themes.Core.Context do
           theme_key: atom(),
           module: module(),
           customizations: map() | nil,
-          metadata: map(),
           preview_mode: boolean(),
           layout: layout()
         }
@@ -28,7 +27,6 @@ defmodule TymeslotWeb.Themes.Core.Context do
             theme_key: nil,
             module: nil,
             customizations: nil,
-            metadata: %{},
             preview_mode: false,
             layout: :default
 
@@ -56,7 +54,6 @@ defmodule TymeslotWeb.Themes.Core.Context do
         theme_key: theme.key,
         module: module,
         customizations: load_customizations(theme_id, profile),
-        metadata: extract_metadata(theme),
         preview_mode: Keyword.get(options, :preview, false)
       }
     else
@@ -121,22 +118,6 @@ defmodule TymeslotWeb.Themes.Core.Context do
   defp apply_layout(context, _params), do: context
 
   @doc """
-  Gets the CSS file path for the theme.
-  """
-  @spec css_file(t()) :: String.t() | nil
-  def css_file(%__MODULE__{metadata: metadata}) do
-    Map.get(metadata, :css_file)
-  end
-
-  @doc """
-  Gets the theme name for display.
-  """
-  @spec display_name(t()) :: String.t()
-  def display_name(%__MODULE__{metadata: metadata}) do
-    Map.get(metadata, :name, "Unknown Theme")
-  end
-
-  @doc """
   Converts the context to assigns for LiveView consumption.
   """
   @spec to_assigns(t()) :: map()
@@ -180,9 +161,5 @@ defmodule TymeslotWeb.Themes.Core.Context do
       nil -> ThemeCustomizations.get_defaults(theme_id)
       customization -> ThemeCustomizations.to_map(customization)
     end
-  end
-
-  defp extract_metadata(theme) do
-    Map.take(theme, [:name, :description, :css_file])
   end
 end
