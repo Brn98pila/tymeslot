@@ -100,13 +100,19 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfo do
   end
 
   @doc """
-  Returns theme options for form selects.
+  Theme choices for the pickers, as `{name, id}` pairs in numeric id order.
+
+  Beta themes are left out: they are reachable by `?theme=<id>` for testing,
+  but no organiser is offered one until it is `:active`. Takes the registry's
+  definitions by default; passing them in is for tests.
   """
-  @spec theme_options() :: list({String.t(), String.t()})
-  def theme_options do
-    all_themes()
-    |> Enum.map(fn {id, theme} -> {theme.name, id} end)
-    |> Enum.sort_by(fn {_name, id} -> id end)
+  @spec theme_options(%{atom() => map()}) :: [{String.t(), String.t()}]
+  def theme_options(themes \\ Registry.all_themes()) do
+    themes
+    |> Map.values()
+    |> Enum.reject(&(&1.status == :beta))
+    |> Enum.sort_by(&String.to_integer(&1.id))
+    |> Enum.map(&{&1.name, &1.id})
   end
 
   @doc """

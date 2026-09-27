@@ -187,6 +187,9 @@ aurora: %{
 }
 ```
 
+Start a new theme at `status: :beta`: it is hidden from the theme pickers but
+reachable with `?theme=<id>`. Switch it to `:active` when it is ready to offer.
+
 The description shown in the dashboard is the theme's own, translated, not a
 catalogue fact.
 
