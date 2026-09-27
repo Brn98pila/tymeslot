@@ -1456,6 +1456,7 @@ Logger.debug("Socket assigns: #{inspect(socket.assigns)}")
 Before considering your theme complete:
 
 - [ ] Theme facts added to `Catalog`, bindings added to `Registry`
+- [ ] Entry added to `TymeslotWeb.ThemeTestMatrix` (`test/support/theme_test_matrix.ex`)
 - [ ] Theme module implements all behaviour callbacks
 - [ ] LiveView uses the `SchedulingLive` macro (no per-theme StateMachine)
 - [ ] Wrapper component provides theme layout
