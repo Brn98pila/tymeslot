@@ -38,19 +38,8 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Wrapper do
         <style type="text/css">
           :root {
             <%= Phoenix.HTML.raw(@custom_css) %>
-            <%= if @has_video_background do %>
-              --has-video-background: 1;
-            <% end %>
           }
         </style>
-      <% else %>
-        <%= if @has_video_background do %>
-          <style type="text/css">
-            :root {
-              --has-video-background: 1;
-            }
-          </style>
-        <% end %>
       <% end %>
 
       <%= if @has_video_background do %>

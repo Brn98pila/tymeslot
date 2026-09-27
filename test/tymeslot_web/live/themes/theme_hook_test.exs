@@ -51,6 +51,10 @@ defmodule TymeslotWeb.Live.Themes.ThemeHookTest do
 
     assert html =~ ~s(id="quill-video-container")
     assert html =~ ~s(phx-hook="QuillVideo")
+    # The wrapper marks a video background with a class, which the CSS reads;
+    # nothing reads a custom property of the same name.
+    assert html =~ "has-video-background"
+    refute html =~ "--has-video-background"
   end
 
   test "rhythm theme renders RhythmVideo hook when video background is active", %{
