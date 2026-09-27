@@ -1070,7 +1070,6 @@ defmodule TymeslotWeb.Themes.Aurora.Scheduling.Wrapper do
             locale={@locale}
             locales={Tymeslot.Locales.supported()}
             dropdown_open={@language_dropdown_open}
-            theme="aurora"
           />
         <% end %>
 
@@ -1086,7 +1085,9 @@ end
 
 Notes on the real pattern (matching Quill and Rhythm):
 - The language switcher comes from `TymeslotWeb.Components.LanguageSwitcher`, **not**
-  `CoreComponents`, and its `theme` attr is a **string** (`"aurora"`), not an atom.
+  `CoreComponents`, and takes no theme argument: it emits the theme-neutral classes
+  `lang-switcher`, `lang-switcher__button`, `__panel`, `__item` and `__item--active`,
+  which the theme's own CSS styles.
 - `custom_css` arrives as a ready-to-emit assign — render it inside a `:root { … }`
   `<style>` block; do not generate it in the wrapper.
 - `organizer_user_id` is an **integer**.
@@ -1342,7 +1343,6 @@ The language switcher is typically integrated via the theme's wrapper:
   locale={@locale}
   locales={Tymeslot.Locales.supported()}
   dropdown_open={@language_dropdown_open}
-  theme={@theme_key}
 />
 ```
 

@@ -93,7 +93,6 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Wrapper do
                 locale={@locale}
                 locales={Locales.supported()}
                 dropdown_open={@language_dropdown_open}
-                theme="rhythm"
               />
             </div>
           <% end %>

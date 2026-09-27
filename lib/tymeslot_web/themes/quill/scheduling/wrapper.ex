@@ -82,7 +82,6 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Wrapper do
                 locale={@locale}
                 locales={Locales.supported()}
                 dropdown_open={@language_dropdown_open}
-                theme="quill"
               />
             </div>
           <% end %>
