@@ -355,3 +355,15 @@ html.quill-theme[data-embedded] .confirmation-badge-dot svg {
   color: var(--theme-text, #e2e8f0);
   margin: 0;
 }
+
+/* Held state for the success badge (approval required); compound selectors so
+   the override wins regardless of order. */
+.confirmation-badge.confirmation-badge--pending {
+  background: var(--theme-warning);
+  box-shadow: var(--shadow-warning-lg);
+}
+
+.confirmation-badge-dot.confirmation-badge-dot--pending {
+  background: var(--theme-warning);
+  box-shadow: var(--shadow-warning-md);
+}

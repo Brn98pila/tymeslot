@@ -322,4 +322,12 @@
   /* Meeting pages (modules/meeting-pages.css) */
   --text-opacity-full: #ffffff;
   --text-shadow-title: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  /* Approval notice (shared/components/approval-notice.css) */
+  --approval-pill-surface: rgba(251, 191, 36, 0.12);
+  --approval-icon-surface: rgba(251, 191, 36, 0.18);
+  --approval-notice-gap: var(--space-sm);
+  --approval-notice-font-size: var(--theme-font-size-sm);
+  --approval-notice-ink: var(--text-opacity-medium-high);
+  --approval-notice-max-width: 32rem;
 }

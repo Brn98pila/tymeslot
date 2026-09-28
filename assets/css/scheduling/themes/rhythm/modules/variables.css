@@ -227,4 +227,12 @@
 
   /* Print */
   --print-line: #cccccc;
+
+  /* Approval notice (shared/components/approval-notice.css) */
+  --approval-pill-surface: rgba(251, 191, 36, 0.14);
+  --approval-icon-surface: rgba(251, 191, 36, 0.2);
+  --approval-notice-gap: var(--space-xs);
+  --approval-notice-font-size: var(--theme-font-size-xs);
+  --approval-notice-ink: var(--theme-text-secondary);
+  --approval-notice-max-width: 30rem;
 }

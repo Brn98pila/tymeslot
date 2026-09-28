@@ -557,3 +557,10 @@ html.rhythm-theme[data-embedded] .custom-answers__row {
   grid-template-columns: 1fr;
   gap: var(--space-3xs);
 }
+
+/* Held state for the success badge (approval required); compound selectors so
+   the override wins regardless of order. */
+.success-badge-inner.success-badge-inner--pending {
+  background: var(--theme-warning);
+  box-shadow: var(--shadow-warning-lg);
+}
