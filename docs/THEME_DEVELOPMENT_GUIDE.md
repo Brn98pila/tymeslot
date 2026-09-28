@@ -976,7 +976,7 @@ priv/static/
     └── rhythm-background-poster.webp
 ```
 
-Booking pages and the dashboard picker both read preset images from `/images/themes/backgrounds/`; `Options.Background.descriptor/1` owns the path.
+Booking pages and the dashboard picker both read preset images from `/images/themes/backgrounds/`; `Options.Background.preset_image_url/1` owns the path, and `descriptor/1` resolves a preset through it.
 
 ### Defining Presets
 

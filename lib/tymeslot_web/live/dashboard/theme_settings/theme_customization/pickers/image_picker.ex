@@ -5,6 +5,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias Tymeslot.ThemeCustomizations.Options.Background
+
   @doc """
   Renders the image picker.
   Expects assigns: customization, presets, uploads, myself
@@ -36,7 +38,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
             >
               <div class="aspect-video relative overflow-hidden">
                 <img
-                  src={"/images/themes/backgrounds/#{image.file}"}
+                  src={Background.preset_image_url(image.file)}
                   alt={image.name}
                   class="w-full h-full object-cover transition-transform duration-700 group-hover/image:scale-110"
                   data-img-fallback

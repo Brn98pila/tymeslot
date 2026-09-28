@@ -94,7 +94,7 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
 
   def descriptor(%{"background_type" => "image"} = settings) do
     case Presets.find_preset_by_id(:image, settings["background_value"]) do
-      %{file: file} -> %{kind: :image, url: @preset_image_dir <> file}
+      %{file: file} -> %{kind: :image, url: preset_image_url(file)}
       nil -> nil
     end
   end
@@ -108,6 +108,13 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
   end
 
   def descriptor(_settings), do: nil
+
+  @doc """
+  The public URL of a preset image file, as booking pages and the dashboard
+  picker both load it.
+  """
+  @spec preset_image_url(String.t()) :: String.t()
+  def preset_image_url(file) when is_binary(file), do: @preset_image_dir <> file
 
   @doc """
   The `--theme-background` custom property for a descriptor.

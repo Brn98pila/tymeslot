@@ -10,10 +10,10 @@ defmodule TymeslotWeb.E2E.EmbedPrimaryColourTest do
 
   The URL is framed rather than visited: only a framed page connects over
   `/embed-live`, and a top-level embed URL has no session cookie for `/live`.
-  The host page is same-origin (`frame-ancestors` always allows `'self'`) and
-  frames with `referrerpolicy="no-referrer"`, so the embed token takes its
-  parent origin from `?parent-origin=`, as it does for an embedder that strips
-  the Referer.
+  The host page is same-origin (`frame-ancestors` allows `'self'` whenever
+  the profile has an allowlist) and frames with `referrerpolicy="no-referrer"`,
+  so the embed token takes its parent origin from `?parent-origin=`, as it
+  does for an embedder that strips the Referer.
   """
   use TymeslotWeb.BrowserCase, async: false
 
