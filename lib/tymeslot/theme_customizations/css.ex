@@ -10,7 +10,8 @@ defmodule Tymeslot.ThemeCustomizations.Css do
   """
 
   alias Tymeslot.ThemeCustomizations.Capability
-  alias Tymeslot.ThemeCustomizations.ContrastTokens
+  alias Tymeslot.ThemeCustomizations.DataTransform
+  alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.PaletteDerivation
   alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
@@ -28,16 +29,16 @@ defmodule Tymeslot.ThemeCustomizations.Css do
   """
   @spec get_color_scheme_css(String.t() | atom() | map()) :: String.t() | nil
   def get_color_scheme_css(customization) when is_map(customization) do
-    case resolve_palette(customization) do
+    case customization |> DataTransform.convert_to_map() |> Palette.resolve() do
+      %{colors: colors} -> colors |> Palette.colours_to_vars() |> render_vars()
       nil -> nil
-      %{colors: colors} -> format_palette_css(colors)
     end
   end
 
   def get_color_scheme_css(scheme_id) when is_binary(scheme_id) or is_atom(scheme_id) do
     case Presets.find_preset_by_id(:color_scheme, scheme_id) do
+      %{colors: colors} -> colors |> Palette.colours_to_vars() |> render_vars()
       nil -> nil
-      %{colors: colors} -> format_palette_css(colors)
     end
   end
 
@@ -121,29 +122,6 @@ defmodule Tymeslot.ThemeCustomizations.Css do
 
   # --- Private helpers ----------------------------------------------------
 
-  defp resolve_palette(customization) do
-    seed = get_seed(customization)
-    scheme_id = get_scheme_id(customization)
-
-    cond do
-      is_binary(seed) and seed != "" -> PaletteDerivation.derive_palette(seed)
-      is_binary(scheme_id) -> Presets.find_preset_by_id(:color_scheme, scheme_id)
-      true -> nil
-    end
-  end
-
-  defp format_palette_css(colors) do
-    colors
-    |> Map.merge(contrast_tokens(colors))
-    |> Enum.map_join("\n", fn {key, value} ->
-      "--theme-#{String.replace(to_string(key), "_", "-")}: #{value};"
-    end)
-  end
-
-  # Filled controls put text on top of the palette rather than beside it, so
-  # they need an ink and a surface that pass AA together. See
-  # `ContrastTokens` for why the palette's own colours are left alone.
-  defp contrast_tokens(colors) do
-    ContrastTokens.derive(colors) || %{}
-  end
+  defp render_vars(vars),
+    do: Enum.map_join(vars, "\n", fn {name, value} -> "#{name}: #{value};" end)
 end
