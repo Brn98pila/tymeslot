@@ -318,4 +318,8 @@
 
   /* Print */
   --print-line: #cccccc;
+
+  /* Meeting pages (modules/meeting-pages.css) */
+  --text-opacity-full: #ffffff;
+  --text-shadow-title: 0 2px 4px rgba(0, 0, 0, 0.1);
 }

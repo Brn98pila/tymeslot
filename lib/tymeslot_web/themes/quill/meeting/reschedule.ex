@@ -39,8 +39,7 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Reschedule do
               <div class="text-center mb-8">
                 <div class="mx-auto mb-4 w-12 h-12">
                   <svg
-                    class="w-12 h-12"
-                    style="color: var(--theme-primary);"
+                    class="w-12 h-12 meeting-page-icon--primary"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -54,30 +53,21 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Reschedule do
                   </svg>
                 </div>
 
-                <h1
-                  class="text-3xl font-bold mb-2"
-                  style="color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.1);"
-                >
+                <h1 class="text-3xl font-bold mb-2 meeting-page-title">
                   {dgettext("booking_manage", "Reschedule Appointment")}
                 </h1>
-                <p class="text-lg" style="color: rgba(255,255,255,0.9);">
+                <p class="text-lg meeting-page-lead">
                   {dgettext("booking_manage", "Select a new time for your meeting")}
                 </p>
               </div>
 
-              <div
-                class="glass-morphism-card mb-8"
-                style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);"
-              >
+              <div class="glass-morphism-card meeting-page-panel mb-8">
                 <div class="p-6">
                   <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold" style="color: rgba(255,255,255,0.95);">
+                    <h3 class="text-lg font-semibold meeting-page-panel-title">
                       {dgettext("booking_manage", "Current Meeting")}
                     </h3>
-                    <span
-                      class="px-3 py-1 rounded-full text-sm font-medium"
-                      style="background: var(--theme-primary); color: white;"
-                    >
+                    <span class="px-3 py-1 rounded-full text-sm font-medium meeting-page-duration">
                       {dgettext("booking_manage", "%{minutes} min", minutes: @meeting.duration)}
                     </span>
                   </div>
@@ -93,7 +83,7 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Reschedule do
               </div>
 
               <div class="text-center">
-                <p class="mb-6" style="color: rgba(255,255,255,0.85);">
+                <p class="mb-6 meeting-page-muted">
                   {dgettext(
                     "booking_manage",
                     "Ready to pick a new time? Let's find one that works better for you."

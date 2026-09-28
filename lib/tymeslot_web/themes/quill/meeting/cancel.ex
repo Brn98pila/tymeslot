@@ -41,8 +41,7 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Cancel do
                 <div class="text-center mb-8">
                   <div class="mx-auto mb-4 w-16 h-16">
                     <svg
-                      class="w-16 h-16"
-                      style="color: #10b981;"
+                      class="w-16 h-16 meeting-page-icon--success"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -56,30 +55,21 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Cancel do
                     </svg>
                   </div>
 
-                  <h1
-                    class="text-3xl font-bold mb-2"
-                    style="color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.1);"
-                  >
+                  <h1 class="text-3xl font-bold mb-2 meeting-page-title">
                     {dgettext("booking_manage", "Meeting Confirmed")}
                   </h1>
-                  <p class="text-lg" style="color: rgba(255,255,255,0.9);">
+                  <p class="text-lg meeting-page-lead">
                     {dgettext("booking_manage", "Great! Your meeting is still scheduled as planned.")}
                   </p>
                 </div>
 
-                <div
-                  class="glass-morphism-card mb-8"
-                  style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);"
-                >
+                <div class="glass-morphism-card meeting-page-panel mb-8">
                   <div class="p-6">
                     <div class="flex items-center justify-between mb-4">
-                      <h3 class="text-lg font-semibold" style="color: rgba(255,255,255,0.95);">
+                      <h3 class="text-lg font-semibold meeting-page-panel-title">
                         {dgettext("booking_manage", "Meeting Details")}
                       </h3>
-                      <span
-                        class="px-3 py-1 rounded-full text-sm font-medium"
-                        style="background: var(--theme-primary); color: white;"
-                      >
+                      <span class="px-3 py-1 rounded-full text-sm font-medium meeting-page-duration">
                         {dgettext("booking_manage", "%{minutes} min", minutes: @meeting.duration)}
                       </span>
                     </div>
@@ -95,7 +85,7 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Cancel do
                 </div>
 
                 <div class="text-center">
-                  <p class="mb-6" style="color: rgba(255,255,255,0.85);">
+                  <p class="mb-6 meeting-page-muted">
                     {dgettext(
                       "booking_manage",
                       "We look forward to seeing you at the scheduled time."
@@ -110,8 +100,7 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Cancel do
                 <div class="text-center mb-8">
                   <div class="mx-auto mb-4 w-16 h-16">
                     <svg
-                      class="w-16 h-16"
-                      style="color: #ef4444;"
+                      class="w-16 h-16 meeting-page-icon--danger"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -125,30 +114,21 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Cancel do
                     </svg>
                   </div>
 
-                  <h1
-                    class="text-3xl font-bold mb-2"
-                    style="color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.1);"
-                  >
+                  <h1 class="text-3xl font-bold mb-2 meeting-page-title">
                     {dgettext("booking_manage", "Cancel Appointment")}
                   </h1>
-                  <p class="text-lg" style="color: rgba(255,255,255,0.9);">
+                  <p class="text-lg meeting-page-lead">
                     {dgettext("booking_manage", "Are you sure you want to cancel this appointment?")}
                   </p>
                 </div>
 
-                <div
-                  class="glass-morphism-card mb-8"
-                  style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);"
-                >
+                <div class="glass-morphism-card meeting-page-panel mb-8">
                   <div class="p-6">
                     <div class="flex items-center justify-between mb-4">
-                      <h3 class="text-lg font-semibold" style="color: rgba(255,255,255,0.95);">
+                      <h3 class="text-lg font-semibold meeting-page-panel-title">
                         {dgettext("booking_manage", "Meeting Details")}
                       </h3>
-                      <span
-                        class="px-3 py-1 rounded-full text-sm font-medium"
-                        style="background: var(--theme-primary); color: white;"
-                      >
+                      <span class="px-3 py-1 rounded-full text-sm font-medium meeting-page-duration">
                         {dgettext("booking_manage", "%{minutes} min", minutes: @meeting.duration)}
                       </span>
                     </div>
@@ -163,13 +143,9 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Cancel do
                   </div>
                 </div>
 
-                <div
-                  class="mb-6 p-4 rounded-lg flex items-start gap-3"
-                  style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2);"
-                >
+                <div class="mb-6 p-4 rounded-lg flex items-start gap-3 meeting-page-notice meeting-page-notice--danger">
                   <svg
-                    class="w-5 h-5 shrink-0 mt-0.5"
-                    style="color: #ef4444;"
+                    class="w-5 h-5 shrink-0 mt-0.5 meeting-page-icon--danger"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -179,7 +155,7 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Cancel do
                       clip-rule="evenodd"
                     />
                   </svg>
-                  <div class="text-sm" style="color: rgba(255,255,255,0.85);">
+                  <div class="text-sm meeting-page-muted">
                     {dgettext(
                       "booking_manage",
                       "A cancellation email will be sent to all participants"
