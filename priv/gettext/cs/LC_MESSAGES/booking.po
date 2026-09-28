@@ -26,7 +26,7 @@ msgstr "%{count} minut"
 msgid "%{date} at %{time}"
 msgstr "%{date} v %{time}"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "%{days} days in advance"
 msgstr "s předstihem až %{days} dnů"
@@ -46,7 +46,7 @@ msgstr "%{hour_text} %{minute_text}"
 msgid "%{minutes} minutes"
 msgstr "%{minutes} minut"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "%{months} months in advance"
 msgstr "s předstihem až %{months} měsíců"
@@ -96,17 +96,17 @@ msgstr "%{time} místního času"
 msgid "%{weekday}, %{day} %{month} %{year} at %{time} %{timezone}"
 msgstr "%{weekday} %{day}. %{month} %{year} v %{time} %{timezone}"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "%{weeks} weeks in advance"
 msgstr "s předstihem až %{weeks} týdnů"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "%{years} years in advance"
 msgstr "s předstihem až %{years} let"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "1 day in advance"
 msgstr "s předstihem až 1 dne"
@@ -121,22 +121,22 @@ msgstr "1 hodina"
 msgid "1 minute"
 msgstr "1 minuta"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "1 month in advance"
 msgstr "s předstihem až 1 měsíce"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "1 week in advance"
 msgstr "s předstihem až 1 týdne"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "1 year in advance"
 msgstr "s předstihem až 1 roku"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "90 days in advance"
 msgstr "s předstihem až 90 dnů"
@@ -275,7 +275,7 @@ msgstr "PÁ"
 msgid "February"
 msgstr "února"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Fri"
 msgstr "Pá"
@@ -372,7 +372,7 @@ msgstr "Schůzka byla přesunuta!"
 msgid "Meeting with"
 msgstr "Schůzka s hostitelem"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Mon"
 msgstr "Po"
@@ -507,7 +507,7 @@ msgstr "SO"
 msgid "SUN"
 msgstr "NE"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Sat"
 msgstr "So"
@@ -582,7 +582,7 @@ msgstr "Pomalá odezva"
 msgid "Successfully Rescheduled!"
 msgstr "Schůzka byla přesunuta!"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Sun"
 msgstr "Ne"
@@ -623,7 +623,7 @@ msgstr "Tento den je plně obsazen"
 msgid "This site is protected by reCAPTCHA and the Google %{privacy_link} and %{terms_link} apply."
 msgstr "Tento web je chráněn službou reCAPTCHA a platí %{privacy_link} a %{terms_link} společnosti Google."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Thu"
 msgstr "Čt"
@@ -643,7 +643,7 @@ msgstr "Čas"
 msgid "Timezone"
 msgstr "Časové pásmo"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Tue"
 msgstr "Út"
@@ -679,7 +679,7 @@ msgstr "ST"
 msgid "We opened Stripe Checkout in a new browser tab. Once your payment is confirmed, this page updates automatically."
 msgstr "Stripe Checkout jsme otevřeli na nové kartě prohlížeče. Jakmile bude platba potvrzena, tato stránka se automaticky aktualizuje."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Wed"
 msgstr "St"
@@ -800,7 +800,7 @@ msgstr "Další krok"
 msgid "Reschedule Meeting"
 msgstr "Přesunout schůzku"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "same day only"
 msgstr "pouze na tentýž den"

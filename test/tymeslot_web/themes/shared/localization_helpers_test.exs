@@ -174,4 +174,43 @@ defmodule TymeslotWeb.Themes.Shared.LocalizationHelpersTest do
       assert LocalizationHelpers.get_month_year_display(2026, 6) == "Червень 2026"
     end
   end
+
+  describe "format_advance_booking_days/1" do
+    test "names the booking window in the largest whole unit" do
+      assert LocalizationHelpers.format_advance_booking_days(0) == "same day only"
+      assert LocalizationHelpers.format_advance_booking_days(-3) == "same day only"
+      assert LocalizationHelpers.format_advance_booking_days(1) == "1 day in advance"
+      assert LocalizationHelpers.format_advance_booking_days(3) == "3 days in advance"
+      assert LocalizationHelpers.format_advance_booking_days(7) == "1 week in advance"
+      assert LocalizationHelpers.format_advance_booking_days(14) == "2 weeks in advance"
+      assert LocalizationHelpers.format_advance_booking_days(30) == "1 month in advance"
+      assert LocalizationHelpers.format_advance_booking_days(90) == "3 months in advance"
+      assert LocalizationHelpers.format_advance_booking_days(365) == "1 year in advance"
+      assert LocalizationHelpers.format_advance_booking_days(730) == "2 years in advance"
+    end
+
+    test "falls back to the default window when none is set" do
+      assert LocalizationHelpers.format_advance_booking_days(nil) == "90 days in advance"
+    end
+
+    test "speaks the visitor's language" do
+      Gettext.put_locale(TymeslotWeb.Gettext, "de")
+
+      assert LocalizationHelpers.format_advance_booking_days(14) == "2 Wochen im Voraus"
+    end
+  end
+
+  describe "weekday_headers/0" do
+    test "starts on Sunday, the day the month grid starts on" do
+      assert LocalizationHelpers.weekday_headers() == ~w(Sun Mon Tue Wed Thu Fri Sat)
+    end
+
+    test "cuts a longer translation to three characters so it cannot widen a column" do
+      # French abbreviates with a trailing full stop ("Dim."), one character
+      # more than the grid's header cell is sized for.
+      Gettext.put_locale(TymeslotWeb.Gettext, "fr")
+
+      assert LocalizationHelpers.weekday_headers() == ~w(Dim Lun Mar Mer Jeu Ven Sam)
+    end
+  end
 end

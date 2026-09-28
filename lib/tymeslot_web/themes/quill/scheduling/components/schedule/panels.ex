@@ -344,43 +344,4 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.Schedule.Panels do
     </button>
     """
   end
-
-  # ========== FORMATTING HELPERS ==========
-
-  @doc """
-  Formats advance booking days for display.
-  """
-  @spec format_advance_booking_days(term()) :: String.t()
-  def format_advance_booking_days(days) when is_integer(days) and days <= 0,
-    do: dgettext("booking", "same day only")
-
-  def format_advance_booking_days(1), do: dgettext("booking", "1 day in advance")
-
-  def format_advance_booking_days(days) when is_integer(days) and days < 7,
-    do: dgettext("booking", "%{days} days in advance", days: days)
-
-  def format_advance_booking_days(7), do: dgettext("booking", "1 week in advance")
-
-  def format_advance_booking_days(days) when is_integer(days) and days < 30,
-    do: format_weeks_advance(days)
-
-  def format_advance_booking_days(30), do: dgettext("booking", "1 month in advance")
-
-  def format_advance_booking_days(days) when is_integer(days) and days < 365,
-    do: format_months_advance(days)
-
-  def format_advance_booking_days(365), do: dgettext("booking", "1 year in advance")
-  def format_advance_booking_days(days) when is_integer(days), do: format_years_advance(days)
-  def format_advance_booking_days(_arg), do: dgettext("booking", "90 days in advance")
-
-  # ========== PRIVATE HELPERS ==========
-
-  defp format_weeks_advance(days),
-    do: dgettext("booking", "%{weeks} weeks in advance", weeks: div(days, 7))
-
-  defp format_months_advance(days),
-    do: dgettext("booking", "%{months} months in advance", months: div(days, 30))
-
-  defp format_years_advance(days),
-    do: dgettext("booking", "%{years} years in advance", years: div(days, 365))
 end

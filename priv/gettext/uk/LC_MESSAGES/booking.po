@@ -26,7 +26,7 @@ msgstr "%{count} хв"
 msgid "%{date} at %{time}"
 msgstr "%{date} о %{time}"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "%{days} days in advance"
 msgstr "%{days} дн."
@@ -46,7 +46,7 @@ msgstr "%{hour_text} %{minute_text}"
 msgid "%{minutes} minutes"
 msgstr "%{minutes} хв"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "%{months} months in advance"
 msgstr "%{months} міс."
@@ -96,17 +96,17 @@ msgstr "%{time} за місцевим часом"
 msgid "%{weekday}, %{day} %{month} %{year} at %{time} %{timezone}"
 msgstr "%{weekday}, %{day} %{month} %{year} о %{time} %{timezone}"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "%{weeks} weeks in advance"
 msgstr "%{weeks} тиж."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "%{years} years in advance"
 msgstr "%{years} р."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "1 day in advance"
 msgstr "1 день"
@@ -121,22 +121,22 @@ msgstr "1 год"
 msgid "1 minute"
 msgstr "1 хв"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "1 month in advance"
 msgstr "1 місяць"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "1 week in advance"
 msgstr "1 тиждень"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "1 year in advance"
 msgstr "1 рік"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "90 days in advance"
 msgstr "90 днів"
@@ -275,7 +275,7 @@ msgstr "Пт"
 msgid "February"
 msgstr "Лютий"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Fri"
 msgstr "Пт"
@@ -372,7 +372,7 @@ msgstr "Зустріч перенесено!"
 msgid "Meeting with"
 msgstr "Зустріч із"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Mon"
 msgstr "Пн"
@@ -507,7 +507,7 @@ msgstr "Сб"
 msgid "SUN"
 msgstr "Нд"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Sat"
 msgstr "Сб"
@@ -582,7 +582,7 @@ msgstr "Сервіс відповідає повільно"
 msgid "Successfully Rescheduled!"
 msgstr "Успішно перенесено!"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Sun"
 msgstr "Нд"
@@ -623,7 +623,7 @@ msgstr "На цей день усе заброньовано"
 msgid "This site is protected by reCAPTCHA and the Google %{privacy_link} and %{terms_link} apply."
 msgstr "Цей сайт захищено системою reCAPTCHA; до нього застосовуються %{privacy_link} та %{terms_link} Google."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Thu"
 msgstr "Чт"
@@ -643,7 +643,7 @@ msgstr "Час"
 msgid "Timezone"
 msgstr "Часовий пояс"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Tue"
 msgstr "Вт"
@@ -679,7 +679,7 @@ msgstr "Ср"
 msgid "We opened Stripe Checkout in a new browser tab. Once your payment is confirmed, this page updates automatically."
 msgstr "Ми відкрили Stripe Checkout у новій вкладці браузера. Щойно платіж буде підтверджено, ця сторінка оновиться автоматично."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Wed"
 msgstr "Ср"
@@ -800,7 +800,7 @@ msgstr "Наступний крок"
 msgid "Reschedule Meeting"
 msgstr "Перенести зустріч"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "same day only"
 msgstr "лише поточний день"

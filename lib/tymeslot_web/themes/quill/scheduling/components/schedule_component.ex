@@ -107,7 +107,8 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent do
                       <%= if @organizer_profile do %>
                         <p class="schedule-advance-notice text-glass-primary">
                           {dgettext("booking", "Bookings available up to %{advance}",
-                            advance: Panels.format_advance_booking_days(@booking_window_days)
+                            advance:
+                              LocalizationHelpers.format_advance_booking_days(@booking_window_days)
                           )}
                         </p>
                       <% end %>
@@ -268,20 +269,10 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent do
                         <div class="calendar-grid-container flex-1">
                           <div class="grid grid-cols-7 gap-0.5 text-center mb-1">
                             <div
-                              :for={
-                                day <- [
-                                  dgettext("booking", "Sun"),
-                                  dgettext("booking", "Mon"),
-                                  dgettext("booking", "Tue"),
-                                  dgettext("booking", "Wed"),
-                                  dgettext("booking", "Thu"),
-                                  dgettext("booking", "Fri"),
-                                  dgettext("booking", "Sat")
-                                ]
-                              }
+                              :for={day <- LocalizationHelpers.weekday_headers()}
                               class="calendar-weekday text-xs font-medium"
                             >
-                              {String.slice(day, 0, 3)}
+                              {day}
                             </div>
                           </div>
                           <div class="grid grid-cols-7 gap-0.5">

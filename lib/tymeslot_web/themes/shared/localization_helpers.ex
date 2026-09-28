@@ -266,6 +266,57 @@ defmodule TymeslotWeb.Themes.Shared.LocalizationHelpers do
   end
 
   @doc """
+  The booking window as a phrase for the schedule step's header, in the largest
+  whole unit that fits ("same day only", "3 days in advance", "2 weeks in
+  advance"). `nil` means the organiser never set a window, so the default of
+  90 days applies.
+  """
+  @spec format_advance_booking_days(integer() | nil) :: String.t()
+  def format_advance_booking_days(days) when is_integer(days) and days <= 0,
+    do: dgettext("booking", "same day only")
+
+  def format_advance_booking_days(1), do: dgettext("booking", "1 day in advance")
+
+  def format_advance_booking_days(days) when is_integer(days) and days < 7,
+    do: dgettext("booking", "%{days} days in advance", days: days)
+
+  def format_advance_booking_days(7), do: dgettext("booking", "1 week in advance")
+
+  def format_advance_booking_days(days) when is_integer(days) and days < 30,
+    do: format_weeks_advance(days)
+
+  def format_advance_booking_days(30), do: dgettext("booking", "1 month in advance")
+
+  def format_advance_booking_days(days) when is_integer(days) and days < 365,
+    do: format_months_advance(days)
+
+  def format_advance_booking_days(365), do: dgettext("booking", "1 year in advance")
+  def format_advance_booking_days(days) when is_integer(days), do: format_years_advance(days)
+  def format_advance_booking_days(_arg), do: dgettext("booking", "90 days in advance")
+
+  @doc """
+  Translated three-character weekday headers for a month grid, Sunday first,
+  matching the 42-day window `Tymeslot.Availability.Calculate.display_range/2`
+  lays out. A translation longer than three characters is cut so it cannot
+  widen its column.
+  """
+  @spec weekday_headers() :: [String.t()]
+  def weekday_headers do
+    Enum.map(
+      [
+        dgettext("booking", "Sun"),
+        dgettext("booking", "Mon"),
+        dgettext("booking", "Tue"),
+        dgettext("booking", "Wed"),
+        dgettext("booking", "Thu"),
+        dgettext("booking", "Fri"),
+        dgettext("booking", "Sat")
+      ],
+      &String.slice(&1, 0, 3)
+    )
+  end
+
+  @doc """
   Formats a time on the clock the visitor's language uses.
 
   The booking page is read by attendees, who never saw the organiser's clock
@@ -374,4 +425,13 @@ defmodule TymeslotWeb.Themes.Shared.LocalizationHelpers do
   end
 
   defp shift_or_keep(dt, _timezone), do: dt
+
+  defp format_weeks_advance(days),
+    do: dgettext("booking", "%{weeks} weeks in advance", weeks: div(days, 7))
+
+  defp format_months_advance(days),
+    do: dgettext("booking", "%{months} months in advance", months: div(days, 30))
+
+  defp format_years_advance(days),
+    do: dgettext("booking", "%{years} years in advance", years: div(days, 365))
 end
