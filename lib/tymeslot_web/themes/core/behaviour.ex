@@ -40,4 +40,21 @@ defmodule TymeslotWeb.Themes.Core.Behaviour do
   """
   @callback render_payment_page(assigns :: map(), page :: :processing | :cancelled) ::
               Phoenix.LiveView.Rendered.t()
+
+  @doc """
+  Draws the theme in the onboarding wizard. `assigns.variant` is:
+
+    * `:thumbnail`, the theme step's picker tile, with `primary` (the
+      scheme's primary colour);
+    * `:card`, the live preview card, with `colors`, `slots`, `locale`,
+      `highlight_card`, `highlight_slots` and a `header` slot holding the
+      shared identity header the card is drawn around.
+
+  Optional: `use TymeslotWeb.Themes.Core.Theme` supplies the generic mock
+  (`TymeslotWeb.OnboardingLive.PreviewParts.generic/1`), and the wizard falls
+  back to it for a module without this callback.
+  """
+  @callback onboarding_preview(assigns :: map()) :: Phoenix.LiveView.Rendered.t()
+
+  @optional_callbacks onboarding_preview: 1
 end

@@ -143,7 +143,7 @@ msgstr "Ajouter automatiquement des liens aux réunions en ligne"
 msgid "Back"
 msgstr "Retour"
 
-#: lib/tymeslot_web/live/onboarding_live/live_preview.ex
+#: lib/tymeslot_web/live/onboarding_live/preview_parts.ex
 #, elixir-autogen, elixir-format
 msgid "Book"
 msgstr "Réserver"

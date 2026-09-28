@@ -14,7 +14,9 @@ defmodule TymeslotWeb.OnboardingLive.ChooseThemeStep do
   import TymeslotWeb.Components.CoreComponents, only: [icon: 1]
 
   alias Tymeslot.ThemeCustomizations.Presets
-  alias TymeslotWeb.Themes.Core.Registry
+  alias Tymeslot.Themes.Catalog
+  alias TymeslotWeb.OnboardingLive.PreviewParts
+  alias TymeslotWeb.Themes.Core.ThemeInfo
 
   # Stable display order for the colour-scheme swatches.
   @scheme_order ~w(default turquoise purple sunset ocean forest rose monochrome)
@@ -70,7 +72,11 @@ defmodule TymeslotWeb.OnboardingLive.ChooseThemeStep do
               )
             ]}
           >
-            <.theme_thumbnail theme_key={resolve_theme_key(id)} primary={@primary} />
+            <PreviewParts.theme_preview
+              theme_module={theme_module(id)}
+              variant={:thumbnail}
+              primary={@primary}
+            />
             <span class={[
               "font-semibold text-token-sm",
               if(theme_selected?(@profile, id), do: "text-turquoise-700", else: "text-tymeslot-600")
@@ -128,58 +134,10 @@ defmodule TymeslotWeb.OnboardingLive.ChooseThemeStep do
     """
   end
 
-  # Miniature mock that resembles each theme at a glance: Quill shows its
-  # signature numbered step band over a calendar grid; Rhythm shows its
-  # compact vertical slot list. Tinted with the active scheme's primary.
-  attr :theme_key, :atom, required: true
-  attr :primary, :string, required: true
-
-  defp theme_thumbnail(%{theme_key: :rhythm} = assigns) do
-    ~H"""
-    <div class="aspect-[4/3] w-full rounded-token-lg bg-tymeslot-900 p-2 flex flex-col gap-1.5 overflow-hidden">
-      <div class="h-1.5 w-2/3 rounded-full bg-white/30" />
-      <div :for={_row <- 1..3} class="h-2.5 rounded-token-sm bg-white/10 flex items-center px-1">
-        <span class="h-1 w-1/3 rounded-full" style={"background: #{@primary};"} />
-      </div>
-    </div>
-    """
-  end
-
-  defp theme_thumbnail(assigns) do
-    ~H"""
-    <div class="aspect-[4/3] w-full rounded-token-lg bg-tymeslot-900 p-2 flex flex-col gap-1.5 overflow-hidden">
-      <div class="flex items-center justify-center gap-1">
-        <span
-          :for={n <- 1..4}
-          class="w-2 h-2 rounded-full"
-          style={
-            if(n == 1, do: "background: #{@primary};", else: "background: rgba(255,255,255,0.25);")
-          }
-        />
-      </div>
-      <div class="grid grid-cols-5 gap-0.5">
-        <span
-          :for={cell <- 0..9}
-          class="aspect-square rounded-token-sm"
-          style={
-            if(cell in [2, 6],
-              do: "background: #{@primary};",
-              else: "background: rgba(255,255,255,0.12);"
-            )
-          }
-        />
-      </div>
-    </div>
-    """
-  end
-
   defp theme_selected?(profile, id), do: (profile && profile.booking_theme) == id
 
-  defp resolve_theme_key(id) do
-    case Registry.id_to_key(id) do
-      {:ok, key} -> key
-      {:error, :invalid_theme_id} -> Registry.default_theme_key()
-    end
+  defp theme_module(id) do
+    ThemeInfo.get_theme_module(id) || ThemeInfo.get_theme_module(Catalog.default_id())
   end
 
   # Returns colour-scheme ids in a stable display order, appending any

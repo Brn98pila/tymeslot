@@ -11,4 +11,9 @@ defmodule TymeslotWeb.Themes.Quill.Theme do
         "dashboard_appearance",
         "Glass morphism design with elegant transparency effects and a 4-step booking flow."
       )
+
+  @impl TymeslotWeb.Themes.Core.Behaviour
+  defdelegate onboarding_preview(assigns),
+    to: TymeslotWeb.Themes.Quill.OnboardingPreview,
+    as: :render
 end

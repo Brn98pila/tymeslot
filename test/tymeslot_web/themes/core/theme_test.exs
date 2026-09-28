@@ -70,6 +70,8 @@ end
 defmodule TymeslotWeb.Themes.Core.ThemeTest do
   use ExUnit.Case, async: true
 
+  import Phoenix.LiveViewTest, only: [render_component: 2]
+
   @moduletag :themes
   @moduletag :unit
 
@@ -144,5 +146,15 @@ defmodule TymeslotWeb.Themes.Core.ThemeTest do
       end
       """)
     end
+  end
+
+  test "onboarding_preview/1 defaults to the generic mock" do
+    html =
+      render_component(&Fixture.onboarding_preview/1,
+        variant: :thumbnail,
+        primary: "#abcdef"
+      )
+
+    assert html =~ "#abcdef"
   end
 end

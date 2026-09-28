@@ -18,7 +18,9 @@ defmodule TymeslotWeb.Themes.Core.Theme do
     * the render callbacks, dispatching to the conventional modules under the
       theme's namespace, each with a `render/1`: `Meeting.Reschedule`,
       `Meeting.Cancel`, `Meeting.CancelConfirmed`, `Poll.Voting`,
-      `Payment.Processing` and `Payment.Cancelled`.
+      `Payment.Processing` and `Payment.Cancelled`;
+    * `onboarding_preview/1`, defaulting to the generic mock in
+      `TymeslotWeb.OnboardingLive.PreviewParts`.
 
   Every render callback is overridable; an override carries
   `@impl TymeslotWeb.Themes.Core.Behaviour` like any other callback. A
@@ -43,6 +45,8 @@ defmodule TymeslotWeb.Themes.Core.Theme do
       @behaviour TymeslotWeb.Themes.Core.Behaviour
 
       use Gettext, backend: TymeslotWeb.Gettext
+
+      alias TymeslotWeb.OnboardingLive.PreviewParts
 
       @impl TymeslotWeb.Themes.Core.Behaviour
       def live_view_module, do: unquote(live_view)
@@ -73,7 +77,13 @@ defmodule TymeslotWeb.Themes.Core.Theme do
       def render_payment_page(assigns, :processing), do: unquote(processing).render(assigns)
       def render_payment_page(assigns, :cancelled), do: unquote(cancelled).render(assigns)
 
-      defoverridable render_meeting_action: 2, render_poll_action: 1, render_payment_page: 2
+      @impl TymeslotWeb.Themes.Core.Behaviour
+      def onboarding_preview(assigns), do: PreviewParts.generic(assigns)
+
+      defoverridable render_meeting_action: 2,
+                     render_poll_action: 1,
+                     render_payment_page: 2,
+                     onboarding_preview: 1
     end
   end
 

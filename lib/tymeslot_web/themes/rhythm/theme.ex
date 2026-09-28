@@ -11,4 +11,9 @@ defmodule TymeslotWeb.Themes.Rhythm.Theme do
         "dashboard_appearance",
         "Modern sliding design with video background and a 4-slide booking flow."
       )
+
+  @impl TymeslotWeb.Themes.Core.Behaviour
+  defdelegate onboarding_preview(assigns),
+    to: TymeslotWeb.Themes.Rhythm.OnboardingPreview,
+    as: :render
 end
