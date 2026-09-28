@@ -42,6 +42,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
     wrapper = Keyword.fetch!(opts, :wrapper)
     steps = Keyword.fetch!(opts, :steps)
     validate_steps!(steps)
+    validate_step_components!(steps, __CALLER__)
 
     quote do
       use TymeslotWeb, :live_view
@@ -120,11 +121,18 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
   end
 
   defp validate_steps!({:%{}, _meta, pairs}) do
-    case @steps -- Keyword.keys(pairs) do
-      [] ->
+    keys = Keyword.keys(pairs)
+
+    case {@steps -- keys, keys -- @steps} do
+      {[], []} ->
         :ok
 
-      missing ->
+      {[], unknown} ->
+        raise ArgumentError,
+              "use SchedulingLive got steps it does not know: #{inspect(unknown)}; " <>
+                "the steps are #{inspect(@steps)}"
+
+      {missing, _unknown} ->
         raise ArgumentError,
               "use SchedulingLive needs a component for every step; missing: #{inspect(missing)}"
     end
@@ -134,5 +142,30 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
     raise ArgumentError,
           "use SchedulingLive expects :steps as a literal map of step => component, got: " <>
             Macro.to_string(other)
+  end
+
+  # Checked here, while the theme compiles, rather than in an `@after_verify`
+  # callback: an exception raised there crashes the compiler's checker process
+  # instead of surfacing from `Code.compile_quoted/1`, so no test could see it.
+  # The price is a compile-time dependency from each theme's `live.ex` on its
+  # step components, which also recompiles and rechecks it when one changes.
+  defp validate_step_components!({:%{}, _meta, pairs}, caller) do
+    Enum.each(pairs, fn {step, alias_ast} ->
+      module = Macro.expand(alias_ast, caller)
+
+      unless live_component?(module) do
+        raise CompileError,
+          file: caller.file,
+          line: caller.line,
+          description:
+            "use SchedulingLive needs a LiveComponent for step #{inspect(step)}, " <>
+              "got #{inspect(module)}, which is not a loaded LiveComponent"
+      end
+    end)
+  end
+
+  defp live_component?(module) do
+    is_atom(module) and match?({:module, _}, Code.ensure_compiled(module)) and
+      function_exported?(module, :__live__, 0) and module.__live__()[:kind] == :component
   end
 end

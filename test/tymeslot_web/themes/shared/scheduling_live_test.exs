@@ -2,6 +2,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest do
   use ExUnit.Case, async: true
 
   alias Phoenix.LiveView.Socket
+  alias TymeslotWeb.Themes.Quill.Scheduling.Wrapper
 
   @moduletag :themes
 
@@ -63,13 +64,85 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest do
           quote do
             defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest.MissingStepLive do
               use TymeslotWeb.Themes.Shared.SchedulingLive,
-                wrapper: &TymeslotWeb.Themes.Quill.Scheduling.Wrapper.quill_wrapper/1,
+                wrapper: &Wrapper.quill_wrapper/1,
                 steps: %{
                   overview: TymeslotWeb.Themes.Quill.Scheduling.Components.OverviewComponent,
                   schedule: TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent,
                   questions:
                     TymeslotWeb.Themes.Quill.Scheduling.Components.CustomQuestionsComponent,
                   booking: TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent
+                }
+            end
+          end
+        )
+      end
+    end
+
+    test "refuses a step it does not know" do
+      assert_raise ArgumentError, ~r/does not know.*:awaiting_payment/, fn ->
+        Code.compile_quoted(
+          quote do
+            defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest.UnknownStepLive do
+              use TymeslotWeb.Themes.Shared.SchedulingLive,
+                wrapper: &Wrapper.quill_wrapper/1,
+                steps: %{
+                  overview: TymeslotWeb.Themes.Quill.Scheduling.Components.OverviewComponent,
+                  schedule: TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent,
+                  questions:
+                    TymeslotWeb.Themes.Quill.Scheduling.Components.CustomQuestionsComponent,
+                  booking: TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent,
+                  confirmation:
+                    TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent,
+                  awaiting_payment:
+                    TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent
+                }
+            end
+          end
+        )
+      end
+    end
+
+    test "refuses a step that is not a LiveComponent" do
+      assert_raise CompileError,
+                   ~r/step :confirmation.*TymeslotWeb\.Themes\.Quill\.Scheduling\.Live\b/,
+                   fn ->
+                     Code.compile_quoted(
+                       quote do
+                         defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest.LiveViewStepLive do
+                           use TymeslotWeb.Themes.Shared.SchedulingLive,
+                             wrapper: &Wrapper.quill_wrapper/1,
+                             steps: %{
+                               overview:
+                                 TymeslotWeb.Themes.Quill.Scheduling.Components.OverviewComponent,
+                               schedule:
+                                 TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent,
+                               questions:
+                                 TymeslotWeb.Themes.Quill.Scheduling.Components.CustomQuestionsComponent,
+                               booking:
+                                 TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent,
+                               confirmation: TymeslotWeb.Themes.Quill.Scheduling.Live
+                             }
+                         end
+                       end
+                     )
+                   end
+    end
+
+    test "refuses a step component that does not exist" do
+      assert_raise CompileError, ~r/step :booking.*NoSuchComponent/, fn ->
+        Code.compile_quoted(
+          quote do
+            defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest.MissingModuleLive do
+              use TymeslotWeb.Themes.Shared.SchedulingLive,
+                wrapper: &Wrapper.quill_wrapper/1,
+                steps: %{
+                  overview: TymeslotWeb.Themes.Quill.Scheduling.Components.OverviewComponent,
+                  schedule: TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent,
+                  questions:
+                    TymeslotWeb.Themes.Quill.Scheduling.Components.CustomQuestionsComponent,
+                  booking: TymeslotWeb.Themes.Quill.Scheduling.Components.NoSuchComponent,
+                  confirmation:
+                    TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent
                 }
             end
           end

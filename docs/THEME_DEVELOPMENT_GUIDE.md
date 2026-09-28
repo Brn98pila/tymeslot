@@ -499,12 +499,13 @@ The theme system provides centralized handlers and helpers in `TymeslotWeb.Theme
 > scheduling `handle_event/3` clauses for you (see [Common Patterns](#common-patterns)).
 > The subsections below document the underlying helpers the macro calls — read them
 > to understand what is happening, or when you need to override a specific extension
-> point. A real theme's `live.ex` only defines `render/1` plus optional
-> `handle_theme_event/3` / `handle_theme_schedule_event/3` overrides.
+> point. A real theme's `live.ex` is its `use SchedulingLive, wrapper: …, steps: …`
+> line (with the aliases above it) plus optional `handle_theme_event/3` /
+> `handle_theme_schedule_event/3` / `handle_theme_info/2` overrides.
 
 ### LiveHelpers.Mount, StepEntry and Tracking
 
-The macro's `mount/3` calls `LiveHelpers.Mount.mount_scheduling_view/3`, and its `handle_params/3` calls `LiveHelpers.Mount.handle_scheduling_params/2`; both end by entering the step the route names through `SchedulingFlow`. Entering a step is `SchedulingFlow.handle_state_entry/3`, which uses `LiveHelpers.StepEntry` for the schedule, questions and booking steps. Step components bubble their events as `{:step_event, step, event, data}`; the macro hands them to `SchedulingFlow.handle_step_event/4`, and only a schedule event the flow does not know reaches your `handle_theme_schedule_event/3`.
+The macro's `mount/3` calls `LiveHelpers.Mount.mount_scheduling_view/2`, and its `handle_params/3` calls `LiveHelpers.Mount.handle_scheduling_params/2`; both end by entering the step the route names through `SchedulingFlow`. Entering a step is `SchedulingFlow.handle_state_entry/3`, which uses `LiveHelpers.StepEntry` for the schedule, questions and booking steps. Step components bubble their events as `{:step_event, step, event, data}`; the macro hands them to `SchedulingFlow.handle_step_event/4`, and only a schedule event the flow does not know reaches your `handle_theme_schedule_event/3`.
 
 ### EventHandlers
 
@@ -738,11 +739,15 @@ defmodule TymeslotWeb.Themes.Aurora.Scheduling.StateMachine do
   end
 
   @doc "Checks if navigation to a step is allowed"
-  def can_navigate_to_step?(socket, target_state) do
-    # Only allow navigation to previous or current steps
-    current_step = get_step_number(socket.assigns[:current_state])
-    target_step = get_step_number(target_state)
-    target_step <= current_step
+  def can_navigate_to_step?(socket, target_state, states) do
+    # Only allow navigation to previous or current steps; `states` is
+    # `states_for(meeting_type)`, so step numbers follow the meeting type's flow
+    with %{step: current_step} <- states[socket.assigns[:current_state]],
+         %{step: target_step} <- states[target_state] do
+      target_step <= current_step
+    else
+      _other -> false
+    end
   end
 
   defp validate_overview_complete(socket) do
@@ -936,8 +941,8 @@ You do not write `render/1`: `use SchedulingLive, wrapper:, steps:` generates it
 through `Shared.SchedulingPage`. Your wrapper receives `custom_css`,
 `theme_customization`, `locale`, `language_dropdown_open`, `current_state`,
 `organizer_user_id`, `owner_preview`, `should_show_branding` and an inner block;
-`steps:` must name a component for each of `:overview`, `:schedule`, `:questions`,
-`:booking` and `:confirmation`, which compilation checks.
+`steps:` must name a LiveComponent for each of `:overview`, `:schedule`, `:questions`,
+`:booking` and `:confirmation`, and no other key, which compilation checks.
 
 ## Theme Customization System
 
@@ -1102,8 +1107,8 @@ LocalizationHelpers.format_date(@selected_date)
 - CSS modules and variables
 - Meeting action component designs (use `<.meeting_detail_rows .../>` for the rows)
 
-**Do not re-derive in `render/1`** (already in socket assigns):
-- `organizer_user_id` — set during mount by `SchedulingInit.assign_base_state/1` via `Scheduling.Helpers`. Do not extract it from `organizer_profile` in `render/1`; read `@organizer_user_id` directly.
+**Do not re-derive in your wrapper or step components** (already in socket assigns):
+- `organizer_user_id` — set during mount by `SchedulingInit.assign_base_state/1` via `Scheduling.Helpers`. Do not extract it from `organizer_profile` in the wrapper or a step component; read `@organizer_user_id` directly.
 
 ### Testing Your Theme
 
@@ -1151,7 +1156,7 @@ Logger.debug("Socket assigns: #{inspect(socket.assigns)}")
 ✅ **Use the `SchedulingLive` macro** - It provides all common LiveView callbacks
 ✅ **Use shared modules** - StateMachineHelpers, EventHandlers, InfoHandlers, BookingFlow
 ✅ **Implement all required callbacks** - the compiler checks the behaviour; `theme_contract_test.exs` checks what each callback renders
-✅ **Keep LiveView thin** - It should hold little beyond `render/1`; delegate to the wrapper and components
+✅ **Keep LiveView thin** - `live.ex` holds the `use SchedulingLive` line and, at most, your own event hooks; the page lives in the wrapper and step components
 ✅ **Use LocalizationHelpers** - For all date/time formatting
 ✅ **Test with production checklist** - Automated validation catches issues early
 ✅ **Copy existing themes** - Rhythm and Quill are proven implementations
