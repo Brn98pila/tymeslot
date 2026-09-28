@@ -45,7 +45,7 @@ defmodule Tymeslot.Precommit.Affected do
   @dep_files ~w[mix.exs mix.lock]
   @workflow_prefixes ~w[.github/workflows/ .gitea/workflows/]
   @migration_prefixes ~w[priv/repo/migrations/ priv/saas_repo/migrations/]
-  @css_prefixes ~w[assets/css/scheduling/ scripts/test_css_tokens.sh]
+  @css_prefixes ~w[assets/css/scheduling/ scripts/test_css_tokens.sh lib/mix/tasks/css.check_tokens.ex]
 
   # Sobelow reads the web layer, configuration, and anything handling params,
   # uploads or auth. The last group has no single home, so it is matched by

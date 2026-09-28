@@ -98,7 +98,8 @@ defmodule Tymeslot.Precommit.AffectedTest do
         {"priv/repo/migrations/20260101000000_add_x.exs", ["migrations"]},
         {".github/workflows/verify.yml", ["workflows"]},
         {"assets/css/scheduling/themes/quill/modules/base.css", ["css tokens"]},
-        {"scripts/test_css_tokens.sh", ["css tokens"]}
+        {"scripts/test_css_tokens.sh", ["css tokens"]},
+        {"lib/mix/tasks/css.check_tokens.ex", ["css tokens"]}
       ]
 
       for {path, expected} <- cases do
