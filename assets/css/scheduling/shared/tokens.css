@@ -1,0 +1,64 @@
+/* ==========================================================================
+   Booking-theme token contract
+
+   Imported by every theme.css immediately after the theme's own
+   modules/variables.css. Four kinds of token:
+
+   1. INPUTS. Each theme sets defaults in variables.css; the server's
+      customisation block may override them on :root.
+        --theme-primary  --theme-primary-hover  --theme-secondary
+        --theme-accent   --theme-on-primary     --theme-primary-solid
+        --theme-primary-solid-hover  --theme-on-accent  --theme-accent-solid
+        --theme-text     --theme-text-secondary
+        --theme-success  --theme-warning  --theme-danger  --theme-info
+        --shadow-geometry-sm  --shadow-geometry-md  --shadow-geometry-lg
+          (offset and blur only; the colour is mixed below)
+      Rule: inputs are only ever overridden on :root, never on a wrapper
+      element. The derived tokens below are computed on :root, so an input
+      overridden further down the tree changes there while everything derived
+      from it keeps the :root value.
+
+   2. ROLES that every theme defines in variables.css, usually as aliases of
+      its own names:
+        --surface-1/2/3   --ink-1/2/3   --line-1/2
+        --notice-warning  --notice-warning-surface  --notice-warning-border
+        --radius-control  --radius-card
+        plus --space-*, --theme-font-size-* and --z-dropdown.
+
+   3. SHARED-COMPONENT TOKENS that every theme defines in variables.css, for
+      the values the shared component CSS (shared/components/, layout.css,
+      background-motion.css) needs and the themes set differently. Each
+      shared file lists the tokens it reads in its header.
+
+   4. DERIVED tokens, computed here once from the inputs. Never set them in
+      a theme; set the input instead.
+
+   Colour literals (rgb, rgba, hsl, hex) belong in variables.css and in this
+   file only; scripts/test_css_tokens.sh enforces it.
+   ========================================================================== */
+
+:root {
+  /* Primary family. With the default #06b6d4 each value equals the literal
+     it replaced: color-mix(in srgb, C p%, transparent) is C at alpha p. */
+  --theme-primary-focus: color-mix(in srgb, var(--theme-primary) 20%, transparent);
+  --theme-primary-tint: color-mix(in srgb, var(--theme-primary) 22%, transparent);
+  --theme-primary-glow: color-mix(in srgb, var(--theme-primary) 35%, transparent);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 25%, transparent);
+
+  /* Coloured shadows: theme geometry, palette colour. */
+  --shadow-primary-sm: var(--shadow-geometry-sm) color-mix(in srgb, var(--theme-primary) 30%, transparent);
+  --shadow-primary-md: var(--shadow-geometry-md) color-mix(in srgb, var(--theme-primary) 40%, transparent);
+  --shadow-primary-lg: var(--shadow-geometry-lg) color-mix(in srgb, var(--theme-primary) 30%, transparent);
+
+  --shadow-success-sm: var(--shadow-geometry-sm) color-mix(in srgb, var(--theme-success) 30%, transparent);
+  --shadow-success-md: var(--shadow-geometry-md) color-mix(in srgb, var(--theme-success) 40%, transparent);
+  --shadow-success-lg: var(--shadow-geometry-lg) color-mix(in srgb, var(--theme-success) 30%, transparent);
+
+  --shadow-danger-sm: var(--shadow-geometry-sm) color-mix(in srgb, var(--theme-danger) 30%, transparent);
+  --shadow-danger-md: var(--shadow-geometry-md) color-mix(in srgb, var(--theme-danger) 40%, transparent);
+
+  --shadow-warning-md: var(--shadow-geometry-md) color-mix(in srgb, var(--theme-warning) 40%, transparent);
+  --shadow-warning-lg: var(--shadow-geometry-lg) color-mix(in srgb, var(--theme-warning) 30%, transparent);
+
+  --shadow-info-sm: var(--shadow-geometry-sm) color-mix(in srgb, var(--theme-info) 30%, transparent);
+}

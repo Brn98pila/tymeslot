@@ -66,6 +66,7 @@
   --theme-accent-solid: var(--theme-accent);
 
   --theme-warning: #fbbf24;
+  --theme-success: #10b981;
   --theme-info: #6366f1;
   --theme-info-dark: #4f46e5;
   --theme-error: rgba(239, 68, 68, 0.95);
@@ -183,13 +184,12 @@
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.2);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.25);
   --shadow-xl: 0 10px 40px rgba(0, 0, 0, 0.3);
-  --shadow-primary-sm: 0 4px 16px rgba(6, 182, 212, 0.3);
-  --shadow-primary-md: 0 6px 20px rgba(6, 182, 212, 0.4);
-  --shadow-success-sm: 0 4px 16px rgba(16, 185, 129, 0.3);
-  --shadow-success-md: 0 6px 20px rgba(16, 185, 129, 0.4);
-  --shadow-success-lg: 0 8px 24px rgba(16, 185, 129, 0.3);
-  --shadow-danger-sm: 0 4px 16px rgba(239, 68, 68, 0.3);
-  --shadow-danger-md: 0 6px 20px rgba(239, 68, 68, 0.4);
+
+  /* Coloured-shadow geometry (offset and blur). The colour is mixed from the
+     palette in shared/tokens.css. */
+  --shadow-geometry-sm: 0 4px 16px;
+  --shadow-geometry-md: 0 6px 20px;
+  --shadow-geometry-lg: 0 8px 24px;
 
   /* Scrollbar styling */
   --scrollbar-width: 6px;
@@ -202,4 +202,19 @@
   --button-padding-x: 28px;
   --button-padding-y-sm: 12px;
   --button-padding-x-sm: 24px;
+
+  /* Roles (shared/tokens.css, section 2), as aliases of Rhythm's own names */
+  --surface-1: var(--surface-subtle);
+  --surface-2: var(--surface-light);
+  --surface-3: var(--surface-strong);
+  --ink-1: var(--theme-text);
+  --ink-2: var(--theme-text-secondary);
+  --ink-3: var(--theme-text-muted);
+  --line-1: var(--border-light);
+  --line-2: var(--border-medium);
+  --notice-warning: var(--theme-warning);
+  --notice-warning-surface: rgba(251, 191, 36, 0.12);
+  --notice-warning-border: rgba(251, 191, 36, 0.4);
+  --radius-control: var(--radius-md);
+  --radius-card: var(--radius-2xl);
 }

@@ -116,7 +116,7 @@ html.rhythm-theme .poll-field-input {
 html.rhythm-theme .poll-field-input:focus {
   outline: none;
   border-color: var(--theme-primary);
-  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.25);
+  box-shadow: var(--focus-ring);
 }
 
 html.rhythm-theme .poll-submit-button {
@@ -231,7 +231,7 @@ html.rhythm-theme .poll-vote-option {
 
 html.rhythm-theme .poll-vote-option:has(input:checked) {
   border-color: var(--theme-primary);
-  background: rgba(6, 182, 212, 0.22);
+  background: var(--theme-primary-tint);
   font-weight: 600;
 }
 

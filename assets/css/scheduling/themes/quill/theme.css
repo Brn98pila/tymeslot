@@ -14,6 +14,7 @@
 
 /* Foundation */
 @import "./modules/variables.css";
+@import "../../shared/tokens.css";
 @import "./modules/base.css";
 @import "./modules/iframe.css";
 @import "./modules/video.css";

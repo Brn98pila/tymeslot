@@ -339,6 +339,10 @@ Each theme's `theme.css` imports the shared entry, then the shared token file ri
 /* …the theme's own modules, and shared/components/*.css where the theme uses them */
 ```
 
+### Token contract
+
+`scheduling/shared/tokens.css` is the contract every theme builds on. Its header lists the four kinds of token (inputs, roles, shared-component tokens, derived tokens). A theme's `variables.css` sets the inputs and defines every role and shared-component token; the derived tokens (`--theme-primary-focus`, `--theme-primary-tint`, `--theme-primary-glow`, `--focus-ring`, `--shadow-{primary,success,danger,warning,info}-*`) are computed with `color-mix()` from the inputs, so a custom palette reaches them automatically. Inputs are only ever overridden on `:root`, never on a wrapper element, or the derived tokens stop following them.
+
 ### Intrinsic Responsiveness
 
 Themes use **CSS container queries** and **fluid sizing** instead of viewport breakpoints. Each component file is self-contained — it owns its base styles, container queries, and iframe overrides in one place.

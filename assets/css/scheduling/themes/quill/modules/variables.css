@@ -50,7 +50,6 @@
   /* Theme Colors - Primary Palette */
   --theme-primary: #06b6d4;
   --theme-primary-hover: #0891b2;
-  --theme-primary-focus: rgba(6, 182, 212, 0.2);
   --theme-secondary: #14b8a6;
   --theme-accent: #10b981;
   --theme-accent-dark: #059669;
@@ -169,14 +168,11 @@
   --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.15);
   --shadow-2xl: 0 20px 40px rgba(0, 0, 0, 0.1);
 
-  /* Elevation Shadows - Colored Shadows */
-  --shadow-primary-sm: 0 4px 12px rgba(6, 182, 212, 0.3);
-  --shadow-primary-md: 0 6px 20px rgba(6, 182, 212, 0.4);
-  --shadow-primary-lg: 0 12px 32px rgba(6, 182, 212, 0.3);
-  --shadow-success-sm: 0 4px 12px rgba(16, 185, 129, 0.4);
-  --shadow-success-md: 0 6px 20px rgba(16, 185, 129, 0.4);
-  --shadow-danger-sm: 0 4px 12px rgba(239, 68, 68, 0.4);
-  --shadow-danger-md: 0 6px 20px rgba(239, 68, 68, 0.4);
+  /* Coloured-shadow geometry (offset and blur). The colour is mixed from the
+     palette in shared/tokens.css, so a custom palette's shadows follow it. */
+  --shadow-geometry-sm: 0 4px 12px;
+  --shadow-geometry-md: 0 6px 20px;
+  --shadow-geometry-lg: 0 12px 32px;
 
   /* Inset Shadows (highlights) */
   --inset-highlight-subtle: inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -317,7 +313,22 @@
   --option-tile-border: rgba(255, 255, 255, 0.18);
   --option-tile-border-hover: rgba(255, 255, 255, 0.35);
   --option-tile-text: rgba(255, 255, 255, 0.85);
-  --option-tile-selected-glow: rgba(6, 182, 212, 0.35);
+  --option-tile-selected-glow: var(--theme-primary-glow);
   --option-indicator-idle: rgba(255, 255, 255, 0.45);
   --option-indicator-hover: rgba(255, 255, 255, 0.7);
+
+  /* Roles (shared/tokens.css, section 2), as aliases of Quill's own names */
+  --surface-1: var(--surface-subtle);
+  --surface-2: var(--surface-very-light);
+  --surface-3: var(--surface-medium);
+  --ink-1: var(--text-opacity-high);
+  --ink-2: var(--text-opacity-medium);
+  --ink-3: var(--text-opacity-subtle);
+  --line-1: var(--border-light);
+  --line-2: var(--border-medium);
+  --notice-warning: var(--theme-warning);
+  --notice-warning-surface: rgba(251, 191, 36, 0.1);
+  --notice-warning-border: rgba(251, 191, 36, 0.35);
+  --radius-control: var(--input-border-radius);
+  --radius-card: var(--card-border-radius);
 }
