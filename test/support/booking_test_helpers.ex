@@ -59,7 +59,7 @@ defmodule Tymeslot.BookingTestHelpers do
   scheduling page URL.
 
   The reschedule journey needs `reschedule_meeting_uid` present from the first
-  render — `LiveHelpers` reads it out of the params to set `is_rescheduling`,
+  render — `LiveHelpers.Mount` reads it out of the params to set `is_rescheduling`,
   and without it the identical walk silently books a *new* meeting instead of
   moving the existing one.
   """

@@ -52,13 +52,13 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       alias TymeslotWeb.Themes.Shared.{
         EventHandlers,
         InfoHandlers,
-        LiveHelpers,
         PathHandlers,
         ReschedulePin,
         SchedulingInit,
         SlotGrouping
       }
 
+      alias TymeslotWeb.Themes.Shared.LiveHelpers.{Mount, StepEntry, Tracking}
       alias TymeslotWeb.Themes.Shared.StateMachineHelpers, as: StateMachine
 
       alias Tymeslot.CustomFields
@@ -73,7 +73,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
         initial_state = StateMachine.determine_initial_state(socket.assigns[:live_action])
 
         socket =
-          LiveHelpers.mount_scheduling_view(
+          Mount.mount_scheduling_view(
             socket,
             params,
             initial_state,
@@ -81,7 +81,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
             &setup_initial_state/3
           )
 
-        socket = LiveHelpers.assign_tracking(socket, params)
+        socket = Tracking.assign_tracking(socket, params)
 
         {:ok, socket}
       end
@@ -90,7 +90,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       def handle_params(params, _url, socket) do
         new_state = StateMachine.determine_initial_state(socket.assigns[:live_action])
 
-        LiveHelpers.handle_scheduling_params(
+        Mount.handle_scheduling_params(
           socket,
           params,
           new_state,
@@ -453,7 +453,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       end
 
       defp maybe_assign_meeting_type(socket, duration) do
-        LiveHelpers.maybe_assign_meeting_type(socket, duration)
+        StepEntry.maybe_assign_meeting_type(socket, duration)
       end
 
       defp assign_initial_state(socket) do
@@ -461,16 +461,16 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       end
 
       defp handle_param_updates(socket, params) do
-        LiveHelpers.handle_param_updates(socket, params)
+        Mount.handle_param_updates(socket, params)
       end
 
       defp setup_initial_state(socket, initial_state, params) do
-        LiveHelpers.setup_initial_state(socket, initial_state, params, &handle_state_entry/3)
+        Mount.setup_initial_state(socket, initial_state, params, &handle_state_entry/3)
       end
 
       defp handle_state_entry(socket, :schedule, params) do
         socket
-        |> LiveHelpers.handle_schedule_entry(params)
+        |> StepEntry.handle_schedule_entry(params)
         |> refresh_stale_slot_snapshot()
       end
 
@@ -483,14 +483,14 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
 
         engine =
           if defs != socket.assigns.engine.definitions,
-            do: LiveHelpers.init_questions_engine(socket, defs),
+            do: StepEntry.init_questions_engine(socket, defs),
             else: socket.assigns.engine
 
         assign(socket, :engine, engine)
       end
 
       defp handle_state_entry(socket, :booking, params) do
-        LiveHelpers.handle_booking_entry(socket, params)
+        StepEntry.handle_booking_entry(socket, params)
       end
 
       defp handle_state_entry(socket, _state, _params), do: socket

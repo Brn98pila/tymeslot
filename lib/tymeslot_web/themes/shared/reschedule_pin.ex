@@ -14,7 +14,7 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
   guest who only wants a different time from being shown the host's entire
   catalogue on the way.
 
-  The pin is the *only* meeting-type resolver a reschedule uses. `LiveHelpers`
+  The pin is the *only* meeting-type resolver a reschedule uses. `LiveHelpers.Mount`
   applies it on every `handle_params`, and the schedule and booking entries
   defer to it rather than resolving the slug in the URL. That is what a stale
   or hand-edited link like `/:username/<another-slug>?reschedule_meeting_uid=…`

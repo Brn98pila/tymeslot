@@ -25,7 +25,7 @@ defmodule TymeslotWeb.Live.Scheduling.ThemeUtils do
   token expired mid-session cannot silently persist a real meeting the owner
   never sees. Whether a booking is simulated rather than blocked hangs off the
   verified, owner-bound `:owner_preview` token instead (see
-  `LiveHelpers.assign_owner_preview/2`).
+  `LiveHelpers.Mount`'s owner-preview gate).
 
   Because the claim can block a booking, it must never be inferrable from a
   parameter a visitor can pick up by accident. That is why `?theme=` no longer

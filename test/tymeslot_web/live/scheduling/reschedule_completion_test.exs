@@ -10,7 +10,7 @@ defmodule TymeslotWeb.Live.Scheduling.RescheduleCompletionTest do
   `/:username?reschedule_meeting_uid=…`. `DispatcherCancelCompositionTest`
   says as much in its own moduledoc: "Reschedule is not exercised here."
 
-  The untested middle is where the bug lives. `LiveHelpers` turns that
+  The untested middle is where the bug lives. `LiveHelpers.Mount` turns that
   query param into `is_rescheduling`, `PathHandlers` has to carry it across
   every step transition, and `BookingSubmissionHandlerComponent` reads it
   back off the socket to choose between `Create` and `Reschedule`. Drop the
