@@ -7,7 +7,7 @@ defmodule Tymeslot.ThemeCustomizations.Capability do
   """
 
   alias Tymeslot.ThemeCustomizations
-  alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
+  alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.Validation
   alias Tymeslot.Themes.Catalog
 
@@ -102,7 +102,7 @@ defmodule Tymeslot.ThemeCustomizations.Capability do
   end
 
   defp color_options do
-    Enum.map(ThemeCustomizationSchema.color_scheme_definitions(), fn {key, %{name: name}} ->
+    Enum.map(Presets.get_color_schemes(), fn {key, %{name: name}} ->
       %{
         type: :color,
         key: key,
@@ -155,7 +155,7 @@ defmodule Tymeslot.ThemeCustomizations.Capability do
   end
 
   defp gradient_options do
-    Enum.map(ThemeCustomizationSchema.gradient_definitions(), fn {key, %{name: name}} ->
+    Enum.map(Presets.get_gradient_presets(), fn {key, %{name: name}} ->
       %{
         type: :background,
         key: key,
@@ -322,7 +322,7 @@ defmodule Tymeslot.ThemeCustomizations.Capability do
         "--theme-background-image: url('/uploads/#{path}');"
 
       bg_value && String.starts_with?(bg_value, "preset:") ->
-        preset = ThemeCustomizationSchema.image_presets()[bg_value]
+        preset = Presets.find_preset_by_id(:image, bg_value)
 
         if preset do
           "--theme-background-image: url('/images/ui/backgrounds/#{preset.file}');"

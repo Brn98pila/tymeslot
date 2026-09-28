@@ -952,7 +952,7 @@ LiveView assigned one, and an inner block;
 
 Themes can offer users four types of backgrounds:
 
-1. **Gradients** - CSS gradients defined in `ThemeCustomizationSchema.gradient_presets/0`
+1. **Gradients** - CSS gradients defined in `Tymeslot.ThemeCustomizations.Presets.get_gradient_presets/0`
 2. **Solid Colors** - User-selected hex colors
 3. **Preset Images/Videos** - Pre-defined options stored in `/priv/static/`
 4. **Custom Uploads** - User-uploaded images or videos
@@ -980,7 +980,7 @@ priv/static/
 
 ### Defining Presets
 
-Presets are defined in `database_schemas/theme_customization_schema.ex`.
+Presets are defined in `lib/tymeslot/theme_customizations/presets.ex`.
 
 **Available Video Presets**:
 - `"preset:rhythm-default"`

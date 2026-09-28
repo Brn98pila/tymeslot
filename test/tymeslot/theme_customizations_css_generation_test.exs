@@ -5,6 +5,7 @@ defmodule Tymeslot.ThemeCustomizationsCssGenerationTest do
   alias Tymeslot.Profiles
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Capability
+  alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   describe "ThemeCustomizations CSS generation" do
@@ -122,7 +123,7 @@ defmodule Tymeslot.ThemeCustomizationsCssGenerationTest do
         })
 
       css = ThemeCustomizations.generate_theme_css("1", customization)
-      %{colors: colors} = ThemeCustomizationSchema.color_scheme_definitions()["turquoise"]
+      %{colors: colors} = Presets.get_color_schemes()["turquoise"]
 
       # Turquoise is one of the palettes whose solid variant *is* nudged, so
       # this pins the split: borders, focus rings and bright text keep the

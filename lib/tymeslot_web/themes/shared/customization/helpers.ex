@@ -7,6 +7,7 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
   alias Tymeslot.Demo
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Defaults
+  alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
   alias Tymeslot.ThemeCustomizations.Validation
 
@@ -194,7 +195,7 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
         nil
 
       String.starts_with?(background_value, "preset:") ->
-        preset = ThemeCustomizationSchema.video_presets()[background_value]
+        preset = Presets.find_preset_by_id(:video, background_value)
 
         if preset && preset.poster do
           "/images/ui/posters/#{preset.poster}"
@@ -226,7 +227,7 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
   end
 
   defp get_preset_image_style(background_value) do
-    preset = ThemeCustomizationSchema.image_presets()[background_value]
+    preset = Presets.find_preset_by_id(:image, background_value)
 
     if preset do
       """

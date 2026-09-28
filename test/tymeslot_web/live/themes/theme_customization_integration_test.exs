@@ -9,6 +9,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
   alias Tymeslot.Repo
   alias Tymeslot.TestMocks
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   describe "theme customization application" do
@@ -30,7 +31,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
 
       # Create customization with a specific color scheme
       color_scheme = "purple"
-      scheme_def = ThemeCustomizationSchema.color_scheme_definitions()[color_scheme]
+      scheme_def = Presets.get_color_schemes()[color_scheme]
       primary_color = scheme_def.colors.primary
 
       {:ok, _customization} =
@@ -56,7 +57,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
 
       # Create customization with a gradient
       gradient_id = "gradient_2"
-      gradient_val = ThemeCustomizationSchema.gradient_presets()[gradient_id].value
+      gradient_val = Presets.get_gradient_presets()[gradient_id].value
 
       {:ok, _customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "2", %{

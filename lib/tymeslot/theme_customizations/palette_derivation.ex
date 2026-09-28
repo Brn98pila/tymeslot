@@ -3,7 +3,7 @@ defmodule Tymeslot.ThemeCustomizations.PaletteDerivation do
   Derives a full 8-token colour palette from a single seed colour.
 
   Returns a map shaped identically to the static presets in
-  `Tymeslot.ThemeCustomizations.ThemeCustomizationSchema.color_scheme_definitions/0`,
+  `Tymeslot.ThemeCustomizations.Presets.get_color_schemes/0`,
   so it can be substituted transparently in CSS generation when the user has
   picked the "custom" scheme.
 

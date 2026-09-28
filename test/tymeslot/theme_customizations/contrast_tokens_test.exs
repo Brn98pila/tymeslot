@@ -6,13 +6,13 @@ defmodule Tymeslot.ThemeCustomizations.ContrastTokensTest do
 
   alias Tymeslot.ThemeCustomizations.ContrastTokens
   alias Tymeslot.ThemeCustomizations.PaletteDerivation
-  alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
+  alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.Utils.Colour
 
   # WCAG 2.2 SC 1.4.3, normal-size text.
   @aa 4.5
 
-  defp presets, do: ThemeCustomizationSchema.color_scheme_definitions()
+  defp presets, do: Presets.get_color_schemes()
 
   # Every pairing the booking page actually paints: the ink sits on both stops
   # of the primary gradient, and on the accent fill.
