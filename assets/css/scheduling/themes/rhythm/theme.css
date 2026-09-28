@@ -18,7 +18,7 @@
 @import "./modules/custom-questions.css";
 @import "./modules/confirmation.css";
 @import "../../shared/components/polls.css";
-@import "./modules/payment-pages.css";
+@import "../../shared/components/payment-pages.css";
 @import "./modules/components.css";
 @import "./modules/language-switcher.css";
 @import "./modules/calendar.css";
