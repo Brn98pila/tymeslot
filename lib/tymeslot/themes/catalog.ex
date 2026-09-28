@@ -8,9 +8,9 @@ defmodule Tymeslot.Themes.Catalog do
   theme customizations validate and drive behaviour off these facts without ever
   reaching up into the web layer.
 
-  The web layer (`TymeslotWeb.Themes.Core.Registry`) augments these facts with
-  presentation bindings (the theme module, CSS file, preview image), but the
-  facts themselves live here so the dependency only ever flows web → domain.
+  The web layer (`TymeslotWeb.Themes.Core.Registry`) binds each theme id to its
+  theme module, but the facts themselves live here so the dependency only ever
+  flows web → domain.
 
   `heading_style` says whether the booking page's default heading names the
   organiser (`:named`) or greets generically (`:generic`).
