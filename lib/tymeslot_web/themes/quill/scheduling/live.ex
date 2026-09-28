@@ -8,8 +8,6 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Live do
   """
   use TymeslotWeb.Themes.Shared.SchedulingLive, theme_id: "1"
 
-  alias TymeslotWeb.Live.Scheduling.AvailabilityHelpers
-
   alias TymeslotWeb.Themes.Quill.Scheduling.Components.{
     BookingComponent,
     ConfirmationComponent,
@@ -20,44 +18,6 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Live do
 
   alias TymeslotWeb.Themes.Quill.Scheduling.Wrapper, as: QuillThemeWrapper
   alias TymeslotWeb.Themes.Shared.Components.AwaitingPayment
-
-  # Handle month navigation (Quill has a full monthly calendar grid)
-  defp handle_theme_schedule_event(socket, event, _data)
-       when event in [:prev_month, :next_month] do
-    direction = if event == :prev_month, do: :prev, else: :next
-    {:noreply, handle_month_navigation(socket, direction)}
-  end
-
-  defp handle_theme_schedule_event(socket, _event, _data), do: {:noreply, socket}
-
-  defp handle_month_navigation(socket, direction) do
-    {year, month} =
-      case direction do
-        :prev ->
-          if socket.assigns[:current_month] == 1 do
-            {socket.assigns[:current_year] - 1, 12}
-          else
-            {socket.assigns[:current_year], socket.assigns[:current_month] - 1}
-          end
-
-        :next ->
-          if socket.assigns[:current_month] == 12 do
-            {socket.assigns[:current_year] + 1, 1}
-          else
-            {socket.assigns[:current_year], socket.assigns[:current_month] + 1}
-          end
-      end
-
-    socket
-    |> assign(:current_year, year)
-    |> assign(:current_month, month)
-    |> assign(:selected_date, nil)
-    |> assign(:selected_time, nil)
-    |> assign(:available_slots, [])
-    |> assign(:month_availability_map, nil)
-    |> assign(:availability_status, :not_loaded)
-    |> AvailabilityHelpers.fetch_month_availability_async()
-  end
 
   @impl Phoenix.LiveView
   def render(assigns) do

@@ -163,6 +163,12 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   defp schedule_event(socket, :next_week, _data),
     do: {:noreply, CalendarHelpers.handle_week_navigation(socket, :next)}
 
+  defp schedule_event(socket, :prev_month, _data),
+    do: {:noreply, CalendarHelpers.handle_month_navigation(socket, :prev)}
+
+  defp schedule_event(socket, :next_month, _data),
+    do: {:noreply, CalendarHelpers.handle_month_navigation(socket, :next)}
+
   # Only allow returning to the overview when the booker actually entered via
   # it. A direct/private-link entry sets `entered_via_overview: false` and must
   # never expose the organiser's other meeting types — enforce this

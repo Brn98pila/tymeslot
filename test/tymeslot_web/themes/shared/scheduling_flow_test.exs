@@ -56,6 +56,15 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlowTest do
       assert SchedulingFlow.handle_step_event(socket(%{}), :schedule, :spin_globe, nil) ==
                :unhandled
     end
+
+    test "month navigation is a shared schedule event, not a theme's" do
+      socket = socket(%{current_year: 2027, current_month: 12})
+
+      assert {:noreply, socket} =
+               SchedulingFlow.handle_step_event(socket, :schedule, :next_month, nil)
+
+      assert {socket.assigns.current_year, socket.assigns.current_month} == {2028, 1}
+    end
   end
 
   describe "questions step" do

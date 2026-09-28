@@ -15,7 +15,7 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
   alias TymeslotWeb.Live.Scheduling.AvailabilityHelpers
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
 
-  import Component, only: [assign: 3]
+  import Component, only: [assign: 2, assign: 3]
 
   @doc """
   Gets calendar days for month view.
@@ -279,6 +279,34 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
     else
       assign(socket, :current_week_start, new_week_start)
     end
+  end
+
+  @doc """
+  Handles month navigation (prev/next) for a calendar paged by month.
+
+  Moves `current_year`/`current_month` one month, drops the day and time the
+  booker picked (they belong to the month being left) along with that month's
+  availability, and fetches the new month's.
+  """
+  @spec handle_month_navigation(Phoenix.LiveView.Socket.t(), :prev | :next) ::
+          Phoenix.LiveView.Socket.t()
+  def handle_month_navigation(socket, direction) do
+    %Date{year: year, month: month} =
+      socket.assigns.current_year
+      |> Date.new!(socket.assigns.current_month, 1)
+      |> Date.shift(month: if(direction == :next, do: 1, else: -1))
+
+    socket
+    |> assign(
+      current_year: year,
+      current_month: month,
+      selected_date: nil,
+      selected_time: nil,
+      available_slots: [],
+      month_availability_map: nil,
+      availability_status: :not_loaded
+    )
+    |> AvailabilityHelpers.fetch_month_availability_async()
   end
 
   @doc """

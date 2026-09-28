@@ -3,6 +3,7 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpersTest do
 
   @moduletag :scheduling
 
+  alias Phoenix.LiveView.Socket
   alias Tymeslot.Availability.Calculate
   alias TymeslotWeb.Live.Scheduling.CalendarHelpers
 
@@ -321,6 +322,45 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpersTest do
       Map.new(offsets, fn offset ->
         {week_start |> Date.add(offset) |> Date.to_string(), value}
       end)
+    end
+  end
+
+  describe "handle_month_navigation/2" do
+    defp month_socket(year, month) do
+      %Socket{
+        assigns: %{
+          __changed__: %{},
+          current_year: year,
+          current_month: month,
+          selected_date: "#{year}-#{String.pad_leading("#{month}", 2, "0")}-03",
+          selected_time: "10:00",
+          available_slots: ["10:00"],
+          month_availability_map: %{},
+          availability_status: :loaded
+        }
+      }
+    end
+
+    test "steps forward into the next year" do
+      socket = CalendarHelpers.handle_month_navigation(month_socket(2027, 12), :next)
+      assert {socket.assigns.current_year, socket.assigns.current_month} == {2028, 1}
+    end
+
+    test "steps back into the previous year" do
+      socket = CalendarHelpers.handle_month_navigation(month_socket(2027, 1), :prev)
+      assert {socket.assigns.current_year, socket.assigns.current_month} == {2026, 12}
+    end
+
+    test "drops the day and time picked in the month being left, and its availability" do
+      socket = CalendarHelpers.handle_month_navigation(month_socket(2027, 6), :next)
+
+      assert %{
+               selected_date: nil,
+               selected_time: nil,
+               available_slots: [],
+               month_availability_map: nil,
+               availability_status: :not_loaded
+             } = socket.assigns
     end
   end
 end
