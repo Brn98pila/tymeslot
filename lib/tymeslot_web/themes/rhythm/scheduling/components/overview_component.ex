@@ -13,26 +13,15 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.OverviewComponent do
   alias TymeslotWeb.Themes.Shared.BookingText
   alias TymeslotWeb.Themes.Shared.Components.ApprovalNotice
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
+  alias TymeslotWeb.Themes.Shared.StepEvents
 
   import TymeslotWeb.Components.FlagHelpers
 
   @impl Phoenix.LiveComponent
-  def update(assigns, socket) do
-    filtered_assigns = Map.drop(assigns, [:flash, :socket])
-    {:ok, assign(socket, filtered_assigns)}
-  end
+  defdelegate update(assigns, socket), to: StepEvents
 
   @impl Phoenix.LiveComponent
-  def handle_event("select_duration", %{"duration" => duration}, socket) do
-    send(self(), {:step_event, :overview, :select_duration, duration})
-    {:noreply, assign(socket, :selected_duration, duration)}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("next_step", _params, socket) do
-    send(self(), {:step_event, :overview, :next_step, nil})
-    {:noreply, socket}
-  end
+  defdelegate handle_event(event, params, socket), to: StepEvents
 
   @impl Phoenix.LiveComponent
   def render(assigns) do

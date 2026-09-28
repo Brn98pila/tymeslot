@@ -18,92 +18,15 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent do
   alias TymeslotWeb.Themes.Shared.GuestBooking
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
   alias TymeslotWeb.Themes.Shared.SecurityFields
+  alias TymeslotWeb.Themes.Shared.StepEvents
 
   import TymeslotWeb.Components.CoreComponents
 
   @impl Phoenix.LiveComponent
-  def update(assigns, socket) do
-    # Filter out reserved assigns that can't be set directly
-    filtered_assigns = Map.drop(assigns, [:flash, :socket])
-    {:ok, assign(socket, filtered_assigns)}
-  end
+  defdelegate update(assigns, socket), to: StepEvents
 
   @impl Phoenix.LiveComponent
-  def handle_event("validate", %{"booking" => booking_params}, socket) do
-    send(self(), {:step_event, :booking, :validate, booking_params})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("field_blur", %{"field" => field_name}, socket) do
-    send(self(), {:step_event, :booking, :field_blur, field_name})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("submit", %{"booking" => booking_params}, socket) do
-    # Set submitting state immediately for instant UI feedback — but only when
-    # the location picker has an answer the LiveView will accept. An
-    # incomplete one is refused without changing any assign this component
-    # renders, so a flag set here would have nothing to clear it again.
-    socket = assign(socket, :submitting, BookingLocation.complete?(socket.assigns))
-    send(self(), {:step_event, :booking, :submit, booking_params})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("back_step", _params, socket) do
-    send(self(), {:step_event, :booking, :back_step, nil})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("select_location", %{"id" => id}, socket) do
-    send(self(), {:step_event, :booking, :select_location, id})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("select_video_provider", %{"id" => id}, socket) do
-    send(self(), {:step_event, :booking, :select_video_provider, id})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("location_phone_change", params, socket) do
-    send(self(), {:step_event, :booking, :location_phone, params["location_phone"] || ""})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("toggle_guests", _params, socket) do
-    send(self(), {:step_event, :booking, :toggle_guests, nil})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("close_guests", _params, socket) do
-    send(self(), {:step_event, :booking, :close_guests, nil})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("guest_input_change", params, socket) do
-    send(self(), {:step_event, :booking, :guest_input, params["guest_email"] || ""})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("add_guest", params, socket) do
-    send(self(), {:step_event, :booking, :add_guest, params["guest_email"] || ""})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("remove_guest", %{"email" => email}, socket) do
-    send(self(), {:step_event, :booking, :remove_guest, email})
-    {:noreply, socket}
-  end
+  defdelegate handle_event(event, params, socket), to: StepEvents
 
   @impl Phoenix.LiveComponent
   def render(assigns) do

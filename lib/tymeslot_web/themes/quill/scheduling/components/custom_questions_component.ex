@@ -14,11 +14,10 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.CustomQuestionsComponen
 
   alias TymeslotWeb.Themes.Shared.CustomQuestions.Events
   alias TymeslotWeb.Themes.Shared.CustomQuestions.Inputs.Renderer, as: InputRenderer
+  alias TymeslotWeb.Themes.Shared.StepEvents
 
   @impl Phoenix.LiveComponent
-  def update(assigns, socket) do
-    {:ok, assign(socket, Map.drop(assigns, [:flash, :socket]))}
-  end
+  defdelegate update(assigns, socket), to: StepEvents
 
   @impl Phoenix.LiveComponent
   defdelegate handle_event(event, params, socket), to: Events

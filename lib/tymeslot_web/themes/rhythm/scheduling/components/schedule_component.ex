@@ -13,82 +13,16 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.ScheduleComponent do
   alias TymeslotWeb.Themes.Rhythm.Shared.OrganizerHeader
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
   alias TymeslotWeb.Themes.Shared.SlotGrouping
+  alias TymeslotWeb.Themes.Shared.StepEvents
 
   @impl Phoenix.LiveComponent
-  def update(assigns, socket) do
-    filtered_assigns = Map.drop(assigns, [:flash, :socket])
-
-    {:ok, assign(socket, filtered_assigns)}
-  end
+  defdelegate update(assigns, socket), to: StepEvents
 
   # Selection is decided by the shared scheduling LiveView, which owns
   # `selected_date` and `selected_time` and passes them back down: a day click
   # re-selects rather than clears, a time click toggles.
   @impl Phoenix.LiveComponent
-  def handle_event("select_date", %{"date" => date}, socket) do
-    send(self(), {:step_event, :schedule, :select_date, date})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("select_time", %{"time" => time}, socket) do
-    send(self(), {:step_event, :schedule, :select_time, time})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("toggle_hour", %{"hour" => hour}, socket) do
-    send(self(), {:step_event, :schedule, :toggle_hour, hour})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("change_timezone", %{"timezone" => timezone}, socket) do
-    send(self(), {:step_event, :schedule, :change_timezone, timezone})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("toggle_timezone_dropdown", _params, socket) do
-    send(self(), {:step_event, :schedule, :toggle_timezone_dropdown, nil})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("close_timezone_dropdown", _params, socket) do
-    send(self(), {:step_event, :schedule, :close_timezone_dropdown, nil})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("search_timezone", params, socket) do
-    send(self(), {:step_event, :schedule, :search_timezone, params})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("prev_week", _params, socket) do
-    send(self(), {:step_event, :schedule, :prev_week, nil})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("next_week", _params, socket) do
-    send(self(), {:step_event, :schedule, :next_week, nil})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("back_step", _params, socket) do
-    send(self(), {:step_event, :schedule, :back_step, nil})
-    {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("next_step", _params, socket) do
-    send(self(), {:step_event, :schedule, :next_step, nil})
-    {:noreply, socket}
-  end
+  defdelegate handle_event(event, params, socket), to: StepEvents
 
   @impl Phoenix.LiveComponent
   def render(assigns) do
