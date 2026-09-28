@@ -8,7 +8,7 @@ The theme system uses a centralized registry pattern that eliminates magic strin
 
 ### Key Components
 
-1. **Theme Catalog** (`Tymeslot.Themes.Catalog`) - Domain source of truth for theme *facts* (id, key, name, customisation spec, status)
+1. **Theme Catalog** (`Tymeslot.Themes.Catalog`) - Domain source of truth for theme *facts* (id, key, name, heading style, customisation spec, status)
 2. **Theme Registry** (`TymeslotWeb.Themes.Core.Registry`) - Web layer; merges catalog facts with presentation bindings (the theme module)
 3. **Theme Behaviour** (`TymeslotWeb.Themes.Core.Behaviour`) - The contract a theme module fulfils; `use TymeslotWeb.Themes.Core.Theme` generates it
 4. **SchedulingLive Macro** (`TymeslotWeb.Themes.Shared.SchedulingLive`) - Injects all common LiveView callbacks; a theme's `live.ex` is built on it
@@ -260,11 +260,10 @@ mix test test/tymeslot_web/themes/theme_contract_test.exs
 mix test test/tymeslot_web/live/themes/theme_production_checklist_test.exs
 ```
 
-This will verify:
+The production checklist runs every catalogued theme and checks:
 - All meeting types are displayed
-- Theme handles edge cases (no meetings, long names)
-- Basic mobile responsiveness
-- Acceptable load times
+- Theme handles edge cases (no meeting types, long names)
+- Basic mobile readiness
 
 ## CSS Architecture
 
@@ -278,8 +277,8 @@ assets/css/scheduling/
 │   ├── entry.css                 # Imported first by every theme.css: Tailwind, primitives, variants, @source
 │   ├── tokens.css                # The token contract and the derived tokens
 │   ├── reset.css                 # CSS reset
-│   ├── layout.css                # Border-radius scale, display helpers, status screens
-│   ├── utilities.css             # Shared utility classes
+│   ├── layout.css                # Fallback radius scale, reCAPTCHA badge, honeypot field, status screens
+│   ├── utilities.css             # Loading-spinner animation, hour-picker count badge
 │   ├── brand-tokens.css          # Tailwind @theme block for the reCAPTCHA notice
 │   ├── background-motion.css     # Background video pause/play toggle
 │   ├── embed.css                 # Embed shell rules (booker hook classes)
@@ -358,6 +357,17 @@ Each theme's `theme.css` imports the shared entry, then the shared token file ri
 ### Token contract
 
 `scheduling/shared/tokens.css` is the contract every theme builds on. Its header lists the four kinds of token (inputs, roles, shared-component tokens, derived tokens). A theme's `variables.css` sets the inputs and defines every role and shared-component token; the derived tokens (`--theme-primary-focus`, `--theme-primary-tint`, `--theme-primary-glow`, `--focus-ring`, `--shadow-{primary,success,danger,warning,info}-*`) are computed with `color-mix()` from the inputs, so a custom palette reaches them automatically. Inputs are only ever overridden on `:root`, never on a wrapper element, or the derived tokens stop following them.
+
+`mix css.check_tokens` fails when a theme's `variables.css` lacks one of the tokens in its required list (the inputs, the roles, the `--status-*` and `--chrome-*` tokens, and the per-component tokens each shared file lists in its header). The shared files also read the theme's own scale tokens, which the check does not require. A theme must define these in `variables.css` as well, or every declaration that reads one is silently dropped:
+
+- Borders: `--border-subtle`, `--border-light`, `--border-medium` (timezone picker, booking fields)
+- Surfaces: `--surface-subtle`, `--surface-light`, `--surface-medium`, `--surface-intense` (timezone picker, booking fields)
+- Error tint: `--theme-error-light` (booking fields)
+- Type: `--theme-font-size-3xs`, `-2xs`, `-xs`, `-sm`, `-base`, `-md`, `-lg`, `-2xl`, `-3xl`; `--theme-line-height-snug`, `--theme-line-height-relaxed`; `--font-weight-medium`, `--font-weight-semibold`, `--font-weight-bold`; `--letter-spacing-wide`
+- Sizes and effects: `--space-hairline`, `--icon-sm`, `--dropdown-max-height`, `--shadow-md`
+- Motion: `--transition-fast`, `--transition-normal`
+
+The radius scale they read (`--radius-sm`, `-md`, `-lg`, `-xl`, `-2xl`, `-full`) has fallback values in `shared/layout.css`, so a theme defines those only to change them.
 
 ### Intrinsic Responsiveness
 
@@ -478,7 +488,7 @@ The embedder can supply `data-initial-height` (px) on the container as a placeho
 - LiveView module that renders without crashing (using the `SchedulingLive` macro)
 - Wrapper component for theme layout
 - CSS file in `assets/css/scheduling/themes/your-theme/theme.css`
-- `modules/iframe.css` with `[data-embedded]`-scoped iframe shell rules
+- `modules/iframe.css` with the theme-specific embed rules (the shared shell is `shared/embed.css`), and the `booker-page`, `booker-card` and `booker-scroll` hook classes on the page grid, cards and slot scroll region
 - Container query context (`container-type: inline-size`) on the primary content container
 - The 4 core booking flow states: **overview**, **schedule**, **booking**, **confirmation**
 - Handling for the conditional **`:questions`** state (custom-questions step, when the meeting type has custom fields) and the transitional **`:awaiting_payment`** state (paid embedded bookings)
@@ -636,13 +646,15 @@ back_path = PathHandlers.build_path_with_locale(socket, socket.assigns.locale)
 Themes use a **modular CSS architecture** located in `assets/css/scheduling/`: shared files in `shared/`, each theme in `themes/<theme>/`.
 
 ### Shared Files
-- `assets/css/scheduling/shared/entry.css` — imported first by every `theme.css`: Tailwind, the primitives below, the LiveView loading variants and the content sources
-- `assets/css/scheduling/shared/tokens.css` — the token contract (inputs, roles, shared-component tokens) and the `color-mix()` derived tokens, imported right after the theme's `variables.css`
-- `assets/css/scheduling/shared/reset.css` — CSS reset
-- `assets/css/scheduling/shared/layout.css` — Border-radius scale, display/flex/grid helpers, status screens
-- `assets/css/scheduling/shared/utilities.css` — Shared utility classes
-- `assets/css/scheduling/shared/embed.css` — embed shell rules on the booker hook classes
-- `assets/css/scheduling/shared/components/*.css` — component styles both themes share (notices, polls, payment pages, booking fields, language switcher, slot list, timezone picker)
+- `assets/css/scheduling/shared/entry.css`: imported first by every `theme.css`, with Tailwind, the primitives below, the LiveView loading variants and the content sources
+- `assets/css/scheduling/shared/tokens.css`: the token contract (inputs, roles, shared-component tokens) and the `color-mix()` derived tokens, imported right after the theme's `variables.css`
+- `assets/css/scheduling/shared/reset.css`: CSS reset
+- `assets/css/scheduling/shared/layout.css`: the fallback radius scale (`--radius-sm` to `--radius-full`, which a theme may override), the reCAPTCHA badge, the honeypot field, and the readiness and awaiting-payment status screens
+- `assets/css/scheduling/shared/utilities.css`: the `.loading-spinner` animation (`@keyframes spin`) and the hour picker's count badge (`.slot-list__hour-count`)
+- `assets/css/scheduling/shared/brand-tokens.css`: the Tailwind `@theme` colours the reCAPTCHA notice's utilities need
+- `assets/css/scheduling/shared/background-motion.css`: the background video's pause and play toggle
+- `assets/css/scheduling/shared/embed.css`: embed shell rules on the booker hook classes
+- `assets/css/scheduling/shared/components/*.css`: component styles both themes share (notices, polls, payment pages, booking fields, language switcher, slot list, timezone picker)
 
 Shared component files carry the structure and states; each theme sets their look through the tokens a file lists in its header, defined in the theme's `variables.css`. Where the themes differ by a whole treatment rather than a value, the declarations stay in the theme's own module under the same selector.
 
@@ -977,7 +989,7 @@ priv/static/
 │   └── ...
 └── images/ui/posters/           # Video posters (thumbnails)
     ├── blue-wave-thumbnail.jpg
-    └── rhythm-background-poster.webp
+    └── rhythm-background-poster.jpg
 ```
 
 Booking pages and the dashboard picker both read preset images from `/images/themes/backgrounds/`; `Options.Background.preset_image_url/1` owns the path, and `descriptor/1` resolves a preset through it.
@@ -996,8 +1008,10 @@ Presets are defined in `lib/tymeslot/theme_customizations/presets.ex`.
 
 **Available Image Presets**:
 - `"preset:artistic-studio"`
-- `"preset:ocean-sunset"`
+- `"preset:rustic-farmhouse"`
+- `"preset:space-satellite"`
 - `"preset:elegant-still-life"`
+- `"preset:ocean-sunset"`
 
 ## Advanced Video Features
 
@@ -1068,15 +1082,7 @@ LocalizationHelpers.format_date(@selected_date)
 
 ### Step-by-Step Implementation
 
-1. **Copy an existing theme** (Quill or Rhythm) as a starting point
-2. **Register the theme** — add facts to `Tymeslot.Themes.Catalog` and bindings to `TymeslotWeb.Themes.Core.Registry`
-3. **Rename files and modules** to match your theme name
-4. **Create `live.ex`** with `use TymeslotWeb.Themes.Shared.SchedulingLive, wrapper: …, steps: …` — no per-theme StateMachine needed
-5. **Update the Wrapper** with your theme's visual design; use `<.video_sources .../>` for video backgrounds
-6. **Modify step components** (overview, schedule, custom_questions, booking, confirmation)
-7. **Create CSS modules** in `assets/css/scheduling/themes/your-theme/`; import `../../shared/entry.css` first in your theme.css, then `./modules/variables.css` and `../../shared/tokens.css`
-8. **Implement meeting actions** (reschedule, cancel, cancel_confirmed); use `<.meeting_detail_rows .../>` for the detail layout
-9. **Test with production checklist**
+Copy an existing theme (Quill or Rhythm), rename its files and modules to your theme's name, then work through the [Summary Checklist](#summary-checklist) in order: it lists every file and line a new theme touches.
 
 ### What to Copy vs. What to Customize
 
@@ -1104,16 +1110,16 @@ Run the production checklist to validate your theme:
 mix test test/tymeslot_web/live/themes/theme_production_checklist_test.exs
 
 # Or test a specific theme
-mix test test/tymeslot_web/live/themes/theme_production_checklist_test.exs -t theme_id:3
+mix test test/tymeslot_web/live/themes/theme_production_checklist_test.exs --only theme:3
 ```
 
 The checklist automatically verifies:
 - Theme renders without crashing
 - All meeting types display correctly
-- Edge cases work (no meetings, long names, etc.)
-- Basic mobile responsiveness
-- Acceptable load times
-- State transitions function properly
+- Edge cases work (no meeting types, long names)
+- Basic mobile readiness
+
+The theme's `ThemeTestMatrix` entry adds it to `theme_contract_test.exs`, the shared booking-flow suites (which walk the step transitions) and the e2e `embed_sizes_matrix_test.exs` (embed widths and short heights, run with `mix test.e2e`).
 
 ### Debugging Tips
 
@@ -1157,25 +1163,25 @@ Logger.debug("Socket assigns: #{inspect(socket.assigns)}")
 
 ## Summary Checklist
 
-Before considering your theme complete:
+Every place a new theme touches, in the order to add them (`aurora`, id `"3"`, as the example):
 
-- [ ] Theme facts added to `Catalog`, bindings added to `Registry`
-- [ ] Entry added to `TymeslotWeb.ThemeTestMatrix` (`test/support/theme_test_matrix.ex`)
-- [ ] Theme module implements all behaviour callbacks
-- [ ] LiveView uses the `SchedulingLive` macro (no per-theme StateMachine)
-- [ ] Wrapper component provides theme layout
-- [ ] All 5 step components implemented (overview, schedule, custom_questions, booking, confirmation)
-- [ ] `live.ex` passes `wrapper:` and a `steps:` map with all five steps to `use SchedulingLive`
-- [ ] Schedule component has weekly strip (mobile) + monthly grid (desktop) with `CalendarNavigation` boundary checks on all nav buttons
-- [ ] All 3 meeting action components implemented
-- [ ] CSS theme.css imports all required modules
-- [ ] `modules/iframe.css` created with `[data-embedded]`-scoped iframe shell rules
-- [ ] Container query context set on primary content container
-- [ ] No responsive Tailwind classes (`sm:`, `md:`, `lg:`) in templates
-- [ ] No external font imports (use system fonts or self-hosted)
-- [ ] Production checklist tests pass
-- [ ] Intrinsic responsiveness works at all sizes (no viewport breakpoints)
-- [ ] Localization works for all supported languages
-- [ ] Video/image backgrounds work (if supported)
-- [ ] Theme customization renders correctly
-- [ ] Embedded mode tested — iframe grows and shrinks with content; no internal scrollbar in unconstrained inline embeds
+- [ ] **Catalog facts** in `lib/tymeslot/themes/catalog.ex`: `id`, `key`, `name`, `heading_style`, `status` (start at `:beta`) and `customization_spec:`
+- [ ] **Registry binding** in `lib/tymeslot_web/themes/core/registry.ex`: one `"3" => TymeslotWeb.Themes.Aurora.Theme` line in `@bindings`
+- [ ] **`theme.ex`**: one `use TymeslotWeb.Themes.Core.Theme, live_view:, preview_image:, description:` (the description a `dgettext_noop/2` call)
+- [ ] **`scheduling/live.ex`**: one `use TymeslotWeb.Themes.Shared.SchedulingLive, wrapper:, steps:`, with the aliases above it, naming your `scheduling/wrapper.ex` and all five steps
+- [ ] **Step components** under `scheduling/components/`: render-only LiveComponents that delegate `update/2` and `handle_event/3` to `Shared.StepEvents` (the questions step delegates `handle_event/3` to `Shared.CustomQuestions.Events` instead) and use only the canonical event names; the schedule step wires its navigation buttons to the `CalendarNavigation` boundary checks
+- [ ] **Page templates**: `meeting/` (`Reschedule`, `Cancel`, `CancelConfirmed`), `poll/voting.ex` and `payment/` (`Processing`, `Cancelled`), each with a `render/1`, or overrides of the generated render callbacks
+- [ ] **Customisation spec**: a module implementing `Tymeslot.ThemeCustomizations.Spec` (see `QuillSpec`), the one `customization_spec:` names
+- [ ] **CSS tree** under `assets/css/scheduling/themes/aurora/`: `theme.css` importing `../../shared/entry.css` first, then `./modules/variables.css`, `../../shared/tokens.css`, the theme's modules and the `shared/components/*.css` files it uses; `modules/variables.css` defining every token `mix css.check_tokens` requires plus the scale tokens listed under [Token contract](#token-contract), and every colour; `modules/iframe.css` for the theme-specific embed rules; the `booker-page`, `booker-card` and `booker-scroll` hook classes on the page grid, cards and slot scroll region
+- [ ] **Build config**: an `aurora` Tailwind profile in `config/config.exs` writing `../priv/static/assets/scheduling-theme-aurora.css`; a `tailwind_aurora` watcher in `config/dev.exs`; `"tailwind aurora"` in the `assets.build` alias and `"tailwind aurora --minify"` in the `assets.minify` alias of `mix.exs`
+- [ ] **Preview image** at `priv/static/images/ui/theme-previews/aurora-theme-preview.webp`, the path `preview_image:` names
+- [ ] **`ThemeTestMatrix` entry** in `test/support/theme_test_matrix.ex`
+- [ ] Optional: **`onboarding_preview/1`** (see Quill's `onboarding_preview.ex`), so the onboarding wizard shows the theme's shape instead of the generic mock
+- [ ] Optional, with a video background: a `phx-hook` on the video container, either an existing hook (`QuillVideo` for one looping video) or your own in `assets/js/video_hooks.js`, registered in `assets/js/bundles/public.js`
+
+Then verify:
+
+- [ ] `mix test` passes, including `theme_contract_test.exs` and the production checklist, and `mix css.check_tokens` is green
+- [ ] Standalone (`/{username}?theme=3`) and embedded pages render at every size: no viewport breakpoints inside the card, and the iframe grows and shrinks with content, with no internal scrollbar in unconstrained inline embeds
+- [ ] Localisation works for all supported languages
+- [ ] Every background kind the spec offers renders, and the customisation panel saves each option
