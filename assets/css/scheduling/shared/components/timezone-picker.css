@@ -72,7 +72,9 @@
   color: var(--theme-text-secondary);
 }
 
-/* --- Options list --- */
+/* --- Options list ---
+   Its scrolling and scrollbar come from the .scroll-y class the markup also
+   carries, styled in each theme's base.css. */
 
 .tz-picker__options {
   /* Fill the remaining space inside the flex-column .tz-picker__panel. The

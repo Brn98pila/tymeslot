@@ -398,8 +398,10 @@ test_keyframes() {
   local theme_path="$1"
   echo "🎞  Testing @keyframes integrity..."
 
-  # Shared booking CSS (reset/layout/utilities) sits beside the themes dir and is
-  # @imported by every theme.css — its keyframes (e.g. `spin`) count as defined.
+  # Shared booking CSS sits beside the themes dir. Every theme.css imports
+  # shared/entry.css (reset, layout, utilities and the other primitives) and
+  # shared/tokens.css, and picks the shared/components/*.css files it uses, so
+  # keyframes defined anywhere under shared/ (e.g. `spin`) count as defined.
   local shared="$(dirname "$THEMES_BASE")/shared"
 
   # Keyframes defined anywhere the theme can see (its own modules + shared).

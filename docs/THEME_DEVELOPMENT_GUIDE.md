@@ -72,9 +72,15 @@ assets/css/scheduling/themes/[theme_name]/
     ├── booking-form.css        # Booking form + container queries
     ├── custom-questions.css    # Custom-questions step styling
     ├── confirmation.css        # Confirmation + container queries
-    ├── payment-pages.css       # Paid-booking / awaiting-payment pages
-    └── language-switcher.css   # Language switcher
+    └── language-switcher.css   # Language switcher (theme-specific treatment)
 ```
+
+> Components both themes style alike (preview and approval notices, polls,
+> payment return pages, guest and location fields, language switcher
+> structure, slot list, timezone picker) are not per-theme modules: their CSS
+> lives in `assets/css/scheduling/shared/components/`, which each `theme.css`
+> imports, and a theme styles them by defining the tokens each file lists in
+> its header (see *Token contract*).
 
 > The module breakdown is **per-theme, not canonical** — themes are free to split
 > further. Quill (glassmorphism) splits its UI into `glass-card.css`, `buttons.css`,
@@ -173,7 +179,6 @@ assets/css/scheduling/themes/aurora/
 │   ├── booking-form.css        # Booking form + container queries
 │   ├── custom-questions.css    # Custom-questions step
 │   ├── confirmation.css        # Confirmation step
-│   ├── payment-pages.css       # Paid-booking pages (if payments supported)
 │   ├── components.css          # Buttons, inputs, duration cards (or split further)
 │   └── language-switcher.css   # Language dropdown
 └── theme.css
@@ -270,58 +275,71 @@ This will verify:
 
 ### Modular Structure
 
-Themes use a **modular CSS architecture** located in `assets/css/scheduling/themes/`:
+Themes use a **modular CSS architecture** located in `assets/css/scheduling/`:
 
 ```
-assets/css/scheduling/themes/
-├── shared/                        # Shared structural primitives only
+assets/css/scheduling/
+├── shared/                        # Shared by every theme
+│   ├── entry.css                 # Imported first by every theme.css: Tailwind, primitives, variants, @source
+│   ├── tokens.css                # The token contract and the derived tokens
 │   ├── reset.css                 # CSS reset
-│   ├── layout.css                # Border-radius scale, Tailwind import, display helpers
+│   ├── layout.css                # Border-radius scale, display helpers, status screens
 │   ├── utilities.css             # Shared utility classes
+│   ├── brand-tokens.css          # Tailwind @theme block for the reCAPTCHA notice
+│   ├── background-motion.css     # Background video pause/play toggle
+│   ├── embed.css                 # Embed shell rules (booker hook classes)
 │   └── components/               # Shared component styles (structure and states; themes set tokens)
-├── quill/                         # Quill theme (glassmorphism) — fine-grained split
-│   ├── modules/
-│   │   ├── variables.css         # Design tokens
-│   │   ├── base.css              # Root layout, theme wrapper
-│   │   ├── iframe.css            # Iframe shell rules
-│   │   ├── video.css             # Video background
-│   │   ├── typography.css        # Text styles
-│   │   ├── animations.css        # Keyframes / transitions
-│   │   ├── glass-card.css        # Glassmorphism container (container query context)
-│   │   ├── buttons.css           # Buttons
-│   │   ├── spinner.css           # Loading spinner
-│   │   ├── meeting-details.css   # Meeting detail rows
-│   │   ├── text-utilities.css    # Text helpers
-│   │   ├── steps.css             # Step indicator
-│   │   ├── schedule-header.css   # Schedule header
-│   │   ├── timezone.css          # Timezone selector
-│   │   ├── calendar.css          # Calendar + container queries
-│   │   ├── time-slots.css        # Time slots + container queries
-│   │   ├── booking-form.css      # Booking form
-│   │   ├── custom-questions.css  # Custom-questions step
-│   │   ├── overview.css          # Organizer profile
-│   │   ├── confirmation.css      # Confirmation step
-│   │   ├── payment-pages.css     # Paid-booking pages
-│   │   └── language-switcher.css # Language dropdown
-│   └── theme.css                 # Entry point
-└── rhythm/                        # Rhythm theme (video backgrounds) — coarser split
-    ├── modules/
-    │   ├── variables.css
-    │   ├── base.css              # Root layout + container query context (.scheduling-box)
-    │   ├── typography.css
-    │   ├── video.css
-    │   ├── overview.css
-    │   ├── schedule-header.css
-    │   ├── booking-form.css
-    │   ├── custom-questions.css
-    │   ├── confirmation.css
-    │   ├── payment-pages.css
-    │   ├── components.css        # All UI controls in one file
-    │   ├── language-switcher.css
-    │   ├── calendar.css
-    │   ├── time-slots.css
-    │   └── iframe.css
-    └── theme.css
+│       ├── approval-notice.css
+│       ├── booking-fields.css
+│       ├── language-switcher.css
+│       ├── payment-pages.css
+│       ├── polls.css
+│       ├── preview-notice.css
+│       ├── slot-list.css
+│       └── timezone-picker.css
+└── themes/
+    ├── quill/                         # Quill theme (glassmorphism) — fine-grained split
+    │   ├── modules/
+    │   │   ├── variables.css         # Design tokens
+    │   │   ├── base.css              # Root layout, theme wrapper
+    │   │   ├── iframe.css            # Iframe shell rules
+    │   │   ├── video.css             # Video background
+    │   │   ├── typography.css        # Text styles
+    │   │   ├── animations.css        # Keyframes / transitions
+    │   │   ├── glass-card.css        # Glassmorphism container (container query context)
+    │   │   ├── buttons.css           # Buttons
+    │   │   ├── spinner.css           # Loading spinner
+    │   │   ├── meeting-details.css   # Meeting detail rows
+    │   │   ├── text-utilities.css    # Text helpers
+    │   │   ├── steps.css             # Step indicator
+    │   │   ├── schedule-header.css   # Schedule header
+    │   │   ├── timezone.css          # Timezone selector
+    │   │   ├── calendar.css          # Calendar + container queries
+    │   │   ├── time-slots.css        # Time slots + container queries
+    │   │   ├── booking-form.css      # Booking form
+    │   │   ├── custom-questions.css  # Custom-questions step
+    │   │   ├── overview.css          # Organizer profile
+    │   │   ├── confirmation.css      # Confirmation step
+    │   │   ├── meeting-pages.css     # Cancel and reschedule pages
+    │   │   └── language-switcher.css # Language dropdown
+    │   └── theme.css                 # Entry point
+    └── rhythm/                        # Rhythm theme (video backgrounds) — coarser split
+        ├── modules/
+        │   ├── variables.css
+        │   ├── base.css              # Root layout + container query context (.scheduling-box)
+        │   ├── typography.css
+        │   ├── video.css
+        │   ├── overview.css
+        │   ├── schedule-header.css
+        │   ├── booking-form.css
+        │   ├── custom-questions.css
+        │   ├── confirmation.css
+        │   ├── components.css        # All UI controls in one file
+        │   ├── language-switcher.css
+        │   ├── calendar.css
+        │   ├── time-slots.css
+        │   └── iframe.css
+        └── theme.css
 ```
 
 The two themes deliberately split their modules at **different granularities** —
@@ -622,12 +640,16 @@ back_path = PathHandlers.build_path_with_locale(socket, socket.assigns.locale)
 
 Themes use a **modular CSS architecture** located in `assets/css/scheduling/themes/`.
 
-### Shared Primitives
+### Shared Files
+- `assets/css/scheduling/shared/entry.css` — imported first by every `theme.css`: Tailwind, the primitives below, the LiveView loading variants and the content sources
+- `assets/css/scheduling/shared/tokens.css` — the token contract (inputs, roles, shared-component tokens) and the `color-mix()` derived tokens, imported right after the theme's `variables.css`
 - `assets/css/scheduling/shared/reset.css` — CSS reset
-- `assets/css/scheduling/shared/layout.css` — Border-radius scale, Tailwind import, display/flex/grid helpers
+- `assets/css/scheduling/shared/layout.css` — Border-radius scale, display/flex/grid helpers, status screens
 - `assets/css/scheduling/shared/utilities.css` — Shared utility classes
+- `assets/css/scheduling/shared/embed.css` — embed shell rules on the booker hook classes
+- `assets/css/scheduling/shared/components/*.css` — component styles both themes share (notices, polls, payment pages, booking fields, language switcher, slot list, timezone picker)
 
-Only structural primitives are shared. All visual components (colors, spacing, typography, buttons) stay per-theme even if currently identical — themes can diverge without fear.
+Shared component files carry the structure and states; each theme sets their look through the tokens a file lists in its header, defined in the theme's `variables.css`. Where the themes differ by a whole treatment rather than a value, the declarations stay in the theme's own module under the same selector.
 
 ### Theme Structure
 Each theme has a `theme.css` entry point and a flat `modules/` subdirectory. Each component file is self-contained — it owns base styles, container queries, and iframe overrides in one place. No separate `responsive.css` or `embedded.css`.
@@ -1061,7 +1083,7 @@ LocalizationHelpers.format_date(@selected_date)
 4. **Create `live.ex`** with `use TymeslotWeb.Themes.Shared.SchedulingLive, wrapper: …, steps: …` — no per-theme StateMachine needed
 5. **Update the Wrapper** with your theme's visual design; use `<.video_sources .../>` for video backgrounds
 6. **Modify step components** (overview, schedule, custom_questions, booking, confirmation)
-7. **Create CSS modules** in `assets/css/scheduling/themes/your-theme/`; import `../../shared/utilities.css` in your theme.css
+7. **Create CSS modules** in `assets/css/scheduling/themes/your-theme/`; import `../../shared/entry.css` first in your theme.css, then `./modules/variables.css` and `../../shared/tokens.css`
 8. **Implement meeting actions** (reschedule, cancel, cancel_confirmed); use `<.meeting_detail_rows .../>` for the detail layout
 9. **Test with production checklist**
 

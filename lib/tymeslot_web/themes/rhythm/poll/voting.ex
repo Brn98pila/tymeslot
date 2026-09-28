@@ -3,8 +3,9 @@ defmodule TymeslotWeb.Themes.Rhythm.Poll.Voting do
   Rhythm theme rendering of the public poll voting page.
 
   Wraps the shared, theme-neutral `PollVotingComponents` in Rhythm's
-  video-background sliding shell; all styling comes from the theme's `polls.css`
-  module.
+  video-background sliding shell. The styling is shared by every theme, in
+  `assets/css/scheduling/shared/components/polls.css`; Rhythm sets its look
+  through the `--poll-*` tokens in its `variables.css`.
   """
   use Phoenix.Component
   use Gettext, backend: TymeslotWeb.Gettext

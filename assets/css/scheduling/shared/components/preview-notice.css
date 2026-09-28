@@ -6,7 +6,8 @@
    hidden by the component itself (`:if`) whenever `owner_preview` is false.
 
    Amber like .approval-notice: both are warnings that something about this
-   booking is not what it looks like.
+   booking is not what it looks like. Reads the --notice-warning role and the
+   --theme-warning input (see shared/tokens.css).
    ========================================================================== */
 
 .preview-notice {

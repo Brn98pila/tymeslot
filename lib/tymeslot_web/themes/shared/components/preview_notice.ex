@@ -21,9 +21,10 @@ defmodule TymeslotWeb.Themes.Shared.Components.PreviewNotice do
   making the preview link harder to copy in the first place
   (`embed_preview.js`'s Link style).
 
-  Neutral class names here, visual treatment in each theme's own CSS module
-  (`preview-notice.css`), following the same split as `ApprovalNotice`:
-  the themes are self-contained and share no tokens.
+  Neutral class names here; the styling is shared by every theme, in
+  `assets/css/scheduling/shared/components/preview-notice.css`, and reads the
+  `--notice-warning` role each theme defines under the token contract
+  (`shared/tokens.css`), following the same split as `ApprovalNotice`.
   """
 
   use Phoenix.Component

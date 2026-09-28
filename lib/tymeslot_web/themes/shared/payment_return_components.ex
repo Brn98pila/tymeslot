@@ -4,8 +4,10 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturnComponents do
 
   Every theme draws the same content on the two pages Stripe Checkout returns
   to; only the shell around it differs. A theme's `Payment.Processing` and
-  `Payment.Cancelled` modules wrap these components and style the
-  `payment-page-*` classes in their own `payment-pages.css`.
+  `Payment.Cancelled` modules wrap these components. The `payment-page-*`
+  classes are styled once for every theme, in
+  `assets/css/scheduling/shared/components/payment-pages.css`, and each theme
+  sets their look through the `--payment-*` tokens in its `variables.css`.
   """
 
   use Phoenix.Component

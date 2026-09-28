@@ -3,7 +3,9 @@ defmodule TymeslotWeb.Themes.Quill.Poll.Voting do
   Quill theme rendering of the public poll voting page.
 
   Wraps the shared, theme-neutral `PollVotingComponents` in Quill's glass-morphism
-  shell; all styling comes from the theme's `polls.css` module.
+  shell. The styling is shared by every theme, in
+  `assets/css/scheduling/shared/components/polls.css`; Quill sets its look
+  through the `--poll-*` tokens in its `variables.css`.
   """
   use Phoenix.Component
   use Gettext, backend: TymeslotWeb.Gettext
