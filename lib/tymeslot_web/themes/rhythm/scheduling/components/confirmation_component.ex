@@ -223,7 +223,6 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.ConfirmationComponent 
   end
 
   # Helper functions
-
   # Which status applies is decided in ConfirmationText (a held request must
   # not be announced as a confirmed meeting); only the wording is Rhythm's.
   defp headline(assigns) do
