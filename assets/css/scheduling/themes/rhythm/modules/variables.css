@@ -258,6 +258,9 @@
   --payment-link-weight: var(--font-weight-bold);
   --payment-link-transition: background var(--transition-smooth);
 
+  /* Booking fields (shared/components/booking-fields.css) */
+  --guest-remove-ink-hover: #ffffff;
+
   /* Language switcher (shared/components/language-switcher.css) */
   --lang-switcher-surface: rgba(0, 0, 0, 0.6);
   --lang-switcher-surface-hover: rgba(0, 0, 0, 0.7);

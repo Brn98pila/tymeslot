@@ -297,6 +297,7 @@ test_token_usage() {
     "--lang-switcher-item-hover"
     "--lang-switcher-item-active"
     "--slot-list-grid-gap"
+    "--guest-remove-ink-hover"
     "--dropdown-surface"
   )
 

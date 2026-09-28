@@ -9,7 +9,7 @@
 }
 
 /* Language switcher visibility (only on slide 1) */
-.language-switcher-container.hidden {
+.language-switcher-container.theme-shell__language--hidden {
   display: none;
 }
 
@@ -27,7 +27,6 @@
 }
 
 .lang-switcher__panel {
-  border: var(--border-width-thin) solid var(--border-light);
   box-shadow: var(--shadow-md);
   animation: slideDown var(--transition-normal);
 }

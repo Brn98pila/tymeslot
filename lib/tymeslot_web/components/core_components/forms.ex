@@ -329,7 +329,7 @@ defmodule TymeslotWeb.Components.CoreComponents.Forms do
       <div
         id={@id}
         role="alert"
-        class="mt-2 flex items-center gap-2 text-red-600 font-bold text-sm"
+        class="form-field-error mt-2 flex items-center gap-2 text-red-600 font-bold text-sm"
       >
         <TymeslotWeb.Components.CoreComponents.Icons.icon
           name="hero-exclamation-circle-solid"

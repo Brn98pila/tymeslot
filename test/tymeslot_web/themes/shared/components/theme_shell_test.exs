@@ -127,6 +127,14 @@ defmodule TymeslotWeb.Themes.Shared.Components.ThemeShellTest do
   test "shows the language switcher only where the page decided to" do
     assert Floki.find(render_shell(show_language_switcher: true), ".probe-lang.visible") != []
     assert Floki.find(render_shell(show_language_switcher: false), ".probe-lang.hidden") != []
+
+    # A theme hides the container through the semantic class, never by
+    # styling the Tailwind utility name.
+    assert Floki.find(
+             render_shell(show_language_switcher: false),
+             ".probe-lang.theme-shell__language--hidden"
+           ) != []
+
     assert Floki.find(render_shell(language_dropdown_open: nil), ".probe-lang") == []
     assert Floki.find(render_shell(locale: nil), ".probe-lang") == []
   end

@@ -133,7 +133,7 @@
 }
 
 /* Error messages */
-.rhythm-theme-wrapper .booking-form .form-field-wrapper > div.mt-2.flex.items-center {
+.rhythm-theme-wrapper .booking-form .form-field-wrapper > .form-field-error {
   font-size: var(--theme-font-size-sm);
 }
 

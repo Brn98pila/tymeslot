@@ -70,7 +70,7 @@
 }
 
 .scheduling-app .guest-field__close:hover {
-  color: white;
+  color: var(--guest-remove-ink-hover);
   background: var(--theme-danger);
 }
 
@@ -131,7 +131,7 @@
 }
 
 .scheduling-app .guest-chip__remove:hover {
-  color: white;
+  color: var(--guest-remove-ink-hover);
   background: var(--theme-danger);
 }
 

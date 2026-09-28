@@ -140,7 +140,7 @@
 
 /* Error message styling for Rhythm theme */
 /* Target the actual error message div by its core component classes */
-.rhythm-theme-wrapper .booking-form .form-field-wrapper > div.mt-2.flex.items-center {
+.rhythm-theme-wrapper .booking-form .form-field-wrapper > .form-field-error {
   color: var(--theme-error);
   margin-top: var(--space-3xs);
 }
