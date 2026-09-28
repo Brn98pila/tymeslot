@@ -959,7 +959,7 @@ msgstr "Tento termín už není k dispozici. Vyberte prosím jiný čas."
 msgid "We couldn't start the payment process. Please try again."
 msgstr "Platbu se nepodařilo zahájit. Zkuste to prosím znovu."
 
-#: lib/tymeslot_web/themes/shared/live_helpers.ex
+#: lib/tymeslot_web/themes/shared/live_helpers/step_entry.ex
 #, elixir-autogen, elixir-format
 msgid "Invalid meeting type"
 msgstr "Neplatný typ schůzky"
@@ -1400,7 +1400,7 @@ msgstr "Vaše telefonní číslo"
 msgid "%{minutes} min"
 msgstr "%{minutes} min"
 
-#: lib/tymeslot_web/themes/shared/live_helpers.ex
+#: lib/tymeslot_web/themes/shared/live_helpers/mount.ex
 #, elixir-autogen, elixir-format
 msgid "Guest"
 msgstr "Host"

@@ -959,7 +959,7 @@ msgstr "Цей часовий слот більше недоступний. Ви
 msgid "We couldn't start the payment process. Please try again."
 msgstr "Не вдалося розпочати процес оплати. Спробуйте ще раз."
 
-#: lib/tymeslot_web/themes/shared/live_helpers.ex
+#: lib/tymeslot_web/themes/shared/live_helpers/step_entry.ex
 #, elixir-autogen, elixir-format
 msgid "Invalid meeting type"
 msgstr "Некоректний тип зустрічі"
@@ -1401,7 +1401,7 @@ msgstr "Ваш номер телефону"
 msgid "%{minutes} min"
 msgstr "%{minutes} хв"
 
-#: lib/tymeslot_web/themes/shared/live_helpers.ex
+#: lib/tymeslot_web/themes/shared/live_helpers/mount.ex
 #, elixir-autogen, elixir-format
 msgid "Guest"
 msgstr "Гість"

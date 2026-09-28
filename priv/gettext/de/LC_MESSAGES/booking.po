@@ -959,7 +959,7 @@ msgstr "Dieses Zeitfenster ist nicht mehr verfügbar. Bitte wählen Sie eine and
 msgid "We couldn't start the payment process. Please try again."
 msgstr "Der Zahlungsvorgang konnte nicht gestartet werden. Bitte versuchen Sie es erneut."
 
-#: lib/tymeslot_web/themes/shared/live_helpers.ex
+#: lib/tymeslot_web/themes/shared/live_helpers/step_entry.ex
 #, elixir-autogen, elixir-format
 msgid "Invalid meeting type"
 msgstr "Ungültiger Termintyp"
@@ -1401,7 +1401,7 @@ msgstr "Ihre Telefonnummer"
 msgid "%{minutes} min"
 msgstr "%{minutes} Min."
 
-#: lib/tymeslot_web/themes/shared/live_helpers.ex
+#: lib/tymeslot_web/themes/shared/live_helpers/mount.ex
 #, elixir-autogen, elixir-format
 msgid "Guest"
 msgstr "Gast"

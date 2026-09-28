@@ -959,7 +959,7 @@ msgstr ""
 msgid "We couldn't start the payment process. Please try again."
 msgstr ""
 
-#: lib/tymeslot_web/themes/shared/live_helpers.ex
+#: lib/tymeslot_web/themes/shared/live_helpers/step_entry.ex
 #, elixir-autogen, elixir-format
 msgid "Invalid meeting type"
 msgstr ""
@@ -1399,7 +1399,7 @@ msgstr ""
 msgid "%{minutes} min"
 msgstr ""
 
-#: lib/tymeslot_web/themes/shared/live_helpers.ex
+#: lib/tymeslot_web/themes/shared/live_helpers/mount.ex
 #, elixir-autogen, elixir-format
 msgid "Guest"
 msgstr ""

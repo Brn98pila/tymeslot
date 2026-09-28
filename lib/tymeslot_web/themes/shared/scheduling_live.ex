@@ -147,11 +147,13 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
   # Checked here, while the theme compiles, rather than in an `@after_verify`
   # callback: an exception raised there crashes the compiler's checker process
   # instead of surfacing from `Code.compile_quoted/1`, so no test could see it.
-  # The price is a compile-time dependency from each theme's `live.ex` on its
-  # step components, which also recompiles and rechecks it when one changes.
+  # The aliases are expanded as if inside a function, so the theme's `live.ex`
+  # keeps a runtime dependency on its step components rather than a
+  # compile-time one: the components import `StepEvents`, and a compile-time
+  # edge to them would pull that chain into every theme's recompilation.
   defp validate_step_components!({:%{}, _meta, pairs}, caller) do
     Enum.each(pairs, fn {step, alias_ast} ->
-      module = Macro.expand(alias_ast, caller)
+      module = Macro.expand(alias_ast, %{caller | function: {:render, 1}})
 
       unless live_component?(module) do
         raise CompileError,

@@ -959,7 +959,7 @@ msgstr "Ce créneau n’est plus disponible. Veuillez sélectionner un autre hor
 msgid "We couldn't start the payment process. Please try again."
 msgstr "Nous n’avons pas pu démarrer le processus de paiement. Veuillez réessayer."
 
-#: lib/tymeslot_web/themes/shared/live_helpers.ex
+#: lib/tymeslot_web/themes/shared/live_helpers/step_entry.ex
 #, elixir-autogen, elixir-format
 msgid "Invalid meeting type"
 msgstr "Type de réunion invalide"
@@ -1401,7 +1401,7 @@ msgstr "Votre numéro de téléphone"
 msgid "%{minutes} min"
 msgstr "%{minutes} min"
 
-#: lib/tymeslot_web/themes/shared/live_helpers.ex
+#: lib/tymeslot_web/themes/shared/live_helpers/mount.ex
 #, elixir-autogen, elixir-format
 msgid "Guest"
 msgstr "Invité"
