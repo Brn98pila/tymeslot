@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # CSS Design Token Validator
-# Tests for hardcoded values in all theme CSS files
+# Tests for hardcoded values in all theme CSS files and the shared component
+# styles (shared/components/), and for colour literals outside the token files
 # Usage: ./scripts/test_css_tokens.sh [theme_name]
 #   Without arguments: checks all themes
 #   With theme_name: checks only that theme
@@ -11,6 +12,7 @@ set -e
 SCHEDULING_CSS_ROOT="${SCHEDULING_CSS_ROOT:-assets/css/scheduling}"
 THEMES_BASE="$SCHEDULING_CSS_ROOT/themes"
 LITERALS_FAILED=0
+SHARED_FAILED=0
 FAILED=0
 TOTAL_VIOLATIONS=0
 THEMES_TESTED=0
@@ -493,6 +495,23 @@ test_colour_literals() {
   echo ""
 }
 
+# The shared component styles (shared/components/) hold rules moved out of
+# the themes, so they follow the same spacing and border-width rules.
+test_shared_components() {
+  local components_path="$SCHEDULING_CSS_ROOT/shared/components"
+  [ -d "$components_path" ] || return 0
+
+  echo ""
+  echo "🧩 Testing shared components: $components_path"
+  echo "================================"
+
+  FAILED=0
+  test_hardcoded_spacing "$components_path"
+  test_hardcoded_borders "$components_path"
+  [ $FAILED -eq 1 ] && SHARED_FAILED=1
+  return 0
+}
+
 # Function to test a single theme
 test_theme() {
   local theme_path="$1"
@@ -544,6 +563,7 @@ for theme in "${THEMES[@]}"; do
   test_theme "$theme"
 done
 
+test_shared_components
 test_colour_literals
 
 # Overall summary
@@ -552,7 +572,7 @@ echo "================================"
 echo "📊 Summary"
 echo "================================"
 echo "Themes tested: $THEMES_TESTED"
-if [ $THEMES_FAILED -eq 0 ] && [ $LITERALS_FAILED -eq 0 ]; then
+if [ $THEMES_FAILED -eq 0 ] && [ $SHARED_FAILED -eq 0 ] && [ $LITERALS_FAILED -eq 0 ]; then
   echo -e "${GREEN}✅ All themes passed!${NC}"
   echo "All theme CSS files are properly tokenized."
   exit 0

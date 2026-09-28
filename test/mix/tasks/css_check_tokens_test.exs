@@ -52,6 +52,35 @@ defmodule Mix.Tasks.Css.CheckTokensTest do
     assert output =~ "shared/components/notice.css:2:"
   end
 
+  test "rejects hardcoded spacing in a shared component", %{root: root} do
+    File.write!(
+      Path.join(root, "shared/components/notice.css"),
+      ".notice {\n  padding: 12px;\n}\n"
+    )
+
+    assert {output, 1} = run_script(root)
+    assert output =~ "shared/components/notice.css:2:"
+  end
+
+  test "rejects a hardcoded border width in a shared component", %{root: root} do
+    File.write!(
+      Path.join(root, "shared/components/notice.css"),
+      ".notice {\n  border: 2px solid var(--line-1);\n}\n"
+    )
+
+    assert {output, 1} = run_script(root)
+    assert output =~ "shared/components/notice.css:2:"
+  end
+
+  test "accepts tokenised spacing and borders in a shared component", %{root: root} do
+    File.write!(
+      Path.join(root, "shared/components/notice.css"),
+      ".notice {\n  padding: var(--space-sm);\n  border: var(--border-width-thin) solid var(--line-1);\n}\n"
+    )
+
+    assert {_output, 0} = run_script(root)
+  end
+
   test "ignores literals inside comments", %{root: root, modules: modules} do
     File.write!(
       Path.join(modules, "card.css"),
