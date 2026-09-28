@@ -138,16 +138,22 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
         render_scheduling_component(assigns)
 
       true ->
-        action = assigns[:live_action]
+        case assigns[:live_action] do
+          action when action in [:reschedule, :cancel, :cancel_confirmed] ->
+            render_theme(
+              assigns,
+              "Meeting action rendering failed",
+              & &1.render_meeting_action(assigns, action)
+            )
 
-        cond do
-          action in [:reschedule, :cancel, :cancel_confirmed] ->
-            render_meeting_management_component(assigns, action)
+          :poll_voting ->
+            render_theme(
+              assigns,
+              "Poll voting rendering failed",
+              & &1.render_poll_action(assigns)
+            )
 
-          action == :poll_voting ->
-            render_poll_voting_component(assigns)
-
-          true ->
+          _scheduling ->
             render_scheduling_component(assigns)
         end
     end
@@ -155,85 +161,33 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
 
   # Private functions
 
-  defp render_poll_voting_component(assigns) do
-    theme_id = assigns[:theme_id] || Registry.default_theme_id()
-
-    case ThemeInfo.get_theme_module(theme_id) do
-      nil ->
-        render_error(assigns, "Theme not found for poll voting")
-
-      module ->
-        try do
-          module.render_poll_action(assigns)
-        rescue
-          e in UndefinedFunctionError ->
-            Logger.error("render_poll_action not implemented in theme module",
-              module: inspect(module),
-              error: inspect(e)
-            )
-
-            render_error(assigns, "Poll voting rendering not implemented for this theme")
-
-          e ->
-            Logger.error("Error rendering poll voting", theme_id: theme_id, error: inspect(e))
-            render_error(assigns, "Poll voting rendering failed")
-        end
-    end
-  end
-
-  defp render_meeting_management_component(assigns, action) do
-    theme_id = assigns[:theme_id] || Registry.default_theme_id()
-
-    case ThemeInfo.get_theme_module(theme_id) do
-      nil ->
-        render_error(assigns, "Theme not found for meeting management")
-
-      module ->
-        try do
-          module.render_meeting_action(assigns, action)
-        rescue
-          e in UndefinedFunctionError ->
-            Logger.error("render_meeting_action not implemented in theme module",
-              module: inspect(module),
-              error: inspect(e)
-            )
-
-            render_error(assigns, "Meeting action rendering not implemented for this theme")
-
-          e ->
-            Logger.error("Error rendering meeting action",
-              action: action,
-              theme_id: theme_id,
-              error: inspect(e)
-            )
-
-            render_error(assigns, "Meeting action rendering failed")
-        end
-    end
-  end
-
   defp render_scheduling_component(assigns) do
+    render_theme(assigns, "Theme rendering failed", & &1.live_view_module().render(assigns))
+  end
+
+  # Renders through the current theme's module. An id that resolves to no
+  # theme, or a render that raises inside theme code, falls back to the error
+  # card. Every callback exists (the compiler checks the behaviour), so any
+  # exception here is a real error in the theme, logged as such.
+  defp render_theme(assigns, failure_message, render) do
     theme_id = assigns[:theme_id] || Registry.default_theme_id()
 
-    case ThemeInfo.get_live_view_module(theme_id) do
+    case ThemeInfo.get_theme_module(theme_id) do
       nil ->
         render_error(assigns, "Theme not found")
 
       module ->
         try do
-          module.render(assigns)
+          render.(module)
         rescue
-          e in UndefinedFunctionError ->
-            Logger.error("Render function not implemented in theme module",
-              module: inspect(module),
+          e ->
+            Logger.error("Theme render failed",
+              theme_id: theme_id,
+              theme_module: inspect(module),
               error: inspect(e)
             )
 
-            render_error(assigns, "Theme render function not found")
-
-          e ->
-            Logger.error("Error rendering theme", theme_id: theme_id, error: inspect(e))
-            render_error(assigns, "Theme rendering failed")
+            render_error(assigns, failure_message)
         end
     end
   end
