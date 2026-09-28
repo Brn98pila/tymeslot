@@ -4,7 +4,6 @@ defmodule Tymeslot.ThemeCustomizationsCssGenerationTest do
 
   alias Tymeslot.Profiles
   alias Tymeslot.ThemeCustomizations
-  alias Tymeslot.ThemeCustomizations.Capability
   alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
@@ -36,21 +35,17 @@ defmodule Tymeslot.ThemeCustomizationsCssGenerationTest do
              }
 
       assert ThemeCustomizations.get_defaults("2") == %{
-               "background_type" => "gradient",
-               "background_value" => "gradient_1",
+               "background_type" => "video",
+               "background_value" => "preset:rhythm-default",
                "color_scheme" => "default"
              }
     end
 
-    test "capability options include backgrounds and colors" do
-      options = Capability.get_customization_options("1")
-
-      assert Map.has_key?(options, :color)
-      assert Map.has_key?(options, :background)
-
-      background_keys = Enum.map(options.background, & &1.key)
-      assert "image" in background_keys
-      assert "video" in background_keys
+    test "every shipped theme offers image and video backgrounds" do
+      for theme_id <- ["1", "2"] do
+        assert ThemeCustomizations.supports_background?(theme_id, :image), theme_id
+        assert ThemeCustomizations.supports_background?(theme_id, :video), theme_id
+      end
     end
 
     test "to_map/1 converts customization to map", %{profile: profile} do

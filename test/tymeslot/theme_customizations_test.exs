@@ -4,6 +4,7 @@ defmodule Tymeslot.ThemeCustomizationsTest do
 
   alias Tymeslot.Profiles
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   describe "theme customizations" do
     setup do
@@ -95,6 +96,39 @@ defmodule Tymeslot.ThemeCustomizationsTest do
 
       assert "preset:rhythm-default" in keys
       assert keys == Enum.sort(keys)
+    end
+
+    test "upsert_theme_customization/3 creates a Rhythm customisation with Rhythm's own background",
+         %{profile: profile} do
+      {:ok, created} =
+        ThemeCustomizations.upsert_theme_customization(profile.id, "2", %{
+          "color_scheme" => "purple"
+        })
+
+      assert created.color_scheme == "purple"
+      assert created.background_type == "video"
+      assert created.background_value == "preset:rhythm-default"
+    end
+
+    test "upsert_theme_customization/3 creates a Quill customisation with the Aurora gradient",
+         %{profile: profile} do
+      {:ok, created} =
+        ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
+          "color_scheme" => "purple"
+        })
+
+      assert {created.background_type, created.background_value} == {"gradient", "gradient_1"}
+    end
+
+    test "default_customization/2 builds an unsaved customisation from the theme's spec" do
+      assert %ThemeCustomizationSchema{
+               id: nil,
+               profile_id: 7,
+               theme_id: "2",
+               color_scheme: "default",
+               background_type: "video",
+               background_value: "preset:rhythm-default"
+             } = ThemeCustomizations.default_customization(7, "2")
     end
   end
 end

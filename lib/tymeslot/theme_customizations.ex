@@ -16,10 +16,8 @@ defmodule Tymeslot.ThemeCustomizations do
   # Functional submodules
   alias __MODULE__.{
     Backgrounds,
-    Capability,
     Css,
     DataTransform,
-    Defaults,
     FileLifecycle,
     Presets,
     Storage
@@ -76,18 +74,7 @@ defmodule Tymeslot.ThemeCustomizations do
   def upsert_theme_customization(profile_id, theme_id, attrs) do
     case get_by_profile_and_theme(profile_id, theme_id) do
       nil ->
-        # Create with required defaults if not present
-        create_attrs =
-          Map.merge(
-            %{
-              "color_scheme" => "default",
-              "background_type" => "gradient",
-              "background_value" => "gradient_1"
-            },
-            attrs
-          )
-
-        create_theme_customization(profile_id, theme_id, create_attrs)
+        create_theme_customization(profile_id, theme_id, Map.merge(get_defaults(theme_id), attrs))
 
       customization ->
         # Update only the provided fields
@@ -198,16 +185,30 @@ defmodule Tymeslot.ThemeCustomizations do
   end
 
   @doc """
-  Gets default customization values for a theme based on capabilities.
+  The theme's customisation defaults as string-keyed attrs, from its spec.
   """
   @spec get_defaults(theme_id()) :: map()
   def get_defaults(theme_id) do
-    Capability.get_capability_defaults(theme_id)
+    Map.new(Spec.for_theme(theme_id).defaults(), fn {key, value} ->
+      {Atom.to_string(key), value}
+    end)
   end
 
   @doc """
-  Generates the full theme CSS variables string (capability-based + legacy fallback)
-  for a given theme and customization.
+  An unsaved customisation holding the theme's defaults, for a profile that has
+  not customised the theme (or `nil` for a preview without one).
+  """
+  @spec default_customization(profile_id() | nil, theme_id()) :: ThemeCustomizationSchema.t()
+  def default_customization(profile_id, theme_id) do
+    struct(
+      ThemeCustomizationSchema,
+      Map.merge(Spec.for_theme(theme_id).defaults(), %{profile_id: profile_id, theme_id: theme_id})
+    )
+  end
+
+  @doc """
+  Generates the page's CSS variables for a theme and customisation, resolved
+  through the theme's customisation spec.
   """
   @spec generate_theme_css(theme_id(), customization_input()) :: String.t()
   def generate_theme_css(theme_id, customization) do
@@ -227,7 +228,7 @@ defmodule Tymeslot.ThemeCustomizations do
         }
   def initialize_customization(profile_id, theme_id) do
     saved = get_by_profile_and_theme(profile_id, theme_id)
-    customization = Defaults.build_initial_customization(profile_id, theme_id, saved)
+    customization = saved || default_customization(profile_id, theme_id)
 
     %{
       customization: customization,

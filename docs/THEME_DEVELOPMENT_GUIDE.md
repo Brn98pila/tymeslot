@@ -8,13 +8,13 @@ The theme system uses a centralized registry pattern that eliminates magic strin
 
 ### Key Components
 
-1. **Theme Catalog** (`Tymeslot.Themes.Catalog`) - Domain source of truth for theme *facts* (id, key, name, features, status)
+1. **Theme Catalog** (`Tymeslot.Themes.Catalog`) - Domain source of truth for theme *facts* (id, key, name, customisation spec, status)
 2. **Theme Registry** (`TymeslotWeb.Themes.Core.Registry`) - Web layer; merges catalog facts with presentation bindings (the theme module)
 3. **Theme Behaviour** (`TymeslotWeb.Themes.Core.Behaviour`) - The contract a theme module fulfils; `use TymeslotWeb.Themes.Core.Theme` generates it
 4. **SchedulingLive Macro** (`TymeslotWeb.Themes.Shared.SchedulingLive`) - Injects all common LiveView callbacks; a theme's `live.ex` is built on it
 5. **Shared State Machine** (`TymeslotWeb.Themes.Shared.StateMachineHelpers`) - Owns state transitions and routing for all themes (no per-theme state machine)
 6. **Shared Context** (`TymeslotWeb.Themes.Shared.*`) - Shared helpers, handlers, and components
-7. **Capability System** (`Tymeslot.ThemeCustomizations.Capability`) - Capability-based customization logic
+7. **Customisation spec** (`Tymeslot.ThemeCustomizations.Spec`) - Per-theme option groups, defaults, validation and CSS tokens; each Catalog entry names its spec module
 8. **Dispatcher & Loader** (`TymeslotWeb.Themes.Core.Dispatcher`, `TymeslotWeb.Themes.Core.Loader`) - Systems for dynamically loading and dispatching theme actions
 9. **Wrapper Components** (per-theme): the theme's background and wrapper classes around the shared `Shared.Components.ThemeShell`, which renders the page chrome
 
@@ -201,12 +201,7 @@ aurora: %{
   key: :aurora,
   name: "Aurora",
   heading_style: :generic, # or :named, to open with "Schedule with <organiser>"
-  features: %{
-    supports_video_background: true,
-    supports_image_background: true,
-    supports_gradient_background: true,
-    supports_custom_colors: true
-  },
+  customization_spec: Tymeslot.ThemeCustomizations.AuroraSpec,
   status: :active
 }
 ```
@@ -654,17 +649,19 @@ Shared component files carry the structure and states; each theme sets their loo
 ### Theme Structure
 Each theme has a `theme.css` entry point and a flat `modules/` subdirectory. Each component file owns its base styles, container queries and iframe overrides in one place, with no separate `responsive.css`. The embed shell rules both themes share live in `shared/embed.css`, on the booker hook classes; each theme's `iframe.css` keeps only what differs.
 
-## Theme Customization & Capabilities
+## Theme Customization Spec
 
-Themes define their capabilities in the `Tymeslot.Themes.Catalog` `features` map, which are then used by the `Tymeslot.ThemeCustomizations.Capability` module to provide valid customization options.
+Each theme declares what organisers can customise in a spec module implementing `Tymeslot.ThemeCustomizations.Spec`, named by `customization_spec:` in its Catalog entry. The spec is the only place the theme's customisation rules live:
 
-### Supported Features
-- `supports_video_background`
-- `supports_image_background`
-- `supports_gradient_background`
-- `supports_custom_colors`
+| Callback | Purpose |
+|---|---|
+| `option_groups/0` | The dashboard panels, e.g. `%{key: :palette, type: :palette}` and `%{key: :background, type: :background, kinds: [:gradient, :color, :image, :video]}` |
+| `defaults/0` | The theme's defaults, used when a customisation is first created and when an organiser has none |
+| `changeset/2` | All validation, including rejecting an option or background kind the theme does not offer |
+| `tokens/2` | Stored settings plus per-page-view overrides to `%Tymeslot.ThemeCustomizations.Tokens{}` |
+| `asset_fields/0` | Which settings hold uploaded files, for upload handling and file clean-up |
 
-The capability system automatically generates the necessary CSS variables based on these flags and user selections.
+Build a spec from the shared blocks `Options.Palette` and `Options.Background` rather than restating their rules; `QuillSpec` and `RhythmSpec` are the reference. Colours are validated by `Tymeslot.Utils.Colour.cast_hex/1`: `#RGB` or `#RRGGBB`, stored as lower-case `#rrggbb`.
 
 ## Meeting Management Integration
 

@@ -4,18 +4,21 @@ defmodule Tymeslot.ThemeCustomizations.Css do
 
   Stateless functions that turn a colour scheme, gradient preset, or full
   customisation into the CSS variable strings consumed by the booking themes.
+  A full customisation's page CSS is resolved through the theme's customisation
+  spec (`Tymeslot.ThemeCustomizations.Spec`), named in its Catalog entry.
   No database access and no filesystem side effects live here — palette
   derivation is delegated to `PaletteDerivation` and preset lookups to
   `Presets`, mirroring how the context orchestrated these calls previously.
   """
 
-  alias Tymeslot.ThemeCustomizations.Capability
   alias Tymeslot.ThemeCustomizations.DataTransform
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.PaletteDerivation
   alias Tymeslot.ThemeCustomizations.Presets
+  alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
   alias Tymeslot.ThemeCustomizations.Validation
+  alias Tymeslot.Themes.Catalog
 
   @doc """
   Gets the CSS variables for a colour scheme.
@@ -52,14 +55,22 @@ defmodule Tymeslot.ThemeCustomizations.Css do
   end
 
   @doc """
-  Generates the full theme CSS variables string (capability-based + legacy
-  fallback) for a given theme and customisation map.
+  The page's CSS variables for a theme and its stored settings, resolved
+  through the theme's customisation spec. Empty for an unknown theme.
   """
-  @spec generate_theme_css(String.t(), map()) :: String.t()
-  def generate_theme_css(theme_id, customization_map) do
-    theme_id
-    |> Capability.generate_css(customization_map)
-    |> Validation.sanitize_css()
+  @spec generate_theme_css(String.t(), Spec.settings()) :: String.t()
+  def generate_theme_css(theme_id, settings) do
+    case Catalog.customization_spec(theme_id) do
+      {:ok, spec} ->
+        settings
+        |> spec.tokens(%{})
+        |> Map.fetch!(:vars)
+        |> render_vars()
+        |> Validation.sanitize_css()
+
+      {:error, :theme_not_found} ->
+        ""
+    end
   end
 
   @doc """

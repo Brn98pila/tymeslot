@@ -1,9 +1,9 @@
 defmodule Tymeslot.Themes.Catalog do
   @moduledoc """
-  Domain source of truth for theme *facts* — which themes exist and what they
-  can do.
+  Domain source of truth for theme *facts*: which themes exist and how each is
+  customised.
 
-  Holds each theme's id, key, name, capability `features`, `heading_style`, and
+  Holds each theme's id, key, name, customisation spec, `heading_style`, and
   status. This is pure data with no web or presentation dependency: profiles and
   theme customizations validate and drive behaviour off these facts without ever
   reaching up into the web layer.
@@ -24,7 +24,6 @@ defmodule Tymeslot.Themes.Catalog do
           id: theme_id(),
           key: theme_key(),
           name: String.t(),
-          features: map(),
           customization_spec: module(),
           heading_style: heading_style(),
           status: status()
@@ -35,12 +34,6 @@ defmodule Tymeslot.Themes.Catalog do
       id: "1",
       key: :quill,
       name: "Quill",
-      features: %{
-        supports_video_background: true,
-        supports_image_background: true,
-        supports_gradient_background: true,
-        supports_custom_colors: true
-      },
       heading_style: :generic,
       customization_spec: Tymeslot.ThemeCustomizations.QuillSpec,
       status: :active
@@ -49,12 +42,6 @@ defmodule Tymeslot.Themes.Catalog do
       id: "2",
       key: :rhythm,
       name: "Rhythm",
-      features: %{
-        supports_video_background: true,
-        supports_image_background: true,
-        supports_gradient_background: true,
-        supports_custom_colors: true
-      },
       heading_style: :named,
       customization_spec: Tymeslot.ThemeCustomizations.RhythmSpec,
       status: :active
@@ -172,19 +159,5 @@ defmodule Tymeslot.Themes.Catalog do
   @spec customization_spec(theme_id()) :: {:ok, module()} | {:error, :theme_not_found}
   def customization_spec(id) when is_binary(id) do
     with {:ok, %{customization_spec: spec}} <- get_by_id(id), do: {:ok, spec}
-  end
-
-  @doc """
-  Returns the capability features map for a theme ID.
-
-  Still read by the test-account provisioning task; it goes when that task
-  reads the customisation spec instead.
-  """
-  @spec features_for(theme_id()) :: {:ok, map()} | {:error, :theme_not_found}
-  def features_for(id) when is_binary(id) do
-    case get_by_id(id) do
-      {:ok, %{features: features}} -> {:ok, features}
-      error -> error
-    end
   end
 end

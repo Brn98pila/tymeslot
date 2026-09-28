@@ -6,7 +6,6 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
 
   alias Tymeslot.Demo
   alias Tymeslot.ThemeCustomizations
-  alias Tymeslot.ThemeCustomizations.Defaults
   alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
   alias Tymeslot.ThemeCustomizations.Validation
@@ -23,11 +22,11 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
     # Use a fallback customization when none exists so previews always have sensible defaults
     effective_customization =
       case customization do
-        nil -> Defaults.get_fallback_customization(theme_id)
+        nil -> ThemeCustomizations.default_customization(nil, theme_id)
         %{} = c -> c
       end
 
-    # Generate CSS (capability-based + legacy) for the effective customization
+    # Generate the page CSS for the effective customisation through the theme's spec
     custom_css = ThemeCustomizations.generate_theme_css(theme_id, effective_customization)
 
     socket

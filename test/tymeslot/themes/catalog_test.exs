@@ -19,8 +19,8 @@ defmodule Tymeslot.Themes.CatalogTest do
   test "holds facts only, not display copy or flow shape" do
     for {_key, facts} <- Catalog.all() do
       refute Map.has_key?(facts, :description)
-      refute Map.has_key?(facts.features, :flow_type)
-      refute Map.has_key?(facts.features, :step_count)
+      refute Map.has_key?(facts, :flow_type)
+      refute Map.has_key?(facts, :step_count)
     end
 
     assert map_size(Catalog.all()) > 0
