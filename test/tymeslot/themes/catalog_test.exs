@@ -33,4 +33,10 @@ defmodule Tymeslot.Themes.CatalogTest do
 
     assert Catalog.default().heading_style == :generic
   end
+
+  test "names each theme's customisation spec" do
+    assert Catalog.customization_spec("1") == {:ok, Tymeslot.ThemeCustomizations.QuillSpec}
+    assert Catalog.customization_spec("2") == {:ok, Tymeslot.ThemeCustomizations.RhythmSpec}
+    assert Catalog.customization_spec("9") == {:error, :theme_not_found}
+  end
 end

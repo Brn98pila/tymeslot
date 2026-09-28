@@ -84,5 +84,17 @@ defmodule Tymeslot.ThemeCustomizationsTest do
       # Check customization is deleted
       assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "2") == nil
     end
+
+    test "supports_background?/2 answers from the theme's spec" do
+      assert ThemeCustomizations.supports_background?("2", :video)
+      refute ThemeCustomizations.supports_background?("9", :video)
+    end
+
+    test "video_preset_keys/0 lists the shipped video presets in order" do
+      keys = ThemeCustomizations.video_preset_keys()
+
+      assert "preset:rhythm-default" in keys
+      assert keys == Enum.sort(keys)
+    end
   end
 end

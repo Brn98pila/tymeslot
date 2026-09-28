@@ -18,6 +18,7 @@ defmodule TymeslotWeb.Themes.Core.Registry do
           required(:key) => theme_key(),
           required(:name) => String.t(),
           required(:module) => module(),
+          required(:customization_spec) => module(),
           required(:status) => Catalog.status(),
           optional(atom()) => term()
         }

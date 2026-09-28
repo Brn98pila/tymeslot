@@ -8,8 +8,10 @@ defmodule Tymeslot.ThemeCustomizations do
 
   alias Ecto.Changeset
   alias Tymeslot.Profiles.ProfileSchema
+  alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationQueries
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
+  alias Tymeslot.Themes.Catalog
 
   # Functional submodules
   alias __MODULE__.{
@@ -47,10 +49,24 @@ defmodule Tymeslot.ThemeCustomizations do
   and the onboarding preview of it — has life out of the box.
   """
   @spec random_video_preset() :: String.t()
-  def random_video_preset do
-    Presets.get_video_presets()
-    |> Map.keys()
-    |> Enum.random()
+  def random_video_preset, do: Enum.random(video_preset_keys())
+
+  @doc """
+  The shipped video-background preset keys (e.g. `"preset:blue-wave"`), sorted.
+  """
+  @spec video_preset_keys() :: [String.t()]
+  def video_preset_keys, do: Presets.get_video_presets() |> Map.keys() |> Enum.sort()
+
+  @doc """
+  Whether a theme can show the given kind of background. `false` for an
+  unknown theme.
+  """
+  @spec supports_background?(theme_id(), Spec.background_kind()) :: boolean()
+  def supports_background?(theme_id, kind) do
+    case Catalog.customization_spec(theme_id) do
+      {:ok, spec} -> Spec.supports_background?(spec, kind)
+      {:error, :theme_not_found} -> false
+    end
   end
 
   @doc """

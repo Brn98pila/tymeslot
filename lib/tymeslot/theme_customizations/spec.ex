@@ -14,6 +14,7 @@ defmodule Tymeslot.ThemeCustomizations.Spec do
 
   alias Ecto.Changeset
   alias Tymeslot.ThemeCustomizations.Tokens
+  alias Tymeslot.Themes.Catalog
 
   @typedoc "A kind of background a theme can show."
   @type background_kind :: :gradient | :color | :image | :video
@@ -63,4 +64,13 @@ defmodule Tymeslot.ThemeCustomizations.Spec do
   @doc "Whether a spec offers the given background kind."
   @spec supports_background?(module(), background_kind()) :: boolean()
   def supports_background?(spec, kind), do: kind in background_kinds(spec)
+
+  @doc "The spec for a theme id, falling back to the default theme's spec for an unknown id."
+  @spec for_theme(String.t()) :: module()
+  def for_theme(theme_id) do
+    case Catalog.customization_spec(theme_id) do
+      {:ok, spec} -> spec
+      {:error, :theme_not_found} -> Catalog.default().customization_spec
+    end
+  end
 end

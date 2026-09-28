@@ -25,6 +25,7 @@ defmodule Tymeslot.Themes.Catalog do
           key: theme_key(),
           name: String.t(),
           features: map(),
+          customization_spec: module(),
           heading_style: heading_style(),
           status: status()
         }
@@ -41,6 +42,7 @@ defmodule Tymeslot.Themes.Catalog do
         supports_custom_colors: true
       },
       heading_style: :generic,
+      customization_spec: Tymeslot.ThemeCustomizations.QuillSpec,
       status: :active
     },
     rhythm: %{
@@ -54,6 +56,7 @@ defmodule Tymeslot.Themes.Catalog do
         supports_custom_colors: true
       },
       heading_style: :named,
+      customization_spec: Tymeslot.ThemeCustomizations.RhythmSpec,
       status: :active
     }
   }
@@ -162,6 +165,14 @@ defmodule Tymeslot.Themes.Catalog do
   """
   @spec default_key() :: theme_key()
   def default_key, do: default().key
+
+  @doc """
+  Returns the customisation spec module for a theme ID.
+  """
+  @spec customization_spec(theme_id()) :: {:ok, module()} | {:error, :theme_not_found}
+  def customization_spec(id) when is_binary(id) do
+    with {:ok, %{customization_spec: spec}} <- get_by_id(id), do: {:ok, spec}
+  end
 
   @doc """
   Returns the capability features map for a theme ID.
