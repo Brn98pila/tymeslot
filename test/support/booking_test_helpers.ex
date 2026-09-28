@@ -12,10 +12,9 @@ defmodule Tymeslot.BookingTestHelpers do
 
   @endpoint TymeslotWeb.Endpoint
 
-  # Select on `data-testid`, not on CSS classes. Quill and Rhythm agree on the
-  # test ids but not on the classes behind them — Quill's time slots are
-  # `.time-slot-button`, Rhythm's are `.time-slot` — so a class-based walk
-  # silently only ever worked on Quill.
+  # Select on `data-testid`, not on CSS classes: the ids are the stable
+  # contract, while the classes (`slot-list__slot` on the shared slot list)
+  # are styling and may change.
   @duration_option "button[data-testid='duration-option']"
   @next_step "button[data-testid='next-step']"
   @calendar_day "button[data-testid='calendar-day']"

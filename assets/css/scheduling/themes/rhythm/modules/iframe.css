@@ -69,7 +69,7 @@ html.rhythm-theme[data-embedded] .scheduling-box {
 }
 
 /* Time slots flow to natural height — single page-level scroll. */
-html.rhythm-theme[data-embedded] .time-slots-grid {
+html.rhythm-theme[data-embedded] .slot-list__body {
   max-height: none;
   overflow-y: visible;
   height: auto;

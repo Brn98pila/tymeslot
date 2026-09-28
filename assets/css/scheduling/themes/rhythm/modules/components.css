@@ -260,7 +260,7 @@
 }
 
 /* Loading States */
-.loading-slots {
+.slot-list__loading {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -268,7 +268,8 @@
   color: var(--theme-text-secondary);
 }
 
-.no-slots {
+.slot-list__empty,
+.slot-list__prompt {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -279,13 +280,14 @@
   gap: var(--space-sm);
 }
 
-.no-slots p {
+.slot-list__empty p,
+.slot-list__prompt p {
   margin: 0;
 }
 
 /* Error States - Unified Pattern */
 .theme-error,
-.calendar-error {
+.slot-list__error {
   padding: var(--space-lg);
   background: var(--theme-error-bg);
   border: var(--border-width-thin) solid var(--theme-error-border);
@@ -328,11 +330,11 @@
   }
 
   /* Loading and error states */
-  .loading-slots {
+  .slot-list__loading {
     padding: var(--space-2xl) var(--space-lg);
   }
 
-  .calendar-error,
+  .slot-list__error,
   .theme-error {
     padding: var(--space-md);
   }
@@ -394,7 +396,7 @@
 @media (prefers-reduced-motion: reduce) {
   .duration-card,
   .calendar-day,
-  .time-slot,
+  .slot-list__slot,
   .prev-button,
   .next-button,
   .submit-button,

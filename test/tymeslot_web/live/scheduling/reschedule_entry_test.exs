@@ -62,7 +62,7 @@ defmodule TymeslotWeb.Live.Scheduling.RescheduleEntryTest do
       view |> element("button[data-testid='duration-option']") |> render_click()
       view |> element("button[data-testid='next-step']") |> render_click()
 
-      wait_until(fn -> has_element?(view, "button.time-slot-button") end)
+      wait_until(fn -> has_element?(view, "button[data-testid='time-slot']") end)
 
       state = :sys.get_state(view.pid).socket.assigns
 
@@ -76,7 +76,7 @@ defmodule TymeslotWeb.Live.Scheduling.RescheduleEntryTest do
       assert Floki.find(document, "button.calendar-day--selected") != [],
              "expected the reschedule to open on a day painted as selected"
 
-      assert Floki.attribute(document, "button.time-slot-button", "phx-value-time") != [],
+      assert Floki.attribute(document, "button[data-testid='time-slot']", "phx-value-time") != [],
              "expected that day's times to be listed"
 
       # The hour stays the rescheduler's decision, exactly as for a new booking.

@@ -41,7 +41,7 @@
 }
 
 /* Time slot and small interactive elements */
-.time-slot-button,
+.slot-list__slot,
 .calendar-day {
   font-size: clamp(0.7rem, 1.3vw, 0.875rem);
 }

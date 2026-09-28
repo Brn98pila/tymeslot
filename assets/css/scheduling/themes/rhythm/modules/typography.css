@@ -102,14 +102,14 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.time-period-header {
+.slot-list__period-label {
   font-size: var(--theme-font-size-xs);
   font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: var(--letter-spacing-normal);
 }
 
-.time-slot,
+.slot-list__slot,
 .timezone-trigger,
 .timezone-search,
 .timezone-option {
@@ -202,9 +202,10 @@
   font-weight: var(--font-weight-medium);
 }
 
-.loading-slots,
-.calendar-error,
-.no-slots p {
+.slot-list__loading,
+.slot-list__error,
+.slot-list__empty p,
+.slot-list__prompt p {
   font-size: var(--theme-font-size-md);
 }
 
@@ -221,11 +222,11 @@
   font-weight: var(--font-weight-medium);
 }
 
-.time-slot {
+.slot-list__slot {
   font-weight: var(--font-weight-medium);
 }
 
-.time-slot.selected {
+.slot-list__slot.slot-list__slot--selected {
   font-weight: var(--font-weight-semibold);
 }
 

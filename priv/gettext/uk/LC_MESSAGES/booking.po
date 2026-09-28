@@ -166,8 +166,7 @@ msgstr "Квітень"
 msgid "August"
 msgstr "Серпень"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/slot_list.ex
 #, elixir-autogen, elixir-format
 msgid "Available Times"
 msgstr "Доступний час"
@@ -336,8 +335,8 @@ msgstr "Напишіть, що ви хочете обговорити…"
 msgid "Let's Connect!"
 msgstr "Зв'яжімося!"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/slot_list.ex
 #, elixir-autogen, elixir-format
 msgid "Loading available times..."
 msgstr "Завантаження доступного часу…"
@@ -459,8 +458,7 @@ msgstr "Будь ласка, виправте наведені нижче пом
 msgid "Please fill in all required fields"
 msgstr "Заповніть усі обов'язкові поля"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/slot_list.ex
 #, elixir-autogen, elixir-format
 msgid "Please select a date to see available times"
 msgstr "Оберіть дату, щоб побачити вільний час"
@@ -470,8 +468,8 @@ msgstr "Оберіть дату, щоб побачити вільний час"
 msgid "Please select a meeting duration first"
 msgstr "Спочатку оберіть тривалість зустрічі"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/slot_list.ex
 #, elixir-autogen, elixir-format
 msgid "Please select another date"
 msgstr "Оберіть іншу дату"
@@ -612,8 +610,8 @@ msgstr "Умови використання"
 msgid "Thank you, your booking is confirmed for %{date}."
 msgstr "Дякуємо, ваше бронювання на %{date} підтверджено."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/slot_list.ex
 #, elixir-autogen, elixir-format
 msgid "This date is fully booked"
 msgstr "На цей день усе заброньовано"
@@ -1168,8 +1166,7 @@ msgstr "Потрібно вказати назву"
 msgid "You cannot book more than %{days} days in advance"
 msgstr "Бронювати можна щонайбільше на %{days} дн. наперед"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/slot_list.ex
 #, elixir-autogen, elixir-format
 msgid "%{hour}, %{count} available time"
 msgid_plural "%{hour}, %{count} available times"

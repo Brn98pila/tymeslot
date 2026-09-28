@@ -1,18 +1,18 @@
 /* Time Slots Component */
 
-.time-slots-section {
+.slot-list {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;   /* fill remaining space in .schedule-grid so the grid adapts */
   min-height: 0;    /* allow children to shrink below their intrinsic content */
 }
 
-.time-slots-section-heading {
+.slot-list__heading {
   margin-bottom: var(--space-sm);
   flex-shrink: 0;
 }
 
-.time-slots-grid {
+.slot-list__body {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
@@ -23,16 +23,24 @@
   scroll-behavior: smooth;
 }
 
+/* The period sections sit in one wrapper inside the scroll region, so the
+   column spacing between them lives here rather than on the body. */
+.slot-list__groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
 /* Note: Scrollbar styling is applied via .scroll-y utility class from base.css */
 
-.time-period-section {
+.slot-list__period {
   display: flex;
   flex-direction: column;
   gap: var(--space-3xs);
   margin-bottom: var(--space-xs);
 }
 
-.time-period-header {
+.slot-list__period-label {
   color: var(--theme-text-secondary);
   margin: 0;
   margin-bottom: var(--space-3xs);
@@ -40,13 +48,13 @@
   border-bottom: var(--border-width-thin) solid var(--border-subtle);
 }
 
-.time-period-slots {
+.slot-list__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
   gap: var(--space-3xs);
 }
 
-.time-slot {
+.slot-list__slot {
   padding: var(--space-3xs) var(--space-xs);
   background: var(--surface-medium);
   border: var(--border-width-thin) solid var(--border-strong);
@@ -63,19 +71,19 @@
   font-size: var(--theme-font-size-xs);
 }
 
-.time-slot:focus-visible {
+.slot-list__slot:focus-visible {
   outline: var(--border-width-thick) solid var(--theme-primary);
   outline-offset: var(--space-3xs);
 }
 
-.time-slot:hover {
+.slot-list__slot:hover {
   background: var(--surface-intense);
   border-color: var(--theme-primary);
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
 
-.time-slot.selected {
+.slot-list__slot.slot-list__slot--selected {
   background: var(--theme-surface);
   border-color: var(--theme-primary);
   box-shadow:
@@ -91,12 +99,12 @@
 
 /* Mobile-equivalent: very narrow container */
 @container scheduling (max-width: 479px) {
-  .time-slots-section {
+  .slot-list {
     margin-top: var(--space-xs);
     overflow: hidden;
   }
 
-  .time-slots-grid {
+  .slot-list__body {
     max-height: var(--time-slots-max-height);
     padding-right: var(--space-2xs);
   }
@@ -106,22 +114,23 @@
    HEIGHT MEDIA QUERIES — at short viewports, stop pinning the grid to a fixed
    pixel height. Let it fill whatever space .schedule-grid has left after the
    calendar section and scroll internally when the slot list is taller than
-   the remaining space. The flex chain (.schedule-grid → .time-slots-section
-   → .time-slots-grid, each with min-height: 0) handles the adaptation.
+   the remaining space. The flex chain
+   (.schedule-grid → .slot-list → .slot-list__body, each with min-height: 0)
+   handles the adaptation.
    ============================================================================ */
 
 @media (max-height: 600px) {
-  .time-slots-grid {
+  .slot-list__body {
     max-height: 100%;
   }
 }
 
 /* ===== Two-Tier Hour Picker ===== */
-/* No max-height on the minute grid: .time-slots-grid above it already owns the
+/* No max-height on the minute grid: .slot-list__body above it already owns the
    single scroll region for this panel, and a nested one would produce two
    scrollbars at short heights. */
 
-.time-slot--hour {
+.slot-list__slot--hour {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -133,7 +142,7 @@
    made them identical. The minute drawer renders beneath the whole row, not
    beneath the button that opened it, so this state is the only thing tying
    the two together. */
-.time-slot--hour.expanded {
+.slot-list__slot--hour.slot-list__slot--expanded {
   background: var(--surface-intense);
   border-color: var(--theme-primary);
   color: var(--theme-primary);
@@ -143,7 +152,7 @@
 /* A contained drawer rather than a left rule. The rule sat at the row's left
    edge, which is the first hour in the row and not the open one, so it
    pointed at the wrong button whenever the open hour was not first. */
-.time-period-slots--minutes {
+.slot-list__grid--minutes {
   margin-top: var(--space-xs);
   padding: var(--space-2xs);
   background: var(--surface-subtle);

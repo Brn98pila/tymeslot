@@ -100,7 +100,7 @@ defmodule TymeslotWeb.Live.Scheduling.NextAvailableTest do
 
       # The slot list arrives on a follow-up message, exactly as it does
       # after a manual day click.
-      wait_until(fn -> has_element?(view, "button.time-slot-button") end)
+      wait_until(fn -> has_element?(view, "button[data-testid='time-slot']") end)
 
       html = render(view)
       document = Floki.parse_document!(html)
@@ -119,7 +119,7 @@ defmodule TymeslotWeb.Live.Scheduling.NextAvailableTest do
 
       # The times for that day are on screen, so the booker's next action
       # is picking a time rather than hunting for a day.
-      slots = Floki.attribute(document, "button.time-slot-button", "phx-value-time")
+      slots = Floki.attribute(document, "button[data-testid='time-slot']", "phx-value-time")
       assert slots != [], "expected the auto-selected day's slots to be rendered"
 
       # No time is pre-picked — choosing the hour stays the booker's decision.
@@ -229,7 +229,7 @@ defmodule TymeslotWeb.Live.Scheduling.NextAvailableTest do
           "/#{profile.username}/quick-chat?timezone=#{timezone}&date=#{chosen_string}"
         )
 
-      wait_until(fn -> has_element?(view, "button.time-slot-button") end)
+      wait_until(fn -> has_element?(view, "button[data-testid='time-slot']") end)
 
       state = :sys.get_state(view.pid).socket.assigns
 
@@ -347,7 +347,7 @@ defmodule TymeslotWeb.Live.Scheduling.NextAvailableTest do
       view |> element("button[data-testid='duration-option']") |> render_click()
       view |> element("button[data-testid='next-step']") |> render_click()
 
-      wait_until(fn -> has_element?(view, "button.time-slot-button") end)
+      wait_until(fn -> has_element?(view, "button[data-testid='time-slot']") end)
 
       before = :sys.get_state(view.pid).socket.assigns
       expected = next_month(before.current_year, before.current_month)

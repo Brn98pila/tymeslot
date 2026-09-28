@@ -73,7 +73,7 @@ html.quill-theme[data-embedded] .lang-switcher {
 /* ---------------------------------------------------------------------------
    4. Time slots — single page-level scroll
    --------------------------------------------------------------------------- */
-html.quill-theme[data-embedded] .slots-box {
+html.quill-theme[data-embedded] .slot-list__body {
   max-height: none;
   overflow-y: visible;
   height: auto;

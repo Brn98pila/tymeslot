@@ -166,8 +166,7 @@ msgstr "dubna"
 msgid "August"
 msgstr "srpna"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/slot_list.ex
 #, elixir-autogen, elixir-format
 msgid "Available Times"
 msgstr "Volné termíny"
@@ -336,8 +335,8 @@ msgstr "Napište, co chcete probrat…"
 msgid "Let's Connect!"
 msgstr "Pojďme se sejít!"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/slot_list.ex
 #, elixir-autogen, elixir-format
 msgid "Loading available times..."
 msgstr "Načítání volných termínů…"
@@ -459,8 +458,7 @@ msgstr "Opravte prosím chyby níže."
 msgid "Please fill in all required fields"
 msgstr "Vyplňte prosím všechna povinná pole"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/slot_list.ex
 #, elixir-autogen, elixir-format
 msgid "Please select a date to see available times"
 msgstr "Vyberte prosím datum, abyste viděli volné termíny"
@@ -470,8 +468,8 @@ msgstr "Vyberte prosím datum, abyste viděli volné termíny"
 msgid "Please select a meeting duration first"
 msgstr "Nejprve prosím vyberte délku schůzky"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/slot_list.ex
 #, elixir-autogen, elixir-format
 msgid "Please select another date"
 msgstr "Vyberte prosím jiné datum"
@@ -612,8 +610,8 @@ msgstr "Smluvní podmínky"
 msgid "Thank you, your booking is confirmed for %{date}."
 msgstr "Děkujeme, vaše rezervace je potvrzena na termín %{date}."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/slot_list.ex
 #, elixir-autogen, elixir-format
 msgid "This date is fully booked"
 msgstr "Tento den je plně obsazen"
@@ -1167,8 +1165,7 @@ msgstr "Název je povinný"
 msgid "You cannot book more than %{days} days in advance"
 msgstr "Rezervaci nelze vytvořit s předstihem více než %{days} dnů"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/slot_list.ex
 #, elixir-autogen, elixir-format
 msgid "%{hour}, %{count} available time"
 msgid_plural "%{hour}, %{count} available times"

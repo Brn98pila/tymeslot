@@ -10,6 +10,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent do
   alias TymeslotWeb.Live.Scheduling.CalendarNavigation
   alias TymeslotWeb.Themes.Quill.Scheduling.Components.Schedule.Panels
   alias TymeslotWeb.Themes.Shared.BookingText
+  alias TymeslotWeb.Themes.Shared.Components.SlotList
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
   alias TymeslotWeb.Themes.Shared.StepEvents
 
@@ -286,17 +287,47 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent do
                       </div>
                     </div>
 
-                    <Panels.time_slots_panel
+                    <SlotList.slot_list
                       selected_date={@selected_date}
+                      selected_time={@selected_time}
+                      available_slots={@available_slots}
                       loading_slots={@loading_slots}
                       calendar_error={@calendar_error}
-                      available_slots={@available_slots}
-                      selected_time={@selected_time}
                       slot_interval_minutes={@slot_interval_minutes}
                       duration_minutes={@duration_minutes}
                       expanded_hour={@expanded_hour}
                       target={@myself}
-                    />
+                    >
+                      <:loading>
+                        <div class="h-full flex items-center justify-center">
+                          <.spinner />
+                          <span class="ml-3 text-white">
+                            {dgettext("booking", "Loading available times...")}
+                          </span>
+                        </div>
+                      </:loading>
+                      <:error :let={message}>
+                        <.info_box variant={:warning}>
+                          {message}
+                        </.info_box>
+                      </:error>
+                      <:empty>
+                        <.empty_state
+                          message={dgettext("booking", "This date is fully booked")}
+                          secondary_message={dgettext("booking", "Please select another date")}
+                        >
+                          <:icon>
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                            >
+                            </path>
+                          </:icon>
+                        </.empty_state>
+                      </:empty>
+                    </SlotList.slot_list>
                   </div>
 
                   <div class="schedule-actions shrink-0" data-testid="schedule-actions">

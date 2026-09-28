@@ -374,7 +374,7 @@ The `cqi` unit resolves against the nearest ancestor with `container-type: inlin
 
 **Fluid grids with `auto-fit`:**
 ```css
-.time-period-slots { grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr)); }
+.slot-list__grid { grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr)); }
 ```
 
 **Container queries for discrete layout switches:**
@@ -408,6 +408,7 @@ The **step layouts** are theme-owned: duration cards, calendar day buttons and t
 Shared across themes:
 
 - **`Shared.Components.CustomAnswers`** (`custom_answers/1`): the confirmation step's "Your answers" list. Classes `custom-answers`, `custom-answers__heading`, `__list`, `__row`, `__label`, `__value`.
+- **`Shared.Components.SlotList`** (`slot_list/1`): the schedule step's time-slot panel, with the heading, the screen-reader status line, flat and by-hour grouping, the slot buttons, and the prompt, loading, error and fully-booked states. Classes `slot-list`, `slot-list__heading`, `__body`, `__groups`, `__period`, `__period-label`, `__grid` (`--minutes`), `__slot` (`--selected`, `--hour`, `--expanded`), `__hour-label`, `__hour-count`, `__prompt`, `__loading`, `__error`, `__empty`. Pass `heading_tag`/`period_tag` to fit your page's heading outline, and the `:loading`, `:error` and `:empty` slots only if your theme renders those states with its own markup. Tests select slots by `data-testid="time-slot"` and `"slot-hour"`, never by class.
 - **Data utilities** (`TymeslotWeb.Components.MeetingUtils`): `normalize_slot_list/1`
   and `normalize_slot_time/1` normalise time-slot data.
 - **`Shared.Components.MeetingDetails`** (`meeting_detail_rows/1`) — the date/time/
@@ -425,6 +426,8 @@ Shared across themes:
 
 So the dividing line is: **per-step visual layout is theme-owned; cross-cutting
 chrome and field rendering is shared.**
+
+When renaming a selector onto a shared class, keep its specificity: a compound rule such as `.time-slot.selected` becomes `.slot-list__slot.slot-list__slot--selected`, not the bare modifier, or an existing `:hover` rule starts winning.
 
 Icon class names stored in the database (e.g., `meeting_type.icon`) must be sanitized before use as CSS class names to prevent CSS injection. Only sanitize the hero-icon path — emoji icons rendered as text content are auto-escaped by Phoenix:
 

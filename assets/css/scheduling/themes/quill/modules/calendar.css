@@ -352,7 +352,7 @@
   gap: var(--space-xs);
 }
 
-.slots-heading {
+.slot-list__heading {
   font-size: var(--theme-font-size-sm);
   margin-bottom: var(--space-3xs);
 }
@@ -380,7 +380,7 @@
   padding-right: clamp(var(--space-xs), 1.5cqi, var(--space-sm));
 }
 
-.slots-heading {
+.slot-list__heading {
   font-size: clamp(var(--theme-font-size-sm), 2.5cqi, var(--theme-font-size-lg));
 }
 
@@ -568,7 +568,7 @@
   }
 
   .calendar-section,
-  .time-slots-panel {
+  .slot-list {
     flex: 1 1 0;
     min-width: 0;
   }

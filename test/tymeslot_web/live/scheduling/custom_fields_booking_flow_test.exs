@@ -279,7 +279,7 @@ defmodule TymeslotWeb.Live.Scheduling.CustomFieldsBookingFlowTest do
       html = render(view)
 
       refute html =~ "Company"
-      assert has_element?(view, "button.time-slot-button")
+      assert has_element?(view, "button[data-testid='time-slot']")
       assert has_element?(view, "button[phx-click='next_step']")
     end
   end
