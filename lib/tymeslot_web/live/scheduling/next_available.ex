@@ -184,7 +184,7 @@ defmodule TymeslotWeb.Live.Scheduling.NextAvailable do
   end
 
   # Moves the visible window onto the chosen day before selecting it, then
-  # asks for its slots. `handle_schedule_date_selection/2` in the theme core
+  # asks for its slots. `SchedulingFlow`'s `select_date/2`
   # does the same three things on a click; this is that path without the
   # click, so the two stay in step.
   defp select(socket, date_string) do

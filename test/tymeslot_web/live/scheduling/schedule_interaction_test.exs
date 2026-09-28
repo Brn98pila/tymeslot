@@ -235,7 +235,7 @@ defmodule TymeslotWeb.Live.Scheduling.ScheduleInteractionTest do
       refute has_next_step_disabled?(view)
 
       # Re-click the same calendar day. The shared scheduling core
-      # (`handle_schedule_date_selection/2`) clears selected_time on
+      # (`SchedulingFlow`'s `select_date/2`) clears selected_time on
       # every date click — without this, the user would land on the
       # booking form with a stale time the UI no longer displays.
       view |> element("button.calendar-day[phx-value-date='#{date_str}']") |> render_click()

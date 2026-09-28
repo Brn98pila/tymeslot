@@ -532,15 +532,7 @@ The macro's `mount/3` calls `LiveHelpers.Mount.mount_scheduling_view/3`, and its
 
 `TymeslotWeb.Themes.Shared.SchedulingInit` provides two initialization helpers:
 
-**`assign_theme_state/1`** — preferred for theme LiveViews. Initializes all scheduling state in one call:
-
-```elixir
-defp assign_initial_state(socket) do
-  socket
-  |> SchedulingInit.assign_theme_state()
-  # ... any theme-specific extras beyond what assign_theme_state covers
-end
-```
+**`assign_theme_state/1`** — initializes all scheduling state in one call. The scheduling macro calls it at mount (through `LiveHelpers.Mount`), so a theme does not call it itself.
 
 **`assign_base_state/1`** — lower-level; sets only the core socket fields shared across all flows. Use when you need fine-grained control or are not in a full scheduling context.
 
@@ -566,26 +558,18 @@ end
 
 ### BookingFlow
 
-`TymeslotWeb.Themes.Shared.BookingFlow` handles form validation and submission; field-touched state lives in `TymeslotWeb.Live.Scheduling.OrganizerHelpers`:
+`TymeslotWeb.Themes.Shared.BookingFlow` handles form validation and submission; field-touched state lives in `TymeslotWeb.Live.Scheduling.OrganizerHelpers`. `SchedulingFlow` routes the booking step's events to them, so a theme never calls them itself:
 
 ```elixir
-alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
+# In SchedulingFlow
+defp booking_event(socket, :validate, data),
+  do: BookingFlow.handle_form_validation(socket, data)
 
-defp handle_booking_events(socket, event, data) do
-  case event do
-    :validate ->
-      BookingFlow.handle_form_validation(socket, data)
+defp booking_event(socket, :field_blur, field),
+  do: {:noreply, OrganizerHelpers.mark_field_touched(socket, field)}
 
-    :submit ->
-      BookingFlow.submit_booking(socket, data, &SchedulingFlow.transition_to/3)
-
-    :field_blur ->
-      {:noreply, OrganizerHelpers.mark_field_touched(socket, data)}
-
-    :back_step ->
-      handle_state_transition(socket, :booking, :schedule)
-  end
-end
+defp booking_event(socket, :submit, data),
+  do: BookingFlow.submit_booking(socket, data, &transition_to/3)
 ```
 
 **Key BookingFlow Functions**:
