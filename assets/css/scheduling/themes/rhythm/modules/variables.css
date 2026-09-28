@@ -85,7 +85,6 @@
 
   /* Background gradients */
   --theme-background: linear-gradient(135deg, #1a1f2e 0%, #2d3561 50%, #1a1f2e 100%);
-  --theme-background-image: none;
 
   /* Glassmorphism surface opacity levels */
   --surface-subtle: rgba(255, 255, 255, 0.06);

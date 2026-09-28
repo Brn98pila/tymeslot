@@ -221,7 +221,7 @@ test_token_usage() {
     "--flag-height"
     # The token contract (documented in shared/tokens.css): palette and
     # status inputs, shadow geometry, roles and the shared screens' tokens.
-    # --theme-background and --theme-background-image are left out on purpose.
+    # --theme-background is left out on purpose.
     "--theme-primary"
     "--theme-primary-hover"
     "--theme-secondary"
