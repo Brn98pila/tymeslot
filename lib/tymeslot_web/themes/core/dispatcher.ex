@@ -166,9 +166,12 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
   end
 
   # Renders through the current theme's module. An id that resolves to no
-  # theme, or a render that raises inside theme code, falls back to the error
-  # card. Every callback exists (the compiler checks the behaviour), so any
-  # exception here is a real error in the theme, logged as such.
+  # theme falls back to the error card, and so does an exception raised while
+  # the theme builds its render. An exception inside the template's dynamic
+  # parts is raised later, when the render is turned into HTML, and crashes
+  # the LiveView instead. Every callback exists (the compiler checks the
+  # behaviour), so any exception here is a real error in the theme, logged as
+  # such.
   defp render_theme(assigns, failure_message, render) do
     theme_id = assigns[:theme_id] || Registry.default_theme_id()
 

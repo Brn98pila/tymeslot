@@ -156,5 +156,8 @@ defmodule TymeslotWeb.Themes.Core.ThemeTest do
       )
 
     assert html =~ "#abcdef"
+    # The generic thumbnail's two-column chip grid, which neither Quill's nor
+    # Rhythm's thumbnail draws.
+    assert html =~ "grid grid-cols-2 gap-1"
   end
 end

@@ -2,7 +2,9 @@ defmodule TymeslotWeb.OnboardingLive.LivePreview do
   @moduledoc """
   Live preview panel for the onboarding flow.
 
-  The mock is *theme-aware*: the card is drawn by the chosen theme's
+  Renders a miniature mock of the user's public booking page that updates
+  reactively as the onboarding form is filled in. The mock is *theme-aware*:
+  the card is drawn by the chosen theme's
   `onboarding_preview/1` (Quill's glassmorphism step band and month grid,
   Rhythm's compact week strip and slot list), around the identity header
   this module owns, so the picker feels like a real choice rather than a

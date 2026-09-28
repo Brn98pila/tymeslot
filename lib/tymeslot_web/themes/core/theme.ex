@@ -29,6 +29,10 @@ defmodule TymeslotWeb.Themes.Core.Theme do
   request.
   """
 
+  # Aliased here, outside the quote, so the generated default expands to the
+  # full module name and nothing is aliased inside the theme module.
+  alias TymeslotWeb.OnboardingLive.PreviewParts
+
   @doc false
   defmacro __using__(opts) do
     live_view = Keyword.fetch!(opts, :live_view)
@@ -45,8 +49,6 @@ defmodule TymeslotWeb.Themes.Core.Theme do
       @behaviour TymeslotWeb.Themes.Core.Behaviour
 
       use Gettext, backend: TymeslotWeb.Gettext
-
-      alias TymeslotWeb.OnboardingLive.PreviewParts
 
       @impl TymeslotWeb.Themes.Core.Behaviour
       def live_view_module, do: unquote(live_view)
