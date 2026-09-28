@@ -496,8 +496,9 @@ The theme system provides centralized handlers and helpers in `TymeslotWeb.Theme
 
 > **You normally do not write any of the code in this section by hand.** The
 > `use TymeslotWeb.Themes.Shared.SchedulingLive, wrapper: …, steps: …` macro wires up
-> `mount/3`, `handle_params/3`, `render/1`, every `handle_info/2`, and the language/booking/
-> scheduling `handle_event/3` clauses for you (see [Common Patterns](#common-patterns)).
+> `mount/3`, `handle_params/3`, `render/1`, every `handle_info/2` (step components send
+> their events to the LiveView as messages), and the language and `navigate_to_step`
+> `handle_event/3` clauses for you (see [Common Patterns](#common-patterns)).
 > The subsections below document the underlying helpers the macro calls — read them
 > to understand what is happening, or when you need to override a specific extension
 > point. A real theme's `live.ex` is its `use SchedulingLive, wrapper: …, steps: …`
