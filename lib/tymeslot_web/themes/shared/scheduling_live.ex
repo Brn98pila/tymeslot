@@ -98,10 +98,13 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       def handle_event("change_locale", %{"locale" => locale}, socket),
         do: EventHandlers.handle_change_locale(socket, locale, PathHandlers)
 
-      def handle_event(event, params, socket), do: handle_theme_event(event, params, socket)
-
-      defp handle_theme_event("navigate_to_step", params, socket),
+      # Step navigation belongs to the flow, not to a theme: a clause of
+      # `handle_theme_event/3` would be replaced wholesale by a theme's own
+      # override of that hook.
+      def handle_event("navigate_to_step", params, socket),
         do: SchedulingFlow.navigate_to_step(socket, params)
+
+      def handle_event(event, params, socket), do: handle_theme_event(event, params, socket)
 
       # Extension points. Override with multi-clause defps; a theme override of
       # `handle_theme_info/2` should end with a clause calling

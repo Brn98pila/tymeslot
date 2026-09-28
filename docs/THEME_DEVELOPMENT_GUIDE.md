@@ -705,7 +705,7 @@ State machine logic (initial state, transition validation, navigation guards) li
 
 #### 2. **Legacy: Per-Theme StateMachine Module**
 
-> **Deprecated** — do not create new per-theme `state_machine.ex` files. The shared `StateMachineHelpers` covers all standard transitions. If you need custom transition validation, override `handle_theme_event/3` in your LiveView instead.
+> **Deprecated** — do not create new per-theme `state_machine.ex` files. The shared `StateMachineHelpers` covers all standard transitions. If you need custom transition validation, change `StateMachineHelpers`, which every theme shares, instead.
 
 For historical reference, the shared module handles:
 
@@ -1096,7 +1096,7 @@ LocalizationHelpers.format_date(@selected_date)
 
 **Customize** (theme-specific):
 - `wrapper:` and `steps:` passed to `use SchedulingLive`
-- `handle_theme_event/3` override — only if your theme has unique events (e.g. Quill's `navigate_to_step`)
+- `handle_theme_event/3` override — only for events of your own; step navigation (`navigate_to_step`) and every step event are handled before it and cannot be overridden
 - Wrapper component layout and design
 - Step component templates and styles
 - CSS modules and variables
@@ -1131,7 +1131,7 @@ The checklist automatically verifies:
 
 1. **Component not found**: Check aliases in theme module match component names
 2. **CSS not loading**: Verify `theme.css` imports all modules in correct order
-3. **State transitions broken**: Check `StateMachineHelpers.validate_state_transition/3`, or your `handle_theme_event/3` override if you customised transitions
+3. **State transitions broken**: Check `StateMachineHelpers.validate_state_transition/3`
 4. **`:questions` step skipped or stuck**: Confirm the meeting type actually has custom fields — `StateMachineHelpers.states_for/1` only inserts `:questions` when `custom_fields` is non-empty
 5. **Availability not loading**: Ensure InfoHandlers are implemented
 6. **Form submission fails**: Check BookingFlow integration
@@ -1159,7 +1159,7 @@ Logger.debug("Socket assigns: #{inspect(socket.assigns)}")
 ### Don'ts
 
 ❌ **Don't hardcode dates/times** - Always use LocalizationHelpers
-❌ **Don't create a per-theme StateMachine** - `StateMachineHelpers` owns transitions; override `handle_theme_event/3` for custom logic
+❌ **Don't create a per-theme StateMachine** - `StateMachineHelpers` owns transitions; change `StateMachineHelpers`, which every theme shares, for custom logic
 ❌ **Don't duplicate shared logic** - Use the Shared.* modules
 ❌ **Don't mix theme and app styles** - Keep theme CSS isolated
 ❌ **Don't forget meeting actions** - Reschedule, cancel, cancel_confirmed required
