@@ -50,7 +50,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.BookingComponent do
   end
 
   @impl Phoenix.LiveComponent
-  def handle_event("prev_slide", _params, socket) do
+  def handle_event("back_step", _params, socket) do
     send(self(), {:step_event, :booking, :back_step, nil})
     {:noreply, socket}
   end
@@ -241,7 +241,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.BookingComponent do
               <button
                 type="button"
                 class="prev-button"
-                phx-click="prev_slide"
+                phx-click="back_step"
                 phx-target={@myself}
                 data-testid="back-step"
                 disabled={@submitting}

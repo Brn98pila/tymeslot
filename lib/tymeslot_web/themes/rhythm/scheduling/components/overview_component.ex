@@ -37,7 +37,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.OverviewComponent do
   end
 
   @impl Phoenix.LiveComponent
-  def handle_event("next_slide", _params, socket) do
+  def handle_event("next_step", _params, socket) do
     send(self(), {:step_event, :overview, :next_step, nil})
     {:noreply, socket}
   end
@@ -122,7 +122,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.OverviewComponent do
             <div class="slide-actions">
               <button
                 class={if is_nil(@selected_duration), do: "next-button disabled", else: "next-button"}
-                phx-click="next_slide"
+                phx-click="next_step"
                 phx-target={@myself}
                 data-testid="next-step"
                 disabled={is_nil(@selected_duration)}

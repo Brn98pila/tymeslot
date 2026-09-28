@@ -45,11 +45,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.ScheduleComponent do
   @impl Phoenix.LiveComponent
   def handle_event("change_timezone", %{"timezone" => timezone}, socket) do
     send(self(), {:step_event, :schedule, :change_timezone, timezone})
-
-    {:noreply,
-     socket
-     |> assign(:timezone_dropdown_open, false)
-     |> assign(:timezone_search, "")}
+    {:noreply, socket}
   end
 
   @impl Phoenix.LiveComponent
@@ -83,13 +79,13 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.ScheduleComponent do
   end
 
   @impl Phoenix.LiveComponent
-  def handle_event("prev_slide", _params, socket) do
+  def handle_event("back_step", _params, socket) do
     send(self(), {:step_event, :schedule, :back_step, nil})
     {:noreply, socket}
   end
 
   @impl Phoenix.LiveComponent
-  def handle_event("next_slide", _params, socket) do
+  def handle_event("next_step", _params, socket) do
     send(self(), {:step_event, :schedule, :next_step, nil})
     {:noreply, socket}
   end
@@ -411,7 +407,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.ScheduleComponent do
               <button
                 :if={@entered_via_overview}
                 class="prev-button"
-                phx-click="prev_slide"
+                phx-click="back_step"
                 phx-target={@myself}
                 data-testid="back-step"
               >
@@ -421,7 +417,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.ScheduleComponent do
                 class={
                   if @selected_date && @selected_time, do: "next-button", else: "next-button disabled"
                 }
-                phx-click="next_slide"
+                phx-click="next_step"
                 phx-target={@myself}
                 data-testid="next-step"
                 disabled={is_nil(@selected_date) or is_nil(@selected_time)}
