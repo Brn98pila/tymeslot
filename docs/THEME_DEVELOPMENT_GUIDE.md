@@ -277,7 +277,8 @@ assets/css/scheduling/themes/
 ├── shared/                        # Shared structural primitives only
 │   ├── reset.css                 # CSS reset
 │   ├── layout.css                # Border-radius scale, Tailwind import, display helpers
-│   └── utilities.css             # Shared utility classes
+│   ├── utilities.css             # Shared utility classes
+│   └── components/               # Shared component styles (structure and states; themes set tokens)
 ├── quill/                         # Quill theme (glassmorphism) — fine-grained split
 │   ├── modules/
 │   │   ├── variables.css         # Design tokens
