@@ -1,0 +1,123 @@
+defmodule TymeslotWeb.E2E.EmbedPrimaryColourTest do
+  @moduledoc """
+  An embed's `data-primary-color` must repaint the booking page it frames.
+
+  `embed.js` turns the attribute into `?primary-color=` on the iframe URL
+  (pinned in `assets/js/__tests__/embed.test.js`). This frames that URL in a
+  real browser, through the embed token, the cookie-free embed socket and the
+  embed auth hook, and reads the colours the page actually resolved, in every
+  theme.
+
+  The URL is framed rather than visited: only a framed page connects over
+  `/embed-live`, and a top-level embed URL has no session cookie for `/live`.
+  The host page is same-origin (`frame-ancestors` always allows `'self'`) and
+  frames with `referrerpolicy="no-referrer"`, so the embed token takes its
+  parent origin from `?parent-origin=`, as it does for an embedder that strips
+  the Referer.
+  """
+  use TymeslotWeb.BrowserCase, async: false
+
+  alias Ecto.Changeset
+  alias Tymeslot.MeetingTypes
+  alias Tymeslot.Profiles
+  alias Tymeslot.Repo
+  alias TymeslotWeb.ThemeTestMatrix
+
+  @moduletag :e2e
+  @moduletag :themes
+
+  @override "#e11d48"
+  @parent_origin "http://embedder.test"
+
+  feature "the embed's primary colour reaches the rendered page in every theme",
+          %{session: session} do
+    profile = create_embeddable_profile()
+    session = visit(session, "/#{profile.username}")
+
+    for theme_id <- ThemeTestMatrix.ids(), reduce: session do
+      acc ->
+        {acc, default_primary, default_solid} =
+          framed_colours(acc, embed_path(profile.username, theme_id, nil))
+
+        {acc, primary, solid} =
+          framed_colours(acc, embed_path(profile.username, theme_id, @override))
+
+        refute default_primary == @override
+        assert primary == @override, "theme #{theme_id}: page resolved #{primary}"
+
+        refute solid == default_solid,
+               "theme #{theme_id}: the filled-control surface did not follow the override"
+
+        acc
+    end
+  end
+
+  # Frames `path` in a fresh iframe on the host page, waits for its LiveView to
+  # connect (a rejected embed redirects to `/embed-unavailable`, which has no
+  # LiveView, so this fails loudly rather than reading the wrong page), and
+  # reads the resolved primary and filled-control colours inside it.
+  defp framed_colours(session, path) do
+    session =
+      session
+      |> execute_script(
+        """
+        document.getElementById("embed-frame")?.remove();
+        const frame = document.createElement("iframe");
+        frame.id = "embed-frame";
+        frame.referrerPolicy = "no-referrer";
+        frame.src = arguments[0];
+        document.body.appendChild(frame);
+        """,
+        [path]
+      )
+      |> focus_frame(css("#embed-frame"))
+      |> assert_has(css("[data-phx-main].phx-connected"))
+
+    {session, primary} = root_property(session, "--theme-primary")
+    {session, solid} = root_property(session, "--theme-primary-solid")
+
+    {focus_default_frame(session), primary, solid}
+  end
+
+  defp root_property(session, name) do
+    me = self()
+    ref = make_ref()
+
+    session =
+      execute_script(
+        session,
+        "return getComputedStyle(document.documentElement).getPropertyValue(arguments[0]).trim();",
+        [name],
+        fn value -> send(me, {:property, ref, value}) end
+      )
+
+    assert_receive {:property, ^ref, value}, 5_000
+    {session, value}
+  end
+
+  defp embed_path(username, theme_id, colour) do
+    query =
+      [{"embed", "1"}, {"parent-origin", @parent_origin}, {"theme", theme_id}] ++
+        if(colour, do: [{"primary-color", colour}], else: [])
+
+    "/#{username}?" <> URI.encode_query(query)
+  end
+
+  defp create_embeddable_profile do
+    user = create_onboarded_user()
+    insert(:calendar_integration, user_id: user.id, user: user)
+
+    {:ok, _meeting_type} =
+      MeetingTypes.create_meeting_type(%{
+        user_id: user.id,
+        name: "Embed Colour Check",
+        duration_minutes: 30,
+        is_active: true
+      })
+
+    user.id
+    |> Profiles.get_profile()
+    |> Changeset.change(allowed_embed_domains: ["embedder.test"])
+    |> Repo.update!()
+  end
+end

@@ -6,6 +6,7 @@ defmodule TymeslotWeb.Themes.Core.Context do
   """
 
   alias Phoenix.Component
+  alias Tymeslot.Utils.Colour
   alias TymeslotWeb.Live.Scheduling.PreviewMode
   alias TymeslotWeb.Themes.Core.Registry
 
@@ -18,14 +19,16 @@ defmodule TymeslotWeb.Themes.Core.Context do
           theme_key: atom(),
           module: module(),
           preview_mode: boolean(),
-          layout: layout()
+          layout: layout(),
+          overrides: %{optional(:primary_color) => String.t()}
         }
 
   defstruct theme_id: nil,
             theme_key: nil,
             module: nil,
             preview_mode: false,
-            layout: :default
+            layout: :default,
+            overrides: %{}
 
   @doc """
   Returns the list of allowed layout values for embed snippets and URL params.
@@ -75,7 +78,7 @@ defmodule TymeslotWeb.Themes.Core.Context do
     preview_mode = PreviewMode.claimed?(params)
 
     case new(theme_id, preview: preview_mode) do
-      %__MODULE__{} = context -> apply_layout(context, params)
+      %__MODULE__{} = context -> context |> apply_overrides(params) |> apply_layout(params)
       nil -> nil
     end
   end
@@ -85,6 +88,19 @@ defmodule TymeslotWeb.Themes.Core.Context do
   end
 
   defp organiser_theme_id(_no_profile), do: nil
+
+  # A per-embed accent colour (`data-primary-color`, sent by embed.js as
+  # `?primary-color=`). It overrides the saved palette for this page view only:
+  # nothing is persisted, and the theme's spec recomputes the contrast pairs
+  # for it.
+  defp apply_overrides(context, %{"primary-color" => value}) when is_binary(value) do
+    case Colour.cast_hex(value) do
+      {:ok, hex} -> %{context | overrides: %{primary_color: hex}}
+      :error -> context
+    end
+  end
+
+  defp apply_overrides(context, _params), do: context
 
   # Layout is opt-in via an explicit `?layout=column` param. "column" forces
   # the wide-canvas layout; every other value (including "default", an absent
@@ -113,7 +129,8 @@ defmodule TymeslotWeb.Themes.Core.Context do
       theme_key: context.theme_key,
       theme_module: context.module,
       theme_preview: context.preview_mode,
-      embed_layout: context.layout
+      embed_layout: context.layout,
+      theme_overrides: context.overrides
     }
   end
 

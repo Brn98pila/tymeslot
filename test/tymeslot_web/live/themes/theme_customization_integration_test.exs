@@ -162,5 +162,44 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
       # The derived primary colour equals the seed — verify the CSS variable is present
       assert html =~ "--theme-primary: #{seed}"
     end
+
+    test "?primary-color= overrides the saved primary for that page view only, in every theme",
+         %{conn: conn, profile: profile} do
+      for theme_id <- ThemeTestMatrix.ids() do
+        Repo.update!(Changeset.change(profile, %{booking_theme: theme_id}))
+
+        {:ok, _customization} =
+          ThemeCustomizations.upsert_theme_customization(profile.id, theme_id, %{
+            "color_scheme" => "purple"
+          })
+
+        {:ok, _view, html} = live(conn, "/#{profile.username}?primary-color=%23e11d48")
+        assert html =~ "--theme-primary: #e11d48;", "theme #{theme_id} ignored the override"
+
+        {:ok, _view, plain} = live(conn, "/#{profile.username}")
+        assert plain =~ "--theme-primary: #8b5cf6;"
+
+        assert ThemeCustomizations.get_by_profile_and_theme(profile.id, theme_id).color_scheme ==
+                 "purple"
+      end
+    end
+
+    test "an invalid ?primary-color= is ignored", %{conn: conn, profile: profile} do
+      {:ok, _view, html} = live(conn, "/#{profile.username}?primary-color=red")
+
+      refute html =~ "--theme-primary: red"
+      assert html =~ "--theme-primary: #06b6d4;"
+    end
+
+    test "an embedded page honours the override", %{conn: conn, profile: profile} do
+      Repo.update!(Changeset.change(profile, %{allowed_embed_domains: ["embedder.test"]}))
+
+      conn = put_req_header(conn, "referer", "https://embedder.test/page")
+
+      {:ok, view, html} = live(conn, "/#{profile.username}?embed=1&primary-color=%23e11d48")
+
+      assert :sys.get_state(view.pid).socket.assigns[:embedded] == true
+      assert html =~ "--theme-primary: #e11d48;"
+    end
   end
 end

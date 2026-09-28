@@ -11,14 +11,16 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
   @doc """
   Assigns `:theme_tokens` to a socket: the `%Tokens{}` the theme's spec builds
   from the organiser's customisation, or from the theme's defaults when the
-  organiser has none.
+  organiser has none, plus the page view's `:theme_overrides` (an embed's
+  `?primary-color=`) when the context assigned any.
   """
   @spec assign_theme_customization(Phoenix.LiveView.Socket.t(), map(), String.t()) ::
           Phoenix.LiveView.Socket.t()
   def assign_theme_customization(socket, profile, theme_id) do
     customization = Demo.get_theme_customization(profile.id, theme_id)
+    overrides = socket.assigns[:theme_overrides] || %{}
 
-    assign(socket, :theme_tokens, ThemeCustomizations.tokens(theme_id, customization))
+    assign(socket, :theme_tokens, ThemeCustomizations.tokens(theme_id, customization, overrides))
   end
 
   @doc """
