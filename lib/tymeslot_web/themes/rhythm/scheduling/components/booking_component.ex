@@ -184,6 +184,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.BookingComponent do
                 label={dgettext("booking", "Name")}
                 placeholder={dgettext("booking", "Enter your full name")}
                 errors={FormValidationHelpers.field_errors(@validation_errors, :name)}
+                required
                 phx-debounce="blur"
                 phx-blur="field_blur"
                 phx-value-field="name"
@@ -196,6 +197,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.BookingComponent do
                 type="email"
                 placeholder={dgettext("booking", "your.email@example.com")}
                 errors={FormValidationHelpers.field_errors(@validation_errors, :email)}
+                required
                 phx-debounce="blur"
                 phx-blur="field_blur"
                 phx-value-field="email"

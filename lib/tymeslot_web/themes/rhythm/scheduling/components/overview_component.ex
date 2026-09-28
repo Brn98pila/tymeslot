@@ -24,16 +24,8 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.OverviewComponent do
 
   @impl Phoenix.LiveComponent
   def handle_event("select_duration", %{"duration" => duration}, socket) do
-    # duration is already a string like "30min" from the button
-    new_duration =
-      if socket.assigns[:selected_duration] == duration do
-        nil
-      else
-        duration
-      end
-
-    send(self(), {:step_event, :overview, :select_duration, new_duration})
-    {:noreply, assign(socket, :selected_duration, new_duration)}
+    send(self(), {:step_event, :overview, :select_duration, duration})
+    {:noreply, assign(socket, :selected_duration, duration)}
   end
 
   @impl Phoenix.LiveComponent
