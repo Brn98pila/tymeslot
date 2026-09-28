@@ -9,7 +9,7 @@ defmodule Tymeslot.ThemeCustomizationsEdgeCasesTest do
 
   # ---- Color validation consistency ----
 
-  describe "color validation consistency between Validation and Capability" do
+  describe "background colour validation" do
     test "apply_background_change rejects rgb() color values" do
       user = insert(:user)
       {:ok, profile} = Profiles.get_or_create_profile(user.id)
@@ -42,20 +42,37 @@ defmodule Tymeslot.ThemeCustomizationsEdgeCasesTest do
       assert {:error, _reason} = result
     end
 
-    test "apply_background_change rejects 3-digit hex" do
+    test "apply_background_change saves a 3-digit hex as lower-case #rrggbb" do
       user = insert(:user)
       {:ok, profile} = Profiles.get_or_create_profile(user.id)
 
-      result =
-        ThemeCustomizations.apply_background_change(
-          profile.id,
-          "1",
-          build_customization(profile.id),
-          "color",
-          "#FFF"
-        )
+      assert {:ok, customization} =
+               ThemeCustomizations.apply_background_change(
+                 profile.id,
+                 "1",
+                 build_customization(profile.id),
+                 "color",
+                 "#FFF"
+               )
 
-      assert {:error, _reason} = result
+      assert customization.background_value == "#ffffff"
+
+      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1").background_value ==
+               "#ffffff"
+    end
+
+    test "apply_background_change rejects the #RRGGBBAA alpha form" do
+      user = insert(:user)
+      {:ok, profile} = Profiles.get_or_create_profile(user.id)
+
+      assert {:error, _reason} =
+               ThemeCustomizations.apply_background_change(
+                 profile.id,
+                 "1",
+                 build_customization(profile.id),
+                 "color",
+                 "#ff550080"
+               )
     end
 
     test "apply_background_change accepts valid #RRGGBB color" do
@@ -72,15 +89,13 @@ defmodule Tymeslot.ThemeCustomizationsEdgeCasesTest do
         )
 
       assert {:ok, customization} = result
-      assert customization.background_value == "#FF5500"
+      assert customization.background_value == "#ff5500"
     end
   end
 
-  # ---- Capability enforcement on write path ----
+  # ---- Unknown theme on the write path ----
 
-  describe "capability enforcement" do
-    # Note: Both themes "1" and "2" support all background types, so we test
-    # that an invalid theme_id is rejected via the capability path.
+  describe "unknown theme" do
     test "apply_background_change rejects operation for unknown theme_id" do
       user = insert(:user)
       {:ok, profile} = Profiles.get_or_create_profile(user.id)

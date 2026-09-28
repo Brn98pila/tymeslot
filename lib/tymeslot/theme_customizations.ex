@@ -22,8 +22,7 @@ defmodule Tymeslot.ThemeCustomizations do
     Defaults,
     FileLifecycle,
     Presets,
-    Storage,
-    Validation
+    Storage
   }
 
   @type profile_id :: pos_integer()
@@ -278,26 +277,26 @@ defmodule Tymeslot.ThemeCustomizations do
   end
 
   def apply_color_scheme_change(profile_id, theme_id, current_customization, scheme_id) do
-    with :ok <- Validation.validate_color_scheme(scheme_id),
-         :ok <- validate_theme_capability(theme_id, %{"color_scheme" => scheme_id}),
-         new_customization <-
-           DataTransform.merge_customization_changes(current_customization, %{
-             color_scheme: scheme_id,
-             custom_palette_seed: nil
-           }),
-         save_attrs <- DataTransform.extract_save_attributes(new_customization) do
-      profile_id
-      |> upsert_theme_customization(theme_id, save_attrs)
-      |> format_persistence_error()
-    end
+    new_customization =
+      DataTransform.merge_customization_changes(current_customization, %{
+        color_scheme: scheme_id,
+        custom_palette_seed: nil
+      })
+
+    profile_id
+    |> upsert_theme_customization(
+      theme_id,
+      DataTransform.extract_save_attributes(new_customization)
+    )
+    |> format_persistence_error()
   end
 
   @doc """
   Switches the customisation to the "custom" colour scheme and persists the seed
   hex used to derive the palette.
 
-  The seed must be a 6-character hex string (with leading `#`); otherwise an
-  error is returned without touching the database.
+  The seed must be a `#RGB` or `#RRGGBB` hex colour; it is stored as lower-case
+  `#rrggbb`.
   """
   @spec apply_custom_palette_change(
           profile_id(),
@@ -305,18 +304,23 @@ defmodule Tymeslot.ThemeCustomizations do
           ThemeCustomizationSchema.t() | map(),
           String.t()
         ) :: {:ok, ThemeCustomizationSchema.t()} | {:error, String.t()}
-  def apply_custom_palette_change(profile_id, theme_id, current_customization, seed_hex) do
-    with :ok <- Css.validate_seed_hex(seed_hex),
-         new_customization <-
-           DataTransform.merge_customization_changes(current_customization, %{
-             custom_palette_seed: String.downcase(seed_hex)
-           }),
-         save_attrs <- DataTransform.extract_save_attributes(new_customization) do
-      profile_id
-      |> upsert_theme_customization(theme_id, save_attrs)
-      |> format_persistence_error()
-    end
+  def apply_custom_palette_change(profile_id, theme_id, current_customization, seed_hex)
+      when is_binary(seed_hex) and seed_hex != "" do
+    new_customization =
+      DataTransform.merge_customization_changes(current_customization, %{
+        custom_palette_seed: seed_hex
+      })
+
+    profile_id
+    |> upsert_theme_customization(
+      theme_id,
+      DataTransform.extract_save_attributes(new_customization)
+    )
+    |> format_persistence_error()
   end
+
+  def apply_custom_palette_change(_profile_id, _theme_id, _current_customization, _seed_hex),
+    do: format_persistence_error({:error, :invalid_seed})
 
   @doc """
   Applies a background change through the component interface.
@@ -329,21 +333,17 @@ defmodule Tymeslot.ThemeCustomizations do
           String.t() | nil
         ) :: {:ok, ThemeCustomizationSchema.t()} | {:error, String.t()}
   def apply_background_change(profile_id, theme_id, current_customization, type, value) do
-    presets = Presets.get_all_presets()
+    new_customization = Backgrounds.apply_background_selection(current_customization, type, value)
+    cleanup_files = Backgrounds.determine_cleanup_files(current_customization, new_customization)
 
-    with :ok <- Validation.validate_background_selection(type, value, presets),
-         :ok <- validate_theme_capability(theme_id, %{"background_type" => type}),
-         new_customization <-
-           Backgrounds.apply_background_selection(current_customization, type, value),
-         cleanup_files <-
-           Backgrounds.determine_cleanup_files(current_customization, new_customization),
-         save_attrs <- DataTransform.extract_save_attributes(new_customization),
-         {:ok, saved} <-
+    with {:ok, saved} <-
            profile_id
-           |> upsert_theme_customization(theme_id, save_attrs)
+           |> upsert_theme_customization(
+             theme_id,
+             DataTransform.extract_save_attributes(new_customization)
+           )
            |> format_persistence_error() do
       Enum.each(cleanup_files, &FileLifecycle.cleanup_old_backgrounds/1)
-
       {:ok, saved}
     end
   end
@@ -387,21 +387,14 @@ defmodule Tymeslot.ThemeCustomizations do
 
   # Private functions
 
-  defp validate_theme_capability(theme_id, attrs) do
-    case Capability.validate_customization(theme_id, attrs) do
-      {:ok, _attrs} -> :ok
-      {:error, reasons} -> {:error, Enum.join(reasons, "; ")}
-    end
-  end
-
-  # Converts unexpected changeset errors from persistence into a user-safe
-  # string. Callers flash the returned message, and `Flash.error/1` guards on
-  # binaries — a raw changeset would crash the component.
-  @spec format_persistence_error(persistence_result()) ::
+  # Converts a rejected write (an invalid changeset or an invalid seed) into a
+  # user-safe string. Callers flash the returned message, and `Flash.error/1`
+  # guards on binaries, so a raw changeset would crash the component.
+  @spec format_persistence_error({:ok, ThemeCustomizationSchema.t()} | {:error, term()}) ::
           {:ok, ThemeCustomizationSchema.t()} | {:error, String.t()}
   defp format_persistence_error({:ok, _result} = ok), do: ok
 
-  defp format_persistence_error({:error, %Changeset{}}),
+  defp format_persistence_error({:error, _reason}),
     do:
       {:error,
        dgettext(

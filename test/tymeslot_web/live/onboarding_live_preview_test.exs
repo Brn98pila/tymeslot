@@ -236,24 +236,24 @@ defmodule TymeslotWeb.OnboardingLivePreviewTest do
     end
 
     test "does not overwrite a pre-existing video background on re-seed", %{conn: _conn} do
-      # Pre-seed a known, deliberate background_value so we can verify it is
-      # never clobbered if ensure_preview_video_backgrounds/2 is called again.
+      # Pre-seed an uploaded video, which no random preset can ever equal, to
+      # verify an existing video background is never replaced when
+      # ensure_preview_video_backgrounds/2 is called again.
       user = insert(:user)
       {:ok, profile} = Profiles.get_or_create_profile(user.id)
 
-      sentinel = "preset:idempotency_sentinel"
+      {:ok, _seeded} =
+        ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
+          "background_type" => "video",
+          "background_value" => "custom",
+          "background_video_path" => "themes/#{profile.id}/1/videos/mine.mp4"
+        })
 
-      ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
-        "background_type" => "video",
-        "background_value" => sentinel
-      })
-
-      # Calling the function again must hit the %{background_type: "video"} → :ok
-      # skip branch and leave the sentinel unchanged.
       Onboarding.ensure_preview_video_backgrounds(profile, ["1"])
 
       customization = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
-      assert customization.background_value == sentinel
+      assert customization.background_value == "custom"
+      assert customization.background_video_path == "themes/#{profile.id}/1/videos/mine.mp4"
     end
   end
 

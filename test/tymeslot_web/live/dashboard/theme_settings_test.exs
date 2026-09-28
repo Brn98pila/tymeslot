@@ -455,6 +455,22 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       assert saved.background_type == "color"
       assert saved.background_value == "#123456"
     end
+
+    test "theme:set_custom_background saves a three-digit hex colour",
+         %{conn: conn, profile: profile} do
+      {:ok, view, _html} = live(conn, ~p"/dashboard/theme/customize/1")
+
+      view |> element("button", "Solid Color") |> render_click()
+      view |> element("button[phx-click='theme:toggle_custom_picker']") |> render_click()
+
+      view
+      |> element("#custom-background-picker")
+      |> render_hook("theme:set_custom_background", %{"value" => "#FA0"})
+
+      saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
+      assert saved.background_type == "color"
+      assert saved.background_value == "#ffaa00"
+    end
   end
 
   defp preview_href(view, username) do

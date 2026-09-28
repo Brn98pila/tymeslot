@@ -10,6 +10,7 @@ defmodule Tymeslot.ThemeCustomizations.Capability do
   alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.Validation
   alias Tymeslot.Themes.Catalog
+  alias Tymeslot.Utils.Colour
 
   @type capability :: atom()
   @type customization_type :: :color | :background | :typography | :layout
@@ -338,6 +339,6 @@ defmodule Tymeslot.ThemeCustomizations.Capability do
   defp generate_background_css(_customizations), do: nil
 
   defp valid_color?(value) do
-    Validation.validate_hex_color(value) == :ok
+    match?({:ok, _hex}, Colour.cast_hex(value))
   end
 end

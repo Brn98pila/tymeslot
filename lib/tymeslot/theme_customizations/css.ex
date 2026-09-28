@@ -17,8 +17,6 @@ defmodule Tymeslot.ThemeCustomizations.Css do
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
   alias Tymeslot.ThemeCustomizations.Validation
 
-  @hex_color_regex ~r/^#[0-9A-Fa-f]{6}$/
-
   @doc """
   Gets the CSS variables for a colour scheme.
 
@@ -84,24 +82,6 @@ defmodule Tymeslot.ThemeCustomizations.Css do
       Map.get(presets.color_schemes, scheme_id)
     end
   end
-
-  @doc """
-  Validates a custom palette seed hex string.
-
-  The seed must be a 6-character hex string (with leading `#`); otherwise an
-  error tuple is returned.
-  """
-  @spec validate_seed_hex(term()) :: :ok | {:error, String.t()}
-  def validate_seed_hex(seed) when is_binary(seed) do
-    if String.match?(seed, @hex_color_regex) do
-      :ok
-    else
-      {:error, "Custom palette seed must be a 6-character hex colour"}
-    end
-  end
-
-  def validate_seed_hex(_other),
-    do: {:error, "Custom palette seed must be a 6-character hex colour"}
 
   @doc """
   Extracts the custom palette seed from a customisation schema or map.
