@@ -4,8 +4,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ColorPi
 
   Renders the curated 12-swatch grid plus a collapsible "Custom" disclosure panel
   containing the reusable `ColourPickerWidget`. Both swatch clicks and committed
-  picker values flow through the parent LiveComponent's event handlers — swatches
-  via `theme:select_background`, the picker via `theme:set_custom_background`.
+  picker values reach the parent LiveComponent as `theme:set_option` with the
+  field `"color"`.
   """
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
@@ -24,6 +24,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ColorPi
   Renders the color picker.
 
   Expects assigns:
+    * `:option`        — the background option group's key
     * `:customization` — current customization map (reads `:background_value`)
     * `:myself`        — CID of the parent LiveComponent
     * `:custom_picker_open` — boolean controlling the disclosure panel
@@ -88,9 +89,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ColorPi
               )
             ]}
             style={"background-color: #{color}"}
-            phx-click="theme:select_background"
-            phx-value-type="color"
-            phx-value-id={color}
+            phx-click="theme:set_option"
+            phx-value-option={@option}
+            phx-value-field="color"
+            phx-value-value={color}
             phx-target={@myself}
           >
             <%= if @customization.background_value == color do %>
@@ -108,7 +110,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ColorPi
             id="custom-background-picker"
             target={@myself}
             initial_hex={@custom_hex}
-            commit_event="theme:set_custom_background"
+            commit_event="theme:set_option"
+            commit_params={%{option: @option, field: "color"}}
           />
         </div>
       <% end %>

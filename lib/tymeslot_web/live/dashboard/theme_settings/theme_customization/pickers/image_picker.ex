@@ -9,7 +9,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
 
   @doc """
   Renders the image picker.
-  Expects assigns: customization, presets, uploads, myself
+  Expects assigns: option, customization, presets, uploads, myself
   """
   @spec image_picker(map()) :: Phoenix.LiveView.Rendered.t()
   def image_picker(assigns) do
@@ -31,9 +31,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
                     "border-white hover:border-turquoise-200 hover:shadow-xl hover:shadow-tymeslot-200/50"
                 )
               ]}
-              phx-click="theme:select_background"
-              phx-value-type="image"
-              phx-value-id={image_id}
+              phx-click="theme:set_option"
+              phx-value-option={@option}
+              phx-value-field="image"
+              phx-value-value={image_id}
               phx-target={@myself}
             >
               <div class="aspect-video relative overflow-hidden">

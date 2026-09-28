@@ -5,6 +5,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploadsTest do
   alias Phoenix.LiveView.Socket
   alias Tymeslot.Security.RateLimiter
   alias TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads
+  alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent
 
   @user_id 4_242
   @bucket "theme_upload:#{@user_id}"
@@ -67,6 +68,15 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploadsTest do
       assert ^socket = BackgroundUploads.consume(socket, :image)
       assert_receive {:flash, {:error, message}}
       assert message =~ "Too many upload attempts"
+    end
+  end
+
+  describe "configure/3" do
+    test "declares no upload for a theme without asset fields" do
+      socket = %Socket{assigns: %{__changed__: %{}}}
+
+      assert BackgroundUploads.configure(socket, ThemeCustomizationComponent, []).assigns ==
+               socket.assigns
     end
   end
 end

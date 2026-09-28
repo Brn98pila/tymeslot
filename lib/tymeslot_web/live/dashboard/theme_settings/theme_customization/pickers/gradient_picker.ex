@@ -6,7 +6,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.Gradien
 
   @doc """
   Renders the gradient picker.
-  Expects assigns: customization, presets, myself
+  Expects assigns: option, customization, presets, myself
   """
   @spec gradient_picker(map()) :: Phoenix.LiveView.Rendered.t()
   def gradient_picker(assigns) do
@@ -23,9 +23,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.Gradien
             )
           ]}
           style={"background: #{gradient.value}"}
-          phx-click="theme:select_background"
-          phx-value-type="gradient"
-          phx-value-id={gradient_id}
+          phx-click="theme:set_option"
+          phx-value-option={@option}
+          phx-value-field="gradient"
+          phx-value-value={gradient_id}
           phx-target={@myself}
         >
           <div class="absolute inset-0 bg-black/0 group-hover/gradient:bg-black/10 transition-colors">

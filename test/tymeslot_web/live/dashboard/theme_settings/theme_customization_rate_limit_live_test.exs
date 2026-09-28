@@ -27,7 +27,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationRateLimitLiveTes
       |> render_click()
 
       view
-      |> element("button[phx-click='theme:select_color_scheme'][phx-value-scheme='forest']")
+      |> element(
+        "button[phx-click='theme:set_option'][phx-value-field='scheme'][phx-value-value='forest']"
+      )
       |> render_click()
 
       # The user should see an error flash, not a silent failure

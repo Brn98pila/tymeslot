@@ -7,7 +7,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.VideoPi
 
   @doc """
   Renders the video picker.
-  Expects assigns: customization, presets, uploads, myself
+  Expects assigns: option, customization, presets, uploads, myself
   """
   @spec video_picker(map()) :: Phoenix.LiveView.Rendered.t()
   def video_picker(assigns) do
@@ -29,9 +29,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.VideoPi
                     "border-white hover:border-turquoise-200 hover:shadow-xl hover:shadow-tymeslot-200/50"
                 )
               ]}
-              phx-click="theme:select_background"
-              phx-value-type="video"
-              phx-value-id={video_id}
+              phx-click="theme:set_option"
+              phx-value-option={@option}
+              phx-value-field="video"
+              phx-value-value={video_id}
               phx-target={@myself}
             >
               <div

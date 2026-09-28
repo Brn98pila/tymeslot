@@ -669,6 +669,8 @@ A per-embed `?primary-color=` arrives in `tokens/2` as `%{primary_color: hex}`; 
 
 Every option change goes through `ThemeCustomizations.apply_option(profile_id, theme_id, option_key, %{"field" => ..., "value" => ...})`, which finds the group in the spec's `option_groups/0`, asks the group's option module (`Options.Palette.changes/2`, `Options.Background.changes/2`) for the changes, and saves them through the spec changeset.
 
+The dashboard's customisation panel (`ThemeCustomizationComponent`) renders one panel per `option_groups/0` entry through `Components.option_panel/1`, which dispatches on `type` (`:palette`, `:background`; background tabs show the group's `kinds`). Every option write is the `theme:set_option` event (`option`, `field`, `value`), which calls `apply_option/4`; UI-only state (the palette's custom-seed toggle, the background tab, the custom-colour disclosure) stays in panel-local events. Upload inputs are declared only for the spec's `asset_fields/0`. A new option type needs a panel, a dispatcher clause and an option module with `changes/2`.
+
 ## Meeting Management Integration
 
 `use TymeslotWeb.Themes.Core.Theme` generates `render_meeting_action/2`, which dispatches each action to the theme's own module:

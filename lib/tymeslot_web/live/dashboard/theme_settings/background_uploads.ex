@@ -16,7 +16,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
   `allow_upload/3`'s progress callback runs in the *parent* LiveView process,
   not the component, so it cannot consume the upload itself. It sends the
   component a message instead, and consumption happens when that arrives. That
-  is why `configure/2` needs the component module: it is the `send_update/3`
+  is why `configure/3` needs the component module: it is the `send_update/3`
   target, and getting it wrong means uploads silently never complete.
   """
 
@@ -44,17 +44,18 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
   @type kind :: :image | :video
 
   @doc """
-  Declares both upload sockets, unless they are already declared.
+  Declares the upload inputs for the asset fields the theme's spec lists
+  (`ThemeCustomizations.asset_fields/1`), skipping any already declared. A
+  theme without asset fields gets none.
 
   `component` is the LiveComponent module the progress callbacks notify; see
   the module docs on why consumption cannot happen in the callback itself.
   """
-  @spec configure(Phoenix.LiveView.Socket.t(), module()) :: Phoenix.LiveView.Socket.t()
-  def configure(socket, component) do
-    if socket.assigns[:uploads] && socket.assigns.uploads[:background_image] do
-      socket
-    else
-      Enum.reduce(@kinds, socket, fn {kind, config}, acc ->
+  @spec configure(Phoenix.LiveView.Socket.t(), module(), [{atom(), atom()}]) ::
+          Phoenix.LiveView.Socket.t()
+  def configure(socket, component, asset_fields) do
+    Enum.reduce(@kinds, socket, fn {kind, config}, acc ->
+      if Keyword.has_key?(asset_fields, config.field) and not declared?(acc, config.upload_key) do
         allow_upload(acc, config.upload_key,
           accept: UploadConstraints.allowed_extensions(config.constraint),
           max_entries: 1,
@@ -62,9 +63,14 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
           auto_upload: true,
           progress: progress_callback(component, kind)
         )
-      end)
-    end
+      else
+        acc
+      end
+    end)
   end
+
+  defp declared?(socket, upload_key),
+    do: Map.has_key?(socket.assigns[:uploads] || %{}, upload_key)
 
   @doc """
   Consumes a finished upload, saving it through
@@ -166,7 +172,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
   # Consuming an in-flight entry would truncate the file, so every entry must
   # have finished or been cancelled first.
   defp ready?(socket, upload_key) do
-    case socket.assigns.uploads[upload_key] do
+    case socket.assigns[:uploads][upload_key] do
       nil -> false
       %{entries: []} -> false
       %{entries: entries} -> Enum.all?(entries, &(&1.done? or &1.cancelled?))

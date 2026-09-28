@@ -142,7 +142,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       |> render_click()
 
       view
-      |> element("button[phx-click='theme:select_color_scheme'][phx-value-scheme='forest']")
+      |> element(
+        "button[phx-click='theme:set_option'][phx-value-field='scheme'][phx-value-value='forest']"
+      )
       |> render_click()
 
       # Scheme name appears in the "Current" badge
@@ -184,7 +186,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       |> render_click()
 
       view
-      |> element("button[phx-click='theme:select_background'][phx-value-id='#dc2626']")
+      |> element(
+        "button[phx-click='theme:set_option'][phx-value-field='color'][phx-value-value='#dc2626']"
+      )
       |> render_click()
 
       saved = Repo.get_by(ThemeCustomizationSchema, profile_id: profile.id, theme_id: "1")
@@ -396,7 +400,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       assert saved.custom_palette_seed == "#ff6b35"
     end
 
-    test "theme:set_palette_seed with valid hex persists lowercased seed",
+    test "theme:set_option with a palette seed, valid hex persists lowercased seed",
          %{conn: conn, profile: profile} do
       # First open the picker by toggling (no seed stored)
       {:ok, view, _html} = live(conn, ~p"/dashboard/theme/customize/1")
@@ -405,10 +409,14 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       |> element("button[phx-click='theme:toggle_palette_picker']")
       |> render_click()
 
-      # Now the palette picker widget is rendered — push the set_palette_seed event
+      # Now the palette picker widget is rendered: push its commit event
       view
       |> element("#custom-palette-picker")
-      |> render_hook("theme:set_palette_seed", %{"value" => "#AABBCC"})
+      |> render_hook("theme:set_option", %{
+        "option" => "palette",
+        "field" => "seed",
+        "value" => "#AABBCC"
+      })
 
       saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
       assert saved.custom_palette_seed == "#aabbcc"
@@ -433,7 +441,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       assert render(view) =~ ~s(aria-expanded="true")
     end
 
-    test "theme:set_custom_background persists hex color",
+    test "theme:set_option persists a custom background hex color",
          %{conn: conn, profile: profile} do
       {:ok, view, _html} = live(conn, ~p"/dashboard/theme/customize/1")
 
@@ -446,17 +454,21 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       |> element("button[phx-click='theme:toggle_custom_picker']")
       |> render_click()
 
-      # Push the set_custom_background event from the hook element
+      # Push the commit event from the hook element
       view
       |> element("#custom-background-picker")
-      |> render_hook("theme:set_custom_background", %{"value" => "#123456"})
+      |> render_hook("theme:set_option", %{
+        "option" => "background",
+        "field" => "color",
+        "value" => "#123456"
+      })
 
       saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
       assert saved.background_type == "color"
       assert saved.background_value == "#123456"
     end
 
-    test "theme:set_custom_background saves a three-digit hex colour",
+    test "theme:set_option saves a custom background as a three-digit hex colour",
          %{conn: conn, profile: profile} do
       {:ok, view, _html} = live(conn, ~p"/dashboard/theme/customize/1")
 
@@ -465,7 +477,11 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
 
       view
       |> element("#custom-background-picker")
-      |> render_hook("theme:set_custom_background", %{"value" => "#FA0"})
+      |> render_hook("theme:set_option", %{
+        "option" => "background",
+        "field" => "color",
+        "value" => "#FA0"
+      })
 
       saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
       assert saved.background_type == "color"

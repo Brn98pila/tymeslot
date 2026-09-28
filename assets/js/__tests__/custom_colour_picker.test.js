@@ -9,6 +9,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   clamp,
+  commitPayload,
   hexToRgb,
   rgbToHsv,
   hsvToHex,
@@ -176,5 +177,27 @@ describe('hex → hsv → hex round-trip', () => {
       const back = hsvToHex(rgbToHsv(hexToRgb(hex)));
       expect(back).toBe(hex);
     }
+  });
+});
+
+describe('commitPayload', () => {
+  test('sends just the value when the widget has no commit params', () => {
+    expect(commitPayload(undefined, '#123456')).toEqual({ value: '#123456' });
+  });
+
+  test('merges the commit params into the payload', () => {
+    expect(commitPayload('{"option":"palette","field":"seed"}', '#aabbcc')).toEqual({
+      option: 'palette',
+      field: 'seed',
+      value: '#aabbcc',
+    });
+  });
+
+  test('the committed value always wins', () => {
+    expect(commitPayload('{"value":"#000000"}', '#aabbcc')).toEqual({ value: '#aabbcc' });
+  });
+
+  test('ignores malformed params', () => {
+    expect(commitPayload('{not json', '#aabbcc')).toEqual({ value: '#aabbcc' });
   });
 });

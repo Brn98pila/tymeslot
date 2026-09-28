@@ -81,8 +81,16 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
     """
   end
 
-  @spec color_scheme_section(map()) :: Phoenix.LiveView.Rendered.t()
-  def color_scheme_section(assigns) do
+  @doc """
+  Renders the panel for one of the theme spec's option groups, chosen by
+  its `type`. Adding an option type means adding a clause here and a panel.
+  """
+  @spec option_panel(map()) :: Phoenix.LiveView.Rendered.t()
+  def option_panel(%{group: %{type: :palette}} = assigns), do: palette_panel(assigns)
+  def option_panel(%{group: %{type: :background}} = assigns), do: background_panel(assigns)
+
+  @spec palette_panel(map()) :: Phoenix.LiveView.Rendered.t()
+  def palette_panel(assigns) do
     ~H"""
     <div class="card-glass">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
@@ -155,8 +163,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
                 else: "bg-white border-tymeslot-50 hover:border-turquoise-200 hover:shadow-lg"
               )
             ]}
-            phx-click="theme:select_color_scheme"
-            phx-value-scheme={scheme_id}
+            phx-click="theme:set_option"
+            phx-value-option={@group.key}
+            phx-value-field="scheme"
+            phx-value-value={scheme_id}
             phx-target={@myself}
           >
             <div class="flex items-center gap-2 mb-4 bg-tymeslot-50/50 p-2 rounded-token-xl group-hover/scheme:scale-110 transition-transform">
@@ -201,7 +211,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
             id="custom-palette-picker"
             target={@myself}
             initial_hex={@customization.custom_palette_seed}
-            commit_event="theme:set_palette_seed"
+            commit_event="theme:set_option"
+            commit_params={%{option: @group.key, field: "seed"}}
           />
         </div>
       <% end %>
@@ -209,8 +220,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
     """
   end
 
-  @spec background_section(map()) :: Phoenix.LiveView.Rendered.t()
-  def background_section(assigns) do
+  @spec background_panel(map()) :: Phoenix.LiveView.Rendered.t()
+  def background_panel(assigns) do
     ~H"""
     <div class="card-glass">
       <div class="mb-8">
@@ -227,7 +238,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
 
       <div class="space-y-10">
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-tymeslot-50/50 p-2 rounded-[1.5rem] border-2 border-tymeslot-50">
-          <%= for {type, icon_path, label} <- background_tabs() do %>
+          <%= for {type, icon_path, label} <- background_tabs(@group.kinds) do %>
             <button
               type="button"
               class={[
@@ -254,15 +265,22 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
         <div>
           <%= case @browsing_type do %>
             <% "gradient" -> %>
-              <.gradient_picker customization={@customization} presets={@presets} myself={@myself} />
+              <.gradient_picker
+                option={@group.key}
+                customization={@customization}
+                presets={@presets}
+                myself={@myself}
+              />
             <% "color" -> %>
               <.color_picker
+                option={@group.key}
                 customization={@customization}
                 myself={@myself}
                 custom_picker_open={@custom_picker_open}
               />
             <% "image" -> %>
               <.image_picker
+                option={@group.key}
                 customization={@customization}
                 presets={@presets}
                 uploads={@uploads}
@@ -270,6 +288,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
               />
             <% "video" -> %>
               <.video_picker
+                option={@group.key}
                 customization={@customization}
                 presets={@presets}
                 uploads={@uploads}
@@ -282,7 +301,12 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
     """
   end
 
-  defp background_tabs do
+  defp background_tabs(kinds) do
+    declared = Enum.map(kinds, &Atom.to_string/1)
+    Enum.filter(all_background_tabs(), fn {type, _icon, _label} -> type in declared end)
+  end
+
+  defp all_background_tabs do
     [
       {"gradient", "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
        dgettext("dashboard_appearance", "Gradient")},
