@@ -23,12 +23,16 @@ defmodule TymeslotWeb.Themes.Shared.BookingText do
   screen. Turning the customisation on therefore opts these three strings out of
   translation, which is the same trade the rest of the organiser's copy already
   makes.
+
+  It also owns the meeting-length label every step shows, `duration_label/1`, so
+  the themes cannot disagree about which duration wins.
   """
 
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Themes.Catalog
+  alias TymeslotWeb.Themes.Shared.LocalizationHelpers
 
   @type theme_key :: Catalog.theme_key()
 
@@ -107,4 +111,20 @@ defmodule TymeslotWeb.Themes.Shared.BookingText do
 
   defp custom(%{booking_text_enabled: true} = profile, field), do: Map.get(profile, field)
   defp custom(_profile, _field), do: nil
+
+  @doc """
+  The meeting's length as a step shows it: the meeting type's own duration
+  when the page has resolved one, otherwise the duration selected in the URL
+  (`:duration`, e.g. `"30-minutes"`).
+
+  Takes a map with `:meeting_type` and `:duration`, so a step component can
+  pass its assigns straight through; a component whose selected duration lives
+  under another key builds the map itself.
+  """
+  @spec duration_label(map()) :: String.t()
+  def duration_label(%{meeting_type: %{duration_minutes: minutes}}),
+    do: LocalizationHelpers.format_duration(minutes)
+
+  def duration_label(assigns),
+    do: LocalizationHelpers.format_duration(Map.get(assigns, :duration))
 end

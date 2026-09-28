@@ -7,11 +7,11 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Meetings.Approval
-  alias Tymeslot.Utils.DateTimeUtils.Duration
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
   alias TymeslotWeb.Live.Shared.FormValidationHelpers
   alias TymeslotWeb.Themes.Shared.BookingLabels
   alias TymeslotWeb.Themes.Shared.BookingLocation
+  alias TymeslotWeb.Themes.Shared.BookingText
   alias TymeslotWeb.Themes.Shared.Components.ApprovalNotice
   alias TymeslotWeb.Themes.Shared.Components.GuestField
   alias TymeslotWeb.Themes.Shared.Components.LocationField
@@ -54,20 +54,12 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent do
                   <p class="booking-subtitle text-quill-primary">
                     <%= if @organizer_profile do %>
                       {dgettext("booking", "You're booking a %{duration} meeting with %{name}",
-                        duration:
-                          if(@meeting_type,
-                            do: LocalizationHelpers.format_duration(@meeting_type.duration_minutes),
-                            else: Duration.format(@duration)
-                          ),
+                        duration: BookingText.duration_label(assigns),
                         name: get_organizer_name(@organizer_profile, @username_context)
                       )}
                     <% else %>
                       {dgettext("booking", "You're booking a %{duration} meeting",
-                        duration:
-                          if(@meeting_type,
-                            do: LocalizationHelpers.format_duration(@meeting_type.duration_minutes),
-                            else: Duration.format(@duration)
-                          )
+                        duration: BookingText.duration_label(assigns)
                       )}
                     <% end %>
                   </p>

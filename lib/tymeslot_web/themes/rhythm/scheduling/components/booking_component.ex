@@ -13,6 +13,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.BookingComponent do
   alias TymeslotWeb.Themes.Rhythm.Shared.OrganizerHeader
   alias TymeslotWeb.Themes.Shared.BookingLabels
   alias TymeslotWeb.Themes.Shared.BookingLocation
+  alias TymeslotWeb.Themes.Shared.BookingText
   alias TymeslotWeb.Themes.Shared.Components.ApprovalNotice
   alias TymeslotWeb.Themes.Shared.Components.GuestField
   alias TymeslotWeb.Themes.Shared.Components.LocationField
@@ -60,17 +61,13 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.BookingComponent do
                       {Timezones.format(@user_timezone)}
                     </div>
                     <div class="summary-label">
-                      <%= if @meeting_type do %>
-                        {LocalizationHelpers.format_duration(@meeting_type.duration_minutes)} {dgettext(
-                          "booking",
-                          "meeting"
-                        )}
-                      <% else %>
-                        {LocalizationHelpers.format_duration(@selected_duration)} {dgettext(
-                          "booking",
-                          "meeting"
-                        )}
-                      <% end %>
+                      {BookingText.duration_label(%{
+                        meeting_type: @meeting_type,
+                        duration: @selected_duration
+                      })} {dgettext(
+                        "booking",
+                        "meeting"
+                      )}
                     </div>
                   </div>
                 </div>

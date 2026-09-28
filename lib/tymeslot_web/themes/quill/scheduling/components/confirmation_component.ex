@@ -11,6 +11,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent d
   alias Tymeslot.Timezones
   alias TymeslotWeb.Themes.Shared.ApprovalDisplay
   alias TymeslotWeb.Themes.Shared.BookingLocation
+  alias TymeslotWeb.Themes.Shared.BookingText
   alias TymeslotWeb.Themes.Shared.Components.ApprovalNotice
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
   alias TymeslotWeb.Themes.Shared.PathHandlers
@@ -110,7 +111,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent d
                     <.booking_details
                       date={@selected_date}
                       time={@selected_time}
-                      duration={if @meeting_type, do: @meeting_type.duration_minutes, else: @duration}
+                      duration={BookingText.duration_label(assigns)}
                       timezone={@user_timezone}
                       variant={:compact}
                     />
@@ -255,7 +256,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent d
 
   attr :date, :string, required: true
   attr :time, :string, required: true
-  attr :duration, :any, required: true
+  attr :duration, :string, required: true, doc: "the formatted duration"
   attr :timezone, :string, required: true
   attr :variant, :atom, default: :compact, values: [:compact, :expanded]
 
@@ -274,9 +275,6 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent d
       |> assign_new(:duration_label, fn -> dgettext("booking", "Duration") end)
       |> assign_new(:timezone_label, fn -> dgettext("booking", "Timezone") end)
       |> assign_new(:formatted_date, fn -> LocalizationHelpers.format_date(assigns.date) end)
-      |> assign_new(:formatted_duration, fn ->
-        LocalizationHelpers.format_duration(assigns.duration)
-      end)
       |> assign_new(:formatted_timezone, fn -> Timezones.format(assigns.timezone) end)
 
     ~H"""
@@ -291,7 +289,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent d
       </div>
       <div>
         <p class="booking-detail-label">{@duration_label}</p>
-        <p class="booking-detail-value">{@formatted_duration}</p>
+        <p class="booking-detail-value">{@duration}</p>
       </div>
       <div>
         <p class="booking-detail-label">{@timezone_label}</p>

@@ -6,10 +6,10 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent do
   use TymeslotWeb, :live_component
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Utils.DateTimeUtils.Duration
   alias TymeslotWeb.Live.Scheduling.CalendarHelpers
   alias TymeslotWeb.Live.Scheduling.CalendarNavigation
   alias TymeslotWeb.Themes.Quill.Scheduling.Components.Schedule.Panels
+  alias TymeslotWeb.Themes.Shared.BookingText
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
   alias TymeslotWeb.Themes.Shared.StepEvents
 
@@ -114,16 +114,9 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent do
                       <% end %>
 
                       <p class="schedule-duration-label text-glass-primary">
-                        <%= if @meeting_type do %>
-                          {dgettext("booking", "Duration: %{duration}",
-                            duration:
-                              LocalizationHelpers.format_duration(@meeting_type.duration_minutes)
-                          )}
-                        <% else %>
-                          {dgettext("booking", "Duration: %{duration}",
-                            duration: Duration.format(@duration)
-                          )}
-                        <% end %>
+                        {dgettext("booking", "Duration: %{duration}",
+                          duration: BookingText.duration_label(assigns)
+                        )}
                       </p>
                     </div>
 

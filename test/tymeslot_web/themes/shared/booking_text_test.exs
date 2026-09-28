@@ -107,6 +107,39 @@ defmodule TymeslotWeb.Themes.Shared.BookingTextTest do
     end
   end
 
+  describe "duration_label/1" do
+    test "reads the meeting type's own duration first" do
+      assigns = %{
+        meeting_type: build(:meeting_type, duration_minutes: 45),
+        duration: "30-minutes"
+      }
+
+      assert BookingText.duration_label(assigns) == "45 minutes"
+    end
+
+    test "falls back to the selected duration when there is no meeting type" do
+      assert BookingText.duration_label(%{meeting_type: nil, duration: "30-minutes"}) ==
+               "30 minutes"
+
+      assert BookingText.duration_label(%{meeting_type: nil, duration: "90min"}) ==
+               "1 hour 30 minutes"
+    end
+
+    test "says so when neither gives a duration it can read" do
+      assert BookingText.duration_label(%{meeting_type: nil, duration: "intro-call"}) ==
+               "Unknown duration"
+
+      assert BookingText.duration_label(%{}) == "Unknown duration"
+    end
+
+    test "translates the fallback as well as the meeting type's duration" do
+      Gettext.put_locale(TymeslotWeb.Gettext, "de")
+
+      assert BookingText.duration_label(%{meeting_type: nil, duration: "30-minutes"}) ==
+               "30 Minuten"
+    end
+  end
+
   defp customized(attrs) do
     build(:profile, Keyword.put(attrs, :booking_text_enabled, true))
   end
