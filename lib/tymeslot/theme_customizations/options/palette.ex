@@ -18,6 +18,28 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
 
   @fields [:color_scheme, :custom_palette_seed]
 
+  # Palette key -> custom property. The palette's `background` is the page's
+  # base colour, `--theme-canvas`; `--theme-background` belongs to the
+  # background option.
+  @var_names %{
+    primary: "--theme-primary",
+    primary_hover: "--theme-primary-hover",
+    secondary: "--theme-secondary",
+    accent: "--theme-accent",
+    background: "--theme-canvas",
+    surface: "--theme-surface",
+    text: "--theme-text",
+    text_secondary: "--theme-text-secondary",
+    on_primary: "--theme-on-primary",
+    primary_solid: "--theme-primary-solid",
+    primary_solid_hover: "--theme-primary-solid-hover",
+    on_accent: "--theme-on-accent",
+    accent_solid: "--theme-accent-solid"
+  }
+
+  @typedoc "Per-request overrides a single page view may apply on top of the saved palette."
+  @type overrides :: %{optional(:primary_color) => String.t()}
+
   @doc "Casts and validates the palette settings."
   @spec changeset(Changeset.t(), map()) :: Changeset.t()
   def changeset(changeset, attrs) do
@@ -41,28 +63,46 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
   def resolve(_settings), do: nil
 
   @doc """
-  The palette's CSS variables, including the contrast pairs filled controls
-  need. Empty when no scheme is stored.
+  The palette as CSS custom properties: the eight palette colours plus the
+  contrast pairs `ContrastTokens` derives from them.
+
+  A `:primary_color` override replaces the primary (and its hover shade)
+  before the contrast pairs are derived, so filled controls stay legible on
+  the override. Empty when no scheme is stored or the stored palette does not
+  resolve.
   """
-  @spec vars(Spec.settings()) :: Tokens.css_vars()
-  def vars(%{"color_scheme" => scheme} = settings) when is_binary(scheme) do
+  @spec vars(Spec.settings(), overrides()) :: Tokens.css_vars()
+  def vars(%{"color_scheme" => scheme} = settings, overrides)
+      when is_binary(scheme) and is_map(overrides) do
     case resolve(settings) do
-      %{colors: colors} -> colours_to_vars(colors)
+      %{colors: colors} -> colors |> override_primary(overrides) |> colours_to_vars()
       nil -> %{}
     end
   end
 
-  def vars(_settings), do: %{}
+  def vars(_settings, _overrides), do: %{}
 
-  @doc "Turns a palette's `colors` map into `--theme-*` variables plus its contrast tokens."
+  @doc """
+  Turns a palette's `colors` map into `--theme-*` variables plus its contrast
+  tokens. The palette's `background` becomes `--theme-canvas`.
+  """
   @spec colours_to_vars(map()) :: Tokens.css_vars()
   def colours_to_vars(colors) do
     colors
     |> Map.merge(ContrastTokens.derive(colors) || %{})
-    |> Map.new(fn {key, value} ->
-      {"--theme-" <> String.replace(to_string(key), "_", "-"), value}
+    |> Enum.flat_map(fn {key, value} ->
+      case Map.fetch(@var_names, key) do
+        {:ok, name} -> [{name, value}]
+        :error -> []
+      end
     end)
+    |> Map.new()
   end
+
+  defp override_primary(colors, %{primary_color: hex}) when is_binary(hex),
+    do: %{colors | primary: hex, primary_hover: PaletteDerivation.hover_for(hex) || hex}
+
+  defp override_primary(colors, _overrides), do: colors
 
   defp cast_seed(changeset) do
     case get_change(changeset, :custom_palette_seed) do

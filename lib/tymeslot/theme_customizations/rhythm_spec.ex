@@ -37,8 +37,16 @@ defmodule Tymeslot.ThemeCustomizations.RhythmSpec do
   end
 
   @impl Spec
-  def tokens(settings, _overrides),
-    do: %Tokens{vars: Map.merge(Palette.vars(settings), Background.vars(settings))}
+  def tokens(settings, overrides) do
+    palette = Palette.vars(settings, overrides)
+    background = Background.descriptor(settings)
+
+    %Tokens{
+      vars: Map.merge(palette, Background.vars(background, palette)),
+      dark_vars: %{},
+      background: background
+    }
+  end
 
   @impl Spec
   def asset_fields, do: Background.asset_fields()

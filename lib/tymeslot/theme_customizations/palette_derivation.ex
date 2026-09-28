@@ -53,7 +53,7 @@ defmodule Tymeslot.ThemeCustomizations.PaletteDerivation do
           name: "Custom",
           colors: %{
             primary: Colour.normalise_hex(seed_hex),
-            primary_hover: Colour.hsl_to_hex({h, s, Colour.clamp(l - 0.08, 0.0, 1.0)}),
+            primary_hover: hover_for(seed_hex),
             secondary:
               Colour.hsl_to_hex({
                 Colour.wrap_hue(h - 15.0),
@@ -72,6 +72,22 @@ defmodule Tymeslot.ThemeCustomizations.PaletteDerivation do
             text_secondary: Colour.hsl_to_hex({h, 0.15, 0.72})
           }
         }
+    end
+  end
+
+  @doc """
+  The hover shade the derivation pairs with a primary colour: the same hue
+  and saturation, eight points darker.
+
+  Shared by custom palettes and the per-request primary-colour override, so a
+  page's hover state always follows its primary. Returns `nil` for an invalid
+  colour.
+  """
+  @spec hover_for(String.t()) :: String.t() | nil
+  def hover_for(hex) when is_binary(hex) do
+    case Colour.hex_to_hsl(hex) do
+      nil -> nil
+      {h, s, l} -> Colour.hsl_to_hex({h, s, Colour.clamp(l - 0.08, 0.0, 1.0)})
     end
   end
 end

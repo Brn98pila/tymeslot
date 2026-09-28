@@ -663,6 +663,8 @@ Each theme declares what organisers can customise in a spec module implementing 
 
 Build a spec from the shared blocks `Options.Palette` and `Options.Background` rather than restating their rules; `QuillSpec` and `RhythmSpec` are the reference. Colours are validated by `Tymeslot.Utils.Colour.cast_hex/1`: `#RGB` or `#RRGGBB`, stored as lower-case `#rrggbb`.
 
+Each spec's `tokens/2` turns the saved settings, plus per-request overrides, into a `%Tokens{}`: `vars` (the palette colours and contrast pairs as `--theme-*` custom properties, the palette's background as `--theme-canvas`, and the background option as `--theme-background`), `dark_vars` (empty for Quill and Rhythm), and `background`, a descriptor (`%{kind: :gradient | :color | :image | :video, ...}`) the theme wrapper renders. `Options.Palette.vars/2` and `Options.Background.descriptor/1` hold the shared logic, so a spec's `tokens/2` is a few lines. Callers go through `ThemeCustomizations.tokens/3`, which falls back to the theme's defaults when nothing is saved.
+
 ## Meeting Management Integration
 
 `use TymeslotWeb.Themes.Core.Theme` generates `render_meeting_action/2`, which dispatches each action to the theme's own module:

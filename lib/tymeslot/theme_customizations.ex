@@ -8,9 +8,11 @@ defmodule Tymeslot.ThemeCustomizations do
 
   alias Ecto.Changeset
   alias Tymeslot.Profiles.ProfileSchema
+  alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationQueries
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
+  alias Tymeslot.ThemeCustomizations.Tokens
   alias Tymeslot.Themes.Catalog
 
   # Functional submodules
@@ -205,6 +207,18 @@ defmodule Tymeslot.ThemeCustomizations do
       ThemeCustomizationSchema,
       Map.merge(Spec.for_theme(theme_id).defaults(), %{profile_id: profile_id, theme_id: theme_id})
     )
+  end
+
+  @doc """
+  The render tokens for a theme: the saved settings (or the theme's defaults
+  when nothing is saved) plus any per-request overrides, through the theme's
+  customisation spec.
+  """
+  @spec tokens(theme_id(), ThemeCustomizationSchema.t() | nil, Palette.overrides()) ::
+          Tokens.t()
+  def tokens(theme_id, customization, overrides \\ %{}) do
+    settings = customization || default_customization(nil, theme_id)
+    Spec.for_theme(theme_id).tokens(to_map(settings), overrides)
   end
 
   @doc """

@@ -77,41 +77,56 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
     end
   end
 
-  describe "vars/1" do
-    test "a gradient sets --theme-background to the preset's CSS" do
-      assert Background.vars(%{
+  describe "descriptor/1" do
+    test "a gradient resolves to the preset's CSS" do
+      assert Background.descriptor(%{
                "background_type" => "gradient",
                "background_value" => "gradient_1"
              }) ==
-               %{"--theme-background" => "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"}
+               %{kind: :gradient, css: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"}
     end
 
-    test "a colour is emitted normalised" do
-      assert Background.vars(%{"background_type" => "color", "background_value" => "#ABCDEF"}) ==
-               %{"--theme-background" => "#abcdef"}
-    end
-
-    test "an invalid colour emits nothing" do
-      assert Background.vars(%{
+    test "an invalid colour resolves to nothing" do
+      assert Background.descriptor(%{
                "background_type" => "color",
                "background_value" => "</style><script>"
-             }) == %{}
+             }) == nil
     end
 
     test "an uploaded image is addressed under /uploads with its path sanitised" do
-      assert Background.vars(%{
+      assert Background.descriptor(%{
                "background_type" => "image",
                "background_value" => "custom",
                "background_image_path" => "themes/1/1/images/../a b.jpg"
-             }) == %{"--theme-background-image" => "url('/uploads/themes/1/1/images/ab.jpg')"}
+             }) == %{kind: :image, url: "/uploads/themes/1/1/images/ab.jpg"}
     end
 
-    test "a video emits no variables" do
-      assert Background.vars(%{
+    test "an unknown video preset has no sources and no poster" do
+      assert Background.descriptor(%{
                "background_type" => "video",
-               "background_value" => "preset:space"
-             }) ==
-               %{}
+               "background_value" => "preset:nope"
+             }) == %{kind: :video, sources: [], poster: nil}
+    end
+  end
+
+  describe "vars/2" do
+    test "a gradient or colour is the --theme-background itself" do
+      assert Background.vars(%{kind: :color, color: "#abcdef"}, %{}) ==
+               %{"--theme-background" => "#abcdef"}
+
+      assert Background.vars(%{kind: :gradient, css: "linear-gradient(red, blue)"}, %{}) ==
+               %{"--theme-background" => "linear-gradient(red, blue)"}
+    end
+
+    test "behind a video the palette's canvas shows" do
+      video = %{kind: :video, sources: [], poster: nil}
+
+      assert Background.vars(video, %{"--theme-canvas" => "#0f172a"}) ==
+               %{"--theme-background" => "var(--theme-canvas)"}
+    end
+
+    test "with neither a painted background nor a palette, nothing is emitted" do
+      assert Background.vars(nil, %{}) == %{}
     end
   end
 

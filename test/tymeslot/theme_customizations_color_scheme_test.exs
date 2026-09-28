@@ -124,7 +124,7 @@ defmodule Tymeslot.ThemeCustomizationsColorSchemeTest do
       css = ThemeCustomizations.get_color_scheme_css(customization)
 
       assert css =~ "--theme-primary: #ff6b35"
-      assert css =~ "--theme-background:"
+      assert css =~ "--theme-canvas:"
       assert css =~ "--theme-text:"
     end
 

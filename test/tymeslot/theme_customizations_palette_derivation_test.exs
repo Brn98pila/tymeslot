@@ -3,6 +3,7 @@ defmodule Tymeslot.ThemeCustomizationsPaletteDerivationTest do
   @moduletag :themes
 
   alias Tymeslot.ThemeCustomizations.PaletteDerivation
+  alias Tymeslot.Utils.Colour
 
   describe "derive_palette/1" do
     test "returns nil for nil input" do
@@ -97,5 +98,17 @@ defmodule Tymeslot.ThemeCustomizationsPaletteDerivationTest do
       end
 
     (r * 0.299 + g * 0.587 + b * 0.114) / 255
+  end
+
+  describe "hover_for/1" do
+    test "hover_for/1 darkens the colour it is given" do
+      hover = PaletteDerivation.hover_for("#e11d48")
+
+      assert Colour.relative_luminance(hover) < Colour.relative_luminance("#e11d48")
+    end
+
+    test "hover_for/1 returns nil for an invalid colour" do
+      assert PaletteDerivation.hover_for("not-a-colour") == nil
+    end
   end
 end
