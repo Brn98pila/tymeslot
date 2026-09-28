@@ -27,7 +27,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.CustomQuestionsComponen
     assigns = Events.assign_render_state(assigns)
 
     ~H"""
-    <div class="container flex-1" data-locale={@locale}>
+    <div class="container quill-container flex-1" data-locale={@locale}>
       <.page_layout
         show_steps={true}
         current_step={3}

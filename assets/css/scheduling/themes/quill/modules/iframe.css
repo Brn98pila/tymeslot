@@ -41,7 +41,7 @@ html.quill-theme[data-embedded] .glass-morphism-card {
 }
 
 /* Hug the top — no wasted padding when the iframe sizes to content. */
-html.quill-theme[data-embedded] .main-gradient.theme-grid .content-area .container {
+html.quill-theme[data-embedded] .main-gradient.theme-grid .content-area .quill-container {
   margin-top: 0;
   margin-bottom: 0;
 }

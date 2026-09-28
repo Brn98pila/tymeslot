@@ -124,14 +124,15 @@
   opacity: 1;
 }
 
-/* Active step label — matches step_label_class(step, current) when step == current */
-.quill-theme-wrapper .step-label.text-white.font-bold.drop-shadow-md {
+/* Current step label (step_label_class/2 in step_navigation.ex) */
+.quill-theme-wrapper .step-item-wrapper .step-label.step-label--current {
   color: var(--theme-text);
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* Completed step label — matches text-tymeslot-100 */
-.quill-theme-wrapper .step-label.text-tymeslot-100.drop-shadow-md {
+/* Completed step label. Keeps (0,4,0) so it still beats the
+   `button:hover .step-label` colour below, as it always has. */
+.quill-theme-wrapper .step-item-wrapper .step-label.step-label--completed {
   color: var(--theme-text-secondary);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
@@ -142,8 +143,8 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-/* Hover effects for clickable steps */
-.quill-theme-wrapper .step-circle.cursor-pointer:hover {
+/* Hover effect for clickable (completed) steps */
+.quill-theme-wrapper .step-circle.step-circle--clickable:hover {
   transform: scale(1.1);
 }
 

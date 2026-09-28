@@ -31,7 +31,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent do
   @impl Phoenix.LiveComponent
   def render(assigns) do
     ~H"""
-    <div class="container flex-1" data-locale={@locale}>
+    <div class="container quill-container flex-1" data-locale={@locale}>
       <.page_layout
         show_steps={true}
         current_step={3}

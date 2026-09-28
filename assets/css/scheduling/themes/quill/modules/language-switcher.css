@@ -1,10 +1,5 @@
 /* Language Switcher - Quill Theme */
 
-/* Language switcher visibility (only on slide 1) */
-.language-switcher-wrapper.hidden {
-  display: none;
-}
-
 .lang-switcher__button {
   background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(var(--glass-blur-md));

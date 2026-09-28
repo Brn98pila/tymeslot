@@ -34,14 +34,14 @@
   flex-direction: column;
 }
 
-.grid.grid-cols-7 {
+.calendar-month-grid {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
   gap: var(--calendar-gap);
 }
 
-.grid.grid-cols-7 > * {
+.calendar-month-grid > * {
   box-sizing: border-box;
   min-width: 0;
 }
@@ -359,7 +359,7 @@
 
 /* ===== Fluid Sizing ===== */
 
-.grid.grid-cols-7 {
+.calendar-month-grid {
   gap: clamp(2px, 0.5cqi, 0.5rem);
 }
 
@@ -441,7 +441,7 @@
 
 /* Tablet-like widths */
 @container scheduling (min-width: 400px) and (max-width: 599px) {
-  .grid.grid-cols-7 {
+  .calendar-month-grid {
     gap: var(--calendar-gap-sm);
   }
 
@@ -497,7 +497,7 @@
     padding: var(--space-3xl);
   }
 
-  .grid.grid-cols-7 {
+  .calendar-month-grid {
     gap: var(--calendar-gap-md);
   }
 

@@ -85,7 +85,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent do
   @impl Phoenix.LiveComponent
   def render(assigns) do
     ~H"""
-    <div class="container flex-1" data-locale={@locale}>
+    <div class="container quill-container flex-1" data-locale={@locale}>
       <.page_layout
         show_steps={true}
         current_step={2}
@@ -264,7 +264,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent do
                           </div>
                         </div>
                         <div class="calendar-grid-container flex-1">
-                          <div class="grid grid-cols-7 gap-0.5 text-center mb-1">
+                          <div class="calendar-month-grid grid grid-cols-7 gap-0.5 text-center mb-1">
                             <div
                               :for={day <- LocalizationHelpers.weekday_headers()}
                               class="calendar-weekday text-xs font-medium"
@@ -272,7 +272,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent do
                               {day}
                             </div>
                           </div>
-                          <div class="grid grid-cols-7 gap-0.5">
+                          <div class="calendar-month-grid grid grid-cols-7 gap-0.5">
                             <%= for day <- CalendarHelpers.get_calendar_days(@user_timezone, @current_year, @current_month, @organizer_profile, @month_availability_map, @meeting_type) do %>
                               <.calendar_day
                                 phx-click="select_date"

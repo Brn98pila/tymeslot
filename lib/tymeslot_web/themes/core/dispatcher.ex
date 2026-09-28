@@ -274,7 +274,7 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
       <div class="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
         <div class="text-center">
           <div class="text-red-500 text-6xl mb-4">⚠️</div>
-          <h1 class="text-xl font-bold text-tymeslot-900 mb-2">Theme Error</h1>
+          <h1 class="theme-error-title text-xl font-bold text-tymeslot-900 mb-2">Theme Error</h1>
           <p class="text-tymeslot-600 mb-4">{@error_message}</p>
           <button
             id="theme-error-retry-button"

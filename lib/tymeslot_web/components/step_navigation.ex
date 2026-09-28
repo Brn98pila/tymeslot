@@ -67,7 +67,7 @@ defmodule TymeslotWeb.StepNavigation do
           phx-value-step={@step}
           class="flex flex-col items-center group"
         >
-          <div class={"step-circle " <> step_class(@step, @current_step) <> " cursor-pointer hover:scale-125 transform transition-all"}>
+          <div class={"step-circle step-circle--clickable " <> step_class(@step, @current_step) <> " cursor-pointer hover:scale-125 transform transition-all"}>
             <span class="text-sm font-bold">{@step}</span>
           </div>
           <span class={"step-label " <> step_label_class(@step, @current_step) <> " mt-1 sm:mt-2 text-xs transition-colors"}>
@@ -103,11 +103,11 @@ defmodule TymeslotWeb.StepNavigation do
   end
 
   defp step_label_class(step, current) when step == current do
-    "text-white font-bold drop-shadow-md"
+    "step-label--current text-white font-bold drop-shadow-md"
   end
 
   defp step_label_class(step, current) when step < current do
-    "text-tymeslot-100 drop-shadow-md"
+    "step-label--completed text-tymeslot-100 drop-shadow-md"
   end
 
   defp step_label_class(_step, _current) do
