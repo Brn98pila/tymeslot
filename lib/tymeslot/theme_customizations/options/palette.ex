@@ -50,6 +50,17 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
   end
 
   @doc """
+  The changes one palette choice makes, or `:error` for a field the palette
+  does not have. Choosing a scheme drops the custom seed.
+  """
+  @spec changes(String.t(), String.t()) :: {:ok, map()} | :error
+  def changes("scheme", scheme),
+    do: {:ok, %{"color_scheme" => scheme, "custom_palette_seed" => nil}}
+
+  def changes("seed", hex), do: {:ok, %{"custom_palette_seed" => hex}}
+  def changes(_field, _value), do: :error
+
+  @doc """
   The active palette (`%{name: _, colors: _}`): derived from the seed when one
   is stored, otherwise the named preset. `nil` when neither resolves.
   """

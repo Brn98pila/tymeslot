@@ -77,6 +77,41 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
     end
   end
 
+  describe "changes/2" do
+    test "sets the kind and value" do
+      assert {:ok, %{"background_type" => "color", "background_value" => "#ff5500"}} =
+               Background.changes("color", "#ff5500")
+    end
+
+    test "a gradient or colour drops both uploads" do
+      for kind <- ["gradient", "color"] do
+        assert {:ok, changes} = Background.changes(kind, "x")
+
+        assert Map.take(changes, ["background_image_path", "background_video_path"]) ==
+                 %{"background_image_path" => nil, "background_video_path" => nil}
+      end
+    end
+
+    test "a preset image drops the uploaded image but not the uploaded video" do
+      assert {:ok, changes} = Background.changes("image", "preset:artistic-studio")
+      assert Map.fetch(changes, "background_image_path") == {:ok, nil}
+      refute Map.has_key?(changes, "background_video_path")
+    end
+
+    test "a preset video drops the uploaded video but not the uploaded image" do
+      assert {:ok, changes} = Background.changes("video", "preset:blue-wave")
+      assert Map.fetch(changes, "background_video_path") == {:ok, nil}
+      refute Map.has_key?(changes, "background_image_path")
+    end
+
+    test "the custom image or video keeps its upload" do
+      for kind <- ["image", "video"] do
+        assert Background.changes(kind, "custom") ==
+                 {:ok, %{"background_type" => kind, "background_value" => "custom"}}
+      end
+    end
+  end
+
   describe "descriptor/1" do
     test "a gradient resolves to the preset's CSS" do
       assert Background.descriptor(%{

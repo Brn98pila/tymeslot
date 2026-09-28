@@ -65,6 +65,19 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
   def asset_fields, do: [background_image_path: :image, background_video_path: :video]
 
   @doc """
+  The changes choosing a background makes. Choosing a preset image or video
+  drops that kind's upload; choosing a gradient or colour drops both.
+  """
+  @spec changes(String.t(), String.t()) :: {:ok, map()}
+  def changes(kind, value) do
+    {:ok,
+     Map.merge(
+       %{"background_type" => kind, "background_value" => value},
+       cleared_uploads(kind, value)
+     )}
+  end
+
+  @doc """
   Resolves the stored background into a descriptor the theme wrapper renders.
 
   Every path in it is already safe to emit. Returns `nil` when the settings
@@ -131,6 +144,17 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
     do: %{"--theme-background" => "var(--theme-canvas)"}
 
   def vars(_media_or_nil, _palette_vars), do: %{}
+
+  defp cleared_uploads("image", value) when value != "custom",
+    do: %{"background_image_path" => nil}
+
+  defp cleared_uploads("video", value) when value != "custom",
+    do: %{"background_video_path" => nil}
+
+  defp cleared_uploads(kind, _value) when kind in ["gradient", "color"],
+    do: %{"background_image_path" => nil, "background_video_path" => nil}
+
+  defp cleared_uploads(_kind, _value), do: %{}
 
   defp video_sources(%{"background_video_path" => path}) when is_binary(path) and path != "" do
     sanitized = Validation.sanitize_path(path)

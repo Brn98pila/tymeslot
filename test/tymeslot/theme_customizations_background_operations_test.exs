@@ -4,7 +4,6 @@ defmodule Tymeslot.ThemeCustomizationsBackgroundOperationsTest do
 
   alias Tymeslot.Profiles
   alias Tymeslot.ThemeCustomizations
-  alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   describe "ThemeCustomizations background operations" do
     setup do
@@ -13,92 +12,41 @@ defmodule Tymeslot.ThemeCustomizationsBackgroundOperationsTest do
       %{profile: profile}
     end
 
-    test "apply_background_change/5 updates to gradient", %{profile: profile} do
-      current = %ThemeCustomizationSchema{
-        profile_id: profile.id,
-        theme_id: "1",
-        color_scheme: "default",
-        background_type: "color",
-        background_value: "#000000"
-      }
+    test "apply_option/4 updates a colour background to a gradient", %{profile: profile} do
+      {:ok, _colour} = background(profile, "1", "color", "#000000")
 
-      {:ok, updated} =
-        ThemeCustomizations.apply_background_change(
-          profile.id,
-          "1",
-          current,
-          "gradient",
-          "gradient_2"
-        )
+      {:ok, updated} = background(profile, "1", "gradient", "gradient_2")
 
       assert updated.background_type == "gradient"
       assert updated.background_value == "gradient_2"
     end
 
-    test "apply_background_change/5 updates to solid color", %{profile: profile} do
-      current = %ThemeCustomizationSchema{
-        profile_id: profile.id,
-        theme_id: "1",
-        color_scheme: "default",
-        background_type: "gradient",
-        background_value: "gradient_1"
-      }
-
-      {:ok, updated} =
-        ThemeCustomizations.apply_background_change(
-          profile.id,
-          "1",
-          current,
-          "color",
-          "#ff5500"
-        )
+    test "apply_option/4 updates to solid color", %{profile: profile} do
+      {:ok, updated} = background(profile, "1", "color", "#ff5500")
 
       assert updated.background_type == "color"
       assert updated.background_value == "#ff5500"
     end
 
-    test "apply_background_change/5 updates to preset video", %{profile: profile} do
-      current = %ThemeCustomizationSchema{
-        profile_id: profile.id,
-        theme_id: "2",
-        color_scheme: "default",
-        background_type: "gradient",
-        background_value: "gradient_1"
-      }
-
-      {:ok, updated} =
-        ThemeCustomizations.apply_background_change(
-          profile.id,
-          "2",
-          current,
-          "video",
-          "preset:rhythm-default"
-        )
+    test "apply_option/4 updates to preset video", %{profile: profile} do
+      {:ok, updated} = background(profile, "2", "video", "preset:rhythm-default")
 
       assert updated.background_type == "video"
       assert updated.background_value == "preset:rhythm-default"
     end
 
-    test "apply_background_change/5 updates to preset image", %{profile: profile} do
-      current = %ThemeCustomizationSchema{
-        profile_id: profile.id,
-        theme_id: "1",
-        color_scheme: "default",
-        background_type: "gradient",
-        background_value: "gradient_1"
-      }
-
-      {:ok, updated} =
-        ThemeCustomizations.apply_background_change(
-          profile.id,
-          "1",
-          current,
-          "image",
-          "preset:artistic-studio"
-        )
+    test "apply_option/4 updates to preset image", %{profile: profile} do
+      {:ok, updated} = background(profile, "1", "image", "preset:artistic-studio")
 
       assert updated.background_type == "image"
       assert updated.background_value == "preset:artistic-studio"
     end
   end
+
+  defp background(profile, theme_id, kind, value),
+    do:
+      ThemeCustomizations.apply_option(profile.id, theme_id, :background, %{
+        "field" => kind,
+        "value" => value
+      })
 end

@@ -8,6 +8,7 @@ defmodule Tymeslot.ThemeCustomizations do
 
   alias Ecto.Changeset
   alias Tymeslot.Profiles.ProfileSchema
+  alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationQueries
@@ -77,9 +78,17 @@ defmodule Tymeslot.ThemeCustomizations do
           {:ok, ThemeCustomizationSchema.t()} | {:error, String.t()}
   defdelegate attach_asset(profile_id, theme_id, field, upload), to: Assets
 
-  @doc "The upload columns the theme's customisation spec declares, with the kind of each."
+  @doc """
+  The upload columns the theme's customisation spec declares, with the kind of
+  each; empty for an unknown theme.
+  """
   @spec asset_fields(theme_id()) :: [{atom(), Spec.asset_kind()}]
-  def asset_fields(theme_id), do: Spec.for_theme(theme_id).asset_fields()
+  def asset_fields(theme_id) do
+    case Catalog.customization_spec(theme_id) do
+      {:ok, spec} -> spec.asset_fields()
+      {:error, :theme_not_found} -> []
+    end
+  end
 
   @doc """
   Creates or updates a theme customization for a profile and theme.
@@ -260,87 +269,78 @@ defmodule Tymeslot.ThemeCustomizations do
   @spec resolve_active_scheme(ThemeCustomizationSchema.t() | map(), map()) :: map() | nil
   defdelegate resolve_active_scheme(customization, presets), to: Css
 
-  @doc """
-  Applies a color scheme change through the component interface.
-
-  Switching to the "custom" scheme reuses the existing seed if one is already
-  stored; otherwise it seeds with the brand turquoise default. Use
-  `apply_custom_palette_change/4` directly when the user picks a specific
-  custom seed.
-  """
-  @spec apply_color_scheme_change(
-          profile_id(),
-          theme_id(),
-          ThemeCustomizationSchema.t() | map(),
-          String.t() | atom()
-        ) :: {:ok, ThemeCustomizationSchema.t()} | {:error, String.t()}
-  def apply_color_scheme_change(profile_id, theme_id, current_customization, "custom") do
-    seed = Css.get_seed(current_customization) || @default_custom_palette_seed
-    apply_custom_palette_change(profile_id, theme_id, current_customization, seed)
-  end
-
-  def apply_color_scheme_change(profile_id, theme_id, current_customization, scheme_id) do
-    attrs =
-      Map.merge(DataTransform.to_settings(current_customization), %{
-        "color_scheme" => scheme_id,
-        "custom_palette_seed" => nil
-      })
-
-    profile_id
-    |> upsert_theme_customization(theme_id, attrs)
-    |> format_persistence_error()
-  end
+  # The columns an option change reads and writes. Every save passes all of
+  # them, so a change is judged against the whole stored option state.
+  @option_columns ~w(color_scheme custom_palette_seed background_type background_value
+                     background_image_path background_video_path)a
 
   @doc """
-  Switches the customisation to the "custom" colour scheme and persists the seed
-  hex used to derive the palette.
+  Applies one option change from the customisation panel.
 
-  The seed must be a `#RGB` or `#RRGGBB` hex colour; it is stored as lower-case
-  `#rrggbb`.
+  `option_key` names one of the theme spec's `option_groups/0`; `params` is
+  `%{"field" => field, "value" => value}` (for the palette `"scheme"` or
+  `"seed"`, for the background one of the group's declared `kinds`). The
+  change goes through the spec changeset, so an option or value the theme
+  does not support is refused. Returns a translated message on failure.
   """
-  @spec apply_custom_palette_change(
-          profile_id(),
-          theme_id(),
-          ThemeCustomizationSchema.t() | map(),
-          String.t()
-        ) :: {:ok, ThemeCustomizationSchema.t()} | {:error, String.t()}
-  def apply_custom_palette_change(profile_id, theme_id, current_customization, seed_hex)
-      when is_binary(seed_hex) and seed_hex != "" do
-    attrs =
-      Map.merge(DataTransform.to_settings(current_customization), %{
-        "custom_palette_seed" => seed_hex
-      })
+  @spec apply_option(profile_id(), theme_id(), atom(), map()) ::
+          {:ok, ThemeCustomizationSchema.t()} | {:error, String.t()}
+  def apply_option(profile_id, theme_id, option_key, %{"field" => field, "value" => value})
+      when is_binary(field) and is_binary(value) do
+    with {:ok, group} <- option_group(theme_id, option_key),
+         {:ok, changes} <- option_changes(group, field, value) do
+      %{customization: current} = initialize_customization(profile_id, theme_id)
+      attrs = Map.merge(option_attrs(current), changes)
 
-    profile_id
-    |> upsert_theme_customization(theme_id, attrs)
-    |> format_persistence_error()
-  end
+      with {:ok, saved} <-
+             profile_id
+             |> upsert_theme_customization(theme_id, attrs)
+             |> format_persistence_error() do
+        current
+        |> Backgrounds.determine_cleanup_files(saved)
+        |> Enum.each(&FileLifecycle.cleanup_old_backgrounds/1)
 
-  def apply_custom_palette_change(_profile_id, _theme_id, _current_customization, _seed_hex),
-    do: format_persistence_error({:error, :invalid_seed})
-
-  @doc """
-  Applies a background change through the component interface.
-  """
-  @spec apply_background_change(
-          profile_id(),
-          theme_id(),
-          ThemeCustomizationSchema.t() | map(),
-          String.t(),
-          String.t() | nil
-        ) :: {:ok, ThemeCustomizationSchema.t()} | {:error, String.t()}
-  def apply_background_change(profile_id, theme_id, current_customization, type, value) do
-    new_customization = Backgrounds.apply_background_selection(current_customization, type, value)
-    cleanup_files = Backgrounds.determine_cleanup_files(current_customization, new_customization)
-
-    with {:ok, saved} <-
-           profile_id
-           |> upsert_theme_customization(theme_id, DataTransform.to_settings(new_customization))
-           |> format_persistence_error() do
-      Enum.each(cleanup_files, &FileLifecycle.cleanup_old_backgrounds/1)
-      {:ok, saved}
+        {:ok, saved}
+      end
+    else
+      :error -> {:error, option_unavailable()}
     end
   end
+
+  def apply_option(_profile_id, _theme_id, _option_key, _params),
+    do: {:error, option_unavailable()}
+
+  @doc "The theme spec's option groups, in panel order; empty for an unknown theme."
+  @spec option_groups(theme_id()) :: [Spec.option_group()]
+  def option_groups(theme_id) do
+    case Catalog.customization_spec(theme_id) do
+      {:ok, spec} -> spec.option_groups()
+      {:error, :theme_not_found} -> []
+    end
+  end
+
+  defp option_group(theme_id, key) do
+    case Enum.find(option_groups(theme_id), &(&1.key == key)) do
+      nil -> :error
+      group -> {:ok, group}
+    end
+  end
+
+  defp option_changes(%{type: :palette}, field, value), do: Palette.changes(field, value)
+
+  defp option_changes(%{type: :background, kinds: kinds}, kind, value) do
+    if kind in Enum.map(kinds, &Atom.to_string/1),
+      do: Background.changes(kind, value),
+      else: :error
+  end
+
+  defp option_changes(_group, _field, _value), do: :error
+
+  defp option_attrs(customization),
+    do: Map.new(@option_columns, &{Atom.to_string(&1), Map.get(customization, &1)})
+
+  defp option_unavailable,
+    do: dgettext("dashboard_appearance", "This option is not available for this theme.")
 
   @doc """
   Gets a theme customization for a user, falling back to defaults.

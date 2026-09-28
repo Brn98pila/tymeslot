@@ -667,6 +667,8 @@ Each spec's `tokens/2` turns the saved settings, plus per-request overrides, int
 
 A per-embed `?primary-color=` arrives in `tokens/2` as `%{primary_color: hex}`; a spec with a palette must honour it.
 
+Every option change goes through `ThemeCustomizations.apply_option(profile_id, theme_id, option_key, %{"field" => ..., "value" => ...})`, which finds the group in the spec's `option_groups/0`, asks the group's option module (`Options.Palette.changes/2`, `Options.Background.changes/2`) for the changes, and saves them through the spec changeset.
+
 ## Meeting Management Integration
 
 `use TymeslotWeb.Themes.Core.Theme` generates `render_meeting_action/2`, which dispatches each action to the theme's own module:

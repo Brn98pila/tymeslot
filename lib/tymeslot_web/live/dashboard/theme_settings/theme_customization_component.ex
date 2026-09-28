@@ -154,11 +154,11 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   @spec handle_event(String.t(), map(), Socket.t()) :: {:noreply, Socket.t()}
   def handle_event("theme:select_color_scheme", %{"scheme" => scheme_id}, socket) do
     with_rate_limit(socket, "color_scheme", fn ->
-      case ThemeCustomizations.apply_color_scheme_change(
+      case ThemeCustomizations.apply_option(
              socket.assigns.profile.id,
              socket.assigns.theme_id,
-             socket.assigns.customization,
-             scheme_id
+             :palette,
+             %{"field" => "scheme", "value" => scheme_id}
            ) do
         {:ok, updated_customization} ->
           emit_telemetry(:color_scheme_changed, socket, %{scheme_id: scheme_id})
@@ -178,11 +178,11 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   def handle_event("theme:toggle_palette_picker", _params, socket) do
     if is_nil(socket.assigns.customization.custom_palette_seed) do
       with_rate_limit(socket, "color_scheme", fn ->
-        case ThemeCustomizations.apply_color_scheme_change(
+        case ThemeCustomizations.apply_option(
                socket.assigns.profile.id,
                socket.assigns.theme_id,
-               socket.assigns.customization,
-               "custom"
+               :palette,
+               %{"field" => "seed", "value" => ThemeCustomizations.default_custom_palette_seed()}
              ) do
           {:ok, updated} ->
             emit_telemetry(:palette_seed_set, socket, %{
@@ -222,11 +222,11 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
 
   def handle_event("theme:set_palette_seed", %{"value" => hex}, socket) do
     with_rate_limit(socket, "palette_seed", fn ->
-      case ThemeCustomizations.apply_custom_palette_change(
+      case ThemeCustomizations.apply_option(
              socket.assigns.profile.id,
              socket.assigns.theme_id,
-             socket.assigns.customization,
-             hex
+             :palette,
+             %{"field" => "seed", "value" => hex}
            ) do
         {:ok, updated} ->
           emit_telemetry(:palette_seed_changed, socket, %{seed: hex})
@@ -241,12 +241,11 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
 
   def handle_event("theme:set_custom_background", %{"value" => hex}, socket) do
     with_rate_limit(socket, "background", fn ->
-      case ThemeCustomizations.apply_background_change(
+      case ThemeCustomizations.apply_option(
              socket.assigns.profile.id,
              socket.assigns.theme_id,
-             socket.assigns.customization,
-             "color",
-             hex
+             :background,
+             %{"field" => "color", "value" => hex}
            ) do
         {:ok, updated} ->
           emit_telemetry(:background_changed, socket, %{type: "color", value: hex})
@@ -267,27 +266,11 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
     type = params["type"]
     value = params["id"] || params["value"]
 
-    with_rate_limit(socket, "background", fn ->
-      case ThemeCustomizations.apply_background_change(
-             socket.assigns.profile.id,
-             socket.assigns.theme_id,
-             socket.assigns.customization,
-             type,
-             value
-           ) do
-        {:ok, updated_customization} ->
-          emit_telemetry(:background_changed, socket, %{type: type, value: value})
-
-          {:noreply,
-           socket
-           |> assign(:customization, updated_customization)
-           |> assign(:browsing_type, type)}
-
-        {:error, reason} ->
-          Flash.error(reason)
-          {:noreply, socket}
-      end
-    end)
+    if is_binary(type) and is_binary(value) do
+      select_background(socket, type, value)
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("validate_image", _params, socket) do
@@ -307,6 +290,29 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   end
 
   # Private functions
+
+  defp select_background(socket, type, value) do
+    with_rate_limit(socket, "background", fn ->
+      case ThemeCustomizations.apply_option(
+             socket.assigns.profile.id,
+             socket.assigns.theme_id,
+             :background,
+             %{"field" => type, "value" => value}
+           ) do
+        {:ok, updated_customization} ->
+          emit_telemetry(:background_changed, socket, %{type: type, value: value})
+
+          {:noreply,
+           socket
+           |> assign(:customization, updated_customization)
+           |> assign(:browsing_type, type)}
+
+        {:error, reason} ->
+          Flash.error(reason)
+          {:noreply, socket}
+      end
+    end)
+  end
 
   # `AutoUpload` (mounted at the root of this component's markup, see
   # `render/1`) only clears the file picker once it receives "upload-complete",

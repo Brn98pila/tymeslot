@@ -3,10 +3,9 @@ defmodule Tymeslot.ThemeCustomizations.Css do
   Pure palette lookups for theme customizations.
 
   Stateless functions over the presets and palette derivation: the active
-  colour scheme of a customisation and its custom seed. The booking
-  page's CSS comes from the theme's customisation spec
-  (`Tymeslot.ThemeCustomizations.Spec.tokens/2`), not from here. No database
-  access and no filesystem side effects live here.
+  colour scheme of a customisation. The booking page's CSS comes from the
+  theme's customisation spec (`Tymeslot.ThemeCustomizations.Spec.tokens/2`),
+  not from here. No database access and no filesystem side effects live here.
   """
 
   alias Tymeslot.ThemeCustomizations.PaletteDerivation
@@ -33,13 +32,10 @@ defmodule Tymeslot.ThemeCustomizations.Css do
     end
   end
 
-  @doc """
-  Extracts the custom palette seed from a customisation schema or map.
-  """
   @spec get_seed(ThemeCustomizationSchema.t() | map()) :: String.t() | nil
-  def get_seed(%ThemeCustomizationSchema{custom_palette_seed: seed}), do: seed
+  defp get_seed(%ThemeCustomizationSchema{custom_palette_seed: seed}), do: seed
 
-  def get_seed(map) when is_map(map) do
+  defp get_seed(map) when is_map(map) do
     Map.get(map, :custom_palette_seed) || Map.get(map, "custom_palette_seed")
   end
 

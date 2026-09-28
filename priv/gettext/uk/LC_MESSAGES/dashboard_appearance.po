@@ -365,6 +365,7 @@ msgstr "Недійсний формат відео. Завантажте дій�
 msgid "No file was uploaded"
 msgstr "Жодного файлу не завантажено"
 
+#: lib/tymeslot/theme_customizations.ex
 #: lib/tymeslot/theme_customizations/assets.ex
 #, elixir-autogen, elixir-format
 msgid "This option is not available for this theme."

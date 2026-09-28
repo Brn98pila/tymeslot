@@ -365,6 +365,7 @@ msgstr "Neplatný formát videa. Nahrajte prosím platný videosoubor."
 msgid "No file was uploaded"
 msgstr "Nebyl nahrán žádný soubor"
 
+#: lib/tymeslot/theme_customizations.ex
 #: lib/tymeslot/theme_customizations/assets.ex
 #, elixir-autogen, elixir-format
 msgid "This option is not available for this theme."

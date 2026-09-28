@@ -5,55 +5,48 @@ defmodule Tymeslot.ThemeCustomizationsEdgeCasesTest do
   alias Tymeslot.Profiles
   alias Tymeslot.Repo
   alias Tymeslot.ThemeCustomizations
-  alias Tymeslot.ThemeCustomizations.Backgrounds
+
+  @not_saved "Could not save your theme customization. Please try again."
+  @unavailable "This option is not available for this theme."
 
   # ---- Color validation consistency ----
 
   describe "background colour validation" do
-    test "apply_background_change rejects rgb() color values" do
+    test "apply_option rejects rgb() color values" do
       user = insert(:user)
       {:ok, profile} = Profiles.get_or_create_profile(user.id)
 
       result =
-        ThemeCustomizations.apply_background_change(
-          profile.id,
-          "1",
-          build_customization(profile.id),
-          "color",
-          "rgb(255,0,0)"
-        )
+        ThemeCustomizations.apply_option(profile.id, "1", :background, %{
+          "field" => "color",
+          "value" => "rgb(255,0,0)"
+        })
 
-      assert {:error, _reason} = result
+      assert {:error, @not_saved} = result
     end
 
-    test "apply_background_change rejects named colors" do
+    test "apply_option rejects named colors" do
       user = insert(:user)
       {:ok, profile} = Profiles.get_or_create_profile(user.id)
 
       result =
-        ThemeCustomizations.apply_background_change(
-          profile.id,
-          "1",
-          build_customization(profile.id),
-          "color",
-          "transparent"
-        )
+        ThemeCustomizations.apply_option(profile.id, "1", :background, %{
+          "field" => "color",
+          "value" => "transparent"
+        })
 
-      assert {:error, _reason} = result
+      assert {:error, @not_saved} = result
     end
 
-    test "apply_background_change saves a 3-digit hex as lower-case #rrggbb" do
+    test "apply_option saves a 3-digit hex as lower-case #rrggbb" do
       user = insert(:user)
       {:ok, profile} = Profiles.get_or_create_profile(user.id)
 
       assert {:ok, customization} =
-               ThemeCustomizations.apply_background_change(
-                 profile.id,
-                 "1",
-                 build_customization(profile.id),
-                 "color",
-                 "#FFF"
-               )
+               ThemeCustomizations.apply_option(profile.id, "1", :background, %{
+                 "field" => "color",
+                 "value" => "#FFF"
+               })
 
       assert customization.background_value == "#ffffff"
 
@@ -61,32 +54,26 @@ defmodule Tymeslot.ThemeCustomizationsEdgeCasesTest do
                "#ffffff"
     end
 
-    test "apply_background_change rejects the #RRGGBBAA alpha form" do
+    test "apply_option rejects the #RRGGBBAA alpha form" do
       user = insert(:user)
       {:ok, profile} = Profiles.get_or_create_profile(user.id)
 
-      assert {:error, _reason} =
-               ThemeCustomizations.apply_background_change(
-                 profile.id,
-                 "1",
-                 build_customization(profile.id),
-                 "color",
-                 "#ff550080"
-               )
+      assert {:error, @not_saved} =
+               ThemeCustomizations.apply_option(profile.id, "1", :background, %{
+                 "field" => "color",
+                 "value" => "#ff550080"
+               })
     end
 
-    test "apply_background_change accepts valid #RRGGBB color" do
+    test "apply_option accepts valid #RRGGBB color" do
       user = insert(:user)
       {:ok, profile} = Profiles.get_or_create_profile(user.id)
 
       result =
-        ThemeCustomizations.apply_background_change(
-          profile.id,
-          "1",
-          build_customization(profile.id),
-          "color",
-          "#FF5500"
-        )
+        ThemeCustomizations.apply_option(profile.id, "1", :background, %{
+          "field" => "color",
+          "value" => "#FF5500"
+        })
 
       assert {:ok, customization} = result
       assert customization.background_value == "#ff5500"
@@ -96,32 +83,30 @@ defmodule Tymeslot.ThemeCustomizationsEdgeCasesTest do
   # ---- Unknown theme on the write path ----
 
   describe "unknown theme" do
-    test "apply_background_change rejects operation for unknown theme_id" do
+    test "apply_option rejects a background change for an unknown theme_id" do
       user = insert(:user)
       {:ok, profile} = Profiles.get_or_create_profile(user.id)
-      customization = build_customization(profile.id)
 
       result =
-        ThemeCustomizations.apply_background_change(
-          profile.id,
-          "999",
-          customization,
-          "gradient",
-          "gradient_1"
-        )
+        ThemeCustomizations.apply_option(profile.id, "999", :background, %{
+          "field" => "gradient",
+          "value" => "gradient_1"
+        })
 
-      assert {:error, _reason} = result
+      assert {:error, @unavailable} = result
     end
 
-    test "apply_color_scheme_change rejects operation for unknown theme_id" do
+    test "apply_option rejects a scheme change for an unknown theme_id" do
       user = insert(:user)
       {:ok, profile} = Profiles.get_or_create_profile(user.id)
-      customization = build_customization(profile.id)
 
       result =
-        ThemeCustomizations.apply_color_scheme_change(profile.id, "999", customization, "purple")
+        ThemeCustomizations.apply_option(profile.id, "999", :palette, %{
+          "field" => "scheme",
+          "value" => "purple"
+        })
 
-      assert {:error, _reason} = result
+      assert {:error, @unavailable} = result
     end
   end
 
@@ -173,65 +158,6 @@ defmodule Tymeslot.ThemeCustomizationsEdgeCasesTest do
 
       assert updated.background_video_path == nil
       assert updated.background_type == "gradient"
-    end
-  end
-
-  # ---- clear_conflicting_backgrounds cross-type paths ----
-
-  describe "Backgrounds.clear_conflicting_backgrounds/2 cross-type path behavior" do
-    test "switching to image preset does NOT clear video path (paths are independent)" do
-      customization = %{
-        background_type: "video",
-        background_value: "custom",
-        background_image_path: nil,
-        background_video_path: "themes/1/1/videos/my.mp4"
-      }
-
-      result =
-        Backgrounds.clear_conflicting_backgrounds(
-          %{customization | background_type: "image", background_value: "preset:some-image"},
-          "image"
-        )
-
-      # Preset image selection clears image path but NOT video path
-      assert result.background_image_path == nil
-      assert result.background_video_path == "themes/1/1/videos/my.mp4"
-    end
-
-    test "switching to gradient clears both image and video paths" do
-      customization = %{
-        background_type: "image",
-        background_value: "custom",
-        background_image_path: "themes/1/1/images/my.jpg",
-        background_video_path: "themes/1/1/videos/my.mp4"
-      }
-
-      result =
-        Backgrounds.clear_conflicting_backgrounds(
-          %{customization | background_type: "gradient", background_value: "gradient_1"},
-          "gradient"
-        )
-
-      assert result.background_image_path == nil
-      assert result.background_video_path == nil
-    end
-
-    test "switching to color clears both image and video paths" do
-      customization = %{
-        background_type: "video",
-        background_value: "custom",
-        background_image_path: "themes/1/1/images/my.jpg",
-        background_video_path: "themes/1/1/videos/my.mp4"
-      }
-
-      result =
-        Backgrounds.clear_conflicting_backgrounds(
-          %{customization | background_type: "color", background_value: "#FF0000"},
-          "color"
-        )
-
-      assert result.background_image_path == nil
-      assert result.background_video_path == nil
     end
   end
 
@@ -300,19 +226,5 @@ defmodule Tymeslot.ThemeCustomizationsEdgeCasesTest do
       # Customization must no longer exist
       assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1") == nil
     end
-  end
-
-  # Private helper
-
-  defp build_customization(profile_id) do
-    %Tymeslot.ThemeCustomizations.ThemeCustomizationSchema{
-      profile_id: profile_id,
-      theme_id: "1",
-      color_scheme: "default",
-      background_type: "gradient",
-      background_value: "gradient_1",
-      background_image_path: nil,
-      background_video_path: nil
-    }
   end
 end

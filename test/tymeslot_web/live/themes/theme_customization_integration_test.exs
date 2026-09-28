@@ -10,7 +10,6 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
   alias Tymeslot.TestMocks
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Presets
-  alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
   alias TymeslotWeb.ThemeTestMatrix
 
   describe "theme customization application" do
@@ -144,17 +143,12 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
 
       seed = "#ff6b35"
 
-      # Store a custom seed via the public API (apply_custom_palette_change)
-      current = %ThemeCustomizationSchema{
-        profile_id: profile.id,
-        theme_id: "1",
-        color_scheme: "default",
-        background_type: "gradient",
-        background_value: "gradient_1"
-      }
-
+      # Store a custom seed via the public API (apply_option)
       {:ok, _customization} =
-        ThemeCustomizations.apply_custom_palette_change(profile.id, "1", current, seed)
+        ThemeCustomizations.apply_option(profile.id, "1", :palette, %{
+          "field" => "seed",
+          "value" => seed
+        })
 
       # Load the public booking page
       {:ok, _view, html} = live(conn, ~p"/#{profile.username}")

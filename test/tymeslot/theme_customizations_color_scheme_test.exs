@@ -4,7 +4,6 @@ defmodule Tymeslot.ThemeCustomizationsColorSchemeTest do
 
   alias Tymeslot.Profiles
   alias Tymeslot.ThemeCustomizations
-  alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   describe "ThemeCustomizations color scheme operations" do
     setup do
@@ -13,17 +12,8 @@ defmodule Tymeslot.ThemeCustomizationsColorSchemeTest do
       %{profile: profile}
     end
 
-    test "apply_color_scheme_change/4 creates customization with scheme", %{profile: profile} do
-      current = %ThemeCustomizationSchema{
-        profile_id: profile.id,
-        theme_id: "1",
-        color_scheme: "default",
-        background_type: "gradient",
-        background_value: "gradient_1"
-      }
-
-      {:ok, updated} =
-        ThemeCustomizations.apply_color_scheme_change(profile.id, "1", current, "purple")
+    test "apply_option/4 creates customization with scheme", %{profile: profile} do
+      {:ok, updated} = scheme(profile, "purple")
 
       assert updated.color_scheme == "purple"
     end
@@ -36,58 +26,28 @@ defmodule Tymeslot.ThemeCustomizationsColorSchemeTest do
       %{profile: profile}
     end
 
-    test "apply_custom_palette_change/4 persists custom seed", %{profile: profile} do
-      current = %ThemeCustomizationSchema{
-        profile_id: profile.id,
-        theme_id: "1",
-        color_scheme: "default",
-        background_type: "gradient",
-        background_value: "gradient_1"
-      }
-
-      {:ok, updated} =
-        ThemeCustomizations.apply_custom_palette_change(profile.id, "1", current, "#FF6B35")
+    test "apply_option/4 persists custom seed", %{profile: profile} do
+      {:ok, updated} = seed(profile, "#FF6B35")
 
       assert updated.custom_palette_seed == "#ff6b35"
-      # color_scheme is unchanged — seed presence signals custom mode
+      # color_scheme is unchanged: seed presence signals custom mode
       assert updated.color_scheme == "default"
     end
 
-    test "apply_custom_palette_change/4 rejects invalid hex", %{profile: profile} do
-      current = %ThemeCustomizationSchema{
-        profile_id: profile.id,
-        theme_id: "1",
-        color_scheme: "default",
-        background_type: "gradient",
-        background_value: "gradient_1"
-      }
+    test "apply_option/4 rejects invalid hex", %{profile: profile} do
+      assert {:error, "Could not save your theme customization. Please try again."} =
+               seed(profile, "not-hex")
 
-      assert {:error, _msg} =
-               ThemeCustomizations.apply_custom_palette_change(
-                 profile.id,
-                 "1",
-                 current,
-                 "not-hex"
-               )
+      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1") == nil
     end
 
-    test "apply_color_scheme_change/4 with 'custom' uses brand default seed when none stored",
-         %{profile: profile} do
-      current = %ThemeCustomizationSchema{
-        profile_id: profile.id,
-        theme_id: "1",
-        color_scheme: "default",
-        background_type: "gradient",
-        background_value: "gradient_1"
-      }
-
-      {:ok, updated} =
-        ThemeCustomizations.apply_color_scheme_change(profile.id, "1", current, "custom")
+    test "apply_option/4 with the brand default seed stores it", %{profile: profile} do
+      {:ok, updated} = seed(profile, ThemeCustomizations.default_custom_palette_seed())
 
       assert updated.custom_palette_seed == "#06b6d4"
     end
 
-    test "apply_color_scheme_change/4 with 'custom' preserves existing seed", %{profile: profile} do
+    test "apply_option/4 with the stored seed keeps it", %{profile: profile} do
       {:ok, _saved} =
         ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
           "color_scheme" => "default",
@@ -98,38 +58,21 @@ defmodule Tymeslot.ThemeCustomizationsColorSchemeTest do
 
       current = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
 
-      {:ok, updated} =
-        ThemeCustomizations.apply_color_scheme_change(profile.id, "1", current, "custom")
+      {:ok, updated} = seed(profile, current.custom_palette_seed)
 
       assert updated.custom_palette_seed == "#ff6b35"
     end
 
     # Regression for seed not cleared when switching back to a preset
-    test "apply_color_scheme_change/4 clears custom_palette_seed when switching to a preset",
+    test "apply_option/4 clears custom_palette_seed when switching to a preset",
          %{profile: profile} do
       # Step 1: store a custom seed
-      {:ok, with_seed} =
-        ThemeCustomizations.apply_custom_palette_change(
-          profile.id,
-          "1",
-          %{
-            profile_id: profile.id,
-            theme_id: "1",
-            color_scheme: "default",
-            custom_palette_seed: nil,
-            background_type: "gradient",
-            background_value: "gradient_1",
-            background_image_path: nil,
-            background_video_path: nil
-          },
-          "#ff6b35"
-        )
+      {:ok, with_seed} = seed(profile, "#ff6b35")
 
       assert with_seed.custom_palette_seed == "#ff6b35"
 
       # Step 2: switch back to a preset scheme
-      {:ok, updated} =
-        ThemeCustomizations.apply_color_scheme_change(profile.id, "1", with_seed, "purple")
+      {:ok, updated} = scheme(profile, "purple")
 
       assert updated.custom_palette_seed == nil
       assert updated.color_scheme == "purple"
@@ -197,4 +140,18 @@ defmodule Tymeslot.ThemeCustomizationsColorSchemeTest do
       assert ThemeCustomizations.resolve_active_scheme(customization, presets) == nil
     end
   end
+
+  defp scheme(profile, scheme_id),
+    do:
+      ThemeCustomizations.apply_option(profile.id, "1", :palette, %{
+        "field" => "scheme",
+        "value" => scheme_id
+      })
+
+  defp seed(profile, hex),
+    do:
+      ThemeCustomizations.apply_option(profile.id, "1", :palette, %{
+        "field" => "seed",
+        "value" => hex
+      })
 end

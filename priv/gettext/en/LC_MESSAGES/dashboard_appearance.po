@@ -365,6 +365,7 @@ msgstr ""
 msgid "No file was uploaded"
 msgstr ""
 
+#: lib/tymeslot/theme_customizations.ex
 #: lib/tymeslot/theme_customizations/assets.ex
 #, elixir-autogen, elixir-format
 msgid "This option is not available for this theme."

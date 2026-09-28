@@ -42,6 +42,21 @@ defmodule Tymeslot.ThemeCustomizations.Options.PaletteTest do
     end
   end
 
+  describe "changes/2" do
+    test "a scheme drops the custom seed" do
+      assert Palette.changes("scheme", "forest") ==
+               {:ok, %{"color_scheme" => "forest", "custom_palette_seed" => nil}}
+    end
+
+    test "a seed leaves the scheme name alone" do
+      assert Palette.changes("seed", "#aabbcc") == {:ok, %{"custom_palette_seed" => "#aabbcc"}}
+    end
+
+    test "any other field is refused" do
+      assert Palette.changes("logo", "x.png") == :error
+    end
+  end
+
   describe "vars/2" do
     test "emits the preset's colours and its contrast pairs as --theme-* properties" do
       vars = Palette.vars(%{"color_scheme" => "purple", "custom_palette_seed" => nil}, %{})

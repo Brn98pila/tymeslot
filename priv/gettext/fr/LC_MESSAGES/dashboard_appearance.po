@@ -365,6 +365,7 @@ msgstr "Format vidéo non valide. Veuillez téléverser un fichier vidéo valide
 msgid "No file was uploaded"
 msgstr "Aucun fichier n’a été téléversé"
 
+#: lib/tymeslot/theme_customizations.ex
 #: lib/tymeslot/theme_customizations/assets.ex
 #, elixir-autogen, elixir-format
 msgid "This option is not available for this theme."

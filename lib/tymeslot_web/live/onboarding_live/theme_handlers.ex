@@ -55,11 +55,11 @@ defmodule TymeslotWeb.OnboardingLive.ThemeHandlers do
     profile = socket.assigns[:profile]
 
     if profile do
-      case ThemeCustomizations.apply_color_scheme_change(
+      case ThemeCustomizations.apply_option(
              profile.id,
              profile.booking_theme,
-             socket.assigns.theme_customization,
-             scheme_id
+             :palette,
+             %{"field" => "scheme", "value" => scheme_id}
            ) do
         {:ok, customization} ->
           {:noreply,

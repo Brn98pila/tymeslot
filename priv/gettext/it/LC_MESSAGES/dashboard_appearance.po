@@ -365,6 +365,7 @@ msgstr "Formato video non valido. Carica un file video valido."
 msgid "No file was uploaded"
 msgstr "Nessun file è stato caricato"
 
+#: lib/tymeslot/theme_customizations.ex
 #: lib/tymeslot/theme_customizations/assets.ex
 #, elixir-autogen, elixir-format
 msgid "This option is not available for this theme."

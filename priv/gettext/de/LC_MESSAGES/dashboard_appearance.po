@@ -365,6 +365,7 @@ msgstr "Ungültiges Videoformat. Bitte laden Sie eine gültige Videodatei hoch."
 msgid "No file was uploaded"
 msgstr "Es wurde keine Datei hochgeladen"
 
+#: lib/tymeslot/theme_customizations.ex
 #: lib/tymeslot/theme_customizations/assets.ex
 #, elixir-autogen, elixir-format
 msgid "This option is not available for this theme."
