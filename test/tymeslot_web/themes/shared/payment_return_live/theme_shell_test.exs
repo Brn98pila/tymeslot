@@ -60,6 +60,7 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturnLive.ThemeShellTest do
           |> html_response(200)
 
         assert_theme_stylesheet(html, unquote(slug))
+        assert_theme_shell(html, unquote(slug), "processing")
       end
 
       test "the cancelled page loads the theme's own stylesheet",
@@ -70,6 +71,7 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturnLive.ThemeShellTest do
           |> html_response(200)
 
         assert_theme_stylesheet(html, unquote(slug))
+        assert_theme_shell(html, unquote(slug), "cancelled")
       end
 
       test "the connected processing page shows the shared body",
@@ -114,6 +116,17 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturnLive.ThemeShellTest do
     for {_id, other} <- @slugs, other != slug do
       refute html =~ "scheduling-theme-#{other}.css",
              "the #{slug} payment page loads the #{other} stylesheet"
+    end
+  end
+
+  # The root layout's class already names the theme, so only the shell's own
+  # test id shows which theme drew the page body.
+  defp assert_theme_shell(html, slug, page) do
+    assert html =~ ~s(data-testid="#{slug}-payment-#{page}")
+
+    for {_id, other} <- @slugs, other != slug do
+      refute html =~ ~s(data-testid="#{other}-payment-#{page}"),
+             "the #{slug} payment page draws the #{other} shell"
     end
   end
 end
