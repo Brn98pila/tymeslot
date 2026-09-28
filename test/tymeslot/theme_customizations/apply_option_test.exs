@@ -40,6 +40,14 @@ defmodule Tymeslot.ThemeCustomizations.ApplyOptionTest do
     {relative, full}
   end
 
+  defp stored_video(profile) do
+    relative = "themes/#{profile.id}/1/videos/old.mp4"
+    full = Storage.build_theme_file_path(relative)
+    File.mkdir_p!(Path.dirname(full))
+    File.write!(full, "mp4")
+    {relative, full}
+  end
+
   describe "palette" do
     test "a scheme is saved and clears a custom seed", %{profile: profile} do
       {:ok, _existing} = apply(profile, :palette, "seed", "#ff6b35")
@@ -85,6 +93,43 @@ defmodule Tymeslot.ThemeCustomizations.ApplyOptionTest do
       assert {:ok, saved} = apply(profile, :background, "gradient", "gradient_4")
       assert {saved.background_type, saved.background_value} == {"gradient", "gradient_4"}
       assert saved.background_image_path == nil
+      refute File.exists?(full)
+    end
+
+    test "a preset video is saved, replacing an uploaded image and deleting its file",
+         %{profile: profile} do
+      {relative, full} = stored_image(profile)
+
+      {:ok, _existing} =
+        ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
+          "background_type" => "image",
+          "background_value" => "custom",
+          "background_image_path" => relative
+        })
+
+      assert {:ok, saved} = apply(profile, :background, "video", "preset:blue-wave")
+      assert {saved.background_type, saved.background_value} == {"video", "preset:blue-wave"}
+      assert saved.background_image_path == nil
+      refute File.exists?(full)
+    end
+
+    test "a preset image is saved, replacing an uploaded video and clearing its path",
+         %{profile: profile} do
+      {relative, full} = stored_video(profile)
+
+      {:ok, _existing} =
+        ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
+          "background_type" => "video",
+          "background_value" => "custom",
+          "background_video_path" => relative
+        })
+
+      assert {:ok, saved} = apply(profile, :background, "image", "preset:artistic-studio")
+
+      assert {saved.background_type, saved.background_value} ==
+               {"image", "preset:artistic-studio"}
+
+      assert saved.background_video_path == nil
       refute File.exists?(full)
     end
 

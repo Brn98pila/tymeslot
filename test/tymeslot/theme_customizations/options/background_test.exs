@@ -83,32 +83,29 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
                Background.changes("color", "#ff5500")
     end
 
-    test "a gradient or colour drops both uploads" do
-      for kind <- ["gradient", "color"] do
-        assert {:ok, changes} = Background.changes(kind, "x")
+    test "a preset of another kind, a gradient or a colour nils both uploads" do
+      for {kind, value} <- [
+            {"gradient", "gradient_1"},
+            {"color", "#ff5500"},
+            {"image", "preset:artistic-studio"},
+            {"video", "preset:blue-wave"}
+          ] do
+        assert {:ok, changes} = Background.changes(kind, value)
 
         assert Map.take(changes, ["background_image_path", "background_video_path"]) ==
-                 %{"background_image_path" => nil, "background_video_path" => nil}
+                 %{"background_image_path" => nil, "background_video_path" => nil},
+               "#{kind}/#{value}"
       end
     end
 
-    test "a preset image drops the uploaded image but not the uploaded video" do
-      assert {:ok, changes} = Background.changes("image", "preset:artistic-studio")
-      assert Map.fetch(changes, "background_image_path") == {:ok, nil}
-      refute Map.has_key?(changes, "background_video_path")
-    end
+    test "custom of the same kind keeps its own path and clears the other" do
+      assert {:ok, image_changes} = Background.changes("image", "custom")
+      refute Map.has_key?(image_changes, "background_image_path")
+      assert Map.fetch(image_changes, "background_video_path") == {:ok, nil}
 
-    test "a preset video drops the uploaded video but not the uploaded image" do
-      assert {:ok, changes} = Background.changes("video", "preset:blue-wave")
-      assert Map.fetch(changes, "background_video_path") == {:ok, nil}
-      refute Map.has_key?(changes, "background_image_path")
-    end
-
-    test "the custom image or video keeps its upload" do
-      for kind <- ["image", "video"] do
-        assert Background.changes(kind, "custom") ==
-                 {:ok, %{"background_type" => kind, "background_value" => "custom"}}
-      end
+      assert {:ok, video_changes} = Background.changes("video", "custom")
+      refute Map.has_key?(video_changes, "background_video_path")
+      assert Map.fetch(video_changes, "background_image_path") == {:ok, nil}
     end
   end
 
