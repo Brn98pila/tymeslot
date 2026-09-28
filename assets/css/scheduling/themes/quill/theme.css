@@ -34,6 +34,7 @@
 @import "./modules/timezone.css";
 @import "./modules/calendar.css";
 @import "./modules/time-slots.css";
+@import "../../shared/components/booking-fields.css";
 @import "./modules/booking-form.css";
 @import "./modules/custom-questions.css";
 @import "./modules/overview.css";

@@ -14,6 +14,7 @@
 @import "../../shared/components/approval-notice.css";
 @import "../../shared/components/preview-notice.css";
 @import "./modules/schedule-header.css";
+@import "../../shared/components/booking-fields.css";
 @import "./modules/booking-form.css";
 @import "./modules/custom-questions.css";
 @import "./modules/confirmation.css";
