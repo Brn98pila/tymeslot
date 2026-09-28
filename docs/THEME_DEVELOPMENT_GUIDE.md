@@ -953,7 +953,7 @@ Themes can offer users four types of backgrounds:
 1. **Gradients** - CSS gradients defined in `Tymeslot.ThemeCustomizations.Presets.get_gradient_presets/0`
 2. **Solid Colors** - User-selected hex colors
 3. **Preset Images/Videos** - Pre-defined options stored in `/priv/static/`
-4. **Custom Uploads** - User-uploaded images or videos
+4. **Custom Uploads**: user-uploaded images or videos, for the fields the spec's `asset_fields/0` declares. `ThemeCustomizations.attach_asset/4` stores the file, saves it and queues video transcoding; the dashboard declares upload inputs only for declared fields.
 
 ### Preset Assets Structure
 

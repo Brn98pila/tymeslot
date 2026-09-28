@@ -240,6 +240,7 @@ msgid "Modern sliding design with video background and a 4-slide booking flow."
 msgstr "Сучасний дизайн зі слайдами, відеофоном та процесом бронювання на 4 слайди."
 
 #: lib/tymeslot/theme_customizations.ex
+#: lib/tymeslot/theme_customizations/assets.ex
 #, elixir-autogen, elixir-format
 msgid "Could not save your theme customization. Please try again."
 msgstr "Не вдалося зберегти налаштування теми. Спробуйте ще раз."
@@ -338,3 +339,49 @@ msgstr "Незбережені зміни"
 #, elixir-autogen, elixir-format
 msgid "Complete the form to save"
 msgstr "Заповніть форму, щоб зберегти"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "Background image uploaded successfully"
+msgstr "Фонове зображення успішно завантажено"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "Background video uploaded successfully"
+msgstr "Фонове відео успішно завантажено"
+
+#: lib/tymeslot/theme_customizations/assets.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid image format. Please upload a valid image file."
+msgstr "Недійсний формат зображення. Завантажте дійсний файл зображення."
+
+#: lib/tymeslot/theme_customizations/assets.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid video format. Please upload a valid video file."
+msgstr "Недійсний формат відео. Завантажте дійсний відеофайл."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "No file was uploaded"
+msgstr "Жодного файлу не завантажено"
+
+#: lib/tymeslot/theme_customizations/assets.ex
+#, elixir-autogen, elixir-format
+msgid "This option is not available for this theme."
+msgstr "Цей параметр недоступний для цієї теми."
+
+#: lib/tymeslot/theme_customizations/assets.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "Upload failed"
+msgstr "Не вдалося завантажити"
+
+#: lib/tymeslot/theme_customizations/assets.ex
+#, elixir-autogen, elixir-format
+msgid "Video processing is unavailable on this server because ffmpeg is not installed. Install ffmpeg or use a background image instead."
+msgstr "Обробка відео недоступна на цьому сервері, бо ffmpeg не встановлено. Установіть ffmpeg або скористайтеся фоновим зображенням."
+
+#: lib/tymeslot/theme_customizations/assets.ex
+#, elixir-autogen, elixir-format
+msgid "Your video was saved but could not be queued for processing. Please upload it again."
+msgstr "Ваше відео збережено, але не вдалося поставити його в чергу на обробку. Завантажте його ще раз."

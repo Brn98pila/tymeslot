@@ -17,6 +17,7 @@ defmodule Tymeslot.ThemeCustomizations do
 
   # Functional submodules
   alias __MODULE__.{
+    Assets,
     Backgrounds,
     Css,
     DataTransform,
@@ -67,6 +68,18 @@ defmodule Tymeslot.ThemeCustomizations do
       {:error, :theme_not_found} -> false
     end
   end
+
+  @doc """
+  Stores an uploaded file for one of the theme's asset fields and saves it on
+  the profile's customisation. See `Tymeslot.ThemeCustomizations.Assets`.
+  """
+  @spec attach_asset(profile_id(), theme_id(), atom(), upload_attrs()) ::
+          {:ok, ThemeCustomizationSchema.t()} | {:error, String.t()}
+  defdelegate attach_asset(profile_id, theme_id, field, upload), to: Assets
+
+  @doc "The upload columns the theme's customisation spec declares, with the kind of each."
+  @spec asset_fields(theme_id()) :: [{atom(), Spec.asset_kind()}]
+  def asset_fields(theme_id), do: Spec.for_theme(theme_id).asset_fields()
 
   @doc """
   Creates or updates a theme customization for a profile and theme.
@@ -346,24 +359,6 @@ defmodule Tymeslot.ThemeCustomizations do
   @spec get_profile_by_user_id(user_id()) :: ProfileSchema.t() | nil
   defp get_profile_by_user_id(user_id) do
     ThemeCustomizationQueries.get_profile_by_user_id(user_id)
-  end
-
-  @doc """
-  Stores a background image for a profile and theme.
-  """
-  @spec store_background_image(profile_id(), theme_id(), upload_attrs()) ::
-          {:ok, String.t()} | {:error, term()}
-  def store_background_image(profile_id, theme_id, %{path: temp_path, filename: filename}) do
-    Storage.store_background_image(profile_id, theme_id, %{path: temp_path, filename: filename})
-  end
-
-  @doc """
-  Stores a background video for a profile and theme.
-  """
-  @spec store_background_video(profile_id(), theme_id(), upload_attrs()) ::
-          {:ok, String.t()} | {:error, term()}
-  def store_background_video(profile_id, theme_id, %{path: temp_path, filename: filename}) do
-    Storage.store_background_video(profile_id, theme_id, %{path: temp_path, filename: filename})
   end
 
   # Private functions

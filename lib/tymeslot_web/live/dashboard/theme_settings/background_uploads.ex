@@ -5,7 +5,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
   Split from `ThemeCustomizationComponent`, which is otherwise about choosing
   colours and themes. Uploading is a separate concern with its own lifecycle:
   declare the sockets up front, receive progress callbacks as bytes arrive,
-  consume the finished entry, then re-read the profile to pick up the new path.
+  consume the finished entry, which hands the file to
+  `ThemeCustomizations.attach_asset/4` and gets the saved customisation back.
 
   Image and video differ only in their constraints and which processing
   function runs, so they are driven from `@kinds` rather than written twice.
@@ -22,11 +23,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
   use Gettext, backend: TymeslotWeb.Gettext
 
   import Phoenix.Component, only: [assign: 3]
-  import Phoenix.LiveView, only: [allow_upload: 3, send_update: 3]
+  import Phoenix.LiveView, only: [allow_upload: 3, consume_uploaded_entries: 3, send_update: 3]
 
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.ThemeCustomizations
-  alias TymeslotWeb.Helpers.ThemeUploadHelper
   alias TymeslotWeb.Helpers.UploadConstraints
   alias TymeslotWeb.Live.Shared.Flash
 
@@ -36,8 +36,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
   @rate_limit_window_ms 600_000
 
   @kinds %{
-    image: %{upload_key: :background_image, constraint: :image},
-    video: %{upload_key: :background_video, constraint: :video}
+    image: %{upload_key: :background_image, field: :background_image_path, constraint: :image},
+    video: %{upload_key: :background_video, field: :background_video_path, constraint: :video}
   }
 
   @typedoc "Which background asset is being uploaded."
@@ -67,7 +67,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
   end
 
   @doc """
-  Consumes a finished upload and refreshes the customisation from the profile.
+  Consumes a finished upload, saving it through
+  `ThemeCustomizations.attach_asset/4`, and assigns the saved customisation.
 
   Readiness is checked *before* the rate limit, and deliberately so. Both
   entry points reach here: the `phx-change` validate handler fires on every
@@ -122,34 +123,45 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
     end
   end
 
-  defp process(socket, :image) do
-    socket
-    |> ThemeUploadHelper.process_background_image_upload(socket.assigns.profile)
-    |> apply_result(socket)
+  defp process(socket, kind) do
+    %{upload_key: upload_key, field: field} = @kinds[kind]
+    %{profile: profile, theme_id: theme_id} = socket.assigns
+
+    # The file must be stored inside the callback: the temporary upload is
+    # deleted as soon as it returns.
+    results =
+      consume_uploaded_entries(socket, upload_key, fn %{path: path}, entry ->
+        {:ok,
+         ThemeCustomizations.attach_asset(profile.id, theme_id, field, %{
+           path: path,
+           filename: entry.client_name
+         })}
+      end)
+
+    case results do
+      [{:ok, customization}] ->
+        Flash.info(success_message(kind))
+        assign(socket, :customization, customization)
+
+      [{:error, message}] ->
+        Flash.error(message)
+        socket
+
+      [] ->
+        Flash.error(dgettext("dashboard_appearance", "No file was uploaded"))
+        socket
+
+      _several ->
+        Flash.error(dgettext("dashboard_appearance", "Upload failed"))
+        socket
+    end
   end
 
-  defp process(socket, :video) do
-    socket
-    |> ThemeUploadHelper.process_background_video_upload(socket.assigns.profile)
-    |> apply_result(socket)
-  end
+  defp success_message(:image),
+    do: dgettext("dashboard_appearance", "Background image uploaded successfully")
 
-  defp apply_result({:ok, message}, socket) do
-    # Re-read the customisation so the new asset path is reflected immediately.
-    %{customization: customization} =
-      ThemeCustomizations.initialize_customization(
-        socket.assigns.profile.id,
-        socket.assigns.theme_id
-      )
-
-    Flash.info(message)
-    assign(socket, :customization, customization)
-  end
-
-  defp apply_result({:error, message}, socket) do
-    Flash.error(message)
-    socket
-  end
+  defp success_message(:video),
+    do: dgettext("dashboard_appearance", "Background video uploaded successfully")
 
   # Consuming an in-flight entry would truncate the file, so every entry must
   # have finished or been cancelled first.

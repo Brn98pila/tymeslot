@@ -61,9 +61,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploadsTest do
 
       socket = socket_with([%{done?: true, cancelled?: false}])
 
-      # Processing would call ThemeUploadHelper and touch the database. Being
-      # refused before that is the whole point: the socket comes back untouched
-      # and the user is told why.
+      # Processing would call ThemeCustomizations.attach_asset/4 and touch the
+      # database. Being refused before that is the whole point: the socket
+      # comes back untouched and the user is told why.
       assert ^socket = BackgroundUploads.consume(socket, :image)
       assert_receive {:flash, {:error, message}}
       assert message =~ "Too many upload attempts"
