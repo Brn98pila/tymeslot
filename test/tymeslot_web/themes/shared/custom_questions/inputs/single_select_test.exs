@@ -49,6 +49,21 @@ defmodule TymeslotWeb.Themes.Shared.CustomQuestions.Inputs.SingleSelectTest do
     refute html =~ ~s(type="radio")
   end
 
+  test "the select fallback sits in a form that commits the answer" do
+    d = %{"id" => "q9", "type" => "single_select", "label" => "Pick", "options" => options(6)}
+    doc = d |> render_input() |> Floki.parse_fragment!()
+
+    # LiveView's client only sends phx-change from an input inside a form; a bare
+    # select throws in the browser and the answer never reaches the server.
+    assert [_select] =
+             Floki.find(
+               doc,
+               "form#cq-form-q9[phx-change='answer'][phx-submit='next'] select[name='value']"
+             )
+
+    assert Floki.find(doc, "select[phx-change]") == []
+  end
+
   test "the select fallback includes an empty placeholder option" do
     d = %{"type" => "single_select", "label" => "Pick", "options" => options(6)}
     html = render_input(d)
