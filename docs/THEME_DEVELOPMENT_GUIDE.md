@@ -62,7 +62,7 @@ assets/css/scheduling/themes/[theme_name]/
 └── modules/
     ├── variables.css           # Design tokens (colors, spacing, typography)
     ├── base.css                # html, body, theme wrapper, root grid
-    ├── iframe.css              # Iframe shell rules
+    ├── iframe.css              # Theme-specific embed rules (shared ones: shared/embed.css)
     ├── typography.css          # Text styles with fluid clamp() sizes
     ├── video.css               # Video background (if supported)
     ├── overview.css            # Organizer profile + avatar
@@ -169,7 +169,7 @@ assets/css/scheduling/themes/aurora/
 ├── modules/
 │   ├── variables.css           # Design tokens (colors, spacing, typography)
 │   ├── base.css                # Root layout, theme wrapper
-│   ├── iframe.css              # Iframe shell rules (required)
+│   ├── iframe.css              # Theme-specific embed rules (required)
 │   ├── typography.css          # Text styles with fluid clamp() sizes
 │   ├── video.css               # Video background (if supported)
 │   ├── overview.css            # Organizer profile (optional)
@@ -296,7 +296,7 @@ assets/css/scheduling/
     │   ├── modules/
     │   │   ├── variables.css         # Design tokens
     │   │   ├── base.css              # Root layout, theme wrapper
-    │   │   ├── iframe.css            # Iframe shell rules
+    │   │   ├── iframe.css            # Theme-specific embed rules
     │   │   ├── video.css             # Video background
     │   │   ├── typography.css        # Text styles
     │   │   ├── animations.css        # Keyframes / transitions
@@ -351,6 +351,8 @@ Each theme's `theme.css` imports the shared entry, then the shared token file ri
 @import "./modules/variables.css";       /* the theme's tokens (MUST come first) */
 @import "../../shared/tokens.css";       /* derived tokens (see Token contract) */
 @import "./modules/base.css";
+@import "../../shared/embed.css";        /* shared embed rules on the booker hook classes */
+@import "./modules/iframe.css";          /* the theme's own embed rules */
 /* …the theme's own modules, and shared/components/*.css where the theme uses them */
 ```
 
@@ -358,7 +360,7 @@ Each theme's `theme.css` imports the shared entry, then the shared token file ri
 
 `scheduling/shared/tokens.css` is the contract every theme builds on. Its header lists the four kinds of token (inputs, roles, shared-component tokens, derived tokens). A theme's `variables.css` sets the inputs and defines every role and shared-component token; the derived tokens (`--theme-primary-focus`, `--theme-primary-tint`, `--theme-primary-glow`, `--focus-ring`, `--shadow-{primary,success,danger,warning,info}-*`) are computed with `color-mix()` from the inputs, so a custom palette reaches them automatically. Inputs are only ever overridden on `:root`, never on a wrapper element, or the derived tokens stop following them.
 
-`mix css.check_tokens` fails when a theme's `variables.css` lacks one of the tokens in its required list (the inputs, the roles, the `--status-*` and `--chrome-*` tokens, and the per-component tokens each shared file lists in its header). The shared files also read the theme's own scale tokens, which the check does not require. A theme must define these in `variables.css` as well, or every declaration that reads one is silently dropped:
+`mix css.check_tokens` fails when a theme's `variables.css` lacks one of the tokens in its required list (the `--space-*` and `--border-width-*` scales, `--flag-height`, `--z-dropdown`, `--print-line`, the inputs, the roles, the `--status-*` and `--chrome-*` tokens, and the per-component tokens each shared file lists in its header). The shared files also read the theme's own scale tokens, which the check does not require. A theme must define these in `variables.css` as well, or every declaration that reads one is silently dropped:
 
 - Borders: `--border-subtle`, `--border-light`, `--border-medium` (timezone picker, booking fields)
 - Surfaces: `--surface-subtle`, `--surface-light`, `--surface-medium`, `--surface-intense` (timezone picker, booking fields)
@@ -1168,11 +1170,12 @@ Every place a new theme touches, in the order to add them (`aurora`, id `"3"`, a
 - [ ] **Catalog facts** in `lib/tymeslot/themes/catalog.ex`: `id`, `key`, `name`, `heading_style`, `status` (start at `:beta`) and `customization_spec:`
 - [ ] **Registry binding** in `lib/tymeslot_web/themes/core/registry.ex`: one `"3" => TymeslotWeb.Themes.Aurora.Theme` line in `@bindings`
 - [ ] **`theme.ex`**: one `use TymeslotWeb.Themes.Core.Theme, live_view:, preview_image:, description:` (the description a `dgettext_noop/2` call)
+- [ ] **Translations**: `mix gettext.extract --merge` adds the description's msgid to every locale's `dashboard_appearance.po`; translate it there, or CI's `gettext.extract --check-up-to-date` fails
 - [ ] **`scheduling/live.ex`**: one `use TymeslotWeb.Themes.Shared.SchedulingLive, wrapper:, steps:`, with the aliases above it, naming your `scheduling/wrapper.ex` and all five steps
 - [ ] **Step components** under `scheduling/components/`: render-only LiveComponents that delegate `update/2` and `handle_event/3` to `Shared.StepEvents` (the questions step delegates `handle_event/3` to `Shared.CustomQuestions.Events` instead) and use only the canonical event names; the schedule step wires its navigation buttons to the `CalendarNavigation` boundary checks
 - [ ] **Page templates**: `meeting/` (`Reschedule`, `Cancel`, `CancelConfirmed`), `poll/voting.ex` and `payment/` (`Processing`, `Cancelled`), each with a `render/1`, or overrides of the generated render callbacks
 - [ ] **Customisation spec**: a module implementing `Tymeslot.ThemeCustomizations.Spec` (see `QuillSpec`), the one `customization_spec:` names
-- [ ] **CSS tree** under `assets/css/scheduling/themes/aurora/`: `theme.css` importing `../../shared/entry.css` first, then `./modules/variables.css`, `../../shared/tokens.css`, the theme's modules and the `shared/components/*.css` files it uses; `modules/variables.css` defining every token `mix css.check_tokens` requires plus the scale tokens listed under [Token contract](#token-contract), and every colour; `modules/iframe.css` for the theme-specific embed rules; the `booker-page`, `booker-card` and `booker-scroll` hook classes on the page grid, cards and slot scroll region
+- [ ] **CSS tree** under `assets/css/scheduling/themes/aurora/`: `theme.css` importing `../../shared/entry.css` first, then `./modules/variables.css`, `../../shared/tokens.css`, `./modules/base.css`, `../../shared/embed.css` (the shared embed rules, which `entry.css` does not import), the theme's modules and the `shared/components/*.css` files it uses; `modules/variables.css` defining every token `mix css.check_tokens` requires plus the scale tokens listed under [Token contract](#token-contract), and every colour; `modules/iframe.css` for the theme-specific embed rules; the `booker-card` hook class on each card (`ThemeShell` adds `booker-page` to the page grid and the shared `SlotList` adds `booker-scroll`; a page that bypasses `ThemeShell`, as Quill's payment pages do, adds `booker-page` itself)
 - [ ] **Build config**: an `aurora` Tailwind profile in `config/config.exs` writing `../priv/static/assets/scheduling-theme-aurora.css`; a `tailwind_aurora` watcher in `config/dev.exs`; `"tailwind aurora"` in the `assets.build` alias and `"tailwind aurora --minify"` in the `assets.minify` alias of `mix.exs`
 - [ ] **Preview image** at `priv/static/images/ui/theme-previews/aurora-theme-preview.webp`, the path `preview_image:` names
 - [ ] **`ThemeTestMatrix` entry** in `test/support/theme_test_matrix.ex`
@@ -1183,5 +1186,6 @@ Then verify:
 
 - [ ] `mix test` passes, including `theme_contract_test.exs` and the production checklist, and `mix css.check_tokens` is green
 - [ ] Standalone (`/{username}?theme=3`) and embedded pages render at every size: no viewport breakpoints inside the card, and the iframe grows and shrinks with content, with no internal scrollbar in unconstrained inline embeds
+- [ ] Set the Catalog `status` to `:active`, which puts the theme in the dashboard and onboarding pickers
 - [ ] Localisation works for all supported languages
 - [ ] Every background kind the spec offers renders, and the customisation panel saves each option
