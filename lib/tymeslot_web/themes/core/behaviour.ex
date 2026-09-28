@@ -8,9 +8,10 @@ defmodule TymeslotWeb.Themes.Core.Behaviour do
   shared (`Shared.SchedulingLive`), and theme facts live in
   `Tymeslot.Themes.Catalog`.
 
-  Completeness is checked by the compiler: a module declaring this behaviour
-  without one of the callbacks gets a warning, which `--warnings-as-errors`
-  turns into a failed build. There is no runtime check.
+  A theme module implements this through `use TymeslotWeb.Themes.Core.Theme`,
+  which generates every callback and dispatches the renders to conventional
+  modules under the theme's namespace. Completeness is therefore checked by
+  the compiler; there is no runtime check.
   """
 
   @doc "The theme's scheduling LiveView."
