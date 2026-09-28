@@ -9,7 +9,7 @@ defmodule Tymeslot.ThemeCustomizations.Validation do
   alias TymeslotWeb.Helpers.UploadConstraints
 
   # Tokens that, if present in generated theme CSS, indicate a `</style>` break-out
-  # or loader-based injection. Match case-insensitively — attackers try `</STYLE>`,
+  # or loader-based injection. Match case-insensitively: attackers try `</STYLE>`,
   # mixed-case `JavaScript:` etc.
   @css_breakout_patterns [
     ~r/<\s*\/\s*style/i,
@@ -44,8 +44,8 @@ defmodule Tymeslot.ThemeCustomizations.Validation do
   Defence-in-depth filter for generated theme CSS.
 
   The customisation specs already restrict each field, but this runs
-  at the output boundary so that — even if a new customisation field is added
-  and forgets its own validator — a payload that tries to break out of the
+  at the output boundary so that, even if a new customisation field is added
+  and forgets its own validator, a payload that tries to break out of the
   surrounding `<style>` tag can never reach the browser. Returns the CSS
   unchanged when safe, or the empty string when any break-out pattern matches.
   """
