@@ -96,7 +96,6 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
   @spec mount_meeting_management(map(), map(), Phoenix.LiveView.Socket.t(), atom()) ::
           {:ok, Phoenix.LiveView.Socket.t()}
   defp mount_meeting_management(profile, params, socket, action) do
-    theme_id = profile.booking_theme || socket.assigns[:theme_id] || Registry.default_theme_id()
     meeting_uid = params["meeting_uid"]
 
     case MeetingManagement.validate_and_load_meeting(meeting_uid, action, profile.user_id) do
@@ -107,7 +106,6 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
             profile,
             meeting,
             meeting_uid,
-            theme_id,
             action,
             params
           )
@@ -224,13 +222,11 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
          profile,
          meeting,
          meeting_uid,
-         theme_id,
          action,
          params
        ) do
     socket =
       socket
-      |> assign(:theme_id, theme_id)
       |> assign(:organizer_profile, profile)
       |> assign(:booking_window_days, OrganizerHelpers.booking_window_days(profile))
       |> assign(:meeting, meeting)
@@ -238,10 +234,17 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
       |> assign(:loading, false)
       |> assign(:has_theme, true)
 
-    socket =
+    # The booking pages' resolution: `?theme=`, then the organiser's theme,
+    # each only when the catalogue knows it, then the default. The page, its
+    # stylesheet and its customisation all follow the one answer.
+    {socket, theme_id} =
       case Context.from_params(params, profile) do
-        %Context{} = context -> Context.assign_to_socket(socket, context)
-        nil -> socket
+        %Context{} = context ->
+          {Context.assign_to_socket(socket, context), context.theme_id}
+
+        nil ->
+          theme_id = Registry.default_theme_id()
+          {assign(socket, :theme_id, theme_id), theme_id}
       end
 
     socket = MeetingManagement.assign_action_specific_data(socket, action, meeting, params)
