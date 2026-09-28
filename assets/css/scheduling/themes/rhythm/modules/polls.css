@@ -106,7 +106,7 @@ html.rhythm-theme .poll-field-label {
 html.rhythm-theme .poll-field-input {
   width: 100%;
   padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--input-border-radius);
+  border-radius: var(--radius-control);
   background: rgba(255, 255, 255, 0.1);
   border: var(--border-width-thin) solid rgba(255, 255, 255, 0.2);
   color: var(--theme-text);
@@ -122,7 +122,7 @@ html.rhythm-theme .poll-field-input:focus {
 html.rhythm-theme .poll-submit-button {
   align-self: stretch;
   padding: var(--space-sm) var(--space-lg);
-  border-radius: var(--button-radius);
+  border-radius: var(--radius-control);
   background: var(--theme-primary-solid);
   color: var(--theme-on-primary);
   font-size: var(--theme-font-size-base);
