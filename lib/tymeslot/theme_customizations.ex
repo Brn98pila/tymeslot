@@ -127,7 +127,7 @@ defmodule Tymeslot.ThemeCustomizations do
     # Perform the atomic database update, then cleanup replaced files on success
     case ThemeCustomizationQueries.update(customization, attrs) do
       {:ok, updated} ->
-        FileLifecycle.cleanup_replaced_files(customization, attrs)
+        FileLifecycle.cleanup_replaced_files(customization, updated)
         {:ok, updated}
 
       error ->

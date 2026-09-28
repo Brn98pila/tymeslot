@@ -107,6 +107,46 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
       Enum.each(variant_abs, fn path -> refute File.exists?(path) end)
       assert File.exists?(new_abs)
     end
+
+    test "keeps the stored video when an update only records its processing state",
+         %{profile: profile} do
+      rel = "themes/#{profile.id}/1/videos/upload.mp4"
+      abs = touch_stored(rel)
+
+      {:ok, customization} =
+        ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "background_type" => "video",
+          "background_value" => "custom",
+          "background_video_path" => rel
+        })
+
+      assert {:ok, updated} =
+               ThemeCustomizations.update_theme_customization(customization, %{
+                 "video_processing" => "failed"
+               })
+
+      assert updated.background_video_path == rel
+      assert File.exists?(abs)
+    end
+
+    test "keeps the image when an update does not touch its path", %{profile: profile} do
+      rel = "themes/#{profile.id}/1/images/keep.jpg"
+      abs = touch_stored(rel)
+
+      {:ok, customization} =
+        ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "background_type" => "image",
+          "background_value" => "custom",
+          "background_image_path" => rel
+        })
+
+      assert {:ok, _updated} =
+               ThemeCustomizations.update_theme_customization(customization, %{
+                 "color_scheme" => "ocean"
+               })
+
+      assert File.exists?(abs)
+    end
   end
 
   describe "delete_theme_customization/1 file cleanup" do

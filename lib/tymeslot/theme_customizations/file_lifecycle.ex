@@ -4,56 +4,54 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
 
   Orchestrates `Storage` and `Transcoder` to delete stale background images,
   videos, and their transcoded variants when a customisation is updated,
-  deleted, or has its background replaced. Persistence is handled by the
-  caller — this module only deals with files.
+  deleted, or has its background replaced. Which fields hold stored files, and
+  of which kind, comes from the theme's customisation spec (`asset_fields/0`).
+  Persistence is handled by the caller; this module only deals with files.
   """
 
   require Logger
 
   alias Tymeslot.Media.Transcoder
+  alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.Storage
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
+  # The upload columns a spec's `asset_fields/0` names for the shipped themes.
   @type cleanup_entry :: %{
           optional(:background_image_path) => String.t() | nil,
           optional(:background_video_path) => String.t() | nil
         }
 
   @doc """
-  Cleans up old background files that were replaced by an update.
-
-  Compares the customisation's previous image/video paths against the new
-  values supplied in `attrs`; only paths that actually changed are deleted.
-  Replaced videos also have their transcoded variants removed.
+  Deletes the files an update replaced: every asset field of the theme's spec
+  whose stored path changed between the record before and after the update.
+  Replaced videos also lose their transcoded variants.
   """
-  @spec cleanup_replaced_files(ThemeCustomizationSchema.t(), map()) :: :ok
-  def cleanup_replaced_files(%ThemeCustomizationSchema{} = customization, attrs) do
-    old_image_path = customization.background_image_path
-    old_video_path = customization.background_video_path
-    new_image_path = Map.get(attrs, "background_image_path")
-    new_video_path = Map.get(attrs, "background_video_path")
-
+  @spec cleanup_replaced_files(ThemeCustomizationSchema.t(), ThemeCustomizationSchema.t()) :: :ok
+  def cleanup_replaced_files(
+        %ThemeCustomizationSchema{} = previous,
+        %ThemeCustomizationSchema{} = updated
+      ) do
     context = %{
-      profile_id: customization.profile_id,
-      theme_id: customization.theme_id,
+      profile_id: previous.profile_id,
+      theme_id: previous.theme_id,
       operation: "theme_update"
     }
 
-    if old_image_path && old_image_path != new_image_path do
-      delete_file(old_image_path, context, "old_image")
-    end
+    previous.theme_id
+    |> asset_fields()
+    |> Enum.each(fn {field, kind} ->
+      old_path = Map.fetch!(previous, field)
 
-    if old_video_path && old_video_path != new_video_path do
-      delete_file(old_video_path, context, "old_video")
-      delete_video_variants(old_video_path, context, "old_video_variant")
-    end
-
-    :ok
+      if old_path && old_path != Map.fetch!(updated, field) do
+        delete_asset(old_path, kind, context, "old_#{kind}")
+      end
+    end)
   end
 
   @doc """
-  Cleans up all background files associated with a deleted customisation,
-  including transcoded video variants.
+  Deletes every stored file of a deleted customisation, including transcoded
+  video variants.
   """
   @spec cleanup_all_files(ThemeCustomizationSchema.t()) :: :ok
   def cleanup_all_files(%ThemeCustomizationSchema{} = customization) do
@@ -63,16 +61,11 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
       operation: "theme_delete"
     }
 
-    if customization.background_image_path do
-      delete_file(customization.background_image_path, context, "image")
-    end
-
-    if customization.background_video_path do
-      delete_file(customization.background_video_path, context, "video")
-      delete_video_variants(customization.background_video_path, context, "video_variant")
-    end
-
-    :ok
+    customization.theme_id
+    |> asset_fields()
+    |> Enum.each(fn {field, kind} ->
+      if path = Map.fetch!(customization, field), do: delete_asset(path, kind, context, "#{kind}")
+    end)
   end
 
   @doc """
@@ -95,6 +88,15 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
   end
 
   # --- Private helpers ----------------------------------------------------
+
+  defp asset_fields(theme_id), do: Spec.for_theme(theme_id).asset_fields()
+
+  defp delete_asset(path, :image, context, label), do: delete_file(path, context, label)
+
+  defp delete_asset(path, :video, context, label) do
+    delete_file(path, context, label)
+    delete_video_variants(path, context, label <> "_variant")
+  end
 
   defp delete_file(relative_path, context, file_type) do
     relative_path

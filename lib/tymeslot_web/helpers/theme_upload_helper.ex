@@ -35,10 +35,13 @@ defmodule TymeslotWeb.Helpers.ThemeUploadHelper do
 
     case uploaded_files do
       [stored_path] when is_binary(stored_path) ->
+        # Clearing the other upload column removes its file on save; an inactive
+        # upload is never shown again.
         attrs = %{
           "background_type" => "image",
           "background_value" => "custom",
-          "background_image_path" => stored_path
+          "background_image_path" => stored_path,
+          "background_video_path" => nil
         }
 
         case ThemeCustomizations.upsert_theme_customization(profile.id, theme_id, attrs) do
@@ -98,10 +101,13 @@ defmodule TymeslotWeb.Helpers.ThemeUploadHelper do
 
     case uploaded_files do
       [stored_path] when is_binary(stored_path) ->
+        # Clearing the other upload column removes its file on save; an inactive
+        # upload is never shown again.
         attrs = %{
           "background_type" => "video",
           "background_value" => "custom",
           "background_video_path" => stored_path,
+          "background_image_path" => nil,
           "video_processing" => "pending"
         }
 
