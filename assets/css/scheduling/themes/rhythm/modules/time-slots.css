@@ -31,7 +31,7 @@
   gap: var(--space-xs);
 }
 
-/* Note: Scrollbar styling is applied via .scroll-y utility class from base.css */
+/* Note: the slot list body's scrollbar is styled in base.css, beside .scroll-y */
 
 .slot-list__period {
   display: flex;
