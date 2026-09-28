@@ -13,6 +13,7 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
 
   alias TymeslotWeb.Live.Scheduling.{
     AvailabilityHelpers,
+    CalendarHelpers,
     OrganizerHelpers,
     PreviewToken,
     ThemeUtils
@@ -41,6 +42,8 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
       socket
       |> SchedulingInit.assign_theme_state()
       |> TimezoneHelpers.assign_user_timezone(params)
+      # After the timezone, so the calendar opens on the booker's today.
+      |> CalendarHelpers.anchor_on_today()
       |> ThemeUtils.assign_theme_with_preview(params)
 
     # Resolve the username context (which sets meeting_types) unless the

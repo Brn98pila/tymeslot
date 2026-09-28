@@ -120,7 +120,7 @@ defmodule TymeslotWeb.Live.Scheduling.NextAvailable do
   Re-arms the landing for a fresh entry into the schedule step.
 
   The attempt is spent per *entry*, not per LiveView. `do_handle_schedule_entry/2`
-  resets the calendar to today's month every time the booker arrives, so a
+  resets the calendar to today's month and week every time the booker arrives, so a
   second arrival — back to the overview, a different duration, forward again —
   is a new landing and gets its own hop budget. Without the reset a search that
   spent its budget on a booked-out duration would silently disable itself for

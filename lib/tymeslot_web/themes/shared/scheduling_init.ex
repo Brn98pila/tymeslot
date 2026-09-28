@@ -13,24 +13,14 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingInit do
 
   @spec assign_theme_state(LiveView.Socket.t()) :: LiveView.Socket.t()
   def assign_theme_state(socket) do
-    timezone = socket.assigns[:user_timezone]
-
-    today =
-      case timezone && DateTime.now(timezone) do
-        {:ok, dt} -> DateTime.to_date(dt)
-        _other -> Date.utc_today()
-      end
-
-    week_start = Date.beginning_of_week(today, :monday)
-
     socket
     |> assign_base_state()
     |> assign(:duration, nil)
     |> assign(:meeting_type, nil)
     |> assign(:meeting_type_pinned, false)
-    |> assign(:current_year, today.year)
-    |> assign(:current_month, today.month)
-    |> assign(:current_week_start, week_start)
+    # The calendar window (current_year, current_month, current_week_start,
+    # calendar_today) is set by `CalendarHelpers.anchor_on_today/1` once the
+    # booker's timezone is known; `LiveHelpers.Mount` calls it.
     |> assign(:month_availability_map, nil)
     |> assign(:availability_status, :not_loaded)
     |> assign(:availability_task, nil)

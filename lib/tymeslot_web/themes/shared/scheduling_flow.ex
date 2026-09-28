@@ -245,9 +245,20 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
 
   defp toggle_hour(socket, _hour), do: {:noreply, socket}
 
+  # The picker's choice goes through `TimezoneHandlerComponent`, which reloads
+  # the chosen day's slots. A zone that actually changed also moves the
+  # calendar and refetches the month (`CalendarHelpers.follow_timezone_change/1`);
+  # an invalid choice leaves `:user_timezone`, and so everything else, as it was.
   defp change_timezone(socket, data) do
-    {:ok, socket} = TimezoneHandlerComponent.handle_timezone_change(socket, data)
-    {:noreply, socket}
+    previous = socket.assigns[:user_timezone]
+
+    case TimezoneHandlerComponent.handle_timezone_change(socket, data) do
+      {:ok, %Socket{assigns: %{user_timezone: ^previous}} = unchanged} ->
+        {:noreply, unchanged}
+
+      {:ok, updated_socket} ->
+        {:noreply, CalendarHelpers.follow_timezone_change(updated_socket)}
+    end
   end
 
   # Questions

@@ -5,6 +5,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlowTest do
   @moduletag :themes
 
   alias Phoenix.LiveView.Socket
+  alias Tymeslot.Test.ClockHelpers
   alias TymeslotWeb.Themes.Shared.CustomQuestions.Engine
   alias TymeslotWeb.Themes.Shared.SchedulingFlow
 
@@ -64,6 +65,40 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlowTest do
                SchedulingFlow.handle_step_event(socket, :schedule, :next_month, nil)
 
       assert {socket.assigns.current_year, socket.assigns.current_month} == {2028, 1}
+    end
+
+    test "picking a timezone moves a calendar the booker has not touched to that zone's today" do
+      ClockHelpers.freeze_clock(~U[2027-01-31 12:00:00Z])
+
+      socket =
+        socket(%{
+          user_timezone: "Europe/Tallinn",
+          calendar_today: ~D[2027-01-31],
+          current_year: 2027,
+          current_month: 1,
+          current_week_start: ~D[2027-01-25],
+          selected_date: nil,
+          selected_time: nil,
+          available_slots: [],
+          timezone_dropdown_open: true,
+          timezone_search: ""
+        })
+
+      assert {:noreply, socket} =
+               SchedulingFlow.handle_step_event(
+                 socket,
+                 :schedule,
+                 :change_timezone,
+                 "Pacific/Kiritimati"
+               )
+
+      assert %{
+               user_timezone: "Pacific/Kiritimati",
+               calendar_today: ~D[2027-02-01],
+               current_year: 2027,
+               current_month: 2,
+               current_week_start: ~D[2027-02-01]
+             } = socket.assigns
     end
   end
 

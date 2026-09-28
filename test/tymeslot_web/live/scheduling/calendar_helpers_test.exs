@@ -3,6 +3,8 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpersTest do
 
   @moduletag :scheduling
 
+  import Tymeslot.Test.ClockHelpers
+
   alias Phoenix.LiveView.Socket
   alias Tymeslot.Availability.Calculate
   alias TymeslotWeb.Live.Scheduling.CalendarHelpers
@@ -362,5 +364,92 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpersTest do
                availability_status: :not_loaded
              } = socket.assigns
     end
+  end
+
+  describe "anchor_on_today/1" do
+    test "opens on the visitor's date when it is already tomorrow there" do
+      freeze_clock(~U[2027-01-31 12:00:00Z])
+
+      socket =
+        CalendarHelpers.anchor_on_today(calendar_socket(%{user_timezone: "Pacific/Kiritimati"}))
+
+      assert %{
+               calendar_today: ~D[2027-02-01],
+               current_year: 2027,
+               current_month: 2,
+               current_week_start: ~D[2027-02-01]
+             } = socket.assigns
+    end
+
+    test "opens on the visitor's date when it is still yesterday there" do
+      freeze_clock(~U[2027-02-01 05:00:00Z])
+
+      socket =
+        CalendarHelpers.anchor_on_today(calendar_socket(%{user_timezone: "Pacific/Pago_Pago"}))
+
+      assert %{
+               calendar_today: ~D[2027-01-31],
+               current_year: 2027,
+               current_month: 1,
+               current_week_start: ~D[2027-01-25]
+             } = socket.assigns
+    end
+  end
+
+  describe "follow_timezone_change/1" do
+    setup do
+      freeze_clock(~U[2027-01-31 12:00:00Z])
+      :ok
+    end
+
+    test "moves a calendar still on the day it opened on to the new zone's today" do
+      socket = CalendarHelpers.follow_timezone_change(switched_to_kiritimati(%{}))
+
+      assert %{
+               calendar_today: ~D[2027-02-01],
+               current_year: 2027,
+               current_month: 2,
+               current_week_start: ~D[2027-02-01]
+             } = socket.assigns
+    end
+
+    test "leaves a calendar the booker has moved where it is" do
+      socket = CalendarHelpers.follow_timezone_change(switched_to_kiritimati(%{current_month: 3}))
+
+      assert %{calendar_today: ~D[2027-01-31], current_month: 3} = socket.assigns
+    end
+
+    test "leaves the calendar on a day the booker has chosen" do
+      socket =
+        CalendarHelpers.follow_timezone_change(
+          switched_to_kiritimati(%{selected_date: "2027-01-31"})
+        )
+
+      assert %{
+               calendar_today: ~D[2027-01-31],
+               current_month: 1,
+               current_week_start: ~D[2027-01-25]
+             } = socket.assigns
+    end
+  end
+
+  # A socket with no organiser, so a month availability fetch stands down.
+  defp calendar_socket(assigns) do
+    %Socket{assigns: Map.merge(%{__changed__: %{}, selected_date: nil}, assigns)}
+  end
+
+  # A calendar opened in Tallinn, whose booker has then picked Kiritimati:
+  # `SchedulingFlow` calls `follow_timezone_change/1` once `:user_timezone`
+  # already holds the new zone. `changes` stands for what the booker did first.
+  defp switched_to_kiritimati(changes) do
+    socket = CalendarHelpers.anchor_on_today(calendar_socket(%{user_timezone: "Europe/Tallinn"}))
+
+    %{
+      socket
+      | assigns:
+          socket.assigns
+          |> Map.merge(changes)
+          |> Map.put(:user_timezone, "Pacific/Kiritimati")
+    }
   end
 end

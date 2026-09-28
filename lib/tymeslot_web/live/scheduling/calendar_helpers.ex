@@ -1,10 +1,12 @@
 defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
   @moduledoc """
-  Calendar grid rendering and week navigation for the scheduling flow.
+  Calendar grid rendering and navigation for the scheduling flow.
 
-  Provides the calendar and week day data the schedule view templates
-  render directly, plus the week-navigation handler that moves the
-  visible window and triggers a re-fetch when the month changes.
+  Provides the calendar and week day data the schedule view templates render
+  directly; opens the calendar on the booker's today (`anchor_on_today/1`)
+  and keeps it there across a timezone change (`follow_timezone_change/1`);
+  and handles week and month navigation, which move the visible window and
+  refetch availability when the month changes.
   """
 
   alias Phoenix.Component
@@ -201,7 +203,7 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
   # week. `handle_week_navigation/2` refetches whenever the arrows move the
   # week's midpoint into another month, so no arrow-driven week escapes the
   # block; a week positioned by a *date* can, because nothing refetches for
-  # it. `SchedulingInit` seeds one from today and `NextAvailable.align_to/2`
+  # it. `anchor_on_today/1` seeds one from today and `NextAvailable.align_to/2`
   # from the day it lands on. August 2026 is the shape: the block covers
   # 2026-07-26..2026-09-05 and the week of the 31st runs to 2026-09-06.
   #
@@ -250,6 +252,66 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
     fn date, _date_string ->
       {Calculate.day_bookable_by_business_hours?(date, user_timezone, fallback_config), false}
     end
+  end
+
+  @doc """
+  Opens the calendar on the booker's today: the month and the Monday-started
+  week that contain it, in `:user_timezone`.
+
+  Also records the date as `:calendar_today`. That is how
+  `follow_timezone_change/1` tells a calendar still showing the day it opened
+  on from one the booker has moved. Reads the time through `Tymeslot.Clock`.
+  """
+  @spec anchor_on_today(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def anchor_on_today(socket) do
+    today =
+      (socket.assigns[:user_timezone] || Profiles.get_default_timezone())
+      |> DateTimeUtils.now_in_timezone()
+      |> DateTime.to_date()
+
+    assign(socket, Map.put(calendar_window(today), :calendar_today, today))
+  end
+
+  @doc """
+  Brings the calendar in line with a timezone the booker has just picked.
+
+  Today can be another date in the new zone. A calendar still on the day it
+  opened on, with no day chosen, therefore moves to the new zone's today; one
+  the booker has navigated, or a day they have chosen, stays where it is. The
+  month's day availability was worked out for the old zone's days, so it is
+  fetched again either way.
+  """
+  @spec follow_timezone_change(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def follow_timezone_change(socket) do
+    socket
+    |> reanchor_if_untouched()
+    |> AvailabilityHelpers.fetch_month_availability_async()
+  end
+
+  defp reanchor_if_untouched(socket) do
+    if untouched?(socket.assigns), do: anchor_on_today(socket), else: socket
+  end
+
+  # Still on the day it opened on: no day chosen, and the month and week are
+  # the ones `anchor_on_today/1` set for `:calendar_today`.
+  defp untouched?(assigns) do
+    case assigns[:calendar_today] do
+      %Date{} = today ->
+        assigns[:selected_date] in [nil, ""] and
+          Map.take(assigns, [:current_year, :current_month, :current_week_start]) ==
+            calendar_window(today)
+
+      _not_anchored ->
+        false
+    end
+  end
+
+  defp calendar_window(today) do
+    %{
+      current_year: today.year,
+      current_month: today.month,
+      current_week_start: Date.beginning_of_week(today, :monday)
+    }
   end
 
   @doc """

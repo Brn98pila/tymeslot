@@ -22,10 +22,16 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry do
   alias Tymeslot.Bookings.SubmissionToken
   alias Tymeslot.CustomFields
   alias Tymeslot.MeetingTypes
-  alias Tymeslot.Profiles
   alias Tymeslot.Scheduling.ThemeFlow
   alias TymeslotWeb.Helpers.ClientIP
-  alias TymeslotWeb.Live.Scheduling.{AvailabilityHelpers, NextAvailable, OrganizerHelpers}
+
+  alias TymeslotWeb.Live.Scheduling.{
+    AvailabilityHelpers,
+    CalendarHelpers,
+    NextAvailable,
+    OrganizerHelpers
+  }
+
   alias TymeslotWeb.Themes.Shared.BookingLocation
   alias TymeslotWeb.Themes.Shared.CustomQuestions.Engine, as: QEngine
   alias TymeslotWeb.Themes.Shared.ReschedulePin
@@ -232,15 +238,6 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry do
   end
 
   defp do_handle_schedule_entry(socket, params) do
-    # Set up calendar
-    timezone = socket.assigns[:user_timezone] || Profiles.get_default_timezone()
-
-    {current_year, current_month} =
-      case DateTime.now(timezone) do
-        {:ok, dt} -> {dt.year, dt.month}
-        _other -> {Date.utc_today().year, Date.utc_today().month}
-      end
-
     normalized_duration =
       ReschedulePin.selected_duration(
         socket,
@@ -249,8 +246,9 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry do
 
     socket =
       socket
-      |> assign(:current_year, current_year)
-      |> assign(:current_month, current_month)
+      # Arriving at the step opens the calendar on today in the booker's
+      # timezone, week included, whatever an earlier visit left it on.
+      |> CalendarHelpers.anchor_on_today()
       |> assign(:duration, normalized_duration)
       # Arriving at the step is a fresh landing: it gets its own hop budget,
       # even if an earlier visit spent one on a duration that was booked out.
