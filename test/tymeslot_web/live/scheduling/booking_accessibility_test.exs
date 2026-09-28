@@ -74,7 +74,7 @@ defmodule TymeslotWeb.Live.Scheduling.BookingAccessibilityTest do
           |> advance_to_schedule_step()
           |> document()
 
-        assert_named_by_visible_text(doc, "button.timezone-trigger", [
+        assert_named_by_visible_text(doc, "button.tz-picker__trigger", [
           "Your timezone",
           "New York"
         ])
@@ -88,7 +88,7 @@ defmodule TymeslotWeb.Live.Scheduling.BookingAccessibilityTest do
           |> advance_to_schedule_step()
           |> document()
 
-        assert_announces_dialog(doc, "button.timezone-trigger")
+        assert_announces_dialog(doc, "button.tz-picker__trigger")
       end
 
       @tag :capture_log
@@ -98,9 +98,9 @@ defmodule TymeslotWeb.Live.Scheduling.BookingAccessibilityTest do
           |> mount_booking_page(unquote(theme.id), "tz-search-#{unquote(theme.slug)}")
           |> advance_to_schedule_step()
 
-        view |> element("button.timezone-trigger") |> render_click()
+        view |> element("button.tz-picker__trigger") |> render_click()
 
-        assert_input_named(document(view), ".timezone-search")
+        assert_input_named(document(view), ".tz-picker__search")
       end
     end
   end

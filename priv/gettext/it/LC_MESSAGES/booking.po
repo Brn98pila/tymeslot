@@ -86,7 +86,7 @@ msgstr "%{start_month} %{start_year} - %{end_month} %{end_year}"
 msgid "%{start_month} - %{end_month} %{year}"
 msgstr "%{start_month} - %{end_month} %{year}"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
 #, elixir-autogen, elixir-format
 msgid "%{time} local time"
 msgstr "%{time} ora locale"
@@ -532,8 +532,7 @@ msgstr "Pianifica con"
 msgid "Schedule with %{name}"
 msgstr "Pianifica con %{name}"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Search cities, countries, or timezones..."
 msgstr "Cerca città, paesi o fusi orari..."
@@ -548,8 +547,7 @@ msgstr "Seleziona una data"
 msgid "Select a Date & Time"
 msgstr "Seleziona data e ora"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Select timezone"
 msgstr "Seleziona il fuso orario"
@@ -722,8 +720,9 @@ msgstr "Le tue risposte"
 msgid "Your booking is not confirmed. You can return and try again at any time."
 msgstr "La tua prenotazione non è confermata. Puoi tornare e riprovare in qualsiasi momento."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
 #: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Your timezone"
 msgstr "Il tuo fuso orario"
@@ -1307,8 +1306,7 @@ msgstr "Ciao!"
 msgid "Cannot reschedule an expired meeting"
 msgstr "Impossibile riprogrammare una riunione scaduta"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Search timezones"
 msgstr "Cerca fusi orari"

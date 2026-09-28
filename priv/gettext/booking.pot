@@ -86,7 +86,7 @@ msgstr ""
 msgid "%{start_month} - %{end_month} %{year}"
 msgstr ""
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
 #, elixir-autogen, elixir-format
 msgid "%{time} local time"
 msgstr ""
@@ -532,8 +532,7 @@ msgstr ""
 msgid "Schedule with %{name}"
 msgstr ""
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Search cities, countries, or timezones..."
 msgstr ""
@@ -548,8 +547,7 @@ msgstr ""
 msgid "Select a Date & Time"
 msgstr ""
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Select timezone"
 msgstr ""
@@ -722,8 +720,9 @@ msgstr ""
 msgid "Your booking is not confirmed. You can return and try again at any time."
 msgstr ""
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
 #: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Your timezone"
 msgstr ""
@@ -1305,8 +1304,7 @@ msgstr ""
 msgid "Cannot reschedule an expired meeting"
 msgstr ""
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Search timezones"
 msgstr ""

@@ -105,7 +105,10 @@
    FLAG UTILITIES
    ============================================ */
 
-.timezone-flag--fallback {
+/* A timezone with no flag of its own shows the globe fallback, dimmed. The
+   fallback is the only flag rendered as a <span>. */
+span.timezone-flag,
+span.tz-picker__option-flag {
   opacity: 0.6;
 }
 

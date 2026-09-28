@@ -52,10 +52,9 @@ lib/tymeslot_web/themes/[theme_name]/
 >
 > **Payment return pages are shared.** `Shared.PaymentReturnLive.Processing` and `.Cancelled` serve `/themes/<key>/payment-processing/<id>` and `/themes/<key>/payment-cancelled/<id>` for every theme, assigning `:theme_id` from the slug so the layout loads the theme's own stylesheet. A theme only draws its shell, in `payment/processing.ex` and `payment/cancelled.ex`, around `Shared.PaymentReturnComponents`; it adds no route and no LiveView.
 >
-> Themes may add their own internal structure beyond the above — Quill nests
-> `scheduling/components/schedule/panels.ex`, and Rhythm keeps a theme-local
-> `shared/` directory (`organizer_header.ex`) for components reused only
-> within that theme.
+> Themes may add their own internal structure beyond the above; Rhythm, for
+> example, keeps a theme-local `shared/` directory (`organizer_header.ex`) for
+> components reused only within that theme.
 
 ```
 assets/css/scheduling/themes/[theme_name]/
@@ -409,6 +408,7 @@ Shared across themes:
 
 - **`Shared.Components.CustomAnswers`** (`custom_answers/1`): the confirmation step's "Your answers" list. Classes `custom-answers`, `custom-answers__heading`, `__list`, `__row`, `__label`, `__value`.
 - **`Shared.Components.SlotList`** (`slot_list/1`): the schedule step's time-slot panel, with the heading, the screen-reader status line, flat and by-hour grouping, the slot buttons, and the prompt, loading, error and fully-booked states. Classes `slot-list`, `slot-list__heading`, `__body`, `__groups`, `__period`, `__period-label`, `__grid` (`--minutes`), `__slot` (`--selected`, `--hour`, `--expanded`), `__hour-label`, `__hour-count`, `__prompt`, `__loading`, `__error`, `__empty`. Pass `heading_tag`/`period_tag` to fit your page's heading outline, and the `:loading`, `:error` and `:empty` slots only if your theme renders those states with its own markup. Tests select slots by `data-testid="time-slot"` and `"slot-hour"`, never by class.
+- **`Shared.Components.TimezonePicker`** (`timezone_picker/1`): the timezone dropdown, search box and options. Classes `tz-picker`, `tz-picker__trigger`, `__panel`, `__search-wrapper`, `__search`, `__options` (which also carries your theme's `scroll-y`), `__option`, `__option-content`, `__option-flag`, `__option-text`, `__option-label`, `__option-offset`. The trigger's visible content is your `:trigger` slot; the screen-reader "Your timezone:" prefix is added for you. Render flags with `FlagHelpers.timezone_flag/1`.
 - **Data utilities** (`TymeslotWeb.Components.MeetingUtils`): `normalize_slot_list/1`
   and `normalize_slot_time/1` normalise time-slot data.
 - **`Shared.Components.MeetingDetails`** (`meeting_detail_rows/1`) — the date/time/

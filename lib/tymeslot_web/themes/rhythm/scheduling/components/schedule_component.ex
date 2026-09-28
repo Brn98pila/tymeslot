@@ -11,8 +11,11 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.ScheduleComponent do
   alias TymeslotWeb.Live.Scheduling.CalendarNavigation
   alias TymeslotWeb.Themes.Rhythm.Shared.OrganizerHeader
   alias TymeslotWeb.Themes.Shared.Components.SlotList
+  alias TymeslotWeb.Themes.Shared.Components.TimezonePicker
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
   alias TymeslotWeb.Themes.Shared.StepEvents
+
+  import TymeslotWeb.Components.FlagHelpers, only: [timezone_flag: 1]
 
   @impl Phoenix.LiveComponent
   defdelegate update(assigns, socket), to: StepEvents
@@ -40,82 +43,23 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.ScheduleComponent do
                 <%!-- Visual label only: it names no control (the trigger below carries
                      its own accessible name), so it must not be a <label> element. --%>
                 <div class="timezone-label">{dgettext("booking", "Your timezone")}:</div>
-                <div class="timezone-dropdown-wrapper">
-                  <.dropdown
-                    id="rhythm-timezone-dropdown"
-                    open={@timezone_dropdown_open}
-                    on_toggle="toggle_timezone_dropdown"
-                    on_close="close_timezone_dropdown"
-                    target={@myself}
-                    role="dialog"
-                    panel_label={dgettext("booking", "Select timezone")}
-                    trigger_class="timezone-trigger"
-                    class="timezone-dropdown"
-                    unstyled={true}
-                  >
-                    <:trigger>
-                      <span class="sr-only">
-                        {dgettext("booking", "Your timezone")}:
-                      </span>
-                      <div class="timezone-display">
-                        <%= if country_code = Timezones.country_code(@user_timezone) do %>
-                          <%= if Timezones.flag_exists?(country_code) do %>
-                            <Flagpack.flag name={country_code} class="timezone-flag" />
-                          <% else %>
-                            <span class="timezone-flag timezone-flag--fallback">🌐</span>
-                          <% end %>
-                        <% end %>
-                        <span class="timezone-text">
-                          {Timezones.format(@user_timezone)}
-                        </span>
-                      </div>
-                      <div class="timezone-arrow">▼</div>
-                    </:trigger>
-                    <:panel>
-                      <div class="timezone-search-wrapper">
-                        <input
-                          id="timezone-search-input"
-                          type="text"
-                          placeholder={
-                            dgettext("booking", "Search cities, countries, or timezones...")
-                          }
-                          class="timezone-search"
-                          aria-label={dgettext("booking", "Search timezones")}
-                          phx-keyup="search_timezone"
-                          phx-target={@myself}
-                          name="search"
-                          value={@timezone_search}
-                          phx-hook="AutoFocus"
-                        />
-                      </div>
-                      <div class="timezone-options scroll-y">
-                        <%= for {label, value, offset} <- Timezones.search(@timezone_search) do %>
-                          <button
-                            class="timezone-option"
-                            phx-click="change_timezone"
-                            phx-value-timezone={value}
-                            phx-target={@myself}
-                            type="button"
-                          >
-                            <div class="timezone-option-content">
-                              <%= if country_code = Timezones.country_code(value) do %>
-                                <%= if Timezones.flag_exists?(country_code) do %>
-                                  <Flagpack.flag name={country_code} class="timezone-option-flag" />
-                                <% else %>
-                                  <span class="timezone-option-flag timezone-flag--fallback">🌐</span>
-                                <% end %>
-                              <% end %>
-                              <div class="timezone-option-text">
-                                <div class="timezone-option-label">{label}</div>
-                                <div class="timezone-option-offset">{offset}</div>
-                              </div>
-                            </div>
-                          </button>
-                        <% end %>
-                      </div>
-                    </:panel>
-                  </.dropdown>
-                </div>
+                <TimezonePicker.timezone_picker
+                  open={@timezone_dropdown_open}
+                  search={@timezone_search}
+                  target={@myself}
+                >
+                  <:trigger>
+                    <div class="timezone-display">
+                      <.timezone_flag
+                        timezone={@user_timezone}
+                        class="timezone-flag"
+                        fallback_icon="🌐"
+                      />
+                      <span class="timezone-text">{Timezones.format(@user_timezone)}</span>
+                    </div>
+                    <div class="timezone-arrow">▼</div>
+                  </:trigger>
+                </TimezonePicker.timezone_picker>
               </div>
             </div>
 

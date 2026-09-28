@@ -86,7 +86,7 @@ msgstr "%{start_month} %{start_year} – %{end_month} %{end_year}"
 msgid "%{start_month} - %{end_month} %{year}"
 msgstr "%{start_month} – %{end_month} %{year}"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
 #, elixir-autogen, elixir-format
 msgid "%{time} local time"
 msgstr "%{time} místního času"
@@ -532,8 +532,7 @@ msgstr "Schůzka s hostitelem"
 msgid "Schedule with %{name}"
 msgstr "Schůzka s hostitelem %{name}"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Search cities, countries, or timezones..."
 msgstr "Hledat města, země nebo časová pásma…"
@@ -548,8 +547,7 @@ msgstr "Vyberte datum"
 msgid "Select a Date & Time"
 msgstr "Vyberte datum a čas"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Select timezone"
 msgstr "Vyberte časové pásmo"
@@ -722,8 +720,9 @@ msgstr "Vaše odpovědi"
 msgid "Your booking is not confirmed. You can return and try again at any time."
 msgstr "Vaše rezervace nebyla potvrzena. Kdykoli se můžete vrátit a zkusit to znovu."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
 #: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Your timezone"
 msgstr "Vaše časové pásmo"
@@ -1306,8 +1305,7 @@ msgstr "Dobrý den!"
 msgid "Cannot reschedule an expired meeting"
 msgstr "Schůzku s vypršenou platností nelze přesunout"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Search timezones"
 msgstr "Hledat časová pásma"

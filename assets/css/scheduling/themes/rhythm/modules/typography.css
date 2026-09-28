@@ -76,7 +76,7 @@
 
 .organizer-name,
 .meeting-duration,
-.timezone-option-offset,
+.tz-picker__option-offset,
 .timezone-arrow,
 .help-text,
 .email-confirmation {
@@ -110,9 +110,9 @@
 }
 
 .slot-list__slot,
-.timezone-trigger,
-.timezone-search,
-.timezone-option {
+.tz-picker__trigger,
+.tz-picker__search,
+.tz-picker__option {
   font-size: var(--theme-font-size-sm);
 }
 
@@ -218,7 +218,7 @@
 }
 
 .timezone-text,
-.timezone-option-label {
+.tz-picker__option-label {
   font-weight: var(--font-weight-medium);
 }
 

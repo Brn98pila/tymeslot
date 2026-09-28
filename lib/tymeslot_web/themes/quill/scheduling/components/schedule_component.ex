@@ -6,15 +6,18 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent do
   use TymeslotWeb, :live_component
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias Tymeslot.Timezones
   alias TymeslotWeb.Live.Scheduling.CalendarHelpers
   alias TymeslotWeb.Live.Scheduling.CalendarNavigation
-  alias TymeslotWeb.Themes.Quill.Scheduling.Components.Schedule.Panels
   alias TymeslotWeb.Themes.Shared.BookingText
   alias TymeslotWeb.Themes.Shared.Components.SlotList
+  alias TymeslotWeb.Themes.Shared.Components.TimezonePicker
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
   alias TymeslotWeb.Themes.Shared.StepEvents
+  alias TymeslotWeb.Themes.Shared.TimezoneHelpers
 
   import TymeslotWeb.Components.CoreComponents
+  import TymeslotWeb.Components.FlagHelpers, only: [timezone_flag: 1]
 
   @impl Phoenix.LiveComponent
   defdelegate update(assigns, socket), to: StepEvents
@@ -122,7 +125,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent do
                     </div>
 
                     <div class="schedule-timezone-area">
-                      <Panels.timezone_selector
+                      <.timezone_selector
                         user_timezone={@user_timezone}
                         timezone_search={@timezone_search}
                         timezone_dropdown_open={@timezone_dropdown_open}
@@ -359,6 +362,76 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent do
           </div>
         </div>
       </.page_layout>
+    </div>
+    """
+  end
+
+  attr :user_timezone, :string, required: true
+  attr :timezone_search, :string, required: true
+  attr :timezone_dropdown_open, :boolean, required: true
+  attr :target, :any, required: true
+  attr :locale, :string, required: true
+
+  defp timezone_selector(assigns) do
+    ~H"""
+    <div class="relative" data-locale={@locale}>
+      <%!-- Visual label only: it names no control (the trigger below carries its
+           own accessible name), so it must not be a <label> element. --%>
+      <div class="timezone-label">
+        <div class="timezone-label-content">
+          <svg class="timezone-label-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          {dgettext("booking", "Your timezone")}
+        </div>
+      </div>
+
+      <TimezonePicker.timezone_picker
+        open={@timezone_dropdown_open}
+        search={@timezone_search}
+        target={@target}
+      >
+        <:trigger>
+          <div class="timezone-trigger-row">
+            <div class="timezone-trigger-info">
+              <.timezone_flag timezone={@user_timezone} class="timezone-flag" fallback_icon="🌐" />
+              <div class="timezone-trigger-text">
+                <div class="timezone-name">
+                  {Timezones.format(@user_timezone)}
+                </div>
+                <div class="timezone-time-display timezone-time-inline">
+                  {dgettext("booking", "%{time} local time",
+                    time: TimezoneHelpers.format_local_time(@user_timezone)
+                  )}
+                </div>
+              </div>
+            </div>
+            <div class="timezone-meta">
+              <div class="timezone-offset-badge">
+                {Timezones.utc_offset(@user_timezone)}
+              </div>
+              <svg
+                class={["timezone-chevron", @timezone_dropdown_open && "open"]}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </div>
+          </div>
+        </:trigger>
+      </TimezonePicker.timezone_picker>
     </div>
     """
   end

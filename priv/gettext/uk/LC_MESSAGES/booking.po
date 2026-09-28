@@ -86,7 +86,7 @@ msgstr "%{start_month} %{start_year} - %{end_month} %{end_year}"
 msgid "%{start_month} - %{end_month} %{year}"
 msgstr "%{start_month} - %{end_month} %{year}"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
 #, elixir-autogen, elixir-format
 msgid "%{time} local time"
 msgstr "%{time} за місцевим часом"
@@ -532,8 +532,7 @@ msgstr "Зустріч із"
 msgid "Schedule with %{name}"
 msgstr "Зустріч із %{name}"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Search cities, countries, or timezones..."
 msgstr "Пошук міст, країн або часових поясів…"
@@ -548,8 +547,7 @@ msgstr "Оберіть дату"
 msgid "Select a Date & Time"
 msgstr "Оберіть дату й час"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Select timezone"
 msgstr "Виберіть часовий пояс"
@@ -722,8 +720,9 @@ msgstr "Ваші відповіді"
 msgid "Your booking is not confirmed. You can return and try again at any time."
 msgstr "Бронювання не підтверджено. Ви можете повернутися та спробувати знову будь-коли."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
+#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
 #: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Your timezone"
 msgstr "Ваш часовий пояс"
@@ -1307,8 +1306,7 @@ msgstr "Вітаю!"
 msgid "Cannot reschedule an expired meeting"
 msgstr "Протерміновану зустріч не можна перенести"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule/panels.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/components/timezone_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Search timezones"
 msgstr "Пошук часових поясів"

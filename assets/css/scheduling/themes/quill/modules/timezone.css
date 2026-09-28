@@ -29,12 +29,12 @@
 
 /* --- Trigger button --- */
 
-.timezone-dropdown-wrapper {
+.tz-picker {
   position: relative;
   width: min(100%, 14rem);
 }
 
-.timezone-trigger {
+.tz-picker__trigger {
   width: 100%;
   background: linear-gradient(135deg, var(--surface-medium) 0%, var(--surface-subtle) 100%);
   border: var(--border-width-thin) solid var(--border-medium);
@@ -47,7 +47,7 @@
   padding: var(--space-xs);
 }
 
-.timezone-trigger:hover {
+.tz-picker__trigger:hover {
   background: linear-gradient(135deg, var(--surface-intense) 0%, var(--surface-medium) 100%);
   border-color: var(--border-intense);
   transform: scale(1.01);
@@ -122,7 +122,7 @@
 
 /* --- Dropdown --- */
 
-.timezone-dropdown {
+.tz-picker__panel {
   position: absolute;
   top: 100%;
   z-index: var(--z-dropdown);
@@ -147,12 +147,12 @@
 
 /* --- Search input --- */
 
-.timezone-search-wrapper {
+.tz-picker__search-wrapper {
   padding: var(--space-sm);
   border-bottom: var(--border-width-thin) solid var(--border-medium);
 }
 
-.timezone-search {
+.tz-picker__search {
   width: 100%;
   padding: var(--space-xs) var(--space-sm);
   background: var(--surface-medium);
@@ -163,20 +163,20 @@
   transition: border-color var(--transition-normal), background var(--transition-normal);
 }
 
-.timezone-search:focus {
+.tz-picker__search:focus {
   outline: none;
   background: var(--surface-medium);
   border-color: var(--theme-primary);
 }
 
-.timezone-search::placeholder {
+.tz-picker__search::placeholder {
   color: var(--theme-text-secondary);
 }
 
 /* --- Options list --- */
 
-.timezone-options {
-  /* Fill remaining space inside the flex-column .timezone-dropdown.
+.tz-picker__options {
+  /* Fill remaining space inside the flex-column .tz-picker__panel.
      The outer container's max-height constrains the total; this element
      shrinks to fit after the search wrapper takes its natural height. */
   flex: 1;
@@ -185,7 +185,7 @@
 
 /* --- Option items --- */
 
-.timezone-option {
+.tz-picker__option {
   width: 100%;
   padding: var(--space-sm);
   background: transparent;
@@ -197,32 +197,32 @@
   border-bottom: var(--border-width-thin) solid var(--border-subtle);
 }
 
-.timezone-option:hover {
+.tz-picker__option:hover {
   background: var(--surface-medium);
 }
 
-.timezone-option:last-child {
+.tz-picker__option:last-child {
   border-bottom: none;
 }
 
-.timezone-option-content {
+.tz-picker__option-content {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
 }
 
-.timezone-option-text {
+.tz-picker__option-text {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: var(--space-3xs);
 }
 
-.timezone-option-label {
+.tz-picker__option-label {
   color: var(--theme-text);
 }
 
-.timezone-option-offset {
+.tz-picker__option-offset {
   color: var(--theme-text-secondary);
   font-size: var(--theme-font-size-xs);
 }
@@ -237,7 +237,7 @@
   object-fit: cover;
 }
 
-.timezone-option-flag {
+.tz-picker__option-flag {
   width: var(--icon-sm);
   height: var(--flag-height);
   flex-shrink: 0;
@@ -253,7 +253,7 @@
     display: block;
   }
 
-  .timezone-trigger {
+  .tz-picker__trigger {
     padding: var(--space-sm) var(--space-md);
   }
 
@@ -280,11 +280,11 @@
     height: 1rem;
   }
 
-  .timezone-dropdown-wrapper {
+  .tz-picker {
     width: 18rem;
   }
 
-  .timezone-dropdown {
+  .tz-picker__panel {
     left: auto;
     right: 0;
     min-width: 16rem;
@@ -314,12 +314,12 @@ html.quill-theme[data-embedded] .timezone-offset-badge {
   display: none;
 }
 
-html.quill-theme[data-embedded] .timezone-trigger {
+html.quill-theme[data-embedded] .tz-picker__trigger {
   padding: var(--space-xs) var(--space-sm);
 }
 
 /* Dropdown positioning in iframes — right-aligned with constrained width */
-html.quill-theme[data-embedded] .timezone-dropdown {
+html.quill-theme[data-embedded] .tz-picker__panel {
   left: auto;
   right: 0;
   max-width: 16rem;
