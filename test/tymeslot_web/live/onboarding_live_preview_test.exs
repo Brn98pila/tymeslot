@@ -215,15 +215,29 @@ defmodule TymeslotWeb.OnboardingLivePreviewTest do
   end
 
   describe "video backgrounds" do
-    test "seeds every theme with a random video background once a calendar is connected",
+    test "seeds every theme that can show video with a random video background once a calendar is connected",
          %{conn: conn} do
       {:ok, _view, _html, user} = setup_onboarding_with_calendar(conn)
       {:ok, profile} = Profiles.get_or_create_profile(user.id)
 
-      for {_name, theme_id} <- ThemeInfo.theme_options() do
+      theme_ids = Enum.map(ThemeInfo.theme_options(), fn {_name, id} -> id end)
+
+      {with_video, without_video} =
+        Enum.split_with(theme_ids, &ThemeCustomizations.supports_background?(&1, :video))
+
+      assert with_video != []
+
+      for theme_id <- with_video do
         customization = ThemeCustomizations.get_by_profile_and_theme(profile.id, theme_id)
         assert customization.background_type == "video"
         assert String.starts_with?(customization.background_value, "preset:")
+      end
+
+      for theme_id <- without_video do
+        refute match?(
+                 %{background_type: "video"},
+                 ThemeCustomizations.get_by_profile_and_theme(profile.id, theme_id)
+               )
       end
     end
 

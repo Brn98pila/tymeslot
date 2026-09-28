@@ -140,15 +140,20 @@ defmodule Tymeslot.Onboarding do
   and the published page — shows motion out of the box.
 
   Picks one random preset for the user and applies it to every theme in
-  `theme_ids` that does not already use a video background. Idempotent: a theme
-  that already has a video background (a returning user, or one who picked their
-  own) is left untouched, so the choice is never overwritten or re-randomised.
+  `theme_ids` that can show a video background and does not already use one.
+  Themes without video are skipped; their customisation changeset would refuse
+  the write anyway. Idempotent: a theme that already has a video background (a
+  returning user, or one who picked their own) is left untouched, so the choice
+  is never overwritten or re-randomised.
   """
   @spec ensure_preview_video_backgrounds(map(), [String.t()]) :: :ok
   def ensure_preview_video_backgrounds(%{id: profile_id}, theme_ids)
       when is_integer(profile_id) and is_list(theme_ids) do
     preset = ThemeCustomizations.random_video_preset()
-    Enum.each(theme_ids, &put_video_background_unless_set(profile_id, &1, preset))
+
+    theme_ids
+    |> Enum.filter(&ThemeCustomizations.supports_background?(&1, :video))
+    |> Enum.each(&put_video_background_unless_set(profile_id, &1, preset))
   end
 
   def ensure_preview_video_backgrounds(_profile, _theme_ids), do: :ok
