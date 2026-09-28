@@ -104,7 +104,9 @@ defmodule TymeslotWeb.Themes.Shared.Components.ThemeShellTest do
         {tag, attrs["id"] || attrs["class"]}
       end)
 
-    assert children == [{"div", "probe-background"}, {"div", "probe-grid theme-grid"}]
+    # The grid also carries the `booker-page` hook the shared embed rules
+    # (shared/embed.css) size to content.
+    assert children == [{"div", "probe-background"}, {"div", "booker-page probe-grid theme-grid"}]
 
     assert Floki.find(doc, ".probe-grid > .content-area #probe-step") != []
   end

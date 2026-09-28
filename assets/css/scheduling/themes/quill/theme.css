@@ -16,6 +16,7 @@
 @import "./modules/variables.css";
 @import "../../shared/tokens.css";
 @import "./modules/base.css";
+@import "../../shared/embed.css";
 @import "./modules/iframe.css";
 @import "./modules/video.css";
 @import "./modules/typography.css";

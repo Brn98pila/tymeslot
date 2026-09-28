@@ -26,7 +26,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.OverviewComponent do
   @impl Phoenix.LiveComponent
   def render(assigns) do
     ~H"""
-    <div class="scheduling-box" data-locale={@locale}>
+    <div class="scheduling-box booker-card" data-locale={@locale}>
       <div class="slide-container">
         <div class="slide active">
           <div class="slide-content">

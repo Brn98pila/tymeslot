@@ -13,7 +13,7 @@ defmodule TymeslotWeb.Themes.Quill.Payment.Cancelled do
   def render(assigns) do
     ~H"""
     <div class="quill-theme-wrapper" data-testid="quill-payment-cancelled">
-      <div class="main-gradient theme-grid payment-page-layout">
+      <div class="main-gradient theme-grid booker-page payment-page-layout">
         <div class="payment-page-inner">
           <div class="payment-page-card">
             <div class="payment-page-card-body">

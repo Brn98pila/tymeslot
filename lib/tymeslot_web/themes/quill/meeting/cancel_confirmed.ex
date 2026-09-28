@@ -30,7 +30,7 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.CancelConfirmed do
     >
       <div class="min-h-screen flex items-center justify-center px-4 py-8">
         <div class="w-full max-w-md">
-          <.glass_morphism_card>
+          <.glass_morphism_card class="booker-card">
             <div class="p-8">
               <div class="text-center">
                 <div class="mx-auto mb-4 w-16 h-16">

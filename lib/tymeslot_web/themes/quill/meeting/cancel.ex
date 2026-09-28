@@ -35,7 +35,7 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Cancel do
     >
       <div class="min-h-screen flex items-center justify-center px-4 py-8">
         <div class="w-full max-w-2xl">
-          <.glass_morphism_card>
+          <.glass_morphism_card class="booker-card">
             <div class="p-8">
               <%= if @meeting_kept do %>
                 <div class="text-center mb-8">
@@ -63,7 +63,7 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Cancel do
                   </p>
                 </div>
 
-                <div class="glass-morphism-card meeting-page-panel mb-8">
+                <div class="glass-morphism-card booker-card meeting-page-panel mb-8">
                   <div class="p-6">
                     <div class="flex items-center justify-between mb-4">
                       <h3 class="text-lg font-semibold meeting-page-panel-title">
@@ -122,7 +122,7 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Cancel do
                   </p>
                 </div>
 
-                <div class="glass-morphism-card meeting-page-panel mb-8">
+                <div class="glass-morphism-card booker-card meeting-page-panel mb-8">
                   <div class="p-6">
                     <div class="flex items-center justify-between mb-4">
                       <h3 class="text-lg font-semibold meeting-page-panel-title">

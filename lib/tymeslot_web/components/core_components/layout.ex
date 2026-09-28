@@ -34,7 +34,7 @@ defmodule TymeslotWeb.Components.CoreComponents.Layout do
     <div class="flex-1 flex flex-col">
       <%= if @show_steps do %>
         <div class="step-navigation-wrapper flex justify-center py-2 md:py-4">
-          <div class="glass-morphism-card step-navigation-card">
+          <div class="glass-morphism-card booker-card step-navigation-card">
             <div class="px-3 py-2">
               <StepNavigation.step_indicator
                 current_step={@current_step}

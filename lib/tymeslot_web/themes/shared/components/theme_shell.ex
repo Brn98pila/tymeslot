@@ -10,7 +10,8 @@ defmodule TymeslotWeb.Themes.Shared.Components.ThemeShell do
   A wrapper keeps only what is its own: its background markup and its class
   names, passed as `class` (outermost element), `grid_class` and `grid_style`
   (the theme grid) and `language_class` (the language switcher's container),
-  plus its theme's `theme_id`. The extensions receive this component's
+  plus its theme's `theme_id`. The grid always carries the `booker-page` hook
+  class that the shared embed rules (`shared/embed.css`) size to content. The extensions receive this component's
   assigns: `theme_id`, `organizer_user_id`, `should_show_branding`, and
   `demo_mode` when the page assigned one.
   """
@@ -54,7 +55,7 @@ defmodule TymeslotWeb.Themes.Shared.Components.ThemeShell do
 
       {render_slot(@background)}
 
-      <div class={@grid_class} {grid_style(@grid_style)}>
+      <div class={["booker-page", @grid_class]} {grid_style(@grid_style)}>
         <div class="content-area">
           <.banner owner_preview={@owner_preview} />
           <%= if @locale && @language_dropdown_open != nil do %>

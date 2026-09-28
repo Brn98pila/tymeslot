@@ -81,7 +81,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.OverviewComponent do
       >
         <div class="overview-content-area flex items-start justify-center">
           <div class="w-full">
-            <.glass_morphism_card>
+            <.glass_morphism_card class="booker-card">
               <div class="overview-card-body">
                 <div class="overview-layout">
                   <div class="overview-avatar-section">

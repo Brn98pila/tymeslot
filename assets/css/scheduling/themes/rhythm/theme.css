@@ -27,4 +27,5 @@
 @import "./modules/calendar.css";
 @import "../../shared/components/slot-list.css";
 @import "./modules/time-slots.css";
+@import "../../shared/embed.css";
 @import "./modules/iframe.css";

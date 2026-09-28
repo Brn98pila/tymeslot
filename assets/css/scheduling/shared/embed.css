@@ -1,0 +1,48 @@
+/* Embed shell rules shared by every theme.
+
+   When the booking page runs inside an iframe (data-embedded on <html>, set
+   by iframe_embed.js), the body grows to its natural content height and
+   iframe_embed.js posts that height to the parent, which resizes the iframe
+   both ways. Never add `height: 100%` chains here: they lock the body to the
+   parent-supplied viewport and defeat the resize.
+
+   Themes mark their elements with hook classes:
+     .booker-page    the page grid (content row plus footer row)
+     .booker-card    every card that fills the column layout
+     .booker-scroll  the time-slot scroll region
+   Each theme's modules/iframe.css keeps only what is specific to it. */
+
+html.scheduling-app[data-embedded] {
+  min-height: auto;
+  margin: 0;
+}
+
+html.scheduling-app[data-embedded] > body {
+  margin: 0;
+  display: flow-root;
+  height: max-content;
+  min-height: 0;
+}
+
+html.scheduling-app[data-embedded] .booker-page {
+  min-height: auto;
+  grid-template-rows: auto;
+}
+
+html.scheduling-app[data-embedded] .footer-gradient {
+  display: none;
+}
+
+/* Time slots flow to natural height: one page-level scroll, not two. */
+html.scheduling-app[data-embedded] .booker-scroll {
+  max-height: none;
+  overflow-y: visible;
+  height: auto;
+}
+
+/* Column layout (data-embed-layout, set by the server): the booker fills
+   the embed container's width instead of its centred standalone cap. */
+html.scheduling-app[data-embed-layout="column"] .booker-card {
+  max-width: 100%;
+  width: 100%;
+}

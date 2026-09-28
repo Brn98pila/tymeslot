@@ -35,7 +35,7 @@ defmodule TymeslotWeb.Themes.Quill.Poll.Voting do
     >
       <div class="poll-voting-page quill-poll-voting min-h-screen flex items-center justify-center px-4 py-8">
         <div class="w-full max-w-2xl">
-          <.glass_morphism_card>
+          <.glass_morphism_card class="booker-card">
             <div class="p-8">
               <PollVotingComponents.poll_content
                 poll={@poll}

@@ -72,7 +72,7 @@ defmodule TymeslotWeb.Themes.Shared.Components.SlotList do
       <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {status_text(@selected_date, @loading_slots, @calendar_error, @slots)}
       </div>
-      <div class="slot-list__body">
+      <div class="slot-list__body booker-scroll">
         <%= cond do %>
           <% is_nil(@selected_date) -> %>
             <div class="slot-list__prompt">

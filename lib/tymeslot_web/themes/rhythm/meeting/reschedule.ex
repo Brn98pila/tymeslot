@@ -31,7 +31,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Meeting.Reschedule do
       language_dropdown_open={@language_dropdown_open}
       show_language_switcher={true}
     >
-      <div class="scheduling-box">
+      <div class="scheduling-box booker-card">
         <div class="slide-container">
           <div class="slide active">
             <div class="slide-content confirmation-slide">

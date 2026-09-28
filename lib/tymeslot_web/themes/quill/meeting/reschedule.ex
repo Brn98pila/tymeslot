@@ -34,7 +34,7 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Reschedule do
     >
       <div class="min-h-screen flex items-center justify-center px-4 py-8">
         <div class="w-full max-w-2xl">
-          <.glass_morphism_card>
+          <.glass_morphism_card class="booker-card">
             <div class="p-8">
               <div class="text-center mb-8">
                 <div class="mx-auto mb-4 w-12 h-12">
@@ -61,7 +61,7 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Reschedule do
                 </p>
               </div>
 
-              <div class="glass-morphism-card meeting-page-panel mb-8">
+              <div class="glass-morphism-card booker-card meeting-page-panel mb-8">
                 <div class="p-6">
                   <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold meeting-page-panel-title">

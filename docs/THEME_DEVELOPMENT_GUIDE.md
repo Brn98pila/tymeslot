@@ -437,17 +437,13 @@ end
 
 ### iframe.css
 
-Each theme needs a small `iframe.css` (~30 lines) for iframe-specific shell rules:
-- `height: max-content` on body for height reporting
-- `position` fixes for elements that behave differently in iframes
-- Hide footer/branding in embedded mode
-- Reset the primary content container (`.scheduling-box`, `.glass-morphism-card`) to fill the iframe: `width: 100%; max-width: 100%; border-radius: 0; border: none;`
+The shell rules every theme needs live in `scheduling/shared/embed.css`: body `flow-root` and `max-content` sizing, the page grid (`.booker-page`) sized to content, the footer hidden, the slot scroll region (`.booker-scroll`) released, and full width in the column layout (`.booker-card`). Mark your page grid, cards and slot region with those three classes. Your theme's `iframe.css` then holds only what is specific to it (hiding or repositioning a background, card corners, the language switcher's embedded position).
 
 Size-driven compaction (compact calendar, smaller badges, form re-layout) is handled by container queries in each component file — the same queries that handle narrow viewports.
 
 ### Iframe Auto-Resize
 
-When the scheduling page loads inside an iframe, `iframe_embed.js` continuously measures the page's content height and posts it to the parent on a 50ms loop. The parent iframe element grows AND shrinks to match — so themes should let the body flow to its natural content height in embedded mode (`height: max-content`, no `height: 100%` chains). See `themes/<theme>/modules/iframe.css` for the per-theme overrides.
+When the scheduling page loads inside an iframe, `iframe_embed.js` continuously measures the page's content height and posts it to the parent on a 50ms loop. The parent iframe element grows AND shrinks to match — so themes should let the body flow to its natural content height in embedded mode (`height: max-content`, no `height: 100%` chains). See `shared/embed.css` for the shared rules and `themes/<theme>/modules/iframe.css` for the per-theme overrides.
 
 The embedder can supply `data-initial-height` (px) on the container as a placeholder height shown before the first measurement lands; `data-min-height` is still accepted as a legacy alias. After the first message, the iframe always matches reported content height.
 

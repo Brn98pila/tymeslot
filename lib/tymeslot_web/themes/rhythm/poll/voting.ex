@@ -32,7 +32,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Poll.Voting do
       language_dropdown_open={@language_dropdown_open}
       show_language_switcher={true}
     >
-      <div class="scheduling-box poll-voting-page rhythm-poll-voting">
+      <div class="scheduling-box booker-card poll-voting-page rhythm-poll-voting">
         <div class="slide-container">
           <div class="slide active">
             <div class="slide-content">
