@@ -328,34 +328,16 @@ theme; only `variables.css`, `base.css`, and `iframe.css` are universally expect
 
 ### Theme CSS Structure
 
-Each theme's main CSS file (`theme.css`) imports shared primitives then theme modules:
+Each theme's `theme.css` imports the shared entry, then the shared token file right after its own `variables.css`, then its modules:
 
 ```css
-/* Import shared structural primitives */
-@import "../../shared/reset.css";
-@import "../../shared/layout.css";
-@import "../../shared/utilities.css";
+@import "../../shared/entry.css";        /* Tailwind, shared primitives, variants, @source */
 
-/* Foundation (variables MUST come first) */
-@import "./modules/variables.css";
+@import "./modules/variables.css";       /* the theme's tokens (MUST come first) */
+@import "../../shared/tokens.css";       /* derived tokens (see Token contract) */
 @import "./modules/base.css";
-@import "./modules/iframe.css";
-@import "./modules/video.css";
-@import "./modules/typography.css";
-
-/* Per-feature modules (order among these is not significant) */
-@import "./modules/schedule-header.css";
-@import "./modules/calendar.css";
-@import "./modules/time-slots.css";
-@import "./modules/booking-form.css";
-@import "./modules/custom-questions.css";
-@import "./modules/overview.css";
-@import "./modules/confirmation.css";
-@import "./modules/payment-pages.css";
-@import "./modules/language-switcher.css";
+/* …the theme's own modules, and shared/components/*.css where the theme uses them */
 ```
-
-**Note**: Variables must come first. Import order within component files doesn't matter since they're self-contained.
 
 ### Intrinsic Responsiveness
 
