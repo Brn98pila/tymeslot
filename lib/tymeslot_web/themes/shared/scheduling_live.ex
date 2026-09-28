@@ -1,10 +1,11 @@
-# credo:disable-for-this-file Credo.Check.Refactor.LongQuoteBlocks
 defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
   @moduledoc """
   Shared LiveView macro for scheduling themes.
 
-  Provides all common mount/handle_params/handle_info/handle_event callbacks
-  for the 4-step booking flow. Themes `use` this macro and only need to define:
+  Generates the LiveView callbacks for the booking flow, each delegating to a
+  plain module: `LiveHelpers.Mount` for mounting and URL parameters,
+  `SchedulingFlow` for step events and navigation, `InfoHandlers` for the
+  mailbox. Themes `use` this macro and only need to define:
 
   - `render/1` — wrapper component and step layout
   - `handle_theme_event/3` (optional) — for theme-specific events
@@ -34,590 +35,68 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
 
     quote do
       use TymeslotWeb, :live_view
-      require Logger
-
-      alias TymeslotWeb.Live.Scheduling.{AvailabilityHelpers, CalendarHelpers, OrganizerHelpers}
-
-      alias TymeslotWeb.Live.Scheduling.Handlers.{
-        SlotFetchingHandlerComponent,
-        TimezoneHandlerComponent
-      }
-
-      alias TymeslotWeb.Themes.Shared.BookingFlow
-      alias TymeslotWeb.Themes.Shared.BookingLocation
-      alias TymeslotWeb.Themes.Shared.GuestBooking
-
-      alias TymeslotWeb.Components.MeetingUtils
-
-      alias TymeslotWeb.Themes.Shared.{
-        EventHandlers,
-        InfoHandlers,
-        PathHandlers,
-        ReschedulePin,
-        SchedulingInit,
-        SlotGrouping
-      }
-
-      alias TymeslotWeb.Themes.Shared.LiveHelpers.{Mount, StepEntry, Tracking}
-      alias TymeslotWeb.Themes.Shared.StateMachineHelpers, as: StateMachine
-
-      alias Tymeslot.CustomFields
 
       alias TymeslotWeb.Themes.Shared.Components.ErrorComponent
-      alias TymeslotWeb.Themes.Shared.CustomQuestions.Engine, as: QEngine
+      alias TymeslotWeb.Themes.Shared.{EventHandlers, InfoHandlers, PathHandlers, SchedulingFlow}
+      alias TymeslotWeb.Themes.Shared.LiveHelpers.{Mount, Tracking}
 
       @theme_id unquote(theme_id)
 
       @impl Phoenix.LiveView
       def mount(params, _session, socket) do
-        initial_state = StateMachine.determine_initial_state(socket.assigns[:live_action])
-
         socket =
-          Mount.mount_scheduling_view(
-            socket,
-            params,
-            initial_state,
-            &assign_initial_state/1,
-            &setup_initial_state/3
-          )
-
-        socket = Tracking.assign_tracking(socket, params)
+          socket
+          |> Mount.mount_scheduling_view(params, @theme_id)
+          |> Tracking.assign_tracking(params)
 
         {:ok, socket}
       end
 
       @impl Phoenix.LiveView
-      def handle_params(params, _url, socket) do
-        new_state = StateMachine.determine_initial_state(socket.assigns[:live_action])
-
-        Mount.handle_scheduling_params(
-          socket,
-          params,
-          new_state,
-          &handle_param_updates/2,
-          &handle_state_entry/3
-        )
-      end
+      def handle_params(params, _url, socket), do: Mount.handle_scheduling_params(socket, params)
 
       @impl Phoenix.LiveView
       def handle_info({:step_event, step, event, data}, socket) do
-        case step do
-          :overview -> handle_overview_events(socket, event, data)
-          :schedule -> handle_schedule_events(socket, event, data)
-          :questions -> handle_questions_events(socket, event, data)
-          :booking -> handle_booking_events(socket, event, data)
-          :confirmation -> handle_confirmation_events(socket, event, data)
-          _other -> {:noreply, socket}
+        case SchedulingFlow.handle_step_event(socket, step, event, data) do
+          :unhandled when step == :schedule -> handle_theme_schedule_event(socket, event, data)
+          :unhandled -> {:noreply, socket}
+          reply -> reply
         end
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({:flash, {type, message}}, socket) do
-        {:noreply, put_flash(socket, type, message)}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({:calendar_events_updated, _user_id, _changed_uids}, socket) do
-        InfoHandlers.handle_calendar_events_updated(socket)
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({:calendar_sync_complete, _user_id, _integration_id}, socket) do
-        InfoHandlers.handle_calendar_events_updated(socket)
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info(:close_dropdown, socket), do: InfoHandlers.handle_close_dropdown(socket)
-
-      @impl Phoenix.LiveView
-      def handle_info({:fetch_available_slots, date, duration, timezone}, socket) do
-        InfoHandlers.handle_fetch_available_slots(socket, date, duration, timezone)
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({:load_slots, date}, socket) do
-        InfoHandlers.handle_load_slots(socket, date)
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({ref, {:ok, availability_map}}, socket) when is_reference(ref) do
-        InfoHandlers.handle_availability_ok(socket, ref, availability_map)
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({ref, {:error, reason}}, socket) when is_reference(ref) do
-        InfoHandlers.handle_availability_error(socket, ref, reason)
-      end
-
-      # A monitor this LiveView never asked for — LiveView's own channel
-      # intercepts the ones it owns before delegating here. The availability
-      # fetch cannot produce one (its task is linked, so a crash kills this
-      # process instead), so there is nothing to finalise: ignore it rather
-      # than let it reach `handle_unexpected/2` and log a warning per stray
-      # monitor on a public page.
-      @impl Phoenix.LiveView
-      def handle_info({:DOWN, _ref, :process, _pid, _reason}, socket) do
-        {:noreply, socket}
-      end
-
-      # PubSub broadcasts for embedded paid bookings — see
-      # `BookingSubmissionHandlerComponent.handle_payment_required_embedded/3`.
-      @impl Phoenix.LiveView
-      def handle_info(:paid, socket) do
-        InfoHandlers.handle_payment_paid(socket, &transition_to/3)
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info(:expired, socket) do
-        InfoHandlers.handle_payment_expired(socket, &transition_to/3)
       end
 
       # Must stay last: a public page cannot afford to raise on a message it
-      # has no clause for. `handle_event/3` below already ends the same way.
-      #
-      # Delegates to `handle_theme_info/2` (an extension point, not the
-      # clauses above) rather than being itself overridable: `defoverridable`
-      # replaces a function's clauses wholesale, so making the whole
-      # `handle_info/2` overridable would let one theme-specific clause
-      # silently drop every clause above (slot loading, calendar refresh,
-      # `:paid`/`:expired`) with no compiler warning.
-      @impl Phoenix.LiveView
+      # has no clause for. The theme gets a message only once the flow has
+      # declined it, through `handle_theme_info/2` rather than an overridable
+      # `handle_info/2`: `defoverridable` replaces a function's clauses
+      # wholesale, so one theme-specific clause would silently drop slot
+      # loading, calendar refresh and payment handling.
       def handle_info(message, socket) do
-        handle_theme_info(message, socket)
+        case InfoHandlers.route(message, socket) do
+          :unhandled -> handle_theme_info(message, socket)
+          reply -> reply
+        end
       end
 
       @impl Phoenix.LiveView
-      def handle_event("toggle_language_dropdown", _params, socket) do
-        EventHandlers.handle_toggle_language_dropdown(socket)
-      end
+      def handle_event("toggle_language_dropdown", _params, socket),
+        do: EventHandlers.handle_toggle_language_dropdown(socket)
 
-      @impl Phoenix.LiveView
-      def handle_event("close_language_dropdown", _params, socket) do
-        EventHandlers.handle_close_language_dropdown(socket)
-      end
+      def handle_event("close_language_dropdown", _params, socket),
+        do: EventHandlers.handle_close_language_dropdown(socket)
 
-      @impl Phoenix.LiveView
-      def handle_event("change_locale", %{"locale" => locale}, socket) do
-        EventHandlers.handle_change_locale(socket, locale, PathHandlers)
-      end
+      def handle_event("change_locale", %{"locale" => locale}, socket),
+        do: EventHandlers.handle_change_locale(socket, locale, PathHandlers)
 
-      @impl Phoenix.LiveView
-      def handle_event(event, params, socket) do
-        handle_theme_event(event, params, socket)
-      end
+      def handle_event(event, params, socket), do: handle_theme_event(event, params, socket)
 
-      defp handle_overview_events(socket, event, data) do
-        callbacks = %{
-          maybe_assign_meeting_type: &maybe_assign_meeting_type/2,
-          validate_state_transition: &validate_state_transition/3,
-          transition_to: &transition_to/3
-        }
+      defp handle_theme_event("navigate_to_step", params, socket),
+        do: SchedulingFlow.navigate_to_step(socket, params)
 
-        EventHandlers.handle_overview_events(socket, event, data, callbacks)
-      end
-
-      defp handle_schedule_events(socket, event, data) do
-        cond do
-          event in [:select_date, :select_time] ->
-            handle_schedule_selection_events(socket, event, data)
-
-          event == :toggle_hour ->
-            handle_toggle_hour(socket, data)
-
-          event in [
-            :change_timezone,
-            :search_timezone,
-            :toggle_timezone_dropdown,
-            :close_timezone_dropdown
-          ] ->
-            handle_timezone_events(socket, event, data)
-
-          event in [:prev_week, :next_week] ->
-            handle_week_navigation_events(socket, event)
-
-          event in [:back_step, :next_step] ->
-            handle_schedule_navigation_events(socket, event)
-
-          true ->
-            handle_theme_schedule_event(socket, event, data)
-        end
-      end
-
-      defp handle_schedule_selection_events(socket, event, data) do
-        case event do
-          :select_date ->
-            handle_schedule_date_selection(socket, data)
-
-          :select_time ->
-            new_time = if socket.assigns[:selected_time] == data, do: nil, else: data
-            {:noreply, assign(socket, :selected_time, new_time)}
-        end
-      end
-
-      # `expanded_hour` holds three states, not two: nil means "not chosen, so
-      # open the earliest hour", an integer means that hour, and :none means the
-      # booker closed it and it must stay closed until they choose again.
-      #
-      # `hour` is guarded to a binary because event payloads for non-"form"
-      # events reach `handle_event/3` verbatim from client JSON with no type
-      # coercion — a crafted socket push can deliver a list or map here, which
-      # `Integer.parse/1` has no clause for. A non-binary payload is ignored,
-      # leaving state untouched, the same way an unparsable string already is.
-      defp handle_toggle_hour(socket, hour) when is_binary(hour) do
-        grouping =
-          SlotGrouping.group(
-            MeetingUtils.normalize_slot_list(socket.assigns[:available_slots] || []),
-            socket.assigns[:slot_interval_minutes],
-            socket.assigns[:duration_minutes]
-          )
-
-        current = SlotGrouping.effective_expanded_hour(socket.assigns[:expanded_hour], grouping)
-
-        next =
-          case Integer.parse(hour) do
-            {^current, ""} -> :none
-            {requested, ""} -> requested
-            _unparsable -> socket.assigns[:expanded_hour]
-          end
-
-        {:noreply, assign(socket, :expanded_hour, next)}
-      end
-
-      defp handle_toggle_hour(socket, _hour), do: {:noreply, socket}
-
-      defp handle_timezone_events(socket, event, data) do
-        callbacks = %{
-          timezone_handler_component: TimezoneHandlerComponent,
-          handle_timezone_search: &EventHandlers.handle_timezone_search/2
-        }
-
-        EventHandlers.handle_timezone_events(socket, event, data, callbacks)
-      end
-
-      defp handle_week_navigation_events(socket, event) do
-        case event do
-          :prev_week -> {:noreply, CalendarHelpers.handle_week_navigation(socket, :prev)}
-          :next_week -> {:noreply, CalendarHelpers.handle_week_navigation(socket, :next)}
-        end
-      end
-
-      defp handle_schedule_navigation_events(socket, event) do
-        case event do
-          :back_step ->
-            # Only allow returning to the overview when the booker actually
-            # entered via it. A direct/private-link entry sets
-            # `entered_via_overview: false` and must never expose the
-            # organiser's other meeting types — enforce this server-side so a
-            # client cannot bypass the template-level `:if` guard by pushing
-            # the event directly.
-            if socket.assigns[:entered_via_overview] do
-              handle_state_transition(socket, :schedule, :overview)
-            else
-              {:noreply, socket}
-            end
-
-          :next_step ->
-            # Route to :questions when the meeting type has custom fields, else :booking.
-            states = StateMachine.states_for(socket.assigns[:meeting_type] || %{})
-            next = get_in(states, [:schedule, :next]) || :booking
-            handle_state_transition(socket, :schedule, next)
-        end
-      end
-
-      defp handle_booking_events(socket, event, data) do
-        case event do
-          :validate ->
-            BookingFlow.handle_form_validation(socket, data)
-
-          :field_blur ->
-            {:noreply, OrganizerHelpers.mark_field_touched(socket, data)}
-
-          picker_event
-          when picker_event in [:select_location, :select_video_provider, :location_phone] ->
-            {:noreply, BookingLocation.apply_event(socket, picker_event, data)}
-
-          :toggle_guests ->
-            {:noreply, GuestBooking.open(socket)}
-
-          :close_guests ->
-            {:noreply, GuestBooking.close(socket)}
-
-          :guest_input ->
-            {:noreply, GuestBooking.set_input(socket, data)}
-
-          :add_guest ->
-            {:noreply, GuestBooking.add(socket, data)}
-
-          :remove_guest ->
-            {:noreply, GuestBooking.remove(socket, data)}
-
-          :submit ->
-            BookingFlow.submit_booking(socket, data, &transition_to/3)
-
-          :back_step ->
-            # Route back to :questions when the meeting type has custom fields, else :schedule.
-            states = StateMachine.states_for(socket.assigns[:meeting_type] || %{})
-            prev = get_in(states, [:booking, :prev]) || :schedule
-            handle_state_transition(socket, :booking, prev)
-
-          _other ->
-            {:noreply, socket}
-        end
-      end
-
-      defp handle_questions_events(socket, event, data) do
-        case event do
-          :answer ->
-            {id, value} = data
-            engine = QEngine.answer(socket.assigns.engine, id, value)
-            {:noreply, assign(socket, :engine, engine)}
-
-          :next ->
-            handle_questions_next(socket)
-
-          :back ->
-            handle_questions_back(socket)
-
-          _other ->
-            {:noreply, socket}
-        end
-      end
-
-      # Advance within the questions wizard, or proceed to :booking when all
-      # questions have been answered and validated.
-      #
-      # Transitions to :booking only when the booker is already on the last
-      # question and presses Next — this ensures a single optional question is
-      # always shown before the wizard exits, even when it validates as empty.
-      defp handle_questions_next(socket) do
-        engine = socket.assigns.engine
-
-        if QEngine.skipped?(engine) do
-          {:noreply, transition_to(socket, :booking, %{})}
-        else
-          last_index = QEngine.total(engine) - 1
-
-          cond do
-            engine.current_index < last_index ->
-              case QEngine.next(engine) do
-                {:ok, engine} -> {:noreply, assign(socket, :engine, engine)}
-                {:error, engine} -> {:noreply, assign(socket, :engine, engine)}
-              end
-
-            engine.current_index == last_index ->
-              case QEngine.validate_all(engine) do
-                {:ok, _answers} ->
-                  socket = assign(socket, :engine, QEngine.mark_reviewed(engine))
-                  {:noreply, transition_to(socket, :booking, %{})}
-
-                {:error, _errors} ->
-                  case QEngine.next(engine) do
-                    {:ok, engine} -> {:noreply, assign(socket, :engine, engine)}
-                    {:error, engine} -> {:noreply, assign(socket, :engine, engine)}
-                  end
-              end
-
-            true ->
-              {:noreply, socket}
-          end
-        end
-      end
-
-      # Move backwards within the wizard, or return to :schedule from the first question.
-      defp handle_questions_back(socket) do
-        engine = socket.assigns.engine
-
-        if engine.current_index == 0 do
-          {:noreply, transition_to(socket, :schedule, %{})}
-        else
-          {:noreply, assign(socket, :engine, QEngine.prev(engine))}
-        end
-      end
-
-      defp handle_confirmation_events(socket, event, _data) do
-        case event do
-          :schedule_another ->
-            # The flow restarts here without navigating, so the reschedule
-            # context has to be dropped explicitly or the next submit moves the
-            # meeting that was just moved. See `ReschedulePin.abandon/1`.
-            socket =
-              socket
-              |> GuestBooking.assign_defaults()
-              |> ReschedulePin.abandon()
-
-            {:noreply, transition_to(socket, :overview, %{})}
-
-          _other ->
-            {:noreply, socket}
-        end
-      end
-
-      defp maybe_assign_meeting_type(socket, duration) do
-        StepEntry.maybe_assign_meeting_type(socket, duration)
-      end
-
-      defp assign_initial_state(socket) do
-        SchedulingInit.assign_theme_state(socket, @theme_id)
-      end
-
-      defp handle_param_updates(socket, params) do
-        Mount.handle_param_updates(socket, params)
-      end
-
-      defp setup_initial_state(socket, initial_state, params) do
-        Mount.setup_initial_state(socket, initial_state, params, &handle_state_entry/3)
-      end
-
-      defp handle_state_entry(socket, :schedule, params) do
-        socket
-        |> StepEntry.handle_schedule_entry(params)
-        |> refresh_stale_slot_snapshot()
-      end
-
-      defp handle_state_entry(socket, :questions, _params) do
-        # Re-sync the engine snapshot on entry so that forward/back navigation always
-        # reflects the latest custom field definitions for this meeting type. Only
-        # re-init when definitions actually changed so back-navigation preserves answers.
-        meeting_type = socket.assigns[:meeting_type] || %{}
-        defs = CustomFields.snapshot_for(meeting_type)
-
-        engine =
-          if defs != socket.assigns.engine.definitions,
-            do: StepEntry.init_questions_engine(socket, defs),
-            else: socket.assigns.engine
-
-        assign(socket, :engine, engine)
-      end
-
-      defp handle_state_entry(socket, :booking, params) do
-        StepEntry.handle_booking_entry(socket, params)
-      end
-
-      defp handle_state_entry(socket, _state, _params), do: socket
-
-      # `:available_slots`, `:duration_minutes`, `:slot_interval_minutes` and
-      # `:expanded_hour` are snapshotted by `SlotFetchingHandlerComponent` at
-      # fetch time and do not track a meeting-type/duration change made while
-      # away from this step (e.g. back to :overview, pick a different
-      # duration, forward again). Only compare against a snapshot that
-      # actually exists (`:duration_minutes` non-nil) — the very first entry
-      # into :schedule has no snapshot yet and nothing stale to refresh.
-      defp refresh_stale_slot_snapshot(socket) do
-        case socket.assigns[:duration_minutes] do
-          nil ->
-            socket
-
-          snapshot_duration ->
-            current_duration = AvailabilityHelpers.duration_minutes(socket)
-            current_interval = AvailabilityHelpers.slot_interval_minutes(socket)
-
-            if snapshot_duration == current_duration and
-                 socket.assigns[:slot_interval_minutes] == current_interval do
-              socket
-            else
-              socket
-              |> assign(
-                available_slots: [],
-                selected_time: nil,
-                expanded_hour: nil,
-                duration_minutes: nil,
-                slot_interval_minutes: nil
-              )
-              |> then(fn socket ->
-                {:ok, socket} = SlotFetchingHandlerComponent.maybe_reload_slots(socket)
-                socket
-              end)
-            end
-        end
-      end
-
-      defp handle_state_transition(socket, current_state, next_state) do
-        callbacks = %{
-          validate_state_transition: &validate_state_transition/3,
-          transition_to: &transition_to/3
-        }
-
-        EventHandlers.handle_state_transition(socket, current_state, next_state, callbacks)
-      end
-
-      defp transition_to(socket, new_state, params) do
-        socket
-        |> assign(:current_state, new_state)
-        |> handle_state_entry(new_state, params)
-      end
-
-      defp validate_state_transition(socket, current_state, next_state) do
-        StateMachine.validate_state_transition(socket, current_state, next_state)
-      end
-
-      # Defensive on the nil date: neither theme's day button deselects any
-      # more, so nothing reaches here with nil today. The guard stays because
-      # sending {:load_slots, nil} would fetch slots for no day at all.
-      #
-      # Resets `:expanded_hour` here, at the point the booker actively picks
-      # a date, rather than in the fetch that follows: the fetch also runs
-      # for refetches the booker did not cause a date change with (a
-      # timezone change, a lost-slot retry), which must not spring a
-      # deliberately collapsed `:none` back open.
-      defp handle_schedule_date_selection(socket, date) do
-        socket =
-          assign(socket,
-            selected_date: date,
-            selected_time: nil,
-            expanded_hour: nil,
-            loading_slots: date != nil,
-            calendar_error: nil
-          )
-
-        if date, do: send(self(), {:load_slots, date})
-        {:noreply, socket}
-      end
-
-      # Step navigation — shared across all themes.
-      # Uses states_for/1 so that the step numbers match the active state map
-      # (4 steps without custom fields, 5 steps with).
-      # `step` is guarded to a binary for the same reason `handle_toggle_hour/2`
-      # above is: a crafted socket push can deliver a non-binary payload, which
-      # `Integer.parse/1` has no clause for.
-      defp handle_theme_event("navigate_to_step", %{"step" => step}, socket)
-           when is_binary(step) do
-        states = StateMachine.states_for(socket.assigns[:meeting_type] || %{})
-
-        target_step =
-          case Integer.parse(step) do
-            {n, _rest} -> n
-            :error -> nil
-          end
-
-        target_state =
-          case Enum.find(states, fn {_state, %{step: n}} -> n == target_step end) do
-            {state, _meta} -> state
-            nil -> socket.assigns[:current_state]
-          end
-
-        if target_state != socket.assigns[:current_state] and
-             StateMachine.can_navigate_to_step?(socket, target_state, states) do
-          {:noreply, transition_to(socket, target_state, %{})}
-        else
-          {:noreply, socket}
-        end
-      end
-
-      defp handle_theme_event("navigate_to_step", _params, socket), do: {:noreply, socket}
-
-      # Extension point for theme-specific handle_event clauses.
-      # Override with multi-clause defp to handle custom events.
+      # Extension points. Override with multi-clause defps; a theme override of
+      # `handle_theme_info/2` should end with a clause calling
+      # `InfoHandlers.handle_unexpected/2`, as this default does.
       defp handle_theme_event(_event, _params, socket), do: {:noreply, socket}
-
-      # Extension point for theme-specific schedule events (e.g., month navigation).
-      # Override with multi-clause defp to handle custom schedule events.
       defp handle_theme_schedule_event(socket, _event, _data), do: {:noreply, socket}
-
-      # Extension point for theme-specific handle_info clauses. Override with a
-      # multi-clause defp to react to a theme-specific message; unmatched
-      # messages still fall through to `InfoHandlers.handle_unexpected/2` via
-      # this default clause, so a theme override only augments the shared
-      # `handle_info/2` routing above instead of being able to replace it.
       defp handle_theme_info(message, socket), do: InfoHandlers.handle_unexpected(socket, message)
 
       defoverridable handle_theme_event: 3,

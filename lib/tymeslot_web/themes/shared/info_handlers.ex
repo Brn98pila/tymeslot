@@ -8,9 +8,53 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
   import Phoenix.LiveView, only: [put_flash: 3]
   require Logger
 
+  alias Phoenix.LiveView.Socket
   alias TymeslotWeb.Live.Scheduling.AvailabilityHelpers
   alias TymeslotWeb.Live.Scheduling.Handlers.SlotFetchingHandlerComponent
   alias TymeslotWeb.Live.Scheduling.NextAvailable
+  alias TymeslotWeb.Themes.Shared.SchedulingFlow
+
+  @doc """
+  Routes a message the scheduling LiveView received to its handler.
+
+  Returns `:unhandled` for a message the booking flow does not own, so the
+  LiveView can offer it to the theme and otherwise ignore it.
+  """
+  @spec route(term(), Socket.t()) :: {:noreply, Socket.t()} | :unhandled
+  def route({:flash, {type, message}}, socket), do: {:noreply, put_flash(socket, type, message)}
+
+  def route({:calendar_events_updated, _user_id, _changed_uids}, socket),
+    do: handle_calendar_events_updated(socket)
+
+  def route({:calendar_sync_complete, _user_id, _integration_id}, socket),
+    do: handle_calendar_events_updated(socket)
+
+  def route(:close_dropdown, socket), do: handle_close_dropdown(socket)
+
+  def route({:fetch_available_slots, date, duration, timezone}, socket),
+    do: handle_fetch_available_slots(socket, date, duration, timezone)
+
+  def route({:load_slots, date}, socket), do: handle_load_slots(socket, date)
+
+  def route({ref, {:ok, availability_map}}, socket) when is_reference(ref),
+    do: handle_availability_ok(socket, ref, availability_map)
+
+  def route({ref, {:error, reason}}, socket) when is_reference(ref),
+    do: handle_availability_error(socket, ref, reason)
+
+  # A monitor this LiveView never asked for — LiveView's own channel
+  # intercepts the ones it owns before delegating here. The availability
+  # fetch cannot produce one (its task is linked, so a crash kills this
+  # process instead), so there is nothing to finalise: ignore it rather
+  # than let it reach `handle_unexpected/2` and log a warning per stray
+  # monitor on a public page.
+  def route({:DOWN, _ref, :process, _pid, _reason}, socket), do: {:noreply, socket}
+
+  # PubSub broadcasts for embedded paid bookings — see
+  # `BookingSubmissionHandlerComponent.handle_payment_required_embedded/3`.
+  def route(:paid, socket), do: handle_payment_paid(socket)
+  def route(:expired, socket), do: handle_payment_expired(socket)
+  def route(_message, _socket), do: :unhandled
 
   @doc """
   Handles calendar events updated via PubSub.
@@ -156,11 +200,9 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
   payment we flip the iframe directly to the theme's `:confirmation`
   view so the attendee never sees Stripe inside the host's page.
   """
-  @spec handle_payment_paid(
-          Phoenix.LiveView.Socket.t(),
-          (Phoenix.LiveView.Socket.t(), atom(), map() -> Phoenix.LiveView.Socket.t())
-        ) :: {:noreply, Phoenix.LiveView.Socket.t()}
-  def handle_payment_paid(socket, transition_fun) do
+  @spec handle_payment_paid(Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_payment_paid(socket) do
     case socket.assigns[:awaiting_payment_meeting] do
       %{} = meeting ->
         socket =
@@ -169,7 +211,7 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
           |> assign(:name, meeting.attendee_name)
           |> assign(:email, meeting.attendee_email)
 
-        {:noreply, transition_fun.(socket, :confirmation, %{})}
+        {:noreply, SchedulingFlow.transition_to(socket, :confirmation, %{})}
 
       _other ->
         {:noreply, socket}
@@ -183,11 +225,9 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
   30 minutes elapsed, etc.) we send the booker back to the booking form
   with a flash so they can try again.
   """
-  @spec handle_payment_expired(
-          Phoenix.LiveView.Socket.t(),
-          (Phoenix.LiveView.Socket.t(), atom(), map() -> Phoenix.LiveView.Socket.t())
-        ) :: {:noreply, Phoenix.LiveView.Socket.t()}
-  def handle_payment_expired(socket, transition_fun) do
+  @spec handle_payment_expired(Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_payment_expired(socket) do
     socket =
       socket
       |> assign(:awaiting_payment_meeting, nil)
@@ -198,7 +238,7 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
         dgettext("booking", "Payment was cancelled. Please try booking again.")
       )
 
-    {:noreply, transition_fun.(socket, :booking, %{})}
+    {:noreply, SchedulingFlow.transition_to(socket, :booking, %{})}
   end
 
   @doc """

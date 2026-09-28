@@ -113,7 +113,7 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlers do
   `reschedule_meeting_uid` query param, so the restarted booking updates
   the existing meeting instead of silently creating a duplicate — the
   reschedule context is derived solely from that param
-  (`LiveHelpers.Mount.handle_param_updates/2`).
+  (`LiveHelpers.Mount.handle_scheduling_params/2`).
 
   Falls back to "/" if the profile or username is unavailable.
   """

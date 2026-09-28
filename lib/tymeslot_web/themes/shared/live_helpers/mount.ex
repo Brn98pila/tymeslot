@@ -22,28 +22,24 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
   alias TymeslotWeb.Themes.Shared.Customization.Helpers, as: CustomizationHelpers
   alias TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry
   alias TymeslotWeb.Themes.Shared.ReschedulePin
+  alias TymeslotWeb.Themes.Shared.SchedulingFlow
+  alias TymeslotWeb.Themes.Shared.SchedulingInit
+  alias TymeslotWeb.Themes.Shared.StateMachineHelpers, as: StateMachine
   alias TymeslotWeb.Themes.Shared.TimezoneHelpers
 
   @doc """
-  Shared mounting logic for scheduling themes.
+  Mounts a theme's scheduling LiveView: initial state, timezone, theme and
+  organiser, customisation, owner preview, calendar subscription, and (on the
+  connected mount) the entry into the step the route names.
   """
-  @spec mount_scheduling_view(
-          Phoenix.LiveView.Socket.t(),
-          map(),
-          atom(),
-          (Phoenix.LiveView.Socket.t() -> Phoenix.LiveView.Socket.t()),
-          (Phoenix.LiveView.Socket.t(), atom(), map() -> Phoenix.LiveView.Socket.t())
-        ) :: Phoenix.LiveView.Socket.t()
-  def mount_scheduling_view(
-        socket,
-        params,
-        initial_state,
-        assign_initial_state_fun,
-        setup_initial_state_fun
-      ) do
+  @spec mount_scheduling_view(Phoenix.LiveView.Socket.t(), map(), String.t()) ::
+          Phoenix.LiveView.Socket.t()
+  def mount_scheduling_view(socket, params, theme_id) do
+    initial_state = StateMachine.determine_initial_state(socket.assigns[:live_action])
+
     socket =
       socket
-      |> assign_initial_state_fun.()
+      |> SchedulingInit.assign_theme_state(theme_id)
       |> TimezoneHelpers.assign_user_timezone(params)
       |> ThemeUtils.assign_theme_with_preview(params)
 
@@ -84,7 +80,7 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
     # the static pass would throw the result away and query twice for nothing.
     socket =
       if connected?(socket) do
-        setup_initial_state_fun.(socket, initial_state, params)
+        setup_initial_state(socket, initial_state, params)
       else
         socket
       end
@@ -100,30 +96,19 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
     end
   end
 
-  @doc """
-  Shared handle_params logic for scheduling themes.
-  """
-  @spec handle_scheduling_params(
-          Phoenix.LiveView.Socket.t(),
-          map(),
-          atom(),
-          (Phoenix.LiveView.Socket.t(), map() -> Phoenix.LiveView.Socket.t()),
-          (Phoenix.LiveView.Socket.t(), atom(), map() -> Phoenix.LiveView.Socket.t())
-        ) :: {:noreply, Phoenix.LiveView.Socket.t()}
-  def handle_scheduling_params(
-        socket,
-        params,
-        initial_state,
-        handle_param_updates_fun,
-        handle_state_entry_fun
-      ) do
+  @doc "Applies the URL parameters and enters the step the route names."
+  @spec handle_scheduling_params(Phoenix.LiveView.Socket.t(), map()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_scheduling_params(socket, params) do
+    initial_state = StateMachine.determine_initial_state(socket.assigns[:live_action])
+
     socket =
       socket
-      |> handle_param_updates_fun.(params)
+      |> handle_param_updates(params)
       |> ThemeUtils.assign_theme_with_preview(params)
       |> assign_owner_preview(params)
       |> assign(:current_state, initial_state)
-      |> handle_state_entry_fun.(initial_state, params)
+      |> SchedulingFlow.handle_state_entry(initial_state, params)
 
     # Re-apply theme customization in case theme changed in preview mode
     socket = maybe_assign_customization(socket)
@@ -176,11 +161,8 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
     end
   end
 
-  @doc """
-  Updates socket assigns from URL parameters.
-  """
-  @spec handle_param_updates(Phoenix.LiveView.Socket.t(), map()) :: Phoenix.LiveView.Socket.t()
-  def handle_param_updates(socket, params) do
+  # Updates socket assigns from URL parameters.
+  defp handle_param_updates(socket, params) do
     socket
     |> StepEntry.maybe_assign_from_params(:duration, StepEntry.normalize_duration_param(params))
     |> StepEntry.maybe_assign_from_params(
@@ -226,20 +208,9 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
     end
   end
 
-  @doc """
-  Sets up the initial state for the LiveView.
-  """
-  @spec setup_initial_state(
-          Phoenix.LiveView.Socket.t(),
-          atom(),
-          map(),
-          (Phoenix.LiveView.Socket.t(), atom(), map() -> Phoenix.LiveView.Socket.t())
-        ) :: Phoenix.LiveView.Socket.t()
-  def setup_initial_state(socket, initial_state, params, entry_handler) do
+  defp setup_initial_state(socket, initial_state, params) do
     if initial_state in [:overview, :schedule, :booking, :confirmation] do
-      socket
-      |> assign(:current_state, initial_state)
-      |> entry_handler.(initial_state, params)
+      SchedulingFlow.transition_to(socket, initial_state, params)
     else
       socket
     end

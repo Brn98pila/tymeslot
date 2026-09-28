@@ -187,9 +187,19 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry do
     |> OrganizerHelpers.assign_booking_window()
   end
 
+  @doc """
+  Entering the questions step: re-syncs the engine with the meeting type's
+  current custom-field definitions, so forward and back navigation always
+  reflect them, but only when they changed, so going back keeps the answers.
+  """
+  @spec handle_questions_entry(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def handle_questions_entry(socket) do
+    assign(socket, :engine, refreshed_engine(socket, socket.assigns[:meeting_type] || %{}))
+  end
+
   # Re-initialise only when the definitions actually changed, so re-entering a
   # step (or landing on `/book` directly, which resolves the same type again)
-  # preserves answers already given. Mirrors the `:questions` entry handler.
+  # preserves answers already given. Also what `handle_questions_entry/1` runs.
   defp refreshed_engine(socket, meeting_type) do
     defs = CustomFields.snapshot_for(meeting_type)
 
@@ -199,19 +209,16 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry do
     end
   end
 
-  @doc """
-  A fresh questions engine for `definitions`, carrying over the answers of the
-  booking a reschedule is moving.
-
-  A reschedule re-enters the flow as an ordinary booking, so without this the
-  booker is asked the organiser's questions again from blank, having already
-  answered them — while their name, email and message are prefilled right
-  beside. `Tymeslot.Scheduling.ThemeFlow.reschedule_answers/3` decides which
-  answers may be carried; the step itself is still shown, so the booker sees
-  what will be sent and can change it.
-  """
-  @spec init_questions_engine(Phoenix.LiveView.Socket.t(), [map()]) :: QEngine.t()
-  def init_questions_engine(socket, definitions) do
+  # A fresh questions engine for `definitions`, carrying over the answers of the
+  # booking a reschedule is moving.
+  #
+  # A reschedule re-enters the flow as an ordinary booking, so without this the
+  # booker is asked the organiser's questions again from blank, having already
+  # answered them — while their name, email and message are prefilled right
+  # beside. `Tymeslot.Scheduling.ThemeFlow.reschedule_answers/3` decides which
+  # answers may be carried; the step itself is still shown, so the booker sees
+  # what will be sent and can change it.
+  defp init_questions_engine(socket, definitions) do
     carried =
       ThemeFlow.reschedule_answers(
         socket.assigns[:reschedule_meeting_uid],
