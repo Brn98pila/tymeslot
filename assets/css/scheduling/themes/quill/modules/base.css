@@ -367,7 +367,7 @@ body.quill-theme {
     background: white;
     color: black;
     box-shadow: none;
-    border: var(--border-width-thin) solid #cccccc;
+    border: var(--border-width-thin) solid var(--print-line);
   }
 
   button {

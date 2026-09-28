@@ -442,7 +442,7 @@ body.rhythm-theme {
     background: white;
     color: black;
     box-shadow: none;
-    border: var(--border-width-thin) solid #ccc;
+    border: var(--border-width-thin) solid var(--print-line);
   }
 
   button {

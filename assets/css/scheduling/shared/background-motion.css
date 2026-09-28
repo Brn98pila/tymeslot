@@ -20,31 +20,27 @@
   width: 2.5rem;
   height: 2.5rem;
   padding: 0;
-  border: var(--border-width-thin) solid var(--border-medium);
+  border: var(--border-width-thin) solid var(--line-2);
   border-radius: var(--radius-full);
-  background: rgba(0, 0, 0, 0.45);
-  /* Literal rather than a token: the two themes carry different token systems
-     and only Quill has a glass-blur scale, so a token here resolves to nothing
-     on Rhythm and silently drops the blur. The control is deliberately
-     identical across themes, so it owns these two values, as it already owns
-     its size and its black translucent ground. */
+  background: var(--chrome-surface);
+  /* The blur stays literal: only Quill has a glass-blur scale, so a token here
+     would resolve to nothing on Rhythm and silently drop the blur. */
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  color: white;
+  color: var(--chrome-ink);
   cursor: pointer;
   transition: var(--transition-normal);
 }
 
 .background-motion-toggle:hover {
-  background: rgba(0, 0, 0, 0.65);
-  /* Literal for the same reason as the blur above: Rhythm names this shade
-     --border-strong, Quill --border-intense, and an unresolved var() here falls
-     back to currentColor, turning the border solid white on hover. */
-  border-color: rgba(255, 255, 255, 0.3);
+  background: var(--chrome-surface-hover);
+  /* Colours come from the theme's --chrome-* tokens (shared/tokens.css), which
+     both themes set to the same values. */
+  border-color: var(--chrome-line-hover);
 }
 
 .background-motion-toggle:focus-visible {
-  outline: var(--border-width-thick) solid white;
+  outline: var(--border-width-thick) solid var(--chrome-ink);
   outline-offset: var(--space-3xs);
 }
 

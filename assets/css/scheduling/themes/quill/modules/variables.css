@@ -300,4 +300,22 @@
   --notice-warning-border: rgba(251, 191, 36, 0.35);
   --radius-control: var(--input-border-radius);
   --radius-card: var(--card-border-radius);
+
+  /* Shared status screens (shared/layout.css: awaiting payment, readiness) */
+  --status-surface: rgba(255, 255, 255, 0.08);
+  --status-surface-opaque: linear-gradient(135deg, rgba(20, 20, 35, 0.86) 0%, rgba(15, 15, 25, 0.78) 100%);
+  --status-shadow: 0 1.25rem 2.5rem rgba(0, 0, 0, 0.35);
+  --status-ink-heading: #ffffff;
+  --status-ink: rgba(255, 255, 255, 0.92);
+  --status-ink-soft: rgba(255, 255, 255, 0.85);
+  --status-ink-hint: rgba(255, 255, 255, 0.7);
+
+  /* Floating chrome (shared/background-motion.css) */
+  --chrome-surface: rgba(0, 0, 0, 0.45);
+  --chrome-surface-hover: rgba(0, 0, 0, 0.65);
+  --chrome-line-hover: rgba(255, 255, 255, 0.3);
+  --chrome-ink: #ffffff;
+
+  /* Print */
+  --print-line: #cccccc;
 }
