@@ -7,7 +7,10 @@
 
 set -e
 
-THEMES_BASE="assets/css/scheduling/themes"
+# Overridable so the checks can be tested against a fixture tree.
+SCHEDULING_CSS_ROOT="${SCHEDULING_CSS_ROOT:-assets/css/scheduling}"
+THEMES_BASE="$SCHEDULING_CSS_ROOT/themes"
+LITERALS_FAILED=0
 FAILED=0
 TOTAL_VIOLATIONS=0
 THEMES_TESTED=0
@@ -214,6 +217,87 @@ test_token_usage() {
     "--border-width-medium"
     "--border-width-thick"
     "--flag-height"
+    # The token contract (documented in shared/tokens.css): palette and
+    # status inputs, shadow geometry, roles and the shared screens' tokens.
+    # --theme-background and --theme-background-image are left out on purpose.
+    "--theme-primary"
+    "--theme-primary-hover"
+    "--theme-secondary"
+    "--theme-accent"
+    "--theme-on-primary"
+    "--theme-primary-solid"
+    "--theme-primary-solid-hover"
+    "--theme-on-accent"
+    "--theme-accent-solid"
+    "--theme-text"
+    "--theme-text-secondary"
+    "--theme-success"
+    "--theme-warning"
+    "--theme-danger"
+    "--theme-info"
+    "--shadow-geometry-sm"
+    "--shadow-geometry-md"
+    "--shadow-geometry-lg"
+    "--surface-1"
+    "--surface-2"
+    "--surface-3"
+    "--ink-1"
+    "--ink-2"
+    "--ink-3"
+    "--line-1"
+    "--line-2"
+    "--notice-warning"
+    "--notice-warning-surface"
+    "--notice-warning-border"
+    "--radius-control"
+    "--radius-card"
+    "--z-dropdown"
+    "--status-surface"
+    "--status-surface-opaque"
+    "--status-shadow"
+    "--status-ink-heading"
+    "--status-ink"
+    "--status-ink-soft"
+    "--status-ink-hint"
+    "--chrome-surface"
+    "--chrome-surface-hover"
+    "--chrome-line-hover"
+    "--chrome-ink"
+    "--print-line"
+    # Tokens the shared component styles (shared/components/*.css) read.
+    "--approval-icon-surface"
+    "--approval-notice-font-size"
+    "--approval-notice-gap"
+    "--approval-notice-ink"
+    "--approval-notice-max-width"
+    "--approval-pill-surface"
+    "--poll-input-focus-ring"
+    "--poll-input-line"
+    "--poll-input-surface"
+    "--poll-option-line"
+    "--poll-option-selected-surface"
+    "--poll-panel-surface"
+    "--poll-row-line"
+    "--poll-row-surface"
+    "--poll-voting-padding"
+    "--payment-body-ink"
+    "--payment-card-line"
+    "--payment-card-radius"
+    "--payment-card-surface"
+    "--payment-heading-ink"
+    "--payment-link-radius"
+    "--payment-link-transition"
+    "--payment-link-weight"
+    "--payment-page-max-width"
+    "--lang-switcher-surface"
+    "--lang-switcher-surface-hover"
+    "--lang-switcher-panel-surface"
+    "--lang-switcher-panel-line"
+    "--lang-switcher-item-line"
+    "--lang-switcher-item-hover"
+    "--lang-switcher-item-active"
+    "--slot-list-grid-gap"
+    "--dropdown-surface"
   )
 
   local missing_tokens=0
@@ -379,6 +463,33 @@ test_keyframes() {
   echo ""
 }
 
+# Colour literals (rgb(), rgba(), hsl(), hsla(), hex) belong only in token
+# files: each theme's modules/variables.css, shared/tokens.css, and
+# shared/brand-tokens.css (the Tailwind @theme block). Everything else reads
+# colours through tokens, so a custom palette, a new theme or a light mode
+# changes them in one place. Scans the whole scheduling tree, shared files
+# included; selectors are stripped first so an ID can never look like a hex.
+test_colour_literals() {
+  echo "🎨 Testing for colour literals outside the token files..."
+
+  local violations
+  violations=$(stripped_css_lines "$SCHEDULING_CSS_ROOT" \
+    | grep -vE '(/modules/variables\.css|/shared/tokens\.css|/shared/brand-tokens\.css):[0-9]+:' \
+    | sed -E 's/^([^:]+:[0-9]+:)[^{]*\{/\1/' \
+    | grep -E '^[^:]+:[0-9]+:.*((rgba?|hsla?)\(|#[0-9a-fA-F]{3,8}\b)' \
+    || true)
+
+  if [ -n "$violations" ]; then
+    echo -e "${RED}✗ Found colour literals outside the token files (move them into variables.css):${NC}"
+    echo "$violations"
+    LITERALS_FAILED=1
+    TOTAL_VIOLATIONS=$((TOTAL_VIOLATIONS + $(echo "$violations" | grep -c "^")))
+  else
+    echo -e "${GREEN}✓ No colour literals outside the token files${NC}"
+  fi
+  echo ""
+}
+
 # Function to test a single theme
 test_theme() {
   local theme_path="$1"
@@ -430,18 +541,20 @@ for theme in "${THEMES[@]}"; do
   test_theme "$theme"
 done
 
+test_colour_literals
+
 # Overall summary
 echo ""
 echo "================================"
 echo "📊 Summary"
 echo "================================"
 echo "Themes tested: $THEMES_TESTED"
-if [ $THEMES_FAILED -eq 0 ]; then
+if [ $THEMES_FAILED -eq 0 ] && [ $LITERALS_FAILED -eq 0 ]; then
   echo -e "${GREEN}✅ All themes passed!${NC}"
   echo "All theme CSS files are properly tokenized."
   exit 0
 else
-  echo -e "${RED}❌ $THEMES_FAILED theme(s) failed!${NC}"
+  echo -e "${RED}❌ CSS token checks failed!${NC}"
   echo "Found $TOTAL_VIOLATIONS total violations across all themes."
   echo ""
   echo "Fix suggestions:"
@@ -449,5 +562,6 @@ else
   echo "  • Replace hardcoded borders with border tokens (--border-width-*)"
   echo "  • Use calc() with tokens for complex values"
   echo "  • Add new tokens to variables.css if needed"
+  echo "  • Move colour literals into the theme's variables.css and read them through a token"
   exit 1
 fi

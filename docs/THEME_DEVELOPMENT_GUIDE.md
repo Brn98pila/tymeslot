@@ -450,10 +450,11 @@ The embedder can supply `data-initial-height` (px) on the container as a placeho
 ### Creating Theme CSS
 
 1. **Create theme directory**: `assets/css/scheduling/themes/your-theme/`
-2. **Create main theme.css** that imports shared primitives and your modules
+2. **Create main theme.css** that imports `../../shared/entry.css`, then `./modules/variables.css`, then `../../shared/tokens.css`, then your modules and the `shared/components/*.css` files you use
 3. **Create modular CSS files** in a `modules/` subdirectory — each component file is self-contained
 4. **Set container query context** on the primary content container (`container-type: inline-size; container-name: scheduling;`)
 5. **No external font imports** — use system font stacks or self-hosted fonts only
+6. **Everything through tokens, nothing hard-coded**: colours live only in `variables.css`; every other file reads tokens. Run `mix css.check_tokens` (part of `mix precommit`).
 
 **Note**: Theme CSS is completely separate from global app styles.
 

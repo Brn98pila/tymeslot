@@ -110,6 +110,9 @@ defmodule Mix.Tasks.Precommit do
     {"deps.audit", ~w[deps.audit], :dev},
     {"migrations", ~w[excellent_migrations.check_safety], :dev},
     {"workflows", ~w[actionlint], :dev},
+    # The booking-theme CSS rules, colour literals included. Nothing else
+    # checks them: the theme bundles are plain CSS the compiler never sees.
+    {"css tokens", ~w[css.check_tokens], :dev},
     # A ratchet against compile coupling creeping in, not a ban on it. Raised
     # from 25 to 27 for the two video-provider registries that are read at
     # compile time on purpose: `Bookings.Activation` needs its provider list
