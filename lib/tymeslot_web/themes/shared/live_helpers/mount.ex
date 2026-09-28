@@ -32,14 +32,14 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
   organiser, customisation, owner preview, calendar subscription, and (on the
   connected mount) the entry into the step the route names.
   """
-  @spec mount_scheduling_view(Phoenix.LiveView.Socket.t(), map(), String.t()) ::
+  @spec mount_scheduling_view(Phoenix.LiveView.Socket.t(), map()) ::
           Phoenix.LiveView.Socket.t()
-  def mount_scheduling_view(socket, params, theme_id) do
+  def mount_scheduling_view(socket, params) do
     initial_state = StateMachine.determine_initial_state(socket.assigns[:live_action])
 
     socket =
       socket
-      |> SchedulingInit.assign_theme_state(theme_id)
+      |> SchedulingInit.assign_theme_state()
       |> TimezoneHelpers.assign_user_timezone(params)
       |> ThemeUtils.assign_theme_with_preview(params)
 

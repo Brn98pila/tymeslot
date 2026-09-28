@@ -2,55 +2,66 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
   @moduledoc """
   Shared LiveView macro for scheduling themes.
 
-  Generates the LiveView callbacks for the booking flow, each delegating to a
-  plain module: `LiveHelpers.Mount` for mounting and URL parameters,
-  `SchedulingFlow` for step events and navigation, `InfoHandlers` for the
-  mailbox. Themes `use` this macro and only need to define:
-
-  - `render/1` — wrapper component and step layout
-  - `handle_theme_event/3` (optional) — for theme-specific events
-  - `handle_theme_schedule_event/3` (optional) — for theme-specific schedule events
-  - `handle_theme_info/2` (optional) — for theme-specific `handle_info/2` messages
-
-  ## Example
+  A theme passes its wrapper component and one LiveComponent per step, and
+  gets a `render/1` that handles every state the flow can be in:
 
       defmodule MyTheme.Scheduling.Live do
-        use TymeslotWeb.Themes.Shared.SchedulingLive, theme_id: "3"
+        alias MyTheme.Scheduling.Components.{
+          BookingComponent,
+          ConfirmationComponent,
+          CustomQuestionsComponent,
+          OverviewComponent,
+          ScheduleComponent
+        }
 
         alias MyTheme.Scheduling.Wrapper
 
-        @impl Phoenix.LiveView
-        def render(assigns) do
-          ~H\"""
-          <Wrapper.my_wrapper ...>
-            ...
-          </Wrapper.my_wrapper>
-          \"""
-        end
+        use TymeslotWeb.Themes.Shared.SchedulingLive,
+          wrapper: &Wrapper.my_wrapper/1,
+          steps: %{
+            overview: OverviewComponent,
+            schedule: ScheduleComponent,
+            questions: CustomQuestionsComponent,
+            booking: BookingComponent,
+            confirmation: ConfirmationComponent
+          }
       end
+
+  The aliases must come before `use`: the options are expanded where `use` is
+  written. Optional hooks, each a multi-clause `defp`:
+
+  - `handle_theme_event/3` for events of the theme's own
+  - `handle_theme_schedule_event/3` for schedule-step events of the theme's own
+  - `handle_theme_info/2` for messages of the theme's own
   """
 
+  @steps [:overview, :schedule, :questions, :booking, :confirmation]
+
   defmacro __using__(opts) do
-    theme_id = Keyword.fetch!(opts, :theme_id)
+    opts = Keyword.validate!(opts, [:wrapper, :steps])
+    wrapper = Keyword.fetch!(opts, :wrapper)
+    steps = Keyword.fetch!(opts, :steps)
+    validate_steps!(steps)
 
     quote do
       use TymeslotWeb, :live_view
 
-      alias TymeslotWeb.Themes.Shared.Components.ErrorComponent
-      alias TymeslotWeb.Themes.Shared.{EventHandlers, InfoHandlers, PathHandlers, SchedulingFlow}
+      alias TymeslotWeb.Themes.Shared.{EventHandlers, InfoHandlers, PathHandlers}
       alias TymeslotWeb.Themes.Shared.LiveHelpers.{Mount, Tracking}
-
-      @theme_id unquote(theme_id)
+      alias TymeslotWeb.Themes.Shared.{SchedulingFlow, SchedulingPage}
 
       @impl Phoenix.LiveView
       def mount(params, _session, socket) do
         socket =
           socket
-          |> Mount.mount_scheduling_view(params, @theme_id)
+          |> Mount.mount_scheduling_view(params)
           |> Tracking.assign_tracking(params)
 
         {:ok, socket}
       end
+
+      @impl Phoenix.LiveView
+      def render(assigns), do: SchedulingPage.render(assigns, unquote(wrapper), unquote(steps))
 
       @impl Phoenix.LiveView
       def handle_params(params, _url, socket), do: Mount.handle_scheduling_params(socket, params)
@@ -103,5 +114,22 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
                      handle_theme_schedule_event: 3,
                      handle_theme_info: 2
     end
+  end
+
+  defp validate_steps!({:%{}, _meta, pairs}) do
+    case @steps -- Keyword.keys(pairs) do
+      [] ->
+        :ok
+
+      missing ->
+        raise ArgumentError,
+              "use SchedulingLive needs a component for every step; missing: #{inspect(missing)}"
+    end
+  end
+
+  defp validate_steps!(other) do
+    raise ArgumentError,
+          "use SchedulingLive expects :steps as a literal map of step => component, got: " <>
+            Macro.to_string(other)
   end
 end

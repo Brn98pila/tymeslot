@@ -67,11 +67,11 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlers do
   end
 
   # `theme` rides along here and nowhere else, which is the fix for #84. It used
-  # to be emitted on every locale switch from `:theme_id`, an assign that
-  # `SchedulingInit.assign_theme_state/2` always sets, so it was never a signal
-  # that anyone was previewing. Every visitor who changed the language landed on
-  # a `theme=` URL, which was then read as a preview and failed their booking
-  # closed, silently.
+  # to be emitted on every locale switch from `:theme_id`, an assign the
+  # dispatcher always sets, so it was never a signal that anyone was
+  # previewing. Every visitor who changed the language landed on a `theme=`
+  # URL, which was then read as a preview and failed their booking closed,
+  # silently.
   #
   # The preview parameters have to be rebuilt as a set, not one by one. A locale
   # switch is a full external redirect, so the LiveView that comes back has no

@@ -11,8 +11,8 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingInit do
   alias TymeslotWeb.Themes.Shared.CustomQuestions.Engine, as: QEngine
   alias TymeslotWeb.Themes.Shared.GuestBooking
 
-  @spec assign_theme_state(LiveView.Socket.t(), String.t()) :: LiveView.Socket.t()
-  def assign_theme_state(socket, theme_id) do
+  @spec assign_theme_state(LiveView.Socket.t()) :: LiveView.Socket.t()
+  def assign_theme_state(socket) do
     timezone = socket.assigns[:user_timezone]
 
     today =
@@ -25,7 +25,6 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingInit do
 
     socket
     |> assign_base_state()
-    |> assign(:theme_id, theme_id)
     |> assign(:duration, nil)
     |> assign(:meeting_type, nil)
     |> assign(:meeting_type_pinned, false)
