@@ -714,8 +714,7 @@ msgstr "Ви бронюєте зустріч на %{duration} з %{name}"
 msgid "Your Name"
 msgstr "Ваше ім'я"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/confirmation_component.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/confirmation_component.ex
+#: lib/tymeslot_web/themes/shared/components/custom_answers.ex
 #, elixir-autogen, elixir-format
 msgid "Your answers"
 msgstr "Ваші відповіді"

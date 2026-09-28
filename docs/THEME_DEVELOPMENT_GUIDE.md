@@ -399,17 +399,15 @@ Templates define structure, CSS defines appearance:
 - No visual classes in templates (no `rounded-xl`, `shadow-lg`)
 - No layout classes in templates (no `flex-row`, `grid-cols-2`)
 - No responsive classes in templates (no `sm:`, `md:`, `lg:`)
-- Each theme owns its templates entirely — UI components are theme-specific, not shared
+- Each theme owns its step templates. The shared components listed below have fixed markup: a theme styles their classes in its own CSS and never restructures them.
 
 ### Shared Components
 
-The **step UI** is theme-owned. Duration cards, calendar day buttons, time-slot
-buttons, and the booking form are rendered and styled by each theme — there is no
-shared "duration card" component. Each theme renders its own markup and styles it
-with its own CSS.
+The **step layouts** are theme-owned: duration cards, calendar day buttons and the booking form are rendered and styled by each theme. Pieces whose behaviour (accessibility, grouping, events, wording) must not drift between themes are shared components with fixed markup and block-element class names; each theme styles those classes in its own CSS.
 
 Shared across themes:
 
+- **`Shared.Components.CustomAnswers`** (`custom_answers/1`): the confirmation step's "Your answers" list. Classes `custom-answers`, `custom-answers__heading`, `__list`, `__row`, `__label`, `__value`.
 - **Data utilities** (`TymeslotWeb.Components.MeetingUtils`): `normalize_slot_list/1`
   and `normalize_slot_time/1` normalise time-slot data.
 - **`Shared.Components.MeetingDetails`** (`meeting_detail_rows/1`) — the date/time/

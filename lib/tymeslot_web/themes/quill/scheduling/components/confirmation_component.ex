@@ -6,13 +6,13 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent d
   use TymeslotWeb, :live_component
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.CustomFields.AnswerRenderer
   alias Tymeslot.Profiles
   alias Tymeslot.Timezones
   alias TymeslotWeb.Themes.Shared.ApprovalDisplay
   alias TymeslotWeb.Themes.Shared.BookingLocation
   alias TymeslotWeb.Themes.Shared.BookingText
   alias TymeslotWeb.Themes.Shared.Components.ApprovalNotice
+  alias TymeslotWeb.Themes.Shared.Components.CustomAnswers
   alias TymeslotWeb.Themes.Shared.ConfirmationText
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
   alias TymeslotWeb.Themes.Shared.PathHandlers
@@ -181,21 +181,10 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent d
                     </div>
                   </.meeting_details_card>
 
-                  <%= if length(@custom_fields_snapshot) > 0 do %>
-                    <section class="custom-answers-section">
-                      <h3 class="custom-answers-heading">{dgettext("booking", "Your answers")}</h3>
-                      <dl class="custom-answers-list">
-                        <%= for d <- @custom_fields_snapshot do %>
-                          <div class="custom-answer-row">
-                            <dt class="custom-answer-label">{d["label"]}</dt>
-                            <dd class="custom-answer-value">
-                              {AnswerRenderer.render(d, @custom_field_answers[d["id"]])}
-                            </dd>
-                          </div>
-                        <% end %>
-                      </dl>
-                    </section>
-                  <% end %>
+                  <CustomAnswers.custom_answers
+                    snapshot={@custom_fields_snapshot}
+                    answers={@custom_field_answers}
+                  />
 
                   <div class="confirmation-actions">
                     <a

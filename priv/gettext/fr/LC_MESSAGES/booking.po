@@ -714,8 +714,7 @@ msgstr "Vous réservez une réunion de %{duration} avec %{name}"
 msgid "Your Name"
 msgstr "Votre nom"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/confirmation_component.ex
-#: lib/tymeslot_web/themes/rhythm/scheduling/components/confirmation_component.ex
+#: lib/tymeslot_web/themes/shared/components/custom_answers.ex
 #, elixir-autogen, elixir-format
 msgid "Your answers"
 msgstr "Vos réponses"
