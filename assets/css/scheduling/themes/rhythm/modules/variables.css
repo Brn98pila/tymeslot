@@ -267,4 +267,10 @@
   --lang-switcher-item-hover: var(--surface-light);
   --lang-switcher-item-active: var(--surface-medium);
   --lang-switcher-item-ink-active: #ffffff;
+
+  /* Slot list (shared/components/slot-list.css) */
+  --slot-list-grid-gap: var(--space-3xs);
+
+  /* Timezone picker (shared/components/timezone-picker.css) */
+  --dropdown-surface: linear-gradient(135deg, rgba(20, 20, 35, 0.98) 0%, rgba(15, 15, 25, 0.96) 100%);
 }

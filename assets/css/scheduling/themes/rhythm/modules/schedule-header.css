@@ -57,6 +57,9 @@
 
 /* ============================================================================
    TIMEZONE SELECTOR
+   The picker's shared structure and --dropdown-surface are in
+   shared/components/timezone-picker.css; this section holds Rhythm's trigger
+   content and treatment.
    ============================================================================ */
 
 .timezone-selector-container {
@@ -73,20 +76,10 @@
   display: none;
 }
 
-.tz-picker {
-  position: relative;
-  width: min(100%, 14rem);
-}
-
 .tz-picker__trigger {
-  width: 100%;
   padding: var(--space-3xs) var(--space-xs);
-  border: var(--border-width-thin) solid var(--border-medium);
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--surface-medium) 0%, var(--surface-subtle) 100%);
   backdrop-filter: blur(10px);
-  color: var(--theme-text);
-  cursor: pointer;
   transition: background var(--transition-normal), border-color var(--transition-normal), transform var(--transition-normal);
   display: flex;
   align-items: center;
@@ -97,27 +90,13 @@
 }
 
 .tz-picker__trigger:hover {
-  background: linear-gradient(135deg, var(--surface-intense) 0%, var(--surface-medium) 100%);
   border-color: var(--theme-primary);
   transform: translateY(-1px);
 }
 
 .tz-picker__panel {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: var(--z-dropdown);
-  margin-top: var(--space-2xs);
-  background: linear-gradient(135deg, rgba(20, 20, 35, 0.98) 0%, rgba(15, 15, 25, 0.96) 100%);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: var(--border-width-thin) solid var(--border-medium);
-  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  max-height: var(--dropdown-max-height);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
   width: var(--dropdown-width);
   min-width: var(--dropdown-width);
 }
@@ -155,84 +134,7 @@
 }
 
 .tz-picker__search-wrapper {
-  padding: var(--space-sm);
   border-bottom: var(--border-width-thin) solid var(--border-subtle);
-}
-
-.tz-picker__search {
-  width: 100%;
-  padding: var(--space-xs) var(--space-sm);
-  background: var(--surface-medium);
-  border: var(--border-width-thin) solid var(--border-light);
-  border-radius: var(--radius-sm);
-  color: var(--theme-text);
-  transition: border-color var(--transition-normal), background var(--transition-normal);
-}
-
-.tz-picker__search:focus {
-  outline: none;
-  background: var(--surface-medium);
-  border-color: var(--theme-primary);
-}
-
-.tz-picker__search::placeholder {
-  color: var(--theme-text-secondary);
-}
-
-.tz-picker__options {
-  flex: 1;
-  min-height: 0;
-}
-
-/* Note: Scrollbar styling is applied via .scroll-y utility class from base.css */
-
-.tz-picker__option {
-  width: 100%;
-  padding: var(--space-sm);
-  background: transparent;
-  border: none;
-  color: var(--theme-text);
-  cursor: pointer;
-  transition: background var(--transition-normal);
-  text-align: left;
-  border-bottom: var(--border-width-thin) solid var(--border-subtle);
-}
-
-.tz-picker__option:hover {
-  background: var(--surface-medium);
-}
-
-.tz-picker__option:last-child {
-  border-bottom: none;
-}
-
-.tz-picker__option-content {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.tz-picker__option-flag {
-  width: var(--icon-sm);
-  height: var(--flag-height);
-  flex-shrink: 0;
-  border-radius: var(--space-3xs);
-  object-fit: cover;
-}
-
-.tz-picker__option-text {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3xs);
-}
-
-.tz-picker__option-label {
-  color: var(--theme-text);
-}
-
-.tz-picker__option-offset {
-  color: var(--theme-text-secondary);
 }
 
 /* ============================================================================

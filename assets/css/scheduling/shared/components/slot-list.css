@@ -1,0 +1,47 @@
+/* ==========================================================================
+   Slot list: the shared structure
+
+   Matches TymeslotWeb.Themes.Shared.Components.SlotList. Each theme sets the
+   --slot-list-* tokens in its variables.css and keeps its own surfaces,
+   sizes, spacing and states, and its container and height queries, in its
+   modules/time-slots.css, imported right after this file.
+   ========================================================================== */
+
+.slot-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.slot-list__slot {
+  color: var(--theme-text);
+  cursor: pointer;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slot-list__slot:focus-visible {
+  outline: var(--border-width-thick) solid var(--theme-primary);
+  outline-offset: var(--space-3xs);
+}
+
+.slot-list__slot:hover {
+  transform: translateY(-1px);
+}
+
+/* Slot grid: fluid columns. auto-fill (not auto-fit) keeps the empty trailing
+   tracks instead of collapsing them, so every period grid lays out the same
+   number of equal-width columns regardless of how many slots it holds.
+   Without this a sparse period (a four-slot Evening, say) would stretch its
+   buttons across fewer, wider columns than a full Afternoon. */
+.slot-list__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
+  gap: var(--slot-list-grid-gap);
+}
+
+/* The two-tier hour picker's minute drawer, beneath the row of hours. */
+.slot-list__grid--minutes {
+  margin-top: var(--space-xs);
+}

@@ -362,4 +362,13 @@
   --lang-switcher-item-hover: rgba(59, 130, 246, 0.1);
   --lang-switcher-item-active: rgba(59, 130, 246, 0.15);
   --lang-switcher-ink: #ffffff;
+
+  /* Slot list (shared/components/slot-list.css) */
+  --slot-list-grid-gap: var(--space-xs);
+
+  /* Timezone picker (shared/components/timezone-picker.css). The dropdown
+     surface is fixed dark: it must not use --theme-background, which is
+     overridable by per-profile customisations and could produce a light
+     surface where white text becomes invisible. */
+  --dropdown-surface: linear-gradient(135deg, rgba(20, 15, 45, 0.98) 0%, rgba(30, 20, 60, 0.97) 100%);
 }

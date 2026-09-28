@@ -1,8 +1,8 @@
-/* Time Slots Component */
+/* Time Slots Component
+   Rhythm's treatment of the slot list; the shared structure is in
+   shared/components/slot-list.css. */
 
 .slot-list {
-  display: flex;
-  flex-direction: column;
   flex: 1 1 auto;   /* fill remaining space in .schedule-grid so the grid adapts */
   min-height: 0;    /* allow children to shrink below their intrinsic content */
 }
@@ -48,38 +48,20 @@
   border-bottom: var(--border-width-thin) solid var(--border-subtle);
 }
 
-.slot-list__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
-  gap: var(--space-3xs);
-}
-
 .slot-list__slot {
   padding: var(--space-3xs) var(--space-xs);
   background: var(--surface-medium);
   border: var(--border-width-thin) solid var(--border-strong);
   border-radius: var(--radius-sm);
-  color: var(--theme-text);
-  cursor: pointer;
   transition: background var(--transition-smooth), border-color var(--transition-smooth), transform var(--transition-smooth), box-shadow var(--transition-smooth);
-  text-align: center;
   min-height: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   box-shadow: var(--shadow-sm);
   font-size: var(--theme-font-size-xs);
-}
-
-.slot-list__slot:focus-visible {
-  outline: var(--border-width-thick) solid var(--theme-primary);
-  outline-offset: var(--space-3xs);
 }
 
 .slot-list__slot:hover {
   background: var(--surface-intense);
   border-color: var(--theme-primary);
-  transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
 
@@ -153,7 +135,6 @@
    edge, which is the first hour in the row and not the open one, so it
    pointed at the wrong button whenever the open hour was not first. */
 .slot-list__grid--minutes {
-  margin-top: var(--space-xs);
   padding: var(--space-2xs);
   background: var(--surface-subtle);
   border: var(--border-width-thin) solid var(--border-subtle);
