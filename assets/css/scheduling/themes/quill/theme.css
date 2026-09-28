@@ -44,4 +44,5 @@
 @import "./modules/meeting-pages.css";
 @import "../../shared/components/polls.css";
 @import "../../shared/components/payment-pages.css";
+@import "../../shared/components/language-switcher.css";
 @import "./modules/language-switcher.css";

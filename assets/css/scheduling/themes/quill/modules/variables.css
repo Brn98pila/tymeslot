@@ -352,4 +352,14 @@
   --payment-link-radius: var(--button-radius-sm);
   --payment-link-weight: var(--font-weight-semibold);
   --payment-link-transition: var(--transition-smooth);
+
+  /* Language switcher (shared/components/language-switcher.css) */
+  --lang-switcher-surface: rgba(0, 0, 0, 0.45);
+  --lang-switcher-surface-hover: rgba(0, 0, 0, 0.55);
+  --lang-switcher-panel-surface: rgba(255, 255, 255, 0.95);
+  --lang-switcher-panel-line: rgba(0, 0, 0, 0.1);
+  --lang-switcher-item-line: rgba(0, 0, 0, 0.05);
+  --lang-switcher-item-hover: rgba(59, 130, 246, 0.1);
+  --lang-switcher-item-active: rgba(59, 130, 246, 0.15);
+  --lang-switcher-ink: #ffffff;
 }

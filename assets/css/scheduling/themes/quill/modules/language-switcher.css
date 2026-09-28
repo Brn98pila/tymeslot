@@ -1,60 +1,23 @@
 /* Language Switcher - Quill Theme */
 
+/* The shared structure and the --lang-switcher-* colours are in
+   shared/components/language-switcher.css; this file adds Quill's glass
+   treatment and responsive widths. */
+
 .lang-switcher__button {
-  background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(var(--glass-blur-md));
   -webkit-backdrop-filter: blur(var(--glass-blur-md));
   border: var(--border-width-thin) solid var(--border-medium);
-  color: white;
+  color: var(--lang-switcher-ink);
 }
 
 .lang-switcher__button:hover {
-  background: rgba(0, 0, 0, 0.55);
   border-color: var(--border-intense);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.lang-switcher__button:active {
-  transform: translateY(0);
 }
 
 .lang-switcher__panel {
-  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: var(--border-width-thin) solid rgba(0, 0, 0, 0.1);
-  animation: fadeInDown var(--transition-normal) ease-out;
-  max-height: var(--dropdown-max-height);
-  overflow-y: auto;
-}
-
-.lang-switcher__item {
-  border-bottom: var(--border-width-thin) solid rgba(0, 0, 0, 0.05);
-}
-
-.lang-switcher__item:last-child {
-  border-bottom: none;
-}
-
-.lang-switcher__item:hover {
-  background: rgba(59, 130, 246, 0.1);
-}
-
-.lang-switcher__item.lang-switcher__item--active {
-  background: rgba(59, 130, 246, 0.15);
-  font-weight: var(--font-weight-semibold);
-}
-
-@keyframes fadeInDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* ===== Responsive ===== */

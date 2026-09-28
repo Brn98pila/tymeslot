@@ -21,6 +21,7 @@
 @import "../../shared/components/polls.css";
 @import "../../shared/components/payment-pages.css";
 @import "./modules/components.css";
+@import "../../shared/components/language-switcher.css";
 @import "./modules/language-switcher.css";
 @import "./modules/calendar.css";
 @import "./modules/time-slots.css";
