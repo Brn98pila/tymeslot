@@ -92,7 +92,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ColorPi
             phx-click="theme:set_option"
             phx-value-option={@option}
             phx-value-field="color"
-            phx-value-value={color}
+            phx-value-choice={color}
             phx-target={@myself}
           >
             <%= if @customization.background_value == color do %>

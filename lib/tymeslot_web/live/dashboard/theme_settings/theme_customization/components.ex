@@ -153,6 +153,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         <% active_scheme_id =
           if is_nil(@customization.custom_palette_seed), do: @customization.color_scheme %>
+        <%!-- The param is named `choice` rather than `value`, because LiveView's
+        client serialisation reads a button's native `value` IDL property and
+        would overwrite `phx-value-value` with the empty string. --%>
         <%= for {scheme_id, scheme} <- @presets.color_schemes do %>
           <button
             type="button"
@@ -166,7 +169,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
             phx-click="theme:set_option"
             phx-value-option={@group.key}
             phx-value-field="scheme"
-            phx-value-value={scheme_id}
+            phx-value-choice={scheme_id}
             phx-target={@myself}
           >
             <div class="flex items-center gap-2 mb-4 bg-tymeslot-50/50 p-2 rounded-token-xl group-hover/scheme:scale-110 transition-transform">

@@ -32,7 +32,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.VideoPi
               phx-click="theme:set_option"
               phx-value-option={@option}
               phx-value-field="video"
-              phx-value-value={video_id}
+              phx-value-choice={video_id}
               phx-target={@myself}
             >
               <div

@@ -15,10 +15,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationSetOptionTest do
 
   setup :setup_dashboard_user_with_theme
 
-  defp option_button(option, field, value),
+  defp option_button(option, field, choice),
     do:
       "button[phx-click='theme:set_option'][phx-value-option='#{option}']" <>
-        "[phx-value-field='#{field}'][phx-value-value='#{value}']"
+        "[phx-value-field='#{field}'][phx-value-choice='#{choice}']"
 
   defp set_option(view, params),
     do:
@@ -59,7 +59,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationSetOptionTest do
       |> render_hook("theme:set_option", %{
         "option" => "background",
         "field" => "color",
-        "value" => "#123456"
+        "choice" => "#123456"
       })
 
       assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1").background_value ==
@@ -91,7 +91,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationSetOptionTest do
     test "an option the theme does not declare is ignored", %{conn: conn, profile: profile} do
       {:ok, view, _html} = live(conn, ~p"/dashboard/theme/customize/1")
 
-      set_option(view, %{"option" => "logo", "field" => "file", "value" => "x.png"})
+      set_option(view, %{"option" => "logo", "field" => "file", "choice" => "x.png"})
 
       assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1") == nil
       assert render(view) =~ "Color Palette"
@@ -101,7 +101,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationSetOptionTest do
          %{conn: conn, profile: profile} do
       {:ok, view, _html} = live(conn, ~p"/dashboard/theme/customize/1")
 
-      set_option(view, %{"option" => "background", "field" => "pattern", "value" => "stripes"})
+      set_option(view, %{"option" => "background", "field" => "pattern", "choice" => "stripes"})
 
       assert render(view) =~ "This option is not available for this theme."
       assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1") == nil
@@ -113,7 +113,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationSetOptionTest do
       set_option(view, %{
         "option" => "background",
         "field" => "gradient",
-        "value" => "gradient_999"
+        "choice" => "gradient_999"
       })
 
       assert render(view) =~ "Could not save your theme customization"

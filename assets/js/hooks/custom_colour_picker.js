@@ -5,8 +5,11 @@
  * hue rail, and hex input all run client-side without LiveView round-trips.
  * Only commits to the server on pointer-up, hue release, or hex blur/Enter —
  * at which point it pushes the event named in `data-event` to the
- * LiveComponent CID stored in `data-target`, with a `{value: <hex>}` payload
- * merged over the static params in `data-commit-params`.
+ * LiveComponent CID stored in `data-target`, with a `{choice: <hex>}` payload
+ * merged over the static params in `data-commit-params`. The key is `choice`,
+ * not `value`, because it shares the `theme:set_option` event with the
+ * choice buttons, whose `phx-value-choice` exists for the same reason (a
+ * button's native `value` IDL property would otherwise clobber it).
  *
  * Required data attributes on the root element:
  *   data-target       — phx CID of the LiveComponent that handles the event
@@ -229,7 +232,7 @@ export function commitPayload(paramsJson, hex) {
   } catch (_error) {
     params = {};
   }
-  return { ...params, value: hex };
+  return { ...params, choice: hex };
 }
 
 // --- Colour math -----------------------------------------------------------

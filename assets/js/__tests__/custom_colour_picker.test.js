@@ -181,23 +181,23 @@ describe('hex → hsv → hex round-trip', () => {
 });
 
 describe('commitPayload', () => {
-  test('sends just the value when the widget has no commit params', () => {
-    expect(commitPayload(undefined, '#123456')).toEqual({ value: '#123456' });
+  test('sends just the choice when the widget has no commit params', () => {
+    expect(commitPayload(undefined, '#123456')).toEqual({ choice: '#123456' });
   });
 
   test('merges the commit params into the payload', () => {
     expect(commitPayload('{"option":"palette","field":"seed"}', '#aabbcc')).toEqual({
       option: 'palette',
       field: 'seed',
-      value: '#aabbcc',
+      choice: '#aabbcc',
     });
   });
 
-  test('the committed value always wins', () => {
-    expect(commitPayload('{"value":"#000000"}', '#aabbcc')).toEqual({ value: '#aabbcc' });
+  test('the committed choice always wins', () => {
+    expect(commitPayload('{"choice":"#000000"}', '#aabbcc')).toEqual({ choice: '#aabbcc' });
   });
 
   test('ignores malformed params', () => {
-    expect(commitPayload('{not json', '#aabbcc')).toEqual({ value: '#aabbcc' });
+    expect(commitPayload('{not json', '#aabbcc')).toEqual({ choice: '#aabbcc' });
   });
 });

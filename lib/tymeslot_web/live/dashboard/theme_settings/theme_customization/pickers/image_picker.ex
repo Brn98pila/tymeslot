@@ -34,7 +34,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
               phx-click="theme:set_option"
               phx-value-option={@option}
               phx-value-field="image"
-              phx-value-value={image_id}
+              phx-value-choice={image_id}
               phx-target={@myself}
             >
               <div class="aspect-video relative overflow-hidden">

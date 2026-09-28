@@ -143,7 +143,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
 
       view
       |> element(
-        "button[phx-click='theme:set_option'][phx-value-field='scheme'][phx-value-value='forest']"
+        "button[phx-click='theme:set_option'][phx-value-field='scheme'][phx-value-choice='forest']"
       )
       |> render_click()
 
@@ -187,7 +187,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
 
       view
       |> element(
-        "button[phx-click='theme:set_option'][phx-value-field='color'][phx-value-value='#dc2626']"
+        "button[phx-click='theme:set_option'][phx-value-field='color'][phx-value-choice='#dc2626']"
       )
       |> render_click()
 
@@ -415,7 +415,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       |> render_hook("theme:set_option", %{
         "option" => "palette",
         "field" => "seed",
-        "value" => "#AABBCC"
+        "choice" => "#AABBCC"
       })
 
       saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
@@ -460,7 +460,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       |> render_hook("theme:set_option", %{
         "option" => "background",
         "field" => "color",
-        "value" => "#123456"
+        "choice" => "#123456"
       })
 
       saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
@@ -480,7 +480,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       |> render_hook("theme:set_option", %{
         "option" => "background",
         "field" => "color",
-        "value" => "#FA0"
+        "choice" => "#FA0"
       })
 
       saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")

@@ -147,13 +147,13 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   @spec handle_event(String.t(), map(), Socket.t()) :: {:noreply, Socket.t()}
   def handle_event(
         "theme:set_option",
-        %{"option" => option, "field" => field, "value" => value},
+        %{"option" => option, "field" => field, "choice" => choice},
         socket
       )
-      when is_binary(option) and is_binary(field) and is_binary(value) do
+      when is_binary(option) and is_binary(field) and is_binary(choice) do
     case Enum.find(socket.assigns.option_groups, &(Atom.to_string(&1.key) == option)) do
       nil -> {:noreply, socket}
-      group -> set_option(socket, group, field, value)
+      group -> set_option(socket, group, field, choice)
     end
   end
 

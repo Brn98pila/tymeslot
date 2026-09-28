@@ -28,7 +28,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationRateLimitLiveTes
 
       view
       |> element(
-        "button[phx-click='theme:set_option'][phx-value-field='scheme'][phx-value-value='forest']"
+        "button[phx-click='theme:set_option'][phx-value-field='scheme'][phx-value-choice='forest']"
       )
       |> render_click()
 

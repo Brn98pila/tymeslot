@@ -26,7 +26,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.Gradien
           phx-click="theme:set_option"
           phx-value-option={@option}
           phx-value-field="gradient"
-          phx-value-value={gradient_id}
+          phx-value-choice={gradient_id}
           phx-target={@myself}
         >
           <div class="absolute inset-0 bg-black/0 group-hover/gradient:bg-black/10 transition-colors">
