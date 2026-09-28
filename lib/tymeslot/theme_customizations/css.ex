@@ -1,28 +1,16 @@
 defmodule Tymeslot.ThemeCustomizations.Css do
   @moduledoc """
-  Pure palette and gradient lookups for theme customizations.
+  Pure palette lookups for theme customizations.
 
-  Stateless functions over the presets and palette derivation: a gradient
-  preset's CSS and the active colour scheme of a customisation. The booking
+  Stateless functions over the presets and palette derivation: the active
+  colour scheme of a customisation and its custom seed. The booking
   page's CSS comes from the theme's customisation spec
   (`Tymeslot.ThemeCustomizations.Spec.tokens/2`), not from here. No database
   access and no filesystem side effects live here.
   """
 
   alias Tymeslot.ThemeCustomizations.PaletteDerivation
-  alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
-
-  @doc """
-  Gets the CSS for a gradient preset.
-  """
-  @spec get_gradient_css(String.t() | atom()) :: String.t() | nil
-  def get_gradient_css(gradient_id) do
-    case Presets.find_preset_by_id(:gradient, gradient_id) do
-      nil -> nil
-      %{value: value} -> value
-    end
-  end
 
   @doc """
   Resolves the active colour scheme for a customisation, returning the same

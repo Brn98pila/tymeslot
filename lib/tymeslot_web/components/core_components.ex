@@ -44,8 +44,6 @@ defmodule TymeslotWeb.Components.CoreComponents do
   attr :current_step, :integer, default: 1
   attr :slug, :string, default: nil
   attr :username_context, :string, default: nil
-  attr :theme_customization, :any, default: nil
-  attr :has_custom_theme, :boolean, default: false
   @spec page_layout(map()) :: Phoenix.LiveView.Rendered.t()
   def page_layout(assigns), do: Layout.page_layout(assigns)
 

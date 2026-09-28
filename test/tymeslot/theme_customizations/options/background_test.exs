@@ -101,6 +101,36 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
              }) == %{kind: :image, url: "/uploads/themes/1/1/images/ab.jpg"}
     end
 
+    test "an uploaded video keeps every dot of its name in the variant paths" do
+      %{kind: :video, sources: sources} =
+        Background.descriptor(%{
+          "background_type" => "video",
+          "background_value" => "custom",
+          "background_video_path" => "videos/my.video.file.mp4"
+        })
+
+      srcs = Enum.map(sources, & &1.src)
+
+      assert "/uploads/videos/my.video.file-desktop.webm" in srcs
+      assert List.last(srcs) == "/uploads/videos/my.video.file.mp4"
+    end
+
+    test "an uploaded video path is sanitised before it reaches a source" do
+      %{kind: :video, sources: sources} =
+        Background.descriptor(%{
+          "background_type" => "video",
+          "background_value" => "custom",
+          "background_video_path" => "videos/<script>alert(1)</script>.mp4"
+        })
+
+      assert sources != []
+
+      for %{src: src} <- sources do
+        refute src =~ "<"
+        refute src =~ "("
+      end
+    end
+
     test "an unknown video preset has no sources and no poster" do
       assert Background.descriptor(%{
                "background_type" => "video",

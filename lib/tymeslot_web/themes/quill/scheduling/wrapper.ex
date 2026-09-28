@@ -7,14 +7,14 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Wrapper do
 
   alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Themes.Shared.Components.ThemeShell
+  alias TymeslotWeb.Themes.Shared.ThemeStyle
 
   import TymeslotWeb.Components.BackgroundMotionToggle,
     only: [background_motion_toggle: 1]
 
-  import TymeslotWeb.Themes.Shared.Customization.Helpers
+  import TymeslotWeb.Themes.Shared.Customization.Helpers, only: [prepare_wrapper_assigns: 1]
   import TymeslotWeb.Themes.Shared.VideoSources, only: [video_sources: 1]
 
-  attr :theme_customization, :map, default: nil
   attr :theme_tokens, :any, default: nil
   attr :locale, :string, default: nil
   attr :current_state, :atom, default: nil
@@ -37,11 +37,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Wrapper do
     <ThemeShell.theme_shell
       class="quill-theme-wrapper"
       grid_class={["main-gradient theme-grid", @has_video_background && "has-video-background"]}
-      grid_style={
-        if @theme_customization && !@has_video_background,
-          do: get_background_style(@theme_customization),
-          else: ""
-      }
+      grid_style={ThemeStyle.inline_background(@background)}
       language_class="fixed top-6 right-6 z-50 language-switcher-wrapper"
       theme_id={@theme_id}
       theme_tokens={@theme_tokens}
@@ -61,10 +57,10 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Wrapper do
             loop
             playsinline
             preload="metadata"
-            poster={@video_poster}
+            poster={@background.poster}
             class="video-background"
           >
-            <.video_sources theme_customization={@theme_customization} />
+            <.video_sources sources={@background.sources} />
           </video>
         </div>
         <.background_motion_toggle />

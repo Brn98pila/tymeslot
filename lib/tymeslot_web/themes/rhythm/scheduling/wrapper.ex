@@ -7,14 +7,14 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Wrapper do
 
   alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Themes.Shared.Components.ThemeShell
+  alias TymeslotWeb.Themes.Shared.ThemeStyle
 
   import TymeslotWeb.Components.BackgroundMotionToggle,
     only: [background_motion_toggle: 1]
 
-  import TymeslotWeb.Themes.Shared.Customization.Helpers
+  import TymeslotWeb.Themes.Shared.Customization.Helpers, only: [prepare_wrapper_assigns: 1]
   import TymeslotWeb.Themes.Shared.VideoSources, only: [video_sources: 1]
 
-  attr :theme_customization, :map, default: nil
   attr :theme_tokens, :any, default: nil
   attr :locale, :string, default: nil
   attr :current_state, :atom, default: nil
@@ -58,30 +58,27 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Wrapper do
                 muted
                 loop
                 playsinline
-                poster={@video_poster}
+                poster={@background.poster}
                 class="video-background-video active"
                 preload="metadata"
               >
-                <.video_sources theme_customization={@theme_customization} />
+                <.video_sources sources={@background.sources} />
               </video>
               <video
                 id="rhythm-background-video-2"
                 muted
                 loop
                 playsinline
-                poster={@video_poster}
+                poster={@background.poster}
                 class="video-background-video inactive"
                 preload="none"
               >
-                <.video_sources theme_customization={@theme_customization} />
+                <.video_sources sources={@background.sources} />
               </video>
             </div>
             <.background_motion_toggle />
-          <% @theme_customization && get_background_type(@theme_customization) in ["gradient", "color", "image"] -> %>
-            <div
-              class="video-background-container"
-              style={get_background_style(@theme_customization)}
-            >
+          <% @background -> %>
+            <div class="video-background-container" style={ThemeStyle.inline_background(@background)}>
             </div>
           <% true -> %>
             <div class="video-background-container"></div>

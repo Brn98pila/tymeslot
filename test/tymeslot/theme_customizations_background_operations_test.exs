@@ -100,15 +100,5 @@ defmodule Tymeslot.ThemeCustomizationsBackgroundOperationsTest do
       assert updated.background_type == "image"
       assert updated.background_value == "preset:artistic-studio"
     end
-
-    test "get_gradient_css/1 returns gradient CSS for valid preset" do
-      css = ThemeCustomizations.get_gradient_css("gradient_1")
-
-      assert String.contains?(css, "linear-gradient")
-    end
-
-    test "get_gradient_css/1 returns nil for invalid preset" do
-      assert ThemeCustomizations.get_gradient_css("nonexistent") == nil
-    end
   end
 end

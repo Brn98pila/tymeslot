@@ -14,30 +14,24 @@ defmodule TymeslotWeb.Themes.Shared.Customization.HelpersTest do
   import Tymeslot.Factory
 
   alias Phoenix.LiveView.Socket
-  alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
   alias Tymeslot.ThemeCustomizations.Tokens
   alias TymeslotWeb.Themes.Shared.Customization.Helpers
 
   defp socket, do: %Socket{assigns: %{__changed__: %{}}}
 
   describe "assign_theme_customization/3 — no persisted customisation" do
-    test "falls back to defaults and marks has_custom_theme false" do
+    test "falls back to the theme's defaults" do
       profile = insert(:profile)
 
       updated = Helpers.assign_theme_customization(socket(), profile, "1")
 
-      assert updated.assigns.has_custom_theme == false
-
-      assert %ThemeCustomizationSchema{
-               profile_id: nil,
-               theme_id: "1",
-               color_scheme: "default",
-               background_type: "gradient",
-               background_value: "gradient_1"
-             } = updated.assigns.theme_customization
-
-      assert %Tokens{vars: %{"--theme-background" => "linear-gradient(" <> _rest}} =
-               updated.assigns.theme_tokens
+      assert %Tokens{
+               vars: %{
+                 "--theme-primary" => "#06b6d4",
+                 "--theme-background" => "linear-gradient(" <> _rest
+               },
+               background: %{kind: :gradient}
+             } = updated.assigns.theme_tokens
 
       refute Map.has_key?(updated.assigns, :custom_css)
       refute Map.has_key?(updated.assigns, :customization_options)
@@ -45,70 +39,51 @@ defmodule TymeslotWeb.Themes.Shared.Customization.HelpersTest do
   end
 
   describe "assign_theme_customization/3 — persisted customisation" do
-    test "loads the tenant's customisation and marks has_custom_theme true" do
+    test "loads the tenant's customisation" do
       profile = insert(:profile)
 
       _customization =
         insert(:theme_customization,
           profile: profile,
           theme_id: "1",
-          color_scheme: "default",
+          color_scheme: "purple",
           background_type: "gradient",
           background_value: "gradient_1"
         )
 
       updated = Helpers.assign_theme_customization(socket(), profile, "1")
 
-      assert updated.assigns.has_custom_theme == true
-      assert updated.assigns.theme_customization.color_scheme == "default"
-      assert updated.assigns.theme_customization.background_value == "gradient_1"
+      assert updated.assigns.theme_tokens.vars["--theme-primary"] == "#8b5cf6"
     end
 
     test "is theme-scoped — a customisation for theme 1 does not leak to theme 2" do
       profile = insert(:profile)
 
       _theme_one =
-        insert(:theme_customization, profile: profile, theme_id: "1", color_scheme: "default")
+        insert(:theme_customization, profile: profile, theme_id: "1", color_scheme: "purple")
 
       updated_two = Helpers.assign_theme_customization(socket(), profile, "2")
 
-      assert updated_two.assigns.has_custom_theme == false
+      assert updated_two.assigns.theme_tokens.vars["--theme-primary"] == "#06b6d4"
     end
   end
 
-  describe "get_background_style/1" do
-    test "returns empty string for nil" do
-      assert Helpers.get_background_style(nil) == ""
-    end
-
-    test "returns empty string when background type is video (rendered via media tag instead)" do
+  describe "assign_theme_customization/3: background" do
+    test "hands the wrapper a resolved descriptor, not the raw settings" do
       profile = insert(:profile)
 
-      customization =
-        insert(:theme_customization,
-          profile: profile,
-          theme_id: "1",
-          background_type: "video",
-          background_value: "https://example.com/bg.mp4"
-        )
+      insert(:theme_customization,
+        profile: profile,
+        theme_id: "1",
+        background_type: "color",
+        background_value: "#123456"
+      )
 
-      assert Helpers.get_background_style(customization) == ""
-    end
+      updated = Helpers.assign_theme_customization(socket(), profile, "1")
 
-    test "produces a gradient inline style when background_type is gradient" do
-      profile = insert(:profile)
-
-      customization =
-        insert(:theme_customization,
-          profile: profile,
-          theme_id: "1",
-          background_type: "gradient",
-          background_value: "gradient_1"
-        )
-
-      style = Helpers.get_background_style(customization)
-
-      assert style == "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"
+      assert %Tokens{background: %{kind: :color, color: "#123456"}} = updated.assigns.theme_tokens
+      refute Map.has_key?(updated.assigns, :theme_customization)
+      refute Map.has_key?(updated.assigns, :has_custom_theme)
     end
   end
 end

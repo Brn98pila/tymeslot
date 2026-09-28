@@ -11,6 +11,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
+  alias TymeslotWeb.ThemeTestMatrix
 
   describe "theme customization application" do
     setup tags do
@@ -95,6 +96,45 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
       assert html =~ "rhythm-background-desktop"
       # Poster should use the preset poster image
       assert html =~ ~s(poster="/images/ui/posters/rhythm-background-poster.jpg")
+    end
+
+    test "a preset image renders under the kept path in every theme", %{
+      conn: conn,
+      profile: profile
+    } do
+      for theme_id <- ThemeTestMatrix.ids() do
+        Repo.update!(Changeset.change(profile, %{booking_theme: theme_id}))
+
+        {:ok, _customization} =
+          ThemeCustomizations.upsert_theme_customization(profile.id, theme_id, %{
+            "background_type" => "image",
+            "background_value" => "preset:ocean-sunset"
+          })
+
+        {:ok, _view, html} = live(conn, ~p"/#{profile.username}")
+
+        assert html =~ "url(&#39;/images/themes/backgrounds/ocean-sunset.webp&#39;)",
+               "theme #{theme_id} did not render the preset image"
+      end
+    end
+
+    test "an uploaded video renders its variants with the original as the last source",
+         %{conn: conn, profile: profile} do
+      Repo.update!(Changeset.change(profile, %{booking_theme: "2"}))
+
+      {:ok, _customization} =
+        ThemeCustomizations.upsert_theme_customization(profile.id, "2", %{
+          "background_type" => "video",
+          "background_value" => "custom",
+          "background_video_path" => "themes/#{profile.id}/2/videos/clip.mp4"
+        })
+
+      {:ok, _view, html} = live(conn, ~p"/#{profile.username}")
+
+      assert html =~ ~s(src="/uploads/themes/#{profile.id}/2/videos/clip-desktop.webm")
+
+      assert html =~
+               ~s(<source src="/uploads/themes/#{profile.id}/2/videos/clip.mp4" type="video/mp4")
     end
 
     test "custom palette seed flows through to booking page CSS variables",

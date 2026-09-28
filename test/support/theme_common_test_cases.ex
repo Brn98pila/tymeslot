@@ -10,6 +10,9 @@ defmodule TymeslotWeb.ThemeCommonTestCases do
   import ExUnit.Assertions
   import Phoenix.LiveViewTest, only: [rendered_to_string: 1]
 
+  alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
+
   @doc "The theme's LiveView module exists and is a LiveView."
   @spec test_live_view_module(module()) :: :ok
   def test_live_view_module(theme_module) do
@@ -126,13 +129,13 @@ defmodule TymeslotWeb.ThemeCommonTestCases do
         attendee_timezone: "UTC"
       },
       organizer_profile: %{username: "testuser"},
-      theme_customization: %{
-        theme_id: theme_id,
-        color_scheme: "turquoise",
-        background_type: "gradient",
-        background_value: "gradient_1"
-      },
-      theme_tokens: nil,
+      theme_tokens:
+        ThemeCustomizations.tokens(theme_id, %ThemeCustomizationSchema{
+          theme_id: theme_id,
+          color_scheme: "turquoise",
+          background_type: "gradient",
+          background_value: "gradient_1"
+        }),
       locale: "en",
       language_dropdown_open: false,
       loading: false,

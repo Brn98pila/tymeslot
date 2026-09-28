@@ -162,12 +162,6 @@ defmodule Tymeslot.ThemeCustomizations do
   end
 
   @doc """
-  Gets the CSS for a gradient preset.
-  """
-  @spec get_gradient_css(String.t() | atom()) :: String.t() | nil
-  defdelegate get_gradient_css(gradient_id), to: Css
-
-  @doc """
   The stored settings of a customisation as a string-keyed map, the shape specs
   and tokens work on. Empty for `nil`.
   """

@@ -15,6 +15,7 @@ defmodule TymeslotWeb.Live.Themes.MeetingManagementThemeTest do
   import Tymeslot.Factory
 
   alias Tymeslot.TestMocks
+  alias Tymeslot.ThemeCustomizations
 
   setup do
     TestMocks.setup_all_mocks()
@@ -50,7 +51,9 @@ defmodule TymeslotWeb.Live.Themes.MeetingManagementThemeTest do
     {:ok, view, _html} = live(conn, path)
     assigns = :sys.get_state(view.pid).socket.assigns
     assert assigns.theme_id == id
-    assert assigns.theme_customization.theme_id == id
+    # Quill's defaults paint a gradient and Rhythm's a video, so the tokens
+    # tell the two themes' customisations apart.
+    assert assigns.theme_tokens == ThemeCustomizations.tokens(id, nil)
   end
 
   for action <- ["cancel", "reschedule"] do

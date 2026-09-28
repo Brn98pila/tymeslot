@@ -22,12 +22,6 @@ defmodule TymeslotWeb.Components.CoreComponents.Layout do
     default: nil,
     doc: "optional username shown in the page header for profile context"
 
-  attr :theme_customization, :any,
-    default: nil,
-    doc: "optional theme customization map applied to the booking page layout"
-
-  attr :has_custom_theme, :boolean, default: false
-
   @spec page_layout(map()) :: Phoenix.LiveView.Rendered.t()
   def page_layout(assigns) do
     ~H"""

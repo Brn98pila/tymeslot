@@ -15,7 +15,6 @@ defmodule TymeslotWeb.Themes.Quill.Poll.Voting do
 
   import TymeslotWeb.Components.CoreComponents, only: [glass_morphism_card: 1]
 
-  attr :theme_customization, :map, required: true
   attr :theme_tokens, :any, required: true
   attr :locale, :string, required: true
   attr :language_dropdown_open, :boolean, required: true
@@ -29,7 +28,6 @@ defmodule TymeslotWeb.Themes.Quill.Poll.Voting do
   def render(assigns) do
     ~H"""
     <Wrapper.quill_wrapper
-      theme_customization={@theme_customization}
       theme_tokens={@theme_tokens}
       locale={@locale}
       language_dropdown_open={@language_dropdown_open}

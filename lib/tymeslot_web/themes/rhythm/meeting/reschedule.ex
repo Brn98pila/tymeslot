@@ -11,7 +11,6 @@ defmodule TymeslotWeb.Themes.Rhythm.Meeting.Reschedule do
   alias TymeslotWeb.Themes.Rhythm.Scheduling.Wrapper
   alias TymeslotWeb.Themes.Shared.PathHandlers
 
-  attr :theme_customization, :map, required: true
   attr :theme_tokens, :any, required: true
   attr :locale, :string, required: true
   attr :language_dropdown_open, :boolean, required: true
@@ -25,7 +24,6 @@ defmodule TymeslotWeb.Themes.Rhythm.Meeting.Reschedule do
   def render(assigns) do
     ~H"""
     <Wrapper.rhythm_wrapper
-      theme_customization={@theme_customization}
       theme_tokens={@theme_tokens}
       locale={@locale}
       language_dropdown_open={@language_dropdown_open}

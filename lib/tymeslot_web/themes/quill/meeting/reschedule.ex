@@ -12,7 +12,6 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Reschedule do
   import TymeslotWeb.Components.CoreComponents
   import TymeslotWeb.Themes.Shared.Components.MeetingDetails, only: [meeting_detail_rows: 1]
 
-  attr :theme_customization, :map, required: true
   attr :theme_tokens, :any, required: true
   attr :locale, :string, required: true
   attr :language_dropdown_open, :boolean, required: true
@@ -26,7 +25,6 @@ defmodule TymeslotWeb.Themes.Quill.Meeting.Reschedule do
   def render(assigns) do
     ~H"""
     <Wrapper.quill_wrapper
-      theme_customization={@theme_customization}
       theme_tokens={@theme_tokens}
       locale={@locale}
       language_dropdown_open={@language_dropdown_open}
