@@ -177,11 +177,12 @@ defmodule Tymeslot.ThemeCustomizations do
   defdelegate get_gradient_css(gradient_id), to: Css
 
   @doc """
-  Converts a theme customization schema to a map for use in capability-based customization.
+  The stored settings of a customisation as a string-keyed map, the shape specs
+  and tokens work on. Empty for `nil`.
   """
   @spec to_map(customization_input()) :: map()
   def to_map(customization) do
-    DataTransform.convert_to_map(customization)
+    DataTransform.to_settings(customization)
   end
 
   @doc """
@@ -278,17 +279,14 @@ defmodule Tymeslot.ThemeCustomizations do
   end
 
   def apply_color_scheme_change(profile_id, theme_id, current_customization, scheme_id) do
-    new_customization =
-      DataTransform.merge_customization_changes(current_customization, %{
-        color_scheme: scheme_id,
-        custom_palette_seed: nil
+    attrs =
+      Map.merge(DataTransform.to_settings(current_customization), %{
+        "color_scheme" => scheme_id,
+        "custom_palette_seed" => nil
       })
 
     profile_id
-    |> upsert_theme_customization(
-      theme_id,
-      DataTransform.extract_save_attributes(new_customization)
-    )
+    |> upsert_theme_customization(theme_id, attrs)
     |> format_persistence_error()
   end
 
@@ -307,16 +305,13 @@ defmodule Tymeslot.ThemeCustomizations do
         ) :: {:ok, ThemeCustomizationSchema.t()} | {:error, String.t()}
   def apply_custom_palette_change(profile_id, theme_id, current_customization, seed_hex)
       when is_binary(seed_hex) and seed_hex != "" do
-    new_customization =
-      DataTransform.merge_customization_changes(current_customization, %{
-        custom_palette_seed: seed_hex
+    attrs =
+      Map.merge(DataTransform.to_settings(current_customization), %{
+        "custom_palette_seed" => seed_hex
       })
 
     profile_id
-    |> upsert_theme_customization(
-      theme_id,
-      DataTransform.extract_save_attributes(new_customization)
-    )
+    |> upsert_theme_customization(theme_id, attrs)
     |> format_persistence_error()
   end
 
@@ -339,10 +334,7 @@ defmodule Tymeslot.ThemeCustomizations do
 
     with {:ok, saved} <-
            profile_id
-           |> upsert_theme_customization(
-             theme_id,
-             DataTransform.extract_save_attributes(new_customization)
-           )
+           |> upsert_theme_customization(theme_id, DataTransform.to_settings(new_customization))
            |> format_persistence_error() do
       Enum.each(cleanup_files, &FileLifecycle.cleanup_old_backgrounds/1)
       {:ok, saved}

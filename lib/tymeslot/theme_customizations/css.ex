@@ -30,7 +30,7 @@ defmodule Tymeslot.ThemeCustomizations.Css do
   """
   @spec get_color_scheme_css(String.t() | atom() | map()) :: String.t() | nil
   def get_color_scheme_css(customization) when is_map(customization) do
-    case customization |> DataTransform.convert_to_map() |> Palette.resolve() do
+    case customization |> DataTransform.to_settings() |> Palette.resolve() do
       %{colors: colors} -> colors |> Palette.colours_to_vars() |> render_vars()
       nil -> nil
     end
