@@ -362,12 +362,15 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
 
   # The flow restarts here without navigating, so the reschedule context has
   # to be dropped explicitly or the next submit moves the meeting that was
-  # just moved. See `ReschedulePin.abandon/1`.
+  # just moved (see `ReschedulePin.abandon/1`). The day and time belong to
+  # the booking just made: kept, the schedule step would reopen the calendar
+  # on them, with a time that is no longer free.
   defp confirmation_event(socket, :schedule_another, _data) do
     socket =
       socket
       |> GuestBooking.assign_defaults()
       |> ReschedulePin.abandon()
+      |> assign(selected_date: nil, selected_time: nil)
 
     {:noreply, transition_to(socket, :overview, %{})}
   end

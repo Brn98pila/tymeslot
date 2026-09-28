@@ -433,9 +433,101 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpersTest do
     end
   end
 
+  describe "anchor_on/2" do
+    test "moves the month and the Monday-started week onto the date" do
+      socket = CalendarHelpers.anchor_on(calendar_socket(%{}), ~D[2027-03-10])
+
+      assert %{current_year: 2027, current_month: 3, current_week_start: ~D[2027-03-08]} =
+               socket.assigns
+    end
+  end
+
+  describe "anchor_on_selection/1" do
+    setup do
+      freeze_clock(~U[2027-01-31 12:00:00Z])
+      :ok
+    end
+
+    test "opens on a chosen day in a later month, week included" do
+      socket =
+        CalendarHelpers.anchor_on_selection(
+          window_socket(%{selected_date: "2027-03-10", selected_time: "10:00 AM"})
+        )
+
+      assert %{
+               calendar_today: ~D[2027-01-31],
+               current_year: 2027,
+               current_month: 3,
+               current_week_start: ~D[2027-03-08],
+               selected_date: "2027-03-10",
+               selected_time: "10:00 AM"
+             } = socket.assigns
+    end
+
+    test "keeps the last day of the booking window" do
+      socket = CalendarHelpers.anchor_on_selection(window_socket(%{selected_date: "2027-05-01"}))
+
+      assert %{current_month: 5, current_week_start: ~D[2027-04-26], selected_date: "2027-05-01"} =
+               socket.assigns
+    end
+
+    test "drops a day before today and opens on today" do
+      socket =
+        CalendarHelpers.anchor_on_selection(
+          window_socket(%{selected_date: "2027-01-30", selected_time: "10:00 AM"})
+        )
+
+      assert %{
+               current_month: 1,
+               current_week_start: ~D[2027-01-25],
+               selected_date: nil,
+               selected_time: nil
+             } = socket.assigns
+    end
+
+    test "drops a day past the booking window and opens on today" do
+      socket = CalendarHelpers.anchor_on_selection(window_socket(%{selected_date: "2027-05-02"}))
+
+      assert %{current_month: 1, current_week_start: ~D[2027-01-25], selected_date: nil} =
+               socket.assigns
+    end
+
+    test "judges the day in the visitor's timezone" do
+      # Still Sunday 31 January in UTC, but already 1 February in Kiritimati.
+      socket =
+        CalendarHelpers.anchor_on_selection(
+          window_socket(%{user_timezone: "Pacific/Kiritimati", selected_date: "2027-01-31"})
+        )
+
+      assert %{calendar_today: ~D[2027-02-01], current_month: 2, selected_date: nil} =
+               socket.assigns
+    end
+
+    test "with no day chosen, opens on today like anchor_on_today/1" do
+      socket = CalendarHelpers.anchor_on_selection(window_socket(%{}))
+
+      assert %{
+               calendar_today: ~D[2027-01-31],
+               current_month: 1,
+               current_week_start: ~D[2027-01-25],
+               selected_date: nil
+             } = socket.assigns
+    end
+  end
+
   # A socket with no organiser, so a month availability fetch stands down.
   defp calendar_socket(assigns) do
     %Socket{assigns: Map.merge(%{__changed__: %{}, selected_date: nil}, assigns)}
+  end
+
+  # A calendar in Tallinn whose meeting type allows booking 90 days ahead.
+  defp window_socket(assigns) do
+    calendar_socket(
+      Map.merge(
+        %{user_timezone: "Europe/Tallinn", booking_window_days: 90, selected_time: nil},
+        assigns
+      )
+    )
   end
 
   # A calendar opened in Tallinn, whose booker has then picked Kiritimati:

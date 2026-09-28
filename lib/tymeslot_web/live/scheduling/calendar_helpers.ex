@@ -3,10 +3,12 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
   Calendar grid rendering and navigation for the scheduling flow.
 
   Provides the calendar and week day data the schedule view templates render
-  directly; opens the calendar on the booker's today (`anchor_on_today/1`)
-  and keeps it there across a timezone change (`follow_timezone_change/1`);
-  and handles week and month navigation, which move the visible window and
-  refetch availability when the month changes.
+  directly; positions the calendar on a date (`anchor_on/2`, the one place the
+  month and week are set from a date), on the booker's today
+  (`anchor_on_today/1`) or on the day they have chosen
+  (`anchor_on_selection/1`), and keeps it there across a timezone change
+  (`follow_timezone_change/1`); and handles week and month navigation, which
+  move the visible window and refetch availability when the month changes.
   """
 
   alias Phoenix.Component
@@ -203,9 +205,10 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
   # week. `handle_week_navigation/2` refetches whenever the arrows move the
   # week's midpoint into another month, so no arrow-driven week escapes the
   # block; a week positioned by a *date* can, because nothing refetches for
-  # it. `anchor_on_today/1` seeds one from today and `NextAvailable.align_to/2`
-  # from the day it lands on. August 2026 is the shape: the block covers
-  # 2026-07-26..2026-09-05 and the week of the 31st runs to 2026-09-06.
+  # it. `anchor_on/2` positions one from a date: today, a chosen or linked
+  # day, or the day `NextAvailable` lands on. August 2026 is the shape: the
+  # block covers 2026-07-26..2026-09-05 and the week of the 31st runs to
+  # 2026-09-06.
   #
   # Reading the absent day as `false` painted it exactly like a fully booked
   # one — greyed out and unclickable — on the strength of a question nobody
@@ -269,7 +272,63 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
       |> DateTimeUtils.now_in_timezone()
       |> DateTime.to_date()
 
-    assign(socket, Map.put(calendar_window(today), :calendar_today, today))
+    socket
+    |> assign(:calendar_today, today)
+    |> anchor_on(today)
+  end
+
+  @doc """
+  Moves the calendar onto `date`: its month, and the Monday-started week that
+  contains it.
+
+  Every code path that positions the calendar on a date goes through here
+  (today, a chosen or linked day, the day `NextAvailable` lands on), so the
+  month grid and the week strips can never disagree about where they are.
+  """
+  @spec anchor_on(Phoenix.LiveView.Socket.t(), Date.t()) :: Phoenix.LiveView.Socket.t()
+  def anchor_on(socket, %Date{} = date), do: assign(socket, calendar_window(date))
+
+  @doc """
+  Opens the calendar for an arrival at the schedule step.
+
+  A chosen day, whether linked (`?date=`) or left by an earlier visit to the
+  step, opens its own month and week when the booker can book it: from today
+  to the last day of `:booking_window_days`, both inclusive, in
+  `:user_timezone`. These are the bounds `Availability.Calculate` greys days
+  out by. A day outside them is dropped together with its time, so the calendar
+  opens on today and `NextAvailable` lands the booker on a real day, instead
+  of keeping a selection they can neither see nor book. With no day chosen this
+  is `anchor_on_today/1`.
+  """
+  @spec anchor_on_selection(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def anchor_on_selection(socket) do
+    socket = anchor_on_today(socket)
+    %{calendar_today: today} = socket.assigns
+
+    case chosen_day(socket.assigns[:selected_date], today, socket.assigns[:booking_window_days]) do
+      {:bookable, date} -> anchor_on(socket, date)
+      :none -> socket
+      :out_of_window -> assign(socket, selected_date: nil, selected_time: nil)
+    end
+  end
+
+  defp chosen_day(value, today, window_days) when is_binary(value) and value != "" do
+    case Date.from_iso8601(value) do
+      {:ok, date} ->
+        if within_window?(date, today, window_days), do: {:bookable, date}, else: :out_of_window
+
+      {:error, _reason} ->
+        :out_of_window
+    end
+  end
+
+  defp chosen_day(_value, _today, _window_days), do: :none
+
+  # No window assigned (no organiser resolved) bounds only the past; the
+  # schedule step always has one.
+  defp within_window?(date, today, window_days) do
+    Date.compare(date, today) != :lt and
+      (not is_integer(window_days) or Date.compare(date, Date.add(today, window_days)) != :gt)
   end
 
   @doc """

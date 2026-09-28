@@ -267,6 +267,11 @@ defmodule TymeslotWeb.Live.Scheduling.RescheduleCompletionTest do
 
       view |> element("[data-testid='schedule-another']") |> render_click()
 
+      # The day and time just booked belong to the finished booking. Kept, the
+      # schedule step would open the next booking's calendar on them.
+      assert %{selected_date: nil, selected_time: nil} =
+               :sys.get_state(view.pid).socket.assigns
+
       cards =
         view
         |> render()

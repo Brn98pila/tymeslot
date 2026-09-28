@@ -246,9 +246,6 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry do
 
     socket =
       socket
-      # Arriving at the step opens the calendar on today in the booker's
-      # timezone, week included, whatever an earlier visit left it on.
-      |> CalendarHelpers.anchor_on_today()
       |> assign(:duration, normalized_duration)
       # Arriving at the step is a fresh landing: it gets its own hop budget,
       # even if an earlier visit spent one on a duration that was booked out.
@@ -260,6 +257,10 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry do
       # params arrive with the event rather than through `handle_params`.
       # Seeding here covers that arrival.
       |> maybe_assign_from_params(:selected_date, date_param(params))
+      # After the seed, so a linked or earlier-chosen day opens its own month
+      # and week, and the fetch below is for that month. A day outside the
+      # booking window is dropped here, and `NextAvailable` lands the booker.
+      |> CalendarHelpers.anchor_on_selection()
 
     # Trigger month availability fetch in background if not already loading or loaded for this month
     if AvailabilityHelpers.can_fetch_availability?(socket) do
