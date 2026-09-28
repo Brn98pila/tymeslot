@@ -12,9 +12,7 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
 
   alias Phoenix.LiveView
   alias Tymeslot.Polls
-  alias Tymeslot.Profiles
   alias Tymeslot.Scheduling.LinkAccessPolicy
-  alias Tymeslot.Timezones
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
   alias TymeslotWeb.Themes.Core.{Context, MeetingManagement, PollVoting, Registry}
   alias TymeslotWeb.Themes.Shared.Customization.Helpers, as: ThemeCustomizationHelpers
@@ -137,25 +135,6 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
       {:error, reason} ->
         mount_readiness_error(profile, params, socket, reason)
     end
-  end
-
-  @doc "Assigns the validated user timezone from params or socket assigns."
-  @spec assign_user_timezone(Phoenix.LiveView.Socket.t(), map()) :: Phoenix.LiveView.Socket.t()
-  def assign_user_timezone(socket, params) do
-    timezone =
-      params["timezone"] || socket.assigns[:user_timezone] ||
-        Profiles.get_default_timezone()
-
-    normalized_timezone = Timezones.normalize(timezone)
-
-    validated_timezone =
-      if Timezones.valid?(normalized_timezone) do
-        normalized_timezone
-      else
-        Profiles.get_default_timezone()
-      end
-
-    assign(socket, :user_timezone, validated_timezone)
   end
 
   # Builds the theme context from params and profile, assigns it to the socket.

@@ -34,6 +34,7 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers do
   alias TymeslotWeb.Themes.Shared.Customization.Helpers, as: CustomizationHelpers
   alias TymeslotWeb.Themes.Shared.CustomQuestions.Engine, as: QEngine
   alias TymeslotWeb.Themes.Shared.ReschedulePin
+  alias TymeslotWeb.Themes.Shared.TimezoneHelpers
 
   @doc """
   Shared mounting logic for scheduling themes.
@@ -55,7 +56,7 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers do
     socket =
       socket
       |> assign_initial_state_fun.()
-      |> ThemeUtils.assign_user_timezone(params)
+      |> TimezoneHelpers.assign_user_timezone(params)
       |> ThemeUtils.assign_theme_with_preview(params)
 
     # Resolve the username context (which sets meeting_types) unless the

@@ -14,7 +14,7 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   alias Tymeslot.Utils.DateTimeUtils.Duration
   alias TymeslotWeb.Helpers.ClientIP
   alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
-  alias TymeslotWeb.Themes.Core.MountHelpers
+  alias TymeslotWeb.Themes.Shared.TimezoneHelpers
 
   @doc """
   Loads and validates a meeting by UID for the given action.
@@ -124,7 +124,7 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
     duration_str = Duration.format_for_url(meeting.duration)
 
     socket
-    |> MountHelpers.assign_user_timezone(params)
+    |> TimezoneHelpers.assign_user_timezone(params)
     |> assign(:duration, duration_str)
   end
 
