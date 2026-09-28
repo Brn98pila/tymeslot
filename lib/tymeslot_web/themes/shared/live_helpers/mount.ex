@@ -1,9 +1,10 @@
 defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
   @moduledoc """
   Mounting a theme's scheduling LiveView and applying URL parameters to it:
-  the initial state, the booker's timezone, the organiser and their theme
-  customisation, the owner-preview gate, and the calendar subscription that
-  keeps availability fresh.
+  the initial state, the booker's timezone, the organiser, the owner-preview
+  gate, and the calendar subscription that keeps availability fresh. The theme
+  customisation is not loaded here: `MountHelpers.prepare_theme_context/3`
+  loads it once per mount, before the theme's own mount runs.
   """
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -20,7 +21,6 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
   }
 
   alias TymeslotWeb.Live.Scheduling.Handlers.SlotFetchingHandlerComponent
-  alias TymeslotWeb.Themes.Shared.Customization.Helpers, as: CustomizationHelpers
   alias TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry
   alias TymeslotWeb.Themes.Shared.ReschedulePin
   alias TymeslotWeb.Themes.Shared.SchedulingFlow
@@ -30,8 +30,8 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
 
   @doc """
   Mounts a theme's scheduling LiveView: initial state, timezone, theme and
-  organiser, customisation, owner preview, calendar subscription, and (on the
-  connected mount) the entry into the step the route names.
+  organiser, owner preview, calendar subscription, and (on the connected
+  mount) the entry into the step the route names.
   """
   @spec mount_scheduling_view(Phoenix.LiveView.Socket.t(), map()) ::
           Phoenix.LiveView.Socket.t()
@@ -54,9 +54,6 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
       else
         OrganizerHelpers.handle_username_resolution(socket, params["username"])
       end
-
-    # Apply theme customization after organizer is resolved
-    socket = maybe_assign_customization(socket)
 
     # Verify an owner-preview token now that the organiser (and so the page
     # owner's user id) is resolved. Gates simulate-vs-persist downstream.
@@ -113,9 +110,6 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
       |> assign(:current_state, initial_state)
       |> SchedulingFlow.handle_state_entry(initial_state, params)
 
-    # Re-apply theme customization in case theme changed in preview mode
-    socket = maybe_assign_customization(socket)
-
     if socket.redirected do
       {:noreply, socket}
     else
@@ -149,19 +143,6 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
     token = params["preview_token"]
 
     if PreviewToken.owner?(token, socket.assigns[:organizer_user_id]), do: token
-  end
-
-  @spec maybe_assign_customization(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
-  defp maybe_assign_customization(socket) do
-    if socket.assigns[:organizer_profile] do
-      CustomizationHelpers.assign_theme_customization(
-        socket,
-        socket.assigns.organizer_profile,
-        socket.assigns.scheduling_theme_id
-      )
-    else
-      socket
-    end
   end
 
   # Updates socket assigns from URL parameters.

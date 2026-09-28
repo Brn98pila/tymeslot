@@ -6,7 +6,6 @@ defmodule TymeslotWeb.Themes.Core.Context do
   """
 
   alias Phoenix.Component
-  alias Tymeslot.ThemeCustomizations
   alias TymeslotWeb.Live.Scheduling.PreviewMode
   alias TymeslotWeb.Themes.Core.Registry
 
@@ -18,7 +17,6 @@ defmodule TymeslotWeb.Themes.Core.Context do
           theme_id: String.t(),
           theme_key: atom(),
           module: module(),
-          customizations: map() | nil,
           preview_mode: boolean(),
           layout: layout()
         }
@@ -26,7 +24,6 @@ defmodule TymeslotWeb.Themes.Core.Context do
   defstruct theme_id: nil,
             theme_key: nil,
             module: nil,
-            customizations: nil,
             preview_mode: false,
             layout: :default
 
@@ -43,17 +40,16 @@ defmodule TymeslotWeb.Themes.Core.Context do
   def valid_layouts, do: ~w(default column)
 
   @doc """
-  Creates a new theme context from a theme ID and optional profile.
+  Creates a new theme context from a theme ID and options (`preview:`).
   """
-  @spec new(String.t(), map() | nil, keyword()) :: t() | nil
-  def new(theme_id, profile \\ nil, options \\ []) do
+  @spec new(String.t(), keyword()) :: t() | nil
+  def new(theme_id, options \\ []) do
     with {:ok, theme} <- Registry.get_theme_by_id(theme_id),
          {:ok, module} <- ensure_module_loaded(theme.module) do
       %__MODULE__{
         theme_id: theme_id,
         theme_key: theme.key,
         module: module,
-        customizations: load_customizations(theme_id, profile),
         preview_mode: Keyword.get(options, :preview, false)
       }
     else
@@ -78,14 +74,9 @@ defmodule TymeslotWeb.Themes.Core.Context do
 
     preview_mode = PreviewMode.claimed?(params)
 
-    context = new(theme_id, profile, preview: preview_mode)
-
-    if context do
-      context
-      |> apply_primary_color(params)
-      |> apply_layout(params)
-    else
-      nil
+    case new(theme_id, preview: preview_mode) do
+      %__MODULE__{} = context -> apply_layout(context, params)
+      nil -> nil
     end
   end
 
@@ -94,17 +85,6 @@ defmodule TymeslotWeb.Themes.Core.Context do
   end
 
   defp organiser_theme_id(_no_profile), do: nil
-
-  # Validate hex color format to prevent CSS injection.
-  defp apply_primary_color(context, params) do
-    with primary_color when is_binary(primary_color) <- params["primary-color"],
-         true <- Regex.match?(~r/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, primary_color) do
-      customizations = Map.put(context.customizations || %{}, "primary_color", primary_color)
-      %{context | customizations: customizations}
-    else
-      _invalid -> context
-    end
-  end
 
   # Layout is opt-in via an explicit `?layout=column` param. "column" forces
   # the wide-canvas layout; every other value (including "default", an absent
@@ -132,7 +112,6 @@ defmodule TymeslotWeb.Themes.Core.Context do
       theme_id: context.theme_id,
       theme_key: context.theme_key,
       theme_module: context.module,
-      theme_customization: context.customizations,
       theme_preview: context.preview_mode,
       embed_layout: context.layout
     }
@@ -156,15 +135,6 @@ defmodule TymeslotWeb.Themes.Core.Context do
     case Code.ensure_loaded(module) do
       {:module, ^module} -> {:ok, module}
       result -> result
-    end
-  end
-
-  defp load_customizations(theme_id, nil), do: ThemeCustomizations.get_defaults(theme_id)
-
-  defp load_customizations(theme_id, profile) do
-    case ThemeCustomizations.get_for_user(profile.user_id, theme_id) do
-      nil -> ThemeCustomizations.get_defaults(theme_id)
-      customization -> ThemeCustomizations.to_map(customization)
     end
   end
 end
