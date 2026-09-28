@@ -29,48 +29,49 @@ defmodule Tymeslot.Themes.Catalog do
           status: status()
         }
 
-  @themes %{
-    quill: %{
-      id: "1",
-      key: :quill,
-      name: "Quill",
-      heading_style: :generic,
-      customization_spec: Tymeslot.ThemeCustomizations.QuillSpec,
-      status: :active
-    },
-    rhythm: %{
-      id: "2",
-      key: :rhythm,
-      name: "Rhythm",
-      heading_style: :named,
-      customization_spec: Tymeslot.ThemeCustomizations.RhythmSpec,
-      status: :active
-    }
-  }
-
   @default_key :quill
 
-  # Compile-time reverse lookups
-  @id_to_key_map @themes
-                 |> Enum.map(fn {key, theme} -> {theme.id, key} end)
-                 |> Map.new()
+  # The facts live in function bodies rather than module attributes, so the
+  # spec modules they name stay runtime references: an alias in a module
+  # attribute would make the Catalog, and everything that reads it at compile
+  # time, depend on the specs at compile time.
+  defp themes do
+    %{
+      quill: %{
+        id: "1",
+        key: :quill,
+        name: "Quill",
+        heading_style: :generic,
+        customization_spec: Tymeslot.ThemeCustomizations.QuillSpec,
+        status: :active
+      },
+      rhythm: %{
+        id: "2",
+        key: :rhythm,
+        name: "Rhythm",
+        heading_style: :named,
+        customization_spec: Tymeslot.ThemeCustomizations.RhythmSpec,
+        status: :active
+      }
+    }
+  end
 
-  @id_to_facts_map @themes
-                   |> Enum.map(fn {_key, theme} -> {theme.id, theme} end)
-                   |> Map.new()
+  defp id_to_key_map, do: Map.new(themes(), fn {key, theme} -> {theme.id, key} end)
+
+  defp id_to_facts_map, do: Map.new(themes(), fn {_key, theme} -> {theme.id, theme} end)
 
   @doc """
   Returns all theme facts keyed by theme key.
   """
   @spec all() :: %{theme_key() => theme_facts()}
-  def all, do: @themes
+  def all, do: themes()
 
   @doc """
   Returns the facts for all active themes (excludes beta and deprecated).
   """
   @spec active() :: %{theme_key() => theme_facts()}
   def active do
-    @themes
+    themes()
     |> Enum.filter(fn {_key, theme} -> theme.status == :active end)
     |> Map.new()
   end
@@ -80,7 +81,7 @@ defmodule Tymeslot.Themes.Catalog do
   """
   @spec get_by_id(theme_id()) :: {:ok, theme_facts()} | {:error, :theme_not_found}
   def get_by_id(id) when is_binary(id) do
-    case Map.get(@id_to_facts_map, id) do
+    case Map.get(id_to_facts_map(), id) do
       nil -> {:error, :theme_not_found}
       facts -> {:ok, facts}
     end
@@ -91,7 +92,7 @@ defmodule Tymeslot.Themes.Catalog do
   """
   @spec id_to_key(theme_id()) :: {:ok, theme_key()} | {:error, :invalid_theme_id}
   def id_to_key(id) when is_binary(id) do
-    case Map.get(@id_to_key_map, id) do
+    case Map.get(id_to_key_map(), id) do
       nil -> {:error, :invalid_theme_id}
       key -> {:ok, key}
     end
@@ -102,7 +103,7 @@ defmodule Tymeslot.Themes.Catalog do
   """
   @spec key_to_id(theme_key()) :: {:ok, theme_id()} | {:error, :invalid_theme_key}
   def key_to_id(key) when is_atom(key) do
-    case Map.get(@themes, key) do
+    case Map.get(themes(), key) do
       nil -> {:error, :invalid_theme_key}
       %{id: id} -> {:ok, id}
     end
@@ -113,7 +114,7 @@ defmodule Tymeslot.Themes.Catalog do
   """
   @spec valid_ids() :: [theme_id()]
   def valid_ids do
-    @themes
+    themes()
     |> Map.values()
     |> Enum.map(& &1.id)
     |> Enum.sort()
@@ -124,7 +125,7 @@ defmodule Tymeslot.Themes.Catalog do
   """
   @spec valid_keys() :: [theme_key()]
   def valid_keys do
-    @themes
+    themes()
     |> Map.keys()
     |> Enum.sort()
   end
@@ -133,13 +134,13 @@ defmodule Tymeslot.Themes.Catalog do
   Checks whether a theme ID is registered.
   """
   @spec valid_id?(theme_id()) :: boolean()
-  def valid_id?(id) when is_binary(id), do: Map.has_key?(@id_to_facts_map, id)
+  def valid_id?(id) when is_binary(id), do: Map.has_key?(id_to_facts_map(), id)
 
   @doc """
   Returns the default theme's facts (Quill).
   """
   @spec default() :: theme_facts()
-  def default, do: Map.fetch!(@themes, @default_key)
+  def default, do: Map.fetch!(themes(), @default_key)
 
   @doc """
   Returns the default theme ID.
