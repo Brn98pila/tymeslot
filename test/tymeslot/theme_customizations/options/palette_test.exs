@@ -52,6 +52,15 @@ defmodule Tymeslot.ThemeCustomizations.Options.PaletteTest do
       assert Palette.changes("seed", "#aabbcc") == {:ok, %{"custom_palette_seed" => "#aabbcc"}}
     end
 
+    test "a blank seed casts to nil and switches back to the preset scheme" do
+      assert {:ok, %{"custom_palette_seed" => ""}} = Palette.changes("seed", "")
+
+      cs = changeset(%{"color_scheme" => "forest", "custom_palette_seed" => ""})
+
+      assert Changeset.get_change(cs, :custom_palette_seed) == nil
+      assert cs.valid?
+    end
+
     test "any other field is refused" do
       assert Palette.changes("logo", "x.png") == :error
     end

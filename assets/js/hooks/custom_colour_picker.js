@@ -10,7 +10,7 @@
  *
  * Required data attributes on the root element:
  *   data-target       — phx CID of the LiveComponent that handles the event
- *   data-event        — event name to push on commit (e.g. "theme:set_option")
+ *   data-event        : event name to push on commit (e.g. "theme:set_option")
  *   data-initial-hex  — the colour to seed the picker from (e.g. "#06b6d4")
  *
  * Optional:

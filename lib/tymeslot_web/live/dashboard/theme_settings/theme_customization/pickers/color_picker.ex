@@ -24,7 +24,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ColorPi
   Renders the color picker.
 
   Expects assigns:
-    * `:option`        — the background option group's key
+    * `:option`        : the background option group's key
     * `:customization` — current customization map (reads `:background_value`)
     * `:myself`        — CID of the parent LiveComponent
     * `:custom_picker_open` — boolean controlling the disclosure panel
