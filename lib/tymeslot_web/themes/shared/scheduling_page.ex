@@ -33,6 +33,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingPage do
       organizer_user_id={@organizer_user_id}
       owner_preview={assigns[:owner_preview]}
       should_show_branding={assigns[:should_show_branding]}
+      {Map.take(assigns, [:demo_mode])}
     >
       <%= cond do %>
         <% assigns[:scheduling_error_message] -> %>

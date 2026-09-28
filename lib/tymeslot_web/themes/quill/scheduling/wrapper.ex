@@ -1,18 +1,18 @@
 defmodule TymeslotWeb.Themes.Quill.Scheduling.Wrapper do
   @moduledoc """
-  Wrapper component for Quill theme that handles theme customizations.
+  The Quill theme's wrapper: its video or gradient background and wrapper
+  classes around the shared `ThemeShell`.
   """
   use Phoenix.Component
 
-  alias Tymeslot.Locales
+  alias Tymeslot.Themes.Catalog
+  alias TymeslotWeb.Themes.Shared.Components.ThemeShell
 
   import TymeslotWeb.Components.BackgroundMotionToggle,
     only: [background_motion_toggle: 1]
 
   import TymeslotWeb.Themes.Shared.Customization.Helpers
   import TymeslotWeb.Themes.Shared.VideoSources, only: [video_sources: 1]
-  import TymeslotWeb.Components.LanguageSwitcher
-  import TymeslotWeb.Themes.Shared.Components.PreviewNotice, only: [banner: 1]
 
   attr :theme_customization, :map, default: nil
   attr :custom_css, :string, default: nil
@@ -23,6 +23,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Wrapper do
   attr :should_show_branding, :boolean, default: false
   attr :show_language_switcher, :boolean, default: nil
   attr :owner_preview, :boolean, default: false
+  attr :demo_mode, :boolean, doc: "handed to the theme extensions only when given"
   slot :inner_block, required: true
 
   @doc """
@@ -30,19 +31,29 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Wrapper do
   """
   @spec quill_wrapper(map()) :: Phoenix.LiveView.Rendered.t()
   def quill_wrapper(assigns) do
-    assigns = prepare_wrapper_assigns(assigns)
+    assigns = assigns |> prepare_wrapper_assigns() |> assign(:theme_id, theme_id())
 
     ~H"""
-    <div class="quill-theme-wrapper theme-1" data-locale={assigns[:locale]}>
-      <%= if assigns[:custom_css] && assigns[:custom_css] != "" do %>
-        <style type="text/css">
-          :root {
-            <%= Phoenix.HTML.raw(@custom_css) %>
-          }
-        </style>
-      <% end %>
-
-      <%= if @has_video_background do %>
+    <ThemeShell.theme_shell
+      class="quill-theme-wrapper theme-1"
+      grid_class={["main-gradient theme-grid", @has_video_background && "has-video-background"]}
+      grid_style={
+        if @theme_customization && !@has_video_background,
+          do: get_background_style(@theme_customization),
+          else: ""
+      }
+      language_class="fixed top-6 right-6 z-50 language-switcher-wrapper"
+      theme_id={@theme_id}
+      custom_css={@custom_css}
+      locale={@locale}
+      language_dropdown_open={@language_dropdown_open}
+      show_language_switcher={@show_language_switcher}
+      owner_preview={@owner_preview}
+      organizer_user_id={@organizer_user_id}
+      should_show_branding={@should_show_branding}
+      {Map.take(assigns, [:demo_mode])}
+    >
+      <:background :if={@has_video_background}>
         <div class="video-background" id="quill-video-container" phx-hook="QuillVideo">
           <video
             autoplay
@@ -57,41 +68,14 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Wrapper do
           </video>
         </div>
         <.background_motion_toggle />
-      <% end %>
-
-      <div
-        class={[
-          "main-gradient theme-grid",
-          @has_video_background && "has-video-background"
-        ]}
-        style={
-          if assigns[:theme_customization] && !@has_video_background,
-            do: get_background_style(assigns[:theme_customization]),
-            else: ""
-        }
-      >
-        <div class="content-area">
-          <.banner owner_preview={@owner_preview} />
-          <%= if assigns[:locale] && assigns[:language_dropdown_open] != nil do %>
-            <div class={[
-              "fixed top-6 right-6 z-50 language-switcher-wrapper",
-              @show_language_switcher && "visible",
-              !@show_language_switcher && "hidden"
-            ]}>
-              <.language_switcher
-                locale={@locale}
-                locales={Locales.supported()}
-                dropdown_open={@language_dropdown_open}
-              />
-            </div>
-          <% end %>
-
-          {render_slot(@inner_block)}
-        </div>
-
-        {TymeslotWeb.Layouts.render_theme_extensions(assigns)}
-      </div>
-    </div>
+      </:background>
+      {render_slot(@inner_block)}
+    </ThemeShell.theme_shell>
     """
+  end
+
+  defp theme_id do
+    {:ok, id} = Catalog.key_to_id(:quill)
+    id
   end
 end

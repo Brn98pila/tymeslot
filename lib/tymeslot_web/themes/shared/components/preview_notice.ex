@@ -2,10 +2,10 @@ defmodule TymeslotWeb.Themes.Shared.Components.PreviewNotice do
   @moduledoc """
   Tells a visitor that the booking page they are on is in owner-preview mode.
 
-  Rendered by both theme wrappers (`Quill.Scheduling.Wrapper`,
-  `Rhythm.Scheduling.Wrapper`) so it appears on every step of the booking
-  flow, in embedded and standalone rendering alike, whenever
-  `socket.assigns[:owner_preview]` is true.
+  Rendered by `Shared.Components.ThemeShell`, which every theme's wrapper
+  renders, so it appears on every step of the booking flow, in embedded and
+  standalone rendering alike, whenever `socket.assigns[:owner_preview]` is
+  true.
 
   ## Why this exists
 
