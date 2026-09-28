@@ -13,6 +13,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent d
   alias TymeslotWeb.Themes.Shared.BookingLocation
   alias TymeslotWeb.Themes.Shared.BookingText
   alias TymeslotWeb.Themes.Shared.Components.ApprovalNotice
+  alias TymeslotWeb.Themes.Shared.ConfirmationText
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
   alias TymeslotWeb.Themes.Shared.PathHandlers
   alias TymeslotWeb.Themes.Shared.StepEvents
@@ -301,64 +302,34 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent d
 
   # ========== PRIVATE HELPERS ==========
 
-  defp get_organizer_text(nil), do: ""
-
-  defp get_organizer_text(organizer_profile) do
-    case Profiles.display_name(organizer_profile) do
-      nil -> ""
-      name -> dgettext("booking", "with %{name}", name: name)
-    end
-  end
-
-  # A held request is not a confirmed meeting, and the screen that says so is
-  # the last thing an invitee sees before the emails arrive. Getting this wrong
-  # is what the whole feature exists to fix, so the heading changes too — not
-  # just a note underneath a heading that still says "Confirmed!". The
-  # approval check runs first: a gated reschedule re-enters the hold (see
-  # `Tymeslot.Bookings.Reschedule`), so `is_rescheduling` must not short-circuit
-  # it.
+  # A held request is not a confirmed meeting, and this screen is the last thing
+  # an invitee sees before the emails arrive, so the heading changes too, not
+  # just a note underneath it. Which status applies is decided in
+  # ConfirmationText; only the wording is Quill's.
   defp headline(assigns) do
-    cond do
-      ApprovalDisplay.awaiting_approval?(assigns) -> dgettext("booking", "Request sent!")
-      assigns[:is_rescheduling] -> dgettext("booking", "Meeting Rescheduled!")
-      true -> dgettext("booking", "Meeting Confirmed!")
+    case ConfirmationText.status(assigns) do
+      :held -> dgettext("booking", "Request sent!")
+      :rescheduled -> dgettext("booking", "Meeting Rescheduled!")
+      :confirmed -> dgettext("booking", "Meeting Confirmed!")
     end
   end
 
   defp subtitle(assigns) do
-    cond do
-      ApprovalDisplay.awaiting_approval?(assigns) ->
-        held_subtitle(assigns[:name], assigns[:organizer_profile])
+    case ConfirmationText.status(assigns) do
+      :held ->
+        ConfirmationText.held_message(assigns[:name], assigns[:organizer_profile])
 
-      assigns[:is_rescheduling] ->
+      :rescheduled ->
         dgettext("booking", "%{name}, your meeting %{organizer} has been rescheduled.",
           name: assigns[:name],
-          organizer: get_organizer_text(assigns[:organizer_profile])
+          organizer: ConfirmationText.organizer_fragment(assigns[:organizer_profile])
         )
 
-      true ->
+      :confirmed ->
         dgettext("booking", "%{name}, your meeting %{organizer} is all set.",
           name: assigns[:name],
-          organizer: get_organizer_text(assigns[:organizer_profile])
+          organizer: ConfirmationText.organizer_fragment(assigns[:organizer_profile])
         )
-    end
-  end
-
-  # The confirmed/rescheduled sentences compose "with %{name}" onto a fixed
-  # stem and read correctly ("your meeting with Jane"). "Request" cannot take
-  # that same fragment ("your request with Jane" reads as the wrong
-  # preposition, and mistranslates in every non-English locale), so the held
-  # case is its own self-contained sentence rather than reusing the fragment.
-  defp held_subtitle(name, organizer_profile) do
-    case Profiles.display_name(organizer_profile) do
-      organizer_name when is_binary(organizer_name) and organizer_name != "" ->
-        dgettext("booking", "%{name}, your request to %{organizer_name} has been sent.",
-          name: name,
-          organizer_name: organizer_name
-        )
-
-      _no_organizer_name ->
-        dgettext("booking", "%{name}, your request has been sent.", name: name)
     end
   end
 end

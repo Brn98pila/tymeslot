@@ -12,6 +12,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.ConfirmationComponent 
   alias TymeslotWeb.Themes.Shared.ApprovalDisplay
   alias TymeslotWeb.Themes.Shared.BookingLocation
   alias TymeslotWeb.Themes.Shared.Components.ApprovalNotice
+  alias TymeslotWeb.Themes.Shared.ConfirmationText
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
   alias TymeslotWeb.Themes.Shared.PathHandlers
   alias TymeslotWeb.Themes.Shared.StepEvents
@@ -233,51 +234,27 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.ConfirmationComponent 
   end
 
   # Helper functions
-  defp get_organizer_text(nil), do: ""
 
-  defp get_organizer_text(organizer_profile) do
-    case Profiles.display_name(organizer_profile) do
-      nil -> ""
-      name -> dgettext("booking", "with %{name}", name: name)
-    end
-  end
-
-  # See the Quill component: a held request must not be announced as a
-  # confirmed meeting, heading included. The approval check runs first: a
-  # gated reschedule re-enters the hold (see `Tymeslot.Bookings.Reschedule`),
-  # so `is_rescheduling` must not short-circuit it.
+  # Which status applies is decided in ConfirmationText (a held request must
+  # not be announced as a confirmed meeting); only the wording is Rhythm's.
   defp headline(assigns) do
-    cond do
-      ApprovalDisplay.awaiting_approval?(assigns) -> dgettext("booking", "Request sent!")
-      assigns[:is_rescheduling] -> dgettext("booking", "Successfully Rescheduled!")
-      true -> dgettext("booking", "You're All Set!")
+    case ConfirmationText.status(assigns) do
+      :held -> dgettext("booking", "Request sent!")
+      :rescheduled -> dgettext("booking", "Successfully Rescheduled!")
+      :confirmed -> dgettext("booking", "You're All Set!")
     end
   end
 
   defp confirmation_message(assigns) do
-    if ApprovalDisplay.awaiting_approval?(assigns) do
-      held_confirmation_message(assigns[:name], assigns[:organizer_profile])
-    else
-      dgettext("booking", "%{name}, your meeting %{organizer} is confirmed",
-        name: assigns[:name],
-        organizer: get_organizer_text(assigns[:organizer_profile])
-      )
-    end
-  end
+    case ConfirmationText.status(assigns) do
+      :held ->
+        ConfirmationText.held_message(assigns[:name], assigns[:organizer_profile])
 
-  # See the Quill component for why this cannot reuse the "with %{name}"
-  # fragment: "your request with Jane" is the wrong preposition, and the
-  # fragment's fixed preposition mistranslates in every non-English locale.
-  defp held_confirmation_message(name, organizer_profile) do
-    case Profiles.display_name(organizer_profile) do
-      organizer_name when is_binary(organizer_name) and organizer_name != "" ->
-        dgettext("booking", "%{name}, your request to %{organizer_name} has been sent.",
-          name: name,
-          organizer_name: organizer_name
+      _confirmed_or_rescheduled ->
+        dgettext("booking", "%{name}, your meeting %{organizer} is confirmed",
+          name: assigns[:name],
+          organizer: ConfirmationText.organizer_fragment(assigns[:organizer_profile])
         )
-
-      _no_organizer_name ->
-        dgettext("booking", "%{name}, your request has been sent.", name: name)
     end
   end
 end
