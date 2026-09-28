@@ -14,6 +14,7 @@ defmodule Tymeslot.MeetingPayments.CheckoutSessionsTest do
   alias Tymeslot.MeetingPayments.StripeAdapterMock
   alias Tymeslot.Profiles
   alias Tymeslot.Themes.Catalog
+  alias TymeslotWeb.Endpoint
 
   setup :verify_on_exit!
 
@@ -245,7 +246,7 @@ defmodule Tymeslot.MeetingPayments.CheckoutSessionsTest do
           )
 
         slug = unquote(Atom.to_string(key))
-        origin = TymeslotWeb.Endpoint.url()
+        origin = Endpoint.url()
 
         expect(StripeAdapterMock, :create_checkout_session, fn params, _opts ->
           success = URI.parse(params.success_url)
