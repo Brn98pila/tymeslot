@@ -12,9 +12,10 @@ defmodule TymeslotWeb.Themes.Shared.Components.ThemeShell do
   (the theme grid) and `language_class` (the language switcher's container),
   plus its theme's `theme_id`. The grid always carries the `booker-page` hook
   class that the shared embed rules (`shared/embed.css`) size to content, and
-  a hidden language switcher's container carries `theme-shell__language--hidden`
-  next to Tailwind's `hidden`, for a theme that must hide it with its own rule. The extensions receive this component's
-  assigns: `theme_id`, `organizer_user_id`, `should_show_branding`, and
+  a hidden language switcher's container carries
+  `theme-shell__language--hidden` next to Tailwind's `hidden`, for a theme
+  that must hide it with its own rule. The extensions receive this
+  component's assigns: `theme_id`, `organizer_user_id`, `should_show_branding`, and
   `demo_mode` when the page assigned one.
   """
 

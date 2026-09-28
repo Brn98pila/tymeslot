@@ -366,7 +366,7 @@ Each theme's `theme.css` imports the shared entry, then the shared token file ri
 
 ### Intrinsic Responsiveness
 
-Themes use **CSS container queries** and **fluid sizing** instead of viewport breakpoints. Each component file is self-contained — it owns its base styles, container queries, and iframe overrides in one place.
+Themes use **CSS container queries** and **fluid sizing** instead of viewport breakpoints. Each component file owns its base styles, container queries and component-level iframe overrides in one place; the shared embed shell is in `shared/embed.css`.
 
 **Container query context:** The primary content container (`.scheduling-box` for Rhythm, `.glass-morphism-card` for Quill) has `container-type: inline-size; container-name: scheduling;`. All child components can use `@container scheduling (...)` queries.
 
@@ -638,7 +638,7 @@ back_path = PathHandlers.build_path_with_locale(socket, socket.assigns.locale)
 
 ## CSS Architecture
 
-Themes use a **modular CSS architecture** located in `assets/css/scheduling/themes/`.
+Themes use a **modular CSS architecture** located in `assets/css/scheduling/`: shared files in `shared/`, each theme in `themes/<theme>/`.
 
 ### Shared Files
 - `assets/css/scheduling/shared/entry.css` — imported first by every `theme.css`: Tailwind, the primitives below, the LiveView loading variants and the content sources
@@ -652,7 +652,7 @@ Themes use a **modular CSS architecture** located in `assets/css/scheduling/them
 Shared component files carry the structure and states; each theme sets their look through the tokens a file lists in its header, defined in the theme's `variables.css`. Where the themes differ by a whole treatment rather than a value, the declarations stay in the theme's own module under the same selector.
 
 ### Theme Structure
-Each theme has a `theme.css` entry point and a flat `modules/` subdirectory. Each component file is self-contained — it owns base styles, container queries, and iframe overrides in one place. No separate `responsive.css` or `embedded.css`.
+Each theme has a `theme.css` entry point and a flat `modules/` subdirectory. Each component file owns its base styles, container queries and iframe overrides in one place, with no separate `responsive.css`. The embed shell rules both themes share live in `shared/embed.css`, on the booker hook classes; each theme's `iframe.css` keeps only what differs.
 
 ## Theme Customization & Capabilities
 

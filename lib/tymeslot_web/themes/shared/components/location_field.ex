@@ -20,9 +20,11 @@ defmodule TymeslotWeb.Themes.Shared.Components.LocationField do
   presentational and forwards its events to the booking-step component via
   `phx-target`, which relays them to the LiveView.
 
-  The markup is theme-agnostic and ships no styling of its own. Each theme
-  styles the `location-*` classes in its own `booking-form.css`, scoped to
-  `html.<theme>-theme`, exactly as it does for `guest-*`.
+  The markup is theme-agnostic and ships no styling of its own. The
+  `location-*` classes are styled like `guest-*`: shared structure in
+  `assets/css/scheduling/shared/components/booking-fields.css`, each theme's
+  look through tokens, and theme-specific rules (such as the selected option)
+  in the theme's own `booking-form.css`.
 
   Each toggle wraps a visually hidden native radio rather than being a
   button, because this is a single choice from a short list and the browser
