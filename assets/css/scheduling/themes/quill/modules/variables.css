@@ -34,7 +34,6 @@
   --theme-line-height-snug: 1.2;
   --theme-line-height-normal: 1.4;
   --theme-line-height-relaxed: 1.5;
-  --theme-line-height-loose: 1.6;
 
   /* Typography - Font Weights */
   --font-weight-normal: 400;
@@ -43,8 +42,6 @@
   --font-weight-bold: 700;
 
   /* Typography - Letter Spacing */
-  --letter-spacing-tight: -0.025em;
-  --letter-spacing-normal: 0;
   --letter-spacing-wide: 0.025em;
 
   /* Theme Colors - Primary Palette */
@@ -52,7 +49,6 @@
   --theme-primary-hover: #0891b2;
   --theme-secondary: #14b8a6;
   --theme-accent: #10b981;
-  --theme-accent-dark: #059669;
 
   /* Filled-control ink and surface (WCAG 1.4.3 / 1.4.11).
      A palette colour used as a *surface* needs a foreground that passes on top
@@ -72,12 +68,10 @@
 
   /* Theme Colors - Status Colors */
   --theme-success: #10b981;
-  --theme-success-dark: #059669;
   --theme-warning: #fbbf24;
   --theme-info: #6366f1;
   --theme-danger: #ef4444;
   --theme-danger-dark: #dc2626;
-  --theme-error: rgba(239, 68, 68, 0.95);
   --theme-error-bg: rgba(254, 226, 226, 0.08);
   --theme-error-border: rgba(239, 68, 68, 0.6);
   --theme-error-border-focus: rgba(239, 68, 68, 0.8);
@@ -85,10 +79,8 @@
 
   /* Theme Colors - Base Colors */
   --theme-background-color: #0f172a;
-  --theme-surface: rgba(30, 41, 59, 0.5);
   --theme-text: #e2e8f0;
   --theme-text-secondary: #94a3b8;
-  --theme-text-muted: #64748b;
 
   /* Theme Colors - Text Opacity Variants */
   --text-opacity-high: rgba(255, 255, 255, 0.95);
@@ -110,11 +102,8 @@
   --surface-intense: rgba(255, 255, 255, 0.2);
 
   /* Dark Surface Overlays (for backgrounds) */
-  --surface-dark-subtle: rgba(0, 0, 0, 0.2);
-  --surface-dark-light: rgba(0, 0, 0, 0.3);
   --surface-dark-medium: rgba(0, 0, 0, 0.4);
   --surface-dark-strong: rgba(0, 0, 0, 0.5);
-  --surface-dark-intense: rgba(0, 0, 0, 0.85);
   --surface-dark-very-intense: rgba(0, 0, 0, 0.9);
 
   /* Border Opacity Levels */
@@ -154,19 +143,12 @@
   --transition-fast: 0.15s ease;
   --transition-normal: 0.2s ease;
   --transition-smooth: 0.3s ease;
-  --transition-slow: 0.4s ease-in-out;
-  --transition-very-slow: 0.6s ease;
-
-  /* Animation Transforms */
-  --animation-slide-distance: 10px;
 
   /* Elevation Shadows - Base Shadows */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.1);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
   --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.15);
-  --shadow-2xl: 0 20px 40px rgba(0, 0, 0, 0.1);
 
   /* Coloured-shadow geometry (offset and blur). The colour is mixed from the
      palette in shared/tokens.css, so a custom palette's shadows follow it. */
@@ -176,30 +158,20 @@
 
   /* Inset Shadows (highlights) */
   --inset-highlight-subtle: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  --inset-highlight-medium: inset 0 1px 0 rgba(255, 255, 255, 0.15);
   --inset-highlight-strong: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 
   /* Component-Specific Tokens - Avatars (fluid, scales with container) */
-  --avatar-size-sm: clamp(28px, 4cqi, 32px);
-  --avatar-size-md: clamp(40px, 6cqi, 48px);
   --avatar-size-lg: clamp(96px, 15cqi, 128px);
-  --avatar-size-xl: clamp(128px, 22cqi, 192px);
 
   /* Component-Specific Tokens - Icons */
-  --icon-2xs: 10px;
-  --icon-xs: 12px;
   --icon-sm: 16px;
   --icon-md: 20px;
-  --icon-lg: 24px;
-  --icon-xl: 32px;
-  --icon-2xl: 48px;
 
   /* Component-Specific Tokens - Flag Dimensions */
   --flag-height: 14px;
 
   /* Component-Specific Tokens - Touch Targets */
   --min-touch-target: 44px;
-  --min-touch-target-ios: 48px;
 
   /* Component-Specific Tokens - Calendar */
   --calendar-gap: 0.25rem;
@@ -243,7 +215,6 @@
   /* Component-Specific Tokens - Forms */
   --input-border-radius: 0.75rem;
   --input-padding: 0.75rem 1rem;
-  --input-min-height: 44px;
   --textarea-min-height: clamp(60px, 15vh, 120px);
   --textarea-max-height: clamp(200px, 45vh, 400px);
 
@@ -253,7 +224,6 @@
   --step-connector-width: 2rem;
 
   /* Component-Specific Tokens - Dropdowns */
-  --dropdown-width: 300px;
   --dropdown-width-sm: 160px;
   --dropdown-width-md: 180px;
   --dropdown-max-height: clamp(200px, 50vh, 420px);
@@ -282,7 +252,6 @@
   --glass-blur-sm: 8px;
   --glass-blur-md: 10px;
   --glass-blur-lg: 15px;
-  --glass-opacity: 0.1;
   --glass-border: rgba(255, 255, 255, 0.2);
   --glass-shadow: 0 24px 48px rgba(0, 0, 0, 0.28), 0 8px 16px rgba(0, 0, 0, 0.16);
 

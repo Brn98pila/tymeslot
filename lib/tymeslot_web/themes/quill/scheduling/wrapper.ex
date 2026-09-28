@@ -35,7 +35,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Wrapper do
 
     ~H"""
     <ThemeShell.theme_shell
-      class="quill-theme-wrapper theme-1"
+      class="quill-theme-wrapper"
       grid_class={["main-gradient theme-grid", @has_video_background && "has-video-background"]}
       grid_style={
         if @theme_customization && !@has_video_background,

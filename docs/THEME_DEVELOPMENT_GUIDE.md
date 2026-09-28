@@ -372,7 +372,7 @@ The `cqi` unit resolves against the nearest ancestor with `container-type: inlin
 
 **What stays as `@media`:**
 - Height-based switches (`@media (max-height: ...)`) — container height queries have limited support
-- `prefers-reduced-motion`, `print`, `device-memory` — co-located in the component they affect
+- `prefers-reduced-motion` and `print`, co-located in the component they affect
 - Elements outside the container query context (e.g. language switcher, which sits outside the primary content container) — these must use viewport `@media` queries since `@container` only matches descendants of the container element
 
 **Browser support:** Safari 16+, Chrome 105+, Firefox 110+.

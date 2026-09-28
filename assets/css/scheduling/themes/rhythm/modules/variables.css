@@ -29,7 +29,6 @@
   --theme-line-height-snug: 1.2;
   --theme-line-height-normal: 1.4;
   --theme-line-height-relaxed: 1.5;
-  --theme-line-height-loose: 1.6;
 
   /* Font weights */
   --font-weight-normal: 400;
@@ -75,7 +74,6 @@
   --theme-error-light: #fca5a5;
   --theme-danger: #ef4444;
   --theme-danger-dark: #dc2626;
-  --theme-background-color: #0f172a;
   --theme-surface: rgba(30, 41, 59, 0.5);
   --theme-text: #e2e8f0;
   --theme-text-secondary: #94a3b8;
@@ -163,9 +161,6 @@
   --calendar-day-min-height-tablet: 54px;
 
   /* Time slots specific */
-  --time-slot-min-width: 88px;
-  --time-slot-min-width-tablet: 96px;
-  --time-slot-min-height: 40px;
   --time-slots-max-height: clamp(280px, 50vh, 420px);
 
   /* Icon sizes */
@@ -174,7 +169,6 @@
   --icon-md: 24px;
   --icon-lg: 32px;
   --icon-xl: 40px;
-  --icon-2xl: 48px;
 
   /* Flag dimensions */
   --flag-height: 14px;
@@ -183,7 +177,6 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.2);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.25);
-  --shadow-xl: 0 10px 40px rgba(0, 0, 0, 0.3);
 
   /* Coloured-shadow geometry (offset and blur). The colour is mixed from the
      palette in shared/tokens.css. */

@@ -1,78 +1,13 @@
 /* Reusable UI Components */
 
 /* ============================================
-   INTERACTIVE STATE BASE PATTERNS
-   ============================================ */
-
-/* Base interactive element */
-.interactive {
-  cursor: pointer;
-  transition: transform var(--transition-normal);
-}
-
-.interactive:hover {
-  transform: translateY(-1px);
-}
-
-.interactive:active {
-  transform: translateY(0);
-}
-
-/* Disabled states — in shared/utilities.css */
-
-/* Selection state pattern */
-.selectable {
-  transition: background var(--transition-smooth), border-color var(--transition-smooth), box-shadow var(--transition-smooth);
-}
-
-.selectable:hover {
-  background: var(--surface-medium);
-  border-color: var(--theme-primary);
-}
-
-.selectable.is-selected,
-.selectable[aria-selected="true"] {
-  background: var(--theme-surface);
-  border-color: var(--theme-primary);
-  box-shadow: var(--shadow-md);
-}
-
-/* Focus visible — in shared/utilities.css */
-
-/* ============================================
    ICON UTILITIES
    ============================================ */
 
-/* Icon wrapper for proper styling */
-.icon-wrapper {
-  display: inline-block;
-  color: var(--theme-text);
-}
-
 /* Icon sizing utilities */
-.icon-xs {
-  width: var(--icon-xs);
-  height: var(--icon-xs);
-}
-
 .icon-sm {
   width: var(--icon-sm);
   height: var(--icon-sm);
-}
-
-.icon-md {
-  width: var(--icon-md);
-  height: var(--icon-md);
-}
-
-.icon-lg {
-  width: var(--icon-lg);
-  height: var(--icon-lg);
-}
-
-.icon-xl {
-  width: var(--icon-xl);
-  height: var(--icon-xl);
 }
 
 /* Hero icon specific (for Heroicons) */
@@ -81,24 +16,9 @@
   color: var(--theme-text);
 }
 
-.hero-icon--xs {
-  width: var(--icon-xs);
-  height: var(--icon-xs);
-}
-
-.hero-icon--sm {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
-}
-
 .hero-icon--md {
   width: var(--icon-md);
   height: var(--icon-md);
-}
-
-.hero-icon--lg {
-  width: var(--icon-lg);
-  height: var(--icon-lg);
 }
 
 /* ============================================

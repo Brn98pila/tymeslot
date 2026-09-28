@@ -187,14 +187,6 @@ body.quill-theme {
   min-height: 0;
 }
 
-/* Override glass gradient colors with theme colors */
-.theme-1 {
-  --glass-gradient-primary: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-hover) 100%);
-  --glass-gradient-secondary: linear-gradient(135deg, var(--theme-primary-hover) 0%, var(--theme-secondary) 100%);
-  --color-primary-500: var(--theme-primary);
-  --color-primary-600: var(--theme-primary-hover);
-}
-
 /* Footer styling */
 .footer-gradient {
   padding: var(--space-2xl) var(--space-lg);
@@ -323,16 +315,6 @@ body.quill-theme {
   .container {
     padding-left: var(--space-xs);
     padding-right: var(--space-xs);
-  }
-}
-
-/* ===== Reduced Motion ===== */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
 }
 

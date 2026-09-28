@@ -466,11 +466,3 @@ body.rhythm-theme {
     display: none;
   }
 }
-
-/* Low Memory Devices — scheduling-box fallback */
-@media (max-device-memory: 4) {
-  .scheduling-box {
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-}

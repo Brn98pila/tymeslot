@@ -15,7 +15,7 @@ defmodule TymeslotWeb.Themes.Quill.Payment.Processing do
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
-    <div class="quill-theme-wrapper theme-1" data-testid="quill-payment-processing">
+    <div class="quill-theme-wrapper" data-testid="quill-payment-processing">
       <div class="main-gradient theme-grid payment-page-layout">
         <div class="payment-page-inner">
           <div class="payment-page-card">

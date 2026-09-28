@@ -104,13 +104,6 @@
   }
 }
 
-/* Performance optimization for low-end devices */
-@media (max-device-memory: 4) {
-  .video-background video {
-    display: none;
-  }
-}
-
 /* Hide video background when printing */
 @media print {
   .video-background {
