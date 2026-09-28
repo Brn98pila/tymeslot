@@ -8,7 +8,7 @@ defmodule Tymeslot.ThemeCustomizations.Tokens do
       mode leave it empty.
     * `background` is a structured description of the page background for the
       theme wrapper to render (`%{kind: :gradient | :color | :image | :video, ...}`),
-      or `nil` while a spec expresses its background only through `vars`.
+      or `nil` when no background resolved.
   """
 
   @type css_vars :: %{optional(String.t()) => String.t()}
