@@ -244,6 +244,32 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlersTest do
     end
   end
 
+  describe "calendar_ics_path/1" do
+    test "points at the meeting's download under the organiser's page" do
+      assert PathHandlers.calendar_ics_path(%{
+               username_context: "hostuser",
+               meeting_uid: "abc123"
+             }) ==
+               "/hostuser/meeting/abc123/calendar.ics"
+    end
+
+    test "is nil until the meeting exists" do
+      assert PathHandlers.calendar_ics_path(%{username_context: "hostuser", meeting_uid: nil}) ==
+               nil
+
+      assert PathHandlers.calendar_ics_path(%{username_context: "hostuser", meeting_uid: ""}) ==
+               nil
+    end
+
+    test "is nil without the organiser's page to hang it from" do
+      assert PathHandlers.calendar_ics_path(%{username_context: nil, meeting_uid: "abc123"}) ==
+               nil
+
+      assert PathHandlers.calendar_ics_path(%{username_context: "", meeting_uid: "abc123"}) == nil
+      assert PathHandlers.calendar_ics_path(%{}) == nil
+    end
+  end
+
   defp preview_socket(opts) do
     %Phoenix.LiveView.Socket{
       assigns: %{

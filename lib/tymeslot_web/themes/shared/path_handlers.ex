@@ -3,6 +3,8 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlers do
   Shared path building logic for theme scheduling LiveViews.
   """
 
+  use TymeslotWeb, :verified_routes
+
   alias Tymeslot.MeetingTypes
 
   @doc """
@@ -133,4 +135,18 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlers do
   end
 
   defp maybe_append_reschedule_uid(base_path, _uid), do: base_path
+
+  @doc """
+  The confirmation step's "Add to calendar" link: the booked meeting as a
+  downloadable `.ics` file, served by `MeetingCalendarController`.
+
+  `nil` until the meeting has a uid and the page knows its organiser, which
+  is how the templates decide whether to show the link at all.
+  """
+  @spec calendar_ics_path(map()) :: String.t() | nil
+  def calendar_ics_path(%{username_context: username, meeting_uid: uid})
+      when is_binary(username) and username != "" and is_binary(uid) and uid != "",
+      do: ~p"/#{username}/meeting/#{uid}/calendar.ics"
+
+  def calendar_ics_path(_assigns), do: nil
 end

@@ -13,6 +13,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent d
   alias TymeslotWeb.Themes.Shared.BookingLocation
   alias TymeslotWeb.Themes.Shared.Components.ApprovalNotice
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
+  alias TymeslotWeb.Themes.Shared.PathHandlers
   alias TymeslotWeb.Themes.Shared.StepEvents
 
   import TymeslotWeb.Components.CoreComponents
@@ -196,8 +197,8 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent d
 
                   <div class="confirmation-actions">
                     <a
-                      :if={@meeting_uid not in [nil, ""] and @username_context not in [nil, ""]}
-                      href={~p"/#{@username_context}/meeting/#{@meeting_uid}/calendar.ics"}
+                      :if={PathHandlers.calendar_ics_path(assigns)}
+                      href={PathHandlers.calendar_ics_path(assigns)}
                       download
                       class="action-button action-button--secondary calendar-download-button"
                       data-testid="add-to-calendar"
