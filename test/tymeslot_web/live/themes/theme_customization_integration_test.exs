@@ -47,6 +47,11 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
       assert html =~ "--theme-primary: #{primary_color}"
       assert html =~ "--theme-background: #123456"
 
+      # One override block, outranking the theme's own :root defaults, with
+      # the palette's background under its own name.
+      assert html =~ ":root:root {"
+      assert html =~ "--theme-canvas: #1e1b4b;"
+
       # For Quill, the background color should be in the main-gradient div style
       assert html =~ "background-color: #123456"
     end

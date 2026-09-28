@@ -25,7 +25,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingPage do
     ~H"""
     <.wrapper
       wrapper={@page_wrapper}
-      custom_css={assigns[:custom_css]}
+      theme_tokens={assigns[:theme_tokens]}
       theme_customization={assigns[:theme_customization]}
       locale={assigns[:locale]}
       language_dropdown_open={assigns[:language_dropdown_open]}

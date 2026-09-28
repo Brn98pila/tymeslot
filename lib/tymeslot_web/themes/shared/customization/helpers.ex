@@ -11,8 +11,9 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
   alias Tymeslot.ThemeCustomizations.Validation
 
   @doc """
-  Assigns theme customization data to a socket for a specific theme.
-  Falls back to the theme's default customisation when the organiser has none.
+  Assigns theme customization data to a socket for a specific theme: the
+  customisation itself (the theme's defaults when the organiser has none) and
+  `:theme_tokens`, the `%Tokens{}` the theme's spec builds from it.
   """
   @spec assign_theme_customization(Phoenix.LiveView.Socket.t(), map(), String.t()) ::
           Phoenix.LiveView.Socket.t()
@@ -26,13 +27,10 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
         %{} = c -> c
       end
 
-    # Generate the page CSS for the effective customisation through the theme's spec
-    custom_css = ThemeCustomizations.generate_theme_css(theme_id, effective_customization)
-
     socket
     |> assign(:has_custom_theme, customization != nil)
     |> assign(:theme_customization, effective_customization)
-    |> assign(:custom_css, custom_css)
+    |> assign(:theme_tokens, ThemeCustomizations.tokens(theme_id, customization))
   end
 
   @doc """

@@ -15,7 +15,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Wrapper do
   import TymeslotWeb.Themes.Shared.VideoSources, only: [video_sources: 1]
 
   attr :theme_customization, :map, default: nil
-  attr :custom_css, :string, default: nil
+  attr :theme_tokens, :any, default: nil
   attr :locale, :string, default: nil
   attr :current_state, :atom, default: nil
   attr :language_dropdown_open, :boolean, default: nil
@@ -44,7 +44,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Wrapper do
       }
       language_class="fixed top-6 right-6 z-50 language-switcher-wrapper"
       theme_id={@theme_id}
-      custom_css={@custom_css}
+      theme_tokens={@theme_tokens}
       locale={@locale}
       language_dropdown_open={@language_dropdown_open}
       show_language_switcher={@show_language_switcher}

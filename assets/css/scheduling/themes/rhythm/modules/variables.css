@@ -78,6 +78,10 @@
   --theme-text: #e2e8f0;
   --theme-text-secondary: #94a3b8;
   --theme-text-muted: #64748b;
+  /* The palette's page colour. The server overrides it per organiser; it is
+     what shows behind an image or video background (--theme-background falls
+     back to it). */
+  --theme-canvas: #0f172a;
 
   /* Background gradients */
   --theme-background: linear-gradient(135deg, #1a1f2e 0%, #2d3561 50%, #1a1f2e 100%);

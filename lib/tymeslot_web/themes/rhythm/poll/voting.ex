@@ -14,7 +14,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Poll.Voting do
   alias TymeslotWeb.Themes.Shared.PollVotingComponents
 
   attr :theme_customization, :map, required: true
-  attr :custom_css, :string, required: true
+  attr :theme_tokens, :any, required: true
   attr :locale, :string, required: true
   attr :language_dropdown_open, :boolean, required: true
   attr :poll, :map, required: true
@@ -28,7 +28,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Poll.Voting do
     ~H"""
     <Wrapper.rhythm_wrapper
       theme_customization={@theme_customization}
-      custom_css={@custom_css}
+      theme_tokens={@theme_tokens}
       locale={@locale}
       language_dropdown_open={@language_dropdown_open}
       show_language_switcher={true}

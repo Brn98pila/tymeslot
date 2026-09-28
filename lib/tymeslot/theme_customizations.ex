@@ -162,17 +162,6 @@ defmodule Tymeslot.ThemeCustomizations do
   end
 
   @doc """
-  Gets the CSS variables for a color scheme.
-
-  Accepts either a scheme ID (string/atom — looked up in the static preset map)
-  or a customisation map. The map form supports the "custom" scheme: when
-  `color_scheme == "custom"`, the palette is derived from `custom_palette_seed`
-  via `PaletteDerivation.derive_palette/1` instead of preset lookup.
-  """
-  @spec get_color_scheme_css(String.t() | atom() | map()) :: String.t() | nil
-  defdelegate get_color_scheme_css(customization), to: Css
-
-  @doc """
   Gets the CSS for a gradient preset.
   """
   @spec get_gradient_css(String.t() | atom()) :: String.t() | nil
@@ -219,15 +208,6 @@ defmodule Tymeslot.ThemeCustomizations do
   def tokens(theme_id, customization, overrides \\ %{}) do
     settings = customization || default_customization(nil, theme_id)
     Spec.for_theme(theme_id).tokens(to_map(settings), overrides)
-  end
-
-  @doc """
-  Generates the page's CSS variables for a theme and customisation, resolved
-  through the theme's customisation spec.
-  """
-  @spec generate_theme_css(theme_id(), customization_input()) :: String.t()
-  def generate_theme_css(theme_id, customization) do
-    Css.generate_theme_css(theme_id, to_map(customization))
   end
 
   # New orchestrator functions for component interface

@@ -15,7 +15,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Wrapper do
   import TymeslotWeb.Themes.Shared.VideoSources, only: [video_sources: 1]
 
   attr :theme_customization, :map, default: nil
-  attr :custom_css, :string, default: nil
+  attr :theme_tokens, :any, default: nil
   attr :locale, :string, default: nil
   attr :current_state, :atom, default: nil
   attr :language_dropdown_open, :boolean, default: nil
@@ -39,7 +39,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Wrapper do
       grid_class="video-background-theme theme-grid"
       language_class="language-switcher-container"
       theme_id={@theme_id}
-      custom_css={@custom_css}
+      theme_tokens={@theme_tokens}
       locale={@locale}
       language_dropdown_open={@language_dropdown_open}
       show_language_switcher={@show_language_switcher}

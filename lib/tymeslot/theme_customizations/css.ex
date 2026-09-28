@@ -1,47 +1,17 @@
 defmodule Tymeslot.ThemeCustomizations.Css do
   @moduledoc """
-  Pure CSS and palette resolution for theme customizations.
+  Pure palette and gradient lookups for theme customizations.
 
-  Stateless functions that turn a colour scheme, gradient preset, or full
-  customisation into the CSS variable strings consumed by the booking themes.
-  A full customisation's page CSS is resolved through the theme's customisation
-  spec (`Tymeslot.ThemeCustomizations.Spec`), named in its Catalog entry.
-  No database access and no filesystem side effects live here — palette
-  derivation is delegated to `PaletteDerivation` and preset lookups to
-  `Presets`, mirroring how the context orchestrated these calls previously.
+  Stateless functions over the presets and palette derivation: a gradient
+  preset's CSS and the active colour scheme of a customisation. The booking
+  page's CSS comes from the theme's customisation spec
+  (`Tymeslot.ThemeCustomizations.Spec.tokens/2`), not from here. No database
+  access and no filesystem side effects live here.
   """
 
-  alias Tymeslot.ThemeCustomizations.DataTransform
-  alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.PaletteDerivation
   alias Tymeslot.ThemeCustomizations.Presets
-  alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
-  alias Tymeslot.ThemeCustomizations.Validation
-  alias Tymeslot.Themes.Catalog
-
-  @doc """
-  Gets the CSS variables for a colour scheme.
-
-  Accepts either a scheme ID (string/atom — looked up in the static preset map)
-  or a customisation map. The map form supports the "custom" scheme: when
-  `color_scheme == "custom"`, the palette is derived from `custom_palette_seed`
-  via `PaletteDerivation.derive_palette/1` instead of preset lookup.
-  """
-  @spec get_color_scheme_css(String.t() | atom() | map()) :: String.t() | nil
-  def get_color_scheme_css(customization) when is_map(customization) do
-    case customization |> DataTransform.to_settings() |> Palette.resolve() do
-      %{colors: colors} -> colors |> Palette.colours_to_vars() |> render_vars()
-      nil -> nil
-    end
-  end
-
-  def get_color_scheme_css(scheme_id) when is_binary(scheme_id) or is_atom(scheme_id) do
-    case Presets.find_preset_by_id(:color_scheme, scheme_id) do
-      %{colors: colors} -> colors |> Palette.colours_to_vars() |> render_vars()
-      nil -> nil
-    end
-  end
 
   @doc """
   Gets the CSS for a gradient preset.
@@ -51,25 +21,6 @@ defmodule Tymeslot.ThemeCustomizations.Css do
     case Presets.find_preset_by_id(:gradient, gradient_id) do
       nil -> nil
       %{value: value} -> value
-    end
-  end
-
-  @doc """
-  The page's CSS variables for a theme and its stored settings, resolved
-  through the theme's customisation spec. Empty for an unknown theme.
-  """
-  @spec generate_theme_css(String.t(), Spec.settings()) :: String.t()
-  def generate_theme_css(theme_id, settings) do
-    case Catalog.customization_spec(theme_id) do
-      {:ok, spec} ->
-        settings
-        |> spec.tokens(%{})
-        |> Map.fetch!(:vars)
-        |> render_vars()
-        |> Validation.sanitize_css()
-
-      {:error, :theme_not_found} ->
-        ""
     end
   end
 
@@ -110,9 +61,4 @@ defmodule Tymeslot.ThemeCustomizations.Css do
   defp get_scheme_id(map) when is_map(map) do
     Map.get(map, :color_scheme) || Map.get(map, "color_scheme")
   end
-
-  # --- Private helpers ----------------------------------------------------
-
-  defp render_vars(vars),
-    do: Enum.map_join(vars, "\n", fn {name, value} -> "#{name}: #{value};" end)
 end

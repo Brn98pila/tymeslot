@@ -27,17 +27,6 @@ defmodule Tymeslot.ThemeCustomizationsColorSchemeTest do
 
       assert updated.color_scheme == "purple"
     end
-
-    test "get_color_scheme_css/1 returns CSS variables for valid scheme" do
-      css = ThemeCustomizations.get_color_scheme_css("purple")
-
-      assert css =~ "--theme-primary:"
-      assert css =~ "#8b5cf6"
-    end
-
-    test "get_color_scheme_css/1 returns nil for invalid scheme" do
-      assert ThemeCustomizations.get_color_scheme_css("nonexistent") == nil
-    end
   end
 
   describe "custom palette" do
@@ -115,19 +104,6 @@ defmodule Tymeslot.ThemeCustomizationsColorSchemeTest do
       assert updated.custom_palette_seed == "#ff6b35"
     end
 
-    test "get_color_scheme_css/1 with map derives CSS from custom seed when seed is present" do
-      customization = %{
-        "color_scheme" => "default",
-        "custom_palette_seed" => "#ff6b35"
-      }
-
-      css = ThemeCustomizations.get_color_scheme_css(customization)
-
-      assert css =~ "--theme-primary: #ff6b35"
-      assert css =~ "--theme-canvas:"
-      assert css =~ "--theme-text:"
-    end
-
     # Regression for seed not cleared when switching back to a preset
     test "apply_color_scheme_change/4 clears custom_palette_seed when switching to a preset",
          %{profile: profile} do
@@ -158,10 +134,10 @@ defmodule Tymeslot.ThemeCustomizationsColorSchemeTest do
       assert updated.custom_palette_seed == nil
       assert updated.color_scheme == "purple"
 
-      # Step 3: CSS should reflect the preset, not the old seed
-      css = ThemeCustomizations.get_color_scheme_css(updated)
-      assert css =~ "#8b5cf6"
-      refute css =~ "#ff6b35"
+      # Step 3: the page's tokens should reflect the preset, not the old seed
+      %{vars: vars} = ThemeCustomizations.tokens("1", updated)
+      assert vars["--theme-primary"] == "#8b5cf6"
+      refute "#ff6b35" in Map.values(vars)
     end
   end
 

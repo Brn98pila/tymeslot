@@ -1,7 +1,7 @@
 defmodule TymeslotWeb.Themes.Shared.Components.ThemeShell do
   @moduledoc """
   The page chrome every theme's wrapper renders, in this order: the
-  organiser's customisation as a `<style>` block on `:root`, the theme's
+  organiser's customisation as a `<style>` block (`ThemeStyle`), the theme's
   background (`:background` slot), then the theme grid holding the content
   area (owner-preview notice, language switcher, the step itself) and the
   extensions configured under `:theme_extensions`, which occupy the grid's
@@ -23,6 +23,7 @@ defmodule TymeslotWeb.Themes.Shared.Components.ThemeShell do
 
   alias Tymeslot.Locales
   alias TymeslotWeb.Layouts
+  alias TymeslotWeb.Themes.Shared.ThemeStyle
 
   import TymeslotWeb.Components.LanguageSwitcher, only: [language_switcher: 1]
   import TymeslotWeb.Themes.Shared.Components.PreviewNotice, only: [banner: 1]
@@ -33,7 +34,7 @@ defmodule TymeslotWeb.Themes.Shared.Components.ThemeShell do
   attr :language_class, :any, required: true, doc: "classes on the language switcher's container"
   attr :theme_id, :string, required: true, doc: "the rendering theme's catalogue id"
   attr :demo_mode, :boolean, doc: "handed to the extensions only when given"
-  attr :custom_css, :string, default: nil
+  attr :theme_tokens, :any, default: nil, doc: "the page's `%Tokens{}`, or nil for none"
   attr :locale, :string, default: nil
   attr :language_dropdown_open, :boolean, default: nil
   attr :show_language_switcher, :boolean, default: false
@@ -48,13 +49,7 @@ defmodule TymeslotWeb.Themes.Shared.Components.ThemeShell do
   def theme_shell(assigns) do
     ~H"""
     <div class={@class} data-locale={@locale}>
-      <%= if @custom_css not in [nil, ""] do %>
-        <style type="text/css">
-          :root {
-            <%= Phoenix.HTML.raw(@custom_css) %>
-          }
-        </style>
-      <% end %>
+      <ThemeStyle.theme_style tokens={@theme_tokens} />
 
       {render_slot(@background)}
 

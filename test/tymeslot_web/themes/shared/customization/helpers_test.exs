@@ -15,6 +15,7 @@ defmodule TymeslotWeb.Themes.Shared.Customization.HelpersTest do
 
   alias Phoenix.LiveView.Socket
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
+  alias Tymeslot.ThemeCustomizations.Tokens
   alias TymeslotWeb.Themes.Shared.Customization.Helpers
 
   defp socket, do: %Socket{assigns: %{__changed__: %{}}}
@@ -35,7 +36,10 @@ defmodule TymeslotWeb.Themes.Shared.Customization.HelpersTest do
                background_value: "gradient_1"
              } = updated.assigns.theme_customization
 
-      assert updated.assigns.custom_css =~ "--theme-background: linear-gradient("
+      assert %Tokens{vars: %{"--theme-background" => "linear-gradient(" <> _rest}} =
+               updated.assigns.theme_tokens
+
+      refute Map.has_key?(updated.assigns, :custom_css)
       refute Map.has_key?(updated.assigns, :customization_options)
     end
   end

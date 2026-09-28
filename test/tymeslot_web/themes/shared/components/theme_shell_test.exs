@@ -14,6 +14,7 @@ defmodule TymeslotWeb.Themes.Shared.Components.ThemeShellTest do
   import Phoenix.LiveViewTest, only: [render_component: 2]
 
   alias Tymeslot.ConfigTestHelpers
+  alias Tymeslot.ThemeCustomizations.Tokens
   alias TymeslotWeb.Themes.Shared.Components.ThemeShell
 
   defmodule ExtensionProbe do
@@ -44,7 +45,7 @@ defmodule TymeslotWeb.Themes.Shared.Components.ThemeShellTest do
     assigns =
       Map.merge(
         %{
-          custom_css: nil,
+          theme_tokens: nil,
           locale: "en",
           language_dropdown_open: false,
           show_language_switcher: true,
@@ -63,7 +64,7 @@ defmodule TymeslotWeb.Themes.Shared.Components.ThemeShellTest do
         grid_style={@grid_style}
         language_class="probe-lang"
         theme_id="7"
-        custom_css={@custom_css}
+        theme_tokens={@theme_tokens}
         locale={@locale}
         language_dropdown_open={@language_dropdown_open}
         show_language_switcher={@show_language_switcher}
@@ -84,13 +85,13 @@ defmodule TymeslotWeb.Themes.Shared.Components.ThemeShellTest do
   end
 
   test "writes the organiser's customisation onto :root, and nothing without it" do
-    styled = render_shell(custom_css: "--theme-primary: #123456;")
+    styled = render_shell(theme_tokens: %Tokens{vars: %{"--theme-primary" => "#123456"}})
 
     assert styled |> Floki.find(".probe-wrapper > style") |> Floki.raw_html() =~
-             ~r/:root\s*\{\s*--theme-primary: #123456;/
+             ~r/:root:root\s*\{\s*--theme-primary: #123456;/
 
-    assert Floki.find(render_shell(custom_css: nil), "style") == []
-    assert Floki.find(render_shell(custom_css: ""), "style") == []
+    assert Floki.find(render_shell(theme_tokens: nil), "style") == []
+    assert Floki.find(render_shell(theme_tokens: %Tokens{}), "style") == []
   end
 
   test "renders the background before the grid, and the step inside the content area" do

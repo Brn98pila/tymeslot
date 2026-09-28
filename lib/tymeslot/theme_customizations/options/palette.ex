@@ -82,12 +82,9 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
 
   def vars(_settings, _overrides), do: %{}
 
-  @doc """
-  Turns a palette's `colors` map into `--theme-*` variables plus its contrast
-  tokens. The palette's `background` becomes `--theme-canvas`.
-  """
-  @spec colours_to_vars(map()) :: Tokens.css_vars()
-  def colours_to_vars(colors) do
+  # A palette's `colors` map as `--theme-*` variables plus its contrast
+  # tokens; the palette's `background` becomes `--theme-canvas`.
+  defp colours_to_vars(colors) do
     colors
     |> Map.merge(ContrastTokens.derive(colors) || %{})
     |> Enum.flat_map(fn {key, value} ->

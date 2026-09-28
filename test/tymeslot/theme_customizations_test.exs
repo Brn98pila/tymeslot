@@ -91,6 +91,45 @@ defmodule Tymeslot.ThemeCustomizationsTest do
       refute ThemeCustomizations.supports_background?("9", :video)
     end
 
+    test "every shipped theme offers image and video backgrounds" do
+      for theme_id <- ["1", "2"] do
+        assert ThemeCustomizations.supports_background?(theme_id, :image), theme_id
+        assert ThemeCustomizations.supports_background?(theme_id, :video), theme_id
+      end
+    end
+
+    test "get_defaults/1 returns theme-specific defaults" do
+      assert ThemeCustomizations.get_defaults("1") == %{
+               "background_type" => "gradient",
+               "background_value" => "gradient_1",
+               "color_scheme" => "default"
+             }
+
+      assert ThemeCustomizations.get_defaults("2") == %{
+               "background_type" => "video",
+               "background_value" => "preset:rhythm-default",
+               "color_scheme" => "default"
+             }
+    end
+
+    test "to_map/1 converts customization to map" do
+      customization = %ThemeCustomizationSchema{
+        theme_id: "1",
+        color_scheme: "purple",
+        background_type: "gradient",
+        background_value: "gradient_1"
+      }
+
+      map = ThemeCustomizations.to_map(customization)
+
+      assert map["color_scheme"] == "purple"
+      assert map["background_type"] == "gradient"
+    end
+
+    test "to_map/1 handles nil" do
+      assert ThemeCustomizations.to_map(nil) == %{}
+    end
+
     test "video_preset_keys/0 lists the shipped video presets in order" do
       keys = ThemeCustomizations.video_preset_keys()
 

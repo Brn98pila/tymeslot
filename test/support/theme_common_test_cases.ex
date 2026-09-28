@@ -132,7 +132,7 @@ defmodule TymeslotWeb.ThemeCommonTestCases do
         background_type: "gradient",
         background_value: "gradient_1"
       },
-      custom_css: nil,
+      theme_tokens: nil,
       locale: "en",
       language_dropdown_open: false,
       loading: false,

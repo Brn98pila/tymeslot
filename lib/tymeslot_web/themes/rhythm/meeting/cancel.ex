@@ -11,7 +11,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Meeting.Cancel do
   alias TymeslotWeb.Themes.Rhythm.Scheduling.Wrapper
 
   attr :theme_customization, :map, required: true
-  attr :custom_css, :string, required: true
+  attr :theme_tokens, :any, required: true
   attr :locale, :string, required: true
   attr :language_dropdown_open, :boolean, required: true
   attr :meeting, :map, required: true
@@ -27,7 +27,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Meeting.Cancel do
     ~H"""
     <Wrapper.rhythm_wrapper
       theme_customization={@theme_customization}
-      custom_css={@custom_css}
+      theme_tokens={@theme_tokens}
       locale={@locale}
       language_dropdown_open={@language_dropdown_open}
       show_language_switcher={true}
