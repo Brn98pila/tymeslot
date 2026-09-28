@@ -34,7 +34,7 @@
   height: var(--avatar-size-md);
   border-radius: 50%;
   object-fit: cover;
-  border: var(--border-width-medium) solid rgba(255, 255, 255, 0.8);
+  border: var(--border-width-medium) solid var(--avatar-ring);
 }
 
 .organizer-info-small {

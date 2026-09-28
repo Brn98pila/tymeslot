@@ -17,9 +17,9 @@
   padding: var(--space-2xs) var(--space-sm);
   margin: 0 auto var(--space-sm);
   max-width: 32rem;
-  border: var(--border-width-thin) solid rgba(251, 191, 36, 0.35);
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--notice-warning) 35%, transparent);
   border-radius: var(--radius-lg);
-  background: rgba(251, 191, 36, 0.1);
+  background: color-mix(in srgb, var(--notice-warning) 10%, transparent);
   color: var(--theme-warning);
   font-size: var(--theme-font-size-xs);
   font-weight: var(--font-weight-semibold);

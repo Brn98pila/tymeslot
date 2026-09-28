@@ -66,7 +66,7 @@
 
 .success-badge-inner--info {
   background: linear-gradient(135deg, var(--theme-info) 0%, var(--theme-info-dark) 100%);
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+  box-shadow: var(--shadow-info-sm);
 }
 
 .success-badge-inner--success {
@@ -212,7 +212,7 @@
 
 .ticket-footer {
   padding: var(--space-md) var(--space-lg);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface-ghost);
   border-top: var(--border-width-thin) solid var(--border-subtle);
   border-radius: 0 0 var(--radius-2xl) var(--radius-2xl);
 }
@@ -284,13 +284,13 @@
 
 /* Booking Detail Styling */
 .booking-detail-label {
-  color: var(--theme-text-secondary, #94a3b8);
+  color: var(--theme-text-secondary);
   margin: 0;
   margin-bottom: var(--space-3xs);
 }
 
 .booking-detail-value {
-  color: var(--theme-text, #e2e8f0);
+  color: var(--theme-text);
   margin: 0;
 }
 

@@ -371,4 +371,17 @@
      overridable by per-profile customisations and could produce a light
      surface where white text becomes invisible. */
   --dropdown-surface: linear-gradient(135deg, rgba(20, 15, 45, 0.98) 0%, rgba(30, 20, 60, 0.97) 100%);
+
+  /* Text shadows */
+  --text-shadow-input: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --text-shadow-strong: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --text-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --text-shadow-faint: 0 1px 2px rgba(0, 0, 0, 0.2);
+
+  /* Light form fields (booking form, phone location) */
+  --input-light-surface: rgba(255, 255, 255, 0.92);
+  --input-light-line: rgba(255, 255, 255, 0.28);
+  --input-light-line-hover: rgba(255, 255, 255, 0.45);
+  --input-light-ink: rgb(15, 23, 42);
+  --input-light-placeholder: rgba(15, 23, 42, 0.45);
 }

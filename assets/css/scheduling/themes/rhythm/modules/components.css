@@ -53,7 +53,7 @@ span.tz-picker__option-flag {
 .calendar-error-inline {
   font-size: var(--theme-font-size-xs);
   color: var(--theme-warning);
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--surface-dark-medium);
   padding: var(--space-3xs) var(--space-xs);
   border-radius: var(--radius-sm);
   display: flex;

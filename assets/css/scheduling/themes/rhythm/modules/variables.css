@@ -273,4 +273,13 @@
 
   /* Timezone picker (shared/components/timezone-picker.css) */
   --dropdown-surface: linear-gradient(135deg, rgba(20, 20, 35, 0.98) 0%, rgba(15, 15, 25, 0.96) 100%);
+
+  /* Surfaces and lines used by individual modules */
+  --box-surface: linear-gradient(135deg, rgba(20, 20, 35, var(--box-opacity)) 0%, rgba(15, 15, 25, 0.6) 100%);
+  --surface-dark-light: rgba(0, 0, 0, 0.3);
+  --surface-dark-medium: rgba(0, 0, 0, 0.4);
+  --surface-faint: rgba(255, 255, 255, 0.05);
+  --surface-ghost: rgba(255, 255, 255, 0.03);
+  --border-hover: rgba(255, 255, 255, 0.45);
+  --avatar-ring: rgba(255, 255, 255, 0.8);
 }

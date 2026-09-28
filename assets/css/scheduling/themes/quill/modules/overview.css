@@ -163,7 +163,7 @@
 }
 
 .duration-card-badge {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--surface-intense);
   color: var(--text-opacity-high);
   backdrop-filter: blur(10px);
 }

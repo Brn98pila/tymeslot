@@ -30,7 +30,7 @@ body.rhythm-theme {
   align-items: center;
   justify-content: center;
   padding: var(--space-lg);
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--surface-dark-light);
   overflow-x: hidden;
   box-sizing: border-box;
 }
@@ -65,11 +65,7 @@ body.rhythm-theme {
 .scheduling-box {
   container-type: inline-size;
   container-name: scheduling;
-  background: linear-gradient(
-    135deg,
-    rgba(20, 20, 35, var(--box-opacity)) 0%,
-    rgba(15, 15, 25, 0.6) 100%
-  );
+  background: var(--box-surface);
   backdrop-filter: blur(var(--box-blur)) saturate(150%);
   -webkit-backdrop-filter: blur(var(--box-blur)) saturate(150%);
   border-radius: var(--radius-2xl);
@@ -331,7 +327,7 @@ body.rhythm-theme {
 @media (max-width: 479px) {
   .video-background-theme {
     padding: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: var(--surface-dark-medium);
     align-items: flex-start;
   }
 

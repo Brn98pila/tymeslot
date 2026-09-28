@@ -95,7 +95,7 @@
 .calendar-day--loading {
   opacity: 0.5;
   cursor: wait;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-faint);
 }
 
 /* ===== Fluid Sizing ===== */
