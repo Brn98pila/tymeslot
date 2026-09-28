@@ -41,6 +41,6 @@
 @import "../../shared/components/preview-notice.css";
 @import "./modules/confirmation.css";
 @import "./modules/meeting-pages.css";
-@import "./modules/polls.css";
+@import "../../shared/components/polls.css";
 @import "./modules/payment-pages.css";
 @import "./modules/language-switcher.css";

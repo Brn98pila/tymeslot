@@ -235,4 +235,15 @@
   --approval-notice-font-size: var(--theme-font-size-xs);
   --approval-notice-ink: var(--theme-text-secondary);
   --approval-notice-max-width: 30rem;
+
+  /* Poll voting page (shared/components/polls.css) */
+  --poll-voting-padding: var(--space-lg);
+  --poll-panel-surface: rgba(255, 255, 255, 0.08);
+  --poll-input-surface: rgba(255, 255, 255, 0.1);
+  --poll-input-line: rgba(255, 255, 255, 0.2);
+  --poll-input-focus-ring: var(--focus-ring);
+  --poll-row-surface: rgba(255, 255, 255, 0.08);
+  --poll-row-line: rgba(255, 255, 255, 0.16);
+  --poll-option-line: rgba(255, 255, 255, 0.22);
+  --poll-option-selected-surface: var(--theme-primary-tint);
 }
