@@ -10,6 +10,17 @@ defmodule TymeslotWeb.Integration.LayoutExtensionTest do
   alias Tymeslot.Profiles.ProfileQueries
   alias TymeslotWeb.ThemeTestMatrix
 
+  defmodule ThemeIdExtension do
+    use Phoenix.Component
+
+    @spec probe(map()) :: Phoenix.LiveView.Rendered.t()
+    def probe(assigns) do
+      ~H"""
+      <div id="theme-id-ext" data-theme-id={@theme_id}></div>
+      """
+    end
+  end
+
   setup do
     verify_on_exit!()
     # Ensure theme_extensions is empty for Core tests
@@ -153,19 +164,7 @@ defmodule TymeslotWeb.Integration.LayoutExtensionTest do
 
     for theme <- ThemeTestMatrix.all() do
       test "#{theme.slug}: extensions receive the rendering theme's id", %{conn: conn} do
-        defmodule Module.concat(__MODULE__, "ThemeIdExt#{unquote(theme.id)}") do
-          use Phoenix.Component
-          @spec probe(map()) :: Phoenix.LiveView.Rendered.t()
-          def probe(assigns) do
-            ~H"""
-            <div id="theme-id-ext" data-theme-id={@theme_id}></div>
-            """
-          end
-        end
-
-        Application.put_env(:tymeslot, :theme_extensions, [
-          {Module.concat(__MODULE__, "ThemeIdExt#{unquote(theme.id)}"), :probe}
-        ])
+        Application.put_env(:tymeslot, :theme_extensions, [{ThemeIdExtension, :probe}])
 
         username = "themeid#{unquote(theme.slug)}"
         user = create_user_fixture(%{username: username})
