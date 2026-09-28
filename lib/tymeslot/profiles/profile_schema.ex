@@ -39,8 +39,7 @@ defmodule Tymeslot.Profiles.ProfileSchema do
             Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t()
             | Ecto.Association.NotLoaded.t()
             | nil,
-          theme_customization:
-            ThemeCustomizationSchema.t() | Ecto.Association.NotLoaded.t() | nil,
+          theme_customizations: [ThemeCustomizationSchema.t()] | Ecto.Association.NotLoaded.t(),
           meeting_types: [Tymeslot.MeetingTypes.MeetingTypeSchema.t()] | nil,
           inserted_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
@@ -71,7 +70,7 @@ defmodule Tymeslot.Profiles.ProfileSchema do
       Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
     )
 
-    has_one(:theme_customization, ThemeCustomizationSchema, foreign_key: :profile_id)
+    has_many(:theme_customizations, ThemeCustomizationSchema, foreign_key: :profile_id)
 
     timestamps(type: :utc_datetime)
   end
