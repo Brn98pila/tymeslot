@@ -961,7 +961,7 @@ Preset assets are organized in the static directory:
 
 ```
 priv/static/
-├── images/ui/backgrounds/       # Preset background images
+├── images/themes/backgrounds/   # Preset background images (and their -thumbnail files)
 │   ├── artistic-studio.webp
 │   ├── ocean-sunset.webp
 │   └── ...
@@ -975,6 +975,8 @@ priv/static/
     ├── blue-wave-thumbnail.jpg
     └── rhythm-background-poster.webp
 ```
+
+Booking pages and the dashboard picker both read preset images from `/images/themes/backgrounds/`; `Options.Background.descriptor/1` owns the path.
 
 ### Defining Presets
 

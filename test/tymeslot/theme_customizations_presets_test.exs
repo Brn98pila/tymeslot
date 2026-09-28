@@ -59,5 +59,18 @@ defmodule Tymeslot.ThemeCustomizationsPresetsTest do
     test "find_preset_by_id/2 returns nil for unknown type" do
       assert Presets.find_preset_by_id(:unknown, "test") == nil
     end
+
+    test "every image preset ships in the one preset image directory" do
+      dir = Application.app_dir(:tymeslot, "priv/static/images/themes/backgrounds")
+
+      missing =
+        Presets.get_image_presets()
+        |> Map.values()
+        |> Enum.flat_map(&[&1.file, &1.thumbnail])
+        |> Enum.reject(&File.exists?(Path.join(dir, &1)))
+
+      assert Presets.get_image_presets() != %{}
+      assert missing == []
+    end
   end
 end

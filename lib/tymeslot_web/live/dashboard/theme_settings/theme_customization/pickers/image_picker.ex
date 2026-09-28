@@ -36,7 +36,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
             >
               <div class="aspect-video relative overflow-hidden">
                 <img
-                  src={"/images/ui/backgrounds/#{image.file}"}
+                  src={"/images/themes/backgrounds/#{image.file}"}
                   alt={image.name}
                   class="w-full h-full object-cover transition-transform duration-700 group-hover/image:scale-110"
                   data-img-fallback

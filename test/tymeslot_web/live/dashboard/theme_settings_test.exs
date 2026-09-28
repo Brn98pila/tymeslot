@@ -471,6 +471,15 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       assert saved.background_type == "color"
       assert saved.background_value == "#ffaa00"
     end
+
+    test "the image picker shows presets from the booking pages' image path", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/dashboard/theme/customize/1")
+
+      html = view |> element("button", "Image") |> render_click()
+
+      assert html =~ ~s(src="/images/themes/backgrounds/ocean-sunset.webp")
+      refute html =~ "/images/ui/backgrounds/"
+    end
   end
 
   defp preview_href(view, username) do
