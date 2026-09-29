@@ -200,6 +200,7 @@ defmodule TymeslotWeb.Dashboard.Availability.DayCardComponent do
         <input type="hidden" name="day" value={@day} />
         <div class="w-40">
           <.input
+            id={"add-break-label-#{@day}"}
             name="label"
             label={dgettext("dashboard_availability", "Label")}
             placeholder={dgettext("dashboard_availability", "e.g. Lunch")}
@@ -210,6 +211,7 @@ defmodule TymeslotWeb.Dashboard.Availability.DayCardComponent do
         <div class="w-32">
           <.input
             type="select"
+            id={"add-break-start-#{@day}"}
             name="start"
             label={dgettext("dashboard_availability", "From")}
             required
@@ -221,6 +223,7 @@ defmodule TymeslotWeb.Dashboard.Availability.DayCardComponent do
         <div class="w-32">
           <.input
             type="select"
+            id={"add-break-end-#{@day}"}
             name="end"
             label={dgettext("dashboard_availability", "Until")}
             required
