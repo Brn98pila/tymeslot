@@ -14,7 +14,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels do
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.BackgroundPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel
-  alias TymeslotWeb.Themes.Core.Registry
+  alias TymeslotWeb.Themes.Core.Loader
 
   @built_in %{Palette => PalettePanel, Background => BackgroundPanel}
 
@@ -34,9 +34,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels do
   end
 
   defp theme_panels(theme_id) do
-    case Registry.get_theme_by_id(theme_id) do
-      {:ok, %{module: theme}} -> theme.option_panels()
-      {:error, :theme_not_found} -> %{}
+    case Loader.load_theme(theme_id) do
+      {:ok, theme} -> theme.option_panels()
+      {:error, _reason} -> %{}
     end
   end
 end
