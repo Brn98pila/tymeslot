@@ -396,40 +396,84 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpersTest do
     end
   end
 
-  describe "follow_timezone_change/1" do
+  describe "untouched?/1" do
     setup do
       freeze_clock(~U[2027-01-31 12:00:00Z])
       :ok
     end
 
-    test "moves a calendar still on the day it opened on to the new zone's today" do
-      socket = CalendarHelpers.follow_timezone_change(switched_to_kiritimati(%{}))
-
-      assert %{
-               calendar_today: ~D[2027-02-01],
-               current_year: 2027,
-               current_month: 2,
-               current_week_start: ~D[2027-02-01]
-             } = socket.assigns
+    test "holds for a calendar still on the day it opened on, with no day chosen" do
+      assert CalendarHelpers.untouched?(opened_in_tallinn(%{}).assigns)
     end
 
-    test "leaves a calendar the booker has moved where it is" do
-      socket = CalendarHelpers.follow_timezone_change(switched_to_kiritimati(%{current_month: 3}))
-
-      assert %{calendar_today: ~D[2027-01-31], current_month: 3} = socket.assigns
+    test "fails once the booker has moved the month" do
+      refute CalendarHelpers.untouched?(opened_in_tallinn(%{current_month: 3}).assigns)
     end
 
-    test "leaves the calendar on a day the booker has chosen" do
+    test "fails once the booker has moved the week" do
+      refute CalendarHelpers.untouched?(
+               opened_in_tallinn(%{current_week_start: ~D[2027-02-01]}).assigns
+             )
+    end
+
+    test "fails once the booker has chosen a day" do
+      refute CalendarHelpers.untouched?(opened_in_tallinn(%{selected_date: "2027-02-03"}).assigns)
+    end
+
+    test "treats a blank selection as none" do
+      assert CalendarHelpers.untouched?(opened_in_tallinn(%{selected_date: ""}).assigns)
+    end
+
+    test "fails for a calendar the page never placed" do
+      refute CalendarHelpers.untouched?(calendar_socket(%{}).assigns)
+    end
+  end
+
+  describe "land_on/2" do
+    setup do
+      freeze_clock(~U[2027-01-31 12:00:00Z])
+      :ok
+    end
+
+    # The page's own pick: `NextAvailable` selects the day, then lands on it.
+    defp landed_on(date) do
+      socket = opened_in_tallinn(%{selected_date: Date.to_iso8601(date)})
+      CalendarHelpers.land_on(socket, date)
+    end
+
+    test "moves the month and week onto the day and leaves the calendar untouched" do
+      socket = landed_on(~D[2027-03-10])
+
+      assert %{current_year: 2027, current_month: 3, current_week_start: ~D[2027-03-08]} =
+               socket.assigns
+
+      assert CalendarHelpers.untouched?(socket.assigns)
+    end
+
+    test "a day the booker clicks afterwards is theirs" do
+      socket = landed_on(~D[2027-03-10])
+
+      refute CalendarHelpers.untouched?(Map.put(socket.assigns, :selected_date, "2027-03-11"))
+    end
+
+    test "a week the booker moves to afterwards is theirs" do
+      socket = landed_on(~D[2027-03-10])
+
+      refute CalendarHelpers.untouched?(
+               Map.put(socket.assigns, :current_week_start, ~D[2027-03-15])
+             )
+    end
+
+    test "a day linked with ?date= is not the page's, however it is opened" do
+      # `anchor_on_selection/1` opens a linked day with `anchor_on/2`, which
+      # moves the calendar without claiming the position.
       socket =
-        CalendarHelpers.follow_timezone_change(
-          switched_to_kiritimati(%{selected_date: "2027-01-31"})
+        CalendarHelpers.anchor_on_selection(
+          window_socket(%{selected_date: "2027-01-31", selected_time: nil})
         )
 
-      assert %{
-               calendar_today: ~D[2027-01-31],
-               current_month: 1,
-               current_week_start: ~D[2027-01-25]
-             } = socket.assigns
+      assert socket.assigns.selected_date == "2027-01-31"
+      refute CalendarHelpers.untouched?(socket.assigns)
     end
   end
 
@@ -530,18 +574,10 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpersTest do
     )
   end
 
-  # A calendar opened in Tallinn, whose booker has then picked Kiritimati:
-  # `SchedulingFlow` calls `follow_timezone_change/1` once `:user_timezone`
-  # already holds the new zone. `changes` stands for what the booker did first.
-  defp switched_to_kiritimati(changes) do
+  # A calendar the page opened in Tallinn. `changes` stands for what the
+  # booker did afterwards.
+  defp opened_in_tallinn(changes) do
     socket = CalendarHelpers.anchor_on_today(calendar_socket(%{user_timezone: "Europe/Tallinn"}))
-
-    %{
-      socket
-      | assigns:
-          socket.assigns
-          |> Map.merge(changes)
-          |> Map.put(:user_timezone, "Pacific/Kiritimati")
-    }
+    %{socket | assigns: Map.merge(socket.assigns, changes)}
   end
 end

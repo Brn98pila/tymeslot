@@ -188,14 +188,13 @@ defmodule TymeslotWeb.Live.Scheduling.NextAvailable do
     end
   end
 
-  # Moves the visible window onto the chosen day before selecting it, then
-  # asks for its slots. `SchedulingFlow`'s `select_date/2`
-  # does the same three things on a click; this is that path without the
-  # click, so the two stay in step.
+  # Selects the chosen day, moves the visible window onto it, then asks for
+  # its slots. `SchedulingFlow`'s `select_date/2` does the same three things
+  # on a click; this is that path without the click, so the two stay in step.
   defp select(socket, date_string) do
     socket
-    |> align_to(date_string)
     |> assign(:selected_date, date_string)
+    |> align_to(date_string)
     |> assign(:selected_time, nil)
     |> assign(:loading_slots, true)
     |> assign(:calendar_error, nil)
@@ -204,12 +203,45 @@ defmodule TymeslotWeb.Live.Scheduling.NextAvailable do
 
   # The month view keys off current_year/current_month; the week view
   # (Rhythm, and Quill's narrow-screen row) keys off current_week_start.
-  # `CalendarHelpers.anchor_on/2` moves all three, so whichever theme is
-  # rendering shows the day that was just selected.
+  # `CalendarHelpers.land_on/2` moves all three, so whichever theme is
+  # rendering shows the day that was just selected, and records the day as
+  # the page's pick rather than the booker's (`follow_timezone_change/1`).
   defp align_to(socket, date_string) do
     case Date.from_iso8601(date_string) do
-      {:ok, date} -> CalendarHelpers.anchor_on(socket, date)
+      {:ok, date} -> CalendarHelpers.land_on(socket, date)
       _invalid -> socket
+    end
+  end
+
+  @doc """
+  Lets the landing follow a timezone the booker has just picked.
+
+  Today can be another date in the new zone, and the day landed on was the
+  first free one in the old zone's days: it can already be past in the new
+  one, where it would stay selected with no times. So while the calendar is
+  still where the page left it (`CalendarHelpers.untouched?/1`), whether on a
+  day it landed on or on today with nothing selected, the selection is dropped,
+  the calendar reopens on the new zone's today and the landing is re-armed, to
+  run again on the month's availability the caller fetches for the new zone.
+
+  A calendar the booker has moved, or a day they chose (a click, a `?date=`
+  link), is left as it is. A reschedule is no exception either way: it arrives
+  with no day of its own, so its selection is the landing's until the booker
+  picks one.
+
+  Every landing records where it left the calendar, so a second timezone change
+  follows the second landing exactly as the first followed the first.
+  """
+  @spec follow_timezone_change(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def follow_timezone_change(socket) do
+    if CalendarHelpers.untouched?(socket.assigns) do
+      socket
+      |> assign(:selected_date, nil)
+      |> assign(:selected_time, nil)
+      |> CalendarHelpers.anchor_on_today()
+      |> reset()
+    else
+      socket
     end
   end
 
@@ -236,7 +268,7 @@ defmodule TymeslotWeb.Live.Scheduling.NextAvailable do
       true ->
         socket =
           socket
-          |> CalendarHelpers.anchor_on(Date.new!(year, month, 1))
+          |> CalendarHelpers.land_on(Date.new!(year, month, 1))
           |> assign(:month_availability_map, nil)
           |> assign(:availability_status, :not_loaded)
           |> assign(:auto_select_months_searched, months_searched + 1)

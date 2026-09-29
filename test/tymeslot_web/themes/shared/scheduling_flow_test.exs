@@ -77,6 +77,12 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlowTest do
           current_year: 2027,
           current_month: 1,
           current_week_start: ~D[2027-01-25],
+          calendar_landing: %{
+            selected_date: nil,
+            current_year: 2027,
+            current_month: 1,
+            current_week_start: ~D[2027-01-25]
+          },
           selected_date: nil,
           selected_time: nil,
           available_slots: [],
