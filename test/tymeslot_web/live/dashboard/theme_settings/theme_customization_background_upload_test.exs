@@ -1,26 +1,115 @@
 defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUploadTest do
   @moduledoc """
-  Verifies a successful background image upload in the theme customizer
-  pushes "upload-complete" so the `AutoUpload` hook clears the file picker,
-  mirroring the avatar upload fixes (dashboard and onboarding).
+  Background choices that store or clear files, made through the theme
+  customisation panel: uploading an image or a video, and picking a preset
+  image or video, which drops any upload the previous background named.
+
+  A successful upload pushes "upload-complete" so the `AutoUpload` hook clears
+  the file picker, mirroring the avatar upload fixes (dashboard and
+  onboarding). Preset choices are clicked on the real buttons, so a picker
+  that stopped sending `phx-value-choice` fails here.
   """
 
   use TymeslotWeb.LiveCase, async: false
+  use Oban.Testing, repo: Tymeslot.Repo
 
   @moduletag :themes
   @moduletag :live
 
+  import Mox
   import Tymeslot.DashboardTestHelpers
 
+  alias Ecto.Changeset
+  alias Tymeslot.Repo
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.Presets
+  alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.Storage
+  alias Tymeslot.Workers.VideoTranscoder
+  alias TymeslotWeb.ThemeTestMatrix
 
   # Minimal valid PNG (magic bytes + IHDR) — accepted by allow_upload's accept
   # list without triggering the file-size limit.
   @valid_png <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, "IHDR", 0, 0, 0, 1, 0,
                0, 0, 1, 8, 2, 0, 0, 0, 0x90, 0x77, 0x53, 0xDE>>
 
+  # An MP4 by its magic bytes; the content check reads no further.
+  @valid_mp4 <<0x00, 0x00, 0x00, 0x18, "ftypisom", "fake video data">>
+
+  # The themes whose spec offers each kind, so a new theme is covered once it
+  # does.
+  @image_themes Enum.filter(
+                  ThemeTestMatrix.all(),
+                  &Spec.supports_background?(Spec.for_theme(&1.id), :image)
+                )
+  @video_themes Enum.filter(
+                  ThemeTestMatrix.all(),
+                  &Spec.supports_background?(Spec.for_theme(&1.id), :video)
+                )
+
+  # The loops below would pass untested over an empty list.
+  if @image_themes == [] or @video_themes == [],
+    do: raise("no theme in ThemeTestMatrix offers an image or a video background")
+
+  setup :set_mox_global
+  setup :verify_on_exit!
   setup :setup_dashboard_user_with_theme
+
+  defp isolated_upload_root(_context) do
+    upload_root =
+      Path.join(System.tmp_dir!(), "tymeslot_uploads_#{System.unique_integer([:positive])}")
+
+    original_root = Application.get_env(:tymeslot, :upload_directory)
+    Application.put_env(:tymeslot, :upload_directory, upload_root)
+
+    on_exit(fn ->
+      Application.put_env(:tymeslot, :upload_directory, original_root)
+      File.rm_rf(upload_root)
+    end)
+
+    %{upload_root: upload_root}
+  end
+
+  defp stored_file(profile, theme_id, relative) do
+    path = "themes/#{profile.id}/#{theme_id}/#{relative}"
+    full = Storage.build_theme_file_path(path)
+    File.mkdir_p!(Path.dirname(full))
+    File.write!(full, "old")
+    {path, full}
+  end
+
+  defp open_tab(conn, theme_id, kind) do
+    {:ok, view, _html} = live(conn, "/dashboard/theme/customize/#{theme_id}")
+
+    view
+    |> element("button[phx-click='theme:set_browsing_type'][phx-value-type='#{kind}']")
+    |> render_click()
+
+    view
+  end
+
+  defp preset_button(field, choice),
+    do:
+      "button[phx-click='theme:set_option'][phx-value-option='background']" <>
+        "[phx-value-field='#{field}'][phx-value-choice='#{choice}']"
+
+  # A cleared upload is absent from the stored map rather than nil, so read
+  # each key.
+  defp background_settings(customization),
+    do:
+      Map.new(
+        ~w(background_type background_value background_image_path background_video_path),
+        &{&1, customization.settings[&1]}
+      )
+
+  defp video_entry do
+    %{
+      last_modified: System.system_time(:millisecond),
+      name: "clip.mp4",
+      content: @valid_mp4,
+      type: "video/mp4"
+    }
+  end
 
   describe "background image upload" do
     test "a successful upload pushes upload-complete so the AutoUpload hook clears the picker",
@@ -104,6 +193,132 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       assert saved.settings["background_image_path"] =~ "themes/#{profile.id}/1/images/"
       assert saved.settings["background_video_path"] == nil
       refute File.exists?(video_abs)
+    end
+  end
+
+  describe "preset backgrounds" do
+    setup :isolated_upload_root
+
+    for theme <- @image_themes do
+      test "#{theme.name}: a preset image card saves it and clears the uploaded files",
+           %{conn: conn, profile: profile} do
+        theme_id = unquote(theme.id)
+        {image, image_file} = stored_file(profile, theme_id, "images/old.png")
+        {video, video_file} = stored_file(profile, theme_id, "videos/old.mp4")
+
+        {:ok, _customization} =
+          ThemeCustomizations.create_theme_customization(profile.id, theme_id, %{
+            "background_type" => "image",
+            "background_value" => "custom",
+            "background_image_path" => image,
+            "background_video_path" => video
+          })
+
+        [choice | _others] = Presets.get_image_presets() |> Map.keys() |> Enum.sort()
+        view = open_tab(conn, theme_id, "image")
+
+        view |> element(preset_button("image", choice)) |> render_click()
+
+        saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, theme_id)
+
+        assert background_settings(saved) ==
+                 %{
+                   "background_type" => "image",
+                   "background_value" => choice,
+                   "background_image_path" => nil,
+                   "background_video_path" => nil
+                 }
+
+        refute File.exists?(image_file)
+        refute File.exists?(video_file)
+      end
+    end
+
+    for theme <- @video_themes do
+      test "#{theme.name}: a preset video card saves it and clears the uploaded files",
+           %{conn: conn, profile: profile} do
+        theme_id = unquote(theme.id)
+        {video, video_file} = stored_file(profile, theme_id, "videos/old.mp4")
+
+        {:ok, _customization} =
+          ThemeCustomizations.create_theme_customization(profile.id, theme_id, %{
+            "background_type" => "video",
+            "background_value" => "custom",
+            "background_video_path" => video
+          })
+
+        # A preset other than the theme's default, so the save is observable.
+        [choice | _others] =
+          Presets.get_video_presets()
+          |> Map.keys()
+          |> Enum.reject(&(&1 == Spec.for_theme(theme_id).defaults()[:background_value]))
+          |> Enum.sort()
+
+        view = open_tab(conn, theme_id, "video")
+
+        view |> element(preset_button("video", choice)) |> render_click()
+
+        saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, theme_id)
+
+        assert background_settings(saved) ==
+                 %{
+                   "background_type" => "video",
+                   "background_value" => choice,
+                   "background_image_path" => nil,
+                   "background_video_path" => nil
+                 }
+
+        refute File.exists?(video_file)
+      end
+    end
+  end
+
+  describe "background video upload" do
+    setup :isolated_upload_root
+
+    for theme <- @video_themes do
+      test "#{theme.name}: stores the video and queues its transcoding",
+           %{conn: conn, profile: profile} do
+        stub(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
+        theme_id = unquote(theme.id)
+        view = open_tab(conn, theme_id, "video")
+
+        view
+        |> file_input("#theme-background-video-form", :background_video, [video_entry()])
+        |> render_upload("clip.mp4")
+
+        assert_push_event(view, "upload-complete", %{})
+
+        saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, theme_id)
+        path = saved.settings["background_video_path"]
+
+        assert saved.settings["background_type"] == "video"
+        assert saved.settings["background_value"] == "custom"
+        assert path =~ ~r"\Athemes/#{profile.id}/#{theme_id}/videos/[^/]+\.mp4\z"
+        assert File.exists?(Storage.build_theme_file_path(path))
+
+        assert_enqueued(
+          worker: VideoTranscoder,
+          args: %{theme_customization_id: saved.id, video_path: path}
+        )
+      end
+
+      test "#{theme.name}: without ffmpeg, says so in the user's language and stores nothing",
+           %{conn: conn, user: user, profile: profile, upload_root: upload_root} do
+        stub(Tymeslot.Media.TranscoderMock, :available?, fn -> false end)
+        user |> Changeset.change(locale: "de") |> Repo.update!()
+        theme_id = unquote(theme.id)
+        view = open_tab(conn, theme_id, "video")
+
+        view
+        |> file_input("#theme-background-video-form", :background_video, [video_entry()])
+        |> render_upload("clip.mp4")
+
+        assert render(view) =~ "weil ffmpeg nicht installiert ist"
+        assert ThemeCustomizations.get_by_profile_and_theme(profile.id, theme_id) == nil
+        refute_enqueued(worker: VideoTranscoder)
+        refute File.exists?(Path.join(upload_root, "themes/#{profile.id}/#{theme_id}/videos"))
+      end
     end
   end
 end
