@@ -37,7 +37,8 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
          0xDE>>
 
   # Everything the fixture adds that a shared module could name.
-  @fixture_names ~r/FixtureTheme|fixture_emblem|EmblemPanel|:fixture\b/
+  # The fixture's id is one of them, as a quoted literal.
+  @fixture_names ~r/FixtureTheme|fixture_emblem|EmblemPanel|:fixture\b|#{Regex.escape(~s("99"))}/
 
   setup :verify_on_exit!
 
@@ -97,7 +98,9 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
     end
 
     # Any visitor can send any `theme:` event; one the theme does not handle
-    # falls through its handler's catch-all clause.
+    # falls through to the catch-all clause of the fixture's own hook
+    # (test/support/fixture_theme/live.ex). `defoverridable` replaces the
+    # default hook wholesale, so this pins that clause, not the default one.
     test "leaves the page working when the theme does not know the event", %{conn: conn} do
       %{view: view} = booking_page(conn, "fixture-unknown")
 
@@ -112,12 +115,25 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
       assert has_element?(view, "[data-testid='fixture-pinged']")
     end
 
-    test "is not reached by the same name without the theme: prefix", %{conn: conn} do
+    test "is not reached by the same name without the theme: prefix from a step template",
+         %{conn: conn} do
       %{view: view} = booking_page(conn, "fixture-unprefixed")
 
       view |> with_target("[data-testid='fixture-overview']") |> render_click("ping", %{})
 
       refute has_element?(view, "[data-testid='fixture-pinged']")
+    end
+
+    # Pins today's behaviour: SchedulingLive hands any event it does not handle
+    # itself to handle_theme_event/3, prefix or not, so an untargeted "ping"
+    # reaches the hook. Only the step-template path filters on `theme:`.
+    test "is reached by the same name sent to the LiveView itself", %{conn: conn} do
+      %{view: view} = booking_page(conn, "fixture-toplevel")
+      refute has_element?(view, "[data-testid='fixture-pinged']")
+
+      render_click(view, "ping", %{})
+
+      assert has_element?(view, "[data-testid='fixture-pinged']")
     end
   end
 
@@ -337,12 +353,13 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
     test "names nothing the fixture theme adds" do
       shared = Path.wildcard("lib/**/*.{ex,exs,heex}")
       configs = Path.wildcard("config/*.exs") -- ["config/test.exs"]
+      files = ["mix.exs" | shared ++ configs]
 
       # The two directories the openness goal names must be among those read.
       assert Enum.any?(shared, &String.starts_with?(&1, "lib/tymeslot/theme_customizations/"))
       assert Enum.any?(shared, &String.starts_with?(&1, "lib/tymeslot_web/themes/shared/"))
 
-      naming = Enum.filter(shared ++ configs, &(File.read!(&1) =~ @fixture_names))
+      naming = Enum.filter(files, &(File.read!(&1) =~ @fixture_names))
 
       assert naming == [], "shared code names the fixture theme: #{inspect(naming)}"
     end
