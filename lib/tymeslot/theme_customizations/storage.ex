@@ -1,14 +1,18 @@
 defmodule Tymeslot.ThemeCustomizations.Storage do
   @moduledoc """
   Handles filesystem-related operations for theme customization assets.
-  Owns directory management, path building, and file storage.
+  Owns directory management, path building, and file storage; `store_asset/4`
+  is the one way an upload is written.
   """
 
   require Logger
+  alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.Utils.MediaValidator
   alias TymeslotWeb.Helpers.UploadHandler
 
   @type file_upload :: %{required(:path) => Path.t(), required(:filename) => String.t()}
+
+  @kind_directories %{image: "images", video: "videos"}
 
   @doc """
   Builds an absolute file system path from a stored relative path.
@@ -75,52 +79,54 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
   end
 
   @doc """
-  Stores a background image file and returns {:ok, relative_path}.
+  Stores an uploaded image or video for a profile's theme and returns its path
+  relative to the upload root: `themes/<profile>/<theme>/images/<name>` for an
+  image, `.../videos/<name>` for a video.
+
+  The content is checked against `kind` by its bytes, never by the client's
+  content type. Every stored file gets a name of its own, a random prefix
+  before the sanitised client name, so no two uploads share a path: a new
+  upload never overwrites a file a setting still names, and deleting one
+  upload's file never deletes another's.
   """
-  @spec store_background_image(integer(), String.t(), file_upload()) ::
+  @spec store_asset(Spec.asset_kind(), integer(), String.t(), file_upload()) ::
           {:ok, String.t()} | {:error, term()}
-  def store_background_image(profile_id, theme_id, %{path: temp_path, filename: filename}) do
-    if MediaValidator.valid_image_file?(temp_path) do
-      dest_dir = get_theme_upload_directory(profile_id, theme_id, "images")
+  def store_asset(kind, profile_id, theme_id, %{path: temp_path, filename: filename})
+      when kind in [:image, :video] do
+    if valid_content?(kind, temp_path) do
+      directory = Map.fetch!(@kind_directories, kind)
+      dest_dir = get_theme_upload_directory(profile_id, theme_id, directory)
 
       with :ok <- ensure_directory_exists(dest_dir),
-           {:ok, sanitized_filename} <-
+           {:ok, stored_name} <-
              UploadHandler.store_file_atomically(
                temp_path,
                dest_dir,
-               filename,
-               %{operation: :store_background_image, profile_id: profile_id, theme_id: theme_id}
+               unique_name(filename),
+               %{
+                 operation: :store_theme_asset,
+                 kind: kind,
+                 profile_id: profile_id,
+                 theme_id: theme_id
+               }
              ) do
-        {:ok,
-         Path.join(["themes", to_string(profile_id), theme_id, "images", sanitized_filename])}
+        {:ok, Path.join(["themes", to_string(profile_id), theme_id, directory, stored_name])}
       end
     else
-      {:error, :invalid_image_format}
+      {:error, invalid_format(kind)}
     end
   end
 
-  @doc """
-  Stores a background video file and returns {:ok, relative_path}.
-  """
-  @spec store_background_video(integer(), String.t(), file_upload()) ::
-          {:ok, String.t()} | {:error, term()}
-  def store_background_video(profile_id, theme_id, %{path: temp_path, filename: filename}) do
-    if MediaValidator.valid_video_file?(temp_path) do
-      dest_dir = get_theme_upload_directory(profile_id, theme_id, "videos")
+  defp valid_content?(:image, path), do: MediaValidator.valid_image_file?(path)
+  defp valid_content?(:video, path), do: MediaValidator.valid_video_file?(path)
 
-      with :ok <- ensure_directory_exists(dest_dir),
-           {:ok, sanitized_filename} <-
-             UploadHandler.store_file_atomically(
-               temp_path,
-               dest_dir,
-               filename,
-               %{operation: :store_background_video, profile_id: profile_id, theme_id: theme_id}
-             ) do
-        {:ok,
-         Path.join(["themes", to_string(profile_id), theme_id, "videos", sanitized_filename])}
-      end
-    else
-      {:error, :invalid_video_format}
-    end
-  end
+  defp invalid_format(:image), do: :invalid_image_format
+  defp invalid_format(:video), do: :invalid_video_format
+
+  # The prefix goes in front of the basename: `store_file_atomically/4`
+  # sanitises the name with `Path.basename/1`, which would drop a prefix put in
+  # front of a client name carrying a directory.
+  defp unique_name(filename),
+    do:
+      Base.encode16(:crypto.strong_rand_bytes(6), case: :lower) <> "-" <> Path.basename(filename)
 end

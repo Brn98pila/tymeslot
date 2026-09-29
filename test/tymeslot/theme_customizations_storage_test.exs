@@ -20,6 +20,22 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
     %{upload_root: upload_root}
   end
 
+  # GIF magic bytes, which MediaValidator accepts as an image.
+  defp gif_file, do: temp_file("GIF89a" <> "fake image data")
+
+  # PNG magic bytes: 89 50 4E 47 0D 0A 1A 0A
+  defp png_file, do: temp_file(<<0x89, "PNG", 0x0D, 0x0A, 0x1A, 0x0A, "fake image data">>)
+
+  # MP4 magic bytes: 00 00 00 18 66 74 79 70 69 73 6F 6D
+  defp mp4_file, do: temp_file(<<0x00, 0x00, 0x00, 0x18, "ftypisom", "fake video data">>)
+
+  defp temp_file(contents) do
+    path = Path.join(System.tmp_dir!(), "tymeslot_store_#{System.unique_integer([:positive])}")
+    File.write!(path, contents)
+    on_exit(fn -> File.rm(path) end)
+    path
+  end
+
   describe "Storage module" do
     test "build_theme_file_path/1 creates full path", %{upload_root: upload_root} do
       relative_path = "themes/1/images/background.jpg"
@@ -74,7 +90,7 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
       end
     end
 
-    test "store_background_image/3 returns error tuple when directory creation fails" do
+    test "store_asset/4 returns error tuple when directory creation fails" do
       # Point upload dir at a read-only location so ensure_directory_exists fails
       readonly = Path.join(System.tmp_dir!(), "tymeslot_ro_#{:rand.uniform(100_000)}")
       File.mkdir_p!(readonly)
@@ -83,67 +99,68 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
       original_dir = Application.get_env(:tymeslot, :upload_directory)
       Application.put_env(:tymeslot, :upload_directory, readonly)
 
-      temp_file = Path.join(System.tmp_dir!(), "test_img_#{:rand.uniform(100_000)}.jpg")
-      # GIF magic bytes so MediaValidator accepts it
-      File.write!(temp_file, "GIF89a" <> "data")
+      temp_file = gif_file()
 
       try do
-        result = Storage.store_background_image(1, "1", %{path: temp_file, filename: "bg.jpg"})
-        assert {:error, :eacces} = result
+        assert {:error, :eacces} =
+                 Storage.store_asset(:image, 1, "1", %{path: temp_file, filename: "bg.jpg"})
       after
         Application.put_env(:tymeslot, :upload_directory, original_dir)
         File.chmod!(readonly, 0o755)
         File.rm_rf!(readonly)
-        File.rm(temp_file)
       end
     end
 
-    test "store_background_image/3 returns error for non-existent temp file" do
-      result =
-        Storage.store_background_image(1, "1", %{
-          path: "/nonexistent/temp/file.jpg",
-          filename: "test.jpg"
-        })
-
-      assert result == {:error, :invalid_image_format}
+    test "store_asset/4 refuses a temp file that does not exist" do
+      assert Storage.store_asset(:image, 1, "1", %{
+               path: "/nonexistent/temp/file.jpg",
+               filename: "test.jpg"
+             }) == {:error, :invalid_image_format}
     end
 
-    test "store_background_image/3 stores file successfully" do
-      temp_dir = System.tmp_dir!()
-      temp_file = Path.join(temp_dir, "test_image_#{:rand.uniform(100_000)}.jpg")
-      # GIF magic bytes: GIF89a
-      File.write!(temp_file, "GIF89a" <> "fake image data")
+    test "store_asset/4 refuses content that is not of the kind asked for" do
+      # A PNG, not the GIF: a leading "G" (0x47) is also the MPEG-TS sync byte,
+      # so MediaValidator takes a GIF for a video.
+      assert Storage.store_asset(:video, 1, "1", %{path: png_file(), filename: "clip.mp4"}) ==
+               {:error, :invalid_video_format}
 
-      try do
-        assert {:ok, stored_path} =
-                 Storage.store_background_image(1, "1", %{path: temp_file, filename: "test.jpg"})
-
-        assert stored_path =~ "themes/1/1/images"
-        full_path = Storage.build_theme_file_path(stored_path)
-        assert File.exists?(full_path)
-        File.rm!(full_path)
-      after
-        File.rm(temp_file)
-      end
+      assert Storage.store_asset(:image, 1, "1", %{path: mp4_file(), filename: "bg.png"}) ==
+               {:error, :invalid_image_format}
     end
 
-    test "store_background_video/3 stores file" do
-      temp_dir = System.tmp_dir!()
-      temp_file = Path.join(temp_dir, "test_video_#{:rand.uniform(100_000)}.mp4")
-      # MP4 magic bytes: 00 00 00 18 66 74 79 70 69 73 6F 6D
-      File.write!(temp_file, <<0x00, 0x00, 0x00, 0x18, "ftypisom", "fake video data">>)
+    test "store_asset/4 stores an image under the theme's images directory" do
+      assert {:ok, stored_path} =
+               Storage.store_asset(:image, 1, "1", %{path: gif_file(), filename: "test.jpg"})
 
-      try do
-        assert {:ok, stored_path} =
-                 Storage.store_background_video(1, "1", %{path: temp_file, filename: "test.mp4"})
+      assert stored_path =~ ~r|\Athemes/1/1/images/[0-9a-f]{12}-test\.jpg\z|
+      assert File.exists?(Storage.build_theme_file_path(stored_path))
+    end
 
-        assert stored_path =~ "themes/1/1/videos"
-        full_path = Storage.build_theme_file_path(stored_path)
-        assert File.exists?(full_path)
-        File.rm!(full_path)
-      after
-        File.rm(temp_file)
-      end
+    test "store_asset/4 stores a video under the theme's videos directory" do
+      assert {:ok, stored_path} =
+               Storage.store_asset(:video, 1, "2", %{path: mp4_file(), filename: "test.mp4"})
+
+      assert stored_path =~ ~r|\Athemes/1/2/videos/[0-9a-f]{12}-test\.mp4\z|
+      assert File.exists?(Storage.build_theme_file_path(stored_path))
+    end
+
+    test "store_asset/4 gives two uploads of the same name paths of their own" do
+      # Otherwise the second upload overwrites a file a setting still names,
+      # and deleting either path would delete both.
+      {:ok, first} = Storage.store_asset(:image, 1, "1", %{path: gif_file(), filename: "bg.png"})
+      {:ok, second} = Storage.store_asset(:image, 1, "1", %{path: gif_file(), filename: "bg.png"})
+
+      assert first != second
+      assert File.exists?(Storage.build_theme_file_path(first))
+      assert File.exists?(Storage.build_theme_file_path(second))
+    end
+
+    test "store_asset/4 keeps the prefix when the client name carries a directory" do
+      {:ok, stored_path} =
+        Storage.store_asset(:image, 1, "1", %{path: gif_file(), filename: "../photos/bg.png"})
+
+      assert Path.basename(stored_path) =~ ~r|\A[0-9a-f]{12}-bg\.png\z|
+      assert Path.dirname(stored_path) == "themes/1/1/images"
     end
   end
 end

@@ -75,8 +75,8 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
 
   defp other_fields(fields, field), do: fields |> Keyword.keys() |> List.delete(field)
 
-  defp store(:image, profile_id, theme_id, upload) do
-    case Storage.store_background_image(profile_id, theme_id, upload) do
+  defp store(kind, profile_id, theme_id, upload) do
+    case Storage.store_asset(kind, profile_id, theme_id, upload) do
       {:ok, path} ->
         {:ok, path}
 
@@ -86,16 +86,6 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
            "dashboard_appearance",
            "Invalid image format. Please upload a valid image file."
          )}
-
-      {:error, _reason} ->
-        {:error, upload_failed()}
-    end
-  end
-
-  defp store(:video, profile_id, theme_id, upload) do
-    case Storage.store_background_video(profile_id, theme_id, upload) do
-      {:ok, path} ->
-        {:ok, path}
 
       {:error, :invalid_video_format} ->
         {:error,
