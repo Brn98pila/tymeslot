@@ -118,6 +118,27 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
     end
   end
 
+  @doc """
+  The changes an upload into one of the background's asset fields makes: the
+  upload becomes the custom background of its kind, and the background's
+  other upload is dropped, so the save deletes its file.
+  """
+  @impl OptionGroup
+  @spec upload_changes(atom(), String.t(), group()) :: map()
+  def upload_changes(field, path, group) do
+    fields = asset_fields(group)
+    kind = Keyword.fetch!(fields, field)
+
+    fields
+    |> Keyword.delete(field)
+    |> Map.new(fn {other, _kind} -> {Atom.to_string(other), nil} end)
+    |> Map.merge(%{
+      "background_type" => Atom.to_string(kind),
+      "background_value" => "custom",
+      Atom.to_string(field) => path
+    })
+  end
+
   @doc "The group's presets of one kind as `{id, preset}`, in the group's order."
   @spec presets(group(), :gradient | :image | :video) :: [{String.t(), Presets.preset()}]
   def presets(group, kind), do: Presets.take(kind, preset_ids(group, kind))

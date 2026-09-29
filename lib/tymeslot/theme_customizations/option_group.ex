@@ -18,6 +18,9 @@ defmodule Tymeslot.ThemeCustomizations.OptionGroup do
     * `media/2` (optional): what the group resolves from the stored
       settings for the theme to render, under keys of its own (merged into
       `Tokens.media` by `Specs.media/2`). A module without it has none.
+    * `upload_changes/3` (optional): the settings an upload into one of its
+      `asset_fields/1` saves. A module without it takes no uploads, even if
+      it declares asset fields.
   """
 
   alias Ecto.Changeset
@@ -57,7 +60,13 @@ defmodule Tymeslot.ThemeCustomizations.OptionGroup do
   """
   @callback media(Spec.settings(), group()) :: Tokens.media()
 
-  @optional_callbacks asset_fields: 1, media: 2
+  @doc """
+  The settings an upload stored at `path` writes, string-keyed as saves take
+  them. Only the group's own settings survive (`Specs.upload_changes/3`).
+  """
+  @callback upload_changes(field :: atom(), path :: String.t(), group()) :: map()
+
+  @optional_callbacks asset_fields: 1, media: 2, upload_changes: 3
 
   @doc "A group's upload settings; empty when its module has no `asset_fields/1`."
   @spec asset_fields(group()) :: [{atom(), Spec.asset_kind()}]
@@ -70,6 +79,10 @@ defmodule Tymeslot.ThemeCustomizations.OptionGroup do
   def media(settings, %{module: module} = group) do
     if exports?(module, :media, 2), do: module.media(settings, group), else: %{}
   end
+
+  @doc "Whether a group takes uploads into its asset fields (its module has `upload_changes/3`)."
+  @spec uploads?(group()) :: boolean()
+  def uploads?(%{module: module}), do: exports?(module, :upload_changes, 3)
 
   # A group module is named in a spec's data, not called at compile time, so
   # it may not be loaded yet when `function_exported?/3` asks.

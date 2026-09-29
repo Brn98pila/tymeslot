@@ -1,6 +1,6 @@
 defmodule Tymeslot.ThemeCustomizations.Specs do
   @moduledoc """
-  Questions asked of a theme's customisation spec: its option groups, the settings they store, the background kinds it offers, the media and tokens its groups resolve, and the spec for a theme id. Kept apart from `Spec`, which a spec `use`s at compile time and must therefore depend on nothing.
+  Questions asked of a theme's customisation spec: its option groups, the settings they store, the background kinds it offers, the media and tokens its groups resolve, the group an upload belongs to, and the spec for a theme id. Kept apart from `Spec`, which a spec `use`s at compile time and must therefore depend on nothing.
   """
 
   alias Tymeslot.ThemeCustomizations.OptionGroup
@@ -55,6 +55,39 @@ defmodule Tymeslot.ThemeCustomizations.Specs do
       dark_vars: palette.dark_vars,
       media: media
     }
+  end
+
+  @doc """
+  The option group that takes uploads into the asset field `field`, with the
+  field's kind. `:error` when no group of the spec declares the field in its
+  `asset_fields/1`, or when the group that does has no `upload_changes/3`.
+  """
+  @spec upload_group(module(), atom()) ::
+          {:ok, OptionGroup.group(), Spec.asset_kind()} | :error
+  def upload_group(spec, field) do
+    Enum.find_value(spec.option_groups(), :error, fn group ->
+      with true <- OptionGroup.uploads?(group),
+           {^field, kind} <- List.keyfind(OptionGroup.asset_fields(group), field, 0) do
+        {:ok, group, kind}
+      else
+        _other -> nil
+      end
+    end)
+  end
+
+  @doc """
+  The settings an upload stored at `path` writes into `group`'s asset field
+  `field`: the group's `upload_changes/3`, keeping only the group's own
+  settings (its `types/0`), so an upload never changes another group's
+  options or clears another group's files. Keys are strings, as saves take them.
+  """
+  @spec upload_changes(OptionGroup.group(), atom(), String.t()) :: map()
+  def upload_changes(%{module: module} = group, field, path) do
+    own = Enum.map(module.types(), fn {key, _type} -> Atom.to_string(key) end)
+
+    field
+    |> module.upload_changes(path, group)
+    |> Map.take(own)
   end
 
   @doc "The spec's first option group implemented by `module`, or `nil`."

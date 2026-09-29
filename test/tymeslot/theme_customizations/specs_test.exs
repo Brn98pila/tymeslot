@@ -4,6 +4,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
   @moduletag :themes
   @moduletag :unit
 
+  alias Ecto.Changeset
   alias Tymeslot.Test.ThemeCustomizations.LogoSpec
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.QuillSpec
@@ -69,6 +70,31 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
     end
   end
 
+  # A group that declares a file but takes no uploads into it.
+  defmodule StampOption do
+    @moduledoc false
+    @behaviour Tymeslot.ThemeCustomizations.OptionGroup
+
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def types, do: %{stamp_path: :string}
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def changeset(changeset, _attrs, _group), do: changeset
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def changes(_field, _value, _group), do: :error
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def asset_fields(_group), do: [stamp_path: :image]
+  end
+
+  defmodule StampSpec do
+    @moduledoc false
+    use Tymeslot.ThemeCustomizations.Spec
+
+    @impl Tymeslot.ThemeCustomizations.Spec
+    def option_groups, do: [%{key: :stamp, module: StampOption}]
+    @impl Tymeslot.ThemeCustomizations.Spec
+    def defaults, do: %{}
+  end
+
   # A spec with no option group at all.
   defmodule BareSpec do
     @moduledoc false
@@ -79,6 +105,19 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
 
     @impl Tymeslot.ThemeCustomizations.Spec
     def defaults, do: %{}
+  end
+
+  # Validates `attrs` over `stored` settings, the way a save does.
+  defp validate_over(spec, stored, attrs) do
+    data = Map.new(stored, fn {key, value} -> {String.to_existing_atom(key), value} end)
+    {data, Specs.setting_types(spec)} |> Changeset.change() |> spec.changeset(attrs)
+  end
+
+  defp saved_settings(changeset) do
+    changeset
+    |> Changeset.apply_changes()
+    |> Map.new(fn {key, value} -> {Atom.to_string(key), value} end)
+    |> Map.reject(fn {_key, value} -> is_nil(value) end)
   end
 
   describe "media/2" do
@@ -185,6 +224,76 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
         assert kinds == Enum.uniq(kinds)
         assert kinds -- @known_kinds == []
       end
+    end
+  end
+
+  describe "upload_group/2" do
+    test "finds the group that owns an asset field, with the field's kind" do
+      assert {:ok, %{key: :logo}, :image} = Specs.upload_group(LogoSpec, :logo_path)
+
+      assert {:ok, %{key: :background}, :video} =
+               Specs.upload_group(LogoSpec, :background_video_path)
+    end
+
+    test "is :error for a field no group declares" do
+      assert Specs.upload_group(QuillSpec, :logo_path) == :error
+    end
+
+    test "is :error for a field whose group takes no uploads" do
+      assert StampSpec.asset_fields() == [stamp_path: :image]
+      assert Specs.upload_group(StampSpec, :stamp_path) == :error
+    end
+  end
+
+  describe "upload_changes/3" do
+    test "keeps an upload to the settings of the group that owns the field" do
+      {:ok, group, :image} = Specs.upload_group(LogoSpec, :logo_path)
+
+      assert Specs.upload_changes(group, :logo_path, "themes/1/9/images/a-logo.png") ==
+               %{"logo_path" => "themes/1/9/images/a-logo.png"}
+    end
+
+    test "a logo upload saves beside the stored background, leaving it as it was" do
+      stored = %{
+        "color_scheme" => "default",
+        "background_type" => "image",
+        "background_value" => "custom",
+        "background_image_path" => "themes/1/9/images/a-bg.png"
+      }
+
+      {:ok, group, :image} = Specs.upload_group(LogoSpec, :logo_path)
+      changes = Specs.upload_changes(group, :logo_path, "themes/1/9/images/b-logo.png")
+      changeset = validate_over(LogoSpec, stored, changes)
+
+      assert changeset.valid?
+
+      assert saved_settings(changeset) ==
+               Map.put(stored, "logo_path", "themes/1/9/images/b-logo.png")
+    end
+
+    test "a background upload keeps every change the background makes" do
+      {:ok, group, :image} = Specs.upload_group(QuillSpec, :background_image_path)
+
+      assert Specs.upload_changes(group, :background_image_path, "themes/1/1/images/a.png") ==
+               %{
+                 "background_type" => "image",
+                 "background_value" => "custom",
+                 "background_image_path" => "themes/1/1/images/a.png",
+                 "background_video_path" => nil
+               }
+    end
+  end
+
+  describe "asset fields and the transcoder" do
+    # `VideoTranscoder` records its status in the row's one `video_processing`
+    # column and is unique per row, so it can follow one video per theme.
+    test "every catalogued spec declares at most one video field" do
+      specs = Enum.map(Catalog.valid_ids(), &Specs.for_theme/1)
+      assert specs != []
+
+      assert Enum.reject(specs, fn spec ->
+               Enum.count(spec.asset_fields(), &match?({_field, :video}, &1)) <= 1
+             end) == []
     end
   end
 end

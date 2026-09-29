@@ -2,12 +2,17 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
   @moduledoc """
   Attaches an uploaded file to a theme customisation.
 
-  Generic over the theme spec's `asset_fields/0`: a field the theme does not
-  declare is refused. For a declared field this stores the file according to
-  the field's kind, saves it as the custom background (clearing the other
-  upload, whose file the save then deletes), and for a video queues the
-  transcoding job, marking the record `failed` if the job cannot be queued.
-  Errors come back as translated, user-facing messages.
+  Generic over the theme spec's option groups: the field must be one a group
+  declares in `asset_fields/1` and takes uploads into
+  (`Specs.upload_group/2`), else it is refused. The file is stored for the
+  field's kind (`Storage.store_asset/4`) and the owning group's
+  `upload_changes/3` is saved, kept to that group's own settings: a
+  background upload becomes the custom background and drops the background's
+  other upload, whose file the save then deletes, while an upload into
+  another group leaves the background alone. For a video the row is marked
+  `pending` and the transcoding job queued, marking it `failed` if the job
+  cannot be queued (one video field per theme: `VideoTranscoder` tracks one
+  per row). Errors come back as translated, user-facing messages.
 
   The web layer calls this from inside `consume_uploaded_entries/3`, because
   the temporary upload is deleted as soon as that callback returns.
@@ -15,8 +20,10 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.ThemeCustomizations.Storage
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
+  alias Tymeslot.Themes.Catalog
   alias Tymeslot.Workers.VideoTranscoder
 
   @type upload :: %{path: String.t(), filename: String.t()}
@@ -28,52 +35,34 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
   """
   @spec attach_asset(pos_integer(), String.t(), atom(), upload()) :: result()
   def attach_asset(profile_id, theme_id, field, upload) do
-    fields = ThemeCustomizations.asset_fields(theme_id)
-
-    case Keyword.fetch(fields, field) do
-      {:ok, kind} ->
-        attach(kind, profile_id, theme_id, field, other_fields(fields, field), upload)
-
-      :error ->
-        {:error, option_unavailable()}
+    with {:ok, spec} <- Catalog.customization_spec(theme_id),
+         {:ok, group, kind} <- Specs.upload_group(spec, field) do
+      attach(kind, profile_id, theme_id, {group, field}, upload)
+    else
+      _unavailable -> {:error, option_unavailable()}
     end
   end
 
-  defp attach(:image, profile_id, theme_id, field, cleared, upload) do
+  defp attach(:image, profile_id, theme_id, {group, field}, upload) do
     with {:ok, path} <- store(:image, profile_id, theme_id, upload) do
-      save(profile_id, theme_id, background_attrs("image", field, path, cleared))
+      save(profile_id, theme_id, Specs.upload_changes(group, field, path))
     end
   end
 
-  defp attach(:video, profile_id, theme_id, field, cleared, upload) do
+  defp attach(:video, profile_id, theme_id, {group, field}, upload) do
     with :ok <- ensure_transcoder(),
          {:ok, path} <- store(:video, profile_id, theme_id, upload),
          {:ok, customization} <-
            save(
              profile_id,
              theme_id,
-             "video"
-             |> background_attrs(field, path, cleared)
+             group
+             |> Specs.upload_changes(field, path)
              |> Map.put("video_processing", "pending")
            ) do
-      queue_transcoding(customization, customization.settings[Atom.to_string(field)])
+      queue_transcoding(customization, path)
     end
   end
-
-  # An upload replaces whatever upload the background held before: clearing
-  # the other upload settings makes the save delete their files.
-  defp background_attrs(type, field, path, cleared) do
-    Map.merge(
-      Map.new(cleared, &{Atom.to_string(&1), nil}),
-      %{
-        "background_type" => type,
-        "background_value" => "custom",
-        Atom.to_string(field) => path
-      }
-    )
-  end
-
-  defp other_fields(fields, field), do: fields |> Keyword.keys() |> List.delete(field)
 
   defp store(kind, profile_id, theme_id, upload) do
     case Storage.store_asset(kind, profile_id, theme_id, upload) do
