@@ -5,7 +5,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panel do
 
   A panel is a function component module that `use`s this one. It writes only
   through the `theme:set_option` event (`phx-value-option` the group's key,
-  `phx-value-field`, `phx-value-choice`), which
+  `phx-value-field`, `phx-value-choice`, targeted at `@myself`), which
   `ThemeCustomizations.apply_option/4` handles through the group's module.
 
   What a panel shows between writes (an open tab, an expanded disclosure) is

@@ -58,7 +58,8 @@ config :tymeslot, TymeslotWeb.Endpoint,
   # is that every key here must stay distinct from the SaaS ones
   # (`esbuild_saas`, `tailwind_saas`, `tailwind_marketing`): a collision
   # silently drops one side's watcher. The theme watchers are `tailwind_<key>`,
-  # one per theme directory, so a theme key must not be `saas` or `marketing`.
+  # one per theme directory, so a theme key must not be `tymeslot` (Core's own
+  # Tailwind profile), `saas` or `marketing`.
   #
   # `--sourcemap=inline` belongs only here. `embed.js` and the iframe embed are
   # served to third-party sites in production, so their deploy builds stay bare.

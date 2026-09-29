@@ -102,9 +102,11 @@ defmodule Tymeslot.ThemeCustomizations.PaletteDerivation do
     }
   end
 
-  # Dark text on a near-white ground. Secondary and accent keep the dark
-  # palette's hue shifts but stay in the middle lightness band, so they remain
-  # visible on white.
+  # Dark text on a near-white ground. Text and secondary text meet their
+  # contrast bars. Primary (the raw seed), secondary and accent keep the seed's
+  # hue and are not contrast-fitted on a light ground: for bright hues (yellow,
+  # green, cyan) they can fall well under 3:1. Fitting them is left to a later
+  # phase.
   defp light_colors(seed, {h, s, l}) do
     %{
       primary: seed,

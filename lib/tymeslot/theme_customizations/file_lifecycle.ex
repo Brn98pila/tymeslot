@@ -5,11 +5,11 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
   Orchestrates `Storage` and `Transcoder` to delete stale background images,
   videos, and their transcoded variants when a customisation is updated,
   deleted, or has its background replaced, and removes an upload whose save
-  was refused. Which fields hold stored files, and
-  of which kind, comes from the customisation spec the caller passes
-  (`asset_fields/0`, every option group's `asset_fields/1`), so a group's files
-  are cleaned up without this module knowing the group. Persistence is handled
-  by the caller; this module only deals with files.
+  was refused. Which fields hold stored files, and of which kind, comes from
+  the customisation spec the caller passes (`asset_fields/0`, every option
+  group's `asset_fields/1`), so a group's files are cleaned up without this
+  module knowing the group. Persistence is handled by the caller; this module
+  only deals with files.
   """
 
   require Logger

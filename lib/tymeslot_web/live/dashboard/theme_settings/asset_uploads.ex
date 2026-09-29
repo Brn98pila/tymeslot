@@ -82,7 +82,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.AssetUploads do
   the thing worth limiting.
 
   A rate-limited or not-yet-finished upload returns the socket untouched: the
-  entry stays put and the next progress message tries again.
+  entry stays put and the next form event (`upload_asset`) tries again.
   """
   @spec consume(Phoenix.LiveView.Socket.t(), atom()) :: Phoenix.LiveView.Socket.t()
   def consume(socket, field) do
