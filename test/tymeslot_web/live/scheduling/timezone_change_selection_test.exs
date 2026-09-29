@@ -116,6 +116,7 @@ defmodule TymeslotWeb.Live.Scheduling.TimezoneChangeSelectionTest do
         :erlang.trace(view.pid, true, [:receive])
         change_timezone(view, ctx.to)
         :erlang.trace(view.pid, false, [:receive])
+        await_trace_delivered(view)
 
         assert_received {:trace, _pid, :receive, {:load_slots, ^new_day}},
                         "expected the new day's slots to be loaded, or the trace saw nothing"
@@ -197,6 +198,7 @@ defmodule TymeslotWeb.Live.Scheduling.TimezoneChangeSelectionTest do
         :erlang.trace(view.pid, true, [:receive])
         change_timezone(view, ctx.to)
         :erlang.trace(view.pid, false, [:receive])
+        await_trace_delivered(view)
 
         assert_selected(view, chosen, "the clicked day after moving to #{ctx.to}")
         chosen_string = Date.to_iso8601(chosen)
@@ -210,7 +212,13 @@ defmodule TymeslotWeb.Live.Scheduling.TimezoneChangeSelectionTest do
 
       test "is dropped once it has passed in the new timezone",
            %{conn: conn, profile: profile} = ctx do
-        view = open_schedule(conn, "/#{profile.username}/30-minutes", ctx.from)
+        # Opened on tomorrow through a link, so the page never picks today:
+        # the booker's click on today is theirs alone, and only the new
+        # zone's booking window can drop it. (Clicking the day the page
+        # picked would leave the calendar where the page left it, and follow
+        # the change for that reason instead.)
+        tomorrow = Date.add(today(ctx.from), 1)
+        view = open_schedule(conn, "/#{profile.username}/30-minutes?date=#{tomorrow}", ctx.from)
         clicked = today(ctx.from)
         click_day(view, clicked)
         assert_selected(view, clicked, "the clicked day")
@@ -301,11 +309,22 @@ defmodule TymeslotWeb.Live.Scheduling.TimezoneChangeSelectionTest do
       assigns.loading_slots != true
   end
 
+  # Trace messages reach the tracer asynchronously; this waits until every one
+  # for the view has arrived, so the mailbox can be read as complete.
+  defp await_trace_delivered(view) do
+    ref = :erlang.trace_delivered(view.pid)
+    assert_receive {:trace_delivered, _pid, ^ref}
+  end
+
   # Brings the day's week on screen, as the week arrows would, then clicks it:
   # the message the schedule step relays for a click on a day.
   defp click_day(view, %Date{} = date) do
-    if live_assigns(view).current_week_start != Date.beginning_of_week(date, :monday) do
-      send(view.pid, {:step_event, :schedule, :next_week, nil})
+    shown = live_assigns(view).current_week_start
+    wanted = Date.beginning_of_week(date, :monday)
+
+    if shown != wanted do
+      arrow = if Date.compare(wanted, shown) == :gt, do: :next_week, else: :prev_week
+      send(view.pid, {:step_event, :schedule, arrow, nil})
       wait_until(fn -> settled?(view) end)
     end
 

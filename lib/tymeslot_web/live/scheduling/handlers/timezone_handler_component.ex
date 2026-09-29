@@ -23,7 +23,7 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.TimezoneHandlerComponent do
   """
 
   import Phoenix.Component, only: [assign: 3]
-  import TymeslotWeb.Live.Shared.LiveHelpers, only: [update_timezone: 2]
+  import TymeslotWeb.Live.Shared.LiveHelpers, only: [resolve_timezone: 1]
 
   @doc """
   Handles timezone changes.
@@ -48,25 +48,24 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.TimezoneHandlerComponent do
   @spec handle_timezone_change(Phoenix.LiveView.Socket.t(), String.t() | map()) ::
           {:ok, Phoenix.LiveView.Socket.t()}
   def handle_timezone_change(socket, data) do
-    new_timezone = extract_timezone(data)
     previous = socket.assigns[:user_timezone]
-    socket = update_timezone(socket, new_timezone)
 
-    cond do
+    case data |> extract_timezone() |> resolve_timezone() do
+      # The zone already in use, picked again, in any spelling: nothing to redo.
+      {:ok, ^previous} ->
+        {:ok, close_picker(socket)}
+
       # Another zone: the time chosen and the slots listed were the old zone's.
-      socket.assigns.user_timezone != previous ->
+      {:ok, timezone} ->
         {:ok,
          socket
+         |> assign(:user_timezone, timezone)
          |> assign(:selected_time, nil)
          |> assign(:available_slots, [])
          |> close_picker()}
 
-      # The zone already in use, picked again: nothing to redo.
-      previous == new_timezone ->
-        {:ok, close_picker(socket)}
-
       # A zone that failed validation leaves everything as it was.
-      true ->
+      :error ->
         {:ok, socket}
     end
   end

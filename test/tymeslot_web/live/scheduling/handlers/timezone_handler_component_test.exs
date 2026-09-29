@@ -69,4 +69,46 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.TimezoneHandlerComponentTest do
     assert %{selected_time: "10:00", available_slots: ["10:00"], timezone_dropdown_open: false} =
              updated.assigns
   end
+
+  test "handle_timezone_change closes the picker when the zone in use is picked in another spelling" do
+    socket = %Socket{
+      assigns: %{
+        __changed__: %{},
+        user_timezone: "Asia/Kolkata",
+        selected_date: "2024-01-01",
+        selected_time: "10:00",
+        available_slots: ["10:00"],
+        timezone_dropdown_open: true,
+        timezone_search: "Calc"
+      }
+    }
+
+    {:ok, updated} = TimezoneHandlerComponent.handle_timezone_change(socket, "Asia/Calcutta")
+
+    assert %{
+             user_timezone: "Asia/Kolkata",
+             selected_time: "10:00",
+             available_slots: ["10:00"],
+             timezone_dropdown_open: false,
+             timezone_search: ""
+           } = updated.assigns
+  end
+
+  test "handle_timezone_change leaves everything as it was for a zone that is not one" do
+    socket = %Socket{
+      assigns: %{
+        __changed__: %{},
+        user_timezone: "Europe/London",
+        selected_time: "10:00",
+        available_slots: ["10:00"],
+        timezone_dropdown_open: true,
+        timezone_search: "Nar"
+      }
+    }
+
+    {:ok, updated} =
+      TimezoneHandlerComponent.handle_timezone_change(socket, "Narnia/Cair_Paravel")
+
+    assert updated.assigns == socket.assigns
+  end
 end
