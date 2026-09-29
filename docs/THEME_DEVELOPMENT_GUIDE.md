@@ -226,9 +226,13 @@ in `lib/tymeslot_web/themes/core/registry.ex`:
 `theme_definition` the web layer consumes. Nothing else is bound: the stylesheet
 path (`/assets/scheduling-theme-aurora.css`) and the `aurora-theme` class derive
 from the key, and the picker's preview image and description come from the theme
-module's `metadata/0`. So the theme's Tailwind profile in `config/config.exs`
-must write exactly `../priv/static/assets/scheduling-theme-aurora.css`, as the
-`quill` and `rhythm` profiles do. Domain code (profiles, theme customisations)
+module's `metadata/0`. So the theme's CSS directory must be named after its
+key: its build configuration (a Tailwind profile writing
+`../priv/static/assets/scheduling-theme-aurora.css`, a dev watcher and the
+`assets.build`/`assets.minify` entries) is derived from the directories under
+`assets/css/scheduling/themes/` through `config/theme_stylesheets.exs`, and
+`ThemeStylesheetsTest` fails until every shipped theme has a directory and every
+directory is a shipped theme's key. Domain code (profiles, theme customisations)
 reads facts from `Catalog` directly and never reaches into the web layer.
 
 ### 3. Implement Required Functions
@@ -1189,7 +1193,7 @@ Every place a new theme touches, in the order to add them (`aurora`, id `"3"`, a
 - [ ] **Page templates**: `meeting/` (`Reschedule`, `Cancel`, `CancelConfirmed`), `poll/voting.ex` and `payment/` (`Processing`, `Cancelled`), each with a `render/1`, or overrides of the generated render callbacks
 - [ ] **Customisation spec**: a module that `use`s `Tymeslot.ThemeCustomizations.Spec` (see `QuillSpec`), the one `customization_spec:` names
 - [ ] **CSS tree** under `assets/css/scheduling/themes/aurora/`: `theme.css` importing `../../shared/entry.css` first, then `./modules/variables.css`, `../../shared/tokens.css`, `./modules/base.css`, `../../shared/embed.css` (the shared embed rules, which `entry.css` does not import), the theme's modules and the `shared/components/*.css` files it uses; `modules/variables.css` defining every token `mix css.check_tokens` requires (the scale tokens listed under [Token contract](#token-contract) included) and every colour; `modules/iframe.css` for the theme-specific embed rules; the `booker-card` hook class on each card (`ThemeShell` adds `booker-page` to the page grid and the shared `SlotList` adds `booker-scroll`; a page that bypasses `ThemeShell`, as Quill's payment pages do, adds `booker-page` itself)
-- [ ] **Build config**: an `aurora` Tailwind profile in `config/config.exs` writing `../priv/static/assets/scheduling-theme-aurora.css`; a `tailwind_aurora` watcher in `config/dev.exs`; `"tailwind aurora"` in the `assets.build` alias and `"tailwind aurora --minify"` in the `assets.minify` alias of `mix.exs`
+- [ ] **Build config**: nothing to add. `assets/css/scheduling/themes/aurora/theme.css` gives the theme its Tailwind profile (writing `scheduling-theme-aurora.css`), its `tailwind_aurora` dev watcher and its `assets.build`/`assets.minify` entries, all derived by `config/theme_stylesheets.exs`; restart the dev server to pick up a new directory
 - [ ] **Preview image** at `priv/static/images/ui/theme-previews/aurora-theme-preview.webp`, the path `preview_image:` names
 - [ ] **`ThemeTestMatrix` entry** in `test/support/theme_test_matrix.ex`
 - [ ] Optional: **`onboarding_preview/1`** (see Quill's `onboarding_preview.ex`), so the onboarding wizard shows the theme's shape instead of the generic mock

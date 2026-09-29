@@ -295,21 +295,25 @@ config :tailwind,
       --output=../priv/static/assets/app.css
     ),
     cd: Path.expand("../assets", __DIR__)
-  ],
-  quill: [
-    args: ~w(
-      --input=css/scheduling/themes/quill/theme.css
-      --output=../priv/static/assets/scheduling-theme-quill.css
-    ),
-    cd: Path.expand("../assets", __DIR__)
-  ],
-  rhythm: [
-    args: ~w(
-      --input=css/scheduling/themes/rhythm/theme.css
-      --output=../priv/static/assets/scheduling-theme-rhythm.css
-    ),
-    cd: Path.expand("../assets", __DIR__)
   ]
+
+# One profile per booking-page theme, named by its key, building the
+# stylesheet the layout loads for it (see theme_stylesheets.exs).
+{theme_stylesheets, _binding} = Code.eval_file("theme_stylesheets.exs", __DIR__)
+
+config :tailwind,
+       for(
+         key <- theme_stylesheets,
+         do:
+           {String.to_atom(key),
+            [
+              args: [
+                "--input=css/scheduling/themes/#{key}/theme.css",
+                "--output=../priv/static/assets/scheduling-theme-#{key}.css"
+              ],
+              cd: Path.expand("../assets", __DIR__)
+            ]}
+       )
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
