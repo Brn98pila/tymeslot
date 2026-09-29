@@ -6,7 +6,7 @@ defmodule Tymeslot.ThemeCustomizationsTest do
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.RhythmSpec
-  alias Tymeslot.ThemeCustomizations.Spec
+  alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   describe "theme customizations" do
@@ -152,7 +152,7 @@ defmodule Tymeslot.ThemeCustomizationsTest do
 
     test "video_preset_keys/1 lists a theme's own videos in its group's order" do
       assert ThemeCustomizations.video_preset_keys("2") ==
-               Spec.group(RhythmSpec, Background).videos
+               Specs.group(RhythmSpec, Background).videos
 
       assert "preset:rhythm-default" in ThemeCustomizations.video_preset_keys("2")
       assert ThemeCustomizations.video_preset_keys("no-such-theme") == []

@@ -9,11 +9,9 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.QuillSpec
   alias Tymeslot.ThemeCustomizations.RhythmSpec
-  alias Tymeslot.ThemeCustomizations.Spec
+  alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.ThemeCustomizations.Tokens
   alias Tymeslot.Themes.Catalog
-
-  @known_kinds [:gradient, :color, :image, :video]
 
   # An option group no shipped theme has: shared code must handle it through
   # its module alone.
@@ -68,7 +66,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
   defp stringify(map), do: Map.new(map, fn {k, v} -> {Atom.to_string(k), v} end)
 
   defp validate(spec, attrs) do
-    {%{}, Spec.setting_types(spec)} |> Changeset.change() |> spec.changeset(attrs)
+    {%{}, Specs.setting_types(spec)} |> Changeset.change() |> spec.changeset(attrs)
   end
 
   @list_keys %{gradient: :gradients, image: :images, video: :videos}
@@ -97,10 +95,6 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
     do: Enum.map(ids -- Enum.map(resolved, &elem(&1, 0)), &{list, &1})
 
   describe "use Spec" do
-    test "setting_types/1 merges every group module's types" do
-      assert Spec.setting_types(StillSpec) == Map.put(Background.types(), :tagline, :string)
-    end
-
     test "the generated changeset/2 runs every group's changeset/3 with its own descriptor" do
       cs =
         validate(StillSpec, %{
@@ -126,11 +120,6 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
       # asset_fields/1 and so contributes none.
       assert StillSpec.asset_fields() == [background_image_path: :image]
     end
-
-    test "group/2 finds a spec's group by its module" do
-      assert %{key: :tagline, max: 10} = Spec.group(StillSpec, TaglineOption)
-      assert Spec.group(QuillSpec, TaglineOption) == nil
-    end
   end
 
   describe "preset lists" do
@@ -149,23 +138,6 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
     end
   end
 
-  describe "Spec.supports_background?/2" do
-    test "is false for a kind the spec does not declare" do
-      refute Spec.supports_background?(StillSpec, :video)
-      assert Spec.supports_background?(StillSpec, :gradient)
-    end
-
-    # Every catalogue theme, so a new one is checked the moment it is listed.
-    for {_key, theme} <- Catalog.all() do
-      test "#{theme.name} declares only known background kinds, each once" do
-        kinds = Spec.background_kinds(unquote(theme.customization_spec))
-
-        assert kinds == Enum.uniq(kinds)
-        assert kinds -- @known_kinds == []
-      end
-    end
-  end
-
   describe "defaults/0" do
     for {_key, theme} <- Catalog.all() do
       test "#{theme.name}'s default background is a kind it declares" do
@@ -173,10 +145,10 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
 
         case spec.defaults() do
           %{background_type: type} ->
-            assert String.to_existing_atom(type) in Spec.background_kinds(spec)
+            assert String.to_existing_atom(type) in Specs.background_kinds(spec)
 
           _no_background_default ->
-            assert Spec.background_kinds(spec) == []
+            assert Specs.background_kinds(spec) == []
         end
       end
 

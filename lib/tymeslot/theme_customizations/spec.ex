@@ -14,15 +14,17 @@ defmodule Tymeslot.ThemeCustomizations.Spec do
   group's `changeset/3` in declaration order, and `asset_fields/0` joins
   every group's `asset_fields/1`. Both stay overridable.
 
+  `Spec` is only the contract and calls nothing, so `use Spec` costs a theme no
+  compile-time coupling. The questions asked of a spec (`group/2`,
+  `for_theme/1` and the rest) live in `Tymeslot.ThemeCustomizations.Specs`.
+
   Each theme names its spec in its `Tymeslot.Themes.Catalog` entry
   (`customization_spec:`).
   """
 
   alias Ecto.Changeset
   alias Tymeslot.ThemeCustomizations.OptionGroup
-  alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Tokens
-  alias Tymeslot.Themes.Catalog
 
   @typedoc "A kind of background a theme can show."
   @type background_kind :: :gradient | :color | :image | :video
@@ -76,44 +78,6 @@ defmodule Tymeslot.ThemeCustomizations.Spec do
       def asset_fields, do: Enum.flat_map(option_groups(), &OptionGroup.asset_fields/1)
 
       defoverridable changeset: 2, asset_fields: 0
-    end
-  end
-
-  @doc """
-  The settings a spec stores, with their Ecto types: those of each of its
-  option groups' modules. A stored key outside these is dropped on the next
-  save.
-  """
-  @spec setting_types(module()) :: %{atom() => atom()}
-  def setting_types(spec) do
-    spec.option_groups()
-    |> Enum.map(& &1.module.types())
-    |> Enum.reduce(%{}, &Map.merge/2)
-  end
-
-  @doc "The spec's first option group implemented by `module`, or `nil`."
-  @spec group(module(), module()) :: OptionGroup.group() | nil
-  def group(spec, module), do: Enum.find(spec.option_groups(), &(&1.module == module))
-
-  @doc "The background kinds a spec declares; empty when it has no background group."
-  @spec background_kinds(module()) :: [background_kind()]
-  def background_kinds(spec) do
-    case group(spec, Background) do
-      %{kinds: kinds} -> kinds
-      nil -> []
-    end
-  end
-
-  @doc "Whether a spec offers the given background kind."
-  @spec supports_background?(module(), background_kind()) :: boolean()
-  def supports_background?(spec, kind), do: kind in background_kinds(spec)
-
-  @doc "The spec for a theme id, falling back to the default theme's spec for an unknown id."
-  @spec for_theme(String.t()) :: module()
-  def for_theme(theme_id) do
-    case Catalog.customization_spec(theme_id) do
-      {:ok, spec} -> spec
-      {:error, :theme_not_found} -> Catalog.default().customization_spec
     end
   end
 end

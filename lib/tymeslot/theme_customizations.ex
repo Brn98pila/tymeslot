@@ -12,6 +12,7 @@ defmodule Tymeslot.ThemeCustomizations do
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Spec
+  alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationQueries
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
   alias Tymeslot.ThemeCustomizations.Tokens
@@ -49,7 +50,7 @@ defmodule Tymeslot.ThemeCustomizations do
   @spec video_preset_keys(theme_id()) :: [String.t()]
   def video_preset_keys(theme_id) do
     with {:ok, spec} <- Catalog.customization_spec(theme_id),
-         %{kinds: kinds} = group <- Spec.group(spec, Background),
+         %{kinds: kinds} = group <- Specs.group(spec, Background),
          true <- :video in kinds do
       group |> Background.presets(:video) |> Enum.map(&elem(&1, 0))
     else
@@ -89,7 +90,7 @@ defmodule Tymeslot.ThemeCustomizations do
   @spec supports_background?(theme_id(), Spec.background_kind()) :: boolean()
   def supports_background?(theme_id, kind) do
     case Catalog.customization_spec(theme_id) do
-      {:ok, spec} -> Spec.supports_background?(spec, kind)
+      {:ok, spec} -> Specs.supports_background?(spec, kind)
       {:error, :theme_not_found} -> false
     end
   end
@@ -221,7 +222,7 @@ defmodule Tymeslot.ThemeCustomizations do
   """
   @spec get_defaults(theme_id()) :: map()
   def get_defaults(theme_id) do
-    Map.new(Spec.for_theme(theme_id).defaults(), fn {key, value} ->
+    Map.new(Specs.for_theme(theme_id).defaults(), fn {key, value} ->
       {Atom.to_string(key), value}
     end)
   end
@@ -248,7 +249,7 @@ defmodule Tymeslot.ThemeCustomizations do
           Tokens.t()
   def tokens(theme_id, customization, overrides \\ %{}) do
     settings = customization || default_customization(nil, theme_id)
-    Spec.for_theme(theme_id).tokens(to_map(settings), overrides)
+    Specs.for_theme(theme_id).tokens(to_map(settings), overrides)
   end
 
   # New orchestrator functions for component interface

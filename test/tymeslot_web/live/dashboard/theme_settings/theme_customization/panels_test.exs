@@ -6,7 +6,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PanelsTest do
 
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.Palette
-  alias Tymeslot.ThemeCustomizations.Spec
+  alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.BackgroundPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel
@@ -29,7 +29,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PanelsTest do
     test "#{theme.name}: every option group has a panel with render/1" do
       panels =
         Enum.map(
-          Spec.for_theme(unquote(theme.id)).option_groups(),
+          Specs.for_theme(unquote(theme.id)).option_groups(),
           &Panels.for_group(unquote(theme.id), &1)
         )
 

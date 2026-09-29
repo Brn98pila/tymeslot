@@ -23,7 +23,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   alias Tymeslot.Repo
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Presets
-  alias Tymeslot.ThemeCustomizations.Spec
+  alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.ThemeCustomizations.Storage
   alias Tymeslot.Workers.VideoTranscoder
   alias TymeslotWeb.ThemeTestMatrix
@@ -40,11 +40,11 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   # does.
   @image_themes Enum.filter(
                   ThemeTestMatrix.all(),
-                  &Spec.supports_background?(Spec.for_theme(&1.id), :image)
+                  &Specs.supports_background?(Specs.for_theme(&1.id), :image)
                 )
   @video_themes Enum.filter(
                   ThemeTestMatrix.all(),
-                  &Spec.supports_background?(Spec.for_theme(&1.id), :video)
+                  &Specs.supports_background?(Specs.for_theme(&1.id), :video)
                 )
 
   # The loops below would pass untested over an empty list.
@@ -251,7 +251,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
         [choice | _others] =
           Presets.get_video_presets()
           |> Map.keys()
-          |> Enum.reject(&(&1 == Spec.for_theme(theme_id).defaults()[:background_value]))
+          |> Enum.reject(&(&1 == Specs.for_theme(theme_id).defaults()[:background_value]))
           |> Enum.sort()
 
         view = open_tab(conn, theme_id, "video")

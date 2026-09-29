@@ -14,7 +14,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationSetOptionTest do
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.Palette
-  alias Tymeslot.ThemeCustomizations.Spec
+  alias Tymeslot.ThemeCustomizations.Specs
   alias TymeslotWeb.ThemeTestMatrix
 
   @background_kinds [:gradient, :color, :image, :video]
@@ -159,9 +159,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationSetOptionTest do
     for theme <- ThemeTestMatrix.all() do
       test "#{theme.name}: one panel per option group, with the declared background tabs",
            %{conn: conn} do
-        spec = Spec.for_theme(unquote(theme.id))
+        spec = Specs.for_theme(unquote(theme.id))
         groups = Enum.map(spec.option_groups(), & &1.module)
-        kinds = Spec.background_kinds(spec)
+        kinds = Specs.background_kinds(spec)
 
         {:ok, _view, html} = live(conn, "/dashboard/theme/customize/#{unquote(theme.id)}")
 

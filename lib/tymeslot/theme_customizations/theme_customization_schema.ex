@@ -4,7 +4,7 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchema do
 
   The options a theme offers live in `settings`, a string-keyed map whose keys
   are the ones the theme's customisation spec declares
-  (`Tymeslot.ThemeCustomizations.Spec.setting_types/1`). `video_processing`
+  (`Tymeslot.ThemeCustomizations.Specs.setting_types/1`). `video_processing`
   stays a column of its own: the transcoding worker writes it directly, outside
   the spec.
   """
@@ -14,6 +14,7 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchema do
   alias Ecto.Changeset
   alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.ThemeCustomizations.Spec
+  alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.Themes.Catalog
 
   @type t :: %__MODULE__{
@@ -75,7 +76,7 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchema do
   # result replaces `settings` whole, holding only the keys the spec declares
   # and leaving out the empty ones.
   defp put_settings(changeset, spec, attrs) do
-    types = Spec.setting_types(spec)
+    types = Specs.setting_types(spec)
     current = starting_settings(changeset, spec)
     stored = Map.new(types, fn {key, _type} -> {key, Map.get(current, Atom.to_string(key))} end)
 

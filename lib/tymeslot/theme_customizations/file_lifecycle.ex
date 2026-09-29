@@ -13,7 +13,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
 
   alias Tymeslot.Media.Transcoder
   alias Tymeslot.ThemeCustomizations.DataTransform
-  alias Tymeslot.ThemeCustomizations.Spec
+  alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.ThemeCustomizations.Storage
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
@@ -65,7 +65,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
 
   # --- Private helpers ----------------------------------------------------
 
-  defp asset_fields(theme_id), do: Spec.for_theme(theme_id).asset_fields()
+  defp asset_fields(theme_id), do: Specs.for_theme(theme_id).asset_fields()
 
   defp setting(customization, field),
     do: Map.get(DataTransform.to_settings(customization), Atom.to_string(field))
