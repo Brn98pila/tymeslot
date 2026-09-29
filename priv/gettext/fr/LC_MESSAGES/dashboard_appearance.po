@@ -26,7 +26,7 @@ msgstr "Aperçu du thème %{theme_name}"
 msgid "An error occurred. Please refresh the page and try again."
 msgstr "Une erreur s’est produite. Veuillez actualiser la page et réessayer."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/background_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Background Design"
 msgstr "Style d’arrière-plan"
@@ -36,7 +36,7 @@ msgstr "Style d’arrière-plan"
 msgid "Choose Your Style"
 msgstr "Choisissez votre style"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/background_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Choose a visual style that matches your professional identity."
 msgstr "Choisissez un style visuel qui correspond à votre identité professionnelle."
@@ -52,7 +52,7 @@ msgstr "Choisir dans notre collection"
 msgid "Close"
 msgstr "Fermer"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/palette_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Color Palette"
 msgstr "Palette de couleurs"
@@ -72,7 +72,7 @@ msgstr "Actuel"
 msgid "Current Style"
 msgstr "Style actuel"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/palette_panel.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/color_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Custom"
@@ -89,7 +89,7 @@ msgstr "Personnaliser le style"
 msgid "Failed to update theme"
 msgstr "Échec de la mise à jour du thème"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/background_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Gradient"
 msgstr "Dégradé"
@@ -104,7 +104,7 @@ msgstr "Valeur de couleur hexadécimale"
 msgid "Hue"
 msgstr "Teinte"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/background_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Image"
 msgstr "Image"
@@ -167,12 +167,12 @@ msgstr "Choisissez une couleur unie"
 msgid "Select the interface that best represents your personal brand and creates the best experience for your clients."
 msgstr "Choisissez l’interface qui représente le mieux votre marque personnelle et offre la meilleure expérience à vos clients."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/palette_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Select the primary colors for your booking page interface."
 msgstr "Choisissez les couleurs principales de l’interface de votre page de réservation."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/background_panel.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/color_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Solid Color"
@@ -214,7 +214,7 @@ msgstr "Téléverser une vidéo"
 msgid "Upload not available"
 msgstr "Téléversement non disponible"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/background_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Video"
 msgstr "Vidéo"

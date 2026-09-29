@@ -26,7 +26,7 @@ msgstr "Попередній перегляд теми %{theme_name}"
 msgid "An error occurred. Please refresh the page and try again."
 msgstr "Сталася помилка. Оновіть сторінку та спробуйте ще раз."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/background_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Background Design"
 msgstr "Дизайн фону"
@@ -36,7 +36,7 @@ msgstr "Дизайн фону"
 msgid "Choose Your Style"
 msgstr "Оберіть свій стиль"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/background_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Choose a visual style that matches your professional identity."
 msgstr "Оберіть візуальний стиль, який відповідає вашому професійному іміджу."
@@ -52,7 +52,7 @@ msgstr "Оберіть із нашої колекції"
 msgid "Close"
 msgstr "Закрити"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/palette_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Color Palette"
 msgstr "Колірна палітра"
@@ -72,7 +72,7 @@ msgstr "Поточний"
 msgid "Current Style"
 msgstr "Поточний стиль"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/palette_panel.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/color_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Custom"
@@ -89,7 +89,7 @@ msgstr "Налаштувати стиль"
 msgid "Failed to update theme"
 msgstr "Не вдалося оновити тему"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/background_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Gradient"
 msgstr "Градієнт"
@@ -104,7 +104,7 @@ msgstr "Hex-код кольору"
 msgid "Hue"
 msgstr "Відтінок"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/background_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Image"
 msgstr "Зображення"
@@ -167,12 +167,12 @@ msgstr "Виберіть суцільний колір"
 msgid "Select the interface that best represents your personal brand and creates the best experience for your clients."
 msgstr "Оберіть інтерфейс, який найкраще відображає ваш особистий бренд і створює найкращий досвід для ваших клієнтів."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/palette_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Select the primary colors for your booking page interface."
 msgstr "Виберіть основні кольори для інтерфейсу сторінки бронювання."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/background_panel.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/color_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Solid Color"
@@ -214,7 +214,7 @@ msgstr "Завантажити відео"
 msgid "Upload not available"
 msgstr "Завантаження недоступне"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/background_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Video"
 msgstr "Відео"

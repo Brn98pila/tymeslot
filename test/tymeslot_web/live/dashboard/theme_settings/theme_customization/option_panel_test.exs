@@ -14,6 +14,19 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components
+  alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels
+
+  defmodule StubPanel do
+    @moduledoc false
+    use Phoenix.Component
+
+    @spec render(map()) :: Phoenix.LiveView.Rendered.t()
+    def render(assigns) do
+      ~H"""
+      <p id="stub-panel">{@group.key}</p>
+      """
+    end
+  end
 
   @customization %ThemeCustomizationSchema{
     settings: %{
@@ -36,6 +49,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
     assigns =
       Keyword.merge(
         [
+          panel: Panels.for_group("1", group),
           group: group,
           customization: @customization,
           uploads: nil,
@@ -71,5 +85,15 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
              ["preset:ocean-sunset"]
 
     assert choices(render_panel(@background, browsing_type: "video"), "video") == ["preset:space"]
+  end
+
+  test "option_panel/1 renders the panel module it is given" do
+    html =
+      render_component(&Components.option_panel/1,
+        panel: StubPanel,
+        group: %{key: :tagline, module: Some.TaglineGroup}
+      )
+
+    assert html =~ ~s(<p id="stub-panel">tagline</p>)
   end
 end

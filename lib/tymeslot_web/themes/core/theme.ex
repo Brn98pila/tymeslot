@@ -20,7 +20,10 @@ defmodule TymeslotWeb.Themes.Core.Theme do
       `Meeting.Cancel`, `Meeting.CancelConfirmed`, `Poll.Voting`,
       `Payment.Processing` and `Payment.Cancelled`;
     * `onboarding_preview/1`, defaulting to the generic mock in
-      `TymeslotWeb.OnboardingLive.PreviewParts`.
+      `TymeslotWeb.OnboardingLive.PreviewParts`;
+    * `option_panels/0`, returning `:option_panels` (default `%{}`): the
+      dashboard panels for the theme's own option groups,
+      `%{group_module => panel_module}`.
 
   Every render callback is overridable; an override carries
   `@impl TymeslotWeb.Themes.Core.Behaviour` like any other callback. A
@@ -44,6 +47,7 @@ defmodule TymeslotWeb.Themes.Core.Theme do
     poll = conventional(__CALLER__.module, ["Poll", "Voting"])
     processing = conventional(__CALLER__.module, ["Payment", "Processing"])
     cancelled = conventional(__CALLER__.module, ["Payment", "Cancelled"])
+    option_panels = Keyword.get(opts, :option_panels, Macro.escape(%{}))
 
     quote do
       @behaviour TymeslotWeb.Themes.Core.Behaviour
@@ -81,6 +85,9 @@ defmodule TymeslotWeb.Themes.Core.Theme do
 
       @impl TymeslotWeb.Themes.Core.Behaviour
       def onboarding_preview(assigns), do: PreviewParts.generic(assigns)
+
+      @impl TymeslotWeb.Themes.Core.Behaviour
+      def option_panels, do: unquote(option_panels)
 
       defoverridable render_meeting_action: 2,
                      render_poll_action: 1,

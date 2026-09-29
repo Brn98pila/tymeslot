@@ -51,6 +51,10 @@ defmodule TymeslotWeb.Themes.Core.ThemeTest.Overriding.Theme do
   use TymeslotWeb.Themes.Core.Theme,
     live_view: TymeslotWeb.Themes.Core.ThemeTest.Overriding.Live,
     preview_image: "/images/fixture.webp",
+    option_panels: %{
+      TymeslotWeb.Themes.Core.ThemeTest.Overriding.Group =>
+        TymeslotWeb.Themes.Core.ThemeTest.Overriding.Panel
+    },
     description:
       dgettext_noop(
         "dashboard_appearance",
@@ -130,6 +134,17 @@ defmodule TymeslotWeb.Themes.Core.ThemeTest do
     assert Overriding.render_poll_action(@assigns) == :overridden
     assert Overriding.render_meeting_action(@assigns, :cancel) == :overridden
     assert Overriding.render_payment_page(@assigns, :processing) == :overridden
+  end
+
+  test "option_panels/0 defaults to none" do
+    assert Fixture.option_panels() == %{}
+  end
+
+  test "option_panels/0 returns the :option_panels option" do
+    assert Overriding.option_panels() == %{
+             TymeslotWeb.Themes.Core.ThemeTest.Overriding.Group =>
+               TymeslotWeb.Themes.Core.ThemeTest.Overriding.Panel
+           }
   end
 
   # The macro under test runs inside Code.compile_string/1, where the check

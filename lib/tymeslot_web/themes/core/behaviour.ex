@@ -56,5 +56,14 @@ defmodule TymeslotWeb.Themes.Core.Behaviour do
   """
   @callback onboarding_preview(assigns :: map()) :: Phoenix.LiveView.Rendered.t()
 
+  @doc """
+  The dashboard panels for the theme's own option groups, keyed by the
+  group's module: `%{MyGroup => MyPanel}`. The shared groups
+  (`Options.Palette`, `Options.Background`) have built-in panels and need no
+  entry; an entry for one replaces its built-in panel for this theme. See
+  `TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels`.
+  """
+  @callback option_panels() :: %{optional(module()) => module()}
+
   @optional_callbacks onboarding_preview: 1
 end

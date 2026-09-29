@@ -10,6 +10,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   - Provided/managed by this component (do not pass these in):
     - customization: map with current customization state (see customization_t())
     - option_groups: the theme spec's option groups, one panel each (`ThemeCustomizations.option_groups/1`)
+    - panels: the panel module for each group, keyed by the group's key (`Panels.for_group/2`)
     - browsing_type: String.t() – which background category is currently browsed (one of the background group's kinds)
     - uploads: map() – upload entries, present only when the spec declares asset fields
     - parent_component: term() – reference to parent component for close actions (optional)
@@ -28,6 +29,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components
+  alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels
   alias TymeslotWeb.Live.Shared.Flash
 
   @typedoc "Customization applied to the theme"
@@ -39,6 +41,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
           required(:theme_id) => String.t(),
           required(:customization) => customization_t(),
           required(:option_groups) => [map()],
+          required(:panels) => %{atom() => module()},
           required(:browsing_type) => String.t() | nil,
           optional(:uploads) => map() | nil,
           optional(:parent_component) => term()
@@ -77,7 +80,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
        parent_component: assigns[:parent_component],
        theme_id: theme_id,
        customization: customization,
-       option_groups: option_groups
+       option_groups: option_groups,
+       panels: Map.new(option_groups, &{&1.key, Panels.for_group(theme_id, &1)})
      )
      |> BackgroundUploads.configure(__MODULE__, ThemeCustomizations.asset_fields(theme_id))
      |> assign_new(:browsing_type, fn -> initial_browsing_type(customization, option_groups) end)
@@ -100,6 +104,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
 
       <Components.option_panel
         :for={group <- @option_groups}
+        panel={@panels[group.key]}
         group={group}
         customization={@customization}
         uploads={assigns[:uploads]}
