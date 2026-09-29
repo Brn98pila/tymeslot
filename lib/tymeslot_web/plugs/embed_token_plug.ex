@@ -61,18 +61,37 @@ defmodule TymeslotWeb.Plugs.EmbedTokenPlug do
   # signal for the embedding page's origin.
   #
   # Falls back to the query parameter when Referer is absent (e.g. due
-  # to Referrer-Policy: no-referrer on the embedding page).
+  # to Referrer-Policy: no-referrer on the embedding page), and when the
+  # Referer is this site itself. The second case is a navigation the framed
+  # page made on its own (the language switcher's redirect): the browser then
+  # reports the booking page, not the embedder, so the Referer says nothing
+  # about who frames it, and trusting it would fail the allowlist check. That
+  # fallback is no weaker than the first, which any embedder can already reach
+  # by stripping its Referer; `frame-ancestors` stays the real enforcement.
   defp resolve_parent_origin(conn) do
-    referer_origin(conn) || conn.query_params["parent-origin"]
+    case referer_origin(conn) do
+      {:own_site, origin} -> conn.query_params["parent-origin"] || origin
+      {:external, origin} -> origin
+      nil -> conn.query_params["parent-origin"]
+    end
   end
 
   defp referer_origin(conn) do
     with [referer | _rest] <- get_req_header(conn, "referer"),
-         %URI{scheme: scheme, host: host}
+         %URI{scheme: scheme, host: host, port: port}
          when is_binary(scheme) and is_binary(host) <- URI.parse(referer) do
-      "#{scheme}://#{host}"
+      origin = origin(scheme, host, port)
+      if host == conn.host, do: {:own_site, origin}, else: {:external, origin}
     else
       _no_referer -> nil
     end
+  end
+
+  # Keeps a non-default port, so the origin names the page that framed us
+  # exactly (`http://localhost:4000`, not `http://localhost`).
+  defp origin(scheme, host, port) do
+    if port in [nil, URI.default_port(scheme)],
+      do: "#{scheme}://#{host}",
+      else: "#{scheme}://#{host}:#{port}"
   end
 end

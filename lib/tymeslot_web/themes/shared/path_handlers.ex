@@ -64,6 +64,7 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlers do
 
   defp build_query_params(socket, locale) do
     %{"locale" => locale}
+    |> put_embed_params(socket)
     |> put_preview_params(socket)
     |> maybe_put_query_param("reschedule_meeting_uid", socket.assigns[:reschedule_meeting_uid])
   end
@@ -91,6 +92,37 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlers do
       params
     end
   end
+
+  # An embedded page has to be rebuilt as an embed for the same reason: the
+  # redirect lands a fresh LiveView that knows only what the URL carries.
+  # Without `embed=1` the new request has no embed token, so the page is no
+  # longer treated as embedded (a paid booking tries to open Stripe Checkout
+  # inside the iframe), and the embed's layout, accent colour and theme revert
+  # to the organiser's defaults.
+  #
+  # Every value comes from what the page already validated, never from the raw
+  # params: `:embedded` and `:embed_parent_origin` from the verified embed
+  # token, the rest from the theme context. Carrying `theme` is safe here
+  # because a bare `theme=` is no longer a preview claim
+  # (`PreviewMode.claimed?/1`); the embed selected it and must keep it.
+  defp put_embed_params(params, socket) do
+    if socket.assigns[:embedded] do
+      params
+      |> Map.put("embed", "1")
+      |> maybe_put_query_param("parent-origin", socket.assigns[:embed_parent_origin])
+      |> maybe_put_query_param("theme", socket.assigns[:theme_id])
+      |> maybe_put_query_param("layout", column_layout(socket.assigns[:embed_layout]))
+      |> maybe_put_query_param("primary-color", primary_colour(socket.assigns[:theme_overrides]))
+    else
+      params
+    end
+  end
+
+  defp column_layout(:column), do: "column"
+  defp column_layout(_default), do: nil
+
+  defp primary_colour(%{primary_color: colour}), do: colour
+  defp primary_colour(_no_override), do: nil
 
   # Either half is enough: `:theme_preview` is the URL's claim, `:owner_preview`
   # the verified token, and internal navigation can leave only the latter set.

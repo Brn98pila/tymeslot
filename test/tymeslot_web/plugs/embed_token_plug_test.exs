@@ -112,6 +112,45 @@ defmodule TymeslotWeb.Plugs.EmbedTokenPlugTest do
       assert {:ok, {"sarah", "https://mysite.com"}} = Token.verify(conn.assigns.embed_token)
     end
 
+    test "a Referer from this site defers to the parent-origin param", %{conn: conn} do
+      # A navigation the framed page makes itself (the language switcher's
+      # redirect) arrives with the booking page as its Referer. That names
+      # this site, not the embedder, and would fail the allowlist check.
+      conn =
+        conn
+        |> Map.put(:request_path, "/sarah")
+        |> Map.put(:query_string, "embed=1&parent-origin=https://mysite.com")
+        |> put_req_header("referer", "http://#{conn.host}/sarah?embed=1")
+        |> EmbedTokenPlug.call([])
+
+      assert {:ok, {"sarah", "https://mysite.com"}} = Token.verify(conn.assigns.embed_token)
+    end
+
+    test "a Referer from this site is kept when there is no parent-origin param",
+         %{conn: conn} do
+      conn =
+        conn
+        |> Map.put(:request_path, "/sarah")
+        |> Map.put(:query_string, "embed=1")
+        |> put_req_header("referer", "http://#{conn.host}/dashboard")
+        |> EmbedTokenPlug.call([])
+
+      expected = "http://#{conn.host}"
+      assert {:ok, {"sarah", ^expected}} = Token.verify(conn.assigns.embed_token)
+    end
+
+    test "keeps a non-default port in the Referer origin", %{conn: conn} do
+      conn =
+        conn
+        |> Map.put(:request_path, "/sarah")
+        |> Map.put(:query_string, "embed=1")
+        |> put_req_header("referer", "http://embedder.test:8080/page")
+        |> EmbedTokenPlug.call([])
+
+      assert {:ok, {"sarah", "http://embedder.test:8080"}} =
+               Token.verify(conn.assigns.embed_token)
+    end
+
     test "assigns embed_token for nested username paths", %{conn: conn} do
       conn =
         conn

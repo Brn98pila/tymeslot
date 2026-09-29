@@ -1,7 +1,10 @@
 defmodule TymeslotWeb.Themes.Shared.PathHandlersTest do
   use TymeslotWeb.ConnCase, async: true
   @moduletag :utils
+  @moduletag :themes
 
+  alias TymeslotWeb.Live.Scheduling.PreviewMode
+  alias TymeslotWeb.Themes.Core.Context
   alias TymeslotWeb.Themes.Shared.PathHandlers
 
   describe "build_path_with_locale/2" do
@@ -244,6 +247,85 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlersTest do
     end
   end
 
+  describe "build_path_with_locale/2 inside an embed" do
+    # The redirect is a full page load inside the iframe. Unless it is rebuilt
+    # as an embed URL, the page that comes back has no embed token (a paid
+    # booking tries to open Stripe Checkout inside the frame) and the embed's
+    # layout, accent colour and theme fall back to the organiser's defaults.
+
+    test "carries the embed flag, parent origin, theme, layout and colour" do
+      params =
+        embed_socket(embed_layout: :column, theme_overrides: %{primary_color: "#e11d48"})
+        |> PathHandlers.build_path_with_locale("de")
+        |> query_params()
+
+      assert params == %{
+               "locale" => "de",
+               "embed" => "1",
+               "parent-origin" => "https://embedder.test",
+               "theme" => "2",
+               "layout" => "column",
+               "primary-color" => "#e11d48"
+             }
+    end
+
+    test "leaves out a layout and a colour the page did not accept" do
+      # The theme context drops an invalid `primary-color` and any layout but
+      # `column`; the redirect reads the context, so nothing invalid is echoed.
+      params =
+        embed_socket(embed_layout: :default, theme_overrides: %{})
+        |> PathHandlers.build_path_with_locale("de")
+        |> query_params()
+
+      assert params == %{
+               "locale" => "de",
+               "embed" => "1",
+               "parent-origin" => "https://embedder.test",
+               "theme" => "2"
+             }
+    end
+
+    test "an invalid colour on the embed URL is not carried into the redirect" do
+      context = Context.from_params(%{"theme" => "2", "primary-color" => "red;}"})
+
+      params =
+        embed_socket([])
+        |> Map.update!(:assigns, &Map.merge(&1, Context.to_assigns(context)))
+        |> PathHandlers.build_path_with_locale("de")
+        |> query_params()
+
+      refute Map.has_key?(params, "primary-color")
+      assert params["embed"] == "1"
+      assert params["theme"] == "2"
+    end
+
+    test "does not turn an embedded visitor into a previewer" do
+      params =
+        embed_socket(theme_preview: false, owner_preview: false)
+        |> PathHandlers.build_path_with_locale("de")
+        |> query_params()
+
+      refute Map.has_key?(params, "preview")
+      refute Map.has_key?(params, "preview_token")
+      refute PreviewMode.claimed?(params)
+    end
+
+    test "a standalone page carries none of the embed parameters" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          username_context: "johndoe",
+          live_action: :overview,
+          theme_id: "2",
+          embed_layout: :column,
+          theme_overrides: %{primary_color: "#e11d48"},
+          embed_parent_origin: "https://embedder.test"
+        }
+      }
+
+      assert PathHandlers.build_path_with_locale(socket, "de") == "/johndoe?locale=de"
+    end
+  end
+
   describe "calendar_ics_path/1" do
     test "points at the meeting's download under the organiser's page" do
       assert PathHandlers.calendar_ics_path(%{
@@ -281,6 +363,24 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlersTest do
         preview_token: Keyword.fetch!(opts, :preview_token)
       }
     }
+  end
+
+  defp embed_socket(overrides) do
+    assigns =
+      Map.merge(
+        %{
+          username_context: "johndoe",
+          live_action: :overview,
+          theme_id: "2",
+          embedded: true,
+          embed_parent_origin: "https://embedder.test",
+          embed_layout: :default,
+          theme_overrides: %{}
+        },
+        Map.new(overrides)
+      )
+
+    %Phoenix.LiveView.Socket{assigns: assigns}
   end
 
   defp query_params(path) do
