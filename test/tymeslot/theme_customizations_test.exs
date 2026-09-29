@@ -152,10 +152,7 @@ defmodule Tymeslot.ThemeCustomizationsTest do
 
     test "video_preset_keys/1 lists a theme's own videos in its group's order" do
       assert ThemeCustomizations.video_preset_keys("2") ==
-               Enum.map(
-                 Background.presets(Spec.group(RhythmSpec, Background), :video),
-                 &elem(&1, 0)
-               )
+               Spec.group(RhythmSpec, Background).videos
 
       assert "preset:rhythm-default" in ThemeCustomizations.video_preset_keys("2")
       assert ThemeCustomizations.video_preset_keys("no-such-theme") == []
