@@ -46,6 +46,14 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
     {"themes/#{profile.id}/#{theme_id}/#{relative}", full}
   end
 
+  # Every file under the profile's upload directory for the theme, images and
+  # videos alike.
+  defp uploaded_files(profile, theme_id) do
+    [Storage.get_upload_base_directory(), "themes", to_string(profile.id), theme_id, "*", "*"]
+    |> Path.join()
+    |> Path.wildcard()
+  end
+
   @png <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, "IHDR", 0x00,
          0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
          0xDE>>
@@ -189,6 +197,71 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
       assert message =~ "ffmpeg is not installed"
       refute_enqueued(worker: VideoTranscoder)
       assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "2") == nil
+    end
+  end
+
+  describe "a save the spec refuses" do
+    # Every save re-validates the whole row, so a stored row the spec no
+    # longer accepts refuses any upload onto it: here one with no colour
+    # scheme and no custom seed, which the palette requires. `settings:`
+    # replaces the factory's defaults whole.
+    setup %{profile: profile} do
+      insert(:theme_customization,
+        profile: profile,
+        theme_id: "1",
+        settings: %{"background_type" => "gradient", "background_value" => "gradient_1"}
+      )
+
+      # The premise: this row refuses every save.
+      assert {:error, _changeset} =
+               ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
+                 "background_value" => "gradient_2"
+               })
+
+      :ok
+    end
+
+    test "deletes the image it stored", %{profile: profile} do
+      assert {:error, "Could not save your theme customization. Please try again."} =
+               ThemeCustomizations.attach_asset(
+                 profile.id,
+                 "1",
+                 :background_image_path,
+                 temp_file("bg.png", @png)
+               )
+
+      assert uploaded_files(profile, "1") == []
+    end
+
+    test "deletes the video it stored and queues nothing", %{profile: profile} do
+      stub(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
+
+      assert {:error, "Could not save your theme customization. Please try again."} =
+               ThemeCustomizations.attach_asset(
+                 profile.id,
+                 "1",
+                 :background_video_path,
+                 temp_file("clip.mp4", @mp4)
+               )
+
+      assert uploaded_files(profile, "1") == []
+      refute_enqueued(worker: VideoTranscoder)
+    end
+
+    test "leaves every other file, including one another tab has just stored",
+         %{profile: profile} do
+      # Referenced by nothing yet, like an upload in flight in a second tab.
+      {_path, other_tab} = stored_file(profile, "1", "images/0123456789ab-other.png")
+
+      assert {:error, _message} =
+               ThemeCustomizations.attach_asset(
+                 profile.id,
+                 "1",
+                 :background_image_path,
+                 temp_file("bg.png", @png)
+               )
+
+      assert uploaded_files(profile, "1") == [other_tab]
     end
   end
 

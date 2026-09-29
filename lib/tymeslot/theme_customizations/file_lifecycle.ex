@@ -4,7 +4,8 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
 
   Orchestrates `Storage` and `Transcoder` to delete stale background images,
   videos, and their transcoded variants when a customisation is updated,
-  deleted, or has its background replaced. Which fields hold stored files, and
+  deleted, or has its background replaced, and removes an upload whose save
+  was refused. Which fields hold stored files, and
   of which kind, comes from the customisation spec the caller passes
   (`asset_fields/0`, every option group's `asset_fields/1`), so a group's files
   are cleaned up without this module knowing the group. Persistence is handled
@@ -64,6 +65,24 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
       if path = setting(customization, field), do: delete_asset(path, kind, context, "#{kind}")
     end)
   end
+
+  @doc """
+  Deletes the file an upload has just stored, when saving it was refused.
+
+  Only that file: its name is the upload's own (`Storage.store_asset/4`), so
+  nothing else can reference it, and a video has no transcoded variants yet
+  because transcoding is queued only after a successful save. Never widen this
+  to "every file the row does not reference": another tab may have just stored
+  a file of its own in the same directory.
+  """
+  @spec discard_upload(String.t(), map()) :: :ok
+  def discard_upload(relative_path, context),
+    do:
+      delete_file(
+        relative_path,
+        Map.put(context, :operation, "upload_rejected"),
+        "rejected_upload"
+      )
 
   # --- Private helpers ----------------------------------------------------
 

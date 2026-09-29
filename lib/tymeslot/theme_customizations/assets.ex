@@ -12,7 +12,9 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
   another group leaves the background alone. For a video the row is marked
   `pending` and the transcoding job queued, marking it `failed` if the job
   cannot be queued (one video field per theme: `VideoTranscoder` tracks one
-  per row). Errors come back as translated, user-facing messages.
+  per row). A save that fails deletes the file it stored
+  (`FileLifecycle.discard_upload/2`). Errors come back as translated,
+  user-facing messages.
 
   The web layer calls this from inside `consume_uploaded_entries/3`, because
   the temporary upload is deleted as soon as that callback returns.
@@ -20,6 +22,7 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.FileLifecycle
   alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.ThemeCustomizations.Storage
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
@@ -45,7 +48,7 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
 
   defp attach(:image, profile_id, theme_id, {group, field}, upload) do
     with {:ok, path} <- store(:image, profile_id, theme_id, upload) do
-      save(profile_id, theme_id, Specs.upload_changes(group, field, path))
+      save(profile_id, theme_id, path, Specs.upload_changes(group, field, path))
     end
   end
 
@@ -56,6 +59,7 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
            save(
              profile_id,
              theme_id,
+             path,
              group
              |> Specs.upload_changes(field, path)
              |> Map.put("video_processing", "pending")
@@ -88,12 +92,16 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
     end
   end
 
-  defp save(profile_id, theme_id, attrs) do
+  # The file was stored for this save alone, so a refused save leaves it
+  # referenced by nothing: delete it rather than orphan it.
+  defp save(profile_id, theme_id, path, attrs) do
     case ThemeCustomizations.upsert_theme_customization(profile_id, theme_id, attrs) do
       {:ok, customization} ->
         {:ok, customization}
 
       {:error, _changeset} ->
+        FileLifecycle.discard_upload(path, %{profile_id: profile_id, theme_id: theme_id})
+
         {:error,
          dgettext(
            "dashboard_appearance",
