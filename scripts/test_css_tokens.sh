@@ -50,6 +50,139 @@ ALLOWED_VALUES=(
   "0.5rem" # Special case for word-spacing or very small values in animations
 )
 
+# Every token a theme's modules/variables.css must define: the token contract
+# documented in shared/tokens.css, plus every token the shared styles read
+# that no shared file defines (test_shared_token_contract keeps that part
+# complete).
+REQUIRED_TOKENS=(
+  "--space-3xs"
+  "--space-2xs"
+  "--space-xs"
+  "--space-sm"
+  "--space-md"
+  "--space-lg"
+  "--space-xl"
+  "--space-2xl"
+  "--border-width-thin"
+  "--border-width-medium"
+  "--border-width-thick"
+  "--flag-height"
+  # The token contract (documented in shared/tokens.css): palette and
+  # status inputs, shadow geometry, roles and the shared screens' tokens.
+  # --theme-background is left out on purpose.
+  "--theme-primary"
+  "--theme-primary-hover"
+  "--theme-secondary"
+  "--theme-accent"
+  "--theme-on-primary"
+  "--theme-primary-solid"
+  "--theme-primary-solid-hover"
+  "--theme-on-accent"
+  "--theme-accent-solid"
+  "--theme-text"
+  "--theme-text-secondary"
+  "--theme-success"
+  "--theme-warning"
+  "--theme-danger"
+  "--theme-info"
+  "--shadow-geometry-sm"
+  "--shadow-geometry-md"
+  "--shadow-geometry-lg"
+  "--surface-1"
+  "--surface-2"
+  "--surface-3"
+  "--ink-1"
+  "--ink-2"
+  "--ink-3"
+  "--line-1"
+  "--line-2"
+  "--notice-warning"
+  "--notice-warning-surface"
+  "--notice-warning-border"
+  "--radius-control"
+  "--radius-card"
+  "--z-dropdown"
+  "--status-surface"
+  "--status-surface-opaque"
+  "--status-shadow"
+  "--status-ink-heading"
+  "--status-ink"
+  "--status-ink-soft"
+  "--status-ink-hint"
+  "--chrome-surface"
+  "--chrome-surface-hover"
+  "--chrome-line-hover"
+  "--chrome-ink"
+  "--print-line"
+  # Tokens the shared component styles (shared/components/*.css) read.
+  "--approval-icon-surface"
+  "--approval-notice-font-size"
+  "--approval-notice-gap"
+  "--approval-notice-ink"
+  "--approval-notice-max-width"
+  "--approval-pill-surface"
+  "--poll-input-focus-ring"
+  "--poll-input-line"
+  "--poll-input-surface"
+  "--poll-option-line"
+  "--poll-option-selected-surface"
+  "--poll-panel-surface"
+  "--poll-row-line"
+  "--poll-row-surface"
+  "--poll-voting-padding"
+  "--payment-body-ink"
+  "--payment-card-line"
+  "--payment-card-radius"
+  "--payment-card-surface"
+  "--payment-heading-ink"
+  "--payment-link-radius"
+  "--payment-link-transition"
+  "--payment-link-weight"
+  "--payment-page-max-width"
+  "--lang-switcher-surface"
+  "--lang-switcher-surface-hover"
+  "--lang-switcher-panel-surface"
+  "--lang-switcher-panel-line"
+  "--lang-switcher-item-line"
+  "--lang-switcher-item-hover"
+  "--lang-switcher-item-active"
+  "--slot-list-grid-gap"
+  "--guest-remove-ink-hover"
+  "--dropdown-surface"
+  # The scale tokens the shared styles read. With the entries above, this is
+  # every var() that shared/*.css reads without a fallback and no shared file
+  # defines; test_shared_token_contract fails when a new one is not listed.
+  "--border-subtle"
+  "--border-light"
+  "--border-medium"
+  "--surface-subtle"
+  "--surface-light"
+  "--surface-medium"
+  "--surface-intense"
+  "--theme-error-light"
+  "--theme-font-size-3xs"
+  "--theme-font-size-2xs"
+  "--theme-font-size-xs"
+  "--theme-font-size-sm"
+  "--theme-font-size-base"
+  "--theme-font-size-md"
+  "--theme-font-size-lg"
+  "--theme-font-size-2xl"
+  "--theme-font-size-3xl"
+  "--theme-line-height-snug"
+  "--theme-line-height-relaxed"
+  "--font-weight-medium"
+  "--font-weight-semibold"
+  "--font-weight-bold"
+  "--letter-spacing-wide"
+  "--space-hairline"
+  "--icon-sm"
+  "--dropdown-max-height"
+  "--shadow-md"
+  "--transition-fast"
+  "--transition-normal"
+)
+
 # Strip the "path:lineno:" prefix that stripped_css_lines prepends, leaving only
 # the CSS declaration text. Paths here never contain ':' and line numbers are
 # digits, so dropping the first two colon-delimited fields is safe. Keeping the
@@ -206,105 +339,9 @@ test_token_usage() {
     return 0
   fi
 
-  local required_tokens=(
-    "--space-3xs"
-    "--space-2xs"
-    "--space-xs"
-    "--space-sm"
-    "--space-md"
-    "--space-lg"
-    "--space-xl"
-    "--space-2xl"
-    "--border-width-thin"
-    "--border-width-medium"
-    "--border-width-thick"
-    "--flag-height"
-    # The token contract (documented in shared/tokens.css): palette and
-    # status inputs, shadow geometry, roles and the shared screens' tokens.
-    # --theme-background is left out on purpose.
-    "--theme-primary"
-    "--theme-primary-hover"
-    "--theme-secondary"
-    "--theme-accent"
-    "--theme-on-primary"
-    "--theme-primary-solid"
-    "--theme-primary-solid-hover"
-    "--theme-on-accent"
-    "--theme-accent-solid"
-    "--theme-text"
-    "--theme-text-secondary"
-    "--theme-success"
-    "--theme-warning"
-    "--theme-danger"
-    "--theme-info"
-    "--shadow-geometry-sm"
-    "--shadow-geometry-md"
-    "--shadow-geometry-lg"
-    "--surface-1"
-    "--surface-2"
-    "--surface-3"
-    "--ink-1"
-    "--ink-2"
-    "--ink-3"
-    "--line-1"
-    "--line-2"
-    "--notice-warning"
-    "--notice-warning-surface"
-    "--notice-warning-border"
-    "--radius-control"
-    "--radius-card"
-    "--z-dropdown"
-    "--status-surface"
-    "--status-surface-opaque"
-    "--status-shadow"
-    "--status-ink-heading"
-    "--status-ink"
-    "--status-ink-soft"
-    "--status-ink-hint"
-    "--chrome-surface"
-    "--chrome-surface-hover"
-    "--chrome-line-hover"
-    "--chrome-ink"
-    "--print-line"
-    # Tokens the shared component styles (shared/components/*.css) read.
-    "--approval-icon-surface"
-    "--approval-notice-font-size"
-    "--approval-notice-gap"
-    "--approval-notice-ink"
-    "--approval-notice-max-width"
-    "--approval-pill-surface"
-    "--poll-input-focus-ring"
-    "--poll-input-line"
-    "--poll-input-surface"
-    "--poll-option-line"
-    "--poll-option-selected-surface"
-    "--poll-panel-surface"
-    "--poll-row-line"
-    "--poll-row-surface"
-    "--poll-voting-padding"
-    "--payment-body-ink"
-    "--payment-card-line"
-    "--payment-card-radius"
-    "--payment-card-surface"
-    "--payment-heading-ink"
-    "--payment-link-radius"
-    "--payment-link-transition"
-    "--payment-link-weight"
-    "--payment-page-max-width"
-    "--lang-switcher-surface"
-    "--lang-switcher-surface-hover"
-    "--lang-switcher-panel-surface"
-    "--lang-switcher-panel-line"
-    "--lang-switcher-item-line"
-    "--lang-switcher-item-hover"
-    "--lang-switcher-item-active"
-    "--slot-list-grid-gap"
-    "--guest-remove-ink-hover"
-    "--dropdown-surface"
-  )
 
   local missing_tokens=0
-  for token in "${required_tokens[@]}"; do
+  for token in "${REQUIRED_TOKENS[@]}"; do
     if ! grep -qF -- "$token:" "$tokens_file"; then
       echo -e "${RED}✗ Missing token: $token${NC}"
       missing_tokens=$((missing_tokens + 1))
@@ -512,6 +549,39 @@ test_shared_components() {
   return 0
 }
 
+# The shared styles (shared/) read tokens only a theme defines. Every var()
+# they read without a fallback must be defined in a shared file or be listed
+# in REQUIRED_TOKENS, so a theme that passes test_token_usage defines them
+# all; a token the theme leaves out would silently drop every declaration
+# reading it.
+test_shared_token_contract() {
+  local shared="$SCHEDULING_CSS_ROOT/shared"
+  [ -d "$shared" ] || return 0
+  echo "📜 Testing that REQUIRED_TOKENS covers every token shared/ reads..."
+
+  local css read defined undeclared
+  css=$(stripped_css_lines "$shared" | cut -d: -f3-)
+  read=$(printf '%s\n' "$css" \
+    | grep -oE 'var\(--[A-Za-z0-9_-]+[[:space:]]*[,)]' \
+    | grep -vE ',$' \
+    | sed -E 's/^var\(//; s/[[:space:]]*\)$//' | sort -u || true)
+  defined=$( { printf '%s\n' "$css" \
+      | grep -oE '(^|[;{[:space:]])--[A-Za-z0-9_-]+[[:space:]]*:' \
+      | grep -oE -- '--[A-Za-z0-9_-]+' || true
+    printf '%s\n' "${REQUIRED_TOKENS[@]}"; } | sort -u)
+  undeclared=$(comm -23 <(printf '%s\n' "$read") <(printf '%s\n' "$defined") | sed '/^$/d')
+
+  if [ -n "$undeclared" ]; then
+    echo -e "${RED}✗ Tokens read in shared/ that no shared file defines and REQUIRED_TOKENS does not list:${NC}"
+    echo "$undeclared"
+    SHARED_FAILED=1
+    TOTAL_VIOLATIONS=$((TOTAL_VIOLATIONS + $(echo "$undeclared" | grep -c "^")))
+  else
+    echo -e "${GREEN}✓ Every token shared/ reads is defined there or required of each theme${NC}"
+  fi
+  echo ""
+}
+
 # Function to test a single theme
 test_theme() {
   local theme_path="$1"
@@ -564,6 +634,7 @@ for theme in "${THEMES[@]}"; do
 done
 
 test_shared_components
+test_shared_token_contract
 test_colour_literals
 
 # Overall summary

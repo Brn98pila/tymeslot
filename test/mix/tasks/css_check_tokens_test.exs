@@ -90,6 +90,46 @@ defmodule Mix.Tasks.Css.CheckTokensTest do
     assert {_output, 0} = run_script(root)
   end
 
+  test "rejects a token read in shared/ that no theme is required to define", %{root: root} do
+    File.write!(
+      Path.join(root, "shared/components/notice.css"),
+      ".notice {\n  color: var(--notice-undeclared-ink);\n}\n"
+    )
+
+    assert {output, 1} = run_script(root)
+    assert output =~ "REQUIRED_TOKENS does not list"
+    assert output =~ "--notice-undeclared-ink"
+  end
+
+  test "accepts a token read in shared/ that a shared file defines", %{root: root} do
+    File.write!(
+      Path.join(root, "shared/components/notice.css"),
+      ":root {\n  --notice-local-gap: var(--space-sm);\n}\n.notice {\n  gap: var(--notice-local-gap);\n}\n"
+    )
+
+    assert {_output, 0} = run_script(root)
+  end
+
+  test "accepts a token read in shared/ with a fallback", %{root: root} do
+    File.write!(
+      Path.join(root, "shared/components/notice.css"),
+      ".notice {\n  border-color: var(--color-gray-200, currentColor);\n}\n"
+    )
+
+    assert {_output, 0} = run_script(root)
+  end
+
+  test "rejects a theme that leaves out a scale token the shared styles read",
+       %{root: root, modules: modules} do
+    File.write!(
+      Path.join(modules, "variables.css"),
+      String.replace(variables_css(), "  --icon-sm: 0;\n", "")
+    )
+
+    assert {output, 1} = run_script(root)
+    assert output =~ "Missing token: --icon-sm"
+  end
+
   defp run_script(root) do
     System.cmd("bash", [@script], env: [{"SCHEDULING_CSS_ROOT", root}], stderr_to_stdout: true)
   end
