@@ -3,6 +3,13 @@ defmodule Tymeslot.Utils.MediaValidator do
   Utility for validating media files (images and videos) using magic bytes.
   """
 
+  # Major brands of an ISO base media file that name a video file: the ISO
+  # base media versions, MP4 v1/v2, H.264 MP4, QuickTime, iTunes video,
+  # MPEG-DASH segments and 3GPP video. Still-image and audio brands in the same
+  # family (`heic`, `mif1`, `avif`, `M4A `, ...) are deliberately absent.
+  @video_brands ~w(isom iso2 iso3 iso4 iso5 iso6 mp41 mp42 avc1 dash 3gp4 3gp5 3gp6) ++
+                  ["qt  ", "M4V ", "M4VH", "M4VP"]
+
   @doc """
   Validates if a binary is a supported image format using ExImageInfo.
   """
@@ -40,10 +47,12 @@ defmodule Tymeslot.Utils.MediaValidator do
   Validates if a binary is a supported video format using magic bytes.
 
   Recognises only the containers the video upload allowlist admits
-  (`.mp4`, `.mov`, `.webm`): the ISO base media family (MP4 and QuickTime,
-  an `ftyp` box at offset 4) and Matroska/WebM (the EBML header). Anything
-  else, whatever its name, is refused, so a GIF renamed `.mp4` is never
-  stored, served as a background video or queued for transcoding.
+  (`.mp4`, `.mov`, `.webm`): Matroska/WebM (the EBML header), and the ISO
+  base media family (MP4 and QuickTime) when the `ftyp` box's major brand is
+  a video brand. The family also holds still images and audio (HEIC, AVIF,
+  M4A), which carry brands of their own and are refused. So is anything
+  else, whatever its name: a GIF or an image renamed `.mp4` is never stored,
+  served as a background video or queued for transcoding.
   """
   @spec valid_video?(binary()) :: boolean()
   def valid_video?(binary) when is_binary(binary) do
@@ -55,8 +64,9 @@ defmodule Tymeslot.Utils.MediaValidator do
   @spec valid_video?(any()) :: boolean()
   def valid_video?(_other), do: false
 
-  # MP4 / MOV: ftyp at offset 4
-  defp video_header?(<<_a::binary-size(4), "ftyp", _rest::binary>>), do: true
+  # MP4 / MOV: an ftyp box at offset 4 whose major brand is a video brand.
+  defp video_header?(<<_size::binary-size(4), "ftyp", brand::binary-size(4), _rest::binary>>),
+    do: brand in @video_brands
 
   # WebM / MKV: 1A 45 DF A3
   defp video_header?(<<0x1A, 0x45, 0xDF, 0xA3, _rest::binary>>), do: true

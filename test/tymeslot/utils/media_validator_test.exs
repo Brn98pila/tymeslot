@@ -42,6 +42,21 @@ defmodule Tymeslot.Utils.MediaValidatorTest do
       assert MediaValidator.valid_video?(<<0, 0, 0, 24, "ftypisom", 0, 0, 2, 0>>)
     end
 
+    test "accepts every video brand of the ISO base media family" do
+      brands =
+        ~w(isom iso2 iso3 iso4 iso5 iso6 mp41 mp42 avc1 dash 3gp4 3gp5 3gp6) ++
+          ["qt  ", "M4V ", "M4VH", "M4VP"]
+
+      assert Enum.reject(brands, &MediaValidator.valid_video?(ftyp(&1))) == []
+    end
+
+    test "refuses still images and audio of the same family renamed as video" do
+      # HEIC, AVIF and M4A all start with an ftyp box, which alone once passed.
+      for brand <- ["heic", "mif1", "avif", "M4A "] do
+        refute MediaValidator.valid_video?(ftyp(brand)), "brand #{inspect(brand)} passed"
+      end
+    end
+
     test "refuses a GIF, although its first byte is the MPEG-TS sync byte" do
       # "G" is 0x47. A GIF named `.mp4` used to pass as an MPEG transport
       # stream, and was stored and queued for transcoding.
@@ -148,4 +163,8 @@ defmodule Tymeslot.Utils.MediaValidatorTest do
       )
     end)
   end
+
+  # An ftyp box with the given major brand, minor version 0 and the brand
+  # repeated as the one compatible brand, as real files write it.
+  defp ftyp(brand), do: <<0, 0, 0, 20, "ftyp", brand::binary, 0, 0, 0, 0, brand::binary>>
 end
