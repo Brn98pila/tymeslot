@@ -218,23 +218,32 @@ defmodule TymeslotWeb.Live.Scheduling.NextAvailable do
 
   Today can be another date in the new zone, and the day landed on was the
   first free one in the old zone's days: it can already be past in the new
-  one, where it would stay selected with no times. So while the calendar is
-  still where the page left it (`CalendarHelpers.untouched?/1`), whether on a
-  day it landed on or on today with nothing selected, the selection is dropped,
-  the calendar reopens on the new zone's today and the landing is re-armed, to
-  run again on the month's availability the caller fetches for the new zone.
+  one, where it would stay selected with no times. The landing starts again,
+  dropping the selection, reopening the calendar on the new zone's today and
+  re-arming to run on the month's availability the caller fetches for the new
+  zone, in two cases:
 
-  A calendar the booker has moved, or a day they chose (a click, a `?date=`
-  link), is left as it is. A reschedule is no exception either way: it arrives
-  with no day of its own, so its selection is the landing's until the booker
-  picks one.
+    * the calendar is still where the page left it
+      (`CalendarHelpers.untouched?/1`), on a day it landed on or on today with
+      nothing selected;
+    * the day selected, whoever chose it, is outside the booking window in the
+      new zone (`CalendarHelpers.selection_out_of_window?/1`). That covers a
+      day the booker clicked, and the page's own pick once a visit to the
+      booking step and back has reopened it as a held day: kept, either would
+      be a day that can no longer be booked.
+
+  Otherwise the booker's calendar is left as it is: a month or week they moved
+  to, or a day they chose (a click, a `?date=` link) that is still bookable. A
+  reschedule is no exception: it arrives with no day of its own, so its
+  selection is the landing's until the booker picks one.
 
   Every landing records where it left the calendar, so a second timezone change
   follows the second landing exactly as the first followed the first.
   """
   @spec follow_timezone_change(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def follow_timezone_change(socket) do
-    if CalendarHelpers.untouched?(socket.assigns) do
+    if CalendarHelpers.untouched?(socket.assigns) or
+         CalendarHelpers.selection_out_of_window?(socket.assigns) do
       socket
       |> assign(:selected_date, nil)
       |> assign(:selected_time, nil)

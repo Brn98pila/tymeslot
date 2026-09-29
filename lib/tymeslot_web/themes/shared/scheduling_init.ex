@@ -19,7 +19,8 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingInit do
     |> assign(:meeting_type, nil)
     |> assign(:meeting_type_pinned, false)
     # The calendar window (current_year, current_month, current_week_start,
-    # calendar_today) is set by `CalendarHelpers.anchor_on_today/1` once the
+    # calendar_today, and calendar_landing, where the page itself left the
+    # calendar) is set by `CalendarHelpers.anchor_on_today/1` once the
     # booker's timezone is known; `LiveHelpers.Mount` calls it.
     |> assign(:month_availability_map, nil)
     |> assign(:availability_status, :not_loaded)

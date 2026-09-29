@@ -252,11 +252,13 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
 
   defp toggle_hour(socket, _hour), do: {:noreply, socket}
 
-  # The picker's choice goes through `TimezoneHandlerComponent`, which reloads
-  # the chosen day's slots. A zone that actually changed also lets the page's
-  # own landing follow it (`NextAvailable.follow_timezone_change/1`) and
-  # refetches the month, whose days are worked out in the visitor's timezone;
-  # an invalid choice leaves `:user_timezone`, and so everything else, as it was.
+  # The picker's choice goes through `TimezoneHandlerComponent`, which switches
+  # the zone. A zone that actually changed then decides which day stays
+  # selected (`NextAvailable.follow_timezone_change/1`), reloads that day's
+  # slots in the new zone, if one is left, and refetches the month, whose days
+  # are worked out in the visitor's timezone. The slots are reloaded only after
+  # the day is settled, so none are fetched for a day about to be dropped. An
+  # invalid choice leaves `:user_timezone`, and so everything else, as it was.
   defp change_timezone(socket, data) do
     previous = socket.assigns[:user_timezone]
 
@@ -270,6 +272,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
           |> NextAvailable.follow_timezone_change()
           |> AvailabilityHelpers.fetch_month_availability_async()
 
+        {:ok, socket} = SlotFetchingHandlerComponent.maybe_reload_slots(socket)
         {:noreply, socket}
     end
   end

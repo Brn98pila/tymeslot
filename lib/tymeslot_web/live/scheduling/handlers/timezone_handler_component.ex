@@ -19,20 +19,24 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.TimezoneHandlerComponent do
 
   ## Available Functions
 
-  - `handle_timezone_change/2` - Process timezone updates and reload slots
+  - `handle_timezone_change/2` - Process timezone updates
   """
 
   import Phoenix.Component, only: [assign: 3]
   import TymeslotWeb.Live.Shared.LiveHelpers, only: [update_timezone: 2]
 
   @doc """
-  Handles timezone changes with automatic slot reloading.
+  Handles timezone changes.
 
   This function:
   1. Updates the user's timezone
-  2. Clears the selected time
+  2. Clears the selected time and the slots listed for the old zone
   3. Closes the timezone dropdown
-  4. Reloads available slots if a date is selected
+
+  It reloads no slots. Which day stays selected is decided after the zone
+  has changed (`NextAvailable.follow_timezone_change/1`), and the caller
+  reloads the slots of whichever day that is; reloading here would fetch
+  them, synchronously, for a day that may be dropped a moment later.
 
   ## Examples
 
@@ -45,43 +49,36 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.TimezoneHandlerComponent do
           {:ok, Phoenix.LiveView.Socket.t()}
   def handle_timezone_change(socket, data) do
     new_timezone = extract_timezone(data)
-
+    previous = socket.assigns[:user_timezone]
     socket = update_timezone(socket, new_timezone)
 
-    if socket.assigns.user_timezone != new_timezone do
-      {:ok, socket}
-    else
-      socket =
-        socket
-        |> assign(:selected_time, nil)
-        |> assign(:available_slots, [])
-        |> assign(:timezone_dropdown_open, false)
-        |> assign(:timezone_search, "")
-        |> maybe_trigger_slot_reload(new_timezone)
+    cond do
+      # Another zone: the time chosen and the slots listed were the old zone's.
+      socket.assigns.user_timezone != previous ->
+        {:ok,
+         socket
+         |> assign(:selected_time, nil)
+         |> assign(:available_slots, [])
+         |> close_picker()}
 
-      {:ok, socket}
+      # The zone already in use, picked again: nothing to redo.
+      previous == new_timezone ->
+        {:ok, close_picker(socket)}
+
+      # A zone that failed validation leaves everything as it was.
+      true ->
+        {:ok, socket}
     end
+  end
+
+  defp close_picker(socket) do
+    socket
+    |> assign(:timezone_dropdown_open, false)
+    |> assign(:timezone_search, "")
   end
 
   defp extract_timezone(data) when is_binary(data), do: data
   defp extract_timezone(%{timezone: tz}) when is_binary(tz), do: tz
   defp extract_timezone(%{"timezone" => tz}) when is_binary(tz), do: tz
   defp extract_timezone(other), do: other
-
-  defp maybe_trigger_slot_reload(socket, new_timezone) do
-    case socket.assigns.selected_date do
-      nil ->
-        socket
-
-      selected_date ->
-        duration = socket.assigns.duration || socket.assigns.selected_duration
-
-        socket
-        |> assign(:loading_slots, true)
-        |> assign(:calendar_error, nil)
-        |> tap(fn _client ->
-          send(self(), {:fetch_available_slots, selected_date, duration, new_timezone})
-        end)
-    end
-  end
 end

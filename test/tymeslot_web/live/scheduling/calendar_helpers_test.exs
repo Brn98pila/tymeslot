@@ -429,6 +429,36 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpersTest do
     end
   end
 
+  describe "selection_out_of_window?/1" do
+    # Sunday 31 January in Tallinn, already Monday 1 February in Kiritimati.
+    setup do
+      freeze_clock(~U[2027-01-31 12:00:00Z])
+      :ok
+    end
+
+    test "holds for a day already past in the booker's timezone" do
+      assert CalendarHelpers.selection_out_of_window?(
+               window_socket(%{user_timezone: "Pacific/Kiritimati", selected_date: "2027-01-31"}).assigns
+             )
+    end
+
+    test "fails for the same day where it is still today" do
+      refute CalendarHelpers.selection_out_of_window?(
+               window_socket(%{selected_date: "2027-01-31"}).assigns
+             )
+    end
+
+    test "holds for a day past the booking window" do
+      assert CalendarHelpers.selection_out_of_window?(
+               window_socket(%{selected_date: "2027-05-02"}).assigns
+             )
+    end
+
+    test "fails with no day selected" do
+      refute CalendarHelpers.selection_out_of_window?(window_socket(%{}).assigns)
+    end
+  end
+
   describe "land_on/2" do
     setup do
       freeze_clock(~U[2027-01-31 12:00:00Z])

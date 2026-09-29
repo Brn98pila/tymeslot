@@ -268,10 +268,7 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
   """
   @spec anchor_on_today(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def anchor_on_today(socket) do
-    today =
-      (socket.assigns[:user_timezone] || Profiles.get_default_timezone())
-      |> DateTimeUtils.now_in_timezone()
-      |> DateTime.to_date()
+    today = today_for(socket.assigns)
 
     socket
     |> assign(:calendar_today, today)
@@ -364,6 +361,27 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
       :none -> socket
       :out_of_window -> assign(socket, selected_date: nil, selected_time: nil)
     end
+  end
+
+  @doc """
+  Whether the selected day lies outside the booking window as the booker's
+  timezone, `:user_timezone`, now has it: before today there, or past the
+  window's last day. The same bounds `anchor_on_selection/1` drops a day by.
+
+  After a change of timezone a day the booker could book can be one they no
+  longer can: their today moved on to the next date. No day selected is never
+  outside the window.
+  """
+  @spec selection_out_of_window?(map()) :: boolean()
+  def selection_out_of_window?(assigns) do
+    chosen_day(assigns[:selected_date], today_for(assigns), assigns[:booking_window_days]) ==
+      :out_of_window
+  end
+
+  defp today_for(assigns) do
+    (assigns[:user_timezone] || Profiles.get_default_timezone())
+    |> DateTimeUtils.now_in_timezone()
+    |> DateTime.to_date()
   end
 
   defp chosen_day(value, today, window_days) when is_binary(value) and value != "" do

@@ -28,14 +28,12 @@ defmodule TymeslotWeb.Live.Scheduling.NextAvailableTest do
 
   import Mox
   import Tymeslot.Factory
-  import Tymeslot.Test.ClockHelpers
 
   alias Phoenix.LiveView.Socket
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Profiles
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.TestMocks
-  alias TymeslotWeb.Live.Scheduling.CalendarHelpers
   alias TymeslotWeb.Live.Scheduling.NextAvailable
 
   setup :verify_on_exit!
@@ -547,69 +545,6 @@ defmodule TymeslotWeb.Live.Scheduling.NextAvailableTest do
 
       assert rearmed.assigns.auto_select_settled == false
       assert rearmed.assigns.auto_select_months_searched == 0
-    end
-  end
-
-  describe "follow_timezone_change/1" do
-    # Sunday 31 January in Tallinn, already Monday 1 February in Kiritimati.
-    setup do
-      freeze_clock(~U[2027-01-31 12:00:00Z])
-      :ok
-    end
-
-    # A page opened in Tallinn that landed on today, 31 January, as its first
-    # free day and spent the attempt; the booker has then picked Kiritimati.
-    defp landed_then_switched(changes \\ %{}) do
-      opened =
-        %{}
-        |> socket_with(auto_select_settled: true)
-        |> put_assigns(%{user_timezone: "Europe/Tallinn"})
-        |> CalendarHelpers.anchor_on_today()
-
-      opened
-      |> put_assigns(%{selected_date: "2027-01-31"})
-      |> CalendarHelpers.land_on(~D[2027-01-31])
-      |> put_assigns(Map.put(changes, :user_timezone, "Pacific/Kiritimati"))
-    end
-
-    defp put_assigns(socket, assigns), do: %{socket | assigns: Map.merge(socket.assigns, assigns)}
-
-    test "drops the day it landed on and re-arms on the new zone's today" do
-      socket = NextAvailable.follow_timezone_change(landed_then_switched())
-
-      assert %{
-               selected_date: nil,
-               selected_time: nil,
-               calendar_today: ~D[2027-02-01],
-               current_month: 2,
-               current_week_start: ~D[2027-02-01],
-               auto_select_settled: false,
-               auto_select_months_searched: 0
-             } = socket.assigns
-    end
-
-    test "keeps a day the booker chose" do
-      socket =
-        NextAvailable.follow_timezone_change(landed_then_switched(%{selected_date: "2027-02-03"}))
-
-      assert %{
-               selected_date: "2027-02-03",
-               calendar_today: ~D[2027-01-31],
-               auto_select_settled: true
-             } = socket.assigns
-    end
-
-    test "keeps a week the booker moved to" do
-      socket =
-        NextAvailable.follow_timezone_change(
-          landed_then_switched(%{current_week_start: ~D[2027-02-08]})
-        )
-
-      assert %{
-               selected_date: "2027-01-31",
-               current_week_start: ~D[2027-02-08],
-               auto_select_settled: true
-             } = socket.assigns
     end
   end
 

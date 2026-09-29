@@ -7,7 +7,8 @@ defmodule TymeslotWeb.Live.Scheduling.TimezoneChangeSelectionTest do
   be past, and was kept anyway: the calendar only followed a timezone change
   while no day was selected, and the page's own pick counted as a selection. A
   day the page picked is picked again for the new zone; a day the booker chose,
-  by clicking it or through a `?date=` link, is theirs and stays.
+  by clicking it or through a `?date=` link, is theirs and stays, unless it is
+  outside the booking window in the new zone, where nobody can book it.
 
   The connected LiveView runs in a process of its own, where `Tymeslot.Clock`
   cannot be frozen, so the tests move between two zones exactly 24 hours apart
@@ -103,6 +104,52 @@ defmodule TymeslotWeb.Live.Scheduling.TimezoneChangeSelectionTest do
         assert has_element?(view, "button[data-testid='time-slot']")
       end
 
+      test "has no slots fetched for it once the timezone has changed",
+           %{conn: conn, profile: profile} = ctx do
+        view = open_schedule(conn, "/#{profile.username}/30-minutes", ctx.from)
+        old_day = Date.to_iso8601(today(ctx.from))
+        new_day = Date.to_iso8601(today(ctx.to))
+        assert live_assigns(view).selected_date == old_day
+
+        # Slots are fetched synchronously in the LiveView, so a fetch for the
+        # day about to be dropped holds the page up for nothing.
+        :erlang.trace(view.pid, true, [:receive])
+        change_timezone(view, ctx.to)
+        :erlang.trace(view.pid, false, [:receive])
+
+        assert_received {:trace, _pid, :receive, {:load_slots, ^new_day}},
+                        "expected the new day's slots to be loaded, or the trace saw nothing"
+
+        refute_received {:trace, _pid, :receive, {:fetch_available_slots, ^old_day, _, _}},
+                        "slots were fetched for #{old_day}, a day dropped by the change"
+      end
+
+      test "is picked again after a visit to the booking step and back",
+           %{conn: conn, profile: profile} = ctx do
+        view = open_schedule(conn, "/#{profile.username}/30-minutes", ctx.from)
+        picked = today(ctx.from)
+        assert_selected(view, picked, "the page's own pick")
+
+        # Coming back, the schedule step reopens on the day as a held one, no
+        # longer the page's: only the new zone's booking window can drop it.
+        [time | _other_times] =
+          view
+          |> render()
+          |> Floki.parse_document!()
+          |> Floki.attribute("button[data-testid='time-slot']", "phx-value-time")
+
+        send(view.pid, {:step_event, :schedule, :select_time, time})
+        send(view.pid, {:step_event, :schedule, :next_step, nil})
+        wait_until(fn -> live_assigns(view).current_state == :booking end)
+        send(view.pid, {:step_event, :booking, :back_step, nil})
+        wait_until(fn -> settled?(view) end)
+        assert_selected(view, picked, "the held day back on the schedule step")
+
+        change_timezone(view, ctx.to)
+
+        assert_selected(view, today(ctx.to), "the pick after #{picked} passed in #{ctx.to}")
+      end
+
       test "is picked again on every later change of timezone",
            %{conn: conn, profile: profile} = ctx do
         view = open_schedule(conn, "/#{profile.username}/30-minutes", ctx.from)
@@ -140,17 +187,37 @@ defmodule TymeslotWeb.Live.Scheduling.TimezoneChangeSelectionTest do
     describe "#{theme.slug}: a day the booker chose" do
       setup %{profile: profile}, do: use_theme(profile, @theme)
 
-      test "survives a change of timezone", %{conn: conn, profile: profile} = ctx do
+      test "survives a change of timezone, with its times reloaded for the new zone",
+           %{conn: conn, profile: profile} = ctx do
         view = open_schedule(conn, "/#{profile.username}/30-minutes", ctx.from)
         chosen = Date.add(today(ctx.from), 3)
-
-        # The message the schedule step relays for a click on a day.
-        send(view.pid, {:step_event, :schedule, :select_date, Date.to_iso8601(chosen)})
+        click_day(view, chosen)
         assert_selected(view, chosen, "the clicked day")
+
+        :erlang.trace(view.pid, true, [:receive])
+        change_timezone(view, ctx.to)
+        :erlang.trace(view.pid, false, [:receive])
+
+        assert_selected(view, chosen, "the clicked day after moving to #{ctx.to}")
+        chosen_string = Date.to_iso8601(chosen)
+        to = ctx.to
+
+        assert_received {:trace, _pid, :receive,
+                         {:fetch_available_slots, ^chosen_string, _duration, ^to}}
+
+        assert has_element?(view, "button[data-testid='time-slot']")
+      end
+
+      test "is dropped once it has passed in the new timezone",
+           %{conn: conn, profile: profile} = ctx do
+        view = open_schedule(conn, "/#{profile.username}/30-minutes", ctx.from)
+        clicked = today(ctx.from)
+        click_day(view, clicked)
+        assert_selected(view, clicked, "the clicked day")
 
         change_timezone(view, ctx.to)
 
-        assert_selected(view, chosen, "the clicked day after moving to #{ctx.to}")
+        assert_selected(view, today(ctx.to), "the pick after #{clicked} passed in #{ctx.to}")
       end
 
       test "through a ?date= link survives a change of timezone",
@@ -177,7 +244,7 @@ defmodule TymeslotWeb.Live.Scheduling.TimezoneChangeSelectionTest do
           )
 
         chosen = Date.add(today(ctx.from), 3)
-        send(view.pid, {:step_event, :schedule, :select_date, Date.to_iso8601(chosen)})
+        click_day(view, chosen)
         assert_selected(view, chosen, "the clicked day on the reschedule")
 
         change_timezone(view, ctx.to)
@@ -234,13 +301,44 @@ defmodule TymeslotWeb.Live.Scheduling.TimezoneChangeSelectionTest do
       assigns.loading_slots != true
   end
 
+  # Brings the day's week on screen, as the week arrows would, then clicks it:
+  # the message the schedule step relays for a click on a day.
+  defp click_day(view, %Date{} = date) do
+    if live_assigns(view).current_week_start != Date.beginning_of_week(date, :monday) do
+      send(view.pid, {:step_event, :schedule, :next_week, nil})
+      wait_until(fn -> settled?(view) end)
+    end
+
+    send(view.pid, {:step_event, :schedule, :select_date, Date.to_iso8601(date)})
+  end
+
   defp assert_selected(view, %Date{} = expected, what) do
     wait_until(fn -> settled?(view) end)
     %{selected_date: selected, user_timezone: zone} = live_assigns(view)
+    expected = Date.to_iso8601(expected)
 
-    assert selected == Date.to_iso8601(expected),
+    assert selected == expected,
            "expected #{what} to be #{expected} (today in #{zone} is #{today(zone)}), " <>
              "found #{inspect(selected)}"
+
+    assert drawn_selected(view) == [expected],
+           "expected #{what}, #{expected}, to be drawn selected, " <>
+             "found #{inspect(drawn_selected(view))}"
+  end
+
+  # The days drawn selected, across both themes' day buttons (Quill's month
+  # grid and narrow-screen week row, Rhythm's week strip).
+  defp drawn_selected(view) do
+    view
+    |> render()
+    |> Floki.parse_document!()
+    |> Floki.find("button[phx-click='select_date'][phx-value-date]")
+    |> Enum.filter(fn button ->
+      classes = button |> Floki.attribute("class") |> List.first("") |> String.split()
+      "selected" in classes or "calendar-day--selected" in classes
+    end)
+    |> Floki.attribute("phx-value-date")
+    |> Enum.uniq()
   end
 
   defp insert_meeting(%{user: user, meeting_type: meeting_type}) do
