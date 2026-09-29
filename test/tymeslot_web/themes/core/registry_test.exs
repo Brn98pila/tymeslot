@@ -7,6 +7,15 @@ defmodule TymeslotWeb.Themes.Core.RegistryTest do
   alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Themes.Core.Registry
 
+  describe "default theme" do
+    test "is the catalog's default, by id and by key" do
+      assert Registry.default_theme_id() == Catalog.default_id()
+      assert Registry.default_theme_key() == Catalog.default_key()
+      assert {:ok, %{key: key}} = Registry.get_theme_by_id(Registry.default_theme_id())
+      assert key == Catalog.default_key()
+    end
+  end
+
   describe "get_theme_by_slug/1" do
     test "finds every catalogue theme by its key as a string" do
       themes = Catalog.all()
