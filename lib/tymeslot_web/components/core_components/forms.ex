@@ -16,6 +16,10 @@ defmodule TymeslotWeb.Components.CoreComponents.Forms do
   error messages for empty fields sets `novalidate` on the `<form>`: the
   attribute still tells assistive technology the field is required, and the
   empty submission reaches the server, which answers with the app's message.
+  `novalidate` switches off every native constraint on the form, not only
+  `required`: `type="email"` and `type="url"`, `minlength`/`maxlength`,
+  `pattern` and `min`/`max`/`step` all go unchecked too, so the server must
+  validate each of them itself.
   """
   use Phoenix.Component
   use Gettext, backend: TymeslotWeb.Gettext

@@ -82,6 +82,8 @@ defmodule TymeslotWeb.Dashboard.MeetingTypeFormCompositionTest do
 
       view |> element("button", "Add Meeting Type") |> render_click()
       assert render(view) =~ "Create Meeting Type"
+      # Empty required fields reach the server, which answers in the form.
+      assert has_element?(view, "form[id^='meeting-type-form-'][novalidate]")
 
       # Remove the default reminder — Phoenix's re-encoder mangles the
       # hidden `reminder_config[][value]/[][unit]` inputs. The create

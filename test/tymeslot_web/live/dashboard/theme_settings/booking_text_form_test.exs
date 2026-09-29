@@ -27,11 +27,13 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BookingTextFormTest do
 
   describe "the form" do
     test "offers the customisation, switched off, on the theme page", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/dashboard/theme")
+      {:ok, view, html} = live(conn, ~p"/dashboard/theme")
 
       assert html =~ "Booking Page Text"
       assert html =~ "Use my own wording"
       assert html =~ ~s(aria-checked="false")
+      # A blank required line is reported by the form, not blocked by the browser.
+      assert has_element?(view, "#booking-text-form-form[novalidate]")
     end
 
     test "shows the fields greyed out rather than hidden while switched off", %{conn: conn} do

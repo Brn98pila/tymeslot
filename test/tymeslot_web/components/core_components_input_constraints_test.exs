@@ -125,10 +125,14 @@ defmodule TymeslotWeb.Components.CoreComponentsInputConstraintsTest do
           required: true
         )
 
-      assert [_control] =
-               html
-               |> Floki.parse_fragment!()
-               |> Floki.find(~s(input#terms[type="checkbox"][required]))
+      doc = Floki.parse_fragment!(html)
+
+      assert [_control] = Floki.find(doc, ~s(input#terms[type="checkbox"][required]))
+
+      # The hidden companion that posts the unchecked value must not be
+      # required: it is not a control anyone can fill in.
+      assert [_hidden] = Floki.find(doc, ~s(input[type="hidden"][name="profile[terms]"]))
+      assert [] = Floki.find(doc, ~s(input[type="hidden"][required]))
     end
 
     test "leave no required attribute behind when the field is optional" do

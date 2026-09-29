@@ -528,6 +528,11 @@ defmodule TymeslotWeb.AuthLiveTest do
 
       assert has_element?(view, "#complete-registration-form")
       assert html =~ "oauth@example.com"
+
+      # The display name stays optional, as the server treats it: a blank one
+      # completes the registration, so the browser must not demand one.
+      assert has_element?(view, "input#full-name")
+      refute has_element?(view, "input#full-name[required]")
     end
 
     test "successful OAuth completion", %{conn: conn} do

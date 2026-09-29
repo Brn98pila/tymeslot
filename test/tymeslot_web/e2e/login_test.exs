@@ -35,7 +35,14 @@ defmodule TymeslotWeb.E2E.LoginTest do
       session
       |> visit("/auth/login")
       |> wait_for_live()
+      |> execute_script("window.__emptyLoginMarker = true")
       |> click(css("button[type='submit']"))
+
+    # The form is a full-page POST, so a submit that got through would load a
+    # new document and take the marker with it.
+    execute_script(session, "return window.__emptyLoginMarker === true", fn kept? ->
+      assert kept?
+    end)
 
     assert current_path(session) == "/auth/login"
 
