@@ -325,6 +325,23 @@ defmodule Tymeslot.ThemeCustomizations do
     end
   end
 
+  @doc """
+  What the onboarding wizard offers for a theme (`Spec.onboarding_choices/0`),
+  or `nil` when its spec offers nothing. An unknown theme reads the default
+  theme's spec.
+  """
+  @spec onboarding_choices(theme_id()) :: Spec.onboarding_choices()
+  def onboarding_choices(theme_id) do
+    spec = Specs.for_theme(theme_id)
+
+    # Optional callback: a spec written without `use Spec` may leave it out.
+    # `ensure_loaded?/1` first, because in dev and test a module is loaded on
+    # first use and `function_exported?/3` is false until then.
+    if Code.ensure_loaded?(spec) and function_exported?(spec, :onboarding_choices, 0),
+      do: spec.onboarding_choices(),
+      else: nil
+  end
+
   defp option_group(theme_id, key) do
     case Enum.find(option_groups(theme_id), &(&1.key == key)) do
       nil -> :error

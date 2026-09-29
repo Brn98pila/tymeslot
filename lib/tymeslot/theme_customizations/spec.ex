@@ -16,7 +16,8 @@ defmodule Tymeslot.ThemeCustomizations.Spec do
   and background variables plus every group's media (`Specs.media/2` merges
   each group's optional `media/2` into `Tokens.media`). All three stay
   overridable; a spec with tokens of its own overrides `tokens/2` and starts
-  from `Specs.tokens/3`.
+  from `Specs.tokens/3`. It also generates `onboarding_choices/0` from the
+  palette group, which a spec may override.
 
   `Spec` is only the contract and calls nothing, so `use Spec` costs a theme no
   compile-time coupling. The questions asked of a spec (`group/2`,
@@ -42,6 +43,21 @@ defmodule Tymeslot.ThemeCustomizations.Spec do
 
   @typedoc "What an uploaded asset field stores."
   @type asset_kind :: :image | :video
+
+  @typedoc """
+  What the onboarding wizard offers for a theme: the option group and field a
+  choice writes (through `ThemeCustomizations.apply_option/4`), the stored
+  setting that holds the current choice, and the choices. `nil` hides the
+  wizard's choice row.
+  """
+  @type onboarding_choices ::
+          nil
+          | %{
+              group: atom(),
+              field: String.t(),
+              setting: String.t(),
+              choices: [%{value: String.t(), name: String.t(), swatch: String.t()}]
+            }
 
   @doc "The option groups the theme offers, in dashboard panel order."
   @callback option_groups() :: [OptionGroup.group()]
@@ -72,6 +88,15 @@ defmodule Tymeslot.ThemeCustomizations.Spec do
   """
   @callback asset_fields() :: [{atom(), asset_kind()}]
 
+  @doc """
+  What the onboarding wizard lets the organiser pick for this theme.
+  `use Spec` generates it from the palette group (`Specs.palette_choices/1`);
+  `nil` when there is none.
+  """
+  @callback onboarding_choices() :: onboarding_choices()
+
+  @optional_callbacks onboarding_choices: 0
+
   @doc false
   defmacro __using__(_opts) do
     quote do
@@ -90,7 +115,10 @@ defmodule Tymeslot.ThemeCustomizations.Spec do
       @impl unquote(__MODULE__)
       def tokens(settings, overrides), do: Specs.tokens(__MODULE__, settings, overrides)
 
-      defoverridable changeset: 2, asset_fields: 0, tokens: 2
+      @impl unquote(__MODULE__)
+      def onboarding_choices, do: Specs.palette_choices(__MODULE__)
+
+      defoverridable changeset: 2, asset_fields: 0, tokens: 2, onboarding_choices: 0
     end
   end
 end

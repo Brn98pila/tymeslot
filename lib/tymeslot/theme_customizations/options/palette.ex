@@ -98,6 +98,24 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
   def changes("seed", hex, _group), do: {:ok, %{"custom_palette_seed" => hex}}
   def changes(_field, _value, _group), do: :error
 
+  @doc """
+  The palette's schemes as onboarding choices, in the group's `schemes:`
+  order. Choosing one is `apply_option/4` with the `"scheme"` field; the
+  choice is stored as `color_scheme`. The swatch is the scheme's primary.
+  """
+  @spec onboarding_choices(group()) :: Spec.onboarding_choices()
+  def onboarding_choices(%{key: key} = group) do
+    %{
+      group: key,
+      field: "scheme",
+      setting: "color_scheme",
+      choices:
+        for {id, %{name: name, colors: %{primary: swatch}}} <- schemes(group) do
+          %{value: id, name: name, swatch: swatch}
+        end
+    }
+  end
+
   @doc "The group's preset schemes as `{id, scheme}`, in the group's order."
   @spec schemes(group()) :: [{String.t(), Presets.color_scheme_preset()}]
   def schemes(%{schemes: ids}), do: Presets.take(:color_scheme, ids)

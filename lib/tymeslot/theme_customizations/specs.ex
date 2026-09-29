@@ -94,6 +94,18 @@ defmodule Tymeslot.ThemeCustomizations.Specs do
   @spec group(module(), module()) :: OptionGroup.group() | nil
   def group(spec, module), do: Enum.find(spec.option_groups(), &(&1.module == module))
 
+  @doc """
+  The onboarding choices of a spec's palette group, or `nil` when it has none:
+  the default `onboarding_choices/0` that `use Spec` generates.
+  """
+  @spec palette_choices(module()) :: Spec.onboarding_choices()
+  def palette_choices(spec) do
+    case group(spec, Palette) do
+      nil -> nil
+      palette -> Palette.onboarding_choices(palette)
+    end
+  end
+
   @doc "The background kinds a spec declares; empty when it has no background group."
   @spec background_kinds(module()) :: [Spec.background_kind()]
   def background_kinds(spec) do
