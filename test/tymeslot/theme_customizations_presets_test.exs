@@ -33,13 +33,9 @@ defmodule Tymeslot.ThemeCustomizationsPresetsTest do
       assert Map.has_key?(images, "preset:artistic-studio")
     end
 
-    test "get_all_presets/0 returns organized presets" do
-      all = Presets.get_all_presets()
-
-      assert Map.has_key?(all, :color_schemes)
-      assert Map.has_key?(all, :gradients)
-      assert Map.has_key?(all, :videos)
-      assert Map.has_key?(all, :images)
+    test "take/2 returns the named presets in the order given, leaving out unknown ids" do
+      assert [{"ocean", %{name: "Ocean Breeze"}}, {"default", %{name: "Default Turquoise"}}] =
+               Presets.take(:color_scheme, ["ocean", "nope", "default"])
     end
 
     test "find_preset_by_id/2 finds color scheme" do

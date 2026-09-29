@@ -6,6 +6,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
 
   alias Ecto.Changeset
   alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.QuillSpec
   alias Tymeslot.ThemeCustomizations.RhythmSpec
   alias Tymeslot.ThemeCustomizations.Spec
@@ -47,7 +48,13 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
     @impl Tymeslot.ThemeCustomizations.Spec
     def option_groups,
       do: [
-        %{key: :background, module: Background, kinds: [:gradient, :color, :image]},
+        %{
+          key: :background,
+          module: Background,
+          kinds: [:gradient, :color, :image],
+          gradients: ["gradient_1"],
+          images: ["preset:ocean-sunset"]
+        },
         %{key: :tagline, module: TaglineOption, max: 10}
       ]
 
@@ -63,6 +70,31 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
   defp validate(spec, attrs) do
     {%{}, Spec.setting_types(spec)} |> Changeset.change() |> spec.changeset(attrs)
   end
+
+  @list_keys %{gradient: :gradients, image: :images, video: :videos}
+
+  # Every id a group lists that the catalogue does not ship, as {list, id}.
+  # An empty list is not a problem in itself: a seed-only palette lists no
+  # schemes (its defaults then fail "defaults pass its own changeset" unless
+  # they store a seed), and an upload-only image kind lists no images.
+  defp unknown_presets(spec) do
+    Enum.flat_map(spec.option_groups(), fn
+      %{module: Palette} = group ->
+        unknown(:schemes, group.schemes, Palette.schemes(group))
+
+      %{module: Background, kinds: kinds} = group ->
+        Enum.flat_map(kinds -- [:color], fn kind ->
+          key = Map.fetch!(@list_keys, kind)
+          unknown(key, Map.get(group, key, []), Background.presets(group, kind))
+        end)
+
+      _other_group ->
+        []
+    end)
+  end
+
+  defp unknown(list, ids, resolved),
+    do: Enum.map(ids -- Enum.map(resolved, &elem(&1, 0)), &{list, &1})
 
   describe "use Spec" do
     test "setting_types/1 merges every group module's types" do
@@ -98,6 +130,22 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
     test "group/2 finds a spec's group by its module" do
       assert %{key: :tagline, max: 10} = Spec.group(StillSpec, TaglineOption)
       assert Spec.group(QuillSpec, TaglineOption) == nil
+    end
+  end
+
+  describe "preset lists" do
+    # Every catalogue theme, so a new one is checked the moment it is listed.
+    for {_key, theme} <- Catalog.all() do
+      test "#{theme.name} lists only shipped presets" do
+        assert unknown_presets(unquote(theme.customization_spec)) == []
+      end
+    end
+
+    test "a group refuses a shipped preset it does not list" do
+      cs =
+        validate(StillSpec, %{"background_type" => "gradient", "background_value" => "gradient_2"})
+
+      assert {"must be a valid gradient preset", _opts} = cs.errors[:background_value]
     end
   end
 

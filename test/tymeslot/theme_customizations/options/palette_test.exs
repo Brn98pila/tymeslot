@@ -7,12 +7,12 @@ defmodule Tymeslot.ThemeCustomizations.Options.PaletteTest do
   alias Ecto.Changeset
   alias Tymeslot.ThemeCustomizations.Options.Palette
 
-  @group %{key: :palette, module: Palette}
+  @group %{key: :palette, module: Palette, schemes: ~w(default forest ocean purple)}
 
-  defp changeset(attrs) do
+  defp changeset(attrs, group \\ @group) do
     {%{}, Palette.types()}
     |> Changeset.change()
-    |> Palette.changeset(attrs, @group)
+    |> Palette.changeset(attrs, group)
   end
 
   describe "changeset/3" do
@@ -33,6 +33,13 @@ defmodule Tymeslot.ThemeCustomizations.Options.PaletteTest do
 
     test "rejects an unknown preset scheme when no seed is set" do
       cs = changeset(%{"color_scheme" => "neon"})
+
+      refute cs.valid?
+      assert {"is invalid", _opts} = cs.errors[:color_scheme]
+    end
+
+    test "rejects a shipped scheme the group does not list" do
+      cs = changeset(%{"color_scheme" => "rose"})
 
       refute cs.valid?
       assert {"is invalid", _opts} = cs.errors[:color_scheme]
@@ -65,6 +72,30 @@ defmodule Tymeslot.ThemeCustomizations.Options.PaletteTest do
 
     test "any other field is refused" do
       assert Palette.changes("logo", "x.png", @group) == :error
+    end
+  end
+
+  describe "schemes/1" do
+    test "the group's schemes, in the group's order" do
+      assert [{"ocean", %{name: "Ocean Breeze"}}, {"forest", %{name: "Forest Green"}}] =
+               Palette.schemes(%{@group | schemes: ["ocean", "forest"]})
+    end
+  end
+
+  describe "resolve/1" do
+    test "derives the palette from a stored seed" do
+      assert %{name: "Custom", colors: %{primary: "#ff6b35"}} =
+               Palette.resolve(%{"color_scheme" => "purple", "custom_palette_seed" => "#ff6b35"})
+    end
+
+    test "is the named preset when no seed is stored" do
+      assert %{name: "Purple Dream", colors: %{primary: "#8b5cf6"}} =
+               Palette.resolve(%{"color_scheme" => "purple", "custom_palette_seed" => nil})
+    end
+
+    test "is nil for an unknown scheme and no seed" do
+      assert Palette.resolve(%{"color_scheme" => "nonexistent", "custom_palette_seed" => nil}) ==
+               nil
     end
   end
 

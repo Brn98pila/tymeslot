@@ -5,11 +5,13 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
   settings.
 
   An `OptionGroup`: a spec lists it as `%{key: :background, module:
-  Options.Background, kinds: [...]}`, naming the kinds its theme offers.
-  `changeset/3` and `changes/3` refuse the rest, so no write path can store a
-  background the theme cannot show, and `asset_fields/1` offers only the
-  uploads of offered kinds. A `preset:` value must name a shipped preset; any
-  other image or video value is an upload and needs its stored path.
+  Options.Background, kinds: [...]}`, naming the kinds its theme offers, and
+  the preset ids it offers of each: `gradients:`, `images:`, `videos:`, in
+  picker order. A preset outside them is refused. `changeset/3` and
+  `changes/3` refuse the rest, so no write path can store a background the
+  theme cannot show, and `asset_fields/1` offers only the uploads of offered
+  kinds. A `preset:` value must be one of the group's; any other image or
+  video value is an upload and needs its stored path.
   """
 
   import Ecto.Changeset
@@ -32,6 +34,7 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
   }
   @fields Map.keys(@types)
   @asset_fields [background_image_path: :image, background_video_path: :video]
+  @preset_lists %{gradient: :gradients, image: :images, video: :videos}
   @kinds_by_type %{
     "gradient" => :gradient,
     "color" => :color,
@@ -60,19 +63,33 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
           | %{kind: :image, url: String.t()}
           | %{kind: :video, sources: [video_source()], poster: String.t() | nil}
 
+  @typedoc """
+  A background group: the kinds the theme offers, and for each preset kind
+  the preset ids it offers, in picker order. A missing list offers none.
+  """
+  @type group :: %{
+          required(:key) => atom(),
+          required(:module) => module(),
+          required(:kinds) => [Spec.background_kind()],
+          optional(:gradients) => [String.t()],
+          optional(:images) => [String.t()],
+          optional(:videos) => [String.t()],
+          optional(atom()) => term()
+        }
+
   @doc "The settings the background stores, with their Ecto types."
   @impl OptionGroup
   def types, do: @types
 
   @doc "Casts and validates the background settings against the kinds the group offers."
   @impl OptionGroup
-  def changeset(changeset, attrs, %{kinds: kinds}) do
+  def changeset(changeset, attrs, %{kinds: kinds} = group) do
     changeset
     |> cast(attrs, @fields)
     |> validate_required([:background_type])
     |> validate_inclusion(:background_type, Map.keys(@kinds_by_type))
     |> validate_supported(kinds)
-    |> validate_value()
+    |> validate_value(group)
   end
 
   @doc "The upload settings of the kinds the group offers, and what each stores."
@@ -99,6 +116,10 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
       :error
     end
   end
+
+  @doc "The group's presets of one kind as `{id, preset}`, in the group's order."
+  @spec presets(group(), :gradient | :image | :video) :: [{String.t(), Presets.preset()}]
+  def presets(group, kind), do: Presets.take(kind, preset_ids(group, kind))
 
   @doc """
   Resolves the stored background into a descriptor the theme wrapper renders.
@@ -224,12 +245,12 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
     end
   end
 
-  defp validate_value(changeset) do
+  defp validate_value(changeset, group) do
     case get_field(changeset, :background_type) do
       "gradient" ->
         validate_preset(
           changeset,
-          Presets.get_gradient_presets(),
+          preset_ids(group, :gradient),
           "must be a valid gradient preset"
         )
 
@@ -237,18 +258,20 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
         cast_colour(changeset)
 
       "image" ->
-        validate_media(changeset, Presets.get_image_presets(), :background_image_path, "image")
+        validate_media(changeset, preset_ids(group, :image), :background_image_path, "image")
 
       "video" ->
-        validate_media(changeset, Presets.get_video_presets(), :background_video_path, "video")
+        validate_media(changeset, preset_ids(group, :video), :background_video_path, "video")
 
       _invalid_type ->
         changeset
     end
   end
 
-  defp validate_preset(changeset, presets, message) do
-    if Map.has_key?(presets, get_field(changeset, :background_value)),
+  defp preset_ids(group, kind), do: Map.get(group, Map.fetch!(@preset_lists, kind), [])
+
+  defp validate_preset(changeset, ids, message) do
+    if get_field(changeset, :background_value) in ids,
       do: changeset,
       else: add_error(changeset, :background_value, message)
   end
@@ -260,12 +283,12 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
     end
   end
 
-  defp validate_media(changeset, presets, path_field, label) do
+  defp validate_media(changeset, ids, path_field, label) do
     value = get_field(changeset, :background_value)
 
     cond do
       is_binary(value) and String.starts_with?(value, "preset:") ->
-        validate_preset(changeset, presets, "must be a valid #{label} preset")
+        validate_preset(changeset, ids, "must be a valid #{label} preset")
 
       get_field(changeset, path_field) ->
         changeset

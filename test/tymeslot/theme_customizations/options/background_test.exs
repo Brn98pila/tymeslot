@@ -9,7 +9,15 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
 
   @all_kinds [:gradient, :color, :image, :video]
 
-  defp group(kinds), do: %{key: :background, module: Background, kinds: kinds}
+  defp group(kinds),
+    do: %{
+      key: :background,
+      module: Background,
+      kinds: kinds,
+      gradients: ["gradient_1", "gradient_4"],
+      images: ["preset:ocean-sunset"],
+      videos: ["preset:space"]
+    }
 
   defp changeset(attrs, kinds \\ @all_kinds) do
     {%{}, Background.types()}
@@ -65,6 +73,19 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
       assert error(video, :background_value) == "must be a valid video preset"
     end
 
+    test "rejects a shipped preset the group does not list" do
+      gradient = changeset(%{"background_type" => "gradient", "background_value" => "gradient_2"})
+
+      image =
+        changeset(%{"background_type" => "image", "background_value" => "preset:space-satellite"})
+
+      video = changeset(%{"background_type" => "video", "background_value" => "preset:blue-wave"})
+
+      assert error(gradient, :background_value) == "must be a valid gradient preset"
+      assert error(image, :background_value) == "must be a valid image preset"
+      assert error(video, :background_value) == "must be a valid video preset"
+    end
+
     test "requires the stored path for an uploaded video" do
       cs = changeset(%{"background_type" => "video", "background_value" => "custom"})
       assert error(cs, :background_video_path) == "is required for uploaded video background"
@@ -111,6 +132,18 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
 
     test "refuses a kind the group does not offer" do
       assert Background.changes("video", "preset:space", group([:gradient, :color])) == :error
+    end
+  end
+
+  describe "presets/2" do
+    test "the group's presets of one kind, in the group's order" do
+      assert [{"gradient_1", %{name: "Aurora"}}, {"gradient_4", %{name: "Forest"}}] =
+               Background.presets(group(@all_kinds), :gradient)
+    end
+
+    test "nothing for a kind the group lists no presets of" do
+      assert Background.presets(%{key: :background, module: Background, kinds: [:color]}, :video) ==
+               []
     end
   end
 

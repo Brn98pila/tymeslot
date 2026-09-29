@@ -5,7 +5,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias TymeslotWeb.Live.Scheduling.PreviewMode
@@ -109,7 +108,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-          <% current_scheme = ThemeCustomizations.resolve_active_scheme(@customization, @presets) %>
+          <% current_scheme = Palette.resolve(@customization.settings) %>
           <% custom_selected = not is_nil(@customization.settings["custom_palette_seed"]) %>
           <%= if current_scheme do %>
             <.current_indicator
@@ -156,10 +155,12 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
         <% active_scheme_id =
           if is_nil(@customization.settings["custom_palette_seed"]),
             do: @customization.settings["color_scheme"] %>
-        <%!-- The param is named `choice` rather than `value`, because LiveView's
+        <%!-- Sorted by id, the order the dashboard has always shown; the group's
+        own order is onboarding's.
+        The param is named `choice` rather than `value`, because LiveView's
         client serialisation reads a button's native `value` IDL property and
         would overwrite `phx-value-value` with the empty string. --%>
-        <%= for {scheme_id, scheme} <- @presets.color_schemes do %>
+        <%= for {scheme_id, scheme} <- Enum.sort_by(Palette.schemes(@group), &elem(&1, 0)) do %>
           <button
             type="button"
             class={[
@@ -274,7 +275,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
               <.gradient_picker
                 option={@group.key}
                 customization={@customization}
-                presets={@presets}
+                presets={Background.presets(@group, :gradient)}
                 myself={@myself}
               />
             <% "color" -> %>
@@ -288,7 +289,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
               <.image_picker
                 option={@group.key}
                 customization={@customization}
-                presets={@presets}
+                presets={Background.presets(@group, :image)}
                 uploads={@uploads}
                 myself={@myself}
               />
@@ -296,7 +297,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
               <.video_picker
                 option={@group.key}
                 customization={@customization}
-                presets={@presets}
+                presets={Background.presets(@group, :video)}
                 uploads={@uploads}
                 myself={@myself}
               />

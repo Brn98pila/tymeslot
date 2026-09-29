@@ -6,13 +6,13 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.Gradien
 
   @doc """
   Renders the gradient picker.
-  Expects assigns: option, customization, presets, myself
+  Expects assigns: option, customization, presets (the group's gradients as `{id, preset}`, in order), myself
   """
   @spec gradient_picker(map()) :: Phoenix.LiveView.Rendered.t()
   def gradient_picker(assigns) do
     ~H"""
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-      <%= for {gradient_id, gradient} <- @presets.gradients do %>
+      <%= for {gradient_id, gradient} <- @presets do %>
         <button
           type="button"
           class={[

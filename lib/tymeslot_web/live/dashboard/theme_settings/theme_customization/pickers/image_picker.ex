@@ -9,7 +9,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
 
   @doc """
   Renders the image picker.
-  Expects assigns: option, customization, presets, uploads, myself
+  Expects assigns: option, customization, presets (the group's images as `{id, preset}`, in order), uploads, myself
   """
   @spec image_picker(map()) :: Phoenix.LiveView.Rendered.t()
   def image_picker(assigns) do
@@ -20,7 +20,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
           {dgettext("dashboard_appearance", "Choose from our collection")}
         </p>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <%= for {image_id, image} <- @presets.images do %>
+          <%= for {image_id, image} <- @presets do %>
             <button
               type="button"
               class={[

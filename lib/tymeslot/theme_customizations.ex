@@ -19,7 +19,6 @@ defmodule Tymeslot.ThemeCustomizations do
   # Functional submodules
   alias __MODULE__.{
     Assets,
-    Css,
     DataTransform,
     FileLifecycle,
     Presets,
@@ -229,23 +228,18 @@ defmodule Tymeslot.ThemeCustomizations do
   # New orchestrator functions for component interface
 
   @doc """
-  Initializes customization data for the component.
-  Returns all data needed for component initialization.
+  The customisation the dashboard starts from: the saved one, or the theme's
+  defaults unsaved, plus the saved original.
   """
   @spec initialize_customization(profile_id(), theme_id()) :: %{
           customization: ThemeCustomizationSchema.t(),
-          original: ThemeCustomizationSchema.t(),
-          presets: map()
+          original: ThemeCustomizationSchema.t()
         }
   def initialize_customization(profile_id, theme_id) do
     saved = get_by_profile_and_theme(profile_id, theme_id)
     customization = saved || default_customization(profile_id, theme_id)
 
-    %{
-      customization: customization,
-      original: saved || customization,
-      presets: Presets.get_all_presets()
-    }
+    %{customization: customization, original: saved || customization}
   end
 
   @default_custom_palette_seed "#06b6d4"
@@ -256,18 +250,6 @@ defmodule Tymeslot.ThemeCustomizations do
   """
   @spec default_custom_palette_seed() :: String.t()
   def default_custom_palette_seed, do: @default_custom_palette_seed
-
-  @doc """
-  Resolves the active colour scheme for a customization, returning the same
-  `%{name, colors}` shape used by both presets and palette derivation.
-
-  When `custom_palette_seed` is present on the customization, the palette is
-  derived from that seed; otherwise the `color_scheme` field is looked up in
-  the provided `presets.color_schemes` map.  Returns `nil` if neither resolves
-  to a known scheme.
-  """
-  @spec resolve_active_scheme(ThemeCustomizationSchema.t() | map(), map()) :: map() | nil
-  defdelegate resolve_active_scheme(customization, presets), to: Css
 
   @doc """
   Applies one option change from the customisation panel.

@@ -23,12 +23,6 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
           required(:description) => String.t()
         }
   @type preset :: color_scheme_preset() | gradient_preset() | image_preset() | video_preset()
-  @type all_presets :: %{
-          required(:color_schemes) => %{String.t() => color_scheme_preset()},
-          required(:gradients) => %{String.t() => gradient_preset()},
-          required(:videos) => %{String.t() => video_preset()},
-          required(:images) => %{String.t() => image_preset()}
-        }
 
   @color_schemes %{
     "default" => %{
@@ -275,16 +269,18 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
   def get_image_presets, do: @images
 
   @doc """
-  Gets all presets organized by type.
+  The presets of one type that `ids` names, as `{id, preset}` in the order
+  given. An id the catalogue does not hold is left out.
   """
-  @spec get_all_presets() :: all_presets()
-  def get_all_presets do
-    %{
-      color_schemes: get_color_schemes(),
-      gradients: get_gradient_presets(),
-      videos: get_video_presets(),
-      images: get_image_presets()
-    }
+  @spec take(:color_scheme | :gradient | :video | :image, [String.t()]) ::
+          [{String.t(), preset()}]
+  def take(preset_type, ids) do
+    Enum.flat_map(ids, fn id ->
+      case find_preset_by_id(preset_type, id) do
+        nil -> []
+        preset -> [{id, preset}]
+      end
+    end)
   end
 
   @doc """

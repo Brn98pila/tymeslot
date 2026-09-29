@@ -7,7 +7,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.VideoPi
 
   @doc """
   Renders the video picker.
-  Expects assigns: option, customization, presets, uploads, myself
+  Expects assigns: option, customization, presets (the group's videos as `{id, preset}`, in order), uploads, myself
   """
   @spec video_picker(map()) :: Phoenix.LiveView.Rendered.t()
   def video_picker(assigns) do
@@ -18,7 +18,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.VideoPi
           {dgettext("dashboard_appearance", "Choose from our collection")}
         </p>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <%= for {video_id, video} <- @presets.videos do %>
+          <%= for {video_id, video} <- @presets do %>
             <button
               type="button"
               class={[

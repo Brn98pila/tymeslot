@@ -9,7 +9,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
     - theme_id: String.t()
   - Provided/managed by this component (do not pass these in):
     - customization: map with current customization state (see customization_t())
-    - presets: preset collections for color schemes and backgrounds (see presets_t())
     - option_groups: the theme spec's option groups, one panel each (`ThemeCustomizations.option_groups/1`)
     - browsing_type: String.t() – which background category is currently browsed (one of the background group's kinds)
     - uploads: map() – upload entries, present only when the spec declares asset fields
@@ -31,32 +30,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components
   alias TymeslotWeb.Live.Shared.Flash
 
-  @typedoc "Preset collections used by the component"
-  @type presets_t :: %{
-          required(:color_schemes) => %{optional(String.t()) => map()},
-          required(:gradients) => %{
-            optional(String.t()) => %{
-              required(:name) => String.t(),
-              required(:value) => String.t()
-            }
-          },
-          required(:images) => %{
-            optional(String.t()) => %{
-              required(:name) => String.t(),
-              required(:file) => String.t(),
-              optional(:description) => String.t()
-            }
-          },
-          required(:videos) => %{
-            optional(String.t()) => %{
-              required(:name) => String.t(),
-              required(:file) => String.t(),
-              required(:thumbnail) => String.t(),
-              optional(:description) => String.t()
-            }
-          }
-        }
-
   @typedoc "Customization applied to the theme"
   @type customization_t :: Tymeslot.ThemeCustomizations.ThemeCustomizationSchema.t()
 
@@ -65,7 +38,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
           required(:profile) => Tymeslot.Profiles.ProfileSchema.t(),
           required(:theme_id) => String.t(),
           required(:customization) => customization_t(),
-          required(:presets) => presets_t(),
           required(:option_groups) => [map()],
           required(:browsing_type) => String.t() | nil,
           optional(:uploads) => map() | nil,
@@ -92,7 +64,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   def update(assigns, socket) do
     theme_id = assigns[:theme_id] || Catalog.default_id()
 
-    %{customization: customization, presets: presets} =
+    %{customization: customization} =
       ThemeCustomizations.initialize_customization(assigns.profile.id, theme_id)
 
     option_groups = ThemeCustomizations.option_groups(theme_id)
@@ -105,7 +77,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
        parent_component: assigns[:parent_component],
        theme_id: theme_id,
        customization: customization,
-       presets: presets,
        option_groups: option_groups
      )
      |> BackgroundUploads.configure(__MODULE__, ThemeCustomizations.asset_fields(theme_id))
@@ -131,7 +102,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
         :for={group <- @option_groups}
         group={group}
         customization={@customization}
-        presets={@presets}
         uploads={assigns[:uploads]}
         myself={@myself}
         browsing_type={@browsing_type}

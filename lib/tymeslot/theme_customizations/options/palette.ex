@@ -5,7 +5,10 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
   settings; a present seed is the source of truth and the scheme name is then
   left unconstrained.
 
-  An `OptionGroup`: a spec lists it as `%{key: :palette, module: Options.Palette}`.
+  An `OptionGroup`: a spec lists it as `%{key: :palette, module:
+  Options.Palette, schemes: [...]}`, `schemes` being the preset ids the theme
+  offers, in the theme's presentation order (onboarding shows them in it; the
+  dashboard sorts them by id). A preset scheme outside them is refused.
   """
 
   import Ecto.Changeset
@@ -45,17 +48,25 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
   @typedoc "Per-request overrides a single page view may apply on top of the saved palette."
   @type overrides :: %{optional(:primary_color) => String.t()}
 
+  @typedoc "A palette group: the preset scheme ids the theme offers, in its presentation order."
+  @type group :: %{
+          required(:key) => atom(),
+          required(:module) => module(),
+          required(:schemes) => [String.t()],
+          optional(atom()) => term()
+        }
+
   @doc "The settings the palette stores, with their Ecto types."
   @impl OptionGroup
   def types, do: @types
 
   @doc "Casts and validates the palette settings."
   @impl OptionGroup
-  def changeset(changeset, attrs, _group) do
+  def changeset(changeset, attrs, group) do
     changeset
     |> cast(attrs, @fields)
     |> cast_seed()
-    |> validate_scheme_unless_seeded()
+    |> validate_scheme_unless_seeded(group.schemes)
   end
 
   @doc """
@@ -68,6 +79,10 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
 
   def changes("seed", hex, _group), do: {:ok, %{"custom_palette_seed" => hex}}
   def changes(_field, _value, _group), do: :error
+
+  @doc "The group's preset schemes as `{id, scheme}`, in the group's order."
+  @spec schemes(group()) :: [{String.t(), Presets.color_scheme_preset()}]
+  def schemes(%{schemes: ids}), do: Presets.take(:color_scheme, ids)
 
   @doc """
   The active palette (`%{name: _, colors: _}`): derived from the seed when one
@@ -134,13 +149,13 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
     end
   end
 
-  defp validate_scheme_unless_seeded(changeset) do
+  defp validate_scheme_unless_seeded(changeset, scheme_ids) do
     if get_field(changeset, :custom_palette_seed) do
       changeset
     else
       changeset
       |> validate_required([:color_scheme])
-      |> validate_inclusion(:color_scheme, Map.keys(Presets.get_color_schemes()))
+      |> validate_inclusion(:color_scheme, scheme_ids)
     end
   end
 end

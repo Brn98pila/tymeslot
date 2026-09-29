@@ -19,12 +19,9 @@ defmodule Tymeslot.ThemeCustomizationsLifecycleTest do
 
       assert %{
                customization: %ThemeCustomizationSchema{},
-               original: %ThemeCustomizationSchema{},
-               presets: presets
+               original: %ThemeCustomizationSchema{}
              } = result
 
-      assert Map.has_key?(presets, :color_schemes)
-      assert Map.has_key?(presets, :gradients)
       assert result.customization.settings["background_value"] == "gradient_1"
       assert result.customization.profile_id == profile.id
     end

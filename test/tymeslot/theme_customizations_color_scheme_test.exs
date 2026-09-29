@@ -84,63 +84,6 @@ defmodule Tymeslot.ThemeCustomizationsColorSchemeTest do
     end
   end
 
-  describe "resolve_active_scheme/2" do
-    setup do
-      presets = %{
-        color_schemes: %{
-          "purple" => %{
-            name: "Purple Dream",
-            colors: %{
-              primary: "#8b5cf6",
-              primary_hover: "#7c3aed",
-              secondary: "#a78bfa",
-              accent: "#c084fc",
-              background: "#1e1b4b",
-              surface: "rgba(46, 38, 84, 0.5)",
-              text: "#ede9fe",
-              text_secondary: "#c4b5fd"
-            }
-          }
-        }
-      }
-
-      %{presets: presets}
-    end
-
-    test "returns derived palette when seed is present", %{presets: presets} do
-      customization = %{
-        color_scheme: "purple",
-        custom_palette_seed: "#ff6b35"
-      }
-
-      result = ThemeCustomizations.resolve_active_scheme(customization, presets)
-
-      assert result.name == "Custom"
-      assert result.colors.primary == "#ff6b35"
-    end
-
-    test "returns preset scheme when no seed is set and scheme_id is known", %{presets: presets} do
-      customization = %{
-        color_scheme: "purple",
-        custom_palette_seed: nil
-      }
-
-      result = ThemeCustomizations.resolve_active_scheme(customization, presets)
-
-      assert result.name == "Purple Dream"
-      assert result.colors.primary == "#8b5cf6"
-    end
-
-    test "returns nil when no seed and scheme_id is unknown", %{presets: presets} do
-      customization = %{
-        color_scheme: "nonexistent",
-        custom_palette_seed: nil
-      }
-
-      assert ThemeCustomizations.resolve_active_scheme(customization, presets) == nil
-    end
-  end
-
   defp scheme(profile, scheme_id),
     do:
       ThemeCustomizations.apply_option(profile.id, "1", :palette, %{
