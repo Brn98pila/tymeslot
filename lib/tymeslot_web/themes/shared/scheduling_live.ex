@@ -37,6 +37,11 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
     events, as `(socket, name, params)`, and for schedule events the flow
     does not know
   - `handle_theme_info/2` for messages of the theme's own
+
+  An override replaces the hook's default clause wholesale, and any visitor
+  can send `theme:<anything>`, so an override of `handle_theme_event/3` or
+  `handle_theme_schedule_event/3` ends with a catch-all clause returning
+  `{:noreply, socket}`; without one, an unknown name raises.
   """
 
   @steps [:overview, :schedule, :questions, :booking, :confirmation]
