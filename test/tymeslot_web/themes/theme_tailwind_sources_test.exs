@@ -5,8 +5,11 @@ defmodule TymeslotWeb.Themes.ThemeTailwindSourcesTest do
   The theme bundles scan only the theme tree and the web-layer files a booking
   page reaches, so a component a theme starts to call from elsewhere in the
   web layer would lose its utility classes without any build error. This walks
-  the remote calls in the compiled theme modules, and in everything they reach
-  inside the web layer, and fails for any source file the list leaves out.
+  the compiled theme modules and everything they reach inside the web layer,
+  following remote calls and every web-layer module named as a value (a
+  `module={...}` attribute, an `apply/3`, a `{module, fun}` tuple), and fails
+  for any source file, or `.heex` template the module records as an external
+  resource, that the list leaves out.
   """
 
   use ExUnit.Case, async: true
@@ -56,8 +59,17 @@ defmodule TymeslotWeb.Themes.ThemeTailwindSourcesTest do
 
     web
     |> walk([TymeslotWeb.Layouts | roots], MapSet.new())
-    |> Enum.map(&Map.fetch!(web, &1))
+    |> Enum.flat_map(&[Map.fetch!(web, &1) | templates(&1)])
     |> Enum.uniq()
+  end
+
+  # The .heex files a module compiles in (embed_templates, a colocated
+  # LiveView template): each is recorded as an external resource.
+  defp templates(module) do
+    for path <- Keyword.get_values(module.__info__(:attributes), :external_resource),
+        path = Path.expand(to_string(path)),
+        String.ends_with?(path, ".heex"),
+        do: path
   end
 
   defp walk(_web, [], seen), do: seen
@@ -75,8 +87,40 @@ defmodule TymeslotWeb.Themes.ThemeTailwindSourcesTest do
     if String.contains?(source, "/lib/tymeslot_web"), do: Path.expand(source)
   end
 
+  # Every module the compiled code calls or names: the import table covers
+  # remote calls, the atom table and the literal table cover modules used as
+  # values. Atoms that are not web-layer modules are dropped by walk/3.
   defp callees(module) do
-    {:ok, {^module, [imports: imports]}} = :beam_lib.chunks(:code.which(module), [:imports])
-    imports |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
+    beam = :code.which(module)
+
+    {:ok, {^module, [imports: imports, atoms: atoms]}} =
+      :beam_lib.chunks(beam, [:imports, :atoms])
+
+    Enum.uniq(
+      Enum.map(imports, &elem(&1, 0)) ++ Enum.map(atoms, &elem(&1, 1)) ++ literal_atoms(beam)
+    )
   end
+
+  defp literal_atoms(beam) do
+    case :beam_lib.chunks(beam, [~c"LitT"]) do
+      {:ok, {_module, [{~c"LitT", <<size::32, table::binary>>}]}} ->
+        table = if size == 0, do: table, else: :zlib.uncompress(table)
+        <<_count::32, entries::binary>> = table
+        literal_atoms(entries, [])
+
+      {:error, :beam_lib, {:missing_chunk, _beam, _chunk}} ->
+        []
+    end
+  end
+
+  defp literal_atoms(<<>>, acc), do: acc
+
+  defp literal_atoms(<<size::32, term::binary-size(size), rest::binary>>, acc),
+    do: literal_atoms(rest, atoms_in(:erlang.binary_to_term(term), acc))
+
+  defp atoms_in(term, acc) when is_atom(term), do: [term | acc]
+  defp atoms_in([head | tail], acc), do: atoms_in(tail, atoms_in(head, acc))
+  defp atoms_in(term, acc) when is_tuple(term), do: atoms_in(Tuple.to_list(term), acc)
+  defp atoms_in(term, acc) when is_map(term), do: atoms_in(Map.to_list(term), acc)
+  defp atoms_in(_term, acc), do: acc
 end
