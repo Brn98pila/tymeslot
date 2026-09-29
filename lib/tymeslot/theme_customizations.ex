@@ -9,6 +9,7 @@ defmodule Tymeslot.ThemeCustomizations do
   alias Ecto.Changeset
   alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.ThemeCustomizations.OptionGroup
+  alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationQueries
@@ -21,7 +22,6 @@ defmodule Tymeslot.ThemeCustomizations do
     Assets,
     DataTransform,
     FileLifecycle,
-    Presets,
     Storage
   }
 
@@ -42,19 +42,45 @@ defmodule Tymeslot.ThemeCustomizations do
   end
 
   @doc """
-  Returns a random video-background preset key (e.g. `"preset:blue-wave"`).
-
-  Used to seed a fresh account with a moving background so its booking page —
-  and the onboarding preview of it — has life out of the box.
+  The video-background preset keys a theme offers (e.g. `"preset:blue-wave"`),
+  in its background group's order. `[]` for a theme without video backgrounds
+  or an unknown id.
   """
-  @spec random_video_preset() :: String.t()
-  def random_video_preset, do: Enum.random(video_preset_keys())
+  @spec video_preset_keys(theme_id()) :: [String.t()]
+  def video_preset_keys(theme_id) do
+    with {:ok, spec} <- Catalog.customization_spec(theme_id),
+         %{kinds: kinds} = group <- Spec.group(spec, Background),
+         true <- :video in kinds do
+      group |> Background.presets(:video) |> Enum.map(&elem(&1, 0))
+    else
+      _no_video -> []
+    end
+  end
 
   @doc """
-  The shipped video-background preset keys (e.g. `"preset:blue-wave"`), sorted.
+  Picks a preview video per theme from each theme's own list: one preset drawn
+  from all of them, given to every theme that lists it, and a random one of its
+  own to a theme that does not. Themes with an empty list are left out.
+
+  Used to seed a fresh account with a moving background so its booking page,
+  and the onboarding preview of it, has life out of the box.
   """
-  @spec video_preset_keys() :: [String.t()]
-  def video_preset_keys, do: Presets.get_video_presets() |> Map.keys() |> Enum.sort()
+  @spec preview_videos(%{theme_id() => [String.t()]}) :: %{theme_id() => String.t()}
+  def preview_videos(lists) do
+    lists = Map.reject(lists, fn {_id, keys} -> keys == [] end)
+
+    case lists |> Map.values() |> List.flatten() |> Enum.uniq() do
+      [] ->
+        %{}
+
+      all ->
+        shared = Enum.random(all)
+        Map.new(lists, fn {id, keys} -> {id, preview_video(keys, shared)} end)
+    end
+  end
+
+  defp preview_video(keys, shared),
+    do: if(shared in keys, do: shared, else: Enum.random(keys))
 
   @doc """
   Whether a theme can show the given kind of background. `false` for an

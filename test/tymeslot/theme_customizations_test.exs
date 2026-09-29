@@ -4,6 +4,9 @@ defmodule Tymeslot.ThemeCustomizationsTest do
 
   alias Tymeslot.Profiles
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.RhythmSpec
+  alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   describe "theme customizations" do
@@ -147,11 +150,37 @@ defmodule Tymeslot.ThemeCustomizationsTest do
       assert ThemeCustomizations.to_map(nil) == %{}
     end
 
-    test "video_preset_keys/0 lists the shipped video presets in order" do
-      keys = ThemeCustomizations.video_preset_keys()
+    test "video_preset_keys/1 lists a theme's own videos in its group's order" do
+      assert ThemeCustomizations.video_preset_keys("2") ==
+               Enum.map(
+                 Background.presets(Spec.group(RhythmSpec, Background), :video),
+                 &elem(&1, 0)
+               )
 
-      assert "preset:rhythm-default" in keys
-      assert keys == Enum.sort(keys)
+      assert "preset:rhythm-default" in ThemeCustomizations.video_preset_keys("2")
+      assert ThemeCustomizations.video_preset_keys("no-such-theme") == []
+    end
+
+    test "preview_videos/1 shares one video where the themes list it" do
+      lists = %{
+        "a" => ["preset:space", "preset:leaves"],
+        "b" => ["preset:space", "preset:leaves"]
+      }
+
+      picks = ThemeCustomizations.preview_videos(lists)
+
+      assert Enum.sort(Map.keys(picks)) == ["a", "b"]
+      assert picks["a"] == picks["b"]
+      assert picks["a"] in lists["a"]
+    end
+
+    test "preview_videos/1 gives a theme its own video when it does not list the shared one" do
+      lists = %{"a" => ["preset:space"], "b" => ["preset:leaves"], "c" => []}
+
+      for _attempt <- 1..20 do
+        assert ThemeCustomizations.preview_videos(lists) ==
+                 %{"a" => "preset:space", "b" => "preset:leaves"}
+      end
     end
 
     test "upsert_theme_customization/3 creates a Rhythm customisation with Rhythm's own background",

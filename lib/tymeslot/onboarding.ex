@@ -139,21 +139,22 @@ defmodule Tymeslot.Onboarding do
   Seeds each booking theme with a video background so the onboarding preview —
   and the published page — shows motion out of the box.
 
-  Picks one random preset for the user and applies it to every theme in
-  `theme_ids` that can show a video background and does not already use one.
-  Themes without video are skipped; their customisation changeset would refuse
-  the write anyway. Idempotent: a theme that already has a video background (a
-  returning user, or one who picked their own) is left untouched, so the choice
-  is never overwritten or re-randomised.
+  Picks a random preset for each theme in `theme_ids` from the videos that
+  theme offers, sharing one preset between themes that offer it, and applies
+  it where no video background is set yet. Themes without video are skipped.
+  Idempotent: a theme that already has a video background (a returning user,
+  or one who picked their own) is left untouched, so the choice is never
+  overwritten or re-randomised.
   """
   @spec ensure_preview_video_backgrounds(map(), [String.t()]) :: :ok
   def ensure_preview_video_backgrounds(%{id: profile_id}, theme_ids)
       when is_integer(profile_id) and is_list(theme_ids) do
-    preset = ThemeCustomizations.random_video_preset()
-
     theme_ids
-    |> Enum.filter(&ThemeCustomizations.supports_background?(&1, :video))
-    |> Enum.each(&put_video_background_unless_set(profile_id, &1, preset))
+    |> Map.new(&{&1, ThemeCustomizations.video_preset_keys(&1)})
+    |> ThemeCustomizations.preview_videos()
+    |> Enum.each(fn {theme_id, preset} ->
+      put_video_background_unless_set(profile_id, theme_id, preset)
+    end)
   end
 
   def ensure_preview_video_backgrounds(_profile, _theme_ids), do: :ok
