@@ -231,6 +231,21 @@ stripped_css_lines() {
   done
 }
 
+# Like stripped_css_lines, but with every selector and at-rule prelude (the
+# text before a "{", back to the previous "{", "}" or ";") blanked as well, so
+# only declarations remain. A selector list spread over several lines is
+# blanked whole, so an ID such as "#add-guest," can never read as a hex colour.
+declaration_css_lines() {
+  local root="$1"
+  find "$root" -name "*.css" -type f | sort | while IFS= read -r f; do
+    perl -0777 -pe '
+      s{/\*.*?\*/}{ $x = $&; $x =~ tr/\n//cd; $x }ges;
+      s{(^|[{};])([^{};]*)(?=\{)}{ $y = $2; $y =~ tr/\n//cd; $1 . $y }ge;
+    ' "$f" \
+      | awk -v fn="$f" '{ print fn ":" NR ":" $0 }'
+  done
+}
+
 # Function to test for hardcoded spacing values.
 # Scope: the spacing SCALE governs padding / margin / gap. Positioning insets
 # (top/right/bottom/left) are geometry, not spacing — they are frequently
@@ -369,7 +384,8 @@ test_duplicate_tokens() {
     return 0
   fi
 
-  local duplicates=$(grep -oP '^\s*--[\w-]+(?=:)' "$tokens_file" | sort | uniq -d)
+  local duplicates=$(grep -oE '^[[:space:]]*--[A-Za-z0-9_-]+[[:space:]]*:' "$tokens_file" \
+    | sed -E 's/^[[:space:]]*//; s/[[:space:]]*:$//' | sort | uniq -d)
 
   if [ -n "$duplicates" ]; then
     echo -e "${RED}✗ Found duplicate token definitions:${NC}"
@@ -510,14 +526,14 @@ test_keyframes() {
 # shared/brand-tokens.css (the Tailwind @theme block). Everything else reads
 # colours through tokens, so a custom palette, a new theme or a light mode
 # changes them in one place. Scans the whole scheduling tree, shared files
-# included; selectors are stripped first so an ID can never look like a hex.
+# included; selectors are blanked first (declaration_css_lines) so an ID can
+# never look like a hex.
 test_colour_literals() {
   echo "🎨 Testing for colour literals outside the token files..."
 
   local violations
-  violations=$(stripped_css_lines "$SCHEDULING_CSS_ROOT" \
+  violations=$(declaration_css_lines "$SCHEDULING_CSS_ROOT" \
     | grep -vE '(/modules/variables\.css|/shared/tokens\.css|/shared/brand-tokens\.css):[0-9]+:' \
-    | sed -E 's/^([^:]+:[0-9]+:)[^{]*\{/\1/' \
     | grep -E '^[^:]+:[0-9]+:.*((rgba?|hsla?)\(|#[0-9a-fA-F]{3,8}\b)' \
     || true)
 

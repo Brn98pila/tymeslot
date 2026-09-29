@@ -90,6 +90,41 @@ defmodule Mix.Tasks.Css.CheckTokensTest do
     assert {_output, 0} = run_script(root)
   end
 
+  test "does not read an ID in a multi-line selector list as a hex colour",
+       %{root: root, modules: modules} do
+    File.write!(
+      Path.join(modules, "card.css"),
+      "#add-guest,\n#fade,\n.card #bad > .x {\n  color: var(--ink-1);\n}\n" <>
+        "@media (min-width: 40rem) {\n  #cafe,\n  #beef {\n    color: var(--ink-2);\n  }\n}\n"
+    )
+
+    assert {_output, 0} = run_script(root)
+  end
+
+  test "rejects a hex literal in a declaration after a multi-line selector list",
+       %{root: root, modules: modules} do
+    File.write!(
+      Path.join(modules, "card.css"),
+      "#add-guest,\n#fade {\n  color: #fade;\n}\n"
+    )
+
+    assert {output, 1} = run_script(root)
+    assert output =~ "themes/demo/modules/card.css:3:"
+    refute output =~ "themes/demo/modules/card.css:1:"
+  end
+
+  test "rejects a token defined twice in a theme's variables.css",
+       %{root: root, modules: modules} do
+    File.write!(
+      Path.join(modules, "variables.css"),
+      variables_css() <> ":root {\n  --ink-1: 1;\n}\n"
+    )
+
+    assert {output, 1} = run_script(root)
+    assert output =~ "Found duplicate token definitions"
+    assert output =~ "--ink-1"
+  end
+
   test "rejects a token read in shared/ that no theme is required to define", %{root: root} do
     File.write!(
       Path.join(root, "shared/components/notice.css"),
