@@ -20,6 +20,10 @@ defmodule TymeslotWeb.ThemeTestMatrix do
       so renders the background motion toggle.
     * `:pins_schedule_actions` - whether the schedule step is locked to the
       viewport with its actions row pinned on-screen (Quill's app shell).
+    * `:selected_duration_selector` - matches the overview's
+      `[data-testid='duration-option']` card only while it is selected. Each
+      theme marks the selection its own way (on the button, or on a wrapper
+      around it), so a shared assertion reads the selector from here.
   """
 
   @type entry :: %{
@@ -29,7 +33,8 @@ defmodule TymeslotWeb.ThemeTestMatrix do
           name: String.t(),
           wrapper_class: String.t(),
           video_background: boolean(),
-          pins_schedule_actions: boolean()
+          pins_schedule_actions: boolean(),
+          selected_duration_selector: String.t()
         }
 
   @themes %{
@@ -40,7 +45,8 @@ defmodule TymeslotWeb.ThemeTestMatrix do
       name: "Quill",
       wrapper_class: "quill-theme-wrapper",
       video_background: true,
-      pins_schedule_actions: true
+      pins_schedule_actions: true,
+      selected_duration_selector: "[data-testid='duration-option'].duration-card--selected"
     },
     "2" => %{
       id: "2",
@@ -49,7 +55,8 @@ defmodule TymeslotWeb.ThemeTestMatrix do
       name: "Rhythm",
       wrapper_class: "rhythm-theme-wrapper",
       video_background: true,
-      pins_schedule_actions: false
+      pins_schedule_actions: false,
+      selected_duration_selector: ".duration-card.selected [data-testid='duration-option']"
     }
   }
 

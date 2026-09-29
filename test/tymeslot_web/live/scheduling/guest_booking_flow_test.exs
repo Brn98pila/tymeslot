@@ -1,6 +1,7 @@
 defmodule TymeslotWeb.Live.Scheduling.GuestBookingFlowTest do
   @moduledoc """
-  End-to-end integration test for the guest booking flow on the Quill theme.
+  End-to-end integration test for the guest booking flow, walked on every
+  theme in `TymeslotWeb.ThemeTestMatrix`.
 
   Exercises the full booker journey when a meeting type has `allow_guests: true`:
 
@@ -38,6 +39,7 @@ defmodule TymeslotWeb.Live.Scheduling.GuestBookingFlowTest do
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.TestMocks
+  alias TymeslotWeb.ThemeTestMatrix
 
   setup :verify_on_exit!
 
@@ -58,7 +60,7 @@ defmodule TymeslotWeb.Live.Scheduling.GuestBookingFlowTest do
       insert(:profile,
         user: user,
         username: "guestbooker",
-        booking_theme: "1",
+        booking_theme: Map.fetch!(tags, :theme_id),
         timezone: "America/New_York"
       )
 
@@ -86,264 +88,270 @@ defmodule TymeslotWeb.Live.Scheduling.GuestBookingFlowTest do
     %{profile: profile, user: user}
   end
 
-  describe "guest field — allow_guests: true" do
-    setup %{user: user} do
-      meeting_type =
-        insert(:meeting_type,
-          user: user,
-          duration_minutes: 30,
-          name: "Guests Welcome",
-          is_active: true,
-          allow_guests: true
-        )
+  for theme <- ThemeTestMatrix.all() do
+    describe "#{theme.name}: guest field — allow_guests: true" do
+      @describetag theme_id: theme.id
 
-      %{meeting_type: meeting_type}
+      setup %{user: user} do
+        meeting_type =
+          insert(:meeting_type,
+            user: user,
+            duration_minutes: 30,
+            name: "Guests Welcome",
+            is_active: true,
+            allow_guests: true
+          )
+
+        %{meeting_type: meeting_type}
+      end
+
+      @tag :capture_log
+      test "toggle shows the guest input area", %{conn: conn, profile: profile} do
+        view = navigate_to_booking_form(conn, profile, nil)
+
+        # Before toggling: the "Add guests" button is visible.
+        assert has_element?(view, "[data-testid='guest-toggle']")
+        refute has_element?(view, "[data-testid='guest-input']")
+
+        # Send the toggle_guests event (same path as the LiveComponent click).
+        send(view.pid, {:step_event, :booking, :toggle_guests, nil})
+        _drain = :sys.get_state(view.pid)
+
+        # After toggling: the input area replaces the toggle button.
+        assert has_element?(view, "[data-testid='guest-input']")
+        refute has_element?(view, "[data-testid='guest-toggle']")
+
+        # The add form opts out of native browser validation, so an invalid
+        # email reaches the server and surfaces the inline error instead of the
+        # browser silently blocking the submit.
+        assert view |> element("form.guest-add") |> render() =~ "novalidate"
+      end
+
+      @tag :capture_log
+      test "adding a valid guest email adds a chip", %{conn: conn, profile: profile} do
+        view = navigate_to_booking_form(conn, profile, nil)
+
+        send(view.pid, {:step_event, :booking, :toggle_guests, nil})
+        send(view.pid, {:step_event, :booking, :add_guest, "guest@example.com"})
+        _drain = :sys.get_state(view.pid)
+
+        html = render(view)
+        assert html =~ "guest@example.com"
+        assert has_element?(view, "[data-testid='guest-chip']")
+      end
+
+      @tag :capture_log
+      test "adding two guests renders two chips", %{conn: conn, profile: profile} do
+        view = navigate_to_booking_form(conn, profile, nil)
+
+        send(view.pid, {:step_event, :booking, :toggle_guests, nil})
+        send(view.pid, {:step_event, :booking, :add_guest, "alpha@example.com"})
+        send(view.pid, {:step_event, :booking, :add_guest, "beta@example.com"})
+        _drain = :sys.get_state(view.pid)
+
+        html = render(view)
+        assert html =~ "alpha@example.com"
+        assert html =~ "beta@example.com"
+      end
+
+      @tag :capture_log
+      test "removing a guest chip removes it from the list", %{conn: conn, profile: profile} do
+        view = navigate_to_booking_form(conn, profile, nil)
+
+        send(view.pid, {:step_event, :booking, :toggle_guests, nil})
+        send(view.pid, {:step_event, :booking, :add_guest, "keeper@example.com"})
+        send(view.pid, {:step_event, :booking, :add_guest, "todelete@example.com"})
+        send(view.pid, {:step_event, :booking, :remove_guest, "todelete@example.com"})
+        _drain = :sys.get_state(view.pid)
+
+        html = render(view)
+        assert html =~ "keeper@example.com"
+        refute html =~ "todelete@example.com"
+      end
+
+      @tag :capture_log
+      test "close button clears guests and collapses the field", %{conn: conn, profile: profile} do
+        view = navigate_to_booking_form(conn, profile, nil)
+
+        send(view.pid, {:step_event, :booking, :toggle_guests, nil})
+        send(view.pid, {:step_event, :booking, :add_guest, "willclose@example.com"})
+        _drain = :sys.get_state(view.pid)
+
+        # Open with one guest and a close control present.
+        assert has_element?(view, "[data-testid='guest-close']")
+        assert render(view) =~ "willclose@example.com"
+
+        # Closing resets the list and returns to the collapsed "+ Add guests" CTA.
+        send(view.pid, {:step_event, :booking, :close_guests, nil})
+        _drain = :sys.get_state(view.pid)
+
+        state = :sys.get_state(view.pid).socket.assigns
+        assert state.guest_emails == []
+        assert state.guests_open == false
+        refute render(view) =~ "willclose@example.com"
+        assert has_element?(view, "[data-testid='guest-toggle']")
+      end
+
+      @tag :capture_log
+      test "duplicate email shows 'already added' error", %{conn: conn, profile: profile} do
+        view = navigate_to_booking_form(conn, profile, nil)
+
+        send(view.pid, {:step_event, :booking, :toggle_guests, nil})
+        send(view.pid, {:step_event, :booking, :add_guest, "dupe@example.com"})
+        send(view.pid, {:step_event, :booking, :add_guest, "dupe@example.com"})
+        _drain = :sys.get_state(view.pid)
+
+        html = render(view)
+        assert html =~ "has already been added"
+        # Only one chip rendered.
+        assert [_single] =
+                 html
+                 |> Floki.parse_document!()
+                 |> Floki.find("[data-testid='guest-chip']")
+      end
+
+      @tag :capture_log
+      test "adding the booker's own email shows self-email error", %{
+        conn: conn,
+        profile: profile
+      } do
+        view = navigate_to_booking_form(conn, profile, nil)
+
+        # Seed the form with the booker's email so GuestBooking.primary_email?/2 can match it.
+        send(view.pid, {:step_event, :booking, :validate, %{"email" => "self@example.com"}})
+        send(view.pid, {:step_event, :booking, :toggle_guests, nil})
+        send(view.pid, {:step_event, :booking, :add_guest, "self@example.com"})
+        _drain = :sys.get_state(view.pid)
+
+        # The apostrophe is HTML-entity-encoded in the rendered output, so
+        # match on the portion of the message that has no apostrophe.
+        assert render(view) =~ "need to add your own email"
+      end
+
+      @tag :capture_log
+      test "invalid email format shows format error", %{conn: conn, profile: profile} do
+        view = navigate_to_booking_form(conn, profile, nil)
+
+        send(view.pid, {:step_event, :booking, :toggle_guests, nil})
+        send(view.pid, {:step_event, :booking, :add_guest, "not-an-email"})
+        _drain = :sys.get_state(view.pid)
+
+        assert render(view) =~ "Enter a valid email address"
+      end
+
+      @tag :capture_log
+      test "cap error shown when max_guests is reached", %{conn: conn, profile: profile} do
+        view = navigate_to_booking_form(conn, profile, nil)
+
+        send(view.pid, {:step_event, :booking, :toggle_guests, nil})
+
+        # Fill the list to the maximum.
+        Enum.each(1..Guests.max_guests(), fn n ->
+          send(view.pid, {:step_event, :booking, :add_guest, "guest#{n}@example.com"})
+        end)
+
+        # One more should trigger the cap error.
+        send(view.pid, {:step_event, :booking, :add_guest, "overflow@example.com"})
+        _drain = :sys.get_state(view.pid)
+
+        assert render(view) =~ "You can add up to #{Guests.max_guests()} guests"
+      end
+
+      @tag :capture_log
+      test "guests are persisted on the created meeting", %{conn: conn, profile: profile} do
+        view = navigate_to_booking_form(conn, profile, nil)
+
+        send(view.pid, {:step_event, :booking, :toggle_guests, nil})
+        send(view.pid, {:step_event, :booking, :add_guest, "invited1@example.com"})
+        send(view.pid, {:step_event, :booking, :add_guest, "invited2@example.com"})
+
+        view
+        |> form("form[phx-submit='submit']", %{
+          "booking" => %{
+            "name" => "Guest Sender",
+            "email" => "sender@example.com",
+            "message" => ""
+          }
+        })
+        |> render_submit()
+
+        _drain = :sys.get_state(view.pid)
+
+        # The confirmation page must be showing.
+        html = render(view)
+        assert has_element?(view, "[data-testid='confirmation-heading']")
+
+        # The confirmation must acknowledge the invited guests back to the booker.
+        assert html =~ "invited1@example.com"
+        assert html =~ "invited2@example.com"
+
+        # Read the created meeting back and verify guests are stored.
+        [meeting] = Repo.all_by(MeetingSchema, attendee_email: "sender@example.com")
+
+        guest_emails =
+          meeting.id
+          |> Guests.list_for_meeting()
+          |> Enum.map(& &1.email)
+          |> Enum.sort()
+
+        assert guest_emails == ["invited1@example.com", "invited2@example.com"]
+      end
+
+      @tag :capture_log
+      test "schedule_another resets the guest list", %{conn: conn, profile: profile} do
+        view = navigate_to_booking_form(conn, profile, nil)
+
+        send(view.pid, {:step_event, :booking, :toggle_guests, nil})
+        send(view.pid, {:step_event, :booking, :add_guest, "willbecleared@example.com"})
+
+        view
+        |> form("form[phx-submit='submit']", %{
+          "booking" => %{
+            "name" => "Reset Tester",
+            "email" => "resetter@example.com",
+            "message" => ""
+          }
+        })
+        |> render_submit()
+
+        _drain = :sys.get_state(view.pid)
+
+        # Trigger "Schedule another" from the confirmation step.
+        send(view.pid, {:step_event, :confirmation, :schedule_another, nil})
+        _drain = :sys.get_state(view.pid)
+
+        # The guest list must be empty and the toggle must be back.
+        state = :sys.get_state(view.pid).socket.assigns
+        assert state.guest_emails == []
+        assert state.guests_open == false
+      end
     end
 
-    @tag :capture_log
-    test "toggle shows the guest input area", %{conn: conn, profile: profile} do
-      view = navigate_to_booking_form(conn, profile, nil)
+    describe "#{theme.name}: guest field — allow_guests: false" do
+      @describetag theme_id: theme.id
 
-      # Before toggling: the "Add guests" button is visible.
-      assert has_element?(view, "[data-testid='guest-toggle']")
-      refute has_element?(view, "[data-testid='guest-input']")
+      setup %{user: user} do
+        meeting_type =
+          insert(:meeting_type,
+            user: user,
+            duration_minutes: 30,
+            name: "No Guests",
+            is_active: true,
+            allow_guests: false
+          )
 
-      # Send the toggle_guests event (same path as the LiveComponent click).
-      send(view.pid, {:step_event, :booking, :toggle_guests, nil})
-      _drain = :sys.get_state(view.pid)
+        %{meeting_type: meeting_type}
+      end
 
-      # After toggling: the input area replaces the toggle button.
-      assert has_element?(view, "[data-testid='guest-input']")
-      refute has_element?(view, "[data-testid='guest-toggle']")
+      @tag :capture_log
+      test "guest toggle is absent when allow_guests is false", %{conn: conn, profile: profile} do
+        view = navigate_to_booking_form(conn, profile, nil)
 
-      # The add form opts out of native browser validation, so an invalid
-      # email reaches the server and surfaces the inline error instead of the
-      # browser silently blocking the submit.
-      assert view |> element("form.guest-add") |> render() =~ "novalidate"
-    end
-
-    @tag :capture_log
-    test "adding a valid guest email adds a chip", %{conn: conn, profile: profile} do
-      view = navigate_to_booking_form(conn, profile, nil)
-
-      send(view.pid, {:step_event, :booking, :toggle_guests, nil})
-      send(view.pid, {:step_event, :booking, :add_guest, "guest@example.com"})
-      _drain = :sys.get_state(view.pid)
-
-      html = render(view)
-      assert html =~ "guest@example.com"
-      assert has_element?(view, "[data-testid='guest-chip']")
-    end
-
-    @tag :capture_log
-    test "adding two guests renders two chips", %{conn: conn, profile: profile} do
-      view = navigate_to_booking_form(conn, profile, nil)
-
-      send(view.pid, {:step_event, :booking, :toggle_guests, nil})
-      send(view.pid, {:step_event, :booking, :add_guest, "alpha@example.com"})
-      send(view.pid, {:step_event, :booking, :add_guest, "beta@example.com"})
-      _drain = :sys.get_state(view.pid)
-
-      html = render(view)
-      assert html =~ "alpha@example.com"
-      assert html =~ "beta@example.com"
-    end
-
-    @tag :capture_log
-    test "removing a guest chip removes it from the list", %{conn: conn, profile: profile} do
-      view = navigate_to_booking_form(conn, profile, nil)
-
-      send(view.pid, {:step_event, :booking, :toggle_guests, nil})
-      send(view.pid, {:step_event, :booking, :add_guest, "keeper@example.com"})
-      send(view.pid, {:step_event, :booking, :add_guest, "todelete@example.com"})
-      send(view.pid, {:step_event, :booking, :remove_guest, "todelete@example.com"})
-      _drain = :sys.get_state(view.pid)
-
-      html = render(view)
-      assert html =~ "keeper@example.com"
-      refute html =~ "todelete@example.com"
-    end
-
-    @tag :capture_log
-    test "close button clears guests and collapses the field", %{conn: conn, profile: profile} do
-      view = navigate_to_booking_form(conn, profile, nil)
-
-      send(view.pid, {:step_event, :booking, :toggle_guests, nil})
-      send(view.pid, {:step_event, :booking, :add_guest, "willclose@example.com"})
-      _drain = :sys.get_state(view.pid)
-
-      # Open with one guest and a close control present.
-      assert has_element?(view, "[data-testid='guest-close']")
-      assert render(view) =~ "willclose@example.com"
-
-      # Closing resets the list and returns to the collapsed "+ Add guests" CTA.
-      send(view.pid, {:step_event, :booking, :close_guests, nil})
-      _drain = :sys.get_state(view.pid)
-
-      state = :sys.get_state(view.pid).socket.assigns
-      assert state.guest_emails == []
-      assert state.guests_open == false
-      refute render(view) =~ "willclose@example.com"
-      assert has_element?(view, "[data-testid='guest-toggle']")
-    end
-
-    @tag :capture_log
-    test "duplicate email shows 'already added' error", %{conn: conn, profile: profile} do
-      view = navigate_to_booking_form(conn, profile, nil)
-
-      send(view.pid, {:step_event, :booking, :toggle_guests, nil})
-      send(view.pid, {:step_event, :booking, :add_guest, "dupe@example.com"})
-      send(view.pid, {:step_event, :booking, :add_guest, "dupe@example.com"})
-      _drain = :sys.get_state(view.pid)
-
-      html = render(view)
-      assert html =~ "has already been added"
-      # Only one chip rendered.
-      assert [_single] =
-               html
-               |> Floki.parse_document!()
-               |> Floki.find("[data-testid='guest-chip']")
-    end
-
-    @tag :capture_log
-    test "adding the booker's own email shows self-email error", %{
-      conn: conn,
-      profile: profile
-    } do
-      view = navigate_to_booking_form(conn, profile, nil)
-
-      # Seed the form with the booker's email so GuestBooking.primary_email?/2 can match it.
-      send(view.pid, {:step_event, :booking, :validate, %{"email" => "self@example.com"}})
-      send(view.pid, {:step_event, :booking, :toggle_guests, nil})
-      send(view.pid, {:step_event, :booking, :add_guest, "self@example.com"})
-      _drain = :sys.get_state(view.pid)
-
-      # The apostrophe is HTML-entity-encoded in the rendered output, so
-      # match on the portion of the message that has no apostrophe.
-      assert render(view) =~ "need to add your own email"
-    end
-
-    @tag :capture_log
-    test "invalid email format shows format error", %{conn: conn, profile: profile} do
-      view = navigate_to_booking_form(conn, profile, nil)
-
-      send(view.pid, {:step_event, :booking, :toggle_guests, nil})
-      send(view.pid, {:step_event, :booking, :add_guest, "not-an-email"})
-      _drain = :sys.get_state(view.pid)
-
-      assert render(view) =~ "Enter a valid email address"
-    end
-
-    @tag :capture_log
-    test "cap error shown when max_guests is reached", %{conn: conn, profile: profile} do
-      view = navigate_to_booking_form(conn, profile, nil)
-
-      send(view.pid, {:step_event, :booking, :toggle_guests, nil})
-
-      # Fill the list to the maximum.
-      Enum.each(1..Guests.max_guests(), fn n ->
-        send(view.pid, {:step_event, :booking, :add_guest, "guest#{n}@example.com"})
-      end)
-
-      # One more should trigger the cap error.
-      send(view.pid, {:step_event, :booking, :add_guest, "overflow@example.com"})
-      _drain = :sys.get_state(view.pid)
-
-      assert render(view) =~ "You can add up to #{Guests.max_guests()} guests"
-    end
-
-    @tag :capture_log
-    test "guests are persisted on the created meeting", %{conn: conn, profile: profile} do
-      view = navigate_to_booking_form(conn, profile, nil)
-
-      send(view.pid, {:step_event, :booking, :toggle_guests, nil})
-      send(view.pid, {:step_event, :booking, :add_guest, "invited1@example.com"})
-      send(view.pid, {:step_event, :booking, :add_guest, "invited2@example.com"})
-
-      view
-      |> form("form[phx-submit='submit']", %{
-        "booking" => %{
-          "name" => "Guest Sender",
-          "email" => "sender@example.com",
-          "message" => ""
-        }
-      })
-      |> render_submit()
-
-      _drain = :sys.get_state(view.pid)
-
-      # The confirmation page must be showing.
-      html = render(view)
-      assert html =~ "Meeting Confirmed"
-
-      # The confirmation must acknowledge the invited guests back to the booker.
-      assert html =~ "invited1@example.com"
-      assert html =~ "invited2@example.com"
-
-      # Read the created meeting back and verify guests are stored.
-      [meeting] = Repo.all_by(MeetingSchema, attendee_email: "sender@example.com")
-
-      guest_emails =
-        meeting.id
-        |> Guests.list_for_meeting()
-        |> Enum.map(& &1.email)
-        |> Enum.sort()
-
-      assert guest_emails == ["invited1@example.com", "invited2@example.com"]
-    end
-
-    @tag :capture_log
-    test "schedule_another resets the guest list", %{conn: conn, profile: profile} do
-      view = navigate_to_booking_form(conn, profile, nil)
-
-      send(view.pid, {:step_event, :booking, :toggle_guests, nil})
-      send(view.pid, {:step_event, :booking, :add_guest, "willbecleared@example.com"})
-
-      view
-      |> form("form[phx-submit='submit']", %{
-        "booking" => %{
-          "name" => "Reset Tester",
-          "email" => "resetter@example.com",
-          "message" => ""
-        }
-      })
-      |> render_submit()
-
-      _drain = :sys.get_state(view.pid)
-
-      # Trigger "Schedule another" from the confirmation step.
-      send(view.pid, {:step_event, :confirmation, :schedule_another, nil})
-      _drain = :sys.get_state(view.pid)
-
-      # The guest list must be empty and the toggle must be back.
-      state = :sys.get_state(view.pid).socket.assigns
-      assert state.guest_emails == []
-      assert state.guests_open == false
-    end
-  end
-
-  describe "guest field — allow_guests: false" do
-    setup %{user: user} do
-      meeting_type =
-        insert(:meeting_type,
-          user: user,
-          duration_minutes: 30,
-          name: "No Guests",
-          is_active: true,
-          allow_guests: false
-        )
-
-      %{meeting_type: meeting_type}
-    end
-
-    @tag :capture_log
-    test "guest toggle is absent when allow_guests is false", %{conn: conn, profile: profile} do
-      view = navigate_to_booking_form(conn, profile, nil)
-
-      html = render(view)
-      refute html =~ "Add guests"
-      refute has_element?(view, "[data-testid='guest-toggle']")
-      refute has_element?(view, "[data-testid='guest-input']")
+        html = render(view)
+        refute html =~ "Add guests"
+        refute has_element?(view, "[data-testid='guest-toggle']")
+        refute has_element?(view, "[data-testid='guest-input']")
+      end
     end
   end
 end

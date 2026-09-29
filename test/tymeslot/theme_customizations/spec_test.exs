@@ -9,6 +9,9 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
   alias Tymeslot.ThemeCustomizations.RhythmSpec
   alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.Tokens
+  alias Tymeslot.Themes.Catalog
+
+  @known_kinds [:gradient, :color, :image, :video]
 
   # A theme that offers no video, like the minimalist theme will.
   defmodule StillSpec do
@@ -38,23 +41,45 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
       assert Spec.supports_background?(StillSpec, :gradient)
     end
 
-    test "Quill and Rhythm offer every background kind" do
-      assert Spec.background_kinds(QuillSpec) == [:gradient, :color, :image, :video]
-      assert Spec.background_kinds(RhythmSpec) == [:gradient, :color, :image, :video]
+    # Every catalogue theme, so a new one is checked the moment it is listed.
+    for {_key, theme} <- Catalog.all() do
+      test "#{theme.name} declares only known background kinds, each once" do
+        kinds = Spec.background_kinds(unquote(theme.customization_spec))
+
+        assert kinds == Enum.uniq(kinds)
+        assert kinds -- @known_kinds == []
+      end
     end
   end
 
   describe "defaults/0" do
+    for {_key, theme} <- Catalog.all() do
+      test "#{theme.name}'s default background is a kind it declares" do
+        {:ok, spec} = Catalog.customization_spec(unquote(theme.id))
+
+        case spec.defaults() do
+          %{background_type: type} ->
+            assert String.to_existing_atom(type) in Spec.background_kinds(spec)
+
+          _no_background_default ->
+            assert Spec.background_kinds(spec) == []
+        end
+      end
+
+      test "#{theme.name}'s defaults pass its own changeset" do
+        {:ok, spec} = Catalog.customization_spec(unquote(theme.id))
+
+        assert validate(spec, stringify(spec.defaults())).valid?
+      end
+    end
+
+    # A product decision per theme, pinned as such: Rhythm's identity is its
+    # video, Quill's its gradient.
     test "Quill defaults to the Aurora gradient, Rhythm to its own video" do
       assert %{background_type: "gradient", background_value: "gradient_1"} = QuillSpec.defaults()
 
       assert %{background_type: "video", background_value: "preset:rhythm-default"} =
                RhythmSpec.defaults()
-    end
-
-    test "each theme's defaults pass its own changeset" do
-      assert validate(QuillSpec, stringify(QuillSpec.defaults())).valid?
-      assert validate(RhythmSpec, stringify(RhythmSpec.defaults())).valid?
     end
   end
 

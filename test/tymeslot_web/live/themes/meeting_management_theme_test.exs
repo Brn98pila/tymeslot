@@ -16,6 +16,8 @@ defmodule TymeslotWeb.Live.Themes.MeetingManagementThemeTest do
 
   alias Tymeslot.TestMocks
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.Themes.Catalog
+  alias TymeslotWeb.ThemeTestMatrix
 
   setup do
     TestMocks.setup_all_mocks()
@@ -43,35 +45,43 @@ defmodule TymeslotWeb.Live.Themes.MeetingManagementThemeTest do
     {profile, meeting}
   end
 
-  defp assert_theme(conn, path, key, id) do
+  defp assert_theme(conn, path, theme) do
     html = conn |> get(path) |> html_response(200)
-    assert html =~ ~s(href="/assets/scheduling-theme-#{key}.css")
-    assert html =~ "#{key}-theme-wrapper"
+    assert html =~ ~s(href="/assets/scheduling-theme-#{theme.slug}.css")
+    assert html =~ theme.wrapper_class
 
     {:ok, view, _html} = live(conn, path)
     assigns = :sys.get_state(view.pid).socket.assigns
-    assert assigns.theme_id == id
-    # Quill's defaults paint a gradient and Rhythm's a video, so the tokens
-    # tell the two themes' customisations apart.
-    assert assigns.theme_tokens == ThemeCustomizations.tokens(id, nil)
+    assert assigns.theme_id == theme.id
+    # Each theme's spec has its own defaults, so the tokens tell the themes'
+    # customisations apart.
+    assert assigns.theme_tokens == ThemeCustomizations.tokens(theme.id, nil)
+  end
+
+  # Each theme is requested over an organiser who uses another one, so the
+  # page can only show it by honouring `?theme=`.
+  defp another_theme(theme), do: Enum.find(ThemeTestMatrix.all(), &(&1.id != theme.id))
+
+  for action <- ["cancel", "reschedule"], theme <- ThemeTestMatrix.all() do
+    test "the #{action} page follows ?theme=#{theme.id} (#{theme.name}) in its page, stylesheet and customisation",
+         %{conn: conn} do
+      theme = ThemeTestMatrix.fetch!(unquote(theme.id))
+      organisers = another_theme(theme)
+      {profile, meeting} = organiser_with_theme(organisers.id)
+      path = "/#{profile.username}/meeting/#{meeting.uid}/#{unquote(action)}"
+
+      assert_theme(conn, path, organisers)
+      assert_theme(conn, path <> "?theme=#{theme.id}", theme)
+    end
   end
 
   for action <- ["cancel", "reschedule"] do
-    test "the #{action} page follows ?theme= in its page, stylesheet and customisation",
-         %{conn: conn} do
-      {profile, meeting} = organiser_with_theme("2")
-      path = "/#{profile.username}/meeting/#{meeting.uid}/#{unquote(action)}"
-
-      assert_theme(conn, path, "rhythm", "2")
-      assert_theme(conn, path <> "?theme=1", "quill", "1")
-    end
-
     test "the #{action} page falls back to the default theme when the organiser's has left the catalogue",
          %{conn: conn} do
       {profile, meeting} = organiser_with_theme("9")
       path = "/#{profile.username}/meeting/#{meeting.uid}/#{unquote(action)}"
 
-      assert_theme(conn, path, "quill", "1")
+      assert_theme(conn, path, ThemeTestMatrix.fetch!(Catalog.default_id()))
     end
   end
 end

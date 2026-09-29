@@ -39,6 +39,7 @@ defmodule TymeslotWeb.Live.Scheduling.DispatcherCancelCompositionTest do
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.TestMocks
   alias TymeslotWeb.ThemeMeetingTestCases
+  alias TymeslotWeb.ThemeTestMatrix
 
   setup :verify_on_exit!
 
@@ -197,28 +198,20 @@ defmodule TymeslotWeb.Live.Scheduling.DispatcherCancelCompositionTest do
     assert Repo.get!(MeetingSchema, meeting.id).status == "confirmed"
   end
 
-  @tag :capture_log
-  test "the cancel page states the duration in the visitor's language (Quill)",
-       %{conn: conn, user: user, profile: profile} do
-    meeting = insert(:meeting, organizer_user: user, organizer_user_id: user.id, duration: 60)
+  for theme <- ThemeTestMatrix.all() do
+    @tag :capture_log
+    test "#{theme.name}: the cancel page states the duration in the visitor's language",
+         %{conn: conn, user: user, profile: profile} do
+      profile |> Changeset.change(booking_theme: unquote(theme.id)) |> Repo.update!()
+      meeting = insert(:meeting, organizer_user: user, organizer_user_id: user.id, duration: 60)
 
-    {:ok, _view, html} =
-      live(conn, "/#{profile.username}/meeting/#{meeting.uid}/cancel?locale=de")
+      {:ok, _view, html} =
+        live(conn, "/#{profile.username}/meeting/#{meeting.uid}/cancel?locale=de")
 
-    assert html =~ "60 Min."
-    refute html =~ "60 min<"
-  end
-
-  @tag :capture_log
-  test "the cancel page states the duration in the visitor's language (Rhythm)",
-       %{conn: conn, user: user, profile: profile} do
-    profile |> Changeset.change(booking_theme: "2") |> Repo.update!()
-    meeting = insert(:meeting, organizer_user: user, organizer_user_id: user.id, duration: 60)
-
-    {:ok, _view, html} =
-      live(conn, "/#{profile.username}/meeting/#{meeting.uid}/cancel?locale=de")
-
-    assert html =~ "60 Min."
+      assert html =~ unquote(theme.wrapper_class)
+      assert html =~ "60 Min."
+      refute html =~ "60 min<"
+    end
   end
 
   @tag :capture_log

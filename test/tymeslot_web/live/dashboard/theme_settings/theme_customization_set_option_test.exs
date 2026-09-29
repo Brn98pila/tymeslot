@@ -12,6 +12,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationSetOptionTest do
   import Tymeslot.DashboardTestHelpers
 
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.Spec
+  alias TymeslotWeb.ThemeTestMatrix
+
+  @background_kinds [:gradient, :color, :image, :video]
 
   setup :setup_dashboard_user_with_theme
 
@@ -135,18 +139,26 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationSetOptionTest do
   end
 
   describe "panels from the spec" do
-    # Quill and Rhythm both declare a palette and a background with all four
-    # kinds; a new theme gets its own expectations.
-    for theme_id <- ["1", "2"] do
-      test "theme #{theme_id}: one panel per option group, with the declared background tabs",
+    for theme <- ThemeTestMatrix.all() do
+      test "#{theme.name}: one panel per option group, with the declared background tabs",
            %{conn: conn} do
-        {:ok, _view, html} = live(conn, "/dashboard/theme/customize/#{unquote(theme_id)}")
+        spec = Spec.for_theme(unquote(theme.id))
+        groups = Enum.map(spec.option_groups(), & &1.type)
+        kinds = Spec.background_kinds(spec)
 
-        assert html =~ "Color Palette"
-        assert html =~ "Background Design"
+        {:ok, _view, html} = live(conn, "/dashboard/theme/customize/#{unquote(theme.id)}")
 
-        for kind <- ~w(gradient color image video) do
-          assert html =~ ~s(phx-value-type="#{kind}"), "missing the #{kind} tab"
+        assert html =~ "Color Palette" == :palette in groups
+        assert html =~ "Background Design" == :background in groups
+
+        # The matrix says independently whether the theme offers video, so a
+        # spec that lost its video kind fails here rather than quietly
+        # dropping the tab.
+        assert :video in kinds == unquote(theme.video_background)
+
+        for kind <- @background_kinds do
+          assert html =~ ~s(phx-value-type="#{kind}") == kind in kinds,
+                 "the #{kind} tab should be #{if kind in kinds, do: "shown", else: "absent"}"
         end
       end
     end
