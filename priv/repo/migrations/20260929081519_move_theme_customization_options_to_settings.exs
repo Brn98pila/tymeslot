@@ -5,22 +5,27 @@ defmodule Tymeslot.Repo.Migrations.MoveThemeCustomizationOptionsToSettings do
   declares, so a theme with a different option set needs no migration of its
   own.
 
-  Every row's `color_scheme`, `custom_palette_seed` and `background_*` columns
-  are copied into `settings`, leaving out the null ones, and the columns and
-  their two indexes are then dropped. Only rows whose `settings` is still null
-  are filled, and every step is conditional, so the migration is safe to run
-  again.
+  This is the expand half of an expand/contract change. Every row's
+  `color_scheme`, `custom_palette_seed` and `background_*` columns are copied
+  into `settings`, leaving out the null ones, but the columns and their two
+  indexes stay: an installation that goes back to the previous release
+  without running `down/0` still finds the columns it reads, so its booking
+  pages keep working (with the options as they were at the upgrade). A later
+  release drops them. Only rows whose `settings` is still null are filled,
+  and every step is conditional, so the migration is safe to run again.
 
-  `down/0` restores the columns and indexes and refills the columns from
-  `settings`, so a rollback keeps every option saved since the upgrade.
+  `down/0` refills the columns from `settings`, so a rollback keeps every
+  option saved since the upgrade. It restores the columns and indexes first
+  when they are missing, which only a database that ran an earlier draft of
+  this migration can be.
   """
   use Ecto.Migration
 
-  # Moving the options is the whole of this migration: the schema reads only
-  # `settings`, so a row left unfilled would load with no customisation at
-  # all, and the columns it empties have no reader left. The defaults in
-  # `down/0` are the columns' original constant ones, which PostgreSQL adds
-  # without rewriting the table.
+  # The schema reads only `settings`, so a row left unfilled would load with
+  # no customisation at all; the backfill is the point of the migration. The
+  # columns' constant defaults in `down/0` are their original ones, which
+  # PostgreSQL adds without rewriting the table, and `down/0` only adds them
+  # (and the indexes) where they are missing; it removes only `settings`.
   # excellent_migrations:safety-assured-for-this-file raw_sql_executed
   # excellent_migrations:safety-assured-for-this-file operation_update
   # excellent_migrations:safety-assured-for-this-file column_removed
@@ -32,7 +37,7 @@ defmodule Tymeslot.Repo.Migrations.MoveThemeCustomizationOptionsToSettings do
 
   def up do
     alter table(:theme_customizations) do
-      add_if_not_exists :settings, :map
+      add_if_not_exists(:settings, :map)
     end
 
     if columns_present?() do
@@ -51,28 +56,16 @@ defmodule Tymeslot.Repo.Migrations.MoveThemeCustomizationOptionsToSettings do
       WHERE settings IS NULL
       """)
     end
-
-    drop_if_exists index(:theme_customizations, [:color_scheme])
-    drop_if_exists index(:theme_customizations, [:background_type])
-
-    alter table(:theme_customizations) do
-      remove_if_exists :color_scheme, :string
-      remove_if_exists :custom_palette_seed, :string
-      remove_if_exists :background_type, :string
-      remove_if_exists :background_value, :text
-      remove_if_exists :background_image_path, :string
-      remove_if_exists :background_video_path, :string
-    end
   end
 
   def down do
     alter table(:theme_customizations) do
-      add_if_not_exists :color_scheme, :string, null: false, default: "default"
-      add_if_not_exists :custom_palette_seed, :string
-      add_if_not_exists :background_type, :string, null: false, default: "gradient"
-      add_if_not_exists :background_value, :text
-      add_if_not_exists :background_image_path, :string
-      add_if_not_exists :background_video_path, :string
+      add_if_not_exists(:color_scheme, :string, null: false, default: "default")
+      add_if_not_exists(:custom_palette_seed, :string)
+      add_if_not_exists(:background_type, :string, null: false, default: "gradient")
+      add_if_not_exists(:background_value, :text)
+      add_if_not_exists(:background_image_path, :string)
+      add_if_not_exists(:background_video_path, :string)
     end
 
     execute("""
@@ -86,16 +79,16 @@ defmodule Tymeslot.Repo.Migrations.MoveThemeCustomizationOptionsToSettings do
     WHERE settings IS NOT NULL
     """)
 
-    create_if_not_exists index(:theme_customizations, [:color_scheme])
-    create_if_not_exists index(:theme_customizations, [:background_type])
+    create_if_not_exists(index(:theme_customizations, [:color_scheme]))
+    create_if_not_exists(index(:theme_customizations, [:background_type]))
 
     alter table(:theme_customizations) do
-      remove_if_exists :settings, :map
+      remove_if_exists(:settings, :map)
     end
   end
 
-  # A rerun after the columns are gone has nothing to copy, and the UPDATE
-  # naming them would fail.
+  # A database that ran an earlier draft of this migration has no columns
+  # left to copy, and the UPDATE naming them would fail.
   defp columns_present? do
     flush()
 

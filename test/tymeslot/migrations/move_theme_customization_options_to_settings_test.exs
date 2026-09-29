@@ -3,13 +3,14 @@ defmodule Tymeslot.Migrations.MoveThemeCustomizationOptionsToSettingsTest do
   Value-correctness regression for
   `20260929081519_move_theme_customization_options_to_settings`, which copies
   each theme customisation's option columns into the `settings` map the
-  schema now reads, then drops the columns.
+  schema now reads, and keeps the columns for a later release to drop.
 
-  The decisive property is that **no stored option is lost** in either
-  direction: the schema reads only `settings`, so a row left unfilled would
-  load with no customisation at all, and the previous release reads only the
-  columns, so `down/0` must carry any write made since the upgrade back into
-  them.
+  The decisive properties are that **no stored option is lost** in either
+  direction and that **the previous release still finds its columns**: the
+  schema reads only `settings`, so a row left unfilled would load with no
+  customisation at all; the previous release reads only the columns, so they
+  must survive the upgrade untouched, and `down/0` must carry any write made
+  since the upgrade back into them.
   """
 
   use Tymeslot.DataCase, async: false
@@ -61,6 +62,9 @@ defmodule Tymeslot.Migrations.MoveThemeCustomizationOptionsToSettingsTest do
     names |> Enum.zip(row) |> Map.new()
   end
 
+  @all_option_columns ~w(background_image_path background_type background_value
+                          background_video_path color_scheme custom_palette_seed)
+
   defp option_columns do
     %{rows: rows} =
       Repo.query!("""
@@ -70,7 +74,7 @@ defmodule Tymeslot.Migrations.MoveThemeCustomizationOptionsToSettingsTest do
                             'background_value', 'background_image_path', 'background_video_path')
       """)
 
-    List.flatten(rows)
+    rows |> List.flatten() |> Enum.sort()
   end
 
   test "every option column is copied into settings, leaving out the null ones" do
@@ -103,7 +107,17 @@ defmodule Tymeslot.Migrations.MoveThemeCustomizationOptionsToSettingsTest do
              "background_type" => "gradient"
            }
 
-    assert option_columns() == []
+    # The previous release still reads its columns, unchanged.
+    assert option_columns() == @all_option_columns
+
+    assert columns(profile.id, "1") == %{
+             "color_scheme" => "sunset",
+             "custom_palette_seed" => "#112233",
+             "background_type" => "image",
+             "background_value" => "custom",
+             "background_image_path" => "1/1/backgrounds/photo.webp",
+             "background_video_path" => nil
+           }
   end
 
   test "a rollback carries writes made since the upgrade back into the columns" do
@@ -138,6 +152,31 @@ defmodule Tymeslot.Migrations.MoveThemeCustomizationOptionsToSettingsTest do
     MigrationRunner.replay!(@version)
 
     assert settings(customization.profile_id, "1")["color_scheme"] == "forest"
-    assert option_columns() == []
+    assert option_columns() == @all_option_columns
+  end
+
+  test "a rollback restores the columns on a database that no longer has them" do
+    customization =
+      insert(:theme_customization,
+        theme_id: "1",
+        color_scheme: "forest",
+        background_value: "gradient_2"
+      )
+
+    Repo.query!("""
+    ALTER TABLE theme_customizations
+      DROP COLUMN color_scheme, DROP COLUMN custom_palette_seed, DROP COLUMN background_type,
+      DROP COLUMN background_value, DROP COLUMN background_image_path,
+      DROP COLUMN background_video_path
+    """)
+
+    MigrationRunner.down!(@version)
+
+    assert %{"color_scheme" => "forest", "background_value" => "gradient_2"} =
+             columns(customization.profile_id, "1")
+
+    MigrationRunner.up!(@version)
+
+    assert option_columns() == @all_option_columns
   end
 end
