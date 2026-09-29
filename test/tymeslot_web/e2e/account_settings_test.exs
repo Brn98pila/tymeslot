@@ -5,7 +5,14 @@ defmodule TymeslotWeb.E2E.AccountSettingsTest do
   @moduletag :profiles
 
   feature "user changes password from account settings", %{session: session} do
-    {session, user} = log_in_via_browser(session)
+    # A realistic address, longer than the factory's `user<n>@example.com`. An
+    # email has no natural break points, so the account card only fits at 320px
+    # if the layout breaks it. With the factory default the check below passed
+    # or failed on the sequence number, i.e. on how many users earlier tests had
+    # inserted, and so on test order.
+    {session, user} =
+      log_in_via_browser(session, %{email: "firstname.lastname@example-company.com"})
+
     new_password = "NewSecurePass456!"
 
     session =
