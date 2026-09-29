@@ -7,6 +7,7 @@ defmodule TymeslotWeb.OnboardingLive.PreviewPartsTest do
   import Phoenix.Component
   import Phoenix.LiveViewTest
 
+  alias Tymeslot.ThemeCustomizations.Tokens
   alias TymeslotWeb.OnboardingLive.PreviewParts
   alias TymeslotWeb.Themes.Core.ThemeInfo
   alias TymeslotWeb.ThemeTestMatrix
@@ -97,6 +98,20 @@ defmodule TymeslotWeb.OnboardingLive.PreviewPartsTest do
 
       assert quill =~ "grid-cols-7"
       refute rhythm =~ "grid-cols-7"
+    end
+  end
+
+  describe "colors/1" do
+    test "reads the previews' colours from resolved tokens, leaving out what the theme lacks" do
+      tokens = %Tokens{
+        vars: %{
+          "--theme-primary" => "#111111",
+          "--theme-canvas" => "#222222",
+          "--theme-background" => "var(--theme-canvas)"
+        }
+      }
+
+      assert PreviewParts.colors(tokens) == %{primary: "#111111", background: "#222222"}
     end
   end
 end

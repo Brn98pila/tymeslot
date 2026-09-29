@@ -2,9 +2,10 @@ defmodule TymeslotWeb.OnboardingLive.ChooseThemeStep do
   @moduledoc """
   Theme selection step for the onboarding flow.
 
-  Lets the user pick a booking theme and accent colour scheme, and preview
-  their *real* booking page full-screen. This step only appears once a
-  calendar is connected — at that point the public page is ready, so the
+  Lets the user pick a booking theme and whatever its customisation spec
+  offers for onboarding (a colour scheme, for a theme with a palette), and
+  preview their *real* booking page full-screen. This step only appears once
+  a calendar is connected: at that point the public page is ready, so the
   preview reflects the live page rather than a mock.
   """
 
@@ -13,41 +14,43 @@ defmodule TymeslotWeb.OnboardingLive.ChooseThemeStep do
 
   import TymeslotWeb.Components.CoreComponents, only: [icon: 1]
 
-  alias Tymeslot.ThemeCustomizations.Presets
+  alias Tymeslot.ThemeCustomizations
   alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.OnboardingLive.PreviewParts
   alias TymeslotWeb.Themes.Core.ThemeInfo
 
-  # Stable display order for the colour-scheme swatches.
-  @scheme_order ~w(default turquoise purple sunset ocean forest rose monochrome)
-
   @doc """
-  Renders the theme + colour picker with a live full-page preview button.
+  Renders the theme picker, the spec's onboarding choices and a live
+  full-page preview button.
 
   ## Attributes
 
   * `profile` - The user's profile struct (carries the selected `booking_theme`)
   * `theme_options` - List of `{name, id}` booking theme tuples
-  * `color_scheme` - The currently selected colour-scheme id
+  * `theme_customization` - The selected theme's customisation, or `nil`
+  * `choices` - The theme's `ThemeCustomizations.onboarding_choices/1`; `nil`
+    hides the choice row
   """
   attr :profile, :map, required: true
   attr :theme_options, :list, required: true
-  attr :color_scheme, :string, required: true
+  attr :theme_customization, :any, required: true
+  attr :choices, :map, default: nil
 
   @spec choose_theme_step(map()) :: Phoenix.LiveView.Rendered.t()
   def choose_theme_step(assigns) do
-    color_schemes = Presets.get_color_schemes()
+    theme_id = (assigns.profile && assigns.profile.booking_theme) || Catalog.default_id()
 
-    primary =
-      color_schemes
-      |> Map.get(assigns.color_scheme, %{})
-      |> Map.get(:colors, %{})
-      |> Map.get(:primary, "#14b8a6")
+    colors =
+      theme_id
+      |> ThemeCustomizations.tokens(assigns.theme_customization)
+      |> PreviewParts.colors()
+
+    settings = ThemeCustomizations.to_map(assigns.theme_customization)
 
     assigns =
       assigns
-      |> assign(:color_schemes, color_schemes)
-      |> assign(:primary, primary)
+      |> assign(:primary, PreviewParts.color(colors, :primary, "#14b8a6"))
+      |> assign(:selected, assigns.choices && settings[assigns.choices.setting])
 
     ~H"""
     <div class="onboarding-form">
@@ -87,28 +90,30 @@ defmodule TymeslotWeb.OnboardingLive.ChooseThemeStep do
         </div>
       </div>
 
-      <%!-- Colour scheme --%>
-      <div class="onboarding-form-group">
+      <%!-- The theme's onboarding choices (its colour schemes) --%>
+      <div :if={@choices} class="onboarding-form-group">
         <label class="label">{dgettext("onboarding_wizard", "Colour scheme")}</label>
         <p class="onboarding-form-helper">
           {dgettext("onboarding_wizard", "Set the accent colour that ties your page together.")}
         </p>
+        <%!-- `choice`, not `value`: LiveView's client reads a button's native
+        `value` property and would overwrite `phx-value-value` with "". --%>
         <div class="flex flex-wrap gap-3">
           <button
-            :for={id <- scheme_ids(@color_schemes)}
+            :for={choice <- @choices.choices}
             type="button"
-            phx-click="select_color_scheme"
-            phx-value-scheme={id}
-            title={get_in(@color_schemes, [id, :name])}
-            aria-label={get_in(@color_schemes, [id, :name])}
+            phx-click="select_onboarding_choice"
+            phx-value-choice={choice.value}
+            title={choice.name}
+            aria-label={choice.name}
             class={[
               "w-9 h-9 rounded-full border-2 transition-transform hover:scale-110",
-              if(@color_scheme == id,
+              if(@selected == choice.value,
                 do: "border-turquoise-500 ring-2 ring-turquoise-200 scale-110",
                 else: "border-white shadow-sm"
               )
             ]}
-            style={"background: #{get_in(@color_schemes, [id, :colors, :primary]) || "#14b8a6"};"}
+            style={"background: #{choice.swatch};"}
           />
         </div>
       </div>
@@ -138,13 +143,5 @@ defmodule TymeslotWeb.OnboardingLive.ChooseThemeStep do
 
   defp theme_module(id) do
     ThemeInfo.get_theme_module(id) || ThemeInfo.get_theme_module(Catalog.default_id())
-  end
-
-  # Returns colour-scheme ids in a stable display order, appending any
-  # ids not present in the canonical list defensively.
-  defp scheme_ids(color_schemes) do
-    known = Enum.filter(@scheme_order, &Map.has_key?(color_schemes, &1))
-    extra = Map.keys(color_schemes) -- known
-    known ++ extra
   end
 end

@@ -100,7 +100,7 @@ defmodule TymeslotWeb.OnboardingLive do
           name={Map.get(@form_data, "full_name", "")}
           username={Map.get(@form_data, "username", "")}
           avatar_url={Profiles.avatar_url(@profile, :thumb)}
-          color_scheme={@color_scheme}
+          theme_customization={@theme_customization}
           buffer_minutes={policy_value(@availability_schedule, :buffer_minutes)}
           advance_booking_days={policy_value(@availability_schedule, :advance_booking_days)}
           min_advance_hours={policy_value(@availability_schedule, :min_advance_hours)}
@@ -126,7 +126,8 @@ defmodule TymeslotWeb.OnboardingLive do
           <ChooseThemeStep.choose_theme_step
             profile={@profile}
             theme_options={@theme_options}
-            color_scheme={@color_scheme}
+            theme_customization={@theme_customization}
+            choices={@onboarding_choices}
           />
         <% :connect_calendar -> %>
           <ConnectCalendarStep.connect_calendar_step
@@ -232,8 +233,8 @@ defmodule TymeslotWeb.OnboardingLive do
     ThemeHandlers.handle_select_theme(theme_id, socket)
   end
 
-  def handle_event("select_color_scheme", %{"scheme" => scheme_id}, socket) do
-    ThemeHandlers.handle_select_color_scheme(scheme_id, socket)
+  def handle_event("select_onboarding_choice", %{"choice" => value}, socket) do
+    ThemeHandlers.handle_select_choice(value, socket)
   end
 
   def handle_event("preview_booking_page", _params, socket) do

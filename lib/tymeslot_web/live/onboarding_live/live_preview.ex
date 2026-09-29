@@ -10,9 +10,10 @@ defmodule TymeslotWeb.OnboardingLive.LivePreview do
   this module owns, so the picker feels like a real choice rather than a
   label swap.
 
-  Per-user colours come from the static colour-scheme preset table and are
-  applied via inline `style`; structural layout is Tailwind utilities. The
-  component is pure — its only external lookup is that preset table.
+  Per-user colours come from the theme's resolved customisation tokens and
+  are applied via inline `style`; structural layout is Tailwind utilities.
+  The component is pure: its only lookup is that resolution, which reads no
+  database.
   """
 
   use Phoenix.Component
@@ -21,13 +22,12 @@ defmodule TymeslotWeb.OnboardingLive.LivePreview do
   import TymeslotWeb.Components.CoreComponents, only: [icon: 1]
   import TymeslotWeb.OnboardingLive.PreviewParts, only: [color: 3, divider_style: 1, ring: 2]
 
-  alias Tymeslot.ThemeCustomizations.Presets
+  alias Tymeslot.ThemeCustomizations
   alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.OnboardingLive.PreviewParts
   alias TymeslotWeb.OnboardingLive.TextHelpers
   alias TymeslotWeb.Themes.Core.ThemeInfo
 
-  @default_scheme "default"
   @default_theme_id Catalog.default_id()
 
   @doc """
@@ -41,7 +41,11 @@ defmodule TymeslotWeb.OnboardingLive.LivePreview do
   attr :name, :string, default: ""
   attr :username, :string, default: ""
   attr :avatar_url, :string, default: nil
-  attr :color_scheme, :string, default: @default_scheme
+
+  attr :theme_customization, :any,
+    default: nil,
+    doc: "the chosen theme's customisation; `nil` draws the theme's defaults"
+
   attr :buffer_minutes, :integer, default: nil
   attr :advance_booking_days, :integer, default: nil
   attr :min_advance_hours, :integer, default: nil
@@ -52,7 +56,7 @@ defmodule TymeslotWeb.OnboardingLive.LivePreview do
   def live_preview(assigns) do
     assigns =
       assigns
-      |> assign(:colors, scheme_colors(assigns.color_scheme))
+      |> assign(:colors, preview_colors(assigns.booking_theme, assigns.theme_customization))
       |> assign(:theme_module, theme_module(assigns.booking_theme))
       |> assign(:display_name, display_name(assigns.name))
       |> assign(:link_text, link_text(assigns.booking_host, assigns.username))
@@ -261,10 +265,8 @@ defmodule TymeslotWeb.OnboardingLive.LivePreview do
   # Colour resolution
   # -------------------------------------------------------------------
 
-  defp scheme_colors(id) do
-    schemes = Presets.get_color_schemes()
-    scheme = Map.get(schemes, id) || Map.get(schemes, @default_scheme) || %{}
-    Map.get(scheme, :colors, %{})
+  defp preview_colors(theme_id, customization) do
+    theme_id |> ThemeCustomizations.tokens(customization) |> PreviewParts.colors()
   end
 
   # -------------------------------------------------------------------

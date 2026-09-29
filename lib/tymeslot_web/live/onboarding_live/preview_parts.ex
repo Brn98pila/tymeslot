@@ -9,8 +9,9 @@ defmodule TymeslotWeb.OnboardingLive.PreviewParts do
   wizard renders), the generic mock for a theme that draws none, the
   per-user colour style builders, and the slot and Book-button pieces.
 
-  Per-user colours come from the static colour-scheme preset table and are
-  applied through inline `style`; structural layout is Tailwind utilities.
+  Per-user colours come from the theme's resolved customisation tokens
+  (`colors/1`) and are applied through inline `style`; structural layout is
+  Tailwind utilities.
   """
 
   use Phoenix.Component
@@ -18,10 +19,12 @@ defmodule TymeslotWeb.OnboardingLive.PreviewParts do
 
   import TymeslotWeb.Components.CoreComponents, only: [icon: 1]
 
+  alias Tymeslot.ThemeCustomizations.Tokens
+
   attr :theme_module, :atom, required: true
   attr :variant, :atom, values: [:thumbnail, :card], required: true
-  attr :primary, :string, default: nil, doc: "`:thumbnail`: the scheme's primary colour"
-  attr :colors, :map, default: %{}, doc: "`:card`: the scheme's colour map"
+  attr :primary, :string, default: nil, doc: "`:thumbnail`: the theme's primary colour"
+  attr :colors, :map, default: %{}, doc: "`:card`: the colour map from `colors/1`"
   attr :slots, :list, default: [], doc: "`:card`: `%{label, state, check}` sample slots"
   attr :locale, :string, default: "en"
   attr :highlight_card, :boolean, default: false
@@ -119,6 +122,24 @@ defmodule TymeslotWeb.OnboardingLive.PreviewParts do
       {@slot.label}
     </span>
     """
+  end
+
+  # Colour -> the custom property a spec's `tokens/2` resolves it to. These
+  # are the colours the previews draw with; one the theme's tokens leave out
+  # falls back to the neutral default at each use (`color/3`).
+  @preview_vars %{
+    primary: "--theme-primary",
+    accent: "--theme-accent",
+    background: "--theme-canvas",
+    surface: "--theme-surface",
+    text: "--theme-text",
+    text_secondary: "--theme-text-secondary"
+  }
+
+  @doc "The colour map the previews draw with, read from a theme's resolved tokens."
+  @spec colors(Tokens.t()) :: %{optional(atom()) => String.t()}
+  def colors(%Tokens{vars: vars}) do
+    for {key, var} <- @preview_vars, Map.has_key?(vars, var), into: %{}, do: {key, vars[var]}
   end
 
   @spec color(map(), atom(), String.t()) :: String.t()

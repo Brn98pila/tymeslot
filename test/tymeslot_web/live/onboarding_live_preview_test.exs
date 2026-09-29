@@ -197,7 +197,7 @@ defmodule TymeslotWeb.OnboardingLivePreviewTest do
 
       html =
         view
-        |> element("button[phx-value-scheme='purple']")
+        |> element("button[phx-value-choice='purple']")
         |> render_click()
 
       # Preview is tinted with the purple scheme's primary colour.
@@ -211,6 +211,14 @@ defmodule TymeslotWeb.OnboardingLivePreviewTest do
       assert customization.settings["color_scheme"] == "purple"
       # The colour change must not clobber the seeded video background.
       assert customization.settings["background_type"] == "video"
+    end
+
+    test "offers Quill's schemes in the order the wizard has always shown", %{conn: conn} do
+      {:ok, view, _html, _user} = setup_onboarding_with_calendar(conn)
+      html = view |> goto_choose_theme() |> render()
+
+      assert Regex.scan(~r/phx-value-choice="([^"]+)"/, html, capture: :all_but_first) ==
+               Enum.map(~w(default turquoise purple sunset ocean forest rose monochrome), &[&1])
     end
   end
 

@@ -43,7 +43,7 @@ defmodule TymeslotWeb.OnboardingLive.Initializer do
     # customization below so the assigned state reflects it.
     ThemeHandlers.seed_video_backgrounds(profile, connected_calendars)
 
-    {customization, color_scheme} = ThemeHandlers.initial_theme_state(profile)
+    {customization, onboarding_choices} = ThemeHandlers.initial_theme_state(profile)
 
     socket
     |> Component.assign(:profile, profile)
@@ -72,7 +72,7 @@ defmodule TymeslotWeb.OnboardingLive.Initializer do
     |> Component.assign(:booking_url, build_booking_url(profile))
     |> Component.assign(:theme_options, ThemeInfo.theme_options())
     |> Component.assign(:theme_customization, customization)
-    |> Component.assign(:color_scheme, color_scheme)
+    |> Component.assign(:onboarding_choices, onboarding_choices)
     |> allow_upload(:avatar,
       accept: Avatars.accepted_extensions(),
       max_entries: 1,
