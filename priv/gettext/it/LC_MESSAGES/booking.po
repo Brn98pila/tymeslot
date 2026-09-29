@@ -1412,9 +1412,7 @@ msgstr "Si è verificato un problema"
 msgid "Something went wrong on this page. Please try again."
 msgstr "Si è verificato un problema in questa pagina. Riprova."
 
-#: lib/tymeslot_web/themes/core/dispatcher.ex
 #: lib/tymeslot_web/themes/core/error_boundary.ex
-#: lib/tymeslot_web/themes/core/mount_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "This page could not be loaded. Please try again."
 msgstr "Impossibile caricare questa pagina. Riprova."

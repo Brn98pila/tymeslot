@@ -144,14 +144,14 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
           action when action in [:reschedule, :cancel, :cancel_confirmed] ->
             render_theme(
               assigns,
-              load_failed_message(),
+              ErrorBoundary.load_failed_message(),
               & &1.render_meeting_action(assigns, action)
             )
 
           :poll_voting ->
             render_theme(
               assigns,
-              load_failed_message(),
+              ErrorBoundary.load_failed_message(),
               & &1.render_poll_action(assigns)
             )
 
@@ -164,7 +164,11 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
   # Private functions
 
   defp render_scheduling_component(assigns) do
-    render_theme(assigns, load_failed_message(), & &1.live_view_module().render(assigns))
+    render_theme(
+      assigns,
+      ErrorBoundary.load_failed_message(),
+      & &1.live_view_module().render(assigns)
+    )
   end
 
   # Renders through the current theme's module. An id that resolves to no
@@ -179,7 +183,7 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
 
     case ThemeInfo.get_theme_module(theme_id) do
       nil ->
-        render_error(assigns, load_failed_message())
+        render_error(assigns, ErrorBoundary.load_failed_message())
 
       module ->
         try do
@@ -257,13 +261,8 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
   defp handle_theme_error(:handle_info = function, [_msg, socket]),
     do: {:noreply, assign_theme_error(socket, function)}
 
-  defp handle_theme_error(_unknown_function, _unknown_args), do: {:error, "Unknown theme error"}
-
   defp assign_theme_error(socket, function),
     do: assign(socket, :error, ErrorBoundary.format_error(%{function: function}))
-
-  defp load_failed_message,
-    do: dgettext("booking", "This page could not be loaded. Please try again.")
 
   defp render_error(assigns, message) do
     assigns = assign(assigns, :error_message, message)

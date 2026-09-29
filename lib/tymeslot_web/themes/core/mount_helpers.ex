@@ -14,7 +14,7 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
   alias Tymeslot.Polls
   alias Tymeslot.Scheduling.LinkAccessPolicy
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
-  alias TymeslotWeb.Themes.Core.{Context, MeetingManagement, PollVoting, Registry}
+  alias TymeslotWeb.Themes.Core.{Context, ErrorBoundary, MeetingManagement, PollVoting, Registry}
   alias TymeslotWeb.Themes.Shared.Customization.Helpers, as: ThemeCustomizationHelpers
 
   @doc """
@@ -64,12 +64,7 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
           delegate_fn.(context.theme_id, :mount, [params, session, socket])
 
         nil ->
-          {:ok,
-           assign(
-             socket,
-             :error,
-             dgettext("booking", "This page could not be loaded. Please try again.")
-           )}
+          {:ok, assign(socket, :error, ErrorBoundary.load_failed_message())}
       end
     end
   end
@@ -156,12 +151,7 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
         {:ok, context, socket}
 
       nil ->
-        {:error,
-         assign(
-           socket,
-           :error,
-           dgettext("booking", "This page could not be loaded. Please try again.")
-         )}
+        {:error, assign(socket, :error, ErrorBoundary.load_failed_message())}
     end
   end
 

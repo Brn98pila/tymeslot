@@ -1412,9 +1412,7 @@ msgstr "Un problème est survenu"
 msgid "Something went wrong on this page. Please try again."
 msgstr "Un problème est survenu sur cette page. Veuillez réessayer."
 
-#: lib/tymeslot_web/themes/core/dispatcher.ex
 #: lib/tymeslot_web/themes/core/error_boundary.ex
-#: lib/tymeslot_web/themes/core/mount_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "This page could not be loaded. Please try again."
 msgstr "Cette page n’a pas pu être chargée. Veuillez réessayer."

@@ -1412,9 +1412,7 @@ msgstr "Щось пішло не так"
 msgid "Something went wrong on this page. Please try again."
 msgstr "На цій сторінці щось пішло не так. Спробуйте ще раз."
 
-#: lib/tymeslot_web/themes/core/dispatcher.ex
 #: lib/tymeslot_web/themes/core/error_boundary.ex
-#: lib/tymeslot_web/themes/core/mount_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "This page could not be loaded. Please try again."
 msgstr "Не вдалося завантажити цю сторінку. Спробуйте ще раз."

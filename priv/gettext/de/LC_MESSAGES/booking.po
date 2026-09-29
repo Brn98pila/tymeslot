@@ -1412,9 +1412,7 @@ msgstr "Etwas ist schiefgelaufen"
 msgid "Something went wrong on this page. Please try again."
 msgstr "Auf dieser Seite ist etwas schiefgelaufen. Bitte versuchen Sie es erneut."
 
-#: lib/tymeslot_web/themes/core/dispatcher.ex
 #: lib/tymeslot_web/themes/core/error_boundary.ex
-#: lib/tymeslot_web/themes/core/mount_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "This page could not be loaded. Please try again."
 msgstr "Diese Seite konnte nicht geladen werden. Bitte versuchen Sie es erneut."

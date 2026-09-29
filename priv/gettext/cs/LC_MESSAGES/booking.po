@@ -1411,9 +1411,7 @@ msgstr "Něco se pokazilo"
 msgid "Something went wrong on this page. Please try again."
 msgstr "Na této stránce se něco pokazilo. Zkuste to prosím znovu."
 
-#: lib/tymeslot_web/themes/core/dispatcher.ex
 #: lib/tymeslot_web/themes/core/error_boundary.ex
-#: lib/tymeslot_web/themes/core/mount_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "This page could not be loaded. Please try again."
 msgstr "Tuto stránku se nepodařilo načíst. Zkuste to prosím znovu."

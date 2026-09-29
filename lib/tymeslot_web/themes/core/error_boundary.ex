@@ -117,8 +117,7 @@ defmodule TymeslotWeb.Themes.Core.ErrorBoundary do
   current locale. The technical detail goes to the error tracker instead.
   """
   @spec format_error(map()) :: String.t()
-  def format_error(%{function: :mount}),
-    do: dgettext("booking", "This page could not be loaded. Please try again.")
+  def format_error(%{function: :mount}), do: load_failed_message()
 
   def format_error(%{function: :handle_params}),
     do: dgettext("booking", "This step could not be opened. Please try again.")
@@ -131,4 +130,13 @@ defmodule TymeslotWeb.Themes.Core.ErrorBoundary do
 
   def format_error(_context),
     do: dgettext("booking", "Something went wrong on this page. Please try again.")
+
+  @doc """
+  The message the error card shows when the page could not be built at all:
+  a theme that failed to mount or render, or a theme context that could not
+  be resolved.
+  """
+  @spec load_failed_message() :: String.t()
+  def load_failed_message,
+    do: dgettext("booking", "This page could not be loaded. Please try again.")
 end
