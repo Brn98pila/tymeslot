@@ -1401,3 +1401,40 @@ msgstr "Ospite"
 #, elixir-autogen, elixir-format
 msgid "Cannot cancel an expired meeting"
 msgstr "Impossibile annullare una riunione scaduta"
+
+#: lib/tymeslot_web/themes/core/dispatcher.ex
+#, elixir-autogen, elixir-format
+msgid "Something went wrong"
+msgstr "Si è verificato un problema"
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "Something went wrong on this page. Please try again."
+msgstr "Si è verificato un problema in questa pagina. Riprova."
+
+#: lib/tymeslot_web/themes/core/dispatcher.ex
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#: lib/tymeslot_web/themes/core/mount_helpers.ex
+#, elixir-autogen, elixir-format
+msgid "This page could not be loaded. Please try again."
+msgstr "Impossibile caricare questa pagina. Riprova."
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "This page could not be updated. Please try again."
+msgstr "Impossibile aggiornare questa pagina. Riprova."
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "This step could not be opened. Please try again."
+msgstr "Impossibile aprire questo passaggio. Riprova."
+
+#: lib/tymeslot_web/themes/core/dispatcher.ex
+#, elixir-autogen, elixir-format
+msgid "Try again"
+msgstr "Riprova"
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "Your last action could not be completed. Please try again."
+msgstr "Impossibile completare la tua ultima azione. Riprova."

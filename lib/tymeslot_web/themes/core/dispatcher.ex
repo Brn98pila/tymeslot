@@ -7,6 +7,7 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
   independence while maintaining a consistent interface.
   """
   use TymeslotWeb, :live_view
+  use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Infrastructure.ErrorTracking
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
@@ -143,14 +144,14 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
           action when action in [:reschedule, :cancel, :cancel_confirmed] ->
             render_theme(
               assigns,
-              "Meeting action rendering failed",
+              load_failed_message(),
               & &1.render_meeting_action(assigns, action)
             )
 
           :poll_voting ->
             render_theme(
               assigns,
-              "Poll voting rendering failed",
+              load_failed_message(),
               & &1.render_poll_action(assigns)
             )
 
@@ -163,7 +164,7 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
   # Private functions
 
   defp render_scheduling_component(assigns) do
-    render_theme(assigns, "Theme rendering failed", & &1.live_view_module().render(assigns))
+    render_theme(assigns, load_failed_message(), & &1.live_view_module().render(assigns))
   end
 
   # Renders through the current theme's module. An id that resolves to no
@@ -178,7 +179,7 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
 
     case ThemeInfo.get_theme_module(theme_id) do
       nil ->
-        render_error(assigns, "Theme not found")
+        render_error(assigns, load_failed_message())
 
       module ->
         try do
@@ -244,23 +245,25 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
     end
   end
 
-  defp handle_theme_error(:mount, [_params, _session, socket]) do
-    {:ok, assign(socket, :error, "Theme loading failed")}
-  end
+  # The theme could not be resolved at all, so the error boundary never ran;
+  # show the visitor the same message it would have.
+  defp handle_theme_error(:mount = function, [_params, _session, socket]),
+    do: {:ok, assign_theme_error(socket, function)}
 
-  defp handle_theme_error(:handle_params, [_params, _url, socket]) do
-    {:noreply, assign(socket, :error, "Theme navigation failed")}
-  end
+  defp handle_theme_error(function, [_first, _second, socket])
+       when function in [:handle_params, :handle_event],
+       do: {:noreply, assign_theme_error(socket, function)}
 
-  defp handle_theme_error(:handle_event, [_event, _params, socket]) do
-    {:noreply, assign(socket, :error, "Theme event handling failed")}
-  end
-
-  defp handle_theme_error(:handle_info, [_msg, socket]) do
-    {:noreply, assign(socket, :error, "Theme message handling failed")}
-  end
+  defp handle_theme_error(:handle_info = function, [_msg, socket]),
+    do: {:noreply, assign_theme_error(socket, function)}
 
   defp handle_theme_error(_unknown_function, _unknown_args), do: {:error, "Unknown theme error"}
+
+  defp assign_theme_error(socket, function),
+    do: assign(socket, :error, ErrorBoundary.format_error(%{function: function}))
+
+  defp load_failed_message,
+    do: dgettext("booking", "This page could not be loaded. Please try again.")
 
   defp render_error(assigns, message) do
     assigns = assign(assigns, :error_message, message)
@@ -270,14 +273,16 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
       <div class="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
         <div class="text-center">
           <div class="text-red-500 text-6xl mb-4">⚠️</div>
-          <h1 class="theme-error-title text-xl font-bold text-tymeslot-900 mb-2">Theme Error</h1>
+          <h1 class="theme-error-title text-xl font-bold text-tymeslot-900 mb-2">
+            {dgettext("booking", "Something went wrong")}
+          </h1>
           <p class="text-tymeslot-600 mb-4">{@error_message}</p>
           <button
             id="theme-error-retry-button"
             phx-hook="PageReload"
             class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
           >
-            Retry
+            {dgettext("booking", "Try again")}
           </button>
         </div>
       </div>

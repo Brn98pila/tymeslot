@@ -3,7 +3,7 @@ defmodule TymeslotWeb.Live.Scheduling.NoCalendarReadinessTest do
   A booking page whose organiser has connected no bookable calendar is an
   ordinary product state, not a crash. The visitor must be told, once, inside
   the organiser's own theme — never through the dispatcher's last-resort
-  "Theme Error" card, whose Retry button reloads a page that cannot change.
+  error card, whose retry button reloads a page that cannot change.
   """
   use TymeslotWeb.LiveCase, async: true
 
@@ -71,7 +71,7 @@ defmodule TymeslotWeb.Live.Scheduling.NoCalendarReadinessTest do
         {:ok, view, _html} = live(conn, "/#{profile.username}")
         html = render(view)
 
-        refute html =~ "Theme Error"
+        refute html =~ "theme-error-title"
         refute has_element?(view, "#theme-error-retry-button")
       end
 

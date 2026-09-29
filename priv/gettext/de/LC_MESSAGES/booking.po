@@ -1401,3 +1401,40 @@ msgstr "Gast"
 #, elixir-autogen, elixir-format
 msgid "Cannot cancel an expired meeting"
 msgstr "Ein abgelaufener Termin kann nicht abgesagt werden"
+
+#: lib/tymeslot_web/themes/core/dispatcher.ex
+#, elixir-autogen, elixir-format
+msgid "Something went wrong"
+msgstr "Etwas ist schiefgelaufen"
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "Something went wrong on this page. Please try again."
+msgstr "Auf dieser Seite ist etwas schiefgelaufen. Bitte versuchen Sie es erneut."
+
+#: lib/tymeslot_web/themes/core/dispatcher.ex
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#: lib/tymeslot_web/themes/core/mount_helpers.ex
+#, elixir-autogen, elixir-format
+msgid "This page could not be loaded. Please try again."
+msgstr "Diese Seite konnte nicht geladen werden. Bitte versuchen Sie es erneut."
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "This page could not be updated. Please try again."
+msgstr "Diese Seite konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "This step could not be opened. Please try again."
+msgstr "Dieser Schritt konnte nicht geöffnet werden. Bitte versuchen Sie es erneut."
+
+#: lib/tymeslot_web/themes/core/dispatcher.ex
+#, elixir-autogen, elixir-format
+msgid "Try again"
+msgstr "Erneut versuchen"
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "Your last action could not be completed. Please try again."
+msgstr "Ihre letzte Aktion konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut."

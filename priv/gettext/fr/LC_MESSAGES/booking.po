@@ -1401,3 +1401,40 @@ msgstr "Invité"
 #, elixir-autogen, elixir-format
 msgid "Cannot cancel an expired meeting"
 msgstr "Impossible d’annuler une réunion expirée"
+
+#: lib/tymeslot_web/themes/core/dispatcher.ex
+#, elixir-autogen, elixir-format
+msgid "Something went wrong"
+msgstr "Un problème est survenu"
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "Something went wrong on this page. Please try again."
+msgstr "Un problème est survenu sur cette page. Veuillez réessayer."
+
+#: lib/tymeslot_web/themes/core/dispatcher.ex
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#: lib/tymeslot_web/themes/core/mount_helpers.ex
+#, elixir-autogen, elixir-format
+msgid "This page could not be loaded. Please try again."
+msgstr "Cette page n'a pas pu être chargée. Veuillez réessayer."
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "This page could not be updated. Please try again."
+msgstr "Cette page n'a pas pu être mise à jour. Veuillez réessayer."
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "This step could not be opened. Please try again."
+msgstr "Cette étape n'a pas pu être ouverte. Veuillez réessayer."
+
+#: lib/tymeslot_web/themes/core/dispatcher.ex
+#, elixir-autogen, elixir-format
+msgid "Try again"
+msgstr "Réessayer"
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "Your last action could not be completed. Please try again."
+msgstr "Votre dernière action n'a pas pu être effectuée. Veuillez réessayer."

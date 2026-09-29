@@ -84,8 +84,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeHookTest do
 
     {:ok, _view, live_html} = live(conn, "/#{profile.username}?theme=9")
     assert live_html =~ "rhythm-theme-wrapper"
-    refute live_html =~ "Theme Error"
-    refute live_html =~ "Failed to load theme context"
+    refute live_html =~ "theme-error-title"
   end
 
   defp update_profile(profile, attrs) do

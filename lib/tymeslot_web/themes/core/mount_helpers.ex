@@ -64,7 +64,12 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
           delegate_fn.(context.theme_id, :mount, [params, session, socket])
 
         nil ->
-          {:ok, assign(socket, :error, "Failed to load theme context")}
+          {:ok,
+           assign(
+             socket,
+             :error,
+             dgettext("booking", "This page could not be loaded. Please try again.")
+           )}
       end
     end
   end
@@ -151,7 +156,12 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
         {:ok, context, socket}
 
       nil ->
-        {:error, assign(socket, :error, "Failed to load theme context")}
+        {:error,
+         assign(
+           socket,
+           :error,
+           dgettext("booking", "This page could not be loaded. Please try again.")
+         )}
     end
   end
 

@@ -1400,3 +1400,40 @@ msgstr "Host"
 #, elixir-autogen, elixir-format
 msgid "Cannot cancel an expired meeting"
 msgstr "Schůzku s vypršenou platností nelze zrušit"
+
+#: lib/tymeslot_web/themes/core/dispatcher.ex
+#, elixir-autogen, elixir-format
+msgid "Something went wrong"
+msgstr "Něco se pokazilo"
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "Something went wrong on this page. Please try again."
+msgstr "Na této stránce se něco pokazilo. Zkuste to prosím znovu."
+
+#: lib/tymeslot_web/themes/core/dispatcher.ex
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#: lib/tymeslot_web/themes/core/mount_helpers.ex
+#, elixir-autogen, elixir-format
+msgid "This page could not be loaded. Please try again."
+msgstr "Tuto stránku se nepodařilo načíst. Zkuste to prosím znovu."
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "This page could not be updated. Please try again."
+msgstr "Tuto stránku se nepodařilo aktualizovat. Zkuste to prosím znovu."
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "This step could not be opened. Please try again."
+msgstr "Tento krok se nepodařilo otevřít. Zkuste to prosím znovu."
+
+#: lib/tymeslot_web/themes/core/dispatcher.ex
+#, elixir-autogen, elixir-format
+msgid "Try again"
+msgstr "Zkusit znovu"
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "Your last action could not be completed. Please try again."
+msgstr "Vaši poslední akci se nepodařilo dokončit. Zkuste to prosím znovu."

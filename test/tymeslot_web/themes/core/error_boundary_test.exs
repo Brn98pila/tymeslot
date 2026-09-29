@@ -85,7 +85,9 @@ defmodule TymeslotWeb.Themes.Core.ErrorBoundaryTest do
 
       assert %RuntimeError{message: "boom mount"} = socket.assigns.theme_error.error
       assert socket.assigns.theme_error.theme_id == "buggy"
-      assert socket.assigns.theme_error_message == "Failed to load theme"
+
+      assert socket.assigns.theme_error_message ==
+               "This page could not be loaded. Please try again."
     end
 
     test "handle_params that raises returns noreply with theme_error assigned" do
@@ -97,7 +99,8 @@ defmodule TymeslotWeb.Themes.Core.ErrorBoundaryTest do
                  [%{}, "/", socket()]
                )
 
-      assert socket.assigns.theme_error_message == "Navigation error in theme"
+      assert socket.assigns.theme_error_message ==
+               "This step could not be opened. Please try again."
     end
 
     test "handle_event that raises is caught with the right error message" do
@@ -109,7 +112,8 @@ defmodule TymeslotWeb.Themes.Core.ErrorBoundaryTest do
                  ["click", %{}, socket()]
                )
 
-      assert socket.assigns.theme_error_message == "Event handling error in theme"
+      assert socket.assigns.theme_error_message ==
+               "Your last action could not be completed. Please try again."
     end
 
     test "handle_info that raises is caught with the right error message" do
@@ -119,7 +123,8 @@ defmodule TymeslotWeb.Themes.Core.ErrorBoundaryTest do
                  socket()
                ])
 
-      assert socket.assigns.theme_error_message == "Message handling error in theme"
+      assert socket.assigns.theme_error_message ==
+               "This page could not be updated. Please try again."
     end
   end
 
@@ -128,7 +133,8 @@ defmodule TymeslotWeb.Themes.Core.ErrorBoundaryTest do
       assert {:ok, socket} =
                ErrorBoundary.wrap_callback("buggy", ThrowingTheme, :mount, [%{}, %{}, socket()])
 
-      assert socket.assigns.theme_error_message == "Failed to load theme"
+      assert socket.assigns.theme_error_message ==
+               "This page could not be loaded. Please try again."
     end
 
     test "a thrown value during handle_event is caught" do
@@ -139,14 +145,15 @@ defmodule TymeslotWeb.Themes.Core.ErrorBoundaryTest do
                  socket()
                ])
 
-      assert socket.assigns.theme_error_message == "Event handling error in theme"
+      assert socket.assigns.theme_error_message ==
+               "Your last action could not be completed. Please try again."
     end
   end
 
   describe "format_error/1" do
     test "falls back to a generic message" do
       assert ErrorBoundary.format_error(%{function: :something_else}) ==
-               "An error occurred in the theme"
+               "Something went wrong on this page. Please try again."
     end
   end
 end

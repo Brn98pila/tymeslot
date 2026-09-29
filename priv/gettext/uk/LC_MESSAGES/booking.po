@@ -1401,3 +1401,40 @@ msgstr "Гість"
 #, elixir-autogen, elixir-format
 msgid "Cannot cancel an expired meeting"
 msgstr "Протерміновану зустріч не можна скасувати"
+
+#: lib/tymeslot_web/themes/core/dispatcher.ex
+#, elixir-autogen, elixir-format
+msgid "Something went wrong"
+msgstr "Щось пішло не так"
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "Something went wrong on this page. Please try again."
+msgstr "На цій сторінці щось пішло не так. Спробуйте ще раз."
+
+#: lib/tymeslot_web/themes/core/dispatcher.ex
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#: lib/tymeslot_web/themes/core/mount_helpers.ex
+#, elixir-autogen, elixir-format
+msgid "This page could not be loaded. Please try again."
+msgstr "Не вдалося завантажити цю сторінку. Спробуйте ще раз."
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "This page could not be updated. Please try again."
+msgstr "Не вдалося оновити цю сторінку. Спробуйте ще раз."
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "This step could not be opened. Please try again."
+msgstr "Не вдалося відкрити цей крок. Спробуйте ще раз."
+
+#: lib/tymeslot_web/themes/core/dispatcher.ex
+#, elixir-autogen, elixir-format
+msgid "Try again"
+msgstr "Спробувати ще раз"
+
+#: lib/tymeslot_web/themes/core/error_boundary.ex
+#, elixir-autogen, elixir-format
+msgid "Your last action could not be completed. Please try again."
+msgstr "Не вдалося виконати вашу останню дію. Спробуйте ще раз."

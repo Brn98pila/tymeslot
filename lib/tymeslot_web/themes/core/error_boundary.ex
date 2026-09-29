@@ -6,6 +6,8 @@ defmodule TymeslotWeb.Themes.Core.ErrorBoundary do
   application, providing graceful degradation and error reporting.
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   require Logger
 
   alias Phoenix.Component
@@ -111,12 +113,22 @@ defmodule TymeslotWeb.Themes.Core.ErrorBoundary do
   end
 
   @doc """
-  Formats an error context into a human-readable message.
+  The message the error card shows the visitor for an error context, in the
+  current locale. The technical detail goes to the error tracker instead.
   """
   @spec format_error(map()) :: String.t()
-  def format_error(%{function: :mount}), do: "Failed to load theme"
-  def format_error(%{function: :handle_params}), do: "Navigation error in theme"
-  def format_error(%{function: :handle_event}), do: "Event handling error in theme"
-  def format_error(%{function: :handle_info}), do: "Message handling error in theme"
-  def format_error(_context), do: "An error occurred in the theme"
+  def format_error(%{function: :mount}),
+    do: dgettext("booking", "This page could not be loaded. Please try again.")
+
+  def format_error(%{function: :handle_params}),
+    do: dgettext("booking", "This step could not be opened. Please try again.")
+
+  def format_error(%{function: :handle_event}),
+    do: dgettext("booking", "Your last action could not be completed. Please try again.")
+
+  def format_error(%{function: :handle_info}),
+    do: dgettext("booking", "This page could not be updated. Please try again.")
+
+  def format_error(_context),
+    do: dgettext("booking", "Something went wrong on this page. Please try again.")
 end
