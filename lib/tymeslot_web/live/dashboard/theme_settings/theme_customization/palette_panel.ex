@@ -5,7 +5,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel do
   """
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
+  use TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panel
 
+  alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panel
 
@@ -14,8 +16,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel do
 
   import TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ColourPickerWidget,
     only: [colour_picker_widget: 1]
-
-  @behaviour Panel
 
   @impl Panel
   def render(assigns) do
@@ -55,6 +55,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel do
           <button
             type="button"
             phx-click="theme:toggle_palette_picker"
+            phx-value-option={@group.key}
             phx-target={@myself}
             aria-expanded={to_string(@palette_picker_open)}
             aria-controls="custom-palette-picker"
@@ -153,4 +154,29 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel do
     </div>
     """
   end
+
+  # The seed picker is open exactly while a seed drives the palette, both on
+  # load and after a save: choosing a scheme drops the seed and closes it.
+  @impl Panel
+  def ui(_group, customization, _ui),
+    do: %{palette_picker_open: not is_nil(customization.settings["custom_palette_seed"])}
+
+  # "Custom" with no seed stored writes the default seed, which opens the
+  # picker through ui/3; with a seed it only shows or hides the picker.
+  @impl Panel
+  def handle_ui("theme:toggle_palette_picker", _params, _group, ui, customization) do
+    if is_nil(customization.settings["custom_palette_seed"]),
+      do: {:set, "seed", ThemeCustomizations.default_custom_palette_seed()},
+      else: {:ui, %{ui | palette_picker_open: not ui.palette_picker_open}}
+  end
+
+  def handle_ui(_event, _params, _group, _ui, _customization), do: :ignore
+
+  # Event names and rate-limit labels as they were before the single event.
+  @impl Panel
+  def telemetry(_group, "seed", value),
+    do: {:palette_seed_changed, "palette_seed", %{seed: value}}
+
+  def telemetry(_group, _field, value),
+    do: {:color_scheme_changed, "color_scheme", %{scheme_id: value}}
 end

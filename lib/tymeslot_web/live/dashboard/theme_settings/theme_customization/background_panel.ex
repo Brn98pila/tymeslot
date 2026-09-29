@@ -5,6 +5,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.BackgroundPanel
   """
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
+  use TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panel
 
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panel
@@ -20,8 +21,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.BackgroundPanel
 
   import TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.VideoPicker,
     only: [video_picker: 1]
-
-  @behaviour Panel
 
   @impl Panel
   def render(assigns) do
@@ -54,6 +53,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.BackgroundPanel
                 )
               ]}
               phx-click="theme:set_browsing_type"
+              phx-value-option={@group.key}
               phx-value-type={type}
               phx-target={@myself}
             >
@@ -103,6 +103,37 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.BackgroundPanel
     </div>
     """
   end
+
+  # The open tab follows the saved kind (on load, and after a save, which
+  # always saves the chosen kind), falling back to the group's first kind.
+  # The custom colour disclosure survives saves, so committing a colour does
+  # not close it.
+  @impl Panel
+  def ui(group, customization, ui) do
+    kinds = kind_names(group)
+    saved = customization.settings["background_type"]
+
+    %{
+      browsing_type: if(saved in kinds, do: saved, else: List.first(kinds)),
+      custom_picker_open: Map.get(ui, :custom_picker_open, false)
+    }
+  end
+
+  @impl Panel
+  def handle_ui("theme:set_browsing_type", %{"type" => type}, group, ui, _customization) do
+    if type in kind_names(group), do: {:ui, %{ui | browsing_type: type}}, else: :ignore
+  end
+
+  def handle_ui("theme:toggle_custom_picker", _params, _group, ui, _customization),
+    do: {:ui, %{ui | custom_picker_open: not ui.custom_picker_open}}
+
+  def handle_ui(_event, _params, _group, _ui, _customization), do: :ignore
+
+  @impl Panel
+  def telemetry(_group, kind, value),
+    do: {:background_changed, "background", %{type: kind, value: value}}
+
+  defp kind_names(%{kinds: kinds}), do: Enum.map(kinds, &Atom.to_string/1)
 
   defp background_tabs(kinds) do
     declared = Enum.map(kinds, &Atom.to_string/1)

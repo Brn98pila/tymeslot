@@ -11,7 +11,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
     - customization: map with current customization state (see customization_t())
     - option_groups: the theme spec's option groups, one panel each (`ThemeCustomizations.option_groups/1`)
     - panels: the panel module for each group, keyed by the group's key (`Panels.for_group/2`)
-    - browsing_type: String.t() – which background category is currently browsed (one of the background group's kinds)
+    - panel_ui: each group's panel UI state, keyed by the group's key (`Panel.ui/3`, `Panel.handle_ui/5`)
     - uploads: map() – upload entries, present only when the spec declares asset fields
     - parent_component: term() – reference to parent component for close actions (optional)
   """
@@ -24,8 +24,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.ThemeCustomizations
-  alias Tymeslot.ThemeCustomizations.Options.Background
-  alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components
@@ -42,7 +40,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
           required(:customization) => customization_t(),
           required(:option_groups) => [map()],
           required(:panels) => %{atom() => module()},
-          required(:browsing_type) => String.t() | nil,
+          required(:panel_ui) => %{atom() => map()},
           optional(:uploads) => map() | nil,
           optional(:parent_component) => term()
         }
@@ -71,6 +69,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
       ThemeCustomizations.initialize_customization(assigns.profile.id, theme_id)
 
     option_groups = ThemeCustomizations.option_groups(theme_id)
+    panels = Map.new(option_groups, &{&1.key, Panels.for_group(theme_id, &1)})
 
     {:ok,
      socket
@@ -81,13 +80,13 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
        theme_id: theme_id,
        customization: customization,
        option_groups: option_groups,
-       panels: Map.new(option_groups, &{&1.key, Panels.for_group(theme_id, &1)})
+       panels: panels
      )
      |> BackgroundUploads.configure(__MODULE__, ThemeCustomizations.asset_fields(theme_id))
-     |> assign_new(:browsing_type, fn -> initial_browsing_type(customization, option_groups) end)
-     |> assign_new(:custom_picker_open, fn -> false end)
-     |> assign_new(:palette_picker_open, fn ->
-       not is_nil(customization.settings["custom_palette_seed"])
+     |> assign_new(:panel_ui, fn ->
+       Map.new(option_groups, fn group ->
+         {group.key, panels[group.key].ui(group, customization, %{})}
+       end)
      end)}
   end
 
@@ -109,9 +108,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
         customization={@customization}
         uploads={assigns[:uploads]}
         myself={@myself}
-        browsing_type={@browsing_type}
-        palette_picker_open={@palette_picker_open}
-        custom_picker_open={@custom_picker_open}
+        {@panel_ui[group.key]}
       />
     </div>
     """
@@ -125,55 +122,18 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
         socket
       )
       when is_binary(option) and is_binary(field) and is_binary(choice) do
-    case Enum.find(socket.assigns.option_groups, &(Atom.to_string(&1.key) == option)) do
-      nil -> {:noreply, socket}
-      group -> set_option(socket, group, field, choice)
-    end
+    with_group(socket, option, &set_option(socket, &1, field, choice))
   end
 
   def handle_event("theme:set_option", _params, socket), do: {:noreply, socket}
 
-  def handle_event("theme:toggle_palette_picker", _params, socket) do
-    if is_nil(socket.assigns.customization.settings["custom_palette_seed"]) do
-      with_rate_limit(socket, "color_scheme", fn ->
-        case ThemeCustomizations.apply_option(
-               socket.assigns.profile.id,
-               socket.assigns.theme_id,
-               :palette,
-               %{"field" => "seed", "value" => ThemeCustomizations.default_custom_palette_seed()}
-             ) do
-          {:ok, updated} ->
-            emit_telemetry(:palette_seed_set, socket, %{
-              seed: updated.settings["custom_palette_seed"]
-            })
-
-            {:noreply,
-             socket
-             |> assign(:customization, updated)
-             |> assign(:palette_picker_open, true)}
-
-          {:error, reason} ->
-            Flash.error(reason)
-            {:noreply, socket}
-        end
-      end)
-    else
-      {:noreply, update(socket, :palette_picker_open, &(!&1))}
-    end
+  # Any other `theme:` event is a UI event of the panel whose group it names.
+  def handle_event("theme:" <> _action = event, %{"option" => option} = params, socket)
+      when is_binary(option) do
+    with_group(socket, option, &panel_event(socket, &1, event, params))
   end
 
-  def handle_event("theme:set_browsing_type", %{"type" => type}, socket) do
-    # UI navigation only, not a selection
-    if type in background_kinds(socket.assigns.option_groups) do
-      {:noreply, assign(socket, :browsing_type, type)}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  def handle_event("theme:toggle_custom_picker", _params, socket) do
-    {:noreply, update(socket, :custom_picker_open, &(!&1))}
-  end
+  def handle_event("theme:" <> _action, _params, socket), do: {:noreply, socket}
 
   def handle_event("validate_image", _params, socket) do
     {:noreply, consume_upload_and_notify(socket, :image)}
@@ -193,8 +153,26 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
 
   # Private functions
 
+  defp with_group(socket, option, fun) do
+    case Enum.find(socket.assigns.option_groups, &(Atom.to_string(&1.key) == option)) do
+      nil -> {:noreply, socket}
+      group -> fun.(group)
+    end
+  end
+
+  defp panel_event(socket, group, event, params) do
+    %{panels: panels, panel_ui: panel_ui, customization: customization} = socket.assigns
+
+    case panels[group.key].handle_ui(event, params, group, panel_ui[group.key], customization) do
+      {:ui, ui} -> {:noreply, put_panel_ui(socket, group, ui)}
+      {:set, field, value} -> set_option(socket, group, field, value)
+      :ignore -> {:noreply, socket}
+    end
+  end
+
   defp set_option(socket, group, field, value) do
-    {event, action, metadata} = telemetry_for(group, field, value)
+    panel = socket.assigns.panels[group.key]
+    {event, action, metadata} = panel.telemetry(group, field, value)
 
     with_rate_limit(socket, action, fn ->
       case ThemeCustomizations.apply_option(
@@ -205,11 +183,12 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
            ) do
         {:ok, updated} ->
           emit_telemetry(event, socket, metadata)
+          ui = panel.ui(group, updated, socket.assigns.panel_ui[group.key])
 
           {:noreply,
            socket
            |> assign(:customization, updated)
-           |> after_option_set(group, field, updated)}
+           |> put_panel_ui(group, ui)}
 
         {:error, reason} ->
           Flash.error(reason)
@@ -218,41 +197,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
     end)
   end
 
-  defp after_option_set(socket, %{module: Palette}, _field, updated),
-    do: assign(socket, :palette_picker_open, not is_nil(updated.settings["custom_palette_seed"]))
-
-  defp after_option_set(socket, %{module: Background}, kind, _updated),
-    do: assign(socket, :browsing_type, kind)
-
-  defp after_option_set(socket, _group, _field, _updated), do: socket
-
-  # Event names and rate-limit labels as they were before the single event.
-  defp telemetry_for(%{module: Palette}, "seed", value),
-    do: {:palette_seed_changed, "palette_seed", %{seed: value}}
-
-  defp telemetry_for(%{module: Palette}, _field, value),
-    do: {:color_scheme_changed, "color_scheme", %{scheme_id: value}}
-
-  defp telemetry_for(%{module: Background}, kind, value),
-    do: {:background_changed, "background", %{type: kind, value: value}}
-
-  defp telemetry_for(group, field, value),
-    do: {:option_changed, Atom.to_string(group.key), %{field: field, value: value}}
-
-  defp background_kinds(option_groups) do
-    case Enum.find(option_groups, &(&1.module == Background)) do
-      %{kinds: kinds} -> Enum.map(kinds, &Atom.to_string/1)
-      nil -> []
-    end
-  end
-
-  defp initial_browsing_type(customization, option_groups) do
-    kinds = background_kinds(option_groups)
-
-    if customization.settings["background_type"] in kinds,
-      do: customization.settings["background_type"],
-      else: List.first(kinds)
-  end
+  defp put_panel_ui(socket, group, ui),
+    do: update(socket, :panel_ui, &Map.put(&1, group.key, ui))
 
   # `AutoUpload` (mounted at the root of this component's markup, see
   # `render/1`) only clears the file picker once it receives "upload-complete",

@@ -54,6 +54,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ColorPi
           <button
             type="button"
             phx-click="theme:toggle_custom_picker"
+            phx-value-option={@option}
             phx-target={@myself}
             aria-expanded={to_string(@custom_picker_open)}
             aria-controls="custom-background-picker"

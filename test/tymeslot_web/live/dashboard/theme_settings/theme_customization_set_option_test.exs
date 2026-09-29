@@ -138,6 +138,21 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationSetOptionTest do
 
       assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1") == nil
     end
+
+    test "a UI event goes to the panel of the option it names", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/dashboard/theme/customize/1")
+      target = with_target(view, "#theme-customization-uploads")
+
+      render_click(target, "theme:set_browsing_type", %{"option" => "palette", "type" => "video"})
+      refute has_element?(view, "#theme-background-video-form")
+
+      render_click(target, "theme:set_browsing_type", %{
+        "option" => "background",
+        "type" => "video"
+      })
+
+      assert has_element?(view, "#theme-background-video-form")
+    end
   end
 
   describe "panels from the spec" do
