@@ -153,6 +153,9 @@ defmodule Tymeslot.Infrastructure.Logging.FileSinkTest do
       # the proof the sink tried it rather than staying disabled.
       System.put_env("DEPLOYMENT_TYPE", "main")
       System.delete_env("LOG_FILE_PATH")
+      # As above: /app/data/logs is writable on some machines.
+      Application.put_env(:tymeslot, :cloudron_log_file_path, "/proc/impossible/app.log")
+      on_exit(fn -> Application.delete_env(:tymeslot, :cloudron_log_file_path) end)
 
       assert {:error, _reason} = FileSink.attach()
     end
