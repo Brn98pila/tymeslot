@@ -5,25 +5,31 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
   Orchestrates `Storage` and `Transcoder` to delete stale background images,
   videos, and their transcoded variants when a customisation is updated,
   deleted, or has its background replaced. Which fields hold stored files, and
-  of which kind, comes from the theme's customisation spec (`asset_fields/0`).
-  Persistence is handled by the caller; this module only deals with files.
+  of which kind, comes from the customisation spec the caller passes
+  (`asset_fields/0`, every option group's `asset_fields/1`), so a group's files
+  are cleaned up without this module knowing the group. Persistence is handled
+  by the caller; this module only deals with files.
   """
 
   require Logger
 
   alias Tymeslot.Media.Transcoder
   alias Tymeslot.ThemeCustomizations.DataTransform
-  alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.ThemeCustomizations.Storage
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   @doc """
-  Deletes the files an update replaced: every asset field of the theme's spec
-  whose stored path changed between the record before and after the update.
+  Deletes the files an update replaced: every asset field of `spec` whose
+  stored path changed between the record before and after the update.
   Replaced videos also lose their transcoded variants.
   """
-  @spec cleanup_replaced_files(ThemeCustomizationSchema.t(), ThemeCustomizationSchema.t()) :: :ok
+  @spec cleanup_replaced_files(
+          module(),
+          ThemeCustomizationSchema.t(),
+          ThemeCustomizationSchema.t()
+        ) :: :ok
   def cleanup_replaced_files(
+        spec,
         %ThemeCustomizationSchema{} = previous,
         %ThemeCustomizationSchema{} = updated
       ) do
@@ -33,9 +39,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
       operation: "theme_update"
     }
 
-    previous.theme_id
-    |> asset_fields()
-    |> Enum.each(fn {field, kind} ->
+    Enum.each(spec.asset_fields(), fn {field, kind} ->
       old_path = setting(previous, field)
 
       if old_path && old_path != setting(updated, field) do
@@ -48,24 +52,20 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
   Deletes every stored file of a deleted customisation, including transcoded
   video variants.
   """
-  @spec cleanup_all_files(ThemeCustomizationSchema.t()) :: :ok
-  def cleanup_all_files(%ThemeCustomizationSchema{} = customization) do
+  @spec cleanup_all_files(module(), ThemeCustomizationSchema.t()) :: :ok
+  def cleanup_all_files(spec, %ThemeCustomizationSchema{} = customization) do
     context = %{
       profile_id: customization.profile_id,
       theme_id: customization.theme_id,
       operation: "theme_delete"
     }
 
-    customization.theme_id
-    |> asset_fields()
-    |> Enum.each(fn {field, kind} ->
+    Enum.each(spec.asset_fields(), fn {field, kind} ->
       if path = setting(customization, field), do: delete_asset(path, kind, context, "#{kind}")
     end)
   end
 
   # --- Private helpers ----------------------------------------------------
-
-  defp asset_fields(theme_id), do: Specs.for_theme(theme_id).asset_fields()
 
   defp setting(customization, field),
     do: Map.get(DataTransform.to_settings(customization), Atom.to_string(field))

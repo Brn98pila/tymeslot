@@ -11,8 +11,11 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
   alias Tymeslot.Media.Transcoder
   alias Tymeslot.Profiles
+  alias Tymeslot.Test.ThemeCustomizations.LogoSpec
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.FileLifecycle
   alias Tymeslot.ThemeCustomizations.Storage
+  alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   setup do
     upload_root =
@@ -39,6 +42,13 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
     File.write!(absolute, "data")
     absolute
   end
+
+  # LogoSpec is Quill's groups plus a logo group with an image upload. It has
+  # no theme, so its rows are built in memory and the spec is passed in.
+  defp logo_row(profile, settings),
+    do: %ThemeCustomizationSchema{profile_id: profile.id, theme_id: "1", settings: settings}
+
+  defp with_settings(row, changes), do: %{row | settings: Map.merge(row.settings, changes)}
 
   describe "update_theme_customization/2 file cleanup" do
     test "deletes the old image when the image path is replaced", %{profile: profile} do
@@ -188,6 +198,70 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       refute File.exists?(abs)
       Enum.each(variant_abs, fn path -> refute File.exists?(path) end)
+    end
+  end
+
+  describe "asset fields of any option group" do
+    setup %{profile: profile} do
+      background = "themes/#{profile.id}/1/images/a-bg.png"
+      logo = "themes/#{profile.id}/1/images/b-logo.png"
+
+      row =
+        logo_row(profile, %{
+          "color_scheme" => "default",
+          "background_type" => "image",
+          "background_value" => "custom",
+          "background_image_path" => background,
+          "logo_path" => logo
+        })
+
+      %{row: row, background: touch_stored(background), logo: touch_stored(logo)}
+    end
+
+    test "replacing the logo deletes the old logo and leaves the background's file",
+         %{row: row, background: background, logo: logo, profile: profile} do
+      new_logo = touch_stored("themes/#{profile.id}/1/images/c-logo.png")
+      updated = with_settings(row, %{"logo_path" => "themes/#{profile.id}/1/images/c-logo.png"})
+
+      FileLifecycle.cleanup_replaced_files(LogoSpec, row, updated)
+
+      refute File.exists?(logo)
+      assert File.exists?(new_logo)
+      assert File.exists?(background)
+    end
+
+    test "clearing the logo deletes its file only", %{
+      row: row,
+      background: background,
+      logo: logo
+    } do
+      FileLifecycle.cleanup_replaced_files(
+        LogoSpec,
+        row,
+        with_settings(row, %{"logo_path" => nil})
+      )
+
+      refute File.exists?(logo)
+      assert File.exists?(background)
+    end
+
+    test "replacing the background leaves the logo's file",
+         %{row: row, background: background, logo: logo} do
+      updated =
+        with_settings(row, %{"background_type" => "gradient", "background_image_path" => nil})
+
+      FileLifecycle.cleanup_replaced_files(LogoSpec, row, updated)
+
+      refute File.exists?(background)
+      assert File.exists?(logo)
+    end
+
+    test "deleting the customisation deletes every group's files",
+         %{row: row, background: background, logo: logo} do
+      FileLifecycle.cleanup_all_files(LogoSpec, row)
+
+      refute File.exists?(background)
+      refute File.exists?(logo)
     end
   end
 end
