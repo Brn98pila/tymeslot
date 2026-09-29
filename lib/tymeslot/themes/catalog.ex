@@ -47,7 +47,7 @@ defmodule Tymeslot.Themes.Catalog do
   # spec modules they name stay runtime references: an alias in a module
   # attribute would make the Catalog, and everything that reads it at compile
   # time, depend on the specs at compile time.
-  defp themes, do: Map.merge(shipped_themes(), extra_themes())
+  defp themes, do: merge_extra_themes!(shipped_themes(), @extra_themes)
 
   defp shipped_themes do
     %{
@@ -70,7 +70,24 @@ defmodule Tymeslot.Themes.Catalog do
     }
   end
 
-  defp extra_themes, do: Map.new(@extra_themes, &{&1.key, Map.delete(&1, :module)})
+  # Adds the extra themes' facts to the shipped ones, refusing an entry that
+  # reuses a shipped id or key: the merge would otherwise let it silently
+  # replace the shipped theme. `TymeslotWeb.Themes.Core.Registry` reads
+  # `all/0` while it compiles, so a clashing config fails the build there.
+  # Public (and undocumented) so a test can hand it a clashing entry.
+  @doc false
+  @spec merge_extra_themes!(%{theme_key() => map()}, [map()]) :: %{theme_key() => map()}
+  def merge_extra_themes!(shipped, extras) do
+    for %{id: id, key: key} <- extras, {shipped_key, %{id: shipped_id}} <- shipped do
+      if id == shipped_id or key == shipped_key do
+        raise ArgumentError,
+              "config :tymeslot, :extra_themes entry #{inspect(key)} (id #{inspect(id)}) " <>
+                "clashes with the shipped theme #{inspect(shipped_key)} (id #{inspect(shipped_id)})"
+      end
+    end
+
+    Map.merge(shipped, Map.new(extras, &{&1.key, Map.delete(&1, :module)}))
+  end
 
   defp id_to_key_map, do: Map.new(themes(), fn {key, theme} -> {theme.id, key} end)
 

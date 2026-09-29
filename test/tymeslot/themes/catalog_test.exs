@@ -59,5 +59,23 @@ defmodule Tymeslot.Themes.CatalogTest do
 
       refute File.read!("config/runtime.exs") =~ "extra_themes"
     end
+
+    test "may not reuse a shipped theme's id or key" do
+      shipped = %{quill: %{id: "1", key: :quill}}
+      own = %{id: "7", key: :own, module: :own_module}
+
+      assert %{quill: %{id: "1"}, own: %{id: "7"} = merged} =
+               Catalog.merge_extra_themes!(shipped, [own])
+
+      refute Map.has_key?(merged, :module)
+
+      assert_raise ArgumentError, ~r/:own \(id "1"\) clashes with .*:quill \(id "1"\)/, fn ->
+        Catalog.merge_extra_themes!(shipped, [%{own | id: "1"}])
+      end
+
+      assert_raise ArgumentError, ~r/:quill \(id "7"\) clashes with .*:quill/, fn ->
+        Catalog.merge_extra_themes!(shipped, [%{own | key: :quill}])
+      end
+    end
   end
 end
