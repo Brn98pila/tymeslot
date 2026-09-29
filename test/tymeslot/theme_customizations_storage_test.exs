@@ -162,5 +162,20 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
       assert Path.basename(stored_path) =~ ~r|\A[0-9a-f]{12}-bg\.png\z|
       assert Path.dirname(stored_path) == "themes/1/1/images"
     end
+
+    test "store_asset/4 shortens a long client name to fit, keeping its extension" do
+      # Uploads are served only with an allowed extension, so a name cut after the
+      # prefix was added would store a file that can never be served.
+      filename = String.duplicate("a", 246) <> ".png"
+
+      {:ok, stored_path} =
+        Storage.store_asset(:image, 1, "1", %{path: gif_file(), filename: filename})
+
+      stored_name = Path.basename(stored_path)
+
+      assert stored_name =~ ~r|\A[0-9a-f]{12}-a+\.png\z|
+      assert byte_size(stored_name) == 255
+      assert File.exists?(Storage.build_theme_file_path(stored_path))
+    end
   end
 end

@@ -14,6 +14,9 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
 
   @kind_directories %{image: "images", video: "videos"}
 
+  # A stored name's limit, prefix included; the sanitiser truncates to it.
+  @max_name_bytes 255
+
   @doc """
   Builds an absolute file system path from a stored relative path.
   """
@@ -125,8 +128,26 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
 
   # The prefix goes in front of the basename: `store_file_atomically/4`
   # sanitises the name with `Path.basename/1`, which would drop a prefix put in
-  # front of a client name carrying a directory.
-  defp unique_name(filename),
-    do:
-      Base.encode16(:crypto.strong_rand_bytes(6), case: :lower) <> "-" <> Path.basename(filename)
+  # front of a client name carrying a directory. The client name is shortened
+  # first, so that the whole name fits the file-name limit and the sanitiser
+  # never cuts off its extension, by which the file is later served.
+  defp unique_name(filename) do
+    prefix = Base.encode16(:crypto.strong_rand_bytes(6), case: :lower) <> "-"
+    prefix <> fit_name(Path.basename(filename), @max_name_bytes - byte_size(prefix))
+  end
+
+  # Cuts the stem, never the extension, to at most `budget` bytes. The cut may
+  # split a multi-byte character; harmless, since the sanitiser replaces every
+  # non-ASCII byte with one `_` and so keeps the length.
+  defp fit_name(name, budget) when byte_size(name) <= budget, do: name
+
+  defp fit_name(name, budget) do
+    extension = Path.extname(name)
+
+    if byte_size(extension) < budget do
+      binary_part(name, 0, budget - byte_size(extension)) <> extension
+    else
+      binary_part(name, 0, budget)
+    end
+  end
 end
