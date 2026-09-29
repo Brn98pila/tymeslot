@@ -193,7 +193,7 @@ msgstr "Попередній перегляд теми"
 msgid "Theme updated to %{theme_name}"
 msgstr "Тему оновлено на %{theme_name}"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "Too many upload attempts. Please wait a few minutes and try again."
 msgstr "Забагато спроб завантаження. Зачекайте кілька хвилин і спробуйте ще раз."
@@ -340,12 +340,12 @@ msgstr "Незбережені зміни"
 msgid "Complete the form to save"
 msgstr "Заповніть форму, щоб зберегти"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "Background image uploaded successfully"
 msgstr "Фонове зображення успішно завантажено"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "Background video uploaded successfully"
 msgstr "Фонове відео успішно завантажено"
@@ -360,7 +360,7 @@ msgstr "Недійсний формат зображення. Завантажт
 msgid "Invalid video format. Please upload a valid video file."
 msgstr "Недійсний формат відео. Завантажте дійсний відеофайл."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "No file was uploaded"
 msgstr "Жодного файлу не завантажено"
@@ -372,7 +372,7 @@ msgid "This option is not available for this theme."
 msgstr "Цей параметр недоступний для цієї теми."
 
 #: lib/tymeslot/theme_customizations/assets.ex
-#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "Upload failed"
 msgstr "Не вдалося завантажити"
@@ -386,3 +386,8 @@ msgstr "Обробка відео недоступна на цьому серв�
 #, elixir-autogen, elixir-format
 msgid "Your video was saved but could not be queued for processing. Please upload it again."
 msgstr "Ваше відео збережено, але не вдалося поставити його в чергу на обробку. Завантажте його ще раз."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "File uploaded successfully"
+msgstr "Файл успішно завантажено"

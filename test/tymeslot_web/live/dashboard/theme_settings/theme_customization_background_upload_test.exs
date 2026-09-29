@@ -133,7 +133,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       }
 
       view
-      |> file_input("#theme-background-image-form", :background_image, [image])
+      |> file_input("#theme-background-image-form", :background_image_path, [image])
       |> render_upload("background.png")
 
       assert_push_event(view, "upload-complete", %{})
@@ -183,7 +183,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       }
 
       view
-      |> file_input("#theme-background-image-form", :background_image, [image])
+      |> file_input("#theme-background-image-form", :background_image_path, [image])
       |> render_upload("background.png")
 
       assert_push_event(view, "upload-complete", %{})
@@ -284,7 +284,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
         view = open_tab(conn, theme_id, "video")
 
         view
-        |> file_input("#theme-background-video-form", :background_video, [video_entry()])
+        |> file_input("#theme-background-video-form", :background_video_path, [video_entry()])
         |> render_upload("clip.mp4")
 
         assert_push_event(view, "upload-complete", %{})
@@ -311,7 +311,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
         view = open_tab(conn, theme_id, "video")
 
         view
-        |> file_input("#theme-background-video-form", :background_video, [video_entry()])
+        |> file_input("#theme-background-video-form", :background_video_path, [video_entry()])
         |> render_upload("clip.mp4")
 
         assert render(view) =~ "weil ffmpeg nicht installiert ist"

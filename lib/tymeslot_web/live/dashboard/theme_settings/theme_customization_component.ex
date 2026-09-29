@@ -12,7 +12,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
     - option_groups: the theme spec's option groups, one panel each (`ThemeCustomizations.option_groups/1`)
     - panels: the panel module for each group, keyed by the group's key (`Panels.for_group/2`)
     - panel_ui: each group's panel UI state, keyed by the group's key (`Panel.ui/3`, `Panel.handle_ui/5`)
-    - uploads: map() – upload entries, present only when the spec declares asset fields
+    - uploads: map() – upload entries keyed by asset field (`AssetUploads`), present only when the spec declares asset fields
     - parent_component: term() – reference to parent component for close actions (optional)
   """
   use TymeslotWeb, :live_component
@@ -25,7 +25,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.Themes.Catalog
-  alias TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads
+  alias TymeslotWeb.Dashboard.ThemeSettings.AssetUploads
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels
   alias TymeslotWeb.Live.Shared.Flash
@@ -51,16 +51,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
 
   @impl Phoenix.LiveComponent
   @spec update(map(), Socket.t()) :: {:ok, Socket.t()}
-  def update(%{consume_upload: type}, socket) do
-    # Handle async consumption from progress handlers
-    {:noreply, socket} =
-      case type do
-        :image -> handle_event("save_background_image", %{}, socket)
-        :video -> handle_event("save_background_video", %{}, socket)
-      end
-
-    {:ok, socket}
-  end
+  def update(%{consume_upload: field}, socket),
+    do: {:ok, consume_upload_and_notify(socket, field)}
 
   def update(assigns, socket) do
     theme_id = assigns[:theme_id] || Catalog.default_id()
@@ -82,7 +74,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
        option_groups: option_groups,
        panels: panels
      )
-     |> BackgroundUploads.configure(__MODULE__, ThemeCustomizations.asset_fields(theme_id))
+     |> AssetUploads.configure(__MODULE__, ThemeCustomizations.asset_fields(theme_id))
      |> assign_new(:panel_ui, fn ->
        Map.new(option_groups, fn group ->
          {group.key, panels[group.key].ui(group, customization, %{})}
@@ -135,20 +127,14 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
 
   def handle_event("theme:" <> _action, _params, socket), do: {:noreply, socket}
 
-  def handle_event("validate_image", _params, socket) do
-    {:noreply, consume_upload_and_notify(socket, :image)}
-  end
-
-  def handle_event("save_background_image", _params, socket) do
-    {:noreply, consume_upload_and_notify(socket, :image)}
-  end
-
-  def handle_event("validate_video", _params, socket) do
-    {:noreply, consume_upload_and_notify(socket, :video)}
-  end
-
-  def handle_event("save_background_video", _params, socket) do
-    {:noreply, consume_upload_and_notify(socket, :video)}
+  # Every upload form sends this on change and on submit; its hidden
+  # `asset_field` input names the field. A name the theme does not declare is
+  # ignored rather than turned into an atom.
+  def handle_event("upload_asset", params, socket) do
+    case upload_field(socket.assigns.theme_id, params) do
+      nil -> {:noreply, socket}
+      field -> {:noreply, consume_upload_and_notify(socket, field)}
+    end
   end
 
   # Private functions
@@ -203,14 +189,14 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   # `AutoUpload` (mounted at the root of this component's markup, see
   # `render/1`) only clears the file picker once it receives "upload-complete",
   # so re-selecting the same background file after a successful upload needs
-  # this pushed explicitly. `BackgroundUploads.consume/2` doesn't report
+  # this pushed explicitly. `AssetUploads.consume/2` doesn't report
   # success directly, so success is inferred from the stored path changing;
   # a no-op (not ready yet, rate-limited, or a validation error) leaves the
   # path untouched and pushes nothing.
-  defp consume_upload_and_notify(socket, kind) do
-    path_before = background_path(socket.assigns.customization, kind)
-    socket = BackgroundUploads.consume(socket, kind)
-    path_after = background_path(socket.assigns.customization, kind)
+  defp consume_upload_and_notify(socket, field) do
+    path_before = stored_path(socket.assigns.customization, field)
+    socket = AssetUploads.consume(socket, field)
+    path_after = stored_path(socket.assigns.customization, field)
 
     if path_after != path_before do
       push_event(socket, "upload-complete", %{})
@@ -219,8 +205,16 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
     end
   end
 
-  defp background_path(customization, :image), do: customization.settings["background_image_path"]
-  defp background_path(customization, :video), do: customization.settings["background_video_path"]
+  defp stored_path(customization, field), do: customization.settings[Atom.to_string(field)]
+
+  defp upload_field(theme_id, %{"asset_field" => name}) when is_binary(name) do
+    theme_id
+    |> ThemeCustomizations.asset_fields()
+    |> Keyword.keys()
+    |> Enum.find(&(Atom.to_string(&1) == name))
+  end
+
+  defp upload_field(_theme_id, _params), do: nil
 
   # Rate limiting helper that validates user_id and checks rate limit before executing operation
   @spec with_rate_limit(Socket.t(), String.t(), (-> {:noreply, Socket.t()})) ::

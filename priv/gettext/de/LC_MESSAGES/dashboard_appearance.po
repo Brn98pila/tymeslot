@@ -193,7 +193,7 @@ msgstr "Design-Vorschau"
 msgid "Theme updated to %{theme_name}"
 msgstr "Design auf %{theme_name} geändert"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "Too many upload attempts. Please wait a few minutes and try again."
 msgstr "Zu viele Upload-Versuche. Bitte warten Sie einige Minuten und versuchen Sie es erneut."
@@ -340,12 +340,12 @@ msgstr "Nicht gespeicherte Änderungen"
 msgid "Complete the form to save"
 msgstr "Formular ausfüllen, um zu speichern"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "Background image uploaded successfully"
 msgstr "Hintergrundbild erfolgreich hochgeladen"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "Background video uploaded successfully"
 msgstr "Hintergrundvideo erfolgreich hochgeladen"
@@ -360,7 +360,7 @@ msgstr "Ungültiges Bildformat. Bitte laden Sie eine gültige Bilddatei hoch."
 msgid "Invalid video format. Please upload a valid video file."
 msgstr "Ungültiges Videoformat. Bitte laden Sie eine gültige Videodatei hoch."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "No file was uploaded"
 msgstr "Es wurde keine Datei hochgeladen"
@@ -372,7 +372,7 @@ msgid "This option is not available for this theme."
 msgstr "Diese Option ist für dieses Design nicht verfügbar."
 
 #: lib/tymeslot/theme_customizations/assets.ex
-#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "Upload failed"
 msgstr "Upload fehlgeschlagen"
@@ -386,3 +386,8 @@ msgstr "Die Videoverarbeitung ist auf diesem Server nicht verfügbar, weil ffmpe
 #, elixir-autogen, elixir-format
 msgid "Your video was saved but could not be queued for processing. Please upload it again."
 msgstr "Ihr Video wurde gespeichert, konnte aber nicht zur Verarbeitung eingereiht werden. Bitte laden Sie es erneut hoch."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "File uploaded successfully"
+msgstr "Datei erfolgreich hochgeladen"

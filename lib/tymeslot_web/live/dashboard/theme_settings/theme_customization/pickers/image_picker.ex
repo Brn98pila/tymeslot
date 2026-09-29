@@ -105,17 +105,18 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
       <div class="bg-tymeslot-50 p-8 rounded-[2rem] border-2 border-tymeslot-100 border-dashed">
         <form
           id="theme-background-image-form"
-          phx-submit="save_background_image"
-          phx-change="validate_image"
+          phx-submit="upload_asset"
+          phx-change="upload_asset"
           phx-target={@myself}
           data-auto-upload="true"
           class="flex flex-col items-center gap-6"
         >
+          <input type="hidden" name="asset_field" value="background_image_path" />
           <div class="w-full max-w-md">
-            <%= if @uploads && @uploads[:background_image] do %>
+            <%= if @uploads && @uploads[:background_image_path] do %>
               <div class="relative group/upload">
                 <.live_file_input
-                  upload={@uploads.background_image}
+                  upload={@uploads.background_image_path}
                   class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                 />
                 <div class="btn-secondary w-full py-4 flex items-center justify-center gap-3">
@@ -141,8 +142,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
               </div>
             <% end %>
 
-            <%= if @uploads && @uploads[:background_image] do %>
-              <%= for err <- upload_errors(@uploads.background_image) do %>
+            <%= if @uploads && @uploads[:background_image_path] do %>
+              <%= for err <- upload_errors(@uploads.background_image_path) do %>
                 <div class="mt-4 p-3 bg-red-50 border border-red-100 rounded-token-xl text-red-600 text-xs font-bold flex items-center gap-2">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -156,7 +157,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
                 </div>
               <% end %>
 
-              <%= for entry <- @uploads.background_image.entries do %>
+              <%= for entry <- @uploads.background_image_path.entries do %>
                 <div class="mt-6 p-4 bg-white rounded-token-2xl border-2 border-tymeslot-100 shadow-sm">
                   <div class="flex items-center justify-between mb-2">
                     <span class="text-tymeslot-700 font-black text-token-xs uppercase tracking-wider truncate mr-4">
@@ -172,7 +173,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
                     </div>
                   </div>
 
-                  <%= for err <- upload_errors(@uploads.background_image, entry) do %>
+                  <%= for err <- upload_errors(@uploads.background_image_path, entry) do %>
                     <div class="mt-2 p-3 bg-red-50 border border-red-100 rounded-token-xl text-red-600 text-xs font-bold flex items-center gap-2">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path

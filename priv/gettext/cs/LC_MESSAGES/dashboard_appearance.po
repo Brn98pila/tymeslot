@@ -193,7 +193,7 @@ msgstr "Náhled motivu"
 msgid "Theme updated to %{theme_name}"
 msgstr "Motiv byl změněn na %{theme_name}."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "Too many upload attempts. Please wait a few minutes and try again."
 msgstr "Příliš mnoho pokusů o nahrání. Počkejte prosím několik minut a zkuste to znovu."
@@ -340,12 +340,12 @@ msgstr "Neuložené změny"
 msgid "Complete the form to save"
 msgstr "Vyplňte formulář, aby se změny uložily"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "Background image uploaded successfully"
 msgstr "Obrázek pozadí byl úspěšně nahrán"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "Background video uploaded successfully"
 msgstr "Video na pozadí bylo úspěšně nahráno"
@@ -360,7 +360,7 @@ msgstr "Neplatný formát obrázku. Nahrajte prosím platný soubor obrázku."
 msgid "Invalid video format. Please upload a valid video file."
 msgstr "Neplatný formát videa. Nahrajte prosím platný videosoubor."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "No file was uploaded"
 msgstr "Nebyl nahrán žádný soubor"
@@ -372,7 +372,7 @@ msgid "This option is not available for this theme."
 msgstr "Tato možnost není pro tento motiv k dispozici."
 
 #: lib/tymeslot/theme_customizations/assets.ex
-#: lib/tymeslot_web/live/dashboard/theme_settings/background_uploads.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "Upload failed"
 msgstr "Nahrání se nezdařilo"
@@ -386,3 +386,8 @@ msgstr "Zpracování videa není na tomto serveru k dispozici, protože není na
 #, elixir-autogen, elixir-format
 msgid "Your video was saved but could not be queued for processing. Please upload it again."
 msgstr "Vaše video bylo uloženo, ale nepodařilo se jej zařadit ke zpracování. Nahrajte jej prosím znovu."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "File uploaded successfully"
+msgstr "Soubor byl úspěšně nahrán"

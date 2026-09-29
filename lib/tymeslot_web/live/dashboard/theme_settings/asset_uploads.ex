@@ -1,15 +1,19 @@
-defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
+defmodule TymeslotWeb.Dashboard.ThemeSettings.AssetUploads do
   @moduledoc """
-  The background image and video upload pipeline for theme customisation.
+  The upload pipeline for a theme's asset fields: the background image and
+  video, and any file an option group of a theme's own declares.
 
   Split from `ThemeCustomizationComponent`, which is otherwise about choosing
-  colours and themes. Uploading is a separate concern with its own lifecycle:
-  declare the sockets up front, receive progress callbacks as bytes arrive,
-  consume the finished entry, which hands the file to
-  `ThemeCustomizations.attach_asset/4` and gets the saved customisation back.
+  options. Uploading is a separate concern with its own lifecycle: declare the
+  sockets up front, receive progress callbacks as bytes arrive, consume the
+  finished entry, which hands the file to `ThemeCustomizations.attach_asset/4`
+  and gets the saved customisation back.
 
-  Image and video differ only in their constraints and which processing
-  function runs, so they are driven from `@kinds` rather than written twice.
+  One upload per asset field of the theme's spec
+  (`ThemeCustomizations.asset_fields/1`), named after the field
+  (`@uploads.background_image_path`), with the constraints of the field's kind.
+  An upload form sends `upload_asset` with a hidden `asset_field` input naming
+  its field.
 
   ## Consuming happens in a later message
 
@@ -30,23 +34,16 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
   alias TymeslotWeb.Helpers.UploadConstraints
   alias TymeslotWeb.Live.Shared.Flash
 
-  # Five uploads per ten minutes, shared across both kinds: video encoding is
-  # the expensive part and a per-kind budget would double the ceiling.
+  # Five uploads per ten minutes, shared across every field: video encoding is
+  # the expensive part and a per-field budget would multiply the ceiling.
   @rate_limit_max 5
   @rate_limit_window_ms 600_000
 
-  @kinds %{
-    image: %{upload_key: :background_image, field: :background_image_path, constraint: :image},
-    video: %{upload_key: :background_video, field: :background_video_path, constraint: :video}
-  }
-
-  @typedoc "Which background asset is being uploaded."
-  @type kind :: :image | :video
-
   @doc """
-  Declares the upload inputs for the asset fields the theme's spec lists
-  (`ThemeCustomizations.asset_fields/1`), skipping any already declared. A
-  theme without asset fields gets none.
+  Declares an upload input for each asset field the theme's spec lists
+  (`ThemeCustomizations.asset_fields/1`), named after the field and limited as
+  its kind is, skipping any already declared. A theme without asset fields
+  gets none.
 
   `component` is the LiveComponent module the progress callbacks notify; see
   the module docs on why consumption cannot happen in the callback itself.
@@ -54,27 +51,27 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
   @spec configure(Phoenix.LiveView.Socket.t(), module(), [{atom(), atom()}]) ::
           Phoenix.LiveView.Socket.t()
   def configure(socket, component, asset_fields) do
-    Enum.reduce(@kinds, socket, fn {kind, config}, acc ->
-      if Keyword.has_key?(asset_fields, config.field) and not declared?(acc, config.upload_key) do
-        allow_upload(acc, config.upload_key,
-          accept: UploadConstraints.allowed_extensions(config.constraint),
-          max_entries: 1,
-          max_file_size: UploadConstraints.max_file_size(config.constraint),
-          auto_upload: true,
-          progress: progress_callback(component, kind)
-        )
-      else
+    Enum.reduce(asset_fields, socket, fn {field, kind}, acc ->
+      if declared?(acc, field) do
         acc
+      else
+        allow_upload(acc, field,
+          accept: UploadConstraints.allowed_extensions(kind),
+          max_entries: 1,
+          max_file_size: UploadConstraints.max_file_size(kind),
+          auto_upload: true,
+          progress: progress_callback(component, field)
+        )
       end
     end)
   end
 
-  defp declared?(socket, upload_key),
-    do: Map.has_key?(socket.assigns[:uploads] || %{}, upload_key)
+  defp declared?(socket, field), do: Map.has_key?(socket.assigns[:uploads] || %{}, field)
 
   @doc """
-  Consumes a finished upload, saving it through
+  Consumes a finished upload into the asset field `field`, saving it through
   `ThemeCustomizations.attach_asset/4`, and assigns the saved customisation.
+  A field the theme does not declare is ignored.
 
   Readiness is checked *before* the rate limit, and deliberately so. Both
   entry points reach here: the `phx-change` validate handler fires on every
@@ -87,10 +84,12 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
   A rate-limited or not-yet-finished upload returns the socket untouched: the
   entry stays put and the next progress message tries again.
   """
-  @spec consume(Phoenix.LiveView.Socket.t(), kind()) :: Phoenix.LiveView.Socket.t()
-  def consume(socket, kind) do
-    if ready?(socket, @kinds[kind].upload_key) do
-      rate_limited(socket, fn -> process(socket, kind) end)
+  @spec consume(Phoenix.LiveView.Socket.t(), atom()) :: Phoenix.LiveView.Socket.t()
+  def consume(socket, field) do
+    declared = ThemeCustomizations.asset_fields(socket.assigns.theme_id)
+
+    if Keyword.has_key?(declared, field) and ready?(socket, field) do
+      rate_limited(socket, fn -> process(socket, field) end)
     else
       socket
     end
@@ -119,24 +118,23 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
     end
   end
 
-  defp progress_callback(component, kind) do
+  defp progress_callback(component, field) do
     fn _config, entry, socket ->
       if entry.done? do
-        send_update(self(), component, id: socket.assigns.id, consume_upload: kind)
+        send_update(self(), component, id: socket.assigns.id, consume_upload: field)
       end
 
       {:noreply, socket}
     end
   end
 
-  defp process(socket, kind) do
-    %{upload_key: upload_key, field: field} = @kinds[kind]
+  defp process(socket, field) do
     %{profile: profile, theme_id: theme_id} = socket.assigns
 
     # The file must be stored inside the callback: the temporary upload is
     # deleted as soon as it returns.
     results =
-      consume_uploaded_entries(socket, upload_key, fn %{path: path}, entry ->
+      consume_uploaded_entries(socket, field, fn %{path: path}, entry ->
         {:ok,
          ThemeCustomizations.attach_asset(profile.id, theme_id, field, %{
            path: path,
@@ -146,7 +144,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
 
     case results do
       [{:ok, customization}] ->
-        Flash.info(success_message(kind))
+        Flash.info(success_message(field))
         assign(socket, :customization, customization)
 
       [{:error, message}] ->
@@ -163,16 +161,18 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
     end
   end
 
-  defp success_message(:image),
+  defp success_message(:background_image_path),
     do: dgettext("dashboard_appearance", "Background image uploaded successfully")
 
-  defp success_message(:video),
+  defp success_message(:background_video_path),
     do: dgettext("dashboard_appearance", "Background video uploaded successfully")
+
+  defp success_message(_field), do: dgettext("dashboard_appearance", "File uploaded successfully")
 
   # Consuming an in-flight entry would truncate the file, so every entry must
   # have finished or been cancelled first.
-  defp ready?(socket, upload_key) do
-    case socket.assigns[:uploads][upload_key] do
+  defp ready?(socket, field) do
+    case socket.assigns[:uploads][field] do
       nil -> false
       %{entries: []} -> false
       %{entries: entries} -> Enum.all?(entries, &(&1.done? or &1.cancelled?))

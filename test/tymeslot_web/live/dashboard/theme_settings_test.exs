@@ -251,7 +251,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       |> render_submit()
 
       view
-      |> file_input("#theme-background-image-form", :background_image, [image])
+      |> file_input("#theme-background-image-form", :background_image_path, [image])
       |> render_upload("bg.png")
 
       eventually(fn ->
@@ -290,7 +290,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       }
 
       view
-      |> file_input("#theme-background-image-form", :background_image, [image])
+      |> file_input("#theme-background-image-form", :background_image_path, [image])
       |> render_upload("bg.png")
 
       eventually(fn ->

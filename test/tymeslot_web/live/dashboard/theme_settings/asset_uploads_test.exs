@@ -1,11 +1,13 @@
-defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploadsTest do
+defmodule TymeslotWeb.Dashboard.ThemeSettings.AssetUploadsTest do
   use ExUnit.Case, async: false
   @moduletag :utils
+  @moduletag :themes
 
   alias Phoenix.LiveView.Socket
   alias Tymeslot.Security.RateLimiter
-  alias TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads
+  alias TymeslotWeb.Dashboard.ThemeSettings.AssetUploads
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent
+  alias TymeslotWeb.Helpers.UploadConstraints
 
   @user_id 4_242
   @bucket "theme_upload:#{@user_id}"
@@ -24,7 +26,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploadsTest do
         id: "theme-customization",
         theme_id: "1",
         profile: %{id: 1, user_id: @user_id},
-        uploads: %{background_image: %{entries: entries}}
+        uploads: %{background_image_path: %{entries: entries}}
       }
     }
   end
@@ -42,7 +44,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploadsTest do
     test "does not charge the rate limit when no upload is waiting" do
       socket = socket_with([])
 
-      for _i <- 1..20, do: BackgroundUploads.consume(socket, :image)
+      for _i <- 1..20, do: AssetUploads.consume(socket, :background_image_path)
 
       assert budget_remaining() == @limit,
              "an idle change event must not spend the user's upload budget"
@@ -51,7 +53,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploadsTest do
     test "does not charge the rate limit while an upload is still in flight" do
       socket = socket_with([%{done?: false, cancelled?: false}])
 
-      for _i <- 1..20, do: BackgroundUploads.consume(socket, :image)
+      for _i <- 1..20, do: AssetUploads.consume(socket, :background_image_path)
 
       assert budget_remaining() == @limit
     end
@@ -65,7 +67,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploadsTest do
       # Processing would call ThemeCustomizations.attach_asset/4 and touch the
       # database. Being refused before that is the whole point: the socket
       # comes back untouched and the user is told why.
-      assert ^socket = BackgroundUploads.consume(socket, :image)
+      assert ^socket = AssetUploads.consume(socket, :background_image_path)
       assert_receive {:flash, {:error, message}}
       assert message =~ "Too many upload attempts"
     end
@@ -75,8 +77,35 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploadsTest do
     test "declares no upload for a theme without asset fields" do
       socket = %Socket{assigns: %{__changed__: %{}}}
 
-      assert BackgroundUploads.configure(socket, ThemeCustomizationComponent, []).assigns ==
+      assert AssetUploads.configure(socket, ThemeCustomizationComponent, []).assigns ==
                socket.assigns
+    end
+
+    test "declares one upload per asset field, named after it, with its kind's limit" do
+      socket = %Socket{assigns: %{__changed__: %{}}}
+
+      uploads =
+        AssetUploads.configure(socket, ThemeCustomizationComponent,
+          logo_path: :image,
+          background_video_path: :video
+        ).assigns.uploads
+
+      assert uploads.logo_path.max_file_size == UploadConstraints.max_file_size(:image)
+
+      assert uploads.background_video_path.max_file_size ==
+               UploadConstraints.max_file_size(:video)
+
+      assert uploads.logo_path.max_entries == 1
+      refute Map.has_key?(uploads, :background_image_path)
+    end
+  end
+
+  describe "consume/2 for a field the theme does not declare" do
+    test "leaves the socket and the budget untouched" do
+      socket = socket_with([%{done?: true, cancelled?: false}])
+
+      assert ^socket = AssetUploads.consume(socket, :logo_path)
+      assert budget_remaining() == @limit
     end
   end
 end
