@@ -8,17 +8,17 @@ defmodule Tymeslot.ThemeCustomizations.Tokens do
       written inside `@media (prefers-color-scheme: dark)`. A palette fills
       them only for a light scheme with a dark counterpart in a group with
       `follow_os: true`; otherwise they are empty and the page keeps `vars`.
-    * `background` is a structured description of the page background for the
-      theme wrapper to render (`%{kind: :gradient | :color | :image | :video, ...}`),
-      or `nil` when no background resolved.
+    * `media` is what the option groups resolve for the theme to render, keyed
+      by name, each value already safe to emit: `:background` is the page
+      background descriptor (`Options.Background.descriptor/1`), and a group
+      of a theme's own adds its key the same way. A key is absent when nothing
+      resolved (`Specs.media/2`).
   """
 
   @type css_vars :: %{optional(String.t()) => String.t()}
-  @type background ::
-          %{required(:kind) => :gradient | :color | :image | :video, optional(atom()) => term()}
-          | nil
+  @type media :: %{optional(atom()) => term()}
 
-  @type t :: %__MODULE__{vars: css_vars(), dark_vars: css_vars(), background: background()}
+  @type t :: %__MODULE__{vars: css_vars(), dark_vars: css_vars(), media: media()}
 
-  defstruct vars: %{}, dark_vars: %{}, background: nil
+  defstruct vars: %{}, dark_vars: %{}, media: %{}
 end

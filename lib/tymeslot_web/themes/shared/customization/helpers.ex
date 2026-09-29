@@ -26,9 +26,10 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
   @doc """
   Prepares common wrapper assigns for theme wrapper components.
 
-  Derives `@background` (the tokens' background descriptor, or nil),
-  `@has_video_background` and `@show_language_switcher` so each theme wrapper
-  doesn't duplicate this logic.
+  Derives `@background` (the tokens' `media[:background]`, the background
+  descriptor, or nil), `@has_video_background` and `@show_language_switcher`
+  so each theme wrapper doesn't duplicate this logic; wrappers never read the
+  tokens' media themselves.
   """
   @spec prepare_wrapper_assigns(map()) :: map()
   def prepare_wrapper_assigns(assigns) do
@@ -45,6 +46,6 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
     |> assign(:show_language_switcher, show_language_switcher)
   end
 
-  defp background(%Tokens{background: background}), do: background
+  defp background(%Tokens{media: media}), do: media[:background]
   defp background(_no_tokens), do: nil
 end

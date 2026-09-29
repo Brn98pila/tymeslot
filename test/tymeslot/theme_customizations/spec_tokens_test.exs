@@ -85,14 +85,17 @@ defmodule Tymeslot.ThemeCustomizations.SpecTokensTest do
       test "a gradient is both the --theme-background var and the descriptor" do
         css = "linear-gradient(135deg, #2E3192 0%, #1BFFFF 100%)"
 
-        assert %Tokens{vars: %{"--theme-background" => ^css}, background: background} =
+        assert %Tokens{vars: %{"--theme-background" => ^css}, media: %{background: background}} =
                  ThemeCustomizations.tokens(@theme_id, settings(background_value: "gradient_2"))
 
         assert background == %{kind: :gradient, css: css}
       end
 
       test "a solid colour is normalised" do
-        assert %Tokens{vars: %{"--theme-background" => "#aabbcc"}, background: background} =
+        assert %Tokens{
+                 vars: %{"--theme-background" => "#aabbcc"},
+                 media: %{background: background}
+               } =
                  ThemeCustomizations.tokens(
                    @theme_id,
                    settings(background_type: "color", background_value: "#ABC")
@@ -102,7 +105,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecTokensTest do
       end
 
       test "a preset image resolves under /images/themes/backgrounds and paints the canvas behind it" do
-        assert %Tokens{vars: vars, background: background} =
+        assert %Tokens{vars: vars, media: %{background: background}} =
                  ThemeCustomizations.tokens(
                    @theme_id,
                    settings(background_type: "image", background_value: "preset:ocean-sunset")
@@ -113,7 +116,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecTokensTest do
       end
 
       test "an uploaded image path is sanitised" do
-        assert %Tokens{background: %{kind: :image, url: url}} =
+        assert %Tokens{media: %{background: %{kind: :image, url: url}}} =
                  ThemeCustomizations.tokens(
                    @theme_id,
                    settings(
@@ -127,7 +130,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecTokensTest do
       end
 
       test "a preset video lists the five responsive sources and the preset poster" do
-        assert %Tokens{background: %{kind: :video, sources: sources, poster: poster}} =
+        assert %Tokens{media: %{background: %{kind: :video, sources: sources, poster: poster}}} =
                  ThemeCustomizations.tokens(
                    @theme_id,
                    settings(background_type: "video", background_value: "preset:blue-wave")
@@ -150,7 +153,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecTokensTest do
       end
 
       test "an uploaded video lists the transcoded variants, then the original, and has no poster" do
-        assert %Tokens{background: %{kind: :video, sources: sources, poster: nil}} =
+        assert %Tokens{media: %{background: %{kind: :video, sources: sources, poster: nil}}} =
                  ThemeCustomizations.tokens(
                    @theme_id,
                    settings(
@@ -170,8 +173,10 @@ defmodule Tymeslot.ThemeCustomizations.SpecTokensTest do
       end
 
       test "an unknown gradient yields no descriptor and falls back to the canvas" do
-        assert %Tokens{vars: vars, background: nil} =
+        assert %Tokens{vars: vars, media: media} =
                  ThemeCustomizations.tokens(@theme_id, settings(background_value: "gradient_999"))
+
+        assert media == %{}
 
         assert vars["--theme-background"] == "var(--theme-canvas)"
       end

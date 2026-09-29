@@ -15,10 +15,14 @@ defmodule Tymeslot.ThemeCustomizations.OptionGroup do
       or `:error` for a field or value the group does not have;
     * `asset_fields/1` (optional): the settings that hold uploaded files and
       the kind of each. A module without it has none.
+    * `media/2` (optional): what the group resolves from the stored
+      settings for the theme to render, under keys of its own (merged into
+      `Tokens.media` by `Specs.media/2`). A module without it has none.
   """
 
   alias Ecto.Changeset
   alias Tymeslot.ThemeCustomizations.Spec
+  alias Tymeslot.ThemeCustomizations.Tokens
 
   @typedoc "A group descriptor, as a spec's `option_groups/0` lists it."
   @type group :: %{
@@ -46,12 +50,25 @@ defmodule Tymeslot.ThemeCustomizations.OptionGroup do
   @doc "The settings that hold uploaded files, and what each stores."
   @callback asset_fields(group()) :: [{atom(), Spec.asset_kind()}]
 
-  @optional_callbacks asset_fields: 1
+  @doc """
+  What the group resolves from the stored settings for the theme to render,
+  keyed by name, each value already safe to emit; a key with nothing to show
+  may be `nil`.
+  """
+  @callback media(Spec.settings(), group()) :: Tokens.media()
+
+  @optional_callbacks asset_fields: 1, media: 2
 
   @doc "A group's upload settings; empty when its module has no `asset_fields/1`."
   @spec asset_fields(group()) :: [{atom(), Spec.asset_kind()}]
   def asset_fields(%{module: module} = group) do
     if exports?(module, :asset_fields, 1), do: module.asset_fields(group), else: []
+  end
+
+  @doc "A group's media for the stored settings; empty when its module has no `media/2`."
+  @spec media(Spec.settings(), group()) :: Tokens.media()
+  def media(settings, %{module: module} = group) do
+    if exports?(module, :media, 2), do: module.media(settings, group), else: %{}
   end
 
   # A group module is named in a spec's data, not called at compile time, so

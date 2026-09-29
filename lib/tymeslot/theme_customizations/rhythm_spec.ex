@@ -9,8 +9,6 @@ defmodule Tymeslot.ThemeCustomizations.RhythmSpec do
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Spec
-  alias Tymeslot.ThemeCustomizations.Specs
-  alias Tymeslot.ThemeCustomizations.Tokens
 
   # Every shipped preset. A preset added to the catalogue reaches this theme
   # only when listed here. The schemes are in the order the onboarding wizard
@@ -42,19 +40,4 @@ defmodule Tymeslot.ThemeCustomizations.RhythmSpec do
       background_type: "video",
       background_value: "preset:rhythm-default"
     }
-
-  @impl Spec
-  # Quill and Rhythm offer the same option groups, so their tokens are built
-  # alike; each theme still owns its `tokens/2`.
-  # credo:disable-for-next-line Credo.Check.Design.DuplicatedCode
-  def tokens(settings, overrides) do
-    palette = Palette.tokens(settings, overrides, Specs.group(__MODULE__, Palette))
-    background = Background.descriptor(settings)
-
-    %Tokens{
-      vars: Map.merge(palette.vars, Background.vars(background, palette.vars)),
-      dark_vars: palette.dark_vars,
-      background: background
-    }
-  end
 end

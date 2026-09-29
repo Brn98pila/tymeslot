@@ -246,4 +246,21 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
       assert Background.asset_fields(group([:gradient, :color])) == []
     end
   end
+
+  describe "media/2" do
+    test "is the descriptor, under :background" do
+      settings = %{"background_type" => "gradient", "background_value" => "gradient_2"}
+
+      assert %{background: %{kind: :gradient} = descriptor} =
+               Background.media(settings, group(@all_kinds))
+
+      assert descriptor == Background.descriptor(settings)
+    end
+
+    test "holds nil when nothing resolves" do
+      settings = %{"background_type" => "gradient", "background_value" => "gradient_999"}
+
+      assert Background.media(settings, group(@all_kinds)) == %{background: nil}
+    end
+  end
 end

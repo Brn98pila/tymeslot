@@ -30,7 +30,7 @@ defmodule TymeslotWeb.Themes.Shared.Customization.HelpersTest do
                  "--theme-primary" => "#06b6d4",
                  "--theme-background" => "linear-gradient(" <> _rest
                },
-               background: %{kind: :gradient}
+               media: %{background: %{kind: :gradient}}
              } = updated.assigns.theme_tokens
 
       refute Map.has_key?(updated.assigns, :custom_css)
@@ -81,9 +81,41 @@ defmodule TymeslotWeb.Themes.Shared.Customization.HelpersTest do
 
       updated = Helpers.assign_theme_customization(socket(), profile, "1")
 
-      assert %Tokens{background: %{kind: :color, color: "#123456"}} = updated.assigns.theme_tokens
+      assert %Tokens{media: %{background: %{kind: :color, color: "#123456"}}} =
+               updated.assigns.theme_tokens
+
       refute Map.has_key?(updated.assigns, :theme_customization)
       refute Map.has_key?(updated.assigns, :has_custom_theme)
+    end
+  end
+
+  describe "prepare_wrapper_assigns/1" do
+    test "derives the background and the video flag from the tokens' media" do
+      video = %{kind: :video, sources: [], poster: nil}
+
+      assigns =
+        Helpers.prepare_wrapper_assigns(%{
+          __changed__: %{},
+          theme_tokens: %Tokens{media: %{background: video}},
+          current_state: :schedule
+        })
+
+      assert assigns.background == video
+      assert assigns.has_video_background
+      refute assigns.show_language_switcher
+    end
+
+    test "has no background when the media holds none" do
+      assigns =
+        Helpers.prepare_wrapper_assigns(%{
+          __changed__: %{},
+          theme_tokens: %Tokens{media: %{logo: "/uploads/logo.png"}},
+          current_state: :overview
+        })
+
+      assert assigns.background == nil
+      refute assigns.has_video_background
+      assert assigns.show_language_switcher
     end
   end
 end

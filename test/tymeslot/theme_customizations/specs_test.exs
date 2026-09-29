@@ -4,9 +4,11 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
   @moduletag :themes
   @moduletag :unit
 
+  alias Tymeslot.Test.ThemeCustomizations.LogoSpec
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.QuillSpec
   alias Tymeslot.ThemeCustomizations.Specs
+  alias Tymeslot.ThemeCustomizations.Tokens
   alias Tymeslot.Themes.Catalog
 
   @known_kinds [:gradient, :color, :image, :video]
@@ -64,6 +66,89 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
   describe "setting_types/1" do
     test "merges every group module's types" do
       assert Specs.setting_types(StillSpec) == Map.put(Background.types(), :tagline, :string)
+    end
+  end
+
+  # A spec with no option group at all.
+  defmodule BareSpec do
+    @moduledoc false
+    use Tymeslot.ThemeCustomizations.Spec
+
+    @impl Tymeslot.ThemeCustomizations.Spec
+    def option_groups, do: []
+
+    @impl Tymeslot.ThemeCustomizations.Spec
+    def defaults, do: %{}
+  end
+
+  describe "media/2" do
+    test "merges what every group resolves, in declaration order" do
+      settings = %{
+        "color_scheme" => "default",
+        "background_type" => "color",
+        "background_value" => "#123456",
+        "logo_path" => "themes/1/9/images/logo.png"
+      }
+
+      assert Specs.media(LogoSpec, settings) == %{
+               background: %{kind: :color, color: "#123456"},
+               logo: "/uploads/themes/1/9/images/logo.png"
+             }
+    end
+
+    test "leaves out what resolves to nothing" do
+      assert Specs.media(LogoSpec, %{
+               "background_type" => "gradient",
+               "background_value" => "gradient_999"
+             }) == %{}
+    end
+  end
+
+  describe "tokens/3" do
+    test "carries the spec's media" do
+      settings = %{
+        "color_scheme" => "default",
+        "background_type" => "color",
+        "background_value" => "#123456",
+        "logo_path" => "themes/1/9/images/logo.png"
+      }
+
+      assert %Tokens{media: media, vars: vars} = Specs.tokens(LogoSpec, settings, %{})
+      assert media == Specs.media(LogoSpec, settings)
+      assert vars["--theme-background"] == "#123456"
+      assert vars["--theme-primary"] == "#06b6d4"
+    end
+
+    test "is the tokens use Spec generates" do
+      settings = %{"background_type" => "color", "background_value" => "#123456"}
+
+      assert LogoSpec.tokens(settings, %{}) == Specs.tokens(LogoSpec, settings, %{})
+
+      assert LogoSpec.tokens(settings, %{}).media == %{
+               background: %{kind: :color, color: "#123456"}
+             }
+    end
+
+    test "without a palette group, emits no palette variables, even over a stored seed" do
+      settings = %{
+        "color_scheme" => "default",
+        "custom_palette_seed" => "#336699",
+        "background_type" => "color",
+        "background_value" => "#123456"
+      }
+
+      assert Specs.tokens(StillSpec, settings, %{primary_color: "#ff0000"}) == %Tokens{
+               vars: %{"--theme-background" => "#123456"},
+               dark_vars: %{},
+               media: %{background: %{kind: :color, color: "#123456"}}
+             }
+    end
+
+    test "without any group, is empty" do
+      settings = %{"custom_palette_seed" => "#336699", "background_type" => "color"}
+
+      assert Specs.tokens(BareSpec, settings, %{}) == %Tokens{}
+      assert BareSpec.tokens(settings, %{}) == %Tokens{}
     end
   end
 

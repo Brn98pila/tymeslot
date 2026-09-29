@@ -11,7 +11,8 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
   `changes/3` refuse the rest, so no write path can store a background the
   theme cannot show, and `asset_fields/1` offers only the uploads of offered
   kinds. A `preset:` value must be one of the group's; any other image or
-  video value is an upload and needs its stored path.
+  video value is an upload and needs its stored path. `media/2` hands the
+  resolved descriptor to `Tokens.media` as `:background`.
   """
 
   import Ecto.Changeset
@@ -165,6 +166,11 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
   end
 
   def descriptor(_settings), do: nil
+
+  @doc "The background's contribution to `Tokens.media`: its descriptor, under `:background`."
+  @impl OptionGroup
+  @spec media(Spec.settings(), group()) :: %{background: descriptor() | nil}
+  def media(settings, _group), do: %{background: descriptor(settings)}
 
   @doc """
   The public URL of a preset image file, as booking pages and the dashboard
