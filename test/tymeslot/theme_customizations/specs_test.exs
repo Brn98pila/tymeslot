@@ -42,7 +42,6 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
 
     alias Tymeslot.ThemeCustomizations.Options.Background
     alias Tymeslot.ThemeCustomizations.SpecsTest.TaglineOption
-    alias Tymeslot.ThemeCustomizations.Tokens
 
     @impl Tymeslot.ThemeCustomizations.Spec
     def option_groups,
@@ -59,9 +58,6 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
 
     @impl Tymeslot.ThemeCustomizations.Spec
     def defaults, do: %{background_type: "gradient", background_value: "gradient_1"}
-
-    @impl Tymeslot.ThemeCustomizations.Spec
-    def tokens(_settings, _overrides), do: %Tokens{}
   end
 
   describe "setting_types/1" do

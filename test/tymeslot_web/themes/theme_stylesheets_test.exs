@@ -29,6 +29,13 @@ defmodule TymeslotWeb.Themes.ThemeStylesheetsTest do
              ThemeTestMatrix.all() |> Enum.map(&Atom.to_string(&1.key)) |> Enum.sort()
   end
 
+  # config/dev.exs derives `tailwind_<key>` watchers and config.exs a `:<key>`
+  # Tailwind profile per theme, so these keys would overwrite Core's own
+  # `:tymeslot` profile or the SaaS profiles and watchers.
+  test "no theme directory takes a reserved stylesheet key" do
+    assert Enum.filter(stylesheets(), &(&1 in ~w(tymeslot saas marketing))) == []
+  end
+
   test "each theme's Tailwind profile builds the stylesheet the layout loads" do
     keys = stylesheets()
     assert keys != []

@@ -286,6 +286,21 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
     end
   end
 
+  describe "an unknown theme id" do
+    test "is refused and stores no file", %{profile: profile} do
+      assert {:error, "This option is not available for this theme."} =
+               ThemeCustomizations.attach_asset(
+                 profile.id,
+                 "no-such-theme",
+                 :background_image_path,
+                 temp_file("bg.png", @png)
+               )
+
+      assert uploaded_files(profile, "no-such-theme") == []
+      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "no-such-theme") == nil
+    end
+  end
+
   describe "asset_fields/1" do
     test "lists the upload columns the theme's spec declares" do
       assert ThemeCustomizations.asset_fields("1") ==

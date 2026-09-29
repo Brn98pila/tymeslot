@@ -102,7 +102,11 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.AssetUploadsTest do
 
   describe "consume/2 for a field the theme does not declare" do
     test "leaves the socket and the budget untouched" do
-      socket = socket_with([%{done?: true, cancelled?: false}])
+      # A finished entry sits in the undeclared field's config, so it is the
+      # declared-field check that stops the consume, not `ready?/2`.
+      entry = %{done?: true, cancelled?: false}
+      socket = socket_with([entry])
+      socket = put_in(socket.assigns.uploads[:logo_path], %{entries: [entry]})
 
       assert ^socket = AssetUploads.consume(socket, :logo_path)
       assert budget_remaining() == @limit

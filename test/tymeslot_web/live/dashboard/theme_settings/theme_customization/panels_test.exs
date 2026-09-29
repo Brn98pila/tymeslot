@@ -26,7 +26,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PanelsTest do
   # Every catalogue theme, so a spec that gains a group without a panel fails
   # here rather than on the organiser's first visit to the dashboard.
   for {_key, theme} <- Catalog.all() do
-    test "#{theme.name}: every option group has a panel with render/1" do
+    test "#{theme.name}: every option group has a panel with its full callback set" do
       panels =
         Enum.map(
           Specs.for_theme(unquote(theme.id)).option_groups(),
@@ -37,7 +37,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PanelsTest do
 
       assert Enum.reject(
                panels,
-               &(Code.ensure_loaded?(&1) and function_exported?(&1, :render, 1))
+               &(Code.ensure_loaded?(&1) and function_exported?(&1, :render, 1) and
+                   function_exported?(&1, :ui, 3) and function_exported?(&1, :handle_ui, 5) and
+                   function_exported?(&1, :telemetry, 3))
              ) == []
     end
   end

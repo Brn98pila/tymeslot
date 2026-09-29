@@ -177,5 +177,22 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
       assert byte_size(stored_name) == 255
       assert File.exists?(Storage.build_theme_file_path(stored_path))
     end
+
+    # The prefix is 13 bytes, so a stem of 242 bytes exactly fills the 255-byte
+    # limit and 243 is the first one cut.
+    for stem_bytes <- [242, 243] do
+      test "store_asset/4 fits a #{stem_bytes}-byte name with no extension into the limit" do
+        filename = String.duplicate("a", unquote(stem_bytes))
+
+        {:ok, stored_path} =
+          Storage.store_asset(:image, 1, "1", %{path: gif_file(), filename: filename})
+
+        stored_name = Path.basename(stored_path)
+
+        assert stored_name =~ ~r|\A[0-9a-f]{12}-a{242}\z|
+        assert byte_size(stored_name) == 255
+        assert File.exists?(Storage.build_theme_file_path(stored_path))
+      end
+    end
   end
 end
