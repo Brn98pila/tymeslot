@@ -112,6 +112,56 @@ defmodule Tymeslot.ThemeCustomizations.ContrastTokensTest do
     end
   end
 
+  describe "derive/1 on a light palette" do
+    # No light scheme ships yet; these stand in for one. Ivory has a dark
+    # primary that carries white; Citrus a bright one that does not.
+    @ivory %{
+      primary: "#b4532a",
+      primary_hover: "#9a4524",
+      secondary: "#6b5a4a",
+      accent: "#4d7c5a",
+      background: "#faf7f2",
+      surface: "#ffffff",
+      text: "#1f1b16",
+      text_secondary: "#5c5347"
+    }
+
+    @citrus %{
+      primary: "#facc15",
+      primary_hover: "#eab308",
+      secondary: "#a16207",
+      accent: "#f59e0b",
+      background: "#ffffff",
+      surface: "#ffffff",
+      text: "#1c1917",
+      text_secondary: "#57534e"
+    }
+
+    test "a bright primary takes the palette's dark text as its ink and keeps its own colour" do
+      tokens = ContrastTokens.derive(@citrus)
+
+      # White and the white page both fail on yellow; the text does not. The
+      # old rule chose white and darkened the yellow to #886d03 to make it fit.
+      assert tokens.on_primary == "#1c1917"
+      assert tokens.primary_solid == "#facc15"
+      assert tokens.primary_solid_hover == "#eab308"
+      assert tokens.on_accent == "#1c1917"
+      assert tokens.accent_solid == "#f59e0b"
+    end
+
+    test "a dark primary keeps white and its own colour" do
+      tokens = ContrastTokens.derive(@ivory)
+
+      assert tokens.on_primary == "#ffffff"
+      assert tokens.primary_solid == "#b4532a"
+    end
+
+    test "every filled-control pair clears AA" do
+      assert failing_pairs(ContrastTokens.derive(@citrus)) == []
+      assert failing_pairs(ContrastTokens.derive(@ivory)) == []
+    end
+  end
+
   describe "derive/1 edge cases" do
     test "returns nil when the palette carries no primary" do
       assert ContrastTokens.derive(%{background: "#000000"}) == nil

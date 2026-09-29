@@ -1,30 +1,33 @@
 defmodule Tymeslot.ThemeCustomizations.ContrastTokens do
   @moduledoc """
   Derives the accessible ink/surface pairs used wherever booking-page text sits
-  directly on a palette colour.
+  directly on a palette colour: filled controls, where the palette colour is
+  the surface and something has to be legible on top of it.
 
-  The palettes are chosen for their look on the dark glass background, where
-  they are only ever used as borders, focus rings, or bright text. Filled
-  controls invert that relationship: the palette colour becomes the surface and
-  something has to be legible on top of it. White was hard-coded there, and it
-  fails WCAG AA against six of the eight shipped primaries (2.43:1 for the
-  default turquoise) and against every accent, with a custom seed free to be
-  worse still.
+  White was hard-coded there once, and it fails WCAG AA against six of the
+  eight shipped primaries (2.43:1 for the default turquoise) and against every
+  accent, with a custom seed free to be worse still.
 
   Two tokens per family fix that without discarding the organiser's colour:
 
-    * `on_*` picks the ink, white or the palette's own background colour,
-      whichever already reads better on the surface. Using the palette
-      background rather than pure black keeps a dark ink in the same family as
-      the rest of the page.
-    * `*_solid` nudges the surface's lightness towards the ink until normal-size
-      text clears 4.5:1. In practice this moves nothing at all for half the
-      palettes and is a barely perceptible shift for the rest, because the ink
-      was chosen to start as close as possible.
+    * `on_*` picks the ink: white, or the palette's own dark colour, whichever
+      already reads better on the surface. The dark colour is the darker of
+      the palette's `background` and `text`: the page ground on a dark scheme,
+      the body text on a light one, so the rule needs no notion of mode.
+      Taking it from the palette rather than pure black keeps a dark ink in
+      the same family as the rest of the page.
+    * `*_solid` nudges the surface's lightness towards the ink until
+      normal-size text clears 4.5:1. In practice this moves nothing at all for
+      half the palettes and is a barely perceptible shift for the rest,
+      because the ink was chosen to start as close as possible.
 
   `--theme-primary` itself is deliberately left untouched: it is also used for
-  borders, focus rings, and bright text on the dark card, where darkening it
-  would *reduce* contrast. Only the filled surfaces read the `*_solid` variants.
+  borders, focus rings and text on the card, where nudging it towards a filled
+  control's ink could lower its contrast against the card instead. Only the
+  filled surfaces read the `*_solid` variants. Whether the primary reads as
+  text on the card is the palette's concern, not this module's: the dark
+  schemes pair bright primaries with a dark card, and a light scheme has to
+  pair a dark enough primary with its light card; nothing here checks it.
   """
 
   alias Tymeslot.Utils.Colour
@@ -61,10 +64,10 @@ defmodule Tymeslot.ThemeCustomizations.ContrastTokens do
   defp build(primary, colors) do
     hover = hex(colors[:primary_hover]) || primary
     accent = hex(colors[:accent]) || primary
-    background = hex(colors[:background])
+    dark_ink = dark_ink(colors)
 
-    primary_ink = ink(background, [primary, hover])
-    accent_ink = ink(background, [accent])
+    primary_ink = ink(dark_ink, [primary, hover])
+    accent_ink = ink(dark_ink, [accent])
 
     %{
       on_primary: primary_ink,
@@ -75,13 +78,23 @@ defmodule Tymeslot.ThemeCustomizations.ContrastTokens do
     }
   end
 
-  # White unless the palette's own background reads better across every surface
-  # the ink has to cover — a gradient's two stops both have to clear the bar.
+  # The palette's own dark colour: the darker of its background and its text,
+  # which is the background on a dark scheme and the text on a light one.
+  # `nil` when the palette has neither as a hex colour.
+  defp dark_ink(colors) do
+    [colors[:background], colors[:text]]
+    |> Enum.map(&hex/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.min_by(&Colour.relative_luminance/1, fn -> nil end)
+  end
+
+  # White unless the palette's dark colour reads better across every surface
+  # the ink has to cover; a gradient's two stops both have to clear the bar.
   defp ink(nil, _surfaces), do: @light_ink
 
-  defp ink(background, surfaces) do
-    if worst_contrast(background, surfaces) > worst_contrast(@light_ink, surfaces) do
-      background
+  defp ink(dark_ink, surfaces) do
+    if worst_contrast(dark_ink, surfaces) > worst_contrast(@light_ink, surfaces) do
+      dark_ink
     else
       @light_ink
     end
