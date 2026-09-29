@@ -1,8 +1,8 @@
 defmodule Tymeslot.ThemeCustomizations.Options.Background do
   @moduledoc """
   The background option: a gradient preset, a solid colour, a preset or
-  uploaded image, or a preset or uploaded video. Stored in the `background_*`
-  columns.
+  uploaded image, or a preset or uploaded video. Stored as the `background_*`
+  settings.
 
   A spec passes the kinds its theme offers to `changeset/3`, which rejects the
   rest, so no write path can store a background the theme cannot show. A
@@ -20,7 +20,13 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
   alias Tymeslot.ThemeCustomizations.Validation
   alias Tymeslot.Utils.Colour
 
-  @fields [:background_type, :background_value, :background_image_path, :background_video_path]
+  @types %{
+    background_type: :string,
+    background_value: :string,
+    background_image_path: :string,
+    background_video_path: :string
+  }
+  @fields Map.keys(@types)
   @kinds_by_type %{
     "gradient" => :gradient,
     "color" => :color,
@@ -49,6 +55,10 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
           | %{kind: :image, url: String.t()}
           | %{kind: :video, sources: [video_source()], poster: String.t() | nil}
 
+  @doc "The settings the background stores, with their Ecto types."
+  @spec types() :: %{atom() => atom()}
+  def types, do: @types
+
   @doc "Casts and validates the background settings against the kinds the theme offers."
   @spec changeset(Changeset.t(), map(), [Spec.background_kind()]) :: Changeset.t()
   def changeset(changeset, attrs, kinds) do
@@ -60,7 +70,7 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
     |> validate_value()
   end
 
-  @doc "The upload columns and what each stores."
+  @doc "The upload settings and what each stores."
   @spec asset_fields() :: [{atom(), Spec.asset_kind()}]
   def asset_fields, do: [background_image_path: :image, background_video_path: :video]
 

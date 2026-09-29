@@ -66,6 +66,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
 
       {:ok, _customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "2", %{
+          "color_scheme" => "default",
           "background_type" => "gradient",
           "background_value" => gradient_id
         })
@@ -83,6 +84,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
       # Create customization with a video
       {:ok, _customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "2", %{
+          "color_scheme" => "default",
           "background_type" => "video",
           "background_value" => "preset:rhythm-default"
         })
@@ -173,7 +175,9 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
         {:ok, _view, plain} = live(conn, "/#{profile.username}")
         assert plain =~ "--theme-primary: #8b5cf6;"
 
-        assert ThemeCustomizations.get_by_profile_and_theme(profile.id, theme_id).color_scheme ==
+        assert ThemeCustomizations.get_by_profile_and_theme(profile.id, theme_id).settings[
+                 "color_scheme"
+               ] ==
                  "purple"
       end
     end

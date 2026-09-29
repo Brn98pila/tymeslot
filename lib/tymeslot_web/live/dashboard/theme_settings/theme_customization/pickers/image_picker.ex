@@ -25,7 +25,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
               type="button"
               class={[
                 "group/image relative flex flex-col rounded-token-2xl overflow-hidden border-4 transition-all duration-500",
-                if(@customization.background_value == image_id,
+                if(@customization.settings["background_value"] == image_id,
                   do: "border-turquoise-400 shadow-2xl shadow-turquoise-500/20 scale-[1.02]",
                   else:
                     "border-white hover:border-turquoise-200 hover:shadow-xl hover:shadow-tymeslot-200/50"
@@ -59,7 +59,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
                     />
                   </svg>
                 </div>
-                <%= if @customization.background_value == image_id do %>
+                <%= if @customization.settings["background_value"] == image_id do %>
                   <div class="absolute top-3 right-3 w-8 h-8 bg-turquoise-500 text-white rounded-full flex items-center justify-center shadow-lg z-10">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -74,7 +74,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
               </div>
               <div class={[
                 "p-5 text-left transition-colors",
-                if(@customization.background_value == image_id,
+                if(@customization.settings["background_value"] == image_id,
                   do: "bg-turquoise-50",
                   else: "bg-white"
                 )
@@ -198,7 +198,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
           </p>
         </form>
 
-        <%= if @customization.background_image_path && @customization.background_value == "custom" do %>
+        <%= if @customization.settings["background_image_path"] && @customization.settings["background_value"] == "custom" do %>
           <div class="mt-8 p-4 bg-amber-50 border border-amber-100 rounded-token-2xl flex items-center gap-3">
             <svg
               class="w-5 h-5 text-amber-600 shrink-0"

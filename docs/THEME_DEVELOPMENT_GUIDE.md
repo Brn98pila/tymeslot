@@ -675,7 +675,11 @@ Each theme declares what organisers can customise in a spec module implementing 
 | `tokens/2` | Stored settings plus per-page-view overrides to `%Tymeslot.ThemeCustomizations.Tokens{}` |
 | `asset_fields/0` | Which settings hold uploaded files, for upload handling and file clean-up |
 
-Build a spec from the shared blocks `Options.Palette` and `Options.Background` rather than restating their rules; `QuillSpec` and `RhythmSpec` are the reference. Colours are validated by `Tymeslot.Utils.Colour.cast_hex/1`: `#RGB` or `#RRGGBB`, stored as lower-case `#rrggbb`.
+Build a spec from the shared blocks `Options.Palette` and `Options.Background` rather than restating their rules; `QuillSpec` and `RhythmSpec` are the reference.
+
+A theme's settings are stored in the `settings` map of its `theme_customizations` row, not in columns of their own, so a theme with a different option set needs no migration. The keys are those of the spec's option groups (`Spec.setting_types/1`: each option module's `types/0`); a key outside them is dropped on the next save, and an empty setting is left out rather than stored as `null`. `changeset/2` receives a schemaless changeset over those types, holding the stored settings as its data, so it validates with plain `cast/3`, `get_field/2` and `add_error/3`; its errors reach the row's changeset under the setting's name. Writes pass the settings flat, beside the columns (`%{"theme_id" => "1", "background_type" => "video"}`), and reads go through `ThemeCustomizations.to_map/1` or `customization.settings["background_type"]`. `video_processing` stays a column: the transcoding worker writes it directly.
+
+Colours are validated by `Tymeslot.Utils.Colour.cast_hex/1`: `#RGB` or `#RRGGBB`, stored as lower-case `#rrggbb`.
 
 Each spec's `tokens/2` turns the saved settings, plus per-request overrides, into a `%Tokens{}`: `vars` (the palette colours and contrast pairs as `--theme-*` custom properties, the palette's background as `--theme-canvas`, and the background option as `--theme-background`), `dark_vars` (empty for Quill and Rhythm), and `background`, a descriptor (`%{kind: :gradient | :color | :image | :video, ...}`) the theme wrapper renders. `Options.Palette.vars/2` and `Options.Background.descriptor/1` hold the shared logic, so a spec's `tokens/2` is a few lines. Callers go through `ThemeCustomizations.tokens/3`, which falls back to the theme's defaults when nothing is saved.
 

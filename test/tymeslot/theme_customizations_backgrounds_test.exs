@@ -8,17 +8,18 @@ defmodule Tymeslot.ThemeCustomizationsBackgroundsTest do
   describe "Backgrounds module" do
     test "determine_cleanup_files/2 identifies files to cleanup" do
       old = %ThemeCustomizationSchema{
-        background_type: "image",
-        background_value: "custom",
-        background_image_path: "old/image.jpg",
-        background_video_path: nil
+        settings: %{
+          "background_type" => "image",
+          "background_value" => "custom",
+          "background_image_path" => "old/image.jpg"
+        }
       }
 
       new = %ThemeCustomizationSchema{
-        background_type: "gradient",
-        background_value: "gradient_1",
-        background_image_path: nil,
-        background_video_path: nil
+        settings: %{
+          "background_type" => "gradient",
+          "background_value" => "gradient_1"
+        }
       }
 
       cleanup = Backgrounds.determine_cleanup_files(old, new)
@@ -29,17 +30,17 @@ defmodule Tymeslot.ThemeCustomizationsBackgroundsTest do
 
     test "determine_cleanup_files/2 returns empty when no cleanup needed" do
       old = %ThemeCustomizationSchema{
-        background_type: "gradient",
-        background_value: "gradient_1",
-        background_image_path: nil,
-        background_video_path: nil
+        settings: %{
+          "background_type" => "gradient",
+          "background_value" => "gradient_1"
+        }
       }
 
       new = %ThemeCustomizationSchema{
-        background_type: "gradient",
-        background_value: "gradient_2",
-        background_image_path: nil,
-        background_video_path: nil
+        settings: %{
+          "background_type" => "gradient",
+          "background_value" => "gradient_2"
+        }
       }
 
       assert Backgrounds.determine_cleanup_files(old, new) == []

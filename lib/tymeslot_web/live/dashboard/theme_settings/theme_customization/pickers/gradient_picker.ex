@@ -17,7 +17,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.Gradien
           type="button"
           class={[
             "group/gradient relative h-32 rounded-token-2xl overflow-hidden border-4 transition-all duration-500",
-            if(@customization.background_value == gradient_id,
+            if(@customization.settings["background_value"] == gradient_id,
               do: "border-turquoise-400 shadow-2xl shadow-turquoise-500/20 scale-[1.02]",
               else: "border-white hover:border-turquoise-200"
             )
@@ -37,7 +37,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.Gradien
             </p>
           </div>
 
-          <%= if @customization.background_value == gradient_id do %>
+          <%= if @customization.settings["background_value"] == gradient_id do %>
             <div class="absolute top-3 right-3 w-6 h-6 bg-turquoise-500 text-white rounded-full flex items-center justify-center shadow-lg">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path

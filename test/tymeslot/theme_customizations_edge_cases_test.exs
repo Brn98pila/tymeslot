@@ -48,10 +48,11 @@ defmodule Tymeslot.ThemeCustomizationsEdgeCasesTest do
                  "value" => "#FFF"
                })
 
-      assert customization.background_value == "#ffffff"
+      assert customization.settings["background_value"] == "#ffffff"
 
-      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1").background_value ==
-               "#ffffff"
+      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1").settings[
+               "background_value"
+             ] == "#ffffff"
     end
 
     test "apply_option rejects the #RRGGBBAA alpha form" do
@@ -76,7 +77,7 @@ defmodule Tymeslot.ThemeCustomizationsEdgeCasesTest do
         })
 
       assert {:ok, customization} = result
-      assert customization.background_value == "#ff5500"
+      assert customization.settings["background_value"] == "#ff5500"
     end
   end
 
@@ -133,8 +134,8 @@ defmodule Tymeslot.ThemeCustomizationsEdgeCasesTest do
           "background_image_path" => nil
         })
 
-      assert updated.background_image_path == nil
-      assert updated.background_type == "gradient"
+      assert updated.settings["background_image_path"] == nil
+      assert updated.settings["background_type"] == "gradient"
     end
 
     test "cleans up old video path when switching to gradient (new path is nil)" do
@@ -156,8 +157,8 @@ defmodule Tymeslot.ThemeCustomizationsEdgeCasesTest do
           "background_video_path" => nil
         })
 
-      assert updated.background_video_path == nil
-      assert updated.background_type == "gradient"
+      assert updated.settings["background_video_path"] == nil
+      assert updated.settings["background_type"] == "gradient"
     end
   end
 
@@ -183,7 +184,7 @@ defmodule Tymeslot.ThemeCustomizationsEdgeCasesTest do
         })
 
       assert {:ok, customization} = result
-      assert customization.color_scheme == "purple"
+      assert customization.settings["color_scheme"] == "purple"
     end
 
     test "upsert is idempotent when called multiple times" do

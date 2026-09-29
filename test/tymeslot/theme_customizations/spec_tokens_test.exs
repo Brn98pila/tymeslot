@@ -17,14 +17,17 @@ defmodule Tymeslot.ThemeCustomizations.SpecTokensTest do
   alias TymeslotWeb.ThemeTestMatrix
 
   defp settings(attrs) do
-    struct(
-      %ThemeCustomizationSchema{
-        color_scheme: "default",
-        background_type: "gradient",
-        background_value: "gradient_1"
-      },
-      attrs
-    )
+    %ThemeCustomizationSchema{
+      settings:
+        Map.merge(
+          %{
+            "color_scheme" => "default",
+            "background_type" => "gradient",
+            "background_value" => "gradient_1"
+          },
+          Map.new(attrs, fn {key, value} -> {Atom.to_string(key), value} end)
+        )
+    }
   end
 
   for theme_id <- ThemeTestMatrix.ids() do

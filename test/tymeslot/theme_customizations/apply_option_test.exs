@@ -53,13 +53,13 @@ defmodule Tymeslot.ThemeCustomizations.ApplyOptionTest do
       {:ok, _existing} = apply(profile, :palette, "seed", "#ff6b35")
 
       assert {:ok, saved} = apply(profile, :palette, "scheme", "forest")
-      assert saved.color_scheme == "forest"
-      assert saved.custom_palette_seed == nil
+      assert saved.settings["color_scheme"] == "forest"
+      assert saved.settings["custom_palette_seed"] == nil
     end
 
     test "a seed is saved normalised", %{profile: profile} do
       assert {:ok, saved} = apply(profile, :palette, "seed", "#AABBCC")
-      assert saved.custom_palette_seed == "#aabbcc"
+      assert saved.settings["custom_palette_seed"] == "#aabbcc"
     end
 
     test "a palette change leaves an uploaded background and its file alone", %{profile: profile} do
@@ -73,7 +73,7 @@ defmodule Tymeslot.ThemeCustomizations.ApplyOptionTest do
         })
 
       assert {:ok, saved} = apply(profile, :palette, "scheme", "ocean")
-      assert saved.background_image_path == relative
+      assert saved.settings["background_image_path"] == relative
       assert File.exists?(full)
     end
   end
@@ -91,8 +91,11 @@ defmodule Tymeslot.ThemeCustomizations.ApplyOptionTest do
         })
 
       assert {:ok, saved} = apply(profile, :background, "gradient", "gradient_4")
-      assert {saved.background_type, saved.background_value} == {"gradient", "gradient_4"}
-      assert saved.background_image_path == nil
+
+      assert {saved.settings["background_type"], saved.settings["background_value"]} ==
+               {"gradient", "gradient_4"}
+
+      assert saved.settings["background_image_path"] == nil
       refute File.exists?(full)
     end
 
@@ -108,8 +111,11 @@ defmodule Tymeslot.ThemeCustomizations.ApplyOptionTest do
         })
 
       assert {:ok, saved} = apply(profile, :background, "video", "preset:blue-wave")
-      assert {saved.background_type, saved.background_value} == {"video", "preset:blue-wave"}
-      assert saved.background_image_path == nil
+
+      assert {saved.settings["background_type"], saved.settings["background_value"]} ==
+               {"video", "preset:blue-wave"}
+
+      assert saved.settings["background_image_path"] == nil
       refute File.exists?(full)
     end
 
@@ -126,10 +132,10 @@ defmodule Tymeslot.ThemeCustomizations.ApplyOptionTest do
 
       assert {:ok, saved} = apply(profile, :background, "image", "preset:artistic-studio")
 
-      assert {saved.background_type, saved.background_value} ==
+      assert {saved.settings["background_type"], saved.settings["background_value"]} ==
                {"image", "preset:artistic-studio"}
 
-      assert saved.background_video_path == nil
+      assert saved.settings["background_video_path"] == nil
       refute File.exists?(full)
     end
 

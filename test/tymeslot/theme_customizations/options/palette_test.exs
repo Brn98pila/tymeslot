@@ -6,10 +6,9 @@ defmodule Tymeslot.ThemeCustomizations.Options.PaletteTest do
 
   alias Ecto.Changeset
   alias Tymeslot.ThemeCustomizations.Options.Palette
-  alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   defp changeset(attrs) do
-    %ThemeCustomizationSchema{}
+    {%{}, Palette.types()}
     |> Changeset.change()
     |> Palette.changeset(attrs)
   end

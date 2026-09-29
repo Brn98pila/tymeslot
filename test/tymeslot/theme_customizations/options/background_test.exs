@@ -6,12 +6,11 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
 
   alias Ecto.Changeset
   alias Tymeslot.ThemeCustomizations.Options.Background
-  alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   @all_kinds [:gradient, :color, :image, :video]
 
   defp changeset(attrs, kinds \\ @all_kinds) do
-    %ThemeCustomizationSchema{}
+    {%{}, Background.types()}
     |> Changeset.change()
     |> Background.changeset(attrs, kinds)
   end

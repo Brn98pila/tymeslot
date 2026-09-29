@@ -8,7 +8,6 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
   alias Tymeslot.ThemeCustomizations.QuillSpec
   alias Tymeslot.ThemeCustomizations.RhythmSpec
   alias Tymeslot.ThemeCustomizations.Spec
-  alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
   alias Tymeslot.ThemeCustomizations.Tokens
 
   # A theme that offers no video, like the minimalist theme will.
@@ -30,7 +29,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
   defp stringify(map), do: Map.new(map, fn {k, v} -> {Atom.to_string(k), v} end)
 
   defp validate(spec, attrs) do
-    %ThemeCustomizationSchema{} |> Changeset.change() |> spec.changeset(attrs)
+    {%{}, Spec.setting_types(spec)} |> Changeset.change() |> spec.changeset(attrs)
   end
 
   describe "Spec.supports_background?/2" do

@@ -54,14 +54,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
           }
         }
 
-  @typedoc "Customization map applied to the theme"
-  @type customization_t :: %{
-          required(:background_type) => String.t(),
-          optional(:background_value) => String.t() | nil,
-          optional(:background_image_path) => String.t() | nil,
-          optional(:background_video_path) => String.t() | nil,
-          optional(:color_scheme) => String.t()
-        }
+  @typedoc "Customization applied to the theme"
+  @type customization_t :: Tymeslot.ThemeCustomizations.ThemeCustomizationSchema.t()
 
   @typedoc "Assigns contract for this component"
   @type assigns_t :: %{
@@ -114,7 +108,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
      |> BackgroundUploads.configure(__MODULE__, ThemeCustomizations.asset_fields(theme_id))
      |> assign_new(:browsing_type, fn -> initial_browsing_type(customization, option_groups) end)
      |> assign_new(:custom_picker_open, fn -> false end)
-     |> assign_new(:palette_picker_open, fn -> not is_nil(customization.custom_palette_seed) end)}
+     |> assign_new(:palette_picker_open, fn ->
+       not is_nil(customization.settings["custom_palette_seed"])
+     end)}
   end
 
   @impl Phoenix.LiveComponent
@@ -160,7 +156,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   def handle_event("theme:set_option", _params, socket), do: {:noreply, socket}
 
   def handle_event("theme:toggle_palette_picker", _params, socket) do
-    if is_nil(socket.assigns.customization.custom_palette_seed) do
+    if is_nil(socket.assigns.customization.settings["custom_palette_seed"]) do
       with_rate_limit(socket, "color_scheme", fn ->
         case ThemeCustomizations.apply_option(
                socket.assigns.profile.id,
@@ -170,7 +166,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
              ) do
           {:ok, updated} ->
             emit_telemetry(:palette_seed_set, socket, %{
-              seed: updated.custom_palette_seed
+              seed: updated.settings["custom_palette_seed"]
             })
 
             {:noreply,
@@ -245,7 +241,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   end
 
   defp after_option_set(socket, :palette, _field, updated),
-    do: assign(socket, :palette_picker_open, not is_nil(updated.custom_palette_seed))
+    do: assign(socket, :palette_picker_open, not is_nil(updated.settings["custom_palette_seed"]))
 
   defp after_option_set(socket, :background, kind, _updated),
     do: assign(socket, :browsing_type, kind)
@@ -275,8 +271,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   defp initial_browsing_type(customization, option_groups) do
     kinds = background_kinds(option_groups)
 
-    if customization.background_type in kinds,
-      do: customization.background_type,
+    if customization.settings["background_type"] in kinds,
+      do: customization.settings["background_type"],
       else: List.first(kinds)
   end
 
@@ -299,8 +295,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
     end
   end
 
-  defp background_path(customization, :image), do: customization.background_image_path
-  defp background_path(customization, :video), do: customization.background_video_path
+  defp background_path(customization, :image), do: customization.settings["background_image_path"]
+  defp background_path(customization, :video), do: customization.settings["background_video_path"]
 
   # Rate limiting helper that validates user_id and checks rate limit before executing operation
   @spec with_rate_limit(Socket.t(), String.t(), (-> {:noreply, Socket.t()})) ::

@@ -23,7 +23,7 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
   @type result :: {:ok, ThemeCustomizationSchema.t()} | {:error, String.t()}
 
   @doc """
-  Stores `upload` for the theme's asset field `field` (an upload column such as
+  Stores `upload` for the theme's asset field `field` (an upload setting such as
   `:background_image_path`) and saves it on the profile's customisation.
   """
   @spec attach_asset(pos_integer(), String.t(), atom(), upload()) :: result()
@@ -56,12 +56,12 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
              |> background_attrs(field, path, cleared)
              |> Map.put("video_processing", "pending")
            ) do
-      queue_transcoding(customization, Map.fetch!(customization, field))
+      queue_transcoding(customization, customization.settings[Atom.to_string(field)])
     end
   end
 
   # An upload replaces whatever upload the background held before: clearing
-  # the other columns makes the save delete their files.
+  # the other upload settings makes the save delete their files.
   defp background_attrs(type, field, path, cleared) do
     Map.merge(
       Map.new(cleared, &{Atom.to_string(&1), nil}),

@@ -32,7 +32,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationSetOptionTest do
 
       view |> element(option_button("palette", "scheme", "ocean")) |> render_click()
 
-      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1").color_scheme == "ocean"
+      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1").settings[
+               "color_scheme"
+             ] == "ocean"
     end
 
     test "a gradient card saves the background", %{conn: conn, profile: profile} do
@@ -41,7 +43,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationSetOptionTest do
       view |> element(option_button("background", "gradient", "gradient_4")) |> render_click()
 
       saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
-      assert {saved.background_type, saved.background_value} == {"gradient", "gradient_4"}
+
+      assert {saved.settings["background_type"], saved.settings["background_value"]} ==
+               {"gradient", "gradient_4"}
     end
 
     test "the colour widget commits through the same event", %{conn: conn, profile: profile} do
@@ -62,8 +66,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationSetOptionTest do
         "choice" => "#123456"
       })
 
-      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1").background_value ==
-               "#123456"
+      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1").settings[
+               "background_value"
+             ] == "#123456"
     end
 
     test "emits the unchanged telemetry event", %{conn: conn, profile: profile} do

@@ -151,7 +151,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       assert render(view) =~ "Forest Green"
 
       saved = Repo.get_by(ThemeCustomizationSchema, profile_id: profile.id, theme_id: "1")
-      assert saved.color_scheme == "forest"
+      assert saved.settings["color_scheme"] == "forest"
     end
 
     test "changes background type tabs", %{conn: conn} do
@@ -192,8 +192,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       |> render_click()
 
       saved = Repo.get_by(ThemeCustomizationSchema, profile_id: profile.id, theme_id: "1")
-      assert saved.background_type == "color"
-      assert saved.background_value == "#dc2626"
+      assert saved.settings["background_type"] == "color"
+      assert saved.settings["background_value"] == "#dc2626"
     end
 
     test "handles background image upload safely", %{conn: conn} do
@@ -312,7 +312,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
 
       assert [only_row] = matching_rows
       assert only_row.id == first_row.id
-      assert only_row.background_image_path == first_row.background_image_path
+
+      assert only_row.settings["background_image_path"] ==
+               first_row.settings["background_image_path"]
     end
 
     test "switching browsing type tabs renders each valid category", %{conn: conn} do
@@ -362,7 +364,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       |> element("button[phx-click='theme:toggle_palette_picker']")
       |> render_click()
 
-      assert %{custom_palette_seed: seed} =
+      assert %{settings: %{"custom_palette_seed" => seed}} =
                ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
 
       assert seed == ThemeCustomizations.default_custom_palette_seed()
@@ -397,7 +399,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
 
       # DB value is unchanged
       saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
-      assert saved.custom_palette_seed == "#ff6b35"
+      assert saved.settings["custom_palette_seed"] == "#ff6b35"
     end
 
     test "theme:set_option with a palette seed, valid hex persists lowercased seed",
@@ -419,7 +421,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       })
 
       saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
-      assert saved.custom_palette_seed == "#aabbcc"
+      assert saved.settings["custom_palette_seed"] == "#aabbcc"
     end
 
     test "theme:toggle_custom_picker toggles the custom background picker",
@@ -464,8 +466,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       })
 
       saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
-      assert saved.background_type == "color"
-      assert saved.background_value == "#123456"
+      assert saved.settings["background_type"] == "color"
+      assert saved.settings["background_value"] == "#123456"
     end
 
     test "theme:set_option saves a custom background as a three-digit hex colour",
@@ -484,8 +486,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
       })
 
       saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
-      assert saved.background_type == "color"
-      assert saved.background_value == "#ffaa00"
+      assert saved.settings["background_type"] == "color"
+      assert saved.settings["background_value"] == "#ffaa00"
     end
 
     test "the image picker shows presets from the booking pages' image path", %{conn: conn} do

@@ -1,23 +1,26 @@
 defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchema do
   @moduledoc """
   Schema for user theme customizations including color schemes and backgrounds.
+
+  The options a theme offers live in `settings`, a string-keyed map whose keys
+  are the ones the theme's customisation spec declares
+  (`Tymeslot.ThemeCustomizations.Spec.setting_types/1`). `video_processing`
+  stays a column of its own: the transcoding worker writes it directly, outside
+  the spec.
   """
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Ecto.Changeset
   alias Tymeslot.Profiles.ProfileSchema
+  alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.Themes.Catalog
 
   @type t :: %__MODULE__{
           id: integer() | nil,
           profile_id: integer() | nil,
           theme_id: String.t() | nil,
-          color_scheme: String.t(),
-          custom_palette_seed: String.t() | nil,
-          background_type: String.t(),
-          background_value: String.t() | nil,
-          background_image_path: String.t() | nil,
-          background_video_path: String.t() | nil,
+          settings: Spec.settings() | nil,
           video_processing: String.t() | nil,
           profile: ProfileSchema.t() | Ecto.Association.NotLoaded.t() | nil,
           inserted_at: DateTime.t() | nil,
@@ -28,12 +31,7 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchema do
 
   schema "theme_customizations" do
     field(:theme_id, :string)
-    field(:color_scheme, :string, default: "default")
-    field(:custom_palette_seed, :string)
-    field(:background_type, :string, default: "gradient")
-    field(:background_value, :string)
-    field(:background_image_path, :string)
-    field(:background_video_path, :string)
+    field(:settings, :map, default: %{})
     field(:video_processing, :string)
 
     belongs_to(:profile, ProfileSchema, foreign_key: :profile_id)
@@ -44,7 +42,8 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchema do
   @doc """
   Casts the shared columns and hands the theme's own settings to its
   customisation spec, which validates them (including whether the theme
-  supports the option at all).
+  supports the option at all). `attrs` carries the settings flat, beside the
+  columns (`%{"theme_id" => _, "background_type" => _}`).
   """
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(theme_customization, attrs) do
@@ -64,9 +63,45 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchema do
 
       theme_id ->
         case Catalog.customization_spec(theme_id) do
-          {:ok, spec} -> spec.changeset(changeset, attrs)
+          {:ok, spec} -> put_settings(changeset, spec, attrs)
           {:error, :theme_not_found} -> add_error(changeset, :theme_id, "is not a valid theme")
         end
     end
   end
+
+  # The spec validates a schemaless changeset over its own settings, starting
+  # from the stored ones, or from the theme's defaults for a row not yet
+  # inserted. Its errors land on the parent under the setting's name, and the
+  # result replaces `settings` whole, holding only the keys the spec declares
+  # and leaving out the empty ones.
+  defp put_settings(changeset, spec, attrs) do
+    types = Spec.setting_types(spec)
+    current = starting_settings(changeset, spec)
+    stored = Map.new(types, fn {key, _type} -> {key, Map.get(current, Atom.to_string(key))} end)
+
+    settings = spec.changeset(Changeset.change({stored, types}), attrs)
+
+    changeset =
+      Enum.reduce(settings.errors, changeset, fn {key, {message, opts}}, acc ->
+        add_error(acc, key, message, opts)
+      end)
+
+    put_change(
+      changeset,
+      :settings,
+      for(
+        {key, value} <- apply_changes(settings),
+        value != nil,
+        into: %{},
+        do: {Atom.to_string(key), value}
+      )
+    )
+  end
+
+  defp starting_settings(%Changeset{data: %{__meta__: %{state: :built}}} = changeset, spec) do
+    defaults = Map.new(spec.defaults(), fn {key, value} -> {Atom.to_string(key), value} end)
+    Map.merge(defaults, get_field(changeset, :settings) || %{})
+  end
+
+  defp starting_settings(changeset, _spec), do: get_field(changeset, :settings) || %{}
 end

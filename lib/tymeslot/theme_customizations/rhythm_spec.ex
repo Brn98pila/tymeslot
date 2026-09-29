@@ -1,8 +1,7 @@
 defmodule Tymeslot.ThemeCustomizations.RhythmSpec do
   @moduledoc """
   Customisation spec for Rhythm: a colour palette and every background kind,
-  defaulting to Rhythm's own background video. Reads and writes the
-  `color_scheme`, `custom_palette_seed` and `background_*` columns.
+  defaulting to Rhythm's own background video.
   """
 
   alias Tymeslot.ThemeCustomizations.Options.Background

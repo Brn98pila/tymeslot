@@ -132,9 +132,11 @@ defmodule TymeslotWeb.ThemeCommonTestCases do
       theme_tokens:
         ThemeCustomizations.tokens(theme_id, %ThemeCustomizationSchema{
           theme_id: theme_id,
-          color_scheme: "turquoise",
-          background_type: "gradient",
-          background_value: "gradient_1"
+          settings: %{
+            "color_scheme" => "turquoise",
+            "background_type" => "gradient",
+            "background_value" => "gradient_1"
+          }
         }),
       locale: "en",
       language_dropdown_open: false,

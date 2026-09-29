@@ -160,7 +160,7 @@ defmodule Tymeslot.Onboarding do
 
   defp put_video_background_unless_set(profile_id, theme_id, preset) do
     case ThemeCustomizations.get_by_profile_and_theme(profile_id, theme_id) do
-      %{background_type: "video"} ->
+      %{settings: %{"background_type" => "video"}} ->
         :ok
 
       _other ->

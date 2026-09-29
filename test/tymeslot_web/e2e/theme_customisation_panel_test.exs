@@ -42,7 +42,7 @@ defmodule TymeslotWeb.E2E.ThemeCustomisationPanelTest do
     eventually(
       fn ->
         assert match?(
-                 %{color_scheme: "sunset"},
+                 %{settings: %{"color_scheme" => "sunset"}},
                  ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
                )
       end,
@@ -61,7 +61,12 @@ defmodule TymeslotWeb.E2E.ThemeCustomisationPanelTest do
     eventually(
       fn ->
         assert match?(
-                 %{background_type: "gradient", background_value: "gradient_4"},
+                 %{
+                   settings: %{
+                     "background_type" => "gradient",
+                     "background_value" => "gradient_4"
+                   }
+                 },
                  ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
                )
       end,

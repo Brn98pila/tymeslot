@@ -108,7 +108,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
 
         <div class="flex flex-wrap items-center gap-3">
           <% current_scheme = ThemeCustomizations.resolve_active_scheme(@customization, @presets) %>
-          <% custom_selected = not is_nil(@customization.custom_palette_seed) %>
+          <% custom_selected = not is_nil(@customization.settings["custom_palette_seed"]) %>
           <%= if current_scheme do %>
             <.current_indicator
               swatches={[
@@ -119,7 +119,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
               label={current_scheme.name}
               code={
                 if custom_selected,
-                  do: String.upcase(@customization.custom_palette_seed)
+                  do: String.upcase(@customization.settings["custom_palette_seed"])
               }
               highlighted={custom_selected}
             />
@@ -152,7 +152,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
 
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         <% active_scheme_id =
-          if is_nil(@customization.custom_palette_seed), do: @customization.color_scheme %>
+          if is_nil(@customization.settings["custom_palette_seed"]),
+            do: @customization.settings["color_scheme"] %>
         <%!-- The param is named `choice` rather than `value`, because LiveView's
         client serialisation reads a button's native `value` IDL property and
         would overwrite `phx-value-value` with the empty string. --%>
@@ -208,12 +209,12 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
         <% end %>
       </div>
 
-      <%= if not is_nil(@customization.custom_palette_seed) and @palette_picker_open do %>
+      <%= if not is_nil(@customization.settings["custom_palette_seed"]) and @palette_picker_open do %>
         <div class="mt-6 animate-fade-in-up rounded-token-2xl border-2 border-tymeslot-50 bg-tymeslot-50/50 p-4">
           <.colour_picker_widget
             id="custom-palette-picker"
             target={@myself}
-            initial_hex={@customization.custom_palette_seed}
+            initial_hex={@customization.settings["custom_palette_seed"]}
             commit_event="theme:set_option"
             commit_params={%{option: @group.key, field: "seed"}}
           />

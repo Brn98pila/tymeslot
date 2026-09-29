@@ -13,6 +13,8 @@ defmodule Tymeslot.ThemeCustomizations.Spec do
   """
 
   alias Ecto.Changeset
+  alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Tokens
   alias Tymeslot.Themes.Catalog
 
@@ -40,9 +42,11 @@ defmodule Tymeslot.ThemeCustomizations.Spec do
   @callback defaults() :: %{optional(atom()) => term()}
 
   @doc """
-  Casts and validates the theme's settings onto a changeset that already
-  carries `profile_id`, `theme_id` and `video_processing`. Rejects any option
-  or value the theme does not support.
+  Casts and validates the theme's settings. The changeset is a schemaless one
+  over `setting_types/1`, holding the stored settings as its data, so the spec
+  works with plain `cast/3`, `get_field/2` and `add_error/3`; the schema
+  stores the result in its `settings` map. Rejects any option or value the
+  theme does not support.
   """
   @callback changeset(Changeset.t(), map()) :: Changeset.t()
 
@@ -51,6 +55,20 @@ defmodule Tymeslot.ThemeCustomizations.Spec do
 
   @doc "The settings that hold uploaded files, and the kind of each, for upload handling and clean-up."
   @callback asset_fields() :: [{atom(), asset_kind()}]
+
+  @doc """
+  The settings a spec stores, with their Ecto types: those of each of its
+  option groups. A stored key outside these is dropped on the next save.
+  """
+  @spec setting_types(module()) :: %{atom() => atom()}
+  def setting_types(spec) do
+    spec.option_groups()
+    |> Enum.map(fn
+      %{type: :palette} -> Palette.types()
+      %{type: :background} -> Background.types()
+    end)
+    |> Enum.reduce(%{}, &Map.merge/2)
+  end
 
   @doc "The background kinds a spec declares; empty when it has no background group."
   @spec background_kinds(module()) :: [background_kind()]

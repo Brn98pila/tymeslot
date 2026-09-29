@@ -24,9 +24,24 @@ defmodule Tymeslot.ThemeCustomizationsTest do
                ThemeCustomizations.create_theme_customization(profile.id, "1", attrs)
 
       assert customization.theme_id == "1"
-      assert customization.color_scheme == "purple"
-      assert customization.background_type == "gradient"
-      assert customization.background_value == "gradient_1"
+      assert customization.settings["color_scheme"] == "purple"
+      assert customization.settings["background_type"] == "gradient"
+      assert customization.settings["background_value"] == "gradient_1"
+    end
+
+    test "create_theme_customization/3 starts a new row from the theme's defaults", %{
+      profile: profile
+    } do
+      assert {:ok, customization} =
+               ThemeCustomizations.create_theme_customization(profile.id, "2", %{
+                 "color_scheme" => "ocean"
+               })
+
+      assert customization.settings == %{
+               "color_scheme" => "ocean",
+               "background_type" => "video",
+               "background_value" => "preset:rhythm-default"
+             }
     end
 
     test "get_by_profile_and_theme/2 returns the customization", %{profile: profile} do
@@ -40,9 +55,9 @@ defmodule Tymeslot.ThemeCustomizationsTest do
 
       customization = ThemeCustomizations.get_by_profile_and_theme(profile.id, "2")
       assert customization.theme_id == "2"
-      assert customization.color_scheme == "ocean"
-      assert customization.background_type == "color"
-      assert customization.background_value == "#082f49"
+      assert customization.settings["color_scheme"] == "ocean"
+      assert customization.settings["background_type"] == "color"
+      assert customization.settings["background_value"] == "#082f49"
     end
 
     test "upsert_theme_customization/3 updates existing customization", %{profile: profile} do
@@ -66,8 +81,8 @@ defmodule Tymeslot.ThemeCustomizationsTest do
       {:ok, updated} =
         ThemeCustomizations.upsert_theme_customization(profile.id, "1", update_attrs)
 
-      assert updated.color_scheme == "sunset"
-      assert updated.background_value == "gradient_3"
+      assert updated.settings["color_scheme"] == "sunset"
+      assert updated.settings["background_value"] == "gradient_3"
     end
 
     test "delete_theme_customization/1 removes customization", %{profile: profile} do
@@ -115,9 +130,11 @@ defmodule Tymeslot.ThemeCustomizationsTest do
     test "to_map/1 converts customization to map" do
       customization = %ThemeCustomizationSchema{
         theme_id: "1",
-        color_scheme: "purple",
-        background_type: "gradient",
-        background_value: "gradient_1"
+        settings: %{
+          "color_scheme" => "purple",
+          "background_type" => "gradient",
+          "background_value" => "gradient_1"
+        }
       }
 
       map = ThemeCustomizations.to_map(customization)
@@ -144,9 +161,9 @@ defmodule Tymeslot.ThemeCustomizationsTest do
           "color_scheme" => "purple"
         })
 
-      assert created.color_scheme == "purple"
-      assert created.background_type == "video"
-      assert created.background_value == "preset:rhythm-default"
+      assert created.settings["color_scheme"] == "purple"
+      assert created.settings["background_type"] == "video"
+      assert created.settings["background_value"] == "preset:rhythm-default"
     end
 
     test "upsert_theme_customization/3 creates a Quill customisation with the Aurora gradient",
@@ -156,7 +173,8 @@ defmodule Tymeslot.ThemeCustomizationsTest do
           "color_scheme" => "purple"
         })
 
-      assert {created.background_type, created.background_value} == {"gradient", "gradient_1"}
+      assert {created.settings["background_type"], created.settings["background_value"]} ==
+               {"gradient", "gradient_1"}
     end
 
     test "default_customization/2 builds an unsaved customisation from the theme's spec" do
@@ -164,9 +182,11 @@ defmodule Tymeslot.ThemeCustomizationsTest do
                id: nil,
                profile_id: 7,
                theme_id: "2",
-               color_scheme: "default",
-               background_type: "video",
-               background_value: "preset:rhythm-default"
+               settings: %{
+                 "color_scheme" => "default",
+                 "background_type" => "video",
+                 "background_value" => "preset:rhythm-default"
+               }
              } = ThemeCustomizations.default_customization(7, "2")
     end
   end

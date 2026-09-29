@@ -208,9 +208,9 @@ defmodule TymeslotWeb.OnboardingLivePreviewTest do
       %{customization: customization} =
         ThemeCustomizations.initialize_customization(profile.id, profile.booking_theme)
 
-      assert customization.color_scheme == "purple"
+      assert customization.settings["color_scheme"] == "purple"
       # The colour change must not clobber the seeded video background.
-      assert customization.background_type == "video"
+      assert customization.settings["background_type"] == "video"
     end
   end
 
@@ -229,13 +229,13 @@ defmodule TymeslotWeb.OnboardingLivePreviewTest do
 
       for theme_id <- with_video do
         customization = ThemeCustomizations.get_by_profile_and_theme(profile.id, theme_id)
-        assert customization.background_type == "video"
-        assert String.starts_with?(customization.background_value, "preset:")
+        assert customization.settings["background_type"] == "video"
+        assert String.starts_with?(customization.settings["background_value"], "preset:")
       end
 
       for theme_id <- without_video do
         refute match?(
-                 %{background_type: "video"},
+                 %{settings: %{"background_type" => "video"}},
                  ThemeCustomizations.get_by_profile_and_theme(profile.id, theme_id)
                )
       end
@@ -266,8 +266,10 @@ defmodule TymeslotWeb.OnboardingLivePreviewTest do
       Onboarding.ensure_preview_video_backgrounds(profile, ["1"])
 
       customization = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
-      assert customization.background_value == "custom"
-      assert customization.background_video_path == "themes/#{profile.id}/1/videos/mine.mp4"
+      assert customization.settings["background_value"] == "custom"
+
+      assert customization.settings["background_video_path"] ==
+               "themes/#{profile.id}/1/videos/mine.mp4"
     end
   end
 

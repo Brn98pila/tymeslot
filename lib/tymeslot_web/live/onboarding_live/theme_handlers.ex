@@ -65,7 +65,7 @@ defmodule TymeslotWeb.OnboardingLive.ThemeHandlers do
           {:noreply,
            socket
            |> Component.assign(:theme_customization, customization)
-           |> Component.assign(:color_scheme, customization.color_scheme)}
+           |> Component.assign(:color_scheme, customization.settings["color_scheme"])}
 
         {:error, _reason} ->
           {:noreply,
@@ -138,7 +138,7 @@ defmodule TymeslotWeb.OnboardingLive.ThemeHandlers do
     %{customization: customization} =
       ThemeCustomizations.initialize_customization(profile.id, profile.booking_theme)
 
-    {customization, customization.color_scheme}
+    {customization, customization.settings["color_scheme"]}
   end
 
   @doc """

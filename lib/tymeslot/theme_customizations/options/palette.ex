@@ -1,8 +1,8 @@
 defmodule Tymeslot.ThemeCustomizations.Options.Palette do
   @moduledoc """
   The colour-palette option: a preset scheme, or a palette derived from a
-  custom seed colour. Stored in the `color_scheme` and `custom_palette_seed`
-  columns; a present seed is the source of truth and the scheme name is then
+  custom seed colour. Stored as the `color_scheme` and `custom_palette_seed`
+  settings; a present seed is the source of truth and the scheme name is then
   left unconstrained.
   """
 
@@ -16,7 +16,8 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
   alias Tymeslot.ThemeCustomizations.Tokens
   alias Tymeslot.Utils.Colour
 
-  @fields [:color_scheme, :custom_palette_seed]
+  @types %{color_scheme: :string, custom_palette_seed: :string}
+  @fields Map.keys(@types)
 
   # Palette key -> custom property. The palette's `background` is the page's
   # base colour, `--theme-canvas`; `--theme-background` belongs to the
@@ -39,6 +40,10 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
 
   @typedoc "Per-request overrides a single page view may apply on top of the saved palette."
   @type overrides :: %{optional(:primary_color) => String.t()}
+
+  @doc "The settings the palette stores, with their Ecto types."
+  @spec types() :: %{atom() => atom()}
+  def types, do: @types
 
   @doc "Casts and validates the palette settings."
   @spec changeset(Changeset.t(), map()) :: Changeset.t()

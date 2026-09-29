@@ -49,6 +49,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       {:ok, customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "color_scheme" => "default",
           "background_type" => "image",
           "background_value" => "uploaded",
           "background_image_path" => old_rel
@@ -69,6 +70,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       {:ok, customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "color_scheme" => "default",
           "background_type" => "image",
           "background_value" => "uploaded",
           "background_image_path" => rel
@@ -93,6 +95,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       {:ok, customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "color_scheme" => "default",
           "background_type" => "video",
           "background_value" => "uploaded",
           "background_video_path" => old_rel
@@ -115,6 +118,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       {:ok, customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "color_scheme" => "default",
           "background_type" => "video",
           "background_value" => "custom",
           "background_video_path" => rel
@@ -125,7 +129,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
                  "video_processing" => "failed"
                })
 
-      assert updated.background_video_path == rel
+      assert updated.settings["background_video_path"] == rel
       assert File.exists?(abs)
     end
 
@@ -135,6 +139,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       {:ok, customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "color_scheme" => "default",
           "background_type" => "image",
           "background_value" => "custom",
           "background_image_path" => rel
@@ -156,6 +161,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       {:ok, customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "color_scheme" => "default",
           "background_type" => "image",
           "background_value" => "uploaded",
           "background_image_path" => rel
@@ -172,6 +178,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       {:ok, customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "color_scheme" => "default",
           "background_type" => "video",
           "background_value" => "uploaded",
           "background_video_path" => rel

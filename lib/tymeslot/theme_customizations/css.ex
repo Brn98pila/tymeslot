@@ -8,6 +8,7 @@ defmodule Tymeslot.ThemeCustomizations.Css do
   not from here. No database access and no filesystem side effects live here.
   """
 
+  alias Tymeslot.ThemeCustomizations.DataTransform
   alias Tymeslot.ThemeCustomizations.PaletteDerivation
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
@@ -22,27 +23,12 @@ defmodule Tymeslot.ThemeCustomizations.Css do
   """
   @spec resolve_active_scheme(ThemeCustomizationSchema.t() | map(), map()) :: map() | nil
   def resolve_active_scheme(customization, presets) do
-    seed = get_seed(customization)
+    case DataTransform.to_settings(customization) do
+      %{"custom_palette_seed" => seed} when is_binary(seed) and seed != "" ->
+        PaletteDerivation.derive_palette(seed)
 
-    if is_binary(seed) and seed != "" do
-      PaletteDerivation.derive_palette(seed)
-    else
-      scheme_id = get_scheme_id(customization)
-      Map.get(presets.color_schemes, scheme_id)
+      settings ->
+        Map.get(presets.color_schemes, settings["color_scheme"])
     end
-  end
-
-  @spec get_seed(ThemeCustomizationSchema.t() | map()) :: String.t() | nil
-  defp get_seed(%ThemeCustomizationSchema{custom_palette_seed: seed}), do: seed
-
-  defp get_seed(map) when is_map(map) do
-    Map.get(map, :custom_palette_seed) || Map.get(map, "custom_palette_seed")
-  end
-
-  @spec get_scheme_id(ThemeCustomizationSchema.t() | map()) :: String.t() | nil
-  defp get_scheme_id(%ThemeCustomizationSchema{color_scheme: s}), do: s
-
-  defp get_scheme_id(map) when is_map(map) do
-    Map.get(map, :color_scheme) || Map.get(map, "color_scheme")
   end
 end

@@ -1,8 +1,7 @@
 defmodule Tymeslot.ThemeCustomizations.QuillSpec do
   @moduledoc """
   Customisation spec for Quill: a colour palette and every background kind,
-  defaulting to the Aurora gradient. Reads and writes the `color_scheme`,
-  `custom_palette_seed` and `background_*` columns.
+  defaulting to the Aurora gradient.
   """
 
   alias Tymeslot.ThemeCustomizations.Options.Background

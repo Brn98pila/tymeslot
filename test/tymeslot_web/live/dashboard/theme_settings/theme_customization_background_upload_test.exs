@@ -70,6 +70,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
 
       {:ok, _customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "color_scheme" => "default",
           "background_type" => "video",
           "background_value" => "custom",
           "background_video_path" => video_rel
@@ -99,9 +100,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       assert_push_event(view, "upload-complete", %{})
 
       saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
-      assert saved.background_type == "image"
-      assert saved.background_image_path =~ "themes/#{profile.id}/1/images/"
-      assert saved.background_video_path == nil
+      assert saved.settings["background_type"] == "image"
+      assert saved.settings["background_image_path"] =~ "themes/#{profile.id}/1/images/"
+      assert saved.settings["background_video_path"] == nil
       refute File.exists?(video_abs)
     end
   end

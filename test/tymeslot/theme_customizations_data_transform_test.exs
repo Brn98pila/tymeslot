@@ -11,26 +11,26 @@ defmodule Tymeslot.ThemeCustomizationsDataTransformTest do
         id: 3,
         profile_id: 1,
         theme_id: "1",
-        color_scheme: "purple",
-        background_type: "image",
-        background_value: "custom",
-        background_image_path: "themes/1/1/images/a.jpg",
+        settings: %{
+          "color_scheme" => "purple",
+          "background_type" => "image",
+          "background_value" => "custom",
+          "background_image_path" => "themes/1/1/images/a.jpg"
+        },
         video_processing: "pending"
       }
 
       assert DataTransform.to_settings(customization) == %{
                "color_scheme" => "purple",
-               "custom_palette_seed" => nil,
                "background_type" => "image",
                "background_value" => "custom",
-               "background_image_path" => "themes/1/1/images/a.jpg",
-               "background_video_path" => nil
+               "background_image_path" => "themes/1/1/images/a.jpg"
              }
     end
 
-    test "normalises an atom-keyed map and drops everything that is not a setting" do
-      assert DataTransform.to_settings(%{color_scheme: "purple", profile_id: 1, theme_id: "1"}) ==
-               %{"color_scheme" => "purple"}
+    test "normalises an atom-keyed map of settings, string-keyed" do
+      assert DataTransform.to_settings(%{color_scheme: "purple", background_type: "gradient"}) ==
+               %{"color_scheme" => "purple", "background_type" => "gradient"}
     end
 
     test "is empty for nil" do

@@ -12,11 +12,12 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
   require Logger
 
   alias Tymeslot.Media.Transcoder
+  alias Tymeslot.ThemeCustomizations.DataTransform
   alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.Storage
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
-  # The upload columns a spec's `asset_fields/0` names for the shipped themes.
+  # The upload settings a spec's `asset_fields/0` names for the shipped themes.
   @type cleanup_entry :: %{
           optional(:background_image_path) => String.t() | nil,
           optional(:background_video_path) => String.t() | nil
@@ -41,9 +42,9 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
     previous.theme_id
     |> asset_fields()
     |> Enum.each(fn {field, kind} ->
-      old_path = Map.fetch!(previous, field)
+      old_path = setting(previous, field)
 
-      if old_path && old_path != Map.fetch!(updated, field) do
+      if old_path && old_path != setting(updated, field) do
         delete_asset(old_path, kind, context, "old_#{kind}")
       end
     end)
@@ -64,15 +65,16 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
     customization.theme_id
     |> asset_fields()
     |> Enum.each(fn {field, kind} ->
-      if path = Map.fetch!(customization, field), do: delete_asset(path, kind, context, "#{kind}")
+      if path = setting(customization, field), do: delete_asset(path, kind, context, "#{kind}")
     end)
   end
 
   @doc """
-  Legacy cleanup over a customisation-like map: deletes the referenced image
-  and video files (no variant handling).
+  Legacy cleanup over a cleanup entry from
+  `Backgrounds.determine_cleanup_files/2`: deletes the referenced image and
+  video files (no variant handling).
   """
-  @spec cleanup_old_backgrounds(cleanup_entry() | ThemeCustomizationSchema.t()) :: :ok
+  @spec cleanup_old_backgrounds(cleanup_entry()) :: :ok
   def cleanup_old_backgrounds(customization) do
     context = %{operation: "legacy_cleanup"}
 
@@ -90,6 +92,9 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
   # --- Private helpers ----------------------------------------------------
 
   defp asset_fields(theme_id), do: Spec.for_theme(theme_id).asset_fields()
+
+  defp setting(customization, field),
+    do: Map.get(DataTransform.to_settings(customization), Atom.to_string(field))
 
   defp delete_asset(path, :image, context, label), do: delete_file(path, context, label)
 

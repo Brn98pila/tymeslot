@@ -61,10 +61,15 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
                  temp_file("bg.png", @png)
                )
 
-      assert customization.background_type == "image"
-      assert customization.background_value == "custom"
-      assert customization.background_image_path =~ ~r{^themes/#{profile.id}/1/images/}
-      assert File.exists?(Storage.build_theme_file_path(customization.background_image_path))
+      assert customization.settings["background_type"] == "image"
+      assert customization.settings["background_value"] == "custom"
+
+      assert customization.settings["background_image_path"] =~
+               ~r{^themes/#{profile.id}/1/images/}
+
+      assert File.exists?(
+               Storage.build_theme_file_path(customization.settings["background_image_path"])
+             )
     end
 
     test "replaces an uploaded video, deleting its file", %{profile: profile} do
@@ -85,7 +90,7 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
                  temp_file("bg.png", @png)
                )
 
-      assert customization.background_video_path == nil
+      assert customization.settings["background_video_path"] == nil
       refute File.exists?(video_file)
     end
 
@@ -114,16 +119,19 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
                  temp_file("clip.mp4", @mp4)
                )
 
-      assert customization.background_type == "video"
-      assert customization.background_value == "custom"
+      assert customization.settings["background_type"] == "video"
+      assert customization.settings["background_value"] == "custom"
       assert customization.video_processing == "pending"
-      assert File.exists?(Storage.build_theme_file_path(customization.background_video_path))
+
+      assert File.exists?(
+               Storage.build_theme_file_path(customization.settings["background_video_path"])
+             )
 
       assert_enqueued(
         worker: VideoTranscoder,
         args: %{
           theme_customization_id: customization.id,
-          video_path: customization.background_video_path
+          video_path: customization.settings["background_video_path"]
         }
       )
     end
@@ -147,7 +155,7 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
                  temp_file("clip.mp4", @mp4)
                )
 
-      assert customization.background_image_path == nil
+      assert customization.settings["background_image_path"] == nil
       refute File.exists?(image_file)
     end
 

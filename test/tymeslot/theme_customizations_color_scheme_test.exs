@@ -15,7 +15,7 @@ defmodule Tymeslot.ThemeCustomizationsColorSchemeTest do
     test "apply_option/4 creates customization with scheme", %{profile: profile} do
       {:ok, updated} = scheme(profile, "purple")
 
-      assert updated.color_scheme == "purple"
+      assert updated.settings["color_scheme"] == "purple"
     end
   end
 
@@ -29,9 +29,9 @@ defmodule Tymeslot.ThemeCustomizationsColorSchemeTest do
     test "apply_option/4 persists custom seed", %{profile: profile} do
       {:ok, updated} = seed(profile, "#FF6B35")
 
-      assert updated.custom_palette_seed == "#ff6b35"
+      assert updated.settings["custom_palette_seed"] == "#ff6b35"
       # color_scheme is unchanged: seed presence signals custom mode
-      assert updated.color_scheme == "default"
+      assert updated.settings["color_scheme"] == "default"
     end
 
     test "apply_option/4 rejects invalid hex", %{profile: profile} do
@@ -44,7 +44,7 @@ defmodule Tymeslot.ThemeCustomizationsColorSchemeTest do
     test "apply_option/4 with the brand default seed stores it", %{profile: profile} do
       {:ok, updated} = seed(profile, ThemeCustomizations.default_custom_palette_seed())
 
-      assert updated.custom_palette_seed == "#06b6d4"
+      assert updated.settings["custom_palette_seed"] == "#06b6d4"
     end
 
     test "apply_option/4 with the stored seed keeps it", %{profile: profile} do
@@ -58,9 +58,9 @@ defmodule Tymeslot.ThemeCustomizationsColorSchemeTest do
 
       current = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
 
-      {:ok, updated} = seed(profile, current.custom_palette_seed)
+      {:ok, updated} = seed(profile, current.settings["custom_palette_seed"])
 
-      assert updated.custom_palette_seed == "#ff6b35"
+      assert updated.settings["custom_palette_seed"] == "#ff6b35"
     end
 
     # Regression for seed not cleared when switching back to a preset
@@ -69,13 +69,13 @@ defmodule Tymeslot.ThemeCustomizationsColorSchemeTest do
       # Step 1: store a custom seed
       {:ok, with_seed} = seed(profile, "#ff6b35")
 
-      assert with_seed.custom_palette_seed == "#ff6b35"
+      assert with_seed.settings["custom_palette_seed"] == "#ff6b35"
 
       # Step 2: switch back to a preset scheme
       {:ok, updated} = scheme(profile, "purple")
 
-      assert updated.custom_palette_seed == nil
-      assert updated.color_scheme == "purple"
+      assert updated.settings["custom_palette_seed"] == nil
+      assert updated.settings["color_scheme"] == "purple"
 
       # Step 3: the page's tokens should reflect the preset, not the old seed
       %{vars: vars} = ThemeCustomizations.tokens("1", updated)

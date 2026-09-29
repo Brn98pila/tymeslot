@@ -208,10 +208,11 @@ defmodule Tymeslot.ThemeCustomizations do
   """
   @spec default_customization(profile_id() | nil, theme_id()) :: ThemeCustomizationSchema.t()
   def default_customization(profile_id, theme_id) do
-    struct(
-      ThemeCustomizationSchema,
-      Map.merge(Spec.for_theme(theme_id).defaults(), %{profile_id: profile_id, theme_id: theme_id})
-    )
+    %ThemeCustomizationSchema{
+      profile_id: profile_id,
+      theme_id: theme_id,
+      settings: get_defaults(theme_id)
+    }
   end
 
   @doc """
@@ -269,11 +270,6 @@ defmodule Tymeslot.ThemeCustomizations do
   @spec resolve_active_scheme(ThemeCustomizationSchema.t() | map(), map()) :: map() | nil
   defdelegate resolve_active_scheme(customization, presets), to: Css
 
-  # The columns an option change reads and writes. Every save passes all of
-  # them, so a change is judged against the whole stored option state.
-  @option_columns ~w(color_scheme custom_palette_seed background_type background_value
-                     background_image_path background_video_path)a
-
   @doc """
   Applies one option change from the customisation panel.
 
@@ -290,7 +286,9 @@ defmodule Tymeslot.ThemeCustomizations do
     with {:ok, group} <- option_group(theme_id, option_key),
          {:ok, changes} <- option_changes(group, field, value) do
       %{customization: current} = initialize_customization(profile_id, theme_id)
-      attrs = Map.merge(option_attrs(current), changes)
+      # Every save passes the whole option state, so an unsaved default
+      # customisation is created with it and a change is judged against it.
+      attrs = Map.merge(to_map(current), changes)
 
       with {:ok, saved} <-
              profile_id
@@ -335,9 +333,6 @@ defmodule Tymeslot.ThemeCustomizations do
   end
 
   defp option_changes(_group, _field, _value), do: :error
-
-  defp option_attrs(customization),
-    do: Map.new(@option_columns, &{Atom.to_string(&1), Map.get(customization, &1)})
 
   defp option_unavailable,
     do: dgettext("dashboard_appearance", "This option is not available for this theme.")
