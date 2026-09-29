@@ -9,6 +9,14 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
   Options.Palette, schemes: [...]}`, `schemes` being the preset ids the theme
   offers, in the theme's presentation order (onboarding shows them in it; the
   dashboard sorts them by id). A preset scheme outside them is refused.
+
+  Besides the scheme list, its group descriptor may say:
+
+    * `follow_os: true`: a light scheme's `dark_colors` go into `dark_vars`,
+      which `ThemeStyle` writes for a visitor whose OS is in dark mode.
+      Default `false`: the page keeps the scheme's own colours.
+    * `seed_mode: :light | :dark`: which kind of palette a custom seed
+      derives. Default `:dark`.
   """
 
   import Ecto.Changeset
@@ -48,11 +56,21 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
   @typedoc "Per-request overrides a single page view may apply on top of the saved palette."
   @type overrides :: %{optional(:primary_color) => String.t()}
 
-  @typedoc "A palette group: the preset scheme ids the theme offers, in its presentation order."
+  @typedoc "What the palette contributes to a theme's tokens."
+  @type tokens :: %{vars: Tokens.css_vars(), dark_vars: Tokens.css_vars()}
+
+  @no_tokens %{vars: %{}, dark_vars: %{}}
+
+  @typedoc """
+  A palette group: the preset scheme ids the theme offers, in its presentation
+  order. `follow_os` and `seed_mode` are optional (see the moduledoc).
+  """
   @type group :: %{
           required(:key) => atom(),
           required(:module) => module(),
           required(:schemes) => [String.t()],
+          optional(:follow_os) => boolean(),
+          optional(:seed_mode) => :light | :dark,
           optional(atom()) => term()
         }
 
@@ -85,41 +103,62 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
   def schemes(%{schemes: ids}), do: Presets.take(:color_scheme, ids)
 
   @doc """
-  The active palette (`%{name: _, colors: _}`): derived from the seed when one
-  is stored, otherwise the named preset. `nil` when neither resolves.
+  The active palette, in the shape of a colour-scheme preset: derived from the
+  seed when one is stored (in the group's `seed_mode`, `:dark` by default),
+  otherwise the named preset. `nil` when neither resolves.
   """
-  @spec resolve(Spec.settings()) :: map() | nil
-  def resolve(%{"custom_palette_seed" => seed}) when is_binary(seed) and seed != "",
-    do: PaletteDerivation.derive_palette(seed)
+  @spec resolve(Spec.settings(), group()) :: Presets.color_scheme_preset() | nil
+  def resolve(%{"custom_palette_seed" => seed}, group) when is_binary(seed) and seed != "",
+    do: PaletteDerivation.derive_palette(seed, Map.get(group, :seed_mode, :dark))
 
-  def resolve(%{"color_scheme" => scheme}) when is_binary(scheme),
+  def resolve(%{"color_scheme" => scheme}, _group) when is_binary(scheme),
     do: Presets.find_preset_by_id(:color_scheme, scheme)
 
-  def resolve(_settings), do: nil
+  def resolve(_settings, _group), do: nil
 
   @doc """
-  The palette as CSS custom properties: the eight palette colours plus the
-  contrast pairs `ContrastTokens` derives from them.
+  The palette as CSS custom properties: `vars` for the page, and `dark_vars`
+  for a visitor in dark mode (see `scheme_tokens/3`).
 
   A `:primary_color` override replaces the primary (and its hover shade)
   before the contrast pairs are derived, so filled controls stay legible on
-  the override. Empty when no scheme is stored or the stored palette does not
-  resolve.
+  the override. Both empty when no scheme is stored or the stored palette
+  does not resolve.
   """
-  @spec vars(Spec.settings(), overrides()) :: Tokens.css_vars()
-  def vars(%{"color_scheme" => scheme} = settings, overrides)
+  @spec tokens(Spec.settings(), overrides(), group()) :: tokens()
+  def tokens(%{"color_scheme" => scheme} = settings, overrides, group)
       when is_binary(scheme) and is_map(overrides) do
-    case resolve(settings) do
-      %{colors: colors} -> colors |> override_primary(overrides) |> colours_to_vars()
-      nil -> %{}
+    case resolve(settings, group) do
+      nil -> @no_tokens
+      palette -> scheme_tokens(palette, overrides, group)
     end
   end
 
-  def vars(_settings, _overrides), do: %{}
+  def tokens(_settings, _overrides, _group), do: @no_tokens
 
-  # A palette's `colors` map as `--theme-*` variables plus its contrast
-  # tokens; the palette's `background` becomes `--theme-canvas`.
-  defp colours_to_vars(colors) do
+  @doc """
+  The tokens for an already resolved scheme: its `colors` as `vars`, plus the
+  contrast pairs `ContrastTokens` derives from them; and its `dark_colors`, in
+  the same form, as `dark_vars` when it has them and the group follows the
+  visitor's OS (`follow_os: true`). Otherwise `dark_vars` is empty. A
+  `:primary_color` override applies to both sets.
+  """
+  @spec scheme_tokens(Presets.color_scheme_preset(), overrides(), group()) :: tokens()
+  def scheme_tokens(%{colors: colors} = scheme, overrides, group) do
+    %{vars: colours_to_vars(colors, overrides), dark_vars: dark_vars(scheme, overrides, group)}
+  end
+
+  defp dark_vars(%{dark_colors: dark_colors}, overrides, %{follow_os: true})
+       when is_map(dark_colors),
+       do: colours_to_vars(dark_colors, overrides)
+
+  defp dark_vars(_scheme, _overrides, _group), do: %{}
+
+  # A palette's colours as `--theme-*` variables plus its contrast tokens; the
+  # palette's `background` becomes `--theme-canvas`.
+  defp colours_to_vars(colors, overrides) do
+    colors = override_primary(colors, overrides)
+
     colors
     |> Map.merge(ContrastTokens.derive(colors) || %{})
     |> Enum.flat_map(fn {key, value} ->

@@ -9,6 +9,7 @@ defmodule Tymeslot.ThemeCustomizations.QuillSpec do
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Spec
+  alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.ThemeCustomizations.Tokens
 
   # Every shipped preset. A preset added to the catalogue reaches this theme
@@ -39,13 +40,16 @@ defmodule Tymeslot.ThemeCustomizations.QuillSpec do
     do: %{color_scheme: "default", background_type: "gradient", background_value: "gradient_1"}
 
   @impl Spec
+  # Quill and Rhythm offer the same option groups, so their tokens are built
+  # alike; each theme still owns its `tokens/2`.
+  # credo:disable-for-next-line Credo.Check.Design.DuplicatedCode
   def tokens(settings, overrides) do
-    palette = Palette.vars(settings, overrides)
+    palette = Palette.tokens(settings, overrides, Specs.group(__MODULE__, Palette))
     background = Background.descriptor(settings)
 
     %Tokens{
-      vars: Map.merge(palette, Background.vars(background, palette)),
-      dark_vars: %{},
+      vars: Map.merge(palette.vars, Background.vars(background, palette.vars)),
+      dark_vars: palette.dark_vars,
       background: background
     }
   end

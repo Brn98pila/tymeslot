@@ -40,6 +40,15 @@ defmodule TymeslotWeb.Themes.Shared.ThemeStyleTest do
                "@media (prefers-color-scheme: dark) { :root:root { --theme-canvas: #ffffff; } }"
     end
 
+    test "a light root comes first and its dark counterpart after it, so the dark set wins while the OS is dark" do
+      # Same selector, so source order decides.
+      assert ThemeStyle.css(
+               tokens(%{"--theme-canvas" => "#faf7f2"}, %{"--theme-canvas" => "#1b1a24"})
+             ) ==
+               ":root:root { --theme-canvas: #faf7f2; }\n" <>
+                 "@media (prefers-color-scheme: dark) { :root:root { --theme-canvas: #1b1a24; } }"
+    end
+
     test "accepts the value shapes the palettes and presets use" do
       vars = %{
         "--theme-surface" => "rgba(30, 41, 59, 0.5)",

@@ -35,7 +35,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel do
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-          <% current_scheme = Palette.resolve(@customization.settings) %>
+          <% current_scheme = Palette.resolve(@customization.settings, @group) %>
           <% custom_selected = not is_nil(@customization.settings["custom_palette_seed"]) %>
           <%= if current_scheme do %>
             <.current_indicator

@@ -12,6 +12,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
 
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.Palette
+  alias Tymeslot.ThemeCustomizations.PaletteDerivation
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels
@@ -76,6 +77,24 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
     html = render_panel(%{key: :palette, module: Palette, schemes: ["ocean", "forest"]})
 
     assert choices(html, "scheme") == ["forest", "ocean"]
+  end
+
+  test "the current-palette indicator derives a seed the way the group does" do
+    seeded = %ThemeCustomizationSchema{
+      settings: %{"color_scheme" => "default", "custom_palette_seed" => "#ff6b35"}
+    }
+
+    light = PaletteDerivation.derive_palette("#ff6b35", :light).colors
+    dark = PaletteDerivation.derive_palette("#ff6b35", :dark).colors
+
+    html =
+      render_panel(%{key: :palette, module: Palette, schemes: ["default"], seed_mode: :light},
+        customization: seeded,
+        palette_picker_open: true
+      )
+
+    assert html =~ "background: #{light.secondary}"
+    refute html =~ "background: #{dark.secondary}"
   end
 
   test "the background panel shows the group's presets of the kind being browsed" do

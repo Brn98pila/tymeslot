@@ -8,6 +8,13 @@ defmodule TymeslotWeb.Themes.Shared.ThemeStyle do
   the document. Inputs are only ever overridden on `:root` (see the theme
   skill): the derived tokens in `scheduling/shared/tokens.css` read them there.
 
+  `dark_vars`, when there are any, follow in a
+  `@media (prefers-color-scheme: dark)` block on the same selector; it comes
+  after the root block, so it wins while the OS is dark. Only custom
+  properties are written: a theme that follows the OS declares
+  `color-scheme: light dark`, and any dark role that is not a palette input,
+  in its own CSS.
+
   Every name and value passes a strict filter before it is written: a name
   must be a plain custom property, and a value may use only the characters a
   colour, gradient or `var()` reference needs, so nothing can end a

@@ -4,8 +4,10 @@ defmodule Tymeslot.ThemeCustomizations.Tokens do
 
     * `vars` are CSS custom properties for the page's `:root`, keyed by full
       property name (`"--theme-primary"`), values without the trailing `;`.
-    * `dark_vars` are the same for a dark colour mode. Themes with a single
-      mode leave it empty.
+    * `dark_vars` are the same for a visitor whose OS is in dark mode,
+      written inside `@media (prefers-color-scheme: dark)`. A palette fills
+      them only for a light scheme with a dark counterpart in a group with
+      `follow_os: true`; otherwise they are empty and the page keeps `vars`.
     * `background` is a structured description of the page background for the
       theme wrapper to render (`%{kind: :gradient | :color | :image | :video, ...}`),
       or `nil` when no background resolved.

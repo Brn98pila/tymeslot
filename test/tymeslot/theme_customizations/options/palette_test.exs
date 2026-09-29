@@ -6,8 +6,41 @@ defmodule Tymeslot.ThemeCustomizations.Options.PaletteTest do
 
   alias Ecto.Changeset
   alias Tymeslot.ThemeCustomizations.Options.Palette
+  alias Tymeslot.ThemeCustomizations.PaletteDerivation
+  alias Tymeslot.Utils.Colour
 
   @group %{key: :palette, module: Palette, schemes: ~w(default forest ocean purple)}
+  @follow_os Map.put(@group, :follow_os, true)
+  @light_seed Map.put(@group, :seed_mode, :light)
+
+  # No light scheme ships yet (Paper brings the first); this one stands in.
+  @light_scheme %{
+    name: "Test Ivory",
+    mode: :light,
+    colors: %{
+      primary: "#b4532a",
+      primary_hover: "#9a4524",
+      secondary: "#6b5a4a",
+      accent: "#4d7c5a",
+      background: "#faf7f2",
+      surface: "#ffffff",
+      text: "#1f1b16",
+      text_secondary: "#5c5347"
+    },
+    dark_colors: %{
+      primary: "#e0875c",
+      primary_hover: "#d4703f",
+      secondary: "#b8a898",
+      accent: "#8fbf9c",
+      background: "#1b1a24",
+      surface: "rgba(40, 38, 52, 0.6)",
+      text: "#ece8f4",
+      text_secondary: "#b9b3c6"
+    }
+  }
+
+  defp filled_pair_clears_aa?(vars),
+    do: Colour.contrast_ratio(vars["--theme-on-primary"], vars["--theme-primary-solid"]) >= 4.5
 
   defp changeset(attrs, group \\ @group) do
     {%{}, Palette.types()}
@@ -82,26 +115,44 @@ defmodule Tymeslot.ThemeCustomizations.Options.PaletteTest do
     end
   end
 
-  describe "resolve/1" do
+  describe "resolve/2" do
     test "derives the palette from a stored seed" do
       assert %{name: "Custom", colors: %{primary: "#ff6b35"}} =
-               Palette.resolve(%{"color_scheme" => "purple", "custom_palette_seed" => "#ff6b35"})
+               Palette.resolve(
+                 %{"color_scheme" => "purple", "custom_palette_seed" => "#ff6b35"},
+                 @group
+               )
     end
 
     test "is the named preset when no seed is stored" do
       assert %{name: "Purple Dream", colors: %{primary: "#8b5cf6"}} =
-               Palette.resolve(%{"color_scheme" => "purple", "custom_palette_seed" => nil})
+               Palette.resolve(
+                 %{"color_scheme" => "purple", "custom_palette_seed" => nil},
+                 @group
+               )
     end
 
     test "is nil for an unknown scheme and no seed" do
-      assert Palette.resolve(%{"color_scheme" => "nonexistent", "custom_palette_seed" => nil}) ==
-               nil
+      assert Palette.resolve(
+               %{"color_scheme" => "nonexistent", "custom_palette_seed" => nil},
+               @group
+             ) == nil
+    end
+
+    test "derives a seed in the group's seed_mode" do
+      settings = %{"color_scheme" => "purple", "custom_palette_seed" => "#ff6b35"}
+
+      assert %{mode: :dark} = Palette.resolve(settings, @group)
+
+      assert Palette.resolve(settings, @light_seed) ==
+               PaletteDerivation.derive_palette("#ff6b35", :light)
     end
   end
 
-  describe "vars/2" do
+  describe "tokens/3" do
     test "emits the preset's colours and its contrast pairs as --theme-* properties" do
-      vars = Palette.vars(%{"color_scheme" => "purple", "custom_palette_seed" => nil}, %{})
+      %{vars: vars} =
+        Palette.tokens(%{"color_scheme" => "purple", "custom_palette_seed" => nil}, %{}, @group)
 
       assert vars["--theme-primary"] == "#8b5cf6"
       assert vars["--theme-text-secondary"] == "#c4b5fd"
@@ -110,20 +161,87 @@ defmodule Tymeslot.ThemeCustomizations.Options.PaletteTest do
     end
 
     test "emits the palette's background as --theme-canvas, never --theme-background" do
-      vars = Palette.vars(%{"color_scheme" => "purple"}, %{})
+      %{vars: vars} = Palette.tokens(%{"color_scheme" => "purple"}, %{}, @group)
 
       assert vars["--theme-canvas"] == "#1e1b4b"
       refute Map.has_key?(vars, "--theme-background")
     end
 
     test "derives the palette from the seed when one is stored" do
-      vars = Palette.vars(%{"color_scheme" => "purple", "custom_palette_seed" => "#ff6b35"}, %{})
+      %{vars: vars} =
+        Palette.tokens(
+          %{"color_scheme" => "purple", "custom_palette_seed" => "#ff6b35"},
+          %{},
+          @group
+        )
 
       assert vars["--theme-primary"] == "#ff6b35"
     end
 
     test "emits nothing without a scheme" do
-      assert Palette.vars(%{"custom_palette_seed" => "#ff6b35"}, %{}) == %{}
+      assert Palette.tokens(%{"custom_palette_seed" => "#ff6b35"}, %{}, @group) ==
+               %{vars: %{}, dark_vars: %{}}
+    end
+
+    test "a dark scheme has no dark counterpart, even in a group that follows the OS" do
+      assert %{vars: vars, dark_vars: dark_vars} =
+               Palette.tokens(%{"color_scheme" => "purple"}, %{}, @follow_os)
+
+      assert vars["--theme-canvas"] == "#1e1b4b"
+      assert dark_vars == %{}
+    end
+
+    test "a seed derives a light palette where the group's seed_mode is :light" do
+      settings = %{"color_scheme" => "default", "custom_palette_seed" => "#ff6b35"}
+
+      %{vars: light, dark_vars: none} = Palette.tokens(settings, %{}, @light_seed)
+      %{vars: dark} = Palette.tokens(settings, %{}, @group)
+
+      assert light["--theme-primary"] == "#ff6b35"
+      assert Colour.relative_luminance(light["--theme-canvas"]) > 0.9
+      assert Colour.relative_luminance(dark["--theme-canvas"]) < 0.05
+      assert none == %{}
+    end
+
+    test "a light seed that follows the OS shows, in dark mode, what a dark theme derives from it" do
+      settings = %{"color_scheme" => "default", "custom_palette_seed" => "#ff6b35"}
+
+      %{dark_vars: dark_vars} =
+        Palette.tokens(settings, %{}, Map.put(@light_seed, :follow_os, true))
+
+      assert dark_vars != %{}
+      assert dark_vars == Palette.tokens(settings, %{}, @group).vars
+    end
+  end
+
+  describe "scheme_tokens/3" do
+    test "a light scheme's own colours go into vars, and without follow_os nothing else" do
+      %{vars: vars, dark_vars: dark_vars} = Palette.scheme_tokens(@light_scheme, %{}, @group)
+
+      assert vars["--theme-canvas"] == "#faf7f2"
+      assert vars["--theme-text"] == "#1f1b16"
+      assert filled_pair_clears_aa?(vars)
+      assert dark_vars == %{}
+    end
+
+    test "with follow_os its dark colours become a complete dark_vars set" do
+      %{vars: vars, dark_vars: dark_vars} = Palette.scheme_tokens(@light_scheme, %{}, @follow_os)
+
+      assert vars["--theme-canvas"] == "#faf7f2"
+      assert dark_vars["--theme-canvas"] == "#1b1a24"
+      assert dark_vars["--theme-primary"] == "#e0875c"
+      assert Enum.sort(Map.keys(dark_vars)) == Enum.sort(Map.keys(vars))
+      assert filled_pair_clears_aa?(dark_vars)
+    end
+
+    test "a primary-colour override applies to both sets, each with its own contrast pairs" do
+      %{vars: vars, dark_vars: dark_vars} =
+        Palette.scheme_tokens(@light_scheme, %{primary_color: "#e11d48"}, @follow_os)
+
+      assert vars["--theme-primary"] == "#e11d48"
+      assert dark_vars["--theme-primary"] == "#e11d48"
+      assert filled_pair_clears_aa?(vars)
+      assert filled_pair_clears_aa?(dark_vars)
     end
   end
 end
