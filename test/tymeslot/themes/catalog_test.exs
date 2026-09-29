@@ -3,6 +3,7 @@ defmodule Tymeslot.Themes.CatalogTest do
 
   @moduletag :themes
 
+  alias Config.Reader
   alias Tymeslot.Test.FixtureThemeSpec
   alias Tymeslot.Themes.Catalog
 
@@ -53,7 +54,7 @@ defmodule Tymeslot.Themes.CatalogTest do
 
     test "are never registered outside the test environment" do
       for env <- [:dev, :prod] do
-        config = Config.Reader.read!("config/config.exs", env: env)
+        config = Reader.read!("config/config.exs", env: env)
         assert config[:tymeslot][:extra_themes] in [nil, []], "#{env} registers extra themes"
       end
 
