@@ -18,8 +18,12 @@ defmodule TymeslotWeb.Themes.Shared.StepEvents do
   `next_step` (schedule); `validate`, `field_blur`, `submit`, `back_step`,
   `select_location`, `select_video_provider`, `location_phone_change`,
   `toggle_guests`, `close_guests`, `guest_input_change`, `add_guest`,
-  `remove_guest` (booking); `schedule_another` (confirmation). Anything else
-  is ignored.
+  `remove_guest` (booking); `schedule_another` (confirmation).
+
+  A theme's own event is named `theme:<name>`: it is relayed untouched as
+  `{:step_event, step, "theme:<name>", params}`, and `SchedulingLive` hands
+  it to the theme's `handle_theme_event/3` (`handle_theme_schedule_event/3`
+  on the schedule step) as `<name>`. Anything else is ignored.
   """
 
   import Phoenix.Component, only: [assign: 2, assign: 3]
@@ -42,6 +46,12 @@ defmodule TymeslotWeb.Themes.Shared.StepEvents do
     |> assign(:submitting, BookingLocation.complete?(socket.assigns))
     |> relay(:submit, booking_params)
   end
+
+  # A theme's own event: relayed with its name and params untouched, for
+  # `SchedulingLive` to hand to the theme's hook. The prefix keeps it apart
+  # from the canonical names, so a theme can add events but never take one
+  # over.
+  def handle_event("theme:" <> _name = event, params, socket), do: relay(socket, event, params)
 
   def handle_event(event, params, socket) do
     case message(event, params) do

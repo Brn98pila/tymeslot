@@ -30,8 +30,12 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
   The aliases must come before `use`: the options are expanded where `use` is
   written. Optional hooks, each a multi-clause `defp`:
 
-  - `handle_theme_event/3` for events of the theme's own
-  - `handle_theme_schedule_event/3` for schedule-step events of the theme's own
+  - `handle_theme_event/3` for events of the theme's own: a step template's
+    `phx-click="theme:<name>"` arrives as `<name>` (with its params), and so
+    does one sent to the LiveView itself
+  - `handle_theme_schedule_event/3` for the schedule step's `theme:<name>`
+    events, as `(socket, name, params)`, and for schedule events the flow
+    does not know
   - `handle_theme_info/2` for messages of the theme's own
   """
 
@@ -67,7 +71,16 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       @impl Phoenix.LiveView
       def handle_params(params, _url, socket), do: Mount.handle_scheduling_params(socket, params)
 
+      # A theme's own event (`theme:<name>`, relayed untouched by the step
+      # relays) goes to the theme's hook without its prefix; the flow never
+      # sees it, so it cannot stand in for a canonical event.
       @impl Phoenix.LiveView
+      def handle_info({:step_event, :schedule, "theme:" <> name, params}, socket),
+        do: handle_theme_schedule_event(socket, name, params)
+
+      def handle_info({:step_event, _step, "theme:" <> name, params}, socket),
+        do: handle_theme_event(name, params, socket)
+
       def handle_info({:step_event, step, event, data}, socket) do
         case SchedulingFlow.handle_step_event(socket, step, event, data) do
           :unhandled when step == :schedule -> handle_theme_schedule_event(socket, event, data)
@@ -104,6 +117,9 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       # override of that hook.
       def handle_event("navigate_to_step", params, socket),
         do: SchedulingFlow.navigate_to_step(socket, params)
+
+      def handle_event("theme:" <> name, params, socket),
+        do: handle_theme_event(name, params, socket)
 
       def handle_event(event, params, socket), do: handle_theme_event(event, params, socket)
 

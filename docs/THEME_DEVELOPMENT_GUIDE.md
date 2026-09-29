@@ -527,7 +527,7 @@ The theme system provides centralized handlers and helpers in `TymeslotWeb.Theme
 
 ### LiveHelpers.Mount, StepEntry and Tracking
 
-The macro's `mount/3` calls `LiveHelpers.Mount.mount_scheduling_view/2`, and its `handle_params/3` calls `LiveHelpers.Mount.handle_scheduling_params/2`; both end by entering the step the route names through `SchedulingFlow`. Entering a step is `SchedulingFlow.handle_state_entry/3`, which uses `LiveHelpers.StepEntry` for the schedule, questions and booking steps. Step components bubble their events as `{:step_event, step, event, data}`; the macro hands them to `SchedulingFlow.handle_step_event/4`, and only a schedule event the flow does not know reaches your `handle_theme_schedule_event/3`.
+The macro's `mount/3` calls `LiveHelpers.Mount.mount_scheduling_view/2`, and its `handle_params/3` calls `LiveHelpers.Mount.handle_scheduling_params/2`; both end by entering the step the route names through `SchedulingFlow`. Entering a step is `SchedulingFlow.handle_state_entry/3`, which uses `LiveHelpers.StepEntry` for the schedule, questions and booking steps. Step components bubble their events as `{:step_event, step, event, data}`; the macro hands them to `SchedulingFlow.handle_step_event/4`, and only a schedule event the flow does not know reaches your `handle_theme_schedule_event/3`. A theme's own events (`theme:<name>`, below) never reach the flow.
 
 ### EventHandlers
 
@@ -963,7 +963,7 @@ Leverage shared modules to avoid duplication:
 
 #### 6. **Event Communication Pattern**
 
-Templates send one of the canonical events (listed in `Shared.StepEvents`'s moduledoc) with `phx-target={@myself}`; the component delegates `handle_event/3` to `Shared.StepEvents`, which relays `{:step_event, step, event, data}` to the LiveView, where `SchedulingFlow.handle_step_event/4` handles it. A theme never writes its own relay; an event name outside the canonical set is ignored.
+Templates send one of the canonical events (listed in `Shared.StepEvents`'s moduledoc) with `phx-target={@myself}`; the component delegates `handle_event/3` to `Shared.StepEvents`, which relays `{:step_event, step, event, data}` to the LiveView, where `SchedulingFlow.handle_step_event/4` handles it. A theme never writes its own relay. For an event of its own, a template sends `phx-click="theme:<name>"` (with `phx-target={@myself}`); the relay forwards it untouched and the macro calls your `handle_theme_event(name, params, socket)`, or `handle_theme_schedule_event(socket, name, params)` on the schedule step, with the prefix stripped. The prefix cannot take over a canonical event: `theme:next_step` reaches your hook as `"next_step"` and moves nothing. Any other event name is ignored.
 
 ### Theme Template Rendering
 
@@ -1107,7 +1107,7 @@ Copy an existing theme (Quill or Rhythm), rename its files and modules to your t
 
 **Customize** (theme-specific):
 - `wrapper:` and `steps:` passed to `use SchedulingLive`
-- `handle_theme_event/3` override — only for events of your own; step navigation (`navigate_to_step`) and every step event are handled before it and cannot be overridden
+- `handle_theme_event/3` / `handle_theme_schedule_event/3` overrides: only for events of your own (`theme:<name>` from a step template); step navigation (`navigate_to_step`) and every canonical step event are handled before them and cannot be overridden
 - Wrapper component layout and design
 - Step component templates and styles
 - CSS modules and variables
@@ -1185,7 +1185,7 @@ Every place a new theme touches, in the order to add them (`aurora`, id `"3"`, a
 - [ ] **`theme.ex`**: one `use TymeslotWeb.Themes.Core.Theme, live_view:, preview_image:, description:` (the description a `dgettext_noop/2` call)
 - [ ] **Translations**: `mix gettext.extract --merge` adds the description's msgid to every locale's `dashboard_appearance.po`; translate it there, or CI's `gettext.extract --check-up-to-date` fails
 - [ ] **`scheduling/live.ex`**: one `use TymeslotWeb.Themes.Shared.SchedulingLive, wrapper:, steps:`, with the aliases above it, naming your `scheduling/wrapper.ex` and all five steps
-- [ ] **Step components** under `scheduling/components/`: render-only LiveComponents that delegate `update/2` and `handle_event/3` to `Shared.StepEvents` (the questions step delegates `handle_event/3` to `Shared.CustomQuestions.Events` instead) and use only the canonical event names; the schedule step wires its navigation buttons to the `CalendarNavigation` boundary checks
+- [ ] **Step components** under `scheduling/components/`: render-only LiveComponents that delegate `update/2` and `handle_event/3` to `Shared.StepEvents` (the questions step delegates `handle_event/3` to `Shared.CustomQuestions.Events` instead) and use only the canonical event names plus `theme:<name>` events of their own; the schedule step wires its navigation buttons to the `CalendarNavigation` boundary checks
 - [ ] **Page templates**: `meeting/` (`Reschedule`, `Cancel`, `CancelConfirmed`), `poll/voting.ex` and `payment/` (`Processing`, `Cancelled`), each with a `render/1`, or overrides of the generated render callbacks
 - [ ] **Customisation spec**: a module that `use`s `Tymeslot.ThemeCustomizations.Spec` (see `QuillSpec`), the one `customization_spec:` names
 - [ ] **CSS tree** under `assets/css/scheduling/themes/aurora/`: `theme.css` importing `../../shared/entry.css` first, then `./modules/variables.css`, `../../shared/tokens.css`, `./modules/base.css`, `../../shared/embed.css` (the shared embed rules, which `entry.css` does not import), the theme's modules and the `shared/components/*.css` files it uses; `modules/variables.css` defining every token `mix css.check_tokens` requires (the scale tokens listed under [Token contract](#token-contract) included) and every colour; `modules/iframe.css` for the theme-specific embed rules; the `booker-card` hook class on each card (`ThemeShell` adds `booker-page` to the page grid and the shared `SlotList` adds `booker-scroll`; a page that bypasses `ThemeShell`, as Quill's payment pages do, adds `booker-page` itself)

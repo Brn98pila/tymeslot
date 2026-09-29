@@ -71,6 +71,20 @@ defmodule TymeslotWeb.Themes.Shared.StepEventsTest do
     refute_received {:step_event, _step, _event, _data}
   end
 
+  test "relays a theme's own event untouched, under the step on screen" do
+    for step <- [:overview, :schedule, :booking, :confirmation] do
+      assert {:noreply, _socket} =
+               StepEvents.handle_event(
+                 "theme:flip",
+                 %{"card" => "3"},
+                 socket(%{current_state: step})
+               )
+
+      assert_received {:step_event, ^step, "theme:flip", %{"card" => "3"}},
+                      "theme:flip on #{step} was not relayed"
+    end
+  end
+
   test "update/2 takes the LiveView's assigns, minus the ones a component cannot hold" do
     assert {:ok, socket} =
              StepEvents.update(

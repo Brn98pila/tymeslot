@@ -6,6 +6,9 @@ defmodule TymeslotWeb.Themes.Shared.CustomQuestions.Events do
   callbacks here and pipes its render assigns through `assign_render_state/1`
   so the bubbling semantics and derived render assigns stay identical
   across themes.
+
+  The events are `answer`, `multi_toggle`, `next` and `back`, plus a theme's
+  own `theme:<name>` events, relayed untouched; anything else is ignored.
   """
 
   import Phoenix.Component, only: [assign: 3]
@@ -43,6 +46,15 @@ defmodule TymeslotWeb.Themes.Shared.CustomQuestions.Events do
     send(self(), {:step_event, :questions, :back, nil})
     {:noreply, socket}
   end
+
+  # A theme's own event, relayed untouched like `Shared.StepEvents` does.
+  def handle_event("theme:" <> _name = event, params, socket) do
+    send(self(), {:step_event, :questions, event, params})
+    {:noreply, socket}
+  end
+
+  # Anything else is ignored: a stray event must not crash a public page.
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   @spec assign_render_state(Phoenix.LiveView.Socket.assigns()) ::
           Phoenix.LiveView.Socket.assigns()

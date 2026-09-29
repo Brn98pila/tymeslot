@@ -34,7 +34,11 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest do
     defp handle_theme_event("theme_ping", _params, socket),
       do: {:noreply, assign(socket, :theme_pinged, true)}
 
-    defp handle_theme_event(_event, _params, socket), do: {:noreply, socket}
+    defp handle_theme_event(name, params, socket),
+      do: {:noreply, assign(socket, :theme_event, {name, params})}
+
+    defp handle_theme_schedule_event(socket, name, params),
+      do: {:noreply, assign(socket, :theme_schedule_event, {name, params})}
   end
 
   defp socket(assigns), do: %Socket{assigns: Map.merge(%{__changed__: %{}, flash: %{}}, assigns)}
@@ -54,6 +58,62 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest do
                OverridingLive.handle_event("theme_ping", %{}, socket(%{current_state: :overview}))
 
       assert socket.assigns.theme_pinged
+    end
+  end
+
+  describe "a theme's own step events" do
+    test "reach handle_theme_event/3 without their prefix" do
+      assert {:noreply, socket} =
+               OverridingLive.handle_info(
+                 {:step_event, :booking, "theme:flip", %{"card" => "3"}},
+                 socket(%{current_state: :booking})
+               )
+
+      assert socket.assigns.theme_event == {"flip", %{"card" => "3"}}
+    end
+
+    test "reach handle_theme_schedule_event/3 on the schedule step" do
+      assert {:noreply, socket} =
+               OverridingLive.handle_info(
+                 {:step_event, :schedule, "theme:flip", %{"card" => "3"}},
+                 socket(%{current_state: :schedule})
+               )
+
+      assert socket.assigns.theme_schedule_event == {"flip", %{"card" => "3"}}
+      refute Map.has_key?(socket.assigns, :theme_event)
+    end
+
+    test "cannot pose as a canonical event" do
+      socket = socket(%{current_state: :schedule, timezone_dropdown_open: false})
+
+      assert {:noreply, socket} =
+               OverridingLive.handle_info(
+                 {:step_event, :schedule, "theme:toggle_timezone_dropdown", %{}},
+                 socket
+               )
+
+      assert socket.assigns.theme_schedule_event == {"toggle_timezone_dropdown", %{}}
+      refute socket.assigns.timezone_dropdown_open
+    end
+
+    test "leave canonical events to the flow" do
+      socket = socket(%{current_state: :schedule, timezone_dropdown_open: false})
+
+      assert {:noreply, socket} =
+               OverridingLive.handle_info(
+                 {:step_event, :schedule, :toggle_timezone_dropdown, nil},
+                 socket
+               )
+
+      assert socket.assigns.timezone_dropdown_open
+      refute Map.has_key?(socket.assigns, :theme_schedule_event)
+    end
+
+    test "sent to the LiveView itself also lose their prefix" do
+      assert {:noreply, socket} =
+               OverridingLive.handle_event("theme:flip", %{}, socket(%{current_state: :overview}))
+
+      assert socket.assigns.theme_event == {"flip", %{}}
     end
   end
 
