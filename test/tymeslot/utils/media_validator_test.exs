@@ -34,6 +34,30 @@ defmodule Tymeslot.Utils.MediaValidatorTest do
       assert MediaValidator.valid_video?(<<0x1A, 0x45, 0xDF, 0xA3, 0x01>>)
     end
 
+    test "returns true for QuickTime MOV" do
+      assert MediaValidator.valid_video?(<<0, 0, 0, 20, "ftypqt  ", 0, 0, 2, 0>>)
+    end
+
+    test "returns true for an ISO base media MP4" do
+      assert MediaValidator.valid_video?(<<0, 0, 0, 24, "ftypisom", 0, 0, 2, 0>>)
+    end
+
+    test "refuses a GIF, although its first byte is the MPEG-TS sync byte" do
+      # "G" is 0x47. A GIF named `.mp4` used to pass as an MPEG transport
+      # stream, and was stored and queued for transcoding.
+      refute MediaValidator.valid_video?("GIF89a" <> :binary.copy(<<0>>, 32))
+      refute MediaValidator.valid_video?("GIF87a" <> :binary.copy(<<0>>, 32))
+    end
+
+    test "refuses containers the upload allowlist never admits" do
+      # MPEG-TS (sync byte every 188 bytes), MPEG-PS, FLV and AVI.
+      ts_packet = <<0x47>> <> :binary.copy(<<0xFF>>, 187)
+      refute MediaValidator.valid_video?(:binary.copy(ts_packet, 3))
+      refute MediaValidator.valid_video?(<<0x00, 0x00, 0x01, 0xBA, 0x44, 0x00>>)
+      refute MediaValidator.valid_video?(<<"FLV", 0x01, 0x05, 0, 0, 0, 9>>)
+      refute MediaValidator.valid_video?(<<"RIFF", 0, 0, 0, 0, "AVI LIST">>)
+    end
+
     test "returns false for invalid video" do
       refute MediaValidator.valid_video?(<<"not a video">>)
     end

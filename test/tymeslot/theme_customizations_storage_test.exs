@@ -119,9 +119,12 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
     end
 
     test "store_asset/4 refuses content that is not of the kind asked for" do
-      # A PNG, not the GIF: a leading "G" (0x47) is also the MPEG-TS sync byte,
-      # so MediaValidator takes a GIF for a video.
       assert Storage.store_asset(:video, 1, "1", %{path: png_file(), filename: "clip.mp4"}) ==
+               {:error, :invalid_video_format}
+
+      # A GIF's leading "G" is also the MPEG-TS sync byte, which once let a
+      # GIF named `.mp4` through as a video.
+      assert Storage.store_asset(:video, 1, "1", %{path: gif_file(), filename: "clip.mp4"}) ==
                {:error, :invalid_video_format}
 
       assert Storage.store_asset(:image, 1, "1", %{path: mp4_file(), filename: "bg.png"}) ==

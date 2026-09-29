@@ -38,7 +38,12 @@ defmodule Tymeslot.Utils.MediaValidator do
 
   @doc """
   Validates if a binary is a supported video format using magic bytes.
-  Supports MP4, WebM/MKV, and AVI.
+
+  Recognises only the containers the video upload allowlist admits
+  (`.mp4`, `.mov`, `.webm`): the ISO base media family (MP4 and QuickTime,
+  an `ftyp` box at offset 4) and Matroska/WebM (the EBML header). Anything
+  else, whatever its name, is refused, so a GIF renamed `.mp4` is never
+  stored, served as a background video or queued for transcoding.
   """
   @spec valid_video?(binary()) :: boolean()
   def valid_video?(binary) when is_binary(binary) do
@@ -55,19 +60,6 @@ defmodule Tymeslot.Utils.MediaValidator do
 
   # WebM / MKV: 1A 45 DF A3
   defp video_header?(<<0x1A, 0x45, 0xDF, 0xA3, _rest::binary>>), do: true
-
-  # AVI: RIFF .... AVI
-  defp video_header?(<<"RIFF", _size::binary-size(4), "AVI ", _rest::binary>>), do: true
-
-  # MPEG Transport Stream: 0x47
-  defp video_header?(<<0x47, _rest::binary>>), do: true
-
-  # MPEG Program Stream: 00 00 01 BA or 00 00 01 B3
-  defp video_header?(<<0x00, 0x00, 0x01, 0xBA, _rest::binary>>), do: true
-  defp video_header?(<<0x00, 0x00, 0x01, 0xB3, _rest::binary>>), do: true
-
-  # Flash Video: FLV
-  defp video_header?(<<"FLV", _rest::binary>>), do: true
 
   defp video_header?(_other), do: false
 
