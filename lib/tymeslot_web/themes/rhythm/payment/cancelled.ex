@@ -12,7 +12,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Payment.Cancelled do
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
-    <div class="rhythm-theme-wrapper theme-2" data-testid="rhythm-payment-cancelled">
+    <div class="rhythm-theme-wrapper" data-testid="rhythm-payment-cancelled">
       <div class="payment-page-layout">
         <div class="payment-page-inner">
           <div class="payment-page-card">

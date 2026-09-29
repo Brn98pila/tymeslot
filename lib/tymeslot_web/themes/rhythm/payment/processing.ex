@@ -15,7 +15,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Payment.Processing do
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
-    <div class="rhythm-theme-wrapper theme-2" data-testid="rhythm-payment-processing">
+    <div class="rhythm-theme-wrapper" data-testid="rhythm-payment-processing">
       <div class="payment-page-layout">
         <div class="payment-page-inner">
           <div class="payment-page-card">
