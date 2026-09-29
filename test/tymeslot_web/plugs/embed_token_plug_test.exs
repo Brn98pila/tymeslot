@@ -253,6 +253,15 @@ defmodule TymeslotWeb.Plugs.EmbedTokenPlugTest do
       refute Map.has_key?(response.resp_cookies, @session_key)
     end
 
+    test "an embed path naming no organiser keeps its session", %{conn: conn} do
+      # No token means no marker, so the page would connect to the session
+      # socket; it must then have its session.
+      response = embed_request_writing_session(conn, nil, "/dashboard")
+
+      refute response.assigns[:embed_token]
+      assert Map.has_key?(response.resp_cookies, @session_key)
+    end
+
     test "every embed response varies on the header", %{conn: conn} do
       # A shared cache must not hand a framed visitor the top-level response,
       # or the reverse.
@@ -275,12 +284,12 @@ defmodule TymeslotWeb.Plugs.EmbedTokenPlugTest do
 
   # An `?embed=1` request whose page then writes session state, as rendering
   # the CSRF token does.
-  defp embed_request_writing_session(conn, sec_fetch_dest) do
+  defp embed_request_writing_session(conn, sec_fetch_dest, path \\ "/sarah") do
     conn =
       if sec_fetch_dest, do: put_req_header(conn, "sec-fetch-dest", sec_fetch_dest), else: conn
 
     conn
-    |> Map.put(:request_path, "/sarah")
+    |> Map.put(:request_path, path)
     |> Map.put(:query_string, "embed=1")
     |> start_session()
     |> EmbedTokenPlug.call([])

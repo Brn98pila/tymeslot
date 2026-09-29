@@ -23,18 +23,24 @@ defmodule TymeslotWeb.Plugs.EmbedTokenPlug do
   visit (the embed URL copied into its own tab), not a frame, so `embed=1` is
   ignored and it is served as an ordinary page. Treating it as an embed wrote
   no session, and the unframed page then connected to the session socket
-  without one and reloaded itself for ever. A framed request sends `iframe`; a request without
-  the header keeps the embed behaviour, as before. Every `embed=1` response
-  carries `Vary: Sec-Fetch-Dest`, since its treatment depends on the header.
+  without one and reloaded itself for ever. A framed request sends `iframe`;
+  a request without the header keeps the embed behaviour, as before. Every
+  `embed=1` response carries `Vary: Sec-Fetch-Dest`, since its treatment
+  depends on the header.
 
   Browsers send `Sec-Fetch-Dest` only to secure origins (and Safari only
   since 16.4), so a top-level visit over plain HTTP or from an older browser
-  still arrives without it and is served as an embed. The root layout marks
-  such a page (`data-embed-served` on `<html>`, set when this plug assigned
-  an embed token), and `core.js` then connects to the session-free embed
-  socket whether or not the page is framed. That visit connects instead of
-  reloading, and is held to the embed allowlist like any other embed: with
-  no allowed parent origin it lands on the embed-unavailable notice.
+  still arrives without it and is served as an embed; the server cannot tell
+  it from a frame. The root layout marks every page served as an embed
+  (`data-embed-served` on `<html>`, set when this plug assigned an embed
+  token), and the page itself decides: framed, it connects to the
+  session-free embed socket; not framed, it replaces itself with the same URL
+  minus `embed` and `parent-origin` (`topLevelEmbedRedirect` in
+  `assets/js/live_socket_path.js`), which this plug serves as an ordinary page.
+
+  The session write is skipped exactly when a token is assigned, so the two
+  cannot disagree: an `embed=1` path that names no organiser gets neither the
+  embed treatment nor the marker, and keeps its session.
   """
 
   @behaviour Plug
@@ -66,18 +72,18 @@ defmodule TymeslotWeb.Plugs.EmbedTokenPlug do
 
   defp maybe_serve_as_embed(conn) do
     if framed_or_unknown?(conn) do
-      # Write no session cookie for embed requests: the browser would reject it
-      # (SameSite=Lax in a cross-site iframe). `:ignore` drops the write only;
-      # `:drop` would delete the cookie the caller sent us. See the moduledoc.
-      conn = configure_session(conn, ignore: true)
-
       case PathUtils.extract_username_from_path(conn.request_path) do
         nil ->
           conn
 
         username ->
-          parent_origin = resolve_parent_origin(conn)
-          assign(conn, :embed_token, Token.sign(username, parent_origin))
+          # Write no session cookie for embed requests: the browser would
+          # reject it (SameSite=Lax in a cross-site iframe). `:ignore` drops
+          # the write only; `:drop` would delete the cookie the caller sent us.
+          # See the moduledoc.
+          conn
+          |> configure_session(ignore: true)
+          |> assign(:embed_token, Token.sign(username, resolve_parent_origin(conn)))
       end
     else
       conn
