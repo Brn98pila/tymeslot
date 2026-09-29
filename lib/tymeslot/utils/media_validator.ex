@@ -3,12 +3,18 @@ defmodule Tymeslot.Utils.MediaValidator do
   Utility for validating media files (images and videos) using magic bytes.
   """
 
-  # Major brands of an ISO base media file that name a video file: the ISO
-  # base media versions, MP4 v1/v2, H.264 MP4, QuickTime, iTunes video,
-  # MPEG-DASH segments and 3GPP video. Still-image and audio brands in the same
-  # family (`heic`, `mif1`, `avif`, `M4A `, ...) are deliberately absent.
-  @video_brands ~w(isom iso2 iso3 iso4 iso5 iso6 mp41 mp42 avc1 dash 3gp4 3gp5 3gp6) ++
-                  ["qt  ", "M4V ", "M4VH", "M4VP"]
+  # Brands of an ISO base media file that name a video file: the ISO base
+  # media versions, MP4 v1/v2, H.264 MP4, CMAF video, QuickTime, iTunes video,
+  # MPEG-DASH segments and 3GPP/3GPP2 video.
+  @video_brands ~w(isom iso2 iso3 iso4 iso5 iso6 iso7 iso8 iso9 mp41 mp42 avc1 cmfc dash) ++
+                  ~w(3gp4 3gp5 3gp6 3g2a 3g2b 3g2c) ++ ["qt  ", "M4V ", "M4VH", "M4VP"]
+
+  # Major brands of still images (HEIF/HEIC, AVIF, Canon raw) and audio
+  # (iTunes and Flash audio) in the same family. Such files routinely list a
+  # video brand (`mp42`, `isom`) among their compatible brands, so their major
+  # brand alone must refuse them.
+  @not_video_brands ~w(heic heix hevc hevx heim heis hevm hevs mif1 mif2 msf1 miaf) ++
+                      ~w(avif avis avio) ++ ["crx ", "M4A ", "M4B ", "M4P ", "F4A ", "F4B "]
 
   @doc """
   Validates if a binary is a supported image format using ExImageInfo.
@@ -48,30 +54,45 @@ defmodule Tymeslot.Utils.MediaValidator do
 
   Recognises only the containers the video upload allowlist admits
   (`.mp4`, `.mov`, `.webm`): Matroska/WebM (the EBML header), and the ISO
-  base media family (MP4 and QuickTime) when the `ftyp` box's major brand is
-  a video brand. The family also holds still images and audio (HEIC, AVIF,
-  M4A), which carry brands of their own and are refused. So is anything
-  else, whatever its name: a GIF or an image renamed `.mp4` is never stored,
-  served as a background video or queued for transcoding.
+  base media family (MP4 and QuickTime), read from the leading `ftyp` box.
+  A file of that family passes when its major brand is a known video brand,
+  or when the major brand is not a known image or audio brand and one of its
+  compatible brands is a video brand, which admits cameras' own brands
+  (Sony's `XAVC`, `MSNV`). Still images and audio of the same family (HEIC,
+  AVIF, M4A) are refused, as is anything else, whatever its name: a GIF or
+  an image renamed `.mp4` is never stored, served as a background video or
+  queued for transcoding.
   """
   @spec valid_video?(binary()) :: boolean()
-  def valid_video?(binary) when is_binary(binary) do
-    # We only need the first 16 bytes for magic byte validation
-    header = binary_part(binary, 0, min(byte_size(binary), 16))
-    video_header?(header)
-  end
+  def valid_video?(binary) when is_binary(binary), do: video_header?(binary)
 
   @spec valid_video?(any()) :: boolean()
   def valid_video?(_other), do: false
 
-  # MP4 / MOV: an ftyp box at offset 4 whose major brand is a video brand.
-  defp video_header?(<<_size::binary-size(4), "ftyp", brand::binary-size(4), _rest::binary>>),
-    do: brand in @video_brands
+  # MP4 / MOV: an ftyp box at offset 4: its size, the major brand, then a
+  # minor version and the compatible brands filling the rest of the box.
+  defp video_header?(<<size::32, "ftyp", major::binary-size(4), rest::binary>>) do
+    major in @video_brands or
+      (major not in @not_video_brands and
+         Enum.any?(compatible_brands(rest, size - 12), &(&1 in @video_brands)))
+  end
 
   # WebM / MKV: 1A 45 DF A3
   defp video_header?(<<0x1A, 0x45, 0xDF, 0xA3, _rest::binary>>), do: true
 
   defp video_header?(_other), do: false
+
+  # `rest` starts with the minor version; the brands follow it, up to the end
+  # of the box (`length` bytes after the major brand) or of the header read.
+  defp compatible_brands(rest, length) do
+    case binary_part(rest, 0, min(max(length, 0), byte_size(rest))) do
+      <<_minor::binary-size(4), brands::binary>> ->
+        for <<brand::binary-size(4) <- brands>>, do: brand
+
+      _no_brands ->
+        []
+    end
+  end
 
   @doc """
   Validates if a file at the given path is a supported image format.

@@ -44,17 +44,35 @@ defmodule Tymeslot.Utils.MediaValidatorTest do
 
     test "accepts every video brand of the ISO base media family" do
       brands =
-        ~w(isom iso2 iso3 iso4 iso5 iso6 mp41 mp42 avc1 dash 3gp4 3gp5 3gp6) ++
-          ["qt  ", "M4V ", "M4VH", "M4VP"]
+        ~w(isom iso2 iso3 iso4 iso5 iso6 iso7 iso8 iso9 mp41 mp42 avc1 cmfc dash) ++
+          ~w(3gp4 3gp5 3gp6 3g2a 3g2b 3g2c) ++ ["qt  ", "M4V ", "M4VH", "M4VP"]
 
-      assert Enum.reject(brands, &MediaValidator.valid_video?(ftyp(&1))) == []
+      assert Enum.reject(brands, &MediaValidator.valid_video?(ftyp(&1, [&1]))) == []
+    end
+
+    test "accepts a camera's own brand that lists a video brand as compatible" do
+      # Sony cameras write these, with MP4 brands after them.
+      assert MediaValidator.valid_video?(ftyp("XAVC", ["XAVC", "mp42", "iso2"]))
+      assert MediaValidator.valid_video?(ftyp("MSNV", ["MSNV", "mp42", "isom"]))
+    end
+
+    test "refuses an unknown brand with no video brand among its compatible brands" do
+      refute MediaValidator.valid_video?(ftyp("abcd", ["abcd", "wxyz"]))
     end
 
     test "refuses still images and audio of the same family renamed as video" do
-      # HEIC, AVIF and M4A all start with an ftyp box, which alone once passed.
+      # HEIC, AVIF and M4A all start with an ftyp box, and routinely list MP4
+      # brands as compatible, which alone once passed.
       for brand <- ["heic", "mif1", "avif", "M4A "] do
-        refute MediaValidator.valid_video?(ftyp(brand)), "brand #{inspect(brand)} passed"
+        refute MediaValidator.valid_video?(ftyp(brand, [brand, "mp42", "isom"])),
+               "brand #{inspect(brand)} passed"
       end
+    end
+
+    test "reads compatible brands only within the ftyp box" do
+      # A video brand in the bytes after a box that lists none is not one of
+      # its brands.
+      refute MediaValidator.valid_video?(ftyp("abcd", ["abcd"]) <> "isom")
     end
 
     test "refuses a GIF, although its first byte is the MPEG-TS sync byte" do
@@ -164,7 +182,10 @@ defmodule Tymeslot.Utils.MediaValidatorTest do
     end)
   end
 
-  # An ftyp box with the given major brand, minor version 0 and the brand
-  # repeated as the one compatible brand, as real files write it.
-  defp ftyp(brand), do: <<0, 0, 0, 20, "ftyp", brand::binary, 0, 0, 0, 0, brand::binary>>
+  # An ftyp box with the given major brand, minor version 0 and the given
+  # compatible brands, sized as real files size it.
+  defp ftyp(major, compatible) do
+    brands = Enum.join(compatible)
+    <<16 + byte_size(brands)::32, "ftyp", major::binary, 0::32, brands::binary>>
+  end
 end
