@@ -21,13 +21,13 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturnLive.ThemeShellTest do
   alias TymeslotWeb.Themes.Shared.PaymentReturnLive.{Cancelled, Processing}
   alias TymeslotWeb.ThemeTestMatrix
 
-  @slugs Enum.map(ThemeTestMatrix.ids(), fn id ->
+  @slugs Enum.map(ThemeTestMatrix.registered_ids(), fn id ->
            {:ok, key} = Catalog.id_to_key(id)
            {id, Atom.to_string(key)}
          end)
 
   test "the matrix is not empty" do
-    assert ThemeTestMatrix.ids() != []
+    assert ThemeTestMatrix.registered_ids() != []
   end
 
   for {theme_id, slug} <- @slugs do

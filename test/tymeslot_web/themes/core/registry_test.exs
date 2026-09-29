@@ -33,4 +33,13 @@ defmodule TymeslotWeb.Themes.Core.RegistryTest do
       assert_raise ArgumentError, fn -> String.to_existing_atom(slug) end
     end
   end
+
+  describe "themes registered through :extra_themes" do
+    test "are bound to the module their entry names" do
+      assert {:ok, %{key: :fixture, module: TymeslotWeb.Test.FixtureTheme.Theme}} =
+               Registry.get_theme_by_id("99")
+
+      assert {:ok, %{id: "99"}} = Registry.get_theme_by_slug("fixture")
+    end
+  end
 end

@@ -14,6 +14,13 @@ defmodule Tymeslot.Themes.Catalog do
 
   `heading_style` says whether the booking page's default heading names the
   organiser (`:named`) or greets generically (`:generic`).
+
+  Themes may also be registered through `config :tymeslot, :extra_themes`, a
+  list of fact maps each with the theme's web `:module` besides, which this
+  module drops and `TymeslotWeb.Themes.Core.Registry` binds. Only
+  `config/test.exs` sets it, to register the fixture theme under
+  `test/support/fixture_theme/`; every other build holds exactly the themes
+  below.
   """
 
   @type theme_id :: String.t()
@@ -31,11 +38,18 @@ defmodule Tymeslot.Themes.Catalog do
 
   @default_key :quill
 
+  # Read at compile time; empty in every build but the test one (see the
+  # moduledoc). The entries are plain atoms from config, not aliases, so they
+  # add no compile-time dependency either.
+  @extra_themes Application.compile_env(:tymeslot, :extra_themes, [])
+
   # The facts live in function bodies rather than module attributes, so the
   # spec modules they name stay runtime references: an alias in a module
   # attribute would make the Catalog, and everything that reads it at compile
   # time, depend on the specs at compile time.
-  defp themes do
+  defp themes, do: Map.merge(shipped_themes(), extra_themes())
+
+  defp shipped_themes do
     %{
       quill: %{
         id: "1",
@@ -55,6 +69,8 @@ defmodule Tymeslot.Themes.Catalog do
       }
     }
   end
+
+  defp extra_themes, do: Map.new(@extra_themes, &{&1.key, Map.delete(&1, :module)})
 
   defp id_to_key_map, do: Map.new(themes(), fn {key, theme} -> {theme.id, key} end)
 

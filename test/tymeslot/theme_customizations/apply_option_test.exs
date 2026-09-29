@@ -156,7 +156,7 @@ defmodule Tymeslot.ThemeCustomizations.ApplyOptionTest do
     end
 
     test "an unknown theme", %{profile: profile} do
-      assert {:error, @unavailable} = apply(profile, :palette, "scheme", "forest", "99")
+      assert {:error, @unavailable} = apply(profile, :palette, "scheme", "forest", "999")
     end
 
     test "a malformed payload", %{profile: profile} do

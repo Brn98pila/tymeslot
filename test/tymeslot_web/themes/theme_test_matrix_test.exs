@@ -13,11 +13,11 @@ defmodule TymeslotWeb.ThemeTestMatrixTest do
   alias TymeslotWeb.ThemeTestMatrix
 
   test "has an entry for every catalogue theme, and for nothing else" do
-    assert Enum.sort(ThemeTestMatrix.ids()) == Enum.sort(Catalog.valid_ids())
+    assert Enum.sort(ThemeTestMatrix.registered_ids()) == Enum.sort(Catalog.valid_ids())
   end
 
   test "agrees with the catalogue on each theme's key and slug" do
-    entries = ThemeTestMatrix.all()
+    entries = ThemeTestMatrix.registered()
     assert entries != []
 
     for entry <- entries do
@@ -27,7 +27,24 @@ defmodule TymeslotWeb.ThemeTestMatrixTest do
   end
 
   test "lists themes in numeric id order" do
-    ids = ThemeTestMatrix.ids()
+    ids = ThemeTestMatrix.registered_ids()
     assert ids == Enum.sort_by(ids, &String.to_integer/1)
+  end
+
+  # A fixture entry skips every flow suite, so only a theme the test config
+  # registers may be one: a shipped theme marked as a fixture would ship
+  # without its flows tested.
+  test "marks as fixtures exactly the themes the test config registers" do
+    fixture_ids = for entry <- ThemeTestMatrix.registered(), entry.fixture, do: entry.id
+    extra_ids = Enum.map(Application.get_env(:tymeslot, :extra_themes, []), & &1.id)
+
+    assert fixture_ids != []
+    assert Enum.sort(fixture_ids) == Enum.sort(extra_ids)
+  end
+
+  test "hands the flow suites the shipped themes only" do
+    assert ThemeTestMatrix.all() != []
+    assert Enum.filter(ThemeTestMatrix.all(), & &1.fixture) == []
+    assert ThemeTestMatrix.ids() == Enum.map(ThemeTestMatrix.all(), & &1.id)
   end
 end

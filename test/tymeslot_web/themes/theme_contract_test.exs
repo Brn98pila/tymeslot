@@ -2,7 +2,9 @@ defmodule TymeslotWeb.Themes.ThemeContractTest do
   @moduledoc """
   Holds every theme in `ThemeTestMatrix` to the theme contract: its LiveView,
   its picker metadata, and its meeting, poll and payment pages. A new theme is
-  covered by adding it to the matrix.
+  covered by adding it to the matrix. So is the test-only fixture theme, which
+  is how this file proves the contract holds for a theme shaped unlike Quill
+  and Rhythm.
   """
 
   use TymeslotWeb.ConnCase, async: true
@@ -15,10 +17,10 @@ defmodule TymeslotWeb.Themes.ThemeContractTest do
   alias TymeslotWeb.ThemeTestMatrix
 
   test "the matrix is not empty" do
-    assert ThemeTestMatrix.ids() != []
+    assert ThemeTestMatrix.registered_ids() != []
   end
 
-  for theme_id <- ThemeTestMatrix.ids() do
+  for theme_id <- ThemeTestMatrix.registered_ids() do
     describe "theme #{theme_id}" do
       setup do
         module = ThemeInfo.get_theme_module(unquote(theme_id))

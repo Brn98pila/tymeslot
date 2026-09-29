@@ -3,6 +3,7 @@ defmodule Tymeslot.Themes.CatalogTest do
 
   @moduletag :themes
 
+  alias Tymeslot.Test.FixtureThemeSpec
   alias Tymeslot.Themes.Catalog
 
   test "exposes theme facts as the domain source of truth" do
@@ -38,5 +39,25 @@ defmodule Tymeslot.Themes.CatalogTest do
     assert Catalog.customization_spec("1") == {:ok, Tymeslot.ThemeCustomizations.QuillSpec}
     assert Catalog.customization_spec("2") == {:ok, Tymeslot.ThemeCustomizations.RhythmSpec}
     assert Catalog.customization_spec("9") == {:error, :theme_not_found}
+  end
+
+  describe "themes registered through :extra_themes" do
+    test "join the catalogue in the test environment, hidden as beta" do
+      assert {:ok, %{key: :fixture, status: :beta, customization_spec: spec} = facts} =
+               Catalog.get_by_id("99")
+
+      assert spec == FixtureThemeSpec
+      refute Map.has_key?(facts, :module)
+      refute Map.has_key?(Catalog.active(), :fixture)
+    end
+
+    test "are never registered outside the test environment" do
+      for env <- [:dev, :prod] do
+        config = Config.Reader.read!("config/config.exs", env: env)
+        assert config[:tymeslot][:extra_themes] in [nil, []], "#{env} registers extra themes"
+      end
+
+      refute File.read!("config/runtime.exs") =~ "extra_themes"
+    end
   end
 end

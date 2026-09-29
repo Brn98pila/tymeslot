@@ -27,10 +27,19 @@ defmodule TymeslotWeb.Themes.Core.Registry do
   # the web layer needs is derived: the stylesheet path and html class from the
   # key, and the picker's preview image and description from the module's
   # `metadata/0`. The facts these bindings join live in Tymeslot.Themes.Catalog.
-  @bindings %{
-    "1" => TymeslotWeb.Themes.Quill.Theme,
-    "2" => TymeslotWeb.Themes.Rhythm.Theme
-  }
+  # Themes registered through `:extra_themes` (the test build's fixture theme,
+  # see the Catalog's moduledoc) bring their module in their entry.
+  @extra_bindings :tymeslot
+                  |> Application.compile_env(:extra_themes, [])
+                  |> Map.new(&{&1.id, &1.module})
+
+  @bindings Map.merge(
+              %{
+                "1" => TymeslotWeb.Themes.Quill.Theme,
+                "2" => TymeslotWeb.Themes.Rhythm.Theme
+              },
+              @extra_bindings
+            )
 
   # Build full definitions at compile time by joining catalog facts to modules.
   @themes Catalog.all()

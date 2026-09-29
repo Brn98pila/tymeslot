@@ -7,6 +7,12 @@ defmodule TymeslotWeb.ThemeTestMatrix do
   once it has an entry here. `TymeslotWeb.ThemeTestMatrixTest` fails until it
   does.
 
+  `all/0` and `ids/0` are the shipped themes. `registered/0` and
+  `registered_ids/0` add the test-only fixture themes (registered through
+  `:extra_themes` in `config/test.exs`), which have no booking UI beyond the
+  contract and no stylesheet; the suites that hold a theme to the contract
+  iterate those instead.
+
   Fields:
 
     * `:id`, `:key` - as in the catalogue.
@@ -24,6 +30,8 @@ defmodule TymeslotWeb.ThemeTestMatrix do
       `[data-testid='duration-option']` card only while it is selected. Each
       theme marks the selection its own way (on the button, or on a wrapper
       around it), so a shared assertion reads the selector from here.
+    * `:fixture` - a test-only theme: left out of `all/0`, and so of every
+      flow suite and the e2e embed matrix.
   """
 
   @type entry :: %{
@@ -34,7 +42,8 @@ defmodule TymeslotWeb.ThemeTestMatrix do
           wrapper_class: String.t(),
           video_background: boolean(),
           pins_schedule_actions: boolean(),
-          selected_duration_selector: String.t()
+          selected_duration_selector: String.t(),
+          fixture: boolean()
         }
 
   @themes %{
@@ -46,7 +55,8 @@ defmodule TymeslotWeb.ThemeTestMatrix do
       wrapper_class: "quill-theme-wrapper",
       video_background: true,
       pins_schedule_actions: true,
-      selected_duration_selector: "[data-testid='duration-option'].duration-card--selected"
+      selected_duration_selector: "[data-testid='duration-option'].duration-card--selected",
+      fixture: false
     },
     "2" => %{
       id: "2",
@@ -56,17 +66,37 @@ defmodule TymeslotWeb.ThemeTestMatrix do
       wrapper_class: "rhythm-theme-wrapper",
       video_background: true,
       pins_schedule_actions: false,
-      selected_duration_selector: ".duration-card.selected [data-testid='duration-option']"
+      selected_duration_selector: ".duration-card.selected [data-testid='duration-option']",
+      fixture: false
+    },
+    "99" => %{
+      id: "99",
+      key: :fixture,
+      slug: "fixture",
+      name: "Fixture",
+      wrapper_class: "fixture-theme-wrapper",
+      video_background: false,
+      pins_schedule_actions: false,
+      selected_duration_selector: "[data-testid='duration-option'][aria-pressed='true']",
+      fixture: true
     }
   }
 
-  @doc "Every theme's entry, in numeric id order."
+  @doc "Every shipped theme's entry, in numeric id order: the themes the flow suites run."
   @spec all() :: [entry()]
-  def all, do: @themes |> Map.values() |> Enum.sort_by(&String.to_integer(&1.id))
+  def all, do: Enum.reject(registered(), & &1.fixture)
 
-  @doc "Every theme id, in numeric order."
+  @doc "Every shipped theme id, in numeric order."
   @spec ids() :: [String.t()]
   def ids, do: Enum.map(all(), & &1.id)
+
+  @doc "Every registered theme's entry, fixtures included, in numeric id order."
+  @spec registered() :: [entry()]
+  def registered, do: @themes |> Map.values() |> Enum.sort_by(&String.to_integer(&1.id))
+
+  @doc "Every registered theme id, fixtures included, in numeric order."
+  @spec registered_ids() :: [String.t()]
+  def registered_ids, do: Enum.map(registered(), & &1.id)
 
   @doc "One theme's entry; raises for an id the matrix does not know."
   @spec fetch!(String.t()) :: entry()

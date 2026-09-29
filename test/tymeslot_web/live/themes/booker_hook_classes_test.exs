@@ -28,7 +28,7 @@ defmodule TymeslotWeb.Live.Themes.BookerHookClassesTest do
     :ok
   end
 
-  for theme_id <- ThemeTestMatrix.ids() do
+  for theme_id <- ThemeTestMatrix.registered_ids() do
     test "theme #{theme_id} marks its page grid and card with the embed hooks", %{conn: conn} do
       %{profile: profile} =
         seed_booking_account(unquote(theme_id), "hooks-#{unquote(theme_id)}", "UTC")

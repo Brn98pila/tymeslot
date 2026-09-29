@@ -17,6 +17,22 @@ config :tymeslot, :pubsub_name, Tymeslot.PubSub
 # Force core router for tests
 config :tymeslot, :router, TymeslotWeb.Router
 
+# A test-only booking theme (test/support/fixture_theme/), shaped unlike Quill
+# and Rhythm, which proves a new theme attaches without editing shared code.
+# Tymeslot.Themes.Catalog and TymeslotWeb.Themes.Core.Registry read this at
+# compile time; no other environment sets it.
+config :tymeslot, :extra_themes, [
+  %{
+    id: "99",
+    key: :fixture,
+    name: "Fixture",
+    heading_style: :generic,
+    customization_spec: Tymeslot.Test.FixtureThemeSpec,
+    status: :beta,
+    module: TymeslotWeb.Test.FixtureTheme.Theme
+  }
+]
+
 # What keeps one test run's database and upload directory apart from
 # another's. A worktree sets MIX_TEST_PARTITION to its own suffix; a
 # partitioned run (`mix precommit`, via Tymeslot.Precommit.Runner) needs that
