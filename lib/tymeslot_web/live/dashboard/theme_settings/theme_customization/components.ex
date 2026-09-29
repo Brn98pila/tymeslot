@@ -6,6 +6,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.Options.Palette
   alias TymeslotWeb.Live.Scheduling.PreviewMode
 
   import TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.CurrentIndicator,
@@ -82,12 +84,12 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components do
   end
 
   @doc """
-  Renders the panel for one of the theme spec's option groups, chosen by
-  its `type`. Adding an option type means adding a clause here and a panel.
+  Renders the panel for one of the theme spec's option groups, chosen by its
+  module.
   """
   @spec option_panel(map()) :: Phoenix.LiveView.Rendered.t()
-  def option_panel(%{group: %{type: :palette}} = assigns), do: palette_panel(assigns)
-  def option_panel(%{group: %{type: :background}} = assigns), do: background_panel(assigns)
+  def option_panel(%{group: %{module: Palette}} = assigns), do: palette_panel(assigns)
+  def option_panel(%{group: %{module: Background}} = assigns), do: background_panel(assigns)
 
   @spec palette_panel(map()) :: Phoenix.LiveView.Rendered.t()
   def palette_panel(assigns) do

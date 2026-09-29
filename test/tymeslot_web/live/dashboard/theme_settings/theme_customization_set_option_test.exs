@@ -12,6 +12,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationSetOptionTest do
   import Tymeslot.DashboardTestHelpers
 
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Spec
   alias TymeslotWeb.ThemeTestMatrix
 
@@ -143,13 +145,13 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationSetOptionTest do
       test "#{theme.name}: one panel per option group, with the declared background tabs",
            %{conn: conn} do
         spec = Spec.for_theme(unquote(theme.id))
-        groups = Enum.map(spec.option_groups(), & &1.type)
+        groups = Enum.map(spec.option_groups(), & &1.module)
         kinds = Spec.background_kinds(spec)
 
         {:ok, _view, html} = live(conn, "/dashboard/theme/customize/#{unquote(theme.id)}")
 
-        assert html =~ "Color Palette" == :palette in groups
-        assert html =~ "Background Design" == :background in groups
+        assert html =~ "Color Palette" == Palette in groups
+        assert html =~ "Background Design" == Background in groups
 
         # The matrix says independently whether the theme offers video, so a
         # spec that lost its video kind fails here rather than quietly

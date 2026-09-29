@@ -8,7 +8,7 @@ defmodule Tymeslot.ThemeCustomizations do
 
   alias Ecto.Changeset
   alias Tymeslot.Profiles.ProfileSchema
-  alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.OptionGroup
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationQueries
@@ -273,17 +273,17 @@ defmodule Tymeslot.ThemeCustomizations do
   Applies one option change from the customisation panel.
 
   `option_key` names one of the theme spec's `option_groups/0`; `params` is
-  `%{"field" => field, "value" => value}` (for the palette `"scheme"` or
-  `"seed"`, for the background one of the group's declared `kinds`). The
-  change goes through the spec changeset, so an option or value the theme
-  does not support is refused. Returns a translated message on failure.
+  `%{"field" => field, "value" => value}` (the group's module says which it
+  accepts, through `OptionGroup.changes/3`). The change goes through the spec
+  changeset, so an option or value the theme does not support is refused.
+  Returns a translated message on failure.
   """
   @spec apply_option(profile_id(), theme_id(), atom(), map()) ::
           {:ok, ThemeCustomizationSchema.t()} | {:error, String.t()}
   def apply_option(profile_id, theme_id, option_key, %{"field" => field, "value" => value})
       when is_binary(field) and is_binary(value) do
     with {:ok, group} <- option_group(theme_id, option_key),
-         {:ok, changes} <- option_changes(group, field, value) do
+         {:ok, changes} <- group.module.changes(field, value, group) do
       %{customization: current} = initialize_customization(profile_id, theme_id)
       # Every save passes the whole option state, so an unsaved default
       # customisation is created with it and a change is judged against it.
@@ -303,7 +303,7 @@ defmodule Tymeslot.ThemeCustomizations do
     do: {:error, option_unavailable()}
 
   @doc "The theme spec's option groups, in panel order; empty for an unknown theme."
-  @spec option_groups(theme_id()) :: [Spec.option_group()]
+  @spec option_groups(theme_id()) :: [OptionGroup.group()]
   def option_groups(theme_id) do
     case Catalog.customization_spec(theme_id) do
       {:ok, spec} -> spec.option_groups()
@@ -317,16 +317,6 @@ defmodule Tymeslot.ThemeCustomizations do
       group -> {:ok, group}
     end
   end
-
-  defp option_changes(%{type: :palette}, field, value), do: Palette.changes(field, value)
-
-  defp option_changes(%{type: :background, kinds: kinds}, kind, value) do
-    if kind in Enum.map(kinds, &Atom.to_string/1),
-      do: Background.changes(kind, value),
-      else: :error
-  end
-
-  defp option_changes(_group, _field, _value), do: :error
 
   defp option_unavailable,
     do: dgettext("dashboard_appearance", "This option is not available for this theme.")

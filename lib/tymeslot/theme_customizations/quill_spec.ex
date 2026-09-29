@@ -4,32 +4,23 @@ defmodule Tymeslot.ThemeCustomizations.QuillSpec do
   defaulting to the Aurora gradient.
   """
 
+  use Tymeslot.ThemeCustomizations.Spec
+
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.Tokens
 
-  @behaviour Spec
-
-  @background_kinds [:gradient, :color, :image, :video]
-
   @impl Spec
   def option_groups,
     do: [
-      %{key: :palette, type: :palette},
-      %{key: :background, type: :background, kinds: @background_kinds}
+      %{key: :palette, module: Palette},
+      %{key: :background, module: Background, kinds: [:gradient, :color, :image, :video]}
     ]
 
   @impl Spec
   def defaults,
     do: %{color_scheme: "default", background_type: "gradient", background_value: "gradient_1"}
-
-  @impl Spec
-  def changeset(changeset, attrs) do
-    changeset
-    |> Palette.changeset(attrs)
-    |> Background.changeset(attrs, @background_kinds)
-  end
 
   @impl Spec
   def tokens(settings, overrides) do
@@ -42,7 +33,4 @@ defmodule Tymeslot.ThemeCustomizations.QuillSpec do
       background: background
     }
   end
-
-  @impl Spec
-  def asset_fields, do: Background.asset_fields()
 end

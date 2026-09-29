@@ -4,21 +4,25 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
   uploaded image, or a preset or uploaded video. Stored as the `background_*`
   settings.
 
-  A spec passes the kinds its theme offers to `changeset/3`, which rejects the
-  rest, so no write path can store a background the theme cannot show. A
-  `preset:` value must name a shipped preset; any other image or video value is
-  an upload and needs its stored path.
+  An `OptionGroup`: a spec lists it as `%{key: :background, module:
+  Options.Background, kinds: [...]}`, naming the kinds its theme offers.
+  `changeset/3` and `changes/3` refuse the rest, so no write path can store a
+  background the theme cannot show, and `asset_fields/1` offers only the
+  uploads of offered kinds. A `preset:` value must name a shipped preset; any
+  other image or video value is an upload and needs its stored path.
   """
 
   import Ecto.Changeset
 
-  alias Ecto.Changeset
   alias Tymeslot.Media.Transcoder
+  alias Tymeslot.ThemeCustomizations.OptionGroup
   alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.Tokens
   alias Tymeslot.ThemeCustomizations.Validation
   alias Tymeslot.Utils.Colour
+
+  @behaviour OptionGroup
 
   @types %{
     background_type: :string,
@@ -27,6 +31,7 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
     background_video_path: :string
   }
   @fields Map.keys(@types)
+  @asset_fields [background_image_path: :image, background_video_path: :video]
   @kinds_by_type %{
     "gradient" => :gradient,
     "color" => :color,
@@ -56,12 +61,12 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
           | %{kind: :video, sources: [video_source()], poster: String.t() | nil}
 
   @doc "The settings the background stores, with their Ecto types."
-  @spec types() :: %{atom() => atom()}
+  @impl OptionGroup
   def types, do: @types
 
-  @doc "Casts and validates the background settings against the kinds the theme offers."
-  @spec changeset(Changeset.t(), map(), [Spec.background_kind()]) :: Changeset.t()
-  def changeset(changeset, attrs, kinds) do
+  @doc "Casts and validates the background settings against the kinds the group offers."
+  @impl OptionGroup
+  def changeset(changeset, attrs, %{kinds: kinds}) do
     changeset
     |> cast(attrs, @fields)
     |> validate_required([:background_type])
@@ -70,23 +75,29 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
     |> validate_value()
   end
 
-  @doc "The upload settings and what each stores."
-  @spec asset_fields() :: [{atom(), Spec.asset_kind()}]
-  def asset_fields, do: [background_image_path: :image, background_video_path: :video]
+  @doc "The upload settings of the kinds the group offers, and what each stores."
+  @impl OptionGroup
+  def asset_fields(%{kinds: kinds}),
+    do: Enum.filter(@asset_fields, fn {_field, kind} -> kind in kinds end)
 
   @doc """
-  The changes choosing a background makes. An upload survives only when the
-  new background is that same kind chosen as `"custom"`; every other choice
-  (a preset of either kind, a gradient, or a colour) drops both uploads, so a
-  stored file is never orphaned by a change that stops naming it.
+  The changes choosing a background makes, or `:error` for a kind the group
+  does not offer. An upload survives only when the new background is that
+  same kind chosen as `"custom"`; every other choice (a preset of either kind,
+  a gradient, or a colour) drops both uploads, so a stored file is never
+  orphaned by a change that stops naming it.
   """
-  @spec changes(String.t(), String.t()) :: {:ok, map()}
-  def changes(kind, value) do
-    {:ok,
-     Map.merge(
-       %{"background_type" => kind, "background_value" => value},
-       cleared_uploads(kind, value)
-     )}
+  @impl OptionGroup
+  def changes(kind, value, %{kinds: kinds}) do
+    if kind in Enum.map(kinds, &Atom.to_string/1) do
+      {:ok,
+       Map.merge(
+         %{"background_type" => kind, "background_value" => value},
+         cleared_uploads(kind, value)
+       )}
+    else
+      :error
+    end
   end
 
   @doc """

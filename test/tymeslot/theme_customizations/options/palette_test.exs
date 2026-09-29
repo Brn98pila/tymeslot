@@ -7,13 +7,15 @@ defmodule Tymeslot.ThemeCustomizations.Options.PaletteTest do
   alias Ecto.Changeset
   alias Tymeslot.ThemeCustomizations.Options.Palette
 
+  @group %{key: :palette, module: Palette}
+
   defp changeset(attrs) do
     {%{}, Palette.types()}
     |> Changeset.change()
-    |> Palette.changeset(attrs)
+    |> Palette.changeset(attrs, @group)
   end
 
-  describe "changeset/2" do
+  describe "changeset/3" do
     test "normalises a custom seed to lower-case #rrggbb, three-digit form included" do
       assert Changeset.get_change(
                changeset(%{"custom_palette_seed" => "#FA0"}),
@@ -41,18 +43,19 @@ defmodule Tymeslot.ThemeCustomizations.Options.PaletteTest do
     end
   end
 
-  describe "changes/2" do
+  describe "changes/3" do
     test "a scheme drops the custom seed" do
-      assert Palette.changes("scheme", "forest") ==
+      assert Palette.changes("scheme", "forest", @group) ==
                {:ok, %{"color_scheme" => "forest", "custom_palette_seed" => nil}}
     end
 
     test "a seed leaves the scheme name alone" do
-      assert Palette.changes("seed", "#aabbcc") == {:ok, %{"custom_palette_seed" => "#aabbcc"}}
+      assert Palette.changes("seed", "#aabbcc", @group) ==
+               {:ok, %{"custom_palette_seed" => "#aabbcc"}}
     end
 
     test "a blank seed casts to nil and switches back to the preset scheme" do
-      assert {:ok, %{"custom_palette_seed" => ""}} = Palette.changes("seed", "")
+      assert {:ok, %{"custom_palette_seed" => ""}} = Palette.changes("seed", "", @group)
 
       cs = changeset(%{"color_scheme" => "forest", "custom_palette_seed" => ""})
 
@@ -61,7 +64,7 @@ defmodule Tymeslot.ThemeCustomizations.Options.PaletteTest do
     end
 
     test "any other field is refused" do
-      assert Palette.changes("logo", "x.png") == :error
+      assert Palette.changes("logo", "x.png", @group) == :error
     end
   end
 

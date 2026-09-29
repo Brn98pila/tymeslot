@@ -24,6 +24,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components
@@ -217,7 +219,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   # Private functions
 
   defp set_option(socket, group, field, value) do
-    {event, action, metadata} = telemetry_for(group.type, field, value)
+    {event, action, metadata} = telemetry_for(group, field, value)
 
     with_rate_limit(socket, action, fn ->
       case ThemeCustomizations.apply_option(
@@ -232,7 +234,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
           {:noreply,
            socket
            |> assign(:customization, updated)
-           |> after_option_set(group.type, field, updated)}
+           |> after_option_set(group, field, updated)}
 
         {:error, reason} ->
           Flash.error(reason)
@@ -241,29 +243,29 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
     end)
   end
 
-  defp after_option_set(socket, :palette, _field, updated),
+  defp after_option_set(socket, %{module: Palette}, _field, updated),
     do: assign(socket, :palette_picker_open, not is_nil(updated.settings["custom_palette_seed"]))
 
-  defp after_option_set(socket, :background, kind, _updated),
+  defp after_option_set(socket, %{module: Background}, kind, _updated),
     do: assign(socket, :browsing_type, kind)
 
-  defp after_option_set(socket, _type, _field, _updated), do: socket
+  defp after_option_set(socket, _group, _field, _updated), do: socket
 
   # Event names and rate-limit labels as they were before the single event.
-  defp telemetry_for(:palette, "seed", value),
+  defp telemetry_for(%{module: Palette}, "seed", value),
     do: {:palette_seed_changed, "palette_seed", %{seed: value}}
 
-  defp telemetry_for(:palette, _field, value),
+  defp telemetry_for(%{module: Palette}, _field, value),
     do: {:color_scheme_changed, "color_scheme", %{scheme_id: value}}
 
-  defp telemetry_for(:background, kind, value),
+  defp telemetry_for(%{module: Background}, kind, value),
     do: {:background_changed, "background", %{type: kind, value: value}}
 
-  defp telemetry_for(type, field, value),
-    do: {:option_changed, Atom.to_string(type), %{field: field, value: value}}
+  defp telemetry_for(group, field, value),
+    do: {:option_changed, Atom.to_string(group.key), %{field: field, value: value}}
 
   defp background_kinds(option_groups) do
-    case Enum.find(option_groups, &(&1.type == :background)) do
+    case Enum.find(option_groups, &(&1.module == Background)) do
       %{kinds: kinds} -> Enum.map(kinds, &Atom.to_string/1)
       nil -> []
     end

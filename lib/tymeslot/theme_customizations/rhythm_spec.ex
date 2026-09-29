@@ -4,20 +4,18 @@ defmodule Tymeslot.ThemeCustomizations.RhythmSpec do
   defaulting to Rhythm's own background video.
   """
 
+  use Tymeslot.ThemeCustomizations.Spec
+
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.Tokens
 
-  @behaviour Spec
-
-  @background_kinds [:gradient, :color, :image, :video]
-
   @impl Spec
   def option_groups,
     do: [
-      %{key: :palette, type: :palette},
-      %{key: :background, type: :background, kinds: @background_kinds}
+      %{key: :palette, module: Palette},
+      %{key: :background, module: Background, kinds: [:gradient, :color, :image, :video]}
     ]
 
   @impl Spec
@@ -27,13 +25,6 @@ defmodule Tymeslot.ThemeCustomizations.RhythmSpec do
       background_type: "video",
       background_value: "preset:rhythm-default"
     }
-
-  @impl Spec
-  def changeset(changeset, attrs) do
-    changeset
-    |> Palette.changeset(attrs)
-    |> Background.changeset(attrs, @background_kinds)
-  end
 
   @impl Spec
   def tokens(settings, overrides) do
@@ -46,7 +37,4 @@ defmodule Tymeslot.ThemeCustomizations.RhythmSpec do
       background: background
     }
   end
-
-  @impl Spec
-  def asset_fields, do: Background.asset_fields()
 end

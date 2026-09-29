@@ -9,10 +9,12 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
 
   @all_kinds [:gradient, :color, :image, :video]
 
+  defp group(kinds), do: %{key: :background, module: Background, kinds: kinds}
+
   defp changeset(attrs, kinds \\ @all_kinds) do
     {%{}, Background.types()}
     |> Changeset.change()
-    |> Background.changeset(attrs, kinds)
+    |> Background.changeset(attrs, group(kinds))
   end
 
   defp error(cs, field), do: cs.errors |> Keyword.get(field) |> elem(0)
@@ -76,10 +78,10 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
     end
   end
 
-  describe "changes/2" do
+  describe "changes/3" do
     test "sets the kind and value" do
       assert {:ok, %{"background_type" => "color", "background_value" => "#ff5500"}} =
-               Background.changes("color", "#ff5500")
+               Background.changes("color", "#ff5500", group(@all_kinds))
     end
 
     test "a preset of another kind, a gradient or a colour nils both uploads" do
@@ -89,7 +91,7 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
             {"image", "preset:artistic-studio"},
             {"video", "preset:blue-wave"}
           ] do
-        assert {:ok, changes} = Background.changes(kind, value)
+        assert {:ok, changes} = Background.changes(kind, value, group(@all_kinds))
 
         assert Map.take(changes, ["background_image_path", "background_video_path"]) ==
                  %{"background_image_path" => nil, "background_video_path" => nil},
@@ -98,13 +100,17 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
     end
 
     test "custom of the same kind keeps its own path and clears the other" do
-      assert {:ok, image_changes} = Background.changes("image", "custom")
+      assert {:ok, image_changes} = Background.changes("image", "custom", group(@all_kinds))
       refute Map.has_key?(image_changes, "background_image_path")
       assert Map.fetch(image_changes, "background_video_path") == {:ok, nil}
 
-      assert {:ok, video_changes} = Background.changes("video", "custom")
+      assert {:ok, video_changes} = Background.changes("video", "custom", group(@all_kinds))
       refute Map.has_key?(video_changes, "background_video_path")
       assert Map.fetch(video_changes, "background_image_path") == {:ok, nil}
+    end
+
+    test "refuses a kind the group does not offer" do
+      assert Background.changes("video", "preset:space", group([:gradient, :color])) == :error
     end
   end
 
@@ -191,10 +197,20 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
     end
   end
 
-  test "asset_fields/0 names both upload columns and their kinds" do
-    assert Background.asset_fields() == [
-             background_image_path: :image,
-             background_video_path: :video
-           ]
+  describe "asset_fields/1" do
+    test "names both upload columns and their kinds when the group offers both" do
+      assert Background.asset_fields(group(@all_kinds)) == [
+               background_image_path: :image,
+               background_video_path: :video
+             ]
+    end
+
+    test "leaves out the upload of a kind the group does not offer" do
+      assert Background.asset_fields(group([:gradient, :image])) == [
+               background_image_path: :image
+             ]
+
+      assert Background.asset_fields(group([:gradient, :color])) == []
+    end
   end
 end

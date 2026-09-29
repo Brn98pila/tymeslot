@@ -4,17 +4,21 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
   custom seed colour. Stored as the `color_scheme` and `custom_palette_seed`
   settings; a present seed is the source of truth and the scheme name is then
   left unconstrained.
+
+  An `OptionGroup`: a spec lists it as `%{key: :palette, module: Options.Palette}`.
   """
 
   import Ecto.Changeset
 
-  alias Ecto.Changeset
   alias Tymeslot.ThemeCustomizations.ContrastTokens
+  alias Tymeslot.ThemeCustomizations.OptionGroup
   alias Tymeslot.ThemeCustomizations.PaletteDerivation
   alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.ThemeCustomizations.Tokens
   alias Tymeslot.Utils.Colour
+
+  @behaviour OptionGroup
 
   @types %{color_scheme: :string, custom_palette_seed: :string}
   @fields Map.keys(@types)
@@ -42,12 +46,12 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
   @type overrides :: %{optional(:primary_color) => String.t()}
 
   @doc "The settings the palette stores, with their Ecto types."
-  @spec types() :: %{atom() => atom()}
+  @impl OptionGroup
   def types, do: @types
 
   @doc "Casts and validates the palette settings."
-  @spec changeset(Changeset.t(), map()) :: Changeset.t()
-  def changeset(changeset, attrs) do
+  @impl OptionGroup
+  def changeset(changeset, attrs, _group) do
     changeset
     |> cast(attrs, @fields)
     |> cast_seed()
@@ -58,12 +62,12 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
   The changes one palette choice makes, or `:error` for a field the palette
   does not have. Choosing a scheme drops the custom seed.
   """
-  @spec changes(String.t(), String.t()) :: {:ok, map()} | :error
-  def changes("scheme", scheme),
+  @impl OptionGroup
+  def changes("scheme", scheme, _group),
     do: {:ok, %{"color_scheme" => scheme, "custom_palette_seed" => nil}}
 
-  def changes("seed", hex), do: {:ok, %{"custom_palette_seed" => hex}}
-  def changes(_field, _value), do: :error
+  def changes("seed", hex, _group), do: {:ok, %{"custom_palette_seed" => hex}}
+  def changes(_field, _value, _group), do: :error
 
   @doc """
   The active palette (`%{name: _, colors: _}`): derived from the seed when one

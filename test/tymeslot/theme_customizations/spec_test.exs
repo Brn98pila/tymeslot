@@ -5,6 +5,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
   @moduletag :unit
 
   alias Ecto.Changeset
+  alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.QuillSpec
   alias Tymeslot.ThemeCustomizations.RhythmSpec
   alias Tymeslot.ThemeCustomizations.Spec
@@ -13,26 +14,91 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
 
   @known_kinds [:gradient, :color, :image, :video]
 
-  # A theme that offers no video, like the minimalist theme will.
+  # An option group no shipped theme has: shared code must handle it through
+  # its module alone.
+  defmodule TaglineOption do
+    @moduledoc false
+    @behaviour Tymeslot.ThemeCustomizations.OptionGroup
+
+    import Ecto.Changeset
+
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def types, do: %{tagline: :string}
+
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def changeset(changeset, attrs, group),
+      do: changeset |> cast(attrs, [:tagline]) |> validate_length(:tagline, max: group.max)
+
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def changes("text", value, _group), do: {:ok, %{"tagline" => value}}
+    def changes(_field, _value, _group), do: :error
+  end
+
+  # A theme that offers no video, like the minimalist theme will, and an
+  # option group of its own.
   defmodule StillSpec do
-    @behaviour Tymeslot.ThemeCustomizations.Spec
+    @moduledoc false
+    use Tymeslot.ThemeCustomizations.Spec
+
+    alias Tymeslot.ThemeCustomizations.Options.Background
+    alias Tymeslot.ThemeCustomizations.SpecTest.TaglineOption
+    alias Tymeslot.ThemeCustomizations.Tokens
 
     @impl Tymeslot.ThemeCustomizations.Spec
-    def option_groups, do: [%{key: :background, type: :background, kinds: [:gradient, :color]}]
+    def option_groups,
+      do: [
+        %{key: :background, module: Background, kinds: [:gradient, :color, :image]},
+        %{key: :tagline, module: TaglineOption, max: 10}
+      ]
+
     @impl Tymeslot.ThemeCustomizations.Spec
-    def defaults, do: %{}
-    @impl Tymeslot.ThemeCustomizations.Spec
-    def changeset(changeset, _attrs), do: changeset
+    def defaults, do: %{background_type: "gradient", background_value: "gradient_1"}
+
     @impl Tymeslot.ThemeCustomizations.Spec
     def tokens(_settings, _overrides), do: %Tokens{}
-    @impl Tymeslot.ThemeCustomizations.Spec
-    def asset_fields, do: []
   end
 
   defp stringify(map), do: Map.new(map, fn {k, v} -> {Atom.to_string(k), v} end)
 
   defp validate(spec, attrs) do
     {%{}, Spec.setting_types(spec)} |> Changeset.change() |> spec.changeset(attrs)
+  end
+
+  describe "use Spec" do
+    test "setting_types/1 merges every group module's types" do
+      assert Spec.setting_types(StillSpec) == Map.put(Background.types(), :tagline, :string)
+    end
+
+    test "the generated changeset/2 runs every group's changeset/3 with its own descriptor" do
+      cs =
+        validate(StillSpec, %{
+          "background_type" => "video",
+          "background_value" => "preset:space",
+          "tagline" => String.duplicate("x", 11)
+        })
+
+      assert {"is not supported by this theme", _opts} = cs.errors[:background_type]
+      assert {"should be at most %{count} character(s)", _opts} = cs.errors[:tagline]
+    end
+
+    test "the generated changeset/2 accepts what every group accepts" do
+      assert validate(StillSpec, %{
+               "background_type" => "color",
+               "background_value" => "#123456",
+               "tagline" => "Hello"
+             }).valid?
+    end
+
+    test "the generated asset_fields/0 joins the groups' upload fields" do
+      # Background offers only the image upload here; TaglineOption has no
+      # asset_fields/1 and so contributes none.
+      assert StillSpec.asset_fields() == [background_image_path: :image]
+    end
+
+    test "group/2 finds a spec's group by its module" do
+      assert %{key: :tagline, max: 10} = Spec.group(StillSpec, TaglineOption)
+      assert Spec.group(QuillSpec, TaglineOption) == nil
+    end
   end
 
   describe "Spec.supports_background?/2" do
