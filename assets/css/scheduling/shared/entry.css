@@ -47,11 +47,33 @@
   .phx-change-loading & { @slot; }
 }
 
-/* Content sources (formerly tailwind.config.js `content`). Paths are relative
-   to this file; mirror the v3 globs that scanned the web layer + JS. */
+/* Content sources, relative to this file: the JS, the theme tree, and the
+   web-layer files outside it that a booking page reaches. The rest of the web
+   layer (dashboard, onboarding, admin) is left out, so its utilities never
+   reach a booking page. A file a theme starts to call from outside this list
+   drops its classes silently; `ThemeTailwindSourcesTest` fails when that
+   happens, so add the file here. */
 @source "../../../js";
 @source "../../../../lib/tymeslot_web.ex";
-@source "../../../../lib/tymeslot_web";
+@source "../../../../lib/tymeslot_web/themes";
+@source "../../../../lib/tymeslot_web/components/background_motion_toggle.ex";
+@source "../../../../lib/tymeslot_web/components/core_components.ex";
+@source "../../../../lib/tymeslot_web/components/core_components";
+@source "../../../../lib/tymeslot_web/components/flag_helpers.ex";
+@source "../../../../lib/tymeslot_web/components/icons";
+@source "../../../../lib/tymeslot_web/components/language_switcher.ex";
+@source "../../../../lib/tymeslot_web/components/layouts.ex";
+@source "../../../../lib/tymeslot_web/components/layouts";
+@source "../../../../lib/tymeslot_web/components/meeting_utils.ex";
+@source "../../../../lib/tymeslot_web/components/step_navigation.ex";
+@source "../../../../lib/tymeslot_web/helpers";
+@source "../../../../lib/tymeslot_web/hooks";
+@source "../../../../lib/tymeslot_web/live/meeting_request_live.ex";
+@source "../../../../lib/tymeslot_web/live/meeting_request_live";
+@source "../../../../lib/tymeslot_web/live/onboarding_live/preview_parts.ex";
+@source "../../../../lib/tymeslot_web/live/scheduling";
+@source "../../../../lib/tymeslot_web/live/shared";
+@source "../../../../lib/tymeslot_web/not_found_error.ex";
 
 /* v4 compatibility: restore v3's gray-200 default border colour. */
 @layer base {
