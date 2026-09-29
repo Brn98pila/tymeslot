@@ -101,6 +101,7 @@ defmodule TymeslotWeb.Dashboard.Automation.TelegramFormComponent do
         <%!-- Standard Form (own-bot create/edit, shared-bot step 2/edit) --%>
         <form
           id="telegram-form"
+          novalidate
           phx-submit={
             if @mode == :create do
               JS.push("create_telegram", target: @parent_component)

@@ -107,6 +107,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BookingTextForm do
         <.form
           for={@form}
           id={"#{@id}-form"}
+          novalidate
           phx-change="save"
           phx-submit="save"
           phx-target={@myself}

@@ -191,6 +191,7 @@ defmodule TymeslotWeb.Dashboard.Availability.DayCardComponent do
       <form
         :if={@show_add_break_form == @day}
         id={"add-break-form-#{@day}"}
+        novalidate
         phx-submit="add_break"
         phx-change="validate_break"
         phx-target={@myself}

@@ -143,6 +143,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.LocationEditorCo
           for={@changeset}
           as={:location}
           id="location-editor-form"
+          novalidate
           phx-change="validate"
           phx-submit="save"
           phx-target={@myself}

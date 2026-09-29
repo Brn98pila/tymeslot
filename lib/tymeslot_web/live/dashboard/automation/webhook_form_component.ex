@@ -95,6 +95,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookFormComponent do
       <%!-- Form --%>
       <form
         id="webhook-form"
+        novalidate
         phx-submit={
           if @mode == :create do
             JS.push("create_webhook", target: @parent_component)

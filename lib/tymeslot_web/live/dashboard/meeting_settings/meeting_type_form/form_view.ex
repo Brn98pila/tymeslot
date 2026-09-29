@@ -77,6 +77,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.FormView do
     <div id={"meeting-type-form-wrapper-#{@id}"}>
       <form
         id={"meeting-type-form-#{@id}"}
+        novalidate
         phx-submit={if @is_edit, do: "flush_autosave", else: "save_meeting_type"}
         phx-target={if @is_edit, do: @myself, else: @parent_myself}
         class={if @is_edit, do: "space-y-6", else: "space-y-8"}

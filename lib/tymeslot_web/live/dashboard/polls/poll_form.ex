@@ -68,6 +68,7 @@ defmodule TymeslotWeb.Dashboard.Polls.PollForm do
 
       <form
         id={"poll-create-form-#{@id}"}
+        novalidate
         phx-submit="create_poll"
         phx-change="form_change"
         phx-target={@myself}

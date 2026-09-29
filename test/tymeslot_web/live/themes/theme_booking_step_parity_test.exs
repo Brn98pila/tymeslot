@@ -2,7 +2,8 @@ defmodule TymeslotWeb.Live.Themes.ThemeBookingStepParityTest do
   @moduledoc """
   Behaviour every theme's steps share, whatever they look like: choosing the
   meeting type already chosen keeps it chosen, and the booking form marks the
-  name and the email as required.
+  name and the email as required while leaving empty fields to its own
+  messages.
   """
 
   use TymeslotWeb.LiveCase, async: false
@@ -58,12 +59,17 @@ defmodule TymeslotWeb.Live.Themes.ThemeBookingStepParityTest do
 
       view = navigate_to_booking_form(conn, profile, nil)
 
-      # `.input`'s `required` attribute renders only as the label's `*`
-      # marker today: `Forms.input_element/1` never forwards `required` onto
-      # the rendered `<input>` itself (a separate, older gap, not Rhythm's),
-      # so parity is asserted against that marker.
       assert has_element?(view, "label[for='booking-form_name'] span.text-red-500")
       assert has_element?(view, "label[for='booking-form_email'] span.text-red-500")
+
+      # The attribute on the control is what assistive technology reads; the
+      # `*` above is only the sighted cue.
+      assert has_element?(view, "input#booking-form_name[required]")
+      assert has_element?(view, "input#booking-form_email[required]")
+
+      # The form answers an empty field with its own message, so the browser
+      # must not block the submit first.
+      assert has_element?(view, "form#booking-form[novalidate]")
     end
   end
 end

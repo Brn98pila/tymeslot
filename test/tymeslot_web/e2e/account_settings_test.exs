@@ -55,4 +55,17 @@ defmodule TymeslotWeb.E2E.AccountSettingsTest do
     |> assert_has(css("button[phx-click='toggle_password_form']"))
     |> assert_no_horizontal_overflow("account settings at 320px")
   end
+
+  # The password form answers an empty field with its own message, so the
+  # browser must let the empty submit through to the server.
+  feature "an empty password change shows the form's own errors", %{session: session} do
+    {session, _user} = log_in_via_browser(session)
+
+    session
+    |> visit("/dashboard/account")
+    |> wait_for_live()
+    |> click(css("button[phx-click='toggle_password_form']"))
+    |> click(css("form[phx-submit='update_password'] button[type='submit']"))
+    |> assert_has(css("#account-password-form .form-field-error", minimum: 1))
+  end
 end

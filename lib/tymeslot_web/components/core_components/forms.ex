@@ -10,6 +10,12 @@ defmodule TymeslotWeb.Components.CoreComponents.Forms do
   Do not use the `field=` shortcut for that UX, because `field.errors` will
   re-add errors from the live changeset and defeat the clear-on-type
   behaviour.
+
+  `required` renders on the control, so the browser blocks an empty submit
+  with its own message before the server sees it. A form that shows its own
+  error messages for empty fields sets `novalidate` on the `<form>`: the
+  attribute still tells assistive technology the field is required, and the
+  empty submission reaches the server, which answers with the app's message.
   """
   use Phoenix.Component
   use Gettext, backend: TymeslotWeb.Gettext
@@ -105,6 +111,7 @@ defmodule TymeslotWeb.Components.CoreComponents.Forms do
         |> error_aria(error_id)
         |> Map.merge(html_constraints(assigns))
         |> disabled_attr(assigns.disabled)
+        |> required_attr(assigns.required)
         |> Map.merge(assigns.rest)
       )
 
@@ -143,7 +150,6 @@ defmodule TymeslotWeb.Components.CoreComponents.Forms do
           value={@value}
           checked={@checked}
           placeholder={@placeholder}
-          required={@required}
           errors={@errors}
           has_leading_icon={@icon || render_slot(@leading_icon)}
           has_trailing_icon={render_slot(@trailing_icon)}
@@ -291,6 +297,12 @@ defmodule TymeslotWeb.Components.CoreComponents.Forms do
   # `disabled={false}` must leave no attribute behind at all.
   defp disabled_attr(rest, true), do: Map.put(rest, :disabled, true)
   defp disabled_attr(rest, _disabled), do: rest
+
+  # `required` is declared for the label's `*`, so it has to be threaded into
+  # `@rest` the same way, or neither the browser nor assistive technology ever
+  # learns the field is required. See the moduledoc for `novalidate`.
+  defp required_attr(rest, true), do: Map.put(rest, :required, true)
+  defp required_attr(rest, _required), do: rest
 
   defp html_constraints(assigns) do
     Map.reject(
