@@ -22,11 +22,19 @@ defmodule TymeslotWeb.Plugs.EmbedTokenPlug do
   A request the browser marks `Sec-Fetch-Dest: document` is a top-level
   visit (the embed URL copied into its own tab), not a frame, so `embed=1` is
   ignored and it is served as an ordinary page. Treating it as an embed wrote
-  no session, and the page, which only uses the session-free embed socket when
-  it is actually framed, then connected to the session socket without one and
-  reloaded itself for ever. A framed request sends `iframe`; a request without
-  the header (an older browser, a non-browser client) keeps the embed
-  behaviour, as before.
+  no session, and the unframed page then connected to the session socket
+  without one and reloaded itself for ever. A framed request sends `iframe`; a request without
+  the header keeps the embed behaviour, as before. Every `embed=1` response
+  carries `Vary: Sec-Fetch-Dest`, since its treatment depends on the header.
+
+  Browsers send `Sec-Fetch-Dest` only to secure origins (and Safari only
+  since 16.4), so a top-level visit over plain HTTP or from an older browser
+  still arrives without it and is served as an embed. The root layout marks
+  such a page (`data-embed-served` on `<html>`, set when this plug assigned
+  an embed token), and `core.js` then connects to the session-free embed
+  socket whether or not the page is framed. That visit connects instead of
+  reloading, and is held to the embed allowlist like any other embed: with
+  no allowed parent origin it lands on the embed-unavailable notice.
   """
 
   @behaviour Plug
@@ -45,7 +53,19 @@ defmodule TymeslotWeb.Plugs.EmbedTokenPlug do
   def call(conn, _opts) do
     conn = fetch_query_params(conn)
 
-    if embed_request?(conn) do
+    if conn.query_params["embed"] == "1" do
+      conn
+      # How an embed URL is served depends on Sec-Fetch-Dest, so a cache must
+      # not answer a framed request with a top-level response or the reverse.
+      |> prepend_resp_headers([{"vary", "sec-fetch-dest"}])
+      |> maybe_serve_as_embed()
+    else
+      conn
+    end
+  end
+
+  defp maybe_serve_as_embed(conn) do
+    if framed_or_unknown?(conn) do
       # Write no session cookie for embed requests: the browser would reject it
       # (SameSite=Lax in a cross-site iframe). `:ignore` drops the write only;
       # `:drop` would delete the cookie the caller sent us. See the moduledoc.
@@ -64,10 +84,7 @@ defmodule TymeslotWeb.Plugs.EmbedTokenPlug do
     end
   end
 
-  defp embed_request?(conn) do
-    conn.query_params["embed"] == "1" and
-      get_req_header(conn, "sec-fetch-dest") != ["document"]
-  end
+  defp framed_or_unknown?(conn), do: get_req_header(conn, "sec-fetch-dest") != ["document"]
 
   # Prefer the browser-enforced Referer header over the client-supplied
   # query parameter. The Referer is set by the browser when loading an

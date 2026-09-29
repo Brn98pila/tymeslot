@@ -3,6 +3,7 @@
   lang={assigns[:locale] || "en"}
   class={"scheduling-app #{theme_class(assigns[:theme_id])}"}
   data-embed-layout={to_string(assigns[:embed_layout] || :default)}
+  data-embed-served={!!assigns[:embed_token]}
 >
   <head>
     <meta charset="utf-8" />

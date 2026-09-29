@@ -252,6 +252,25 @@ defmodule TymeslotWeb.Plugs.EmbedTokenPlugTest do
       assert {:ok, {"sarah", nil}} = Token.verify(response.assigns.embed_token)
       refute Map.has_key?(response.resp_cookies, @session_key)
     end
+
+    test "every embed response varies on the header", %{conn: conn} do
+      # A shared cache must not hand a framed visitor the top-level response,
+      # or the reverse.
+      for sec_fetch_dest <- ["document", "iframe", nil] do
+        response = embed_request_writing_session(conn, sec_fetch_dest)
+        assert "sec-fetch-dest" in get_resp_header(response, "vary")
+      end
+    end
+
+    test "a non-embed response does not vary on it", %{conn: conn} do
+      conn =
+        conn
+        |> Map.put(:request_path, "/sarah")
+        |> Map.put(:query_string, "")
+        |> EmbedTokenPlug.call([])
+
+      assert get_resp_header(conn, "vary") == []
+    end
   end
 
   # An `?embed=1` request whose page then writes session state, as rendering
