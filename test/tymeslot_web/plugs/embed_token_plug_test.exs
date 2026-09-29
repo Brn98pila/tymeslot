@@ -227,6 +227,48 @@ defmodule TymeslotWeb.Plugs.EmbedTokenPlugTest do
     end
   end
 
+  # A copied embed URL opened in its own tab used to be treated as an embed,
+  # so the CSRF state its page generated was never written back. The page
+  # connects to the session socket when it is not framed, found no session
+  # there and reloaded for ever. `Sec-Fetch-Dest` tells the two apart.
+  describe "Sec-Fetch-Dest" do
+    test "a top-level visit (document) is served as an ordinary page", %{conn: conn} do
+      response = embed_request_writing_session(conn, "document")
+
+      refute response.assigns[:embed_token]
+      assert Map.has_key?(response.resp_cookies, @session_key)
+    end
+
+    test "a framed request (iframe) keeps the embed behaviour", %{conn: conn} do
+      response = embed_request_writing_session(conn, "iframe")
+
+      assert {:ok, {"sarah", nil}} = Token.verify(response.assigns.embed_token)
+      refute Map.has_key?(response.resp_cookies, @session_key)
+    end
+
+    test "a request without the header keeps the embed behaviour", %{conn: conn} do
+      response = embed_request_writing_session(conn, nil)
+
+      assert {:ok, {"sarah", nil}} = Token.verify(response.assigns.embed_token)
+      refute Map.has_key?(response.resp_cookies, @session_key)
+    end
+  end
+
+  # An `?embed=1` request whose page then writes session state, as rendering
+  # the CSRF token does.
+  defp embed_request_writing_session(conn, sec_fetch_dest) do
+    conn =
+      if sec_fetch_dest, do: put_req_header(conn, "sec-fetch-dest", sec_fetch_dest), else: conn
+
+    conn
+    |> Map.put(:request_path, "/sarah")
+    |> Map.put(:query_string, "embed=1")
+    |> start_session()
+    |> EmbedTokenPlug.call([])
+    |> put_session(:csrf_state, "generated-by-the-page")
+    |> send_resp(200, "ok")
+  end
+
   # The `:drop` vs `:ignore` difference only materialises in Plug.Session's
   # before_send callback, so these run the request through the real session
   # plug and assert on the response cookies rather than on conn internals.

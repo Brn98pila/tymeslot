@@ -1,6 +1,6 @@
 defmodule TymeslotWeb.Plugs.EmbedTokenPlug do
   @moduledoc """
-  Generates a signed embed token for requests with `?embed=1`.
+  Generates a signed embed token for framed requests with `?embed=1`.
 
   The token is stored in `conn.assigns[:embed_token]` and passed to
   LiveView hooks via the router's session function, enabling WebSocket
@@ -18,6 +18,15 @@ defmodule TymeslotWeb.Plugs.EmbedTokenPlug do
   so `:drop` answered it with a site-wide `Set-Cookie: _tymeslot_key=;
   expires=1970; path=/` and logged the organiser out of their own dashboard on
   the next navigation (issue #96).
+
+  A request the browser marks `Sec-Fetch-Dest: document` is a top-level
+  visit (the embed URL copied into its own tab), not a frame, so `embed=1` is
+  ignored and it is served as an ordinary page. Treating it as an embed wrote
+  no session, and the page, which only uses the session-free embed socket when
+  it is actually framed, then connected to the session socket without one and
+  reloaded itself for ever. A framed request sends `iframe`; a request without
+  the header (an older browser, a non-browser client) keeps the embed
+  behaviour, as before.
   """
 
   @behaviour Plug
@@ -36,7 +45,7 @@ defmodule TymeslotWeb.Plugs.EmbedTokenPlug do
   def call(conn, _opts) do
     conn = fetch_query_params(conn)
 
-    if conn.query_params["embed"] == "1" do
+    if embed_request?(conn) do
       # Write no session cookie for embed requests: the browser would reject it
       # (SameSite=Lax in a cross-site iframe). `:ignore` drops the write only;
       # `:drop` would delete the cookie the caller sent us. See the moduledoc.
@@ -53,6 +62,11 @@ defmodule TymeslotWeb.Plugs.EmbedTokenPlug do
     else
       conn
     end
+  end
+
+  defp embed_request?(conn) do
+    conn.query_params["embed"] == "1" and
+      get_req_header(conn, "sec-fetch-dest") != ["document"]
   end
 
   # Prefer the browser-enforced Referer header over the client-supplied
