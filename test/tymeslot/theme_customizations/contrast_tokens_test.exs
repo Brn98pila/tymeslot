@@ -110,6 +110,20 @@ defmodule Tymeslot.ThemeCustomizations.ContrastTokensTest do
 
       assert failures == []
     end
+
+    test "a light palette derived from any seed clears AA on its filled controls" do
+      failures =
+        Enum.flat_map(@seeds, fn seed ->
+          %{colors: colors} = PaletteDerivation.derive_palette(seed, :light)
+
+          case failing_pairs(ContrastTokens.derive(colors)) do
+            [] -> []
+            bad -> [{seed, bad}]
+          end
+        end)
+
+      assert failures == []
+    end
   end
 
   describe "derive/1 on a light palette" do

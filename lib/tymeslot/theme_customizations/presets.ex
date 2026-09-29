@@ -4,9 +4,19 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
   and lookups over it. The single place preset data lives.
   """
 
+  @typedoc "A palette's colours, keyed `primary`, `primary_hover`, `secondary`, `accent`, `background`, `surface`, `text`, `text_secondary`."
+  @type colours :: %{atom() => String.t()}
+
+  @typedoc """
+  A colour scheme. `colors` is the set for `mode`; a `:light` scheme may carry
+  `dark_colors`, its counterpart for a theme that follows the visitor's OS. A
+  `:dark` scheme never has `dark_colors`.
+  """
   @type color_scheme_preset :: %{
           required(:name) => String.t(),
-          required(:colors) => %{atom() => String.t()}
+          required(:mode) => :light | :dark,
+          required(:colors) => colours(),
+          optional(:dark_colors) => colours()
         }
   @type gradient_preset :: %{required(:name) => String.t(), required(:value) => String.t()}
   @type image_preset :: %{
@@ -27,6 +37,7 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
   @color_schemes %{
     "default" => %{
       name: "Default Turquoise",
+      mode: :dark,
       colors: %{
         primary: "#06b6d4",
         primary_hover: "#0891b2",
@@ -40,6 +51,7 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
     },
     "turquoise" => %{
       name: "Arctic Blue",
+      mode: :dark,
       colors: %{
         primary: "#0284c7",
         primary_hover: "#0369a1",
@@ -53,6 +65,7 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
     },
     "purple" => %{
       name: "Purple Dream",
+      mode: :dark,
       colors: %{
         primary: "#8b5cf6",
         primary_hover: "#7c3aed",
@@ -66,6 +79,7 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
     },
     "sunset" => %{
       name: "Sunset Glow",
+      mode: :dark,
       colors: %{
         primary: "#f97316",
         primary_hover: "#ea580c",
@@ -79,6 +93,7 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
     },
     "ocean" => %{
       name: "Ocean Breeze",
+      mode: :dark,
       colors: %{
         primary: "#0ea5e9",
         primary_hover: "#0284c7",
@@ -92,6 +107,7 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
     },
     "forest" => %{
       name: "Forest Green",
+      mode: :dark,
       colors: %{
         primary: "#10b981",
         primary_hover: "#059669",
@@ -105,6 +121,7 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
     },
     "rose" => %{
       name: "Rose Gold",
+      mode: :dark,
       colors: %{
         primary: "#f43f5e",
         primary_hover: "#e11d48",
@@ -118,6 +135,7 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
     },
     "monochrome" => %{
       name: "Monochrome",
+      mode: :dark,
       colors: %{
         primary: "#6b7280",
         primary_hover: "#4b5563",

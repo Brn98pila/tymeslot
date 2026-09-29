@@ -84,6 +84,64 @@ defmodule Tymeslot.ThemeCustomizationsPaletteDerivationTest do
     end
   end
 
+  describe "derive_palette/2" do
+    @seeds ~w(#ff0000 #ffff00 #00ff88 #22d3ee #7c3aed #000000 #ffffff #808080 #123456 #ff6b35)
+
+    test "derives a dark palette unless told otherwise" do
+      for seed <- @seeds do
+        assert %{mode: :dark} = palette = PaletteDerivation.derive_palette(seed)
+        assert PaletteDerivation.derive_palette(seed, :dark) == palette
+        refute Map.has_key?(palette, :dark_colors)
+      end
+    end
+
+    test "a light palette has the preset shape, with the seed as primary" do
+      %{name: "Custom", mode: :light, colors: colors, dark_colors: dark_colors} =
+        PaletteDerivation.derive_palette("#FF6B35", :light)
+
+      keys = ~w(accent background primary primary_hover secondary surface text text_secondary)a
+
+      assert Enum.sort(Map.keys(colors)) == keys
+      assert Enum.sort(Map.keys(dark_colors)) == keys
+      assert colors.primary == "#ff6b35"
+
+      for {key, value} <- colors do
+        assert value =~ ~r/^#[0-9a-f]{6}$/, "expected lowercase hex for #{key}, got #{value}"
+      end
+    end
+
+    test "a light palette puts legible dark text on a near-white ground, whatever the seed" do
+      failures =
+        for seed <- @seeds,
+            %{colors: c} = PaletteDerivation.derive_palette(seed, :light),
+            problem <- [
+              Colour.relative_luminance(c.background) > 0.9 || :background_not_light,
+              Colour.contrast_ratio(c.text, c.background) >= 7.0 || :text,
+              Colour.contrast_ratio(c.text_secondary, c.background) >= 4.5 ||
+                :text_secondary_on_background,
+              Colour.contrast_ratio(c.text_secondary, c.surface) >= 4.5 ||
+                :text_secondary_on_surface
+            ],
+            problem != true,
+            do: {seed, problem}
+
+      assert failures == []
+    end
+
+    test "a light palette's dark counterpart is the dark palette of the same seed" do
+      for seed <- @seeds do
+        assert PaletteDerivation.derive_palette(seed, :light).dark_colors ==
+                 PaletteDerivation.derive_palette(seed, :dark).colors
+      end
+    end
+
+    test "an invalid or missing seed derives nothing in either mode" do
+      assert PaletteDerivation.derive_palette(nil, :light) == nil
+      assert PaletteDerivation.derive_palette("#zzzzzz", :light) == nil
+      assert PaletteDerivation.derive_palette("#1234", :dark) == nil
+    end
+  end
+
   # Approximate relative luminance from hex — good enough to compare two colours.
   defp luminance("#" <> rgb) do
     {r, g, b} =

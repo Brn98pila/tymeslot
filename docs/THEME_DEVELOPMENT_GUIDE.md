@@ -692,6 +692,8 @@ A theme's settings are stored in the `settings` map of its `theme_customizations
 
 Colours are validated by `Tymeslot.Utils.Colour.cast_hex/1`: `#RGB` or `#RRGGBB`, stored as lower-case `#rrggbb`.
 
+A colour scheme in `Tymeslot.ThemeCustomizations.Presets` is `%{name:, mode: :light | :dark, colors:, dark_colors:}`: `colors` is the set for `mode`, and a light scheme may carry `dark_colors`, its counterpart for a theme that follows the visitor's OS (a dark scheme has none). The eight shipped schemes are all dark. A custom seed is derived in the same shape by `PaletteDerivation.derive_palette(seed, mode)` (`:dark` by default); a light derivation's `dark_colors` is the dark derivation of the same seed.
+
 Each spec's `tokens/2` turns the saved settings, plus per-request overrides, into a `%Tokens{}`: `vars` (the palette colours and contrast pairs as `--theme-*` custom properties, the palette's background as `--theme-canvas`, and the background option as `--theme-background`), `dark_vars` (empty for Quill and Rhythm), and `background`, a descriptor (`%{kind: :gradient | :color | :image | :video, ...}`) the theme wrapper renders. `Options.Palette.vars/2` and `Options.Background.descriptor/1` hold the shared logic, so a spec's `tokens/2` is a few lines. Callers go through `ThemeCustomizations.tokens/3`, which falls back to the theme's defaults when nothing is saved.
 
 A per-embed `?primary-color=` arrives in `tokens/2` as `%{primary_color: hex}`; a spec with a palette must honour it.

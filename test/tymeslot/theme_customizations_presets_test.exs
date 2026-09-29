@@ -45,6 +45,21 @@ defmodule Tymeslot.ThemeCustomizationsPresetsTest do
       assert Map.has_key?(preset, :colors)
     end
 
+    test "every colour scheme names its mode, and only a light one carries dark colours" do
+      schemes = Map.values(Presets.get_color_schemes())
+
+      assert schemes != []
+      assert Enum.reject(schemes, &(&1.mode in [:light, :dark])) == []
+
+      # A light scheme's dark counterpart is optional; a dark scheme has none.
+      assert Enum.filter(schemes, &(&1.mode == :dark and Map.has_key?(&1, :dark_colors))) == []
+
+      assert Enum.reject(schemes, fn scheme ->
+               scheme.mode == :dark or not Map.has_key?(scheme, :dark_colors) or
+                 Map.keys(scheme.dark_colors) == Map.keys(scheme.colors)
+             end) == []
+    end
+
     test "find_preset_by_id/2 finds gradient" do
       preset = Presets.find_preset_by_id(:gradient, "gradient_1")
 
