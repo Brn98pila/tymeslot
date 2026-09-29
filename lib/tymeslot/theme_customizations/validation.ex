@@ -6,6 +6,7 @@ defmodule Tymeslot.ThemeCustomizations.Validation do
 
   require Logger
 
+  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias TymeslotWeb.Helpers.UploadConstraints
 
   # Tokens that, if present in generated theme CSS, indicate a `</style>` break-out
@@ -64,7 +65,7 @@ defmodule Tymeslot.ThemeCustomizations.Validation do
 
   def sanitize_css(other) do
     Logger.error("theme custom CSS sanitize_css received non-binary input",
-      type: inspect(other)
+      type: LogFormat.reason(other)
     )
 
     ""

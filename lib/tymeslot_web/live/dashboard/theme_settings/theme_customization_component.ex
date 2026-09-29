@@ -21,6 +21,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
   require Logger
 
   alias Phoenix.LiveView.Socket
+  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.Themes.Catalog
@@ -308,7 +309,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
     # Validate user_id before proceeding
     if is_nil(user_id) or not is_integer(user_id) or user_id <= 0 do
       Logger.error("Invalid user_id in theme customization",
-        user_id: inspect(user_id),
+        user_id: LogFormat.reason(user_id),
         profile_id: profile_id
       )
 
@@ -332,7 +333,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationComponent do
 
         {:error, :invalid_user_id} ->
           Logger.error("Rate limiter rejected invalid user_id",
-            user_id: inspect(user_id),
+            user_id: LogFormat.reason(user_id),
             profile_id: profile_id
           )
 

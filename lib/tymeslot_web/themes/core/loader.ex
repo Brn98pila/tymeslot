@@ -7,6 +7,7 @@ defmodule TymeslotWeb.Themes.Core.Loader do
   warning, which `--warnings-as-errors` turns into a failed build.
   """
 
+  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias TymeslotWeb.Themes.Core.Registry
   require Logger
 
@@ -26,7 +27,7 @@ defmodule TymeslotWeb.Themes.Core.Loader do
         error
 
       {:error, reason} = error ->
-        Logger.error("Failed to load theme", theme_id: theme_id, reason: inspect(reason))
+        Logger.error("Failed to load theme", theme_id: theme_id, reason: LogFormat.reason(reason))
         error
     end
   end

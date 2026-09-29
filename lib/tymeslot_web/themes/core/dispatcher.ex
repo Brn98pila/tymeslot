@@ -8,6 +8,7 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
   """
   use TymeslotWeb, :live_view
 
+  alias Tymeslot.Infrastructure.ErrorTracking
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
 
   alias TymeslotWeb.Themes.Core.{
@@ -184,12 +185,7 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
           render.(module)
         rescue
           e ->
-            Logger.error("Theme render failed",
-              theme_id: theme_id,
-              theme_module: inspect(module),
-              error: inspect(e)
-            )
-
+            ErrorTracking.report_error(e, __STACKTRACE__, %{theme_id: theme_id})
             render_error(assigns, failure_message)
         end
     end

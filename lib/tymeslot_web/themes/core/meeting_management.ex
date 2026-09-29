@@ -9,6 +9,7 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   require Logger
 
   alias Tymeslot.Bookings.Policy
+  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Utils.DateTimeUtils.Duration
@@ -79,7 +80,7 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
             {:error, reason} ->
               Logger.warning("Guest cancellation failed",
                 meeting_uid: meeting.uid,
-                reason: inspect(reason)
+                reason: LogFormat.reason(reason)
               )
 
               {:noreply,

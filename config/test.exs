@@ -102,6 +102,14 @@ config :tymeslot, Oban,
   pruner: [max_age: {1, :hour}],
   testing: :manual
 
+# ErrorTracker stays off in tests: a test that exercises it switches it on
+# for itself (and must then be async: false).
+config :error_tracker, enabled: false
+
+# The per-fingerprint throttle's counters are global, so they would carry a
+# count from one test into the next; tests that exercise it switch it on.
+config :tymeslot, :error_tracking_throttle, max_per_window: nil
+
 # In test we don't send emails
 config :tymeslot, Tymeslot.Mailer, adapter: Swoosh.Adapters.Test
 
