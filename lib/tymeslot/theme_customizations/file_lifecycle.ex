@@ -17,12 +17,6 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
   alias Tymeslot.ThemeCustomizations.Storage
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
-  # The upload settings a spec's `asset_fields/0` names for the shipped themes.
-  @type cleanup_entry :: %{
-          optional(:background_image_path) => String.t() | nil,
-          optional(:background_video_path) => String.t() | nil
-        }
-
   @doc """
   Deletes the files an update replaced: every asset field of the theme's spec
   whose stored path changed between the record before and after the update.
@@ -67,26 +61,6 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
     |> Enum.each(fn {field, kind} ->
       if path = setting(customization, field), do: delete_asset(path, kind, context, "#{kind}")
     end)
-  end
-
-  @doc """
-  Legacy cleanup over a cleanup entry from
-  `Backgrounds.determine_cleanup_files/2`: deletes the referenced image and
-  video files (no variant handling).
-  """
-  @spec cleanup_old_backgrounds(cleanup_entry()) :: :ok
-  def cleanup_old_backgrounds(customization) do
-    context = %{operation: "legacy_cleanup"}
-
-    if image_path = Map.get(customization, :background_image_path) do
-      delete_file(image_path, context, "image")
-    end
-
-    if video_path = Map.get(customization, :background_video_path) do
-      delete_file(video_path, context, "video")
-    end
-
-    :ok
   end
 
   # --- Private helpers ----------------------------------------------------

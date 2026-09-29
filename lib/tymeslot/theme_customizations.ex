@@ -19,7 +19,6 @@ defmodule Tymeslot.ThemeCustomizations do
   # Functional submodules
   alias __MODULE__.{
     Assets,
-    Backgrounds,
     Css,
     DataTransform,
     FileLifecycle,
@@ -290,16 +289,11 @@ defmodule Tymeslot.ThemeCustomizations do
       # customisation is created with it and a change is judged against it.
       attrs = Map.merge(to_map(current), changes)
 
-      with {:ok, saved} <-
-             profile_id
-             |> upsert_theme_customization(theme_id, attrs)
-             |> format_persistence_error() do
-        current
-        |> Backgrounds.determine_cleanup_files(saved)
-        |> Enum.each(&FileLifecycle.cleanup_old_backgrounds/1)
-
-        {:ok, saved}
-      end
+      # The update deletes any upload the change stops naming
+      # (`update_theme_customization/2`), so nothing is cleaned up here.
+      profile_id
+      |> upsert_theme_customization(theme_id, attrs)
+      |> format_persistence_error()
     else
       :error -> {:error, option_unavailable()}
     end
