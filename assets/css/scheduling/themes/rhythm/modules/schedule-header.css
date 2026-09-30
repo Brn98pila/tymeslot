@@ -207,7 +207,9 @@ html.rhythm-theme[data-embedded] .tz-picker__panel {
 
 /* Bare minimum for extremely constrained viewports — hide the whole header */
 @media (max-height: 350px) {
-  .schedule-header {
-    display: none;
+  :where(html:not([data-embedded])) {
+    .schedule-header {
+      display: none;
+    }
   }
 }

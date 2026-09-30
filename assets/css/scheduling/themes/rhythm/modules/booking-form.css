@@ -241,62 +241,66 @@
 
 /* Short screens — compact meeting summary, smaller textarea */
 @media (max-height: 600px) {
-  .meeting-summary {
-    padding: var(--space-3xs) var(--space-xs);
-    margin-bottom: var(--space-xs);
-    gap: 0;
-  }
+  :where(html:not([data-embedded])) {
+    .meeting-summary {
+      padding: var(--space-3xs) var(--space-xs);
+      margin-bottom: var(--space-xs);
+      gap: 0;
+    }
 
-  .meeting-summary .summary-row {
-    gap: var(--space-sm);
-  }
+    .meeting-summary .summary-row {
+      gap: var(--space-sm);
+    }
 
-  .meeting-summary .summary-icon {
-    display: none;
-  }
+    .meeting-summary .summary-icon {
+      display: none;
+    }
 
-  .meeting-summary .summary-label {
-    display: inline;
-    margin-top: 0;
-  }
+    .meeting-summary .summary-label {
+      display: inline;
+      margin-top: 0;
+    }
 
-  .meeting-summary .summary-label::before {
-    content: " · ";
-  }
+    .meeting-summary .summary-label::before {
+      content: " · ";
+    }
 
-  .meeting-summary .summary-value {
-    display: inline;
-  }
+    .meeting-summary .summary-value {
+      display: inline;
+    }
 
-  /* Textarea — compact height */
-  .booking-form textarea.input {
-    min-height: auto;
-    max-height: 4em;
-  }
+    /* Textarea — compact height */
+    .booking-form textarea.input {
+      min-height: auto;
+      max-height: 4em;
+    }
 
-  /* Tighter form gaps */
-  .booking-form {
-    gap: var(--space-xs);
-  }
+    /* Tighter form gaps */
+    .booking-form {
+      gap: var(--space-xs);
+    }
 
-  .rhythm-theme-wrapper .booking-form .label {
-    margin-bottom: var(--space-3xs);
+    .rhythm-theme-wrapper .booking-form .label {
+      margin-bottom: var(--space-3xs);
+    }
   }
 }
 
 /* Extremely short screens — minimal booking form */
 @media (max-height: 400px) {
-  .meeting-summary {
-    padding: var(--space-3xs) var(--space-2xs);
-    margin-bottom: var(--space-3xs);
-  }
+  :where(html:not([data-embedded])) {
+    .meeting-summary {
+      padding: var(--space-3xs) var(--space-2xs);
+      margin-bottom: var(--space-3xs);
+    }
 
-  .booking-form textarea.input {
-    max-height: 2.5em;
-  }
+    .booking-form textarea.input {
+      max-height: 2.5em;
+    }
 
-  .booking-form .slide-actions {
-    padding-top: var(--space-3xs);
+    .booking-form .slide-actions {
+      padding-top: var(--space-3xs);
+    }
   }
 }
 

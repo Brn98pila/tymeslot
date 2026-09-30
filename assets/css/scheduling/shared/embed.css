@@ -10,7 +10,16 @@
      .booker-page    the page grid (content row plus footer row)
      .booker-card    every card that fills the column layout
      .booker-scroll  the time-slot scroll region
-   Each theme's modules/iframe.css keeps only what is specific to it. */
+   Each theme's modules/iframe.css keeps only what is specific to it.
+
+   Height media queries (height, aspect-ratio, orientation) never apply in an
+   embed: there the viewport is the iframe, whose height iframe_embed.js sets
+   from the content, so a rule that changes the content's height at a
+   threshold would decide the height it tests, and the page would settle above
+   or below it depending on the step the visitor came from. Each theme nests
+   the rules of such a block in `:where(html:not([data-embedded]))`, which
+   keeps their specificity; `mix css.check_tokens` rejects a block that does
+   not. */
 
 html.scheduling-app[data-embedded] {
   min-height: auto;

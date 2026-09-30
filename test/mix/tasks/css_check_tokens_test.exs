@@ -165,6 +165,53 @@ defmodule Mix.Tasks.Css.CheckTokensTest do
     assert output =~ "Missing token: --icon-sm"
   end
 
+  describe "height media queries" do
+    test "reject a block whose rules also apply to an embedded page",
+         %{root: root, modules: modules} do
+      File.write!(
+        Path.join(modules, "card.css"),
+        ".card {\n  color: var(--ink-1);\n}\n\n" <>
+          "@media (max-height: 600px) {\n  .card {\n    aspect-ratio: auto;\n  }\n}\n"
+      )
+
+      assert {output, 1} = run_script(root)
+      assert output =~ "themes/demo/modules/card.css:5: @media (max-height: 600px)"
+    end
+
+    test "accept a block whose rules are nested in the embed exclusion",
+         %{root: root, modules: modules} do
+      File.write!(
+        Path.join(modules, "card.css"),
+        "@media (max-height: 600px) and (min-width: 40rem) {\n" <>
+          "  :where(html:not([data-embedded])) {\n    .card {\n      aspect-ratio: auto;\n    }\n  }\n}\n"
+      )
+
+      assert {output, 0} = run_script(root)
+      assert output =~ "Every height media query leaves embedded pages alone"
+    end
+
+    test "reject a rule left beside the embed exclusion", %{root: root, modules: modules} do
+      File.write!(
+        Path.join(modules, "card.css"),
+        "@media (orientation: landscape) {\n" <>
+          "  :where(html:not([data-embedded])) {\n    .card {\n      aspect-ratio: auto;\n    }\n  }\n\n" <>
+          "  .card__title {\n    display: none;\n  }\n}\n"
+      )
+
+      assert {output, 1} = run_script(root)
+      assert output =~ "themes/demo/modules/card.css:1: @media (orientation: landscape)"
+    end
+
+    test "leave width queries alone", %{root: root, modules: modules} do
+      File.write!(
+        Path.join(modules, "card.css"),
+        "@media (max-width: 640px) {\n  .card {\n    display: none;\n  }\n}\n"
+      )
+
+      assert {_output, 0} = run_script(root)
+    end
+  end
+
   defp run_script(root) do
     System.cmd("bash", [@script], env: [{"SCHEDULING_CSS_ROOT", root}], stderr_to_stdout: true)
   end

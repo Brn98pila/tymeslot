@@ -71,8 +71,10 @@ body.quill-theme {
    short laptop heights above this. Core owns the banner's grid slot, so the
    responsive hide lives here, not in SaaS. */
 @media (max-height: 500px) {
-  .main-gradient.theme-grid .branding-footer {
-    display: none;
+  :where(html:not([data-embedded])) {
+    .main-gradient.theme-grid .branding-footer {
+      display: none;
+    }
   }
 }
 
@@ -80,14 +82,18 @@ body.quill-theme {
    viewport-bounded schedule card claims the reclaimed height instead of forcing
    a page scroll. Two tiers keep the transition smooth as the window shortens. */
 @media (max-height: 800px) {
-  .main-gradient.theme-grid .content-area {
-    padding-bottom: var(--space-2xl);
+  :where(html:not([data-embedded])) {
+    .main-gradient.theme-grid .content-area {
+      padding-bottom: var(--space-2xl);
+    }
   }
 }
 
 @media (max-height: 640px) {
-  .main-gradient.theme-grid .content-area {
-    padding-bottom: var(--space-md);
+  :where(html:not([data-embedded])) {
+    .main-gradient.theme-grid .content-area {
+      padding-bottom: var(--space-md);
+    }
   }
 }
 
@@ -289,37 +295,43 @@ body.quill-theme {
 
 /* Medium short screens — reduce vertical padding */
 @media (max-height: 700px) and (min-height: 601px) {
-  .quill-container {
-    padding-top: var(--space-xs);
-    padding-bottom: var(--space-xs);
-  }
+  :where(html:not([data-embedded])) {
+    .quill-container {
+      padding-top: var(--space-xs);
+      padding-bottom: var(--space-xs);
+    }
 
-  .section-header {
-    margin-bottom: var(--space-md);
+    .section-header {
+      margin-bottom: var(--space-md);
+    }
   }
 }
 
 /* Short screens — compact spacing */
 @media (max-height: 600px) {
-  .section-header {
-    font-size: var(--theme-font-size-md);
-    margin-bottom: var(--space-xs);
-  }
+  :where(html:not([data-embedded])) {
+    .section-header {
+      font-size: var(--theme-font-size-md);
+      margin-bottom: var(--space-xs);
+    }
 
-  .content-area {
-    gap: var(--space-xs);
+    .content-area {
+      gap: var(--space-xs);
+    }
   }
 }
 
 /* Extremely short screens — minimal chrome */
 @media (max-height: 400px) {
-  .section-header {
-    font-size: var(--theme-font-size-sm);
-  }
+  :where(html:not([data-embedded])) {
+    .section-header {
+      font-size: var(--theme-font-size-sm);
+    }
 
-  .quill-container {
-    padding-left: var(--space-xs);
-    padding-right: var(--space-xs);
+    .quill-container {
+      padding-left: var(--space-xs);
+      padding-right: var(--space-xs);
+    }
   }
 }
 

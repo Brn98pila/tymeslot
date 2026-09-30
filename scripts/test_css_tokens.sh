@@ -12,6 +12,7 @@ set -e
 SCHEDULING_CSS_ROOT="${SCHEDULING_CSS_ROOT:-assets/css/scheduling}"
 THEMES_BASE="$SCHEDULING_CSS_ROOT/themes"
 LITERALS_FAILED=0
+EMBED_QUERIES_FAILED=0
 SHARED_FAILED=0
 FAILED=0
 TOTAL_VIOLATIONS=0
@@ -521,6 +522,56 @@ test_keyframes() {
   echo ""
 }
 
+# A media query on the viewport's height (height, aspect-ratio, orientation)
+# sees the iframe's own height inside an embed, and iframe_embed.js sets that
+# height from the content. A rule that changes the content's height at a
+# threshold then decides the very height it tests, so the page can settle
+# above or below the threshold depending on the step the visitor came from.
+# Every such @media block therefore holds exactly one rule,
+# `:where(html:not([data-embedded])) { ... }`, with the block's rules nested
+# inside it: they apply to a page opened on its own and never to an embed, at
+# the specificity they had without the wrapper. Scans the whole scheduling tree.
+test_embed_height_queries() {
+  echo "📐 Testing that no height media query applies to an embedded page..."
+
+  local violations
+  violations=$(find "$SCHEDULING_CSS_ROOT" -name "*.css" -type f | sort | while IFS= read -r f; do
+    perl -0777 -ne '
+      s{/\*.*?\*/}{ $x = $&; $x =~ tr/\n//cd; $x }ges;
+      my $css = $_;
+      # The index just past the brace that closes the one opened before $from.
+      sub close_of { my ($s, $from) = @_; my $depth = 1; my $i = $from;
+        while ($depth && $i < length $s) { my $c = substr($s, $i, 1);
+          $depth++ if $c eq "{"; $depth-- if $c eq "}"; $i++ } $i }
+      while ($css =~ /\@media([^{;]*)\{/g) {
+        my ($prelude, $start) = ($1, pos($css));
+        next unless $prelude =~ /\b(?:min-|max-)?(?:device-)?(?:height|aspect-ratio|orientation)\b/;
+        my $body = substr($css, $start, close_of($css, $start) - 1 - $start);
+        my $ok = 0;
+        if ($body =~ /\A\s*:where\(html:not\(\[data-embedded\]\)\)\s*\{/g) {
+          $ok = substr($body, close_of($body, pos($body))) =~ /\A\s*\z/;
+        }
+        unless ($ok) {
+          my $line = 1 + (substr($css, 0, $start) =~ tr/\n//);
+          $prelude =~ s/^\s+|\s+$//g;
+          print "$ARGV:$line: \@media $prelude\n";
+        }
+        pos($css) = $start;
+      }
+    ' "$f"
+  done)
+
+  if [ -n "$violations" ]; then
+    echo -e "${RED}✗ Height media queries that also apply to an embedded page (nest the block's rules in :where(html:not([data-embedded]))):${NC}"
+    echo "$violations"
+    EMBED_QUERIES_FAILED=1
+    TOTAL_VIOLATIONS=$((TOTAL_VIOLATIONS + $(echo "$violations" | grep -c "^")))
+  else
+    echo -e "${GREEN}✓ Every height media query leaves embedded pages alone${NC}"
+  fi
+  echo ""
+}
+
 # Colour literals (rgb(), rgba(), hsl(), hsla(), hex) belong only in token
 # files: each theme's modules/variables.css, shared/tokens.css, and
 # shared/brand-tokens.css (the Tailwind @theme block). Everything else reads
@@ -652,6 +703,7 @@ done
 test_shared_components
 test_shared_token_contract
 test_colour_literals
+test_embed_height_queries
 
 # Overall summary
 echo ""
@@ -659,7 +711,7 @@ echo "================================"
 echo "📊 Summary"
 echo "================================"
 echo "Themes tested: $THEMES_TESTED"
-if [ $THEMES_FAILED -eq 0 ] && [ $SHARED_FAILED -eq 0 ] && [ $LITERALS_FAILED -eq 0 ]; then
+if [ $THEMES_FAILED -eq 0 ] && [ $SHARED_FAILED -eq 0 ] && [ $LITERALS_FAILED -eq 0 ] && [ $EMBED_QUERIES_FAILED -eq 0 ]; then
   echo -e "${GREEN}✅ All themes passed!${NC}"
   echo "All theme CSS files are properly tokenized."
   exit 0
@@ -673,5 +725,6 @@ else
   echo "  • Use calc() with tokens for complex values"
   echo "  • Add new tokens to variables.css if needed"
   echo "  • Move colour literals into the theme's variables.css and read them through a token"
+  echo "  • Nest a height media query's rules in :where(html:not([data-embedded]))"
   exit 1
 fi

@@ -207,8 +207,10 @@
    an internal scroll. Tall screens (large monitors) keep the progress indicator.
    Specificity raised past the `.flex` utility the wrapper also carries. */
 @media (max-height: 700px) {
-  .quill-theme-wrapper .step-navigation-wrapper {
-    display: none;
+  :where(html:not([data-embedded])) {
+    .quill-theme-wrapper .step-navigation-wrapper {
+      display: none;
+    }
   }
 }
 
@@ -216,24 +218,30 @@
    the calendar gets more room before it must scroll internally. Coordinated with
    the matching 800px gutter/padding tiers in base.css and calendar.css. */
 @media (max-height: 800px) {
-  .step-navigation-wrapper {
-    padding-top: var(--space-2xs);
-    padding-bottom: var(--space-2xs);
+  :where(html:not([data-embedded])) {
+    .step-navigation-wrapper {
+      padding-top: var(--space-2xs);
+      padding-bottom: var(--space-2xs);
+    }
   }
 }
 
 /* Very short viewports — drop the step labels so the band stays compact.
-   Specificity boosted with html.quill-theme to beat the display: block base. */
+   Same specificity as the display: block base, which it follows. */
 @media (max-height: 500px) {
-  html.quill-theme .step-item-wrapper .step-label {
-    display: none;
+  :where(html:not([data-embedded])) {
+    .quill-theme-wrapper .step-item-wrapper .step-label {
+      display: none;
+    }
   }
 }
 
 /* Extremely short / narrow viewports — hide the whole step navigation card. */
 @media (max-height: 400px) {
-  .step-navigation-card {
-    display: none;
+  :where(html:not([data-embedded])) {
+    .step-navigation-card {
+      display: none;
+    }
   }
 }
 

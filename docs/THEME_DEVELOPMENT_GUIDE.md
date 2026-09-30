@@ -410,7 +410,7 @@ The `cqi` unit resolves against the nearest ancestor with `container-type: inlin
 ```
 
 **What stays as `@media`:**
-- Height-based switches (`@media (max-height: ...)`) — container height queries have limited support
+- Height-based switches (`@media (max-height: ...)`) — container height queries have limited support. Such a switch is for a page opened on its own: nest its rules in `:where(html:not([data-embedded]))`, so it never applies in an embed, whose height follows its content (`mix css.check_tokens` checks it; see `shared/embed.css`)
 - `prefers-reduced-motion` and `print`, co-located in the component they affect
 - Elements outside the container query context (e.g. language switcher, which sits outside the primary content container) — these must use viewport `@media` queries since `@container` only matches descendants of the container element
 

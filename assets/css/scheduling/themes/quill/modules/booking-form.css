@@ -408,35 +408,39 @@
 
 /* Short screens — compact booking form */
 @media (max-height: 700px) {
-  /* Constrain textarea height (rows attribute sets intrinsic size,
-     min-height from variables.css must also be overridden) */
-  .booking-form-card textarea.input {
-    min-height: 0;
-    max-height: 5rem;
-  }
+  :where(html:not([data-embedded])) {
+    /* Constrain textarea height (rows attribute sets intrinsic size,
+       min-height from variables.css must also be overridden) */
+    .booking-form-card textarea.input {
+      min-height: 0;
+      max-height: 5rem;
+    }
 
-  /* Tighter button cluster margin */
-  .glass-morphism-card form[phx-change="validate"] .booking-actions {
-    margin-top: var(--space-md);
-  }
+    /* Tighter button cluster margin */
+    .glass-morphism-card form[phx-change="validate"] .booking-actions {
+      margin-top: var(--space-md);
+    }
 
-  /* Compact booking header */
-  .booking-form-card .section-header {
-    font-size: var(--theme-font-size-lg);
-    margin-bottom: var(--space-xs);
+    /* Compact booking header */
+    .booking-form-card .section-header {
+      font-size: var(--theme-font-size-lg);
+      margin-bottom: var(--space-xs);
+    }
   }
 }
 
 @media (max-height: 500px) {
-  /* Minimal textarea */
-  .booking-form-card textarea.input {
-    min-height: 0;
-    max-height: 3rem;
-  }
+  :where(html:not([data-embedded])) {
+    /* Minimal textarea */
+    .booking-form-card textarea.input {
+      min-height: 0;
+      max-height: 3rem;
+    }
 
-  /* Minimal button cluster margin */
-  .glass-morphism-card form[phx-change="validate"] .booking-actions {
-    margin-top: var(--space-xs);
+    /* Minimal button cluster margin */
+    .glass-morphism-card form[phx-change="validate"] .booking-actions {
+      margin-top: var(--space-xs);
+    }
   }
 }
 

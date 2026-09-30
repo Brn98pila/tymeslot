@@ -173,39 +173,45 @@
    ============================================================================ */
 
 @media (max-height: 600px) {
-  .avatar-image {
-    width: var(--avatar-size-lg);
-    height: var(--avatar-size-lg);
-  }
+  :where(html:not([data-embedded])) {
+    .avatar-image {
+      width: var(--avatar-size-lg);
+      height: var(--avatar-size-lg);
+    }
 
-  .organizer-profile {
-    margin-bottom: var(--space-sm);
-    gap: var(--space-sm);
-  }
+    .organizer-profile {
+      margin-bottom: var(--space-sm);
+      gap: var(--space-sm);
+    }
 
-  /* Collapse meeting-type descriptions when vertical space is tight, so more
-     cards fit without scrolling. Visually collapsed only — kept in the DOM and
-     accessibility tree so screen readers still reach the full description. */
-  .duration-description {
-    max-height: 0;
-    overflow: hidden;
-    opacity: 0;
+    /* Collapse meeting-type descriptions when vertical space is tight, so more
+       cards fit without scrolling. Visually collapsed only — kept in the DOM and
+       accessibility tree so screen readers still reach the full description. */
+    .duration-description {
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+    }
   }
 }
 
 @media (max-height: 500px) {
-  .organizer-profile {
-    margin-bottom: 0;
-  }
+  :where(html:not([data-embedded])) {
+    .organizer-profile {
+      margin-bottom: 0;
+    }
 
-  .organizer-greeting {
-    font-size: var(--theme-font-size-xs);
+    .organizer-greeting {
+      font-size: var(--theme-font-size-xs);
+    }
   }
 }
 
 @media (max-height: 400px) {
-  .organizer-profile {
-    display: none;
+  :where(html:not([data-embedded])) {
+    .organizer-profile {
+      display: none;
+    }
   }
 }
 

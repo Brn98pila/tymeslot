@@ -65,22 +65,26 @@
 
 /* Scale video to prevent edges showing on different aspect ratios */
 @media (min-aspect-ratio: 16/9) {
-  .video-background video {
-    width: 100vw;
-    height: auto;
-    min-height: 100vh;
-    top: 50%;
-    transform: translateY(-50%);
+  :where(html:not([data-embedded])) {
+    .video-background video {
+      width: 100vw;
+      height: auto;
+      min-height: 100vh;
+      top: 50%;
+      transform: translateY(-50%);
+    }
   }
 }
 
 @media (max-aspect-ratio: 16/9) {
-  .video-background video {
-    width: auto;
-    height: 100vh;
-    min-width: 100vw;
-    left: 50%;
-    transform: translateX(-50%);
+  :where(html:not([data-embedded])) {
+    .video-background video {
+      width: auto;
+      height: 100vh;
+      min-width: 100vw;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
 }
 

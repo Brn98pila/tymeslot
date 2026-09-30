@@ -102,8 +102,10 @@
    ============================================================================ */
 
 @media (max-height: 600px) {
-  .slot-list__body {
-    max-height: 100%;
+  :where(html:not([data-embedded])) {
+    .slot-list__body {
+      max-height: 100%;
+    }
   }
 }
 

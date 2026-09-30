@@ -272,7 +272,9 @@
 
 /* Compact mode for short viewports */
 @media (max-height: 600px) {
-  .slide-title {
-    font-size: var(--theme-font-size-xl);
+  :where(html:not([data-embedded])) {
+    .slide-title {
+      font-size: var(--theme-font-size-xl);
+    }
   }
 }

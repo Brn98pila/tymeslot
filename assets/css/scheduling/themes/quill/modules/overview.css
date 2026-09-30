@@ -314,10 +314,12 @@
    readers still reach the full description. Tall viewports keep descriptions.
    (The card grid and the wider box apply at every height — see the base rules.) */
 @media (max-height: 600px) {
-  .duration-card-description {
-    max-height: 0;
-    overflow: hidden;
-    opacity: 0;
+  :where(html:not([data-embedded])) {
+    .duration-card-description {
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+    }
   }
 }
 

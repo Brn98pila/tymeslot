@@ -158,15 +158,19 @@
 /* Viewport height has no container-query equivalent, so these stay as @media. */
 
 @media (max-height: 500px) {
-  .slot-list__body {
-    max-height: 150px;
-    overflow-y: auto;
+  :where(html:not([data-embedded])) {
+    .slot-list__body {
+      max-height: 150px;
+      overflow-y: auto;
+    }
   }
 }
 
 @media (max-height: 400px) {
-  .slot-list__body {
-    max-height: 120px;
+  :where(html:not([data-embedded])) {
+    .slot-list__body {
+      max-height: 120px;
+    }
   }
 }
 
