@@ -28,29 +28,18 @@ defmodule TymeslotWeb.E2E.LoginTest do
     |> assert_has(css(".bg-red-50"))
   end
 
-  # The login form keeps the browser's own validation: an empty submit is
-  # stopped before it costs a full-page round trip.
-  feature "an empty login is stopped by the browser", %{session: session} do
-    session =
-      session
-      |> visit("/auth/login")
-      |> wait_for_live()
-      |> execute_script("window.__emptyLoginMarker = true")
-      |> click(css("button[type='submit']"))
-
-    # The form is a full-page POST, so a submit that got through would load a
-    # new document and take the marker with it.
-    execute_script(session, "return window.__emptyLoginMarker === true", fn kept? ->
-      assert kept?
-    end)
+  # The login form leaves validation to the app (`novalidate`): an empty
+  # submit reaches the server and comes back with the app's own message,
+  # not the browser's bubble.
+  feature "an empty login is answered by the app's own message", %{session: session} do
+    session
+    |> visit("/auth/login")
+    |> wait_for_live()
+    |> refute_has(css(".bg-red-50"))
+    |> click(css("button[type='submit']"))
+    |> assert_has(css(".bg-red-50"))
 
     assert current_path(session) == "/auth/login"
-
-    execute_script(
-      session,
-      "return document.querySelector('#login-form input[name=email]').matches(':invalid')",
-      fn invalid? -> assert invalid? end
-    )
   end
 
   feature "login page fits the narrowest supported viewport", %{session: session} do
