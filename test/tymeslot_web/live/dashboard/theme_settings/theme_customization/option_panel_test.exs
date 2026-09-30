@@ -135,6 +135,34 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
     assert html =~ "Tymeslot"
   end
 
+  test "the accent and font panels press the default for a stored id they do not offer" do
+    accent = %{key: :accent, module: Accent, presets: ~w(tymeslot cobalt), default: "tymeslot"}
+    font = %{key: :font, module: Font, presets: ~w(system inter), default: "system"}
+
+    for {group, field, stored, default} <- [
+          {accent, "preset", "nope", "tymeslot"},
+          {accent, "preset", "indigo", "tymeslot"},
+          {font, "font", "nope", "system"},
+          {font, "font", "classic", "system"}
+        ] do
+      html =
+        render_panel(group,
+          accent_picker_open: false,
+          customization: %ThemeCustomizationSchema{settings: %{"#{group.key}" => stored}}
+        )
+
+      pressed =
+        html
+        |> Floki.parse_fragment!()
+        |> Floki.attribute(
+          "button[phx-value-field='#{field}'][aria-pressed='true']",
+          "phx-value-choice"
+        )
+
+      assert pressed == [default], "for #{stored}"
+    end
+  end
+
   test "the palette panel names a scheme in the viewer's language where the catalogue has it" do
     html =
       Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->

@@ -2,7 +2,8 @@ defmodule Tymeslot.ThemeCustomizations.Options.Accent do
   @moduledoc """
   The accent option: one colour for the page's primary family, a preset from
   the group's `presets:` or a custom `#rrggbb`. Stored as the `accent`
-  setting; nothing stored means the group's `default:`.
+  setting; nothing stored, or an id the group does not list, means the
+  group's `default:`.
 
   An `OptionGroup`: a spec lists it as `%{key: :accent, module:
   Options.Accent, presets: [ids], default: id}`, after its palette group (and
@@ -66,12 +67,16 @@ defmodule Tymeslot.ThemeCustomizations.Options.Accent do
   @spec presets(group()) :: [{String.t(), Presets.accent_preset()}]
   def presets(%{presets: ids}), do: Presets.take(:accent, ids)
 
-  @doc "The stored accent (a preset id or a `#rrggbb`), else the group's default."
+  @doc """
+  The stored accent: a custom `#rrggbb`, or an id the group lists. Nothing
+  stored, or an id the group does not list (unknown to the catalogue, or
+  dropped from `presets:`), is the group's default.
+  """
   @spec choice(Spec.settings(), group()) :: String.t()
-  def choice(settings, %{default: default}) do
+  def choice(settings, %{default: default, presets: presets}) do
     case settings["accent"] do
-      value when is_binary(value) and value != "" -> value
-      _unset -> default
+      "#" <> _rest = hex -> if cast_colour(hex), do: hex, else: default
+      id -> if id in presets, do: id, else: default
     end
   end
 

@@ -51,8 +51,17 @@ defmodule Tymeslot.ThemeCustomizations.Options.FontTest do
       assert Font.tokens(%{"font" => "plex"}, %{}, @acc, @group).dark_vars == @acc.dark_vars
     end
 
-    test "writes nothing for an id the catalogue does not hold" do
-      assert Font.tokens(%{"font" => "evil) ; x"}, %{}, @acc, @group) == @acc
+    test "an id the catalogue does not hold gives the default's stacks" do
+      assert Font.tokens(%{"font" => "evil) ; x"}, %{}, @acc, @group) ==
+               Font.tokens(%{}, %{}, @acc, @group)
+    end
+
+    test "an id in the catalogue but not in the group's presets gives the default's stacks" do
+      assert Font.tokens(%{"font" => "classic"}, %{}, @acc, @group) ==
+               Font.tokens(%{}, %{}, @acc, @group)
+
+      assert Font.tokens(%{"font" => "classic"}, %{}, @acc, @group).vars["--theme-font-family"] ==
+               "var(--font-stack-system)"
     end
 
     test "writes only what ThemeStyle lets through, never a family name" do
@@ -62,6 +71,15 @@ defmodule Tymeslot.ThemeCustomizations.Options.FontTest do
       assert css =~ "--theme-font-family: var(--font-stack-inter);"
       assert css =~ "--theme-font-heading: var(--font-heading-inter);"
       refute css =~ "'"
+    end
+  end
+
+  describe "choice/2" do
+    test "is the stored id when the group lists it, else the default" do
+      assert Font.choice(%{"font" => "plex"}, @group) == "plex"
+      assert Font.choice(%{}, @group) == "system"
+      assert Font.choice(%{"font" => "nope"}, @group) == "system"
+      assert Font.choice(%{"font" => "classic"}, @group) == "system"
     end
   end
 

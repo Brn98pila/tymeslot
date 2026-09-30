@@ -102,8 +102,18 @@ defmodule Tymeslot.ThemeCustomizations.Options.AccentTest do
       assert Accent.colour(%{}, @group) == "#0891b2"
     end
 
-    test "an id the catalogue does not hold resolves to no colour" do
-      assert Accent.colour(%{"accent" => "nope"}, @group) == nil
+    test "an id the catalogue does not hold is the default" do
+      assert Accent.choice(%{"accent" => "nope"}, @group) == "tymeslot"
+      assert Accent.colour(%{"accent" => "nope"}, @group) == "#0891b2"
+    end
+
+    test "an id in the catalogue but not in the group's presets is the default" do
+      assert Accent.choice(%{"accent" => "indigo"}, @group) == "tymeslot"
+      assert Accent.colour(%{"accent" => "indigo"}, @group) == "#0891b2"
+    end
+
+    test "a malformed custom colour is the default" do
+      assert Accent.choice(%{"accent" => "#12"}, @group) == "tymeslot"
     end
   end
 
@@ -127,6 +137,17 @@ defmodule Tymeslot.ThemeCustomizations.Options.AccentTest do
       assert Map.drop(dark_vars, @family) == Map.drop(@dark, @family)
       assert vars["--theme-primary"] == "#2563eb"
       assert dark_vars["--theme-primary"] == "#4a7eee"
+    end
+
+    test "an unknown or unlisted id gives the default accent's tokens, not the tone's primary" do
+      expected = Accent.tokens(%{}, %{}, @both, @group)
+
+      for stored <- ["nope", "indigo"] do
+        assert Accent.tokens(%{"accent" => stored}, %{}, @both, @group) == expected,
+               "for #{stored}"
+      end
+
+      assert expected.vars["--theme-primary"] != @light["--theme-primary"]
     end
 
     test "fits the accent as text on each set's card" do
@@ -186,7 +207,9 @@ defmodule Tymeslot.ThemeCustomizations.Options.AccentTest do
     end
 
     test "with nothing to resolve, changes nothing" do
-      assert Accent.tokens(%{"accent" => "nope"}, %{}, @both, @group) == @both
+      group = %{@group | presets: ["nope"], default: "nope"}
+
+      assert Accent.tokens(%{"accent" => "nope"}, %{}, @both, group) == @both
     end
   end
 end

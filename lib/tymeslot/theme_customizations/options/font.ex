@@ -9,7 +9,8 @@ defmodule Tymeslot.ThemeCustomizations.Options.Font do
   `--theme-font-heading: var(--font-heading-<id>)` into `vars`, never a
   family name: the stacks are CSS (`scheduling/shared/fonts.css`), and
   `ThemeStyle`'s value filter would refuse the quotes a family name needs.
-  Only an id `Presets.Fonts` holds is written, whatever is stored. Fonts do
+  Only an id the group lists is written; anything else stored (unknown, or
+  no longer in `presets:`) is the default. Fonts do
   not change with the colour mode, so the dark set is left alone.
   """
 
@@ -53,11 +54,11 @@ defmodule Tymeslot.ThemeCustomizations.Options.Font do
   @spec presets(group()) :: [{String.t(), Presets.font_preset()}]
   def presets(%{presets: ids}), do: Presets.take(:font, ids)
 
-  @doc "The stored font id, else the group's default."
+  @doc "The stored font id when the group lists it, else the group's default."
   @spec choice(Spec.settings(), group()) :: String.t()
-  def choice(settings, %{default: default}) do
+  def choice(settings, %{default: default, presets: presets}) do
     case settings["font"] do
-      id when is_binary(id) and id != "" -> id
+      id when is_binary(id) -> if id in presets, do: id, else: default
       _unset -> default
     end
   end
