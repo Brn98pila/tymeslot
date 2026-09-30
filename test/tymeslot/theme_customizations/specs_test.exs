@@ -346,6 +346,29 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
       assert vars["--theme-primary"] == "#07819e"
     end
 
+    # The groups after the palette read what it produced: the background's
+    # canvas fallback and the accent's card. A palette stored as a seed alone
+    # must feed them as a named scheme does.
+    test "a palette stored as a seed alone feeds the groups after it" do
+      settings = %{
+        "custom_palette_seed" => "#b4532a",
+        "accent" => "tymeslot",
+        "background_type" => "image",
+        "background_value" => "preset:ocean-sunset"
+      }
+
+      %Tokens{vars: vars, dark_vars: dark_vars} = Specs.tokens(ShowcaseThemeSpec, settings, %{})
+
+      assert vars["--theme-canvas"]
+      assert vars["--theme-background"] == "var(--theme-canvas)"
+      assert dark_vars["--theme-canvas"]
+
+      # The Tymeslot accent, #0891b2, does not read as text on the light
+      # derivation's card, so it is written fitted, never as it stands.
+      assert vars["--theme-primary"]
+      refute vars["--theme-primary"] == "#0891b2"
+    end
+
     test "is the tokens use Spec generates" do
       settings = %{"background_type" => "color", "background_value" => "#123456"}
 
