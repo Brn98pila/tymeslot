@@ -7,6 +7,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
 
   alias Tymeslot.ThemeCustomizations.Options.Background
 
+  import TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImageUpload,
+    only: [image_upload: 1]
+
   @doc """
   Renders the image picker.
   Expects assigns: option, customization, presets (the group's images as `{id, preset}`, in order), uploads, myself
@@ -103,101 +106,12 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
       </div>
 
       <div class="bg-tymeslot-50 p-8 rounded-[2rem] border-2 border-tymeslot-100 border-dashed">
-        <form
+        <.image_upload
           id="theme-background-image-form"
-          phx-submit="upload_asset"
-          phx-change="upload_asset"
-          phx-target={@myself}
-          data-auto-upload="true"
-          class="flex flex-col items-center gap-6"
-        >
-          <input type="hidden" name="asset_field" value="background_image_path" />
-          <div class="w-full max-w-md">
-            <%= if @uploads && @uploads[:background_image_path] do %>
-              <div class="relative group/upload">
-                <.live_file_input
-                  upload={@uploads.background_image_path}
-                  class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                />
-                <div class="btn-secondary w-full py-4 flex items-center justify-center gap-3">
-                  <svg
-                    class="w-5 h-5 text-turquoise-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                    />
-                  </svg>
-                  <span>{dgettext("dashboard_appearance", "Select Image")}</span>
-                </div>
-              </div>
-            <% else %>
-              <div class="btn-secondary w-full opacity-50 cursor-not-allowed py-4">
-                {dgettext("dashboard_appearance", "Upload not available")}
-              </div>
-            <% end %>
-
-            <%= if @uploads && @uploads[:background_image_path] do %>
-              <%= for err <- upload_errors(@uploads.background_image_path) do %>
-                <div class="mt-4 p-3 bg-red-50 border border-red-100 rounded-token-xl text-red-600 text-xs font-bold flex items-center gap-2">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  {Phoenix.Naming.humanize(err)}
-                </div>
-              <% end %>
-
-              <%= for entry <- @uploads.background_image_path.entries do %>
-                <div class="mt-6 p-4 bg-white rounded-token-2xl border-2 border-tymeslot-100 shadow-sm">
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="text-tymeslot-700 font-black text-token-xs uppercase tracking-wider truncate mr-4">
-                      {entry.client_name}
-                    </span>
-                    <span class="text-turquoise-600 font-black text-token-xs">{entry.progress}%</span>
-                  </div>
-                  <div class="bg-tymeslot-100 rounded-full h-2 overflow-hidden shadow-inner">
-                    <div
-                      class="bg-linear-to-r from-turquoise-500 to-cyan-500 h-full transition-all duration-300"
-                      style={"width: #{entry.progress}%"}
-                    >
-                    </div>
-                  </div>
-
-                  <%= for err <- upload_errors(@uploads.background_image_path, entry) do %>
-                    <div class="mt-2 p-3 bg-red-50 border border-red-100 rounded-token-xl text-red-600 text-xs font-bold flex items-center gap-2">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2.5"
-                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      {Phoenix.Naming.humanize(err)}
-                    </div>
-                  <% end %>
-                </div>
-              <% end %>
-            <% end %>
-            <button type="submit" id="theme-image-submit-btn" class="hidden">
-              {dgettext("dashboard_appearance", "Upload Image")}
-            </button>
-          </div>
-
-          <p class="text-token-2xs font-black text-tymeslot-400 uppercase tracking-[0.2em]">
-            {dgettext("dashboard_appearance", "JPG, PNG or WebP. Max 5MB.")}
-          </p>
-        </form>
+          field={:background_image_path}
+          uploads={@uploads}
+          myself={@myself}
+        />
 
         <%= if @customization.settings["background_image_path"] && @customization.settings["background_value"] == "custom" do %>
           <div class="mt-8 p-4 bg-amber-50 border border-amber-100 rounded-token-2xl flex items-center gap-3">

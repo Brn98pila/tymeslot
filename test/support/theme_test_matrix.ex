@@ -69,6 +69,17 @@ defmodule TymeslotWeb.ThemeTestMatrix do
       selected_duration_selector: ".duration-card.selected [data-testid='duration-option']",
       fixture: false
     },
+    "97" => %{
+      id: "97",
+      key: :showcase,
+      slug: "showcase",
+      name: "Showcase",
+      wrapper_class: "fixture-theme-wrapper",
+      video_background: false,
+      pins_schedule_actions: false,
+      selected_duration_selector: "[data-testid='duration-option'][aria-pressed='true']",
+      fixture: true
+    },
     "99" => %{
       id: "99",
       key: :fixture,

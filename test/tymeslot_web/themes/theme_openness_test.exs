@@ -36,9 +36,9 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
          0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
          0xDE>>
 
-  # Everything the fixture adds that a shared module could name.
-  # The fixture's id is one of them, as a quoted literal.
-  @fixture_names ~r/FixtureTheme|fixture_emblem|EmblemPanel|:fixture\b|#{Regex.escape(~s("99"))}/
+  # Everything the test-only themes add that a shared module could name,
+  # their ids among them as quoted literals.
+  @fixture_names ~r/FixtureTheme|fixture_emblem|EmblemPanel|:fixture\b|ShowcaseTheme|:showcase\b|#{Regex.escape(~s("99"))}|#{Regex.escape(~s("97"))}/
 
   setup :verify_on_exit!
 
@@ -361,7 +361,7 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
 
       naming = Enum.filter(files, &(File.read!(&1) =~ @fixture_names))
 
-      assert naming == [], "shared code names the fixture theme: #{inspect(naming)}"
+      assert naming == [], "shared code names a test-only theme: #{inspect(naming)}"
     end
   end
 end

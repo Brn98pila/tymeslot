@@ -114,7 +114,7 @@ msgstr "Зображення"
 msgid "Invalid theme selection"
 msgstr "Некоректний вибір теми"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #, elixir-autogen, elixir-format
 msgid "JPG, PNG or WebP. Max 5MB."
 msgstr "JPG, PNG або WebP. Макс. 5 МБ."
@@ -147,7 +147,7 @@ msgstr "Або завантажте свій файл"
 msgid "Our design team is busy crafting new themes to help you express your unique professional style."
 msgstr "Наша команда дизайнерів активно працює над новими темами, щоб допомогти вам виразити свій унікальний професійний стиль."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #, elixir-autogen, elixir-format
 msgid "Select Image"
 msgstr "Вибрати зображення"
@@ -198,7 +198,7 @@ msgstr "Тему оновлено на %{theme_name}"
 msgid "Too many upload attempts. Please wait a few minutes and try again."
 msgstr "Забагато спроб завантаження. Зачекайте кілька хвилин і спробуйте ще раз."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #, elixir-autogen, elixir-format
 msgid "Upload Image"
 msgstr "Завантажити зображення"
@@ -208,7 +208,7 @@ msgstr "Завантажити зображення"
 msgid "Upload Video"
 msgstr "Завантажити відео"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Upload not available"
@@ -391,3 +391,33 @@ msgstr "Ваше відео збережено, але не вдалося по�
 #, elixir-autogen, elixir-format
 msgid "File uploaded successfully"
 msgstr "Файл успішно завантажено"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Logo"
+msgstr "Логотип"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "Logo uploaded successfully"
+msgstr "Логотип успішно завантажено"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "No logo uploaded yet."
+msgstr "Логотип ще не завантажено."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Remove logo"
+msgstr "Видалити логотип"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Your logo"
+msgstr "Ваш логотип"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Your logo, for the themes that show one on your booking page."
+msgstr "Ваш логотип для тем, які показують його на сторінці бронювання."

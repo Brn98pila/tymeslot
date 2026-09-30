@@ -11,12 +11,14 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels do
 
   alias Tymeslot.ThemeCustomizations.OptionGroup
   alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.Options.Logo
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.BackgroundPanel
+  alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.LogoPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel
   alias TymeslotWeb.Themes.Core.Loader
 
-  @built_in %{Palette => PalettePanel, Background => BackgroundPanel}
+  @built_in %{Palette => PalettePanel, Background => BackgroundPanel, Logo => LogoPanel}
 
   @doc "The panel module for `group` in the theme `theme_id`."
   @spec for_group(String.t(), OptionGroup.group()) :: module()

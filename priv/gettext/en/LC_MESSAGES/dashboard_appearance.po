@@ -114,7 +114,7 @@ msgstr ""
 msgid "Invalid theme selection"
 msgstr ""
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #, elixir-autogen, elixir-format
 msgid "JPG, PNG or WebP. Max 5MB."
 msgstr ""
@@ -147,7 +147,7 @@ msgstr ""
 msgid "Our design team is busy crafting new themes to help you express your unique professional style."
 msgstr ""
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #, elixir-autogen, elixir-format
 msgid "Select Image"
 msgstr ""
@@ -198,7 +198,7 @@ msgstr ""
 msgid "Too many upload attempts. Please wait a few minutes and try again."
 msgstr ""
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #, elixir-autogen, elixir-format
 msgid "Upload Image"
 msgstr ""
@@ -208,7 +208,7 @@ msgstr ""
 msgid "Upload Video"
 msgstr ""
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Upload not available"
@@ -390,4 +390,34 @@ msgstr ""
 #: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "File uploaded successfully"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Logo"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "Logo uploaded successfully"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "No logo uploaded yet."
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Remove logo"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Your logo"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Your logo, for the themes that show one on your booking page."
 msgstr ""

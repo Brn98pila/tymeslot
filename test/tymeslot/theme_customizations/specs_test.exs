@@ -5,7 +5,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
   @moduletag :unit
 
   alias Ecto.Changeset
-  alias Tymeslot.Test.ThemeCustomizations.LogoSpec
+  alias Tymeslot.Test.ShowcaseThemeSpec
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.QuillSpec
   alias Tymeslot.ThemeCustomizations.Specs
@@ -91,6 +91,41 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
     def defaults, do: %{}
   end
 
+  # A group whose upload_changes/3 also names a background setting, which
+  # `Specs.upload_changes/3` must drop: an upload may only change the
+  # settings of the group that owns its field.
+  defmodule LeakyOption do
+    @moduledoc false
+    @behaviour Tymeslot.ThemeCustomizations.OptionGroup
+
+    import Ecto.Changeset
+
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def types, do: %{leaky_path: :string}
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def changeset(changeset, attrs, _group), do: cast(changeset, attrs, [:leaky_path])
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def changes(_field, _value, _group), do: :error
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def asset_fields(_group), do: [leaky_path: :image]
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def upload_changes(:leaky_path, path, _group),
+      do: %{"leaky_path" => path, "background_type" => "color"}
+  end
+
+  defmodule LeakySpec do
+    @moduledoc false
+    use Tymeslot.ThemeCustomizations.Spec
+
+    alias Tymeslot.ThemeCustomizations.QuillSpec
+    alias Tymeslot.ThemeCustomizations.SpecsTest.LeakyOption
+
+    @impl Tymeslot.ThemeCustomizations.Spec
+    def option_groups, do: QuillSpec.option_groups() ++ [%{key: :leaky, module: LeakyOption}]
+    @impl Tymeslot.ThemeCustomizations.Spec
+    def defaults, do: QuillSpec.defaults()
+  end
+
   # A spec with no option group at all.
   defmodule BareSpec do
     @moduledoc false
@@ -125,14 +160,14 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
         "logo_path" => "themes/1/9/images/logo.png"
       }
 
-      assert Specs.media(LogoSpec, settings) == %{
+      assert Specs.media(ShowcaseThemeSpec, settings) == %{
                background: %{kind: :color, color: "#123456"},
-               logo: "/uploads/themes/1/9/images/logo.png"
+               logo: %{src: "/uploads/themes/1/9/images/logo.png"}
              }
     end
 
     test "leaves out what resolves to nothing" do
-      assert Specs.media(LogoSpec, %{
+      assert Specs.media(ShowcaseThemeSpec, %{
                "background_type" => "gradient",
                "background_value" => "gradient_999"
              }) == %{}
@@ -148,8 +183,8 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
         "logo_path" => "themes/1/9/images/logo.png"
       }
 
-      assert %Tokens{media: media, vars: vars} = Specs.tokens(LogoSpec, settings, %{})
-      assert media == Specs.media(LogoSpec, settings)
+      assert %Tokens{media: media, vars: vars} = Specs.tokens(ShowcaseThemeSpec, settings, %{})
+      assert media == Specs.media(ShowcaseThemeSpec, settings)
       assert vars["--theme-background"] == "#123456"
       assert vars["--theme-primary"] == "#06b6d4"
     end
@@ -157,9 +192,10 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
     test "is the tokens use Spec generates" do
       settings = %{"background_type" => "color", "background_value" => "#123456"}
 
-      assert LogoSpec.tokens(settings, %{}) == Specs.tokens(LogoSpec, settings, %{})
+      assert ShowcaseThemeSpec.tokens(settings, %{}) ==
+               Specs.tokens(ShowcaseThemeSpec, settings, %{})
 
-      assert LogoSpec.tokens(settings, %{}).media == %{
+      assert ShowcaseThemeSpec.tokens(settings, %{}).media == %{
                background: %{kind: :color, color: "#123456"}
              }
     end
@@ -225,10 +261,10 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
 
   describe "upload_group/2" do
     test "finds the group that owns an asset field, with the field's kind" do
-      assert {:ok, %{key: :logo}, :image} = Specs.upload_group(LogoSpec, :logo_path)
+      assert {:ok, %{key: :logo}, :image} = Specs.upload_group(ShowcaseThemeSpec, :logo_path)
 
       assert {:ok, %{key: :background}, :video} =
-               Specs.upload_group(LogoSpec, :background_video_path)
+               Specs.upload_group(ShowcaseThemeSpec, :background_video_path)
     end
 
     test "is :error for a field no group declares" do
@@ -243,7 +279,14 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
 
   describe "upload_changes/3" do
     test "keeps an upload to the settings of the group that owns the field" do
-      {:ok, group, :image} = Specs.upload_group(LogoSpec, :logo_path)
+      {:ok, group, :image} = Specs.upload_group(LeakySpec, :leaky_path)
+
+      assert Specs.upload_changes(group, :leaky_path, "themes/1/9/images/a.png") ==
+               %{"leaky_path" => "themes/1/9/images/a.png"}
+    end
+
+    test "a logo upload saves the logo path and nothing else" do
+      {:ok, group, :image} = Specs.upload_group(ShowcaseThemeSpec, :logo_path)
 
       assert Specs.upload_changes(group, :logo_path, "themes/1/9/images/a-logo.png") ==
                %{"logo_path" => "themes/1/9/images/a-logo.png"}
@@ -257,9 +300,9 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
         "background_image_path" => "themes/1/9/images/a-bg.png"
       }
 
-      {:ok, group, :image} = Specs.upload_group(LogoSpec, :logo_path)
+      {:ok, group, :image} = Specs.upload_group(ShowcaseThemeSpec, :logo_path)
       changes = Specs.upload_changes(group, :logo_path, "themes/1/9/images/b-logo.png")
-      changeset = validate_over(LogoSpec, stored, changes)
+      changeset = validate_over(ShowcaseThemeSpec, stored, changes)
 
       assert changeset.valid?
 

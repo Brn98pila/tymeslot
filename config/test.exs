@@ -17,11 +17,23 @@ config :tymeslot, :pubsub_name, Tymeslot.PubSub
 # Force core router for tests
 config :tymeslot, :router, TymeslotWeb.Router
 
-# A test-only booking theme (test/support/fixture_theme/), shaped unlike Quill
-# and Rhythm, which proves a new theme attaches without editing shared code.
+# Test-only booking themes, which prove a new theme attaches without editing
+# shared code. The fixture (test/support/fixture_theme/) is shaped unlike
+# Quill and Rhythm; the showcase theme (test/support/showcase_theme/) offers
+# the shared option groups no shipped theme offers yet, so their dashboard
+# panels are reachable, and borrows the fixture's booking pages.
 # Tymeslot.Themes.Catalog and TymeslotWeb.Themes.Core.Registry read this at
 # compile time; no other environment sets it.
 config :tymeslot, :extra_themes, [
+  %{
+    id: "97",
+    key: :showcase,
+    name: "Showcase",
+    heading_style: :generic,
+    customization_spec: Tymeslot.Test.ShowcaseThemeSpec,
+    status: :beta,
+    module: TymeslotWeb.Test.ShowcaseTheme.Theme
+  },
   %{
     id: "99",
     key: :fixture,

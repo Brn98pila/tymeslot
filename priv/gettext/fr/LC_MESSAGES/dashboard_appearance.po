@@ -114,7 +114,7 @@ msgstr "Image"
 msgid "Invalid theme selection"
 msgstr "Sélection de thème invalide"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #, elixir-autogen, elixir-format
 msgid "JPG, PNG or WebP. Max 5MB."
 msgstr "JPG, PNG ou WebP. 5 Mo max."
@@ -147,7 +147,7 @@ msgstr "Ou téléversez la vôtre"
 msgid "Our design team is busy crafting new themes to help you express your unique professional style."
 msgstr "Notre équipe de design travaille à la création de nouveaux thèmes pour vous aider à exprimer votre style professionnel unique."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #, elixir-autogen, elixir-format
 msgid "Select Image"
 msgstr "Sélectionner une image"
@@ -198,7 +198,7 @@ msgstr "Thème mis à jour vers %{theme_name}"
 msgid "Too many upload attempts. Please wait a few minutes and try again."
 msgstr "Trop de tentatives de téléversement. Veuillez patienter quelques minutes et réessayer."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #, elixir-autogen, elixir-format
 msgid "Upload Image"
 msgstr "Téléverser une image"
@@ -208,7 +208,7 @@ msgstr "Téléverser une image"
 msgid "Upload Video"
 msgstr "Téléverser une vidéo"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Upload not available"
@@ -391,3 +391,33 @@ msgstr "Votre vidéo a été enregistrée, mais n’a pas pu être mise en file 
 #, elixir-autogen, elixir-format
 msgid "File uploaded successfully"
 msgstr "Fichier téléversé avec succès"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Logo"
+msgstr "Logo"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "Logo uploaded successfully"
+msgstr "Logo téléversé avec succès"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "No logo uploaded yet."
+msgstr "Aucun logo téléversé pour l’instant."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Remove logo"
+msgstr "Supprimer le logo"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Your logo"
+msgstr "Votre logo"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Your logo, for the themes that show one on your booking page."
+msgstr "Votre logo, pour les thèmes qui en affichent un sur votre page de réservation."

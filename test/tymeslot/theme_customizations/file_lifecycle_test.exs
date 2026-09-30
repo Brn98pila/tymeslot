@@ -11,7 +11,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
   alias Tymeslot.Media.Transcoder
   alias Tymeslot.Profiles
-  alias Tymeslot.Test.ThemeCustomizations.LogoSpec
+  alias Tymeslot.Test.ShowcaseThemeSpec
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.FileLifecycle
   alias Tymeslot.ThemeCustomizations.Storage
@@ -43,10 +43,11 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
     absolute
   end
 
-  # LogoSpec is Quill's groups plus a logo group with an image upload. It has
-  # no theme, so its rows are built in memory and the spec is passed in.
+  # The showcase theme's spec is Quill's groups plus the shared logo group,
+  # with an image upload each. Its rows are built in memory and the spec is
+  # passed in, so each test controls exactly which files a row names.
   defp logo_row(profile, settings),
-    do: %ThemeCustomizationSchema{profile_id: profile.id, theme_id: "1", settings: settings}
+    do: %ThemeCustomizationSchema{profile_id: profile.id, theme_id: "97", settings: settings}
 
   defp with_settings(row, changes), do: %{row | settings: Map.merge(row.settings, changes)}
 
@@ -223,7 +224,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
       new_logo = touch_stored("themes/#{profile.id}/1/images/c-logo.png")
       updated = with_settings(row, %{"logo_path" => "themes/#{profile.id}/1/images/c-logo.png"})
 
-      FileLifecycle.cleanup_replaced_files(LogoSpec, row, updated)
+      FileLifecycle.cleanup_replaced_files(ShowcaseThemeSpec, row, updated)
 
       refute File.exists?(logo)
       assert File.exists?(new_logo)
@@ -236,7 +237,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
       logo: logo
     } do
       FileLifecycle.cleanup_replaced_files(
-        LogoSpec,
+        ShowcaseThemeSpec,
         row,
         with_settings(row, %{"logo_path" => nil})
       )
@@ -250,7 +251,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
       updated =
         with_settings(row, %{"background_type" => "gradient", "background_image_path" => nil})
 
-      FileLifecycle.cleanup_replaced_files(LogoSpec, row, updated)
+      FileLifecycle.cleanup_replaced_files(ShowcaseThemeSpec, row, updated)
 
       refute File.exists?(background)
       assert File.exists?(logo)
@@ -258,7 +259,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
     test "deleting the customisation deletes every group's files",
          %{row: row, background: background, logo: logo} do
-      FileLifecycle.cleanup_all_files(LogoSpec, row)
+      FileLifecycle.cleanup_all_files(ShowcaseThemeSpec, row)
 
       refute File.exists?(background)
       refute File.exists?(logo)

@@ -114,7 +114,7 @@ msgstr "Obrázek"
 msgid "Invalid theme selection"
 msgstr "Neplatný výběr motivu"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #, elixir-autogen, elixir-format
 msgid "JPG, PNG or WebP. Max 5MB."
 msgstr "JPG, PNG nebo WebP. Max. 5 MB."
@@ -147,7 +147,7 @@ msgstr "Nebo nahrajte vlastní"
 msgid "Our design team is busy crafting new themes to help you express your unique professional style."
 msgstr "Náš designový tým pilně připravuje nové motivy, se kterými vyjádříte svůj jedinečný profesní styl."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #, elixir-autogen, elixir-format
 msgid "Select Image"
 msgstr "Vybrat obrázek"
@@ -198,7 +198,7 @@ msgstr "Motiv byl změněn na %{theme_name}."
 msgid "Too many upload attempts. Please wait a few minutes and try again."
 msgstr "Příliš mnoho pokusů o nahrání. Počkejte prosím několik minut a zkuste to znovu."
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #, elixir-autogen, elixir-format
 msgid "Upload Image"
 msgstr "Nahrát obrázek"
@@ -208,7 +208,7 @@ msgstr "Nahrát obrázek"
 msgid "Upload Video"
 msgstr "Nahrát video"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Upload not available"
@@ -391,3 +391,33 @@ msgstr "Vaše video bylo uloženo, ale nepodařilo se jej zařadit ke zpracován
 #, elixir-autogen, elixir-format
 msgid "File uploaded successfully"
 msgstr "Soubor byl úspěšně nahrán"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Logo"
+msgstr "Logo"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "Logo uploaded successfully"
+msgstr "Logo bylo úspěšně nahráno"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "No logo uploaded yet."
+msgstr "Zatím není nahrané žádné logo."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Remove logo"
+msgstr "Odebrat logo"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Your logo"
+msgstr "Vaše logo"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Your logo, for the themes that show one on your booking page."
+msgstr "Vaše logo pro motivy, které ho zobrazují na rezervační stránce."
