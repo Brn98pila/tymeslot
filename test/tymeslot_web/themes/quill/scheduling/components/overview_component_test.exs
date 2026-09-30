@@ -156,6 +156,20 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.OverviewComponentTest d
     end
   end
 
+  describe "avatar badge" do
+    # An emoji needs a colour-emoji font the booker's device may lack, which
+    # draws an empty box; the badge draws its check as an inline icon instead.
+    test "draws its check as an icon, not as a text glyph" do
+      badge =
+        render_overview([])
+        |> Floki.parse_document!()
+        |> Floki.find(".overview-success-badge")
+
+      assert Floki.find(badge, "svg.overview-success-badge-icon") != []
+      assert Floki.text(badge) |> String.trim() == ""
+    end
+  end
+
   defp render_overview(overrides) do
     base = %{
       id: "overview-step",
