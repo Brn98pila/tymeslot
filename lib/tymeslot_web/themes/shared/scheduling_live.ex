@@ -34,11 +34,12 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
   params (the step on screen is `socket.assigns.current_state`), and so does
   one sent to the LiveView itself. An override replaces the default clause
   wholesale, and any visitor can send `theme:<anything>`, so it ends with a
-  catch-all clause returning `{:noreply, socket}`; without one, an unknown
-  name raises.
+  catch-all clause calling `super/3`, which logs the name and returns
+  `{:noreply, socket}`; without one, an unknown name raises.
 
-  A step event the flow does not handle is dropped, whatever the step, and
-  a message nothing routes is logged and ignored
+  A step event the flow does not handle is dropped with a warning
+  (`StepEvents.log_ignored/3`), whatever the step, as is an event no hook
+  clause takes, and a message nothing routes is logged and ignored
   (`InfoHandlers.handle_unexpected/2`).
 
   The macro also generates `handle_async/3` for the flow's `start_async/3`
@@ -140,8 +141,11 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       def handle_event(event, params, socket), do: handle_theme_event(event, params, socket)
 
       # Extension point. Override with multi-clause defps ending in a
-      # catch-all clause.
-      defp handle_theme_event(_event, _params, socket), do: {:noreply, socket}
+      # catch-all clause that calls super/3, so an unknown name is logged.
+      defp handle_theme_event(event, _params, socket) do
+        StepEvents.log_ignored(socket.assigns, socket.assigns[:current_state], event)
+        {:noreply, socket}
+      end
 
       defoverridable handle_theme_event: 3
     end

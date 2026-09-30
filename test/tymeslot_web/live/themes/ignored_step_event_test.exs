@@ -1,9 +1,9 @@
 defmodule TymeslotWeb.Live.Themes.IgnoredStepEventTest do
   @moduledoc """
-  A step event nothing handles leaves one warning naming the theme, the step
-  and the event, once per page view; a real booking through every theme
-  leaves none, so the warning only ever means a template sends a name the
-  flow does not know.
+  A step event nothing handles, or a theme event no hook clause takes, leaves
+  one warning naming the theme, the step and the event, once per page view;
+  a real booking through every theme leaves none, so the warning only ever
+  means a template sends a name nothing knows.
   """
 
   use TymeslotWeb.LiveCase, async: false
@@ -79,6 +79,24 @@ defmodule TymeslotWeb.Live.Themes.IgnoredStepEventTest do
       assert meta.step == :overview
       refute LogCapture.dump(log) =~ "a@b.c"
       refute_receive {:captured_log, %{meta: %{event: "step-probe-unknown"}}}, 100
+    end
+
+    test "#{theme.name}: a theme event no hook clause takes is logged once", %{conn: conn} do
+      %{profile: profile} =
+        seed_booking_account(unquote(theme.id), "hook-#{unquote(theme.slug)}", "Etc/UTC")
+
+      {:ok, view, _html} = live(conn, "/#{profile.username}")
+
+      for _twice <- 1..2, do: render_click(view, "theme:probe-unknown", %{"email" => "a@b.c"})
+      assert render(view) =~ unquote(theme.wrapper_class)
+
+      assert_receive {:captured_log,
+                      %{level: :warning, meta: %{event: "probe-unknown"} = meta} = log}
+
+      assert meta.theme_id == unquote(theme.id)
+      assert meta.step == :overview
+      refute LogCapture.dump(log) =~ "a@b.c"
+      refute_receive {:captured_log, %{meta: %{event: "probe-unknown"}}}, 100
     end
 
     test "#{theme.name}: a whole booking logs no ignored step event", %{conn: conn} do

@@ -29,5 +29,5 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.Live do
   defp handle_theme_event("ping", _params, socket),
     do: {:noreply, assign(socket, :fixture_pinged, true)}
 
-  defp handle_theme_event(_event, _params, socket), do: {:noreply, socket}
+  defp handle_theme_event(event, params, socket), do: super(event, params, socket)
 end
