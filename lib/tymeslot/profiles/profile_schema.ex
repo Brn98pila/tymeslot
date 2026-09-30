@@ -32,6 +32,8 @@ defmodule Tymeslot.Profiles.ProfileSchema do
           booking_heading: String.t() | nil,
           booking_greeting: String.t() | nil,
           booking_instruction: String.t() | nil,
+          headline: String.t() | nil,
+          bio: String.t() | nil,
           freebusy_token: String.t() | nil,
           primary_calendar_integration_id: integer() | nil,
           user: Tymeslot.Auth.UserSchema.t() | Ecto.Association.NotLoaded.t(),
@@ -61,6 +63,8 @@ defmodule Tymeslot.Profiles.ProfileSchema do
     field(:booking_heading, :string)
     field(:booking_greeting, :string)
     field(:booking_instruction, :string)
+    field(:headline, :string)
+    field(:bio, :string)
     field(:freebusy_token, :string)
     field(:meeting_types, {:array, :map}, virtual: true)
     belongs_to(:user, Tymeslot.Auth.UserSchema)
@@ -145,13 +149,13 @@ defmodule Tymeslot.Profiles.ProfileSchema do
 
   defp update_booking_text(changeset) do
     Enum.reduce(@booking_text_fields, changeset, fn field, acc ->
-      update_change(acc, field, &normalize_booking_text/1)
+      update_change(acc, field, &normalize_text/1)
     end)
   end
 
-  defp normalize_booking_text(nil), do: nil
+  defp normalize_text(nil), do: nil
 
-  defp normalize_booking_text(value) when is_binary(value) do
+  defp normalize_text(value) when is_binary(value) do
     # Postgres rejects null bytes even though they are valid UTF-8, so they are
     # stripped at the boundary rather than left to blow up on insert.
     trimmed =
@@ -172,6 +176,42 @@ defmodule Tymeslot.Profiles.ProfileSchema do
       changeset
     end
   end
+
+  @intro_fields [:headline, :bio]
+
+  @doc """
+  Focused changeset for the organiser's introduction: the one-line `headline`
+  and the plain-text `bio` a theme may show on the booking page
+  (`TymeslotWeb.Themes.Shared.Components.ProfileIntro`).
+
+  Both are trimmed and stored as `nil` when blank, so clearing a field removes
+  it from the page. Null bytes are stripped, as Postgres rejects them. A
+  headline is one line, so any line break in it becomes a space; the bio's line
+  breaks are its only formatting, so they are kept, normalised to `\\n`. The
+  caps count characters after that clean-up.
+
+  Casts with `empty_values: []` for the reason `booking_text_changeset/2`
+  gives: a cleared field has to reach `normalize_text/1` to become `nil`.
+  """
+  @spec intro_changeset(t(), map()) :: Ecto.Changeset.t()
+  def intro_changeset(profile, attrs) do
+    profile
+    |> cast(attrs, @intro_fields, empty_values: [])
+    |> update_change(:headline, &normalize_headline/1)
+    |> update_change(:bio, &normalize_bio/1)
+    |> validate_length(:headline, max: Constraints.profile_headline_max_length())
+    |> validate_length(:bio, max: Constraints.profile_bio_max_length())
+  end
+
+  defp normalize_headline(value) when is_binary(value),
+    do: value |> String.replace(~r/[\r\n]+/, " ") |> normalize_text()
+
+  defp normalize_headline(nil), do: nil
+
+  defp normalize_bio(value) when is_binary(value),
+    do: value |> String.replace(~r/\r\n?/, "\n") |> normalize_text()
+
+  defp normalize_bio(nil), do: nil
 
   defp validate_username(changeset) do
     changeset
