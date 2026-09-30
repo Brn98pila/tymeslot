@@ -47,6 +47,7 @@ defmodule Tymeslot.Migrations.DirtySeedMigrationTest do
   alias Ecto.Adapters.SQL
   alias Ecto.Adapters.SQL.Sandbox
   alias Ecto.Migrator
+  alias Tymeslot.Test.AdminBootstrapHelpers
 
   @seed_path Path.expand("../../support/migration_dirty_seed.sql", __DIR__)
 
@@ -115,6 +116,12 @@ defmodule Tymeslot.Migrations.DirtySeedMigrationTest do
         # Always restore clean state for other tests
         reset_database!()
         Migrator.run(Tymeslot.Repo, migrations_path(), :up, all: true)
+
+        # The rebuilt database has no users, so its admin bootstrap is open
+        # again. Close it as `test_helper.exs` did at boot, or every later
+        # sign-up claims the settings row and the concurrency test finds the
+        # install unbootstrapped.
+        AdminBootstrapHelpers.close!()
       end
     end
   end
