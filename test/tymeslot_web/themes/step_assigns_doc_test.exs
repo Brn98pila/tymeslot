@@ -34,13 +34,21 @@ defmodule TymeslotWeb.Themes.StepAssignsDocTest do
     :ok
   end
 
-  defp declared do
+  @row ~r/^\| `([a-z_]+)` \| [^|]+ \| (mount|optional) \|/
+
+  defp table_rows do
     [_before, rest] = @guide |> File.read!() |> String.split("<!-- step-assigns:start -->")
     [table, _after] = String.split(rest, "<!-- step-assigns:end -->")
 
-    row = ~r/^\| `([a-z_]+)` \| [^|]+ \| (mount|optional) \|/m
+    table
+    |> String.split("\n")
+    |> Enum.filter(&String.starts_with?(&1, "| `"))
+  end
 
-    for [_row, name, presence] <- Regex.scan(row, table), do: {name, presence}
+  defp declared do
+    for line <- table_rows(),
+        [_row, name, presence] <- [Regex.run(@row, line)],
+        do: {name, presence}
   end
 
   test "the table lists assigns, most of them present from mount" do
@@ -48,6 +56,12 @@ defmodule TymeslotWeb.Themes.StepAssignsDocTest do
 
     assert Enum.count(rows, &match?({_name, "mount"}, &1)) > 40
     assert Enum.any?(rows, &match?({_name, "optional"}, &1))
+  end
+
+  # A row the pattern does not read would be skipped by every check below,
+  # so a typo in its name or its "Present" column must fail here instead.
+  test "every row of the table names one assign and says mount or optional" do
+    assert Enum.reject(table_rows(), &Regex.match?(@row, &1)) == []
   end
 
   for theme <- ThemeTestMatrix.registered() do
