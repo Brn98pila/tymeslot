@@ -301,7 +301,9 @@ defmodule Tymeslot.Meetings.AttendeeNotificationsTest do
 
         assert user_id == user.id
         assert uid == event.uid
-        refute job.scheduled_at > DateTime.utc_now()
+        # Oban only marks a job "scheduled" when it is given a later start, so
+        # "available" means it was queued to run at once, with no debounce.
+        assert job.state == "available"
       end
 
       assert all_enqueued(worker: Worker) == []
@@ -363,7 +365,7 @@ defmodule Tymeslot.Meetings.AttendeeNotificationsTest do
              } = job.args
 
       assert uid == original.uid
-      refute job.scheduled_at > DateTime.utc_now()
+      assert job.state == "available"
       assert all_enqueued(worker: Worker) == []
     end
 
