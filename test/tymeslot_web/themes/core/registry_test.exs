@@ -6,6 +6,7 @@ defmodule TymeslotWeb.Themes.Core.RegistryTest do
 
   alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Themes.Core.Registry
+  alias TymeslotWeb.Themes.Core.Registry.Definitions
 
   describe "default theme" do
     test "is the catalog's default, by id and by key" do
@@ -40,6 +41,55 @@ defmodule TymeslotWeb.Themes.Core.RegistryTest do
                Registry.get_theme_by_id("99")
 
       assert {:ok, %{id: "99"}} = Registry.get_theme_by_slug("fixture")
+    end
+  end
+
+  describe "Definitions.build!/2" do
+    @facts %{
+      alpha: %{id: "1", key: :alpha, name: "Alpha"},
+      beta: %{id: "2", key: :beta, name: "Beta"}
+    }
+
+    test "binds each Catalog theme to its module by id" do
+      assert Definitions.build!(@facts, %{"1" => AlphaTheme, "2" => BetaTheme}) == %{
+               alpha: %{id: "1", key: :alpha, name: "Alpha", module: AlphaTheme},
+               beta: %{id: "2", key: :beta, name: "Beta", module: BetaTheme}
+             }
+    end
+
+    test "refuses a Catalog theme with no binding, naming its id" do
+      error =
+        assert_raise ArgumentError, fn -> Definitions.build!(@facts, %{"1" => AlphaTheme}) end
+
+      assert error.message =~
+               ~s(no binding in TymeslotWeb.Themes.Core.Registry's @bindings: ["2"])
+    end
+
+    test "refuses a binding with no Catalog theme, naming its id" do
+      error =
+        assert_raise ArgumentError, fn ->
+          Definitions.build!(@facts, %{"1" => AlphaTheme, "2" => BetaTheme, "7" => GammaTheme})
+        end
+
+      assert error.message =~ ~s(bindings with no Tymeslot.Themes.Catalog theme: ["7"])
+      refute error.message =~ "no binding in"
+    end
+
+    test "names both mismatches at once" do
+      error =
+        assert_raise ArgumentError, fn ->
+          Definitions.build!(@facts, %{"1" => AlphaTheme, "7" => GammaTheme})
+        end
+
+      assert error.message =~ ~s(["2"])
+      assert error.message =~ ~s(["7"])
+    end
+  end
+
+  describe "the shipped registry" do
+    test "holds exactly the Catalog's themes" do
+      assert Registry.all_themes() |> Map.keys() |> Enum.sort() ==
+               Catalog.all() |> Map.keys() |> Enum.sort()
     end
   end
 end

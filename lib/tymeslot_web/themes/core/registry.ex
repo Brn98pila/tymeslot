@@ -5,10 +5,13 @@ defmodule TymeslotWeb.Themes.Core.Registry do
   path (`/assets/scheduling-theme-<key>.css`) and html class (`<key>-theme`)
   derive from the key; the picker's preview image and description come from
   the module's `metadata/0`. Domain code reads facts from the catalog
-  directly.
+  directly. The two halves must match: `Registry.Definitions.build!/2` fails
+  the build for a Catalog theme with no binding or a binding with no Catalog
+  theme.
   """
 
   alias Tymeslot.Themes.Catalog
+  alias TymeslotWeb.Themes.Core.Registry.Definitions
 
   @type theme_id :: String.t()
   @type theme_key :: atom()
@@ -41,12 +44,10 @@ defmodule TymeslotWeb.Themes.Core.Registry do
               @extra_bindings
             )
 
-  # Build full definitions at compile time by joining catalog facts to modules.
-  @themes Catalog.all()
-          |> Enum.map(fn {key, facts} ->
-            {key, Map.put(facts, :module, Map.fetch!(@bindings, facts.id))}
-          end)
-          |> Map.new()
+  # Full definitions, built while this module compiles: the Catalog's facts
+  # joined to the bindings. A theme with facts and no binding, or a binding
+  # with no facts, fails the build here, naming the ids.
+  @themes Definitions.build!(Catalog.all(), @bindings)
 
   # Create reverse lookup maps at compile time
   @id_to_key_map @themes

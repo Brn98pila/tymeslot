@@ -223,7 +223,7 @@ in `lib/tymeslot_web/themes/core/registry.ex`:
 ```
 
 `Registry` joins the two at compile time (`Catalog.all/0` ⨝ `@bindings`) into the
-`theme_definition` the web layer consumes. Nothing else is bound: the stylesheet
+`theme_definition` the web layer consumes. The two must match: a Catalog entry with no binding, or a binding with no Catalog entry, fails the build with a message naming the id (`Registry.Definitions.build!/2`). Nothing else is bound: the stylesheet
 path (`/assets/scheduling-theme-aurora.css`) and the `aurora-theme` class derive
 from the key, and the picker's preview image and description come from the theme
 module's `metadata/0`. So the theme's CSS directory must be named after its
@@ -1261,7 +1261,7 @@ Logger.debug("Socket assigns: #{inspect(socket.assigns)}")
 Every place a new theme touches, in the order to add them (`aurora`, id `"3"`, as the example):
 
 - [ ] **Catalog facts** in `lib/tymeslot/themes/catalog.ex`: `id`, `key`, `name`, `heading_style`, `status` (start at `:beta`) and `customization_spec:`
-- [ ] **Registry binding** in `lib/tymeslot_web/themes/core/registry.ex`: one `"3" => TymeslotWeb.Themes.Aurora.Theme` line in `@bindings`
+- [ ] **Registry binding** in `lib/tymeslot_web/themes/core/registry.ex`: one `"3" => TymeslotWeb.Themes.Aurora.Theme` line in `@bindings` (the build fails, naming the id, until both halves exist)
 - [ ] **`theme.ex`**: one `use TymeslotWeb.Themes.Core.Theme, live_view:, preview_image:, description:` (the description a `dgettext_noop/2` call)
 - [ ] **Translations**: `mix gettext.extract --merge` adds the description's msgid to every locale's `dashboard_appearance.po`; translate it there, or CI's `gettext.extract --check-up-to-date` fails
 - [ ] **`scheduling/live.ex`**: one `use TymeslotWeb.Themes.Shared.SchedulingLive, wrapper:, steps:`, with the aliases above it, naming your `scheduling/wrapper.ex` and all five steps
