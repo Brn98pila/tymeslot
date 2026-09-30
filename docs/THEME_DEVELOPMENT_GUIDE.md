@@ -52,6 +52,8 @@ lib/tymeslot_web/themes/[theme_name]/
 >
 > **Payment return pages are shared.** `Shared.PaymentReturnLive.Processing` and `.Cancelled` serve `/themes/<key>/payment-processing/<id>` and `/themes/<key>/payment-cancelled/<id>` for every theme, assigning `:theme_id` from the slug so the layout loads the theme's own stylesheet. A theme only draws its shell, in `payment/processing.ex` and `payment/cancelled.ex`, around `Shared.PaymentReturnComponents`; it adds no route and no LiveView.
 >
+> **`meeting/`, `poll/` and `payment/` are optional.** A theme that names a `page_shell:` (Quick Start step 3) writes none of the six page modules: it gets them from `Shared.DefaultPages`.
+>
 > Themes may add their own internal structure beyond the above; Rhythm, for
 > example, keeps a theme-local `shared/` directory (`organizer_header.ex`) for
 > components reused only within that theme.
@@ -75,12 +77,7 @@ assets/css/scheduling/themes/[theme_name]/
     └── language-switcher.css   # Language switcher (theme-specific treatment)
 ```
 
-> Components both themes style alike (preview and approval notices, polls,
-> payment return pages, guest and location fields, language switcher
-> structure, slot list, timezone picker) are not per-theme modules: their CSS
-> lives in `assets/css/scheduling/shared/components/`, which each `theme.css`
-> imports, and a theme styles them by defining the tokens each file lists in
-> its header (see *Token contract*).
+> Components every theme shares (preview and approval notices, polls, payment return pages, guest and location fields, the questions step's tiles and option cards, language switcher structure, slot list, timezone picker, week grid, default meeting pages) are not per-theme modules: their CSS lives in `assets/css/scheduling/shared/components/`, which each `theme.css` imports, and a theme styles them by defining the tokens each file lists in its header (see [Modular Structure](#modular-structure) and [Token contract](#token-contract)).
 
 > The module breakdown is **per-theme, not canonical** — themes are free to split
 > further. Quill (glassmorphism) splits its UI into `glass-card.css`, `buttons.css`,
@@ -284,6 +281,7 @@ assets/css/scheduling/
 │   ├── entry.css                 # Imported first by every theme.css: Tailwind, primitives, variants, @source
 │   ├── tokens.css                # The token contract and the derived tokens
 │   ├── reset.css                 # CSS reset
+│   ├── fonts.css                 # Self-hosted @font-face rules and the --font-stack-<id> / --font-heading-<id> stacks
 │   ├── layout.css                # Fallback radius scale, reCAPTCHA badge, honeypot field, status screens
 │   ├── utilities.css             # Loading-spinner animation, hour-picker count badge
 │   ├── brand-tokens.css          # Tailwind @theme block for the reCAPTCHA notice
@@ -291,16 +289,16 @@ assets/css/scheduling/
 │   ├── embed.css                 # Embed shell rules (booker hook classes)
 │   └── components/               # Shared component styles (structure and states; themes set tokens)
 │       ├── approval-notice.css
-│       ├── booking-fields.css
-│       ├── custom-questions.css
+│       ├── booking-fields.css    # Guest and location fields
+│       ├── custom-questions.css  # The questions step's yes/no tiles and option cards
 │       ├── language-switcher.css
-│       ├── manage-pages.css
+│       ├── manage-pages.css      # Default meeting pages, for a theme with a page_shell
 │       ├── payment-pages.css
 │       ├── polls.css
 │       ├── preview-notice.css
 │       ├── slot-list.css
 │       ├── timezone-picker.css
-│       └── week-grid.css
+│       └── week-grid.css         # WeekGrid, for a theme with a week view
 └── themes/
     ├── quill/                         # Quill theme (glassmorphism) — fine-grained split
     │   ├── modules/
@@ -351,6 +349,8 @@ there is no fixed module list. Quill breaks UI controls into many small files;
 Rhythm consolidates them into `components.css`. Match whichever style suits your
 theme; only `variables.css`, `base.css`, and `iframe.css` are universally expected.
 
+Each file under `shared/components/` carries a shared component's structure and states, and lists in its header the tokens a theme sets for its look, in its `variables.css` (`custom-questions.css`'s `--option-*` tokens are all optional). Where the themes differ by a whole treatment rather than a value, the declarations stay in the theme's own module under the same selector. `layout.css`'s radius scale (`--radius-sm` to `--radius-full`) is a fallback a theme may override.
+
 ### Theme CSS Structure
 
 Each theme's `theme.css` imports the shared entry, then the shared token file right after its own `variables.css`, then its modules:
@@ -363,7 +363,7 @@ Each theme's `theme.css` imports the shared entry, then the shared token file ri
 @import "./modules/base.css";
 @import "../../shared/embed.css";        /* shared embed rules on the booker hook classes */
 @import "./modules/iframe.css";          /* the theme's own embed rules */
-/* …the theme's own modules, and shared/components/*.css where the theme uses them */
+/* …the theme's own modules, and the shared/components/*.css it uses (every REQUIRED_SHARED_IMPORTS file among them) */
 ```
 
 ### Token contract
@@ -435,16 +435,16 @@ Templates define structure, CSS defines appearance:
 
 ### Shared Components
 
-The **step layouts** are theme-owned: duration cards, calendar day buttons and the booking form are rendered and styled by each theme. Pieces whose behaviour (accessibility, grouping, events, wording) must not drift between themes are shared components with fixed markup and block-element class names; each theme styles those classes in its own CSS.
+The **step layouts** are theme-owned: duration cards, calendar day buttons and the booking step's card are rendered and styled by each theme. Pieces whose behaviour (accessibility, grouping, events, wording, anti-spam) must not drift between themes are shared components with fixed markup and block-element class names; each theme styles those classes in its own CSS.
 
 Shared across themes:
 
 - **`Shared.Components.CustomAnswers`** (`custom_answers/1`): the confirmation step's "Your answers" list. Classes `custom-answers`, `custom-answers__heading`, `__list`, `__row`, `__label`, `__value`.
 - **`Shared.Components.ProfileIntro`** (`headline/1`, `bio/1`): the organiser's headline and bio (`Profiles.update_intro/2`). Pass `profile={@organizer_profile}`; each renders nothing when its field is empty. The headline is `p.profile-intro__headline`; the bio is `div.profile-intro__bio` holding one `p.profile-intro__paragraph` per blank-line-separated block, the organiser's single line breaks as `<br>`, everything escaped. Tests select them by `data-testid="profile-headline"` and `"profile-bio"`. Quill and Rhythm do not show them; the fixture theme's overview is the worked example.
 - **`Shared.Components.SlotList`** (`slot_list/1`): the schedule step's time-slot panel, with the heading, the screen-reader status line, flat and by-hour grouping, the slot buttons, and the prompt, loading, error and fully-booked states. Classes `slot-list`, `slot-list__heading`, `__body`, `__groups`, `__period`, `__period-label`, `__grid` (`--minutes`), `__slot` (`--selected`, `--hour`, `--expanded`), `__hour-label`, `__hour-count`, `__prompt`, `__loading`, `__error`, `__empty`. Pass `heading_tag`/`period_tag` to fit your page's heading outline, and the `:loading`, `:error` and `:empty` slots only if your theme renders those states with its own markup. Tests select slots by `data-testid="time-slot"` and `"slot-hour"`, never by class.
-- **`Shared.Components.WeekGrid`** (`week_grid/1`): a week of free times on one screen, for a theme with a week view: one column per day from the week's Monday, each listing its times, with previous and next week controls; one click on a time picks the day and the time together (`select_slot`). Classes `week-grid` (`--loading`), `week-grid__nav`, `__nav-button` (`--prev`, `--next`), `__nav-icon`, `__range`, `__days`, `__day` (`--today`), `__day-heading`, `__day-name`, `__day-date`, `__slots`, `__slot` (`--selected`), `__empty`, `__loading`, `__error`, `__jump`; the shared structure is `scheduling/shared/components/week-grid.css` (import it after `shared/tokens.css`; it reads the contract tokens plus `--week-grid-gap`), and the grid is its own container (`week-grid`), showing seven days, then three, then one as it narrows. Pass the flow's week assigns (`week_slots`, `loading`, `error`) and `week_start={@current_week_start}`, `selected_date`, `selected_time`, `today={@calendar_today}`, `user_timezone`, `booking_window_days`, `landing_week={CalendarHelpers.landing_week(assigns)}` (the grid then offers a jump back to the week the page landed the booker on), and `heading_tag` to fit your outline. The grid asks for its week itself: while `week_slots` is nil it pushes `load_week` on appearing and on every join. Tests select times by `data-testid="week-slot"` with `data-date` and `data-time`.
+- **`Shared.Components.WeekGrid`** (`week_grid/1`): a week of free times on one screen, for a theme with a week view: one column per day from the week's Monday, each listing its times, with previous and next week controls; one click on a time picks the day and the time together (`select_slot`). Classes `week-grid` (`--loading`), `week-grid__nav`, `__nav-button` (`--prev`, `--next`), `__nav-icon`, `__range`, `__days`, `__day` (`--today`), `__day-heading`, `__day-name`, `__day-date`, `__slots`, `__slot` (`--selected`), `__empty`, `__loading`, `__error`, `__jump`; the shared structure is `scheduling/shared/components/week-grid.css` (import it after `shared/tokens.css`; it reads the contract tokens plus `--week-grid-gap`), and the grid is its own container (`week-grid`), showing seven days, then three, then one as it narrows. Pass the flow's week assigns (`week_slots={@week_slots}`, `loading={@week_slots_loading}`, `error={@week_slots_error}`) and `week_start={@current_week_start}`, `selected_date`, `selected_time`, `today={@calendar_today}`, `user_timezone`, `booking_window_days`, `landing_week={CalendarHelpers.landing_week(assigns)}` (the grid then offers a jump back to the week the page landed the booker on), `target={@myself}`, and `heading_tag` to fit your outline. The grid asks for its week itself: while `week_slots` is nil it pushes `load_week` on appearing and on every join. Tests select times by `data-testid="week-slot"` with `data-date` and `data-time`.
 - **`Shared.Components.TimezonePicker`** (`timezone_picker/1`): the timezone dropdown, search box and options. Classes `tz-picker`, `tz-picker__trigger`, `__panel`, `__search-wrapper`, `__search`, `__options` (which also carries your theme's `scroll-y`), `__option`, `__option-content`, `__option-flag`, `__option-text`, `__option-label`, `__option-offset`. The trigger's visible content is your `:trigger` slot; the screen-reader "Your timezone:" prefix is added for you. Render flags with `FlagHelpers.timezone_flag/1`.
-- **`Shared.Components.BookingForm`** (`booking_form/1`): the booking step's form (name, email, message) with the honeypot, the reCAPTCHA hook and token and, after its inner block (put the guest field there), the reCAPTCHA notice. A theme sets `class`, `contact_class`, `message_rows` and `labels`, never the structure; `theme_booking_step_parity_test.exs` fails for a shipped theme whose booking step lacks the anti-spam fields.
+- **`Shared.Components.BookingForm`** (`booking_form/1`): the booking step's form (name, email, message, `id="booking-form"`, `data-testid="booking-form"`) with the honeypot, the reCAPTCHA hook and token, the per-field errors and blur validation (see [BookingFlow](#bookingflow)) and, after its inner block (put the guest field there), the reCAPTCHA notice. Pass `form={@form}`, `validation_errors={@validation_errors}` and `target={@myself}`; a theme sets `class`, `contact_class` (a wrapper around name and email), `message_rows` and `labels`, never the structure. `theme_booking_step_parity_test.exs` fails for a shipped theme whose booking step lacks the anti-spam fields.
 - **`Shared.Components.MeetingPageBodies`** (`cancel/1`, `reschedule/1`, `cancel_confirmed/1`) and **`Shared.DefaultPages`**: theme-neutral meeting page bodies (classes `manage-page`, `manage-page__*`, styled by `scheduling/shared/components/manage-pages.css` through contract tokens) and the six pages a theme with a `page_shell:` gets, each body inside the shell in `<div class="manage-page manage-page--<page>" data-testid="<theme key>-<page>">`.
 - **`Shared.Components.ThemeShell`** (`theme_shell/1`): the page chrome every wrapper renders, in order: the customisation `<style>` block, your background (`:background` slot), then the theme grid with the preview notice, the language switcher, the step and the configured theme extensions. Your wrapper passes `class`, `grid_class`, `grid_style` and `language_class`, plus its theme's `theme_id` (which the extensions receive), and keeps only its background markup.
 - **Data utilities** (`TymeslotWeb.Components.MeetingUtils`): `normalize_slot_list/1`
@@ -455,15 +455,7 @@ Shared across themes:
   `:awaiting_payment` state placeholder for paid embedded bookings.
 - **`Shared.VideoSources`** (`video_sources/1`) — `<source>` elements for video
   backgrounds, used inside each wrapper's `<video>` element.
-- **`Shared.CustomQuestions.Inputs.Renderer`** plus the per-type input components —
-  the custom-questions field renderers. The theme's `CustomQuestionsComponent`
-  supplies the chrome (card, progress indicator) and delegates rendering and events
-  to the shared engine. The step's events are `answer`, `multi_toggle`, `next_step`
-  and `back_step` (the canonical navigation names every step uses), plus the
-  theme's own `theme:<name>` events, relayed untouched. A step event nothing
-  handles (an unknown name, a canonical name with the wrong params, or one sent
-  from a step it does not belong to) is dropped with a warning naming the theme,
-  the step and the event, once per page view.
+- **`Shared.CustomQuestions.Inputs.Renderer`** plus the per-type input components: the custom-questions field renderers, styled by `scheduling/shared/components/custom-questions.css` (the yes/no tiles and option cards). The theme's `CustomQuestionsComponent` supplies the chrome (card, progress indicator) and delegates rendering and events to the shared engine. The step's events are `answer`, `multi_toggle`, `next_step` and `back_step` (the canonical navigation names every step uses), plus the theme's own `theme:<name>` events, relayed untouched; a step event nothing handles is dropped with a warning (see [Event Communication Pattern](#6-event-communication-pattern)).
 - **`TymeslotWeb.Components.LanguageSwitcher`** (`language_switcher/1`) — the locale
   dropdown, rendered by `ThemeShell`.
 
@@ -503,7 +495,7 @@ The embedder can supply `data-initial-height` (px) on the container as a placeho
 ### Creating Theme CSS
 
 1. **Create theme directory**: `assets/css/scheduling/themes/your-theme/`
-2. **Create main theme.css** that imports `../../shared/entry.css`, then `./modules/variables.css`, then `../../shared/tokens.css`, then your modules and the `shared/components/*.css` files you use, and the shared files every theme imports (`REQUIRED_SHARED_IMPORTS` in `scripts/test_css_tokens.sh`: the entry, `tokens.css`, `embed.css` and the component files for the language switcher, preview and approval notices, booking fields, custom questions, polls and payment pages); `mix css.check_tokens` fails, naming the file, for one left out, and for a theme with no `modules/variables.css` or no `theme.css`
+2. **Create main theme.css** in the order of [Theme CSS Structure](#theme-css-structure): `../../shared/entry.css`, `./modules/variables.css`, `../../shared/tokens.css`, `./modules/base.css`, `../../shared/embed.css`, then your modules and the `shared/components/*.css` files you use. Every file in `REQUIRED_SHARED_IMPORTS` (`scripts/test_css_tokens.sh`: the entry, `tokens.css`, `embed.css` and the component files for the language switcher, preview and approval notices, booking fields, custom questions, polls and payment pages) must be among them; `mix css.check_tokens` fails, naming the file, for one left out, and for a theme with no `modules/variables.css` or no `theme.css`
 3. **Create modular CSS files** in a `modules/` subdirectory — each component file is self-contained
 4. **Set container query context** on the primary content container (`container-type: inline-size; container-name: scheduling;`)
 5. **No external font imports**: point `--theme-font-family` (and `--theme-font-heading`) at a stack from `shared/fonts.css` (see *Fonts*); a new family is added there, self-hosted, never loaded from a font service
@@ -524,7 +516,7 @@ The embedder can supply `data-initial-height` (px) on the container as a placeho
 - Handling for the conditional **`:questions`** state (custom-questions step, when the meeting type has custom fields) and the transitional **`:awaiting_payment`** state (paid embedded bookings)
 - All 5 step components as LiveComponents (the 4 core steps + `custom_questions_component.ex`)
 - The booking step renders `Shared.Components.BookingForm.booking_form/1`
-- Schedule component must include both the weekly strip (mobile) and monthly grid (desktop) with nav buttons wired to `CalendarNavigation` boundary checks
+- Schedule component with its nav buttons wired to `CalendarNavigation` boundary checks: a weekly strip (mobile) and monthly grid (desktop), as Quill and Rhythm render, or the shared `WeekGrid` (see [A week of slots](#a-week-of-slots)), which wires its own week buttons to them
 - Meeting action components (reschedule, cancel, cancel_confirmed), or a `page_shell:` that takes them from `Shared.DefaultPages`
 
 > No per-theme StateMachine module — transitions are owned by the shared
@@ -541,8 +533,8 @@ The theme system provides centralized handlers and helpers in `TymeslotWeb.Theme
 > **You normally do not write any of the code in this section by hand.** The
 > `use TymeslotWeb.Themes.Shared.SchedulingLive, wrapper: …, steps: …` macro wires up
 > `mount/3`, `handle_params/3`, `render/1`, every `handle_info/2` (step components send
-> their events to the LiveView as messages), and the language and `navigate_to_step`
-> `handle_event/3` clauses for you (see [Common Patterns](#common-patterns)).
+> their events to the LiveView as messages), `handle_async/3` (the week of slots), and the
+> language and `navigate_to_step` `handle_event/3` clauses for you (see [Common Patterns](#common-patterns)).
 > The subsections below document the underlying helpers the macro calls — read them
 > to understand what is happening, or when you need to override a specific extension
 > point. A real theme's `live.ex` is its `use SchedulingLive, wrapper: …, steps: …`
@@ -629,19 +621,7 @@ defp booking_event(socket, :submit, data),
 - `submit_booking/3` - Submit booking and transition to confirmation
 - Both functions handle spam prevention, rate limiting, and error handling automatically
 
-**Per-field inline errors**: Errors are shown per-field using `FormValidationHelpers.field_errors/2`, matching the pattern used by auth and contact forms. Each `.input` in the booking component must pass errors explicitly:
-
-```heex
-<.input
-  field={f[:name]}
-  errors={FormValidationHelpers.field_errors(@validation_errors, :name)}
-  ...
-/>
-```
-
-Errors only appear for fields the user has blurred (`touched_fields` MapSet), and clear automatically when the user corrects the input (validation returns `{:ok, ...}` → `validation_errors` becomes `%{}`).
-
-Each booking input must also include `phx-debounce="blur"` alongside `phx-blur="field_blur"`. The debounce suppresses the `phx-change` event until the field loses focus; the blur event triggers per-field validation. Without the debounce, every keystroke fires a server round-trip:
+**Per-field inline errors**: `Shared.Components.BookingForm` renders its name, email and message inputs with per-field errors (`FormValidationHelpers.field_errors/2`, the pattern the auth and contact forms use), so a theme writes none of this for them. An input a theme adds to the booking step itself follows the same pattern: it passes its errors explicitly, and `phx-debounce="blur"` alongside `phx-blur="field_blur"`. The debounce suppresses the `phx-change` event until the field loses focus, and the blur event triggers per-field validation; without it, every keystroke fires a server round-trip:
 
 ```heex
 <.input
@@ -653,6 +633,8 @@ Each booking input must also include `phx-debounce="blur"` alongside `phx-blur="
   phx-target={@myself}
 />
 ```
+
+Errors only appear for fields the user has blurred (`touched_fields` MapSet), and clear automatically when the user corrects the input (validation returns `{:ok, ...}` → `validation_errors` becomes `%{}`).
 
 ### LocalizationHelpers
 
@@ -677,27 +659,6 @@ Use `TymeslotWeb.Themes.Shared.PathHandlers` for internal navigation to preserve
 back_path = PathHandlers.build_path_with_locale(socket, socket.assigns.locale)
 ```
 
-## CSS Architecture
-
-Themes use a **modular CSS architecture** located in `assets/css/scheduling/`: shared files in `shared/`, each theme in `themes/<theme>/`.
-
-### Shared Files
-- `assets/css/scheduling/shared/entry.css`: imported first by every `theme.css`, with Tailwind, the primitives below, the LiveView loading variants and the content sources
-- `assets/css/scheduling/shared/tokens.css`: the token contract (inputs, roles, shared-component tokens) and the `color-mix()` derived tokens, imported right after the theme's `variables.css`
-- `assets/css/scheduling/shared/reset.css`: CSS reset
-- `assets/css/scheduling/shared/layout.css`: the fallback radius scale (`--radius-sm` to `--radius-full`, which a theme may override), the reCAPTCHA badge, the honeypot field, and the readiness and awaiting-payment status screens
-- `assets/css/scheduling/shared/utilities.css`: the `.loading-spinner` animation (`@keyframes spin`) and the hour picker's count badge (`.slot-list__hour-count`)
-- `assets/css/scheduling/shared/brand-tokens.css`: the Tailwind `@theme` colours the reCAPTCHA notice's utilities need
-- `assets/css/scheduling/shared/background-motion.css`: the background video's pause and play toggle
-- `assets/css/scheduling/shared/embed.css`: embed shell rules on the booker hook classes
-- `assets/css/scheduling/shared/components/*.css`: component styles both themes share (notices, polls, payment pages, booking fields, language switcher, slot list, timezone picker, week grid)
-- `assets/css/scheduling/shared/components/custom-questions.css`: the questions step's yes/no tiles and option cards; a theme sets the `--option-*` tokens its header lists (all optional) and adds any treatment of its own under the same selectors
-
-Shared component files carry the structure and states; each theme sets their look through the tokens a file lists in its header, defined in the theme's `variables.css`. Where the themes differ by a whole treatment rather than a value, the declarations stay in the theme's own module under the same selector.
-
-### Theme Structure
-Each theme has a `theme.css` entry point and a flat `modules/` subdirectory. Each component file owns its base styles, container queries and iframe overrides in one place, with no separate `responsive.css`. The embed shell rules both themes share live in `shared/embed.css`, on the booker hook classes; each theme's `iframe.css` keeps only what differs.
-
 ## Theme Customization Spec
 
 Each theme declares what organisers can customise in a spec module that `use`s `Tymeslot.ThemeCustomizations.Spec`, named by `customization_spec:` in its Catalog entry. The spec is the only place the theme's customisation rules live:
@@ -711,7 +672,7 @@ Each theme declares what organisers can customise in a spec module that `use`s `
 | `asset_fields/0` | Generated by `use`: every group's `asset_fields/1`; the settings that hold uploaded files, for upload handling and file clean-up. Each field belongs to the option group that declares it in `asset_fields/1`; an upload into it saves that group's `upload_changes/3`, limited to the group's own settings. At most one `:video` field per theme: the transcoder tracks one video per customisation row. |
 | `onboarding_choices/0` (optional) | What the onboarding wizard offers: `%{group:, field:, setting:, choices: [%{value:, name:, swatch:}]}`, or `nil` to show no choice row. `use Spec` generates it from the palette group's `schemes:` (in that order, swatch = the scheme's primary); override it to offer something else |
 
-A spec writes `option_groups/0` and `defaults/0`, and composes the shared groups `Options.Palette` and `Options.Background` rather than restating their rules; `QuillSpec` and `RhythmSpec` are the reference. A group is any module implementing `Tymeslot.ThemeCustomizations.OptionGroup` (`types/0`, `changeset/3`, `changes/3`, optionally `asset_fields/1`, `upload_changes/3` and `media/2`), handed its own descriptor on every call; shared code never branches on which group it is, so a theme's own option is one module listed in its spec. An option module that stores files implements `asset_fields/1` (the fields and their kinds) and `upload_changes/3` (what an upload into one of them saves, string-keyed, only the group's own settings); one that renders something implements `media/2`. `Specs.group(spec, module)` returns a spec's group for a module. `Spec` is only the contract, so `use Spec` costs a theme no compile-time coupling (it only checks, once the spec has compiled, that no two groups declare the same setting or share a `key:`, and fails the compile naming them); the questions asked of a spec (`group/2`, `for_theme/1`, ...) live in `Specs`. Keep it that way: a helper that calls another module belongs in `Specs`.
+A spec writes `option_groups/0` and `defaults/0`, and composes the shared groups (`Options.Palette`, `Options.Background` and those of [Shared option groups](#shared-option-groups)) rather than restating their rules; `QuillSpec` and `RhythmSpec` are the reference for the palette and background, the showcase theme's spec for the rest. A group is any module implementing `Tymeslot.ThemeCustomizations.OptionGroup` (`types/0`, `changeset/3`, `changes/3`, optionally `tokens/4`, `asset_fields/1`, `upload_changes/3` and `media/2`), handed its own descriptor on every call; shared code never branches on which group it is, so a theme's own option is one module listed in its spec. An option module that stores files implements `asset_fields/1` (the fields and their kinds) and `upload_changes/3` (what an upload into one of them saves, string-keyed, only the group's own settings); one that renders something implements `media/2`. `Specs.group(spec, module)` returns a spec's group for a module. `Spec` is only the contract, so `use Spec` costs a theme no compile-time coupling (it only checks, once the spec has compiled, that no two groups declare the same setting or share a `key:`, and fails the compile naming them); the questions asked of a spec (`group/2`, `for_theme/1`, ...) live in `Specs`. Keep it that way: a helper that calls another module belongs in `Specs`.
 
 The onboarding wizard's colour row lists `onboarding_choices/0` in its order and saves a pick with `apply_option(profile_id, theme_id, group, %{"field" => field, "value" => value})`; a theme without a palette gets no row.
 
@@ -729,21 +690,17 @@ A spec's `tokens/2` turns the saved settings, plus per-request overrides, into a
 
 A group added to `option_groups/0` therefore reaches the page without further wiring. A group of a theme's own that renders something (a logo, a cover image) returns it from `media/2` under a key of its own, already sanitised (`Validation.sanitize_path/1` for an uploaded file), and the theme's templates read `@theme_tokens.media[:key]`; a key is absent when nothing resolved.
 
-**The logo group.** `Options.Logo` (`%{key: :logo, module: Options.Logo}`, no configuration) stores one uploaded image in `logo_path`. The file arrives only through an upload into that field, which replaces and deletes the previous one; the one choice it takes is removing it (`theme:set_option` with field `logo_path` and an empty choice). `media[:logo]` is `%{src: url}`, sanitised as an uploaded background's URL is, and absent without a logo. The built-in `LogoPanel` shows the stored logo, uploads a new one and removes it. No shipped theme offers the group yet; the test-only showcase theme does (see [Test-only themes](#test-only-themes)).
-
-**The cover group.** `Options.Cover` (`%{key: :cover, module: Options.Cover, presets: [ids], default: id}`) stores `cover_value`, a preset id from the group's `presets:` or `"custom"`, and `cover_path`, an uploaded image. The covers are in `Presets.Covers`; the first four reuse the background images under the same ids and names. Choosing a preset (`theme:set_option` with field `cover_value`) drops an uploaded cover and deletes its file; an upload into `cover_path` makes it the custom cover. `media[:cover]` is `%{src: url, preset: id}` for a preset or `%{src: url, preset: nil}` for an upload, the descriptor's `default:` while nothing is stored, and absent when the stored value resolves to nothing. The built-in `CoverPanel` offers the group's covers and the upload. No shipped theme offers the group yet; the showcase theme does.
-
 A per-embed `?primary-color=` arrives in `tokens/2` as `%{primary_color: hex}`; a spec with a palette must honour it.
 
 The contrast pairs (`--theme-on-primary`, `--theme-primary-solid`, `--theme-primary-solid-hover`, `--theme-on-accent`, `--theme-accent-solid`) come from `Tymeslot.ThemeCustomizations.ContrastTokens`: the ink is white or the palette's darker of `background` and `text`, whichever reads better, and the solid surface moves only as far as it must for 4.5:1. The rule works on light and dark palettes alike. `ContrastTokens.derive/1` never adjusts `--theme-primary` itself. Whether the primary reads as text on the card is `ContrastTokens.fit_text(colour, ground, min_ratio \\ 4.5)`: the colour's lightness walks away from the ground (towards white on a dark one, towards black on a light one) until the pair clears the ratio, and a colour that already does is returned unchanged. A light seed derivation fits its primary to its surface this way, and its secondary and accent to its ground at 3:1; a light preset scheme's own primary has to read on its card as it stands.
 
 Every option change goes through `ThemeCustomizations.apply_option(profile_id, theme_id, option_key, %{"field" => ..., "value" => ...})`, which finds the group in the spec's `option_groups/0`, asks the group's module for the changes (`group.module.changes(field, value, group)`; `:error` refuses the choice), and saves them through the spec changeset. Only the change is saved; the rest of the row is what `Specs.settings/2` reads.
 
-The dashboard's customisation panel (`ThemeCustomizationComponent`) renders one panel per `option_groups/0` entry: `ThemeCustomization.Panels.for_group/2` returns the theme's own panel for the group's module (its `option_panels:`), else the built-in panel of a shared group: `PalettePanel`, `BackgroundPanel` (whose tabs show the group's `kinds`), `LogoPanel`, `CoverPanel`, or one of the panels of §Shared option groups, and `Components.option_panel/1` renders it. Every option write is the `theme:set_option` event (`option`, `field`, `choice`, targeted at `@myself`), which calls `apply_option/4` with `%{"field" => field, "value" => choice}`. The wire param is named `choice`, not `value`: LiveView's client serialisation reads a button's native `value` IDL property and would otherwise overwrite `phx-value-value` with the empty string on every click. A panel is a function component module that `use`s `ThemeCustomization.Panel`: it defines `render/1` and overrides, where it needs to, the defaults `use` supplies for `ui/3` (what it shows between writes, such as the open background tab, the palette's seed picker or the custom-colour disclosure, on load and after each save of its group), `handle_ui/5` (any other `theme:*` event carrying `phx-value-option`, answered with new state, a write, or `:ignore`) and `telemetry/3` (the event name and rate-limit label of a write). The component keeps that state per group and spreads it into the panel's assigns; it has no clause for any particular panel. Every field in the spec's `asset_fields/0` gets an upload input of its own, named after it (`@uploads.background_image_path`), declared by `AssetUploads`. An upload form, the background pickers' or a panel of a theme's own, sends `upload_asset` on change and submit with a hidden `asset_field` input naming its field; the component saves it through `attach_asset/4`. A new option type of one theme's own needs an `OptionGroup` module and a panel module, named in the theme's `option_panels:`; neither touches a shared file. A group several themes share lives under `theme_customizations/options/` with its panel beside `PalettePanel`, in the built-in map of `Panels`. The upload form of every image field, the background's included, is `Pickers.ImageUpload.image_upload/1` (`id`, `field`, `uploads`, `myself`).
+The dashboard's customisation panel (`ThemeCustomizationComponent`) renders one panel per `option_groups/0` entry: `ThemeCustomization.Panels.for_group/2` returns the theme's own panel for the group's module (its `option_panels:`), else the built-in panel of a shared group (`PalettePanel`, `BackgroundPanel`, whose tabs show the group's `kinds`, or one of those in [Shared option groups](#shared-option-groups)), and `Components.option_panel/1` renders it. Every option write is the `theme:set_option` event (`option`, `field`, `choice`, targeted at `@myself`), which calls `apply_option/4` with `%{"field" => field, "value" => choice}`. The wire param is named `choice`, not `value`: LiveView's client serialisation reads a button's native `value` IDL property and would otherwise overwrite `phx-value-value` with the empty string on every click. A panel is a function component module that `use`s `ThemeCustomization.Panel`: it defines `render/1` and overrides, where it needs to, the defaults `use` supplies for `ui/3` (what it shows between writes, such as the open background tab, the palette's seed picker or the custom-colour disclosure, on load and after each save of its group), `handle_ui/5` (any other `theme:*` event carrying `phx-value-option`, answered with new state, a write, or `:ignore`) and `telemetry/3` (the event name and rate-limit label of a write). The component keeps that state per group and spreads it into the panel's assigns; it has no clause for any particular panel. Every field in the spec's `asset_fields/0` gets an upload input of its own, named after it (`@uploads.background_image_path`), declared by `AssetUploads`. An upload form, the background pickers' or a panel of a theme's own, sends `upload_asset` on change and submit with a hidden `asset_field` input naming its field; the component saves it through `attach_asset/4`. A new option type of one theme's own needs an `OptionGroup` module and a panel module, named in the theme's `option_panels:`; neither touches a shared file. A group several themes share lives under `theme_customizations/options/` with its panel beside `PalettePanel`, in the built-in map of `Panels`. The upload form of every image field, the background's included, is `Pickers.ImageUpload.image_upload/1` (`id`, `field`, `uploads`, `myself`).
 
 ### Shared option groups
 
-Besides the palette and the background, `lib/tymeslot/theme_customizations/options/` holds the groups the lighter themes are built from. A spec declares each like any other group, with its configuration in the descriptor, and each emits its variables through `tokens/4`, so their order in `option_groups/0` matters: the canonical order is `palette`, `colour_mode`, `accent`, `font`, `radius`, `density`, then `logo`, `cover`, `background`. A customisation saved before the theme offered a group reads the spec's `defaults/0` for it (`Specs.settings/2`); each group's `default:` is also what its `choice/2` falls back to.
+Besides the palette and the background, `lib/tymeslot/theme_customizations/options/` holds seven shared groups the lighter themes are built from: `colour_mode`, `accent`, `font`, `radius`, `density`, `logo` and `cover`. A spec declares each like any other group, with its configuration in the descriptor. Each emits its variables through `tokens/4`, which the generated `tokens/2` folds in declaration order (above), so their order in `option_groups/0` matters. The canonical order is `palette`, `colour_mode`, `accent`, `font`, `radius`, `density`, `logo`, `cover`, `background`. A customisation saved before the theme offered a group reads the spec's `defaults/0` for it (`Specs.settings/2`); a group's `default:` is also what it falls back to for a missing or unknown stored value.
 
 | Group | Descriptor | Setting | Emits |
 |---|---|---|---|
@@ -752,25 +709,35 @@ Besides the palette and the background, `lib/tymeslot/theme_customizations/optio
 | `Options.Font` | `%{key: :font, module: Options.Font, presets: [ids], default: id}` | `font`: an id from `presets:` (the catalogue is `Presets.Fonts`: `system`, `inter`, `plex`, `classic`, `literary`, `editorial`, `quiet`) | `--theme-font-family: var(--font-stack-<id>)` and `--theme-font-heading: var(--font-heading-<id>)` in `vars`, never a family name; the stacks are defined for every id in `scheduling/shared/fonts.css` |
 | `Options.Radius` | `%{key: :radius, module: Options.Radius, default: "soft"}` | `radius`: `sharp`, `soft` or `round` | the radius roles `--radius-control` and `--radius-card` in `vars`: `2px`/`4px`, `8px`/`12px`, `999px`/`20px` |
 | `Options.Density` | `%{key: :density, module: Options.Density, default: "comfortable"}` | `density`: `comfortable` or `compact` | `--density` in `vars`: `1` or `0.75`, the factor the theme's spacing multiplies |
+| `Options.Logo` | `%{key: :logo, module: Options.Logo}`, no configuration | `logo_path`: an uploaded image, which arrives only through an upload into that field (replacing and deleting the previous one); the one choice is removing it (`theme:set_option` with field `logo_path` and an empty choice) | no variables; `media[:logo]` is `%{src: url}`, sanitised as an uploaded background's URL is, and absent without a logo |
+| `Options.Cover` | `%{key: :cover, module: Options.Cover, presets: [ids], default: id}` | `cover_value`: an id from `presets:` (the catalogue is `Presets.Covers`, whose first four reuse the background images under the same ids and names) or `"custom"`, and `cover_path`: an uploaded image. Choosing a preset drops an uploaded cover and deletes its file; an upload into `cover_path` makes it the custom cover | no variables; `media[:cover]` is `%{src: url, preset: id}` for a preset or `%{src: url, preset: nil}` for an upload, the descriptor's `default:` while nothing is stored, and absent when the stored value resolves to nothing |
 
-Each has a built-in dashboard panel beside `PalettePanel` in `live/dashboard/theme_settings/theme_customization/` (`Options.ColourMode`: `ColourModePanel`, the three modes; `Options.Accent`: `AccentPanel`, the group's presets and a custom colour; `Options.Font`: `FontPanel`, the group's fonts by name; `Options.Radius`: `RadiusPanel`; `Options.Density`: `DensityPanel`), so a theme that declares one names nothing in `option_panels:`.
+Each has a built-in dashboard panel beside `PalettePanel` in `live/dashboard/theme_settings/theme_customization/`, in the built-in map of `Panels`, so a theme that declares one names nothing in `option_panels:`: `ColourModePanel` (the three modes), `AccentPanel` (the group's presets and a custom colour), `FontPanel` (the group's fonts by name, each in its own face: the dashboard's `app.css` imports `shared/fonts.css`), `RadiusPanel`, `DensityPanel`, `LogoPanel` (the stored logo, an upload and its removal) and `CoverPanel` (the group's covers and an upload). No shipped theme offers these groups yet; the showcase theme declares them all (see [Test-only themes](#test-only-themes)).
 
 ### A theme with options of its own
+
+Check the shared parts first. The seven [shared option groups](#shared-option-groups), each with its built-in panel, offer colour mode, accent, font (the stacks of [Fonts](#fonts)), radius, density, a logo and a cover image; a week view is the shared `WeekGrid` and the flow's week of slots ([A week of slots](#a-week-of-slots)); the organiser's headline and bio are `ProfileIntro` ([Shared Components](#shared-components)). A group of your own is for what none of them offers.
 
 A theme is not limited to the shared palette and background, and adding an option of its own changes no shared module. The fixture theme under `test/support/fixture_theme/` (registered in the test build only, see [Test-only themes](#test-only-themes) below) is the smallest complete example: a light palette with no preset schemes, no background, and an `Emblem` group with a choice, an upload and a media entry, shown in the dashboard by a panel of its own. A group of your own is four pieces:
 
 1. **A module implementing `Tymeslot.ThemeCustomizations.OptionGroup`** (`emblem.ex`), with the callbacks described above: `types/0`, `changeset/3` (reading its configuration from the group descriptor), `changes/3` (`:error` for a field it does not have) and, only when it needs them, `asset_fields/1`, `upload_changes/3` and `media/2`. Every group of every theme writes into the one `settings` map of a customisation row, so prefix the setting names with the theme's key (`fixture_emblem_shape`, `fixture_emblem_path`); a name another group of the spec already stores fails the spec's compile.
 2. **A descriptor in the spec's `option_groups/0`** (`fixture_theme_spec.ex`): `%{key: :emblem, module: Emblem, choices: ["round", "square"]}`. `key` names the group in `theme:set_option` and `apply_option/4`; every other key is the group's own configuration, handed back to each callback as `group`. `use Tymeslot.ThemeCustomizations.Spec` folds the group into the generated `changeset/2` and `asset_fields/0`, `Specs.setting_types/1` picks up its `types/0`, and `Specs.media/2` its `media/2`, so templates read `@theme_tokens.media[:emblem]` with no further wiring.
-3. **Its custom properties, if it has any.** A group that sets variables implements `tokens/4`, taking and returning `%{vars:, dark_vars:}`, and the generated `tokens/2` picks it up in declaration order. A spec may instead override `tokens/2`, start from `Specs.tokens(__MODULE__, settings, overrides)` and merge its variables in, which is what the fixture does with `Emblem.vars/2` (`--fixture-emblem-radius`, a name of the theme's own; use a contract token's name only to set that token), finding its descriptor with `Specs.group(__MODULE__, Emblem)`.
+3. **Its custom properties, if it has any.** A group that sets variables implements `tokens/4`, taking and returning `%{vars:, dark_vars:}`, and the generated `tokens/2` picks it up in declaration order (after any shared group whose variables it reads). A spec may instead override `tokens/2`, start from `Specs.tokens(__MODULE__, settings, overrides)` and merge its variables in, which is what the fixture does with `Emblem.vars/2` (`--fixture-emblem-radius`, a name of the theme's own; use a contract token's name only to set that token), finding its descriptor with `Specs.group(__MODULE__, Emblem)`.
 4. **A dashboard panel** (`emblem_panel.ex`): a function component module that `use`s `TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panel` and defines `render/1`, registered on the theme with `use TymeslotWeb.Themes.Core.Theme, option_panels: %{Emblem => EmblemPanel}` (see the dashboard paragraph above for the assigns, the `theme:set_option` write and the optional UI-state callbacks; the fixture keeps no UI state). An upload is a form sending `upload_asset` with a hidden `asset_field` input and `<.live_file_input upload={@uploads[field]} />`. A group with no panel of the theme's own gets a built-in one only if it is a shared group (`Options.Palette`, `Options.Background`, `Options.Logo`, `Options.Cover`, `Options.ColourMode`, `Options.Accent`, `Options.Font`, `Options.Radius`, `Options.Density`); for any other group `Panels.for_group/2` raises, naming the fix.
 
 A theme's own booking-page behaviour is an event of its own, not a new canonical one: a step template sends `phx-click="theme:<name>"` with `phx-target={@myself}`, `Shared.StepEvents` forwards it, and the theme's `live.ex` handles `<name>` in a `handle_theme_event/3` clause, followed by a catch-all clause calling `super/3` (see [Event Communication Pattern](#6-event-communication-pattern); the fixture's overview step sends `theme:ping`).
 
-`test/tymeslot_web/themes/theme_openness_test.exs` drives each of these through the real routes, and fails if any file under `lib/` or the non-test config names the fixture.
+`test/tymeslot_web/themes/theme_openness_test.exs` drives each of these through the real routes, and fails if any file under `lib/` or the non-test config names the fixture or the showcase theme.
 
 ### Test-only themes
 
-`config :tymeslot, :extra_themes` in `config/test.exs` registers themes that exist only in the test build: each entry is a set of catalogue facts plus the theme's `:module`, which `Catalog` and `Registry` read with `Application.compile_env/3` (default `[]`). There are two. The fixture (id `"99"`, `test/support/fixture_theme/`) is the worked example of a theme of its own. The showcase theme (id `"97"`, `test/support/showcase_theme/`) declares every shared option group no shipped theme offers yet, in the canonical order (`palette` over the light tones following the OS, `colour_mode`, `accent`, `font`, `radius`, `density`, `logo`, `cover`, then Quill's `background`), and borrows the fixture's booking steps and its `page_shell`, whose wrapper renders the logo and cover media when a spec resolves them; its meeting, poll and payment pages are therefore the shared defaults (`Shared.DefaultPages`). Its dashboard panels, uploads and booking-page tokens and media are proved through the real routes, each group alone and all of them together (`showcase_theme_test.exs`). The default pages' test ids carry the theme's own key (`showcase-payment-processing`), which is what the payment return suite tells themes apart by. Both `ThemeTestMatrix` entries say `fixture: true`, so the flow suites and the e2e embed matrix (`all/0`) skip them while the contract suites (`registered_ids/0`) and the production checklist (`Catalog.valid_ids/0`) cover them. SaaS's test build inherits the entries and compiles Core's `test/support`, so both exist there too. Never set `:extra_themes` in any other config. The fixture's schedule step renders the shared `WeekGrid` and its booking step a plain booking form, so the week of slots, and booking and rescheduling through it, are exercised through a real booking page (`week_slots_flow_test.exs`, `week_grid_journey_test.exs`).
+`config :tymeslot, :extra_themes` in `config/test.exs` registers themes that exist only in the test build: each entry is a set of catalogue facts plus the theme's `:module`, which `Catalog` and `Registry` read with `Application.compile_env/3` (default `[]`). Never set `:extra_themes` in any other config. The test build has two such themes and one test-only spec with no theme:
+
+- **The fixture** (id `"99"`, `test/support/fixture_theme/`): the worked example of a theme of its own (a light palette stored as a seed alone, following the OS, and the `Emblem` group above), and the smallest theme built on the shared parts. Its `page_shell` gives it the default meeting, poll and payment pages; its overview renders `ProfileIntro` and sends `theme:ping`; its schedule step renders the shared `WeekGrid` and its booking step `BookingForm`. So the week of slots, booking and rescheduling through it, and the organiser's headline and bio are exercised through a real booking page (`week_slots_flow_test.exs`, `week_grid_journey_test.exs`, `profile_intro_journey_test.exs`).
+- **The showcase** (id `"97"`, `test/support/showcase_theme/`): declares all seven [shared option groups](#shared-option-groups) in the canonical order (`palette` over the light tones following the OS, `colour_mode`, `accent`, `font`, `radius`, `density`, `logo`, `cover`, then Quill's `background`), and borrows the fixture's live view (its steps, and its wrapper, which renders the logo and cover media when a spec resolves them) and its `page_shell`. Its dashboard panels, uploads and booking-page tokens and media are proved through the real routes, each group alone and all of them together (`showcase_theme_test.exs`).
+- **`Tymeslot.Test.ThemeCustomizations.GroupsSpec`** (`test/support/theme_customizations/groups_spec.ex`): a spec registered with no theme, declaring the palette over the tones and the five groups that emit variables (`colour_mode`, `accent`, `font`, `radius`, `density`) in the canonical order, for the tests of `Specs` and of the contrast rules that need no page (`groups_spec_test.exs`, `accent_contrast_test.exs`).
+
+The default pages' test ids carry each theme's own key (`showcase-payment-processing`), which is what the payment return suite tells themes apart by. Both themes' `ThemeTestMatrix` entries say `fixture: true`, so the flow suites and the e2e embed matrix (`all/0`) skip them while the contract suites (`registered_ids/0`) and the production checklist (`Catalog.valid_ids/0`) cover them. SaaS's test build inherits the entries and compiles Core's `test/support`, so both exist there too.
 
 ## Meeting Management Integration
 
@@ -820,7 +787,7 @@ defmodule TymeslotWeb.Themes.Aurora.Scheduling.Live do
 end
 ```
 
-The macro generates `mount/3`, `handle_params/3`, `handle_info/2`, `handle_event/3` and `render/1`. `render/1` puts the current step's component inside your wrapper, and also handles the organiser-not-ready message, the `:awaiting_payment` screen and an unknown state. The aliases must come before `use`.
+The macro generates `mount/3`, `handle_params/3`, `handle_info/2`, `handle_event/3`, `handle_async/3` and `render/1`. `render/1` puts the current step's component inside your wrapper, and also handles the organiser-not-ready message, the `:awaiting_payment` screen and an unknown state. The aliases must come before `use`.
 
 State machine logic (initial state, transition validation, navigation guards) lives in the shared `StateMachineHelpers` module — no per-theme StateMachine module is required.
 
@@ -1082,22 +1049,11 @@ end
 | `meeting_status` | confirmation | optional | the booked meeting's status, set once a booking is submitted |
 <!-- step-assigns:end -->
 
-The wrapper receives `theme_tokens`, `locale`, `language_dropdown_open`, `current_state`, `organizer_user_id`, `owner_preview`, `should_show_branding` and, when the page has one, `demo_mode`; `should_show_branding` and `demo_mode` may be absent.
+The wrapper's assigns are listed under [Theme Template Rendering](#theme-template-rendering).
 
 #### 5. **Shared Modules**
 
-Leverage shared modules to avoid duplication:
-
-- **SchedulingLive** (macro): All LiveView callbacks and `render/1` — `use TymeslotWeb.Themes.Shared.SchedulingLive, wrapper: …, steps: …`
-- **SchedulingInit**: Base state initialization
-- **BookingFlow**: Form validation and submission
-- **SchedulingFlow**: Step events, transitions and step entry
-- **EventHandlers**: Language switcher and timezone search
-- **InfoHandlers**: Async task handling (availability fetching)
-- **LocalizationHelpers**: Date/time formatting
-- **PathHandlers**: Navigation with locale preservation
-- **VideoSources**: `<.video_sources sources={@background.sources} />`: video `<source>` elements for wrapper components
-- **MeetingDetails**: `<.meeting_detail_rows date={...} time={...} timezone={...} organizer_name={...} />` — shared cancel/reschedule row layout
+Leverage the shared modules rather than duplicating them: the table under [Shared Modules You'll Use](#shared-modules-youll-use) lists each, and [Shared Components](#shared-components) the components a step renders.
 
 #### 6. **Event Communication Pattern**
 
@@ -1108,8 +1064,8 @@ Templates send one of the canonical events (listed in `Shared.StepEvents`'s modu
 You do not write `render/1`: `use SchedulingLive, wrapper:, steps:` generates it
 through `Shared.SchedulingPage`. Your wrapper receives `theme_tokens`,
 `locale`, `language_dropdown_open`, `current_state`,
-`organizer_user_id`, `owner_preview`, `should_show_branding`, `demo_mode` when the
-LiveView assigned one, and an inner block;
+`organizer_user_id`, `owner_preview`, `should_show_branding` (which may be absent),
+`demo_mode` when the LiveView assigned one, and an inner block;
 `steps:` must name a LiveComponent for each of `:overview`, `:schedule`, `:questions`,
 `:booking` and `:confirmation`, and no other key, which compilation checks.
 
@@ -1149,7 +1105,7 @@ Booking pages and the dashboard picker both read preset images from `/images/the
 
 ### Defining Presets
 
-Presets are defined under `lib/tymeslot/theme_customizations/presets/`, one module per kind (`ColourSchemes`, `Gradients`, `Images`, `Videos`), each holding its data and exporting `all/0`. Everything outside the catalogue reads them through the `Tymeslot.ThemeCustomizations.Presets` facade: `find_preset_by_id/2` and `take/2` for any kind, and the per-kind getters. A new kind of preset is a module there and one entry in the facade's `kinds/0`. A theme offers a preset only when its spec's group lists the id.
+Presets are defined under `lib/tymeslot/theme_customizations/presets/`, one module per kind (`ColourSchemes`, `Gradients`, `Images`, `Videos`, `Covers`, `Accents`, `Fonts`), each holding its data and exporting `all/0`. Everything outside the catalogue reads them through the `Tymeslot.ThemeCustomizations.Presets` facade: `find_preset_by_id/2` and `take/2` for any kind, and the per-kind getters. A new kind of preset is a module there and one entry in the facade's private `kinds/0` map. A theme offers a preset only when its spec's group lists the id.
 
 **Available Video Presets**:
 - `"preset:rhythm-default"`
@@ -1258,7 +1214,7 @@ Copy an existing theme (Quill or Rhythm), rename its files and modules to your t
 - Meeting action component designs (use `<.meeting_detail_rows .../>` for the rows)
 
 **Do not re-derive in your wrapper or step components** (already in socket assigns):
-- `organizer_user_id` — set during mount by `SchedulingInit.assign_base_state/1` via `Scheduling.Helpers`. Do not extract it from `organizer_profile` in the wrapper or a step component; read `@organizer_user_id` directly.
+- `organizer_user_id`: set during mount by `OrganizerHelpers.handle_username_resolution/2` (`TymeslotWeb.Live.Scheduling.OrganizerHelpers`), with the rest of the organiser's context. Do not extract it from `organizer_profile` in the wrapper or a step component; read `@organizer_user_id` directly.
 
 ### Testing Your Theme
 
@@ -1317,7 +1273,7 @@ Logger.debug("Socket assigns: #{inspect(socket.assigns)}")
 ❌ **Don't create a per-theme StateMachine** - `StateMachineHelpers` owns transitions; change `StateMachineHelpers`, which every theme shares, for custom logic
 ❌ **Don't duplicate shared logic** - Use the Shared.* modules
 ❌ **Don't mix theme and app styles** - Keep theme CSS isolated
-❌ **Don't forget meeting actions** - Reschedule, cancel, cancel_confirmed required
+❌ **Don't forget meeting actions** - Reschedule, cancel, cancel_confirmed required (or a `page_shell:`, which takes them from `Shared.DefaultPages`)
 ❌ **Don't over-engineer** - Start simple, add complexity only when needed
 
 ## Summary Checklist
