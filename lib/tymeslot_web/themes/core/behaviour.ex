@@ -26,17 +26,25 @@ defmodule TymeslotWeb.Themes.Core.Behaviour do
 
   @doc """
   Renders a meeting management page: `:reschedule`, `:cancel` or
-  `:cancel_confirmed`. Any other action raises.
+  `:cancel_confirmed`. Any other action raises. The generated default draws
+  either the theme's conventional module or, with `:page_shell`,
+  `Shared.DefaultPages`.
   """
   @callback render_meeting_action(assigns :: map(), action :: atom()) ::
               Phoenix.LiveView.Rendered.t()
 
-  @doc "Renders the public poll voting page."
+  @doc """
+  Renders the public poll voting page. The generated default draws either
+  the theme's conventional module or, with `:page_shell`,
+  `Shared.DefaultPages`.
+  """
   @callback render_poll_action(assigns :: map()) :: Phoenix.LiveView.Rendered.t()
 
   @doc """
   Renders a payment return page, `:processing` or `:cancelled`: the theme's
-  shell around `Shared.PaymentReturnComponents`.
+  shell around `Shared.PaymentReturnComponents`. The generated default draws
+  either the theme's conventional module or, with `:page_shell`,
+  `Shared.DefaultPages`.
   """
   @callback render_payment_page(assigns :: map(), page :: :processing | :cancelled) ::
               Phoenix.LiveView.Rendered.t()

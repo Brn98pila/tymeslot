@@ -18,7 +18,11 @@ defmodule TymeslotWeb.Themes.Core.Theme do
     * the render callbacks, dispatching to the conventional modules under the
       theme's namespace, each with a `render/1`: `Meeting.Reschedule`,
       `Meeting.Cancel`, `Meeting.CancelConfirmed`, `Poll.Voting`,
-      `Payment.Processing` and `Payment.Cancelled`;
+      `Payment.Processing` and `Payment.Cancelled`; or, when `:page_shell`
+      names a function component (`page_shell: &MyTheme.Pages.page_shell/1`),
+      the six pages from `TymeslotWeb.Themes.Shared.DefaultPages`, the
+      shared bodies inside that shell: a theme then writes no page modules
+      at all;
     * `onboarding_preview/1`, defaulting to the generic mock in
       `TymeslotWeb.OnboardingLive.PreviewParts`;
     * `option_panels/0`, returning `:option_panels` (default `%{}`): the
@@ -35,18 +39,14 @@ defmodule TymeslotWeb.Themes.Core.Theme do
   # Aliased here, outside the quote, so the generated default expands to the
   # full module name and nothing is aliased inside the theme module.
   alias TymeslotWeb.OnboardingLive.PreviewParts
+  alias TymeslotWeb.Themes.Shared.DefaultPages
 
   @doc false
   defmacro __using__(opts) do
     live_view = Keyword.fetch!(opts, :live_view)
     preview_image = Keyword.fetch!(opts, :preview_image)
     {description, domain} = translatable!(Keyword.fetch!(opts, :description))
-    reschedule = conventional(__CALLER__.module, ["Meeting", "Reschedule"])
-    cancel = conventional(__CALLER__.module, ["Meeting", "Cancel"])
-    cancel_confirmed = conventional(__CALLER__.module, ["Meeting", "CancelConfirmed"])
-    poll = conventional(__CALLER__.module, ["Poll", "Voting"])
-    processing = conventional(__CALLER__.module, ["Payment", "Processing"])
-    cancelled = conventional(__CALLER__.module, ["Payment", "Cancelled"])
+    renders = renders(Keyword.get(opts, :page_shell), __CALLER__.module)
     option_panels = Keyword.get(opts, :option_panels, Macro.escape(%{}))
 
     quote do
@@ -66,6 +66,32 @@ defmodule TymeslotWeb.Themes.Core.Theme do
         }
       end
 
+      unquote(renders)
+
+      @impl TymeslotWeb.Themes.Core.Behaviour
+      def onboarding_preview(assigns), do: PreviewParts.generic(assigns)
+
+      @impl TymeslotWeb.Themes.Core.Behaviour
+      def option_panels, do: unquote(option_panels)
+
+      defoverridable render_meeting_action: 2,
+                     render_poll_action: 1,
+                     render_payment_page: 2,
+                     onboarding_preview: 1
+    end
+  end
+
+  # With a :page_shell, the shared bodies inside the theme's shell; without
+  # one, the conventional modules beside the theme module.
+  defp renders(nil, theme_module) do
+    reschedule = conventional(theme_module, ["Meeting", "Reschedule"])
+    cancel = conventional(theme_module, ["Meeting", "Cancel"])
+    cancel_confirmed = conventional(theme_module, ["Meeting", "CancelConfirmed"])
+    poll = conventional(theme_module, ["Poll", "Voting"])
+    processing = conventional(theme_module, ["Payment", "Processing"])
+    cancelled = conventional(theme_module, ["Payment", "Cancelled"])
+
+    quote do
       @impl TymeslotWeb.Themes.Core.Behaviour
       def render_meeting_action(assigns, :reschedule), do: unquote(reschedule).render(assigns)
       def render_meeting_action(assigns, :cancel), do: unquote(cancel).render(assigns)
@@ -82,17 +108,21 @@ defmodule TymeslotWeb.Themes.Core.Theme do
       @impl TymeslotWeb.Themes.Core.Behaviour
       def render_payment_page(assigns, :processing), do: unquote(processing).render(assigns)
       def render_payment_page(assigns, :cancelled), do: unquote(cancelled).render(assigns)
+    end
+  end
+
+  defp renders(page_shell, _theme_module) do
+    quote do
+      @impl TymeslotWeb.Themes.Core.Behaviour
+      def render_meeting_action(assigns, action),
+        do: DefaultPages.meeting_action(assigns, action, unquote(page_shell))
 
       @impl TymeslotWeb.Themes.Core.Behaviour
-      def onboarding_preview(assigns), do: PreviewParts.generic(assigns)
+      def render_poll_action(assigns), do: DefaultPages.poll(assigns, unquote(page_shell))
 
       @impl TymeslotWeb.Themes.Core.Behaviour
-      def option_panels, do: unquote(option_panels)
-
-      defoverridable render_meeting_action: 2,
-                     render_poll_action: 1,
-                     render_payment_page: 2,
-                     onboarding_preview: 1
+      def render_payment_page(assigns, page),
+        do: DefaultPages.payment(assigns, page, unquote(page_shell))
     end
   end
 

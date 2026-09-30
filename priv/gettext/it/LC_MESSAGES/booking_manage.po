@@ -23,6 +23,7 @@ msgstr "%{name} vorrebbe prenotare un incontro con te."
 
 #: lib/tymeslot_web/themes/quill/meeting/cancel.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "A cancellation email will be sent to all participants"
 msgstr "Un'email di annullamento verrà inviata a tutti i partecipanti"
@@ -49,6 +50,7 @@ msgstr "Conferma in corso..."
 
 #: lib/tymeslot_web/themes/quill/meeting/cancel.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Are you sure you want to cancel this appointment?"
 msgstr "Vuoi davvero annullare questo appuntamento?"
@@ -76,18 +78,21 @@ msgstr "Richiesta di prenotazione"
 
 #: lib/tymeslot_web/themes/quill/meeting/cancel.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Cancel Appointment"
 msgstr "Annulla appuntamento"
 
 #: lib/tymeslot_web/themes/quill/meeting/cancel_confirmed.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel_confirmed.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Cancellation emails have been sent to all participants."
 msgstr "Le email di annullamento sono state inviate a tutti i partecipanti."
 
 #: lib/tymeslot_web/themes/quill/meeting/cancel.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Cancelling..."
 msgstr "Annullamento in corso..."
@@ -98,6 +103,7 @@ msgid "Changed your mind?"
 msgstr "Hai cambiato idea?"
 
 #: lib/tymeslot_web/themes/quill/meeting/reschedule.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Choose New Time"
 msgstr "Scegli un nuovo orario"
@@ -123,6 +129,7 @@ msgid "Confirm to let %{name} know you'll be attending."
 msgstr "Conferma per far sapere a %{name} che parteciperai."
 
 #: lib/tymeslot_web/themes/quill/meeting/reschedule.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Current Meeting"
 msgstr "Riunione attuale"
@@ -159,6 +166,7 @@ msgstr "Rifiuto in corso..."
 
 #: lib/tymeslot_web/themes/quill/meeting/cancel.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Done"
 msgstr "Fatto"
@@ -180,6 +188,7 @@ msgstr "Vai al calendario"
 
 #: lib/tymeslot_web/themes/quill/meeting/cancel.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Great! Your meeting is still scheduled as planned."
 msgstr "Perfetto! La tua riunione rimane programmata come previsto."
@@ -196,6 +205,7 @@ msgstr "Se non rispondi entro %{deadline}, la richiesta decade e l'orario torna 
 
 #: lib/tymeslot_web/themes/quill/meeting/cancel.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Keep Meeting"
 msgstr "Mantieni la riunione"
@@ -212,18 +222,21 @@ msgstr "Incontro"
 
 #: lib/tymeslot_web/themes/quill/meeting/cancel_confirmed.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel_confirmed.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Meeting Cancelled"
 msgstr "Riunione annullata"
 
 #: lib/tymeslot_web/themes/quill/meeting/cancel.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Meeting Confirmed"
 msgstr "Riunione confermata"
 
 #: lib/tymeslot_web/themes/quill/meeting/cancel.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Meeting Details"
 msgstr "Dettagli della riunione"
@@ -250,6 +263,7 @@ msgstr "Attendi un momento e riprova."
 
 #: lib/tymeslot_web/themes/quill/meeting/reschedule.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/reschedule.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Ready to pick a new time? Let's find one that works better for you."
 msgstr "Vuoi scegliere un nuovo orario? Troviamo il momento più adatto a te."
@@ -266,18 +280,21 @@ msgstr "Richiesta scaduta"
 
 #: lib/tymeslot_web/themes/quill/meeting/reschedule.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/reschedule.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Reschedule Appointment"
 msgstr "Riprogramma appuntamento"
 
 #: lib/tymeslot_web/themes/quill/meeting/cancel_confirmed.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel_confirmed.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Schedule a New Meeting"
 msgstr "Fissa una nuova riunione"
 
 #: lib/tymeslot_web/themes/quill/meeting/reschedule.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/reschedule.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Select a new time for your meeting"
 msgstr "Seleziona un nuovo orario per la riunione"
@@ -369,6 +386,7 @@ msgstr "Non abbiamo trovato alcun invito per questo link. Verifica di aver copia
 
 #: lib/tymeslot_web/themes/quill/meeting/cancel.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "We look forward to seeing you at the scheduled time."
 msgstr "Ti aspettiamo all'orario stabilito."
@@ -385,6 +403,7 @@ msgstr "Quando"
 
 #: lib/tymeslot_web/themes/quill/meeting/cancel.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Yes, Cancel Meeting"
 msgstr "Sì, annulla la riunione"
@@ -411,6 +430,7 @@ msgstr "Hai rifiutato l'invito"
 
 #: lib/tymeslot_web/themes/quill/meeting/cancel_confirmed.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel_confirmed.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "Your meeting has been successfully cancelled."
 msgstr "La tua riunione è stata annullata con successo."
@@ -429,6 +449,7 @@ msgstr "la persona che ha prenotato"
 #: lib/tymeslot_web/themes/quill/meeting/reschedule.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/cancel.ex
 #: lib/tymeslot_web/themes/rhythm/meeting/reschedule.ex
+#: lib/tymeslot_web/themes/shared/components/meeting_page_bodies.ex
 #, elixir-autogen, elixir-format
 msgid "%{minutes} min"
 msgstr "%{minutes} min"

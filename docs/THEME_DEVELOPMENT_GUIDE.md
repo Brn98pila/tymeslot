@@ -253,7 +253,7 @@ defmodule TymeslotWeb.Themes.Aurora.Theme do
 end
 ```
 
-`use TymeslotWeb.Themes.Core.Theme` declares `TymeslotWeb.Themes.Core.Behaviour` and generates every callback. The render callbacks dispatch by convention to `render/1` in modules under your theme's namespace: `Meeting.Reschedule`, `Meeting.Cancel`, `Meeting.CancelConfirmed`, `Poll.Voting`, `Payment.Processing` and `Payment.Cancelled`. A missing one is a compile warning, which the build treats as an error. Override a callback (with `@impl TymeslotWeb.Themes.Core.Behaviour`) only if your theme needs a different mapping. An override replaces every clause of that callback, so one that handles only some pages or actions must call `super/2` for the rest. The description must be a `dgettext_noop/2` call; `metadata/0` translates it at call time.
+`use TymeslotWeb.Themes.Core.Theme` declares `TymeslotWeb.Themes.Core.Behaviour` and generates every callback. The render callbacks dispatch by convention to `render/1` in modules under your theme's namespace: `Meeting.Reschedule`, `Meeting.Cancel`, `Meeting.CancelConfirmed`, `Poll.Voting`, `Payment.Processing` and `Payment.Cancelled`. A missing one is a compile warning, which the build treats as an error. Or name a shell: `use TymeslotWeb.Themes.Core.Theme, ..., page_shell: &MyTheme.Pages.page_shell/1` gives the theme all six pages from `Shared.DefaultPages`, each shared body inside that function component, which receives `page`, `theme_tokens`, `locale` and `language_dropdown_open` (the last three `nil` on the payment pages) and draws the theme's wrapper and a `booker-card` card. Import `shared/components/manage-pages.css` and set the tokens its header lists. The fixture theme's `pages.ex` is the smallest example. Override a callback (with `@impl TymeslotWeb.Themes.Core.Behaviour`) only if your theme needs a different mapping. An override replaces every clause of that callback, so one that handles only some pages or actions must call `super/2` for the rest. The description must be a `dgettext_noop/2` call; `metadata/0` translates it at call time.
 
 ### 4. Test It Works
 
@@ -294,6 +294,7 @@ assets/css/scheduling/
 │       ├── booking-fields.css
 │       ├── custom-questions.css
 │       ├── language-switcher.css
+│       ├── manage-pages.css
 │       ├── payment-pages.css
 │       ├── polls.css
 │       ├── preview-notice.css
@@ -444,6 +445,7 @@ Shared across themes:
 - **`Shared.Components.WeekGrid`** (`week_grid/1`): a week of free times on one screen, for a theme with a week view: one column per day from the week's Monday, each listing its times, with previous and next week controls; one click on a time picks the day and the time together (`select_slot`). Classes `week-grid` (`--loading`), `week-grid__nav`, `__nav-button` (`--prev`, `--next`), `__nav-icon`, `__range`, `__days`, `__day` (`--today`), `__day-heading`, `__day-name`, `__day-date`, `__slots`, `__slot` (`--selected`), `__empty`, `__loading`, `__error`, `__jump`; the shared structure is `scheduling/shared/components/week-grid.css` (import it after `shared/tokens.css`; it reads the contract tokens plus `--week-grid-gap`), and the grid is its own container (`week-grid`), showing seven days, then three, then one as it narrows. Pass the flow's week assigns (`week_slots`, `loading`, `error`) and `week_start={@current_week_start}`, `selected_date`, `selected_time`, `today={@calendar_today}`, `user_timezone`, `booking_window_days`, `landing_week={CalendarHelpers.landing_week(assigns)}` (the grid then offers a jump back to the week the page landed the booker on), and `heading_tag` to fit your outline. The grid asks for its week itself: while `week_slots` is nil it pushes `load_week` on appearing and on every join. Tests select times by `data-testid="week-slot"` with `data-date` and `data-time`.
 - **`Shared.Components.TimezonePicker`** (`timezone_picker/1`): the timezone dropdown, search box and options. Classes `tz-picker`, `tz-picker__trigger`, `__panel`, `__search-wrapper`, `__search`, `__options` (which also carries your theme's `scroll-y`), `__option`, `__option-content`, `__option-flag`, `__option-text`, `__option-label`, `__option-offset`. The trigger's visible content is your `:trigger` slot; the screen-reader "Your timezone:" prefix is added for you. Render flags with `FlagHelpers.timezone_flag/1`.
 - **`Shared.Components.BookingForm`** (`booking_form/1`): the booking step's form (name, email, message) with the honeypot, the reCAPTCHA hook and token and, after its inner block (put the guest field there), the reCAPTCHA notice. A theme sets `class`, `contact_class`, `message_rows` and `labels`, never the structure; `theme_booking_step_parity_test.exs` fails for a shipped theme whose booking step lacks the anti-spam fields.
+- **`Shared.Components.MeetingPageBodies`** (`cancel/1`, `reschedule/1`, `cancel_confirmed/1`) and **`Shared.DefaultPages`**: theme-neutral meeting page bodies (classes `manage-page`, `manage-page__*`, styled by `scheduling/shared/components/manage-pages.css` through contract tokens) and the six pages a theme with a `page_shell:` gets, each body inside the shell in `<div class="manage-page manage-page--<page>" data-testid="<theme key>-<page>">`.
 - **`Shared.Components.ThemeShell`** (`theme_shell/1`): the page chrome every wrapper renders, in order: the customisation `<style>` block, your background (`:background` slot), then the theme grid with the preview notice, the language switcher, the step and the configured theme extensions. Your wrapper passes `class`, `grid_class`, `grid_style` and `language_class`, plus its theme's `theme_id` (which the extensions receive), and keeps only its background markup.
 - **Data utilities** (`TymeslotWeb.Components.MeetingUtils`): `normalize_slot_list/1`
   and `normalize_slot_time/1` normalise time-slot data.
@@ -523,7 +525,7 @@ The embedder can supply `data-initial-height` (px) on the container as a placeho
 - All 5 step components as LiveComponents (the 4 core steps + `custom_questions_component.ex`)
 - The booking step renders `Shared.Components.BookingForm.booking_form/1`
 - Schedule component must include both the weekly strip (mobile) and monthly grid (desktop) with nav buttons wired to `CalendarNavigation` boundary checks
-- Meeting action components (reschedule, cancel, cancel_confirmed)
+- Meeting action components (reschedule, cancel, cancel_confirmed), or a `page_shell:` that takes them from `Shared.DefaultPages`
 
 > No per-theme StateMachine module — transitions are owned by the shared
 > `StateMachineHelpers`.
@@ -777,7 +779,7 @@ A theme's own booking-page behaviour is an event of its own, not a new canonical
 - `:cancel` to `Meeting.Cancel`
 - `:cancel_confirmed` to `Meeting.CancelConfirmed`
 
-These modules reside in `lib/tymeslot_web/themes/[theme_name]/meeting/`, each with a `render/1`.
+These modules reside in `lib/tymeslot_web/themes/[theme_name]/meeting/`, each with a `render/1`. A theme with a `page_shell:` writes none of them: its meeting pages are `Shared.DefaultPages`, the shared `MeetingPageBodies` inside its shell.
 
 ## Common Patterns
 
@@ -1264,7 +1266,7 @@ Every place a new theme touches, in the order to add them (`aurora`, id `"3"`, a
 - [ ] **Translations**: `mix gettext.extract --merge` adds the description's msgid to every locale's `dashboard_appearance.po`; translate it there, or CI's `gettext.extract --check-up-to-date` fails
 - [ ] **`scheduling/live.ex`**: one `use TymeslotWeb.Themes.Shared.SchedulingLive, wrapper:, steps:`, with the aliases above it, naming your `scheduling/wrapper.ex` and all five steps
 - [ ] **Step components** under `scheduling/components/`: render-only LiveComponents that delegate `update/2` and `handle_event/3` to `Shared.StepEvents` (the questions step delegates `handle_event/3` to `Shared.CustomQuestions.Events` instead) and use the canonical event names, plus `theme:<name>` for an event of the theme's own, handled in `live.ex`'s `handle_theme_event/3`; the schedule step wires its navigation buttons to the `CalendarNavigation` boundary checks
-- [ ] **Page templates**: `meeting/` (`Reschedule`, `Cancel`, `CancelConfirmed`), `poll/voting.ex` and `payment/` (`Processing`, `Cancelled`), each with a `render/1`, or overrides of the generated render callbacks
+- [ ] **Page templates**: either a `page_shell:` (recommended: one function component, the six pages from `Shared.DefaultPages`, with `shared/components/manage-pages.css` imported) or the six conventional modules, `meeting/` (`Reschedule`, `Cancel`, `CancelConfirmed`), `poll/voting.ex` and `payment/` (`Processing`, `Cancelled`), each with a `render/1`, or overrides of the generated render callbacks
 - [ ] **Customisation spec**: a module that `use`s `Tymeslot.ThemeCustomizations.Spec` (see `QuillSpec`), the one `customization_spec:` names; options of the theme's own need a group module, a descriptor, their part of `tokens/2` and a panel (see [A theme with options of its own](#a-theme-with-options-of-its-own))
 - [ ] **CSS tree** under `assets/css/scheduling/themes/aurora/`: `theme.css` importing `../../shared/entry.css` first, then `./modules/variables.css`, `../../shared/tokens.css`, `./modules/base.css`, `../../shared/embed.css` (the shared embed rules, which `entry.css` does not import), the theme's modules and the `shared/components/*.css` files it uses (every file in `REQUIRED_SHARED_IMPORTS` among them, or `mix css.check_tokens` fails naming it); `modules/variables.css` defining every token `mix css.check_tokens` requires (the scale tokens listed under [Token contract](#token-contract) included) and every colour; `modules/iframe.css` for the theme-specific embed rules; the `booker-card` hook class on each card (`ThemeShell` adds `booker-page` to the page grid and the shared `SlotList` adds `booker-scroll`; a page that bypasses `ThemeShell`, as Quill's payment pages do, adds `booker-page` itself)
 - [ ] **Build config**: nothing to add. `assets/css/scheduling/themes/aurora/theme.css` gives the theme its Tailwind profile (writing `scheduling-theme-aurora.css`), its `tailwind_aurora` dev watcher and its `assets.build`/`assets.minify` entries, all derived by `config/theme_stylesheets.exs`; restart the dev server to pick up a new directory

@@ -6,12 +6,16 @@ defmodule TymeslotWeb.Test.FixtureTheme.Theme do
   and an event of its own) and has no stylesheet; `theme_openness_test.exs`
   uses it to prove a new theme attaches without editing shared code. It
   borrows Quill's preview image, since the contract test wants one that
-  exists.
+  exists. It declares a `page_shell`, so its meeting, poll and payment pages
+  are the shared defaults (`Shared.DefaultPages`).
   """
+  alias TymeslotWeb.Test.FixtureTheme.Pages
+
   use TymeslotWeb.Themes.Core.Theme,
     live_view: TymeslotWeb.Test.FixtureTheme.Scheduling.Live,
     preview_image: "/images/ui/theme-previews/quill-theme-preview.webp",
     description: dgettext_noop("dashboard_appearance", "Test fixture theme."),
+    page_shell: &Pages.page_shell/1,
     option_panels: %{
       Tymeslot.Test.FixtureThemeSpec.Emblem => TymeslotWeb.Test.FixtureTheme.EmblemPanel
     }
