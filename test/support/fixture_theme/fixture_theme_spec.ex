@@ -4,10 +4,10 @@ defmodule Tymeslot.Test.FixtureThemeSpec do
   (`test/support/fixture_theme/`, registered by `config/test.exs`).
 
   A light palette with no preset schemes (a custom seed, derived light and
-  following the visitor's OS, stored as the seed alone), no background, and one group of its own,
-  `Emblem`. `changeset/2` and `asset_fields/0` are the ones `use Spec`
-  generates, and `tokens/2` starts from the generated default
-  (`Specs.tokens/3`); nothing here restates a shared rule.
+  following the visitor's OS, stored as the seed alone), no background, and
+  one group of its own, `Emblem`. `changeset/2` and `asset_fields/0` are the
+  ones `use Spec` generates, and `tokens/2` starts from the generated
+  default (`Specs.tokens/3`); nothing here restates a shared rule.
   """
   use Tymeslot.ThemeCustomizations.Spec
 

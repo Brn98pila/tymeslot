@@ -143,9 +143,9 @@ defmodule Tymeslot.Onboarding do
   theme offers, sharing one preset between themes that offer it, and applies
   it where no video background is set yet (as a choice of the theme's
   background option, so an uploaded image it replaces is removed with its
-  file). Themes without video are skipped. Idempotent: a theme that already has a video background (a returning user,
-  or one who picked their own) is left untouched, so the choice is never
-  overwritten or re-randomised.
+  file). Themes without video are skipped. Idempotent: a theme that already
+  has a video background (a returning user, or one who picked their own) is
+  left untouched, so the choice is never overwritten or re-randomised.
   """
   @spec ensure_preview_video_backgrounds(map(), [String.t()]) :: :ok
   def ensure_preview_video_backgrounds(%{id: profile_id}, theme_ids)
