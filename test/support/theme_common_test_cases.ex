@@ -8,7 +8,7 @@ defmodule TymeslotWeb.ThemeCommonTestCases do
   """
 
   import ExUnit.Assertions
-  import Phoenix.LiveViewTest, only: [rendered_to_string: 1]
+  import Phoenix.LiveViewTest, only: [render_component: 2]
 
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
@@ -40,25 +40,28 @@ defmodule TymeslotWeb.ThemeCommonTestCases do
   @doc "`render_meeting_action/2` renders the three meeting pages and rejects others."
   @spec test_render_meeting_action(module(), map()) :: :ok
   def test_render_meeting_action(theme_module, assigns) do
-    reschedule = render(theme_module.render_meeting_action(assigns, :reschedule))
+    reschedule = render(&theme_module.render_meeting_action(&1, :reschedule), assigns)
     assert reschedule =~ "Reschedule Appointment"
     assert reschedule =~ "Select a new time for your meeting"
     refute reschedule =~ "Yes, Cancel Meeting"
 
-    cancel = render(theme_module.render_meeting_action(assigns, :cancel))
+    cancel = render(&theme_module.render_meeting_action(&1, :cancel), assigns)
     assert cancel =~ "Cancel Appointment"
     assert cancel =~ "Are you sure you want to cancel this appointment?"
     assert cancel =~ "Yes, Cancel Meeting"
     assert cancel =~ "Keep Meeting"
 
     kept =
-      render(theme_module.render_meeting_action(Map.put(assigns, :meeting_kept, true), :cancel))
+      render(
+        &theme_module.render_meeting_action(&1, :cancel),
+        Map.put(assigns, :meeting_kept, true)
+      )
 
     assert kept =~ "Meeting Confirmed"
     assert kept =~ "Great! Your meeting is still scheduled as planned."
     refute kept =~ "Yes, Cancel Meeting"
 
-    cancel_confirmed = render(theme_module.render_meeting_action(assigns, :cancel_confirmed))
+    cancel_confirmed = render(&theme_module.render_meeting_action(&1, :cancel_confirmed), assigns)
     assert cancel_confirmed =~ "Meeting Cancelled"
     assert cancel_confirmed =~ "Your meeting has been successfully cancelled."
     assert cancel_confirmed =~ "Schedule a New Meeting"
@@ -84,10 +87,10 @@ defmodule TymeslotWeb.ThemeCommonTestCases do
     }
 
     html =
-      assigns
-      |> Map.merge(%{poll: poll, tallies: %{}, voting_open: false, participant: nil})
-      |> theme_module.render_poll_action()
-      |> render()
+      render(
+        &theme_module.render_poll_action/1,
+        Map.merge(assigns, %{poll: poll, tallies: %{}, voting_open: false, participant: nil})
+      )
 
     assert html =~ ~s(data-testid="poll-voting")
     assert html =~ "Roadmap sync"
@@ -99,18 +102,18 @@ defmodule TymeslotWeb.ThemeCommonTestCases do
   @spec test_render_payment_page(module(), map()) :: :ok
   def test_render_payment_page(theme_module, assigns) do
     processing =
-      assigns
-      |> Map.merge(%{loading: true, payment: nil, meeting: nil, rebook_path: nil})
-      |> theme_module.render_payment_page(:processing)
-      |> render()
+      render(
+        &theme_module.render_payment_page(&1, :processing),
+        Map.merge(assigns, %{loading: true, payment: nil, meeting: nil, rebook_path: nil})
+      )
 
     assert processing =~ "Confirming your payment"
 
     cancelled =
-      assigns
-      |> Map.merge(%{loading: false, meeting: nil, rebook_path: "/host/consult"})
-      |> theme_module.render_payment_page(:cancelled)
-      |> render()
+      render(
+        &theme_module.render_payment_page(&1, :cancelled),
+        Map.merge(assigns, %{loading: false, meeting: nil, rebook_path: "/host/consult"})
+      )
 
     assert cancelled =~ "Payment cancelled"
     assert cancelled =~ ~s(href="/host/consult")
@@ -145,5 +148,7 @@ defmodule TymeslotWeb.ThemeCommonTestCases do
     }
   end
 
-  defp render(%Phoenix.LiveView.Rendered{} = rendered), do: rendered_to_string(rendered)
+  # A page renders as LiveView renders it, from assigns that carry change
+  # tracking, never from a bare map.
+  defp render(page, assigns), do: render_component(page, assigns)
 end

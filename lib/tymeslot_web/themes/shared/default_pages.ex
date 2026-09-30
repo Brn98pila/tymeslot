@@ -49,12 +49,8 @@ defmodule TymeslotWeb.Themes.Shared.DefaultPages do
   defp page(assigns, page, shell) do
     slug = page |> Atom.to_string() |> String.replace("_", "-")
 
-    # A page is also rendered from a plain map (the theme contract tests do),
-    # which carries no change tracking: nil tracks nothing, as a first render.
     assigns =
-      assigns
-      |> Map.put_new(:__changed__, nil)
-      |> assign(
+      assign(assigns,
         page: page,
         page_shell: shell,
         page_testid: testid(assigns[:theme_id], slug),
