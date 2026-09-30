@@ -372,7 +372,7 @@ Each theme's `theme.css` imports the shared entry, then the shared token file ri
 - Borders: `--border-subtle`, `--border-light`, `--border-medium` (timezone picker, booking fields)
 - Surfaces: `--surface-subtle`, `--surface-light`, `--surface-medium`, `--surface-intense` (timezone picker, booking fields)
 - Error tint: `--theme-error-light` (booking fields)
-- Type: `--theme-font-size-3xs`, `-2xs`, `-xs`, `-sm`, `-base`, `-md`, `-lg`, `-2xl`, `-3xl`; `--theme-line-height-snug`, `--theme-line-height-relaxed`; `--font-weight-medium`, `--font-weight-semibold`, `--font-weight-bold`; `--letter-spacing-wide`
+- Type: `--theme-font-family` (a `var(--font-stack-<id>)`, see *Fonts* below), `--theme-font-size-3xs`, `-2xs`, `-xs`, `-sm`, `-base`, `-md`, `-lg`, `-2xl`, `-3xl`; `--theme-line-height-snug`, `--theme-line-height-relaxed`; `--font-weight-medium`, `--font-weight-semibold`, `--font-weight-bold`; `--letter-spacing-wide`
 - Sizes and effects: `--space-hairline`, `--icon-sm`, `--dropdown-max-height`, `--shadow-md`
 - Motion: `--transition-fast`, `--transition-normal`
 
@@ -381,6 +381,10 @@ The radius scale they read (`--radius-sm`, `-md`, `-lg`, `-xl`, `-2xl`, `-full`)
 `--density` is the one role `shared/tokens.css` defines itself, as `1` on `:root`. A theme's spacing may multiply by it (`calc(var(--space-md) * var(--density))`); a theme that declares the density option gets its value from the server's block, which outranks `:root`. Nothing shipped reads it yet.
 
 The required list cannot fall behind the shared styles: the check also collects every `var()` that `shared/**/*.css` reads without a fallback, and fails, naming the token, when one is neither defined in a shared file nor on the list. A new token read in a shared file is therefore added to `REQUIRED_TOKENS` in `scripts/test_css_tokens.sh`, to every theme's `variables.css`, and to this list.
+
+### Fonts
+
+`scheduling/shared/fonts.css`, imported by `shared/entry.css`, declares the self-hosted fonts (files under `priv/static/fonts/`, whose `README.md` records their source, version and checksums) and, on `:root`, one body stack and one heading stack per font id: `--font-stack-<id>` and `--font-heading-<id>` for `system`, `inter`, `plex`, `classic`, `literary`, `editorial` and `quiet`. A theme sets `--theme-font-family` in its `variables.css` to one of the body stacks (`--theme-font-family: var(--font-stack-inter);`) and, where its headings differ, `--theme-font-heading` to a heading stack; `--theme-font-heading` defaults to the body family (`shared/tokens.css`). Never name a font family in a theme: a family nothing declares is silently replaced by the system font, which is how Quill and Rhythm rendered without Inter for as long as they did. A face is only downloaded when something renders in it, so the unused ones cost nothing.
 
 ### Intrinsic Responsiveness
 
@@ -491,7 +495,7 @@ The embedder can supply `data-initial-height` (px) on the container as a placeho
 2. **Create main theme.css** that imports `../../shared/entry.css`, then `./modules/variables.css`, then `../../shared/tokens.css`, then your modules and the `shared/components/*.css` files you use
 3. **Create modular CSS files** in a `modules/` subdirectory — each component file is self-contained
 4. **Set container query context** on the primary content container (`container-type: inline-size; container-name: scheduling;`)
-5. **No external font imports** — use system font stacks or self-hosted fonts only
+5. **No external font imports**: point `--theme-font-family` (and `--theme-font-heading`) at a stack from `shared/fonts.css` (see *Fonts*); a new family is added there, self-hosted, never loaded from a font service
 6. **Everything through tokens, nothing hard-coded**: colours live only in `variables.css`; every other file reads tokens. Run `mix css.check_tokens` (part of `mix precommit`).
 
 **Note**: Theme CSS is completely separate from global app styles.

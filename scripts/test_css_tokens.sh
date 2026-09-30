@@ -102,6 +102,7 @@ REQUIRED_TOKENS=(
   "--notice-warning-border"
   "--radius-control"
   "--radius-card"
+  "--theme-font-family"
   "--z-dropdown"
   "--status-surface"
   "--status-surface-opaque"

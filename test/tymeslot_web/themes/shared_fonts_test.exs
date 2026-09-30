@@ -1,0 +1,90 @@
+defmodule TymeslotWeb.Themes.SharedFontsTest do
+  @moduledoc """
+  Pins the self-hosted fonts behind the booking themes' font stacks
+  (`assets/css/scheduling/shared/fonts.css`): every `url()` there names a woff2
+  file that ships under `priv/static/fonts/` and is served, every shipped font
+  file is declared, each family carries its licence, and every font id a theme
+  or the font option group can pick has a body and a heading stack.
+  """
+
+  # These tests guard shipped assets and their CSS, not application code, so
+  # there is no Tymeslot function for them to call.
+  # credo:disable-for-this-file Jump.CredoChecks.VacuousTest
+
+  use TymeslotWeb.ConnCase, async: true
+
+  @moduletag :themes
+  @moduletag :unit
+
+  @entry_css "assets/css/scheduling/shared/entry.css"
+  @fonts_css "assets/css/scheduling/shared/fonts.css"
+  @fonts_dir "priv/static/fonts"
+
+  @families ~w(inter ibm-plex-sans source-serif-4 source-sans-3 lora fraunces)
+  @font_ids ~w(system inter plex classic literary editorial quiet)
+
+  defp font_urls do
+    ~r/url\("([^"]+)"\)/
+    |> Regex.scan(File.read!(@fonts_css), capture: :all_but_first)
+    |> Enum.map(fn [url] -> url end)
+  end
+
+  test "the shared entry imports the font rules" do
+    assert File.read!(@entry_css) =~ ~s(@import "./fonts.css";)
+  end
+
+  test "every url() names a woff2 file under /fonts/ that ships" do
+    urls = font_urls()
+
+    # Two subsets for each of the six families.
+    assert length(urls) == 12
+
+    assert Enum.reject(urls, fn url ->
+             String.starts_with?(url, "/fonts/") and String.ends_with?(url, ".woff2") and
+               File.regular?(Path.join("priv/static", url))
+           end) == []
+  end
+
+  test "every shipped font file is declared, so nothing ships unused" do
+    shipped =
+      "#{@fonts_dir}/*.woff2"
+      |> Path.wildcard()
+      |> Enum.map(&("/fonts/" <> Path.basename(&1)))
+      |> Enum.sort()
+
+    assert shipped == Enum.sort(font_urls())
+  end
+
+  test "every font file is a real woff2, of one subset's size" do
+    files = Path.wildcard("#{@fonts_dir}/*.woff2")
+    assert length(files) == 12
+
+    assert Enum.reject(files, fn file ->
+             match?(<<"wOF2", _rest::binary>>, File.read!(file)) and
+               File.stat!(file).size < 100_000
+           end) == []
+  end
+
+  test "every family carries its licence" do
+    assert Enum.reject(@families, fn family ->
+             path = Path.join(@fonts_dir, "OFL-#{family}.txt")
+             File.regular?(path) and File.read!(path) =~ "SIL Open Font License"
+           end) == []
+  end
+
+  test "every font id has a body stack and a heading stack" do
+    css = File.read!(@fonts_css)
+
+    assert Enum.reject(@font_ids, fn id ->
+             css =~ "--font-stack-#{id}:" and css =~ "--font-heading-#{id}:"
+           end) == []
+  end
+
+  test "the endpoint serves the font files", %{conn: conn} do
+    conn = get(conn, "/fonts/inter-latin-wght-normal.woff2")
+
+    assert conn.status == 200
+    assert [content_type] = get_resp_header(conn, "content-type")
+    assert content_type =~ "font/woff2"
+  end
+end

@@ -23,6 +23,9 @@
         --surface-1/2/3   --ink-1/2/3   --line-1/2
         --notice-warning  --notice-warning-surface  --notice-warning-border
         --radius-control  --radius-card
+        --theme-font-family (body text: a var(--font-stack-<id>) from
+          shared/fonts.css); --theme-font-heading is optional and
+          defaults to it, below
         plus --space-*, --theme-font-size-* and --z-dropdown.
       --density is the one role defined here rather than in variables.css:
         1 on :root below. A theme's spacing may multiply by it
@@ -68,4 +71,12 @@
   --shadow-warning-lg: var(--shadow-geometry-lg) color-mix(in srgb, var(--theme-warning) 30%, transparent);
 
   --shadow-info-sm: var(--shadow-geometry-sm) color-mix(in srgb, var(--theme-info) 30%, transparent);
+}
+
+/* Heading family. It defaults to the body family; a theme whose headings
+   differ sets --theme-font-heading in its variables.css to a
+   var(--font-heading-<id>). The zero-specificity :where() lets that :root
+   rule win although this file is imported after it. */
+:where(:root) {
+  --theme-font-heading: var(--theme-font-family);
 }
