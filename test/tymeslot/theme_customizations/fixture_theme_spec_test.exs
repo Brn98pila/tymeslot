@@ -13,6 +13,7 @@ defmodule Tymeslot.Test.FixtureThemeSpecTest do
   alias Ecto.Changeset
   alias Tymeslot.Test.FixtureThemeSpec
   alias Tymeslot.Test.FixtureThemeSpec.Emblem
+  alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.ThemeCustomizations.Tokens
@@ -47,12 +48,28 @@ defmodule Tymeslot.Test.FixtureThemeSpecTest do
       assert FixtureThemeSpec.asset_fields() == [fixture_emblem_path: :image]
     end
 
+    test "store a seed-only palette: no scheme name beside the seed" do
+      refute Map.has_key?(FixtureThemeSpec.defaults(), :color_scheme)
+      assert FixtureThemeSpec.defaults().custom_palette_seed
+    end
+
     test "offers no onboarding choice, having no preset schemes" do
       assert FixtureThemeSpec.onboarding_choices() == nil
     end
   end
 
   describe "tokens/2" do
+    test "write the whole palette for the seed alone, through the context's read" do
+      %Tokens{vars: vars, dark_vars: dark_vars} = ThemeCustomizations.tokens("99", nil)
+
+      for name <-
+            ~w(--theme-primary --theme-canvas --theme-surface --theme-text --theme-on-primary) do
+        assert vars[name], "#{name} missing from the seed-only palette"
+      end
+
+      assert dark_vars["--theme-canvas"]
+    end
+
     test "derive a light palette from the stored seed" do
       %Tokens{vars: vars} = FixtureThemeSpec.tokens(defaults(), %{})
 

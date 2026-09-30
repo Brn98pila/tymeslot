@@ -140,12 +140,12 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
 
   A `:primary_color` override replaces the primary (and its hover shade)
   before the contrast pairs are derived, so filled controls stay legible on
-  the override. Both empty when no scheme is stored or the stored palette
-  does not resolve.
+  the override. Derived from the seed when one is stored, with or without a
+  scheme name beside it (`resolve/2`); both empty when neither a seed nor a
+  scheme resolves.
   """
   @spec tokens(Spec.settings(), overrides(), group()) :: tokens()
-  def tokens(%{"color_scheme" => scheme} = settings, overrides, group)
-      when is_binary(scheme) and is_map(overrides) do
+  def tokens(settings, overrides, group) when is_map(settings) and is_map(overrides) do
     case resolve(settings, group) do
       nil -> @no_tokens
       palette -> scheme_tokens(palette, overrides, group)

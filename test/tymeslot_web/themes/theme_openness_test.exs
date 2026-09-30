@@ -72,6 +72,8 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
       %{html: html} = booking_page(conn, "fixture-palette")
 
       assert html =~ "--fixture-emblem-radius: 999px;"
+      assert html =~ "--theme-primary:"
+      assert html =~ "--theme-canvas:"
       assert html =~ "@media (prefers-color-scheme: dark)"
     end
 

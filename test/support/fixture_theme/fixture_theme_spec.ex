@@ -4,7 +4,7 @@ defmodule Tymeslot.Test.FixtureThemeSpec do
   (`test/support/fixture_theme/`, registered by `config/test.exs`).
 
   A light palette with no preset schemes (a custom seed, derived light and
-  following the visitor's OS), no background, and one group of its own,
+  following the visitor's OS, stored as the seed alone), no background, and one group of its own,
   `Emblem`. `changeset/2` and `asset_fields/0` are the ones `use Spec`
   generates, and `tokens/2` starts from the generated default
   (`Specs.tokens/3`); nothing here restates a shared rule.
@@ -23,11 +23,10 @@ defmodule Tymeslot.Test.FixtureThemeSpec do
       %{key: :emblem, module: Emblem, choices: ["round", "square"]}
     ]
 
-  # With a seed stored the palette leaves the scheme name unconstrained; the
-  # name is only there because `Palette.tokens/3` resolves a seed alongside one.
+  # A seed-only palette: the group offers no preset schemes, so the stored
+  # seed is the palette and no scheme name is stored beside it.
   @impl Spec
-  def defaults,
-    do: %{color_scheme: "custom", custom_palette_seed: "#b4532a", fixture_emblem_shape: "round"}
+  def defaults, do: %{custom_palette_seed: "#b4532a", fixture_emblem_shape: "round"}
 
   # The standard tokens plus the emblem's own variable.
   @impl Spec

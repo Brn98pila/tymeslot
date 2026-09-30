@@ -178,8 +178,31 @@ defmodule Tymeslot.ThemeCustomizations.Options.PaletteTest do
       assert vars["--theme-primary"] == "#ff6b35"
     end
 
-    test "emits nothing without a scheme" do
-      assert Palette.tokens(%{"custom_palette_seed" => "#ff6b35"}, %{}, @group) ==
+    test "derives the palette from a seed stored without a scheme name" do
+      %{vars: vars} = Palette.tokens(%{"custom_palette_seed" => "#ff6b35"}, %{}, @group)
+
+      assert vars["--theme-primary"] == "#ff6b35"
+      assert vars["--theme-canvas"]
+    end
+
+    test "a seed stored alone derives in the group's seed_mode and follows the OS" do
+      group = Map.put(@light_seed, :follow_os, true)
+      seed_only = Palette.tokens(%{"custom_palette_seed" => "#ff6b35"}, %{}, group)
+
+      assert seed_only ==
+               Palette.tokens(
+                 %{"color_scheme" => "default", "custom_palette_seed" => "#ff6b35"},
+                 %{},
+                 group
+               )
+
+      assert seed_only.dark_vars != %{}
+    end
+
+    test "emits nothing when neither a seed nor a scheme is stored" do
+      assert Palette.tokens(%{}, %{}, @group) == %{vars: %{}, dark_vars: %{}}
+
+      assert Palette.tokens(%{"custom_palette_seed" => ""}, %{}, @group) ==
                %{vars: %{}, dark_vars: %{}}
     end
 
