@@ -192,6 +192,7 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
 
     case ThemeInfo.get_theme_module(theme_id) do
       nil ->
+        Logger.error("Theme module not found", theme_id: theme_id)
         render_error(assigns, ErrorBoundary.load_failed_message())
 
       module ->
