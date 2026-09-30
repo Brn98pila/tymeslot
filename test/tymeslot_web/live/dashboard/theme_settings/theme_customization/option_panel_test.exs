@@ -12,6 +12,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
 
   alias Tymeslot.ThemeCustomizations.Options.Accent
   alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.Options.ColourMode
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.PaletteDerivation
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
@@ -139,5 +140,16 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
 
     assert html =~ "Kühl"
     assert html =~ "Ocean Breeze"
+  end
+
+  test "the colour-mode panel offers the three modes, named in the viewer's language" do
+    group = %{key: :colour_mode, module: ColourMode, default: "auto"}
+
+    html = Gettext.with_locale(TymeslotWeb.Gettext, "de", fn -> render_panel(group) end)
+
+    assert choices(html, "mode") == ~w(light dark auto)
+    assert html =~ "Farbmodus"
+    assert html =~ "Hell"
+    assert html =~ "Wie Gerät"
   end
 end

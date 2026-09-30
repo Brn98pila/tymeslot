@@ -5,7 +5,7 @@ defmodule Tymeslot.Test.ProbeThemeSpec do
   which borrows the fixture theme's booking, meeting and poll pages.
 
   It declares the shared option groups that have a built-in dashboard panel,
-  over a light palette that follows the visitor's OS, so the dashboard and
+  over the light tones, following the visitor's OS, so the dashboard and
   the booking page show each group through the real routes before the
   fixture theme takes them all on.
   `Tymeslot.Test.ThemeCustomizations.GroupsSpec` declares the same groups as
@@ -14,6 +14,7 @@ defmodule Tymeslot.Test.ProbeThemeSpec do
   use Tymeslot.ThemeCustomizations.Spec
 
   alias Tymeslot.ThemeCustomizations.Options.Accent
+  alias Tymeslot.ThemeCustomizations.Options.ColourMode
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Spec
 
@@ -22,17 +23,15 @@ defmodule Tymeslot.Test.ProbeThemeSpec do
   @impl Spec
   def option_groups,
     do: [
-      %{key: :palette, module: Palette, schemes: [], seed_mode: :light, follow_os: true},
+      %{key: :palette, module: Palette, schemes: ~w(neutral cool warm), follow_os: true},
+      %{key: :colour_mode, module: ColourMode, default: "auto"},
       %{key: :accent, module: Accent, presets: @accents, default: "tymeslot"}
     ]
 
-  # With a seed stored the palette leaves the scheme name unconstrained; the
-  # name is only there because `Palette.tokens/3` resolves a seed alongside one.
   @impl Spec
-  def defaults,
-    do: %{color_scheme: "custom", custom_palette_seed: "#b4532a", accent: "tymeslot"}
+  def defaults, do: %{color_scheme: "neutral", colour_mode: "auto", accent: "tymeslot"}
 
-  # No preset schemes, so the onboarding wizard has nothing to offer.
+  # The tones are chosen with the theme, not in onboarding.
   @impl Spec
   def onboarding_choices, do: nil
 end

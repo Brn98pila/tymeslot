@@ -514,3 +514,28 @@ msgstr "Neutrální"
 #, elixir-autogen, elixir-format
 msgid "Warm"
 msgstr "Teplý"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/colour_mode_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Colour Mode"
+msgstr "Barevný režim"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/colour_mode_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Dark"
+msgstr "Tmavý"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/colour_mode_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Light"
+msgstr "Světlý"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/colour_mode_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Match device"
+msgstr "Podle zařízení"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/colour_mode_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Show your booking page light or dark, or let it follow each visitor's device."
+msgstr "Zobrazte svou rezervační stránku světlou nebo tmavou, nebo ji nechte řídit zařízením každého návštěvníka."

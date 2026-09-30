@@ -166,7 +166,7 @@ defmodule TymeslotWeb.Live.Themes.ProbeThemeGroupsTest do
 
       {page, dark} = booking_page_vars(profile, "?primary-color=%23e11d48")
       assert page["--theme-primary"] == "#e11d48"
-      assert dark["--theme-primary"] == "#e64065"
+      assert dark["--theme-primary"] == "#e8496c"
     end
 
     test "a preset the group does not list, or a malformed colour, is refused",
@@ -184,6 +184,85 @@ defmodule TymeslotWeb.Live.Themes.ProbeThemeGroupsTest do
                })
 
       assert ThemeCustomizations.get_by_profile_and_theme(profile.id, @theme_id) == nil
+    end
+  end
+
+  describe "colour mode" do
+    test "its panel offers light, dark and match-device, the default pressed", %{conn: conn} do
+      {:ok, view, _html} = customise(conn)
+
+      assert has_element?(view, "[data-testid='colour-mode-panel']")
+      assert choices(view, "colour_mode", "mode") == ~w(light dark auto)
+
+      assert has_element?(
+               view,
+               option_button("colour_mode", "mode", "auto") <> "[aria-pressed='true']"
+             )
+    end
+
+    test "auto shows the tone's light set, and its dark set to a visitor whose OS is dark",
+         %{profile: profile} do
+      {page, dark} = booking_page_vars(profile)
+
+      assert page["--theme-canvas"] == "#f5f5f5"
+      assert page["--theme-color-scheme"] == "light dark"
+      assert page["--theme-primary"] == "#07819e"
+      assert dark["--theme-canvas"] == "#0e0e10"
+      assert dark["--theme-primary"] == "#0891b2"
+    end
+
+    test "light, saved in the panel, leaves the dark set out of the page",
+         %{conn: conn, profile: profile} do
+      {:ok, view, _html} = customise(conn)
+
+      view |> element(option_button("colour_mode", "mode", "light")) |> render_click()
+
+      assert saved(profile)["colour_mode"] == "light"
+
+      assert has_element?(
+               view,
+               option_button("colour_mode", "mode", "light") <> "[aria-pressed='true']"
+             )
+
+      {page, dark} = booking_page_vars(profile)
+      assert page["--theme-canvas"] == "#f5f5f5"
+      assert page["--theme-color-scheme"] == "light"
+      assert dark == %{}
+    end
+
+    test "dark, saved in the panel, shows the dark set to every visitor",
+         %{conn: conn, profile: profile} do
+      {:ok, view, _html} = customise(conn)
+
+      view |> element(option_button("colour_mode", "mode", "dark")) |> render_click()
+
+      assert saved(profile)["colour_mode"] == "dark"
+
+      {page, dark} = booking_page_vars(profile)
+      assert page["--theme-canvas"] == "#0e0e10"
+      assert page["--theme-surface"] == "#18181b"
+      assert page["--theme-primary"] == "#0891b2"
+      assert page["--theme-color-scheme"] == "dark"
+      assert dark == %{}
+    end
+
+    test "an embed's primary colour applies in either mode, fitted to it", %{profile: profile} do
+      for {mode, primary} <- [{"dark", "#e8496c"}, {"light", "#e11d48"}] do
+        assert {:ok, _saved} =
+                 ThemeCustomizations.apply_option(profile.id, @theme_id, :colour_mode, %{
+                   "field" => "mode",
+                   "value" => mode
+                 })
+
+        {page, _dark} = booking_page_vars(profile, "?primary-color=%23e11d48")
+        assert page["--theme-primary"] == primary, "in #{mode} mode"
+      end
+    end
+
+    test "the palette panel lists the tones the probe offers", %{conn: conn} do
+      {:ok, view, _html} = customise(conn)
+
+      assert choices(view, "palette", "scheme") == ~w(cool neutral warm)
     end
   end
 end
