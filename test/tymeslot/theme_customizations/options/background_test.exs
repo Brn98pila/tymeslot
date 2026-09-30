@@ -230,6 +230,36 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
     end
   end
 
+  describe "tokens/4" do
+    test "adds the painted background over what came before" do
+      acc = %{vars: %{"--theme-canvas" => "#0f172a"}, dark_vars: %{"--theme-text" => "#ffffff"}}
+      settings = %{"background_type" => "gradient", "background_value" => "gradient_1"}
+
+      assert Background.tokens(settings, %{}, acc, group(@all_kinds)) == %{
+               vars: %{
+                 "--theme-canvas" => "#0f172a",
+                 "--theme-background" => "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+               },
+               dark_vars: %{"--theme-text" => "#ffffff"}
+             }
+    end
+
+    test "behind an image, shows the canvas the groups before it produced" do
+      acc = %{vars: %{"--theme-canvas" => "#0f172a"}, dark_vars: %{}}
+      settings = %{"background_type" => "image", "background_value" => "preset:ocean-sunset"}
+
+      assert Background.tokens(settings, %{}, acc, group(@all_kinds)).vars["--theme-background"] ==
+               "var(--theme-canvas)"
+    end
+
+    test "adds nothing behind an image when nothing before it made a canvas" do
+      acc = %{vars: %{}, dark_vars: %{}}
+      settings = %{"background_type" => "image", "background_value" => "preset:ocean-sunset"}
+
+      assert Background.tokens(settings, %{}, acc, group(@all_kinds)) == acc
+    end
+  end
+
   describe "asset_fields/1" do
     test "names both upload columns and their kinds when the group offers both" do
       assert Background.asset_fields(group(@all_kinds)) == [

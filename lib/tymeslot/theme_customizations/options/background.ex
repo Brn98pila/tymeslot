@@ -12,7 +12,9 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
   theme cannot show, and `asset_fields/1` offers only the uploads of offered
   kinds. A `preset:` value must be one of the group's; any other image or
   video value is an upload and needs its stored path. `media/2` hands the
-  resolved descriptor to `Tokens.media` as `:background`.
+  resolved descriptor to `Tokens.media` as `:background`, and `tokens/4` adds
+  `--theme-background` to the page's variables, so the group is declared after
+  the palette whose canvas it may show.
   """
 
   import Ecto.Changeset
@@ -192,6 +194,19 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
   @impl OptionGroup
   @spec media(Spec.settings(), group()) :: %{background: descriptor() | nil}
   def media(settings, _group), do: %{background: descriptor(settings)}
+
+  @doc """
+  The background's part of a spec's tokens (`OptionGroup.tokens/4`): its
+  `--theme-background` (`vars/2`), from its own descriptor and the canvas the
+  groups before it produced. The dark set is left as it was.
+  """
+  @impl OptionGroup
+  @spec tokens(Spec.settings(), Spec.overrides(), OptionGroup.token_sets(), group()) ::
+          OptionGroup.token_sets()
+  def tokens(settings, _overrides, %{vars: page_vars} = acc, group) do
+    %{background: descriptor} = media(settings, group)
+    %{acc | vars: Map.merge(page_vars, vars(descriptor, page_vars))}
+  end
 
   @doc """
   The public URL of a preset image file, as booking pages and the dashboard

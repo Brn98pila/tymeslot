@@ -6,6 +6,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
 
   alias Ecto.Changeset
   alias Tymeslot.Test.ShowcaseThemeSpec
+  alias Tymeslot.ThemeCustomizations.OptionGroup
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.QuillSpec
@@ -33,6 +34,67 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
     @impl Tymeslot.ThemeCustomizations.OptionGroup
     def changes("text", value, _group), do: {:ok, %{"tagline" => value}}
     def changes(_field, _value, _group), do: :error
+  end
+
+  # A group that reads what the groups before it produced: it copies the
+  # palette's canvas into a variable of its own. Declared after the palette it
+  # sees the canvas; declared before, it sees nothing.
+  defmodule EchoOption do
+    @moduledoc false
+    @behaviour Tymeslot.ThemeCustomizations.OptionGroup
+
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def types, do: %{}
+
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def changeset(changeset, _attrs, _group), do: changeset
+
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def changes(_field, _value, _group), do: :error
+
+    @impl Tymeslot.ThemeCustomizations.OptionGroup
+    def tokens(_settings, _overrides, %{vars: vars} = acc, _group) do
+      case vars do
+        %{"--theme-canvas" => canvas} -> %{acc | vars: Map.put(vars, "--echo-canvas", canvas)}
+        _no_canvas -> acc
+      end
+    end
+  end
+
+  defmodule EchoAfterPaletteSpec do
+    @moduledoc false
+    use Tymeslot.ThemeCustomizations.Spec
+
+    alias Tymeslot.ThemeCustomizations.Options.Palette
+    alias Tymeslot.ThemeCustomizations.SpecsTest.EchoOption
+
+    @impl Tymeslot.ThemeCustomizations.Spec
+    def option_groups,
+      do: [
+        %{key: :palette, module: Palette, schemes: ["default"]},
+        %{key: :echo, module: EchoOption}
+      ]
+
+    @impl Tymeslot.ThemeCustomizations.Spec
+    def defaults, do: %{color_scheme: "default"}
+  end
+
+  defmodule EchoBeforePaletteSpec do
+    @moduledoc false
+    use Tymeslot.ThemeCustomizations.Spec
+
+    alias Tymeslot.ThemeCustomizations.Options.Palette
+    alias Tymeslot.ThemeCustomizations.SpecsTest.EchoOption
+
+    @impl Tymeslot.ThemeCustomizations.Spec
+    def option_groups,
+      do: [
+        %{key: :echo, module: EchoOption},
+        %{key: :palette, module: Palette, schemes: ["default"]}
+      ]
+
+    @impl Tymeslot.ThemeCustomizations.Spec
+    def defaults, do: %{color_scheme: "default"}
   end
 
   # A theme that offers no video, like the minimalist theme will, and an
@@ -229,6 +291,45 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
 
       assert Specs.tokens(BareSpec, settings, %{}) == %Tokens{}
       assert BareSpec.tokens(settings, %{}) == %Tokens{}
+    end
+
+    test "folds every group's tokens/4 in declaration order" do
+      settings = %{"color_scheme" => "default"}
+
+      assert Specs.tokens(EchoAfterPaletteSpec, settings, %{}).vars["--echo-canvas"] == "#0f172a"
+
+      refute Map.has_key?(
+               Specs.tokens(EchoBeforePaletteSpec, settings, %{}).vars,
+               "--echo-canvas"
+             )
+    end
+
+    test "a group's tokens/4 changes only what it returns" do
+      settings = %{"color_scheme" => "default"}
+
+      echoed = Specs.tokens(EchoAfterPaletteSpec, settings, %{})
+      plain = Specs.tokens(EchoBeforePaletteSpec, settings, %{})
+
+      assert Map.delete(echoed.vars, "--echo-canvas") == plain.vars
+      assert echoed.dark_vars == plain.dark_vars
+    end
+  end
+
+  describe "OptionGroup.tokens/4" do
+    test "hands back what it was given for a group whose module has no tokens/4" do
+      acc = %{vars: %{"--theme-primary" => "#123456"}, dark_vars: %{"--theme-text" => "#ffffff"}}
+
+      assert OptionGroup.tokens(%{}, %{}, acc, %{key: :tagline, module: TaglineOption, max: 10}) ==
+               acc
+    end
+
+    test "is the group module's tokens/4 where it has one" do
+      acc = %{vars: %{"--theme-canvas" => "#abcdef"}, dark_vars: %{}}
+
+      assert OptionGroup.tokens(%{}, %{}, acc, %{key: :echo, module: EchoOption}) == %{
+               vars: %{"--theme-canvas" => "#abcdef", "--echo-canvas" => "#abcdef"},
+               dark_vars: %{}
+             }
     end
   end
 

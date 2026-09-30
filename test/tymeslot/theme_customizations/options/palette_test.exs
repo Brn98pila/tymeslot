@@ -214,6 +214,40 @@ defmodule Tymeslot.ThemeCustomizations.Options.PaletteTest do
     end
   end
 
+  describe "tokens/4" do
+    test "merges the palette's variables over what the groups before it produced" do
+      acc = %{
+        vars: %{"--earlier" => "1", "--theme-primary" => "#000000"},
+        dark_vars: %{"--earlier-dark" => "2"}
+      }
+
+      %{vars: vars, dark_vars: dark_vars} =
+        Palette.tokens(%{"color_scheme" => "purple"}, %{}, acc, @group)
+
+      assert vars["--earlier"] == "1"
+      assert vars["--theme-primary"] == "#8b5cf6"
+      assert vars["--theme-canvas"] == "#1e1b4b"
+      assert dark_vars == %{"--earlier-dark" => "2"}
+    end
+
+    test "adds the dark set of a light scheme that follows the OS" do
+      settings = %{"color_scheme" => "default", "custom_palette_seed" => "#123456"}
+      group = Map.put(@light_seed, :follow_os, true)
+
+      %{dark_vars: dark_vars} =
+        Palette.tokens(settings, %{}, %{vars: %{}, dark_vars: %{}}, group)
+
+      assert dark_vars != %{}
+      assert dark_vars == Palette.tokens(settings, %{}, @group).vars
+    end
+
+    test "leaves what came before as it was when no palette resolves" do
+      acc = %{vars: %{"--earlier" => "1"}, dark_vars: %{}}
+
+      assert Palette.tokens(%{"color_scheme" => "nope"}, %{}, acc, @group) == acc
+    end
+  end
+
   describe "scheme_tokens/3" do
     test "a light scheme's own colours go into vars, and without follow_os nothing else" do
       %{vars: vars, dark_vars: dark_vars} = Palette.scheme_tokens(@light_scheme, %{}, @group)

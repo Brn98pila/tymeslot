@@ -37,24 +37,22 @@ defmodule Tymeslot.ThemeCustomizations.Specs do
 
   @doc """
   The standard tokens for a spec's stored settings and page-view overrides,
-  the default `tokens/2` that `use Spec` generates: the palette group's
-  variables (`Options.Palette.tokens/3`), with the background group's
-  `--theme-background` merged over them; the palette's dark variables; and
-  every group's media (`media/2`). A spec without a palette group has no
-  palette variables, and one without a background group no background
-  variable. A spec with tokens of its own overrides `tokens/2` and starts
-  from this.
+  the default `tokens/2` that `use Spec` generates: every group's `tokens/4`
+  (`OptionGroup.tokens/4`), folded in declaration order from empty `vars` and
+  `dark_vars`, so each group receives what the groups before it produced;
+  then every group's media (`media/2`). The palette puts in its colours and
+  contrast pairs, a background group after it `--theme-background`, and a
+  group without `tokens/4` changes nothing. A spec with tokens of its own
+  overrides `tokens/2` and starts from this.
   """
   @spec tokens(module(), Spec.settings(), Spec.overrides()) :: Tokens.t()
   def tokens(spec, settings, overrides) do
-    palette = palette_tokens(group(spec, Palette), settings, overrides)
-    media = media(spec, settings)
+    %{vars: vars, dark_vars: dark_vars} =
+      Enum.reduce(spec.option_groups(), %{vars: %{}, dark_vars: %{}}, fn group, acc ->
+        OptionGroup.tokens(settings, overrides, acc, group)
+      end)
 
-    %Tokens{
-      vars: Map.merge(palette.vars, background_vars(spec, media, palette.vars)),
-      dark_vars: palette.dark_vars,
-      media: media
-    }
+    %Tokens{vars: vars, dark_vars: dark_vars, media: media(spec, settings)}
   end
 
   @doc """
@@ -125,16 +123,6 @@ defmodule Tymeslot.ThemeCustomizations.Specs do
     case Catalog.customization_spec(theme_id) do
       {:ok, spec} -> spec
       {:error, :theme_not_found} -> Catalog.default().customization_spec
-    end
-  end
-
-  defp palette_tokens(nil, _settings, _overrides), do: %{vars: %{}, dark_vars: %{}}
-  defp palette_tokens(group, settings, overrides), do: Palette.tokens(settings, overrides, group)
-
-  defp background_vars(spec, media, palette_vars) do
-    case group(spec, Background) do
-      nil -> %{}
-      _group -> Background.vars(media[:background], palette_vars)
     end
   end
 end

@@ -155,6 +155,22 @@ defmodule Tymeslot.ThemeCustomizations.Options.Palette do
   def tokens(_settings, _overrides, _group), do: @no_tokens
 
   @doc """
+  The palette's part of a spec's tokens (`OptionGroup.tokens/4`): `tokens/3`,
+  merged over what the groups before it produced.
+  """
+  @impl OptionGroup
+  @spec tokens(Spec.settings(), overrides(), OptionGroup.token_sets(), group()) ::
+          OptionGroup.token_sets()
+  def tokens(settings, overrides, %{vars: vars, dark_vars: dark_vars}, group) do
+    palette = tokens(settings, overrides, group)
+
+    %{
+      vars: Map.merge(vars, palette.vars),
+      dark_vars: Map.merge(dark_vars, palette.dark_vars)
+    }
+  end
+
+  @doc """
   The tokens for an already resolved scheme: its `colors` as `vars`, plus the
   contrast pairs `ContrastTokens` derives from them; and its `dark_colors`, in
   the same form, as `dark_vars` when it has them and the group follows the

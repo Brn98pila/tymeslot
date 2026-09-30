@@ -18,6 +18,11 @@ defmodule Tymeslot.ThemeCustomizations.OptionGroup do
     * `media/2` (optional): what the group resolves from the stored
       settings for the theme to render, under keys of its own (merged into
       `Tokens.media` by `Specs.media/2`). A module without it has none.
+    * `tokens/4` (optional): the group's custom properties. It receives what
+      the groups declared before it produced and returns what the next one
+      receives (`Specs.tokens/3` folds it in declaration order), so a group
+      may add variables, replace another group's, or move them between the
+      page set and the dark set. A module without it changes nothing.
     * `upload_changes/3` (optional): the settings an upload into one of its
       `asset_fields/1` saves. A module without it takes no uploads, even if
       it declares asset fields.
@@ -33,6 +38,12 @@ defmodule Tymeslot.ThemeCustomizations.OptionGroup do
           required(:module) => module(),
           optional(atom()) => term()
         }
+
+  @typedoc """
+  The custom properties the groups build up, one group after another: `vars`
+  for the page and `dark_vars` for a visitor whose OS is in dark mode.
+  """
+  @type token_sets :: %{vars: Tokens.css_vars(), dark_vars: Tokens.css_vars()}
 
   @doc "The settings the group stores, with their Ecto types."
   @callback types() :: %{atom() => atom()}
@@ -61,12 +72,20 @@ defmodule Tymeslot.ThemeCustomizations.OptionGroup do
   @callback media(Spec.settings(), group()) :: Tokens.media()
 
   @doc """
+  The group's part of the page's custom properties. `acc` is what the groups
+  declared before it produced; the result is what the next group receives.
+  A group that reads or rewrites another group's variables is therefore
+  declared after it.
+  """
+  @callback tokens(Spec.settings(), Spec.overrides(), token_sets(), group()) :: token_sets()
+
+  @doc """
   The settings an upload stored at `path` writes, string-keyed as saves take
   them. Only the group's own settings survive (`Specs.upload_changes/3`).
   """
   @callback upload_changes(field :: atom(), path :: String.t(), group()) :: map()
 
-  @optional_callbacks asset_fields: 1, media: 2, upload_changes: 3
+  @optional_callbacks asset_fields: 1, media: 2, tokens: 4, upload_changes: 3
 
   @doc "A group's upload settings; empty when its module has no `asset_fields/1`."
   @spec asset_fields(group()) :: [{atom(), Spec.asset_kind()}]
@@ -78,6 +97,14 @@ defmodule Tymeslot.ThemeCustomizations.OptionGroup do
   @spec media(Spec.settings(), group()) :: Tokens.media()
   def media(settings, %{module: module} = group) do
     if exports?(module, :media, 2), do: module.media(settings, group), else: %{}
+  end
+
+  @doc "A group's tokens over `acc`; `acc` unchanged when its module has no `tokens/4`."
+  @spec tokens(Spec.settings(), Spec.overrides(), token_sets(), group()) :: token_sets()
+  def tokens(settings, overrides, acc, %{module: module} = group) do
+    if exports?(module, :tokens, 4),
+      do: module.tokens(settings, overrides, acc, group),
+      else: acc
   end
 
   @doc "Whether a group takes uploads into its asset fields (its module has `upload_changes/3`)."

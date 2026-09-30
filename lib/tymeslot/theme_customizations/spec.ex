@@ -12,9 +12,10 @@ defmodule Tymeslot.ThemeCustomizations.Spec do
   The rest is generated from its groups (see
   `Tymeslot.ThemeCustomizations.OptionGroup`): `changeset/2` runs every
   group's `changeset/3` in declaration order, `asset_fields/0` joins every
-  group's `asset_fields/1`, and `tokens/2` is `Specs.tokens/3`, the palette
-  and background variables plus every group's media (`Specs.media/2` merges
-  each group's optional `media/2` into `Tokens.media`). All three stay
+  group's `asset_fields/1`, and `tokens/2` is `Specs.tokens/3`, which
+  folds every group's optional `tokens/4` in declaration order and adds every
+  group's media (`Specs.media/2` merges each group's optional `media/2` into
+  `Tokens.media`). All three stay
   overridable; a spec with tokens of its own overrides `tokens/2` and starts
   from `Specs.tokens/3`. It also generates `onboarding_choices/0` from the
   palette group, which a spec may override.
