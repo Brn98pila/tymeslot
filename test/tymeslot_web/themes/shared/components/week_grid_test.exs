@@ -175,6 +175,17 @@ defmodule TymeslotWeb.Themes.Shared.Components.WeekGridTest do
 
       assert slots(doc) == [{"2027-03-08", "9:00 AM"}]
       assert Floki.find(doc, ".week-grid.week-grid--loading") != []
+
+      buttons = Floki.find(doc, "[data-testid=week-slot]")
+      assert buttons != []
+      assert Enum.reject(buttons, &(Floki.attribute(&1, "disabled") != [])) == []
+    end
+
+    test "leaves the times clickable once the fetch is done" do
+      doc = render_grid(week_slots: %{"2027-03-08" => ["9:00 AM"]}, loading: false)
+
+      [button] = Floki.find(doc, "[data-testid=week-slot]")
+      assert Floki.attribute(button, "disabled") == []
     end
 
     test "shows a failed fetch in place of the days" do

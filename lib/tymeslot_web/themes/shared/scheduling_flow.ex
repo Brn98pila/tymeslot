@@ -244,9 +244,15 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   # never unchooses it. A new day's slots are loaded as a day pick loads them,
   # so the booking step and a reschedule see the state a day and a time click
   # leave. The payload is visitor input, so a pair the loaded week does not
-  # offer is ignored; the submit would refuse it anyway.
+  # offer is ignored; the submit would refuse it anyway. So is every pair
+  # while the week is being fetched again: the map kept on screen then may
+  # predate the change that caused the fetch (a timezone switch), and a time
+  # picked from it would be read in the new zone.
   defp select_slot(socket, date, time) do
     cond do
+      socket.assigns[:week_slots_loading] ->
+        {:noreply, socket}
+
       not WeekSlots.offered?(socket.assigns, date, time) ->
         {:noreply, socket}
 

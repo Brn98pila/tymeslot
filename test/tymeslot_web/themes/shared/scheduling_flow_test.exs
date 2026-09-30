@@ -195,6 +195,27 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlowTest do
                )
     end
 
+    test "a time on the week kept on screen during a refetch picks nothing" do
+      socket =
+        socket(%{
+          selected_date: nil,
+          selected_time: nil,
+          user_timezone: "Asia/Tokyo",
+          week_slots: %{"2027-01-05" => ["10:00 AM"]},
+          week_slots_loading: true
+        })
+
+      assert {:noreply, ^socket} =
+               SchedulingFlow.handle_step_event(
+                 socket,
+                 :schedule,
+                 :select_slot,
+                 {"2027-01-05", "10:00 AM"}
+               )
+
+      refute_received {:fetch_available_slots, _date, _duration, _timezone}
+    end
+
     test "the first available week brings the calendar back to where the page landed" do
       socket =
         socket(%{

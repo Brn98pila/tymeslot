@@ -156,6 +156,7 @@ defmodule TymeslotWeb.Themes.Shared.Components.WeekGrid do
                     phx-value-date={day.iso}
                     phx-value-time={slot}
                     phx-target={@target}
+                    disabled={@loading}
                     aria-pressed={to_string(selected?(@selected_date, @selected_time, day.iso, slot))}
                   >
                     {LocalizationHelpers.format_time_by_locale(CalendarHelpers.parse_slot_time(slot))}

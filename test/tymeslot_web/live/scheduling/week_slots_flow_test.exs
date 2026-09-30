@@ -129,6 +129,30 @@ defmodule TymeslotWeb.Live.Scheduling.WeekSlotsFlowTest do
       assert Enum.any?(shown_slots(view), &match?({_date, "6:00 PM"}, &1))
     end
 
+    test "a time still on screen while the week is fetched again cannot be picked",
+         %{conn: conn} do
+      %{view: view} = open_schedule(conn, "week-stale")
+      load_week(view)
+      [{day, time} | _rest] = shown_slots(view)
+
+      view
+      |> with_target("[data-testid='fixture-schedule']")
+      |> render_click("change_timezone", %{"timezone" => "Asia/Tokyo"})
+
+      slot = "[data-testid='week-slot'][data-date='#{day}'][data-time='#{time}']"
+      assert has_element?(view, slot <> "[disabled]")
+
+      view
+      |> with_target("[data-testid='fixture-schedule']")
+      |> render_click("select_slot", %{"date" => day, "time" => time})
+
+      refute has_element?(view, "[data-testid='week-slot'][aria-pressed='true']")
+      assert has_element?(view, "[data-testid='next-step'][disabled]")
+
+      render_async(view)
+      assert has_element?(view, "[data-testid='week-slot']:not([disabled])")
+    end
+
     test "a calendar sync takes off the week a time the host's calendar now holds",
          %{conn: conn} do
       %{view: view, user: user} = open_schedule(conn, "week-sync")
