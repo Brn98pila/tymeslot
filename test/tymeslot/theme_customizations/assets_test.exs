@@ -200,10 +200,12 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
     end
   end
 
-  describe "a save the spec refuses" do
-    # A stale stored row no longer refuses a save (`Specs.settings/2` reads it
-    # with the stale group's defaults), so the refusal is forced another way:
-    # the profile does not exist, so the insert fails on its foreign key.
+  describe "a save that is refused" do
+    # The save of an upload's own changes can no longer be refused by the
+    # spec (`Specs.settings/2` reads a stale row with the stale group's
+    # defaults), but the database can still refuse it: here the profile is
+    # gone, as when it is deleted while an upload is in flight, so the insert
+    # fails on its foreign key.
     setup %{profile: profile} do
       missing = %{profile | id: profile.id + 1_000_000}
 
