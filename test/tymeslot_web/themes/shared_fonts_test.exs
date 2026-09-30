@@ -13,15 +13,18 @@ defmodule TymeslotWeb.Themes.SharedFontsTest do
 
   use TymeslotWeb.ConnCase, async: true
 
+  alias Tymeslot.ThemeCustomizations.Presets.Fonts
+
   @moduletag :themes
   @moduletag :unit
 
   @entry_css "assets/css/scheduling/shared/entry.css"
+  @dashboard_css "assets/css/app.css"
   @fonts_css "assets/css/scheduling/shared/fonts.css"
   @fonts_dir "priv/static/fonts"
 
   @families ~w(inter ibm-plex-sans source-serif-4 source-sans-3 lora fraunces)
-  @font_ids ~w(system inter plex classic literary editorial quiet)
+  @font_ids Map.keys(Fonts.all())
 
   defp font_urls do
     ~r/url\("([^"]+)"\)/
@@ -31,6 +34,11 @@ defmodule TymeslotWeb.Themes.SharedFontsTest do
 
   test "the shared entry imports the font rules" do
     assert File.read!(@entry_css) =~ ~s(@import "./fonts.css";)
+  end
+
+  # The font picker shows each choice's name in its heading stack.
+  test "the dashboard imports the font rules, so the font picker shows each face" do
+    assert File.read!(@dashboard_css) =~ ~s(@import "./scheduling/shared/fonts.css";)
   end
 
   test "every url() names a woff2 file under /fonts/ that ships" do
