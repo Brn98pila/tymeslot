@@ -82,16 +82,24 @@ defmodule TymeslotWeb.Themes.ThemeTailwindSourcesTest do
     end
   end
 
+  # Read from the .beam file rather than module_info/1, which would load all
+  # of the app's modules first and slows the test past its timeout under a
+  # full parallel run.
   defp web_source(module) do
-    source = module.module_info(:compile) |> Keyword.get(:source, []) |> to_string()
+    {:ok, {^module, [compile_info: info]}} = :beam_lib.chunks(beam(module), [:compile_info])
+    source = info |> Keyword.get(:source, []) |> to_string()
     if String.contains?(source, "/lib/tymeslot_web"), do: Path.expand(source)
+  end
+
+  defp beam(module) do
+    :tymeslot |> :code.lib_dir() |> Path.join("ebin/#{module}.beam") |> String.to_charlist()
   end
 
   # Every module the compiled code calls or names: the import table covers
   # remote calls, the atom table and the literal table cover modules used as
   # values. Atoms that are not web-layer modules are dropped by walk/3.
   defp callees(module) do
-    beam = :code.which(module)
+    beam = beam(module)
 
     {:ok, {^module, [imports: imports, atoms: atoms]}} =
       :beam_lib.chunks(beam, [:imports, :atoms])
