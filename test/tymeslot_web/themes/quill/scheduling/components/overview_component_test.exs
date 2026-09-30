@@ -166,7 +166,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.OverviewComponentTest d
         |> Floki.find(".overview-success-badge")
 
       assert Floki.find(badge, "svg.overview-success-badge-icon") != []
-      assert Floki.text(badge) |> String.trim() == ""
+      assert String.trim(Floki.text(badge)) == ""
     end
   end
 

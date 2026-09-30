@@ -107,7 +107,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.OverviewComponentTest 
         |> Floki.find(".avatar-checkmark")
 
       assert Floki.find(badge, "svg.avatar-checkmark__icon") != []
-      assert Floki.text(badge) |> String.trim() == ""
+      assert String.trim(Floki.text(badge)) == ""
     end
   end
 
