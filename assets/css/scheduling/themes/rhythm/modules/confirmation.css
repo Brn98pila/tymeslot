@@ -443,12 +443,20 @@ html.rhythm-theme[data-embedded] .ticket-header {
   padding: var(--space-xs) var(--space-sm);
 }
 
-/* Ticket body — horizontal row instead of vertical stack */
+/* Ticket body: the entries sit side by side and wrap onto a new line when the
+   card is too narrow for them all. The column gap holds the divider drawn
+   between two entries (see below), and the body clips its overflow so that
+   the divider of an entry starting a line, which falls just outside the
+   padding box, is never painted. */
 html.rhythm-theme[data-embedded] .ticket-body {
   display: flex;
   padding: var(--space-sm);
   flex-direction: row;
-  gap: var(--space-sm);
+  flex-wrap: wrap;
+  column-gap: calc(var(--space-sm) * 2 + var(--border-width-thin));
+  row-gap: var(--space-sm);
+  overflow: hidden;
+  overflow: clip;
 }
 
 /* Hide icon circles to save space */
@@ -467,9 +475,30 @@ html.rhythm-theme[data-embedded] .ticket-sublabel::before {
   content: "· ";
 }
 
-/* Dividers between horizontal ticket items */
-html.rhythm-theme[data-embedded] .ticket-row + .ticket-row {
-  padding-left: var(--space-sm);
+html.rhythm-theme[data-embedded] .ticket-row {
+  position: relative;
+  min-width: 0;
+}
+
+/* A long value (a venue address, a video link) breaks rather than widening
+   its entry past the card; its label keeps its width beside it. */
+html.rhythm-theme[data-embedded] .ticket-value {
+  overflow-wrap: anywhere;
+}
+
+html.rhythm-theme[data-embedded] .ticket-sublabel {
+  flex-shrink: 0;
+}
+
+/* Dividers between ticket items, drawn in the middle of the column gap. An
+   entry that starts a line puts its divider outside the body's padding box,
+   where the body clips it, so a wrapped line never opens with a divider. */
+html.rhythm-theme[data-embedded] .ticket-row + .ticket-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-1 * (var(--space-sm) + var(--border-width-thin)));
   border-left: var(--border-width-thin) solid var(--border-subtle);
 }
 
@@ -488,15 +517,32 @@ html.rhythm-theme[data-embedded] .meeting-detail-label::before {
   content: "· ";
 }
 
-html.rhythm-theme[data-embedded] .meeting-detail-row + .meeting-detail-row {
-  padding-left: var(--space-sm);
+html.rhythm-theme[data-embedded] .meeting-detail-row {
+  position: relative;
+  min-width: 0;
+}
+
+html.rhythm-theme[data-embedded] .meeting-detail-value {
+  overflow-wrap: anywhere;
+}
+
+html.rhythm-theme[data-embedded] .meeting-detail-label {
+  flex-shrink: 0;
+}
+
+html.rhythm-theme[data-embedded] .meeting-detail-row + .meeting-detail-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-1 * (var(--space-sm) + var(--border-width-thin)));
   border-left: var(--border-width-thin) solid var(--border-subtle);
 }
 
 /* A default-width embed has too little room to set each value and its label
    on one line across four columns: a date broke over three lines. Below the
-   column layout's width the label goes back beneath its value, and the four
-   items stay side by side. */
+   column layout's width the label goes back beneath its value, and the items
+   stay side by side, wrapping onto further lines as the card narrows. */
 @container scheduling (max-width: 719px) {
   html.rhythm-theme[data-embedded] .ticket-info,
   html.rhythm-theme[data-embedded] .meeting-detail-info {
