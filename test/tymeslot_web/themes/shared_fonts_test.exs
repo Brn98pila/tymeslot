@@ -80,6 +80,26 @@ defmodule TymeslotWeb.Themes.SharedFontsTest do
            end) == []
   end
 
+  # A theme that names a family itself gets the system font wherever that
+  # family is not installed, silently: Quill and Rhythm asked for 'Inter' for
+  # years with nothing loading it.
+  test "every shipped theme's font family is one of the shared stacks" do
+    families =
+      for path <- Path.wildcard("assets/css/scheduling/themes/*/modules/variables.css") do
+        [_match, value] = Regex.run(~r/--theme-font-family:\s*([^;]+);/, File.read!(path))
+        {path, String.trim(value)}
+      end
+
+    assert length(families) == 2
+
+    assert Enum.reject(families, fn {_path, value} ->
+             case Regex.run(~r/^var\(--font-stack-([a-z]+)\)$/, value) do
+               [_match, id] -> id in @font_ids
+               nil -> false
+             end
+           end) == []
+  end
+
   test "the endpoint serves the font files", %{conn: conn} do
     conn = get(conn, "/fonts/inter-latin-wght-normal.woff2")
 
