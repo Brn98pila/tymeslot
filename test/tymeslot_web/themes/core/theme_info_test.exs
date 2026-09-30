@@ -4,8 +4,37 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfoTest do
   @moduletag :themes
   @moduletag :unit
 
+  alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Themes.Core.ThemeInfo
   alias TymeslotWeb.Themes.Rhythm.Theme, as: Rhythm
+
+  describe "get_theme_module/1" do
+    test "is the theme's bound module, by string or integer id" do
+      assert ThemeInfo.get_theme_module("1") == TymeslotWeb.Themes.Quill.Theme
+      assert ThemeInfo.get_theme_module(2) == TymeslotWeb.Themes.Rhythm.Theme
+    end
+
+    test "is nil for an unknown id" do
+      assert ThemeInfo.get_theme_module("no-such-theme") == nil
+    end
+  end
+
+  describe "get_live_view_module/1" do
+    test "is the theme's scheduling LiveView" do
+      assert ThemeInfo.get_live_view_module("1") == TymeslotWeb.Themes.Quill.Scheduling.Live
+    end
+
+    test "is nil for an unknown id" do
+      assert ThemeInfo.get_live_view_module("no-such-theme") == nil
+    end
+  end
+
+  describe "valid_theme_id?/1" do
+    test "holds for every registered theme and for nothing else" do
+      assert Enum.all?(Catalog.valid_ids(), &ThemeInfo.valid_theme_id?/1)
+      refute ThemeInfo.valid_theme_id?("no-such-theme")
+    end
+  end
 
   describe "theme_options/0" do
     test "offers every shipping theme by name, in id order" do

@@ -15,7 +15,7 @@ The theme system uses a centralized registry pattern that eliminates magic strin
 5. **Shared State Machine** (`TymeslotWeb.Themes.Shared.StateMachineHelpers`) - Owns state transitions and routing for all themes (no per-theme state machine)
 6. **Shared Context** (`TymeslotWeb.Themes.Shared.*`) - Shared helpers, handlers, and components
 7. **Customisation spec** (`Tymeslot.ThemeCustomizations.Spec`) - Per-theme option groups, defaults, validation and CSS tokens; each Catalog entry names its spec module
-8. **Dispatcher & Loader** (`TymeslotWeb.Themes.Core.Dispatcher`, `TymeslotWeb.Themes.Core.Loader`) - Systems for dynamically loading and dispatching theme actions
+8. **Dispatcher** (`TymeslotWeb.Themes.Core.Dispatcher`) - The LiveView every booking route hits; it resolves the theme's module through `ThemeInfo` (the Registry's binding) and delegates the LiveView callbacks to it
 9. **Wrapper Components** (per-theme): the theme's background and wrapper classes around the shared `Shared.Components.ThemeShell`, which renders the page chrome
 
 ## Quick Reference

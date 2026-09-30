@@ -3,12 +3,13 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfo do
   Convenience accessors over the theme system for the web layer.
 
   Resolves a theme's picker data (catalogue facts plus the theme module's
-  `metadata/0`) and loads theme modules for the web layer. This is a
+  `metadata/0`) and a theme id's module, through
+  `TymeslotWeb.Themes.Core.Registry`. This is a
   presentation-layer concern: domain code reads theme facts from
   `Tymeslot.Themes.Catalog` instead.
   """
 
-  alias TymeslotWeb.Themes.Core.{Loader, Registry}
+  alias TymeslotWeb.Themes.Core.Registry
 
   @doc """
   Returns every registered theme's picker data, keyed by theme id.
@@ -31,14 +32,16 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfo do
   end
 
   @doc """
-  Gets the theme module implementation for a given ID.
-  Uses dynamic loading to ensure the module is available.
+  The theme module bound to an id, or `nil` for an id no theme has. Every
+  bound module is compiled into the application: the Registry refuses a
+  binding without a Catalog theme at build time, and the theme contract test
+  loads every registered theme.
   """
   @spec get_theme_module(term()) :: module() | nil
   def get_theme_module(id) do
-    case Loader.load_theme(to_string(id)) do
-      {:ok, module} -> module
-      {:error, _reason} -> nil
+    case Registry.get_theme_by_id(to_string(id)) do
+      {:ok, %{module: module}} -> module
+      {:error, :theme_not_found} -> nil
     end
   end
 
@@ -65,13 +68,10 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfo do
   end
 
   @doc """
-  Whether `id` names a registered theme whose module loads.
+  Whether `id` names a registered theme.
   """
   @spec valid_theme_id?(term()) :: boolean()
-  def valid_theme_id?(id) do
-    theme_id = to_string(id)
-    Registry.valid_theme_id?(theme_id) and not is_nil(get_theme_module(theme_id))
-  end
+  def valid_theme_id?(id), do: Registry.valid_theme_id?(to_string(id))
 
   @doc """
   Theme choices for the pickers, as `{name, id}` pairs in numeric id order.
@@ -90,12 +90,14 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfo do
   end
 
   @doc """
-  Gets the LiveView module for a theme.
-  Uses dynamic loading to ensure the module is available.
+  The scheduling LiveView of a theme, or `nil` for an id no theme has.
   """
   @spec get_live_view_module(term()) :: module() | nil
   def get_live_view_module(id) do
-    Loader.get_live_view_module(to_string(id))
+    case get_theme_module(id) do
+      nil -> nil
+      module -> module.live_view_module()
+    end
   end
 
   defp describe(theme) do

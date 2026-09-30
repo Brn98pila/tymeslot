@@ -29,7 +29,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels do
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.LogoPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.RadiusPanel
-  alias TymeslotWeb.Themes.Core.Loader
+  alias TymeslotWeb.Themes.Core.ThemeInfo
 
   @built_in %{
     Palette => PalettePanel,
@@ -59,9 +59,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels do
   end
 
   defp theme_panels(theme_id) do
-    case Loader.load_theme(theme_id) do
-      {:ok, theme} -> theme.option_panels()
-      {:error, _reason} -> %{}
+    case ThemeInfo.get_theme_module(theme_id) do
+      nil -> %{}
+      theme -> theme.option_panels()
     end
   end
 end
