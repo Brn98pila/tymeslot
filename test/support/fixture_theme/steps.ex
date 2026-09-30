@@ -133,7 +133,11 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.QuestionsStep do
 end
 
 defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.BookingStep do
-  @moduledoc "The fixture theme's booking step: the day and time chosen, and the way back."
+  @moduledoc """
+  The fixture theme's booking step: the day and time chosen, a plain booking
+  form sending the canonical `submit` with the fields the booking submit
+  validates, and the way back.
+  """
   use TymeslotWeb, :live_component
 
   alias TymeslotWeb.Themes.Shared.StepEvents
@@ -149,6 +153,20 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.BookingStep do
     ~H"""
     <section class="booker-card" data-testid="fixture-booking">
       <p data-testid="fixture-booking-slot">{@selected_date} {@selected_time}</p>
+      <.form
+        :let={f}
+        for={@form}
+        as={:booking}
+        id="fixture-booking-form"
+        phx-submit="submit"
+        phx-target={@myself}
+        data-testid="booking-form"
+      >
+        <.input field={f[:name]} label="Name" />
+        <.input field={f[:email]} type="email" label="Email" />
+        <.input field={f[:message]} type="textarea" label="Message" />
+        <button type="submit" data-testid="submit-booking">Book</button>
+      </.form>
       <button type="button" phx-click="back_step" phx-target={@myself}>Back</button>
     </section>
     """
