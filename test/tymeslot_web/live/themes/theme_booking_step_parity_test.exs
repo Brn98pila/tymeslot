@@ -3,7 +3,8 @@ defmodule TymeslotWeb.Live.Themes.ThemeBookingStepParityTest do
   Behaviour every theme's steps share, whatever they look like: choosing the
   meeting type already chosen keeps it chosen, and the booking form marks the
   name and the email as required while leaving empty fields to its own
-  messages.
+  messages, and it carries the honeypot and the reCAPTCHA hook, token and
+  notice.
   """
 
   use TymeslotWeb.LiveCase, async: false
@@ -70,6 +71,39 @@ defmodule TymeslotWeb.Live.Themes.ThemeBookingStepParityTest do
       # The form answers an empty field with its own message, so the browser
       # must not block the submit first.
       assert has_element?(view, "form#booking-form[novalidate]")
+    end
+
+    @tag :capture_log
+    test "theme #{theme.slug}: the booking form carries the anti-spam fields", %{conn: conn} do
+      old_cfg = Application.get_env(:tymeslot, :recaptcha, [])
+      old_env = Map.new(~w(RECAPTCHA_SITE_KEY RECAPTCHA_SECRET_KEY), &{&1, System.get_env(&1)})
+
+      on_exit(fn ->
+        Application.put_env(:tymeslot, :recaptcha, old_cfg)
+
+        Enum.each(old_env, fn
+          {name, nil} -> System.delete_env(name)
+          {name, value} -> System.put_env(name, value)
+        end)
+      end)
+
+      Application.put_env(:tymeslot, :recaptcha,
+        booking_enabled: true,
+        booking_action: "booking_form"
+      )
+
+      System.put_env("RECAPTCHA_SITE_KEY", "test_site_key")
+      System.put_env("RECAPTCHA_SECRET_KEY", "test_secret_key")
+
+      %{profile: profile} =
+        seed_booking_account(unquote(theme.id), "antispam-#{unquote(theme.slug)}", "Etc/UTC")
+
+      view = navigate_to_booking_form(conn, profile, nil)
+
+      assert has_element?(view, "form#booking-form input[name='booking[website]']")
+      assert has_element?(view, "form#booking-form[phx-hook='RecaptchaV3']")
+      assert has_element?(view, "form#booking-form input[name='booking[g-recaptcha-response]']")
+      assert has_element?(view, ".recaptcha-notice")
     end
   end
 end

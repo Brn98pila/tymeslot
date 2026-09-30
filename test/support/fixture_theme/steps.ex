@@ -134,12 +134,13 @@ end
 
 defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.BookingStep do
   @moduledoc """
-  The fixture theme's booking step: the day and time chosen, a plain booking
-  form sending the canonical `submit` with the fields the booking submit
-  validates, and the way back.
+  The fixture theme's booking step: the day and time chosen, the shared
+  booking form (`Shared.Components.BookingForm`, with its anti-spam fields),
+  a submit button outside it, and the way back.
   """
   use TymeslotWeb, :live_component
 
+  alias TymeslotWeb.Themes.Shared.Components.BookingForm
   alias TymeslotWeb.Themes.Shared.StepEvents
 
   @impl Phoenix.LiveComponent
@@ -153,20 +154,12 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.BookingStep do
     ~H"""
     <section class="booker-card" data-testid="fixture-booking">
       <p data-testid="fixture-booking-slot">{@selected_date} {@selected_time}</p>
-      <.form
-        :let={f}
-        for={@form}
-        as={:booking}
-        id="fixture-booking-form"
-        phx-submit="submit"
-        phx-target={@myself}
-        data-testid="booking-form"
-      >
-        <.input field={f[:name]} label="Name" />
-        <.input field={f[:email]} type="email" label="Email" />
-        <.input field={f[:message]} type="textarea" label="Message" />
-        <button type="submit" data-testid="submit-booking">Book</button>
-      </.form>
+      <BookingForm.booking_form
+        form={@form}
+        validation_errors={@validation_errors}
+        target={@myself}
+      />
+      <button type="submit" form="booking-form" data-testid="submit-booking">Book</button>
       <button type="button" phx-click="back_step" phx-target={@myself}>Back</button>
     </section>
     """

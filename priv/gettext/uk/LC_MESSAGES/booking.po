@@ -141,7 +141,7 @@ msgstr "1 рік"
 msgid "90 days in advance"
 msgstr "90 днів"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Additional Message (Optional)"
 msgstr "Додаткове повідомлення (необов'язково)"
@@ -250,7 +250,7 @@ msgstr "Тривалість: %{duration}"
 msgid "Early Morning"
 msgstr "Ранній ранок"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Email Address"
 msgstr "Електронна адреса"
@@ -306,7 +306,7 @@ msgstr "Некоректна дата або час"
 msgid "January"
 msgstr "Січень"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "John Doe"
 msgstr "Іван Петренко"
@@ -326,7 +326,7 @@ msgstr "Червень"
 msgid "Late Night"
 msgstr "Пізня ніч"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Let me know what you'd like to discuss..."
 msgstr "Напишіть, що ви хочете обговорити…"
@@ -707,7 +707,7 @@ msgstr "Ви бронюєте зустріч на %{duration}"
 msgid "You're booking a %{duration} meeting with %{name}"
 msgstr "Ви бронюєте зустріч на %{duration} з %{name}"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Your Name"
 msgstr "Ваше ім'я"
@@ -754,7 +754,7 @@ msgstr "your.email@example.com"
 msgid "Enter your full name"
 msgstr "Введіть повне ім'я"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "john@example.com"
 msgstr "ivan@example.com"

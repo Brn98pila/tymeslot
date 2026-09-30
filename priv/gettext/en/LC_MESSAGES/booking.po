@@ -141,7 +141,7 @@ msgstr ""
 msgid "90 days in advance"
 msgstr ""
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Additional Message (Optional)"
 msgstr ""
@@ -250,7 +250,7 @@ msgstr ""
 msgid "Early Morning"
 msgstr ""
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Email Address"
 msgstr ""
@@ -306,7 +306,7 @@ msgstr ""
 msgid "January"
 msgstr ""
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "John Doe"
 msgstr ""
@@ -326,7 +326,7 @@ msgstr ""
 msgid "Late Night"
 msgstr ""
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Let me know what you'd like to discuss..."
 msgstr ""
@@ -707,7 +707,7 @@ msgstr ""
 msgid "You're booking a %{duration} meeting with %{name}"
 msgstr ""
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Your Name"
 msgstr ""
@@ -754,7 +754,7 @@ msgstr ""
 msgid "Enter your full name"
 msgstr ""
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "john@example.com"
 msgstr ""

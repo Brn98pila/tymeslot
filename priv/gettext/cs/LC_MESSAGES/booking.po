@@ -141,7 +141,7 @@ msgstr "s předstihem až 1 roku"
 msgid "90 days in advance"
 msgstr "s předstihem až 90 dnů"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Additional Message (Optional)"
 msgstr "Doplňující zpráva (nepovinné)"
@@ -250,7 +250,7 @@ msgstr "Délka: %{duration}"
 msgid "Early Morning"
 msgstr "Noc"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Email Address"
 msgstr "E-mailová adresa"
@@ -306,7 +306,7 @@ msgstr "Neplatné datum nebo čas"
 msgid "January"
 msgstr "ledna"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "John Doe"
 msgstr "Jan Novák"
@@ -326,7 +326,7 @@ msgstr "června"
 msgid "Late Night"
 msgstr "Pozdní večer"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Let me know what you'd like to discuss..."
 msgstr "Napište, co chcete probrat…"
@@ -707,7 +707,7 @@ msgstr "Rezervujete si schůzku (%{duration})"
 msgid "You're booking a %{duration} meeting with %{name}"
 msgstr "Rezervujete si schůzku (%{duration}) s hostitelem %{name}"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Your Name"
 msgstr "Vaše jméno"
@@ -754,7 +754,7 @@ msgstr "vase.jmeno@example.com"
 msgid "Enter your full name"
 msgstr "Zadejte celé jméno"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "john@example.com"
 msgstr "john@example.com"

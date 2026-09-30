@@ -9,17 +9,16 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.BookingComponent do
   alias Tymeslot.Meetings.Approval
   alias Tymeslot.Timezones
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
-  alias TymeslotWeb.Live.Shared.FormValidationHelpers
   alias TymeslotWeb.Themes.Rhythm.Shared.OrganizerHeader
   alias TymeslotWeb.Themes.Shared.BookingLabels
   alias TymeslotWeb.Themes.Shared.BookingLocation
   alias TymeslotWeb.Themes.Shared.BookingText
   alias TymeslotWeb.Themes.Shared.Components.ApprovalNotice
+  alias TymeslotWeb.Themes.Shared.Components.BookingForm
   alias TymeslotWeb.Themes.Shared.Components.GuestField
   alias TymeslotWeb.Themes.Shared.Components.LocationField
   alias TymeslotWeb.Themes.Shared.GuestBooking
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
-  alias TymeslotWeb.Themes.Shared.SecurityFields
   alias TymeslotWeb.Themes.Shared.StepEvents
 
   @impl Phoenix.LiveComponent
@@ -86,73 +85,24 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.BookingComponent do
               target={@myself}
             />
 
-            <.form
-              :let={f}
-              for={@form}
-              phx-submit="submit"
-              phx-change="validate"
-              phx-target={@myself}
-              data-testid="booking-form"
-              class="booking-form"
-              as={:booking}
-              id="booking-form"
-              novalidate
-              {SecurityFields.recaptcha_form_attrs("booking_form", "booking")}
-            >
-              <SecurityFields.honeypot_field id_prefix="booking" param_root="booking" />
-
-              <.input
-                field={f[:name]}
-                label={dgettext("booking", "Name")}
-                placeholder={dgettext("booking", "Enter your full name")}
-                errors={FormValidationHelpers.field_errors(@validation_errors, :name)}
-                required
-                phx-debounce="blur"
-                phx-blur="field_blur"
-                phx-value-field="name"
-                phx-target={@myself}
-              />
-
-              <.input
-                field={f[:email]}
-                label={dgettext("booking", "Email")}
-                type="email"
-                placeholder={dgettext("booking", "your.email@example.com")}
-                errors={FormValidationHelpers.field_errors(@validation_errors, :email)}
-                required
-                phx-debounce="blur"
-                phx-blur="field_blur"
-                phx-value-field="email"
-                phx-target={@myself}
-              />
-
-              <.input
-                field={f[:message]}
-                type="textarea"
-                label={dgettext("booking", "Message (optional)")}
-                placeholder={dgettext("booking", "Add any details...")}
-                errors={FormValidationHelpers.field_errors(@validation_errors, :message)}
-                rows={4}
-                phx-debounce="blur"
-                phx-blur="field_blur"
-                phx-value-field="message"
-                phx-target={@myself}
-              />
-
-              <SecurityFields.recaptcha_token_field id_prefix="booking" param_root="booking" />
-            </.form>
-
-            <GuestField.guest_field
-              :if={guests_allowed?(assigns)}
-              guest_emails={@guest_emails}
-              guest_input={@guest_input}
-              guest_error={@guest_error}
-              guests_open={@guests_open}
-              max_guests={@max_guests}
+            <BookingForm.booking_form
+              form={@form}
+              validation_errors={@validation_errors}
               target={@myself}
-            />
-
-            <SecurityFields.recaptcha_notice_block />
+              class="booking-form"
+              message_rows={4}
+              labels={form_labels()}
+            >
+              <GuestField.guest_field
+                :if={guests_allowed?(assigns)}
+                guest_emails={@guest_emails}
+                guest_input={@guest_input}
+                guest_error={@guest_error}
+                guests_open={@guests_open}
+                max_guests={@max_guests}
+                target={@myself}
+              />
+            </BookingForm.booking_form>
 
             <ApprovalNotice.block
               :if={Approval.required?(@meeting_type)}
@@ -231,5 +181,17 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.BookingComponent do
 
   defp organizer_display_name(organizer_profile, username_context) do
     BookingLabels.organizer_display_name(organizer_profile, username_context)
+  end
+
+  # Rhythm's shorter field labels.
+  defp form_labels do
+    %{
+      name: dgettext("booking", "Name"),
+      name_placeholder: dgettext("booking", "Enter your full name"),
+      email: dgettext("booking", "Email"),
+      email_placeholder: dgettext("booking", "your.email@example.com"),
+      message: dgettext("booking", "Message (optional)"),
+      message_placeholder: dgettext("booking", "Add any details...")
+    }
   end
 end

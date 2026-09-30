@@ -141,7 +141,7 @@ msgstr "1 an à l’avance"
 msgid "90 days in advance"
 msgstr "90 jours à l’avance"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Additional Message (Optional)"
 msgstr "Message supplémentaire (facultatif)"
@@ -250,7 +250,7 @@ msgstr "Durée : %{duration}"
 msgid "Early Morning"
 msgstr "Petit matin"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Email Address"
 msgstr "Adresse e-mail"
@@ -306,7 +306,7 @@ msgstr "Date/heure invalide"
 msgid "January"
 msgstr "Janvier"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "John Doe"
 msgstr "Jean Dupont"
@@ -326,7 +326,7 @@ msgstr "Juin"
 msgid "Late Night"
 msgstr "Nuit"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Let me know what you'd like to discuss..."
 msgstr "Dites-moi de quoi vous souhaitez discuter..."
@@ -707,7 +707,7 @@ msgstr "Vous réservez une réunion de %{duration}"
 msgid "You're booking a %{duration} meeting with %{name}"
 msgstr "Vous réservez une réunion de %{duration} avec %{name}"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Your Name"
 msgstr "Votre nom"
@@ -754,7 +754,7 @@ msgstr "Saisissez votre e-mail"
 msgid "Enter your full name"
 msgstr "Saisissez votre nom complet"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "john@example.com"
 msgstr "jean.dupont@example.com"

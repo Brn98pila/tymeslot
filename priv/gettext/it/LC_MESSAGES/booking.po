@@ -141,7 +141,7 @@ msgstr "1 anno di anticipo"
 msgid "90 days in advance"
 msgstr "90 giorni di anticipo"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Additional Message (Optional)"
 msgstr "Messaggio aggiuntivo (facoltativo)"
@@ -250,7 +250,7 @@ msgstr "Durata: %{duration}"
 msgid "Early Morning"
 msgstr "Prima mattina"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Email Address"
 msgstr "Indirizzo email"
@@ -306,7 +306,7 @@ msgstr "Data/ora non valide"
 msgid "January"
 msgstr "Gennaio"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "John Doe"
 msgstr "Mario Rossi"
@@ -326,7 +326,7 @@ msgstr "Giugno"
 msgid "Late Night"
 msgstr "Tarda serata"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Let me know what you'd like to discuss..."
 msgstr "Fammi sapere di cosa vorresti parlare..."
@@ -707,7 +707,7 @@ msgstr "Stai prenotando una riunione di %{duration}"
 msgid "You're booking a %{duration} meeting with %{name}"
 msgstr "Stai prenotando una riunione di %{duration} con %{name}"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "Your Name"
 msgstr "Il tuo nome"
@@ -754,7 +754,7 @@ msgstr "tua.email@example.com"
 msgid "Enter your full name"
 msgstr "Inserisci il tuo nome e cognome"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/booking_component.ex
+#: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "john@example.com"
 msgstr "mario@example.com"

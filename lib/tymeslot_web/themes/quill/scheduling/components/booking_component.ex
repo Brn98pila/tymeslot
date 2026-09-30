@@ -8,16 +8,15 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent do
 
   alias Tymeslot.Meetings.Approval
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
-  alias TymeslotWeb.Live.Shared.FormValidationHelpers
   alias TymeslotWeb.Themes.Shared.BookingLabels
   alias TymeslotWeb.Themes.Shared.BookingLocation
   alias TymeslotWeb.Themes.Shared.BookingText
   alias TymeslotWeb.Themes.Shared.Components.ApprovalNotice
+  alias TymeslotWeb.Themes.Shared.Components.BookingForm
   alias TymeslotWeb.Themes.Shared.Components.GuestField
   alias TymeslotWeb.Themes.Shared.Components.LocationField
   alias TymeslotWeb.Themes.Shared.GuestBooking
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
-  alias TymeslotWeb.Themes.Shared.SecurityFields
   alias TymeslotWeb.Themes.Shared.StepEvents
 
   import TymeslotWeb.Components.CoreComponents
@@ -84,75 +83,23 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent do
                     target={@myself}
                   />
 
-                  <.form
-                    :let={f}
-                    for={@form}
-                    as={:booking}
-                    phx-change="validate"
-                    phx-submit="submit"
-                    phx-target={@myself}
-                    data-testid="booking-form"
-                    class="space-y-2"
-                    id="booking-form"
-                    novalidate
-                    {SecurityFields.recaptcha_form_attrs("booking_form", "booking")}
-                  >
-                    <SecurityFields.honeypot_field id_prefix="booking" param_root="booking" />
-
-                    <div class="booking-inline-fields">
-                      <.input
-                        field={f[:name]}
-                        label={dgettext("booking", "Your Name")}
-                        placeholder={dgettext("booking", "John Doe")}
-                        errors={FormValidationHelpers.field_errors(@validation_errors, :name)}
-                        required
-                        phx-debounce="blur"
-                        phx-blur="field_blur"
-                        phx-value-field="name"
-                        phx-target={@myself}
-                      />
-
-                      <.input
-                        field={f[:email]}
-                        label={dgettext("booking", "Email Address")}
-                        type="email"
-                        placeholder={dgettext("booking", "john@example.com")}
-                        errors={FormValidationHelpers.field_errors(@validation_errors, :email)}
-                        required
-                        phx-debounce="blur"
-                        phx-blur="field_blur"
-                        phx-value-field="email"
-                        phx-target={@myself}
-                      />
-                    </div>
-
-                    <.input
-                      field={f[:message]}
-                      type="textarea"
-                      label={dgettext("booking", "Additional Message (Optional)")}
-                      placeholder={dgettext("booking", "Let me know what you'd like to discuss...")}
-                      errors={FormValidationHelpers.field_errors(@validation_errors, :message)}
-                      rows={3}
-                      phx-debounce="blur"
-                      phx-blur="field_blur"
-                      phx-value-field="message"
-                      phx-target={@myself}
-                    />
-
-                    <SecurityFields.recaptcha_token_field id_prefix="booking" param_root="booking" />
-                  </.form>
-
-                  <GuestField.guest_field
-                    :if={guests_allowed?(assigns)}
-                    guest_emails={@guest_emails}
-                    guest_input={@guest_input}
-                    guest_error={@guest_error}
-                    guests_open={@guests_open}
-                    max_guests={@max_guests}
+                  <BookingForm.booking_form
+                    form={@form}
+                    validation_errors={@validation_errors}
                     target={@myself}
-                  />
-
-                  <SecurityFields.recaptcha_notice_block />
+                    class="space-y-2"
+                    contact_class="booking-inline-fields"
+                  >
+                    <GuestField.guest_field
+                      :if={guests_allowed?(assigns)}
+                      guest_emails={@guest_emails}
+                      guest_input={@guest_input}
+                      guest_error={@guest_error}
+                      guests_open={@guests_open}
+                      max_guests={@max_guests}
+                      target={@myself}
+                    />
+                  </BookingForm.booking_form>
 
                   <ApprovalNotice.block
                     :if={Approval.required?(@meeting_type)}
