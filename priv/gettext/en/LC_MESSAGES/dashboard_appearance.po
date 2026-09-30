@@ -41,6 +41,7 @@ msgstr ""
 msgid "Choose a visual style that matches your professional identity."
 msgstr ""
 
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
 #, elixir-autogen, elixir-format
@@ -136,6 +137,7 @@ msgstr ""
 msgid "More Styles Coming Soon"
 msgstr ""
 
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
 #, elixir-autogen, elixir-format
@@ -420,4 +422,29 @@ msgstr ""
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/logo_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Your logo, for the themes that show one on your booking page."
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Cover Image"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "Cover image uploaded successfully"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "The wide image across the top of your booking page, for the themes that show one."
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "You have a custom cover image. Selecting a preset will remove it."
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Your cover image"
 msgstr ""

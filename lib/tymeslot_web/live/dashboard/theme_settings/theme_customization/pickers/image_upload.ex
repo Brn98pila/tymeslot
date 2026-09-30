@@ -6,7 +6,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImageUp
   sends `upload_asset` on change and on submit, with a hidden `asset_field`
   input naming the field, so the customisation component saves the file
   into it (`ThemeCustomizations.attach_asset/4`). The background's image
-  picker and the logo panel use it.
+  picker and the logo and cover panels use it.
   """
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext

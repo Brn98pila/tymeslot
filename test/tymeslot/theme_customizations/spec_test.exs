@@ -6,6 +6,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
 
   alias Ecto.Changeset
   alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.Options.Cover
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.QuillSpec
   alias Tymeslot.ThemeCustomizations.RhythmSpec
@@ -85,6 +86,9 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
           key = Map.fetch!(@list_keys, kind)
           unknown(key, Map.get(group, key, []), Background.presets(group, kind))
         end)
+
+      %{module: Cover} = group ->
+        unknown(:presets, group.presets, Cover.presets(group))
 
       _other_group ->
         []

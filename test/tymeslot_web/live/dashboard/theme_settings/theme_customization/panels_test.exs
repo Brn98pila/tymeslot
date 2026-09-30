@@ -5,11 +5,13 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PanelsTest do
   @moduletag :unit
 
   alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.Options.Cover
   alias Tymeslot.ThemeCustomizations.Options.Logo
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.BackgroundPanel
+  alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.CoverPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.LogoPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels
@@ -18,6 +20,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PanelsTest do
     assert Panels.for_group("1", %{key: :palette, module: Palette}) == PalettePanel
     assert Panels.for_group("1", %{key: :background, module: Background}) == BackgroundPanel
     assert Panels.for_group("1", %{key: :logo, module: Logo}) == LogoPanel
+    assert Panels.for_group("1", %{key: :cover, module: Cover, presets: []}) == CoverPanel
   end
 
   test "a group without a panel raises, naming the group's module" do

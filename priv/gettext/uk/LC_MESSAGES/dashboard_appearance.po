@@ -41,6 +41,7 @@ msgstr "Оберіть свій стиль"
 msgid "Choose a visual style that matches your professional identity."
 msgstr "Оберіть візуальний стиль, який відповідає вашому професійному іміджу."
 
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
 #, elixir-autogen, elixir-format
@@ -136,6 +137,7 @@ msgstr "MP4 або WebM. Макс. 20 МБ."
 msgid "More Styles Coming Soon"
 msgstr "Нові стилі вже скоро"
 
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
 #, elixir-autogen, elixir-format
@@ -421,3 +423,28 @@ msgstr "Ваш логотип"
 #, elixir-autogen, elixir-format
 msgid "Your logo, for the themes that show one on your booking page."
 msgstr "Ваш логотип для тем, які показують його на сторінці бронювання."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Cover Image"
+msgstr "Обкладинка"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "Cover image uploaded successfully"
+msgstr "Обкладинку успішно завантажено"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "The wide image across the top of your booking page, for the themes that show one."
+msgstr "Широке зображення вгорі сторінки бронювання для тем, які його показують."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "You have a custom cover image. Selecting a preset will remove it."
+msgstr "Ви використовуєте власну обкладинку. Вибір шаблону призведе до її видалення."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Your cover image"
+msgstr "Ваша обкладинка"

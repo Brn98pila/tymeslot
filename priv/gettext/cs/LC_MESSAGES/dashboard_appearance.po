@@ -41,6 +41,7 @@ msgstr "Vyberte si styl"
 msgid "Choose a visual style that matches your professional identity."
 msgstr "Vyberte vizuální styl, který odpovídá vaší profesní identitě."
 
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
 #, elixir-autogen, elixir-format
@@ -136,6 +137,7 @@ msgstr "MP4 nebo WebM. Max. 20 MB."
 msgid "More Styles Coming Soon"
 msgstr "Brzy přibudou další styly"
 
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
 #, elixir-autogen, elixir-format
@@ -421,3 +423,28 @@ msgstr "Vaše logo"
 #, elixir-autogen, elixir-format
 msgid "Your logo, for the themes that show one on your booking page."
 msgstr "Vaše logo pro motivy, které ho zobrazují na rezervační stránce."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Cover Image"
+msgstr "Titulní obrázek"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "Cover image uploaded successfully"
+msgstr "Titulní obrázek byl úspěšně nahrán"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "The wide image across the top of your booking page, for the themes that show one."
+msgstr "Široký obrázek v horní části rezervační stránky pro motivy, které ho zobrazují."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "You have a custom cover image. Selecting a preset will remove it."
+msgstr "Máte nahraný vlastní titulní obrázek. Výběrem přednastavené možnosti jej odstraníte."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Your cover image"
+msgstr "Váš titulní obrázek"

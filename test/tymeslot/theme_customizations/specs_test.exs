@@ -7,6 +7,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
   alias Ecto.Changeset
   alias Tymeslot.Test.ShowcaseThemeSpec
   alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.QuillSpec
   alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.ThemeCustomizations.Tokens
@@ -157,19 +158,23 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
         "color_scheme" => "default",
         "background_type" => "color",
         "background_value" => "#123456",
-        "logo_path" => "themes/1/9/images/logo.png"
+        "logo_path" => "themes/1/9/images/logo.png",
+        "cover_value" => "custom",
+        "cover_path" => "themes/1/9/images/cover.png"
       }
 
       assert Specs.media(ShowcaseThemeSpec, settings) == %{
                background: %{kind: :color, color: "#123456"},
-               logo: %{src: "/uploads/themes/1/9/images/logo.png"}
+               logo: %{src: "/uploads/themes/1/9/images/logo.png"},
+               cover: %{src: "/uploads/themes/1/9/images/cover.png", preset: nil}
              }
     end
 
     test "leaves out what resolves to nothing" do
       assert Specs.media(ShowcaseThemeSpec, %{
                "background_type" => "gradient",
-               "background_value" => "gradient_999"
+               "background_value" => "gradient_999",
+               "cover_value" => "custom"
              }) == %{}
     end
   end
@@ -196,7 +201,11 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
                Specs.tokens(ShowcaseThemeSpec, settings, %{})
 
       assert ShowcaseThemeSpec.tokens(settings, %{}).media == %{
-               background: %{kind: :color, color: "#123456"}
+               background: %{kind: :color, color: "#123456"},
+               cover: %{
+                 src: Presets.find_preset_by_id(:cover, "elegant-still-life").src,
+                 preset: "elegant-still-life"
+               }
              }
     end
 
@@ -262,6 +271,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
   describe "upload_group/2" do
     test "finds the group that owns an asset field, with the field's kind" do
       assert {:ok, %{key: :logo}, :image} = Specs.upload_group(ShowcaseThemeSpec, :logo_path)
+      assert {:ok, %{key: :cover}, :image} = Specs.upload_group(ShowcaseThemeSpec, :cover_path)
 
       assert {:ok, %{key: :background}, :video} =
                Specs.upload_group(ShowcaseThemeSpec, :background_video_path)

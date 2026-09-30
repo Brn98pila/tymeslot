@@ -170,6 +170,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.AssetUploads do
   defp success_message(:logo_path),
     do: dgettext("dashboard_appearance", "Logo uploaded successfully")
 
+  defp success_message(:cover_path),
+    do: dgettext("dashboard_appearance", "Cover image uploaded successfully")
+
   defp success_message(_field), do: dgettext("dashboard_appearance", "File uploaded successfully")
 
   # Consuming an in-flight entry would truncate the file, so every entry must

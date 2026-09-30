@@ -41,6 +41,7 @@ msgstr "Scegli il tuo stile"
 msgid "Choose a visual style that matches your professional identity."
 msgstr "Scegli uno stile visivo che rispecchia la tua identità professionale."
 
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
 #, elixir-autogen, elixir-format
@@ -136,6 +137,7 @@ msgstr "MP4 o WebM. Massimo 20 MB."
 msgid "More Styles Coming Soon"
 msgstr "Altri stili in arrivo"
 
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_picker.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
 #, elixir-autogen, elixir-format
@@ -421,3 +423,28 @@ msgstr "Il tuo logo"
 #, elixir-autogen, elixir-format
 msgid "Your logo, for the themes that show one on your booking page."
 msgstr "Il tuo logo, per i temi che ne mostrano uno sulla tua pagina di prenotazione."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Cover Image"
+msgstr "Immagine di copertina"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "Cover image uploaded successfully"
+msgstr "Immagine di copertina caricata correttamente"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "The wide image across the top of your booking page, for the themes that show one."
+msgstr "L'immagine ampia in cima alla tua pagina di prenotazione, per i temi che ne mostrano una."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "You have a custom cover image. Selecting a preset will remove it."
+msgstr "Hai un'immagine di copertina personalizzata. Se selezioni un preset, verrà rimossa."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/cover_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Your cover image"
+msgstr "La tua immagine di copertina"
