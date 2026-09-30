@@ -4,7 +4,7 @@ defmodule Tymeslot.ThemeCustomizations.PaletteDerivation do
   light page.
 
   Returns a map in the shape of the colour-scheme presets in
-  `Tymeslot.ThemeCustomizations.Presets.get_color_schemes/0` (`name`, `mode`,
+  `Tymeslot.ThemeCustomizations.Presets.ColourSchemes` (`name`, `mode`,
   `colors`, and for a light palette `dark_colors`), so a custom seed stands in
   for a preset wherever a scheme is resolved.
 

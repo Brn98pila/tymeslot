@@ -695,7 +695,7 @@ A theme's settings are stored in the `settings` map of its `theme_customizations
 
 Colours are validated by `Tymeslot.Utils.Colour.cast_hex/1`: `#RGB` or `#RRGGBB`, stored as lower-case `#rrggbb`.
 
-A colour scheme in `Tymeslot.ThemeCustomizations.Presets` is `%{name:, mode: :light | :dark, colors:, dark_colors:}`: `colors` is the set for `mode`, and a light scheme may carry `dark_colors`, its counterpart for a theme that follows the visitor's OS (a dark scheme has none). The eight shipped schemes are all dark. A custom seed is derived in the same shape by `PaletteDerivation.derive_palette(seed, mode)` (`:dark` by default); a light derivation's `dark_colors` is the dark derivation of the same seed.
+A colour scheme (`Tymeslot.ThemeCustomizations.Presets.ColourSchemes`) is `%{name:, mode: :light | :dark, colors:, dark_colors:}`: `colors` is the set for `mode`, and a light scheme may carry `dark_colors`, its counterpart for a theme that follows the visitor's OS (a dark scheme has none). The eight shipped schemes are all dark. A custom seed is derived in the same shape by `PaletteDerivation.derive_palette(seed, mode)` (`:dark` by default); a light derivation's `dark_colors` is the dark derivation of the same seed.
 
 A palette group fills `dark_vars` only when it says `follow_os: true` and the resolved scheme is a light one with `dark_colors`; otherwise the page shows the scheme's own colours whatever the visitor's OS prefers. `seed_mode: :light` makes a custom seed derive a light palette (the default is `:dark`). A theme that follows the OS also declares `color-scheme: light dark` and its non-palette dark roles in its own CSS: `ThemeStyle` writes custom properties only.
 
@@ -1041,7 +1041,7 @@ Booking pages and the dashboard picker both read preset images from `/images/the
 
 ### Defining Presets
 
-Presets are defined in `lib/tymeslot/theme_customizations/presets.ex`. A theme offers a preset only when its spec's group lists the id.
+Presets are defined under `lib/tymeslot/theme_customizations/presets/`, one module per kind (`ColourSchemes`, `Gradients`, `Images`, `Videos`), each holding its data and exporting `all/0`. Everything outside the catalogue reads them through the `Tymeslot.ThemeCustomizations.Presets` facade: `find_preset_by_id/2` and `take/2` for any kind, and the per-kind getters. A new kind of preset is a module there and one entry in the facade's `kinds/0`. A theme offers a preset only when its spec's group lists the id.
 
 **Available Video Presets**:
 - `"preset:rhythm-default"`
