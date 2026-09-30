@@ -288,6 +288,9 @@
   --option-tile-selected-glow: var(--theme-primary-glow);
   --option-indicator-idle: rgba(255, 255, 255, 0.45);
   --option-indicator-hover: rgba(255, 255, 255, 0.7);
+  --option-tile-text-hover: white;
+  --option-tile-focus-ring: 0 0 0 3px var(--theme-primary-focus);
+  --option-card-min-height: 3.5rem;
 
   /* Roles (shared/tokens.css, section 2), as aliases of Quill's own names */
   --surface-1: var(--surface-subtle);

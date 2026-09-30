@@ -70,7 +70,7 @@ assets/css/scheduling/themes/[theme_name]/
     ├── time-slots.css          # Time slot grid + container queries
     ├── schedule-header.css     # Schedule header + timezone selector
     ├── booking-form.css        # Booking form + container queries
-    ├── custom-questions.css    # Custom-questions step styling
+    ├── custom-questions.css    # the theme's own part of the questions step (optional)
     ├── confirmation.css        # Confirmation + container queries
     └── language-switcher.css   # Language switcher (theme-specific treatment)
 ```
@@ -180,7 +180,7 @@ assets/css/scheduling/themes/aurora/
 │   ├── time-slots.css          # Time slot grid + container queries
 │   ├── schedule-header.css     # Schedule header + timezone selector
 │   ├── booking-form.css        # Booking form + container queries
-│   ├── custom-questions.css    # Custom-questions step
+│   ├── custom-questions.css    # the theme's own part of the questions step (optional)
 │   ├── confirmation.css        # Confirmation step
 │   ├── components.css          # Buttons, inputs, duration cards (or split further)
 │   └── language-switcher.css   # Language dropdown
@@ -292,12 +292,14 @@ assets/css/scheduling/
 │   └── components/               # Shared component styles (structure and states; themes set tokens)
 │       ├── approval-notice.css
 │       ├── booking-fields.css
+│       ├── custom-questions.css
 │       ├── language-switcher.css
 │       ├── payment-pages.css
 │       ├── polls.css
 │       ├── preview-notice.css
 │       ├── slot-list.css
-│       └── timezone-picker.css
+│       ├── timezone-picker.css
+│       └── week-grid.css
 └── themes/
     ├── quill/                         # Quill theme (glassmorphism) — fine-grained split
     │   ├── modules/
@@ -318,7 +320,7 @@ assets/css/scheduling/
     │   │   ├── calendar.css          # Calendar + container queries
     │   │   ├── time-slots.css        # Time slots + container queries
     │   │   ├── booking-form.css      # Booking form
-    │   │   ├── custom-questions.css  # Custom-questions step
+    │   │   ├── custom-questions.css  # Its own part of the questions step
     │   │   ├── overview.css          # Organizer profile
     │   │   ├── confirmation.css      # Confirmation step
     │   │   ├── meeting-pages.css     # Cancel and reschedule pages
@@ -685,7 +687,8 @@ Themes use a **modular CSS architecture** located in `assets/css/scheduling/`: s
 - `assets/css/scheduling/shared/brand-tokens.css`: the Tailwind `@theme` colours the reCAPTCHA notice's utilities need
 - `assets/css/scheduling/shared/background-motion.css`: the background video's pause and play toggle
 - `assets/css/scheduling/shared/embed.css`: embed shell rules on the booker hook classes
-- `assets/css/scheduling/shared/components/*.css`: component styles both themes share (notices, polls, payment pages, booking fields, language switcher, slot list, timezone picker)
+- `assets/css/scheduling/shared/components/*.css`: component styles both themes share (notices, polls, payment pages, booking fields, language switcher, slot list, timezone picker, week grid)
+- `assets/css/scheduling/shared/components/custom-questions.css`: the questions step's yes/no tiles and option cards; a theme sets the `--option-*` tokens its header lists (all optional) and adds any treatment of its own under the same selectors
 
 Shared component files carry the structure and states; each theme sets their look through the tokens a file lists in its header, defined in the theme's `variables.css`. Where the themes differ by a whole treatment rather than a value, the declarations stay in the theme's own module under the same selector.
 
