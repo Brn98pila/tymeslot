@@ -185,6 +185,24 @@ REQUIRED_TOKENS=(
   "--transition-normal"
 )
 
+# Shared files every theme's theme.css must import: the entry, the token
+# contract and the embed rules, and each shared component file whose markup
+# every theme renders through shared code. A file a theme may replace with its
+# own markup (slot-list, timezone-picker, week-grid, manage-pages) is not
+# listed. One entry per line, quoted: the ExUnit test reads the list from here.
+REQUIRED_SHARED_IMPORTS=(
+  "shared/entry.css"
+  "shared/tokens.css"
+  "shared/embed.css"
+  "shared/components/language-switcher.css"
+  "shared/components/preview-notice.css"
+  "shared/components/approval-notice.css"
+  "shared/components/booking-fields.css"
+  "shared/components/custom-questions.css"
+  "shared/components/polls.css"
+  "shared/components/payment-pages.css"
+)
+
 # Strip the "path:lineno:" prefix that stripped_css_lines prepends, leaving only
 # the CSS declaration text. Paths here never contain ':' and line numbers are
 # digits, so dropping the first two colon-delimited fields is safe. Keeping the
@@ -349,9 +367,10 @@ test_token_usage() {
   # Check if all required tokens are defined
   local tokens_file="$theme_path/modules/variables.css"
 
-  # Skip if no variables file exists yet
   if [ ! -f "$tokens_file" ]; then
-    echo -e "${YELLOW}⚠ No variables.css found - skipping token checks${NC}"
+    echo -e "${RED}✗ No modules/variables.css: every theme defines its tokens there${NC}"
+    FAILED=1
+    TOTAL_VIOLATIONS=$((TOTAL_VIOLATIONS + 1))
     echo ""
     return 0
   fi
@@ -379,9 +398,8 @@ test_duplicate_tokens() {
 
   local tokens_file="$theme_path/modules/variables.css"
 
-  # Skip if no variables file exists yet
+  # A missing file is reported once, by test_token_usage.
   if [ ! -f "$tokens_file" ]; then
-    echo -e "${YELLOW}⚠ No variables.css found - skipping duplicate checks${NC}"
     echo ""
     return 0
   fi
@@ -409,8 +427,15 @@ test_module_imports() {
   echo "📦 Testing module import integrity..."
 
   local theme_css="$theme_path/theme.css"
-  if [ ! -f "$theme_css" ] || [ ! -d "$theme_path/modules" ]; then
-    echo -e "${YELLOW}⚠ No theme.css/modules - skipping import checks${NC}"
+  if [ ! -f "$theme_css" ]; then
+    echo -e "${RED}✗ No theme.css: every theme's stylesheet starts there${NC}"
+    FAILED=1
+    TOTAL_VIOLATIONS=$((TOTAL_VIOLATIONS + 1))
+    echo ""
+    return 0
+  fi
+  if [ ! -d "$theme_path/modules" ]; then
+    echo -e "${YELLOW}⚠ No modules/ - skipping the orphan check${NC}"
     echo ""
     return 0
   fi
@@ -650,6 +675,36 @@ test_shared_token_contract() {
   echo ""
 }
 
+# Every file in REQUIRED_SHARED_IMPORTS is imported by the theme's theme.css:
+# an @import naming it with any relative prefix and either quote, or url(),
+# outside a comment.
+test_shared_imports() {
+  local theme_path="$1"
+  local theme_css="$theme_path/theme.css"
+  echo "🔗 Testing the shared imports every theme needs..."
+  [ -f "$theme_css" ] || { echo ""; return 0; }
+
+  local imports missing=0 file
+  imports=$(perl -0777 -pe 's{/\*.*?\*/}{}gs' "$theme_css" \
+    | grep -oE "@import[[:space:]]+(url\()?[\"'][^\"']+[\"']" \
+    | sed -E "s/^@import[[:space:]]+(url\()?[\"']//; s/[\"']$//; s#^(\.\./|\./)+##")
+
+  for file in "${REQUIRED_SHARED_IMPORTS[@]}"; do
+    if ! printf '%s\n' "$imports" | grep -qxF -- "$file"; then
+      echo -e "${RED}✗ Missing shared import: $file${NC}"
+      missing=$((missing + 1))
+      FAILED=1
+    fi
+  done
+
+  if [ "$missing" -eq 0 ]; then
+    echo -e "${GREEN}✓ All shared imports every theme needs are present${NC}"
+  else
+    TOTAL_VIOLATIONS=$((TOTAL_VIOLATIONS + missing))
+  fi
+  echo ""
+}
+
 # Function to test a single theme
 test_theme() {
   local theme_path="$1"
@@ -665,6 +720,7 @@ test_theme() {
   test_token_usage "$theme_path"
   test_duplicate_tokens "$theme_path"
   test_module_imports "$theme_path"
+  test_shared_imports "$theme_path"
   test_keyframes "$theme_path"
   test_hardcoded_spacing "$theme_path"
   test_hardcoded_borders "$theme_path"

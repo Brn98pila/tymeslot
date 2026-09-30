@@ -11,10 +11,7 @@ defmodule Mix.Tasks.Css.CheckTokensTest do
     File.mkdir_p!(modules)
     File.mkdir_p!(Path.join(root, "shared/components"))
 
-    File.write!(Path.join(root, "themes/demo/theme.css"), """
-    @import "./modules/variables.css";
-    @import "./modules/card.css";
-    """)
+    File.write!(Path.join(root, "themes/demo/theme.css"), theme_css())
 
     File.write!(Path.join(modules, "variables.css"), variables_css())
     File.write!(Path.join(modules, "card.css"), ".card {\n  color: var(--ink-1);\n}\n")
@@ -212,6 +209,64 @@ defmodule Mix.Tasks.Css.CheckTokensTest do
     end
   end
 
+  test "rejects a theme without a variables.css", %{root: root, modules: modules} do
+    File.rm!(Path.join(modules, "variables.css"))
+
+    File.write!(
+      Path.join(root, "themes/demo/theme.css"),
+      String.replace(theme_css(), ~s(@import "./modules/variables.css";\n), "")
+    )
+
+    assert {output, 1} = run_script(root)
+    assert output =~ "No modules/variables.css"
+  end
+
+  test "rejects a theme without a theme.css", %{root: root} do
+    File.rm!(Path.join(root, "themes/demo/theme.css"))
+
+    assert {output, 1} = run_script(root)
+    assert output =~ "No theme.css"
+  end
+
+  test "rejects a theme that does not import a shared file every theme needs", %{root: root} do
+    File.write!(
+      Path.join(root, "themes/demo/theme.css"),
+      theme_css("shared/components/polls.css")
+    )
+
+    assert {output, 1} = run_script(root)
+    assert output =~ "Missing shared import: shared/components/polls.css"
+  end
+
+  test "accepts the shared import written with single quotes or a url()", %{root: root} do
+    css =
+      theme_css()
+      |> String.replace(
+        ~s(@import "../../shared/embed.css";),
+        ~s(@import '../../shared/embed.css';)
+      )
+      |> String.replace(
+        ~s(@import "../../shared/tokens.css";),
+        ~s[@import url("../../shared/tokens.css");]
+      )
+
+    File.write!(Path.join(root, "themes/demo/theme.css"), css)
+    assert {_output, 0} = run_script(root)
+  end
+
+  test "does not count a commented-out import", %{root: root} do
+    css =
+      String.replace(
+        theme_css(),
+        ~s(@import "../../shared/embed.css";),
+        ~s(/* @import "../../shared/embed.css"; */)
+      )
+
+    File.write!(Path.join(root, "themes/demo/theme.css"), css)
+    assert {output, 1} = run_script(root)
+    assert output =~ "Missing shared import: shared/embed.css"
+  end
+
   defp run_script(root) do
     System.cmd("bash", [@script], env: [{"SCHEDULING_CSS_ROOT", root}], stderr_to_stdout: true)
   end
@@ -225,5 +280,18 @@ defmodule Mix.Tasks.Css.CheckTokensTest do
       |> List.flatten()
 
     ":root {\n" <> Enum.map_join(tokens, "", &"  #{&1}: 0;\n") <> "}\n"
+  end
+
+  # Every shared file the script requires a theme to import, read from the
+  # script itself, then the theme's own modules.
+  defp theme_css(skip \\ nil) do
+    shared =
+      ~r/^\s+"(shared\/[a-z\/-]+\.css)"\s*$/m
+      |> Regex.scan(File.read!(@script), capture: :all_but_first)
+      |> List.flatten()
+      |> List.delete(skip)
+
+    Enum.map_join(shared, "", &~s(@import "../../#{&1}";\n)) <>
+      ~s(@import "./modules/variables.css";\n@import "./modules/card.css";\n)
   end
 end
