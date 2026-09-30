@@ -313,6 +313,13 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
         end
       end
 
+      test "#{theme.name}'s defaults are what an empty row reads as" do
+        {:ok, spec} = Catalog.customization_spec(unquote(theme.id))
+
+        assert Specs.settings(spec, %{}) ==
+                 spec.defaults() |> stringify() |> Map.reject(fn {_k, v} -> is_nil(v) end)
+      end
+
       test "#{theme.name}'s defaults pass its own changeset" do
         {:ok, spec} = Catalog.customization_spec(unquote(theme.id))
 

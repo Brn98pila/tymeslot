@@ -27,14 +27,14 @@ defmodule TymeslotWeb.Live.Themes.ThemeHookTest do
       profile: profile,
       theme_id: "1",
       background_type: "video",
-      background_value: "preset:1"
+      background_value: "preset:space"
     )
 
     insert(:theme_customization,
       profile: profile,
       theme_id: "2",
       background_type: "video",
-      background_value: "preset:1"
+      background_value: "preset:space"
     )
 
     %{user: user, profile: profile}

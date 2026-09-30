@@ -116,18 +116,16 @@ defmodule Tymeslot.ThemeCustomizations do
   end
 
   @doc """
-  Creates or updates a theme customization for a profile and theme.
+  Creates or updates a theme customization for a profile and theme. A new
+  row starts from the theme's defaults (the schema changeset reads an empty
+  row through `Specs.settings/2`), so `attrs` need only hold what changes.
   """
   @spec upsert_theme_customization(profile_id(), theme_id(), map()) ::
           persistence_result()
   def upsert_theme_customization(profile_id, theme_id, attrs) do
     case get_by_profile_and_theme(profile_id, theme_id) do
-      nil ->
-        create_theme_customization(profile_id, theme_id, Map.merge(get_defaults(theme_id), attrs))
-
-      customization ->
-        # Update only the provided fields
-        update_theme_customization(customization, attrs)
+      nil -> create_theme_customization(profile_id, theme_id, attrs)
+      customization -> update_theme_customization(customization, attrs)
     end
   end
 
@@ -246,22 +244,24 @@ defmodule Tymeslot.ThemeCustomizations do
   end
 
   @doc """
-  The render tokens for a theme: the saved settings (or the theme's defaults
-  when nothing is saved) plus any per-request overrides, through the theme's
-  customisation spec.
+  The render tokens for a theme: the saved settings as the spec reads them
+  (`Specs.settings/2`: the theme's defaults when nothing is saved, and a
+  group's defaults in place of settings it no longer accepts) plus any
+  per-request overrides, through the theme's customisation spec.
   """
   @spec tokens(theme_id(), ThemeCustomizationSchema.t() | nil, Palette.overrides()) ::
           Tokens.t()
   def tokens(theme_id, customization, overrides \\ %{}) do
-    settings = customization || default_customization(nil, theme_id)
-    Specs.for_theme(theme_id).tokens(to_map(settings), overrides)
+    spec = Specs.for_theme(theme_id)
+    spec.tokens(Specs.settings(spec, to_map(customization)), overrides)
   end
 
   # New orchestrator functions for component interface
 
   @doc """
   The customisation the dashboard starts from: the saved one, or the theme's
-  defaults unsaved, plus the saved original.
+  defaults unsaved, with its settings as the booking page reads them
+  (`Specs.settings/2`), plus the saved original as stored.
   """
   @spec initialize_customization(profile_id(), theme_id()) :: %{
           customization: ThemeCustomizationSchema.t(),
@@ -269,9 +269,10 @@ defmodule Tymeslot.ThemeCustomizations do
         }
   def initialize_customization(profile_id, theme_id) do
     saved = get_by_profile_and_theme(profile_id, theme_id)
-    customization = saved || default_customization(profile_id, theme_id)
+    current = saved || default_customization(profile_id, theme_id)
+    settings = Specs.settings(Specs.for_theme(theme_id), to_map(current))
 
-    %{customization: customization, original: saved || customization}
+    %{customization: %{current | settings: settings}, original: saved || current}
   end
 
   @default_custom_palette_seed "#06b6d4"
@@ -289,7 +290,8 @@ defmodule Tymeslot.ThemeCustomizations do
   `option_key` names one of the theme spec's `option_groups/0`; `params` is
   `%{"field" => field, "value" => value}` (the group's module says which it
   accepts, through `OptionGroup.changes/3`). The change goes through the spec
-  changeset, so an option or value the theme does not support is refused.
+  changeset, so an option or value the theme does not support is refused; a
+  stale value in another group never refuses it (`Specs.settings/2`).
   Returns a translated message on failure.
   """
   @spec apply_option(profile_id(), theme_id(), atom(), map()) ::
@@ -298,15 +300,12 @@ defmodule Tymeslot.ThemeCustomizations do
       when is_binary(field) and is_binary(value) do
     with {:ok, group} <- option_group(theme_id, option_key),
          {:ok, changes} <- group.module.changes(field, value, group) do
-      %{customization: current} = initialize_customization(profile_id, theme_id)
-      # Every save passes the whole option state, so an unsaved default
-      # customisation is created with it and a change is judged against it.
-      attrs = Map.merge(to_map(current), changes)
-
-      # The update deletes any upload the change stops naming
-      # (`update_theme_customization/2`), so nothing is cleaned up here.
+      # The save starts from the stored settings as `Specs.settings/2` reads
+      # them (the schema changeset), so only the change is passed and only
+      # its group is judged. The update deletes any upload the change stops
+      # naming (`update_theme_customization/2`).
       profile_id
-      |> upsert_theme_customization(theme_id, attrs)
+      |> upsert_theme_customization(theme_id, changes)
       |> format_persistence_error()
     else
       :error -> {:error, option_unavailable()}

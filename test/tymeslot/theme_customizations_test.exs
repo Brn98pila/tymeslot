@@ -5,6 +5,7 @@ defmodule Tymeslot.ThemeCustomizationsTest do
   alias Tymeslot.Profiles
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.RhythmSpec
   alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
@@ -214,6 +215,36 @@ defmodule Tymeslot.ThemeCustomizationsTest do
                  "background_value" => "preset:rhythm-default"
                }
              } = ThemeCustomizations.default_customization(7, "2")
+    end
+  end
+
+  describe "reading a row the spec no longer fully accepts" do
+    @stale %{
+      "color_scheme" => "ocean",
+      "background_type" => "gradient",
+      "background_value" => "gradient_99"
+    }
+
+    test "the booking page renders the stale group's default" do
+      tokens =
+        ThemeCustomizations.tokens("1", %ThemeCustomizationSchema{theme_id: "1", settings: @stale})
+
+      %{value: css} = Presets.find_preset_by_id(:gradient, "gradient_1")
+
+      assert tokens.media.background == %{kind: :gradient, css: css}
+      assert tokens.vars["--theme-background"] == css
+    end
+
+    test "the dashboard starts from the settings the page renders" do
+      user = insert(:user)
+      {:ok, profile} = Profiles.get_or_create_profile(user.id)
+      insert(:theme_customization, profile: profile, theme_id: "1", settings: @stale)
+
+      %{customization: customization} =
+        ThemeCustomizations.initialize_customization(profile.id, "1")
+
+      assert customization.settings["background_value"] == "gradient_1"
+      assert customization.settings["color_scheme"] == "ocean"
     end
   end
 end

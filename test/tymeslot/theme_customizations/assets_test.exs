@@ -201,24 +201,19 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
   end
 
   describe "a save the spec refuses" do
-    # Every save re-validates the whole row, so a stored row the spec no
-    # longer accepts refuses any upload onto it: here one with no colour
-    # scheme and no custom seed, which the palette requires. `settings:`
-    # replaces the factory's defaults whole.
+    # A stale stored row no longer refuses a save (`Specs.settings/2` reads it
+    # with the stale group's defaults), so the refusal is forced another way:
+    # the profile does not exist, so the insert fails on its foreign key.
     setup %{profile: profile} do
-      insert(:theme_customization,
-        profile: profile,
-        theme_id: "1",
-        settings: %{"background_type" => "gradient", "background_value" => "gradient_1"}
-      )
+      missing = %{profile | id: profile.id + 1_000_000}
 
-      # The premise: this row refuses every save.
+      # The premise: this profile's saves are refused.
       assert {:error, _changeset} =
-               ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
+               ThemeCustomizations.upsert_theme_customization(missing.id, "1", %{
                  "background_value" => "gradient_2"
                })
 
-      :ok
+      %{profile: missing}
     end
 
     test "deletes the image it stored", %{profile: profile} do

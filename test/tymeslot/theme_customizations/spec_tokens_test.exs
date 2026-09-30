@@ -172,13 +172,12 @@ defmodule Tymeslot.ThemeCustomizations.SpecTokensTest do
                }
       end
 
-      test "an unknown gradient yields no descriptor and falls back to the canvas" do
-        assert %Tokens{vars: vars, media: media} =
+      test "an unknown gradient reads as the theme's default background" do
+        assert %Tokens{media: media} =
                  ThemeCustomizations.tokens(@theme_id, settings(background_value: "gradient_999"))
 
-        assert media == %{}
-
-        assert vars["--theme-background"] == "var(--theme-canvas)"
+        assert media.background ==
+                 ThemeCustomizations.tokens(@theme_id, nil).media.background
       end
     end
 

@@ -201,6 +201,96 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
     def defaults, do: %{}
   end
 
+  # An accent group whose preset list a later release shortened.
+  defmodule AccentSpec do
+    @moduledoc false
+    use Tymeslot.ThemeCustomizations.Spec
+
+    alias Tymeslot.ThemeCustomizations.Options.Accent
+
+    @impl Tymeslot.ThemeCustomizations.Spec
+    def option_groups,
+      do: [%{key: :accent, module: Accent, presets: ~w(tymeslot cobalt), default: "tymeslot"}]
+
+    @impl Tymeslot.ThemeCustomizations.Spec
+    def defaults, do: %{accent: "tymeslot"}
+  end
+
+  describe "settings/2" do
+    test "fills what is not stored from the spec's defaults" do
+      assert Specs.settings(QuillSpec, %{}) == %{
+               "color_scheme" => "default",
+               "background_type" => "gradient",
+               "background_value" => "gradient_1"
+             }
+    end
+
+    test "keeps stored settings every group accepts" do
+      stored = %{
+        "color_scheme" => "ocean",
+        "background_type" => "video",
+        "background_value" => "preset:space"
+      }
+
+      assert Specs.settings(QuillSpec, stored) == stored
+    end
+
+    test "gives a group whose stored value it no longer accepts its defaults, and no other group" do
+      stored = %{
+        "color_scheme" => "ocean",
+        "background_type" => "gradient",
+        "background_value" => "gradient_99"
+      }
+
+      assert Specs.settings(QuillSpec, stored) == %{
+               "color_scheme" => "ocean",
+               "background_type" => "gradient",
+               "background_value" => "gradient_1"
+             }
+    end
+
+    test "starts a group the row was saved without from its defaults" do
+      assert Specs.settings(QuillSpec, %{"color_scheme" => "ocean"}) == %{
+               "color_scheme" => "ocean",
+               "background_type" => "gradient",
+               "background_value" => "gradient_1"
+             }
+    end
+
+    test "drops a kind the theme stopped offering, with the upload it named" do
+      stored = %{
+        "background_type" => "video",
+        "background_value" => "custom",
+        "background_video_path" => "themes/1/5/videos/clip.mp4"
+      }
+
+      assert Specs.settings(StillSpec, stored) == %{
+               "background_type" => "gradient",
+               "background_value" => "gradient_1"
+             }
+    end
+
+    test "drops a refused setting that has no default" do
+      assert Specs.settings(StillSpec, %{"tagline" => String.duplicate("x", 11)}) == %{
+               "background_type" => "gradient",
+               "background_value" => "gradient_1"
+             }
+    end
+
+    test "falls back for a preset the group no longer lists, even one its choice/2 would hide" do
+      assert Specs.settings(AccentSpec, %{"accent" => "ember"}) == %{"accent" => "tymeslot"}
+      assert Specs.settings(AccentSpec, %{"accent" => "cobalt"}) == %{"accent" => "cobalt"}
+    end
+
+    test "reads settings as a save stores them, normalised" do
+      assert Specs.settings(AccentSpec, %{"accent" => "#AABBCC"}) == %{"accent" => "#aabbcc"}
+    end
+
+    test "drops keys no group declares" do
+      refute Map.has_key?(Specs.settings(QuillSpec, %{"legacy_option" => "x"}), "legacy_option")
+    end
+  end
+
   # Validates `attrs` over `stored` settings, the way a save does.
   defp validate_over(spec, stored, attrs) do
     data = Map.new(stored, fn {key, value} -> {String.to_existing_atom(key), value} end)

@@ -1,8 +1,9 @@
 defmodule Tymeslot.ThemeCustomizations.Specs do
   @moduledoc """
-  Questions asked of a theme's customisation spec: its option groups, the settings they store, the background kinds it offers, the media and tokens its groups resolve, the group an upload belongs to, and the spec for a theme id. Kept apart from `Spec`, which a spec `use`s at compile time and must therefore depend on nothing.
+  Questions asked of a theme's customisation spec: its option groups, the settings they store and how a stored row reads (`settings/2`), the background kinds it offers, the media and tokens its groups resolve, the group an upload belongs to, and the spec for a theme id. Kept apart from `Spec`, which a spec `use`s at compile time and must therefore depend on nothing.
   """
 
+  alias Ecto.Changeset
   alias Tymeslot.ThemeCustomizations.OptionGroup
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.Palette
@@ -21,6 +22,59 @@ defmodule Tymeslot.ThemeCustomizations.Specs do
     |> Enum.map(& &1.module.types())
     |> Enum.reduce(%{}, &Map.merge/2)
   end
+
+  @doc """
+  A customisation's stored settings as the spec reads them, the one reading
+  the booking page, the dashboard and every save share. For each option
+  group in turn: its stored settings over the spec's `defaults/0` for them,
+  kept when the group's own `changeset/3` accepts them (normalised, as a
+  save stores them), and otherwise the spec's defaults for that group alone.
+  So a value a group no longer accepts (a preset dropped from its list, a
+  kind the theme stopped offering) costs that group its choice and no other
+  group anything, and a group the spec gained after the row was saved
+  starts from its defaults. Keys no group declares are dropped and empty
+  values left out. `use Spec` guarantees each setting belongs to one group.
+  """
+  @spec settings(module(), Spec.settings()) :: Spec.settings()
+  def settings(spec, stored) do
+    defaults = Map.new(spec.defaults(), fn {key, value} -> {Atom.to_string(key), value} end)
+
+    Enum.reduce(spec.option_groups(), %{}, fn group, acc ->
+      Map.merge(acc, group_settings(group, stored, defaults))
+    end)
+  end
+
+  defp group_settings(%{module: module} = group, stored, defaults) do
+    types = module.types()
+    keys = Enum.map(types, fn {key, _type} -> Atom.to_string(key) end)
+    own_defaults = defaults |> Map.take(keys) |> present()
+
+    candidate = Map.merge(own_defaults, stored |> Map.take(keys) |> present())
+
+    case accepted(group, types, candidate) do
+      {:ok, settings} -> settings
+      :error -> own_defaults
+    end
+  end
+
+  # Every value is a change, so the group's whole changeset runs over it,
+  # `validate_inclusion/3` included, with nothing of any other group's.
+  defp accepted(%{module: module} = group, types, candidate) do
+    empty = Map.new(types, fn {key, _type} -> {key, nil} end)
+    changeset = module.changeset(Changeset.change({empty, types}), candidate, group)
+
+    if changeset.valid? do
+      {:ok,
+       changeset
+       |> Changeset.apply_changes()
+       |> Map.new(fn {key, value} -> {Atom.to_string(key), value} end)
+       |> present()}
+    else
+      :error
+    end
+  end
+
+  defp present(settings), do: Map.reject(settings, fn {_key, value} -> is_nil(value) end)
 
   @doc """
   The render-ready media a spec's option groups resolve from the stored

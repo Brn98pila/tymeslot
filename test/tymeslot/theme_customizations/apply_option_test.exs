@@ -150,6 +150,53 @@ defmodule Tymeslot.ThemeCustomizations.ApplyOptionTest do
     end
   end
 
+  describe "a stored row the spec no longer fully accepts" do
+    test "saves another group, and gives the stale group its default", %{profile: profile} do
+      insert(:theme_customization,
+        profile: profile,
+        theme_id: "1",
+        settings: %{
+          "color_scheme" => "default",
+          "background_type" => "gradient",
+          "background_value" => "gradient_99"
+        }
+      )
+
+      assert {:ok, saved} = apply(profile, :palette, "scheme", "forest")
+      assert saved.settings["color_scheme"] == "forest"
+
+      assert {saved.settings["background_type"], saved.settings["background_value"]} ==
+               {"gradient", "gradient_1"}
+    end
+
+    test "saves a row stored before the spec had a group, which starts from its default",
+         %{profile: profile} do
+      insert(:theme_customization,
+        profile: profile,
+        theme_id: "1",
+        settings: %{"color_scheme" => "ocean"}
+      )
+
+      assert {:ok, saved} = apply(profile, :palette, "scheme", "forest")
+      assert saved.settings["color_scheme"] == "forest"
+      assert saved.settings["background_type"] == "gradient"
+    end
+
+    test "still refuses a change the group does not accept", %{profile: profile} do
+      insert(:theme_customization,
+        profile: profile,
+        theme_id: "1",
+        settings: %{
+          "color_scheme" => "default",
+          "background_type" => "gradient",
+          "background_value" => "gradient_99"
+        }
+      )
+
+      assert {:error, @not_saved} = apply(profile, :background, "gradient", "gradient_999")
+    end
+  end
+
   describe "refusals" do
     test "an option the theme does not declare", %{profile: profile} do
       assert {:error, @unavailable} = apply(profile, :logo, "file", "x.png")

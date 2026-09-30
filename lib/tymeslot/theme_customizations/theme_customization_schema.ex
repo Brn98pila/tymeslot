@@ -71,13 +71,17 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchema do
   end
 
   # The spec validates a schemaless changeset over its own settings, starting
-  # from the stored ones, or from the theme's defaults for a row not yet
-  # inserted. Its errors land on the parent under the setting's name, and the
-  # result replaces `settings` whole, holding only the keys the spec declares
-  # and leaving out the empty ones.
+  # from the stored ones as `Specs.settings/2` reads them: the theme's
+  # defaults for what is not stored (a row not yet inserted, or a group the
+  # spec gained since), and a group's defaults in place of settings it no
+  # longer accepts. So only what `attrs` changes is judged, and a stale value
+  # in one group cannot block a save of another. Its errors land on the
+  # parent under the setting's name, and the result replaces `settings`
+  # whole, holding only the keys the spec declares and leaving out the empty
+  # ones.
   defp put_settings(changeset, spec, attrs) do
     types = Specs.setting_types(spec)
-    current = starting_settings(changeset, spec)
+    current = Specs.settings(spec, get_field(changeset, :settings) || %{})
     stored = Map.new(types, fn {key, _type} -> {key, Map.get(current, Atom.to_string(key))} end)
 
     settings = spec.changeset(Changeset.change({stored, types}), attrs)
@@ -98,11 +102,4 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchema do
       )
     )
   end
-
-  defp starting_settings(%Changeset{data: %{__meta__: %{state: :built}}} = changeset, spec) do
-    defaults = Map.new(spec.defaults(), fn {key, value} -> {Atom.to_string(key), value} end)
-    Map.merge(defaults, get_field(changeset, :settings) || %{})
-  end
-
-  defp starting_settings(changeset, _spec), do: get_field(changeset, :settings) || %{}
 end
