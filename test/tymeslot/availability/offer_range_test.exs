@@ -41,7 +41,16 @@ defmodule Tymeslot.Availability.OfferRangeTest do
     :ok
   end
 
-  @timezones ["Etc/UTC", "America/New_York", "Europe/Berlin", "Australia/Sydney", "Asia/Kolkata"]
+  # The host's and the booker's zones are drawn independently from these:
+  # positive, negative, half-hour and no offset, and both hemispheres' DST.
+  @timezones [
+    "Etc/UTC",
+    "Europe/Berlin",
+    "America/New_York",
+    "Asia/Tokyo",
+    "Asia/Kolkata",
+    "Pacific/Auckland"
+  ]
 
   # Counts the runs whose range offered anything, so a generator change that
   # emptied every day fails the property instead of passing it vacuously.
@@ -52,42 +61,59 @@ defmodule Tymeslot.Availability.OfferRangeTest do
     Process.put(@offering_runs, 0)
 
     check all(
-            timezone <- member_of(@timezones),
+            host_timezone <- member_of(@timezones),
+            booker_timezone <- member_of(@timezones),
             duration <- member_of([15, 30, 60]),
             rules <- rules_generator(),
             offset <- integer(0..3),
-            events <- events_generator(Date.add(today, offset), timezone),
+            events <- events_generator(Date.add(today, offset), host_timezone),
             max_runs: 25
           ) do
-      range_start = Date.add(today, offset)
-      range_end = Date.add(range_start, 6)
-      host = create_host(timezone, duration, rules, range_start)
+      assert_range_matches_days(
+        Date.add(today, offset),
+        host_timezone,
+        booker_timezone,
+        duration,
+        rules,
+        events
+      )
+    end
 
-      stub(CalendarMock, :get_events_for_range_fresh, fn _user_id, _start, _end ->
-        {:ok, events}
-      end)
+    assert Process.get(@offering_runs) > 0,
+           "every run offered nothing at all, so no day was ever compared"
+  end
 
-      request = %{
-        profile: host.profile,
-        user_timezone: timezone,
-        meeting_type: host.meeting_type,
-        reschedule_uid: host.moving_uid
-      }
+  # The plain property starts within three days of today, which almost never
+  # meets a clock change. Here the clock is frozen three days before the last
+  # Sunday of March or October of next year, so a range starting 0-3 days on
+  # always spans that Sunday: European hosts change zone mid-range, and a
+  # booker elsewhere sees the shift as a 23 or 25 hour day.
+  property "the equivalence holds across a DST transition" do
+    year = Clock.utc_today().year + 1
+    Process.put(@offering_runs, 0)
 
-      assert {:ok, range} = Offer.slots_for_range(request, range_start, range_end, duration)
+    check all(
+            sunday <- member_of([last_sunday(year, 3), last_sunday(year, 10)]),
+            host_timezone <- member_of(["Europe/Berlin", "Europe/London"]),
+            booker_timezone <- member_of(@timezones),
+            duration <- member_of([15, 30, 60]),
+            rules <- rules_generator(),
+            offset <- integer(0..3),
+            events <- events_generator(Date.add(sunday, offset - 3), host_timezone),
+            max_runs: 25
+          ) do
+      frozen_today = Date.add(sunday, -3)
+      ClockHelpers.freeze_clock(DateTime.new!(frozen_today, ~T[08:00:00], "Etc/UTC"))
+      range_start = Date.add(frozen_today, offset)
 
-      days = Enum.map(Date.range(range_start, range_end), &Date.to_iso8601/1)
-      assert range |> Map.keys() |> Enum.sort() == days
-
-      for day <- days do
-        assert {:ok, Map.fetch!(range, day)} == Offer.slots_for_date(request, day, duration),
-               "#{day} differs for #{timezone}/#{duration}min under #{inspect(rules)} " <>
-                 "with #{length(events)} event(s)"
-      end
-
-      if Enum.any?(range, fn {_day, slots} -> slots != [] end) do
-        Process.put(@offering_runs, Process.get(@offering_runs) + 1)
-      end
+      assert_range_matches_days(
+        range_start,
+        host_timezone,
+        booker_timezone,
+        duration,
+        rules,
+        events
+      )
     end
 
     assert Process.get(@offering_runs) > 0,
@@ -230,6 +256,49 @@ defmodule Tymeslot.Availability.OfferRangeTest do
 
       refute_received :calendar_read
     end
+  end
+
+  defp assert_range_matches_days(
+         range_start,
+         host_timezone,
+         booker_timezone,
+         duration,
+         rules,
+         events
+       ) do
+    range_end = Date.add(range_start, 6)
+    host = create_host(host_timezone, duration, rules, range_start)
+
+    stub(CalendarMock, :get_events_for_range_fresh, fn _user_id, _start, _end ->
+      {:ok, events}
+    end)
+
+    request = %{
+      profile: host.profile,
+      user_timezone: booker_timezone,
+      meeting_type: host.meeting_type,
+      reschedule_uid: host.moving_uid
+    }
+
+    assert {:ok, range} = Offer.slots_for_range(request, range_start, range_end, duration)
+
+    days = Enum.map(Date.range(range_start, range_end), &Date.to_iso8601/1)
+    assert range |> Map.keys() |> Enum.sort() == days
+
+    for day <- days do
+      assert {:ok, Map.fetch!(range, day)} == Offer.slots_for_date(request, day, duration),
+             "#{day} differs for host #{host_timezone}, booker #{booker_timezone}, " <>
+               "#{duration}min under #{inspect(rules)} with #{length(events)} event(s)"
+    end
+
+    if Enum.any?(range, fn {_day, slots} -> slots != [] end) do
+      Process.put(@offering_runs, Process.get(@offering_runs) + 1)
+    end
+  end
+
+  defp last_sunday(year, month) do
+    last = Date.end_of_month(Date.new!(year, month, 1))
+    Date.add(last, -rem(Date.day_of_week(last), 7))
   end
 
   # The Monday after next: a whole bookable week clear of today and inside
