@@ -499,3 +499,18 @@ msgstr "Barva zvýraznění"
 #, elixir-autogen, elixir-format
 msgid "The colour of the buttons, links and highlights on your booking page."
 msgstr "Barva tlačítek, odkazů a zvýraznění na vaší rezervační stránce."
+
+#: lib/tymeslot/theme_customizations/presets/colour_schemes.ex
+#, elixir-autogen, elixir-format
+msgid "Cool"
+msgstr "Studený"
+
+#: lib/tymeslot/theme_customizations/presets/colour_schemes.ex
+#, elixir-autogen, elixir-format
+msgid "Neutral"
+msgstr "Neutrální"
+
+#: lib/tymeslot/theme_customizations/presets/colour_schemes.ex
+#, elixir-autogen, elixir-format
+msgid "Warm"
+msgstr "Teplý"

@@ -16,6 +16,7 @@ defmodule Tymeslot.ThemeCustomizations.PresetsKindsTest do
   alias Tymeslot.ThemeCustomizations.Presets.Gradients
   alias Tymeslot.ThemeCustomizations.Presets.Images
   alias Tymeslot.ThemeCustomizations.Presets.Videos
+  alias Tymeslot.Utils.Colour
 
   @kinds [
     {:color_scheme, ColourSchemes, &Presets.get_color_schemes/0},
@@ -79,6 +80,36 @@ defmodule Tymeslot.ThemeCustomizations.PresetsKindsTest do
       assert Enum.reject(Accents.all(), fn {id, preset} ->
                Presets.find_preset_by_id(:accent, id) == preset
              end) == []
+    end
+  end
+
+  describe "the tones" do
+    @tones ~w(neutral cool warm)
+
+    test "are light schemes carrying a dark set" do
+      assert Enum.reject(@tones, fn id ->
+               match?(%{mode: :light, colors: _, dark_colors: _}, ColourSchemes.all()[id])
+             end) == []
+    end
+
+    test "read on their own card and canvas in both sets, before any accent" do
+      failures =
+        for id <- @tones,
+            {set, c} <- [
+              light: ColourSchemes.all()[id].colors,
+              dark: ColourSchemes.all()[id].dark_colors
+            ],
+            problem <- [
+              Colour.contrast_ratio(c.text, c.surface) >= 7.0 || :text,
+              Colour.contrast_ratio(c.text_secondary, c.surface) >= 4.5 || :text_secondary,
+              Colour.contrast_ratio(c.text_secondary, c.background) >= 4.5 ||
+                :text_secondary_on_canvas,
+              Colour.contrast_ratio(c.primary, c.surface) >= 4.5 || :primary
+            ],
+            problem != true,
+            do: {id, set, problem}
+
+      assert failures == []
     end
   end
 end

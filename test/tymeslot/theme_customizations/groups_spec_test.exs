@@ -13,8 +13,10 @@ defmodule Tymeslot.Test.ThemeCustomizations.GroupsSpecTest do
   alias Ecto.Changeset
   alias Tymeslot.Test.ThemeCustomizations.GroupsSpec
   alias Tymeslot.ThemeCustomizations.Options.Accent
+  alias Tymeslot.ThemeCustomizations.Options.ColourMode
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Specs
+  alias TymeslotWeb.Themes.Shared.ThemeStyle
 
   defp defaults, do: Map.new(GroupsSpec.defaults(), fn {k, v} -> {Atom.to_string(k), v} end)
 
@@ -24,9 +26,13 @@ defmodule Tymeslot.Test.ThemeCustomizations.GroupsSpecTest do
     |> GroupsSpec.changeset(attrs)
   end
 
+  defp in_mode(mode, overrides \\ %{}),
+    do: GroupsSpec.tokens(Map.put(defaults(), "colour_mode", mode), overrides)
+
   describe "settings" do
     test "are every declared group's" do
-      assert Specs.setting_types(GroupsSpec) == Map.merge(Palette.types(), Accent.types())
+      assert Specs.setting_types(GroupsSpec) ==
+               Palette.types() |> Map.merge(ColourMode.types()) |> Map.merge(Accent.types())
     end
 
     test "the defaults pass the generated changeset" do
@@ -52,7 +58,7 @@ defmodule Tymeslot.Test.ThemeCustomizations.GroupsSpecTest do
     test "the group's default applies when no accent is stored" do
       tokens = GroupsSpec.tokens(Map.delete(defaults(), "accent"), %{})
 
-      assert tokens.vars["--theme-primary"] == "#077995"
+      assert tokens.vars["--theme-primary"] == "#07819e"
       assert tokens.dark_vars["--theme-primary"] == "#0891b2"
     end
 
@@ -61,7 +67,57 @@ defmodule Tymeslot.Test.ThemeCustomizations.GroupsSpecTest do
         GroupsSpec.tokens(Map.put(defaults(), "accent", "cobalt"), %{primary_color: "#e11d48"})
 
       assert tokens.vars["--theme-primary"] == "#e11d48"
-      assert tokens.dark_vars["--theme-primary"] == "#e64065"
+      assert tokens.dark_vars["--theme-primary"] == "#e8496c"
+    end
+  end
+
+  describe "colour mode" do
+    test "light shows the tone's light set, and writes no dark block" do
+      tokens = in_mode("light")
+
+      assert tokens.vars["--theme-canvas"] == "#f5f5f5"
+      assert tokens.vars["--theme-color-scheme"] == "light"
+      assert tokens.dark_vars == %{}
+      refute ThemeStyle.css(tokens) =~ "prefers-color-scheme"
+    end
+
+    test "dark shows the tone's dark set on the page, and writes no dark block" do
+      tokens = in_mode("dark")
+
+      assert tokens.vars["--theme-canvas"] == "#0e0e10"
+      assert tokens.vars["--theme-surface"] == "#18181b"
+      assert tokens.vars["--theme-color-scheme"] == "dark"
+      assert tokens.dark_vars == %{}
+      refute ThemeStyle.css(tokens) =~ "prefers-color-scheme"
+    end
+
+    test "auto shows the light set, and the dark set inside the dark media query" do
+      tokens = in_mode("auto")
+
+      assert tokens.vars["--theme-canvas"] == "#f5f5f5"
+      assert tokens.vars["--theme-color-scheme"] == "light dark"
+      assert tokens.dark_vars["--theme-canvas"] == "#0e0e10"
+      assert ThemeStyle.css(tokens) =~ "@media (prefers-color-scheme: dark)"
+    end
+
+    test "the accent follows the sets the mode chose" do
+      assert in_mode("light").vars["--theme-primary"] == "#07819e"
+      assert in_mode("dark").vars["--theme-primary"] == "#0891b2"
+    end
+
+    test "an embed's primary colour applies in every mode" do
+      override = %{primary_color: "#e11d48"}
+
+      assert in_mode("light", override).vars["--theme-primary"] == "#e11d48"
+      assert in_mode("dark", override).vars["--theme-primary"] == "#e8496c"
+
+      auto = in_mode("auto", override)
+      assert auto.vars["--theme-primary"] == "#e11d48"
+      assert auto.dark_vars["--theme-primary"] == "#e8496c"
+    end
+
+    test "the generated changeset refuses a mode the group does not have" do
+      refute validate(Map.put(defaults(), "colour_mode", "sepia")).valid?
     end
   end
 end

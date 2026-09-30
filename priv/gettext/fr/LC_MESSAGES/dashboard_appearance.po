@@ -499,3 +499,18 @@ msgstr "Couleur d’accent"
 #, elixir-autogen, elixir-format
 msgid "The colour of the buttons, links and highlights on your booking page."
 msgstr "La couleur des boutons, des liens et des mises en avant de votre page de réservation."
+
+#: lib/tymeslot/theme_customizations/presets/colour_schemes.ex
+#, elixir-autogen, elixir-format
+msgid "Cool"
+msgstr "Froid"
+
+#: lib/tymeslot/theme_customizations/presets/colour_schemes.ex
+#, elixir-autogen, elixir-format
+msgid "Neutral"
+msgstr "Neutre"
+
+#: lib/tymeslot/theme_customizations/presets/colour_schemes.ex
+#, elixir-autogen, elixir-format
+msgid "Warm"
+msgstr "Chaud"

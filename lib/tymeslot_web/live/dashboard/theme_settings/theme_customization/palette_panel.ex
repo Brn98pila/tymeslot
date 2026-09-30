@@ -44,7 +44,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel do
                 current_scheme.colors.secondary,
                 current_scheme.colors.accent
               ]}
-              label={current_scheme.name}
+              label={scheme_name(current_scheme)}
               code={
                 if custom_selected,
                   do: String.upcase(@customization.settings["custom_palette_seed"])
@@ -128,7 +128,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel do
                 else: "text-tymeslot-400 group-hover/scheme:text-tymeslot-600"
               )
             ]}>
-              {scheme.name}
+              {scheme_name(scheme)}
             </p>
 
             <%= if active_scheme_id == scheme_id do %>
@@ -179,4 +179,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel do
 
   def telemetry(_group, _field, value),
     do: {:color_scheme_changed, "color_scheme", %{scheme_id: value}}
+
+  # A tone's name is registered for extraction in `Presets.ColourSchemes`;
+  # the older schemes' names have no entry and come back as they are.
+  defp scheme_name(%{name: name}),
+    do: Gettext.dgettext(TymeslotWeb.Gettext, "dashboard_appearance", name)
 end

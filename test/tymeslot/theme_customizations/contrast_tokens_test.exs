@@ -33,18 +33,17 @@ defmodule Tymeslot.ThemeCustomizations.ContrastTokensTest do
 
   describe "derive/1 across the shipped palettes" do
     test "every preset yields filled-control pairs that clear AA" do
-      # Anchored so an empty preset map cannot pass this vacuously.
-      assert map_size(presets()) == 8
+      # Anchored so an empty preset map cannot pass this vacuously: the eight
+      # dark schemes and the three light tones.
+      assert map_size(presets()) == 11
 
       failures =
-        Enum.flat_map(presets(), fn {id, %{colors: colors}} ->
-          tokens = ContrastTokens.derive(colors)
-
-          case failing_pairs(tokens) do
-            [] -> []
-            bad -> [{id, bad}]
-          end
-        end)
+        for {id, scheme} <- presets(),
+            {set, colors} <- [colors: scheme.colors, dark_colors: scheme[:dark_colors]],
+            colors,
+            bad = failing_pairs(ContrastTokens.derive(colors)),
+            bad != [],
+            do: {id, set, bad}
 
       assert failures == []
     end

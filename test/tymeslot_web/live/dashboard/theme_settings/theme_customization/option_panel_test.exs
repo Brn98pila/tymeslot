@@ -130,4 +130,14 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
     assert html =~ "Kobalt"
     assert html =~ "Tymeslot"
   end
+
+  test "the palette panel names a scheme in the viewer's language where the catalogue has it" do
+    html =
+      Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+        render_panel(%{key: :palette, module: Palette, schemes: ["cool", "ocean"]})
+      end)
+
+    assert html =~ "Kühl"
+    assert html =~ "Ocean Breeze"
+  end
 end

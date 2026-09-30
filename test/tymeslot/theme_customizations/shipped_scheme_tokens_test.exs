@@ -13,9 +13,10 @@ defmodule Tymeslot.ThemeCustomizations.ShippedSchemeTokensTest do
   @moduletag :themes
   @moduletag :unit
 
-  alias Tymeslot.ThemeCustomizations.Presets
+  alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.QuillSpec
   alias Tymeslot.ThemeCustomizations.RhythmSpec
+  alias Tymeslot.ThemeCustomizations.Specs
 
   # Palette vars per shipped scheme, without `--theme-background` (which the
   # background option adds, see @backgrounds).
@@ -222,8 +223,12 @@ defmodule Tymeslot.ThemeCustomizations.ShippedSchemeTokensTest do
     |> Map.merge(extra)
   end
 
-  test "every shipped scheme is pinned" do
-    assert Enum.sort(Map.keys(Presets.get_color_schemes())) == Enum.sort(Map.keys(@schemes))
+  # The pins cover what Quill and Rhythm can show; a light tone in the
+  # catalogue is not theirs.
+  test "every scheme Quill and Rhythm offer is pinned" do
+    for spec <- Map.keys(@backgrounds) do
+      assert Enum.sort(Specs.group(spec, Palette).schemes) == Enum.sort(Map.keys(@schemes))
+    end
   end
 
   for {spec_mod, background} <- @backgrounds do

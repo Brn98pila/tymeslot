@@ -17,6 +17,8 @@ defmodule Tymeslot.ThemeCustomizations.AccentContrastTest do
 
   alias Tymeslot.Test.ThemeCustomizations.GroupsSpec
   alias Tymeslot.ThemeCustomizations.Options.Accent
+  alias Tymeslot.ThemeCustomizations.Options.ColourMode
+  alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.Utils.Colour
 
@@ -65,6 +67,50 @@ defmodule Tymeslot.ThemeCustomizations.AccentContrastTest do
           do: {seed, accent, bad}
 
     assert failures == []
+  end
+
+  defp toned(tone, mode, accent),
+    do: %{"color_scheme" => tone, "colour_mode" => mode, "accent" => accent}
+
+  defp tones, do: Specs.group(GroupsSpec, Palette).schemes
+
+  test "every accent preset clears AA on every tone, in every colour mode" do
+    assert tones() == ~w(neutral cool warm)
+    assert ColourMode.modes() == ~w(light dark auto)
+
+    failures =
+      for tone <- tones(),
+          mode <- ColourMode.modes(),
+          accent <- accents(),
+          vars <- sets(toned(tone, mode, accent)),
+          bad = failing_pairs(vars),
+          bad != [],
+          do: {tone, mode, accent, bad}
+
+    assert failures == []
+  end
+
+  test "graphite, the no-colour choice, turns to a light grey on a dark card" do
+    [dark] = sets(toned("neutral", "dark", "graphite"))
+
+    assert dark["--theme-primary"] == "#7586a2"
+  end
+
+  property "any custom accent, and any embed's primary colour, on any tone in any mode" do
+    check all(
+            rgb <- StreamData.integer(0..0xFFFFFF),
+            tone <- StreamData.member_of(~w(neutral cool warm)),
+            mode <- StreamData.member_of(~w(light dark auto)),
+            max_runs: 200
+          ) do
+      hex = to_hex(rgb)
+
+      for vars <-
+            sets(toned(tone, mode, hex)) ++
+              sets(toned(tone, mode, "tymeslot"), %{primary_color: hex}) do
+        assert failing_pairs(vars) == []
+      end
+    end
   end
 
   test "every palette here has a dark set, so both modes are checked" do
