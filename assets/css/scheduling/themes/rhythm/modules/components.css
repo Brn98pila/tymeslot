@@ -133,9 +133,20 @@ span.tz-picker__option-flag {
   box-shadow: var(--shadow-danger-md);
 }
 
+/* The secondary variant sits on the glass card, not on the primary fill, so
+   it takes the card's text colour; without it the primary's on-primary ink
+   is dark on dark. */
 .action-button-primary.action-button-secondary {
   background: var(--surface-light);
+  border: var(--border-width-thin) solid var(--border-medium);
+  color: var(--theme-text);
   backdrop-filter: blur(10px);
+  box-shadow: none;
+}
+
+.action-button-primary.action-button-secondary:hover {
+  background: var(--surface-strong);
+  border-color: var(--border-strong);
   box-shadow: none;
 }
 

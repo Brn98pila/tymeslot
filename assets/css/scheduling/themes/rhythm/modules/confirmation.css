@@ -279,10 +279,9 @@
   text-wrap: balance;
 }
 
-/* Add-to-calendar download link — reuses the secondary action-button styling
-   on an <a>, with a leading calendar icon. */
+/* Add-to-calendar download link: the secondary action button on an <a>,
+   with a leading calendar icon. */
 .calendar-download-button {
-  color: var(--theme-text);
   text-decoration: none;
 }
 
