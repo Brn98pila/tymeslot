@@ -141,8 +141,9 @@ defmodule Tymeslot.Onboarding do
 
   Picks a random preset for each theme in `theme_ids` from the videos that
   theme offers, sharing one preset between themes that offer it, and applies
-  it where no video background is set yet. Themes without video are skipped.
-  Idempotent: a theme that already has a video background (a returning user,
+  it where no video background is set yet (as a choice of the theme's
+  background option, so an uploaded image it replaces is removed with its
+  file). Themes without video are skipped. Idempotent: a theme that already has a video background (a returning user,
   or one who picked their own) is left untouched, so the choice is never
   overwritten or re-randomised.
   """
@@ -159,15 +160,17 @@ defmodule Tymeslot.Onboarding do
 
   def ensure_preview_video_backgrounds(_profile, _theme_ids), do: :ok
 
+  # A choice of the background group, as the dashboard makes it: the save
+  # drops any upload the video replaces, and the update deletes its file.
   defp put_video_background_unless_set(profile_id, theme_id, preset) do
     case ThemeCustomizations.get_by_profile_and_theme(profile_id, theme_id) do
       %{settings: %{"background_type" => "video"}} ->
         :ok
 
       _other ->
-        ThemeCustomizations.upsert_theme_customization(profile_id, theme_id, %{
-          "background_type" => "video",
-          "background_value" => preset
+        ThemeCustomizations.apply_option(profile_id, theme_id, :background, %{
+          "field" => "video",
+          "value" => preset
         })
     end
   end
