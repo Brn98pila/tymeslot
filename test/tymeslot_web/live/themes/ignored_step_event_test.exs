@@ -55,6 +55,32 @@ defmodule TymeslotWeb.Live.Themes.IgnoredStepEventTest do
       refute_receive {:captured_log, %{meta: %{event: "select_date"}}}, 100
     end
 
+    test "#{theme.name}: an unknown event sent to a step component is logged once",
+         %{conn: conn} do
+      %{profile: profile} =
+        seed_booking_account(unquote(theme.id), "relay-#{unquote(theme.slug)}", "Etc/UTC")
+
+      {:ok, view, _html} = live(conn, "/#{profile.username}")
+
+      # The overview step's own component receives the event, as a template's
+      # phx-click with phx-target={@myself} would send it.
+      step = "[data-phx-component]:has([data-testid='duration-option'])"
+
+      for _twice <- 1..2 do
+        view
+        |> with_target(step)
+        |> render_click("step-probe-unknown", %{"email" => "a@b.c"})
+      end
+
+      assert_receive {:captured_log,
+                      %{level: :warning, meta: %{event: "step-probe-unknown"} = meta} = log}
+
+      assert meta.theme_id == unquote(theme.id)
+      assert meta.step == :overview
+      refute LogCapture.dump(log) =~ "a@b.c"
+      refute_receive {:captured_log, %{meta: %{event: "step-probe-unknown"}}}, 100
+    end
+
     test "#{theme.name}: a whole booking logs no ignored step event", %{conn: conn} do
       %{profile: profile} =
         seed_booking_account(unquote(theme.id), "clean-#{unquote(theme.slug)}", "Etc/UTC")
