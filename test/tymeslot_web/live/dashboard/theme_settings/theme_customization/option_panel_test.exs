@@ -10,6 +10,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
   @moduletag :themes
   @moduletag :components
 
+  alias Tymeslot.ThemeCustomizations.Options.Accent
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.PaletteDerivation
@@ -114,5 +115,19 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
       )
 
     assert html =~ ~s(<p id="stub-panel">tagline</p>)
+  end
+
+  test "the accent panel lists the group's presets in its order, named in the viewer's language" do
+    group = %{key: :accent, module: Accent, presets: ~w(tymeslot cobalt), default: "tymeslot"}
+
+    html =
+      Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+        render_panel(group, accent_picker_open: false)
+      end)
+
+    assert choices(html, "preset") == ["tymeslot", "cobalt"]
+    assert html =~ "Akzentfarbe"
+    assert html =~ "Kobalt"
+    assert html =~ "Tymeslot"
   end
 end

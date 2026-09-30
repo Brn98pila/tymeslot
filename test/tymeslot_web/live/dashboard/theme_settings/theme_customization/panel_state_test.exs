@@ -9,9 +9,11 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PanelStateTest 
   @moduletag :unit
 
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.Options.Accent
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
+  alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.AccentPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.BackgroundPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel
 
@@ -120,6 +122,53 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PanelStateTest 
 
       assert PalettePanel.telemetry(@palette, "scheme", "ocean") ==
                {:color_scheme_changed, "color_scheme", %{scheme_id: "ocean"}}
+    end
+  end
+
+  describe "AccentPanel" do
+    @accent %{key: :accent, module: Accent, presets: ~w(tymeslot cobalt), default: "tymeslot"}
+
+    test "the colour widget is open exactly while a custom colour is the accent" do
+      assert AccentPanel.ui(@accent, customization(%{"accent" => "#123456"}), %{}) ==
+               %{accent_picker_open: true}
+
+      assert AccentPanel.ui(
+               @accent,
+               customization(%{"accent" => "cobalt"}),
+               %{accent_picker_open: true}
+             ) == %{accent_picker_open: false}
+
+      assert AccentPanel.ui(@accent, customization(%{}), %{}) == %{accent_picker_open: false}
+    end
+
+    test "Custom on a preset saves the preset's colour as the custom accent" do
+      assert AccentPanel.handle_ui(
+               "theme:toggle_accent_picker",
+               %{},
+               @accent,
+               %{accent_picker_open: false},
+               customization(%{"accent" => "cobalt"})
+             ) == {:set, "custom", "#2563eb"}
+    end
+
+    test "Custom on a custom colour only shows or hides the widget" do
+      assert AccentPanel.handle_ui(
+               "theme:toggle_accent_picker",
+               %{},
+               @accent,
+               %{accent_picker_open: true},
+               customization(%{"accent" => "#123456"})
+             ) == {:ui, %{accent_picker_open: false}}
+    end
+
+    test "ignores any other UI event" do
+      assert AccentPanel.handle_ui(
+               "theme:toggle_palette_picker",
+               %{},
+               @accent,
+               %{accent_picker_open: false},
+               customization(%{})
+             ) == :ignore
     end
   end
 end

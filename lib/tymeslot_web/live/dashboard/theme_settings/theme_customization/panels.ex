@@ -4,16 +4,19 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels do
 
   The theme's own panels come first (`use TymeslotWeb.Themes.Core.Theme,
   option_panels: %{MyGroup => MyPanel}`), then the built-in panels for the
-  shared groups. A group with neither raises, naming its module, so a spec
-  that gains a group without a panel fails `panels_test.exs` rather than
-  showing nothing.
+  shared groups (the palette, the background, and the groups under
+  `theme_customizations/options/` that several themes share). A group with
+  neither raises, naming its module, so a spec that gains a group without a
+  panel fails `panels_test.exs` rather than showing nothing.
   """
 
   alias Tymeslot.ThemeCustomizations.OptionGroup
+  alias Tymeslot.ThemeCustomizations.Options.Accent
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.Cover
   alias Tymeslot.ThemeCustomizations.Options.Logo
   alias Tymeslot.ThemeCustomizations.Options.Palette
+  alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.AccentPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.BackgroundPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.CoverPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.LogoPanel
@@ -24,7 +27,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels do
     Palette => PalettePanel,
     Background => BackgroundPanel,
     Logo => LogoPanel,
-    Cover => CoverPanel
+    Cover => CoverPanel,
+    Accent => AccentPanel
   }
 
   @doc "The panel module for `group` in the theme `theme_id`."

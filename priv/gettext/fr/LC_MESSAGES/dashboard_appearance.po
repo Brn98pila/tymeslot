@@ -73,6 +73,7 @@ msgstr "Actuel"
 msgid "Current Style"
 msgstr "Style actuel"
 
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/accent_panel.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/palette_panel.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/color_picker.ex
 #, elixir-autogen, elixir-format
@@ -488,3 +489,13 @@ msgstr "Sarcelle"
 #, elixir-autogen, elixir-format
 msgid "Violet"
 msgstr "Violet"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/accent_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Accent Colour"
+msgstr "Couleur d’accent"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/accent_panel.ex
+#, elixir-autogen, elixir-format
+msgid "The colour of the buttons, links and highlights on your booking page."
+msgstr "La couleur des boutons, des liens et des mises en avant de votre page de réservation."
