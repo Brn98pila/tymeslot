@@ -11,6 +11,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImageUp
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias TymeslotWeb.Helpers.UploadConstraints
+
   attr :id, :string, required: true, doc: "the form's DOM id"
   attr :field, :atom, required: true, doc: "the image asset field the upload saves into"
   attr :uploads, :map, default: nil, doc: "the component's uploads, keyed by asset field"
@@ -111,7 +113,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImageUp
       </div>
 
       <p class="text-token-2xs font-black text-tymeslot-400 uppercase tracking-[0.2em]">
-        {dgettext("dashboard_appearance", "JPG, PNG or WebP. Max 5MB.")}
+        {dgettext("dashboard_appearance", "JPG, PNG or WebP. Max %{size} MB.",
+          size: UploadConstraints.max_file_size_mb(:image)
+        )}
       </p>
     </form>
     """

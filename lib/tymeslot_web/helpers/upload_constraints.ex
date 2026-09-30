@@ -39,4 +39,11 @@ defmodule TymeslotWeb.Helpers.UploadConstraints do
   def max_file_size(type) when type in [:avatar, :image, :video] do
     Map.fetch!(@max_sizes, type)
   end
+
+  @doc """
+  Returns the maximum file size for a given upload type in whole megabytes, as
+  the dashboard states it to the organiser.
+  """
+  @spec max_file_size_mb(upload_type) :: pos_integer()
+  def max_file_size_mb(type), do: div(max_file_size(type), 1_000_000)
 end

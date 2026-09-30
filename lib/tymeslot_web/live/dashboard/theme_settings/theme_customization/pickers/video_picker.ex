@@ -5,6 +5,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.VideoPi
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias TymeslotWeb.Helpers.UploadConstraints
+
   @doc """
   Renders the video picker.
   Expects assigns: option, customization, presets (the group's videos as `{id, preset}`, in order), uploads, myself
@@ -224,7 +226,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.VideoPi
           </div>
 
           <p class="text-token-2xs font-black text-tymeslot-400 uppercase tracking-[0.2em]">
-            {dgettext("dashboard_appearance", "MP4 or WebM. Max 20MB.")}
+            {dgettext("dashboard_appearance", "MP4, WebM or MOV. Max %{size} MB.",
+              size: UploadConstraints.max_file_size_mb(:video)
+            )}
           </p>
         </form>
 

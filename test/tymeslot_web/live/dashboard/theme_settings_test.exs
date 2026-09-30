@@ -10,6 +10,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
   alias Tymeslot.Repo
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
+  alias TymeslotWeb.Helpers.UploadConstraints
   alias TymeslotWeb.Live.Scheduling.PreviewToken
 
   setup :setup_dashboard_user_with_theme
@@ -336,23 +337,27 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
         |> element("button", "Gradient")
         |> render_click()
 
+      # The hints state the limits the uploads enforce.
+      image_hint = "JPG, PNG or WebP. Max #{UploadConstraints.max_file_size_mb(:image)} MB."
+      video_hint = "MP4, WebM or MOV. Max #{UploadConstraints.max_file_size_mb(:video)} MB."
+
       refute html_gradient =~ "Select a solid color"
-      refute html_gradient =~ "JPG, PNG or WebP. Max 5MB."
-      refute html_gradient =~ "MP4 or WebM. Max 20MB."
+      refute html_gradient =~ image_hint
+      refute html_gradient =~ video_hint
 
       html_image =
         view
         |> element("button", "Image")
         |> render_click()
 
-      assert html_image =~ "JPG, PNG or WebP. Max 5MB."
+      assert html_image =~ image_hint
 
       html_video =
         view
         |> element("button", "Video")
         |> render_click()
 
-      assert html_video =~ "MP4 or WebM. Max 20MB."
+      assert html_video =~ video_hint
     end
 
     test "theme:toggle_palette_picker with no seed persists default seed and opens picker",

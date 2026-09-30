@@ -116,21 +116,11 @@ msgstr ""
 msgid "Invalid theme selection"
 msgstr ""
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
-#, elixir-autogen, elixir-format
-msgid "JPG, PNG or WebP. Max 5MB."
-msgstr ""
-
 #: lib/tymeslot_web/live/dashboard/theme_settings/booking_text_form.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "Live Preview"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
-#, elixir-autogen, elixir-format
-msgid "MP4 or WebM. Max 20MB."
 msgstr ""
 
 #: lib/tymeslot_web/live/dashboard/theme_settings_component.ex
@@ -618,4 +608,14 @@ msgstr ""
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/density_panel.ex
 #, elixir-autogen, elixir-format
 msgid "Spacing"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
+#, elixir-autogen, elixir-format
+msgid "JPG, PNG or WebP. Max %{size} MB."
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
+#, elixir-autogen, elixir-format
+msgid "MP4, WebM or MOV. Max %{size} MB."
 msgstr ""

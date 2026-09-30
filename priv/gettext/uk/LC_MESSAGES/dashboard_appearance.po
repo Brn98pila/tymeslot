@@ -116,22 +116,12 @@ msgstr "Зображення"
 msgid "Invalid theme selection"
 msgstr "Некоректний вибір теми"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
-#, elixir-autogen, elixir-format
-msgid "JPG, PNG or WebP. Max 5MB."
-msgstr "JPG, PNG або WebP. Макс. 5 МБ."
-
 #: lib/tymeslot_web/live/dashboard/theme_settings/booking_text_form.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
 #: lib/tymeslot_web/live/dashboard/theme_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "Live Preview"
 msgstr "Перегляд наживо"
-
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
-#, elixir-autogen, elixir-format
-msgid "MP4 or WebM. Max 20MB."
-msgstr "MP4 або WebM. Макс. 20 МБ."
 
 #: lib/tymeslot_web/live/dashboard/theme_settings_component.ex
 #, elixir-autogen, elixir-format
@@ -619,3 +609,13 @@ msgstr "М’які"
 #, elixir-autogen, elixir-format
 msgid "Spacing"
 msgstr "Відступи"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
+#, elixir-autogen, elixir-format
+msgid "JPG, PNG or WebP. Max %{size} MB."
+msgstr "JPG, PNG або WebP. Макс. %{size} МБ."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/video_picker.ex
+#, elixir-autogen, elixir-format
+msgid "MP4, WebM or MOV. Max %{size} MB."
+msgstr "MP4, WebM або MOV. Макс. %{size} МБ."
