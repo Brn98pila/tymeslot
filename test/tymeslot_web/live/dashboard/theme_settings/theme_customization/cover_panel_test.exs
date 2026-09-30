@@ -160,7 +160,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.CoverPanelTest 
 
     {:ok, _row} =
       ThemeCustomizations.create_theme_customization(profile.id, @theme_id, %{
-        "color_scheme" => "default",
+        "color_scheme" => "neutral",
         "background_type" => "image",
         "background_value" => "custom",
         "background_image_path" => background

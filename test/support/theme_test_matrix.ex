@@ -80,17 +80,6 @@ defmodule TymeslotWeb.ThemeTestMatrix do
       selected_duration_selector: "[data-testid='duration-option'][aria-pressed='true']",
       fixture: true
     },
-    "98" => %{
-      id: "98",
-      key: :probe,
-      slug: "probe",
-      name: "Probe",
-      wrapper_class: "fixture-theme-wrapper",
-      video_background: false,
-      pins_schedule_actions: false,
-      selected_duration_selector: "[data-testid='duration-option'][aria-pressed='true']",
-      fixture: true
-    },
     "99" => %{
       id: "99",
       key: :fixture,

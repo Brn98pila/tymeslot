@@ -21,9 +21,7 @@ config :tymeslot, :router, TymeslotWeb.Router
 # shared code. The fixture (test/support/fixture_theme/) is shaped unlike
 # Quill and Rhythm; the showcase theme (test/support/showcase_theme/) offers
 # the shared option groups no shipped theme offers yet, so their dashboard
-# panels are reachable, and borrows the fixture's booking pages; the probe
-# theme (test/support/probe_theme/) declares the shared option groups that
-# have a built-in panel over a light palette, and borrows the same pages.
+# panels are reachable, and borrows the fixture's booking pages.
 # Tymeslot.Themes.Catalog and TymeslotWeb.Themes.Core.Registry read this at
 # compile time; no other environment sets it.
 config :tymeslot, :extra_themes, [
@@ -35,15 +33,6 @@ config :tymeslot, :extra_themes, [
     customization_spec: Tymeslot.Test.ShowcaseThemeSpec,
     status: :beta,
     module: TymeslotWeb.Test.ShowcaseTheme.Theme
-  },
-  %{
-    id: "98",
-    key: :probe,
-    name: "Probe",
-    heading_style: :generic,
-    customization_spec: Tymeslot.Test.ProbeThemeSpec,
-    status: :beta,
-    module: TymeslotWeb.Test.ProbeTheme.Theme
   },
   %{
     id: "99",

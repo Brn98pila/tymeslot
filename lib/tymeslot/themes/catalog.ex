@@ -18,9 +18,8 @@ defmodule Tymeslot.Themes.Catalog do
   Themes may also be registered through `config :tymeslot, :extra_themes`, a
   list of fact maps each with the theme's web `:module` besides, which this
   module drops and `TymeslotWeb.Themes.Core.Registry` binds. Only
-  `config/test.exs` sets it, to register the fixture theme under
-  `test/support/fixture_theme/`; every other build holds exactly the themes
-  below.
+  `config/test.exs` sets it, to register the test-only themes under
+  `test/support/`; every other build holds exactly the themes below.
   """
 
   @type theme_id :: String.t()

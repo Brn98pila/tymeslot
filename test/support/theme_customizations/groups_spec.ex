@@ -4,8 +4,8 @@ defmodule Tymeslot.Test.ThemeCustomizations.GroupsSpec do
   lighter booking themes are built from, in their canonical order, over the
   light tones, following the visitor's OS. It is registered with no
   theme, so it is exercised through `Specs`, its generated callbacks and the
-  modules that take a spec. `Tymeslot.Test.ProbeThemeSpec` declares the same
-  groups on a registered test theme once each has its dashboard panel.
+  modules that take a spec. `Tymeslot.Test.ShowcaseThemeSpec` declares the
+  same groups, among the other shared ones, on a registered test theme.
   """
   use Tymeslot.ThemeCustomizations.Spec
 

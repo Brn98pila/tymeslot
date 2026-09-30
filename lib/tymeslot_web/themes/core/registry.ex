@@ -27,7 +27,7 @@ defmodule TymeslotWeb.Themes.Core.Registry do
   # the web layer needs is derived: the stylesheet path and html class from the
   # key, and the picker's preview image and description from the module's
   # `metadata/0`. The facts these bindings join live in Tymeslot.Themes.Catalog.
-  # Themes registered through `:extra_themes` (the test build's fixture theme,
+  # Themes registered through `:extra_themes` (the test build's test-only themes,
   # see the Catalog's moduledoc) bring their module in their entry.
   @extra_bindings :tymeslot
                   |> Application.compile_env(:extra_themes, [])

@@ -1,10 +1,10 @@
 defmodule TymeslotWeb.Test.ShowcaseTheme.Theme do
   @moduledoc """
   A second test-only booking theme, registered by `config/test.exs` through
-  `:extra_themes`. Its spec, `Tymeslot.Test.ShowcaseThemeSpec`, offers
-  Quill's options plus the shared logo and cover groups, which no shipped
-  theme offers yet, so their dashboard panels and uploads are proved through
-  the real routes. Its booking, meeting and poll pages are the fixture theme's;
+  `:extra_themes`. Its spec, `Tymeslot.Test.ShowcaseThemeSpec`, declares
+  every shared option group no shipped theme offers yet, so their dashboard
+  panels, uploads and booking-page tokens are proved through the real
+  routes. Its booking, meeting and poll pages are the fixture theme's;
   only its payment return shells are its own, because the payment return
   suite tells themes apart by them.
   """

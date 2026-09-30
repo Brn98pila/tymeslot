@@ -43,9 +43,10 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
     absolute
   end
 
-  # The showcase theme's spec is Quill's groups plus the shared logo group,
-  # with an image upload each. Its rows are built in memory and the spec is
-  # passed in, so each test controls exactly which files a row names.
+  # The showcase theme's spec declares every shared group, three of them
+  # (logo, cover, background) with an image upload. Its rows are built in
+  # memory and the spec is passed in, so each test controls exactly which
+  # files a row names.
   defp logo_row(profile, settings),
     do: %ThemeCustomizationSchema{profile_id: profile.id, theme_id: "97", settings: settings}
 
@@ -209,7 +210,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       row =
         logo_row(profile, %{
-          "color_scheme" => "default",
+          "color_scheme" => "neutral",
           "background_type" => "image",
           "background_value" => "custom",
           "background_image_path" => background,

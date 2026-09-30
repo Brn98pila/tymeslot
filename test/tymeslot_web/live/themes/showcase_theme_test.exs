@@ -1,11 +1,13 @@
-defmodule TymeslotWeb.Live.Themes.ProbeThemeGroupsTest do
+defmodule TymeslotWeb.Live.Themes.ShowcaseThemeTest do
   @moduledoc """
-  The shared option groups, each driven through the real routes on the
-  test-only probe theme (id "98", `test/support/probe_theme/`): the group's
+  The shared option groups, driven through the real routes on the test-only
+  showcase theme (id "97", `test/support/showcase_theme/`): each group's
   built-in dashboard panel saves it, and a visitor's booking page shows what
-  was saved. Page assertions read the theme's own `<style>` block (the
-  `:root:root` one `ThemeStyle` writes), split into the page's variables and
-  those for a visitor whose OS is in dark mode.
+  was saved; then every group at once, from the panels to one booking page.
+  Page assertions read the theme's own `<style>` block (the `:root:root` one
+  `ThemeStyle` writes), split into the page's variables and those for a
+  visitor whose OS is in dark mode. The logo and cover panels' uploads and
+  file cleanup are `LogoPanelTest` and `CoverPanelTest`.
   """
   use TymeslotWeb.LiveCase, async: false
 
@@ -18,8 +20,9 @@ defmodule TymeslotWeb.Live.Themes.ProbeThemeGroupsTest do
 
   alias Tymeslot.TestMocks
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.Presets
 
-  @theme_id "98"
+  @theme_id "97"
   @dark_media "@media (prefers-color-scheme: dark)"
 
   setup :verify_on_exit!
@@ -29,14 +32,14 @@ defmodule TymeslotWeb.Live.Themes.ProbeThemeGroupsTest do
     :ok
   end
 
-  # A signed-in organiser whose bookable page uses the probe theme.
+  # A signed-in organiser whose bookable page uses the showcase theme.
   setup %{conn: conn} do
     user = insert(:user, onboarding_completed_at: DateTime.utc_now())
 
     profile =
       insert(:profile,
         user: user,
-        username: "probe-#{System.unique_integer([:positive])}",
+        username: "showcase-#{System.unique_integer([:positive])}",
         booking_theme: @theme_id
       )
 
@@ -284,7 +287,7 @@ defmodule TymeslotWeb.Live.Themes.ProbeThemeGroupsTest do
       end
     end
 
-    test "the palette panel lists the tones the probe offers", %{conn: conn} do
+    test "the palette panel lists the tones the showcase offers", %{conn: conn} do
       {:ok, view, _html} = customise(conn)
 
       assert choices(view, "palette", "scheme") == ~w(cool neutral warm)
@@ -297,7 +300,7 @@ defmodule TymeslotWeb.Live.Themes.ProbeThemeGroupsTest do
       {:ok, view, _html} = customise(conn)
 
       assert has_element?(view, "[data-testid='font-panel']")
-      assert choices(view, "font", "font") == ~w(system inter plex)
+      assert choices(view, "font", "font") == ~w(system inter plex editorial)
 
       assert has_element?(
                view,
@@ -382,6 +385,80 @@ defmodule TymeslotWeb.Live.Themes.ProbeThemeGroupsTest do
       {page, dark} = booking_page_vars(profile)
       assert page["--density"] == "0.75"
       refute Map.has_key?(dark, "--density")
+    end
+  end
+
+  describe "every group together" do
+    @png <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, "IHDR", 0x00,
+           0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77,
+           0x53, 0xDE>>
+
+    setup do
+      upload_root =
+        Path.join(System.tmp_dir!(), "tymeslot_showcase_#{System.unique_integer([:positive])}")
+
+      original_root = Application.get_env(:tymeslot, :upload_directory)
+      Application.put_env(:tymeslot, :upload_directory, upload_root)
+
+      on_exit(fn ->
+        Application.put_env(:tymeslot, :upload_directory, original_root)
+        File.rm_rf(upload_root)
+      end)
+    end
+
+    test "choices made in every panel reach one booking page as its tokens and media",
+         %{conn: conn, profile: profile} do
+      {:ok, view, _html} = customise(conn)
+
+      for {option, field, choice} <- [
+            {"colour_mode", "mode", "dark"},
+            {"accent", "preset", "rose"},
+            {"font", "font", "editorial"},
+            {"radius", "radius", "round"},
+            {"density", "density", "compact"},
+            {"cover", "cover_value", "ocean-sunset"}
+          ] do
+        view |> element(option_button(option, field, choice)) |> render_click()
+      end
+
+      view
+      |> file_input("#theme-logo-form", :logo_path, [
+        %{
+          last_modified: System.system_time(:millisecond),
+          name: "logo.png",
+          content: @png,
+          type: "image/png"
+        }
+      ])
+      |> render_upload("logo.png")
+
+      assert_push_event(view, "upload-complete", %{})
+
+      logo_path = saved(profile)["logo_path"]
+      assert logo_path =~ ~r{^themes/#{profile.id}/97/images/}
+
+      {:ok, _page, html} = live(build_conn(), "/#{profile.username}")
+      css = theme_css(html)
+      page = vars(css)
+
+      refute css =~ "prefers-color-scheme"
+      assert page["--theme-color-scheme"] == "dark"
+      assert page["--theme-canvas"] == "#0e0e10"
+      assert page["--theme-surface"] == "#18181b"
+      assert page["--theme-primary"] == "#e8496c"
+      assert page["--theme-font-family"] == "var(--font-stack-editorial)"
+      assert page["--theme-font-heading"] == "var(--font-heading-editorial)"
+      assert {page["--radius-control"], page["--radius-card"]} == {"999px", "20px"}
+      assert page["--density"] == "0.75"
+
+      doc = Floki.parse_document!(html)
+
+      assert Floki.attribute(doc, "[data-testid='theme-logo']", "src") == [
+               "/uploads/" <> logo_path
+             ]
+
+      assert Floki.attribute(doc, "[data-testid='theme-cover']", "src") ==
+               [Presets.find_preset_by_id(:cover, "ocean-sunset").src]
     end
   end
 end

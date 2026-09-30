@@ -217,7 +217,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
   describe "media/2" do
     test "merges what every group resolves, in declaration order" do
       settings = %{
-        "color_scheme" => "default",
+        "color_scheme" => "neutral",
         "background_type" => "color",
         "background_value" => "#123456",
         "logo_path" => "themes/1/9/images/logo.png",
@@ -244,7 +244,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
   describe "tokens/3" do
     test "carries the spec's media" do
       settings = %{
-        "color_scheme" => "default",
+        "color_scheme" => "neutral",
         "background_type" => "color",
         "background_value" => "#123456",
         "logo_path" => "themes/1/9/images/logo.png"
@@ -253,7 +253,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecsTest do
       assert %Tokens{media: media, vars: vars} = Specs.tokens(ShowcaseThemeSpec, settings, %{})
       assert media == Specs.media(ShowcaseThemeSpec, settings)
       assert vars["--theme-background"] == "#123456"
-      assert vars["--theme-primary"] == "#06b6d4"
+      assert vars["--theme-primary"] == "#07819e"
     end
 
     test "is the tokens use Spec generates" do

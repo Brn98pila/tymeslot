@@ -1,7 +1,12 @@
 defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.Wrapper do
-  @moduledoc "The fixture theme's wrapper: the shared `ThemeShell`, with no background."
+  @moduledoc """
+  The fixture theme's wrapper: the shared `ThemeShell`, with no background.
+  It renders the page's logo and cover media when the spec resolves them,
+  which only the showcase theme's does, since it borrows these pages.
+  """
   use Phoenix.Component
 
+  alias Tymeslot.ThemeCustomizations.Tokens
   alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Themes.Shared.Components.ThemeShell
 
@@ -20,7 +25,14 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.Wrapper do
 
   @spec fixture_wrapper(map()) :: Phoenix.LiveView.Rendered.t()
   def fixture_wrapper(assigns) do
-    assigns = assigns |> prepare_wrapper_assigns() |> assign(:theme_id, theme_id())
+    assigns =
+      assigns
+      |> prepare_wrapper_assigns()
+      |> assign(
+        theme_id: theme_id(),
+        logo: media(assigns.theme_tokens, :logo),
+        cover: media(assigns.theme_tokens, :cover)
+      )
 
     ~H"""
     <ThemeShell.theme_shell
@@ -37,10 +49,15 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.Wrapper do
       should_show_branding={@should_show_branding}
       {Map.take(assigns, [:demo_mode])}
     >
+      <img :if={@cover} src={@cover.src} alt="" data-testid="theme-cover" />
+      <img :if={@logo} src={@logo.src} alt="" data-testid="theme-logo" />
       {render_slot(@inner_block)}
     </ThemeShell.theme_shell>
     """
   end
+
+  defp media(%Tokens{media: media}, key), do: media[key]
+  defp media(_no_tokens, _key), do: nil
 
   defp theme_id do
     {:ok, id} = Catalog.key_to_id(:fixture)
