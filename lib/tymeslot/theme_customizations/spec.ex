@@ -20,9 +20,12 @@ defmodule Tymeslot.ThemeCustomizations.Spec do
   from `Specs.tokens/3`. It also generates `onboarding_choices/0` from the
   palette group, which a spec may override.
 
-  `Spec` is only the contract and calls nothing, so `use Spec` costs a theme no
-  compile-time coupling. The questions asked of a spec (`group/2`,
-  `for_theme/1` and the rest) live in `Tymeslot.ThemeCustomizations.Specs`.
+  `Spec` is only the contract, so `use Spec` costs a theme no compile-time
+  coupling: once a spec has compiled it asks the spec's groups for their
+  `types/0`, and refuses the spec (a `CompileError`) when two groups declare
+  the same setting or share a `key:`, but those calls are not in the spec's
+  code. The questions asked of a spec (`group/2`, `for_theme/1` and the
+  rest) live in `Tymeslot.ThemeCustomizations.Specs`.
 
   Each theme names its spec in its `Tymeslot.Themes.Catalog` entry
   (`customization_spec:`).
@@ -102,6 +105,7 @@ defmodule Tymeslot.ThemeCustomizations.Spec do
   defmacro __using__(_opts) do
     quote do
       @behaviour unquote(__MODULE__)
+      @after_compile unquote(__MODULE__)
 
       @impl unquote(__MODULE__)
       def changeset(changeset, attrs) do
@@ -121,5 +125,53 @@ defmodule Tymeslot.ThemeCustomizations.Spec do
 
       defoverridable changeset: 2, asset_fields: 0, tokens: 2, onboarding_choices: 0
     end
+  end
+
+  # Runs once the spec has compiled and loaded, the first moment its
+  # `option_groups/0` can be called. Every group writes into the one
+  # `settings` map, so a setting two groups declare would be overwritten by
+  # one of them, and a key two groups share leaves the second unreachable by
+  # `ThemeCustomizations.apply_option/4`. The calls happen here, not in the
+  # spec's code, so they add no compile-time dependency.
+  @doc false
+  @spec __after_compile__(Macro.Env.t(), binary()) :: :ok
+  def __after_compile__(env, _bytecode) do
+    case clashes(env.module.option_groups()) do
+      [] ->
+        :ok
+
+      clashes ->
+        raise CompileError,
+          file: env.file,
+          line: env.line,
+          description: "#{inspect(env.module)} #{Enum.join(clashes, "; ")}"
+    end
+  end
+
+  defp clashes(groups) do
+    settings =
+      groups
+      |> Enum.flat_map(fn %{key: key, module: module} ->
+        Enum.map(module.types(), fn {setting, _type} -> {setting, key} end)
+      end)
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+      |> Enum.filter(fn {_setting, keys} -> match?([_first, _second | _rest], keys) end)
+      |> Enum.sort()
+      |> Enum.map(fn {setting, keys} ->
+        "declares the setting #{inspect(setting)} in more than one option group: " <>
+          "#{inspect(keys)}; each setting belongs to one group (prefix a theme's own " <>
+          "settings with its key)"
+      end)
+
+    keys =
+      groups
+      |> Enum.frequencies_by(& &1.key)
+      |> Enum.filter(fn {_key, count} -> count > 1 end)
+      |> Enum.sort()
+      |> Enum.map(fn {key, _count} ->
+        "declares the option group key #{inspect(key)} more than once"
+      end)
+
+    settings ++ keys
   end
 end

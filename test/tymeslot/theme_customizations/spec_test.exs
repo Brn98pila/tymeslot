@@ -129,6 +129,97 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
     end
   end
 
+  describe "use Spec's check of its groups" do
+    test "refuses a spec two of whose groups store the same setting" do
+      error =
+        assert_raise CompileError, fn ->
+          Code.compile_quoted(
+            quote do
+              defmodule Tymeslot.ThemeCustomizations.SpecTest.SharedSettingSpec do
+                use Tymeslot.ThemeCustomizations.Spec
+
+                alias Tymeslot.ThemeCustomizations.Options.Palette
+
+                @impl Tymeslot.ThemeCustomizations.Spec
+                def option_groups,
+                  do: [
+                    %{key: :palette, module: Palette, schemes: ["default"]},
+                    %{key: :second_palette, module: Palette, schemes: ["forest"]}
+                  ]
+
+                @impl Tymeslot.ThemeCustomizations.Spec
+                def defaults, do: %{color_scheme: "default"}
+              end
+            end
+          )
+        end
+
+      assert error.description =~ "SharedSettingSpec"
+      assert error.description =~ ":color_scheme"
+      assert error.description =~ "[:palette, :second_palette]"
+    end
+
+    test "refuses a spec with two groups under the same key" do
+      error =
+        assert_raise CompileError, fn ->
+          Code.compile_quoted(
+            quote do
+              defmodule Tymeslot.ThemeCustomizations.SpecTest.SharedKeySpec do
+                use Tymeslot.ThemeCustomizations.Spec
+
+                alias Tymeslot.ThemeCustomizations.Options.Palette
+
+                @impl Tymeslot.ThemeCustomizations.Spec
+                def option_groups,
+                  do: [
+                    %{key: :look, module: Palette, schemes: ["default"]},
+                    %{
+                      key: :look,
+                      module: Tymeslot.ThemeCustomizations.Options.Radius,
+                      default: "soft"
+                    }
+                  ]
+
+                @impl Tymeslot.ThemeCustomizations.Spec
+                def defaults, do: %{color_scheme: "default", radius: "soft"}
+              end
+            end
+          )
+        end
+
+      assert error.description =~ "SharedKeySpec"
+      assert error.description =~ "option group key :look"
+      refute error.description =~ ":color_scheme"
+    end
+
+    test "compiles a spec whose groups keep to settings of their own" do
+      assert [{Tymeslot.ThemeCustomizations.SpecTest.SeparateSpec, _bytecode}] =
+               Code.compile_quoted(
+                 quote do
+                   defmodule Tymeslot.ThemeCustomizations.SpecTest.SeparateSpec do
+                     use Tymeslot.ThemeCustomizations.Spec
+
+                     alias Tymeslot.ThemeCustomizations.Options.Palette
+
+                     @impl Tymeslot.ThemeCustomizations.Spec
+                     def option_groups,
+                       do: [
+                         %{key: :palette, module: Palette, schemes: ["default"]},
+                         %{
+                           key: :radius,
+                           module: Tymeslot.ThemeCustomizations.Options.Radius,
+                           default: "soft"
+                         }
+                       ]
+
+                     @impl Tymeslot.ThemeCustomizations.Spec
+                     def defaults, do: %{color_scheme: "default", radius: "soft"}
+                   end
+                 end
+               )
+    end
+  end
+
   describe "preset lists" do
     # Every catalogue theme, so a new one is checked the moment it is listed.
     for {_key, theme} <- Catalog.all() do
