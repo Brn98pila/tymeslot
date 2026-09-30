@@ -350,6 +350,8 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
   end
 
   describe "shared code" do
+    # A source check: it reads the shared code rather than calling it.
+    # credo:disable-for-next-line Jump.CredoChecks.VacuousTest
     test "names nothing the fixture theme adds" do
       shared = Path.wildcard("lib/**/*.{ex,exs,heex}")
       configs = Path.wildcard("config/*.exs") -- ["config/test.exs"]

@@ -98,7 +98,7 @@ test_pool_size =
 
     value ->
       case Integer.parse(value) do
-        {int, _} -> int
+        {int, _rest} -> int
         :error -> default_pool_size
       end
   end
