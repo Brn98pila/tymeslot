@@ -7,6 +7,10 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingPage do
   same states the same way: a readiness or error message in place of the
   flow, the step component for `:current_state`, the shared awaiting-payment
   screen, and the overview for a state it does not recognise.
+
+  Each step component receives the LiveView's assigns minus this module's
+  own; the ones a step may rely on are the table in
+  `docs/THEME_DEVELOPMENT_GUIDE.md` §"Step Components".
   """
 
   use Phoenix.Component

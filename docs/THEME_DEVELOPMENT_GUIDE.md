@@ -1020,6 +1020,70 @@ defmodule TymeslotWeb.Themes.Aurora.Scheduling.Components.OverviewComponent do
 end
 ```
 
+**What a step may read.** Each step component receives the scheduling LiveView's assigns (`SchedulingPage` passes them through, `StepEvents.update/2` copies them in). A step relies only on those below; every other assign the LiveView holds belongs to the flow and may change. "mount" means the page holds the assign from the moment it mounts, possibly as a default (`nil`, `[]`, `""`) until the step that fills it; read an "optional" one as `assigns[:name]`. An assign a theme sets itself (in `handle_theme_event/3`) is absent until then, so it is read as `assigns[:name]` too. `step_assigns_doc_test.exs` holds every "mount" row to the mounted page of every registered theme.
+
+<!-- step-assigns:start -->
+| Assign | Read on | Present | Holds |
+|---|---|---|---|
+| `locale` | every step | mount | the page's locale (`data-locale`, date and time formatting) |
+| `current_state` | every step | mount | the step on screen (`:overview`, `:schedule`, `:questions`, `:booking`, `:confirmation`) |
+| `theme_tokens` | every step | mount | the `%Tokens{}` of the organiser's customisation; templates render from its `media` |
+| `organizer_profile` | overview, schedule, booking, confirmation | mount | the organiser's profile: name, avatar, greeting, `headline`, `bio` |
+| `username_context` | every step | mount | the organiser's username, for paths |
+| `meeting_types` | overview | mount | the organiser's active meeting types |
+| `selected_duration` | overview, schedule, booking | mount | the chosen meeting type's duration slug; `nil` until one is chosen |
+| `duration` | schedule, questions, booking, confirmation | mount | the duration slug the schedule step was entered with; `nil` before |
+| `meeting_type` | schedule, booking, confirmation | mount | the chosen meeting type; `nil` until a step resolves one |
+| `user_timezone` | schedule, booking, confirmation | mount | the booker's timezone |
+| `timezone_dropdown_open` | schedule | mount | whether the timezone picker is open |
+| `timezone_search` | schedule | mount | the timezone picker's search text |
+| `current_week_start` | schedule | mount | the Monday of the week on screen |
+| `current_month` | schedule | mount | the month on screen (month calendar) |
+| `current_year` | schedule | mount | the year on screen (month calendar) |
+| `calendar_today` | schedule | mount | today, in the booker's timezone |
+| `calendar_landing` | schedule | mount | where the calendar opens (`CalendarHelpers.landing_week/1`) |
+| `month_availability_map` | schedule | mount | which days of the month have a slot; `:loading` or `nil` until fetched |
+| `availability_status` | schedule | mount | the month fetch's state (`:not_loaded`, `:loading`, `:error`, ...) |
+| `booking_window_days` | schedule | mount | how many days ahead the organiser takes bookings |
+| `selected_date` | schedule, booking, confirmation | mount | the day the booker chose |
+| `selected_time` | schedule, booking, confirmation | mount | the time the booker chose |
+| `available_slots` | schedule | mount | the chosen day's slots |
+| `loading_slots` | schedule | mount | whether the day's slots are loading |
+| `calendar_error` | schedule | mount | why the day's slots could not be fetched |
+| `slot_interval_minutes` | schedule | mount | the interval of the slots on screen |
+| `duration_minutes` | schedule | mount | the meeting length the slots are for |
+| `expanded_hour` | schedule | mount | the hour group open in the slot list |
+| `entered_via_overview` | schedule | mount | whether the booker came from the overview (shows Back) |
+| `week_slots` | schedule | mount | the week of slots, `nil` until the step sends `load_week` (see [A week of slots](#a-week-of-slots)) |
+| `week_slots_loading` | schedule | mount | whether the week is loading |
+| `week_slots_error` | schedule | mount | why the week could not be fetched |
+| `engine` | questions | mount | the custom-questions engine; `CustomQuestions.Events.assign_render_state/1` derives the question on screen from it |
+| `form` | booking | mount | the booking form |
+| `validation_errors` | booking | mount | the booking form's visible errors |
+| `submitting` | booking | mount | whether the booking is being submitted |
+| `is_rescheduling` | booking, confirmation | mount | whether this booking replaces an earlier one |
+| `guest_emails` | booking, confirmation | mount | the guests added |
+| `guests_open` | booking | mount | whether the guest field is open |
+| `guest_input` | booking | mount | the guest address being typed |
+| `guest_error` | booking | mount | why a guest address was refused |
+| `max_guests` | booking | mount | how many guests the meeting type allows |
+| `location_options` | booking | mount | the meeting type's locations |
+| `location_video_choices` | booking | mount | the video providers per location |
+| `selected_location_id` | booking | mount | the chosen location |
+| `selected_video_id` | booking | mount | the chosen video provider |
+| `location_phone` | booking | mount | the phone number typed for a phone location |
+| `location_error` | booking | mount | why the location answer was refused |
+| `name` | confirmation | mount | the booker's name (from the confirmation route) |
+| `email` | confirmation | mount | the address the confirmation went to |
+| `meeting_uid` | confirmation | mount | the booked meeting's id (for the calendar file link) |
+| `owner_preview` | confirmation | mount | whether the organiser is previewing their own page |
+| `custom_fields_snapshot` | confirmation | mount | the custom questions as they were when booked |
+| `custom_field_answers` | confirmation | mount | the booker's answers |
+| `meeting_status` | confirmation | optional | the booked meeting's status, set once a booking is submitted |
+<!-- step-assigns:end -->
+
+The wrapper receives `theme_tokens`, `locale`, `language_dropdown_open`, `current_state`, `organizer_user_id`, `owner_preview`, `should_show_branding` and, when the page has one, `demo_mode`; `should_show_branding` and `demo_mode` may be absent.
+
 #### 5. **Shared Modules**
 
 Leverage shared modules to avoid duplication:
