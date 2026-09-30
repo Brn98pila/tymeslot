@@ -264,6 +264,13 @@
   margin-top: var(--space-sm);
 }
 
+/* A button label never breaks ("Book" above "Meeting"). When the two
+   buttons no longer fit side by side, the row wraps and the second takes a
+   line of its own. */
+.booking-actions .action-button {
+  white-space: nowrap;
+}
+
 /* Booking card typography & spacing scale with the card's own width,
    not the viewport — so the heading shrinks correctly in narrow embeds
    even when the host page is wide. */

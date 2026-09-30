@@ -25,6 +25,17 @@
   color: var(--theme-primary);
 }
 
+/* The address moves to the next line whole rather than breaking at one of
+   its hyphens; only an address wider than the whole line breaks inside.
+   Contextual alternates are off so Inter does not draw the "x" in "568x320"
+   as a multiplication sign. */
+.confirmation-email-row .confirmation-email-link {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-variant-ligatures: no-contextual;
+}
+
 .confirmation-help-text {
   color: var(--text-opacity-low);
 }
@@ -118,12 +129,18 @@
   font-size: var(--theme-font-size-sm);
 }
 
-/* confirmation-email-row: replaces cluster cluster-xs */
+/* confirmation-email-row: the icon beside its text. The text takes the rest
+   of the row and wraps there, so a long line never drops below the icon and
+   leaves it alone on a row of its own. */
 .confirmation-email-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-xs);
+}
+
+.confirmation-email-row > p {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 /* confirmation-icon-wrapper: replaces w-7 h-7 flex items-center justify-center.
@@ -131,6 +148,7 @@
    no such rule (only Rhythm defines one), so the markup's class did nothing
    and each icon sat in the top-left corner of its circle. */
 .confirmation-icon-wrapper {
+  flex-shrink: 0;
   width: 1.75rem;
   height: 1.75rem;
   display: flex;

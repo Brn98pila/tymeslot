@@ -48,8 +48,21 @@
   border-bottom: var(--border-width-thin) solid var(--border-subtle);
 }
 
+/* A time never breaks over two lines ("09:00" above "AM"). The grid's
+   narrowest column holds an eight-character time such as "09:00 AM" plus the
+   slot's padding and border, so the columns stay equal and every label fits
+   on one line; the font size is set here so `ch` measures the slot's text. */
+.slot-list__grid {
+  font-size: var(--theme-font-size-sm);
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(max(5rem, calc(8ch + 2 * var(--space-2xs) + 2 * var(--border-width-thin))), 1fr)
+  );
+}
+
 .slot-list__slot {
-  padding: var(--space-3xs) var(--space-xs);
+  white-space: nowrap;
+  padding: var(--space-3xs) var(--space-2xs);
   background: var(--surface-medium);
   border: var(--border-width-thin) solid var(--border-strong);
   border-radius: var(--radius-sm);

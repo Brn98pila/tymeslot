@@ -113,6 +113,7 @@
 .confirmation-message {
   color: var(--theme-text-secondary);
   margin: 0;
+  text-wrap: balance;
 }
 
 /* Meeting Ticket Card */
@@ -241,8 +242,16 @@
   color: var(--theme-accent);
 }
 
+/* The address moves to the next line whole rather than breaking at one of
+   its hyphens; only an address wider than the whole line breaks inside.
+   Contextual alternates are off so Inter does not draw the "x" in "568x320"
+   as a multiplication sign. */
 .email-confirmation strong {
   color: var(--theme-primary);
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-variant-ligatures: no-contextual;
 }
 
 .confirmation-actions-section {
@@ -267,6 +276,7 @@
 .help-text {
   color: var(--theme-text-secondary);
   margin: 0;
+  text-wrap: balance;
 }
 
 /* Add-to-calendar download link — reuses the secondary action-button styling
@@ -483,6 +493,23 @@ html.rhythm-theme[data-embedded] .meeting-detail-row + .meeting-detail-row {
   border-left: var(--border-width-thin) solid var(--border-subtle);
 }
 
+/* A default-width embed has too little room to set each value and its label
+   on one line across four columns: a date broke over three lines. Below the
+   column layout's width the label goes back beneath its value, and the four
+   items stay side by side. */
+@container scheduling (max-width: 719px) {
+  html.rhythm-theme[data-embedded] .ticket-info,
+  html.rhythm-theme[data-embedded] .meeting-detail-info {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  html.rhythm-theme[data-embedded] .ticket-sublabel::before,
+  html.rhythm-theme[data-embedded] .meeting-detail-label::before {
+    content: none;
+  }
+}
+
 /* Ticket footer — tighter */
 html.rhythm-theme[data-embedded] .ticket-footer {
   padding: var(--space-xs) var(--space-sm);
@@ -521,9 +548,11 @@ html.rhythm-theme[data-embedded] .confirmation-actions-section {
   margin: 0;
 }
 
+/* Two fifths for the question: a third broke a question such as "Are you an
+   existing customer?" over three lines beside a one-word answer. */
 .custom-answers__row {
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   gap: var(--space-sm);
 }
 
