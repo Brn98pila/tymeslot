@@ -546,12 +546,12 @@ The theme system provides centralized handlers and helpers in `TymeslotWeb.Theme
 > The subsections below document the underlying helpers the macro calls — read them
 > to understand what is happening, or when you need to override a specific extension
 > point. A real theme's `live.ex` is its `use SchedulingLive, wrapper: …, steps: …`
-> line (with the aliases above it) plus optional `handle_theme_event/3` /
-> `handle_theme_schedule_event/3` / `handle_theme_info/2` overrides.
+> line (with the aliases above it) plus an optional
+> `handle_theme_event/3` override.
 
 ### LiveHelpers.Mount, StepEntry and Tracking
 
-The macro's `mount/3` calls `LiveHelpers.Mount.mount_scheduling_view/2`, and its `handle_params/3` calls `LiveHelpers.Mount.handle_scheduling_params/2`; both end by entering the step the route names through `SchedulingFlow`. Entering a step is `SchedulingFlow.handle_state_entry/3`, which uses `LiveHelpers.StepEntry` for the schedule, questions and booking steps. Step components bubble their events as `{:step_event, step, event, data}`; the macro hands them to `SchedulingFlow.handle_step_event/4`, and a schedule event the flow returns `:unhandled` for goes on to your `handle_theme_schedule_event/3`; an unhandled event from any other step is dropped with a warning naming the theme, the step and the event (once per name and page view). A theme's own events (`theme:<name>`, below) never reach the flow: they go to `handle_theme_event/3`, or to `handle_theme_schedule_event/3` from the schedule step.
+The macro's `mount/3` calls `LiveHelpers.Mount.mount_scheduling_view/2`, and its `handle_params/3` calls `LiveHelpers.Mount.handle_scheduling_params/2`; both end by entering the step the route names through `SchedulingFlow`. Entering a step is `SchedulingFlow.handle_state_entry/3`, which uses `LiveHelpers.StepEntry` for the schedule, questions and booking steps. Step components bubble their events as `{:step_event, step, event, data}`; the macro hands them to `SchedulingFlow.handle_step_event/4`, and an event it returns `:unhandled` for is dropped with a warning naming the theme, the step and the event (once per name and page view), whatever the step. A theme's own events (`theme:<name>`, below) never reach the flow: they go to `handle_theme_event/3`, from any step.
 
 ### EventHandlers
 
@@ -565,7 +565,7 @@ The macro's `mount/3` calls `LiveHelpers.Mount.mount_scheduling_view/2`, and its
 
 ### InfoHandlers
 
-`TymeslotWeb.Themes.Shared.InfoHandlers` handles async tasks like availability fetching. The macro's single `handle_info/2` asks `InfoHandlers.route/2` first; a message it returns `:unhandled` for goes to your `handle_theme_info/2`, whose default logs it and ignores it.
+`TymeslotWeb.Themes.Shared.InfoHandlers` handles async tasks like availability fetching. The macro's single `handle_info/2` asks `InfoHandlers.route/2` first; a message it returns `:unhandled` for is logged and ignored (`InfoHandlers.handle_unexpected/2`); a theme has no hook for messages.
 
 **Key InfoHandler Functions**:
 - `route/2` - Dispatch a mailbox message to its handler, or return `:unhandled`
@@ -1037,7 +1037,7 @@ Leverage shared modules to avoid duplication:
 
 #### 6. **Event Communication Pattern**
 
-Templates send one of the canonical events (listed in `Shared.StepEvents`'s moduledoc) with `phx-target={@myself}`; the component delegates `handle_event/3` to `Shared.StepEvents`, which relays `{:step_event, step, event, data}` to the LiveView, where `SchedulingFlow.handle_step_event/4` handles it. A theme never writes its own relay. For an event of its own, a template sends `phx-click="theme:<name>"` (with `phx-target={@myself}`); the relay forwards it untouched and the macro calls your `handle_theme_event(name, params, socket)`, or `handle_theme_schedule_event(socket, name, params)` on the schedule step, with the prefix stripped. The prefix cannot take over a canonical event: `theme:next_step` reaches your hook as `"next_step"` and moves nothing. An unprefixed step event the flow does not handle is dropped with a warning (theme id, step, event; once per name and page view), except on the schedule step, where it too reaches `handle_theme_schedule_event/3`. Any visitor can send `theme:<anything>`, so an override of either hook replaces its default wholesale and must end with a catch-all clause returning `{:noreply, socket}`, or an unknown name raises (the fixture theme's `live.ex` shows the pattern).
+Templates send one of the canonical events (listed in `Shared.StepEvents`'s moduledoc) with `phx-target={@myself}`; the component delegates `handle_event/3` to `Shared.StepEvents`, which relays `{:step_event, step, event, data}` to the LiveView, where `SchedulingFlow.handle_step_event/4` handles it. A theme never writes its own relay. For an event of its own, a template sends `phx-click="theme:<name>"` (with `phx-target={@myself}`); the relay forwards it untouched and the macro calls your `handle_theme_event(name, params, socket)` with the prefix stripped, from whichever step sent it (`socket.assigns.current_state` says which). The prefix cannot take over a canonical event: `theme:next_step` reaches your hook as `"next_step"` and moves nothing. An unprefixed step event the flow does not handle is dropped with a warning (theme id, step, event; once per name and page view), on every step. Any visitor can send `theme:<anything>`, so an override of the hook replaces its default wholesale and must end with a catch-all clause returning `{:noreply, socket}`, or an unknown name raises (the fixture theme's `live.ex` shows the pattern).
 
 ### Theme Template Rendering
 
@@ -1187,7 +1187,7 @@ Copy an existing theme (Quill or Rhythm), rename its files and modules to your t
 
 **Customize** (theme-specific):
 - `wrapper:` and `steps:` passed to `use SchedulingLive`
-- `handle_theme_event/3` / `handle_theme_schedule_event/3` overrides: for events of your own (`theme:<name>` from a step template), each ending with a catch-all clause; step navigation (`navigate_to_step`) and every canonical step event the flow handles are handled before them and cannot be overridden (on the schedule step, a canonical event the flow returns `:unhandled` for reaches `handle_theme_schedule_event/3`)
+- `handle_theme_event/3` override: for events of your own (`theme:<name>` from a step template, on any step), ending with a catch-all clause; step navigation (`navigate_to_step`) and every canonical step event the flow handles are handled before it and cannot be overridden
 - Wrapper component layout and design
 - Step component templates and styles
 - CSS modules and variables

@@ -24,9 +24,9 @@ defmodule TymeslotWeb.Themes.Shared.StepEvents do
 
   A theme's own event is named `theme:<name>`: it is relayed untouched as
   `{:step_event, step, "theme:<name>", params}`, and `SchedulingLive` hands
-  it to the theme's `handle_theme_event/3` (`handle_theme_schedule_event/3`
-  on the schedule step) as `<name>`. Anything else is dropped, with one
-  warning per name and page view (`log_ignored/3`).
+  it to the theme's `handle_theme_event/3` as `<name>`, from any step.
+  Anything else is dropped, with one warning per name and page view
+  (`log_ignored/3`).
   """
 
   import Phoenix.Component, only: [assign: 2, assign: 3]

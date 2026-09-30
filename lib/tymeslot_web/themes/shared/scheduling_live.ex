@@ -28,20 +28,18 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       end
 
   The aliases must come before `use`: the options are expanded where `use` is
-  written. Optional hooks, each a multi-clause `defp`:
+  written. One optional hook, a multi-clause `defp`:
+  `handle_theme_event/3`, for events of the theme's own. A step template's
+  `phx-click="theme:<name>"`, from any step, arrives as `<name>` with its
+  params (the step on screen is `socket.assigns.current_state`), and so does
+  one sent to the LiveView itself. An override replaces the default clause
+  wholesale, and any visitor can send `theme:<anything>`, so it ends with a
+  catch-all clause returning `{:noreply, socket}`; without one, an unknown
+  name raises.
 
-  - `handle_theme_event/3` for events of the theme's own: a step template's
-    `phx-click="theme:<name>"` arrives as `<name>` (with its params), and so
-    does one sent to the LiveView itself
-  - `handle_theme_schedule_event/3` for the schedule step's `theme:<name>`
-    events, as `(socket, name, params)`, and for schedule events the flow
-    does not know
-  - `handle_theme_info/2` for messages of the theme's own
-
-  An override replaces the hook's default clause wholesale, and any visitor
-  can send `theme:<anything>`, so an override of `handle_theme_event/3` or
-  `handle_theme_schedule_event/3` ends with a catch-all clause returning
-  `{:noreply, socket}`; without one, an unknown name raises.
+  A step event the flow does not handle is dropped, whatever the step, and
+  a message nothing routes is logged and ignored
+  (`InfoHandlers.handle_unexpected/2`).
 
   The macro also generates `handle_async/3` for the flow's `start_async/3`
   results (a week view's week of slots,
@@ -82,20 +80,14 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       def handle_params(params, _url, socket), do: Mount.handle_scheduling_params(socket, params)
 
       # A theme's own event (`theme:<name>`, relayed untouched by the step
-      # relays) goes to the theme's hook without its prefix; the flow never
-      # sees it, so it cannot stand in for a canonical event.
+      # relays) goes to the theme's hook without its prefix, from any step;
+      # the flow never sees it, so it cannot stand in for a canonical event.
       @impl Phoenix.LiveView
-      def handle_info({:step_event, :schedule, "theme:" <> name, params}, socket),
-        do: handle_theme_schedule_event(socket, name, params)
-
       def handle_info({:step_event, _step, "theme:" <> name, params}, socket),
         do: handle_theme_event(name, params, socket)
 
       def handle_info({:step_event, step, event, data}, socket) do
         case SchedulingFlow.handle_step_event(socket, step, event, data) do
-          :unhandled when step == :schedule ->
-            handle_theme_schedule_event(socket, event, data)
-
           :unhandled ->
             StepEvents.log_ignored(socket.assigns, step, event)
             {:noreply, socket}
@@ -106,14 +98,12 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       end
 
       # Must stay last: a public page cannot afford to raise on a message it
-      # has no clause for. The theme gets a message only once the flow has
-      # declined it, through `handle_theme_info/2` rather than an overridable
-      # `handle_info/2`: `defoverridable` replaces a function's clauses
-      # wholesale, so one theme-specific clause would silently drop slot
-      # loading, calendar refresh and payment handling.
+      # has no clause for. A theme has no hook here: `defoverridable` replaces
+      # a function's clauses wholesale, so one theme-specific clause would
+      # silently drop slot loading, calendar refresh and payment handling.
       def handle_info(message, socket) do
         case InfoHandlers.route(message, socket) do
-          :unhandled -> handle_theme_info(message, socket)
+          :unhandled -> InfoHandlers.handle_unexpected(socket, message)
           reply -> reply
         end
       end
@@ -149,16 +139,11 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
 
       def handle_event(event, params, socket), do: handle_theme_event(event, params, socket)
 
-      # Extension points. Override with multi-clause defps; a theme override of
-      # `handle_theme_info/2` should end with a clause calling
-      # `InfoHandlers.handle_unexpected/2`, as this default does.
+      # Extension point. Override with multi-clause defps ending in a
+      # catch-all clause.
       defp handle_theme_event(_event, _params, socket), do: {:noreply, socket}
-      defp handle_theme_schedule_event(socket, _event, _data), do: {:noreply, socket}
-      defp handle_theme_info(message, socket), do: InfoHandlers.handle_unexpected(socket, message)
 
-      defoverridable handle_theme_event: 3,
-                     handle_theme_schedule_event: 3,
-                     handle_theme_info: 2
+      defoverridable handle_theme_event: 3
     end
   end
 
