@@ -64,14 +64,13 @@ defmodule TymeslotWeb.Live.Scheduling.NoCalendarReadinessTest do
         assert html =~ @call_to_action
       end
 
-      test "never shows the theme-crash card or its dead Retry button", %{
+      test "never shows the theme-crash card or its dead reload button", %{
         conn: conn,
         profile: profile
       } do
         {:ok, view, _html} = live(conn, "/#{profile.username}")
-        html = render(view)
 
-        refute html =~ "theme-error-title"
+        refute has_element?(view, ".theme-error-title")
         refute has_element?(view, "#theme-error-retry-button")
       end
 
