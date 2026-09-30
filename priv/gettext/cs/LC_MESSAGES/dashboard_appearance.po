@@ -539,3 +539,38 @@ msgstr "Podle zařízení"
 #, elixir-autogen, elixir-format
 msgid "Show your booking page light or dark, or let it follow each visitor's device."
 msgstr "Zobrazte svou rezervační stránku světlou nebo tmavou, nebo ji nechte řídit zařízením každého návštěvníka."
+
+#: lib/tymeslot/theme_customizations/presets/fonts.ex
+#, elixir-autogen, elixir-format
+msgid "Classic"
+msgstr "Klasické"
+
+#: lib/tymeslot/theme_customizations/presets/fonts.ex
+#, elixir-autogen, elixir-format
+msgid "Editorial"
+msgstr "Redakční"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/font_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Font"
+msgstr "Písmo"
+
+#: lib/tymeslot/theme_customizations/presets/fonts.ex
+#, elixir-autogen, elixir-format
+msgid "Literary"
+msgstr "Literární"
+
+#: lib/tymeslot/theme_customizations/presets/fonts.ex
+#, elixir-autogen, elixir-format
+msgid "Quiet"
+msgstr "Střídmé"
+
+#: lib/tymeslot/theme_customizations/presets/fonts.ex
+#, elixir-autogen, elixir-format
+msgid "System"
+msgstr "Systémové"
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/font_panel.ex
+#, elixir-autogen, elixir-format
+msgid "The typeface of the text and headings on your booking page."
+msgstr "Písmo textu a nadpisů na vaší rezervační stránce."

@@ -14,6 +14,7 @@ defmodule Tymeslot.Test.ThemeCustomizations.GroupsSpecTest do
   alias Tymeslot.Test.ThemeCustomizations.GroupsSpec
   alias Tymeslot.ThemeCustomizations.Options.Accent
   alias Tymeslot.ThemeCustomizations.Options.ColourMode
+  alias Tymeslot.ThemeCustomizations.Options.Font
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Specs
   alias TymeslotWeb.Themes.Shared.ThemeStyle
@@ -32,7 +33,10 @@ defmodule Tymeslot.Test.ThemeCustomizations.GroupsSpecTest do
   describe "settings" do
     test "are every declared group's" do
       assert Specs.setting_types(GroupsSpec) ==
-               Palette.types() |> Map.merge(ColourMode.types()) |> Map.merge(Accent.types())
+               Palette.types()
+               |> Map.merge(ColourMode.types())
+               |> Map.merge(Accent.types())
+               |> Map.merge(Font.types())
     end
 
     test "the defaults pass the generated changeset" do
@@ -118,6 +122,20 @@ defmodule Tymeslot.Test.ThemeCustomizations.GroupsSpecTest do
 
     test "the generated changeset refuses a mode the group does not have" do
       refute validate(Map.put(defaults(), "colour_mode", "sepia")).valid?
+    end
+  end
+
+  describe "font" do
+    test "the default font's stacks reach the page, in both modes alike" do
+      tokens = GroupsSpec.tokens(defaults(), %{})
+
+      assert tokens.vars["--theme-font-family"] == "var(--font-stack-system)"
+      assert tokens.vars["--theme-font-heading"] == "var(--font-heading-system)"
+      refute Map.has_key?(tokens.dark_vars, "--theme-font-family")
+    end
+
+    test "the generated changeset refuses a font the group does not offer" do
+      refute validate(Map.put(defaults(), "font", "editorial")).valid?
     end
   end
 end

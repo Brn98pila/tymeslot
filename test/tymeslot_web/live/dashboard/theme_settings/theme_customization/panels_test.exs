@@ -8,6 +8,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PanelsTest do
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.ColourMode
   alias Tymeslot.ThemeCustomizations.Options.Cover
+  alias Tymeslot.ThemeCustomizations.Options.Font
   alias Tymeslot.ThemeCustomizations.Options.Logo
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Specs
@@ -16,6 +17,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PanelsTest do
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.BackgroundPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.ColourModePanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.CoverPanel
+  alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.FontPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.LogoPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels
@@ -60,5 +62,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PanelsTest do
 
   test "the colour-mode group gets the built-in colour-mode panel" do
     assert Panels.for_group("1", %{key: :colour_mode, module: ColourMode}) == ColourModePanel
+  end
+
+  test "the font group gets the built-in font panel" do
+    assert Panels.for_group("1", %{key: :font, module: Font}) == FontPanel
   end
 end

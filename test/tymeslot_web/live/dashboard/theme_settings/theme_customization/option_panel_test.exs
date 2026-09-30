@@ -13,6 +13,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
   alias Tymeslot.ThemeCustomizations.Options.Accent
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.ColourMode
+  alias Tymeslot.ThemeCustomizations.Options.Font
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.PaletteDerivation
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
@@ -151,5 +152,19 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
     assert html =~ "Farbmodus"
     assert html =~ "Hell"
     assert html =~ "Wie Gerät"
+  end
+
+  test "the font panel names each font in the viewer's language and needs no font file" do
+    group = %{key: :font, module: Font, presets: ~w(classic inter), default: "classic"}
+
+    html = Gettext.with_locale(TymeslotWeb.Gettext, "de", fn -> render_panel(group) end)
+
+    assert choices(html, "font") == ["classic", "inter"]
+    assert html =~ "Schrift"
+    assert html =~ "Klassisch"
+    assert html =~ "Inter"
+    # Without the booking page's font CSS the label falls back to the
+    # dashboard's own font.
+    assert html =~ "var(--font-heading-classic, inherit)"
   end
 end

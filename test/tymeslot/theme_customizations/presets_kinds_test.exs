@@ -13,6 +13,7 @@ defmodule Tymeslot.ThemeCustomizations.PresetsKindsTest do
   alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.Presets.Accents
   alias Tymeslot.ThemeCustomizations.Presets.ColourSchemes
+  alias Tymeslot.ThemeCustomizations.Presets.Fonts
   alias Tymeslot.ThemeCustomizations.Presets.Gradients
   alias Tymeslot.ThemeCustomizations.Presets.Images
   alias Tymeslot.ThemeCustomizations.Presets.Videos
@@ -110,6 +111,21 @@ defmodule Tymeslot.ThemeCustomizations.PresetsKindsTest do
             do: {id, set, problem}
 
       assert failures == []
+    end
+  end
+
+  describe "Presets.Fonts" do
+    test "holds the seven font choices, each with a name" do
+      assert Enum.sort(Map.keys(Fonts.all())) ==
+               ~w(classic editorial inter literary plex quiet system)
+
+      assert Enum.reject(Map.values(Fonts.all()), &is_binary(&1.name)) == []
+    end
+
+    test "is what the facade finds for :font" do
+      assert Enum.reject(Fonts.all(), fn {id, preset} ->
+               Presets.find_preset_by_id(:font, id) == preset
+             end) == []
     end
   end
 end

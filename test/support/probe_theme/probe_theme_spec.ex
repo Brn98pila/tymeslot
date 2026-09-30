@@ -15,6 +15,7 @@ defmodule Tymeslot.Test.ProbeThemeSpec do
 
   alias Tymeslot.ThemeCustomizations.Options.Accent
   alias Tymeslot.ThemeCustomizations.Options.ColourMode
+  alias Tymeslot.ThemeCustomizations.Options.Font
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Spec
 
@@ -25,11 +26,13 @@ defmodule Tymeslot.Test.ProbeThemeSpec do
     do: [
       %{key: :palette, module: Palette, schemes: ~w(neutral cool warm), follow_os: true},
       %{key: :colour_mode, module: ColourMode, default: "auto"},
-      %{key: :accent, module: Accent, presets: @accents, default: "tymeslot"}
+      %{key: :accent, module: Accent, presets: @accents, default: "tymeslot"},
+      %{key: :font, module: Font, presets: ~w(system inter plex), default: "system"}
     ]
 
   @impl Spec
-  def defaults, do: %{color_scheme: "neutral", colour_mode: "auto", accent: "tymeslot"}
+  def defaults,
+    do: %{color_scheme: "neutral", colour_mode: "auto", accent: "tymeslot", font: "system"}
 
   # The tones are chosen with the theme, not in onboarding.
   @impl Spec

@@ -265,4 +265,41 @@ defmodule TymeslotWeb.Live.Themes.ProbeThemeGroupsTest do
       assert choices(view, "palette", "scheme") == ~w(cool neutral warm)
     end
   end
+
+  describe "font" do
+    test "its panel offers the group's fonts in the group's order, the default pressed",
+         %{conn: conn} do
+      {:ok, view, _html} = customise(conn)
+
+      assert has_element?(view, "[data-testid='font-panel']")
+      assert choices(view, "font", "font") == ~w(system inter plex)
+
+      assert has_element?(
+               view,
+               option_button("font", "font", "system") <> "[aria-pressed='true']"
+             )
+    end
+
+    test "a font saved in the panel points the booking page at its stacks",
+         %{conn: conn, profile: profile} do
+      {:ok, view, _html} = customise(conn)
+
+      view |> element(option_button("font", "font", "plex")) |> render_click()
+
+      assert saved(profile)["font"] == "plex"
+
+      {page, dark} = booking_page_vars(profile)
+      assert page["--theme-font-family"] == "var(--font-stack-plex)"
+      assert page["--theme-font-heading"] == "var(--font-heading-plex)"
+      refute Map.has_key?(dark, "--theme-font-family")
+    end
+
+    test "a font the group does not offer is refused", %{profile: profile} do
+      assert {:error, _message} =
+               ThemeCustomizations.apply_option(profile.id, @theme_id, :font, %{
+                 "field" => "font",
+                 "value" => "classic"
+               })
+    end
+  end
 end

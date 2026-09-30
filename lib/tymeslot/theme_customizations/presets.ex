@@ -4,8 +4,8 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
 
   Each kind of preset lives in a module of its own under `presets/`
   (`Presets.ColourSchemes`, `Presets.Gradients`, `Presets.Images`,
-  `Presets.Videos`, `Presets.Covers` (cover images), `Presets.Accents`), which
-  holds the data and exports `all/0`. Everything
+  `Presets.Videos`, `Presets.Covers` (cover images), `Presets.Accents`,
+  `Presets.Fonts`), which holds the data and exports `all/0`. Everything
   outside the catalogue reads presets through this module: `find_preset_by_id/2`
   and `take/2` for any kind, and the per-kind getters. A new kind is a module
   under `presets/` and one entry in `kinds/0`.
@@ -14,6 +14,7 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
   alias Tymeslot.ThemeCustomizations.Presets.Accents
   alias Tymeslot.ThemeCustomizations.Presets.ColourSchemes
   alias Tymeslot.ThemeCustomizations.Presets.Covers
+  alias Tymeslot.ThemeCustomizations.Presets.Fonts
   alias Tymeslot.ThemeCustomizations.Presets.Gradients
   alias Tymeslot.ThemeCustomizations.Presets.Images
   alias Tymeslot.ThemeCustomizations.Presets.Videos
@@ -25,6 +26,7 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
   @type video_preset :: Videos.preset()
   @type cover_preset :: Covers.cover_preset()
   @type accent_preset :: Accents.preset()
+  @type font_preset :: Fonts.preset()
 
   @type preset ::
           color_scheme_preset()
@@ -33,9 +35,10 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
           | video_preset()
           | cover_preset()
           | accent_preset()
+          | font_preset()
 
   @typedoc "A kind of preset, as `find_preset_by_id/2` and `take/2` name it."
-  @type kind :: :color_scheme | :gradient | :video | :image | :cover | :accent
+  @type kind :: :color_scheme | :gradient | :video | :image | :cover | :accent | :font
 
   @doc """
   Gets all color scheme definitions.
@@ -93,6 +96,7 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
     %{
       accent: Accents,
       color_scheme: ColourSchemes,
+      font: Fonts,
       gradient: Gradients,
       image: Images,
       video: Videos,

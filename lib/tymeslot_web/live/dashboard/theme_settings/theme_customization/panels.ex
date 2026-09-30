@@ -15,12 +15,14 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels do
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.ColourMode
   alias Tymeslot.ThemeCustomizations.Options.Cover
+  alias Tymeslot.ThemeCustomizations.Options.Font
   alias Tymeslot.ThemeCustomizations.Options.Logo
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.AccentPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.BackgroundPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.ColourModePanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.CoverPanel
+  alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.FontPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.LogoPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel
   alias TymeslotWeb.Themes.Core.Loader
@@ -31,7 +33,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels do
     Logo => LogoPanel,
     Cover => CoverPanel,
     ColourMode => ColourModePanel,
-    Accent => AccentPanel
+    Accent => AccentPanel,
+    Font => FontPanel
   }
 
   @doc "The panel module for `group` in the theme `theme_id`."
