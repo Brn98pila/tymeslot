@@ -14,7 +14,7 @@ defmodule TymeslotWeb.Themes.Shared.StepEvents do
   The canonical events: `select_duration`, `next_step` (overview);
   `select_date`, `select_time`, `toggle_hour`, `change_timezone`,
   `search_timezone`, `toggle_timezone_dropdown`, `close_timezone_dropdown`,
-  `prev_month`, `next_month`, `prev_week`, `next_week`, `back_step`,
+  `prev_month`, `next_month`, `prev_week`, `next_week`, `load_week`, `back_step`,
   `next_step` (schedule); `validate`, `field_blur`, `submit`, `back_step`,
   `select_location`, `select_video_provider`, `location_phone_change`,
   `toggle_guests`, `close_guests`, `guest_input_change`, `add_guest`,
@@ -79,6 +79,7 @@ defmodule TymeslotWeb.Themes.Shared.StepEvents do
   defp message("next_month", _params), do: {:next_month, nil}
   defp message("prev_week", _params), do: {:prev_week, nil}
   defp message("next_week", _params), do: {:next_week, nil}
+  defp message("load_week", _params), do: {:load_week, nil}
   defp message("validate", %{"booking" => booking_params}), do: {:validate, booking_params}
   defp message("field_blur", %{"field" => field}), do: {:field_blur, field}
   defp message("select_location", %{"id" => id}), do: {:select_location, id}

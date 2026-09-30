@@ -42,6 +42,10 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
   can send `theme:<anything>`, so an override of `handle_theme_event/3` or
   `handle_theme_schedule_event/3` ends with a catch-all clause returning
   `{:noreply, socket}`; without one, an unknown name raises.
+
+  The macro also generates `handle_async/3` for the flow's `start_async/3`
+  results (a week view's week of slots,
+  `TymeslotWeb.Live.Scheduling.WeekSlots`); a theme writes none.
   """
 
   @steps [:overview, :schedule, :questions, :booking, :confirmation]
@@ -56,6 +60,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
     quote do
       use TymeslotWeb, :live_view
 
+      alias TymeslotWeb.Live.Scheduling.WeekSlots
       alias TymeslotWeb.Themes.Shared.{EventHandlers, InfoHandlers, PathHandlers}
       alias TymeslotWeb.Themes.Shared.LiveHelpers.{Mount, Tracking}
       alias TymeslotWeb.Themes.Shared.{SchedulingFlow, SchedulingPage}
@@ -103,6 +108,16 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       def handle_info(message, socket) do
         case InfoHandlers.route(message, socket) do
           :unhandled -> handle_theme_info(message, socket)
+          reply -> reply
+        end
+      end
+
+      # The flow's `start_async/3` results, forwarded by the dispatcher: a
+      # week view's week of slots is the only one.
+      @impl Phoenix.LiveView
+      def handle_async(name, result, socket) do
+        case WeekSlots.handle_async(name, result, socket) do
+          :unhandled -> {:noreply, socket}
           reply -> reply
         end
       end

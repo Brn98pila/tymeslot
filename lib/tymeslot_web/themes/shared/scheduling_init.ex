@@ -7,6 +7,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingInit do
 
   alias Phoenix.LiveView
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
+  alias TymeslotWeb.Live.Scheduling.WeekSlots
   alias TymeslotWeb.Themes.Shared.BookingLocation
   alias TymeslotWeb.Themes.Shared.CustomQuestions.Engine, as: QEngine
   alias TymeslotWeb.Themes.Shared.GuestBooking
@@ -26,6 +27,8 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingInit do
     |> assign(:availability_status, :not_loaded)
     |> assign(:availability_task, nil)
     |> assign(:availability_task_ref, nil)
+    # Nil until a week view asks for its week (`load_week`); see `WeekSlots`.
+    |> WeekSlots.assign_defaults()
     |> OrganizerHelpers.setup_form_state(%{}, as: :booking)
     |> assign_new(:client_ip, fn -> nil end)
     |> assign(:submission_token, nil)

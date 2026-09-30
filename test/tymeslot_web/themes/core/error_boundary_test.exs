@@ -30,6 +30,10 @@ defmodule TymeslotWeb.Themes.Core.ErrorBoundaryTest do
 
     @spec handle_info(term(), Socket.t()) :: {:noreply, Socket.t()}
     def handle_info(_msg, socket), do: {:noreply, socket}
+
+    @spec handle_async(term(), term(), Socket.t()) :: {:noreply, Socket.t()}
+    def handle_async(_name, _result, socket),
+      do: {:noreply, Component.assign(socket, :async, true)}
   end
 
   defmodule RaisingTheme do
@@ -46,6 +50,9 @@ defmodule TymeslotWeb.Themes.Core.ErrorBoundaryTest do
 
     @spec handle_info(term(), Socket.t()) :: no_return()
     def handle_info(_msg, _socket), do: raise("boom info")
+
+    @spec handle_async(term(), term(), Socket.t()) :: no_return()
+    def handle_async(_name, _result, _socket), do: raise("boom async")
   end
 
   defmodule ThrowingTheme do
@@ -75,6 +82,34 @@ defmodule TymeslotWeb.Themes.Core.ErrorBoundaryTest do
                  %{},
                  socket()
                ])
+    end
+  end
+
+  describe "wrap_callback/4 with handle_async" do
+    test "returns the wrapped module's result unchanged" do
+      assert {:noreply, socket} =
+               ErrorBoundary.wrap_callback("happy", HappyTheme, :handle_async, [
+                 {:week_slots, ~D[2027-03-08]},
+                 {:ok, {:ok, %{}}},
+                 socket()
+               ])
+
+      assert socket.assigns[:async] == true
+    end
+
+    @tag :capture_log
+    test "turns a raise into the page's update error instead of a crash" do
+      assert {:noreply, socket} =
+               ErrorBoundary.wrap_callback("raising", RaisingTheme, :handle_async, [
+                 {:week_slots, ~D[2027-03-08]},
+                 {:ok, {:ok, %{}}},
+                 socket()
+               ])
+
+      assert socket.assigns.theme_error.function == :handle_async
+
+      assert socket.assigns.theme_error_message ==
+               "This page could not be updated. Please try again."
     end
   end
 

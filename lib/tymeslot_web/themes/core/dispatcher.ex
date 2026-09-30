@@ -114,6 +114,15 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
     delegate_to_theme(theme_id, :handle_info, [msg, socket])
   end
 
+  # A `start_async/3` result: a task reports to the LiveView that started it,
+  # which for a booking page is always this one, so the result goes to the
+  # theme as a message does (the flow's week of slots, `WeekSlots`).
+  @impl Phoenix.LiveView
+  def handle_async(name, result, socket) do
+    theme_id = socket.assigns[:theme_id] || Registry.default_theme_id()
+    delegate_to_theme(theme_id, :handle_async, [name, result, socket])
+  end
+
   @impl Phoenix.LiveView
   def render(assigns) do
     # Ensure Gettext locale is set correctly for this render cycle
@@ -255,7 +264,7 @@ defmodule TymeslotWeb.Themes.Core.Dispatcher do
     do: {:ok, assign_theme_error(socket, function)}
 
   defp handle_theme_error(function, [_first, _second, socket])
-       when function in [:handle_params, :handle_event],
+       when function in [:handle_params, :handle_event, :handle_async],
        do: {:noreply, assign_theme_error(socket, function)}
 
   defp handle_theme_error(:handle_info = function, [_msg, socket]),

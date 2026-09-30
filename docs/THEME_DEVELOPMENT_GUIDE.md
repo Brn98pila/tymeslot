@@ -568,6 +568,7 @@ The macro's `mount/3` calls `LiveHelpers.Mount.mount_scheduling_view/2`, and its
 **Assigns from `assign_theme_state/1`** (superset of `assign_base_state/1`):
 - `:duration`, `:meeting_type` - nil until selected
 - `:month_availability_map`, `:availability_status`, `:availability_task`, `:availability_task_ref`
+- `:week_slots`, `:week_slots_start`, `:week_slots_loading`, `:week_slots_error` - a week view's week of slots: nil until the view asks for one, the week last asked for, and the fetch's state (see [A week of slots](#a-week-of-slots))
 - `:form`, `:touched_fields`, `:validation_errors`, `:saving` - booking form state
 - `:client_ip`, `:submission_token`, `:meeting_types`
 - Plus all assigns from `assign_base_state/1` below
@@ -584,6 +585,10 @@ The calendar window is not set here. `LiveHelpers.Mount` sets `:current_year`, `
 - `:timezone_dropdown_open`, `:timezone_search`
 - `:reschedule_meeting_uid`, `:is_rescheduling`, `:meeting_uid`
 - `:name`, `:email`, `:submitting`, `:submission_processed`
+
+### A week of slots
+
+A theme with a week view renders `Shared.Components.WeekGrid` on its schedule step and gets the rest from the flow (`TymeslotWeb.Live.Scheduling.WeekSlots`). Nothing fetches a week until the grid asks with the canonical `load_week` event, which it sends itself while `:week_slots` is nil; a theme without a week view never sends it, so its page never fetches a week. From then on the flow keeps the week current: `prev_week`/`next_week`, a day the page lands the booker on in another week, a timezone change, a calendar sync and every arrival at the schedule step fetch the week on screen (`:current_week_start`) again, through `Offer.slots_for_range/4`, whose days are exactly what `Offer.slots_for_date/3` offers. The fetch is a `start_async/3` task named `{:week_slots, week_start}`: the flow cancels the one in flight before starting another, and applies a result only for the week last asked for. The dispatcher forwards `handle_async/3` to the theme as it does `handle_info/2`, and the macro generates the theme's clause, so a theme writes no callback for any of it.
 
 ### BookingFlow
 
@@ -728,7 +733,7 @@ A theme's own booking-page behaviour is an event of its own, not a new canonical
 
 ### Test-only themes
 
-`config :tymeslot, :extra_themes` in `config/test.exs` registers themes that exist only in the test build: each entry is a set of catalogue facts plus the theme's `:module`, which `Catalog` and `Registry` read with `Application.compile_env/3` (default `[]`). The fixture is the only one. Its `ThemeTestMatrix` entry says `fixture: true`, so the flow suites and the e2e embed matrix (`all/0`) skip it while the contract suites (`registered_ids/0`) and the production checklist (`Catalog.valid_ids/0`) cover it. SaaS's test build inherits the entry and compiles Core's `test/support`, so the fixture exists there too. Never set `:extra_themes` in any other config.
+`config :tymeslot, :extra_themes` in `config/test.exs` registers themes that exist only in the test build: each entry is a set of catalogue facts plus the theme's `:module`, which `Catalog` and `Registry` read with `Application.compile_env/3` (default `[]`). The fixture is the only one. Its `ThemeTestMatrix` entry says `fixture: true`, so the flow suites and the e2e embed matrix (`all/0`) skip it while the contract suites (`registered_ids/0`) and the production checklist (`Catalog.valid_ids/0`) cover it. SaaS's test build inherits the entry and compiles Core's `test/support`, so the fixture exists there too. Never set `:extra_themes` in any other config. Its schedule step renders the shared `WeekGrid`, so the week of slots is exercised through a real booking page (`week_slots_flow_test.exs`).
 
 ## Meeting Management Integration
 

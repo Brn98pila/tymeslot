@@ -1176,6 +1176,7 @@ msgstr[0] "%{hour}, %{count} orario disponibile"
 msgstr[1] "%{hour}, %{count} orari disponibili"
 
 #: lib/tymeslot_web/live/scheduling/handlers/slot_fetching_handler_component.ex
+#: lib/tymeslot_web/live/scheduling/week_slots.ex
 #, elixir-autogen, elixir-format
 msgid "No time slots could be loaded. Please try again."
 msgstr "Impossibile caricare le fasce orarie. Riprova."

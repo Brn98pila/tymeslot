@@ -18,7 +18,8 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
     AvailabilityHelpers,
     CalendarHelpers,
     NextAvailable,
-    OrganizerHelpers
+    OrganizerHelpers,
+    WeekSlots
   }
 
   alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
@@ -68,10 +69,14 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   a transition made inside the page.
   """
   @spec handle_state_entry(Socket.t(), atom(), map()) :: Socket.t()
+  # Every arrival at the step fetches a week view's week again: the duration
+  # can have changed on the overview, and a booking that lost its slot comes
+  # back here. A no-op for a page that shows no week.
   def handle_state_entry(socket, :schedule, params) do
     socket
     |> StepEntry.handle_schedule_entry(params)
     |> refresh_stale_slot_snapshot()
+    |> WeekSlots.refetch()
   end
 
   def handle_state_entry(socket, :questions, _params),
@@ -165,10 +170,13 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   end
 
   defp schedule_event(socket, :prev_week, _data),
-    do: {:noreply, CalendarHelpers.handle_week_navigation(socket, :prev)}
+    do: {:noreply, socket |> CalendarHelpers.handle_week_navigation(:prev) |> WeekSlots.refetch()}
 
   defp schedule_event(socket, :next_week, _data),
-    do: {:noreply, CalendarHelpers.handle_week_navigation(socket, :next)}
+    do: {:noreply, socket |> CalendarHelpers.handle_week_navigation(:next) |> WeekSlots.refetch()}
+
+  # A week view asking for its week; see `WeekSlots.load/1`.
+  defp schedule_event(socket, :load_week, _data), do: {:noreply, WeekSlots.load(socket)}
 
   defp schedule_event(socket, :prev_month, _data),
     do: {:noreply, CalendarHelpers.handle_month_navigation(socket, :prev)}
@@ -256,7 +264,8 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   # the zone. A zone that actually changed then decides which day stays
   # selected (`NextAvailable.follow_timezone_change/1`), reloads that day's
   # slots in the new zone, if one is left, and refetches the month, whose days
-  # are worked out in the visitor's timezone. The slots are reloaded only after
+  # are worked out in the visitor's timezone. A week view's week is fetched
+  # again too, for the times in the new zone. The slots are reloaded only after
   # the day is settled, so none are fetched for a day about to be dropped. An
   # invalid choice leaves `:user_timezone`, and so everything else, as it was.
   defp change_timezone(socket, data) do
@@ -271,6 +280,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
           updated_socket
           |> NextAvailable.follow_timezone_change()
           |> AvailabilityHelpers.fetch_month_availability_async()
+          |> WeekSlots.refetch()
 
         {:ok, socket} = SlotFetchingHandlerComponent.maybe_reload_slots(socket)
         {:noreply, socket}

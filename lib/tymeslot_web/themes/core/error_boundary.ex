@@ -55,6 +55,14 @@ defmodule TymeslotWeb.Themes.Core.ErrorBoundary do
     end)
   end
 
+  @spec wrap_callback(String.t(), module(), :handle_async, list()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def wrap_callback(theme_id, module, :handle_async, [name, result, socket]) do
+    call_with_fallback(theme_id, module, :handle_async, [name, result, socket], fn context ->
+      {:noreply, assign_error(socket, context)}
+    end)
+  end
+
   # Private functions
 
   defp call_with_fallback(theme_id, module, function, args, fallback_fn) do
@@ -125,7 +133,7 @@ defmodule TymeslotWeb.Themes.Core.ErrorBoundary do
   def format_error(%{function: :handle_event}),
     do: dgettext("booking", "Your last action could not be completed. Please try again.")
 
-  def format_error(%{function: :handle_info}),
+  def format_error(%{function: function}) when function in [:handle_info, :handle_async],
     do: dgettext("booking", "This page could not be updated. Please try again.")
 
   def format_error(_context),

@@ -1175,6 +1175,7 @@ msgstr[1] "%{hour}, %{count} dostupné časy"
 msgstr[2] "%{hour}, %{count} dostupných časů"
 
 #: lib/tymeslot_web/live/scheduling/handlers/slot_fetching_handler_component.ex
+#: lib/tymeslot_web/live/scheduling/week_slots.ex
 #, elixir-autogen, elixir-format
 msgid "No time slots could be loaded. Please try again."
 msgstr "Termíny se nepodařilo načíst. Zkuste to prosím znovu."

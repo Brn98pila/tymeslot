@@ -67,6 +67,54 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlowTest do
       assert {socket.assigns.current_year, socket.assigns.current_month} == {2028, 1}
     end
 
+    test "a week view asks for the week on screen with load_week" do
+      socket =
+        socket(%{
+          organizer_profile: %{user_id: 1},
+          user_timezone: "Etc/UTC",
+          current_week_start: ~D[2027-01-04],
+          week_slots: nil,
+          week_slots_start: nil,
+          week_slots_loading: false
+        })
+
+      assert {:noreply, socket} =
+               SchedulingFlow.handle_step_event(socket, :schedule, :load_week, nil)
+
+      assert socket.assigns.week_slots_start == ~D[2027-01-04]
+      assert socket.assigns.week_slots_loading
+    end
+
+    test "week navigation fetches the week moved to only for a page showing one" do
+      base = %{
+        organizer_profile: %{user_id: 1},
+        user_timezone: "Etc/UTC",
+        current_year: 2027,
+        current_month: 1,
+        current_week_start: ~D[2027-01-04],
+        week_slots_loading: false,
+        week_slots_error: nil
+      }
+
+      assert {:noreply, without} =
+               base
+               |> Map.merge(%{week_slots: nil, week_slots_start: nil})
+               |> socket()
+               |> SchedulingFlow.handle_step_event(:schedule, :next_week, nil)
+
+      assert without.assigns.current_week_start == ~D[2027-01-11]
+      assert without.assigns.week_slots == nil
+
+      assert {:noreply, shown} =
+               base
+               |> Map.merge(%{week_slots: %{}, week_slots_start: ~D[2027-01-04]})
+               |> socket()
+               |> SchedulingFlow.handle_step_event(:schedule, :next_week, nil)
+
+      assert shown.assigns.week_slots_start == ~D[2027-01-11]
+      assert shown.assigns.week_slots_loading
+    end
+
     test "picking a timezone moves a calendar the booker has not touched to that zone's today" do
       ClockHelpers.freeze_clock(~U[2027-01-31 12:00:00Z])
 

@@ -27,6 +27,7 @@ defmodule TymeslotWeb.Themes.Shared.StepEventsTest do
     {:schedule, "next_month", %{}, {:next_month, nil}},
     {:schedule, "prev_week", %{}, {:prev_week, nil}},
     {:schedule, "next_week", %{}, {:next_week, nil}},
+    {:schedule, "load_week", %{}, {:load_week, nil}},
     {:schedule, "back_step", %{}, {:back_step, nil}},
     {:schedule, "next_step", %{}, {:next_step, nil}},
     {:booking, "validate", %{"booking" => %{"name" => "A"}}, {:validate, %{"name" => "A"}}},

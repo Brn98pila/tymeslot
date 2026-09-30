@@ -1176,6 +1176,7 @@ msgstr[1] "%{hour}, %{count} вільні слоти"
 msgstr[2] "%{hour}, %{count} вільних слотів"
 
 #: lib/tymeslot_web/live/scheduling/handlers/slot_fetching_handler_component.ex
+#: lib/tymeslot_web/live/scheduling/week_slots.ex
 #, elixir-autogen, elixir-format
 msgid "No time slots could be loaded. Please try again."
 msgstr "Не вдалося завантажити часові слоти. Спробуйте ще раз."

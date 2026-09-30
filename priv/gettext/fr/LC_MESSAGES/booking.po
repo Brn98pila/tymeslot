@@ -1176,6 +1176,7 @@ msgstr[0] "%{hour}, %{count} horaire disponible"
 msgstr[1] "%{hour}, %{count} horaires disponibles"
 
 #: lib/tymeslot_web/live/scheduling/handlers/slot_fetching_handler_component.ex
+#: lib/tymeslot_web/live/scheduling/week_slots.ex
 #, elixir-autogen, elixir-format
 msgid "No time slots could be loaded. Please try again."
 msgstr "Impossible de charger les créneaux. Veuillez réessayer."

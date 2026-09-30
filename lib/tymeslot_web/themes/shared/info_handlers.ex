@@ -13,6 +13,7 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
   alias TymeslotWeb.Live.Scheduling.AvailabilityHelpers
   alias TymeslotWeb.Live.Scheduling.Handlers.SlotFetchingHandlerComponent
   alias TymeslotWeb.Live.Scheduling.NextAvailable
+  alias TymeslotWeb.Live.Scheduling.WeekSlots
   alias TymeslotWeb.Themes.Shared.SchedulingFlow
 
   @doc """
@@ -60,8 +61,8 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
   @doc """
   Handles calendar events updated via PubSub.
 
-  Re-fetches the month availability map and clears any cached slot data
-  so the scheduling page reflects the latest calendar state.
+  Re-fetches the month availability map and a week view's week, and clears any
+  cached slot data so the scheduling page reflects the latest calendar state.
   """
   @spec handle_calendar_events_updated(Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -73,6 +74,7 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
           |> assign(:available_slots, nil)
           |> assign(:selected_time, nil)
           |> AvailabilityHelpers.fetch_month_availability_async()
+          |> WeekSlots.refetch()
 
         _committed ->
           AvailabilityHelpers.fetch_month_availability_async(socket)
@@ -124,6 +126,8 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
         |> assign(:availability_task, nil)
         |> assign(:availability_task_ref, nil)
         |> apply_auto_selection(status)
+        # The landing can move the week under a grid that has already loaded.
+        |> WeekSlots.follow_week()
 
       {:noreply, socket}
     else
