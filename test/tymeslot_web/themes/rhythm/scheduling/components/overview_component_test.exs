@@ -97,6 +97,20 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.OverviewComponentTest 
     end
   end
 
+  describe "avatar badge" do
+    # A text check needs a font on the booker's device that has the glyph,
+    # which draws an empty box without one; the badge draws an inline icon.
+    test "draws its check as an icon, not as a text glyph" do
+      badge =
+        render_overview([])
+        |> Floki.parse_document!()
+        |> Floki.find(".avatar-checkmark")
+
+      assert Floki.find(badge, "svg.avatar-checkmark__icon") != []
+      assert Floki.text(badge) |> String.trim() == ""
+    end
+  end
+
   defp render_overview(overrides) do
     base = %{
       id: "overview-step",

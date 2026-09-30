@@ -45,7 +45,9 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.OverviewComponent do
                   alt={Demo.avatar_alt_text(@organizer_profile)}
                   class="avatar-image"
                 />
-                <div class="avatar-checkmark">✓</div>
+                <div class="avatar-checkmark">
+                  <.icon name="hero-check-mini" class="avatar-checkmark__icon" />
+                </div>
               </div>
               <div class="organizer-info">
                 <p class="organizer-greeting">

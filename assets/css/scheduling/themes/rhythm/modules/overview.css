@@ -37,6 +37,13 @@
   color: var(--theme-on-accent);
 }
 
+/* The check, drawn as an icon rather than a text glyph a device's fonts
+   may lack. */
+.avatar-checkmark__icon {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+
 .organizer-info {
   flex: 1;
   text-align: left;
