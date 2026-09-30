@@ -9,7 +9,7 @@ defmodule TymeslotWeb.Themes.Shared.Components.WeekGrid do
   (`--loading` while a fetch is on its way), `__nav`, `__nav-button`
   (`--prev`, `--next`), `__nav-icon`, `__range`, `__days`, `__day`
   (`--today`), `__day-heading`, `__day-name`, `__day-date`, `__slots`,
-  `__slot` (`--selected`), `__empty`, `__loading` and `__error`. The shared
+  `__slot` (`--selected`), `__empty`, `__loading`, `__error` and `__jump`. The shared
   structure is `scheduling/shared/components/week-grid.css`; a theme styles
   the classes through tokens and never restructures the DOM. `heading_tag` is
   an attribute because it is document semantics: the level of each day's
@@ -19,15 +19,18 @@ defmodule TymeslotWeb.Themes.Shared.Components.WeekGrid do
   (`TymeslotWeb.Live.Scheduling.WeekSlots`): `week_slots` is nil until the
   page asks for a week, then ISO date => that day's slots, and `loading` and
   `error` describe the fetch. Clicks go to `target` with the canonical
-  events: `prev_week`, `next_week`, and `select_slot` with `phx-value-date`
-  and `phx-value-time`. While `week_slots` is nil the grid asks for its week
+  events: `prev_week`, `next_week`, `select_slot` with `phx-value-date` and
+  `phx-value-time`, and `first_available_week`, offered from any week but
+  `landing_week`, the week the page landed the booker on
+  (`CalendarHelpers.landing_week/1`). While `week_slots` is nil the grid asks for its week
   itself, sending `load_week` from `phx-mounted` (it appeared in the page) and
   `phx-connected` (every join of the LiveView, a rejoin after a lost
   connection included, which starts from no week), so a theme that renders it
   does nothing more to fetch one, and a theme that does not never fetches.
 
   Tests select times by `data-testid="week-slot"` with `data-date` and
-  `data-time`, the controls by `week-grid-prev` and `week-grid-next`.
+  `data-time`, the controls by `week-grid-prev` and `week-grid-next`, the jump by
+  `week-grid-first-available`.
   """
 
   use Phoenix.Component
@@ -53,6 +56,11 @@ defmodule TymeslotWeb.Themes.Shared.Components.WeekGrid do
   attr :today, Date, default: nil, doc: "the visitor's today, marked on its day"
   attr :user_timezone, :string, required: true
   attr :booking_window_days, :integer, default: nil
+
+  attr :landing_week, Date,
+    default: nil,
+    doc: "the week the page landed the booker on (`CalendarHelpers.landing_week/1`)"
+
   attr :target, :any, required: true
   attr :heading_tag, :string, default: "h3", values: ~w(h2 h3 h4)
 
@@ -96,6 +104,16 @@ defmodule TymeslotWeb.Themes.Shared.Components.WeekGrid do
           aria-label={dgettext("booking", "Next week")}
         >
           <.icon name="hero-chevron-right-mini" class="week-grid__nav-icon" />
+        </button>
+        <button
+          :if={@landing_week && @landing_week != @week_start}
+          type="button"
+          class="week-grid__jump"
+          data-testid="week-grid-first-available"
+          phx-click="first_available_week"
+          phx-target={@target}
+        >
+          {dgettext("booking", "Jump to first available")}
         </button>
       </div>
       <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">

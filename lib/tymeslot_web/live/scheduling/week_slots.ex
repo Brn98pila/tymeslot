@@ -36,6 +36,7 @@ defmodule TymeslotWeb.Live.Scheduling.WeekSlots do
   alias Tymeslot.Availability.Offer
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Tasks
+  alias TymeslotWeb.Components.MeetingUtils
   alias TymeslotWeb.Live.Scheduling.AvailabilityHelpers
 
   require Logger
@@ -82,6 +83,18 @@ defmodule TymeslotWeb.Live.Scheduling.WeekSlots do
       do: socket
 
   def follow_week(socket), do: refetch(socket)
+
+  @doc """
+  Whether the loaded week offers `time` on `date` (an ISO 8601 date), as the
+  week grid sends them; false when no week is loaded.
+  """
+  @spec offered?(map(), String.t(), String.t()) :: boolean()
+  def offered?(assigns, date, time) do
+    case assigns[:week_slots] do
+      %{^date => slots} -> time in MeetingUtils.normalize_slot_list(slots)
+      _no_such_day -> false
+    end
+  end
 
   @doc """
   A `start_async/3` result. Handles `{:week_slots, week_start}`, and returns

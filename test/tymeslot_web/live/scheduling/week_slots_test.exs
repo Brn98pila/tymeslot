@@ -123,6 +123,26 @@ defmodule TymeslotWeb.Live.Scheduling.WeekSlotsTest do
     end
   end
 
+  describe "offered?/3" do
+    test "is true for a time the loaded week offers on that day" do
+      assert WeekSlots.offered?(%{week_slots: @slots}, "2027-03-08", "9:00 AM")
+    end
+
+    test "is false for a time on another day, a time not offered, or no week" do
+      refute WeekSlots.offered?(%{week_slots: @slots}, "2027-03-09", "9:00 AM")
+      refute WeekSlots.offered?(%{week_slots: @slots}, "2027-03-08", "9:15 AM")
+      refute WeekSlots.offered?(%{week_slots: nil}, "2027-03-08", "9:00 AM")
+    end
+
+    test "reads the demo provider's slot maps as it reads plain times" do
+      assert WeekSlots.offered?(
+               %{week_slots: %{"2027-03-08" => [%{time: "9:00 AM", available: true}]}},
+               "2027-03-08",
+               "9:00 AM"
+             )
+    end
+  end
+
   describe "handle_async/3" do
     test "applies the result for the week last asked for" do
       assert {:noreply, socket} =

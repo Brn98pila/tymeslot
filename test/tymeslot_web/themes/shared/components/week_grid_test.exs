@@ -218,4 +218,36 @@ defmodule TymeslotWeb.Themes.Shared.Components.WeekGridTest do
       assert [_button] = Floki.find(doc, "[data-testid=week-grid-next][disabled]")
     end
   end
+
+  describe "the first available week" do
+    test "offers a way back to it from any other week" do
+      doc =
+        render_grid(week_start: ~D[2027-03-22], landing_week: @week_start, target: "#schedule")
+
+      [jump] = Floki.find(doc, "[data-testid=week-grid-first-available]")
+
+      assert attr(jump, "phx-click") == "first_available_week"
+      assert attr(jump, "phx-target") == "#schedule"
+      assert jump |> Floki.text() |> String.trim() == "Jump to first available"
+    end
+
+    test "offers none on that week, or when the page landed on no day" do
+      assert Floki.find(
+               render_grid(landing_week: @week_start),
+               "[data-testid=week-grid-first-available]"
+             ) == []
+
+      assert Floki.find(
+               render_grid(week_start: ~D[2027-03-22]),
+               "[data-testid=week-grid-first-available]"
+             ) == []
+    end
+
+    test "speaks German to a German visitor" do
+      Gettext.put_locale(TymeslotWeb.Gettext, "de")
+      doc = render_grid(week_start: ~D[2027-03-22], landing_week: @week_start)
+
+      assert text(doc, "[data-testid=week-grid-first-available]") == "Zum ersten freien Termin"
+    end
+  end
 end

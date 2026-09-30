@@ -7,8 +7,9 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
   month and week are set from a date), on the booker's today
   (`anchor_on_today/1`) or on the day they have chosen
   (`anchor_on_selection/1`), or on a day on the booker's behalf (`land_on/2`),
-  and can tell whether the calendar is still where the page left it
-  (`untouched?/1`); and handles week and month navigation, which move the
+  can tell whether the calendar is still where the page left it
+  (`untouched?/1`), and which week it landed the booker on (`landing_week/1`),
+  and move back there (`return_to_landing/1`); and handles week and month navigation, which move the
   visible window and refetch availability when the month changes.
   """
 
@@ -319,6 +320,50 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
 
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: value
+
+  @doc """
+  The week the page landed the booker on when it picked their first free day
+  (`land_on/2`, from `NextAvailable`), or nil when it landed on no day: before
+  the month's availability arrives, when no day was free, or when the booker
+  had chosen one already (a `?date=` link, an earlier visit).
+  """
+  @spec landing_week(map()) :: Date.t() | nil
+  def landing_week(%{calendar_landing: %{selected_date: day, current_week_start: %Date{} = week}})
+      when is_binary(day) and day != "",
+      do: week
+
+  def landing_week(_assigns), do: nil
+
+  @doc """
+  Moves the month and the week back to where the page landed the booker
+  (`landing_week/1`), leaving the selected day and time as they are; a no-op
+  when it landed on no day. A move into another month drops the month's
+  availability and fetches it, as week navigation does.
+  """
+  @spec return_to_landing(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def return_to_landing(socket) do
+    case landing_week(socket.assigns) do
+      nil ->
+        socket
+
+      week ->
+        %{current_year: year, current_month: month} = socket.assigns.calendar_landing
+
+        moved_month? =
+          {year, month} != {socket.assigns[:current_year], socket.assigns[:current_month]}
+
+        socket =
+          assign(socket, current_year: year, current_month: month, current_week_start: week)
+
+        if moved_month? do
+          socket
+          |> assign(month_availability_map: nil, availability_status: :not_loaded)
+          |> AvailabilityHelpers.fetch_month_availability_async()
+        else
+          socket
+        end
+    end
+  end
 
   @doc """
   Moves the calendar onto `date`: its month, and the Monday-started week that

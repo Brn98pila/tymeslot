@@ -148,6 +148,64 @@ defmodule TymeslotWeb.Live.Scheduling.WeekSlotsFlowTest do
     end
   end
 
+  describe "picking a time" do
+    test "one click picks the day and the time, and Next takes them to the booking step",
+         %{conn: conn} do
+      %{view: view} = open_schedule(conn, "week-pick")
+      load_week(view)
+      day = grid_week(view) |> Date.add(2) |> Date.to_iso8601()
+      slot = "[data-testid='week-slot'][data-date='#{day}'][data-time='10:00 AM']"
+
+      assert has_element?(view, "[data-testid='next-step'][disabled]")
+
+      view |> element(slot) |> render_click()
+
+      assert has_element?(view, slot <> "[aria-pressed='true']")
+      refute has_element?(view, "[data-testid='next-step'][disabled]")
+
+      view |> element("[data-testid='next-step']") |> render_click()
+
+      assert has_element?(view, "[data-testid='fixture-booking-slot']", "#{day} 10:00 AM")
+    end
+
+    test "a time the week does not offer picks nothing", %{conn: conn} do
+      %{view: view} = open_schedule(conn, "week-forged")
+      load_week(view)
+      day = grid_week(view) |> Date.add(2) |> Date.to_iso8601()
+
+      view
+      |> with_target("[data-testid='fixture-schedule']")
+      |> render_click("select_slot", %{"date" => day, "time" => "3:15 AM"})
+
+      refute has_element?(view, "[data-testid='week-slot'][aria-pressed='true']")
+      assert has_element?(view, "[data-testid='next-step'][disabled]")
+    end
+  end
+
+  describe "jumping to the first available week" do
+    test "brings a booker who moved on back to the week the page landed them on",
+         %{conn: conn} do
+      %{view: view} = page = open_landed_schedule(conn, "week-jump")
+      load_week(view)
+      landed = grid_week(view)
+      refute has_element?(view, "[data-testid='week-grid-first-available']")
+
+      for _week <- 1..2 do
+        view |> element("[data-testid='week-grid-next']") |> render_click()
+        render_async(view)
+      end
+
+      assert grid_week(view) == Date.add(landed, 14)
+
+      view |> element("[data-testid='week-grid-first-available']") |> render_click()
+      render_async(view)
+
+      assert grid_week(view) == landed
+      assert shown_slots(view) == offered(page, landed, @timezone)
+      refute has_element?(view, "[data-testid='week-grid-first-available']")
+    end
+  end
+
   # Nine days out: the Monday-started week holding it starts three to nine
   # days from today and ends inside the 30-day booking window.
   defp linked_day, do: Date.add(Date.utc_today(), 9)
@@ -158,6 +216,20 @@ defmodule TymeslotWeb.Live.Scheduling.WeekSlotsFlowTest do
 
     query = URI.encode_query(%{"timezone" => @timezone, "date" => Date.to_iso8601(linked_day())})
     {:ok, view, _html} = live(conn, "/#{profile.username}?#{query}")
+
+    view |> element("[data-testid='duration-option']") |> render_click()
+    view |> element("[data-testid='next-step']") |> render_click()
+
+    %{view: view, user: user, profile: profile}
+  end
+
+  # No linked day: the page lands the booker on their first free day itself.
+  defp open_landed_schedule(conn, username) do
+    %{user: user, profile: profile} =
+      seed_booking_account(@fixture_theme_id, username, @timezone)
+
+    {:ok, view, _html} =
+      live(conn, "/#{profile.username}?#{URI.encode_query(%{"timezone" => @timezone})}")
 
     view |> element("[data-testid='duration-option']") |> render_click()
     view |> element("[data-testid='next-step']") |> render_click()

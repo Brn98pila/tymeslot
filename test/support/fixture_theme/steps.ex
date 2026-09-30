@@ -67,6 +67,7 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.ScheduleStep do
   """
   use TymeslotWeb, :live_component
 
+  alias TymeslotWeb.Live.Scheduling.CalendarHelpers
   alias TymeslotWeb.Themes.Shared.Components.WeekGrid
   alias TymeslotWeb.Themes.Shared.StepEvents
 
@@ -90,6 +91,7 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.ScheduleStep do
         today={@calendar_today}
         user_timezone={@user_timezone}
         booking_window_days={assigns[:booking_window_days]}
+        landing_week={CalendarHelpers.landing_week(assigns)}
         target={@myself}
       />
       <button type="button" phx-click="back_step" phx-target={@myself} data-testid="back-step">
@@ -131,7 +133,7 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.QuestionsStep do
 end
 
 defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.BookingStep do
-  @moduledoc "The fixture theme's booking step: a marker and the way back."
+  @moduledoc "The fixture theme's booking step: the day and time chosen, and the way back."
   use TymeslotWeb, :live_component
 
   alias TymeslotWeb.Themes.Shared.StepEvents
@@ -146,6 +148,7 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.BookingStep do
   def render(assigns) do
     ~H"""
     <section class="booker-card" data-testid="fixture-booking">
+      <p data-testid="fixture-booking-slot">{@selected_date} {@selected_time}</p>
       <button type="button" phx-click="back_step" phx-target={@myself}>Back</button>
     </section>
     """

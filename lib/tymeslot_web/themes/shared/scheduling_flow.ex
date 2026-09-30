@@ -178,6 +178,16 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   # A week view asking for its week; see `WeekSlots.load/1`.
   defp schedule_event(socket, :load_week, _data), do: {:noreply, WeekSlots.load(socket)}
 
+  defp schedule_event(socket, :select_slot, {date, time})
+       when is_binary(date) and is_binary(time),
+       do: select_slot(socket, date, time)
+
+  defp schedule_event(socket, :select_slot, _data), do: {:noreply, socket}
+
+  # Back to the week the page landed the booker on; the week view follows.
+  defp schedule_event(socket, :first_available_week, _data),
+    do: {:noreply, socket |> CalendarHelpers.return_to_landing() |> WeekSlots.follow_week()}
+
   defp schedule_event(socket, :prev_month, _data),
     do: {:noreply, CalendarHelpers.handle_month_navigation(socket, :prev)}
 
@@ -227,6 +237,27 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
 
     if date, do: send(self(), {:load_slots, date})
     {:noreply, socket}
+  end
+
+  # The week grid's one click: a day and a time together. Unlike
+  # `select_date/2` it keeps the time, and unlike `:select_time` a second click
+  # never unchooses it. A new day's slots are loaded as a day pick loads them,
+  # so the booking step and a reschedule see the state a day and a time click
+  # leave. The payload is visitor input, so a pair the loaded week does not
+  # offer is ignored; the submit would refuse it anyway.
+  defp select_slot(socket, date, time) do
+    cond do
+      not WeekSlots.offered?(socket.assigns, date, time) ->
+        {:noreply, socket}
+
+      socket.assigns[:selected_date] == date ->
+        {:noreply, assign(socket, :selected_time, time)}
+
+      true ->
+        socket = assign(socket, selected_date: date, selected_time: time, expanded_hour: nil)
+        {:ok, socket} = SlotFetchingHandlerComponent.load_slots(socket, date)
+        {:noreply, socket}
+    end
   end
 
   # `expanded_hour` holds three states, not two: nil means "not chosen, so

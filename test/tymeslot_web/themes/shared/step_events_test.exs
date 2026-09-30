@@ -28,6 +28,9 @@ defmodule TymeslotWeb.Themes.Shared.StepEventsTest do
     {:schedule, "prev_week", %{}, {:prev_week, nil}},
     {:schedule, "next_week", %{}, {:next_week, nil}},
     {:schedule, "load_week", %{}, {:load_week, nil}},
+    {:schedule, "select_slot", %{"date" => "2027-01-05", "time" => "10:00 AM"},
+     {:select_slot, {"2027-01-05", "10:00 AM"}}},
+    {:schedule, "first_available_week", %{}, {:first_available_week, nil}},
     {:schedule, "back_step", %{}, {:back_step, nil}},
     {:schedule, "next_step", %{}, {:next_step, nil}},
     {:booking, "validate", %{"booking" => %{"name" => "A"}}, {:validate, %{"name" => "A"}}},
@@ -69,6 +72,13 @@ defmodule TymeslotWeb.Themes.Shared.StepEventsTest do
     socket = socket(%{current_state: :schedule})
 
     assert {:noreply, ^socket} = StepEvents.handle_event("next_slide", %{}, socket)
+    refute_received {:step_event, _step, _event, _data}
+  end
+
+  test "ignores a select_slot without both a day and a time" do
+    socket = socket(%{current_state: :schedule})
+
+    assert {:noreply, ^socket} = StepEvents.handle_event("select_slot", %{"date" => "x"}, socket)
     refute_received {:step_event, _step, _event, _data}
   end
 

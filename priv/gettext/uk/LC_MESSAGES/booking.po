@@ -1454,3 +1454,8 @@ msgstr "Немає доступного часу"
 #, elixir-autogen, elixir-format
 msgid "Previous week"
 msgstr "Попередній тиждень"
+
+#: lib/tymeslot_web/themes/shared/components/week_grid.ex
+#, elixir-autogen, elixir-format
+msgid "Jump to first available"
+msgstr "До першого доступного часу"

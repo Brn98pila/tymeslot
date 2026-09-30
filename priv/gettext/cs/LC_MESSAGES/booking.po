@@ -1453,3 +1453,8 @@ msgstr "Žádné volné termíny"
 #, elixir-autogen, elixir-format
 msgid "Previous week"
 msgstr "Předchozí týden"
+
+#: lib/tymeslot_web/themes/shared/components/week_grid.ex
+#, elixir-autogen, elixir-format
+msgid "Jump to first available"
+msgstr "Přejít na první volný termín"

@@ -1454,3 +1454,8 @@ msgstr "Keine Zeiten verfügbar"
 #, elixir-autogen, elixir-format
 msgid "Previous week"
 msgstr "Vorherige Woche"
+
+#: lib/tymeslot_web/themes/shared/components/week_grid.ex
+#, elixir-autogen, elixir-format
+msgid "Jump to first available"
+msgstr "Zum ersten freien Termin"

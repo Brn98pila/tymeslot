@@ -115,6 +115,107 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlowTest do
       assert shown.assigns.week_slots_loading
     end
 
+    test "picking a time on the week picks its day too, and loads that day's slots" do
+      socket =
+        socket(%{
+          selected_date: "2027-01-04",
+          selected_time: nil,
+          expanded_hour: :none,
+          user_timezone: "Etc/UTC",
+          week_slots: %{"2027-01-05" => ["10:00 AM"]}
+        })
+
+      assert {:noreply, socket} =
+               SchedulingFlow.handle_step_event(
+                 socket,
+                 :schedule,
+                 :select_slot,
+                 {"2027-01-05", "10:00 AM"}
+               )
+
+      assert %{selected_date: "2027-01-05", selected_time: "10:00 AM", expanded_hour: nil} =
+               socket.assigns
+
+      assert socket.assigns.loading_slots
+      assert_received {:fetch_available_slots, "2027-01-05", _duration, "Etc/UTC"}
+    end
+
+    test "another time on the day already chosen changes only the time" do
+      socket =
+        socket(%{
+          selected_date: "2027-01-05",
+          selected_time: "10:00 AM",
+          week_slots: %{"2027-01-05" => ["10:00 AM", "11:00 AM"]}
+        })
+
+      assert {:noreply, socket} =
+               SchedulingFlow.handle_step_event(
+                 socket,
+                 :schedule,
+                 :select_slot,
+                 {"2027-01-05", "11:00 AM"}
+               )
+
+      assert socket.assigns.selected_time == "11:00 AM"
+
+      assert {:noreply, socket} =
+               SchedulingFlow.handle_step_event(
+                 socket,
+                 :schedule,
+                 :select_slot,
+                 {"2027-01-05", "11:00 AM"}
+               )
+
+      assert socket.assigns.selected_time == "11:00 AM"
+      refute_received {:fetch_available_slots, _date, _duration, _timezone}
+    end
+
+    test "a pair the loaded week does not offer picks nothing" do
+      socket =
+        socket(%{
+          selected_date: nil,
+          selected_time: nil,
+          week_slots: %{"2027-01-05" => ["10:00 AM"]}
+        })
+
+      assert {:noreply, ^socket} =
+               SchedulingFlow.handle_step_event(
+                 socket,
+                 :schedule,
+                 :select_slot,
+                 {"2027-01-05", "3:15 AM"}
+               )
+
+      assert {:noreply, ^socket} =
+               SchedulingFlow.handle_step_event(
+                 socket,
+                 :schedule,
+                 :select_slot,
+                 {["2027-01-05"], "10:00 AM"}
+               )
+    end
+
+    test "the first available week brings the calendar back to where the page landed" do
+      socket =
+        socket(%{
+          calendar_landing: %{
+            current_year: 2027,
+            current_month: 1,
+            current_week_start: ~D[2027-01-04],
+            selected_date: "2027-01-05"
+          },
+          current_year: 2027,
+          current_month: 1,
+          current_week_start: ~D[2027-01-18],
+          week_slots: nil
+        })
+
+      assert {:noreply, socket} =
+               SchedulingFlow.handle_step_event(socket, :schedule, :first_available_week, nil)
+
+      assert socket.assigns.current_week_start == ~D[2027-01-04]
+    end
+
     test "picking a timezone moves a calendar the booker has not touched to that zone's today" do
       ClockHelpers.freeze_clock(~U[2027-01-31 12:00:00Z])
 
