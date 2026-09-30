@@ -88,7 +88,9 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
         end)
 
       %{module: Cover} = group ->
-        unknown(:presets, group.presets, Cover.presets(group))
+        # The default must be one of the covers the picker offers.
+        unknown(:presets, group.presets, Cover.presets(group)) ++
+          Enum.map([group.default] -- group.presets, &{:default, &1})
 
       _other_group ->
         []
