@@ -11,6 +11,7 @@ defmodule Tymeslot.ThemeCustomizations.PresetsKindsTest do
   @moduletag :unit
 
   alias Tymeslot.ThemeCustomizations.Presets
+  alias Tymeslot.ThemeCustomizations.Presets.Accents
   alias Tymeslot.ThemeCustomizations.Presets.ColourSchemes
   alias Tymeslot.ThemeCustomizations.Presets.Gradients
   alias Tymeslot.ThemeCustomizations.Presets.Images
@@ -60,5 +61,24 @@ defmodule Tymeslot.ThemeCustomizations.PresetsKindsTest do
     assert Presets.find_preset_by_id(:no_such_kind, "gradient_1") == nil
     assert Presets.find_preset_by_id(:gradient, "gradient_999") == nil
     assert Presets.take(:gradient, ["gradient_999"]) == []
+  end
+
+  describe "Presets.Accents" do
+    test "holds the nine accents, each a name and a lower-case #rrggbb colour" do
+      accents = Accents.all()
+
+      assert Enum.sort(Map.keys(accents)) ==
+               ~w(cobalt ember emerald graphite indigo rose teal tymeslot violet)
+
+      assert Enum.reject(Map.values(accents), fn accent ->
+               is_binary(accent.name) and accent.color =~ ~r/\A#[0-9a-f]{6}\z/
+             end) == []
+    end
+
+    test "is what the facade finds for :accent" do
+      assert Enum.reject(Accents.all(), fn {id, preset} ->
+               Presets.find_preset_by_id(:accent, id) == preset
+             end) == []
+    end
   end
 end

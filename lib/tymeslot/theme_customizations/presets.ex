@@ -4,13 +4,14 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
 
   Each kind of preset lives in a module of its own under `presets/`
   (`Presets.ColourSchemes`, `Presets.Gradients`, `Presets.Images`,
-  `Presets.Videos`, `Presets.Covers` (cover images)), which holds the data and
-  exports `all/0`. Everything
+  `Presets.Videos`, `Presets.Covers` (cover images), `Presets.Accents`), which
+  holds the data and exports `all/0`. Everything
   outside the catalogue reads presets through this module: `find_preset_by_id/2`
   and `take/2` for any kind, and the per-kind getters. A new kind is a module
   under `presets/` and one entry in `kinds/0`.
   """
 
+  alias Tymeslot.ThemeCustomizations.Presets.Accents
   alias Tymeslot.ThemeCustomizations.Presets.ColourSchemes
   alias Tymeslot.ThemeCustomizations.Presets.Covers
   alias Tymeslot.ThemeCustomizations.Presets.Gradients
@@ -23,15 +24,18 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
   @type image_preset :: Images.preset()
   @type video_preset :: Videos.preset()
   @type cover_preset :: Covers.cover_preset()
+  @type accent_preset :: Accents.preset()
+
   @type preset ::
           color_scheme_preset()
           | gradient_preset()
           | image_preset()
           | video_preset()
           | cover_preset()
+          | accent_preset()
 
   @typedoc "A kind of preset, as `find_preset_by_id/2` and `take/2` name it."
-  @type kind :: :color_scheme | :gradient | :video | :image | :cover
+  @type kind :: :color_scheme | :gradient | :video | :image | :cover | :accent
 
   @doc """
   Gets all color scheme definitions.
@@ -87,6 +91,7 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
   # `Tymeslot.Themes.Catalog`).
   defp kinds do
     %{
+      accent: Accents,
       color_scheme: ColourSchemes,
       gradient: Gradients,
       image: Images,

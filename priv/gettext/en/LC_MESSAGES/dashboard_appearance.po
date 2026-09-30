@@ -448,3 +448,43 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Your cover image"
 msgstr ""
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Cobalt"
+msgstr ""
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Ember"
+msgstr ""
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Emerald"
+msgstr ""
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Graphite"
+msgstr ""
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Indigo"
+msgstr ""
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Rose"
+msgstr ""
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Teal"
+msgstr ""
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Violet"
+msgstr ""

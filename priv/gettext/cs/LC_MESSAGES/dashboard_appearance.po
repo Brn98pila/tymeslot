@@ -448,3 +448,43 @@ msgstr "Máte nahraný vlastní titulní obrázek. Výběrem přednastavené mo�
 #, elixir-autogen, elixir-format
 msgid "Your cover image"
 msgstr "Váš titulní obrázek"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Cobalt"
+msgstr "Kobaltová"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Ember"
+msgstr "Žhavá"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Emerald"
+msgstr "Smaragdová"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Graphite"
+msgstr "Grafitová"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Indigo"
+msgstr "Indigová"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Rose"
+msgstr "Růžová"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Teal"
+msgstr "Petrolejová"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Violet"
+msgstr "Fialová"

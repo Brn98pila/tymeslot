@@ -448,3 +448,43 @@ msgstr "Vous avez une image de couverture personnalisée. La sélection d’un p
 #, elixir-autogen, elixir-format
 msgid "Your cover image"
 msgstr "Votre image de couverture"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Cobalt"
+msgstr "Cobalt"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Ember"
+msgstr "Braise"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Emerald"
+msgstr "Émeraude"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Graphite"
+msgstr "Graphite"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Indigo"
+msgstr "Indigo"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Rose"
+msgstr "Rose"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Teal"
+msgstr "Sarcelle"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Violet"
+msgstr "Violet"

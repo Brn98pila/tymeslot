@@ -448,3 +448,43 @@ msgstr "Sie haben ein eigenes Titelbild. Wenn Sie eine Voreinstellung wählen, w
 #, elixir-autogen, elixir-format
 msgid "Your cover image"
 msgstr "Ihr Titelbild"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Cobalt"
+msgstr "Kobalt"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Ember"
+msgstr "Glut"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Emerald"
+msgstr "Smaragd"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Graphite"
+msgstr "Graphit"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Indigo"
+msgstr "Indigo"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Rose"
+msgstr "Rose"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Teal"
+msgstr "Petrol"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Violet"
+msgstr "Violett"

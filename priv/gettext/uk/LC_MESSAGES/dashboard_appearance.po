@@ -448,3 +448,43 @@ msgstr "Ви використовуєте власну обкладинку. В�
 #, elixir-autogen, elixir-format
 msgid "Your cover image"
 msgstr "Ваша обкладинка"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Cobalt"
+msgstr "Кобальтовий"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Ember"
+msgstr "Вогняний"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Emerald"
+msgstr "Смарагдовий"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Graphite"
+msgstr "Графітовий"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Indigo"
+msgstr "Індиго"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Rose"
+msgstr "Трояндовий"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Teal"
+msgstr "Бірюзовий"
+
+#: lib/tymeslot/theme_customizations/presets/accents.ex
+#, elixir-autogen, elixir-format
+msgid "Violet"
+msgstr "Фіолетовий"
