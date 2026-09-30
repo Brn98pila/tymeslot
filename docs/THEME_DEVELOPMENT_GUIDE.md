@@ -367,16 +367,17 @@ Each theme's `theme.css` imports the shared entry, then the shared token file ri
 
 ### Token contract
 
-`scheduling/shared/tokens.css` is the contract every theme builds on. Its header lists the four kinds of token (inputs, roles, shared-component tokens, derived tokens). A theme's `variables.css` sets the inputs and defines every role and shared-component token; the derived tokens (`--theme-primary-focus`, `--theme-primary-tint`, `--theme-primary-glow`, `--focus-ring`, `--shadow-{primary,success,danger,warning,info}-*`) are computed with `color-mix()` from the inputs, so a custom palette reaches them automatically. Inputs are only ever overridden on `:root`, never on a wrapper element, or the derived tokens stop following them.
+`scheduling/shared/tokens.css` is the contract every theme builds on. Its header lists the five kinds of token (inputs, roles, shared-component tokens, derived tokens, defaults). A theme's `variables.css` sets the inputs and defines every role and shared-component token; the derived tokens (`--theme-primary-focus`, `--theme-primary-tint`, `--theme-primary-glow`, `--focus-ring`, `--shadow-{primary,success,danger,warning,info}-*`) are computed with `color-mix()` from the inputs, so a custom palette reaches them automatically. Inputs are only ever overridden on `:root`, never on a wrapper element, or the derived tokens stop following them.
 
-`mix css.check_tokens` fails when a theme's `variables.css` lacks one of the tokens in its required list (the `--space-*` and `--border-width-*` scales, `--flag-height`, `--z-dropdown`, `--print-line`, the inputs, the roles, the `--status-*` and `--chrome-*` tokens, the per-component tokens each shared file lists in its header, and the scale tokens below). The shared files read these scale tokens from the theme, so a theme that left one out would silently drop every declaration reading it:
+`mix css.check_tokens` fails when a theme's `variables.css` lacks one of the tokens in its required list (the `--space-*` scale, the inputs, the roles, the `--status-*` tokens, the per-component tokens each shared file lists in its header, and the scale tokens below). The shared files read these scale tokens from the theme, so a theme that left one out would silently drop every declaration reading it:
 
 - Borders: `--border-subtle`, `--border-light`, `--border-medium` (timezone picker, booking fields)
 - Surfaces: `--surface-subtle`, `--surface-light`, `--surface-medium`, `--surface-intense` (timezone picker, booking fields)
 - Error tint: `--theme-error-light` (booking fields)
-- Type: `--theme-font-family` (a `var(--font-stack-<id>)`, see *Fonts* below), `--theme-font-size-3xs`, `-2xs`, `-xs`, `-sm`, `-base`, `-md`, `-lg`, `-2xl`, `-3xl`; `--theme-line-height-snug`, `--theme-line-height-relaxed`; `--font-weight-medium`, `--font-weight-semibold`, `--font-weight-bold`; `--letter-spacing-wide`
-- Sizes and effects: `--space-hairline`, `--icon-sm`, `--dropdown-max-height`, `--shadow-md`
-- Motion: `--transition-fast`, `--transition-normal`
+- Type: `--theme-font-family` (a `var(--font-stack-<id>)`, see *Fonts* below), `--theme-font-size-3xs`, `-2xs`, `-xs`, `-sm`, `-base`, `-md`, `-lg`, `-2xl`, `-3xl`; `--letter-spacing-wide`
+- Sizes and effects: `--space-hairline`, `--icon-sm`, `--shadow-md`
+
+`shared/tokens.css` defaults 25 tokens on `:where(:root)`, so a theme defines them only to change them: the border widths, font weights, line heights and transitions, `--z-dropdown`, `--flag-height`, `--dropdown-max-height`, the role aliases `--line-1`, `--line-2`, `--surface-1` and `--notice-warning`, the solid pairs `--theme-primary-solid(-hover)` and `--theme-accent-solid`, the `--chrome-*` tokens over a background photo or video, and `--print-line`. A theme's `:root` outranks them whatever the import order.
 
 The radius scale they read (`--radius-sm`, `-md`, `-lg`, `-xl`, `-2xl`, `-full`) has fallback values in `shared/layout.css`, so a theme defines those only to change them.
 

@@ -26,15 +26,10 @@
 
   /* Line heights */
   --theme-line-height-tight: 1.1;
-  --theme-line-height-snug: 1.2;
   --theme-line-height-normal: 1.4;
-  --theme-line-height-relaxed: 1.5;
 
   /* Font weights */
   --font-weight-normal: 400;
-  --font-weight-medium: 500;
-  --font-weight-semibold: 600;
-  --font-weight-bold: 700;
 
   /* Letter spacing */
   --letter-spacing-tight: 0.025em;
@@ -59,10 +54,7 @@
      because borders, focus rings and bright text on the dark card need it
      bright. */
   --theme-on-primary: #0f172a;
-  --theme-primary-solid: var(--theme-primary);
-  --theme-primary-solid-hover: var(--theme-primary-hover);
   --theme-on-accent: #0f172a;
-  --theme-accent-solid: var(--theme-accent);
 
   --theme-warning: #fbbf24;
   --theme-success: #10b981;
@@ -111,11 +103,6 @@
   --radius-2xl: 16px;
   --radius-full: 9999px;
 
-  /* Border width scale */
-  --border-width-thin: 1px;
-  --border-width-medium: 2px;
-  --border-width-thick: 3px;
-
   /* Spacing scale - fluid responsive */
   --space-hairline: 2px; /* sub-grid gap, compact calendar cells only */
   --space-3xs: 4px;
@@ -128,8 +115,6 @@
   --space-2xl: clamp(32px, 4.5vw, 40px);
 
   /* Transition speeds */
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.2s ease;
   --transition-smooth: 0.3s ease;
   --transition-slow: 0.4s ease-in-out;
 
@@ -154,10 +139,6 @@
 
   /* Dropdown/Popover specific */
   --dropdown-width: var(--container-xs);
-  --dropdown-max-height: clamp(200px, 50vh, 420px);
-
-  /* Z-Index Scale */
-  --z-dropdown: 50;
 
   /* Calendar specific */
   --calendar-gap: clamp(8px, 1.2vw, 12px);
@@ -175,9 +156,6 @@
   --icon-md: 24px;
   --icon-lg: 32px;
   --icon-xl: 40px;
-
-  /* Flag dimensions */
-  --flag-height: 14px;
 
   /* Elevation shadows */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
@@ -203,15 +181,11 @@
   --button-padding-x-sm: 24px;
 
   /* Roles (shared/tokens.css, section 2), as aliases of Rhythm's own names */
-  --surface-1: var(--surface-subtle);
   --surface-2: var(--surface-light);
   --surface-3: var(--surface-strong);
   --ink-1: var(--theme-text);
   --ink-2: var(--theme-text-secondary);
   --ink-3: var(--theme-text-muted);
-  --line-1: var(--border-light);
-  --line-2: var(--border-medium);
-  --notice-warning: var(--theme-warning);
   --notice-warning-surface: rgba(251, 191, 36, 0.12);
   --notice-warning-border: rgba(251, 191, 36, 0.4);
   --radius-control: var(--radius-md);
@@ -225,15 +199,6 @@
   --status-ink: rgba(255, 255, 255, 0.92);
   --status-ink-soft: rgba(255, 255, 255, 0.85);
   --status-ink-hint: rgba(255, 255, 255, 0.7);
-
-  /* Floating chrome (shared/background-motion.css) */
-  --chrome-surface: rgba(0, 0, 0, 0.45);
-  --chrome-surface-hover: rgba(0, 0, 0, 0.65);
-  --chrome-line-hover: rgba(255, 255, 255, 0.3);
-  --chrome-ink: #ffffff;
-
-  /* Print */
-  --print-line: #cccccc;
 
   /* Approval notice (shared/components/approval-notice.css) */
   --approval-pill-surface: rgba(251, 191, 36, 0.14);

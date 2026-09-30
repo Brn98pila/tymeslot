@@ -2,7 +2,7 @@
    Booking-theme token contract
 
    Imported by every theme.css immediately after the theme's own
-   modules/variables.css. Four kinds of token:
+   modules/variables.css. Five kinds of token:
 
    1. INPUTS. Each theme sets defaults in variables.css; the server's
       customisation block may override them on :root.
@@ -13,6 +13,7 @@
         --theme-success  --theme-warning  --theme-danger  --theme-info
         --shadow-geometry-sm  --shadow-geometry-md  --shadow-geometry-lg
           (offset and blur only; the colour is mixed below)
+        The three solid tokens default to their plain inputs (kind 5).
       Rule: inputs are only ever overridden on :root, never on a wrapper
       element. The derived tokens below are computed on :root, so an input
       overridden further down the tree changes there while everything derived
@@ -23,10 +24,12 @@
         --surface-1/2/3   --ink-1/2/3   --line-1/2
         --notice-warning  --notice-warning-surface  --notice-warning-border
         --radius-control  --radius-card
+        (--surface-1, --line-1/2 and --notice-warning default to the
+        aliases in kind 5)
         --theme-font-family (body text: a var(--font-stack-<id>) from
           shared/fonts.css); --theme-font-heading is optional and
           defaults to it, below
-        plus --space-*, --theme-font-size-* and --z-dropdown.
+        plus --space-* and --theme-font-size-*.
       --density is the one role defined here rather than in variables.css:
         1 on :root below. A theme's spacing may multiply by it
         (calc(var(--space-md) * var(--density))); a theme with a density
@@ -39,6 +42,14 @@
 
    4. DERIVED tokens, computed here once from the inputs. Never set them in
       a theme; set the input instead.
+
+   5. DEFAULTS, on :where(:root) below: tokens whose value does not depend
+      on the theme (border widths, font weights, line heights, motion, the
+      dropdown's layer and height, the flag height), relations between
+      tokens (--line-1/2, --surface-1, --notice-warning, the solid pairs),
+      the chrome over a background photo or video, and the print rule
+      colour. A theme may set any of them in variables.css; its :root rule
+      outranks the zero-specificity :where(:root) whatever the order.
 
    Colour literals (rgb, rgba, hsl, hex) belong in variables.css and in this
    file only; scripts/test_css_tokens.sh enforces it.
@@ -79,4 +90,38 @@
    rule win although this file is imported after it. */
 :where(:root) {
   --theme-font-heading: var(--theme-font-family);
+
+  /* Defaults (kind 5 above), each the value both shipped themes had. */
+  --border-width-thin: 1px;
+  --border-width-medium: 2px;
+  --border-width-thick: 3px;
+
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --theme-line-height-snug: 1.2;
+  --theme-line-height-relaxed: 1.5;
+
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+
+  --z-dropdown: 50;
+  --flag-height: 14px;
+  --dropdown-max-height: clamp(200px, 50vh, 420px);
+
+  --line-1: var(--border-light);
+  --line-2: var(--border-medium);
+  --surface-1: var(--surface-subtle);
+  --notice-warning: var(--theme-warning);
+
+  --theme-primary-solid: var(--theme-primary);
+  --theme-primary-solid-hover: var(--theme-primary-hover);
+  --theme-accent-solid: var(--theme-accent);
+
+  --chrome-surface: rgba(0, 0, 0, 0.45);
+  --chrome-surface-hover: rgba(0, 0, 0, 0.65);
+  --chrome-line-hover: rgba(255, 255, 255, 0.3);
+  --chrome-ink: #ffffff;
+
+  --print-line: #cccccc;
 }

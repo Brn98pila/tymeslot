@@ -31,15 +31,10 @@
 
   /* Typography - Line Heights */
   --theme-line-height-tight: 1.1;
-  --theme-line-height-snug: 1.2;
   --theme-line-height-normal: 1.4;
-  --theme-line-height-relaxed: 1.5;
 
   /* Typography - Font Weights */
   --font-weight-normal: 400;
-  --font-weight-medium: 500;
-  --font-weight-semibold: 600;
-  --font-weight-bold: 700;
 
   /* Typography - Letter Spacing */
   --letter-spacing-wide: 0.025em;
@@ -61,10 +56,7 @@
      because borders, focus rings and bright text on the dark card need it
      bright. */
   --theme-on-primary: #0f172a;
-  --theme-primary-solid: var(--theme-primary);
-  --theme-primary-solid-hover: var(--theme-primary-hover);
   --theme-on-accent: #0f172a;
-  --theme-accent-solid: var(--theme-accent);
 
   /* Theme Colors - Status Colors */
   --theme-success: #10b981;
@@ -126,11 +118,6 @@
   --radius-3xl: 2rem;      /* 32px */
   --radius-full: 9999px;   /* pills and circular avatars */
 
-  /* Border Width Scale */
-  --border-width-thin: 1px;
-  --border-width-medium: 2px;
-  --border-width-thick: 3px;
-
   /* Spacing Scale - Fluid Responsive */
   --space-hairline: 0.125rem;                    /* 2px — sub-grid gap, compact calendar cells only */
   --space-3xs: 0.25rem;                          /* 4px */
@@ -144,8 +131,6 @@
   --space-3xl: clamp(2rem, 3.5vw, 2.5rem);       /* 32-40px */
 
   /* Transition Speeds */
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.2s ease;
   --transition-smooth: 0.3s ease;
 
   /* Elevation Shadows - Base Shadows */
@@ -170,9 +155,6 @@
   /* Component-Specific Tokens - Icons */
   --icon-sm: 16px;
   --icon-md: 20px;
-
-  /* Component-Specific Tokens - Flag Dimensions */
-  --flag-height: 14px;
 
   /* Component-Specific Tokens - Touch Targets */
   --min-touch-target: 44px;
@@ -230,10 +212,6 @@
   /* Component-Specific Tokens - Dropdowns */
   --dropdown-width-sm: 160px;
   --dropdown-width-md: 180px;
-  --dropdown-max-height: clamp(200px, 50vh, 420px);
-
-  /* Z-Index Scale */
-  --z-dropdown: 50;
 
   /* Component-Specific Tokens - Scrollbar */
   --scrollbar-width: 6px;
@@ -293,15 +271,11 @@
   --option-card-min-height: 3.5rem;
 
   /* Roles (shared/tokens.css, section 2), as aliases of Quill's own names */
-  --surface-1: var(--surface-subtle);
   --surface-2: var(--surface-very-light);
   --surface-3: var(--surface-medium);
   --ink-1: var(--text-opacity-high);
   --ink-2: var(--text-opacity-medium);
   --ink-3: var(--text-opacity-subtle);
-  --line-1: var(--border-light);
-  --line-2: var(--border-medium);
-  --notice-warning: var(--theme-warning);
   --notice-warning-surface: rgba(251, 191, 36, 0.1);
   --notice-warning-border: rgba(251, 191, 36, 0.35);
   --radius-control: var(--input-border-radius);
@@ -315,15 +289,6 @@
   --status-ink: rgba(255, 255, 255, 0.92);
   --status-ink-soft: rgba(255, 255, 255, 0.85);
   --status-ink-hint: rgba(255, 255, 255, 0.7);
-
-  /* Floating chrome (shared/background-motion.css) */
-  --chrome-surface: rgba(0, 0, 0, 0.45);
-  --chrome-surface-hover: rgba(0, 0, 0, 0.65);
-  --chrome-line-hover: rgba(255, 255, 255, 0.3);
-  --chrome-ink: #ffffff;
-
-  /* Print */
-  --print-line: #cccccc;
 
   /* Meeting pages (modules/meeting-pages.css) */
   --text-opacity-full: #ffffff;

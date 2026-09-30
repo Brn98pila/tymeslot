@@ -11,6 +11,10 @@ defmodule Mix.Tasks.Css.CheckTokensTest do
     File.mkdir_p!(modules)
     File.mkdir_p!(Path.join(root, "shared/components"))
 
+    # The real token contract, whose :where(:root) block defaults tokens the
+    # shared styles read (the border widths, the role aliases and the rest).
+    File.cp!("assets/css/scheduling/shared/tokens.css", Path.join(root, "shared/tokens.css"))
+
     File.write!(Path.join(root, "themes/demo/theme.css"), theme_css())
 
     File.write!(Path.join(modules, "variables.css"), variables_css())
@@ -137,6 +141,22 @@ defmodule Mix.Tasks.Css.CheckTokensTest do
     File.write!(
       Path.join(root, "shared/components/notice.css"),
       ":root {\n  --notice-local-gap: var(--space-sm);\n}\n.notice {\n  gap: var(--notice-local-gap);\n}\n"
+    )
+
+    assert {_output, 0} = run_script(root)
+  end
+
+  test "accepts a token read in shared/ that a shared :where(:root) block defaults", %{
+    root: root
+  } do
+    File.write!(
+      Path.join(root, "shared/tokens.css"),
+      ":where(:root) {\n  --notice-default-gap: var(--space-sm);\n}\n"
+    )
+
+    File.write!(
+      Path.join(root, "shared/components/notice.css"),
+      ".notice {\n  gap: var(--notice-default-gap);\n}\n"
     )
 
     assert {_output, 0} = run_script(root)

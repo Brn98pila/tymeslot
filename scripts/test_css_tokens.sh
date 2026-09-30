@@ -54,7 +54,8 @@ ALLOWED_VALUES=(
 # Every token a theme's modules/variables.css must define: the token contract
 # documented in shared/tokens.css, plus every token the shared styles read
 # that no shared file defines (test_shared_token_contract keeps that part
-# complete).
+# complete). Tokens shared/tokens.css defaults on :where(:root) are not
+# listed; a theme may still set them.
 REQUIRED_TOKENS=(
   "--space-3xs"
   "--space-2xs"
@@ -64,10 +65,6 @@ REQUIRED_TOKENS=(
   "--space-lg"
   "--space-xl"
   "--space-2xl"
-  "--border-width-thin"
-  "--border-width-medium"
-  "--border-width-thick"
-  "--flag-height"
   # The token contract (documented in shared/tokens.css): palette and
   # status inputs, shadow geometry, roles and the shared screens' tokens.
   # --theme-background is left out on purpose.
@@ -76,10 +73,7 @@ REQUIRED_TOKENS=(
   "--theme-secondary"
   "--theme-accent"
   "--theme-on-primary"
-  "--theme-primary-solid"
-  "--theme-primary-solid-hover"
   "--theme-on-accent"
-  "--theme-accent-solid"
   "--theme-text"
   "--theme-text-secondary"
   "--theme-success"
@@ -89,21 +83,16 @@ REQUIRED_TOKENS=(
   "--shadow-geometry-sm"
   "--shadow-geometry-md"
   "--shadow-geometry-lg"
-  "--surface-1"
   "--surface-2"
   "--surface-3"
   "--ink-1"
   "--ink-2"
   "--ink-3"
-  "--line-1"
-  "--line-2"
-  "--notice-warning"
   "--notice-warning-surface"
   "--notice-warning-border"
   "--radius-control"
   "--radius-card"
   "--theme-font-family"
-  "--z-dropdown"
   "--status-surface"
   "--status-surface-opaque"
   "--status-shadow"
@@ -111,11 +100,6 @@ REQUIRED_TOKENS=(
   "--status-ink"
   "--status-ink-soft"
   "--status-ink-hint"
-  "--chrome-surface"
-  "--chrome-surface-hover"
-  "--chrome-line-hover"
-  "--chrome-ink"
-  "--print-line"
   # Tokens the shared component styles (shared/components/*.css) read.
   "--approval-icon-surface"
   "--approval-notice-font-size"
@@ -171,18 +155,10 @@ REQUIRED_TOKENS=(
   "--theme-font-size-lg"
   "--theme-font-size-2xl"
   "--theme-font-size-3xl"
-  "--theme-line-height-snug"
-  "--theme-line-height-relaxed"
-  "--font-weight-medium"
-  "--font-weight-semibold"
-  "--font-weight-bold"
   "--letter-spacing-wide"
   "--space-hairline"
   "--icon-sm"
-  "--dropdown-max-height"
   "--shadow-md"
-  "--transition-fast"
-  "--transition-normal"
 )
 
 # Shared files every theme's theme.css must import: the entry, the token
