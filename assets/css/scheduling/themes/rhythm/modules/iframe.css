@@ -43,10 +43,13 @@ html.rhythm-theme[data-embedded] .scheduling-box {
   border: none;
 }
 
-/* Language switcher — tighter to the corner in embedded mode */
-html.rhythm-theme[data-embedded] .language-switcher-container {
-  top: var(--space-xs);
-  right: var(--space-xs);
+/* Language switcher: tighter to the corner where it floats there (from
+   1024px); below, it keeps its own row (language-switcher.css). */
+@media (min-width: 1024px) {
+  html.rhythm-theme[data-embedded] .language-switcher-container {
+    top: var(--space-xs);
+    right: var(--space-xs);
+  }
 }
 
 /* ---------------------------------------------------------------------------

@@ -22,12 +22,20 @@
 
 /* ===== Responsive ===== */
 
+/* From 641px the switcher floats in the page's top-right corner (the
+   wrapper's absolute top-6 right-6), level with the step navigation, and
+   scrolls away with the page. At 640px and below the step navigation is
+   hidden and the card reaches the corner, so a heading (a long locale's
+   above all) would run underneath the switcher. There it takes a row of its
+   own at the top of the page, right-aligned, and the step container's auto
+   margins centre the card in the space below. Embeds follow the same rule. */
 @media (max-width: 640px) {
-  .lang-switcher {
-    position: fixed;
-    top: var(--space-lg);
-    right: var(--space-lg);
-    z-index: 1000;
+  .quill-theme-wrapper .language-switcher-wrapper {
+    position: relative;
+    top: auto;
+    right: auto;
+    align-self: flex-end;
+    margin: var(--space-lg) var(--space-lg) 0;
   }
 
   .lang-switcher__panel {

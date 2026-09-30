@@ -36,12 +36,14 @@ html.quill-theme[data-embedded] .video-background {
   display: none;
 }
 
-/* Language switcher — override position:fixed from language-switcher.css ≤640px
-   breakpoint and pull tighter to the corner. */
-html.quill-theme[data-embedded] .lang-switcher {
-  position: absolute;
-  top: var(--space-xs);
-  right: var(--space-xs);
+/* Language switcher: pulled tighter to the corner where it floats there
+   (from 641px); below, it keeps its own row (language-switcher.css). */
+@media (min-width: 641px) {
+  html.quill-theme[data-embedded] .lang-switcher {
+    position: absolute;
+    top: var(--space-xs);
+    right: var(--space-xs);
+  }
 }
 
 /* ---------------------------------------------------------------------------

@@ -1,11 +1,49 @@
 /* Language Switcher - Rhythm Theme */
 
-/* Language switcher container positioning */
+/* Language switcher container positioning: from 1024px the box is capped
+   and centred, leaving a lane beside it, so the switcher floats in the page's
+   top-right corner and scrolls away with the page. */
 .language-switcher-container {
   position: absolute;
   top: var(--space-lg);
   right: var(--space-lg);
   z-index: var(--z-dropdown);
+}
+
+/* Below 1024px the box reaches the switcher's corner, and a heading (a long
+   one in German, French, Czech or Ukrainian on a tablet, any of them on a
+   phone) would run underneath it. There the switcher takes a row of its own
+   at the top of the page, right-aligned, and the box is centred in the space
+   below it. The content area becomes a column for that; with the switcher
+   hidden (every step after the overview) the box is centred exactly as in
+   the row layout. Embeds follow the same rule: their box fills the iframe,
+   so the corner is always taken. */
+@media (max-width: 1023px) {
+  .video-background-theme.theme-grid .content-area {
+    flex-direction: column;
+    justify-content: flex-start;  /* fallback: top-align */
+    justify-content: safe center;
+    align-items: center;
+  }
+
+  /* A column item may shrink along the main axis; the box keeps its content
+     height and the content area scrolls, as in the row layout. */
+  .video-background-theme.theme-grid .content-area > .scheduling-box {
+    flex-shrink: 0;
+  }
+
+  .rhythm-theme-wrapper .language-switcher-container {
+    position: relative;
+    top: auto;
+    right: auto;
+    align-self: flex-end;
+    margin-bottom: var(--space-sm);
+  }
+
+  .language-switcher-container.visible ~ .scheduling-box {
+    margin-top: auto;
+    margin-bottom: auto;
+  }
 }
 
 /* Language switcher visibility (only on slide 1) */
@@ -56,10 +94,10 @@
 
 /* Mobile responsive */
 @media (max-width: 479px) {
+  /* The content area has no padding here, so the row keeps the switcher
+     off the screen edges itself. */
   .rhythm-theme-wrapper .language-switcher-container {
-    top: var(--space-sm);
-    right: var(--space-sm);
-    z-index: 1000;
+    margin: var(--space-sm) var(--space-sm) var(--space-sm) 0;
   }
 
   .lang-switcher__button {
@@ -84,11 +122,6 @@
 
 /* Tablet */
 @media (min-width: 480px) and (max-width: 767px) {
-  .rhythm-theme-wrapper .language-switcher-container {
-    top: var(--space-md);
-    right: var(--space-md);
-  }
-
   .lang-switcher__button {
     padding: var(--space-sm) var(--space-md);
     min-height: var(--min-touch-target);

@@ -38,7 +38,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Wrapper do
       class="quill-theme-wrapper"
       grid_class={["main-gradient theme-grid", @has_video_background && "has-video-background"]}
       grid_style={ThemeStyle.inline_background(@background)}
-      language_class="fixed top-6 right-6 z-50 language-switcher-wrapper"
+      language_class="absolute top-6 right-6 z-50 language-switcher-wrapper"
       theme_id={@theme_id}
       theme_tokens={@theme_tokens}
       locale={@locale}
