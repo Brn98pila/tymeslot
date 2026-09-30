@@ -15,14 +15,23 @@ defmodule Tymeslot.ThemeCustomizations.PaletteDerivation do
   seed. A dark palette puts light text on a near-black ground, a light one
   dark text on a near-white ground. A light palette's `dark_colors` is the
   dark palette of the same seed, so a theme that follows the visitor's OS
-  shows, in dark mode, the palette a dark theme derives from that seed.
+  shows, in dark mode, the palette a dark theme derives from that seed. A
+  light palette's primary is fitted to read as text on its surface, and its
+  secondary and accent to show on its ground (`ContrastTokens.fit_text/3`), so
+  a bright seed stays legible on white; the dark derivation takes the seed as
+  it is.
 
   The colour maths itself lives in `Tymeslot.Utils.Colour`; this module owns
   only the transforms that define the booking-page look.
   """
 
+  alias Tymeslot.ThemeCustomizations.ContrastTokens
   alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.Utils.Colour
+
+  # WCAG's bar for large text and non-text marks: what a light palette's
+  # secondary and accent must reach on its ground.
+  @mark_contrast 3.0
 
   @typedoc "Which kind of page a palette is for."
   @type mode :: :light | :dark
@@ -102,24 +111,32 @@ defmodule Tymeslot.ThemeCustomizations.PaletteDerivation do
     }
   end
 
-  # Dark text on a near-white ground. Text and secondary text meet their
-  # contrast bars. Primary (the raw seed), secondary and accent keep the seed's
-  # hue and are not contrast-fitted on a light ground: for bright hues (yellow,
-  # green, cyan) they can fall well under 3:1. Fitting them is left to a later
-  # phase.
+  # Dark text on a near-white ground. The primary is the seed, darkened only
+  # as far as it must be to read as text on the surface, and its hover
+  # follows it. Secondary and accent keep the dark palette's hue shifts and
+  # sit in the middle lightness band, darkened where a bright hue needs it to
+  # show at 3:1 on the ground.
   defp light_colors(seed, {h, s, l}) do
+    background = Colour.hsl_to_hex({h, 0.30, 0.98})
+    surface = Colour.hsl_to_hex({h, 0.30, 0.995})
+    primary = ContrastTokens.fit_text(seed, surface)
+
+    secondary =
+      Colour.hsl_to_hex({
+        Colour.wrap_hue(h - 15.0),
+        Colour.clamp(s * 0.85, 0.0, 1.0),
+        Colour.clamp(l, 0.25, 0.5)
+      })
+
+    accent = Colour.hsl_to_hex({Colour.wrap_hue(h + 30.0), s, Colour.clamp(l, 0.25, 0.5)})
+
     %{
-      primary: seed,
-      primary_hover: hover_for(seed),
-      secondary:
-        Colour.hsl_to_hex({
-          Colour.wrap_hue(h - 15.0),
-          Colour.clamp(s * 0.85, 0.0, 1.0),
-          Colour.clamp(l, 0.25, 0.5)
-        }),
-      accent: Colour.hsl_to_hex({Colour.wrap_hue(h + 30.0), s, Colour.clamp(l, 0.25, 0.5)}),
-      background: Colour.hsl_to_hex({h, 0.30, 0.98}),
-      surface: Colour.hsl_to_hex({h, 0.30, 0.995}),
+      primary: primary,
+      primary_hover: hover_for(primary),
+      secondary: ContrastTokens.fit_text(secondary, background, @mark_contrast),
+      accent: ContrastTokens.fit_text(accent, background, @mark_contrast),
+      background: background,
+      surface: surface,
       text: Colour.hsl_to_hex({h, 0.25, 0.12}),
       text_secondary: Colour.hsl_to_hex({h, 0.15, 0.38})
     }

@@ -95,7 +95,7 @@ defmodule Tymeslot.ThemeCustomizationsPaletteDerivationTest do
       end
     end
 
-    test "a light palette has the preset shape, with the seed as primary" do
+    test "a light palette has the preset shape" do
       %{name: "Custom", mode: :light, colors: colors, dark_colors: dark_colors} =
         PaletteDerivation.derive_palette("#FF6B35", :light)
 
@@ -103,11 +103,37 @@ defmodule Tymeslot.ThemeCustomizationsPaletteDerivationTest do
 
       assert Enum.sort(Map.keys(colors)) == keys
       assert Enum.sort(Map.keys(dark_colors)) == keys
-      assert colors.primary == "#ff6b35"
 
       for {key, value} <- colors do
         assert value =~ ~r/^#[0-9a-f]{6}$/, "expected lowercase hex for #{key}, got #{value}"
       end
+    end
+
+    test "a light palette keeps a seed that already reads on its surface as its primary" do
+      assert PaletteDerivation.derive_palette("#123456", :light).colors.primary == "#123456"
+      assert PaletteDerivation.derive_palette("#7c3aed", :light).colors.primary == "#7c3aed"
+    end
+
+    test "a light palette darkens a seed too bright to read on its surface, and its hover follows" do
+      %{colors: colors} = PaletteDerivation.derive_palette("#FF6B35", :light)
+
+      assert colors.primary == "#d83a00"
+      assert colors.primary_hover == "#af2f00"
+    end
+
+    test "a light palette's primary reads on its surface and its secondary and accent show on its ground, whatever the seed" do
+      failures =
+        for seed <- @seeds,
+            %{colors: c} = PaletteDerivation.derive_palette(seed, :light),
+            problem <- [
+              Colour.contrast_ratio(c.primary, c.surface) >= 4.5 || :primary_on_surface,
+              Colour.contrast_ratio(c.secondary, c.background) >= 3.0 || :secondary_on_background,
+              Colour.contrast_ratio(c.accent, c.background) >= 3.0 || :accent_on_background
+            ],
+            problem != true,
+            do: {seed, problem}
+
+      assert failures == []
     end
 
     test "a light palette puts legible dark text on a near-white ground, whatever the seed" do

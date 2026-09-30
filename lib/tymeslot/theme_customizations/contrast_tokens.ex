@@ -21,19 +21,21 @@ defmodule Tymeslot.ThemeCustomizations.ContrastTokens do
       half the palettes and is a barely perceptible shift for the rest,
       because the ink was chosen to start as close as possible.
 
-  `--theme-primary` itself is deliberately left untouched: it is also used for
-  borders, focus rings and text on the card, where nudging it towards a filled
-  control's ink could lower its contrast against the card instead. Only the
-  filled surfaces read the `*_solid` variants. Whether the primary reads as
-  text on the card is the palette's concern, not this module's: the dark
-  schemes pair bright primaries with a dark card, and a light scheme has to
-  pair a dark enough primary with its light card; nothing here checks it.
+  `--theme-primary` itself is deliberately left untouched here: it is also
+  used for borders, focus rings and text on the card, where nudging it
+  towards a filled control's ink could lower its contrast against the card
+  instead. Only the filled surfaces read the `*_solid` variants. Whether the
+  primary reads as text on the card is the separate rule `fit_text/3`, which
+  whoever sets the primary applies: the light seed derivation and the accent
+  option do; the dark schemes pair bright primaries with a dark card by
+  design.
   """
 
   alias Tymeslot.Utils.Colour
 
   @min_contrast 4.5
   @light_ink "#ffffff"
+  @dark_end "#000000"
 
   @typedoc "Accessible ink and surface tokens derived from a palette."
   @type tokens :: %{
@@ -60,6 +62,42 @@ defmodule Tymeslot.ThemeCustomizations.ContrastTokens do
   end
 
   def derive(_other), do: nil
+
+  @doc """
+  `colour`, moved just far enough to read as text on `ground`.
+
+  Its HSL lightness walks away from the ground in small steps until the pair
+  clears `min_ratio` (4.5:1 by default, WCAG AA for normal-size text; pass
+  3.0 for large text and non-text marks). Hue and saturation are kept, so the
+  result is still the organiser's colour. The direction depends on the ground
+  alone: towards white where white reads better on it than black does,
+  towards black otherwise, so the walk heads for the end that can reach the
+  ratio. A colour that already clears it comes back unchanged, as lower-case
+  `#rrggbb`.
+
+  Both colours are hex (`#RGB` or `#RRGGBB`).
+  """
+  @spec fit_text(String.t(), String.t(), number()) :: String.t()
+  def fit_text(colour, ground, min_ratio \\ @min_contrast)
+      when is_binary(colour) and is_binary(ground) do
+    hex = Colour.normalise_hex(colour)
+
+    cond do
+      Colour.contrast_ratio(hex, ground) >= min_ratio ->
+        hex
+
+      lighter_reads_better?(ground) ->
+        Colour.hsl_to_hex(
+          Colour.lighten_until_contrast(Colour.hex_to_hsl(hex), ground, min_ratio)
+        )
+
+      true ->
+        Colour.hsl_to_hex(Colour.darken_until_contrast(Colour.hex_to_hsl(hex), ground, min_ratio))
+    end
+  end
+
+  defp lighter_reads_better?(ground),
+    do: Colour.contrast_ratio(@light_ink, ground) >= Colour.contrast_ratio(@dark_end, ground)
 
   defp build(primary, colors) do
     hover = hex(colors[:primary_hover]) || primary

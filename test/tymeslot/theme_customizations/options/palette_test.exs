@@ -197,7 +197,7 @@ defmodule Tymeslot.ThemeCustomizations.Options.PaletteTest do
       %{vars: light, dark_vars: none} = Palette.tokens(settings, %{}, @light_seed)
       %{vars: dark} = Palette.tokens(settings, %{}, @group)
 
-      assert light["--theme-primary"] == "#ff6b35"
+      assert light["--theme-primary"] == "#d83a00"
       assert Colour.relative_luminance(light["--theme-canvas"]) > 0.9
       assert Colour.relative_luminance(dark["--theme-canvas"]) < 0.05
       assert none == %{}
