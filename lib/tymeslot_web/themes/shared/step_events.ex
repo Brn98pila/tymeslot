@@ -18,15 +18,20 @@ defmodule TymeslotWeb.Themes.Shared.StepEvents do
   `next_step` (schedule); `validate`, `field_blur`, `submit`, `back_step`,
   `select_location`, `select_video_provider`, `location_phone_change`,
   `toggle_guests`, `close_guests`, `guest_input_change`, `add_guest`,
-  `remove_guest` (booking); `schedule_another` (confirmation).
+  `remove_guest` (booking); `answer`, `multi_toggle`, `next_step`, `back_step`
+  (questions, relayed by `Shared.CustomQuestions.Events`); `schedule_another`
+  (confirmation).
 
   A theme's own event is named `theme:<name>`: it is relayed untouched as
   `{:step_event, step, "theme:<name>", params}`, and `SchedulingLive` hands
   it to the theme's `handle_theme_event/3` (`handle_theme_schedule_event/3`
-  on the schedule step) as `<name>`. Anything else is ignored.
+  on the schedule step) as `<name>`. Anything else is dropped, with one
+  warning per name and page view (`log_ignored/3`).
   """
 
   import Phoenix.Component, only: [assign: 2, assign: 3]
+
+  require Logger
 
   alias Phoenix.LiveView.Socket
   alias TymeslotWeb.Themes.Shared.BookingLocation
@@ -55,14 +60,51 @@ defmodule TymeslotWeb.Themes.Shared.StepEvents do
 
   def handle_event(event, params, socket) do
     case message(event, params) do
-      {name, data} -> relay(socket, name, data)
-      :ignore -> {:noreply, socket}
+      {name, data} ->
+        relay(socket, name, data)
+
+      :ignore ->
+        log_ignored(socket.assigns, socket.assigns[:current_state], event)
+        {:noreply, socket}
     end
   end
 
   defp relay(socket, name, data) do
     send(self(), {:step_event, socket.assigns.current_state, name, data})
     {:noreply, socket}
+  end
+
+  # The name comes from the browser: logged truncated, and each page view
+  # (one LiveView process: the step components run in it) logs a name once
+  # and at most @max_logged names, so a visitor cannot flood the log. The
+  # process dictionary is the one place both callers see: the relays hold a
+  # component's socket, `SchedulingLive` the LiveView's, in the same process.
+  @max_name_length 64
+  @max_logged 10
+  @logged_key {__MODULE__, :logged}
+
+  @doc """
+  Logs a step event the booking flow drops: an unknown or malformed name from
+  a step template, or a canonical name sent from a step it does not belong
+  to. Called by the relays and by `SchedulingLive`; logs the theme, the step
+  and the event name, never the params.
+  """
+  @spec log_ignored(map(), atom() | nil, String.t() | atom()) :: :ok
+  def log_ignored(assigns, step, event) do
+    name = event |> to_string() |> String.slice(0, @max_name_length)
+    logged = Process.get(@logged_key, MapSet.new())
+
+    if not MapSet.member?(logged, name) and MapSet.size(logged) < @max_logged do
+      Process.put(@logged_key, MapSet.put(logged, name))
+
+      Logger.warning("Booking step event ignored",
+        theme_id: assigns[:theme_id],
+        step: step,
+        event: name
+      )
+    end
+
+    :ok
   end
 
   defp message("select_duration", %{"duration" => duration}), do: {:select_duration, duration}

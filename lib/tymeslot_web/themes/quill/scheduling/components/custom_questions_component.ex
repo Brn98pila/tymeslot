@@ -70,7 +70,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.CustomQuestionsComponen
                   <div class="booking-actions">
                     <.action_button
                       type="button"
-                      phx-click="back"
+                      phx-click="back_step"
                       phx-target={@myself}
                       variant={:secondary}
                       class="flex-1"
@@ -80,7 +80,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.CustomQuestionsComponen
 
                     <.action_button
                       type="button"
-                      phx-click="next"
+                      phx-click="next_step"
                       phx-target={@myself}
                       class="flex-1"
                     >

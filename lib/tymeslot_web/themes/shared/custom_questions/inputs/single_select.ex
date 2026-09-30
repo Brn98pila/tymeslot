@@ -46,7 +46,7 @@ defmodule TymeslotWeb.Themes.Shared.CustomQuestions.Inputs.SingleSelect do
     <form
       id={"cq-form-#{@definition["id"]}"}
       phx-change="answer"
-      phx-submit="next"
+      phx-submit="next_step"
       phx-target={@myself}
     >
       <.input

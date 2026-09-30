@@ -58,7 +58,7 @@ defmodule TymeslotWeb.Themes.Shared.CustomQuestions.Inputs.SingleSelectTest do
     assert [_select] =
              Floki.find(
                doc,
-               "form#cq-form-q9[phx-change='answer'][phx-submit='next'] select[name='value']"
+               "form#cq-form-q9[phx-change='answer'][phx-submit='next_step'] select[name='value']"
              )
 
     assert Floki.find(doc, "select[phx-change]") == []

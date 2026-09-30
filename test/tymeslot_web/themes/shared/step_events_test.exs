@@ -5,6 +5,7 @@ defmodule TymeslotWeb.Themes.Shared.StepEventsTest do
   @moduletag :themes
 
   alias Phoenix.LiveView.Socket
+  alias Tymeslot.Test.LogCapture
   alias TymeslotWeb.Themes.Shared.StepEvents
 
   defp socket(assigns), do: %Socket{assigns: Map.merge(%{__changed__: %{}}, assigns)}
@@ -105,5 +106,36 @@ defmodule TymeslotWeb.Themes.Shared.StepEventsTest do
 
     assert socket.assigns.current_state == :overview
     refute Map.has_key?(socket.assigns, :flash)
+  end
+
+  test "logs an unknown event with the theme, the step and the name, never the params" do
+    LogCapture.attach()
+    socket = socket(%{current_state: :booking, theme_id: "1"})
+
+    assert {:noreply, _socket} =
+             StepEvents.handle_event("step-probe-unknown", %{"email" => "a@b.c"}, socket)
+
+    assert_receive {:captured_log, %{level: :warning, meta: %{event: "step-probe-unknown"}} = log}
+    assert log.meta.theme_id == "1"
+    assert log.meta.step == :booking
+    refute LogCapture.dump(log) =~ "a@b.c"
+  end
+
+  test "logs a canonical name sent with the wrong params" do
+    LogCapture.attach()
+    socket = socket(%{current_state: :schedule, theme_id: "1"})
+
+    assert {:noreply, _socket} = StepEvents.handle_event("select_slot", %{"date" => "x"}, socket)
+    assert_receive {:captured_log, %{level: :warning, meta: %{event: "select_slot"}}}
+  end
+
+  test "truncates a long event name in the log" do
+    LogCapture.attach()
+    name = "step-probe-" <> String.duplicate("x", 200)
+
+    StepEvents.handle_event(name, %{}, socket(%{current_state: :overview}))
+
+    assert_receive {:captured_log, %{meta: %{event: "step-probe-" <> _rest = logged}}}
+    assert String.length(logged) == 64
   end
 end

@@ -59,7 +59,7 @@ defmodule TymeslotWeb.Live.Scheduling.LongSingleSelectFlowTest do
         |> form("#cq-form-#{@question_id}", %{"value" => "k3"})
         |> render_change()
 
-        view |> element("button[phx-click='next'][phx-target]") |> render_click()
+        view |> element("button[phx-click='next_step'][phx-target]") |> render_click()
 
         email = "long-select.#{unquote(theme.slug)}@example.com"
 

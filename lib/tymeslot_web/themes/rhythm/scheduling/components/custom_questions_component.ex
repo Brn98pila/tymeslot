@@ -71,7 +71,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.CustomQuestionsCompone
               <button
                 type="button"
                 class="prev-button"
-                phx-click="back"
+                phx-click="back_step"
                 phx-target={@myself}
               >
                 <span class="custom-question-cta-nowrap">← {dgettext("booking", "Back")}</span>
@@ -80,7 +80,7 @@ defmodule TymeslotWeb.Themes.Rhythm.Scheduling.Components.CustomQuestionsCompone
               <button
                 type="button"
                 class="submit-button"
-                phx-click="next"
+                phx-click="next_step"
                 phx-target={@myself}
               >
                 <span class="custom-question-cta-nowrap">

@@ -63,7 +63,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       alias TymeslotWeb.Live.Scheduling.WeekSlots
       alias TymeslotWeb.Themes.Shared.{EventHandlers, InfoHandlers, PathHandlers}
       alias TymeslotWeb.Themes.Shared.LiveHelpers.{Mount, Tracking}
-      alias TymeslotWeb.Themes.Shared.{SchedulingFlow, SchedulingPage}
+      alias TymeslotWeb.Themes.Shared.{SchedulingFlow, SchedulingPage, StepEvents}
 
       @impl Phoenix.LiveView
       def mount(params, _session, socket) do
@@ -93,9 +93,15 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
 
       def handle_info({:step_event, step, event, data}, socket) do
         case SchedulingFlow.handle_step_event(socket, step, event, data) do
-          :unhandled when step == :schedule -> handle_theme_schedule_event(socket, event, data)
-          :unhandled -> {:noreply, socket}
-          reply -> reply
+          :unhandled when step == :schedule ->
+            handle_theme_schedule_event(socket, event, data)
+
+          :unhandled ->
+            StepEvents.log_ignored(socket.assigns, step, event)
+            {:noreply, socket}
+
+          reply ->
+            reply
         end
       end
 

@@ -279,7 +279,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlowTest do
   end
 
   describe "questions step" do
-    test "next moves to the following question once the current one is answered" do
+    test "next_step moves to the following question once the current one is answered" do
       engine =
         [question("company"), question("role")]
         |> Engine.init()
@@ -289,7 +289,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlowTest do
                SchedulingFlow.handle_step_event(
                  socket(%{current_state: :questions, engine: engine}),
                  :questions,
-                 :next,
+                 :next_step,
                  nil
                )
 
@@ -297,14 +297,14 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlowTest do
       assert socket.assigns.current_state == :questions
     end
 
-    test "back from the first question returns to the schedule step" do
+    test "back_step from the first question returns to the schedule step" do
       engine = Engine.init([question("company")])
 
       assert {:noreply, socket} =
                SchedulingFlow.handle_step_event(
                  socket(%{current_state: :questions, engine: engine}),
                  :questions,
-                 :back,
+                 :back_step,
                  nil
                )
 

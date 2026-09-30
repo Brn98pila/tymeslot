@@ -143,21 +143,21 @@ defmodule TymeslotWeb.Live.Scheduling.CustomFieldsBookingFlowTest do
         assert html =~ "Company"
 
         # --- Required field blocks advance when empty ---
-        view |> element("button[phx-click='next'][phx-target]") |> render_click()
+        view |> element("button[phx-click='next_step'][phx-target]") |> render_click()
         assert render(view) =~ "Question 1 of 2"
 
         # --- Fill the short_text field and advance ---
         view
-        |> form("form[phx-submit='next']", %{"value" => "Acme Corp"})
+        |> form("form[phx-submit='next_step']", %{"value" => "Acme Corp"})
         |> render_change()
 
-        view |> element("button[phx-click='next'][phx-target]") |> render_click()
+        view |> element("button[phx-click='next_step'][phx-target]") |> render_click()
 
         assert render(view) =~ "Question 2 of 2"
         assert render(view) =~ "Please agree to the call recording terms."
 
         # --- Note acknowledgement is enforced ---
-        view |> element("button[phx-click='next'][phx-target]") |> render_click()
+        view |> element("button[phx-click='next_step'][phx-target]") |> render_click()
         assert render(view) =~ "Question 2 of 2"
 
         # --- Tick acknowledgement then advance to booking ---
@@ -165,7 +165,7 @@ defmodule TymeslotWeb.Live.Scheduling.CustomFieldsBookingFlowTest do
         |> element("input[type='checkbox'][phx-value-value='acknowledge']")
         |> render_click()
 
-        view |> element("button[phx-click='next'][phx-target]") |> render_click()
+        view |> element("button[phx-click='next_step'][phx-target]") |> render_click()
 
         # --- Booking step ---
         assert has_element?(view, @booking_form)
@@ -259,10 +259,10 @@ defmodule TymeslotWeb.Live.Scheduling.CustomFieldsBookingFlowTest do
 
         # Fill in the answer and advance to :booking.
         view
-        |> form("form[phx-submit='next']", %{"value" => "Acme Corp"})
+        |> form("form[phx-submit='next_step']", %{"value" => "Acme Corp"})
         |> render_change()
 
-        view |> element("button[phx-click='next'][phx-target]") |> render_click()
+        view |> element("button[phx-click='next_step'][phx-target]") |> render_click()
 
         assert has_element?(view, @booking_form)
 
@@ -291,7 +291,7 @@ defmodule TymeslotWeb.Live.Scheduling.CustomFieldsBookingFlowTest do
         # dead-end.
         assert render(view) =~ "Company"
 
-        view |> element("button[phx-click='back'][phx-target]") |> render_click()
+        view |> element("button[phx-click='back_step'][phx-target]") |> render_click()
 
         html = render(view)
 
@@ -336,10 +336,10 @@ defmodule TymeslotWeb.Live.Scheduling.CustomFieldsBookingFlowTest do
 
         # Walk through the wizard normally, supplying a valid answer.
         view
-        |> form("form[phx-submit='next']", %{"value" => "Acme Corp"})
+        |> form("form[phx-submit='next_step']", %{"value" => "Acme Corp"})
         |> render_change()
 
-        view |> element("button[phx-click='next'][phx-target]") |> render_click()
+        view |> element("button[phx-click='next_step'][phx-target]") |> render_click()
 
         assert has_element?(view, @booking_form)
 

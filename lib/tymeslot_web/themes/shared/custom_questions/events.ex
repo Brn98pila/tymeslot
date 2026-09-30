@@ -7,14 +7,17 @@ defmodule TymeslotWeb.Themes.Shared.CustomQuestions.Events do
   so the bubbling semantics and derived render assigns stay identical
   across themes.
 
-  The events are `answer`, `multi_toggle`, `next` and `back`, plus a theme's
-  own `theme:<name>` events, relayed untouched; anything else is ignored.
+  The events are `answer`, `multi_toggle`, `next_step` and `back_step` (the
+  canonical navigation names every step uses, `Shared.StepEvents`), plus a
+  theme's own `theme:<name>` events, relayed untouched; anything else is
+  dropped with a warning.
   """
 
   import Phoenix.Component, only: [assign: 3]
 
   alias TymeslotWeb.Themes.Shared.CustomQuestions.AnswerNormaliser
   alias TymeslotWeb.Themes.Shared.CustomQuestions.Engine
+  alias TymeslotWeb.Themes.Shared.StepEvents
 
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -37,13 +40,13 @@ defmodule TymeslotWeb.Themes.Shared.CustomQuestions.Events do
     {:noreply, socket}
   end
 
-  def handle_event("next", _params, socket) do
-    send(self(), {:step_event, :questions, :next, nil})
+  def handle_event("next_step", _params, socket) do
+    send(self(), {:step_event, :questions, :next_step, nil})
     {:noreply, socket}
   end
 
-  def handle_event("back", _params, socket) do
-    send(self(), {:step_event, :questions, :back, nil})
+  def handle_event("back_step", _params, socket) do
+    send(self(), {:step_event, :questions, :back_step, nil})
     {:noreply, socket}
   end
 
@@ -53,8 +56,13 @@ defmodule TymeslotWeb.Themes.Shared.CustomQuestions.Events do
     {:noreply, socket}
   end
 
-  # Anything else is ignored: a stray event must not crash a public page.
-  def handle_event(_event, _params, socket), do: {:noreply, socket}
+  # Anything else is dropped, never raised on: a stray event must not crash
+  # a public page. It leaves a warning, since it means a template sends a
+  # name this step does not know.
+  def handle_event(event, _params, socket) do
+    StepEvents.log_ignored(socket.assigns, :questions, event)
+    {:noreply, socket}
+  end
 
   @spec assign_render_state(Phoenix.LiveView.Socket.assigns()) ::
           Phoenix.LiveView.Socket.assigns()

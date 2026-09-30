@@ -331,8 +331,8 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
     {:noreply, assign(socket, :engine, engine)}
   end
 
-  defp questions_event(socket, :next, _data), do: questions_next(socket)
-  defp questions_event(socket, :back, _data), do: questions_back(socket)
+  defp questions_event(socket, :next_step, _data), do: questions_next(socket)
+  defp questions_event(socket, :back_step, _data), do: questions_back(socket)
   defp questions_event(_socket, _event, _data), do: :unhandled
 
   # Advance within the questions wizard, or proceed to :booking when all
