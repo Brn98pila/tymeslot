@@ -302,4 +302,61 @@ defmodule TymeslotWeb.Live.Themes.ProbeThemeGroupsTest do
                })
     end
   end
+
+  describe "radius" do
+    test "its panel offers sharp, soft and round, the default pressed", %{conn: conn} do
+      {:ok, view, _html} = customise(conn)
+
+      assert has_element?(view, "[data-testid='radius-panel']")
+      assert choices(view, "radius", "radius") == ~w(sharp soft round)
+
+      assert has_element?(
+               view,
+               option_button("radius", "radius", "soft") <> "[aria-pressed='true']"
+             )
+    end
+
+    test "a radius saved in the panel sets the booking page's radius roles",
+         %{conn: conn, profile: profile} do
+      {page, _dark} = booking_page_vars(profile)
+      assert {page["--radius-control"], page["--radius-card"]} == {"8px", "12px"}
+
+      {:ok, view, _html} = customise(conn)
+      view |> element(option_button("radius", "radius", "round")) |> render_click()
+
+      assert saved(profile)["radius"] == "round"
+
+      {page, _dark} = booking_page_vars(profile)
+      assert {page["--radius-control"], page["--radius-card"]} == {"999px", "20px"}
+    end
+  end
+
+  describe "density" do
+    test "its panel offers comfortable and compact, the default pressed", %{conn: conn} do
+      {:ok, view, _html} = customise(conn)
+
+      assert has_element?(view, "[data-testid='density-panel']")
+      assert choices(view, "density", "density") == ~w(comfortable compact)
+
+      assert has_element?(
+               view,
+               option_button("density", "density", "comfortable") <> "[aria-pressed='true']"
+             )
+    end
+
+    test "a density saved in the panel sets the booking page's density factor",
+         %{conn: conn, profile: profile} do
+      {page, _dark} = booking_page_vars(profile)
+      assert page["--density"] == "1"
+
+      {:ok, view, _html} = customise(conn)
+      view |> element(option_button("density", "density", "compact")) |> render_click()
+
+      assert saved(profile)["density"] == "compact"
+
+      {page, dark} = booking_page_vars(profile)
+      assert page["--density"] == "0.75"
+      refute Map.has_key?(dark, "--density")
+    end
+  end
 end

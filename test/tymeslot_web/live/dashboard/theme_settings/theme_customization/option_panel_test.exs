@@ -13,8 +13,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
   alias Tymeslot.ThemeCustomizations.Options.Accent
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.ColourMode
+  alias Tymeslot.ThemeCustomizations.Options.Density
   alias Tymeslot.ThemeCustomizations.Options.Font
   alias Tymeslot.ThemeCustomizations.Options.Palette
+  alias Tymeslot.ThemeCustomizations.Options.Radius
   alias Tymeslot.ThemeCustomizations.PaletteDerivation
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components
@@ -166,5 +168,22 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
     # Without the booking page's font CSS the label falls back to the
     # dashboard's own font.
     assert html =~ "var(--font-heading-classic, inherit)"
+  end
+
+  test "the radius and density panels name their choices in the viewer's language" do
+    radius = %{key: :radius, module: Radius, default: "soft"}
+    density = %{key: :density, module: Density, default: "comfortable"}
+
+    {radius_html, density_html} =
+      Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+        {render_panel(radius), render_panel(density)}
+      end)
+
+    assert choices(radius_html, "radius") == ~w(sharp soft round)
+    assert radius_html =~ "Ecken"
+    assert radius_html =~ "Rund"
+    assert choices(density_html, "density") == ~w(comfortable compact)
+    assert density_html =~ "Abstände"
+    assert density_html =~ "Kompakt"
   end
 end

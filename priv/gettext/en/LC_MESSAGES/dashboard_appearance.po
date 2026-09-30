@@ -574,3 +574,48 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "The typeface of the text and headings on your booking page."
 msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/density_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Comfortable"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/density_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Compact"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/radius_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Corners"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/density_panel.ex
+#, elixir-autogen, elixir-format
+msgid "How much room your booking page leaves around its content."
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/radius_panel.ex
+#, elixir-autogen, elixir-format
+msgid "How rounded the buttons and cards on your booking page are."
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/radius_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Round"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/radius_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Sharp"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/radius_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Soft"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/density_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Spacing"
+msgstr ""

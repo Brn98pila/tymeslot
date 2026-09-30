@@ -8,19 +8,23 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PanelsTest do
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.ColourMode
   alias Tymeslot.ThemeCustomizations.Options.Cover
+  alias Tymeslot.ThemeCustomizations.Options.Density
   alias Tymeslot.ThemeCustomizations.Options.Font
   alias Tymeslot.ThemeCustomizations.Options.Logo
   alias Tymeslot.ThemeCustomizations.Options.Palette
+  alias Tymeslot.ThemeCustomizations.Options.Radius
   alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.AccentPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.BackgroundPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.ColourModePanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.CoverPanel
+  alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.DensityPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.FontPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.LogoPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels
+  alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.RadiusPanel
 
   test "the shared groups get the built-in panels" do
     assert Panels.for_group("1", %{key: :palette, module: Palette}) == PalettePanel
@@ -66,5 +70,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PanelsTest do
 
   test "the font group gets the built-in font panel" do
     assert Panels.for_group("1", %{key: :font, module: Font}) == FontPanel
+  end
+
+  test "the radius and density groups get their built-in panels" do
+    assert Panels.for_group("1", %{key: :radius, module: Radius}) == RadiusPanel
+    assert Panels.for_group("1", %{key: :density, module: Density}) == DensityPanel
   end
 end

@@ -15,16 +15,20 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels do
   alias Tymeslot.ThemeCustomizations.Options.Background
   alias Tymeslot.ThemeCustomizations.Options.ColourMode
   alias Tymeslot.ThemeCustomizations.Options.Cover
+  alias Tymeslot.ThemeCustomizations.Options.Density
   alias Tymeslot.ThemeCustomizations.Options.Font
   alias Tymeslot.ThemeCustomizations.Options.Logo
   alias Tymeslot.ThemeCustomizations.Options.Palette
+  alias Tymeslot.ThemeCustomizations.Options.Radius
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.AccentPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.BackgroundPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.ColourModePanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.CoverPanel
+  alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.DensityPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.FontPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.LogoPanel
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.PalettePanel
+  alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.RadiusPanel
   alias TymeslotWeb.Themes.Core.Loader
 
   @built_in %{
@@ -34,7 +38,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels do
     Cover => CoverPanel,
     ColourMode => ColourModePanel,
     Accent => AccentPanel,
-    Font => FontPanel
+    Font => FontPanel,
+    Radius => RadiusPanel,
+    Density => DensityPanel
   }
 
   @doc "The panel module for `group` in the theme `theme_id`."

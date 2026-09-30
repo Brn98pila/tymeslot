@@ -24,6 +24,10 @@
         --notice-warning  --notice-warning-surface  --notice-warning-border
         --radius-control  --radius-card
         plus --space-*, --theme-font-size-* and --z-dropdown.
+      --density is the one role defined here rather than in variables.css:
+        1 on :root below. A theme's spacing may multiply by it
+        (calc(var(--space-md) * var(--density))); a theme with a density
+        option gets its value from the server's block on :root.
 
    3. SHARED-COMPONENT TOKENS that every theme defines in variables.css, for
       the values the shared component CSS (shared/components/, layout.css,
@@ -38,6 +42,9 @@
    ========================================================================== */
 
 :root {
+  /* Spacing factor (role 2 above). 1 unless a density option sets it. */
+  --density: 1;
+
   /* Primary family. With the default #06b6d4 each value equals the literal
      it replaced: color-mix(in srgb, C p%, transparent) is C at alpha p. */
   --theme-primary-focus: color-mix(in srgb, var(--theme-primary) 20%, transparent);

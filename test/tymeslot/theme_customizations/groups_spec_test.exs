@@ -14,8 +14,10 @@ defmodule Tymeslot.Test.ThemeCustomizations.GroupsSpecTest do
   alias Tymeslot.Test.ThemeCustomizations.GroupsSpec
   alias Tymeslot.ThemeCustomizations.Options.Accent
   alias Tymeslot.ThemeCustomizations.Options.ColourMode
+  alias Tymeslot.ThemeCustomizations.Options.Density
   alias Tymeslot.ThemeCustomizations.Options.Font
   alias Tymeslot.ThemeCustomizations.Options.Palette
+  alias Tymeslot.ThemeCustomizations.Options.Radius
   alias Tymeslot.ThemeCustomizations.Specs
   alias TymeslotWeb.Themes.Shared.ThemeStyle
 
@@ -37,6 +39,8 @@ defmodule Tymeslot.Test.ThemeCustomizations.GroupsSpecTest do
                |> Map.merge(ColourMode.types())
                |> Map.merge(Accent.types())
                |> Map.merge(Font.types())
+               |> Map.merge(Radius.types())
+               |> Map.merge(Density.types())
     end
 
     test "the defaults pass the generated changeset" do
@@ -136,6 +140,28 @@ defmodule Tymeslot.Test.ThemeCustomizations.GroupsSpecTest do
 
     test "the generated changeset refuses a font the group does not offer" do
       refute validate(Map.put(defaults(), "font", "editorial")).valid?
+    end
+  end
+
+  describe "radius and density" do
+    test "their defaults reach the page" do
+      %{vars: vars} = GroupsSpec.tokens(defaults(), %{})
+
+      assert {vars["--radius-control"], vars["--radius-card"], vars["--density"]} ==
+               {"8px", "12px", "1"}
+    end
+
+    test "a stored choice replaces the default" do
+      settings = Map.merge(defaults(), %{"radius" => "sharp", "density" => "compact"})
+      %{vars: vars} = GroupsSpec.tokens(settings, %{})
+
+      assert {vars["--radius-control"], vars["--radius-card"], vars["--density"]} ==
+               {"2px", "4px", "0.75"}
+    end
+
+    test "the generated changeset refuses a value either group does not have" do
+      refute validate(Map.put(defaults(), "radius", "pill")).valid?
+      refute validate(Map.put(defaults(), "density", "cosy")).valid?
     end
   end
 end
