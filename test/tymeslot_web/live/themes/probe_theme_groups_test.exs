@@ -88,6 +88,11 @@ defmodule TymeslotWeb.Live.Themes.ProbeThemeGroupsTest do
     css
   end
 
+  defp canvas_lightness("#" <> hex) do
+    [r, g, b] = for <<c::binary-2 <- hex>>, do: String.to_integer(c, 16)
+    if 0.299 * r + 0.587 * g + 0.114 * b > 128, do: :light, else: :dark
+  end
+
   defp vars(css) do
     ~r/(--[a-z0-9-]+):\s*([^;]+);/
     |> Regex.scan(css, capture: :all_but_first)
@@ -244,6 +249,26 @@ defmodule TymeslotWeb.Live.Themes.ProbeThemeGroupsTest do
       assert page["--theme-primary"] == "#0891b2"
       assert page["--theme-color-scheme"] == "dark"
       assert dark == %{}
+    end
+
+    test "light over a custom seed gives a light page, and dark a dark one", %{profile: profile} do
+      assert {:ok, _saved} =
+               ThemeCustomizations.apply_option(profile.id, @theme_id, :palette, %{
+                 "field" => "seed",
+                 "value" => "#ffee00"
+               })
+
+      for {mode, lightness} <- [{"light", :light}, {"dark", :dark}] do
+        assert {:ok, _saved} =
+                 ThemeCustomizations.apply_option(profile.id, @theme_id, :colour_mode, %{
+                   "field" => "mode",
+                   "value" => mode
+                 })
+
+        {page, _dark} = booking_page_vars(profile)
+        assert page["--theme-color-scheme"] == mode
+        assert canvas_lightness(page["--theme-canvas"]) == lightness, "in #{mode} mode"
+      end
     end
 
     test "an embed's primary colour applies in either mode, fitted to it", %{profile: profile} do

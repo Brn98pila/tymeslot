@@ -26,7 +26,13 @@ defmodule Tymeslot.Test.ProbeThemeSpec do
   @impl Spec
   def option_groups,
     do: [
-      %{key: :palette, module: Palette, schemes: ~w(neutral cool warm), follow_os: true},
+      %{
+        key: :palette,
+        module: Palette,
+        schemes: ~w(neutral cool warm),
+        seed_mode: :light,
+        follow_os: true
+      },
       %{key: :colour_mode, module: ColourMode, default: "auto"},
       %{key: :accent, module: Accent, presets: @accents, default: "tymeslot"},
       %{key: :font, module: Font, presets: ~w(system inter plex), default: "system"},

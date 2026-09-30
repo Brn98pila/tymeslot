@@ -6,6 +6,7 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
 
   alias Ecto.Changeset
   alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.Options.ColourMode
   alias Tymeslot.ThemeCustomizations.Options.Cover
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.QuillSpec
@@ -141,6 +142,69 @@ defmodule Tymeslot.ThemeCustomizations.SpecTest do
         validate(StillSpec, %{"background_type" => "gradient", "background_value" => "gradient_2"})
 
       assert {"must be a valid gradient preset", _opts} = cs.errors[:background_value]
+    end
+  end
+
+  describe "colour mode" do
+    # ColourMode chooses between the palette's light and dark sets, so it only
+    # works over a palette that has both: `follow_os`, a light `seed_mode` and
+    # light schemes only. Each entry is a requirement the palette misses.
+    for {_key, theme} <- Catalog.all() do
+      test "#{theme.name} declares colour mode only over a palette with a light and a dark set" do
+        assert colour_mode_shortfalls(unquote(theme.customization_spec)) == []
+      end
+    end
+
+    test "the check sees a palette that misses a requirement" do
+      assert colour_mode_shortfalls(__MODULE__.DarkSeedSpec) == [
+               :follow_os,
+               :seed_mode,
+               {:scheme, "default"}
+             ]
+    end
+
+    test "some catalogue theme declares colour mode, so the check has something to inspect" do
+      assert Enum.any?(Catalog.all(), fn {_key, theme} ->
+               Enum.any?(theme.customization_spec.option_groups(), &(&1.module == ColourMode))
+             end)
+    end
+  end
+
+  defmodule DarkSeedSpec do
+    @moduledoc false
+    use Tymeslot.ThemeCustomizations.Spec
+
+    alias Tymeslot.ThemeCustomizations.Options.ColourMode
+    alias Tymeslot.ThemeCustomizations.Options.Palette
+
+    @impl Tymeslot.ThemeCustomizations.Spec
+    def option_groups,
+      do: [
+        %{key: :palette, module: Palette, schemes: ["default"]},
+        %{key: :colour_mode, module: ColourMode, default: "auto"}
+      ]
+
+    @impl Tymeslot.ThemeCustomizations.Spec
+    def defaults, do: %{color_scheme: "default", colour_mode: "auto"}
+  end
+
+  # The requirements of the palette a spec's colour mode reads, unmet; empty
+  # for a spec with no colour mode.
+  defp colour_mode_shortfalls(spec) do
+    groups = spec.option_groups()
+
+    if Enum.any?(groups, &(&1.module == ColourMode)) do
+      palette = Enum.find(groups, &(&1.module == Palette))
+
+      missing = [
+        if(palette[:follow_os] == true, do: nil, else: :follow_os),
+        if(palette[:seed_mode] == :light, do: nil, else: :seed_mode)
+      ]
+
+      Enum.reject(missing, &is_nil/1) ++
+        for {id, %{mode: :dark}} <- Palette.schemes(palette), do: {:scheme, id}
+    else
+      []
     end
   end
 
