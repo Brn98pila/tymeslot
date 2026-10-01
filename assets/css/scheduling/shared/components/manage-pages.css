@@ -89,8 +89,9 @@
 }
 
 /* The details panel's rows: an icon in a small tile, then the value over
-   its label (the organiser's row reads label first, as the markup orders
-   it). Scoped to the panel, so a theme's own meeting-detail-* rules
+   its label. The markup puts the organiser's label first (a theme's own
+   styling may rely on that), so its info column is reversed here to read
+   the name over "Meeting with" like the other rows. Scoped to the panel, so a theme's own meeting-detail-* rules
    elsewhere are untouched. */
 .manage-page__details .meeting-detail-rows {
   display: flex;
@@ -126,6 +127,10 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+.manage-page__details .meeting-detail-row--organizer .meeting-detail-info {
+  flex-direction: column-reverse;
 }
 
 .manage-page__details .meeting-detail-value {
