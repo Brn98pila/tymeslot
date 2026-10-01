@@ -11,6 +11,9 @@ defmodule Tymeslot.ThemeCustomizations.SpecTokensTest do
   @moduletag :unit
 
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.Options.Palette
+  alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
   alias Tymeslot.ThemeCustomizations.Tokens
   alias Tymeslot.Utils.Colour
@@ -30,7 +33,23 @@ defmodule Tymeslot.ThemeCustomizations.SpecTokensTest do
     }
   end
 
-  for theme_id <- ThemeTestMatrix.ids() do
+  # The palette and background pins below read the dark preset schemes and
+  # the background presets Quill and Rhythm offer, so they run for the themes
+  # whose spec offers them; a light theme's tokens are pinned by its own spec
+  # test. The primary-colour override further down holds for every theme.
+  @dark_palette_themes Enum.filter(ThemeTestMatrix.ids(), fn theme_id ->
+                         spec = Specs.for_theme(theme_id)
+                         palette = Specs.group(spec, Palette)
+
+                         palette != nil and Specs.group(spec, Background) != nil and
+                           Enum.all?(~w(purple turquoise), &(&1 in palette.schemes))
+                       end)
+
+  # The loop below would pass untested over an empty list.
+  if @dark_palette_themes == [],
+    do: raise("no shipped theme offers the dark preset schemes and a background")
+
+  for theme_id <- @dark_palette_themes do
     @theme_id theme_id
 
     describe "theme #{theme_id}: palette" do
@@ -180,6 +199,10 @@ defmodule Tymeslot.ThemeCustomizations.SpecTokensTest do
                  ThemeCustomizations.tokens(@theme_id, nil).media.background
       end
     end
+  end
+
+  for theme_id <- ThemeTestMatrix.ids() do
+    @theme_id theme_id
 
     describe "theme #{theme_id}: primary-colour override" do
       test "replaces primary and recomputes hover and the contrast pairs" do
