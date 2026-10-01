@@ -8,6 +8,7 @@ defmodule Tymeslot.BookingTestHelpers do
   import Phoenix.LiveViewTest
 
   alias Tymeslot.TestHelpers.Eventually
+  alias Tymeslot.WeekViewTestHelpers
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
 
   @endpoint TymeslotWeb.Endpoint
@@ -92,10 +93,24 @@ defmodule Tymeslot.BookingTestHelpers do
     # Navigate to date/time selection
     view |> element(@next_step) |> render_click()
 
-    # Wait for availability to load and select an available date
+    # Tomorrow, never today: today's times may already be past the cutoff.
     today = timezone |> DateTime.now!() |> DateTime.to_date()
     target_date = Date.add(today, 1)
 
+    if WeekViewTestHelpers.week_view?(view) do
+      WeekViewTestHelpers.select_first_slot_on(view, target_date)
+    else
+      pick_calendar_slot(view, target_date)
+    end
+
+    # Navigate to the booking form
+    view |> element(@next_step) |> render_click()
+
+    view
+  end
+
+  # A calendar of days, then the chosen day's times (Quill, Rhythm).
+  defp pick_calendar_slot(view, target_date) do
     advance_calendar_to(view, target_date)
 
     wait_until(fn -> has_element?(view, "#{day_selector(target_date)}:not([disabled])") end)
@@ -115,11 +130,6 @@ defmodule Tymeslot.BookingTestHelpers do
         flunk("Expected at least one available time slot button after selecting a date")
 
     view |> element("#{@time_slot}[phx-value-time='#{slot}']") |> render_click()
-
-    # Navigate to the booking form
-    view |> element(@next_step) |> render_click()
-
-    view
   end
 
   # Picking by slug rather than by `element(@duration_option)`: an organiser

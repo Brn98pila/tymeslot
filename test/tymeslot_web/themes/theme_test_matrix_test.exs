@@ -54,4 +54,11 @@ defmodule TymeslotWeb.ThemeTestMatrixTest do
     assert ThemeTestMatrix.ids_where(fn _spec -> false end) == []
     assert ThemeTestMatrix.ids_where(&(&1 == QuillSpec)) == ["1"]
   end
+
+  test "says how each theme's schedule step picks a time" do
+    for entry <- ThemeTestMatrix.registered() do
+      assert entry.schedule_view in [:calendar, :week_grid],
+             "#{entry.name} has no schedule_view (:calendar or :week_grid)"
+    end
+  end
 end

@@ -32,6 +32,12 @@ defmodule TymeslotWeb.ThemeTestMatrix do
       so renders the background motion toggle.
     * `:pins_schedule_actions` - whether the schedule step is locked to the
       viewport with its actions row pinned on-screen (Quill's app shell).
+    * `:schedule_view` - what the schedule step picks a time with:
+      `:calendar` (a month or week calendar of days, then the chosen day's
+      times, as Quill and Rhythm) or `:week_grid` (the shared `WeekGrid`, a
+      week of times with one click per time). The shared flow helpers pick a
+      time from either; the tests of the calendar's own day buttons run for
+      `:calendar` themes only.
     * `:selected_duration_selector` - matches the overview's
       `[data-testid='duration-option']` card only while it is selected. Each
       theme marks the selection its own way (on the button, or on a wrapper
@@ -50,6 +56,7 @@ defmodule TymeslotWeb.ThemeTestMatrix do
           wrapper_class: String.t(),
           video_background: boolean(),
           pins_schedule_actions: boolean(),
+          schedule_view: :calendar | :week_grid,
           selected_duration_selector: String.t(),
           fixture: boolean()
         }
@@ -63,6 +70,7 @@ defmodule TymeslotWeb.ThemeTestMatrix do
       wrapper_class: "quill-theme-wrapper",
       video_background: true,
       pins_schedule_actions: true,
+      schedule_view: :calendar,
       selected_duration_selector: "[data-testid='duration-option'].duration-card--selected",
       fixture: false
     },
@@ -74,6 +82,7 @@ defmodule TymeslotWeb.ThemeTestMatrix do
       wrapper_class: "rhythm-theme-wrapper",
       video_background: true,
       pins_schedule_actions: false,
+      schedule_view: :calendar,
       selected_duration_selector: ".duration-card.selected [data-testid='duration-option']",
       fixture: false
     },
@@ -85,6 +94,7 @@ defmodule TymeslotWeb.ThemeTestMatrix do
       wrapper_class: "fixture-theme-wrapper",
       video_background: false,
       pins_schedule_actions: false,
+      schedule_view: :week_grid,
       selected_duration_selector: "[data-testid='duration-option'][aria-pressed='true']",
       fixture: true
     },
@@ -96,6 +106,7 @@ defmodule TymeslotWeb.ThemeTestMatrix do
       wrapper_class: "fixture-theme-wrapper",
       video_background: false,
       pins_schedule_actions: false,
+      schedule_view: :week_grid,
       selected_duration_selector: "[data-testid='duration-option'][aria-pressed='true']",
       fixture: true
     }

@@ -387,7 +387,8 @@ defmodule TymeslotWeb.E2E.EmbedSizesMatrixTest do
   end
 
   # Guards the wide-short schedule fix: the layout must not let the calendar
-  # overflow its card and paint over the actions row.
+  # overflow its card and paint over the actions row. A week grid's first time
+  # stands in for the calendar's first day.
   defp assert_no_actions_calendar_overlap(session, context) do
     me = self()
     ref = make_ref()
@@ -396,7 +397,7 @@ defmodule TymeslotWeb.E2E.EmbedSizesMatrixTest do
       session,
       """
       const actions = document.querySelector("[data-testid='schedule-actions']");
-      const day = document.querySelector("[data-testid='calendar-day']");
+      const day = document.querySelector("[data-testid='calendar-day'], [data-testid='week-slot']");
       if (!actions || !day) return null;
       const a = actions.getBoundingClientRect(), c = day.getBoundingClientRect();
       // overlap iff the rects intersect on both axes
