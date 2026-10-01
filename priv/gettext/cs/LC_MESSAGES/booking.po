@@ -687,7 +687,7 @@ msgstr "Zadejte celé jméno"
 #: lib/tymeslot_web/themes/shared/components/booking_form.ex
 #, elixir-autogen, elixir-format
 msgid "john@example.com"
-msgstr "john@example.com"
+msgstr "jan@example.com"
 
 #: lib/tymeslot_web/themes/rhythm/scheduling/components/booking_component.ex
 #, elixir-autogen, elixir-format
