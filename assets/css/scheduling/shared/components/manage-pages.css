@@ -91,8 +91,8 @@
 /* The details panel's rows: an icon in a small tile, then the value over
    its label. The markup puts the organiser's label first (a theme's own
    styling may rely on that), so its info column is reversed here to read
-   the name over "Meeting with" like the other rows. Scoped to the panel, so a theme's own meeting-detail-* rules
-   elsewhere are untouched. */
+   the name over "Meeting with" like the other rows. Scoped to the panel,
+   so a theme's own meeting-detail-* rules elsewhere are untouched. */
 .manage-page__details .meeting-detail-rows {
   display: flex;
   flex-direction: column;
