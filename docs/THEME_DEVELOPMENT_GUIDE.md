@@ -710,7 +710,7 @@ Besides the palette and the background, `lib/tymeslot/theme_customizations/optio
 | `Options.Radius` | `%{key: :radius, module: Options.Radius, default: "soft"}` | `radius`: `sharp`, `soft` or `round` | the radius roles `--radius-control` and `--radius-card` in `vars`: `2px`/`4px`, `8px`/`12px`, `999px`/`20px` |
 | `Options.Density` | `%{key: :density, module: Options.Density, default: "comfortable"}` | `density`: `comfortable` or `compact` | `--density` in `vars`: `1` or `0.75`, the factor the theme's spacing multiplies |
 | `Options.Logo` | `%{key: :logo, module: Options.Logo}`, no configuration | `logo_path`: an uploaded image, which arrives only through an upload into that field (replacing and deleting the previous one); the one choice is removing it (`theme:set_option` with field `logo_path` and an empty choice) | no variables; `media[:logo]` is `%{src: url}`, sanitised as an uploaded background's URL is, and absent without a logo |
-| `Options.Cover` | `%{key: :cover, module: Options.Cover, presets: [ids], default: id}` | `cover_value`: an id from `presets:` (the catalogue is `Presets.Covers`, whose first four reuse the background images under the same ids and names) or `"custom"`, and `cover_path`: an uploaded image. Choosing a preset drops an uploaded cover and deletes its file; an upload into `cover_path` makes it the custom cover | no variables; `media[:cover]` is `%{src: url, preset: id}` for a preset or `%{src: url, preset: nil}` for an upload, the descriptor's `default:` while nothing is stored, and absent when the stored value resolves to nothing |
+| `Options.Cover` | `%{key: :cover, module: Options.Cover, presets: [ids], default: id}` | `cover_value`: an id from `presets:` (the catalogue is `Presets.Covers`: four reuse the background images under the same ids and names, three are covers of their own) or `"custom"`, and `cover_path`: an uploaded image. Choosing a preset drops an uploaded cover and deletes its file; an upload into `cover_path` makes it the custom cover | no variables; `media[:cover]` is `%{src: url, preset: id}` for a preset or `%{src: url, preset: nil}` for an upload, the descriptor's `default:` while nothing is stored, and absent when the stored value resolves to nothing |
 
 Each has a built-in dashboard panel beside `PalettePanel` in `live/dashboard/theme_settings/theme_customization/`, in the built-in map of `Panels`, so a theme that declares one names nothing in `option_panels:`: `ColourModePanel` (the three modes), `AccentPanel` (the group's presets and a custom colour), `FontPanel` (the group's fonts by name, each in its own face: the dashboard's `app.css` imports `shared/fonts.css`), `RadiusPanel`, `DensityPanel`, `LogoPanel` (the stored logo, an upload and its removal) and `CoverPanel` (the group's covers and an upload). Which of them a shipped theme offers is its spec's `option_groups/0`; the showcase theme declares them all (see [Test-only themes](#test-only-themes)).
 
@@ -1123,11 +1123,14 @@ Presets are defined under `lib/tymeslot/theme_customizations/presets/`, one modu
 - `"preset:elegant-still-life"`
 - `"preset:ocean-sunset"`
 
-**Available Cover Presets** (`Presets.Covers`, for an `Options.Cover` group's `presets:`):
+**Available Cover Presets** (`Presets.Covers`, for an `Options.Cover` group's `presets:`; the last three are covers of their own under `/images/themes/covers/`, each entry recording its Pixabay `source`):
 - `"elegant-still-life"`
 - `"artistic-studio"`
 - `"ocean-sunset"`
 - `"rustic-farmhouse"`
+- `"botanical"`
+- `"studio-light"`
+- `"paper-texture"`
 
 ## Advanced Video Features
 
