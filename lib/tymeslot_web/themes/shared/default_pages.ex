@@ -7,8 +7,9 @@ defmodule TymeslotWeb.Themes.Shared.DefaultPages do
 
   The shell is a function component. It receives `page` (`:reschedule`,
   `:cancel`, `:cancel_confirmed`, `:poll`, `:payment_processing`,
-  `:payment_cancelled`), the page's `theme_tokens`, `locale` and
-  `language_dropdown_open` (all `nil` on the payment pages), and the body
+  `:payment_cancelled`), the page's `theme_tokens` (`nil` on a payment
+  page's dead render, which reads no data), `locale` and
+  `language_dropdown_open` (both `nil` on the payment pages), and the body
   as its inner block; it draws the theme's wrapper and card (with the
   `booker-card` hook class) around it.
 

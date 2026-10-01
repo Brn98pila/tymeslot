@@ -7,7 +7,8 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturnLive.Cancelled do
   The booking stays in `awaiting_payment` until a `checkout.session.expired`
   webhook moves it to `failed`. No session id is required here, since the
   attendee may arrive from any point in the flow, but the slug must still
-  match the host's theme.
+  match the host's theme. The page carries the organiser's customisation
+  (`PaymentReturn.assign_customization/2`), as their booking page does.
   """
 
   use TymeslotWeb, :live_view
@@ -28,14 +29,18 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturnLive.Cancelled do
   defp load(socket, meeting_id, slug) do
     if connected?(socket) do
       case PaymentReturn.lookup_for_cancel(meeting_id, slug) do
-        {:ok, %{meeting: meeting, rebook_path: rebook_path}} ->
-          assign(socket, loading: false, meeting: meeting, rebook_path: rebook_path)
+        {:ok, %{meeting: meeting, profile: profile, rebook_path: rebook_path}} ->
+          socket
+          |> PaymentReturn.assign_customization(profile)
+          |> assign(loading: false, meeting: meeting, rebook_path: rebook_path)
 
         {:error, _reason} ->
           redirect(socket, to: ~p"/")
       end
     else
-      assign(socket, loading: true, meeting: nil, rebook_path: nil)
+      socket
+      |> PaymentReturn.no_customization()
+      |> assign(loading: true, meeting: nil, rebook_path: nil)
     end
   end
 end
