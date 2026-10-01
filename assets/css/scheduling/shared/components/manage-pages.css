@@ -16,6 +16,14 @@
   gap: var(--space-lg);
 }
 
+/* The payment pages space their own heading and link with margins (see
+   payment-pages.css), so their body flows as a block: the wrapper's gap
+   doubled it and stretched the link to full width. */
+.manage-page--payment-processing,
+.manage-page--payment-cancelled {
+  display: block;
+}
+
 .manage-page__header {
   text-align: center;
 }
