@@ -37,10 +37,8 @@ defmodule Tymeslot.BookingTestHelpers do
   2. Selects the first meeting type
   3. Navigates to date/time selection
   4. Waits for availability to load
-  5. Selects tomorrow's date
-  6. Waits for time slots
-  7. Selects the first available time slot
-  8. Navigates to the booking form
+  5. Selects tomorrow's first free time (a day then a time, or one click on a week grid)
+  6. Navigates to the booking form
 
   Returns the LiveView at the booking form step.
 

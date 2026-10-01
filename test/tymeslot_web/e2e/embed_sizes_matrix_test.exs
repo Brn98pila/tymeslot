@@ -397,8 +397,9 @@ defmodule TymeslotWeb.E2E.EmbedSizesMatrixTest do
       session,
       """
       const actions = document.querySelector("[data-testid='schedule-actions']");
-      const day = document.querySelector("[data-testid='calendar-day'], [data-testid='week-slot']");
-      if (!actions || !day) return null;
+      // A week grid is on the page from its first render, before its slots load.
+      const day = document.querySelector("[data-testid='calendar-day'], [data-testid='week-grid']");
+      if (!actions || !day) return "missing";
       const a = actions.getBoundingClientRect(), c = day.getBoundingClientRect();
       // overlap iff the rects intersect on both axes
       return !(a.right <= c.left || a.left >= c.right || a.bottom <= c.top || a.top >= c.bottom);
@@ -407,6 +408,10 @@ defmodule TymeslotWeb.E2E.EmbedSizesMatrixTest do
     )
 
     assert_receive {:overlap, ^ref, overlap}, 5_000
+
+    # Nothing to compare would let the check pass without testing anything.
+    refute overlap == "missing",
+           "#{context}: no schedule actions row, or neither calendar days nor a week grid"
 
     refute overlap,
            "The schedule actions row overlaps the calendar at #{context} — the " <>
