@@ -1,0 +1,74 @@
+/* ==========================================================================
+   Flash toast: the Core flash group on a booking page
+
+   Matches Core's flash component (TymeslotWeb.Components.CoreComponents.
+   Flash), which the app layout renders once, as #app-flash-group, on every
+   LiveView page. Its Tailwind classes are the dashboard's (a white card
+   with turquoise and red Core colours), so on a booking page this file
+   restyles it through the theme's tokens instead, by the neutral hook
+   classes the component carries (flash-toast, flash-toast--<kind>,
+   flash-toast-icon). Scoped to .scheduling-app, the class the booking
+   root layout puts on <html>, so the dashboard's toast is untouched.
+
+   The surface is --dropdown-surface, the opaque floating surface every
+   theme defines: a toast sits over the page's own content, so the
+   translucent card surfaces would leave it unreadable. Each kind tints
+   the border and the icon with its status input, and an error tints the
+   surface too, so it stays error-coloured in every theme.
+
+   On a narrow viewport the toast spans the top of the page between side
+   gutters instead of a fixed 20rem box pinned to the right.
+
+   Reads --dropdown-surface, --line-1, --ink-1, --radius-card,
+   --radius-control, --status-shadow, --theme-font-family,
+   --theme-font-size-sm, --theme-primary, --theme-danger, --theme-warning,
+   --border-width-thin, --space-xs and --space-sm.
+   ========================================================================== */
+
+.scheduling-app #app-flash-group .flash-toast {
+  --flash-tone: var(--theme-primary);
+
+  padding: var(--space-sm);
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--flash-tone) 35%, var(--line-1));
+  border-radius: var(--radius-card);
+  background: var(--dropdown-surface);
+  box-shadow: var(--status-shadow);
+  color: var(--ink-1);
+  font-family: var(--theme-font-family);
+  font-size: var(--theme-font-size-sm);
+}
+
+.scheduling-app #app-flash-group .flash-toast--error {
+  --flash-tone: var(--theme-danger);
+
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--flash-tone) 16%, transparent),
+      color-mix(in srgb, var(--flash-tone) 16%, transparent)
+    ),
+    var(--dropdown-surface);
+}
+
+.scheduling-app #app-flash-group .flash-toast--warning {
+  --flash-tone: var(--theme-warning);
+}
+
+.scheduling-app #app-flash-group .flash-toast-icon {
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--flash-tone) 35%, transparent);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--flash-tone) 16%, transparent);
+  box-shadow: none;
+  color: var(--flash-tone);
+}
+
+@media (max-width: 40rem) {
+  .scheduling-app #app-flash-group {
+    top: var(--space-sm);
+    inset-inline: var(--space-sm);
+  }
+
+  .scheduling-app #app-flash-group .flash-toast {
+    width: auto;
+    padding: var(--space-xs) var(--space-sm);
+  }
+}

@@ -77,7 +77,7 @@ assets/css/scheduling/themes/[theme_name]/
     └── language-switcher.css   # Language switcher (theme-specific treatment)
 ```
 
-> Components every theme shares (preview and approval notices, polls, payment return pages, guest and location fields, the questions step's tiles and option cards, language switcher structure, slot list, timezone picker, week grid, default meeting pages) are not per-theme modules: their CSS lives in `assets/css/scheduling/shared/components/`, which each `theme.css` imports, and a theme styles them by defining the tokens each file lists in its header (see [Modular Structure](#modular-structure) and [Token contract](#token-contract)).
+> Components every theme shares (preview and approval notices, the flash toast, polls, payment return pages, guest and location fields, the questions step's tiles and option cards, language switcher structure, slot list, timezone picker, week grid, default meeting pages) are not per-theme modules: their CSS lives in `assets/css/scheduling/shared/components/`, which each `theme.css` imports, and a theme styles them by defining the tokens each file lists in its header (see [Modular Structure](#modular-structure) and [Token contract](#token-contract)).
 
 > The module breakdown is **per-theme, not canonical** — themes are free to split
 > further. Quill (glassmorphism) splits its UI into `glass-card.css`, `buttons.css`,
@@ -291,6 +291,7 @@ assets/css/scheduling/
 │       ├── approval-notice.css
 │       ├── booking-fields.css    # Guest and location fields
 │       ├── custom-questions.css  # The questions step's yes/no tiles and option cards
+│       ├── flash.css             # Core's flash toast, restyled from the theme's tokens
 │       ├── language-switcher.css
 │       ├── manage-pages.css      # Default meeting pages, for a theme with a page_shell
 │       ├── payment-pages.css
@@ -495,7 +496,7 @@ The embedder can supply `data-initial-height` (px) on the container as a placeho
 ### Creating Theme CSS
 
 1. **Create theme directory**: `assets/css/scheduling/themes/your-theme/`
-2. **Create main theme.css** in the order of [Theme CSS Structure](#theme-css-structure): `../../shared/entry.css`, `./modules/variables.css`, `../../shared/tokens.css`, `./modules/base.css`, `../../shared/embed.css`, then your modules and the `shared/components/*.css` files you use. Every file in `REQUIRED_SHARED_IMPORTS` (`scripts/test_css_tokens.sh`: the entry, `tokens.css`, `embed.css` and the component files for the language switcher, preview and approval notices, booking fields, custom questions, polls and payment pages) must be among them; `mix css.check_tokens` fails, naming the file, for one left out, and for a theme with no `modules/variables.css` or no `theme.css`
+2. **Create main theme.css** in the order of [Theme CSS Structure](#theme-css-structure): `../../shared/entry.css`, `./modules/variables.css`, `../../shared/tokens.css`, `./modules/base.css`, `../../shared/embed.css`, then your modules and the `shared/components/*.css` files you use. Every file in `REQUIRED_SHARED_IMPORTS` (`scripts/test_css_tokens.sh`: the entry, `tokens.css`, `embed.css` and the component files for the language switcher, preview and approval notices, the flash toast, booking fields, custom questions, polls and payment pages) must be among them; `mix css.check_tokens` fails, naming the file, for one left out, and for a theme with no `modules/variables.css` or no `theme.css`
 3. **Create modular CSS files** in a `modules/` subdirectory — each component file is self-contained
 4. **Set container query context** on the primary content container (`container-type: inline-size; container-name: scheduling;`)
 5. **No external font imports**: point `--theme-font-family` (and `--theme-font-heading`) at a stack from `shared/fonts.css` (see *Fonts*); a new family is added there, self-hosted, never loaded from a font service
