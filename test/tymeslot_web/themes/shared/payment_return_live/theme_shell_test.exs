@@ -112,7 +112,22 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturnLive.ThemeShellTest do
         end
       end
 
-      unless ThemeTestMatrix.fetch!(theme_id).fixture do
+      if ThemeTestMatrix.fetch!(theme_id).fixture do
+        test "a locale change keeps the attendee on the payment page",
+             %{conn: conn, meeting: meeting} do
+          path = "/themes/#{unquote(slug)}/payment-processing/#{meeting.id}?session_id=cs_TEST"
+          {:ok, view, html} = live(conn, path)
+
+          assert html =~ ~s(id="language-switcher-dropdown")
+
+          assert {:error, {:redirect, %{to: to}}} =
+                   render_click(view, "change_locale", %{"locale" => "de"})
+
+          assert to ==
+                   "/themes/#{unquote(slug)}/payment-processing/#{meeting.id}" <>
+                     "?locale=de&session_id=cs_TEST"
+        end
+      else
         test "without a customisation the theme's own payment card writes no style block",
              %{conn: conn, meeting: meeting} do
           {:ok, _view, html} =

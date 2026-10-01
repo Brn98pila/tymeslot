@@ -30,6 +30,10 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturnLive.Processing do
   end
 
   @impl Phoenix.LiveView
+  def handle_event(event, params, socket),
+    do: PaymentReturn.handle_language_event(event, params, socket)
+
+  @impl Phoenix.LiveView
   def handle_info(message, socket) when message in [:paid, :expired] do
     {:noreply, PaymentReturn.refresh(socket)}
   end

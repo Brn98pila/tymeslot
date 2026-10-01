@@ -31,6 +31,7 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturn do
   alias Tymeslot.Profiles
   alias Tymeslot.ThemeCustomizations
   alias TymeslotWeb.Themes.Core.Registry, as: ThemeRegistry
+  alias TymeslotWeb.Themes.Shared.EventHandlers
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
 
   @type ctx :: %{
@@ -104,6 +105,51 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturn do
   @spec no_customization(LiveView.Socket.t()) :: LiveView.Socket.t()
   def no_customization(socket),
     do: Component.assign(socket, theme_tokens: nil, theme_customized: false)
+
+  @doc """
+  Assigns the language switcher's state: `:language_dropdown_open`, which a
+  theme shell needs to draw the switcher, and the page's own address (its
+  `path` and the `query` it must keep, such as `session_id`), which a locale
+  change redirects back to (`build_path_with_locale/2`). Both renders get
+  it, so the switcher is there from the first paint.
+  """
+  @spec assign_language_switcher(LiveView.Socket.t(), String.t(), map()) :: LiveView.Socket.t()
+  def assign_language_switcher(socket, path, query) do
+    Component.assign(socket, language_dropdown_open: false, locale_return: {path, query})
+  end
+
+  @doc """
+  The language switcher's events (`toggle_language_dropdown`,
+  `close_language_dropdown`, `change_locale`), as the booking pages handle
+  them (`EventHandlers`): a locale change is a full redirect to this page.
+  """
+  @spec handle_language_event(String.t(), map(), LiveView.Socket.t()) ::
+          {:noreply, LiveView.Socket.t()}
+  def handle_language_event("toggle_language_dropdown", _params, socket),
+    do: EventHandlers.handle_toggle_language_dropdown(socket)
+
+  def handle_language_event("close_language_dropdown", _params, socket),
+    do: EventHandlers.handle_close_language_dropdown(socket)
+
+  def handle_language_event("change_locale", %{"locale" => locale}, socket),
+    do: EventHandlers.handle_change_locale(socket, locale, __MODULE__)
+
+  def handle_language_event(_event, _params, socket), do: {:noreply, socket}
+
+  @doc "This page's address with `?locale=` set, for a locale change's redirect."
+  @spec build_path_with_locale(LiveView.Socket.t(), String.t()) :: String.t()
+  def build_path_with_locale(socket, locale) do
+    {path, query} = socket.assigns.locale_return
+    path <> "?" <> URI.encode_query(Map.put(query, "locale", locale))
+  end
+
+  @doc "A page's path from its URL segments, each escaped."
+  @spec page_path(String.t(), String.t(), String.t()) :: String.t()
+  def page_path(theme_slug, page, meeting_id) do
+    "/" <> Enum.map_join(["themes", theme_slug, page, meeting_id], "/", &escape_segment/1)
+  end
+
+  defp escape_segment(segment), do: URI.encode(segment, &URI.char_unreserved?/1)
 
   defp rebook_path(%{username: username}, meeting)
        when is_binary(username) and username != "" do
@@ -181,6 +227,13 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturn do
           theme_slug :: String.t()
         ) :: {:ok, LiveView.Socket.t()}
   def mount_payment_processing(%{"meeting_id" => meeting_id} = params, socket, theme_slug) do
+    socket =
+      assign_language_switcher(
+        socket,
+        page_path(theme_slug, "payment-processing", meeting_id),
+        Map.take(params, ["session_id"])
+      )
+
     if LiveView.connected?(socket) do
       PubSub.subscribe(Tymeslot.PubSub, topic(meeting_id))
 

@@ -18,10 +18,19 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturnLive.Cancelled do
   @impl Phoenix.LiveView
   def mount(%{"theme_slug" => slug, "meeting_id" => meeting_id}, _session, socket) do
     case PaymentReturn.assign_theme(socket, slug) do
-      {:ok, socket} -> {:ok, load(socket, meeting_id, slug)}
-      {:error, :unknown_theme} -> {:ok, redirect(socket, to: ~p"/")}
+      {:ok, socket} ->
+        path = PaymentReturn.page_path(slug, "payment-cancelled", meeting_id)
+        socket = PaymentReturn.assign_language_switcher(socket, path, %{})
+        {:ok, load(socket, meeting_id, slug)}
+
+      {:error, :unknown_theme} ->
+        {:ok, redirect(socket, to: ~p"/")}
     end
   end
+
+  @impl Phoenix.LiveView
+  def handle_event(event, params, socket),
+    do: PaymentReturn.handle_language_event(event, params, socket)
 
   @impl Phoenix.LiveView
   def render(assigns), do: assigns.theme_module.render_payment_page(assigns, :cancelled)
