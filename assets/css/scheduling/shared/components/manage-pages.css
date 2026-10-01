@@ -7,7 +7,7 @@
    payment-pages.css's). Imported by a theme that takes
    the default pages (a page_shell: in use TymeslotWeb.Themes.Core.Theme).
 
-   Tokens: the contract's --ink-1/2/3, --surface-2/3, --line-1/2,
+   Tokens: the contract's --ink-1/2, --surface-2/3, --line-1/2,
    --radius-card, --radius-control, the solid primary pair, the status
    colours, --theme-font-heading and the type scale; optional --manage-page-danger-ink (--theme-danger), the cancel
    button's ink, for a theme whose danger colour is too light as text. */
@@ -83,9 +83,12 @@
   font-size: var(--theme-font-size-md);
 }
 
+/* A sentence of body text below the details (the reschedule page's "Ready
+   to pick a new time?", the kept meeting's closing line): --ink-2, since
+   --ink-3 falls under 4.5:1 at body size. */
 .manage-page__muted {
   margin: 0;
-  color: var(--ink-3);
+  color: var(--ink-2);
   text-align: center;
 }
 
