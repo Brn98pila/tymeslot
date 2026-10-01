@@ -9,6 +9,7 @@ defmodule TymeslotWeb.ThemeTestMatrixTest do
   @moduletag :themes
   @moduletag :unit
 
+  alias Tymeslot.ThemeCustomizations.QuillSpec
   alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.ThemeTestMatrix
 
@@ -46,5 +47,11 @@ defmodule TymeslotWeb.ThemeTestMatrixTest do
     assert ThemeTestMatrix.all() != []
     assert Enum.filter(ThemeTestMatrix.all(), & &1.fixture) == []
     assert ThemeTestMatrix.ids() == Enum.map(ThemeTestMatrix.all(), & &1.id)
+  end
+
+  test "ids_where/1 keeps the shipped themes whose spec passes, in id order" do
+    assert ThemeTestMatrix.ids_where(fn _spec -> true end) == ThemeTestMatrix.ids()
+    assert ThemeTestMatrix.ids_where(fn _spec -> false end) == []
+    assert ThemeTestMatrix.ids_where(&(&1 == QuillSpec)) == ["1"]
   end
 end

@@ -4,6 +4,12 @@ defmodule Tymeslot.ThemeCustomizations.SpecTokensTest do
   `--theme-*` custom properties (its background as `--theme-canvas`), the
   background option as `--theme-background` plus a structured descriptor, and
   the per-request primary-colour override with its contrast pairs recomputed.
+
+  The palette describe stores Quill's dark preset schemes and a seed it
+  expects to stay the primary, and the background describe every background
+  kind and three of its presets, so each runs for the shipped themes whose
+  spec offers what it stores; the primary-colour override applies to any
+  palette and runs for every shipped theme.
   """
   use ExUnit.Case, async: true
 
@@ -33,21 +39,40 @@ defmodule Tymeslot.ThemeCustomizations.SpecTokensTest do
     }
   end
 
-  # The palette and background pins below read the dark preset schemes and
-  # the background presets Quill and Rhythm offer, so they run for the themes
-  # whose spec offers them; a light theme's tokens are pinned by its own spec
-  # test. The primary-colour override further down holds for every theme.
-  @dark_palette_themes Enum.filter(ThemeTestMatrix.ids(), fn theme_id ->
-                         spec = Specs.for_theme(theme_id)
-                         palette = Specs.group(spec, Palette)
+  # The palette describe stores "default", "purple" and "turquoise", expects
+  # a custom seed to stay the primary (a dark-seeded palette; a light seed is
+  # refitted) and an empty dark set (a palette that does not follow the
+  # visitor's OS). A theme without that shape is pinned by its own spec test.
+  @dark_palette_themes ThemeTestMatrix.ids_where(fn spec ->
+                         case Specs.group(spec, Palette) do
+                           %{schemes: schemes} = group ->
+                             Enum.all?(~w(default purple turquoise), &(&1 in schemes)) and
+                               Map.get(group, :seed_mode, :dark) == :dark and
+                               not Map.get(group, :follow_os, false)
 
-                         palette != nil and Specs.group(spec, Background) != nil and
-                           Enum.all?(~w(purple turquoise), &(&1 in palette.schemes))
+                           nil ->
+                             false
+                         end
                        end)
 
-  # The loop below would pass untested over an empty list.
-  if @dark_palette_themes == [],
-    do: raise("no shipped theme offers the dark preset schemes and a background")
+  # The background describe stores every kind, the gradient_2 gradient, the
+  # ocean-sunset image and the blue-wave video.
+  @background_themes ThemeTestMatrix.ids_where(fn spec ->
+                       case Specs.group(spec, Background) do
+                         %{kinds: kinds} = group ->
+                           Enum.all?([:gradient, :color, :image, :video], &(&1 in kinds)) and
+                             "gradient_2" in group.gradients and
+                             "preset:ocean-sunset" in group.images and
+                             "preset:blue-wave" in group.videos
+
+                         nil ->
+                           false
+                       end
+                     end)
+
+  # Either loop below would pass untested over an empty list.
+  if @dark_palette_themes == [] or @background_themes == [],
+    do: raise("no shipped theme offers Quill's dark preset schemes, or every background kind")
 
   for theme_id <- @dark_palette_themes do
     @theme_id theme_id
@@ -99,6 +124,10 @@ defmodule Tymeslot.ThemeCustomizations.SpecTokensTest do
         assert dark_vars == %{}
       end
     end
+  end
+
+  for theme_id <- @background_themes do
+    @theme_id theme_id
 
     describe "theme #{theme_id}: background" do
       test "a gradient is both the --theme-background var and the descriptor" do

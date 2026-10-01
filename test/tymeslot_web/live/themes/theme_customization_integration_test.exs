@@ -105,11 +105,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
       conn: conn,
       profile: profile
     } do
-      image_themes =
-        Enum.filter(
-          ThemeTestMatrix.ids(),
-          &Specs.supports_background?(Specs.for_theme(&1), :image)
-        )
+      image_themes = ThemeTestMatrix.ids_where(&Specs.supports_background?(&1, :image))
 
       assert image_themes != []
 

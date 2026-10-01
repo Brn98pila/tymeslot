@@ -13,6 +13,12 @@ defmodule TymeslotWeb.ThemeTestMatrix do
   contract and no stylesheet; the suites that hold a theme to the contract
   iterate those instead.
 
+  `ids_where/1` narrows `ids/0` to the themes whose customisation spec passes
+  a predicate, for a suite that stores one option group's settings (a preset
+  scheme, a background kind) and so means only the themes that offer them.
+  The spec decides, not a field here, so the filter cannot disagree with what
+  the theme renders.
+
   Fields:
 
     * `:id`, `:key` - as in the catalogue.
@@ -33,6 +39,8 @@ defmodule TymeslotWeb.ThemeTestMatrix do
     * `:fixture` - a test-only theme: left out of `all/0`, and so of every
       flow suite and the e2e embed matrix.
   """
+
+  alias Tymeslot.Themes.Catalog
 
   @type entry :: %{
           id: String.t(),
@@ -100,6 +108,19 @@ defmodule TymeslotWeb.ThemeTestMatrix do
   @doc "Every shipped theme id, in numeric order."
   @spec ids() :: [String.t()]
   def ids, do: Enum.map(all(), & &1.id)
+
+  @doc """
+  The shipped theme ids whose customisation spec passes `fun`, in numeric
+  order: for a suite that exercises one option group's settings and so runs
+  only for the themes that offer them.
+  """
+  @spec ids_where((module() -> boolean())) :: [String.t()]
+  def ids_where(fun) when is_function(fun, 1) do
+    Enum.filter(ids(), fn id ->
+      {:ok, spec} = Catalog.customization_spec(id)
+      fun.(spec)
+    end)
+  end
 
   @doc "Every registered theme's entry, fixtures included, in numeric id order."
   @spec registered() :: [entry()]
