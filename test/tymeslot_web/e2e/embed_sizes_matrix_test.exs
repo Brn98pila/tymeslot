@@ -387,8 +387,9 @@ defmodule TymeslotWeb.E2E.EmbedSizesMatrixTest do
   end
 
   # Guards the wide-short schedule fix: the layout must not let the calendar
-  # overflow its card and paint over the actions row. A week grid's first time
-  # stands in for the calendar's first day.
+  # overflow its card and paint over the actions row. A week grid's navigation
+  # row stands in for the calendar's first day: it sits at the top of the
+  # picker, as that day does, and is there before the week's times load.
   defp assert_no_actions_calendar_overlap(session, context) do
     me = self()
     ref = make_ref()
@@ -397,8 +398,7 @@ defmodule TymeslotWeb.E2E.EmbedSizesMatrixTest do
       session,
       """
       const actions = document.querySelector("[data-testid='schedule-actions']");
-      // A week grid is on the page from its first render, before its slots load.
-      const day = document.querySelector("[data-testid='calendar-day'], [data-testid='week-grid']");
+      const day = document.querySelector("[data-testid='calendar-day'], .week-grid__nav");
       if (!actions || !day) return "missing";
       const a = actions.getBoundingClientRect(), c = day.getBoundingClientRect();
       // overlap iff the rects intersect on both axes
@@ -411,7 +411,7 @@ defmodule TymeslotWeb.E2E.EmbedSizesMatrixTest do
 
     # Nothing to compare would let the check pass without testing anything.
     refute overlap == "missing",
-           "#{context}: no schedule actions row, or neither calendar days nor a week grid"
+           "#{context}: no schedule actions row, or neither calendar days nor a week grid's navigation"
 
     refute overlap,
            "The schedule actions row overlaps the calendar at #{context} — the " <>
