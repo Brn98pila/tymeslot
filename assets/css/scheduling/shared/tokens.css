@@ -9,7 +9,7 @@
         --theme-primary  --theme-primary-hover  --theme-secondary
         --theme-accent   --theme-on-primary     --theme-primary-solid
         --theme-primary-solid-hover  --theme-on-accent  --theme-accent-solid
-        --theme-text     --theme-text-secondary
+        --theme-text     --theme-text-secondary  --theme-canvas
         --theme-success  --theme-warning  --theme-danger  --theme-info
         --shadow-geometry-sm  --shadow-geometry-md  --shadow-geometry-lg
           (offset and blur only; the colour is mixed below)
