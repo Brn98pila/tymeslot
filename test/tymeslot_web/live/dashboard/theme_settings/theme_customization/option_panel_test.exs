@@ -18,7 +18,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
   alias Tymeslot.ThemeCustomizations.Options.Palette
   alias Tymeslot.ThemeCustomizations.Options.Radius
   alias Tymeslot.ThemeCustomizations.PaletteDerivation
-  alias Tymeslot.ThemeCustomizations.Presets
+  alias Tymeslot.ThemeCustomizations.Presets.ColourSchemes
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Components
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panels
@@ -122,10 +122,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
 
     assert Enum.all?(swatches, &(length(&1) == 3))
     assert length(Enum.uniq(swatches)) == 3
-    assert Enum.uniq(Enum.concat(swatches)) |> length() == 9
+    assert swatches |> Enum.concat() |> Enum.uniq() |> length() == 9
 
     [neutral | _] = swatches
-    tone = Presets.ColourSchemes.all()["neutral"]
+    tone = ColourSchemes.all()["neutral"]
 
     assert neutral == [
              "background-color: #{tone.colors.background}",
@@ -136,7 +136,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
 
   test "the schemes of a group without follow_os keep their primary, secondary and accent" do
     html = render_panel(%{key: :palette, module: Palette, schemes: ~w(neutral)})
-    tone = Presets.ColourSchemes.all()["neutral"]
+    tone = ColourSchemes.all()["neutral"]
 
     assert html =~ "background-color: #{tone.colors.primary}"
     assert html =~ "background-color: #{tone.colors.accent}"
