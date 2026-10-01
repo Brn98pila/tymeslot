@@ -124,7 +124,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.OptionPanelTest
     assert length(Enum.uniq(swatches)) == 3
     assert swatches |> Enum.concat() |> Enum.uniq() |> length() == 9
 
-    [neutral | _] = swatches
+    [neutral | _others] = swatches
     tone = ColourSchemes.all()["neutral"]
 
     assert neutral == [
