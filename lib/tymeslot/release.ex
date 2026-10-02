@@ -76,14 +76,21 @@ defmodule Tymeslot.Release do
     ensure_started()
 
     with {:ok, user} <- UserQueries.get_user_by_email(email),
-         {:ok, _pending} <- Auth.delete_account_now(:cli, user.id, force: force?) do
+         {:ok, _pending} <-
+           Auth.delete_account_now(:cli, user.id, force: force?, job_at: fallback_job_at()) do
       case Auth.run_scheduled_deletion(user.id) do
-        {:ok, _outcome} -> {:ok, :deleted}
+        {:ok, outcome} when outcome in [:deleted, :already_deleted] -> {:ok, :deleted}
+        {:ok, outcome} -> {:error, outcome}
         {:snooze, _seconds} -> {:error, :not_due}
         {:error, reason} -> {:error, reason}
       end
     end
   end
+
+  # The deletion runs synchronously, so the queued job is only the retry if
+  # that fails. Queued for now, Oban would race the synchronous run and do
+  # the cleanup and the hook twice; on success it finds the account gone.
+  defp fallback_job_at, do: DateTime.add(DateTime.utc_now(:second), 5, :minute)
 
   # Checked here too (rather than relying solely on `AdminRoles.demote/2`'s
   # own check) so it runs before the last-admin guard below, keeping the

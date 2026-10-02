@@ -15,8 +15,9 @@ defmodule Tymeslot.Auth.AccountDeletion.Operator do
 
   The account is marked pending with `scheduled_at` now, replacing any
   self-service schedule and its waiting job, every session ends, and the
-  deletion job is queued to run at once. No notice is emailed: the operator
-  owns that conversation.
+  deletion job is queued to run at once, or at the `:job_at` option when the
+  caller deletes synchronously itself and keeps the job only as a retry. No
+  notice is emailed: the operator owns that conversation.
   """
 
   require Logger
@@ -34,7 +35,7 @@ defmodule Tymeslot.Auth.AccountDeletion.Operator do
   def delete_now(actor, target_user_id, opts \\ []) do
     with :ok <- ensure_admin_ui(actor),
          {:ok, {pending, session_hashes}} <-
-           schedule_now(actor, target_user_id, Keyword.get(opts, :force, false)) do
+           schedule_now(actor, target_user_id, Keyword.get(opts, :force, false), opts[:job_at]) do
       Session.disconnect_sessions(session_hashes)
 
       Logger.info("Account deletion started by an operator",
@@ -47,7 +48,7 @@ defmodule Tymeslot.Auth.AccountDeletion.Operator do
     end
   end
 
-  defp schedule_now(actor, target_user_id, force?) do
+  defp schedule_now(actor, target_user_id, force?, job_at) do
     now = DateTime.utc_now(:second)
 
     Repo.transaction(fn ->
@@ -60,7 +61,7 @@ defmodule Tymeslot.Auth.AccountDeletion.Operator do
            {:ok, pending} <-
              UserQueries.mark_deletion_scheduled(target, target.deletion_requested_at || now, now),
            {_count, nil} <- Jobs.delete_user_jobs(AccountDeletionWorker, target.id),
-           {:ok, _job} <- AccountDeletionWorker.schedule(target.id, now) do
+           {:ok, _job} <- AccountDeletionWorker.schedule(target.id, job_at || now) do
         {pending, Session.delete_session_rows(pending.id)}
       else
         {:error, reason} -> Repo.rollback(reason)
