@@ -13,6 +13,7 @@ defmodule Tymeslot.Auth.AccountDeletion do
   alias Tymeslot.Auth.AccountDeletion.Hook
   alias Tymeslot.Auth.{Session, UserQueries, UserSchema, UserSessionQueries}
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Jobs
   alias Tymeslot.MeetingPayments
   alias Tymeslot.Profiles
   alias Tymeslot.Repo
@@ -48,18 +49,29 @@ defmodule Tymeslot.Auth.AccountDeletion do
   A file that cannot be removed is logged and does not fail the deletion,
   which has already happened.
 
-  With `only_if_pending: true` the row is deleted only if, under a row lock,
-  it is still pending deletion; otherwise `{:error, :not_pending}`.
+  Options:
+
+    * `only_if_pending: true`: the row is deleted only if, under a row lock,
+      it is pending and due (`deletion_scheduled_at` set and not in the
+      future); otherwise `{:error, :not_pending}`. The grace period ends at
+      `deletion_scheduled_at`, so a due account is past restoring.
+    * `meeting_ids: ids`: inside the same transaction, every job still
+      waiting that names the user or one of these meetings is deleted, so a
+      committed deletion never leaves such a job behind (and a rolled-back one
+      never loses them).
+
+  A user already gone yields `{:error, :not_found}` under `only_if_pending: true`.
   """
   @spec delete_account(UserSchema.t(), keyword()) ::
-          {:ok, UserSchema.t()} | {:error, :not_pending | Ecto.Changeset.t() | term()}
+          {:ok, UserSchema.t()}
+          | {:error, :not_pending | :not_found | Ecto.Changeset.t() | term()}
   def delete_account(%UserSchema{} = user, opts \\ []) do
     with :ok <- Hook.deleted(user.id) do
       # Resolved before the delete: the cascade removes the row that knows it.
       profile = Profiles.get_profile(user.id)
 
       user
-      |> run_deletion_transaction(Keyword.get(opts, :only_if_pending, false))
+      |> run_deletion_transaction(opts)
       |> log_transaction_failure(user.id)
       |> disconnect_sessions()
       |> delete_uploaded_files(profile)
@@ -69,12 +81,13 @@ defmodule Tymeslot.Auth.AccountDeletion do
   # The session rows go with the user by FK cascade; their hashes are read
   # first, inside the same transaction, so the live sockets bound to them can
   # be told to disconnect once the deletion has committed.
-  defp run_deletion_transaction(user, only_if_pending?) do
+  defp run_deletion_transaction(user, opts) do
     Repo.transaction(fn ->
-      with :ok <- confirm_still_pending(user.id, only_if_pending?),
+      with :ok <- confirm_due_for_deletion(user.id, Keyword.get(opts, :only_if_pending, false)),
            session_hashes = UserSessionQueries.list_user_session_token_hashes(user.id),
            :ok <- MeetingPayments.anonymise_host(user.id),
            {:ok, deleted} <- UserQueries.delete_user_row(user) do
+        clear_pending_jobs(user.id, Keyword.get(opts, :meeting_ids))
         {deleted, session_hashes}
       else
         {:error, reason} -> Repo.rollback(reason)
@@ -82,15 +95,32 @@ defmodule Tymeslot.Auth.AccountDeletion do
     end)
   end
 
-  # A restore locks the same row, so it either commits before this check (and
-  # the deletion stops) or waits until the row is gone.
-  defp confirm_still_pending(_user_id, false), do: :ok
+  defp clear_pending_jobs(_user_id, nil), do: :ok
 
-  defp confirm_still_pending(user_id, true) do
+  defp clear_pending_jobs(user_id, meeting_ids) do
+    Jobs.delete_pending_account_jobs(user_id, meeting_ids)
+    :ok
+  end
+
+  # A restore locks the same row, so it either commits before this check (and
+  # the deletion stops) or waits until the row is gone. The date is checked as
+  # well as its presence: a restore followed by a fresh request leaves the
+  # account pending but with a new, later date, and its grace period is not
+  # over.
+  defp confirm_due_for_deletion(_user_id, false), do: :ok
+
+  defp confirm_due_for_deletion(user_id, true) do
     case UserQueries.get_user_for_update(user_id) do
-      {:ok, %UserSchema{deletion_scheduled_at: %DateTime{}}} -> :ok
-      {:ok, _restored} -> {:error, :not_pending}
-      {:error, :not_found} -> {:error, :not_found}
+      {:ok, %UserSchema{deletion_scheduled_at: %DateTime{} = at}} ->
+        if DateTime.compare(at, DateTime.utc_now()) == :gt,
+          do: {:error, :not_pending},
+          else: :ok
+
+      {:ok, _restored} ->
+        {:error, :not_pending}
+
+      {:error, :not_found} ->
+        {:error, :not_found}
     end
   end
 
@@ -105,10 +135,17 @@ defmodule Tymeslot.Auth.AccountDeletion do
 
   defp log_transaction_failure({:error, :not_pending} = error, user_id) do
     Logger.warning(
-      "Account restored while its deletion was running; the deletion hook had already run",
+      "Account restored or rescheduled while its deletion was running; " <>
+        "the deletion hook had already run",
       user_id: user_id
     )
 
+    error
+  end
+
+  # Deleted by someone else between the read and the lock: nothing failed.
+  defp log_transaction_failure({:error, :not_found} = error, user_id) do
+    Logger.info("Account already deleted when its deletion transaction ran", user_id: user_id)
     error
   end
 

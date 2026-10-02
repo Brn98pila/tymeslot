@@ -9,7 +9,8 @@ defmodule Tymeslot.Workers.AccountDeletionWorker do
   sweep never queues a second one; a restore deletes the waiting job. A
   refusal from the deletion hook (billing unreachable, say) is retried with
   Oban's backoff, and once the attempts run out the sweep tries again the
-  next day.
+  next day. A deletion re-requested while the old job is still executing
+  conflicts with it, and gets its job from the next sweep.
   """
 
   use Oban.Worker,

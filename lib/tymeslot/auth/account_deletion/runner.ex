@@ -9,10 +9,18 @@ defmodule Tymeslot.Auth.AccountDeletion.Runner do
     2. the meeting ids, read before the cascade removes the meetings;
     3. `AccountDeletion.delete_account/2` with `only_if_pending: true`: the
        deletion hook (whose refusal makes the job retry), then one
-       transaction that re-checks the account is still pending under a row
-       lock and deletes it;
-    4. every pending job naming the user or one of those meetings, so no
-       reminder outlives the account with a guest's address in its args.
+       transaction that re-checks under a row lock that the account is still
+       pending and due, deletes it and, in that same transaction, every
+       pending job naming the user or one of those meetings, so no reminder
+       outlives the account with a guest's address in its args.
+
+  The grace period ends at `deletion_scheduled_at`: from then on the account
+  can no longer be restored, so the irreversible steps never run for one that
+  can. A restore and re-request that lands a later date before the lock makes
+  the run stop with `:not_pending`; the new request's own job (or the sweep)
+  handles that date. Likewise a re-request made while the old job is still
+  executing gets its job from the next sweep, as the worker's uniqueness
+  covers the running job.
 
   Guests are never told: no cancellation email, webhook, Slack or Telegram
   message goes out for the meetings this removes.
@@ -23,7 +31,6 @@ defmodule Tymeslot.Auth.AccountDeletion.Runner do
   alias Tymeslot.Auth.AccountDeletion
   alias Tymeslot.Auth.AccountDeletion.ExternalCleanup
   alias Tymeslot.Auth.{UserQueries, UserSchema}
-  alias Tymeslot.Jobs
   alias Tymeslot.Meetings
   alias Tymeslot.Workers.AccountDeletionWorker
 
@@ -54,14 +61,16 @@ defmodule Tymeslot.Auth.AccountDeletion.Runner do
     ExternalCleanup.run(user)
     meeting_ids = Meetings.list_meeting_ids_for_organizer(user.id)
 
-    case AccountDeletion.delete_account(user, only_if_pending: true) do
+    case AccountDeletion.delete_account(user, only_if_pending: true, meeting_ids: meeting_ids) do
       {:ok, _deleted} ->
-        Jobs.delete_pending_account_jobs(user.id, meeting_ids)
         Logger.info("Account deleted", user_id: user.id)
         {:ok, :deleted}
 
       {:error, :not_pending} ->
         {:ok, :not_pending}
+
+      {:error, :not_found} ->
+        {:ok, :already_deleted}
 
       {:error, reason} ->
         {:error, reason}
@@ -70,13 +79,15 @@ defmodule Tymeslot.Auth.AccountDeletion.Runner do
 
   @doc """
   Queues a deletion job for every overdue account, at most
-  #{@sweep_batch_size} per run. An account whose job is still waiting gets no
-  second one (the worker is unique per user). Returns how many were queued.
+  #{@sweep_batch_size} per run. An account that already has an incomplete job
+  is skipped in the query itself (the worker is unique per user, but counting
+  such accounts against the batch would let the oldest 500 starve the rest).
+  Returns how many were queued.
   """
-  @spec enqueue_overdue(DateTime.t()) :: non_neg_integer()
-  def enqueue_overdue(now \\ DateTime.utc_now()) do
+  @spec enqueue_overdue(DateTime.t(), pos_integer()) :: non_neg_integer()
+  def enqueue_overdue(now \\ DateTime.utc_now(), batch_size \\ @sweep_batch_size) do
     now
-    |> UserQueries.list_due_deletion_ids(@sweep_batch_size)
+    |> UserQueries.list_due_deletion_ids(batch_size, AccountDeletionWorker)
     |> Enum.count(fn user_id ->
       match?({:ok, %Oban.Job{conflict?: false}}, AccountDeletionWorker.schedule(user_id, now))
     end)

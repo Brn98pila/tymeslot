@@ -10,6 +10,8 @@ defmodule Tymeslot.Auth.UserQueries do
   import Ecto.Query, warn: false
 
   alias Ecto.Changeset
+  alias Oban.Job
+  alias Oban.Worker
   alias Tymeslot.Auth.UserSchema
   alias Tymeslot.Repo
 
@@ -276,15 +278,39 @@ defmodule Tymeslot.Auth.UserQueries do
   @doc """
   Ids of up to `limit` accounts whose deletion was due at or before `now`,
   the longest overdue first.
+
+  With `queued_worker` (an Oban worker module), accounts that already have an
+  incomplete job of that worker are left out. Without it, the oldest `limit`
+  accounts whose jobs are merely waiting or retrying would fill every call
+  and starve the overdue accounts behind them.
   """
-  @spec list_due_deletion_ids(DateTime.t(), pos_integer()) :: [integer()]
-  def list_due_deletion_ids(%DateTime{} = now, limit) do
-    UserSchema
+  @spec list_due_deletion_ids(DateTime.t(), pos_integer(), module() | nil) :: [integer()]
+  def list_due_deletion_ids(%DateTime{} = now, limit, queued_worker \\ nil) do
+    from(u in UserSchema, as: :user_row)
     |> where([u], u.deletion_scheduled_at <= ^now)
+    |> without_incomplete_job(queued_worker)
     |> order_by([u], asc: u.deletion_scheduled_at, asc: u.id)
     |> limit(^limit)
     |> select([u], u.id)
     |> Repo.all()
+  end
+
+  defp without_incomplete_job(query, nil), do: query
+
+  defp without_incomplete_job(query, worker) do
+    worker_name = Worker.to_string(worker)
+
+    where(
+      query,
+      [u],
+      not exists(
+        from(j in Job,
+          where: j.worker == ^worker_name,
+          where: j.state in ["available", "scheduled", "executing", "retryable", "suspended"],
+          where: fragment("?->>'user_id' = ?::text", j.args, parent_as(:user_row).id)
+        )
+      )
+    )
   end
 
   @doc """

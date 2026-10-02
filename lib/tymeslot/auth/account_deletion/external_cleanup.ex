@@ -39,7 +39,11 @@ defmodule Tymeslot.Auth.AccountDeletion.ExternalCleanup do
     Enum.each(steps, fn {step, fun} -> run_step(step, user_id, fun) end)
   end
 
-  defp run_step(step, user_id, fun) do
+  # Public only so the `{:error, _}` branch can be tested: no real step returns
+  # one except a failed payments transaction, which cannot be provoked cleanly.
+  @doc false
+  @spec run_step(atom(), integer(), (-> term())) :: :ok
+  def run_step(step, user_id, fun) do
     case fun.() do
       {:error, reason} -> log_failure(step, user_id, reason)
       _done -> :ok
