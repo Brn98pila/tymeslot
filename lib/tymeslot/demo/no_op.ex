@@ -35,6 +35,9 @@ defmodule Tymeslot.Demo.NoOp do
   def demo_username?(_username), do: false
 
   @impl Tymeslot.Demo.Behaviour
+  def reserved_username?(_username), do: false
+
+  @impl Tymeslot.Demo.Behaviour
   def demo_profile?(_profile), do: false
 
   @impl Tymeslot.Demo.Behaviour

@@ -27,6 +27,13 @@ defmodule Tymeslot.Demo.Behaviour do
   @callback demo_username?(username :: String.t() | any()) :: boolean()
 
   @doc """
+  Whether `username` is one the demo provider serves, so no organiser may
+  choose it: a real profile under it would have its booking page replaced by
+  demo content.
+  """
+  @callback reserved_username?(username :: String.t()) :: boolean()
+
+  @doc """
   Checks if a profile is a demo profile.
   """
   @callback demo_profile?(profile :: map() | nil) :: boolean()
