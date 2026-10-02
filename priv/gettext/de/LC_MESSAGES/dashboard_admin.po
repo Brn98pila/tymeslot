@@ -670,7 +670,7 @@ msgstr "%{email} löschen"
 #: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Delete %{email} and all their data now?"
-msgstr "%{email} und alle Daten jetzt löschen?"
+msgstr "%{email} und alle zugehörigen Daten jetzt löschen?"
 
 #: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #, elixir-autogen, elixir-format
@@ -685,7 +685,7 @@ msgstr "%{email} wird gelöscht. Das Konto verschwindet aus dieser Liste, sobald
 #: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Deleting..."
-msgstr "Wird gelöscht …"
+msgstr "Wird gelöscht…"
 
 #: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #, elixir-autogen, elixir-format

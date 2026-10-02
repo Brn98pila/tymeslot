@@ -650,12 +650,12 @@ msgstr "Generale"
 #: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Cannot delete the last admin. Promote someone else first."
-msgstr "Impossibile eliminare l’ultimo amministratore. Promuovi prima un’altra persona."
+msgstr "Impossibile eliminare l'ultimo amministratore. Promuovi prima un altro utente ad amministratore."
 
 #: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Could not delete user."
-msgstr "Impossibile eliminare l’utente."
+msgstr "Impossibile eliminare l'utente."
 
 #: lib/tymeslot_web/live/admin_live/components/users.ex
 #, elixir-autogen, elixir-format
@@ -680,7 +680,7 @@ msgstr "Elimina utente"
 #: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Deleting %{email}. The account leaves this list once the deletion has run."
-msgstr "Eliminazione di %{email} in corso. L’account scomparirà da questo elenco quando l’eliminazione sarà completata."
+msgstr "Eliminazione di %{email} in corso. L'account scomparirà da questo elenco quando l'eliminazione sarà completata."
 
 #: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #, elixir-autogen, elixir-format
@@ -695,7 +695,7 @@ msgstr "Questa azione non può essere annullata. Le prenotazioni vengono elimina
 #: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "You cannot delete your own account here. Use your account settings instead."
-msgstr "Qui non puoi eliminare il tuo account. Usa invece le impostazioni dell’account."
+msgstr "Qui non puoi eliminare il tuo account. Usa invece le impostazioni dell'account."
 
 #: lib/tymeslot_web/live/admin_live/components/users.ex
 #, elixir-autogen, elixir-format

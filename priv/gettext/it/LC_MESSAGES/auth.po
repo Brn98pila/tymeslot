@@ -953,7 +953,7 @@ msgstr "Esci"
 #: lib/tymeslot_web/controllers/auth/account_restore_controller.ex
 #, elixir-autogen, elixir-format
 msgid "Welcome back. Your account has been restored and will not be deleted."
-msgstr "Bentornato. Il tuo account è stato ripristinato e non verrà eliminato."
+msgstr "Ti diamo il bentornato. Il tuo account è stato ripristinato e non verrà eliminato."
 
 #: lib/tymeslot_web/controllers/auth/account_restore_controller.ex
 #, elixir-autogen, elixir-format

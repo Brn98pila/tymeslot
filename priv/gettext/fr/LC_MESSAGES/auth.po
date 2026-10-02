@@ -953,7 +953,7 @@ msgstr "Se déconnecter"
 #: lib/tymeslot_web/controllers/auth/account_restore_controller.ex
 #, elixir-autogen, elixir-format
 msgid "Welcome back. Your account has been restored and will not be deleted."
-msgstr "Bon retour. Votre compte a été restauré et ne sera pas supprimé."
+msgstr "Bon retour parmi nous. Votre compte a été restauré et ne sera pas supprimé."
 
 #: lib/tymeslot_web/controllers/auth/account_restore_controller.ex
 #, elixir-autogen, elixir-format

@@ -265,12 +265,12 @@ msgstr "Інша причина"
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Anything else you would like to tell us? (optional)"
-msgstr "Хочете ще щось нам повідомити? (необов’язково)"
+msgstr "Хочете ще щось нам повідомити? (необов'язково)"
 
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Calendar events and video links that already exist stay as they are. If a meeting will not take place, contact your guests yourself."
-msgstr "Наявні події календаря та відеопосилання залишаться без змін. Якщо зустріч не відбудеться, зв’яжіться зі своїми гостями самостійно."
+msgstr "Наявні події календаря та відеопосилання залишаться без змін. Якщо зустріч не відбудеться, зв'яжіться зі своїми гостями самостійно."
 
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
@@ -300,7 +300,7 @@ msgstr "Негайно видаліть свій обліковий запис �
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Deleting..."
-msgstr "Видалення"
+msgstr "Видалення…"
 
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
@@ -310,7 +310,7 @@ msgstr "Він мені більше не потрібен"
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
 msgid "I switched to another tool"
-msgstr "Я перейшов на інший інструмент"
+msgstr "Тепер користуюся іншим інструментом"
 
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
@@ -355,7 +355,7 @@ msgstr "Майбутні бронювання видаляються з Tymeslot
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Why are you leaving? (optional)"
-msgstr "Чому ви йдете? (необов’язково)"
+msgstr "Чому ви йдете? (необов'язково)"
 
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format

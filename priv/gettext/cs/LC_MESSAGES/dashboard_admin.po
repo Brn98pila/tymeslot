@@ -650,7 +650,7 @@ msgstr "Obecné"
 #: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Cannot delete the last admin. Promote someone else first."
-msgstr "Posledního správce nelze smazat. Nejprve povyšte někoho jiného."
+msgstr "Posledního správce nelze smazat. Nejprve udělejte správcem někoho jiného."
 
 #: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
@@ -665,12 +665,12 @@ msgstr "Smazat"
 #: lib/tymeslot_web/live/admin_live/components/users.ex
 #, elixir-autogen, elixir-format
 msgid "Delete %{email}"
-msgstr "Smazat %{email}"
+msgstr "Smazat účet %{email}"
 
 #: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Delete %{email} and all their data now?"
-msgstr "Smazat %{email} a všechna jeho data nyní?"
+msgstr "Smazat nyní účet %{email} a všechna jeho data?"
 
 #: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #, elixir-autogen, elixir-format
@@ -685,7 +685,7 @@ msgstr "Účet %{email} se maže. Z tohoto seznamu zmizí po dokončení smazán
 #: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Deleting..."
-msgstr "Maže se…"
+msgstr "Mazání…"
 
 #: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #, elixir-autogen, elixir-format

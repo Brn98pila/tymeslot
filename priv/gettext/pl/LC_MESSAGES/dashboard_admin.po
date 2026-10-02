@@ -646,7 +646,7 @@ msgstr "Ogólne"
 #: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Cannot delete the last admin. Promote someone else first."
-msgstr "Nie można usunąć ostatniego administratora. Najpierw awansuj kogoś innego."
+msgstr "Nie można usunąć ostatniego administratora. Najpierw nadaj uprawnienia administratora komuś innemu."
 
 #: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
@@ -661,12 +661,12 @@ msgstr "Usuń"
 #: lib/tymeslot_web/live/admin_live/components/users.ex
 #, elixir-autogen, elixir-format
 msgid "Delete %{email}"
-msgstr "Usuń %{email}"
+msgstr "Usuń konto %{email}"
 
 #: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Delete %{email} and all their data now?"
-msgstr "Usunąć teraz %{email} i wszystkie jego dane?"
+msgstr "Usunąć teraz konto %{email} i wszystkie jego dane?"
 
 #: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #, elixir-autogen, elixir-format
@@ -686,7 +686,7 @@ msgstr "Usuwanie…"
 #: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #, elixir-autogen, elixir-format
 msgid "This cannot be undone. Their bookings are deleted and their guests are not notified; existing calendar events and video links stay as they are."
-msgstr "Tej operacji nie można cofnąć. Rezerwacje zostaną usunięte, a goście nie zostaną powiadomieni; istniejące wydarzenia w kalendarzu i linki wideo pozostaną bez zmian."
+msgstr "Tej operacji nie można cofnąć. Rezerwacje tej osoby zostaną usunięte, a jej goście nie zostaną powiadomieni; istniejące wydarzenia w kalendarzu i linki do spotkań wideo pozostaną bez zmian."
 
 #: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format

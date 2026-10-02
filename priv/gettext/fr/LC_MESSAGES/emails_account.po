@@ -603,7 +603,7 @@ msgstr "Comme vous l’avez demandé, votre compte Tymeslot sera supprimé le %{
 #: lib/tymeslot/emails/templates/account_deletion_notice.ex
 #, elixir-autogen, elixir-format
 msgid "Everything in it is gone."
-msgstr "Tout ce qu’il contenait a disparu."
+msgstr "Tout son contenu a été supprimé."
 
 #: lib/tymeslot/emails/templates/account_deletion_notice.ex
 #, elixir-autogen, elixir-format
@@ -638,17 +638,17 @@ msgstr "Votre compte a été supprimé"
 #: lib/tymeslot/emails/templates/account_deletion_notice.ex
 #, elixir-autogen, elixir-format
 msgid "Your account is scheduled for deletion"
-msgstr "Votre compte est programmé pour suppression"
+msgstr "La suppression de votre compte est programmée"
 
 #: lib/tymeslot/emails/templates/account_deletion_notice.ex
 #, elixir-autogen, elixir-format
 msgid "Your upcoming bookings have been deleted from Tymeslot. Your guests were not notified. Calendar events and video links that already exist have been left as they are. If a meeting will not take place, please contact your guests yourself."
-msgstr "Vos réservations à venir ont été supprimées de Tymeslot. Vos invités n’ont pas été prévenus. Les événements de calendrier et les liens vidéo déjà créés ont été laissés tels quels. Si une réunion n’a pas lieu, veuillez prévenir vous-même vos invités."
+msgstr "Vos réservations à venir ont été supprimées de Tymeslot. Vos invités n’ont pas été prévenus. Les événements de calendrier et les liens vidéo déjà créés ont été laissés tels quels. Si une réunion ne doit pas avoir lieu, veuillez contacter vous-même vos invités."
 
 #: lib/tymeslot/emails/templates/account_deletion_notice.ex
 #, elixir-autogen, elixir-format
 msgid "Your upcoming bookings will be deleted from Tymeslot with your account. Your guests will not be notified. Calendar events and video links that already exist will stay as they are. If a meeting will not take place, please contact your guests yourself."
-msgstr "Vos réservations à venir seront supprimées de Tymeslot avec votre compte. Vos invités ne seront pas prévenus. Les événements de calendrier et les liens vidéo déjà créés resteront tels quels. Si une réunion n’a pas lieu, veuillez prévenir vous-même vos invités."
+msgstr "Vos réservations à venir seront supprimées de Tymeslot avec votre compte. Vos invités ne seront pas prévenus. Les événements de calendrier et les liens vidéo déjà créés resteront tels quels. Si une réunion ne doit pas avoir lieu, veuillez contacter vous-même vos invités."
 
 #: lib/tymeslot/emails/templates/signup_attempt_notice.ex
 #, elixir-autogen, elixir-format

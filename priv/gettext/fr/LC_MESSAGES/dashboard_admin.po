@@ -650,7 +650,7 @@ msgstr "Général"
 #: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Cannot delete the last admin. Promote someone else first."
-msgstr "Impossible de supprimer le dernier administrateur. Promouvez d’abord quelqu’un d’autre."
+msgstr "Impossible de supprimer le dernier administrateur. Nommez d’abord un autre administrateur."
 
 #: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format

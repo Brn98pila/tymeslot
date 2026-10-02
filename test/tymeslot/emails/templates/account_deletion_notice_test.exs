@@ -39,6 +39,22 @@ defmodule Tymeslot.Emails.Templates.AccountDeletionNoticeTest do
     end)
   end
 
+  test "a German recipient gets the notice in German, with the date in German form" do
+    recipient = %{@recipient | locale: "de"}
+
+    Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+      text = AccountDeletionNotice.render_text(recipient, @at, "https://example.com/auth/login")
+      html = AccountDeletionNotice.render(recipient, @at, "https://example.com/auth/login")
+
+      assert text =~ "Ihr Tymeslot-Konto am 16. Oktober 2026 gelöscht"
+      assert text =~ "Ihre Gäste werden nicht benachrichtigt"
+      assert html =~ "Am 16. Oktober 2026."
+      assert html =~ "Zum Wiederherstellen anmelden"
+      refute text =~ "%{date}"
+      refute text =~ "October"
+    end)
+  end
+
   test "an immediate deletion says it is done, in the past tense, and offers no restore" do
     Gettext.with_locale(TymeslotWeb.Gettext, "en", fn ->
       text = AccountDeletionNotice.render_text(@recipient, @at, nil)

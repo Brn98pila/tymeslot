@@ -665,12 +665,12 @@ msgstr "Видалити"
 #: lib/tymeslot_web/live/admin_live/components/users.ex
 #, elixir-autogen, elixir-format
 msgid "Delete %{email}"
-msgstr "Видалити %{email}"
+msgstr "Видалити обліковий запис %{email}"
 
 #: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Delete %{email} and all their data now?"
-msgstr "Видалити %{email} і всі його дані зараз?"
+msgstr "Видалити зараз обліковий запис %{email} і всі його дані?"
 
 #: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #, elixir-autogen, elixir-format

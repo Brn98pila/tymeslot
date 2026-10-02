@@ -270,7 +270,7 @@ msgstr "Chcete nám ještě něco sdělit? (nepovinné)"
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Calendar events and video links that already exist stay as they are. If a meeting will not take place, contact your guests yourself."
-msgstr "Již vytvořené události v kalendáři a odkazy na videohovory zůstanou beze změny. Pokud se schůzka nebude konat, kontaktujte své hosty sami."
+msgstr "Již vytvořené události v kalendáři a odkazy na videohovory zůstanou beze změny. Pokud se schůzka nebude konat, kontaktujte své hosty osobně."
 
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
@@ -300,7 +300,7 @@ msgstr "Okamžitě smažte svůj účet a vše, co obsahuje. Tuto akci nelze vr�
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Deleting..."
-msgstr "Mazání"
+msgstr "Mazání…"
 
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
@@ -310,7 +310,7 @@ msgstr "Už ho nepotřebuji"
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
 msgid "I switched to another tool"
-msgstr "Přešel jsem na jiný nástroj"
+msgstr "Teď používám jiný nástroj"
 
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
@@ -350,7 +350,7 @@ msgstr "Do té doby je účet zmrazen a vaše rezervační stránka je offline. 
 #: lib/tymeslot_web/live/account_live/danger_zone.ex
 #, elixir-autogen, elixir-format
 msgid "Upcoming bookings are deleted from Tymeslot and your guests are not notified."
-msgstr "Nadcházející rezervace se z Tymeslotu smažou a vaši hosté nebudou upozorněni."
+msgstr "Nadcházející rezervace se ze služby Tymeslot smažou a vaši hosté nebudou upozorněni."
 
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
@@ -360,7 +360,7 @@ msgstr "Proč odcházíte? (nepovinné)"
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Your account and everything in it will be deleted immediately. This cannot be undone."
-msgstr "Váš účet a vše, co obsahuje, bude okamžitě smazáno. Tuto akci nelze vrátit zpět."
+msgstr "Váš účet bude okamžitě smazán i se vším, co obsahuje. Tuto akci nelze vrátit zpět."
 
 #: lib/tymeslot_web/live/account_live/handlers.ex
 #, elixir-autogen, elixir-format
@@ -380,7 +380,7 @@ msgstr "Váš účet bude smazán dne %{date}. Pokud si to rozmyslíte, přihlas
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Your upcoming bookings will be deleted from Tymeslot. Your guests will not be notified."
-msgstr "Vaše nadcházející rezervace budou z Tymeslotu smazány. Vaši hosté nebudou upozorněni."
+msgstr "Vaše nadcházející rezervace budou ze služby Tymeslot smazány. Vaši hosté nebudou upozorněni."
 
 #: lib/tymeslot_web/live/account_live/danger_zone.ex
 #, elixir-autogen, elixir-format

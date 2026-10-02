@@ -247,12 +247,12 @@ msgstr "Suit la langue configurée dans votre navigateur plutôt qu’un choix f
 #: lib/tymeslot/auth/account_deletion/request.ex
 #, elixir-autogen, elixir-format
 msgid "That is not the email address of this account."
-msgstr "Ce n'est pas l'adresse e-mail de ce compte."
+msgstr "Ce n’est pas l’adresse e-mail de ce compte."
 
 #: lib/tymeslot/auth/account_deletion/request.ex
 #, elixir-autogen, elixir-format
 msgid "Your account could not be scheduled for deletion. Please try again."
-msgstr "Votre compte n'a pas pu être programmé pour suppression. Veuillez réessayer."
+msgstr "La suppression de votre compte n’a pas pu être programmée. Veuillez réessayer."
 
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
@@ -267,7 +267,7 @@ msgstr "Souhaitez-vous nous dire autre chose ? (facultatif)"
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Calendar events and video links that already exist stay as they are. If a meeting will not take place, contact your guests yourself."
-msgstr "Les événements de calendrier et les liens vidéo déjà créés restent tels quels. Si une réunion n’aura pas lieu, contactez vous-même vos invités."
+msgstr "Les événements de calendrier et les liens vidéo déjà créés restent tels quels. Si une réunion ne doit pas avoir lieu, contactez vous-même vos invités."
 
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
@@ -297,7 +297,7 @@ msgstr "Supprimez immédiatement votre compte et tout ce qu’il contient. Cette
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Deleting..."
-msgstr "Suppression en cours"
+msgstr "Suppression…"
 
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
@@ -307,7 +307,7 @@ msgstr "Je n’en ai plus besoin"
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
 msgid "I switched to another tool"
-msgstr "Je suis passé à un autre outil"
+msgstr "J’utilise désormais un autre outil"
 
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
@@ -332,7 +332,7 @@ msgstr "Planifier la suppression"
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Something kept going wrong"
-msgstr "Quelque chose ne cessait de mal fonctionner"
+msgstr "Les problèmes se répétaient"
 
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format

@@ -953,24 +953,24 @@ msgstr "Abmelden"
 #: lib/tymeslot_web/controllers/auth/account_restore_controller.ex
 #, elixir-autogen, elixir-format
 msgid "Welcome back. Your account has been restored and will not be deleted."
-msgstr "Willkommen zurück. Dein Konto wurde wiederhergestellt und wird nicht gelöscht."
+msgstr "Willkommen zurück. Ihr Konto wurde wiederhergestellt und wird nicht gelöscht."
 
 #: lib/tymeslot_web/controllers/auth/account_restore_controller.ex
 #, elixir-autogen, elixir-format
 msgid "Your account could not be restored. Please try again."
-msgstr "Dein Konto konnte nicht wiederhergestellt werden. Bitte versuche es erneut."
+msgstr "Ihr Konto konnte nicht wiederhergestellt werden. Bitte versuchen Sie es erneut."
 
 #: lib/tymeslot_web/controllers/auth/account_restore_html.ex
 #, elixir-autogen, elixir-format
 msgid "Your account is being deleted"
-msgstr "Dein Konto wird gelöscht"
+msgstr "Ihr Konto wird gelöscht"
 
 #: lib/tymeslot_web/controllers/auth/account_restore_html.ex
 #, elixir-autogen, elixir-format
 msgid "Your account is being deleted and can no longer be restored."
-msgstr "Dein Konto wird gelöscht und kann nicht mehr wiederhergestellt werden."
+msgstr "Ihr Konto wird gelöscht und kann nicht mehr wiederhergestellt werden."
 
 #: lib/tymeslot_web/controllers/auth/account_restore_html.ex
 #, elixir-autogen, elixir-format
 msgid "Your account is in the process of being deleted (scheduled for %{date}). If you want to keep it, restore it here."
-msgstr "Dein Konto wird gerade gelöscht (geplant für den %{date}). Wenn du es behalten möchtest, stelle es hier wieder her."
+msgstr "Ihr Konto wird gerade gelöscht (geplant für den %{date}). Wenn Sie es behalten möchten, stellen Sie es hier wieder her."

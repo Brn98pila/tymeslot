@@ -569,9 +569,9 @@ msgstr "Adres zostanie ustalony z tobą po rezerwacji."
 #: lib/tymeslot/emails/email_service/auth_emails.ex
 #, elixir-autogen, elixir-format
 msgid "Your Tymeslot account has been deleted"
-msgstr "Twoje konto Tymeslot zostało usunięte"
+msgstr "Konto Tymeslot zostało usunięte"
 
 #: lib/tymeslot/emails/email_service/auth_emails.ex
 #, elixir-autogen, elixir-format
 msgid "Your Tymeslot account is scheduled for deletion"
-msgstr "Twoje konto Tymeslot zostało zaplanowane do usunięcia"
+msgstr "Zaplanowano usunięcie konta Tymeslot"

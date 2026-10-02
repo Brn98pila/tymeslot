@@ -571,4 +571,4 @@ msgstr "Votre compte Tymeslot a été supprimé"
 #: lib/tymeslot/emails/email_service/auth_emails.ex
 #, elixir-autogen, elixir-format
 msgid "Your Tymeslot account is scheduled for deletion"
-msgstr "Votre compte Tymeslot est programmé pour suppression"
+msgstr "La suppression de votre compte Tymeslot est programmée"

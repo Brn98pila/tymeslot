@@ -267,7 +267,7 @@ msgstr "Vuoi dirci altro? (facoltativo)"
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Calendar events and video links that already exist stay as they are. If a meeting will not take place, contact your guests yourself."
-msgstr "Gli eventi di calendario e i link video già creati restano così come sono. Se un appuntamento non avrà luogo, contatta tu stesso i tuoi ospiti."
+msgstr "Gli eventi di calendario e i link video già creati restano così come sono. Se una riunione non si terrà, contatta direttamente i tuoi ospiti."
 
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
@@ -282,7 +282,7 @@ msgstr "Elimina account"
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Delete account now"
-msgstr "Elimina l’account ora"
+msgstr "Elimina l'account ora"
 
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
@@ -292,12 +292,12 @@ msgstr "Elimina il tuo account"
 #: lib/tymeslot_web/live/account_live/danger_zone.ex
 #, elixir-autogen, elixir-format
 msgid "Delete your account and everything in it immediately. This cannot be undone."
-msgstr "Elimina subito il tuo account e tutto ciò che contiene. L’operazione non può essere annullata."
+msgstr "Elimina subito il tuo account e tutto ciò che contiene. L'operazione non può essere annullata."
 
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Deleting..."
-msgstr "Eliminazione in corso"
+msgstr "Eliminazione in corso..."
 
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
@@ -307,7 +307,7 @@ msgstr "Non mi serve più"
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
 msgid "I switched to another tool"
-msgstr "Sono passato a un altro strumento"
+msgstr "Ora uso un altro strumento"
 
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
@@ -327,7 +327,7 @@ msgstr "Manca qualcosa di cui ho bisogno"
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Schedule deletion"
-msgstr "Pianifica l’eliminazione"
+msgstr "Pianifica l'eliminazione"
 
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
@@ -357,7 +357,7 @@ msgstr "Perché te ne vai? (facoltativo)"
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Your account and everything in it will be deleted immediately. This cannot be undone."
-msgstr "Il tuo account e tutto ciò che contiene verranno eliminati subito. L’operazione non può essere annullata."
+msgstr "Il tuo account e tutto ciò che contiene verranno eliminati subito. L'operazione non può essere annullata."
 
 #: lib/tymeslot_web/live/account_live/handlers.ex
 #, elixir-autogen, elixir-format

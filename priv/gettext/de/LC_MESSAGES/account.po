@@ -267,7 +267,7 @@ msgstr "Möchten Sie uns noch etwas mitteilen? (optional)"
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Calendar events and video links that already exist stay as they are. If a meeting will not take place, contact your guests yourself."
-msgstr "Bereits vorhandene Kalendereinträge und Videolinks bleiben unverändert bestehen. Wenn ein Termin nicht stattfindet, kontaktieren Sie Ihre Gäste selbst."
+msgstr "Bereits vorhandene Kalendereinträge und Videolinks bleiben unverändert bestehen. Wenn ein Termin nicht stattfindet, informieren Sie Ihre Gäste bitte selbst."
 
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
@@ -292,12 +292,12 @@ msgstr "Konto löschen"
 #: lib/tymeslot_web/live/account_live/danger_zone.ex
 #, elixir-autogen, elixir-format
 msgid "Delete your account and everything in it immediately. This cannot be undone."
-msgstr "Löschen Sie Ihr Konto und alles darin sofort. Das lässt sich nicht rückgängig machen."
+msgstr "Löschen Sie Ihr Konto mit allen Inhalten sofort. Das lässt sich nicht rückgängig machen."
 
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Deleting..."
-msgstr "Wird gelöscht"
+msgstr "Wird gelöscht…"
 
 #: lib/tymeslot_web/live/account_live/helpers.ex
 #, elixir-autogen, elixir-format
@@ -357,7 +357,7 @@ msgstr "Warum verlassen Sie uns? (optional)"
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Your account and everything in it will be deleted immediately. This cannot be undone."
-msgstr "Ihr Konto und alles darin wird sofort gelöscht. Das lässt sich nicht rückgängig machen."
+msgstr "Ihr Konto wird mit allen Inhalten sofort gelöscht. Das lässt sich nicht rückgängig machen."
 
 #: lib/tymeslot_web/live/account_live/handlers.ex
 #, elixir-autogen, elixir-format

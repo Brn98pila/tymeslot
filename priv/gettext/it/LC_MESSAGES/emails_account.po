@@ -603,7 +603,7 @@ msgstr "Come hai chiesto, il tuo account Tymeslot verrà eliminato il %{date}. F
 #: lib/tymeslot/emails/templates/account_deletion_notice.ex
 #, elixir-autogen, elixir-format
 msgid "Everything in it is gone."
-msgstr "Tutto ciò che conteneva è andato perso."
+msgstr "Tutto il suo contenuto è stato eliminato."
 
 #: lib/tymeslot/emails/templates/account_deletion_notice.ex
 #, elixir-autogen, elixir-format
@@ -638,19 +638,19 @@ msgstr "Il tuo account è stato eliminato"
 #: lib/tymeslot/emails/templates/account_deletion_notice.ex
 #, elixir-autogen, elixir-format
 msgid "Your account is scheduled for deletion"
-msgstr "Il tuo account è in programma per l'eliminazione"
+msgstr "L'eliminazione del tuo account è programmata"
 
 #: lib/tymeslot/emails/templates/account_deletion_notice.ex
 #, elixir-autogen, elixir-format
 msgid "Your upcoming bookings have been deleted from Tymeslot. Your guests were not notified. Calendar events and video links that already exist have been left as they are. If a meeting will not take place, please contact your guests yourself."
-msgstr "Le tue prenotazioni future sono state eliminate da Tymeslot. I tuoi ospiti non sono stati avvisati. Gli eventi del calendario e i link video già esistenti sono stati lasciati così come sono. Se un incontro non avrà luogo, contatta tu stesso i tuoi ospiti."
+msgstr "Le tue prenotazioni future sono state eliminate da Tymeslot. I tuoi ospiti non sono stati avvisati. Gli eventi del calendario e i link video già esistenti sono stati lasciati così come sono. Se una riunione non si terrà, contatta direttamente i tuoi ospiti."
 
 #: lib/tymeslot/emails/templates/account_deletion_notice.ex
 #, elixir-autogen, elixir-format
 msgid "Your upcoming bookings will be deleted from Tymeslot with your account. Your guests will not be notified. Calendar events and video links that already exist will stay as they are. If a meeting will not take place, please contact your guests yourself."
-msgstr "Le tue prenotazioni future verranno eliminate da Tymeslot insieme al tuo account. I tuoi ospiti non verranno avvisati. Gli eventi del calendario e i link video già esistenti resteranno così come sono. Se un incontro non avrà luogo, contatta tu stesso i tuoi ospiti."
+msgstr "Le tue prenotazioni future verranno eliminate da Tymeslot insieme al tuo account. I tuoi ospiti non verranno avvisati. Gli eventi del calendario e i link video già esistenti resteranno così come sono. Se una riunione non si terrà, contatta direttamente i tuoi ospiti."
 
 #: lib/tymeslot/emails/templates/signup_attempt_notice.ex
 #, elixir-autogen, elixir-format
 msgid "Someone just tried to create a new Tymeslot account with this email address. It belongs to an account that is scheduled for deletion on %{date}. If it was you, sign in before then to restore that account, or sign up again after that date."
-msgstr "Qualcuno ha appena provato a creare un nuovo account Tymeslot con questo indirizzo email. Appartiene a un account la cui eliminazione è programmata per il %{date}. Se sei stato tu, accedi prima di quella data per ripristinare l’account, oppure registrati di nuovo dopo quella data."
+msgstr "Qualcuno ha appena provato a creare un nuovo account Tymeslot con questo indirizzo email. Appartiene a un account la cui eliminazione è programmata per il %{date}. Se il tentativo è partito da te, accedi prima di quella data per ripristinare l'account, oppure registrati di nuovo dopo quella data."
