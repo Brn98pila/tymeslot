@@ -569,3 +569,13 @@ msgstr "Адресу погодять після бронювання."
 #, elixir-autogen, elixir-format
 msgid "The address will be arranged with you after booking."
 msgstr "Адресу погодять з вами після бронювання."
+
+#: lib/tymeslot/emails/email_service/auth_emails.ex
+#, elixir-autogen, elixir-format
+msgid "Your Tymeslot account has been deleted"
+msgstr "Ваш обліковий запис Tymeslot видалено"
+
+#: lib/tymeslot/emails/email_service/auth_emails.ex
+#, elixir-autogen, elixir-format
+msgid "Your Tymeslot account is scheduled for deletion"
+msgstr "Ваш обліковий запис Tymeslot заплановано до видалення"

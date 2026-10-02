@@ -579,3 +579,73 @@ msgstr "Dotychczasowy adres pozostaje aktywny do czasu potwierdzenia zmiany"
 #, elixir-autogen, elixir-format
 msgid "Your meetings and settings remain unchanged"
 msgstr "Spotkania i ustawienia pozostają bez zmian"
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "Account"
+msgstr "Konto"
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "Account Deletion"
+msgstr "Usunięcie konta"
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "As you asked, your Tymeslot account has been deleted, together with everything in it. This cannot be undone."
+msgstr "Zgodnie z Twoją prośbą Twoje konto Tymeslot zostało usunięte razem ze wszystkim, co zawierało. Tego nie można cofnąć."
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "As you asked, your Tymeslot account is scheduled for deletion on %{date}. Until then it is frozen: your booking page is offline and nobody can book you. If you change your mind, sign in before that date and you can restore your account."
+msgstr "Zgodnie z Twoją prośbą Twoje konto Tymeslot zostanie usunięte %{date}. Do tego czasu jest zamrożone: Twoja strona rezerwacji jest wyłączona i nikt nie może się u Ciebie zarezerwować. Jeśli zmienisz zdanie, zaloguj się przed tą datą, a będziesz mógł przywrócić konto."
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "Everything in it is gone."
+msgstr "Wszystko, co zawierało, zniknęło."
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "If you did not ask for this, contact whoever runs this Tymeslot service straight away."
+msgstr "Jeśli to nie Ty o to prosiłeś, natychmiast skontaktuj się z osobą, która prowadzi tę usługę Tymeslot."
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "If you did not ask for this, sign in now, restore your account and change your password."
+msgstr "Jeśli to nie Ty o to prosiłeś, zaloguj się teraz, przywróć konto i zmień hasło."
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "On %{date}."
+msgstr "Dnia %{date}."
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "Sign in to restore"
+msgstr "Zaloguj się, aby przywrócić"
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "Sign in to restore:"
+msgstr "Zaloguj się, aby przywrócić:"
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "Your account has been deleted"
+msgstr "Twoje konto zostało usunięte"
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "Your account is scheduled for deletion"
+msgstr "Twoje konto zostało zaplanowane do usunięcia"
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "Your upcoming bookings have been deleted from Tymeslot. Your guests were not notified. Calendar events and video links that already exist have been left as they are. If a meeting will not take place, please contact your guests yourself."
+msgstr "Twoje nadchodzące rezerwacje zostały usunięte z Tymeslot. Twoi goście nie zostali powiadomieni. Istniejące wydarzenia w kalendarzu i linki do spotkań wideo pozostały bez zmian. Jeśli spotkanie się nie odbędzie, skontaktuj się ze swoimi gośćmi samodzielnie."
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "Your upcoming bookings will be deleted from Tymeslot with your account. Your guests will not be notified. Calendar events and video links that already exist will stay as they are. If a meeting will not take place, please contact your guests yourself."
+msgstr "Twoje nadchodzące rezerwacje zostaną usunięte z Tymeslot razem z kontem. Twoi goście nie zostaną powiadomieni. Istniejące wydarzenia w kalendarzu i linki do spotkań wideo pozostaną bez zmian. Jeśli spotkanie się nie odbędzie, skontaktuj się ze swoimi gośćmi samodzielnie."
