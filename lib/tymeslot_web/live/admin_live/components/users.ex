@@ -67,9 +67,17 @@ defmodule TymeslotWeb.AdminLive.Components.Users do
                 "dashboard_admin",
                 "User"
               )}</span>
+              <span
+                :if={user.deletion_scheduled_at}
+                class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-black uppercase tracking-wider text-amber-700"
+                data-testid="deletion-pending-badge"
+              >
+                {dgettext("dashboard_admin", "Deletion pending")}
+              </span>
             </td>
             <td class="px-6 py-4 text-right">
               <.user_row_action
+                :if={is_nil(user.deletion_scheduled_at)}
                 user={user}
                 is_self={user.id == @current_user.id}
                 is_last_admin={@admin_count <= 1}

@@ -696,3 +696,8 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "You cannot delete your own account here. Use your account settings instead."
 msgstr ""
+
+#: lib/tymeslot_web/live/admin_live/components/users.ex
+#, elixir-autogen, elixir-format
+msgid "Deletion pending"
+msgstr ""

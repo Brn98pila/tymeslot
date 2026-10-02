@@ -696,3 +696,8 @@ msgstr "Questa azione non può essere annullata. Le prenotazioni vengono elimina
 #, elixir-autogen, elixir-format
 msgid "You cannot delete your own account here. Use your account settings instead."
 msgstr "Qui non puoi eliminare il tuo account. Usa invece le impostazioni dell’account."
+
+#: lib/tymeslot_web/live/admin_live/components/users.ex
+#, elixir-autogen, elixir-format
+msgid "Deletion pending"
+msgstr "Eliminazione in sospeso"

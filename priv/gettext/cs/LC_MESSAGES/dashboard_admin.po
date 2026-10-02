@@ -696,3 +696,8 @@ msgstr "Tuto akci nelze vrátit zpět. Rezervace se smažou a hosté nebudou inf
 #, elixir-autogen, elixir-format
 msgid "You cannot delete your own account here. Use your account settings instead."
 msgstr "Vlastní účet zde smazat nelze. Použijte místo toho nastavení účtu."
+
+#: lib/tymeslot_web/live/admin_live/components/users.ex
+#, elixir-autogen, elixir-format
+msgid "Deletion pending"
+msgstr "Čeká na smazání"

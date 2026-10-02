@@ -692,3 +692,8 @@ msgstr "Tej operacji nie można cofnąć. Rezerwacje zostaną usunięte, a gośc
 #, elixir-autogen, elixir-format
 msgid "You cannot delete your own account here. Use your account settings instead."
 msgstr "Nie możesz tutaj usunąć własnego konta. Skorzystaj z ustawień konta."
+
+#: lib/tymeslot_web/live/admin_live/components/users.ex
+#, elixir-autogen, elixir-format
+msgid "Deletion pending"
+msgstr "Oczekuje na usunięcie"

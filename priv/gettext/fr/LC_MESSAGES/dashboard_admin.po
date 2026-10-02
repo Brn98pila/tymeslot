@@ -696,3 +696,8 @@ msgstr "Cette action est irréversible. Les réservations sont supprimées et le
 #, elixir-autogen, elixir-format
 msgid "You cannot delete your own account here. Use your account settings instead."
 msgstr "Vous ne pouvez pas supprimer votre propre compte ici. Utilisez plutôt les paramètres de votre compte."
+
+#: lib/tymeslot_web/live/admin_live/components/users.ex
+#, elixir-autogen, elixir-format
+msgid "Deletion pending"
+msgstr "Suppression en attente"

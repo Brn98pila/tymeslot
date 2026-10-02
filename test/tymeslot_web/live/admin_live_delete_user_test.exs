@@ -25,6 +25,26 @@ defmodule TymeslotWeb.AdminLiveDeleteUserTest do
     %{conn: log_in_user(conn, admin), admin: admin}
   end
 
+  test "marks a user with a pending deletion and offers no row actions for them",
+       %{conn: conn} do
+    pending =
+      insert(:user,
+        deletion_requested_at: DateTime.utc_now(:second),
+        deletion_scheduled_at: DateTime.add(DateTime.utc_now(:second), 14, :day)
+      )
+
+    normal = insert(:user)
+    {:ok, view, _html} = live(conn, ~p"/admin/users")
+
+    assert has_element?(view, ~s|[data-testid="deletion-pending-badge"]|, "Deletion pending")
+
+    for event <- ~w(request_delete request_promote request_demote) do
+      refute has_element?(view, ~s|button[phx-click="#{event}"][phx-value-id="#{pending.id}"]|)
+    end
+
+    assert has_element?(view, ~s|button[phx-click="request_delete"][phx-value-id="#{normal.id}"]|)
+  end
+
   test "deletes another user after confirming, and offers no delete for oneself",
        %{conn: conn, admin: admin} do
     target = insert(:user)

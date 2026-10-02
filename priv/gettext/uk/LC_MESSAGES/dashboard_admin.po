@@ -696,3 +696,8 @@ msgstr "Цю дію не можна скасувати. Бронювання б�
 #, elixir-autogen, elixir-format
 msgid "You cannot delete your own account here. Use your account settings instead."
 msgstr "Власний обліковий запис тут видалити не можна. Скористайтеся налаштуваннями облікового запису."
+
+#: lib/tymeslot_web/live/admin_live/components/users.ex
+#, elixir-autogen, elixir-format
+msgid "Deletion pending"
+msgstr "Очікує видалення"
