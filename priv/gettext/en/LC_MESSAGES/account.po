@@ -364,13 +364,6 @@ msgstr ""
 msgid "Your account has been deleted."
 msgstr ""
 
-#: lib/tymeslot_web/live/account_live/danger_zone.ex
-#, elixir-autogen, elixir-format
-msgid "Your account is frozen for %{count} day, then deleted. Sign in during that time to restore it."
-msgid_plural "Your account is frozen for %{count} days, then deleted. Sign in during that time to restore it."
-msgstr[0] ""
-msgstr[1] ""
-
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Your account will be deleted on %{date}."
@@ -385,3 +378,10 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Your upcoming bookings will be deleted from Tymeslot. Your guests will not be notified."
 msgstr ""
+
+#: lib/tymeslot_web/live/account_live/danger_zone.ex
+#, elixir-autogen, elixir-format
+msgid "If you delete your account, it is frozen for %{count} day, then deleted. Sign in during that time to restore it."
+msgid_plural "If you delete your account, it is frozen for %{count} days, then deleted. Sign in during that time to restore it."
+msgstr[0] ""
+msgstr[1] ""

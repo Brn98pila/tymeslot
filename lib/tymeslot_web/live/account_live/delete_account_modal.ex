@@ -81,6 +81,10 @@ defmodule TymeslotWeb.AccountLive.DeleteAccountModal do
           </p>
         </.info_box>
 
+        <.info_box :if={@errors[:base]} variant={:error} class="mb-0 p-4!">
+          {List.first(@errors[:base])}
+        </.info_box>
+
         <.input
           :if={@confirmation == :password}
           type="password"
@@ -128,13 +132,18 @@ defmodule TymeslotWeb.AccountLive.DeleteAccountModal do
 
       <:footer>
         <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <.action_button variant={:secondary} phx-click="close_delete_account_modal">
+          <.action_button
+            variant={:secondary}
+            phx-click="close_delete_account_modal"
+            class="w-full sm:w-auto"
+          >
             {dgettext("account", "Cancel")}
           </.action_button>
           <.action_button
             type="submit"
             form="delete-account-form"
             variant={:danger}
+            class="w-full sm:w-auto"
             phx-disable-with={dgettext("account", "Deleting...")}
           >
             {confirm_label(@grace_days)}

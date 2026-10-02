@@ -367,14 +367,6 @@ msgstr "Váš účet a vše, co obsahuje, bude okamžitě smazáno. Tuto akci ne
 msgid "Your account has been deleted."
 msgstr "Váš účet byl smazán."
 
-#: lib/tymeslot_web/live/account_live/danger_zone.ex
-#, elixir-autogen, elixir-format
-msgid "Your account is frozen for %{count} day, then deleted. Sign in during that time to restore it."
-msgid_plural "Your account is frozen for %{count} days, then deleted. Sign in during that time to restore it."
-msgstr[0] "Váš účet je zmrazen na %{count} den, poté bude smazán. Pokud se v této době přihlásíte, účet obnovíte."
-msgstr[1] "Váš účet je zmrazen na %{count} dny, poté bude smazán. Pokud se v této době přihlásíte, účet obnovíte."
-msgstr[2] "Váš účet je zmrazen na %{count} dní, poté bude smazán. Pokud se v této době přihlásíte, účet obnovíte."
-
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Your account will be deleted on %{date}."
@@ -389,3 +381,11 @@ msgstr "Váš účet bude smazán dne %{date}. Pokud si to rozmyslíte, přihlas
 #, elixir-autogen, elixir-format
 msgid "Your upcoming bookings will be deleted from Tymeslot. Your guests will not be notified."
 msgstr "Vaše nadcházející rezervace budou z Tymeslotu smazány. Vaši hosté nebudou upozorněni."
+
+#: lib/tymeslot_web/live/account_live/danger_zone.ex
+#, elixir-autogen, elixir-format
+msgid "If you delete your account, it is frozen for %{count} day, then deleted. Sign in during that time to restore it."
+msgid_plural "If you delete your account, it is frozen for %{count} days, then deleted. Sign in during that time to restore it."
+msgstr[0] "Pokud svůj účet smažete, bude zmrazen na %{count} den, poté bude smazán. Pokud se v této době přihlásíte, účet obnovíte."
+msgstr[1] "Pokud svůj účet smažete, bude zmrazen na %{count} dny, poté bude smazán. Pokud se v této době přihlásíte, účet obnovíte."
+msgstr[2] "Pokud svůj účet smažete, bude zmrazen na %{count} dní, poté bude smazán. Pokud se v této době přihlásíte, účet obnovíte."

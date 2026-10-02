@@ -367,14 +367,6 @@ msgstr "Ваш обліковий запис і все, що в ньому є, �
 msgid "Your account has been deleted."
 msgstr "Ваш обліковий запис видалено."
 
-#: lib/tymeslot_web/live/account_live/danger_zone.ex
-#, elixir-autogen, elixir-format
-msgid "Your account is frozen for %{count} day, then deleted. Sign in during that time to restore it."
-msgid_plural "Your account is frozen for %{count} days, then deleted. Sign in during that time to restore it."
-msgstr[0] "Ваш обліковий запис заморожено на %{count} день, після чого його буде видалено. Увійдіть протягом цього часу, щоб відновити його."
-msgstr[1] "Ваш обліковий запис заморожено на %{count} дні, після чого його буде видалено. Увійдіть протягом цього часу, щоб відновити його."
-msgstr[2] "Ваш обліковий запис заморожено на %{count} днів, після чого його буде видалено. Увійдіть протягом цього часу, щоб відновити його."
-
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Your account will be deleted on %{date}."
@@ -389,3 +381,11 @@ msgstr "Ваш обліковий запис буде видалено %{date}. 
 #, elixir-autogen, elixir-format
 msgid "Your upcoming bookings will be deleted from Tymeslot. Your guests will not be notified."
 msgstr "Ваші майбутні бронювання буде видалено з Tymeslot. Ваші гості не отримають сповіщення."
+
+#: lib/tymeslot_web/live/account_live/danger_zone.ex
+#, elixir-autogen, elixir-format
+msgid "If you delete your account, it is frozen for %{count} day, then deleted. Sign in during that time to restore it."
+msgid_plural "If you delete your account, it is frozen for %{count} days, then deleted. Sign in during that time to restore it."
+msgstr[0] "Якщо ви видалите обліковий запис, його буде заморожено на %{count} день, після чого його буде видалено. Увійдіть протягом цього часу, щоб відновити його."
+msgstr[1] "Якщо ви видалите обліковий запис, його буде заморожено на %{count} дні, після чого його буде видалено. Увійдіть протягом цього часу, щоб відновити його."
+msgstr[2] "Якщо ви видалите обліковий запис, його буде заморожено на %{count} днів, після чого його буде видалено. Увійдіть протягом цього часу, щоб відновити його."

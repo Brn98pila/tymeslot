@@ -364,13 +364,6 @@ msgstr "Votre compte et tout ce qu’il contient seront supprimés immédiatemen
 msgid "Your account has been deleted."
 msgstr "Votre compte a été supprimé."
 
-#: lib/tymeslot_web/live/account_live/danger_zone.ex
-#, elixir-autogen, elixir-format
-msgid "Your account is frozen for %{count} day, then deleted. Sign in during that time to restore it."
-msgid_plural "Your account is frozen for %{count} days, then deleted. Sign in during that time to restore it."
-msgstr[0] "Votre compte est gelé pendant %{count} jour, puis supprimé. Connectez-vous pendant ce délai pour le restaurer."
-msgstr[1] "Votre compte est gelé pendant %{count} jours, puis supprimé. Connectez-vous pendant ce délai pour le restaurer."
-
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Your account will be deleted on %{date}."
@@ -385,3 +378,10 @@ msgstr "Votre compte sera supprimé le %{date}. Connectez-vous avant cette date 
 #, elixir-autogen, elixir-format
 msgid "Your upcoming bookings will be deleted from Tymeslot. Your guests will not be notified."
 msgstr "Vos réservations à venir seront supprimées de Tymeslot. Vos invités ne seront pas prévenus."
+
+#: lib/tymeslot_web/live/account_live/danger_zone.ex
+#, elixir-autogen, elixir-format
+msgid "If you delete your account, it is frozen for %{count} day, then deleted. Sign in during that time to restore it."
+msgid_plural "If you delete your account, it is frozen for %{count} days, then deleted. Sign in during that time to restore it."
+msgstr[0] "Si vous supprimez votre compte, il est gelé pendant %{count} jour, puis supprimé. Connectez-vous pendant ce délai pour le restaurer."
+msgstr[1] "Si vous supprimez votre compte, il est gelé pendant %{count} jours, puis supprimé. Connectez-vous pendant ce délai pour le restaurer."

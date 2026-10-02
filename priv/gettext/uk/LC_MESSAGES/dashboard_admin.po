@@ -43,7 +43,7 @@ msgstr "Дії"
 msgid "Admin"
 msgstr "Адміністратор"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Admin UI is disabled."
 msgstr "Адміністративний інтерфейс вимкнено."
@@ -94,7 +94,7 @@ msgstr "URL-ідентифікатор бронювання"
 msgid "Cancel"
 msgstr "Скасувати"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Cannot demote the last admin. Promote someone else first."
 msgstr "Неможливо понизити останнього адміністратора. Спочатку підвищте когось іншого."
@@ -104,12 +104,12 @@ msgstr "Неможливо понизити останнього адмініс�
 msgid "Changes here take effect immediately and override the matching environment variables and application configuration (e.g. REGISTRATION_ENABLED, PASSWORD_AUTH_ENABLED) for this install."
 msgstr "Зміни тут набирають чинності негайно і перевизначають відповідні змінні середовища та конфігурацію застосунку (наприклад, REGISTRATION_ENABLED, PASSWORD_AUTH_ENABLED) для цієї інсталяції."
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Could not demote user."
 msgstr "Не вдалося понизити користувача."
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Could not promote user."
 msgstr "Не вдалося підвищити користувача."
@@ -203,12 +203,12 @@ msgstr "Вхід через GitHub"
 msgid "Google login"
 msgstr "Вхід через Google"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Invalid request."
 msgstr "Некоректний запит."
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Invalid user id."
 msgstr "Некоректний ідентифікатор користувача."
@@ -310,17 +310,17 @@ msgstr "Усього користувачів"
 msgid "User"
 msgstr "Користувач"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "User demoted from admin."
 msgstr "Користувача понижено з адміністратора."
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "User not found."
 msgstr "Користувача не знайдено."
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "User promoted to admin."
 msgstr "Користувача підвищено до адміністратора."
@@ -330,7 +330,7 @@ msgstr "Користувача підвищено до адміністрато�
 msgid "Users"
 msgstr "Користувачі"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "You have been demoted from admin."
 msgstr "Вас було понижено з адміністратора."
@@ -445,7 +445,7 @@ msgstr "Позбавити %{email} прав адміністратора?"
 msgid "Promote %{email} to admin?"
 msgstr "Надати %{email} права адміністратора?"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #: lib/tymeslot_web/plugs/require_admin.ex
 #, elixir-autogen, elixir-format
 msgid "Admin access required."

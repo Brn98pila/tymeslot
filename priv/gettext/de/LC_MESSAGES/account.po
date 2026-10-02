@@ -364,13 +364,6 @@ msgstr "Ihr Konto und alles darin wird sofort gelöscht. Das lässt sich nicht r
 msgid "Your account has been deleted."
 msgstr "Ihr Konto wurde gelöscht."
 
-#: lib/tymeslot_web/live/account_live/danger_zone.ex
-#, elixir-autogen, elixir-format
-msgid "Your account is frozen for %{count} day, then deleted. Sign in during that time to restore it."
-msgid_plural "Your account is frozen for %{count} days, then deleted. Sign in during that time to restore it."
-msgstr[0] "Ihr Konto ist %{count} Tag lang eingefroren und wird dann gelöscht. Wenn Sie sich in dieser Zeit anmelden, können Sie es wiederherstellen."
-msgstr[1] "Ihr Konto ist %{count} Tage lang eingefroren und wird dann gelöscht. Wenn Sie sich in dieser Zeit anmelden, können Sie es wiederherstellen."
-
 #: lib/tymeslot_web/live/account_live/delete_account_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Your account will be deleted on %{date}."
@@ -385,3 +378,10 @@ msgstr "Ihr Konto wird am %{date} gelöscht. Melden Sie sich vorher an, wenn Sie
 #, elixir-autogen, elixir-format
 msgid "Your upcoming bookings will be deleted from Tymeslot. Your guests will not be notified."
 msgstr "Ihre anstehenden Buchungen werden aus Tymeslot gelöscht. Ihre Gäste werden nicht benachrichtigt."
+
+#: lib/tymeslot_web/live/account_live/danger_zone.ex
+#, elixir-autogen, elixir-format
+msgid "If you delete your account, it is frozen for %{count} day, then deleted. Sign in during that time to restore it."
+msgid_plural "If you delete your account, it is frozen for %{count} days, then deleted. Sign in during that time to restore it."
+msgstr[0] "Wenn Sie Ihr Konto löschen, ist es %{count} Tag lang eingefroren und wird dann gelöscht. Wenn Sie sich in dieser Zeit anmelden, können Sie es wiederherstellen."
+msgstr[1] "Wenn Sie Ihr Konto löschen, ist es %{count} Tage lang eingefroren und wird dann gelöscht. Wenn Sie sich in dieser Zeit anmelden, können Sie es wiederherstellen."

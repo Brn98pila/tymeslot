@@ -43,8 +43,8 @@ defmodule TymeslotWeb.AccountLive.DangerZone do
   defp description(days) do
     dngettext(
       "account",
-      "Your account is frozen for %{count} day, then deleted. Sign in during that time to restore it.",
-      "Your account is frozen for %{count} days, then deleted. Sign in during that time to restore it.",
+      "If you delete your account, it is frozen for %{count} day, then deleted. Sign in during that time to restore it.",
+      "If you delete your account, it is frozen for %{count} days, then deleted. Sign in during that time to restore it.",
       days
     )
   end

@@ -43,7 +43,7 @@ msgstr ""
 msgid "Admin"
 msgstr ""
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Admin UI is disabled."
 msgstr ""
@@ -94,7 +94,7 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Cannot demote the last admin. Promote someone else first."
 msgstr ""
@@ -104,12 +104,12 @@ msgstr ""
 msgid "Changes here take effect immediately and override the matching environment variables and application configuration (e.g. REGISTRATION_ENABLED, PASSWORD_AUTH_ENABLED) for this install."
 msgstr ""
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Could not demote user."
 msgstr ""
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Could not promote user."
 msgstr ""
@@ -203,12 +203,12 @@ msgstr ""
 msgid "Google login"
 msgstr ""
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Invalid request."
 msgstr ""
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Invalid user id."
 msgstr ""
@@ -310,17 +310,17 @@ msgstr ""
 msgid "User"
 msgstr ""
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "User demoted from admin."
 msgstr ""
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "User not found."
 msgstr ""
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "User promoted to admin."
 msgstr ""
@@ -330,7 +330,7 @@ msgstr ""
 msgid "Users"
 msgstr ""
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "You have been demoted from admin."
 msgstr ""
@@ -445,7 +445,7 @@ msgstr ""
 msgid "Promote %{email} to admin?"
 msgstr ""
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #: lib/tymeslot_web/plugs/require_admin.ex
 #, elixir-autogen, elixir-format
 msgid "Admin access required."

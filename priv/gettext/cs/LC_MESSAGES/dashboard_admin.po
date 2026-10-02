@@ -43,7 +43,7 @@ msgstr "Akce"
 msgid "Admin"
 msgstr "Správce"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Admin UI is disabled."
 msgstr "Rozhraní správce je vypnuté."
@@ -94,7 +94,7 @@ msgstr "Rezervační slug"
 msgid "Cancel"
 msgstr "Zrušit"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Cannot demote the last admin. Promote someone else first."
 msgstr "Poslednímu správci nelze oprávnění odebrat. Nejprve je udělte někomu jinému."
@@ -104,12 +104,12 @@ msgstr "Poslednímu správci nelze oprávnění odebrat. Nejprve je udělte něk
 msgid "Changes here take effect immediately and override the matching environment variables and application configuration (e.g. REGISTRATION_ENABLED, PASSWORD_AUTH_ENABLED) for this install."
 msgstr "Změny se projeví okamžitě a pro tuto instalaci mají přednost před odpovídajícími proměnnými prostředí a konfigurací aplikace (např. REGISTRATION_ENABLED, PASSWORD_AUTH_ENABLED)."
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Could not demote user."
 msgstr "Uživateli se nepodařilo odebrat oprávnění."
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Could not promote user."
 msgstr "Uživateli se nepodařilo udělit oprávnění."
@@ -203,12 +203,12 @@ msgstr "Přihlášení přes GitHub"
 msgid "Google login"
 msgstr "Přihlášení přes Google"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Invalid request."
 msgstr "Neplatný požadavek."
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Invalid user id."
 msgstr "Neplatné ID uživatele."
@@ -310,17 +310,17 @@ msgstr "Uživatelů celkem"
 msgid "User"
 msgstr "Uživatel"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "User demoted from admin."
 msgstr "Uživateli bylo odebráno oprávnění správce."
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "User not found."
 msgstr "Uživatel nebyl nalezen."
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "User promoted to admin."
 msgstr "Uživateli bylo uděleno oprávnění správce."
@@ -330,7 +330,7 @@ msgstr "Uživateli bylo uděleno oprávnění správce."
 msgid "Users"
 msgstr "Uživatelé"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "You have been demoted from admin."
 msgstr "Vaše oprávnění správce bylo odebráno."
@@ -445,7 +445,7 @@ msgstr "Opravdu chcete uživateli %{email} odebrat oprávnění správce?"
 msgid "Promote %{email} to admin?"
 msgstr "Opravdu chcete uživateli %{email} udělit oprávnění správce?"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #: lib/tymeslot_web/plugs/require_admin.ex
 #, elixir-autogen, elixir-format
 msgid "Admin access required."

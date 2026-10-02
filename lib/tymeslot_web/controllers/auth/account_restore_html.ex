@@ -25,7 +25,7 @@ defmodule TymeslotWeb.AccountRestoreHTML do
         )}
       </p>
 
-      <p :if={@error} role="alert" class="mt-4 text-token-sm text-red-600">{@error}</p>
+      <.info_box :if={@error} variant={:error} class="mt-4 mb-0 p-4! text-left">{@error}</.info_box>
 
       <form method="post" action={~p"/auth/restore"} class="mt-6">
         <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
@@ -58,7 +58,7 @@ defmodule TymeslotWeb.AccountRestoreHTML do
   defp frame(assigns) do
     ~H"""
     <main class="flex min-h-screen items-center justify-center bg-linear-to-br from-turquoise-50 via-white to-cyan-50 p-4">
-      <div class="w-full max-w-md rounded-token-2xl bg-white p-8 text-center shadow-glass-lg">
+      <div class="w-full max-w-md rounded-token-2xl bg-white p-6 text-center sm:p-8 shadow-glass-lg">
         <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-token-full bg-amber-100 text-amber-600">
           <.icon name="hero-clock" class="h-9 w-9" />
         </div>
