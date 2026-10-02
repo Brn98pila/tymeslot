@@ -13,6 +13,8 @@ defmodule Tymeslot.Auth.AccountDeletion.Policy do
   a hot path.
   """
 
+  alias Tymeslot.Profiles.ProfileQueries
+
   @feedback_reasons ~w(too_expensive missing_features hard_to_use switched_tool no_longer_needed technical_problems other)
   @comment_max_length 500
 
@@ -32,6 +34,33 @@ defmodule Tymeslot.Auth.AccountDeletion.Policy do
   @doc "When an account asked to be deleted at `now` is to be deleted."
   @spec scheduled_at(DateTime.t()) :: DateTime.t()
   def scheduled_at(%DateTime{} = now), do: DateTime.add(now, grace_days(), :day)
+
+  @doc """
+  The calendar date of `at` in `timezone`, so a deletion date reads as the
+  user's own day. A missing or unknown timezone falls back to UTC.
+  """
+  @spec local_date(DateTime.t(), String.t() | nil) :: Date.t()
+  def local_date(%DateTime{} = at, timezone) when is_binary(timezone) do
+    case DateTime.shift_zone(at, timezone) do
+      {:ok, shifted} -> DateTime.to_date(shifted)
+      {:error, _reason} -> DateTime.to_date(at)
+    end
+  end
+
+  def local_date(%DateTime{} = at, _no_timezone), do: DateTime.to_date(at)
+
+  @doc "`local_date/2` in the timezone of the user's profile (UTC without one)."
+  @spec user_local_date(DateTime.t(), integer()) :: Date.t()
+  def user_local_date(%DateTime{} = at, user_id), do: local_date(at, user_timezone(user_id))
+
+  @doc "The timezone of the user's profile, or `nil` without one."
+  @spec user_timezone(integer()) :: String.t() | nil
+  def user_timezone(user_id) do
+    case ProfileQueries.get_by_user_id(user_id) do
+      {:ok, profile} -> profile.timezone
+      {:error, :not_found} -> nil
+    end
+  end
 
   @doc "Whether the deletion dialog asks for exit feedback."
   @spec collect_feedback?() :: boolean()

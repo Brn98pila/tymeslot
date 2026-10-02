@@ -57,7 +57,7 @@ defmodule TymeslotWeb.AccountRestoreController do
         to_dashboard(conn)
 
       {:error, reason} when reason in [:deletion_in_progress, :not_found] ->
-        render_expired(conn, user)
+        render_expired(conn)
 
       {:error, _unexpected} ->
         render_page(
@@ -72,13 +72,13 @@ defmodule TymeslotWeb.AccountRestoreController do
     if Auth.account_restorable?(user, DateTime.utc_now()) do
       conn
       |> prepare()
-      |> render(:show, deletion_date: format_date(user.deletion_scheduled_at), error: error)
+      |> render(:show, deletion_date: format_date(user), error: error)
     else
-      render_expired(conn, user)
+      render_expired(conn)
     end
   end
 
-  defp render_expired(conn, _user) do
+  defp render_expired(conn) do
     conn |> prepare() |> render(:expired)
   end
 
@@ -86,11 +86,11 @@ defmodule TymeslotWeb.AccountRestoreController do
     conn |> put_layout(html: false) |> put_view(html: AccountRestoreHTML)
   end
 
-  defp format_date(%DateTime{} = at),
-    do:
-      at
-      |> DateTime.to_date()
-      |> LocaleFormat.format_date(Gettext.get_locale(TymeslotWeb.Gettext))
+  defp format_date(user) do
+    user.deletion_scheduled_at
+    |> Auth.deletion_local_date(user)
+    |> LocaleFormat.format_date(Gettext.get_locale(TymeslotWeb.Gettext))
+  end
 
   defp to_dashboard(conn), do: redirect(conn, to: Config.success_redirect_path())
 end

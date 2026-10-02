@@ -116,7 +116,7 @@ defmodule TymeslotWeb.AccountLive.Handlers do
      assign(socket,
        show_delete_modal: true,
        delete_errors: %{},
-       deletion_date: Helpers.format_deletion_date(due_at)
+       deletion_date: Helpers.format_deletion_date(due_at, socket.assigns.current_user)
      )}
   end
 
@@ -135,7 +135,7 @@ defmodule TymeslotWeb.AccountLive.Handlers do
          |> LiveView.redirect(to: ~p"/auth/login")}
 
       {:error, :rate_limited, message} ->
-        {:noreply, LiveView.put_flash(socket, :error, message)}
+        {:noreply, socket |> LiveView.put_flash(:error, message) |> assign(:delete_errors, %{})}
 
       {:error, errors} ->
         {:noreply, assign(socket, :delete_errors, Map.new(errors, fn {k, v} -> {k, [v]} end))}
@@ -214,7 +214,7 @@ defmodule TymeslotWeb.AccountLive.Handlers do
       dgettext(
         "account",
         "Your account will be deleted on %{date}. Sign in before then if you change your mind.",
-        date: Helpers.format_deletion_date(pending.deletion_scheduled_at)
+        date: Helpers.format_deletion_date(pending.deletion_scheduled_at, pending)
       )
     end
   end

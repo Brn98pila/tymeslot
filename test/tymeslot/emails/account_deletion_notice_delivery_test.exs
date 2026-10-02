@@ -24,7 +24,8 @@ defmodule Tymeslot.Emails.AccountDeletionNoticeDeliveryTest do
     name: "Ada",
     locale: "en",
     scheduled_at: ~U[2026-10-16 09:00:00Z],
-    restorable: true
+    restorable: true,
+    timezone: "Europe/Tallinn"
   }
 
   test "the job carries the recipient, never the user id" do
@@ -34,12 +35,14 @@ defmodule Tymeslot.Emails.AccountDeletionNoticeDeliveryTest do
     assert job.args["action"] == "send_account_deletion_notice"
     assert job.args["email"] == "ada@example.com"
     assert job.args["restorable"] == true
+    assert job.args["timezone"] == "Europe/Tallinn"
     refute Map.has_key?(job.args, "user_id")
   end
 
   test "the handler sends a restorable notice with the sign-in link" do
     expect(Tymeslot.EmailServiceMock, :send_account_deletion_notice, fn recipient, at, url ->
       assert recipient.email == "ada@example.com"
+      assert recipient.timezone == "Europe/Tallinn"
       assert at == ~U[2026-10-16 09:00:00Z]
       assert url =~ "/auth/login"
       {:ok, :sent}
@@ -50,7 +53,8 @@ defmodule Tymeslot.Emails.AccountDeletionNoticeDeliveryTest do
       "name" => "Ada",
       "locale" => "en",
       "scheduled_at" => "2026-10-16T09:00:00Z",
-      "restorable" => true
+      "restorable" => true,
+      "timezone" => "Europe/Tallinn"
     }
 
     assert AuthEmailHandlers.handle_account_deletion_notice(args) == :ok

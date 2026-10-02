@@ -474,6 +474,10 @@ defmodule Tymeslot.Auth do
   @spec account_deletion_due_at(DateTime.t()) :: DateTime.t()
   defdelegate account_deletion_due_at(now), to: Policy, as: :scheduled_at
 
+  @doc "The date of `at` as the user's own calendar day (profile timezone, else UTC)."
+  @spec deletion_local_date(DateTime.t(), UserSchema.t()) :: Date.t()
+  def deletion_local_date(at, %UserSchema{id: user_id}), do: Policy.user_local_date(at, user_id)
+
   @doc "Whether the deletion dialog asks why the user is leaving."
   @spec collect_deletion_feedback?() :: boolean()
   defdelegate collect_deletion_feedback?(), to: Policy, as: :collect_feedback?

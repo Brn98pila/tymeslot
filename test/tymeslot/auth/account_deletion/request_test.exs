@@ -91,6 +91,19 @@ defmodule Tymeslot.Auth.AccountDeletion.RequestTest do
     assert_received {:requested, ^user_id, %{reason: "too_expensive", comment: "Too dear"}}
   end
 
+  test "the notice job carries the owner's profile timezone" do
+    user = insert(:user)
+    insert(:profile, user: user, timezone: "Pacific/Kiritimati")
+
+    assert {:ok, _pending} =
+             Auth.request_account_deletion(user, %{"current_password" => @password}, @opts)
+
+    assert_enqueued(
+      worker: EmailWorker,
+      args: %{"action" => "send_account_deletion_notice", "timezone" => "Pacific/Kiritimati"}
+    )
+  end
+
   test "a wrong password schedules nothing" do
     user = insert(:user)
 

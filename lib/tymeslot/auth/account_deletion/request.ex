@@ -39,7 +39,7 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
   alias Tymeslot.Workers.AccountDeletionWorker
 
   @type error ::
-          {:error, %{optional(:current_password | :confirm_email) => String.t()}}
+          {:error, %{optional(:current_password | :confirm_email | :base) => String.t()}}
           | {:error, :rate_limited, String.t()}
 
   @spec request(UserSchema.t(), map(), keyword()) :: {:ok, UserSchema.t()} | error()
@@ -147,15 +147,12 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
   defp field_error(reason) when reason in [:invalid_password, :missing_password],
     do: %{current_password: Validation.current_password_message(reason)}
 
-  defp field_error(:not_found),
-    do: %{current_password: Validation.current_password_message(:invalid_password)}
-
   defp field_error(:email_mismatch),
     do: %{confirm_email: dgettext("account", "That is not the email address of this account.")}
 
   defp field_error(_unexpected) do
     %{
-      current_password:
+      base:
         dgettext("account", "Your account could not be scheduled for deletion. Please try again.")
     }
   end
@@ -174,7 +171,8 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
         name: pending.name,
         locale: pending.locale,
         scheduled_at: pending.deletion_scheduled_at,
-        restorable: not Policy.immediate?()
+        restorable: not Policy.immediate?(),
+        timezone: Policy.user_timezone(pending.id)
       })
 
     :ok

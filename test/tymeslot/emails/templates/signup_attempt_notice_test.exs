@@ -6,6 +6,7 @@ defmodule Tymeslot.Emails.Templates.SignupAttemptNoticeTest do
   alias Tymeslot.Emails.Templates.SignupAttemptNotice
 
   import Tymeslot.EmailTestHelpers
+  import Tymeslot.Factory
 
   @sign_in_url "https://example.com/auth/login"
   @reset_url "https://example.com/auth/reset-password"
@@ -64,6 +65,26 @@ defmodule Tymeslot.Emails.Templates.SignupAttemptNoticeTest do
   end
 
   describe "an address whose account is pending deletion" do
+    test "names the date as the owner's own calendar day" do
+      owner = insert(:user)
+      insert(:profile, user: owner, timezone: "Pacific/Kiritimati")
+
+      user = %{
+        id: owner.id,
+        name: "Ada",
+        email: "ada@example.com",
+        provider: "email",
+        deletion_scheduled_at: ~U[2026-10-16 12:00:00Z]
+      }
+
+      text =
+        Gettext.with_locale(TymeslotWeb.Gettext, "en", fn ->
+          SignupAttemptNotice.render_text(user, @sign_in_url, @reset_url)
+        end)
+
+      assert text =~ "scheduled for deletion on October 17, 2026"
+    end
+
     test "names the deletion date and both ways forward" do
       user = %{
         id: 1,

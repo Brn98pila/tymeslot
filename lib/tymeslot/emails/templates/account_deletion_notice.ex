@@ -10,6 +10,7 @@ defmodule Tymeslot.Emails.Templates.AccountDeletionNotice do
   """
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias Tymeslot.Auth.AccountDeletion.Policy
   alias Tymeslot.Emails.Shared.{Buttons, Formatting, Greeting, TemplateHelper, Text}
 
   @intent :alert
@@ -17,6 +18,8 @@ defmodule Tymeslot.Emails.Templates.AccountDeletionNotice do
   @spec render(Tymeslot.Emails.EmailService.user_map(), DateTime.t(), String.t() | nil) ::
           String.t()
   def render(user, scheduled_at, sign_in_url) do
+    scheduled_at = Policy.local_date(scheduled_at, user[:timezone])
+
     mjml_content = """
     #{Text.centered_html(Greeting.html(user), padding: "8px 0 4px 0", font_size: "16px")}
 
@@ -43,6 +46,8 @@ defmodule Tymeslot.Emails.Templates.AccountDeletionNotice do
   @spec render_text(Tymeslot.Emails.EmailService.user_map(), DateTime.t(), String.t() | nil) ::
           String.t()
   def render_text(user, scheduled_at, sign_in_url) do
+    scheduled_at = Policy.local_date(scheduled_at, user[:timezone])
+
     """
     #{title(sign_in_url)}
 
@@ -125,5 +130,5 @@ defmodule Tymeslot.Emails.Templates.AccountDeletionNotice do
   end
 
   # Rendered inside the recipient's locale (see `RecipientLocale`).
-  defp date(at), do: Formatting.format_date(at, Gettext.get_locale(TymeslotWeb.Gettext))
+  defp date(day), do: Formatting.format_date(day, Gettext.get_locale(TymeslotWeb.Gettext))
 end

@@ -10,6 +10,8 @@ defmodule Tymeslot.Emails.Templates.SignupAttemptNotice do
   """
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias Tymeslot.Auth.AccountDeletion.Policy
+
   alias Tymeslot.Emails.Shared.{
     Buttons,
     Formatting,
@@ -68,11 +70,14 @@ defmodule Tymeslot.Emails.Templates.SignupAttemptNotice do
 
   # The address belongs to an account waiting to be deleted: the owner can
   # still restore it, or sign up afresh once it is gone.
-  defp explanation(%{deletion_scheduled_at: %DateTime{} = at}) do
+  defp explanation(%{deletion_scheduled_at: %DateTime{} = at} = user) do
     dgettext(
       "emails_account",
       "Someone just tried to create a new Tymeslot account with this email address. It belongs to an account that is scheduled for deletion on %{date}. If it was you, sign in before then to restore that account, or sign up again after that date.",
-      date: Formatting.format_date(at, Gettext.get_locale(TymeslotWeb.Gettext))
+      date:
+        at
+        |> Policy.user_local_date(user.id)
+        |> Formatting.format_date(Gettext.get_locale(TymeslotWeb.Gettext))
     )
   end
 

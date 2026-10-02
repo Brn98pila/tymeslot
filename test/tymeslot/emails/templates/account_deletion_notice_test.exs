@@ -25,6 +25,20 @@ defmodule Tymeslot.Emails.Templates.AccountDeletionNoticeTest do
     end)
   end
 
+  test "the date is the recipient's own calendar day, not the UTC one" do
+    recipient = Map.put(@recipient, :timezone, "Pacific/Kiritimati")
+    at = ~U[2026-10-16 12:00:00Z]
+
+    Gettext.with_locale(TymeslotWeb.Gettext, "en", fn ->
+      text = AccountDeletionNotice.render_text(recipient, at, "https://example.com/auth/login")
+      html = AccountDeletionNotice.render(recipient, at, "https://example.com/auth/login")
+
+      assert text =~ "scheduled for deletion on October 17, 2026"
+      assert html =~ "October 17, 2026"
+      refute html =~ "October 16, 2026"
+    end)
+  end
+
   test "an immediate deletion says it is done, in the past tense, and offers no restore" do
     Gettext.with_locale(TymeslotWeb.Gettext, "en", fn ->
       text = AccountDeletionNotice.render_text(@recipient, @at, nil)

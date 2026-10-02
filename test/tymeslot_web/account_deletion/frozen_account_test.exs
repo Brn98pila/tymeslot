@@ -85,6 +85,18 @@ defmodule TymeslotWeb.AccountDeletion.FrozenAccountTest do
       refute html =~ pending.email
     end
 
+    test "names the deletion date as the user's own calendar day", %{conn: conn} do
+      user = insert(:user)
+      insert(:profile, user: user, username: "kiritimati", timezone: "Pacific/Kiritimati")
+      at = ~U[2036-10-16 12:00:00Z]
+      {:ok, pending} = UserQueries.mark_deletion_scheduled(user, DateTime.utc_now(:second), at)
+
+      html = conn |> log_in_user(pending) |> get(~p"/auth/restore") |> html_response(200)
+
+      assert html =~ "October 17, 2036"
+      refute html =~ "October 16, 2036"
+    end
+
     test "restores the account and goes on to the dashboard", %{conn: conn, user: user} do
       pending = freeze(user)
       conn = conn |> log_in_user(pending) |> post(~p"/auth/restore")

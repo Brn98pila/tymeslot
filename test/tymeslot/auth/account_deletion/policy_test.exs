@@ -8,6 +8,22 @@ defmodule Tymeslot.Auth.AccountDeletion.PolicyTest do
 
   alias Tymeslot.Auth.AccountDeletion.Policy
 
+  describe "local_date/2" do
+    test "is the user's own calendar day, which can differ from the UTC one" do
+      at = ~U[2026-10-16 23:30:00Z]
+
+      assert Policy.local_date(at, "Europe/Tallinn") == ~D[2026-10-17]
+      assert Policy.local_date(at, "America/Los_Angeles") == ~D[2026-10-16]
+    end
+
+    test "falls back to the UTC date without a usable timezone" do
+      at = ~U[2026-10-16 23:30:00Z]
+
+      assert Policy.local_date(at, nil) == ~D[2026-10-16]
+      assert Policy.local_date(at, "Not/AZone") == ~D[2026-10-16]
+    end
+  end
+
   describe "grace_days/0 and scheduled_at/1" do
     test "defaults to zero days, so the deletion is due straight away" do
       with_config(:tymeslot, :account_deletion_grace_days, 0)

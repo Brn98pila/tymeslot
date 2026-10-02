@@ -144,7 +144,14 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmails do
   @spec handle_account_deletion_notice(%{String.t() => term()}) ::
           :ok | {:error, term()} | {:discard, String.t()}
   def handle_account_deletion_notice(%{"email" => email, "scheduled_at" => scheduled_at} = args) do
-    recipient = %{email: email, name: args["name"], locale: args["locale"], id: nil}
+    recipient = %{
+      email: email,
+      name: args["name"],
+      locale: args["locale"],
+      timezone: args["timezone"],
+      id: nil
+    }
+
     restore_url = if args["restorable"] == true, do: sign_in_url()
 
     case DateTime.from_iso8601(scheduled_at) do

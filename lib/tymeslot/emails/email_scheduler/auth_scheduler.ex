@@ -212,7 +212,8 @@ defmodule Tymeslot.Emails.EmailScheduler.AuthScheduler do
           name: String.t() | nil,
           locale: String.t() | nil,
           scheduled_at: DateTime.t(),
-          restorable: boolean()
+          restorable: boolean(),
+          timezone: String.t() | nil
         }) :: {:ok, :scheduled | :duplicate} | {:error, String.t()}
   def schedule_account_deletion_notice(details) do
     result =
@@ -222,7 +223,8 @@ defmodule Tymeslot.Emails.EmailScheduler.AuthScheduler do
         "name" => details.name,
         "locale" => details.locale,
         "scheduled_at" => DateTime.to_iso8601(details.scheduled_at),
-        "restorable" => details.restorable
+        "restorable" => details.restorable,
+        "timezone" => details[:timezone]
       }
       |> EmailWorker.new(
         queue: :emails,
