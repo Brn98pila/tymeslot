@@ -167,6 +167,10 @@ defmodule Tymeslot.Payments.Stripe do
 
   @doc """
   Cancels a Stripe subscription.
+
+  The idempotency key defaults to one scoped to the operation, subscription and
+  day. A caller whose repeated cancels on the same day are each meant to reach
+  Stripe passes its own `:idempotency_key`.
   """
   @impl StripeProvider
   @spec cancel_subscription(String.t(), keyword()) :: stripe_result()
@@ -183,7 +187,11 @@ defmodule Tymeslot.Payments.Stripe do
       end
 
     operation = if at_period_end, do: "cancel_at_period_end", else: "cancel_now"
-    idempotency_key = generate_idempotency_key("subscription_#{operation}", subscription_id)
+
+    idempotency_key =
+      Keyword.get_lazy(opts, :idempotency_key, fn ->
+        generate_idempotency_key("subscription_#{operation}", subscription_id)
+      end)
 
     RetryHelper.execute_with_retry(fn ->
       if at_period_end do

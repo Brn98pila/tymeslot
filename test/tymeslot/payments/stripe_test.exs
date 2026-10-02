@@ -134,6 +134,31 @@ defmodule Tymeslot.Payments.StripeTest do
     end
   end
 
+  describe "cancel_subscription/2" do
+    test "uses a caller-supplied idempotency key" do
+      expect(StripeSubscriptionMock, :update, fn "sub_123", params, opts ->
+        assert params == %{cancel_at_period_end: true}
+        assert opts[:idempotency_key] == "my-key"
+        {:ok, %{id: "sub_123", cancel_at_period_end: true}}
+      end)
+
+      assert {:ok, _sub} =
+               Stripe.cancel_subscription("sub_123",
+                 at_period_end: true,
+                 idempotency_key: "my-key"
+               )
+    end
+
+    test "defaults to a key scoped to the operation, subscription and day" do
+      expect(StripeSubscriptionMock, :update, fn "sub_123", _params, opts ->
+        assert opts[:idempotency_key] =~ ~r/^subscription_cancel_at_period_end_/
+        {:ok, %{id: "sub_123"}}
+      end)
+
+      assert {:ok, _sub} = Stripe.cancel_subscription("sub_123", at_period_end: true)
+    end
+  end
+
   describe "resume_subscription/1" do
     test "turns cancel-at-period-end back off" do
       expect(StripeSubscriptionMock, :update, fn "sub_123", params, opts ->
