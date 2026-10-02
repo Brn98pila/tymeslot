@@ -1,7 +1,7 @@
 defmodule TymeslotWeb.AdminLive.Components.Users do
   @moduledoc """
   Users tab: install user counts at the top, followed by the list of users
-  with promote/demote actions and the confirmation modal that opens when
+  with promote, demote and delete actions and the confirmation modal that opens when
   a row action is triggered.
   """
 
@@ -9,7 +9,7 @@ defmodule TymeslotWeb.AdminLive.Components.Users do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Profiles.ProfileSchema
-  alias TymeslotWeb.AdminLive.Components.{ConfirmRoleChangeModal, Shared}
+  alias TymeslotWeb.AdminLive.Components.{ConfirmDeleteUserModal, ConfirmRoleChangeModal, Shared}
 
   attr :users, :list, required: true
   attr :current_user, :map, required: true
@@ -81,10 +81,16 @@ defmodule TymeslotWeb.AdminLive.Components.Users do
     </div>
 
     <ConfirmRoleChangeModal.confirm_role_change_modal
-      :if={@pending_action}
+      :if={@pending_action && @pending_action.kind in [:promote, :demote]}
       action={@pending_action.kind}
       user={@pending_action}
       self?={@pending_action.id == @current_user.id}
+      submitting={@role_change_submitting}
+    />
+
+    <ConfirmDeleteUserModal.confirm_delete_user_modal
+      :if={@pending_action && @pending_action.kind == :delete}
+      user={@pending_action}
       submitting={@role_change_submitting}
     />
     """
@@ -162,6 +168,19 @@ defmodule TymeslotWeb.AdminLive.Components.Users do
       class="inline-flex items-center text-sm font-bold text-turquoise-600 hover:text-turquoise-800 transition-colors"
     >
       {dgettext("dashboard_admin", "Promote")}
+    </button>
+
+    <%!-- Deleting oneself goes through account settings, with re-authentication. --%>
+    <button
+      :if={not @is_self}
+      type="button"
+      phx-click="request_delete"
+      phx-value-id={@user.id}
+      phx-value-email={@user.email}
+      aria-label={dgettext("dashboard_admin", "Delete %{email}", email: @user.email)}
+      class="ml-4 inline-flex items-center text-sm font-bold text-red-600 hover:text-red-800 transition-colors"
+    >
+      {dgettext("dashboard_admin", "Delete")}
     </button>
     """
   end

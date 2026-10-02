@@ -7,7 +7,7 @@ defmodule Tymeslot.Auth do
   It encapsulates the business logic and provides a clean interface for the web layer.
   """
 
-  alias Tymeslot.Auth.AccountDeletion.{Policy, Request, Restore, Runner}
+  alias Tymeslot.Auth.AccountDeletion.{Operator, Policy, Request, Restore, Runner}
 
   alias Tymeslot.Auth.{
     AccountDeletion,
@@ -518,6 +518,14 @@ defmodule Tymeslot.Auth do
   """
   @spec subscribe_to_account(pos_integer()) :: :ok | {:error, term()}
   defdelegate subscribe_to_account(user_id), to: PubSub
+
+  @doc """
+  Deletes another account now, bypassing the grace period, for the admin
+  users tab or a release shell. See `Tymeslot.Auth.AccountDeletion.Operator`.
+  """
+  @spec delete_account_now(Operator.actor(), pos_integer(), keyword()) ::
+          {:ok, UserSchema.t()} | {:error, Operator.error()}
+  defdelegate delete_account_now(actor, user_id, opts \\ []), to: Operator, as: :delete_now
 
   @doc """
   Deletes a user account.

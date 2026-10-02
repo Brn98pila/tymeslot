@@ -48,6 +48,11 @@ defmodule TymeslotWeb.AdminLive.UserActions do
     with_user_id(id, socket, &handle_demote(&1, assign(socket, :role_change_submitting, true)))
   end
 
+  @spec delete(String.t(), socket()) :: {:noreply, socket()}
+  def delete(id, socket) do
+    with_user_id(id, socket, &handle_delete(&1, assign(socket, :role_change_submitting, true)))
+  end
+
   defp with_user_id(id, socket, fun) do
     case parse_user_id(id) do
       {:ok, user_id} ->
@@ -130,4 +135,43 @@ defmodule TymeslotWeb.AdminLive.UserActions do
 
   defp role_change_error_message(:demote, %Ecto.Changeset{}),
     do: dgettext("dashboard_admin", "Could not demote user.")
+
+  defp handle_delete(user_id, socket) do
+    case Auth.delete_account_now(socket.assigns.current_user, user_id) do
+      {:ok, pending} ->
+        {:noreply,
+         socket
+         |> clear_pending_action()
+         |> put_flash(
+           :info,
+           dgettext(
+             "dashboard_admin",
+             "Deleting %{email}. The account leaves this list once the deletion has run.",
+             email: pending.email
+           )
+         )
+         |> push_patch(to: ~p"/admin/users")}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> clear_pending_action()
+         |> put_flash(:error, delete_error_message(reason))}
+    end
+  end
+
+  defp delete_error_message(:self) do
+    dgettext(
+      "dashboard_admin",
+      "You cannot delete your own account here. Use your account settings instead."
+    )
+  end
+
+  defp delete_error_message(:last_admin),
+    do: dgettext("dashboard_admin", "Cannot delete the last admin. Promote someone else first.")
+
+  defp delete_error_message(reason) when reason in [:not_found, :forbidden, :admin_ui_disabled],
+    do: role_change_error_message(:delete, reason)
+
+  defp delete_error_message(_other), do: dgettext("dashboard_admin", "Could not delete user.")
 end

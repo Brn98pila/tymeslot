@@ -61,6 +61,30 @@ defmodule Tymeslot.Release do
     end
   end
 
+  @doc """
+  Deletes the account with the given email now, bypassing any grace period,
+  and waits for the deletion to finish:
+
+      bin/tymeslot rpc 'Tymeslot.Release.delete_account("someone@example.com")'
+
+  Refuses the only remaining admin unless `force?` is true. Returns
+  `{:ok, :deleted}`, or the error that stopped the deletion; in that case the
+  queued deletion job retries by itself.
+  """
+  @spec delete_account(String.t(), boolean()) :: {:ok, :deleted} | {:error, term()}
+  def delete_account(email, force? \\ false) when is_binary(email) do
+    ensure_started()
+
+    with {:ok, user} <- UserQueries.get_user_by_email(email),
+         {:ok, _pending} <- Auth.delete_account_now(:cli, user.id, force: force?) do
+      case Auth.run_scheduled_deletion(user.id) do
+        {:ok, _outcome} -> {:ok, :deleted}
+        {:snooze, _seconds} -> {:error, :not_due}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
   # Checked here too (rather than relying solely on `AdminRoles.demote/2`'s
   # own check) so it runs before the last-admin guard below, keeping the
   # error precedence promote_admin/1 and the pre-fix demote_admin/1 already

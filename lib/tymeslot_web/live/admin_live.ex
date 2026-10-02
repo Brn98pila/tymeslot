@@ -183,6 +183,11 @@ defmodule TymeslotWeb.AdminLive do
 
   def handle_event("demote_user", %{"id" => id}, socket), do: UserActions.demote(id, socket)
 
+  def handle_event("request_delete", params, socket),
+    do: UserActions.open_pending_action(:delete, params, socket)
+
+  def handle_event("delete_user", %{"id" => id}, socket), do: UserActions.delete(id, socket)
+
   # --- Email branding helpers ---
 
   # Auto-upload progress callback. Consumes the entry only once it is fully

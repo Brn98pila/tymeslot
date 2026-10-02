@@ -89,6 +89,7 @@ msgstr "Mindest-Score für Buchung"
 msgid "Booking slug"
 msgstr "Buchungs-Slug"
 
+#: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #: lib/tymeslot_web/live/admin_live/components/confirm_role_change_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Cancel"
@@ -645,3 +646,53 @@ msgstr "Sprache, auf die Dashboard, Kontoseiten und Konto-E-Mails zurückfallen.
 #, elixir-autogen, elixir-format
 msgid "General"
 msgstr "Allgemein"
+
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
+#, elixir-autogen, elixir-format
+msgid "Cannot delete the last admin. Promote someone else first."
+msgstr "Der letzte Administrator kann nicht gelöscht werden. Bitte befördern Sie zuerst eine andere Person."
+
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
+#, elixir-autogen, elixir-format
+msgid "Could not delete user."
+msgstr "Der Nutzer konnte nicht gelöscht werden."
+
+#: lib/tymeslot_web/live/admin_live/components/users.ex
+#, elixir-autogen, elixir-format
+msgid "Delete"
+msgstr "Löschen"
+
+#: lib/tymeslot_web/live/admin_live/components/users.ex
+#, elixir-autogen, elixir-format
+msgid "Delete %{email}"
+msgstr "%{email} löschen"
+
+#: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Delete %{email} and all their data now?"
+msgstr "%{email} und alle Daten jetzt löschen?"
+
+#: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Delete user"
+msgstr "Nutzer löschen"
+
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
+#, elixir-autogen, elixir-format
+msgid "Deleting %{email}. The account leaves this list once the deletion has run."
+msgstr "%{email} wird gelöscht. Das Konto verschwindet aus dieser Liste, sobald die Löschung durchgeführt wurde."
+
+#: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Deleting..."
+msgstr "Wird gelöscht …"
+
+#: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
+#, elixir-autogen, elixir-format
+msgid "This cannot be undone. Their bookings are deleted and their guests are not notified; existing calendar events and video links stay as they are."
+msgstr "Dies kann nicht rückgängig gemacht werden. Die Buchungen werden gelöscht und die Gäste nicht benachrichtigt; bestehende Kalendereinträge und Videolinks bleiben unverändert."
+
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
+#, elixir-autogen, elixir-format
+msgid "You cannot delete your own account here. Use your account settings instead."
+msgstr "Sie können Ihr eigenes Konto hier nicht löschen. Nutzen Sie stattdessen Ihre Kontoeinstellungen."
