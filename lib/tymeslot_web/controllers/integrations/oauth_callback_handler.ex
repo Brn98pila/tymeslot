@@ -3,7 +3,8 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandler do
   The one callback path for every calendar and video OAuth provider.
 
   A provider sends the browser back with either a `code` and `state`, an
-  `error`, or something malformed. The success path checks the state belongs to
+  `error`, or something malformed. An account pending deletion is sent to the restore page before anything
+  else. The success path checks the state belongs to
   the signed-in user, rate limits by IP, and hands the code to the owning
   context (`Calendar.complete_oauth/3` or `Video.complete_oauth/3`), which
   connects the integration and refreshes the dashboard's cached status. The
@@ -22,6 +23,7 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandler do
 
   alias Phoenix.Controller
   alias Plug.Conn
+  alias Tymeslot.Auth
   alias Tymeslot.Auth.ErrorFormatter
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar
@@ -83,7 +85,22 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandler do
   """
   @spec handle(Conn.t(), map(), provider_key()) :: Conn.t()
   def handle(conn, params, provider_key) do
-    handle_params(conn, params, Map.fetch!(@providers, provider_key))
+    config = Map.fetch!(@providers, provider_key)
+
+    if pending_deletion?(conn) do
+      conn |> Controller.redirect(to: ~p"/auth/restore") |> Conn.halt()
+    else
+      handle_params(conn, params, config)
+    end
+  end
+
+  # An account waiting to be deleted connects nothing: the code is dropped
+  # unused, and the user is sent to the one page such an account can use.
+  defp pending_deletion?(conn) do
+    case conn.assigns[:current_user] do
+      %{} = user -> Auth.deletion_pending?(user)
+      _none -> false
+    end
   end
 
   defp handle_params(conn, %{"code" => code, "state" => state}, config) do

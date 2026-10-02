@@ -13,6 +13,7 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandlerTest do
   import Tymeslot.AuthTestHelpers, only: [log_in_user: 2]
 
   alias Phoenix.Flash
+  alias Tymeslot.Auth.UserQueries
   alias Tymeslot.Factory
   alias Tymeslot.Integrations.Common.OAuth.State
   alias Tymeslot.Security.RateLimiter
@@ -103,6 +104,23 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandlerTest do
 
         assert redirected_to(conn) == unquote(failure_path)
         assert Flash.get(conn.assigns.flash, :error) =~ "Invalid authentication response"
+      end
+
+      test "an account pending deletion is sent to the restore page and connects nothing",
+           %{conn: conn} do
+        user = Factory.insert(:user)
+        now = DateTime.utc_now(:second)
+
+        {:ok, pending} =
+          UserQueries.mark_deletion_scheduled(user, now, DateTime.add(now, 14, :day))
+
+        conn = log_in_user(conn, pending)
+        :meck.expect(State, :validate, fn _state, _secret -> {:ok, %{user_id: user.id}} end)
+
+        conn = get(conn, unquote(path), %{"code" => "code", "state" => "state"})
+
+        assert redirected_to(conn) == "/auth/restore"
+        refute :meck.called(State, :validate, :_)
       end
 
       test "a rate-limited callback is turned away", %{conn: conn} do
