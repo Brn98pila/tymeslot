@@ -4,6 +4,7 @@ defmodule Tymeslot.Auth.AccountDeletion.ExternalCleanupTest do
   @moduletag :auth
   @moduletag :integrations
 
+  import ExUnit.CaptureLog
   import Mox
   import Tymeslot.Factory
 
@@ -29,13 +30,34 @@ defmodule Tymeslot.Auth.AccountDeletion.ExternalCleanupTest do
     expect(Tymeslot.HTTPClientMock, :post, 2, fn url, _body, _headers, _opts ->
       send(test_pid, {:post, url})
 
-      if String.contains?(url, "slack.com"),
-        do: raise("Slack is down"),
+      if String.contains?(url, "oauth2.googleapis.com"),
+        do: raise("Google is down"),
         else: {:ok, %Req.Response{status: 200, body: ""}}
     end)
 
     assert ExternalCleanup.run(user) == :ok
     assert_received {:post, "https://oauth2.googleapis.com/revoke"}
     assert_received {:post, "https://slack.com/api/auth.revoke"}
+  end
+
+  test "a step returning an error is logged and does not raise" do
+    log =
+      capture_log(fn ->
+        assert ExternalCleanup.run_step(:payments, 1, fn -> {:error, :boom} end) == :ok
+      end)
+
+    assert log =~ "cleanup step failed"
+    assert log =~ "boom"
+  end
+
+  test "a step raising is logged and does not raise" do
+    log =
+      capture_log(fn ->
+        assert ExternalCleanup.run_step(:calendars, 1, fn -> raise "calendars exploded" end) ==
+                 :ok
+      end)
+
+    assert log =~ "cleanup step failed"
+    assert log =~ "calendars exploded"
   end
 end

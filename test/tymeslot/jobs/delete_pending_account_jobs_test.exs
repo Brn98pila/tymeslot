@@ -7,8 +7,11 @@ defmodule Tymeslot.Jobs.DeletePendingAccountJobsTest do
 
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
+  alias Oban.Job
   alias Tymeslot.Jobs
   alias Tymeslot.Meetings
+  alias Tymeslot.Repo
   alias Tymeslot.Workers.EmailWorker
 
   defp reminder(meeting_id) do
@@ -44,5 +47,34 @@ defmodule Tymeslot.Jobs.DeletePendingAccountJobsTest do
 
     assert Enum.map(all_enqueued(worker: EmailWorker), & &1.id) |> Enum.sort() ==
              Enum.sort([kept_reminder.id, kept_notice.id])
+  end
+
+  test "leaves an executing job alone" do
+    user = insert(:user)
+    job = notice(user.id)
+    job |> Changeset.change(state: "executing") |> Repo.update!()
+
+    assert {0, nil} = Jobs.delete_pending_account_jobs(user.id, [])
+    assert Repo.get(Job, job.id)
+  end
+
+  test "matches a user id stored as a string" do
+    user = insert(:user)
+
+    string_job =
+      %{"action" => "send_signup_attempt_notice", "user_id" => to_string(user.id)}
+      |> EmailWorker.new()
+      |> Oban.insert!()
+
+    assert {1, nil} = Jobs.delete_pending_account_jobs(user.id, [])
+    refute Repo.get(Job, string_job.id)
+  end
+
+  test "keeps another user's job whose id merely starts with the same digits" do
+    user = insert(:user)
+    other = notice(user.id * 10)
+
+    assert {0, nil} = Jobs.delete_pending_account_jobs(user.id, [])
+    assert Repo.get(Job, other.id)
   end
 end
