@@ -28,12 +28,12 @@ defmodule Tymeslot.Auth.AccountDeletion.ExternalCleanup do
   alias Tymeslot.Slack
 
   @spec run(UserSchema.t()) :: :ok
-  def run(%UserSchema{id: user_id} = user) do
+  def run(%UserSchema{id: user_id}) do
     steps = [
       calendars: fn -> CalendarCleanup.run(user_id) end,
       video: fn -> VideoCleanup.run(user_id) end,
       slack: fn -> Slack.revoke_tokens_for_user(user_id) end,
-      payments: fn -> MeetingPayments.disconnect(user) end
+      payments: fn -> MeetingPayments.disconnect(%{id: user_id}) end
     ]
 
     Enum.each(steps, fn {step, fun} -> run_step(step, user_id, fun) end)

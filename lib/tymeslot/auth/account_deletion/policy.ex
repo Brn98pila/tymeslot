@@ -49,7 +49,10 @@ defmodule Tymeslot.Auth.AccountDeletion.Policy do
   through a provider can set a password later, and an "email" account always
   has one.
   """
-  @spec confirmation_method(%{password_hash: String.t() | nil}) :: :password | :email
+  @spec confirmation_method(%{
+          required(:password_hash) => String.t() | nil,
+          optional(atom()) => term()
+        }) :: :password | :email
   def confirmation_method(%{password_hash: hash}) when is_binary(hash) and hash != "",
     do: :password
 
