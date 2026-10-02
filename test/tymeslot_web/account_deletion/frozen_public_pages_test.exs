@@ -22,6 +22,18 @@ defmodule TymeslotWeb.AccountDeletion.FrozenPublicPagesTest do
     pending
   end
 
+  defp held_meeting(user) do
+    insert(:meeting,
+      status: "awaiting_approval",
+      organizer_user: user,
+      organizer_user_id: user.id,
+      attendee_name: "Alex Guest",
+      attendee_email: "alex@example.com",
+      approval_requested_at: DateTime.utc_now(:second),
+      approval_deadline_at: DateTime.add(DateTime.utc_now(:second), 12, :hour)
+    )
+  end
+
   test "the booking page of a host pending deletion is a 404", %{conn: conn} do
     user = insert(:user)
     insert(:profile, user: user, username: "frozen-page")
@@ -49,18 +61,6 @@ defmodule TymeslotWeb.AccountDeletion.FrozenPublicPagesTest do
   end
 
   describe "the booking request link in the host's email" do
-    defp held_meeting(user) do
-      insert(:meeting,
-        status: "awaiting_approval",
-        organizer_user: user,
-        organizer_user_id: user.id,
-        attendee_name: "Alex Guest",
-        attendee_email: "alex@example.com",
-        approval_requested_at: DateTime.utc_now(:second),
-        approval_deadline_at: DateTime.add(DateTime.utc_now(:second), 12, :hour)
-      )
-    end
-
     test "shows nothing of the request once the host's account is pending deletion",
          %{conn: conn} do
       user = insert(:user)
@@ -88,6 +88,7 @@ defmodule TymeslotWeb.AccountDeletion.FrozenPublicPagesTest do
       html = view |> element("[data-testid='approve-request']") |> render_click()
 
       assert html =~ "Link not recognised"
+      refute html =~ "changed since"
       assert Repo.get!(MeetingSchema, meeting.id).status == "awaiting_approval"
     end
   end
