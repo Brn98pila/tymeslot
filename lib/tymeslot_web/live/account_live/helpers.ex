@@ -89,17 +89,6 @@ defmodule TymeslotWeb.AccountLive.Helpers do
     end
   end
 
-  @doc """
-  A deletion date in the page's locale, on the user's own calendar day, for
-  the modal and the flash.
-  """
-  @spec format_deletion_date(DateTime.t(), Ecto.Schema.t()) :: String.t()
-  def format_deletion_date(%DateTime{} = at, user) do
-    at
-    |> Auth.deletion_local_date(user)
-    |> LocaleFormat.format_date(Gettext.get_locale(TymeslotWeb.Gettext))
-  end
-
   @doc "The reason picker's options, or `[]` when feedback is not collected."
   @spec deletion_feedback_options() :: [{String.t(), String.t()}]
   def deletion_feedback_options do

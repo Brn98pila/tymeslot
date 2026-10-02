@@ -14,6 +14,7 @@ defmodule TymeslotWeb.AccountLive.Handlers do
   alias Tymeslot.Locales
   alias TymeslotWeb.AccountLive.Helpers
   alias TymeslotWeb.Helpers.ClientIP
+  alias TymeslotWeb.Helpers.DeletionDate
 
   # Provider constants
   @social_provider_default "social"
@@ -116,7 +117,7 @@ defmodule TymeslotWeb.AccountLive.Handlers do
      assign(socket,
        show_delete_modal: true,
        delete_errors: %{},
-       deletion_date: Helpers.format_deletion_date(due_at, socket.assigns.current_user)
+       deletion_date: DeletionDate.format(due_at, socket.assigns.current_user)
      )}
   end
 
@@ -214,7 +215,7 @@ defmodule TymeslotWeb.AccountLive.Handlers do
       dgettext(
         "account",
         "Your account will be deleted on %{date}. Sign in before then if you change your mind.",
-        date: Helpers.format_deletion_date(pending.deletion_scheduled_at, pending)
+        date: DeletionDate.format(pending.deletion_scheduled_at, pending)
       )
     end
   end

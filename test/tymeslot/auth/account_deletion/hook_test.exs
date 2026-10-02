@@ -14,6 +14,8 @@ defmodule Tymeslot.Auth.AccountDeletion.HookTest do
 
     @impl Tymeslot.Auth.Behaviours.AccountDeletionHook
     def on_deletion_requested(_user_id, %{reason: "raise"}), do: raise("hook exploded")
+    def on_deletion_requested(_user_id, %{reason: "exit"}), do: exit(:hook_gone)
+    def on_deletion_requested(_user_id, %{reason: "throw"}), do: throw(:hook_thrown)
 
     def on_deletion_requested(user_id, feedback) do
       send(self(), {:requested, user_id, feedback})
@@ -67,6 +69,21 @@ defmodule Tymeslot.Auth.AccountDeletion.HookTest do
 
     assert log =~ "Account deletion hook failed"
     assert log =~ "hook exploded"
+  end
+
+  test "a request callback that exits or throws is logged, never propagated" do
+    with_config(:tymeslot, :account_deletion_hook, RecordingHook)
+
+    exit_log =
+      capture_log(fn -> assert Hook.requested(7, %{reason: "exit", comment: nil}) == :ok end)
+
+    throw_log =
+      capture_log(fn -> assert Hook.requested(7, %{reason: "throw", comment: nil}) == :ok end)
+
+    assert exit_log =~ "Account deletion hook failed"
+    assert exit_log =~ "hook_gone"
+    assert throw_log =~ "Account deletion hook failed"
+    assert throw_log =~ "hook_thrown"
   end
 
   test "a failing delete callback is returned so the deletion stops" do

@@ -140,6 +140,34 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
     |> Repo.update()
   end
 
+  @doc """
+  Narrows `query` to the rows of the binding named `binding` (an `id` column)
+  that have no incomplete job of `worker` whose `args["user_id"]` is that id.
+
+  "Incomplete" is Oban's own group (`Oban.Job.unique_states(:incomplete)`:
+  waiting, scheduled, retrying, executing and suspended), the one a worker
+  declaring `unique: [states: :incomplete]` is held to. A suspended job is
+  counted because such a worker would reject a new insert while it exists, so
+  a sweep that treated it as absent would try again on every run.
+  """
+  @spec without_incomplete_user_job(Ecto.Queryable.t(), module(), atom()) :: Ecto.Query.t()
+  def without_incomplete_user_job(query, worker, binding) when is_atom(binding) do
+    worker_name = normalize_worker_name(worker)
+    states = Enum.map(Job.unique_states(:incomplete), &Atom.to_string/1)
+
+    where(
+      query,
+      [],
+      not exists(
+        from(j in Job,
+          where: j.worker == ^worker_name,
+          where: j.state in ^states,
+          where: fragment("?->>'user_id' = ?::text", j.args, parent_as(^binding).id)
+        )
+      )
+    )
+  end
+
   # The state list every "still pending" delete below matches against. Kept
   # in one place because it has to stay in step with the `unique: [states:
   # ...]` guard on whichever worker is being cleared.

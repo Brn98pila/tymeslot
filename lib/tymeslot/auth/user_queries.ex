@@ -10,9 +10,8 @@ defmodule Tymeslot.Auth.UserQueries do
   import Ecto.Query, warn: false
 
   alias Ecto.Changeset
-  alias Oban.Job
-  alias Oban.Worker
   alias Tymeslot.Auth.UserSchema
+  alias Tymeslot.Jobs.ObanJobQueries
   alias Tymeslot.Repo
 
   @doc """
@@ -297,21 +296,8 @@ defmodule Tymeslot.Auth.UserQueries do
 
   defp without_incomplete_job(query, nil), do: query
 
-  defp without_incomplete_job(query, worker) do
-    worker_name = Worker.to_string(worker)
-
-    where(
-      query,
-      [u],
-      not exists(
-        from(j in Job,
-          where: j.worker == ^worker_name,
-          where: j.state in ["available", "scheduled", "executing", "retryable", "suspended"],
-          where: fragment("?->>'user_id' = ?::text", j.args, parent_as(:user_row).id)
-        )
-      )
-    )
-  end
+  defp without_incomplete_job(query, worker),
+    do: ObanJobQueries.without_incomplete_user_job(query, worker, :user_row)
 
   @doc """
   Of `ids`, those that still have a `users` row. User ids come from a

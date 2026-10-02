@@ -4,8 +4,8 @@ defmodule Tymeslot.Auth.AccountDeletion.Hook do
   rest of the deletion code never reads the config key or decides which
   failures matter.
 
-  `requested/2` and `restored/1` are best-effort: an error or a raise is
-  logged and `:ok` returned, because neither may undo what the user just did.
+  `requested/2` and `restored/1` are best-effort: an error, a raise, an exit or a throw
+  is logged and `:ok` returned, because neither may undo what the user just did.
   `deleted/1` returns the hook's error, which stops the deletion.
   """
 
@@ -36,6 +36,9 @@ defmodule Tymeslot.Auth.AccountDeletion.Hook do
     end
   rescue
     exception -> log_failure(callback, user_id, exception)
+  catch
+    :exit, reason -> log_failure(callback, user_id, {:exit, reason})
+    :throw, value -> log_failure(callback, user_id, {:throw, value})
   end
 
   defp log_unless_ok(:ok, _callback, _user_id), do: :ok

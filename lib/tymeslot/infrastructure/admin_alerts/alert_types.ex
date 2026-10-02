@@ -39,6 +39,7 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     payment_event_enqueue_failed: %{category: "Payment", severity: :error},
     payment_event_orphaned: %{category: "Payment", severity: :error},
     dunning_stalled: %{category: "Payment", severity: :error},
+    account_deletion_billing_sync_failed: %{category: "Payment", severity: :error},
     analytics_tracking_anomaly: %{category: "Analytics", severity: :warning},
     recipient_email_rejected: %{category: "Email", severity: :warning}
   }
@@ -375,6 +376,14 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
 
     "Dunning stalled for subscription #{stripe_id}: #{days} days past due is beyond the " <>
       "auto-cancel guard, so it is never cancelled and still grants Pro; manual review required"
+  end
+
+  def format_message(:account_deletion_billing_sync_failed, metadata) do
+    user_id = Map.get(metadata, :user_id, "unknown")
+    detail = Map.get(metadata, :reason_message, "unknown")
+
+    "Subscription renewal for user #{user_id} could not be synced with an account deletion " <>
+      "after every retry (#{detail}); check the subscription at Stripe by hand"
   end
 
   # Discarded after the snooze cap because the subscription, customer or

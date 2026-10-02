@@ -19,7 +19,7 @@ defmodule TymeslotWeb.AccountRestoreController do
   alias Tymeslot.Auth
   alias Tymeslot.Infrastructure.Config
   alias TymeslotWeb.AccountRestoreHTML
-  alias TymeslotWeb.Helpers.LocaleFormat
+  alias TymeslotWeb.Helpers.DeletionDate
 
   @spec show(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def show(conn, _params) do
@@ -72,7 +72,10 @@ defmodule TymeslotWeb.AccountRestoreController do
     if Auth.account_restorable?(user, DateTime.utc_now()) do
       conn
       |> prepare()
-      |> render(:show, deletion_date: format_date(user), error: error)
+      |> render(:show,
+        deletion_date: DeletionDate.format(user.deletion_scheduled_at, user),
+        error: error
+      )
     else
       render_expired(conn)
     end
@@ -84,12 +87,6 @@ defmodule TymeslotWeb.AccountRestoreController do
 
   defp prepare(conn) do
     conn |> put_layout(html: false) |> put_view(html: AccountRestoreHTML)
-  end
-
-  defp format_date(user) do
-    user.deletion_scheduled_at
-    |> Auth.deletion_local_date(user)
-    |> LocaleFormat.format_date(Gettext.get_locale(TymeslotWeb.Gettext))
   end
 
   defp to_dashboard(conn), do: redirect(conn, to: Config.success_redirect_path())

@@ -3,9 +3,9 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandler do
   The one callback path for every calendar and video OAuth provider.
 
   A provider sends the browser back with either a `code` and `state`, an
-  `error`, or something malformed. An account pending deletion is sent to the restore page before anything
-  else. The success path checks the state belongs to
-  the signed-in user, rate limits by IP, and hands the code to the owning
+  `error`, or something malformed. An account pending deletion is sent to the
+  restore page before anything else. The success path checks the state belongs
+  to the signed-in user, rate limits by IP, and hands the code to the owning
   context (`Calendar.complete_oauth/3` or `Video.complete_oauth/3`), which
   connects the integration and refreshes the dashboard's cached status. The
   error path turns the provider's error into a flash.

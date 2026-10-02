@@ -1,7 +1,7 @@
 defmodule Tymeslot.Repo.Migrations.IndexUsersDeletionScheduledAt do
   @moduledoc """
   Partial index behind the daily sweep for overdue deletions
-  (`UserQueries.list_due_deletion_ids/2`) and the pending-host checks on
+  (`UserQueries.list_due_deletion_ids/3`) and the pending-host checks on
   public pages. Only accounts pending deletion carry a value, so the index
   stays tiny. Built concurrently so the `users` table is never locked.
 

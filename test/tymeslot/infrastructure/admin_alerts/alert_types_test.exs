@@ -209,6 +209,17 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypesTest do
                })
     end
 
+    test ":account_deletion_billing_sync_failed names the user and the failure" do
+      msg =
+        AlertTypes.format_message(:account_deletion_billing_sync_failed, %{
+          user_id: 4242,
+          reason_message: "stripe_down"
+        })
+
+      assert msg =~ "4242"
+      assert msg =~ "stripe_down"
+    end
+
     # The daily dunning run raises this type afresh each pass, with the day
     # count one higher. Keyed on the message, every pass looked new and the
     # admin was emailed daily about a condition nobody had resolved yet.

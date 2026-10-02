@@ -4,11 +4,14 @@ defmodule Tymeslot.Auth.UserQueriesDeletionTest do
   @moduletag :auth
   @moduletag :queries
 
+  import Ecto.Query, only: [from: 2]
   import Tymeslot.Factory
 
   alias Tymeslot.Auth
   alias Tymeslot.Auth.UserQueries
   alias Tymeslot.Auth.UserSchema
+  alias Tymeslot.Repo
+  alias Tymeslot.Workers.AccountDeletionWorker
 
   defp now, do: DateTime.utc_now(:second)
 
@@ -54,7 +57,7 @@ defmodule Tymeslot.Auth.UserQueriesDeletionTest do
     end
   end
 
-  describe "list_due_deletion_ids/2" do
+  describe "list_due_deletion_ids/3" do
     test "lists overdue accounts oldest first, up to the limit" do
       t = now()
 
@@ -71,6 +74,51 @@ defmodule Tymeslot.Auth.UserQueriesDeletionTest do
       assert UserQueries.list_due_deletion_ids(t, 10) == [older.id, due_now.id]
       assert UserQueries.list_due_deletion_ids(t, 1) == [older.id]
     end
+
+    test "with a worker, leaves out accounts that have an incomplete job of it" do
+      t = now()
+      incomplete = ~w(available scheduled executing retryable suspended)
+      finished = ~w(completed discarded cancelled)
+
+      due = fn ->
+        insert(:user, deletion_requested_at: t, deletion_scheduled_at: DateTime.add(t, -1, :day))
+      end
+
+      queued =
+        for state <- incomplete, into: %{} do
+          user = due.()
+          insert_job(user.id, state)
+          {state, user.id}
+        end
+
+      done =
+        for state <- finished, into: %{} do
+          user = due.()
+          insert_job(user.id, state)
+          {state, user.id}
+        end
+
+      unqueued = due.()
+
+      assert map_size(queued) == 5
+      assert map_size(done) == 3
+
+      listed = UserQueries.list_due_deletion_ids(t, 100, AccountDeletionWorker)
+
+      assert Enum.sort(listed) == Enum.sort([unqueued.id | Map.values(done)])
+      assert Enum.filter(listed, &(&1 in Map.values(queued))) == []
+      # Without the worker nothing is left out.
+      assert length(UserQueries.list_due_deletion_ids(t, 100)) == 9
+    end
+
+    test "a job for another account does not hide this one" do
+      t = now()
+      due = insert(:user, deletion_requested_at: t, deletion_scheduled_at: t)
+      other = insert(:user)
+      insert_job(other.id, "available")
+
+      assert UserQueries.list_due_deletion_ids(t, 10, AccountDeletionWorker) == [due.id]
+    end
   end
 
   describe "existing_ids/1" do
@@ -80,5 +128,11 @@ defmodule Tymeslot.Auth.UserQueriesDeletionTest do
       assert UserQueries.existing_ids([user.id, -5]) == [user.id]
       assert UserQueries.existing_ids([]) == []
     end
+  end
+
+  defp insert_job(user_id, state) do
+    job = Oban.insert!(AccountDeletionWorker.new(%{user_id: user_id}))
+
+    Repo.update_all(from(j in Oban.Job, where: j.id == ^job.id), set: [state: state])
   end
 end
