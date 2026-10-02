@@ -8,6 +8,7 @@ defmodule Tymeslot.Auth.AccountDeletion.OperatorTest do
   import Tymeslot.Factory
 
   alias Tymeslot.Auth
+  alias Tymeslot.Auth.UserSchema
   alias Tymeslot.Auth.UserSessionQueries
   alias Tymeslot.Repo
   alias Tymeslot.Security.Token
@@ -69,7 +70,7 @@ defmodule Tymeslot.Auth.AccountDeletion.OperatorTest do
     stale_admin |> Ecto.Changeset.change(is_admin: false) |> Repo.update!()
 
     assert Auth.delete_account_now(stale_admin, target.id) == {:error, :forbidden}
-    refute Repo.get!(Tymeslot.Auth.UserSchema, target.id).deletion_scheduled_at
+    refute Repo.get!(UserSchema, target.id).deletion_scheduled_at
   end
 
   test "an admin cannot delete themselves" do

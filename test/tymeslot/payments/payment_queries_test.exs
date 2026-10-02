@@ -3,6 +3,7 @@ defmodule Tymeslot.Payments.PaymentQueriesTest do
   @moduletag :payments
 
   alias Ecto.Changeset
+  alias Tymeslot.Payments
   alias Tymeslot.Payments.PaymentQueries
   alias Tymeslot.Payments.PaymentTransactionSchema
   alias Tymeslot.PaymentTestHelpers
@@ -192,7 +193,7 @@ defmodule Tymeslot.Payments.PaymentQueriesTest do
       assert user.id |> PaymentQueries.stripe_customer_ids_for_user() |> Enum.sort() ==
                ["cus_a", "cus_b"]
 
-      assert Tymeslot.Payments.stripe_customer_ids_for_user(other.id) == ["cus_other"]
+      assert Payments.stripe_customer_ids_for_user(other.id) == ["cus_other"]
     end
 
     test "is empty for a user without transactions", %{user: user} do
