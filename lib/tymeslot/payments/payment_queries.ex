@@ -71,6 +71,24 @@ defmodule Tymeslot.Payments.PaymentQueries do
   end
 
   @doc """
+  Lists the distinct Stripe customer ids recorded on a user's transactions.
+
+  A checkout creates its Stripe customer before any subscription exists, so an
+  abandoned checkout leaves a customer that only the transaction row knows
+  about.
+  """
+  @spec stripe_customer_ids_for_user(integer()) :: [String.t()]
+  def stripe_customer_ids_for_user(user_id) do
+    Repo.all(
+      from(t in PaymentTransaction,
+        where: t.user_id == ^user_id and not is_nil(t.stripe_customer_id),
+        distinct: true,
+        select: t.stripe_customer_id
+      )
+    )
+  end
+
+  @doc """
   Gets the most recent completed transaction for a Stripe customer,
   regardless of subscription.
 
