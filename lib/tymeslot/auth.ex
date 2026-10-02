@@ -7,7 +7,7 @@ defmodule Tymeslot.Auth do
   It encapsulates the business logic and provides a clean interface for the web layer.
   """
 
-  alias Tymeslot.Auth.AccountDeletion.Runner
+  alias Tymeslot.Auth.AccountDeletion.{Policy, Request, Restore, Runner}
 
   alias Tymeslot.Auth.{
     AccountDeletion,
@@ -465,6 +465,51 @@ defmodule Tymeslot.Auth do
   """
   @spec existing_user_ids([integer()]) :: [integer()]
   defdelegate existing_user_ids(ids), to: UserQueries, as: :existing_ids
+
+  @doc "Days between a deletion request and the deletion (0: straight away)."
+  @spec account_deletion_grace_days() :: non_neg_integer()
+  defdelegate account_deletion_grace_days(), to: Policy, as: :grace_days
+
+  @doc "When an account asked to be deleted at `now` will be deleted."
+  @spec account_deletion_due_at(DateTime.t()) :: DateTime.t()
+  defdelegate account_deletion_due_at(now), to: Policy, as: :scheduled_at
+
+  @doc "Whether the deletion dialog asks why the user is leaving."
+  @spec collect_deletion_feedback?() :: boolean()
+  defdelegate collect_deletion_feedback?(), to: Policy, as: :collect_feedback?
+
+  @doc "The reasons the deletion dialog offers, as stored values."
+  @spec deletion_feedback_reasons() :: [String.t()]
+  defdelegate deletion_feedback_reasons(), to: Policy, as: :feedback_reasons
+
+  @doc "Whether `user` confirms a deletion with its password or its email address."
+  @spec deletion_confirmation_method(UserSchema.t()) :: :password | :email
+  defdelegate deletion_confirmation_method(user), to: Policy, as: :confirmation_method
+
+  @doc """
+  Schedules the deletion of `user`'s own account. See
+  `Tymeslot.Auth.AccountDeletion.Request`. `opts` must carry `:ip`; it may
+  carry `:user_agent` and `:current_session_token`.
+  """
+  @spec request_account_deletion(UserSchema.t(), map(), keyword()) ::
+          {:ok, UserSchema.t()} | Request.error()
+  def request_account_deletion(user, params, opts),
+    do: Request.request(user, params, request_opts!(opts))
+
+  @doc """
+  Cancels the pending deletion of `user`'s account, while its grace period
+  lasts; `{:error, :deletion_in_progress}` once the account is due.
+  """
+  @spec restore_account(UserSchema.t()) ::
+          {:ok, UserSchema.t()} | {:error, :not_pending | :deletion_in_progress | term()}
+  defdelegate restore_account(user), to: Restore, as: :restore
+
+  @doc """
+  Subscribes the caller to events about one account; currently only
+  `{:account_deletion_requested, user_id}`.
+  """
+  @spec subscribe_to_account(pos_integer()) :: :ok | {:error, term()}
+  defdelegate subscribe_to_account(user_id), to: PubSub
 
   @doc """
   Deletes a user account.

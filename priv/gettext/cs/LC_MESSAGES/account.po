@@ -244,3 +244,13 @@ msgstr "Automaticky"
 #, elixir-autogen, elixir-format
 msgid "Follow your browser's language setting instead of a fixed choice."
 msgstr "Řídit se nastavením jazyka v prohlížeči místo pevné volby."
+
+#: lib/tymeslot/auth/account_deletion/request.ex
+#, elixir-autogen, elixir-format
+msgid "That is not the email address of this account."
+msgstr "To není e-mailová adresa tohoto účtu."
+
+#: lib/tymeslot/auth/account_deletion/request.ex
+#, elixir-autogen, elixir-format
+msgid "Your account could not be scheduled for deletion. Please try again."
+msgstr "Váš účet se nepodařilo naplánovat ke smazání. Zkuste to prosím znovu."

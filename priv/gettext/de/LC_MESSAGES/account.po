@@ -241,3 +241,13 @@ msgstr "Automatisch"
 #, elixir-autogen, elixir-format
 msgid "Follow your browser's language setting instead of a fixed choice."
 msgstr "Folgt der Spracheinstellung Ihres Browsers statt einer festen Auswahl."
+
+#: lib/tymeslot/auth/account_deletion/request.ex
+#, elixir-autogen, elixir-format
+msgid "That is not the email address of this account."
+msgstr "Das ist nicht die E-Mail-Adresse dieses Kontos."
+
+#: lib/tymeslot/auth/account_deletion/request.ex
+#, elixir-autogen, elixir-format
+msgid "Your account could not be scheduled for deletion. Please try again."
+msgstr "Ihr Konto konnte nicht zur Löschung vorgemerkt werden. Bitte versuchen Sie es erneut."
