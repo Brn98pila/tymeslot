@@ -649,3 +649,8 @@ msgstr "Le tue prenotazioni future sono state eliminate da Tymeslot. I tuoi ospi
 #, elixir-autogen, elixir-format
 msgid "Your upcoming bookings will be deleted from Tymeslot with your account. Your guests will not be notified. Calendar events and video links that already exist will stay as they are. If a meeting will not take place, please contact your guests yourself."
 msgstr "Le tue prenotazioni future verranno eliminate da Tymeslot insieme al tuo account. I tuoi ospiti non verranno avvisati. Gli eventi del calendario e i link video già esistenti resteranno così come sono. Se un incontro non avrà luogo, contatta tu stesso i tuoi ospiti."
+
+#: lib/tymeslot/emails/templates/signup_attempt_notice.ex
+#, elixir-autogen, elixir-format
+msgid "Someone just tried to create a new Tymeslot account with this email address. It belongs to an account that is scheduled for deletion on %{date}. If it was you, sign in before then to restore that account, or sign up again after that date."
+msgstr "Qualcuno ha appena provato a creare un nuovo account Tymeslot con questo indirizzo email. Appartiene a un account la cui eliminazione è programmata per il %{date}. Se sei stato tu, accedi prima di quella data per ripristinare l’account, oppure registrati di nuovo dopo quella data."

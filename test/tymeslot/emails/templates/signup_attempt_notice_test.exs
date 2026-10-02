@@ -62,4 +62,25 @@ defmodule Tymeslot.Emails.Templates.SignupAttemptNoticeTest do
       assert html =~ ~s(href="#{@sign_in_url}")
     end
   end
+
+  describe "an address whose account is pending deletion" do
+    test "names the deletion date and both ways forward" do
+      user = %{
+        id: 1,
+        name: "Ada",
+        email: "ada@example.com",
+        provider: "email",
+        deletion_scheduled_at: ~U[2026-10-16 09:00:00Z]
+      }
+
+      text =
+        Gettext.with_locale(TymeslotWeb.Gettext, "en", fn ->
+          SignupAttemptNotice.render_text(user, @sign_in_url, @reset_url)
+        end)
+
+      assert text =~ "scheduled for deletion on October 16, 2026"
+      assert text =~ "sign up again after that date"
+      refute text =~ "which already has an account"
+    end
+  end
 end
