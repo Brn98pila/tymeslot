@@ -44,6 +44,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
 
   @authorize_url "https://zoom.us/oauth/authorize"
   @token_url "https://zoom.us/oauth/token"
+  @revoke_url "https://zoom.us/oauth/revoke"
   @user_profile_url "https://api.zoom.us/v2/users/me"
 
   @doc """
@@ -223,6 +224,24 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
 
       {:error, _reason} ->
         {:error, "Invalid JSON response from Zoom profile API"}
+    end
+  end
+
+  @doc """
+  Revokes the Zoom app authorisation behind `access_token` (Zoom revokes by
+  access token, authenticated with the app's client credentials). Not a
+  behaviour callback: only account deletion calls it, directly.
+  """
+  @spec revoke_token(String.t()) :: :ok | {:error, term()}
+  def revoke_token(access_token) when is_binary(access_token) do
+    url = @revoke_url <> "?" <> URI.encode_query(%{"token" => access_token})
+
+    with {:ok, headers} <- basic_auth_headers() do
+      case Config.http_client_module().post(url, "", headers, receive_timeout: 10_000) do
+        {:ok, %{status: 200}} -> :ok
+        {:ok, %{status: status}} -> {:error, {:http_error, status}}
+        {:error, reason} -> {:error, reason}
+      end
     end
   end
 

@@ -305,6 +305,18 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
     end
   end
 
+  @doc """
+  Returns `config` carrying a usable access token, refreshed and written back
+  first if the stored one has expired (see
+  `Tymeslot.Integrations.Video.AccessToken`).
+  """
+  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
+  def ensure_valid_token(config) do
+    with {:ok, token} <- get_access_token(config) do
+      {:ok, Map.put(config, :access_token, token)}
+    end
+  end
+
   # ----- Private -----
 
   defp get_access_token(config) do
