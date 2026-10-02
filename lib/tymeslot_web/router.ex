@@ -187,6 +187,11 @@ defmodule TymeslotWeb.Router do
     get "/guest/:token/:response", GuestRsvpController, :confirm
     post "/guest/:token/:response", GuestRsvpController, :submit
 
+    # The one page an account pending deletion can reach while signed in.
+    # It has to come before "/auth/:provider", which would otherwise take it.
+    get "/auth/restore", AccountRestoreController, :show
+    post "/auth/restore", AccountRestoreController, :restore
+
     # OAuth routes (must remain as controllers for external redirects)
     get "/auth/:provider", OAuthController, :request
     get "/auth/:provider/callback", OAuthController, :callback

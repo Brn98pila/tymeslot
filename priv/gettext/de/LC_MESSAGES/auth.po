@@ -939,3 +939,38 @@ msgstr "Passwort ist zu lang"
 #, elixir-autogen, elixir-format
 msgid "An account with this email address already exists. Sign in with your password or with the service you originally signed up with. If you have forgotten your password, you can reset it from the sign-in page."
 msgstr "Mit dieser E-Mail-Adresse besteht bereits ein Konto. Melden Sie sich mit Ihrem Passwort oder mit dem Dienst an, über den Sie sich ursprünglich registriert haben. Falls Sie Ihr Passwort vergessen haben, können Sie es auf der Anmeldeseite zurücksetzen."
+
+#: lib/tymeslot_web/controllers/auth/account_restore_html.ex
+#, elixir-autogen, elixir-format
+msgid "Restore my account"
+msgstr "Mein Konto wiederherstellen"
+
+#: lib/tymeslot_web/controllers/auth/account_restore_html.ex
+#, elixir-autogen, elixir-format
+msgid "Sign out"
+msgstr "Abmelden"
+
+#: lib/tymeslot_web/controllers/auth/account_restore_controller.ex
+#, elixir-autogen, elixir-format
+msgid "Welcome back. Your account has been restored and will not be deleted."
+msgstr "Willkommen zurück. Dein Konto wurde wiederhergestellt und wird nicht gelöscht."
+
+#: lib/tymeslot_web/controllers/auth/account_restore_controller.ex
+#, elixir-autogen, elixir-format
+msgid "Your account could not be restored. Please try again."
+msgstr "Dein Konto konnte nicht wiederhergestellt werden. Bitte versuche es erneut."
+
+#: lib/tymeslot_web/controllers/auth/account_restore_html.ex
+#, elixir-autogen, elixir-format
+msgid "Your account is being deleted"
+msgstr "Dein Konto wird gelöscht"
+
+#: lib/tymeslot_web/controllers/auth/account_restore_html.ex
+#, elixir-autogen, elixir-format
+msgid "Your account is being deleted and can no longer be restored."
+msgstr "Dein Konto wird gelöscht und kann nicht mehr wiederhergestellt werden."
+
+#: lib/tymeslot_web/controllers/auth/account_restore_html.ex
+#, elixir-autogen, elixir-format
+msgid "Your account is in the process of being deleted (scheduled for %{date}). If you want to keep it, restore it here."
+msgstr "Dein Konto wird gerade gelöscht (geplant für den %{date}). Wenn du es behalten möchtest, stelle es hier wieder her."

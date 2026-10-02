@@ -496,6 +496,10 @@ defmodule Tymeslot.Auth do
   def request_account_deletion(user, params, opts),
     do: Request.request(user, params, request_opts!(opts))
 
+  @doc "Whether `user`'s pending deletion can still be cancelled at `now`."
+  @spec account_restorable?(UserSchema.t(), DateTime.t()) :: boolean()
+  defdelegate account_restorable?(user, now), to: Restore, as: :restorable?
+
   @doc """
   Cancels the pending deletion of `user`'s account, while its grace period
   lasts; `{:error, :deletion_in_progress}` once the account is due.

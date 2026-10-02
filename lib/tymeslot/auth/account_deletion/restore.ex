@@ -48,6 +48,17 @@ defmodule Tymeslot.Auth.AccountDeletion.Restore do
     do: {:error, :not_pending}
 
   defp ensure_restorable(%UserSchema{deletion_scheduled_at: at}, now) do
-    if DateTime.compare(at, now) == :gt, do: :ok, else: {:error, :deletion_in_progress}
+    if due?(at, now), do: {:error, :deletion_in_progress}, else: :ok
   end
+
+  @doc """
+  Whether `user` is pending deletion with its grace period still running, so
+  a restore would be accepted. A pending account whose date has passed is
+  due: its deletion may be running and it can no longer be restored.
+  """
+  @spec restorable?(UserSchema.t(), DateTime.t()) :: boolean()
+  def restorable?(%UserSchema{deletion_scheduled_at: nil}, _now), do: false
+  def restorable?(%UserSchema{deletion_scheduled_at: at}, now), do: not due?(at, now)
+
+  defp due?(at, now), do: DateTime.compare(at, now) != :gt
 end
