@@ -8,6 +8,7 @@ defmodule Tymeslot.Auth.UserQueriesDeletionTest do
 
   alias Tymeslot.Auth
   alias Tymeslot.Auth.UserQueries
+  alias Tymeslot.Auth.UserSchema
 
   defp now, do: DateTime.utc_now(:second)
 
@@ -39,7 +40,7 @@ defmodule Tymeslot.Auth.UserQueriesDeletionTest do
   end
 
   describe "Auth.deletion_pending?/1" do
-    test "answers for a struct without a query and for an id with one" do
+    test "answers for a struct from its fields and for an id from the database" do
       pending = insert(:user, deletion_requested_at: now(), deletion_scheduled_at: now())
       active = insert(:user)
 
@@ -47,6 +48,9 @@ defmodule Tymeslot.Auth.UserQueriesDeletionTest do
       refute Auth.deletion_pending?(active)
       assert Auth.deletion_pending?(pending.id)
       refute Auth.deletion_pending?(active.id)
+
+      # A struct is answered from its own fields, never the database.
+      assert Auth.deletion_pending?(%UserSchema{id: -1, deletion_scheduled_at: now()})
     end
   end
 
@@ -57,15 +61,14 @@ defmodule Tymeslot.Auth.UserQueriesDeletionTest do
       older =
         insert(:user, deletion_requested_at: t, deletion_scheduled_at: DateTime.add(t, -2, :day))
 
-      newer =
-        insert(:user, deletion_requested_at: t, deletion_scheduled_at: DateTime.add(t, -1, :day))
+      due_now = insert(:user, deletion_requested_at: t, deletion_scheduled_at: t)
 
       _future =
         insert(:user, deletion_requested_at: t, deletion_scheduled_at: DateTime.add(t, 1, :day))
 
       _active = insert(:user)
 
-      assert UserQueries.list_due_deletion_ids(t, 10) == [older.id, newer.id]
+      assert UserQueries.list_due_deletion_ids(t, 10) == [older.id, due_now.id]
       assert UserQueries.list_due_deletion_ids(t, 1) == [older.id]
     end
   end

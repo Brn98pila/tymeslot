@@ -4,6 +4,10 @@ defmodule Tymeslot.Repo.Migrations.IndexUsersDeletionScheduledAt do
   (`UserQueries.list_due_deletion_ids/2`) and the pending-host checks on
   public pages. Only accounts pending deletion carry a value, so the index
   stays tiny. Built concurrently so the `users` table is never locked.
+
+  The drop comes first so that a build interrupted part way, which leaves an
+  invalid index behind, is rebuilt on the next run instead of being skipped by
+  `IF NOT EXISTS`. On a fresh install the drop is a no-op.
   """
 
   use Ecto.Migration
@@ -12,7 +16,14 @@ defmodule Tymeslot.Repo.Migrations.IndexUsersDeletionScheduledAt do
   @disable_migration_lock true
 
   def up do
-    create_if_not_exists(
+    drop_if_exists(
+      index(:users, [:deletion_scheduled_at],
+        name: :users_deletion_scheduled_at_index,
+        concurrently: true
+      )
+    )
+
+    create(
       index(:users, [:deletion_scheduled_at],
         where: "deletion_scheduled_at IS NOT NULL",
         concurrently: true,
