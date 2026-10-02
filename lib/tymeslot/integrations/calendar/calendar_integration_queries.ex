@@ -75,11 +75,23 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   """
   @spec list_all_for_user(integer()) :: [CalendarIntegrationSchema.t()]
   def list_all_for_user(user_id) do
+    user_id
+    |> list_all_for_user_encrypted()
+    |> Enum.map(&CalendarIntegrationSchema.decrypt_credentials/1)
+  end
+
+  @doc """
+  Like `list_all_for_user/1`, but leaves the credentials encrypted, so one
+  unreadable row cannot make the whole listing raise. The caller decrypts each
+  row itself (`CalendarIntegrationSchema.decrypt_credentials/1`) where it can
+  handle a failure.
+  """
+  @spec list_all_for_user_encrypted(integer()) :: [CalendarIntegrationSchema.t()]
+  def list_all_for_user_encrypted(user_id) do
     CalendarIntegrationSchema
     |> where([c], c.user_id == ^user_id)
     |> order_by([c], desc: c.is_active, asc: c.name)
     |> Repo.all()
-    |> Enum.map(&CalendarIntegrationSchema.decrypt_credentials/1)
   end
 
   @doc """

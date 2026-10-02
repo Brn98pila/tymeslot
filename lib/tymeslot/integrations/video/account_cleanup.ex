@@ -8,7 +8,9 @@ defmodule Tymeslot.Integrations.Video.AccountCleanup do
   Rooms are not deleted: a guest may still join a meeting that the deletion
   removes from Tymeslot, and deleting the room would break their link.
 
-  Best-effort: a failure is logged and the next integration is tried. Must
+  Best-effort: a failure, including a raise or exit while cleaning one
+  integration (a database error, a lock timeout, the HTTP client), is logged
+  and the next integration is tried. Must
   run before the account row is deleted, which cascades the credentials away.
   """
 
@@ -24,7 +26,15 @@ defmodule Tymeslot.Integrations.Video.AccountCleanup do
   def run(user_id) do
     user_id
     |> VideoIntegrationQueries.list_all_for_user()
-    |> Enum.each(&clean_up/1)
+    |> Enum.each(&clean_up_independently/1)
+  end
+
+  defp clean_up_independently(integration) do
+    clean_up(integration)
+  rescue
+    exception -> log_outcome({:error, exception}, integration)
+  catch
+    kind, reason -> log_outcome({:error, {kind, reason}}, integration)
   end
 
   defp clean_up(%{provider: "google_meet"} = integration) do

@@ -239,11 +239,34 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
     with {:ok, headers} <- basic_auth_headers() do
       case Config.http_client_module().post(url, "", headers, receive_timeout: 10_000) do
         {:ok, %{status: 200}} -> :ok
+        {:ok, %{status: 400, body: body}} -> revoke_bad_request(body)
         {:ok, %{status: status}} -> {:error, {:http_error, status}}
         {:error, reason} -> {:error, reason}
       end
     end
   end
+
+  # A token Zoom no longer knows (already revoked, or the user removed the
+  # app) leaves nothing to revoke, so it counts as done, as it does for
+  # Google. Any other 400, such as bad client credentials, is a failure.
+  defp revoke_bad_request(body) do
+    if unknown_token?(body), do: :ok, else: {:error, {:http_error, 400}}
+  end
+
+  defp unknown_token?(body) when is_binary(body) do
+    case Jason.decode(body) do
+      {:ok, decoded} -> unknown_token?(decoded)
+      {:error, _reason} -> false
+    end
+  end
+
+  defp unknown_token?(%{"reason" => reason}) when is_binary(reason),
+    do:
+      reason
+      |> String.downcase()
+      |> String.contains?(["invalid token", "invalid access token", "token not found"])
+
+  defp unknown_token?(_body), do: false
 
   defp basic_auth_headers do
     with {:ok, client_id} <- ZoomConfig.fetch_client_id(),

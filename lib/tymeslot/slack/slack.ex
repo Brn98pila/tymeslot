@@ -65,16 +65,23 @@ defmodule Tymeslot.Slack do
 
     :ok
   rescue
-    exception -> log_revocation_failure(integration, exception)
+    exception ->
+      log_revocation_failure(integration, exception,
+        exception: inspect(exception.__struct__),
+        stacktrace: LogFormat.stacktrace(__STACKTRACE__)
+      )
   catch
     kind, reason -> log_revocation_failure(integration, {kind, reason})
   end
 
-  defp log_revocation_failure(integration, reason) do
-    Logger.warning("Account deletion: Slack token revocation failed; carrying on",
-      integration_id: integration.id,
-      user_id: integration.user_id,
-      reason: LogFormat.reason(reason)
+  defp log_revocation_failure(integration, reason, extra \\ []) do
+    Logger.warning(
+      "Account deletion: Slack token revocation failed; carrying on",
+      [
+        integration_id: integration.id,
+        user_id: integration.user_id,
+        reason: LogFormat.reason(reason)
+      ] ++ extra
     )
 
     :ok

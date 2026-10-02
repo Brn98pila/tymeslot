@@ -12,8 +12,10 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanup do
   Tymeslot may still take place between host and guest, so the host's
   events stay where they are.
 
-  Every step is best-effort: a failure is logged and the next step runs.
-  Must run before the account row is deleted, which cascades the
+  Every step is best-effort: a failure is logged and the next step runs. Each
+  integration is independent: credentials are decrypted per integration, and
+  a raise or exit while cleaning one (an undecryptable row, a database error,
+  a lock timeout) is logged without stopping the others. Must run before the account row is deleted, which cascades the
   credentials away.
   """
 
@@ -30,8 +32,18 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanup do
   @spec run(pos_integer()) :: :ok
   def run(user_id) do
     user_id
-    |> CalendarIntegrationQueries.list_all_for_user()
-    |> Enum.each(&clean_up/1)
+    |> CalendarIntegrationQueries.list_all_for_user_encrypted()
+    |> Enum.each(&clean_up_independently/1)
+  end
+
+  defp clean_up_independently(integration) do
+    integration
+    |> CalendarIntegrationSchema.decrypt_credentials()
+    |> clean_up()
+  rescue
+    exception -> log_outcome({:error, exception}, integration, :clean_up)
+  catch
+    kind, reason -> log_outcome({:error, {kind, reason}}, integration, :clean_up)
   end
 
   defp clean_up(%CalendarIntegrationSchema{provider: "google"} = integration) do
