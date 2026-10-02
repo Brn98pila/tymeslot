@@ -45,8 +45,8 @@ defmodule Tymeslot.Jobs.DeletePendingAccountJobsTest do
     assert Meetings.list_meeting_ids_for_organizer(user.id) == [meeting.id]
     assert {2, nil} = Jobs.delete_pending_account_jobs(user.id, [meeting.id])
 
-    assert Enum.map(all_enqueued(worker: EmailWorker), & &1.id) |> Enum.sort() ==
-             Enum.sort([kept_reminder.id, kept_notice.id])
+    enqueued_ids = Enum.sort(Enum.map(all_enqueued(worker: EmailWorker), & &1.id))
+    assert enqueued_ids == Enum.sort([kept_reminder.id, kept_notice.id])
   end
 
   test "leaves an executing job alone" do
