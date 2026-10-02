@@ -43,12 +43,16 @@ defmodule Tymeslot.Auth.AccountDeletion.Policy do
   def feedback_reasons, do: @feedback_reasons
 
   @doc """
-  How the account holder proves it is them: a password account types its
-  password, an account that signs in through a provider types its email
-  address (it has no password).
+  How the account holder proves it is them: an account with a password hash
+  types its password; one without (it signs in through a provider only) types
+  its email address. The hash, not the provider, decides: an account created
+  through a provider can set a password later, and an "email" account always
+  has one.
   """
-  @spec confirmation_method(%{provider: String.t() | nil}) :: :password | :email
-  def confirmation_method(%{provider: provider}) when provider in [nil, "email"], do: :password
+  @spec confirmation_method(%{password_hash: String.t() | nil}) :: :password | :email
+  def confirmation_method(%{password_hash: hash}) when is_binary(hash) and hash != "",
+    do: :password
+
   def confirmation_method(_user), do: :email
 
   @doc """

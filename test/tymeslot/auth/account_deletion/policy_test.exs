@@ -56,10 +56,15 @@ defmodule Tymeslot.Auth.AccountDeletion.PolicyTest do
   end
 
   describe "confirmation_method/1" do
-    test "a password account confirms with its password, a social one with its address" do
-      assert Policy.confirmation_method(%{provider: "email"}) == :password
-      assert Policy.confirmation_method(%{provider: nil}) == :password
-      assert Policy.confirmation_method(%{provider: "google"}) == :email
+    test "an account with a password hash confirms with its password" do
+      assert Policy.confirmation_method(%{password_hash: "hash"}) == :password
+      assert Policy.confirmation_method(%{provider: "google", password_hash: "hash"}) == :password
+    end
+
+    test "an account without one confirms with its address, whatever its provider" do
+      assert Policy.confirmation_method(%{provider: "google", password_hash: nil}) == :email
+      assert Policy.confirmation_method(%{provider: "email", password_hash: nil}) == :email
+      assert Policy.confirmation_method(%{provider: nil, password_hash: ""}) == :email
     end
   end
 end

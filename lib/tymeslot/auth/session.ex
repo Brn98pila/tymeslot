@@ -113,9 +113,30 @@ defmodule Tymeslot.Auth.Session do
   """
   @spec revoke_all_sessions(integer(), keyword()) :: :ok
   def revoke_all_sessions(user_id, opts \\ []) do
-    spared_hash = spared_hash(Keyword.get(opts, :leave_connected))
+    user_id
+    |> delete_session_rows()
+    |> disconnect_sessions(opts)
+  end
+
+  @doc """
+  The database half of `revoke_all_sessions/2`: deletes every session row of a
+  user and returns their token hashes. Safe inside a transaction; pass the
+  hashes to `disconnect_sessions/2` once it has committed.
+  """
+  @spec delete_session_rows(integer()) :: [String.t()]
+  def delete_session_rows(user_id) do
     hashes = UserSessionQueries.list_user_session_token_hashes(user_id)
     UserSessionQueries.delete_user_sessions(user_id)
+    hashes
+  end
+
+  @doc """
+  The socket half of `revoke_all_sessions/2`: disconnects the live sockets
+  bound to the given token hashes, sparing the `:leave_connected` token's.
+  """
+  @spec disconnect_sessions([String.t()], keyword()) :: :ok
+  def disconnect_sessions(hashes, opts \\ []) do
+    spared_hash = spared_hash(Keyword.get(opts, :leave_connected))
 
     hashes
     |> Enum.reject(&(&1 == spared_hash))

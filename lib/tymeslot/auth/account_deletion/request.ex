@@ -9,12 +9,14 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
 
   Then, in one transaction under the user's row lock, the account is marked
   pending (due at now plus the grace period) and its deletion job queued for
-  that time. A repeated request keeps the first schedule. A job the queue
+  that time, and its session rows deleted. A repeated request keeps the
+  first schedule and repeats nothing else. A job the queue
   reports as a conflict (one already waiting, or an advisory-lock clash) is
   logged, not failed: the daily sweep re-queues an overdue account whose job
   is missing. After the commit:
 
-    * every session of the account ends, so signing in again is the only way
+    * every session of the account has ended (its rows went with the
+      transaction; its live sockets are disconnected now), so signing in again is the only way
       back, and while pending that leads to the restore page alone. The
       session making the request (`:current_session_token`) loses its row
       like the rest but keeps its live socket, so the requesting page can
@@ -58,8 +60,11 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
     now = DateTime.utc_now(:second)
 
     case schedule(user.id, params, now, Policy.scheduled_at(now)) do
-      {:ok, pending} ->
-        after_commit(pending, Policy.normalise_feedback(params), opts)
+      {:ok, {:scheduled, pending, session_hashes}} ->
+        after_commit(pending, session_hashes, Policy.normalise_feedback(params), opts)
+        {:ok, pending}
+
+      {:ok, {:already_pending, pending}} ->
         {:ok, pending}
 
       {:error, reason} ->
@@ -71,21 +76,36 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
     Repo.transaction(fn ->
       with {:ok, user} <- UserQueries.get_user_for_update(user_id),
            :ok <- confirm_identity(user, params),
-           {:ok, pending} <- mark_pending(user, now, scheduled_at),
-           :ok <- queue_deletion(pending) do
-        pending
+           {:ok, outcome} <- mark_pending(user, now, scheduled_at),
+           {:ok, result} <- finish_scheduling(outcome) do
+        result
       else
         {:error, reason} -> Repo.rollback(reason)
       end
     end)
   end
 
-  # A second submit (a double click, two tabs) keeps the first schedule.
+  # A second submit (a double click, two tabs) keeps the first schedule and
+  # repeats none of its side effects.
   defp mark_pending(%UserSchema{deletion_scheduled_at: %DateTime{}} = user, _now, _at),
-    do: {:ok, user}
+    do: {:ok, {:already_pending, user}}
 
-  defp mark_pending(user, now, scheduled_at),
-    do: UserQueries.mark_deletion_scheduled(user, now, scheduled_at)
+  defp mark_pending(user, now, scheduled_at) do
+    with {:ok, pending} <- UserQueries.mark_deletion_scheduled(user, now, scheduled_at) do
+      {:ok, {:newly_pending, pending}}
+    end
+  end
+
+  defp finish_scheduling({:already_pending, _user} = outcome), do: {:ok, outcome}
+
+  # The session rows go in the same transaction, so a crash after the commit
+  # cannot leave a frozen account with live sessions; only the socket
+  # disconnects wait for the commit.
+  defp finish_scheduling({:newly_pending, pending}) do
+    with :ok <- queue_deletion(pending) do
+      {:ok, {:scheduled, pending, Session.delete_session_rows(pending.id)}}
+    end
+  end
 
   # A conflict is not proof a job exists (Oban reports one with no id under
   # advisory-lock contention), and not proof it is missing either: the sweep
@@ -140,8 +160,11 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
     }
   end
 
-  defp after_commit(pending, feedback, opts) do
-    Session.revoke_all_sessions(pending.id, leave_connected: opts[:current_session_token])
+  # With a grace of 0 the deletion job is due at once and may run before this
+  # finishes, so Hook.requested can arrive after on_account_deletion; the
+  # hook is best-effort.
+  defp after_commit(pending, session_hashes, feedback, opts) do
+    Session.disconnect_sessions(session_hashes, leave_connected: opts[:current_session_token])
     PubSub.broadcast_account_deletion_requested(pending.id)
     Hook.requested(pending.id, feedback)
 

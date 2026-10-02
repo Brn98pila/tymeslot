@@ -8,11 +8,13 @@ defmodule Tymeslot.Auth.AccountDeletion.RequestTest do
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
 
+  alias Phoenix.Socket.Broadcast
   alias Tymeslot.Auth
   alias Tymeslot.Auth.{UserSchema, UserSessionQueries}
   alias Tymeslot.Repo
   alias Tymeslot.Security.{RateLimiter, Token}
   alias Tymeslot.Workers.{AccountDeletionWorker, EmailWorker}
+  alias TymeslotWeb.Endpoint
 
   @opts [ip: "203.0.113.7", user_agent: "ExUnit"]
   @password "Password123!"
@@ -44,6 +46,8 @@ defmodule Tymeslot.Auth.AccountDeletion.RequestTest do
 
     :ok
   end
+
+  defp socket_topic(token), do: "users_sessions:#{Base.url_encode64(Token.hash_token(token))}"
 
   defp session_for(user) do
     token = "session-#{System.unique_integer([:positive])}"
@@ -126,15 +130,65 @@ defmodule Tymeslot.Auth.AccountDeletion.RequestTest do
     )
   end
 
-  test "a second request keeps the first schedule and queues no second job" do
+  test "a second request keeps the first schedule and repeats no side effect" do
     user = insert(:user)
+    user_id = user.id
     params = %{"current_password" => @password}
+    :ok = Auth.subscribe_to_account(user_id)
 
     assert {:ok, first} = Auth.request_account_deletion(user, params, @opts)
     assert {:ok, second} = Auth.request_account_deletion(first, params, @opts)
 
     assert second.deletion_scheduled_at == first.deletion_scheduled_at
     assert length(all_enqueued(worker: AccountDeletionWorker)) == 1
+    assert length(all_enqueued(worker: EmailWorker)) == 1
+
+    assert_received {:requested, ^user_id, _feedback}
+    refute_received {:requested, _user_id, _feedback}
+    assert_received {:account_deletion_requested, ^user_id}
+    refute_received {:account_deletion_requested, _user_id}
+  end
+
+  test "the requesting session keeps its socket, every other session loses its" do
+    user = insert(:user)
+    current = session_for(user)
+    other = session_for(user)
+    current_topic = socket_topic(current)
+    other_topic = socket_topic(other)
+    Endpoint.subscribe(current_topic)
+    Endpoint.subscribe(other_topic)
+
+    assert {:ok, _pending} =
+             Auth.request_account_deletion(
+               user,
+               %{"current_password" => @password},
+               [current_session_token: current] ++ @opts
+             )
+
+    assert UserSessionQueries.get_user_by_session_token(current) == nil
+    assert UserSessionQueries.get_user_by_session_token(other) == nil
+    assert_receive %Broadcast{event: "disconnect", topic: ^other_topic}
+    refute_receive %Broadcast{event: "disconnect", topic: ^current_topic}
+  end
+
+  test "a refused request leaves the sessions alone" do
+    user = insert(:user)
+    session = session_for(user)
+
+    assert {:error, _reason} =
+             Auth.request_account_deletion(user, %{"current_password" => "nope"}, @opts)
+
+    assert UserSessionQueries.get_user_by_session_token(session)
+  end
+
+  test "an account with a password confirms with it, even through a provider" do
+    user = insert(:user, provider: "google")
+
+    assert {:error, %{current_password: _message}} =
+             Auth.request_account_deletion(user, %{"confirm_email" => user.email}, @opts)
+
+    assert {:ok, _pending} =
+             Auth.request_account_deletion(user, %{"current_password" => @password}, @opts)
   end
 
   test "no feedback reaches the hook while collection is off" do
