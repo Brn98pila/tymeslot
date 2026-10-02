@@ -19,6 +19,7 @@ defmodule Tymeslot.Meetings.Guests do
   `subscribe_to_rsvp_updates/1`.
   """
 
+  alias Tymeslot.Auth
   alias Tymeslot.Clock
   alias Tymeslot.Emails.EmailScheduler.MeetingScheduler
   alias Tymeslot.Meetings.GuestQueries
@@ -189,16 +190,25 @@ defmodule Tymeslot.Meetings.Guests do
   Returns the guest with its `:meeting` preloaded. Returns
   `{:error, :not_found}` for an unknown token and `{:error, :meeting_closed}`
   when the meeting no longer takes responses (see the module doc).
+  `{:error, :not_found}` also for a meeting whose host is pending deletion.
   """
   @spec get_open_invitation(String.t()) ::
           {:ok, GuestSchema.t()} | {:error, :not_found | :meeting_closed}
   def get_open_invitation(token) do
-    with {:ok, guest} <- GuestQueries.get_by_token(token) do
-      guest = Repo.preload(guest, :meeting)
-
+    with {:ok, guest} <- GuestQueries.get_by_token(token),
+         guest = Repo.preload(guest, :meeting),
+         :ok <- ensure_host_active(guest.meeting) do
       if invitations_open?(guest.meeting), do: {:ok, guest}, else: {:error, :meeting_closed}
     end
   end
+
+  # The meetings of a host pending deletion are about to go; their RSVP links
+  # answer as unknown, like every other public page of that host.
+  defp ensure_host_active(%{organizer_user_id: user_id}) when is_integer(user_id) do
+    if Auth.deletion_pending?(user_id), do: {:error, :not_found}, else: :ok
+  end
+
+  defp ensure_host_active(_meeting), do: :ok
 
   @doc """
   Records a guest's RSVP from their token and notifies the organiser.
