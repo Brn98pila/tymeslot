@@ -10,12 +10,14 @@ defmodule Tymeslot.Integrations.Video.AccountCleanupTest do
 
   alias Tymeslot.Integrations.Video.AccountCleanup
   alias Tymeslot.Security.Encryption
+  alias Tymeslot.Test.LogCapture
 
   setup :verify_on_exit!
 
-  defp oauth_video(user, provider, access, refresh) do
+  defp oauth_video(user, provider, access, refresh, name \\ "Video") do
     insert(:video_integration,
       user: user,
+      name: name,
       provider: provider,
       access_token_encrypted: Encryption.encrypt(access),
       refresh_token_encrypted: Encryption.encrypt(refresh),
@@ -62,6 +64,74 @@ defmodule Tymeslot.Integrations.Video.AccountCleanupTest do
     oauth_video(user, "teams", "teams-access", "teams-refresh")
     insert(:video_integration, user: user, provider: "mirotalk")
 
+    # DataCase stubs the client globally, so a call would pass unnoticed (and
+    # a raising stub would be swallowed by the cleanup's per-integration
+    # rescue). Report any call to the test process instead.
+    test_pid = self()
+
+    stub(Tymeslot.HTTPClientMock, :post, fn url, _body, _headers, _opts ->
+      send(test_pid, {:unexpected_call, url})
+      {:ok, %Req.Response{status: 200, body: ""}}
+    end)
+
     assert AccountCleanup.run(user.id) == :ok
+    refute_received {:unexpected_call, _url}
+  end
+
+  describe "best effort" do
+    setup do
+      with_config(:tymeslot, :zoom_oauth,
+        client_id: "zoom-id",
+        client_secret: "zoom-secret",
+        state_secret: "zoom-state"
+      )
+
+      stub(Tymeslot.ZoomOAuthHelperMock, :validate_token, fn _config -> {:ok, :valid} end)
+      LogCapture.attach(level: :warning)
+      %{user: insert(:user)}
+    end
+
+    test "a failed Zoom revocation does not stop the Google Meet one", %{user: user} do
+      oauth_video(user, "zoom", "zoom-access", "zoom-refresh", "A zoom")
+      oauth_video(user, "google_meet", "meet-access", "meet-refresh", "B meet")
+
+      test_pid = self()
+
+      expect(Tymeslot.HTTPClientMock, :post, 2, fn url, body, _headers, _opts ->
+        send(test_pid, {:revoke, url, body})
+
+        if String.starts_with?(url, "https://zoom.us/") do
+          {:ok, %Req.Response{status: 500, body: ""}}
+        else
+          {:ok, %Req.Response{status: 200, body: ""}}
+        end
+      end)
+
+      assert AccountCleanup.run(user.id) == :ok
+
+      assert_received {:revoke, "https://oauth2.googleapis.com/revoke", "token=meet-refresh"}
+      LogCapture.await_log("video grant revocation failed")
+    end
+
+    test "an integration that raises does not stop the next one", %{user: user} do
+      oauth_video(user, "zoom", "zoom-access", "zoom-refresh", "A zoom")
+      oauth_video(user, "google_meet", "meet-access", "meet-refresh", "B meet")
+
+      test_pid = self()
+
+      expect(Tymeslot.HTTPClientMock, :post, 2, fn url, body, _headers, _opts ->
+        if String.starts_with?(url, "https://zoom.us/") do
+          raise "HTTP client exploded"
+        else
+          send(test_pid, {:revoke, url, body})
+          {:ok, %Req.Response{status: 200, body: ""}}
+        end
+      end)
+
+      assert AccountCleanup.run(user.id) == :ok
+
+      assert_received {:revoke, "https://oauth2.googleapis.com/revoke", "token=meet-refresh"}
+      LogCapture.await_log("video grant revocation failed")
+    end
   end
 end

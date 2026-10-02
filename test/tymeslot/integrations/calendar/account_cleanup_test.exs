@@ -9,6 +9,7 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanupTest do
 
   alias Tymeslot.Integrations.Calendar.AccountCleanup
   alias Tymeslot.Security.Encryption
+  alias Tymeslot.Test.LogCapture
 
   setup :verify_on_exit!
 
@@ -50,11 +51,74 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanupTest do
 
     assert AccountCleanup.run(user.id) == :ok
 
+    # Order matters: once the grant is revoked the channel can no longer be
+    # stopped, so the stop has to arrive first.
+    {:messages, messages} = Process.info(self(), :messages)
+    assert Enum.map(messages, &elem(&1, 0)) == [:stop, :revoke]
+
     assert_received {:stop, "https://www.googleapis.com/calendar/v3/channels/stop",
                      %{"id" => "chan-1", "resourceId" => "res-1"}, headers}
 
     assert {"Authorization", "Bearer calendar-access"} in headers
     assert_received {:revoke, "https://oauth2.googleapis.com/revoke", "token=calendar-refresh"}
+  end
+
+  test "a channel Google no longer has counts as stopped, without a warning" do
+    user = insert(:user)
+
+    oauth_calendar(user, %{
+      provider: "google",
+      google_channel_id: "chan-1",
+      google_channel_resource_id: "res-1"
+    })
+
+    expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, _body, _headers, _opts ->
+      {:ok, %Req.Response{status: 404, body: ""}}
+    end)
+
+    expect(Tymeslot.HTTPClientMock, :post, fn "https://oauth2.googleapis.com/revoke",
+                                              _b,
+                                              _h,
+                                              _o ->
+      {:ok, %Req.Response{status: 200, body: ""}}
+    end)
+
+    LogCapture.attach(level: :warning)
+
+    assert AccountCleanup.run(user.id) == :ok
+
+    refute_received {:captured_log, %{meta: %{step: :stop_push_channel}}}
+  end
+
+  test "an integration that cannot be cleaned up does not stop the next one" do
+    user = insert(:user)
+
+    # Lists first (same activity, name sorts first), and cannot be decrypted.
+    oauth_calendar(user, %{
+      name: "A broken",
+      provider: "google",
+      access_token_encrypted: :crypto.strong_rand_bytes(64)
+    })
+
+    healthy =
+      oauth_calendar(user, %{
+        name: "B healthy",
+        provider: "outlook",
+        graph_subscription_id: "sub-1"
+      })
+
+    expect(Tymeslot.HTTPClientMock, :request, fn :delete, url, _body, _headers, _opts ->
+      assert url == "https://graph.microsoft.com/v1.0/subscriptions/sub-1"
+      {:ok, %Req.Response{status: 204, body: ""}}
+    end)
+
+    LogCapture.attach(level: :warning)
+
+    assert AccountCleanup.run(user.id) == :ok
+
+    broken_log = LogCapture.await_log("calendar cleanup step failed")
+    assert %{step: :clean_up, integration_id: id} = LogCapture.user_metadata(broken_log)
+    refute id == healthy.id
   end
 
   test "revokes the grant even when stopping the channel fails" do

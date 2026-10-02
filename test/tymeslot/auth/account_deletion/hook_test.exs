@@ -4,6 +4,7 @@ defmodule Tymeslot.Auth.AccountDeletion.HookTest do
   @moduletag :auth
   @moduletag :unit
 
+  import ExUnit.CaptureLog
   import Tymeslot.ConfigTestHelpers
 
   alias Tymeslot.Auth.AccountDeletion.Hook
@@ -12,6 +13,8 @@ defmodule Tymeslot.Auth.AccountDeletion.HookTest do
     @behaviour Tymeslot.Auth.Behaviours.AccountDeletionHook
 
     @impl Tymeslot.Auth.Behaviours.AccountDeletionHook
+    def on_deletion_requested(_user_id, %{reason: "raise"}), do: raise("hook exploded")
+
     def on_deletion_requested(user_id, feedback) do
       send(self(), {:requested, user_id, feedback})
       :ok
@@ -48,8 +51,22 @@ defmodule Tymeslot.Auth.AccountDeletion.HookTest do
   test "a failing restore callback is logged, never returned" do
     with_config(:tymeslot, :account_deletion_hook, RecordingHook)
 
-    assert Hook.restored(7) == :ok
+    log = capture_log(fn -> assert Hook.restored(7) == :ok end)
+
     assert_received {:restored, 7}
+    assert log =~ "Account deletion hook failed"
+  end
+
+  test "a request callback that raises is logged, never raised" do
+    with_config(:tymeslot, :account_deletion_hook, RecordingHook)
+
+    log =
+      capture_log(fn ->
+        assert Hook.requested(7, %{reason: "raise", comment: nil}) == :ok
+      end)
+
+    assert log =~ "Account deletion hook failed"
+    assert log =~ "hook exploded"
   end
 
   test "a failing delete callback is returned so the deletion stops" do

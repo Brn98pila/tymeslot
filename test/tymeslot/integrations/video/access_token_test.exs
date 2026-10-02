@@ -107,6 +107,44 @@ defmodule Tymeslot.Integrations.Video.AccessTokenTest do
       assert Encryption.decrypt(reloaded.access_token_encrypted) == "fresh-teams-token"
     end
 
+    test "mints a Zoom token through the provider's own refresh path", %{user: user} do
+      with_config(:tymeslot, :zoom_oauth,
+        client_id: "zoom-id",
+        client_secret: "zoom-secret",
+        state_secret: "zoom-state"
+      )
+
+      integration =
+        insert(:video_integration,
+          user: user,
+          provider: "zoom",
+          is_active: true,
+          access_token_encrypted: Encryption.encrypt("expired"),
+          refresh_token_encrypted: Encryption.encrypt("refresh-me"),
+          token_expires_at: DateTime.add(DateTime.utc_now(), -3600, :second)
+        )
+
+      stub(Tymeslot.ZoomOAuthHelperMock, :validate_token, fn _config -> {:ok, :needs_refresh} end)
+
+      expect(Tymeslot.ZoomOAuthHelperMock, :refresh_access_token, fn "refresh-me",
+                                                                     _scope,
+                                                                     _opts ->
+        {:ok,
+         %{
+           access_token: "fresh-zoom-token",
+           refresh_token: "rotated-refresh",
+           expires_at: DateTime.add(DateTime.utc_now(), 3600, :second),
+           scope: "meeting:write"
+         }}
+      end)
+
+      assert {:ok, "fresh-zoom-token"} = Video.access_token(integration.id, user.id)
+
+      {:ok, reloaded} = VideoIntegrationQueries.get_for_user(integration.id, user.id)
+      assert Encryption.decrypt(reloaded.access_token_encrypted) == "fresh-zoom-token"
+      assert Encryption.decrypt(reloaded.refresh_token_encrypted) == "rotated-refresh"
+    end
+
     test "refuses a provider that holds no OAuth grant", %{user: user} do
       integration = insert(:video_integration, user: user, provider: "mirotalk", is_active: true)
 

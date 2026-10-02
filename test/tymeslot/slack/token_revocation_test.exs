@@ -11,6 +11,7 @@ defmodule Tymeslot.Slack.TokenRevocationTest do
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Slack
   alias Tymeslot.Slack.API
+  alias Tymeslot.Test.LogCapture
 
   setup :verify_on_exit!
 
@@ -62,7 +63,11 @@ defmodule Tymeslot.Slack.TokenRevocationTest do
     test "a failing or unreadable integration does not stop the others" do
       user = insert(:user)
       insert(:slack_integration, user: user, bot_token_encrypted: Encryption.encrypt("xoxb-a"))
-      insert(:slack_integration, user: user, bot_token_encrypted: <<0, 1, 2>>)
+
+      # Long enough to be treated as ciphertext, but not decryptable: raises.
+      unreadable =
+        insert(:slack_integration, user: user, bot_token_encrypted: :crypto.strong_rand_bytes(64))
+
       insert(:slack_integration, user: user, bot_token_encrypted: Encryption.encrypt("xoxb-c"))
 
       test_pid = self()
@@ -78,11 +83,18 @@ defmodule Tymeslot.Slack.TokenRevocationTest do
         end
       end)
 
+      LogCapture.attach(level: :warning)
       log = capture_log(fn -> assert Slack.revoke_tokens_for_user(user.id) == :ok end)
 
       assert_received {:revoked, "xoxb-a"}
       assert_received {:revoked, "xoxb-c"}
       assert log =~ "Slack token revocation failed"
+
+      # The unreadable one raised: its log names it and the exception module.
+      assert Enum.any?(LogCapture.drain(), fn event ->
+               meta = LogCapture.user_metadata(event)
+               meta[:integration_id] == unreadable.id and meta[:exception] == "RuntimeError"
+             end)
     end
   end
 end
