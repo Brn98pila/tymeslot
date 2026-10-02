@@ -8,6 +8,9 @@ defmodule Tymeslot.Auth.AccountDeletion.OperatorTest do
   import Tymeslot.Factory
 
   alias Tymeslot.Auth
+  alias Tymeslot.Auth.UserSessionQueries
+  alias Tymeslot.Repo
+  alias Tymeslot.Security.Token
   alias Tymeslot.Workers.AccountDeletionWorker
 
   setup do
@@ -43,6 +46,30 @@ defmodule Tymeslot.Auth.AccountDeletion.OperatorTest do
     assert DateTime.compare(pending.deletion_scheduled_at, later) == :lt
     assert [job] = all_enqueued(worker: AccountDeletionWorker)
     assert DateTime.compare(job.scheduled_at, later) == :lt
+  end
+
+  test "ends the target's sessions and leaves other users' alone" do
+    admin = insert(:user, is_admin: true)
+    target = insert(:user)
+    bystander = insert(:user)
+    insert(:user_session, user: target, token_hash: Token.hash_token("target-token"))
+    insert(:user_session, user: bystander, token_hash: Token.hash_token("bystander-token"))
+
+    assert {:ok, _pending} = Auth.delete_account_now(admin, target.id)
+
+    refute UserSessionQueries.get_user_by_session_token("target-token")
+    assert UserSessionQueries.get_user_by_session_token("bystander-token")
+  end
+
+  test "an admin demoted since their struct was loaded is forbidden" do
+    stale_admin = insert(:user, is_admin: true)
+    insert(:user, is_admin: true)
+    target = insert(:user)
+
+    stale_admin |> Ecto.Changeset.change(is_admin: false) |> Repo.update!()
+
+    assert Auth.delete_account_now(stale_admin, target.id) == {:error, :forbidden}
+    refute Repo.get!(Tymeslot.Auth.UserSchema, target.id).deletion_scheduled_at
   end
 
   test "an admin cannot delete themselves" do
