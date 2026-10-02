@@ -45,6 +45,8 @@ defmodule Tymeslot.Auth.UserSchema do
           dashboard_setup_dismissed_at: DateTime.t() | nil,
           last_active_at: DateTime.t() | nil,
           is_admin: boolean(),
+          deletion_requested_at: DateTime.t() | nil,
+          deletion_scheduled_at: DateTime.t() | nil,
           profile: ProfileSchema.t() | Ecto.Association.NotLoaded.t() | nil,
           calendar_integrations: [CalendarIntegrationSchema.t()] | Ecto.Association.NotLoaded.t(),
           video_integrations: [VideoIntegrationSchema.t()] | Ecto.Association.NotLoaded.t(),
@@ -84,6 +86,9 @@ defmodule Tymeslot.Auth.UserSchema do
     field(:last_active_at, :utc_datetime)
     field(:is_admin, :boolean, default: false)
     field(:locale, :string)
+    # Set while the account waits to be deleted; see Tymeslot.Auth.AccountDeletion.
+    field(:deletion_requested_at, :utc_datetime)
+    field(:deletion_scheduled_at, :utc_datetime)
 
     has_one(:profile, Tymeslot.Profiles.ProfileSchema, foreign_key: :user_id)
 

@@ -447,6 +447,24 @@ defmodule Tymeslot.Auth do
   end
 
   @doc """
+  Whether an account is pending deletion. Takes the user (no query) or a user
+  id (one query; an unknown id is not pending).
+  """
+  @spec deletion_pending?(UserSchema.t() | integer()) :: boolean()
+  def deletion_pending?(%UserSchema{deletion_scheduled_at: nil}), do: false
+  def deletion_pending?(%UserSchema{}), do: true
+
+  def deletion_pending?(user_id) when is_integer(user_id),
+    do: UserQueries.deletion_pending?(user_id)
+
+  @doc """
+  Of `ids`, those that still belong to an account. User ids are never
+  reused, so a missing id is a deleted account.
+  """
+  @spec existing_user_ids([integer()]) :: [integer()]
+  defdelegate existing_user_ids(ids), to: UserQueries, as: :existing_ids
+
+  @doc """
   Deletes a user account.
 
   Runs the configured account-deletion hook (e.g. SaaS subscription
