@@ -96,6 +96,14 @@ config :tymeslot,
   # succeed before a user is deleted. See delete_user/1.
   account_deletion_hook: nil,
 
+  # Days between a self-service deletion request and the deletion itself.
+  # With 0 the account is deleted as soon as the deletion job runs.
+  account_deletion_grace_days: 0,
+
+  # Whether the deletion dialog asks why the user is leaving. The answer is
+  # passed to the account-deletion hook; Core stores nothing.
+  collect_deletion_feedback: false,
+
   # Admin alerts — disabled by default. Self-hosters can enable via the
   # ADMIN_ALERTS_ENABLED env var (set true) plus a valid ADMIN_ALERT_EMAIL.
   # A downstream overlay may override admin_alerts_enabled in its own config.

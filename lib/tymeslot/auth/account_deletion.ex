@@ -10,6 +10,7 @@ defmodule Tymeslot.Auth.AccountDeletion do
 
   require Logger
 
+  alias Tymeslot.Auth.AccountDeletion.Hook
   alias Tymeslot.Auth.{Session, UserQueries, UserSchema, UserSessionQueries}
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.MeetingPayments
@@ -50,7 +51,7 @@ defmodule Tymeslot.Auth.AccountDeletion do
   @spec delete_account(UserSchema.t()) ::
           {:ok, UserSchema.t()} | {:error, Ecto.Changeset.t() | term()}
   def delete_account(%UserSchema{} = user) do
-    with :ok <- run_account_deletion_hook(user.id) do
+    with :ok <- Hook.deleted(user.id) do
       # Resolved before the delete: the cascade removes the row that knows it.
       profile = Profiles.get_profile(user.id)
 
@@ -169,13 +170,6 @@ defmodule Tymeslot.Auth.AccountDeletion do
         )
 
         false
-    end
-  end
-
-  defp run_account_deletion_hook(user_id) do
-    case Application.get_env(:tymeslot, :account_deletion_hook) do
-      nil -> :ok
-      hook -> hook.on_account_deletion(user_id)
     end
   end
 end
