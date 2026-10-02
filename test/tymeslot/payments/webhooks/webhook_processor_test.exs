@@ -96,6 +96,31 @@ defmodule Tymeslot.Payments.Webhooks.WebhookProcessorTest do
     end
   end
 
+  test "acknowledges customer.deleted without alerting" do
+    original_alerts = Application.get_env(:tymeslot, :admin_alerts_impl)
+    original_pid = Application.get_env(:tymeslot, :admin_alerts_test_pid)
+
+    Application.put_env(:tymeslot, :admin_alerts_impl, TestAdminAlerts)
+    Application.put_env(:tymeslot, :admin_alerts_test_pid, self())
+
+    on_exit(fn ->
+      Application.put_env(:tymeslot, :admin_alerts_impl, original_alerts)
+      Application.put_env(:tymeslot, :admin_alerts_test_pid, original_pid)
+    end)
+
+    event = %{
+      "id" => "evt_cus_deleted_1",
+      "type" => "customer.deleted",
+      "created" => 1_700_000_000,
+      "livemode" => false,
+      "data" => %{"object" => %{"id" => "cus_123", "object" => "customer"}}
+    }
+
+    assert {:ok, :ignored_event} = WebhookProcessor.process_event(event)
+
+    refute_receive {:send_alert, :unhandled_webhook, _payload}
+  end
+
   describe "process_event/1 retry behavior" do
     test "returns retry_later for Stripe outages" do
       original_provider = Application.get_env(:tymeslot, :stripe_provider)

@@ -49,10 +49,12 @@ defmodule Tymeslot.Payments.Webhooks.WebhookRegistry do
   # application-fee events fire on the platform account for every paid booking
   # (the platform fee being collected or returned); they are expected and
   # benign, so we acknowledge them silently rather than raising an
-  # unhandled-event admin alert for each one.
+  # unhandled-event admin alert for each one. `customer.deleted` is the echo of
+  # a customer we removed ourselves, for instance when an account is deleted.
   @ignored_event_types [
     "application_fee.created",
-    "application_fee.refunded"
+    "application_fee.refunded",
+    "customer.deleted"
   ]
 
   @doc """
