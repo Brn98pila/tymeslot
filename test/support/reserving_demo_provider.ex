@@ -2,7 +2,7 @@ defmodule Tymeslot.Test.ReservingDemoProvider do
   @moduledoc """
   Test-only demo provider that serves one username, `demo-x-1`.
 
-  It answers `reserved_username?/1` for that username and hands every other
+  It answers `demo_username?/1` for that username and hands every other
   callback to `Tymeslot.Demo.NoOp`, so pages keep rendering real data. Wire it
   in for one test with `with_config(:tymeslot, demo_provider: __MODULE__)`, in a
   module that is `async: false`.
@@ -18,10 +18,10 @@ defmodule Tymeslot.Test.ReservingDemoProvider do
   def reserved_username, do: @reserved_username
 
   @impl Tymeslot.Demo.Behaviour
-  def reserved_username?(username), do: username == @reserved_username
+  def demo_username?(username), do: username == @reserved_username
 
   for {name, arity} <- Tymeslot.Demo.Behaviour.behaviour_info(:callbacks),
-      name != :reserved_username? do
+      name != :demo_username? do
     args = Macro.generate_arguments(arity, __MODULE__)
 
     @impl Tymeslot.Demo.Behaviour

@@ -22,16 +22,11 @@ defmodule Tymeslot.Demo.Behaviour do
   @callback get_profile_by_user_id(user_id :: integer()) :: map() | nil
 
   @doc """
-  Checks if a username is a demo username (e.g., demo-theme-1).
+  Whether `username` is one the demo provider serves (e.g. demo-theme-1). No
+  organiser may choose such a username: a real profile under it would have
+  its booking page replaced by demo content.
   """
   @callback demo_username?(username :: String.t() | any()) :: boolean()
-
-  @doc """
-  Whether `username` is one the demo provider serves, so no organiser may
-  choose it: a real profile under it would have its booking page replaced by
-  demo content.
-  """
-  @callback reserved_username?(username :: String.t()) :: boolean()
 
   @doc """
   Checks if a profile is a demo profile.

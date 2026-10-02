@@ -16,7 +16,7 @@ defmodule Tymeslot.Profiles.ReservedPaths do
   """
   @spec reserved?(String.t()) :: boolean()
   def reserved?(username) when is_binary(username),
-    do: username in list() or Demo.reserved_username?(username)
+    do: username in list() or Demo.demo_username?(username)
 
   @doc """
   Returns a list of top-level paths and usernames that are reserved for system use.
