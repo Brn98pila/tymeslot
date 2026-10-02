@@ -298,4 +298,17 @@ defmodule Tymeslot.Meetings.MeetingListQueries do
     |> preload(:guests)
     |> Repo.all()
   end
+
+  @doc """
+  Every meeting id the user organises, past and future, in any status. Read
+  by account deletion before the cascade removes the meetings, so the jobs
+  queued for them can be cleared afterwards.
+  """
+  @spec list_ids_for_organizer(pos_integer()) :: [Ecto.UUID.t()]
+  def list_ids_for_organizer(organizer_user_id) do
+    Meeting
+    |> where([m], m.organizer_user_id == ^organizer_user_id)
+    |> select([m], m.id)
+    |> Repo.all()
+  end
 end

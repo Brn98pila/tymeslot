@@ -1,0 +1,58 @@
+defmodule Tymeslot.Auth.AccountDeletion.ExternalCleanup do
+  @moduledoc """
+  Best-effort cleanup of what an account being deleted left with third
+  parties. Runs before the row delete, because the cascade removes the
+  credentials each step needs:
+
+    * calendars: stop Google push channels, delete Microsoft Graph
+      subscriptions, revoke Google grants;
+    * video: revoke Google Meet and Zoom grants;
+    * Slack: revoke bot tokens;
+    * payments: expire pending Stripe Checkout sessions and close the
+      Connect account record (`MeetingPayments.disconnect/1`, which sends no
+      email or webhook).
+
+  Calendar events and video rooms of future meetings are deliberately left
+  alone: the meeting may still take place between host and guest. Each step
+  is isolated, so one provider being down, or one step raising, stops
+  neither the other steps nor the deletion.
+  """
+
+  require Logger
+
+  alias Tymeslot.Auth.UserSchema
+  alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Integrations.Calendar.AccountCleanup, as: CalendarCleanup
+  alias Tymeslot.Integrations.Video.AccountCleanup, as: VideoCleanup
+  alias Tymeslot.MeetingPayments
+  alias Tymeslot.Slack
+
+  @spec run(UserSchema.t()) :: :ok
+  def run(%UserSchema{id: user_id} = user) do
+    steps = [
+      calendars: fn -> CalendarCleanup.run(user_id) end,
+      video: fn -> VideoCleanup.run(user_id) end,
+      slack: fn -> Slack.revoke_tokens_for_user(user_id) end,
+      payments: fn -> MeetingPayments.disconnect(user) end
+    ]
+
+    Enum.each(steps, fn {step, fun} -> run_step(step, user_id, fun) end)
+  end
+
+  defp run_step(step, user_id, fun) do
+    case fun.() do
+      {:error, reason} -> log_failure(step, user_id, reason)
+      _done -> :ok
+    end
+  rescue
+    exception -> log_failure(step, user_id, exception)
+  end
+
+  defp log_failure(step, user_id, reason) do
+    Logger.error("Account deletion: cleanup step failed; the deletion goes ahead",
+      step: step,
+      user_id: user_id,
+      reason: LogFormat.reason(reason)
+    )
+  end
+end

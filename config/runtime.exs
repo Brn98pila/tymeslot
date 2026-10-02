@@ -296,7 +296,10 @@ if config_env() == :prod do
         # Run daily at 03:05 UTC to resolve quiet errors and prune old ones
         {"5 3 * * *", Tymeslot.Workers.ErrorTrackerMaintenanceWorker},
         # Run daily at 07:00 UTC to email the digest of info-severity admin alerts
-        {"0 7 * * *", Tymeslot.Workers.AdminAlertDigestWorker}
+        {"0 7 * * *", Tymeslot.Workers.AdminAlertDigestWorker},
+        # Run daily at 04:20 UTC to queue any account deletion that is overdue
+        # because its own job was lost or gave up
+        {"20 4 * * *", Tymeslot.Workers.AccountDeletionSweepWorker}
       ]
     ]
 

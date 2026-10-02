@@ -7,6 +7,8 @@ defmodule Tymeslot.Auth do
   It encapsulates the business logic and provides a clean interface for the web layer.
   """
 
+  alias Tymeslot.Auth.AccountDeletion.Runner
+
   alias Tymeslot.Auth.{
     AccountDeletion,
     AdminRoles,
@@ -484,6 +486,17 @@ defmodule Tymeslot.Auth do
   """
   @spec purge_unverified_accounts(integer()) :: {non_neg_integer(), nil}
   defdelegate purge_unverified_accounts(days), to: AccountDeletion
+
+  @doc """
+  Deletes one account if it is pending and due. See
+  `Tymeslot.Auth.AccountDeletion.Runner.run/1` for the outcomes.
+  """
+  @spec run_scheduled_deletion(integer()) :: Runner.outcome()
+  defdelegate run_scheduled_deletion(user_id), to: Runner, as: :run
+
+  @doc "Queues a deletion job for every overdue account; returns how many."
+  @spec enqueue_overdue_account_deletions() :: non_neg_integer()
+  defdelegate enqueue_overdue_account_deletions(), to: Runner, as: :enqueue_overdue
 
   @doc """
   Lists all users in the system, ordered by id ascending.

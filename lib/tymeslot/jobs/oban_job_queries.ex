@@ -234,6 +234,35 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
     delete_pending_jobs(worker_module, args_match, queue: "emails")
   end
 
+  @doc """
+  Deletes every job still waiting to run whose args name `user_id` or one of
+  `meeting_ids`, on any queue and for any worker. Run once an account has
+  been deleted: nothing queued for it may run later, and no reminder may keep
+  a guest's address in its args.
+
+  A job already `executing` is left alone; it finds its rows gone and ends.
+  """
+  @spec delete_pending_account_jobs(integer(), [term()]) :: {non_neg_integer(), nil}
+  def delete_pending_account_jobs(user_id, meeting_ids)
+      when is_integer(user_id) and is_list(meeting_ids) do
+    user_id = Integer.to_string(user_id)
+    meeting_ids = Enum.map(meeting_ids, &to_string/1)
+
+    Job
+    |> where([j], j.state in @pending_states)
+    |> where(
+      [j],
+      fragment("?->>'user_id' = ?", j.args, ^user_id) or
+        fragment("?->>'meeting_id' = ANY(?)", j.args, ^meeting_ids)
+    )
+    |> Repo.delete_all()
+  end
+
+  @doc "Deletes `worker_module`'s pending jobs whose args carry `user_id`."
+  @spec delete_user_jobs(module(), integer()) :: {non_neg_integer(), nil}
+  def delete_user_jobs(worker_module, user_id) when is_integer(user_id),
+    do: delete_pending_jobs(worker_module, %{"user_id" => user_id})
+
   defp delete_pending_jobs(worker_module, args_match, opts \\ []) do
     worker_name = normalize_worker_name(worker_module)
     queue = Keyword.get(opts, :queue)
