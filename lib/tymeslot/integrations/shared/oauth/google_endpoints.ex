@@ -15,4 +15,8 @@ defmodule Tymeslot.Integrations.Google.Endpoints do
   @doc "The v1 userinfo endpoint; its response carries `verified_email`."
   @spec userinfo_url() :: String.t()
   def userinfo_url, do: "https://www.googleapis.com/oauth2/v1/userinfo"
+
+  @doc "The endpoint that revokes a grant, given either of its tokens."
+  @spec revoke_url() :: String.t()
+  def revoke_url, do: "https://oauth2.googleapis.com/revoke"
 end
