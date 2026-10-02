@@ -6,6 +6,7 @@ defmodule Tymeslot.Mocks.StripeBehaviours do
   defmodule StripeCustomerBehaviour do
     @moduledoc "Behaviour for Stripe Customer operations"
     @callback create(map(), list()) :: {:ok, map()} | {:error, any()}
+    @callback delete(String.t(), list()) :: {:ok, map()} | {:error, any()}
   end
 
   defmodule StripeSessionBehaviour do

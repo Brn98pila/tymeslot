@@ -123,6 +123,29 @@ defmodule Tymeslot.Payments.StripeTest do
     end
   end
 
+  describe "delete_customer/1" do
+    test "deletes the customer at Stripe" do
+      expect(StripeCustomerMock, :delete, fn "cus_123", opts ->
+        assert opts[:api_key] == "sk_test_fake"
+        {:ok, %{id: "cus_123", deleted: true}}
+      end)
+
+      assert {:ok, %{deleted: true}} = Stripe.delete_customer("cus_123")
+    end
+  end
+
+  describe "resume_subscription/1" do
+    test "turns cancel-at-period-end back off" do
+      expect(StripeSubscriptionMock, :update, fn "sub_123", params, opts ->
+        assert params == %{cancel_at_period_end: false}
+        assert opts[:api_key] == "sk_test_fake"
+        {:ok, %{id: "sub_123", cancel_at_period_end: false}}
+      end)
+
+      assert {:ok, %{cancel_at_period_end: false}} = Stripe.resume_subscription("sub_123")
+    end
+  end
+
   describe "error handling" do
     test "returns error when API key is missing" do
       Application.delete_env(:tymeslot, :stripe_secret_key)

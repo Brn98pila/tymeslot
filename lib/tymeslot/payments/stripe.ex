@@ -195,6 +195,37 @@ defmodule Tymeslot.Payments.Stripe do
   end
 
   @doc """
+  Undoes a cancel-at-period-end, so the subscription renews again.
+
+  Sent without an idempotency key: setting the flag to false is idempotent by
+  itself, and a day-scoped key would make a second resume on the same day
+  replay the first response without reaching Stripe.
+  """
+  @impl StripeProvider
+  @spec resume_subscription(String.t()) :: stripe_result()
+  def resume_subscription(subscription_id) when is_binary(subscription_id) do
+    Logger.info("Resuming Stripe subscription", subscription_id: subscription_id)
+
+    RetryHelper.execute_with_retry(fn ->
+      subscription_mod().update(subscription_id, %{cancel_at_period_end: false}, api_key_opts())
+    end)
+  end
+
+  @doc """
+  Deletes a Stripe customer. Stripe keeps the customer's invoices and charges
+  for its own records; the customer object and its stored details go.
+  """
+  @impl StripeProvider
+  @spec delete_customer(String.t()) :: stripe_result()
+  def delete_customer(customer_id) when is_binary(customer_id) do
+    Logger.info("Deleting Stripe customer", customer_id: customer_id)
+
+    RetryHelper.execute_with_retry(fn ->
+      customer_mod().delete(customer_id, api_key_opts())
+    end)
+  end
+
+  @doc """
   Updates a Stripe subscription to a new price.
   """
   @impl StripeProvider
