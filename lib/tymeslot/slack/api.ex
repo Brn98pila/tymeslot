@@ -102,6 +102,33 @@ defmodule Tymeslot.Slack.API do
     |> parse_web_api_response()
   end
 
+  # Slack's answers for a token that no longer works: nothing left to revoke.
+  @dead_token_errors ~w(token_revoked invalid_auth account_inactive token_expired)
+
+  @doc """
+  Revokes a bot token (`auth.revoke`), as used when the account that
+  connected the workspace is deleted. A token Slack already treats as dead
+  counts as revoked.
+  """
+  @spec revoke_token(String.t()) :: :ok | {:error, term()}
+  def revoke_token(bot_token) when is_binary(bot_token) do
+    headers = [
+      {"authorization", "Bearer #{bot_token}"},
+      {"content-type", "application/x-www-form-urlencoded"}
+    ]
+
+    response =
+      "#{@base_url}/auth.revoke"
+      |> http_post("", headers)
+      |> parse_web_api_response()
+
+    case response do
+      {:ok, _body} -> :ok
+      {:error, {:slack_error, code, _body}} when code in @dead_token_errors -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   # ============================================================================
   # Private helpers
   # ============================================================================

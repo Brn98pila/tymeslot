@@ -14,6 +14,7 @@ defmodule Tymeslot.Slack do
   require Logger
 
   alias Tymeslot.Features
+  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Repo
   alias Tymeslot.Slack.{API, MessageBuilder, OAuth, SlackIntegrationSchema, SlackQueries}
   alias Tymeslot.Workers.SlackWorker
@@ -37,6 +38,46 @@ defmodule Tymeslot.Slack do
           {:ok, SlackIntegrationSchema.t()} | {:error, :not_found}
   def get_integration(id, user_id) do
     SlackQueries.get_integration(id, user_id)
+  end
+
+  # ============================================================================
+  # Account deletion
+  # ============================================================================
+
+  @doc """
+  Revokes the bot token of every Slack workspace the user connected, for an
+  account being deleted. Webhook-only integrations hold no token and are
+  skipped. Best-effort and independent per integration: one that cannot be
+  read or revoked is logged and the rest are still handled.
+  """
+  @spec revoke_tokens_for_user(integer()) :: :ok
+  def revoke_tokens_for_user(user_id) do
+    user_id
+    |> SlackQueries.list_integrations()
+    |> Enum.each(&revoke_token/1)
+  end
+
+  defp revoke_token(%SlackIntegrationSchema{} = integration) do
+    with {:ok, token} <- resolve_bot_token(integration),
+         {:error, reason} <- API.revoke_token(token) do
+      log_revocation_failure(integration, reason)
+    end
+
+    :ok
+  rescue
+    exception -> log_revocation_failure(integration, exception)
+  catch
+    kind, reason -> log_revocation_failure(integration, {kind, reason})
+  end
+
+  defp log_revocation_failure(integration, reason) do
+    Logger.warning("Account deletion: Slack token revocation failed; carrying on",
+      integration_id: integration.id,
+      user_id: integration.user_id,
+      reason: LogFormat.reason(reason)
+    )
+
+    :ok
   end
 
   @spec create_integration(integer(), map()) ::
