@@ -8,7 +8,7 @@ defmodule Tymeslot.Availability.Calculate do
   alias Tymeslot.Availability.{BusinessHours, Conflicts, Events, TimeSlots}
   alias Tymeslot.Availability.TimeOffPeriodQueries
   alias Tymeslot.Integrations.Calendar.CalendarEvent
-  alias Tymeslot.Utils.DateTimeUtils
+  alias Tymeslot.Utils.{DateTimeUtils, TimeRange}
   alias Tymeslot.Validation.Constraints
 
   @type availability_config :: %{
@@ -16,19 +16,23 @@ defmodule Tymeslot.Availability.Calculate do
           optional(:max_advance_booking_days) => pos_integer(),
           optional(:duration_minutes) => pos_integer(),
           optional(:slot_interval_minutes) => pos_integer() | nil,
-          optional(:buffer_minutes) => non_neg_integer(),
+          optional(:buffer_before_minutes) => non_neg_integer(),
+          optional(:buffer_after_minutes) => non_neg_integer(),
           optional(:weekly_schedule) => list(term()),
           optional(:overrides) => list(term()),
           optional(:time_off) => list(term()),
           optional(:fallback_availability_fn) => (Date.t() -> term()) | nil,
           optional(:owner_timezone) => String.t(),
           optional(:min_advance_hours) => non_neg_integer(),
-          optional(:limit_checker) => (DateTime.t() -> boolean()) | nil
+          optional(:limit_checker) => (DateTime.t() -> boolean()) | nil,
+          optional(:ignore_event_uids) => MapSet.t(String.t()),
+          optional(:limit_exempt_starts) => MapSet.t(integer())
         }
 
-  @typedoc "The three scheduling policy values an `availability_config` carries."
+  @typedoc "The scheduling policy values an `availability_config` carries."
   @type policy_values :: %{
-          buffer_minutes: non_neg_integer(),
+          buffer_before_minutes: non_neg_integer(),
+          buffer_after_minutes: non_neg_integer(),
           min_advance_hours: non_neg_integer(),
           max_advance_booking_days: pos_integer()
         }
@@ -52,7 +56,13 @@ defmodule Tymeslot.Availability.Calculate do
     - user_timezone: Timezone of the user viewing availability
     - owner_timezone: Timezone of the calendar owner
     - events: List of existing events
-    - config: Optional configuration overrides
+    - config: Optional configuration overrides. `config[:ignore_event_uids]`
+      lets a caller disregard specific blocking events for the one slot each
+      occupies (see `Tymeslot.Availability.Conflicts.filter_available_slots/6`
+      and `Tymeslot.Availability.GroupSlots`), without weakening buffer
+      protection around them for every other slot. `config[:limit_exempt_starts]`
+      (Unix seconds) names slot instants the booking limits do not apply to:
+      a seat on a live group slot adds no booking.
 
   ## Returns
     List of available time slot strings
@@ -355,7 +365,7 @@ defmodule Tymeslot.Availability.Calculate do
   end
 
   @doc """
-  The three scheduling policy values an `availability_config` carries, falling
+  The scheduling policy values an `availability_config` carries, falling
   back to `Tymeslot.Validation.Constraints.scheduling_policy_defaults/0` for any
   the caller left out.
 
@@ -369,11 +379,29 @@ defmodule Tymeslot.Availability.Calculate do
     defaults = Constraints.scheduling_policy_defaults()
 
     %{
-      buffer_minutes: Map.get(config, :buffer_minutes, defaults.buffer_minutes),
+      buffer_before_minutes:
+        Map.get(config, :buffer_before_minutes, defaults.buffer_before_minutes),
+      buffer_after_minutes: Map.get(config, :buffer_after_minutes, defaults.buffer_after_minutes),
       min_advance_hours: Map.get(config, :min_advance_hours, defaults.min_advance_hours),
       max_advance_booking_days:
         Map.get(config, :max_advance_booking_days, defaults.advance_booking_days)
     }
+  end
+
+  @doc """
+  The `{before, after}` buffer pair an `availability_config` carries, with the
+  same fallbacks as `config_policy/1`.
+
+  The display filter, the submit-time calendar check and the database conflict
+  check all read the pair through here, so none of them can keep a default of
+  its own.
+  """
+  @spec config_buffers(availability_config()) :: TimeRange.buffers()
+  def config_buffers(config) do
+    %{buffer_before_minutes: buffer_before, buffer_after_minutes: buffer_after} =
+      config_policy(config)
+
+    {buffer_before, buffer_after}
   end
 
   # Private functions

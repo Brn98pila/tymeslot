@@ -1,11 +1,11 @@
-## "msgid"s in this file come from POT (.pot) files.
-###
-### Do not add, change, or remove "msgid"s manually here as
-### they're tied to the ones in the corresponding POT file
-### (with the same domain).
-###
-### Use "mix gettext.extract --merge" or "mix gettext.merge"
-### to merge POT files into PO files.
+#  "msgid"s in this file come from POT (.pot) files.
+# #
+# # Do not add, change, or remove "msgid"s manually here as
+# # they're tied to the ones in the corresponding POT file
+# # (with the same domain).
+# #
+# # Use "mix gettext.extract --merge" or "mix gettext.merge"
+# # to merge POT files into PO files.
 msgid ""
 msgstr ""
 "Language: cs\n"
@@ -579,3 +579,29 @@ msgstr "Váš účet Tymeslot byl smazán"
 #, elixir-autogen, elixir-format
 msgid "Your Tymeslot account is scheduled for deletion"
 msgstr "Váš účet Tymeslot je naplánován ke smazání"
+
+#: lib/tymeslot/emails/appointment_builder.ex
+#, elixir-autogen, elixir-format
+msgid "%{count} participant"
+msgid_plural "%{count} participants"
+msgstr[0] "%{count} účastník"
+msgstr[1] "%{count} účastníci"
+msgstr[2] "%{count} účastníků"
+
+#: lib/tymeslot/integrations/calendar/calendar_event_builder.ex
+#, elixir-autogen, elixir-format
+msgid "Attendees (%{count}):"
+msgstr "Účastníci (%{count}):"
+
+#: lib/tymeslot/emails/shared/text_body_helper.ex
+#, elixir-autogen, elixir-format
+msgid "Open in dashboard:"
+msgstr "Otevřít v přehledu:"
+
+#: lib/tymeslot/emails/shared/group_session.ex
+#, elixir-autogen, elixir-format
+msgid "Group session: you have one of %{count} spot."
+msgid_plural "Group session: you have one of %{count} spots."
+msgstr[0] "Skupinové setkání: máte jedno z %{count} míst."
+msgstr[1] "Skupinové setkání: máte jedno z %{count} míst."
+msgstr[2] "Skupinové setkání: máte jedno z %{count} míst."

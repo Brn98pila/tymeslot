@@ -15,6 +15,7 @@ defmodule Tymeslot.Slack do
 
   alias Tymeslot.Features
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Meetings.SeatView
   alias Tymeslot.Repo
   alias Tymeslot.Slack.{API, MessageBuilder, OAuth, SlackIntegrationSchema, SlackQueries}
   alias Tymeslot.Workers.SlackWorker
@@ -360,7 +361,12 @@ defmodule Tymeslot.Slack do
   def trigger_integration(integration, event_type, meeting) do
     if SlackIntegrationSchema.status(integration) == :active and
          SlackIntegrationSchema.subscribed_to?(integration, event_type) do
-      SlackWorker.schedule_delivery(integration.id, event_type, meeting.id)
+      SlackWorker.schedule_delivery(
+        integration.id,
+        event_type,
+        meeting.id,
+        SeatView.participant_id(meeting)
+      )
     else
       {:error, :integration_not_active}
     end

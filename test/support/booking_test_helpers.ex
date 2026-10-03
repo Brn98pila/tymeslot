@@ -51,7 +51,8 @@ defmodule Tymeslot.BookingTestHelpers do
         is_default: true,
         advance_booking_days: 30,
         min_advance_hours: 0,
-        buffer_minutes: 0
+        buffer_before_minutes: 0,
+        buffer_after_minutes: 0
       )
 
     Enum.each(1..7, fn day_of_week ->
@@ -132,6 +133,19 @@ defmodule Tymeslot.BookingTestHelpers do
     # Navigate to date/time selection
     view |> element(@next_step) |> render_click()
 
+    walk_from_schedule_to_booking_form(view, timezone)
+  end
+
+  @doc """
+  The second half of `walk_to_booking_form/3`: from the schedule step, picks
+  tomorrow's first offered time and moves on to the booking form.
+
+  Public for a page that opens on the schedule step, as `/:username/:slug`
+  does, where there is no overview card to pick.
+  """
+  @spec walk_from_schedule_to_booking_form(Phoenix.LiveViewTest.View.t(), String.t()) ::
+          Phoenix.LiveViewTest.View.t()
+  def walk_from_schedule_to_booking_form(view, timezone) do
     # Wait for availability to load and select an available date
     today = timezone |> DateTime.now!() |> DateTime.to_date()
     target_date = Date.add(today, 1)

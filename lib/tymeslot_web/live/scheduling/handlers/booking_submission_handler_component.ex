@@ -38,6 +38,7 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
   alias Tymeslot.Demo
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings.Approval
+  alias Tymeslot.Security.Honeypot
   alias Tymeslot.Security.InputProcessor
   alias TymeslotWeb.Live.Scheduling.AvailabilityHelpers
   alias TymeslotWeb.Live.Scheduling.BookingConfig
@@ -92,7 +93,9 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
   def submit_booking(socket, booking_params) do
     Logger.info("Submit event triggered for booking form")
 
-    if BookingGuards.honeypot_tripped?(booking_params) do
+    # The cheapest gate, checked before validation: a tripped honeypot means
+    # nothing else about the submission is worth processing.
+    if Honeypot.tripped?(booking_params) do
       {:honeypot, BookingGuards.handle_honeypot(socket)}
     else
       case InputProcessor.validate_form(booking_params, BookingConfig.booking_field_spec()) do
@@ -219,6 +222,7 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
     opts = [
       is_rescheduling: socket.assigns[:is_rescheduling] || false,
       reschedule_uid: socket.assigns[:reschedule_meeting_uid],
+      reschedule_seat_token: socket.assigns[:reschedule_seat_token],
       organizer_user_id: socket.assigns[:organizer_user_id]
     ]
 

@@ -15,6 +15,7 @@ defmodule Tymeslot.Meetings.Scheduling do
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Meetings.BookingLimits
   alias Tymeslot.Meetings.BookingLimits.Checker
+  alias Tymeslot.Meetings.GroupMeetingQueries
   alias Tymeslot.Meetings.MeetingConflictQueries
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
@@ -22,6 +23,7 @@ defmodule Tymeslot.Meetings.Scheduling do
   alias Tymeslot.Profiles
   alias Tymeslot.Repo
   alias Tymeslot.Utils.MapKeys
+  alias Tymeslot.Utils.TimeRange
   alias Tymeslot.Venues
 
   @doc """
@@ -51,6 +53,39 @@ defmodule Tymeslot.Meetings.Scheduling do
              | :database_error
              | {:validation_error, Changeset.t()}}
   def create_meeting_with_conflict_check(attrs, opts \\ []) do
+    create_with_conflict_check(
+      attrs,
+      &create_meeting_in_transaction/1,
+      "create",
+      opts
+    )
+  end
+
+  @doc """
+  Atomically creates a group meeting's slot row with conflict checking, using
+  the same buffered `FOR UPDATE` locking as `create_meeting_with_conflict_check/2`.
+
+  Used for the first booker of a group meeting type, where a fresh meeting
+  row is created together with the first seat.
+  """
+  @spec create_group_meeting_with_conflict_check(map(), keyword()) ::
+          {:ok, Meeting.t()}
+          | {:error,
+             :time_conflict
+             | :booking_limit_reached
+             | :invalid_time_range
+             | :database_error
+             | {:validation_error, Changeset.t()}}
+  def create_group_meeting_with_conflict_check(attrs, opts \\ []) do
+    create_with_conflict_check(
+      attrs,
+      &create_group_meeting_in_transaction/1,
+      "create_group",
+      opts
+    )
+  end
+
+  defp create_with_conflict_check(attrs, persist_fn, operation, opts) do
     start_time = MapKeys.get(attrs, :start_time)
     end_time = MapKeys.get(attrs, :end_time)
     organizer_user_id = MapKeys.get(attrs, :organizer_user_id)
@@ -72,7 +107,7 @@ defmodule Tymeslot.Meetings.Scheduling do
         MapKeys.get(attrs, :meeting_type_id),
         limit_check,
         fn ->
-          create_meeting_in_transaction(attrs)
+          persist_fn.(attrs)
         end
       )
     else
@@ -81,7 +116,7 @@ defmodule Tymeslot.Meetings.Scheduling do
   rescue
     error ->
       handle_database_error(error, __STACKTRACE__, %{
-        operation: "create",
+        operation: operation,
         organizer_user_id: MapKeys.get(attrs, :organizer_user_id)
       })
   end
@@ -201,29 +236,36 @@ defmodule Tymeslot.Meetings.Scheduling do
   defp fetch_meeting_type(meeting_type_id, organizer_user_id),
     do: MeetingTypes.get_meeting_type(meeting_type_id, organizer_user_id)
 
-  # The buffer belongs to the schedule the meeting type is booked against, so it
-  # is read through the same policy resolution the booking page used. A nil
-  # meeting type resolves the organiser's default schedule, which is the right
-  # answer for an ad-hoc block.
-  defp get_buffer_minutes(nil, _meeting_type_id), do: 15
+  # The buffers belong to the schedule the meeting type is booked against, so
+  # they are read through the same policy resolution the booking page used. A
+  # nil meeting type resolves the organiser's default schedule, which is the
+  # right answer for an ad-hoc block; a nil organiser resolves no schedule and
+  # gets the policy defaults.
+  defp buffers(organizer_user_id, meeting_type_id) do
+    meeting_type = organizer_user_id && fetch_meeting_type(meeting_type_id, organizer_user_id)
 
-  defp get_buffer_minutes(organizer_user_id, meeting_type_id) do
-    meeting_type = fetch_meeting_type(meeting_type_id, organizer_user_id)
+    %{buffer_before_minutes: buffer_before, buffer_after_minutes: buffer_after} =
+      Policy.scheduling_config(organizer_user_id, meeting_type)
 
-    Policy.scheduling_config(organizer_user_id, meeting_type).buffer_minutes
+    {buffer_before, buffer_after}
   end
 
+  # The new meeting is padded, never the meetings it is checked against: an
+  # existing meeting's own buffers are not re-applied.
   defp compute_buffered_window(start_time, end_time, organizer_user_id, meeting_type_id) do
-    buffer_minutes = get_buffer_minutes(organizer_user_id, meeting_type_id)
-
-    {
-      DateTime.add(start_time, -buffer_minutes, :minute),
-      DateTime.add(end_time, buffer_minutes, :minute)
-    }
+    {buffer_before, buffer_after} = buffers(organizer_user_id, meeting_type_id)
+    TimeRange.add_buffer(start_time, end_time, buffer_before, buffer_after)
   end
 
   defp create_meeting_in_transaction(attrs) do
     case attrs |> with_held_venue() |> MeetingQueries.create_meeting() do
+      {:ok, meeting} -> meeting
+      {:error, changeset} -> Repo.rollback({:validation_error, changeset})
+    end
+  end
+
+  defp create_group_meeting_in_transaction(attrs) do
+    case attrs |> with_held_venue() |> GroupMeetingQueries.create_group_meeting() do
       {:ok, meeting} -> meeting
       {:error, changeset} -> Repo.rollback({:validation_error, changeset})
     end
