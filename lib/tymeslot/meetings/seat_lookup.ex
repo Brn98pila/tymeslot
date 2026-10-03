@@ -11,8 +11,12 @@ defmodule Tymeslot.Meetings.SeatLookup do
   pages), `Tymeslot.Bookings.CancelSeat` and
   `Tymeslot.Scheduling.ThemeFlow.seat_move_start/1` (dropping a spent
   token from a booking form).
+
+  A seat whose host is pending account deletion is `:not_found`: that
+  host's meetings are about to go, so their links act as if unknown.
   """
 
+  alias Tymeslot.Auth
   alias Tymeslot.Bookings.Policy
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema
@@ -32,7 +36,8 @@ defmodule Tymeslot.Meetings.SeatLookup do
   @spec fetch_live_seat(String.t()) :: {:ok, seat()} | {:error, dead_end()}
   def fetch_live_seat(token) when is_binary(token) do
     with {:ok, participant} <- ParticipantQueries.get_by_token(token),
-         {:ok, meeting} <- MeetingQueries.get_meeting(participant.meeting_id) do
+         {:ok, meeting} <- MeetingQueries.get_meeting(participant.meeting_id),
+         :ok <- ensure_host_active(meeting) do
       live_seat(participant, meeting)
     else
       _error -> {:error, :not_found}
@@ -51,8 +56,9 @@ defmodule Tymeslot.Meetings.SeatLookup do
   @spec organizer_user_id(String.t()) :: {:ok, integer()} | {:error, :not_found}
   def organizer_user_id(token) when is_binary(token) do
     with {:ok, participant} <- ParticipantQueries.get_by_token(token),
-         {:ok, %{organizer_user_id: user_id}} when is_integer(user_id) <-
-           MeetingQueries.get_meeting(participant.meeting_id) do
+         {:ok, %{organizer_user_id: user_id} = meeting} when is_integer(user_id) <-
+           MeetingQueries.get_meeting(participant.meeting_id),
+         :ok <- ensure_host_active(meeting) do
       {:ok, user_id}
     else
       _error -> {:error, :not_found}
@@ -88,6 +94,12 @@ defmodule Tymeslot.Meetings.SeatLookup do
       true -> message
     end
   end
+
+  defp ensure_host_active(%{organizer_user_id: user_id}) when is_integer(user_id) do
+    if Auth.deletion_pending?(user_id), do: {:error, :not_found}, else: :ok
+  end
+
+  defp ensure_host_active(_meeting), do: :ok
 
   defp live_seat(participant, meeting) do
     cond do

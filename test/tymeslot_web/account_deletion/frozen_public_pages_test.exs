@@ -10,9 +10,11 @@ defmodule TymeslotWeb.AccountDeletion.FrozenPublicPagesTest do
 
   alias Tymeslot.Auth.UserQueries
   alias Tymeslot.Bookings.Create
+  alias Tymeslot.Bookings.RescheduleSeat
   alias Tymeslot.Meetings.ApprovalToken
   alias Tymeslot.Meetings.Guests
   alias Tymeslot.Meetings.MeetingSchema
+  alias Tymeslot.Meetings.ParticipantQueries
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Repo
 
@@ -118,5 +120,57 @@ defmodule TymeslotWeb.AccountDeletion.FrozenPublicPagesTest do
     freeze(user)
 
     assert Guests.get_open_invitation(guest.rsvp_token) == {:error, :not_found}
+  end
+
+  describe "a group booking seat link of a host pending deletion" do
+    setup do
+      user = insert(:user)
+      insert(:profile, user: user)
+
+      start = DateTime.add(DateTime.utc_now(:second), 2, :day)
+
+      meeting =
+        insert(:meeting,
+          organizer_user: user,
+          organizer_user_id: user.id,
+          organizer_email: user.email,
+          start_time: start,
+          end_time: DateTime.add(start, 30, :minute)
+        )
+
+      %{user: user, seat: insert(:participant, meeting: meeting)}
+    end
+
+    test "cancel link shows the invalid page and leaves the seat alone",
+         %{conn: conn, user: user, seat: seat} do
+      path = "/seat/#{seat.management_token}/cancel"
+      assert conn |> get(path) |> html_response(200)
+
+      freeze(user)
+
+      assert conn |> recycle() |> get(path) |> html_response(404) =~ "no longer valid"
+      assert conn |> recycle() |> post(path) |> html_response(404) =~ "no longer valid"
+      assert {:ok, %{cancelled_at: nil}} = ParticipantQueries.get_by_token(seat.management_token)
+    end
+
+    test "a move submitted from a booking page opened before the freeze is refused",
+         %{user: user, seat: seat} do
+      freeze(user)
+
+      params = %{
+        date: Date.to_iso8601(Date.add(Date.utc_today(), 3)),
+        time: "10:00",
+        duration: "30min",
+        user_timezone: "Etc/UTC"
+      }
+
+      assert RescheduleSeat.execute(seat.management_token, params, user.id) ==
+               {:error, :meeting_not_found}
+
+      assert {:ok, %{cancelled_at: nil, meeting_id: meeting_id}} =
+               ParticipantQueries.get_by_token(seat.management_token)
+
+      assert meeting_id == seat.meeting_id
+    end
   end
 end
