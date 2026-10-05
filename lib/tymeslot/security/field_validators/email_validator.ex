@@ -4,12 +4,32 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidator do
 
   Validates email format without domain existence checking,
   providing specific feedback for common email format issues.
+
+  The local part must be an RFC 5322 dot-atom and the domain a run of
+  hostname labels; non-ASCII letters are accepted in both (RFC 6531).
   """
 
   alias Tymeslot.Security.FieldValidators.TLDList
 
   @email_max_length 254
   @email_regex ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+  # A character outside ASCII that is neither whitespace nor a control,
+  # format or other invisible character. RFC 6531 admits these in both halves
+  # of an internationalised address (`jürgen@müller.de`).
+  @non_ascii "(?![\\p{Z}\\p{C}])[^\\x00-\\x7F]"
+
+  # The local part as an RFC 5322 dot-atom: runs of `atext` joined by single
+  # dots. Quoted local parts and the specials `( ) < > [ ] : ; , \ "` are
+  # refused: no real mailbox needs them, and each is a character a mail
+  # header, a log line or a display name gives a meaning of its own.
+  @atext "[A-Za-z0-9!#$%&'*+\\-/=?^_`{|}~]|#{@non_ascii}"
+  @local_part_regex ~r/\A(?:#{@atext})+(?:\.(?:#{@atext})+)*\z/u
+
+  # The domain as hostname labels: letters, digits and hyphens (or an
+  # internationalised label), so no address literal and no specials.
+  @label_char "[A-Za-z0-9-]|#{@non_ascii}"
+  @domain_regex ~r/\A(?:#{@label_char})+(?:\.(?:#{@label_char})+)+\z/u
 
   @doc """
   Validates email format with specific error messages.
@@ -88,10 +108,19 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidator do
       not Regex.match?(@email_regex, email) ->
         {:error, "Email format is invalid"}
 
+      not Regex.match?(@local_part_regex, local_part(email)) ->
+        {:error, "Email format is invalid"}
+
+      not Regex.match?(@domain_regex, domain(email)) ->
+        {:error, "Email domain format is invalid"}
+
       true ->
         :ok
     end
   end
+
+  defp local_part(email), do: email |> String.split("@", parts: 2) |> hd()
+  defp domain(email), do: email |> String.split("@", parts: 2) |> List.last()
 
   defp multiple_at_symbols?(email) do
     email

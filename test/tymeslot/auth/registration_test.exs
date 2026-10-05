@@ -155,6 +155,27 @@ defmodule Tymeslot.Auth.RegistrationTest do
     end
   end
 
+  describe "an address outside the email grammar" do
+    # Kept verbatim since sanitisation stopped rewriting addresses, so the
+    # validator is the only thing standing between a header-shaped value and
+    # the account it would be created under.
+    for address <- ["attacker<victim@example.com", "\"quoted\"@example.com"] do
+      test "#{address} is refused and no account is created" do
+        params = %{
+          "email" => unquote(address),
+          "password" => "ValidPassword123!",
+          "password_confirmation" => "ValidPassword123!",
+          "terms_accepted" => "true"
+        }
+
+        assert {:error, :input, _errors} =
+                 Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+
+        assert Repo.aggregate(UserSchema, :count) == 0
+      end
+    end
+  end
+
   describe "an expired pending email change elsewhere" do
     test "does not stop the address being registered" do
       squatter = insert(:user)

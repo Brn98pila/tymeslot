@@ -73,6 +73,61 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidatorTest do
     end
   end
 
+  describe "validate/2 address grammar" do
+    test "accepts every RFC 5322 atext character in the local part" do
+      for address <- [
+            "o'brien@example.com",
+            "first.last+tag@example.com",
+            "a!#$%&*/=?^_`{|}~-z@example.com",
+            "crypto0xabc@example.com",
+            "jean--paul@example.com"
+          ] do
+        assert {address, :ok} == {address, EmailValidator.validate(address)}
+      end
+    end
+
+    test "accepts internationalised local parts and domains" do
+      assert :ok = EmailValidator.validate("jürgen@müller.de")
+      assert :ok = EmailValidator.validate("user@xn--mller-kva.de")
+    end
+
+    test "rejects specials and quoting in the local part" do
+      for address <- [
+            "attacker<victim@example.com",
+            "victim>@example.com",
+            "\"quoted\"@example.com",
+            "a(comment)@example.com",
+            "a,b@example.com",
+            "a;b@example.com",
+            "a:b@example.com",
+            "a[b]@example.com",
+            "a\\b@example.com",
+            "a\u200Bb@example.com"
+          ] do
+        assert {address, {:error, "Email format is invalid"}} ==
+                 {address, EmailValidator.validate(address)}
+      end
+    end
+
+    test "rejects a local part starting or ending with a dot" do
+      assert {:error, "Email format is invalid"} = EmailValidator.validate(".user@example.com")
+      assert {:error, "Email format is invalid"} = EmailValidator.validate("user.@example.com")
+    end
+
+    test "rejects characters a hostname cannot hold in the domain" do
+      for address <- [
+            "user@exa<mple.com",
+            "user@exa(mple).com",
+            "user@[192.0.2.1]",
+            "user@exa_mple.com",
+            "user@exa,mple.com"
+          ] do
+        assert {address, {:error, "Email domain format is invalid"}} ==
+                 {address, EmailValidator.validate(address)}
+      end
+    end
+  end
+
   describe "validate/2 TLD validation" do
     test "accepts emails with valid TLDs" do
       assert :ok = EmailValidator.validate("user@example.com")
