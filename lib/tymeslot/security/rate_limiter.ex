@@ -82,14 +82,15 @@ defmodule Tymeslot.Security.RateLimiter do
   def record_auth_attempt(email, ip, success), do: Auth.record_attempt(email, ip, success)
 
   @doc """
-  Rate limit signup attempts per email and per IP with multi-window buckets.
+  Rate limit signup attempts per IP and then per email, with multi-window
+  buckets; the per-email tiers stop at a day.
   """
   @spec check_signup_rate_limit(String.t(), String.t() | :inet.ip_address() | nil) ::
           :ok | {:error, :rate_limited, String.t()}
   def check_signup_rate_limit(email, ip), do: Auth.check_signup(email, ip)
 
   @doc """
-  Rate limit email verification/resend attempts per user and per IP.
+  Rate limit email verification/resend attempts per IP and then per user.
   """
   @spec check_verification_rate_limit(String.t(), String.t() | :inet.ip_address() | nil) ::
           :ok | {:error, :rate_limited, String.t()}
@@ -127,13 +128,26 @@ defmodule Tymeslot.Security.RateLimiter do
     do: Auth.check_social_signup_confirmation(email)
 
   @doc """
-  Rate limit password reset requests per email and per IP.
+  Rate limit password reset requests per IP and then per recipient address.
   """
   @spec check_password_reset_rate_limit(
           String.t(),
           String.t() | :inet.ip_address() | nil
         ) :: :ok | {:error, :rate_limited, String.t()}
   def check_password_reset_rate_limit(email, ip), do: Auth.check_password_reset(email, ip)
+
+  @doc """
+  The per-IP half of `check_password_reset_rate_limit/2`, on the same bucket.
+  """
+  @spec check_password_reset_ip_rate_limit(String.t() | :inet.ip_address() | nil) ::
+          :ok | {:error, :rate_limited, String.t()}
+  def check_password_reset_ip_rate_limit(ip), do: Auth.check_password_reset_ip(ip)
+
+  @doc "The per-recipient half of `check_password_reset_rate_limit/2`, on the same bucket."
+  @spec check_password_reset_recipient_rate_limit(String.t()) ::
+          :ok | {:error, :rate_limited, String.t()}
+  def check_password_reset_recipient_rate_limit(email),
+    do: Auth.check_password_reset_recipient(email)
 
   @doc """
   Rate limit completing emailed email-change links, per IP.

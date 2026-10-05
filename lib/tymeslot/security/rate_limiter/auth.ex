@@ -6,6 +6,8 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
   alias Tymeslot.Security.AccountLockout
   alias Tymeslot.Security.RateLimiter.Helpers
 
+  # Per-source tiers. A source can only spend its own budget, so these may
+  # run long.
   @signup_limits [
     {"10m", 5, 10 * 60_000},
     {"1h", 8, 60 * 60_000},
@@ -29,6 +31,27 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
     {"1w", 20, 7 * 24 * 60 * 60_000},
     {"1mo", 25, 30 * 24 * 60 * 60_000},
     {"1y", 50, 365 * 24 * 60 * 60_000}
+  ]
+
+  # Per-recipient tiers: the same budgets, stopping at a day. Anyone who can
+  # type an address can spend its budget, so a long tier here would let one
+  # source lock the address's owner out for weeks. These buckets are always
+  # charged after the source's, so a source over its own limit spends nothing
+  # of the recipient's.
+  @signup_email_limits [
+    {"10m", 5, 10 * 60_000},
+    {"1h", 8, 60 * 60_000},
+    {"1d", 10, 24 * 60 * 60_000}
+  ]
+
+  @verification_user_limits [
+    {"1h", 5, 60 * 60_000},
+    {"1d", 10, 24 * 60 * 60_000}
+  ]
+
+  @password_reset_email_limits [
+    {"1h", 5, 60 * 60_000},
+    {"1d", 10, 24 * 60 * 60_000}
   ]
 
   # Per email and client address: the budget a single source gets against one
@@ -118,15 +141,15 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
     action = dgettext("errors", "signup attempts")
 
     Helpers.check_multi_bucket_limits([
-      {"signup:email:#{downcased_email}", @signup_limits, "signup", action},
-      {"signup:ip:#{normalized_ip}", @signup_limits, "signup", action}
+      {"signup:ip:#{normalized_ip}", @signup_limits, "signup", action},
+      {"signup:email:#{downcased_email}", @signup_email_limits, "signup", action}
     ])
   end
 
   @spec check_verification(String.t(), String.t() | :inet.ip_address() | nil) ::
           :ok | {:error, :rate_limited, String.t()}
   def check_verification(user_id, ip) do
-    with :ok <- check_verification_user(user_id), do: check_verification_ip(ip)
+    with :ok <- check_verification_ip(ip), do: check_verification_user(user_id)
   end
 
   # The two halves of `check_verification/2`, charging the same buckets, for a
@@ -144,7 +167,7 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
   @spec check_verification_user(term()) :: :ok | {:error, :rate_limited, String.t()}
   def check_verification_user(user_id) do
     Helpers.check_multi_bucket_limits([
-      {"email_verification:user:#{user_id}", @verification_limits, "email verification",
+      {"email_verification:user:#{user_id}", @verification_user_limits, "email verification",
        verification_action()}
     ])
   end
@@ -176,16 +199,30 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
   @spec check_password_reset(String.t(), String.t() | :inet.ip_address() | nil) ::
           :ok | {:error, :rate_limited, String.t()}
   def check_password_reset(email, ip) do
-    downcased_email = String.downcase(email)
-    normalized_ip = Helpers.normalize_ip(ip)
-    action = dgettext("errors", "password reset requests")
+    with :ok <- check_password_reset_ip(ip), do: check_password_reset_recipient(email)
+  end
 
+  # The two halves of `check_password_reset/2`, charging the same buckets, so
+  # that the reset flow can refuse on the source's budget and stay silent on
+  # the recipient's.
+  @spec check_password_reset_ip(String.t() | :inet.ip_address() | nil) ::
+          :ok | {:error, :rate_limited, String.t()}
+  def check_password_reset_ip(ip) do
     Helpers.check_multi_bucket_limits([
-      {"password_reset:email:#{downcased_email}", @password_reset_limits, "password reset",
-       action},
-      {"password_reset:ip:#{normalized_ip}", @password_reset_limits, "password reset", action}
+      {"password_reset:ip:#{Helpers.normalize_ip(ip)}", @password_reset_limits, "password reset",
+       password_reset_action()}
     ])
   end
+
+  @spec check_password_reset_recipient(String.t()) :: :ok | {:error, :rate_limited, String.t()}
+  def check_password_reset_recipient(email) do
+    Helpers.check_multi_bucket_limits([
+      {"password_reset:email:#{String.downcase(email)}", @password_reset_email_limits,
+       "password reset", password_reset_action()}
+    ])
+  end
+
+  defp password_reset_action, do: dgettext("errors", "password reset requests")
 
   @spec check_email_change_verify(String.t()) :: :ok | {:error, :rate_limited, String.t()}
   def check_email_change_verify(client_ip) do

@@ -33,9 +33,10 @@ defmodule Tymeslot.Auth.PasswordReset do
 
   ## Returns
     - `{:ok, :reset_initiated, message}` for every well-formed address within
-      the rate limit, whether it belongs to a password account, an account
-      that signs in through a provider, or no account at all. The reply is
-      byte-identical across the three; what differs is only the email the
+      the requester's rate limit, whether it belongs to a password account, an
+      account that signs in through a provider, or no account at all, and
+      whether or not the address has used up its own allowance. The reply is
+      byte-identical across all of them; what differs is only the email the
       address's owner receives (a reset link, a note that there is no password
       to reset, or nothing).
     - `{:error, :invalid_input | :rate_limited, message}` otherwise, which
@@ -47,19 +48,36 @@ defmodule Tymeslot.Auth.PasswordReset do
   def initiate_reset(email, opts \\ []) do
     with {:ok, validated_email} <- validate_email_format(email),
          :ok <- check_reset_rate_limit(validated_email, opts) do
-      process_password_reset_secure(validated_email)
+      process_password_reset_secure(validated_email, recipient_allowance(validated_email, opts))
     else
       {:error, reason, message} -> {:error, reason, message}
     end
   end
 
+  # The requester's own budget is the only one that can refuse: an address's
+  # budget can be spent by anyone who types it, so refusing on it would let
+  # one client lock the owner out of their own reset.
   defp check_reset_rate_limit(email, opts) do
-    RateLimit.check(RateLimiter.check_password_reset_rate_limit(email, opts[:ip]),
+    RateLimit.check(RateLimiter.check_password_reset_ip_rate_limit(opts[:ip]),
       event: "password_reset",
       identifier: email,
       ip: opts[:ip],
       user_agent: opts[:user_agent]
     )
+  end
+
+  # Caps the emails one address is sent. Over the cap the request is audited
+  # and answered as usual, and no email goes out.
+  defp recipient_allowance(email, opts) do
+    case RateLimit.check(RateLimiter.check_password_reset_recipient_rate_limit(email),
+           event: "password_reset",
+           identifier: email,
+           ip: opts[:ip],
+           user_agent: opts[:user_agent]
+         ) do
+      :ok -> :within_allowance
+      {:error, :rate_limited, _message} -> :over_allowance
+    end
   end
 
   # Every account state gets the same reply, and the explanation, where there
@@ -69,18 +87,24 @@ defmodule Tymeslot.Auth.PasswordReset do
   # bcrypt operation, paid here rather than inside each branch so a branch
   # added later cannot forget it. The work left in the branches (a token write,
   # an Oban insert, or nothing) is small beside it.
-  defp process_password_reset_secure(email) do
+  defp process_password_reset_secure(email, allowance) do
     Password.no_user_verify()
 
-    email
-    |> Config.user_queries_module().get_user_by_email()
-    |> handle_password_reset_attempt(email)
+    _outcome = answer_mailbox(allowance, email)
 
     {:ok, :reset_initiated,
      dgettext(
        "auth",
        "If an account exists with this email address, password reset instructions have been sent."
      )}
+  end
+
+  defp answer_mailbox(:over_allowance, _email), do: :ok
+
+  defp answer_mailbox(:within_allowance, email) do
+    email
+    |> Config.user_queries_module().get_user_by_email()
+    |> handle_password_reset_attempt(email)
   end
 
   defp handle_password_reset_attempt({:error, :not_found}, email) do

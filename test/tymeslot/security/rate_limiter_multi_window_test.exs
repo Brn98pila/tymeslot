@@ -112,4 +112,69 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
                RateLimiter.check_booking_recipient_limit("  mixed.case@example.com  ")
     end
   end
+
+  # One client must not be able to lock another out of an address it does not
+  # own: the per-recipient buckets are charged only once the source's own
+  # budget has allowed the request, and keep no count for longer than a day.
+  @day_ms 24 * 60 * 60_000
+
+  describe "per-recipient budgets" do
+    test "a sign-up source over its own limit spends nothing of the address's budget" do
+      victim = "signup-victim@example.com"
+      attacker_ip = "203.0.113.60"
+
+      for _i <- 1..4, do: assert(:ok = RateLimiter.check_signup_rate_limit(victim, attacker_ip))
+      assert :ok = RateLimiter.check_signup_rate_limit("other@example.com", attacker_ip)
+
+      for _i <- 1..10 do
+        assert {:error, :rate_limited, _msg} =
+                 RateLimiter.check_signup_rate_limit(victim, attacker_ip)
+      end
+
+      assert :ok = RateLimiter.check_signup_rate_limit(victim, "203.0.113.61")
+    end
+
+    test "a verification source over its own limit spends nothing of the account's budget" do
+      user_id = "verification-victim"
+      attacker_ip = "203.0.113.62"
+
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check_verification_ip_rate_limit(attacker_ip))
+
+      for _i <- 1..10 do
+        assert {:error, :rate_limited, _msg} =
+                 RateLimiter.check_verification_rate_limit(user_id, attacker_ip)
+      end
+
+      assert :ok = RateLimiter.check_verification_rate_limit(user_id, "203.0.113.63")
+    end
+
+    test "no count is kept against an address or account for longer than a day" do
+      email = "recipient-window@example.com"
+      user_id = "recipient-window-user"
+
+      assert :ok = RateLimiter.check_signup_rate_limit(email, "203.0.113.64")
+      assert :ok = RateLimiter.check_password_reset_rate_limit(email, "203.0.113.65")
+      assert :ok = RateLimiter.check_verification_rate_limit(user_id, "203.0.113.66")
+
+      for bucket <- [
+            "signup:email:#{email}",
+            "password_reset:email:#{email}",
+            "email_verification:user:#{user_id}"
+          ] do
+        windows = windows_ms(bucket)
+        assert windows != [], "no tier recorded for #{bucket}"
+        assert Enum.max(windows) <= @day_ms, "#{bucket} keeps a tier longer than a day"
+      end
+    end
+  end
+
+  # The span of every live entry Hammer's sliding window holds under the tiers
+  # of `bucket`: each entry is `{{key, inserted_at_us}, expires_at_us}`.
+  defp windows_ms(bucket) do
+    for {{key, inserted_at}, expires_at} <- :ets.tab2list(Tymeslot.Security.RateLimit),
+        is_binary(key),
+        String.starts_with?(key, bucket <> ":") do
+      div(expires_at - inserted_at, 1000)
+    end
+  end
 end

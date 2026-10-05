@@ -406,6 +406,39 @@ defmodule Tymeslot.Auth.PasswordResetTest do
     end
   end
 
+  describe "initiate_reset/2 per-address allowance" do
+    @reset_reply "If an account exists with this email address, password reset instructions have been sent."
+
+    test "one client spending an address's allowance never refuses another client's request" do
+      user = insert(:user, password_hash: Password.hash_password("OldPass123!"))
+
+      # Far more than the address's hourly and daily allowances, all from one
+      # client: everything past its own limit is refused.
+      results = for _i <- 1..15, do: PasswordReset.initiate_reset(user.email, ip: "192.0.2.10")
+      assert Enum.count(results, &match?({:error, :rate_limited, _message}, &1)) == 10
+
+      assert {:ok, :reset_initiated, @reset_reply} =
+               PasswordReset.initiate_reset(user.email, ip: "192.0.2.11")
+    end
+
+    test "over the address's allowance the reply is unchanged and nothing is sent" do
+      user = insert(:user, password_hash: Password.hash_password("OldPass123!"))
+
+      for n <- 1..5 do
+        assert {:ok, :reset_initiated, @reset_reply} =
+                 PasswordReset.initiate_reset(user.email, ip: "192.0.2.#{20 + n}")
+      end
+
+      assert all_enqueued(worker: EmailWorker) != []
+      Repo.delete_all(Oban.Job)
+
+      assert {:ok, :reset_initiated, @reset_reply} =
+               PasswordReset.initiate_reset(user.email, ip: "192.0.2.30")
+
+      assert all_enqueued(worker: EmailWorker) == []
+    end
+  end
+
   describe "reset_password/4 rate limiting" do
     test "refuses a client past 30 attempts a minute, before the token is looked at" do
       user = insert(:user)
