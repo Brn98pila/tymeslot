@@ -11,13 +11,19 @@ defmodule Tymeslot.Meetings.GroupScheduling do
       participant plus guests are inserted, or the transaction rolls back
       with `{:error, :slot_full}`;
     * with no live meeting, the meeting is created through the standard
-      buffered `FOR UPDATE NOWAIT` conflict-checked path together with the
-      first participant.
+      buffered conflict-checked path together with the first participant.
 
-  Two racing first bookers are resolved by the partial unique index on
-  `(organizer_user_id, start_time) where status = 'confirmed'`: the loser's
-  insert fails the constraint, the transaction rolls back, and one retry
-  runs down the join path against the winner's now-visible row.
+  Every attempt first takes the organiser's schedule lock
+  (`MeetingConflictQueries.lock_organizer_schedule/1`), before any meeting
+  row, so seat bookings and moves queue behind solo bookings of the same
+  organiser rather than deadlocking against them.
+
+  Two racing first bookers queue on that lock, and the second finds the
+  first's committed row and joins it. The partial unique index on
+  `(organizer_user_id, start_time)` stays the backstop against a writer that
+  does not take the lock: the loser's insert fails the constraint, the
+  transaction rolls back, and one retry runs down the join path against the
+  winner's now-visible row.
 
   Joining adds no meeting row, so only the creating branch is subject to the
   host's booking limits (enforced inside `Scheduling`'s transaction). A
@@ -30,6 +36,7 @@ defmodule Tymeslot.Meetings.GroupScheduling do
   alias Ecto.Changeset
   alias Tymeslot.Meetings.GroupMeetingQueries
   alias Tymeslot.Meetings.Guests
+  alias Tymeslot.Meetings.MeetingConflictQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
   alias Tymeslot.Meetings.ParticipantQueries
   alias Tymeslot.Meetings.ParticipantSchema
@@ -121,6 +128,10 @@ defmodule Tymeslot.Meetings.GroupScheduling do
   defp attempt_booking(meeting_attrs, seat_request, seats_requested, hooks, retries_left) do
     result =
       Repo.transaction(fn ->
+        # Before any meeting row: `Scheduling` takes the same lock when it
+        # creates the slot, and a solo booking holding it must never wait on
+        # a row this transaction already locked.
+        :ok = MeetingConflictQueries.lock_organizer_schedule(meeting_attrs.organizer_user_id)
         lock_in_order(hooks.also_lock, meeting_attrs)
 
         live_meeting =

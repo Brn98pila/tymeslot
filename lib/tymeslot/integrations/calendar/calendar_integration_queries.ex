@@ -13,7 +13,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   # Postgres advisory-lock class id for the first-integration primary-election
   # race (see `acquire_primary_lock/1`). Advisory-lock class ids share a single
   # namespace across the whole database connection; other allocations are
-  # `MeetingConflictQueries.@booking_limits_lock_class` (715_001) and the bare
+  # `MeetingConflictQueries.@organizer_schedule_lock_class` (715_001) and the bare
   # `2` in `ProviderCalendarEventQueries`.
   @primary_lock_class 1
 

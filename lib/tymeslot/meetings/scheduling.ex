@@ -16,6 +16,7 @@ defmodule Tymeslot.Meetings.Scheduling do
   alias Tymeslot.Meetings.BookingLimits
   alias Tymeslot.Meetings.BookingLimits.Checker
   alias Tymeslot.Meetings.GroupMeetingQueries
+  alias Tymeslot.Meetings.GroupScheduling
   alias Tymeslot.Meetings.MeetingConflictQueries
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
@@ -27,9 +28,12 @@ defmodule Tymeslot.Meetings.Scheduling do
   alias Tymeslot.Venues
 
   @doc """
-  Atomically creates a meeting with conflict checking using database-level locking.
-  This function ensures no race conditions can occur by using a database transaction
-  with row-level locking to prevent concurrent bookings of overlapping time slots.
+  Atomically creates a meeting with conflict checking. The transaction first
+  takes the organiser's schedule lock
+  (`MeetingConflictQueries.lock_organizer_schedule/1`), so concurrent
+  bookings of one organiser are serialised and each sees the meetings the
+  others committed before it counts conflicts. A meeting without an
+  organiser is refused with `{:error, :organizer_required}`.
 
   The host's booking limits are enforced in the same transaction. Pass
   `enforce_booking_limits: false` (host-created ad-hoc bookings) to skip
@@ -50,6 +54,7 @@ defmodule Tymeslot.Meetings.Scheduling do
              :time_conflict
              | :booking_limit_reached
              | :invalid_time_range
+             | :organizer_required
              | :database_error
              | {:validation_error, Changeset.t()}}
   def create_meeting_with_conflict_check(attrs, opts \\ []) do
@@ -62,8 +67,8 @@ defmodule Tymeslot.Meetings.Scheduling do
   end
 
   @doc """
-  Atomically creates a group meeting's slot row with conflict checking, using
-  the same buffered `FOR UPDATE` locking as `create_meeting_with_conflict_check/2`.
+  Atomically creates a group meeting's slot row with conflict checking, under
+  the same schedule lock as `create_meeting_with_conflict_check/2`.
 
   Used for the first booker of a group meeting type, where a fresh meeting
   row is created together with the first seat.
@@ -74,6 +79,7 @@ defmodule Tymeslot.Meetings.Scheduling do
              :time_conflict
              | :booking_limit_reached
              | :invalid_time_range
+             | :organizer_required
              | :database_error
              | {:validation_error, Changeset.t()}}
   def create_group_meeting_with_conflict_check(attrs, opts \\ []) do
@@ -89,29 +95,28 @@ defmodule Tymeslot.Meetings.Scheduling do
     start_time = MapKeys.get(attrs, :start_time)
     end_time = MapKeys.get(attrs, :end_time)
     organizer_user_id = MapKeys.get(attrs, :organizer_user_id)
+    meeting_type_id = MapKeys.get(attrs, :meeting_type_id)
 
-    if start_time && end_time do
-      limit_check =
-        build_limit_check(
-          organizer_user_id,
-          start_time,
-          MapKeys.get(attrs, :meeting_type_id),
-          nil,
-          opts
+    cond do
+      is_nil(start_time) or is_nil(end_time) ->
+        {:error, :invalid_time_range}
+
+      not is_integer(organizer_user_id) ->
+        {:error, :organizer_required}
+
+      true ->
+        conflict_checked_transaction(
+          %{
+            start_time: start_time,
+            end_time: end_time,
+            organizer_user_id: organizer_user_id,
+            meeting_type_id: meeting_type_id,
+            exclude_uid: nil
+          },
+          build_limit_check(organizer_user_id, start_time, meeting_type_id, nil, opts),
+          fn -> persist_fn.(attrs) end,
+          &log_conflict(start_time, end_time, &1)
         )
-
-      execute_conflict_checked_transaction(
-        start_time,
-        end_time,
-        organizer_user_id,
-        MapKeys.get(attrs, :meeting_type_id),
-        limit_check,
-        fn ->
-          persist_fn.(attrs)
-        end
-      )
-    else
-      {:error, :invalid_time_range}
     end
   rescue
     error ->
@@ -122,9 +127,10 @@ defmodule Tymeslot.Meetings.Scheduling do
   end
 
   @doc """
-  Atomically updates a meeting with conflict checking using database-level locking.
-  This function ensures no race conditions can occur when rescheduling meetings
-  by checking for conflicts with other meetings atomically.
+  Atomically updates a meeting with conflict checking, under the same
+  organiser schedule lock as `create_meeting_with_conflict_check/2`. Only a
+  change of time is checked; a time change on a meeting without an organiser
+  is refused with `{:error, :organizer_required}`.
 
   ## Examples
 
@@ -140,6 +146,7 @@ defmodule Tymeslot.Meetings.Scheduling do
           | {:error,
              :time_conflict
              | :booking_limit_reached
+             | :organizer_required
              | :database_error
              | Changeset.t()
              | {:validation_error, Changeset.t()}}
@@ -148,11 +155,33 @@ defmodule Tymeslot.Meetings.Scheduling do
     start_time = MapKeys.get(attrs, :start_time)
     end_time = MapKeys.get(attrs, :end_time)
 
-    if start_time && end_time do
-      execute_update_with_conflict_check(meeting, attrs, start_time, end_time, opts)
-    else
+    cond do
       # No time change, just do regular update without conflict checking
-      MeetingQueries.update_meeting(meeting, attrs)
+      is_nil(start_time) or is_nil(end_time) ->
+        MeetingQueries.update_meeting(meeting, attrs)
+
+      not is_integer(meeting.organizer_user_id) ->
+        {:error, :organizer_required}
+
+      true ->
+        conflict_checked_transaction(
+          %{
+            start_time: start_time,
+            end_time: end_time,
+            organizer_user_id: meeting.organizer_user_id,
+            meeting_type_id: meeting.meeting_type_id,
+            exclude_uid: meeting.uid
+          },
+          build_limit_check(
+            meeting.organizer_user_id,
+            start_time,
+            meeting.meeting_type_id,
+            meeting.uid,
+            opts
+          ),
+          fn -> update_meeting_in_transaction(meeting, attrs) end,
+          &log_update_conflict(meeting, start_time, end_time, &1)
+        )
     end
   rescue
     error ->
@@ -161,42 +190,44 @@ defmodule Tymeslot.Meetings.Scheduling do
 
   # Private functions
 
-  defp execute_conflict_checked_transaction(
-         start_time,
-         end_time,
-         organizer_user_id,
-         meeting_type_id,
-         limit_check,
-         operation_fn
-       ) do
+  # The schedule lock comes first, before the limit counts, the conflict
+  # count and any row the write locks: see
+  # `MeetingConflictQueries.lock_organizer_schedule/1`.
+  defp conflict_checked_transaction(slot, limit_check, write_fn, log_conflict_fn) do
     {buffered_start, buffered_end} =
-      compute_buffered_window(start_time, end_time, organizer_user_id, meeting_type_id)
+      compute_buffered_window(
+        slot.start_time,
+        slot.end_time,
+        slot.organizer_user_id,
+        slot.meeting_type_id
+      )
 
     Repo.transaction(fn ->
+      :ok = MeetingConflictQueries.lock_organizer_schedule(slot.organizer_user_id)
+
       with :ok <- enforce_booking_limits(limit_check),
            {:ok, :no_conflicts} <-
-             MeetingConflictQueries.count_locked_conflicts(
+             MeetingConflictQueries.count_conflicts(
                buffered_start,
                buffered_end,
-               nil,
-               organizer_user_id
+               slot.exclude_uid,
+               slot.organizer_user_id
              ) do
-        operation_fn.()
+        write_fn.()
       else
         {:error, :booking_limit_reached} ->
           Repo.rollback(:booking_limit_reached)
 
         {:error, conflicting_count} ->
-          log_conflict(start_time, end_time, conflicting_count)
+          log_conflict_fn.(conflicting_count)
           Repo.rollback(:time_conflict)
       end
     end)
   end
 
-  # nil means limits are not applicable to this call (disabled via opts, or
-  # no organizer to protect).
+  # nil means limits are disabled for this call via opts.
   defp build_limit_check(organizer_user_id, start_time, meeting_type_id, exclude_uid, opts) do
-    if Keyword.get(opts, :enforce_booking_limits, true) and is_integer(organizer_user_id) do
+    if Keyword.get(opts, :enforce_booking_limits, true) do
       %{
         organizer_user_id: organizer_user_id,
         start_time: start_time,
@@ -213,12 +244,9 @@ defmodule Tymeslot.Meetings.Scheduling do
     meeting_type = fetch_meeting_type(limit_check.meeting_type_id, organizer_user_id)
     limits = BookingLimits.limits_for(settings, meeting_type)
 
+    # Runs under the organiser's schedule lock, which is what serialises the
+    # limit counts of concurrent bookings.
     if BookingLimits.enabled?(limits) do
-      # Row locks cannot serialise limit counts — concurrent bookings occupy
-      # different, non-overlapping windows — so serialise per host instead.
-      # Hosts without limits never reach this and keep full concurrency.
-      MeetingConflictQueries.acquire_booking_limits_lock(organizer_user_id)
-
       Checker.check_booking_allowed(
         organizer_user_id,
         settings,
@@ -239,10 +267,9 @@ defmodule Tymeslot.Meetings.Scheduling do
   # The buffers belong to the schedule the meeting type is booked against, so
   # they are read through the same policy resolution the booking page used. A
   # nil meeting type resolves the organiser's default schedule, which is the
-  # right answer for an ad-hoc block; a nil organiser resolves no schedule and
-  # gets the policy defaults.
+  # right answer for an ad-hoc block.
   defp buffers(organizer_user_id, meeting_type_id) do
-    meeting_type = organizer_user_id && fetch_meeting_type(meeting_type_id, organizer_user_id)
+    meeting_type = fetch_meeting_type(meeting_type_id, organizer_user_id)
 
     %{buffer_before_minutes: buffer_before, buffer_after_minutes: buffer_after} =
       Policy.scheduling_config(organizer_user_id, meeting_type)
@@ -260,7 +287,7 @@ defmodule Tymeslot.Meetings.Scheduling do
   defp create_meeting_in_transaction(attrs) do
     case attrs |> with_held_venue() |> MeetingQueries.create_meeting() do
       {:ok, meeting} -> meeting
-      {:error, changeset} -> Repo.rollback({:validation_error, changeset})
+      {:error, changeset} -> Repo.rollback(write_error(changeset))
     end
   end
 
@@ -288,50 +315,22 @@ defmodule Tymeslot.Meetings.Scheduling do
     {:error, :database_error}
   end
 
-  defp execute_update_with_conflict_check(meeting, attrs, start_time, end_time, opts) do
-    {buffered_start, buffered_end} =
-      compute_buffered_window(
-        start_time,
-        end_time,
-        meeting.organizer_user_id,
-        meeting.meeting_type_id
-      )
-
-    limit_check =
-      build_limit_check(
-        meeting.organizer_user_id,
-        start_time,
-        meeting.meeting_type_id,
-        meeting.uid,
-        opts
-      )
-
-    Repo.transaction(fn ->
-      with :ok <- enforce_booking_limits(limit_check),
-           {:ok, :no_conflicts} <-
-             MeetingConflictQueries.count_locked_conflicts(
-               buffered_start,
-               buffered_end,
-               meeting.uid,
-               meeting.organizer_user_id
-             ) do
-        update_meeting_in_transaction(meeting, attrs)
-      else
-        {:error, :booking_limit_reached} ->
-          Repo.rollback(:booking_limit_reached)
-
-        {:error, conflicting_count} ->
-          log_update_conflict(meeting, start_time, end_time, conflicting_count)
-          Repo.rollback(:time_conflict)
-      end
-    end)
-  end
-
   defp update_meeting_in_transaction(meeting, attrs) do
     case MeetingQueries.update_meeting(meeting, with_held_venue(attrs)) do
       {:ok, updated_meeting} -> updated_meeting
-      {:error, changeset} -> Repo.rollback({:validation_error, changeset})
+      {:error, changeset} -> Repo.rollback(write_error(changeset))
     end
+  end
+
+  # The organiser's unique slot index can still refuse a write the conflict
+  # count let through, when the competing row was written without the
+  # schedule lock. That is a lost race for the slot, not invalid input, so
+  # it is answered as one. The group create path keeps the changeset: its
+  # caller retries the race by joining the winner's meeting.
+  defp write_error(changeset) do
+    if GroupScheduling.lost_first_booker_race?(changeset),
+      do: :time_conflict,
+      else: {:validation_error, changeset}
   end
 
   # A venue deleted between resolving the booker's choice and this write

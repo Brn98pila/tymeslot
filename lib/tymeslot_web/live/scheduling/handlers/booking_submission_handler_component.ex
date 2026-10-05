@@ -311,7 +311,7 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
   end
 
   # The slot was booked out from under this attendee between selecting it and
-  # submitting (server-side `FOR UPDATE NOWAIT` correctly refused the double
+  # submitting (the server-side conflict check correctly refused the double
   # booking). The domain layer signals this with the semantic `:slot_taken`
   # atom (see `Tymeslot.Bookings.Orchestrator.submit_booking/2`) rather than a
   # display string, so this routing decision never depends on copy text. Stop

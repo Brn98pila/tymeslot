@@ -67,7 +67,7 @@ defmodule Tymeslot.Bookings.RescheduleRequestTest do
       # window again.
       Repo.transaction(fn ->
         assert {:ok, :no_conflicts} =
-                 MeetingConflictQueries.count_locked_conflicts(
+                 MeetingConflictQueries.count_conflicts(
                    meeting.start_time,
                    meeting.end_time,
                    nil,
