@@ -75,7 +75,7 @@ defmodule Tymeslot.Security.RateLimiterIPv6SourceTest do
 
   defp charge(family, ip), do: family |> check(ip) |> outcome()
 
-  defp check(:signup, ip), do: RateLimiter.check_signup_rate_limit(fresh_email(), ip)
+  defp check(:signup, ip), do: RateLimiter.check_signup_ip_rate_limit(ip)
   defp check(:password_reset, ip), do: RateLimiter.check_password_reset_ip_rate_limit(ip)
 
   defp check(:password_reset_submit, ip),
@@ -102,10 +102,6 @@ defmodule Tymeslot.Security.RateLimiterIPv6SourceTest do
     do: RateLimiter.check_meeting_calendar_feed_rate_limit(ip)
 
   defp check(:healthcheck, ip), do: RateLimiter.check_healthcheck_rate_limit(ip)
-
-  # The sign-up gate also charges a per-recipient bucket; a fresh address per
-  # call keeps that one out of the way, so only the per-IP bucket can refuse.
-  defp fresh_email, do: "v6-source-#{System.unique_integer([:positive])}@example.com"
 
   defp outcome(:ok), do: :allow
   defp outcome({:allow, _count}), do: :allow

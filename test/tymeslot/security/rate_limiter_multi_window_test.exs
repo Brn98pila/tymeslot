@@ -5,23 +5,24 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
   alias Tymeslot.Security.RateLimiter
 
   describe "signup multi-window limits (email + IP)" do
-    test "blocks after 5 attempts in 10 minutes and IP bucket applies across emails" do
+    test "the IP bucket blocks after 5 attempts in 10 minutes, across emails" do
       ip = "203.0.113.10"
-      email1 = "user1@example.com"
-      email2 = "user2@example.com"
 
-      # 5 attempts allowed
-      assert :ok = RateLimiter.check_signup_rate_limit(email1, ip)
-      assert :ok = RateLimiter.check_signup_rate_limit(email1, ip)
-      assert :ok = RateLimiter.check_signup_rate_limit(email1, ip)
-      assert :ok = RateLimiter.check_signup_rate_limit(email1, ip)
-      assert :ok = RateLimiter.check_signup_rate_limit(email1, ip)
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check_signup_ip_rate_limit(ip))
 
-      # 6th attempt with same email/ip hits 10m limit
-      assert {:error, :rate_limited, _msg} = RateLimiter.check_signup_rate_limit(email1, ip)
+      assert {:error, :rate_limited, _msg} = RateLimiter.check_signup_ip_rate_limit(ip)
+      assert :ok = RateLimiter.check_signup_ip_rate_limit("203.0.113.11")
+    end
 
-      # Different email but same IP should still be blocked by IP bucket
-      assert {:error, :rate_limited, _msg} = RateLimiter.check_signup_rate_limit(email2, ip)
+    test "the address bucket blocks after 5 attempts in 10 minutes, per address" do
+      email = "user1@example.com"
+
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check_signup_recipient_rate_limit(email))
+
+      assert {:error, :rate_limited, _msg} =
+               RateLimiter.check_signup_recipient_rate_limit(email)
+
+      assert :ok = RateLimiter.check_signup_recipient_rate_limit("user2@example.com")
     end
   end
 
@@ -120,21 +121,6 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
   @day_ms 24 * 60 * 60_000
 
   describe "per-recipient budgets" do
-    test "a sign-up source over its own limit spends nothing of the address's budget" do
-      victim = "signup-victim@example.com"
-      attacker_ip = "203.0.113.60"
-
-      for _i <- 1..4, do: assert(:ok = RateLimiter.check_signup_rate_limit(victim, attacker_ip))
-      assert :ok = RateLimiter.check_signup_rate_limit("other@example.com", attacker_ip)
-
-      for _i <- 1..10 do
-        assert {:error, :rate_limited, _msg} =
-                 RateLimiter.check_signup_rate_limit(victim, attacker_ip)
-      end
-
-      assert :ok = RateLimiter.check_signup_rate_limit(victim, "203.0.113.61")
-    end
-
     test "a verification source over its own limit spends nothing of the account's budget" do
       user_id = "verification-victim"
       attacker_ip = "203.0.113.62"
@@ -153,7 +139,7 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
       email = "recipient-window@example.com"
       user_id = "recipient-window-user"
 
-      assert :ok = RateLimiter.check_signup_rate_limit(email, "203.0.113.64")
+      assert :ok = RateLimiter.check_signup_recipient_rate_limit(email)
       assert :ok = RateLimiter.check_password_reset_rate_limit(email, "203.0.113.65")
       assert :ok = RateLimiter.check_verification_rate_limit(user_id, "203.0.113.66")
 

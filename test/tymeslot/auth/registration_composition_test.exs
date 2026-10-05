@@ -138,9 +138,11 @@ defmodule Tymeslot.Auth.RegistrationCompositionTest do
   describe "register_user/2 — rate limit refuses creation" do
     test "does not create a user when the signup rate limit is already exhausted" do
       email = "rate-#{System.unique_integer([:positive])}@example.com"
-      # Burn through the 10-minute / 5-attempt signup bucket for this email.
+      opts = ClientIP.request_opts(%Plug.Conn{})
+
+      # Burn through the requester's 10-minute / 5-attempt signup bucket.
       for _i <- 1..5 do
-        RateLimiter.check_signup_rate_limit(email, nil)
+        RateLimiter.check_signup_ip_rate_limit(opts[:ip])
       end
 
       params = %{
@@ -153,7 +155,7 @@ defmodule Tymeslot.Auth.RegistrationCompositionTest do
       }
 
       assert {:error, :rate_limited, _message} =
-               Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+               Registration.register_user(params, opts)
 
       # No user row was created despite the matching password and terms.
       refute Repo.get_by(UserSchema, email: email)

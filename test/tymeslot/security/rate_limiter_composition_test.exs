@@ -95,7 +95,8 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
       assert {:error, :rate_limited, _msg} = RateLimiter.check_auth_rate_limit(email_a, ip_a)
 
       # A fresh email signing up from a different IP is unaffected.
-      assert :ok = RateLimiter.check_signup_rate_limit(email_b, ip_b)
+      assert :ok = RateLimiter.check_signup_ip_rate_limit(ip_b)
+      assert :ok = RateLimiter.check_signup_recipient_rate_limit(email_b)
     end
 
     test "exhausting password-reset for one IP does not block OAuth initiation from the same IP" do

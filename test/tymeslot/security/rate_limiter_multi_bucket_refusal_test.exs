@@ -28,11 +28,10 @@ defmodule Tymeslot.Security.RateLimiterMultiBucketRefusalTest do
   describe "the five refusals this path produces" do
     test "signup names its 10-minute tier" do
       ip = "203.0.113.90"
-      email = "refusal-signup@example.com"
 
-      for _i <- 1..5, do: assert(:ok = RateLimiter.check_signup_rate_limit(email, ip))
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check_signup_ip_rate_limit(ip))
 
-      assert {:error, :rate_limited, message} = RateLimiter.check_signup_rate_limit(email, ip)
+      assert {:error, :rate_limited, message} = RateLimiter.check_signup_ip_rate_limit(ip)
 
       assert message ==
                "You've reached the limit of 5 signup attempts per 10 minutes. " <>
@@ -103,13 +102,12 @@ defmodule Tymeslot.Security.RateLimiterMultiBucketRefusalTest do
   describe "locale" do
     test "the refusal arrives in the reader's language, label and all" do
       ip = "203.0.113.93"
-      email = "refusal-locale@example.com"
 
       message =
         Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
-          for _i <- 1..5, do: assert(:ok = RateLimiter.check_signup_rate_limit(email, ip))
+          for _i <- 1..5, do: assert(:ok = RateLimiter.check_signup_ip_rate_limit(ip))
 
-          assert {:error, :rate_limited, message} = RateLimiter.check_signup_rate_limit(email, ip)
+          assert {:error, :rate_limited, message} = RateLimiter.check_signup_ip_rate_limit(ip)
           message
         end)
 
@@ -122,11 +120,10 @@ defmodule Tymeslot.Security.RateLimiterMultiBucketRefusalTest do
       LogCapture.attach()
 
       ip = "203.0.113.94"
-      email = "refusal-log@example.com"
 
       Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
-        for _i <- 1..5, do: RateLimiter.check_signup_rate_limit(email, ip)
-        assert {:error, :rate_limited, _message} = RateLimiter.check_signup_rate_limit(email, ip)
+        for _i <- 1..5, do: RateLimiter.check_signup_ip_rate_limit(ip)
+        assert {:error, :rate_limited, _message} = RateLimiter.check_signup_ip_rate_limit(ip)
       end)
 
       assert_receive {:captured_log, %{level: :warning, meta: %{operation: operation} = meta}}

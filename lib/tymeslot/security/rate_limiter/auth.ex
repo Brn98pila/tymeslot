@@ -154,19 +154,29 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
   defp login_pair(downcased_email, ip),
     do: "#{downcased_email}|#{Helpers.source_key(ip)}"
 
-  @spec check_signup(String.t(), String.t() | :inet.ip_address() | nil) ::
+  # The per-source half of the sign-up limit. It runs before the form is
+  # validated and refuses out loud: a source can only spend its own budget.
+  @spec check_signup_ip(String.t() | :inet.ip_address() | nil) ::
           :ok | {:error, :rate_limited, String.t()}
-  def check_signup(email, ip) do
-    # Trimmed as well as downcased: the gate sees the raw form value, so a
-    # padded address must not buy itself a fresh bucket.
-    downcased_email = normalise_email(email)
-    action = dgettext("errors", "signup attempts")
-
+  def check_signup_ip(ip) do
     Helpers.check_multi_bucket_limits([
-      {"signup:ip:#{Helpers.source_key(ip)}", @signup_limits, "signup", action},
-      {"signup:email:#{downcased_email}", @signup_email_limits, "signup", action}
+      {"signup:ip:#{Helpers.source_key(ip)}", @signup_limits, "signup", signup_action()}
     ])
   end
+
+  # The per-address half, charged only once the source's own budget has
+  # allowed the attempt. Anyone can spend it by typing the address, so the
+  # sign-up flow answers a refusal here as it answers any sign-up.
+  @spec check_signup_recipient(String.t()) :: :ok | {:error, :rate_limited, String.t()}
+  def check_signup_recipient(email) do
+    # Trimmed as well as downcased, so a padded address cannot buy itself a
+    # fresh bucket.
+    Helpers.check_multi_bucket_limits([
+      {"signup:email:#{normalise_email(email)}", @signup_email_limits, "signup", signup_action()}
+    ])
+  end
+
+  defp signup_action, do: dgettext("errors", "signup attempts")
 
   @spec check_verification(String.t(), String.t() | :inet.ip_address() | nil) ::
           :ok | {:error, :rate_limited, String.t()}

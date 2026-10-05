@@ -78,13 +78,18 @@ defmodule Tymeslot.Security.RateLimiter do
           :ok | {:error, :account_throttled, String.t()}
   def record_auth_attempt(email, ip, success), do: Auth.record_attempt(email, ip, success)
 
-  @doc """
-  Rate limit signup attempts per IP and then per email, with multi-window
-  buckets; the per-email tiers stop at a day.
-  """
-  @spec check_signup_rate_limit(String.t(), String.t() | :inet.ip_address() | nil) ::
+  @doc "Rate limit signup attempts per IP, with multi-window buckets."
+  @spec check_signup_ip_rate_limit(String.t() | :inet.ip_address() | nil) ::
           :ok | {:error, :rate_limited, String.t()}
-  def check_signup_rate_limit(email, ip), do: Auth.check_signup(email, ip)
+  def check_signup_ip_rate_limit(ip), do: Auth.check_signup_ip(ip)
+
+  @doc """
+  Rate limit signup attempts per address, with tiers stopping at a day.
+  Charge it only once `check_signup_ip_rate_limit/1` has allowed the attempt.
+  """
+  @spec check_signup_recipient_rate_limit(String.t()) ::
+          :ok | {:error, :rate_limited, String.t()}
+  def check_signup_recipient_rate_limit(email), do: Auth.check_signup_recipient(email)
 
   @doc """
   Rate limit email verification/resend attempts per IP and then per user.

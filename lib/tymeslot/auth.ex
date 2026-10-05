@@ -182,9 +182,10 @@ defmodule Tymeslot.Auth do
   `:user_agent`) and `:via`; see `Tymeslot.Auth.Registration.register_user/2`.
 
   Returns `{:ok, user, message}` for a new account and
-  `{:existing_account, message}` when the address was already registered, or
-  `{:honeypot, message}` when a bot was caught. The message is identical in
-  all three, and the owner of a taken address is emailed instead.
+  `{:existing_account, message}` when the address was already registered or
+  has used up its own sign-up allowance, or `{:honeypot, message}` when a bot
+  was caught. The message is identical in all three, and the owner of a taken
+  address is emailed instead.
   """
   @spec register_user(map(), keyword()) ::
           {:ok, Tymeslot.Auth.UserSchema.t(), String.t()}
