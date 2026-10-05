@@ -6,7 +6,7 @@ defmodule Tymeslot.Security.RateLimiter.OAuth do
   @spec check_initiation(String.t()) :: :ok | {:error, :rate_limited, String.t()}
   def check_initiation(ip) do
     Helpers.check_with_logging(
-      "oauth_initiation:#{ip}",
+      "oauth_initiation:#{Helpers.source_key(ip)}",
       10,
       600_000,
       "OAuth initiation",
@@ -16,13 +16,19 @@ defmodule Tymeslot.Security.RateLimiter.OAuth do
 
   @spec check_callback(String.t()) :: :ok | {:error, :rate_limited, String.t()}
   def check_callback(ip) do
-    Helpers.check_with_logging("oauth_callback:#{ip}", 20, 120_000, "OAuth callback", ip)
+    Helpers.check_with_logging(
+      "oauth_callback:#{Helpers.source_key(ip)}",
+      20,
+      120_000,
+      "OAuth callback",
+      ip
+    )
   end
 
   @spec check_completion(String.t()) :: :ok | {:error, :rate_limited, String.t()}
   def check_completion(ip) do
     Helpers.check_with_logging(
-      "oauth_completion:#{ip}",
+      "oauth_completion:#{Helpers.source_key(ip)}",
       6,
       1_200_000,
       "OAuth completion",

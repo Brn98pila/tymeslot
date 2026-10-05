@@ -17,6 +17,7 @@ defmodule Tymeslot.Analytics do
   alias Tymeslot.Analytics.UtmExtractor
   alias Tymeslot.Clock
   alias Tymeslot.Meetings
+  alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Security.RateLimiter.Analytics, as: AnalyticsLimiter
 
   @type input :: %{
@@ -112,7 +113,11 @@ defmodule Tymeslot.Analytics do
   defp check_ip_rate(nil), do: {:allow, 0}
 
   defp check_ip_rate(ip) do
-    AnalyticsLimiter.check_ip("analytics:ip:" <> ip, @ip_rate_window_ms, @ip_rate_limit)
+    AnalyticsLimiter.check_ip(
+      "analytics:ip:" <> RateLimiter.source_key(ip),
+      @ip_rate_window_ms,
+      @ip_rate_limit
+    )
   end
 
   @doc """

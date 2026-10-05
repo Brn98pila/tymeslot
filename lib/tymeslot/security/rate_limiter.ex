@@ -22,9 +22,7 @@ defmodule Tymeslot.Security.RateLimiter do
   Returns {:allow, count} if within limits, {:deny, limit} if exceeded.
   """
   @spec check_rate(bucket_key(), pos_integer(), pos_integer()) :: rate_check_result()
-  def check_rate(bucket_key, window_ms, limit) do
-    Helpers.check_rate(bucket_key, window_ms, limit)
-  end
+  defdelegate check_rate(bucket_key, window_ms, limit), to: Helpers
 
   @doc """
   Clear rate limit data for a specific bucket key.
@@ -54,9 +52,11 @@ defmodule Tymeslot.Security.RateLimiter do
   """
   @spec check_rate_limit(bucket_key(), pos_integer(), pos_integer()) ::
           :ok | {:error, :rate_limited}
-  def check_rate_limit(bucket_key, limit, window_ms) do
-    Helpers.check_rate_limit(bucket_key, limit, window_ms)
-  end
+  defdelegate check_rate_limit(bucket_key, limit, window_ms), to: Helpers
+
+  @doc "The key a per-IP bucket counts as one client: IPv4 as it is, IPv6 by its /64."
+  @spec source_key(nil | :inet.ip_address() | String.t()) :: String.t()
+  defdelegate source_key(ip), to: Helpers
 
   # Auth
 

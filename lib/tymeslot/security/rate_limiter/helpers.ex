@@ -191,15 +191,45 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
     {:error, :invalid_user_id}
   end
 
-  @spec normalize_ip(nil | :inet.ip_address() | binary() | any()) :: String.t()
-  def normalize_ip(nil), do: "unknown"
+  @doc """
+  The key a per-IP bucket counts as one client.
 
-  def normalize_ip(ip) when is_tuple(ip) do
-    ip |> :inet.ntoa() |> to_string()
+  An IPv6 host is usually handed a whole /64 and can pick a fresh address
+  from it for every request, so keying on the full address would give it an
+  unlimited supply of fresh buckets; the /64 is what it actually controls,
+  and is what the key names (`"2001:db8:1:2::/64"`). An IPv4-mapped IPv6
+  address is keyed as the IPv4 address it carries, and IPv4 as it is.
+  A missing address is `"unknown"`, and anything that does not parse is
+  keyed as it came.
+
+  Every per-IP bucket goes through this, so that no endpoint hands an IPv6
+  client a wider budget than the one it is meant to.
+  """
+  @spec source_key(nil | :inet.ip_address() | String.t() | term()) :: String.t()
+  def source_key(nil), do: "unknown"
+
+  def source_key(ip) when is_binary(ip) do
+    case :inet.parse_address(String.to_charlist(ip)) do
+      {:ok, address} -> address_key(address)
+      {:error, _reason} -> ip
+    end
   end
 
-  def normalize_ip(ip) when is_binary(ip), do: ip
-  def normalize_ip(other), do: to_string(other)
+  def source_key(ip) when tuple_size(ip) in [4, 8] do
+    if :inet.is_ip_address(ip), do: address_key(ip), else: inspect(ip)
+  end
+
+  def source_key(other), do: to_string(other)
+
+  defp address_key({0, 0, 0, 0, 0, 0xFFFF, _hi, _lo} = mapped),
+    do: mapped |> :inet.ipv4_mapped_ipv6_address() |> address_key()
+
+  defp address_key({a, b, c, d, _e, _f, _g, _h}),
+    do: ntoa({a, b, c, d, 0, 0, 0, 0}) <> "/64"
+
+  defp address_key(ipv4), do: ntoa(ipv4)
+
+  defp ntoa(address), do: address |> :inet.ntoa() |> to_string()
 
   @doc """
   Charges one token against every tier of every bucket, halting on the first

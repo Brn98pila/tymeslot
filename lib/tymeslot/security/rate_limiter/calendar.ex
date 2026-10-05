@@ -63,7 +63,11 @@ defmodule Tymeslot.Security.RateLimiter.Calendar do
   """
   @spec check_push_endpoint(String.t()) :: :ok | {:error, :rate_limited}
   def check_push_endpoint(client_ip) do
-    Helpers.check_rate_limit("calendar_push:#{client_ip}", 1_000, :timer.minutes(1))
+    Helpers.check_rate_limit(
+      "calendar_push:#{Helpers.source_key(client_ip)}",
+      1_000,
+      :timer.minutes(1)
+    )
   end
 
   @spec check_webhook(integer() | any()) :: :ok | {:error, :rate_limited}

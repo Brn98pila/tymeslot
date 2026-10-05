@@ -108,40 +108,19 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
   defp normalise_email(email), do: email |> String.trim() |> String.downcase()
 
   # The email comes first so a bucket key still reads as the account it guards.
-  defp login_pair(downcased_email, ip), do: "#{downcased_email}|#{login_source(ip)}"
-
-  # The unit a login limit counts as one source. An IPv6 host is usually
-  # handed a whole /64 and can pick a fresh address from it for every
-  # request, so keying on the full address would give it an unlimited
-  # supply of fresh buckets; the /64 is what it actually controls. IPv4
-  # addresses, and anything that does not parse, are keyed as they are.
-  defp login_source(ip) do
-    normalized = Helpers.normalize_ip(ip)
-
-    case :inet.parse_address(String.to_charlist(normalized)) do
-      {:ok, {0, 0, 0, 0, 0, 0xFFFF, _hi, _lo}} ->
-        normalized
-
-      {:ok, {a, b, c, d, _e, _f, _g, _h}} ->
-        prefix = {a, b, c, d, 0, 0, 0, 0} |> :inet.ntoa() |> to_string()
-        prefix <> "/64"
-
-      _ipv4_or_unparseable ->
-        normalized
-    end
-  end
+  defp login_pair(downcased_email, ip),
+    do: "#{downcased_email}|#{Helpers.source_key(ip)}"
 
   @spec check_signup(String.t(), String.t() | :inet.ip_address() | nil) ::
           :ok | {:error, :rate_limited, String.t()}
   def check_signup(email, ip) do
-    normalized_ip = Helpers.normalize_ip(ip)
     # Trimmed as well as downcased: the gate sees the raw form value, so a
     # padded address must not buy itself a fresh bucket.
     downcased_email = normalise_email(email)
     action = dgettext("errors", "signup attempts")
 
     Helpers.check_multi_bucket_limits([
-      {"signup:ip:#{normalized_ip}", @signup_limits, "signup", action},
+      {"signup:ip:#{Helpers.source_key(ip)}", @signup_limits, "signup", action},
       {"signup:email:#{downcased_email}", @signup_email_limits, "signup", action}
     ])
   end
@@ -159,7 +138,7 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
           :ok | {:error, :rate_limited, String.t()}
   def check_verification_ip(ip) do
     Helpers.check_multi_bucket_limits([
-      {"email_verification:ip:#{Helpers.normalize_ip(ip)}", @verification_limits,
+      {"email_verification:ip:#{Helpers.source_key(ip)}", @verification_limits,
        "email verification", verification_action()}
     ])
   end
@@ -209,7 +188,7 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
           :ok | {:error, :rate_limited, String.t()}
   def check_password_reset_ip(ip) do
     Helpers.check_multi_bucket_limits([
-      {"password_reset:ip:#{Helpers.normalize_ip(ip)}", @password_reset_limits, "password reset",
+      {"password_reset:ip:#{Helpers.source_key(ip)}", @password_reset_limits, "password reset",
        password_reset_action()}
     ])
   end
@@ -227,7 +206,7 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
   @spec check_email_change_verify(String.t()) :: :ok | {:error, :rate_limited, String.t()}
   def check_email_change_verify(client_ip) do
     Helpers.check_with_logging(
-      "email_change_verify:#{client_ip}",
+      "email_change_verify:#{Helpers.source_key(client_ip)}",
       30,
       60_000,
       "email change verification",
@@ -241,7 +220,7 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
           :ok | {:error, :rate_limited, String.t()}
   def check_password_reset_submit(client_ip) do
     Helpers.check_with_logging(
-      "password_reset_submit:#{Helpers.normalize_ip(client_ip)}",
+      "password_reset_submit:#{Helpers.source_key(client_ip)}",
       30,
       60_000,
       "password reset submission",
@@ -253,7 +232,7 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
   @spec check_verification_link(String.t() | nil) :: :ok | {:error, :rate_limited, String.t()}
   def check_verification_link(client_ip) do
     Helpers.check_with_logging(
-      "verification_link:#{Helpers.normalize_ip(client_ip)}",
+      "verification_link:#{Helpers.source_key(client_ip)}",
       30,
       60_000,
       "email verification link",
@@ -263,7 +242,7 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
 
   defp check_auth_ip_bucket(ip) when is_binary(ip) and ip != "" do
     Helpers.check_with_logging(
-      "login_ip:#{login_source(ip)}",
+      "login_ip:#{Helpers.source_key(ip)}",
       50,
       1_800_000,
       "authentication (ip)",
