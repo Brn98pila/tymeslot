@@ -57,7 +57,9 @@ defmodule Tymeslot.MeetingPayments.Workers.ReconcileAwaitingPaymentsTest do
            "payment_status" => "paid",
            "status" => "complete",
            "client_reference_id" => meeting.id,
-           "payment_intent" => "pi_RECONCILED"
+           "payment_intent" => "pi_RECONCILED",
+           "amount_total" => bp.amount_cents,
+           "currency" => bp.currency
          }}
       end)
 
@@ -149,7 +151,9 @@ defmodule Tymeslot.MeetingPayments.Workers.ReconcileAwaitingPaymentsTest do
            payment_status: "paid",
            status: "complete",
            client_reference_id: meeting.id,
-           payment_intent: "pi_STRUCT_PAID"
+           payment_intent: "pi_STRUCT_PAID",
+           amount_total: bp.amount_cents,
+           currency: bp.currency
          }}
       end)
 

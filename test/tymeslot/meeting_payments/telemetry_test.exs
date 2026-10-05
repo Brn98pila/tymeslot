@@ -91,6 +91,7 @@ defmodule Tymeslot.MeetingPayments.TelemetryTest do
 
       _bp =
         insert(:booking_payment,
+          stripe_account_id: "acct_TEL_HOST",
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_TEL_OK"
@@ -100,12 +101,15 @@ defmodule Tymeslot.MeetingPayments.TelemetryTest do
 
       event = %{
         "id" => "evt_TEL_OK",
+        "account" => "acct_TEL_HOST",
         "data" => %{
           "object" => %{
             "id" => "cs_TEL_OK",
             "client_reference_id" => meeting.id,
             "payment_intent" => "pi_TEL_OK",
-            "payment_status" => "paid"
+            "payment_status" => "paid",
+            "amount_total" => 5000,
+            "currency" => "eur"
           }
         }
       }
@@ -121,6 +125,7 @@ defmodule Tymeslot.MeetingPayments.TelemetryTest do
 
       _bp =
         insert(:booking_payment,
+          stripe_account_id: "acct_TEL_HOST",
           meeting: meeting,
           status: "pending",
           currency: "eur",
@@ -134,12 +139,15 @@ defmodule Tymeslot.MeetingPayments.TelemetryTest do
 
       event = %{
         "id" => "evt_TEL_ANALYTICS",
+        "account" => "acct_TEL_HOST",
         "data" => %{
           "object" => %{
             "id" => "cs_TEL_ANALYTICS",
             "client_reference_id" => meeting.id,
             "payment_intent" => "pi_TEL_ANALYTICS",
-            "payment_status" => "paid"
+            "payment_status" => "paid",
+            "amount_total" => 5000,
+            "currency" => "eur"
           }
         }
       }
@@ -162,6 +170,7 @@ defmodule Tymeslot.MeetingPayments.TelemetryTest do
 
       _bp =
         insert(:booking_payment,
+          stripe_account_id: "acct_TEL_HOST",
           meeting: meeting,
           status: "failed",
           currency: "usd",
@@ -175,12 +184,15 @@ defmodule Tymeslot.MeetingPayments.TelemetryTest do
 
       event = %{
         "id" => "evt_TEL_RECOVERED",
+        "account" => "acct_TEL_HOST",
         "data" => %{
           "object" => %{
             "id" => "cs_TEL_RECOVERED",
             "client_reference_id" => meeting.id,
             "payment_intent" => "pi_TEL_RECOVERED",
-            "payment_status" => "paid"
+            "payment_status" => "paid",
+            "amount_total" => 5000,
+            "currency" => "usd"
           }
         }
       }
@@ -200,6 +212,7 @@ defmodule Tymeslot.MeetingPayments.TelemetryTest do
 
       _bp =
         insert(:booking_payment,
+          stripe_account_id: "acct_TEL_HOST",
           meeting: meeting,
           status: "paid",
           paid_at: DateTime.utc_now(:second),
@@ -211,6 +224,7 @@ defmodule Tymeslot.MeetingPayments.TelemetryTest do
 
       event = %{
         "id" => "evt_TEL_REPLAY",
+        "account" => "acct_TEL_HOST",
         "data" => %{
           "object" => %{
             "id" => "cs_TEL_REPLAY",
@@ -241,6 +255,7 @@ defmodule Tymeslot.MeetingPayments.TelemetryTest do
 
       _bp =
         insert(:booking_payment,
+          stripe_account_id: "acct_TEL_HOST",
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_STATUS"
@@ -250,12 +265,15 @@ defmodule Tymeslot.MeetingPayments.TelemetryTest do
 
       event = %{
         "id" => "evt_STATUS",
+        "account" => "acct_TEL_HOST",
         "data" => %{
           "object" => %{
             "id" => "cs_STATUS",
             "client_reference_id" => meeting.id,
             "payment_intent" => "pi_STATUS",
-            "payment_status" => "paid"
+            "payment_status" => "paid",
+            "amount_total" => 5000,
+            "currency" => "eur"
           }
         }
       }

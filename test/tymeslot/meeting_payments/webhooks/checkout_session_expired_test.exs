@@ -5,6 +5,10 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpiredTest do
   @moduletag :payments
   @moduletag :integration
 
+  # Every booking_payment is charged on this connected account, and every
+  # event arrives from it, as Stripe delivers them for a genuine booking.
+  @account "acct_TEST_HOST"
+
   import Tymeslot.Factory
 
   alias Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpired
@@ -17,6 +21,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpiredTest do
 
       bp =
         insert(:booking_payment,
+          stripe_account_id: @account,
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_EXPIRED"
@@ -43,6 +48,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpiredTest do
 
       bp =
         insert(:booking_payment,
+          stripe_account_id: @account,
           meeting: meeting,
           status: "failed",
           stripe_checkout_session_id: "cs_REPLAY",
@@ -67,6 +73,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpiredTest do
 
       _bp =
         insert(:booking_payment,
+          stripe_account_id: @account,
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_SILENT"
@@ -106,6 +113,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpiredTest do
       # returns nil — only the session fallback can find this row.
       bp =
         insert(:booking_payment,
+          stripe_account_id: @account,
           meeting: meeting_a,
           status: "pending",
           stripe_checkout_session_id: "cs_FALLBACK_W3"
@@ -129,6 +137,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpiredTest do
 
       _bp =
         insert(:booking_payment,
+          stripe_account_id: @account,
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_BCAST_EXPIRED"
@@ -147,9 +156,36 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpiredTest do
     end
   end
 
+  describe "handle/1 with an event from another connected account" do
+    test "leaves the booking and its meeting untouched" do
+      meeting = insert(:meeting, status: "awaiting_payment")
+
+      bp =
+        insert(:booking_payment,
+          stripe_account_id: @account,
+          meeting: meeting,
+          status: "pending",
+          stripe_checkout_session_id: nil
+        )
+
+      event =
+        "evt_FOREIGN_EXPIRED"
+        |> expired_event(%{"id" => "cs_FOREIGN", "client_reference_id" => meeting.id})
+        |> Map.put("account", "acct_ATTACKER")
+
+      assert :ok = CheckoutSessionExpired.handle(event)
+
+      reloaded = Repo.reload!(bp)
+      assert reloaded.status == "pending"
+      assert reloaded.last_event_id == nil
+      assert {:ok, %{status: "awaiting_payment"}} = MeetingQueries.get_meeting(meeting.id)
+    end
+  end
+
   defp expired_event(event_id, object) do
     %{
       "id" => event_id,
+      "account" => @account,
       "type" => "checkout.session.expired",
       "created" => System.os_time(:second),
       "data" => %{"object" => object}

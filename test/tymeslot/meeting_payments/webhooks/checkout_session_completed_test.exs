@@ -5,6 +5,11 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
   @moduletag :payments
   @moduletag :integration
 
+  # Every booking_payment is charged on this connected account, and every
+  # event arrives from it, as Stripe delivers them for a genuine booking.
+  @account "acct_TEST_HOST"
+  @paid_session %{"payment_status" => "paid", "amount_total" => 5000, "currency" => "eur"}
+
   import Mox, only: [verify_on_exit!: 1]
   import Tymeslot.Factory
 
@@ -23,7 +28,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
       meeting = insert(:meeting, status: "awaiting_payment")
 
       bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_TEST_OK"
@@ -55,7 +60,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
       meeting = insert(:meeting, status: "awaiting_payment")
 
       bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "paid",
           paid_at: DateTime.utc_now(:second),
@@ -89,7 +94,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
         )
 
       _bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_TEST_EFFECTS"
@@ -121,7 +126,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
         )
 
       _bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_TEST_CALENDAR"
@@ -146,7 +151,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
       meeting = insert(:meeting, status: "awaiting_payment")
 
       _bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_TEST_BCAST"
@@ -182,7 +187,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
       meeting = insert(:meeting, status: "confirmed")
 
       _bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "paid",
           paid_at: DateTime.utc_now(:second),
@@ -216,7 +221,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
         )
 
       bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "failed",
           stripe_checkout_session_id: "cs_RACE_E3"
@@ -249,7 +254,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
       meeting = insert(:meeting, status: "awaiting_payment")
 
       bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "disputed",
           stripe_checkout_session_id: "cs_DISP_FIRST"
@@ -277,7 +282,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
       meeting = insert(:meeting, status: "awaiting_payment")
 
       bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_TEST_ASYNC"
@@ -303,7 +308,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
       meeting = insert(:meeting, status: "awaiting_payment")
 
       bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_TEST_ENQUEUE_FAIL"
@@ -341,7 +346,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
       meeting = insert(:meeting, status: "awaiting_payment")
 
       bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_CHARGE"
@@ -391,7 +396,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
         )
 
       _bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_TEST_GATED"
@@ -436,7 +441,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
         )
 
       _bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_TEST_MISSING_TYPE"
@@ -473,7 +478,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
         )
 
       _bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_TEST_STALE_DEADLINE"
@@ -521,7 +526,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
         )
 
       _bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_TEST_WINDOW_KEPT"
@@ -565,7 +570,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
         )
 
       _bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_TEST_TOGGLE_OFF"
@@ -604,7 +609,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
         )
 
       _bp =
-        insert(:booking_payment,
+        insert_payment(
           meeting: meeting,
           status: "pending",
           stripe_checkout_session_id: "cs_TEST_TOGGLE_ON"
@@ -626,12 +631,17 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
     end
   end
 
+  defp insert_payment(attrs),
+    do: insert(:booking_payment, Keyword.put_new(attrs, :stripe_account_id, @account))
+
   defp completed_event(event_id, object) do
     %{
       "id" => event_id,
+      "account" => @account,
       "type" => "checkout.session.completed",
       "created" => System.os_time(:second),
-      "data" => %{"object" => Map.put_new(object, "payment_status", "paid")}
+      # The factory's price, as a genuine session for the booking reports it.
+      "data" => %{"object" => Map.merge(@paid_session, object)}
     }
   end
 end

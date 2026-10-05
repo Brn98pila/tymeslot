@@ -295,6 +295,7 @@ defmodule TymeslotWeb.Themes.Quill.PaymentProcessingTest do
       meeting: meeting,
       host_user_id: user.id,
       status: "pending",
+      stripe_account_id: "acct_TEST",
       stripe_checkout_session_id: "cs_TEST"
     )
 
@@ -309,7 +310,10 @@ defmodule TymeslotWeb.Themes.Quill.PaymentProcessingTest do
              FailAndExpire.handle(
                %{
                  "id" => "evt_async_failed_#{System.unique_integer([:positive])}",
-                 "data" => %{"object" => %{"client_reference_id" => meeting.id}}
+                 "account" => "acct_TEST",
+                 "data" => %{
+                   "object" => %{"id" => "cs_TEST", "client_reference_id" => meeting.id}
+                 }
                },
                "checkout.session.async_payment_failed",
                :async_payment_failed

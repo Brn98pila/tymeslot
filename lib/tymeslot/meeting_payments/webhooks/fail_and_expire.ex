@@ -19,6 +19,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
   alias Tymeslot.MeetingPayments.Telemetry
+  alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Repo
 
@@ -32,8 +33,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
     Telemetry.span_webhook(event_type, fn -> do_handle(event, event_type, telemetry_reason) end)
   end
 
-  defp do_handle(%{"id" => event_id, "data" => %{"object" => object}}, event_type, reason) do
-    case lookup_payment(object) do
+  defp do_handle(%{"id" => event_id, "data" => %{"object" => object}} = event, event_type, reason) do
+    case PaymentLookup.find_for_session(event) do
       nil ->
         Logger.info("No booking_payment matched for Connect event",
           event_type: event_type,
@@ -54,19 +55,6 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
 
   defp classify(:ok), do: {:ok, :ok}
   defp classify({:error, _reason} = err), do: {err, :error}
-
-  defp lookup_payment(%{"client_reference_id" => meeting_id} = object)
-       when is_binary(meeting_id) do
-    BookingPaymentQueries.by_meeting_id(meeting_id) || lookup_by_session(object)
-  end
-
-  defp lookup_payment(object), do: lookup_by_session(object)
-
-  defp lookup_by_session(%{"id" => session_id}) when is_binary(session_id) do
-    BookingPaymentQueries.by_checkout_session(session_id)
-  end
-
-  defp lookup_by_session(_object), do: nil
 
   defp run(payment, event_id, reason) do
     result =

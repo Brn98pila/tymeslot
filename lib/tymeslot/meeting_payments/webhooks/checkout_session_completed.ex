@@ -14,6 +14,11 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   `payment_status` is not `"paid"` (an asynchronous payment method still
   settling), matching the gate `ReconcileAwaitingPayments.dispatch/2`
   applies when it replays this same event.
+
+  The booking is resolved through `PaymentLookup.find_for_session/1`, which
+  ignores events from any connected account other than the one the booking
+  was charged on, and a session whose `amount_total` or `currency` differs
+  from the price snapshotted on the row is ignored too.
   """
 
   require Logger
@@ -27,6 +32,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
   alias Tymeslot.MeetingPayments.StripeAdapter
   alias Tymeslot.MeetingPayments.Telemetry
+  alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
   alias Tymeslot.Meetings.Approval
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Repo
@@ -38,8 +44,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
     Telemetry.span_webhook(@event_type, fn -> do_handle(event) end)
   end
 
-  defp do_handle(%{"id" => event_id, "data" => %{"object" => object}}) do
-    case lookup_payment(object) do
+  defp do_handle(%{"id" => event_id, "data" => %{"object" => object}} = event) do
+    case PaymentLookup.find_for_session(event) do
       nil ->
         Logger.info("checkout.session.completed: no booking_payment matched",
           checkout_session_id: object["id"],
@@ -65,7 +71,18 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   # Debit) fires this event with `payment_status: "unpaid"` and this handler
   # would confirm the meeting before the money has actually settled.
   defp handle_payment(payment, event_id, %{"payment_status" => "paid"} = object) do
-    classify(run(payment, event_id, object))
+    if charged_as_booked?(payment, object) do
+      classify(run(payment, event_id, object))
+    else
+      Logger.warning("checkout.session.completed: amount or currency does not match the booking",
+        payment_id: payment.id,
+        checkout_session_id: object["id"],
+        amount_total: object["amount_total"],
+        currency: object["currency"]
+      )
+
+      {:ok, :skipped}
+    end
   end
 
   defp handle_payment(payment, _event_id, object) do
@@ -77,21 +94,19 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
     {:ok, :skipped}
   end
 
+  # The session must have charged exactly the price snapshotted on the row
+  # when checkout was created; anything else is not this booking's payment.
+  defp charged_as_booked?(%{amount_cents: amount, currency: currency}, %{
+         "amount_total" => amount,
+         "currency" => session_currency
+       })
+       when is_binary(currency) and is_binary(session_currency),
+       do: String.downcase(session_currency) == String.downcase(currency)
+
+  defp charged_as_booked?(_payment, _object), do: false
+
   defp classify(:ok), do: {:ok, :ok}
   defp classify({:error, _reason} = err), do: {err, :error}
-
-  defp lookup_payment(%{"client_reference_id" => meeting_id} = object)
-       when is_binary(meeting_id) do
-    BookingPaymentQueries.by_meeting_id(meeting_id) || lookup_by_session(object)
-  end
-
-  defp lookup_payment(object), do: lookup_by_session(object)
-
-  defp lookup_by_session(%{"id" => session_id}) when is_binary(session_id) do
-    BookingPaymentQueries.by_checkout_session(session_id)
-  end
-
-  defp lookup_by_session(_object), do: nil
 
   defp run(payment, event_id, object) do
     case Repo.transaction(fn -> run_in_transaction(payment, event_id, object) end) do
