@@ -13,11 +13,13 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXml do
   strings, and builds a small tree of `%SafeXml{}` elements whose names stay
   binaries. Nothing in a document becomes an atom.
 
-  A document carrying a `DOCTYPE` is refused outright, before the parser reads
-  any declaration in it: no response either protocol defines has one, and
-  refusing it rules out entity expansion and any fetch of an external DTD in
-  one place. Byte caps stay with the callers, which know their protocol's
-  budget.
+  A `DOCTYPE` naming an external DTD or carrying an internal subset is refused
+  before the parser reads any declaration in it: no response either protocol
+  defines has one, and refusing it rules out entity expansion and any fetch of
+  an external DTD in one place. A bare `<!DOCTYPE name>`, with neither, is
+  accepted and ignored: it declares nothing, and the parser reports no start
+  of a DTD for it to refuse. Byte caps stay with the callers, which know
+  their protocol's budget.
 
   ## Queries
 
@@ -68,9 +70,10 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXml do
   @doc """
   Parses `xml` into its root element.
 
-  Returns `{:error, :doctype_not_allowed}` for a document declaring a
-  `DOCTYPE`, and `{:error, {:malformed_xml, line}}` for one that is not
-  well-formed. Never raises or exits on bad input.
+  Returns `{:error, :doctype_not_allowed}` for a document whose `DOCTYPE`
+  names an external DTD or carries an internal subset, and
+  `{:error, {:malformed_xml, line}}` for one that is not well-formed. Never
+  raises or exits on bad input.
   """
   @spec parse(binary()) :: {:ok, t()} | {:error, parse_error()}
   def parse(xml) when is_binary(xml) do
@@ -242,7 +245,17 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXml do
   defp children(%__MODULE__{children: children}), do: children
   defp children(_text), do: []
 
-  defp descendants(node), do: Enum.flat_map(children(node), &[&1 | descendants(&1)])
+  # Every descendant of `node` in document order. The walk keeps a work list
+  # of nodes still to visit and conses each visited node onto an accumulator,
+  # so it is linear in the size of the subtree however deeply it nests.
+  defp descendants(node), do: walk(children(node), [])
+
+  defp walk([], visited), do: Enum.reverse(visited)
+
+  defp walk([%__MODULE__{children: children} = element | rest], visited),
+    do: walk(children ++ rest, [element | visited])
+
+  defp walk([text | rest], visited), do: walk(rest, [text | visited])
 
   defp matches?(text, :text), do: is_binary(text)
   defp matches?(%__MODULE__{namespace: ns, name: name}, {:name, ns, name}), do: true

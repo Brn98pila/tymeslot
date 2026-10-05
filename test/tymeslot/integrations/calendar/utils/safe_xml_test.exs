@@ -60,6 +60,12 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXmlTest do
       assert SafeXml.parse(xml) == {:error, :doctype_not_allowed}
     end
 
+    test "accepts a bare DOCTYPE, which declares nothing" do
+      xml = ~s(<?xml version="1.0"?><!DOCTYPE r><r>hi</r>)
+
+      assert {:ok, %SafeXml{name: "r", children: ["hi"]}} = SafeXml.parse(xml)
+    end
+
     test "reports malformed input by line without quoting it" do
       assert SafeXml.parse("<a>\n<Secret></a>") == {:error, {:malformed_xml, 2}}
     end
@@ -71,6 +77,25 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXmlTest do
   end
 
   describe "xpath/3" do
+    test "returns descendant matches in document order" do
+      doc = parse!(~s(<r><a>1<a>2<a>3</a></a></a><b><a>4</a></b><a>5</a></r>))
+
+      assert SafeXml.xpath(doc, ~x"//a/text()"l) == ["1", "2", "3", "4", "5"]
+    end
+
+    # A hostile server can nest elements as deep as the byte cap allows. A
+    # walk that copies each subtree once per level of nesting takes tens of
+    # seconds here; a linear one takes milliseconds.
+    test "searches a deeply nested document in time linear in its size" do
+      depth = 200_000
+      doc = parse!(String.duplicate("<a>", depth) <> "x" <> String.duplicate("</a>", depth))
+
+      {microseconds, matches} = :timer.tc(fn -> SafeXml.xpath(doc, ~x"//a/text()"l) end)
+
+      assert matches == ["x"]
+      assert microseconds < 5_000_000
+    end
+
     test "matches a prefixed step on the namespace URI, not on the prefix" do
       doc =
         parse!(
