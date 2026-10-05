@@ -210,6 +210,17 @@ defmodule Tymeslot.AppSettingsLockoutTest do
       System.delete_env("GOOGLE_CLIENT_SECRET")
       refute LockoutPolicy.sso_credentials_present?(:google_auth_enabled)
     end
+
+    test "usable_sso_providers lists only providers that are enabled and credentialed" do
+      enable_credentialless_oauth()
+      assert LockoutPolicy.usable_sso_providers() == []
+
+      enable_credentialed_oauth()
+      assert LockoutPolicy.usable_sso_providers() == [:oauth]
+
+      clamp_sso_disabled()
+      assert LockoutPolicy.usable_sso_providers() == []
+    end
   end
 
   # The lockout guard must run against the row-locked DB state inside the

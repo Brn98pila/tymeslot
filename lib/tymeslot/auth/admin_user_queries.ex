@@ -83,10 +83,10 @@ defmodule Tymeslot.Auth.AdminUserQueries do
   or authenticated via one of `usable_sso_providers` (`:google`, `:github`,
   `:oauth`).
 
-  `usable_sso_providers` is data, not a config lookup: callers (see
-  `Tymeslot.Release.check_last_admin/2`) pass only the providers already
-  confirmed enabled *and* credential-configured system-wide, mirroring
-  `Tymeslot.AppSettings.LockoutPolicy`'s "usable auth path" definition. This
+  `usable_sso_providers` is data, not a config lookup: the caller
+  (`Tymeslot.Auth.AdminRoles.remaining_signin_capable_admins?/1`) passes
+  `Tymeslot.AppSettings.LockoutPolicy.usable_sso_providers/0`, the providers
+  enabled *and* credential-configured system-wide. This
   keeps the query module free of `AppSettings` reads while still refusing to
   count an SSO identity nobody can currently use to log in.
 

@@ -89,4 +89,55 @@ defmodule Tymeslot.Auth.AdminRolesTest do
       assert Repo.reload!(target).is_admin
     end
   end
+
+  # The last-admin guard counts the admins who could still sign in once the
+  # target is demoted, not bare `is_admin` rows: an admin row nobody can sign
+  # in as does not keep the install reachable.
+  describe "demote/2 last-admin guard" do
+    test "an admin can demote themselves when another admin can still sign in" do
+      admin = insert(:user, is_admin: true)
+      _other = insert(:user, is_admin: true)
+
+      assert {:ok, demoted} = AdminRoles.demote(admin, admin.id)
+      refute demoted.is_admin
+    end
+
+    test "refuses self-demotion when the only other admin is unverified" do
+      admin = insert(:user, is_admin: true)
+      _other = insert(:unverified_user, is_admin: true)
+
+      assert {:error, :last_admin} = AdminRoles.demote(admin, admin.id)
+      assert Repo.reload!(admin).is_admin
+    end
+
+    test "refuses self-demotion when the only other admin signs in through a disabled provider" do
+      admin = insert(:user, is_admin: true)
+
+      _other =
+        insert(:user,
+          is_admin: true,
+          provider: "google",
+          password_hash: nil,
+          google_user_id: "google-uid-1"
+        )
+
+      assert {:error, :last_admin} = AdminRoles.demote(admin, admin.id)
+      assert Repo.reload!(admin).is_admin
+    end
+
+    test "refuses demoting the only admin who can sign in, by another admin" do
+      actor = insert(:unverified_user, is_admin: true)
+      target = insert(:user, is_admin: true)
+
+      assert {:error, :last_admin} = AdminRoles.demote(actor, target.id)
+      assert Repo.reload!(target).is_admin
+    end
+
+    test "the CLI can still demote the only admin who can sign in" do
+      target = insert(:user, is_admin: true)
+      _other = insert(:unverified_user, is_admin: true)
+
+      assert {:ok, %{is_admin: false}} = AdminRoles.demote(:cli, target.id)
+    end
+  end
 end

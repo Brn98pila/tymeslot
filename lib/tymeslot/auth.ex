@@ -488,15 +488,6 @@ defmodule Tymeslot.Auth do
   defdelegate any_admin_uses_password_auth?(), to: AdminUserQueries
 
   @doc """
-  Counts admins, other than `user_id`, who can actually sign in today.
-  See `Tymeslot.Auth.AdminUserQueries.count_signin_capable_admins_excluding/3`.
-  """
-  @spec count_signin_capable_admins_excluding(integer(), [atom()]) :: non_neg_integer()
-  def count_signin_capable_admins_excluding(user_id, usable_sso_providers) do
-    AdminUserQueries.count_signin_capable_admins_excluding(user_id, usable_sso_providers)
-  end
-
-  @doc """
   Returns `true` if at least one admin account exists.
   """
   defdelegate any_admin?(), to: AdminUserQueries
