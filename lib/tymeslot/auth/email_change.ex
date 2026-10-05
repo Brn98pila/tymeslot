@@ -134,6 +134,11 @@ defmodule Tymeslot.Auth.EmailChange do
   defp issue_in_transaction(user_id, new_email, current_password) do
     result =
       Repo.transaction(fn ->
+        # An expired change elsewhere must not hold the address. Released
+        # before the requester's row is read, so their own expired change to
+        # the same address is not left stale in the struct being updated.
+        _released = AccountTokens.release_expired_email_changes(pending_email: new_email)
+
         with {:ok, user} <- UserQueries.get_user_for_update(user_id),
              :ok <- Validation.check_current_password(user, current_password),
              :ok <- validate_email_not_same(user.email, new_email),
@@ -192,7 +197,9 @@ defmodule Tymeslot.Auth.EmailChange do
       {:error, :invalid_token} ->
         {:error, {:invalid_token, dgettext("auth", "Invalid or expired verification link")}}
 
-      {:error, :token_expired} ->
+      {:error, {:token_expired, user_id}} ->
+        # The transaction rolled back, so the expired change is released here.
+        _released = AccountTokens.release_expired_email_changes(user_id: user_id)
         {:error, {:token_expired, dgettext("auth", "Verification link has expired")}}
 
       {:error, %Changeset{} = changeset} ->
@@ -248,7 +255,7 @@ defmodule Tymeslot.Auth.EmailChange do
           revoked_session_hashes: revoked_session_hashes
         }
       else
-        {:error, :token_expired, _user} -> Repo.rollback(:token_expired)
+        {:error, :token_expired, user} -> Repo.rollback({:token_expired, user.id})
         {:error, reason} -> Repo.rollback(reason)
       end
     end)

@@ -6,7 +6,15 @@ defmodule Tymeslot.Auth.EmailChangeTest do
 
   alias Ecto.Changeset
   alias Tymeslot.Auth
-  alias Tymeslot.Auth.{PasswordReset, UserSchema, UserSessionSchema, UserTokenQueries}
+
+  alias Tymeslot.Auth.{
+    AccountTokens,
+    PasswordReset,
+    UserSchema,
+    UserSessionSchema,
+    UserTokenQueries
+  }
+
   alias Tymeslot.Emails.EmailScheduler.LinkArg
   alias Tymeslot.Security.{Password, Token}
   alias Tymeslot.Workers.EmailWorker
@@ -142,6 +150,55 @@ defmodule Tymeslot.Auth.EmailChangeTest do
                  "Password123!",
                  ClientIP.request_opts(%Plug.Conn{})
                )
+    end
+
+    test "an expired pending change on another account does not hold the address", %{
+      user: user
+    } do
+      squatter = insert(:user)
+
+      {:ok, squatter} =
+        UserTokenQueries.request_email_change(
+          squatter,
+          "wanted@example.com",
+          Token.generate_token()
+        )
+
+      set_email_change_sent_at(squatter, -(24 * 3600 + 60))
+
+      assert {:ok, updated_user, _message} =
+               Auth.request_email_change(
+                 user,
+                 "wanted@example.com",
+                 "Password123!",
+                 ClientIP.request_opts(%Plug.Conn{})
+               )
+
+      assert updated_user.pending_email == "wanted@example.com"
+
+      cleared = Repo.get!(UserSchema, squatter.id)
+      assert cleared.pending_email == nil
+      assert cleared.email_change_token_hash == nil
+      assert cleared.email_change_sent_at == nil
+    end
+
+    test "re-requesting an address after the own link expired holds it again", %{user: user} do
+      {:ok, user} =
+        UserTokenQueries.request_email_change(user, "again@example.com", Token.generate_token())
+
+      set_email_change_sent_at(user, -(24 * 3600 + 60))
+
+      assert {:ok, _updated_user, _message} =
+               Auth.request_email_change(
+                 user,
+                 "again@example.com",
+                 "Password123!",
+                 ClientIP.request_opts(%Plug.Conn{})
+               )
+
+      reloaded = Repo.get!(UserSchema, user.id)
+      assert reloaded.pending_email == "again@example.com"
+      refute AccountTokens.expired?(:email_change, reloaded)
     end
 
     test "reports every malformed field at once", %{user: user} do
@@ -355,6 +412,32 @@ defmodule Tymeslot.Auth.EmailChangeTest do
 
       assert {:error, {:token_expired, _message}} =
                Auth.verify_email_change(token, ClientIP.request_opts(%Plug.Conn{}))
+    end
+
+    test "following an expired link releases the pending address", %{
+      user: user,
+      token: token,
+      new_email: new_email
+    } do
+      set_email_change_sent_at(user, -(24 * 3600 + 60))
+
+      assert {:error, {:token_expired, _message}} =
+               Auth.verify_email_change(token, ClientIP.request_opts(%Plug.Conn{}))
+
+      cleared = Repo.get!(UserSchema, user.id)
+      assert cleared.pending_email == nil
+      assert cleared.email_change_token_hash == nil
+      assert cleared.email == user.email
+
+      other = insert(:user)
+
+      assert {:ok, _other, _message} =
+               Auth.request_email_change(
+                 other,
+                 new_email,
+                 "Password123!",
+                 ClientIP.request_opts(%Plug.Conn{})
+               )
     end
   end
 

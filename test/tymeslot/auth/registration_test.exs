@@ -5,8 +5,10 @@ defmodule Tymeslot.Auth.RegistrationTest do
 
   import Tymeslot.Test.AdminBootstrapHelpers, only: [reopen_admin_bootstrap: 1]
 
-  alias Tymeslot.Auth.{Registration, UserSchema}
+  alias Ecto.Changeset
+  alias Tymeslot.Auth.{Registration, UserSchema, UserTokenQueries}
   alias Tymeslot.Repo
+  alias Tymeslot.Security.Token
   alias TymeslotWeb.Helpers.ClientIP
   import Tymeslot.Factory
 
@@ -150,6 +152,37 @@ defmodule Tymeslot.Auth.RegistrationTest do
 
       refute user.id == stranger.id
       assert user.email == "crypto0xabc@example.com"
+    end
+  end
+
+  describe "an expired pending email change elsewhere" do
+    test "does not stop the address being registered" do
+      squatter = insert(:user)
+
+      {:ok, squatter} =
+        UserTokenQueries.request_email_change(
+          squatter,
+          "parked@example.com",
+          Token.generate_token()
+        )
+
+      squatter
+      |> Changeset.change(
+        email_change_sent_at: DateTime.add(DateTime.utc_now(:second), -(24 * 3600 + 60))
+      )
+      |> Repo.update!()
+
+      params = %{
+        "email" => "parked@example.com",
+        "password" => "ValidPassword123!",
+        "password_confirmation" => "ValidPassword123!",
+        "terms_accepted" => "true"
+      }
+
+      assert {:ok, user, _session} =
+               Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+
+      assert user.email == "parked@example.com"
     end
   end
 
