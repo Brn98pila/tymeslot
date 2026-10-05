@@ -112,6 +112,47 @@ defmodule Tymeslot.Auth.RegistrationTest do
     end
   end
 
+  describe "the account is created under the address as typed" do
+    # Strict sanitisation would strip the `0x<hex>` run and everything from
+    # `--` onwards, registering the account (and mailing its verification
+    # link) under a stranger's address.
+    for address <- ["crypto0xabc@example.com", "jean--paul@example.com"] do
+      test "#{address} is stored verbatim" do
+        address = unquote(address)
+
+        params = %{
+          "email" => address,
+          "password" => "ValidPassword123!",
+          "password_confirmation" => "ValidPassword123!",
+          "terms_accepted" => "true"
+        }
+
+        assert {:ok, user, _session} =
+                 Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+
+        assert user.email == address
+        assert Repo.get!(UserSchema, user.id).email == address
+      end
+    end
+
+    test "a near-identical existing account is not mistaken for the new one" do
+      stranger = insert(:user, email: "crypto@example.com")
+
+      params = %{
+        "email" => "crypto0xabc@example.com",
+        "password" => "ValidPassword123!",
+        "password_confirmation" => "ValidPassword123!",
+        "terms_accepted" => "true"
+      }
+
+      assert {:ok, user, _session} =
+               Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+
+      refute user.id == stranger.id
+      assert user.email == "crypto0xabc@example.com"
+    end
+  end
+
   describe "admin bootstrap" do
     setup :reopen_admin_bootstrap
 

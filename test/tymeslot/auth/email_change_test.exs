@@ -68,6 +68,31 @@ defmodule Tymeslot.Auth.EmailChangeTest do
       )
     end
 
+    for address <- ["crypto0xabc@example.com", "jean--paul@example.com"] do
+      test "holds and mails #{address} exactly as typed", %{user: user} do
+        address = unquote(address)
+
+        assert {:ok, updated_user, _message} =
+                 Auth.request_email_change(
+                   user,
+                   address,
+                   "Password123!",
+                   ClientIP.request_opts(%Plug.Conn{})
+                 )
+
+        assert updated_user.pending_email == address
+
+        assert_enqueued(
+          worker: EmailWorker,
+          args: %{
+            "action" => "send_email_change_verification",
+            "user_id" => user.id,
+            "new_email" => address
+          }
+        )
+      end
+    end
+
     test "fails with invalid password", %{user: user} do
       new_email = "new.email@example.com"
 

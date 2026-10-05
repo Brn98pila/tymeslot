@@ -38,6 +38,15 @@ defmodule Tymeslot.Security.InputProcessor do
     "new_password_confirmation"
   ]
 
+  # Validators whose field is an identifier: a value an account is created,
+  # looked up or mailed under. Such a field is sanitised in `:plain_text` mode
+  # and then accepted or rejected by its validator, never rewritten. `:strict`
+  # mode strips `0x<hex>` runs and everything from `--` onwards, so it would
+  # turn "crypto0xabc@example.com" into "crypto@example.com": a different,
+  # valid address that belongs to someone else. Plain-text mode keeps only the
+  # changes that cannot alter which address it is (null bytes, NFC, trimming).
+  @identifier_validators [FieldValidators.EmailValidator]
+
   @doc """
   Validates a form with universal sanitization and field-specific validation.
 
@@ -77,8 +86,10 @@ defmodule Tymeslot.Security.InputProcessor do
 
     # Step 1: Universal sanitization for all fields, skipping opaque tokens
     {skipped, sanitisable} = Map.split(params, @skip_sanitisation_keys)
+    identifier_keys = identifier_keys(field_specs)
 
-    with {:ok, sanitized_params} <- sanitize_all_fields(sanitisable, universal_opts, metadata) do
+    with {:ok, sanitized_params} <-
+           sanitize_all_fields(sanitisable, universal_opts, metadata, identifier_keys) do
       # Step 2: Field-specific validation with error aggregation.
       # Re-merge skipped keys so callers still receive them unchanged.
       all_params = Map.merge(sanitized_params, skipped)
@@ -106,7 +117,10 @@ defmodule Tymeslot.Security.InputProcessor do
     field = Keyword.get(opts, :field, type_or_module)
     validator_module = resolve_validator(type_or_module)
 
-    universal_opts_with_field = Keyword.put(universal_opts, :field, field)
+    universal_opts_with_field =
+      universal_opts
+      |> Keyword.put(:field, field)
+      |> put_identifier_mode(validator_module in @identifier_validators)
 
     with {:ok, sanitized} <-
            UniversalSanitizer.sanitize_and_validate(value, universal_opts_with_field),
@@ -117,12 +131,17 @@ defmodule Tymeslot.Security.InputProcessor do
 
   # Private functions
 
-  defp sanitize_all_fields(params, universal_opts, metadata) when is_map(params) do
+  defp sanitize_all_fields(params, universal_opts, metadata, identifier_keys)
+       when is_map(params) do
     base_opts = Keyword.merge(universal_opts, metadata: metadata)
 
     Enum.reduce_while(params, {:ok, %{}}, fn {key, value}, {:ok, acc} ->
       field_key = safe_field_key(key)
-      opts_for_field = Keyword.put(base_opts, :field, field_key)
+
+      opts_for_field =
+        base_opts
+        |> Keyword.put(:field, field_key)
+        |> put_identifier_mode(MapSet.member?(identifier_keys, to_string(key)))
 
       case UniversalSanitizer.sanitize_and_validate(value, opts_for_field) do
         {:ok, sanitized_value} ->
@@ -133,6 +152,18 @@ defmodule Tymeslot.Security.InputProcessor do
       end
     end)
   end
+
+  # The submitted keys whose spec names an identifier validator. Specs may
+  # name a field by atom or string; params arrive with string keys.
+  defp identifier_keys(field_specs) do
+    for spec <- field_specs,
+        resolve_validator(elem(spec, 1)) in @identifier_validators,
+        into: MapSet.new(),
+        do: to_string(elem(spec, 0))
+  end
+
+  defp put_identifier_mode(opts, true), do: Keyword.put(opts, :mode, :plain_text)
+  defp put_identifier_mode(opts, false), do: opts
 
   defp safe_field_key(key) when is_atom(key), do: key
 

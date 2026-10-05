@@ -94,6 +94,32 @@ defmodule Tymeslot.Auth.PasswordResetTest do
     end
   end
 
+  describe "initiate_reset/1 targets the address as typed" do
+    # Strict sanitisation would strip the `0x<hex>` run, so a reset for
+    # crypto0xabc@ would mail the owner of crypto@ instead, and `--` would
+    # truncate the address to something unusable.
+    test "a 0x address resets its own account, not the stranger's it would sanitise to" do
+      owner = insert(:user, email: "crypto0xabc@example.com")
+      _stranger = insert(:user, email: "crypto@example.com")
+
+      assert {:ok, :reset_initiated, _message} =
+               PasswordReset.initiate_reset("crypto0xabc@example.com")
+
+      assert [job] = all_enqueued(worker: EmailWorker, args: %{"action" => "send_password_reset"})
+      assert job.args["user_id"] == owner.id
+    end
+
+    test "a -- address resets its own account" do
+      owner = insert(:user, email: "jean--paul@example.com")
+
+      assert {:ok, :reset_initiated, _message} =
+               PasswordReset.initiate_reset("jean--paul@example.com")
+
+      assert [job] = all_enqueued(worker: EmailWorker, args: %{"action" => "send_password_reset"})
+      assert job.args["user_id"] == owner.id
+    end
+  end
+
   describe "initiate_reset/1 token rotation" do
     test "a duplicate request within the dedup window rotates the token and updates the queued job" do
       user = insert(:user, password_hash: Password.hash_password("OldPass123!"))
