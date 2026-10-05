@@ -2,19 +2,18 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.ICalParser
+  alias Tymeslot.Integrations.Calendar.Utils.SafeXml
   alias Tymeslot.Integrations.Calendar.Utils.XmlEscape
 
   @moduledoc """
-  Secure XML parsing and building for CalDAV operations using SweetXML.
+  Secure XML parsing and building for CalDAV operations.
 
-  This module provides secure XML handling with:
-  - Protection against XML bombs and entity expansion attacks
-  - Proper namespace handling
-  - XPath-based parsing for reliability
-  - Schema validation
+  Responses are parsed through `Utils.SafeXml`, which refuses DTDs (so no
+  entity expansion) and keeps every name a binary, so a hostile server cannot
+  grow the atom table. Values are read with namespace-agnostic xpaths.
   """
 
-  import SweetXml
+  import SweetXml, only: [sigil_x: 2, transform_by: 2]
   require Logger
 
   @typedoc "A parsed CalDAV event returned by `parse_calendar_query/1`."
@@ -115,7 +114,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
   end
 
   @doc """
-  Parses a calendar discovery response using SweetXML.
+  Parses a calendar discovery response.
 
   Returns the discovered calendars as `CalendarEntry` structs, produced at
   this discovery boundary so every downstream caller reads a single
@@ -131,7 +130,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
     # Different CalDAV servers use different namespace prefixes (C: vs c: vs cal:)
     calendars =
       doc
-      |> xpath(
+      |> SafeXml.xpath(
         ~x"//*[local-name()='response']"l,
         href: ~x"./*[local-name()='href']/text()"s,
         displayname: ~x".//*[local-name()='displayname']/text()"s,
@@ -195,7 +194,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
     # is the only portable approach across all server implementations.
     events =
       doc
-      |> xpath(
+      |> SafeXml.xpath(
         ~x"//*[local-name()='response']"l,
         href: ~x"./*[local-name()='href']/text()"s,
         etag: ~x".//*[local-name()='getetag']/text()"s,
@@ -246,7 +245,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
     doc = parse_with_security(xml_body)
 
     href =
-      xpath(
+      SafeXml.xpath(
         doc,
         ~x"//*[local-name()='current-user-principal']/*[local-name()='href']/text()"s
       )
@@ -273,7 +272,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
     doc = parse_with_security(xml_body)
 
     href =
-      xpath(
+      SafeXml.xpath(
         doc,
         ~x"//*[local-name()='calendar-home-set']/*[local-name()='href']/text()"s
       )
@@ -298,14 +297,11 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
       raise "XML document too large"
     end
 
-    # Parse with namespace awareness and XXE prevention options.
-    # xmerl (SweetXml's backend) signals fatal parse errors via Erlang :exit, not
-    # Elixir exceptions. Catch and re-raise as a RuntimeError so the rescue clauses
-    # in each public parser function can handle malformed XML uniformly.
-    try do
-      SweetXml.parse(xml_string, namespace_conformant: true, dtd: :none)
-    catch
-      :exit, reason -> raise "XML parse failed: #{inspect(reason)}"
+    # Raised rather than returned so the rescue clause in each public parser
+    # handles malformed XML uniformly. The reason never quotes the document.
+    case SafeXml.parse(xml_string) do
+      {:ok, doc} -> doc
+      {:error, reason} -> raise "XML parse failed: #{inspect(reason)}"
     end
   end
 
