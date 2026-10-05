@@ -250,8 +250,13 @@ defmodule Tymeslot.Integrations.Video.InputValidation do
 
   # A blank URL is kept, so that the provider can refuse it with its own
   # message rather than an edit silently keeping the stored one.
+  #
+  # Plain-text mode for the reason `InputValidators.validate_server_url/3`
+  # gives: `:strict` percent-decodes the URL and strips `0x<hex>` runs and
+  # everything from `--` onwards, so `https://xn--mnchen-3ya.de` would be saved
+  # as `https://xn`. The provider's `validate_config/1` judges the URL itself.
   defp sanitize_server_url(base_url, metadata) when is_binary(base_url) do
-    case UniversalSanitizer.sanitize_and_validate(base_url, allow_html: false, metadata: metadata) do
+    case UniversalSanitizer.sanitize_and_validate(base_url, mode: :plain_text, metadata: metadata) do
       {:ok, sanitized} -> {:ok, sanitized}
       {:error, error} -> {:error, %{base_url: error}}
     end
@@ -273,8 +278,11 @@ defmodule Tymeslot.Integrations.Video.InputValidation do
   defp validate_api_key(nil, _metadata), do: {:error, %{api_key: api_key_required_message()}}
   defp validate_api_key("", _metadata), do: {:error, %{api_key: api_key_required_message()}}
 
+  # A key is a credential, so it is checked and never rewritten: `:strict`
+  # mode would strip `0x<hex>` runs and everything from `--` onwards and save
+  # a key the server then refuses.
   defp validate_api_key(api_key, metadata) when is_binary(api_key) do
-    case UniversalSanitizer.sanitize_and_validate(api_key, allow_html: false, metadata: metadata) do
+    case UniversalSanitizer.sanitize_and_validate(api_key, mode: :plain_text, metadata: metadata) do
       {:ok, sanitized_api_key} ->
         cond do
           String.length(sanitized_api_key) > 500 ->

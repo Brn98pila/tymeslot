@@ -117,9 +117,12 @@ defmodule Tymeslot.Security.InputProcessor do
     field = Keyword.get(opts, :field, type_or_module)
     validator_module = resolve_validator(type_or_module)
 
+    # The caller's request metadata goes into the security log entry the
+    # sanitiser writes when it changes the value, as it does for whole forms.
     universal_opts_with_field =
       universal_opts
       |> Keyword.put(:field, field)
+      |> Keyword.put_new(:metadata, Keyword.get(opts, :metadata, %{}))
       |> put_identifier_mode(validator_module in @identifier_validators)
 
     with {:ok, sanitized} <-
