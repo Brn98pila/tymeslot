@@ -27,6 +27,7 @@ defmodule TymeslotWeb.Dashboard.Automation.TelegramCrudJourneyTest do
   import Tymeslot.AuthTestHelpers
   import Tymeslot.Factory
   import Tymeslot.TestFixtures
+  import Tymeslot.TestHelpers.Eventually
 
   alias Tymeslot.ConfigTestHelpers
   alias Tymeslot.Onboarding.OnboardingQueries
@@ -253,6 +254,100 @@ defmodule TymeslotWeb.Dashboard.Automation.TelegramCrudJourneyTest do
 
       assert reloaded.bot_token_encrypted == original.bot_token_encrypted,
              "an edit that leaves the token field blank must not blank the stored credential"
+    end
+  end
+
+  describe "with the shared bot enabled" do
+    # In shared mode the only proof that a chat belongs to the organiser is
+    # the `/start <token>` deep link the bot receives. The form renders no
+    # chat id field, but a LiveView event carries whatever params the client
+    # sends, so these submissions forge one.
+    setup do
+      ConfigTestHelpers.setup_config(:tymeslot, telegram_shared_bot: true)
+      :ok
+    end
+
+    test "a chat id forged into the setup form is not linked", %{conn: conn, user: user} do
+      view = open_telegram_tab(conn)
+      open_create_form(view)
+      [stub] = Telegram.list_integrations(user.id)
+
+      # Advance the wizard to the details step without the bot linking a chat.
+      send(view.pid, {:telegram_linked, stub.id, "987654321"})
+      eventually(fn -> assert render(view) =~ "Integration Details" end)
+
+      view
+      |> element("#telegram-form")
+      |> render_submit(%{
+        "telegram" => %{
+          "name" => "Forged Chat",
+          "chat_id" => "-1009999999999",
+          "events" => ["meeting.created"]
+        }
+      })
+
+      assert {:ok, saved} = Telegram.get_integration(stub.id, user.id)
+      assert saved.name == "Forged Chat"
+      assert saved.chat_id == nil
+      assert saved.linked_at == nil
+    end
+
+    test "a chat id forged into the edit form leaves the linked chat alone", %{
+      conn: conn,
+      user: user
+    } do
+      integration =
+        insert(:telegram_integration,
+          user: user,
+          name: "Linked Chat",
+          bot_mode: "shared",
+          bot_token_encrypted: nil,
+          chat_id: @chat_id,
+          events: ["meeting.created"]
+        )
+
+      view = open_telegram_tab(conn)
+      view |> element(edit_button(integration)) |> render_click()
+
+      view
+      |> element("#telegram-form")
+      |> render_submit(%{
+        "telegram" => %{
+          "name" => "Renamed Chat",
+          "chat_id" => "-1009999999999",
+          "events" => ["meeting.created"]
+        }
+      })
+
+      assert {:ok, saved} = Telegram.get_integration(integration.id, user.id)
+      assert saved.name == "Renamed Chat"
+      assert saved.chat_id == @chat_id
+    end
+
+    test "editing an own-bot integration keeps it on its own bot", %{conn: conn, user: user} do
+      integration =
+        insert(:telegram_integration,
+          user: user,
+          name: "Own Bot",
+          bot_mode: "own",
+          bot_token_encrypted: Encryption.encrypt(@bot_token),
+          chat_id: @chat_id,
+          events: ["meeting.created"]
+        )
+
+      view = open_telegram_tab(conn)
+      view |> element(edit_button(integration)) |> render_click()
+
+      view
+      |> element("#telegram-form")
+      |> render_submit(%{
+        "telegram" => %{"name" => "Renamed Own Bot", "events" => ["meeting.created"]}
+      })
+
+      assert {:ok, saved} = Telegram.get_integration(integration.id, user.id)
+      assert saved.name == "Renamed Own Bot"
+      assert saved.bot_mode == "own"
+      assert saved.chat_id == @chat_id
     end
   end
 

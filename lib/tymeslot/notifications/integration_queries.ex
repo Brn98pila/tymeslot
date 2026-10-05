@@ -111,38 +111,41 @@ defmodule Tymeslot.Notifications.IntegrationQueries do
   end
 
   @doc """
-  Toggles the integration's `is_active` flag via `schema.changeset/2`.
+  Toggles the integration's `is_active` flag via `schema.state_transition_changeset/2`.
   """
   @spec toggle_active(module(), Ecto.Schema.t()) ::
           {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
   def toggle_active(schema, integration) do
     integration
-    |> schema.changeset(%{is_active: !integration.is_active})
+    |> schema.state_transition_changeset(%{is_active: !integration.is_active})
     |> Repo.update()
   end
 
   @doc """
   Stamps the integration as successfully fired right now and resets the
-  failure counter. Applied via `schema.changeset/2`.
+  failure counter. Applied via `schema.state_transition_changeset/2`.
   """
   @spec record_success(module(), Ecto.Schema.t()) ::
           {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
   def record_success(schema, integration) do
     integration
-    |> schema.changeset(%{last_triggered_at: DateTime.utc_now(), failure_count: 0})
+    |> schema.state_transition_changeset(%{
+      last_triggered_at: DateTime.utc_now(),
+      failure_count: 0
+    })
     |> Repo.update()
   end
 
   @doc """
   Re-enables an auto-disabled integration: clears `disabled_at` /
   `disabled_reason`, resets `failure_count`, and sets `is_active` to true.
-  Applied via `schema.changeset/2`.
+  Applied via `schema.state_transition_changeset/2`.
   """
   @spec enable(module(), Ecto.Schema.t()) ::
           {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
   def enable(schema, integration) do
     integration
-    |> schema.changeset(%{
+    |> schema.state_transition_changeset(%{
       is_active: true,
       disabled_at: nil,
       disabled_reason: nil,

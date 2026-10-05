@@ -331,7 +331,7 @@ defmodule Tymeslot.Telegram do
   @spec auto_disable(TelegramIntegrationSchema.t(), String.t()) ::
           {:ok, TelegramIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
   def auto_disable(%TelegramIntegrationSchema{} = integration, reason) do
-    TelegramQueries.update_integration(integration, %{
+    TelegramQueries.update_state(integration, %{
       is_active: false,
       disabled_at: DateTime.utc_now(),
       disabled_reason: reason
@@ -347,9 +347,9 @@ defmodule Tymeslot.Telegram do
   must not be gated behind a feature-access check.
   """
   @spec migrate_chat_id(TelegramIntegrationSchema.t(), String.t()) ::
-          {:ok, TelegramIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, TelegramIntegrationSchema.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def migrate_chat_id(%TelegramIntegrationSchema{} = integration, new_chat_id) do
-    TelegramQueries.update_integration(integration, %{chat_id: new_chat_id})
+    TelegramQueries.update_link_state(integration, %{chat_id: new_chat_id})
   end
 
   # ============================================================================
@@ -465,14 +465,13 @@ defmodule Tymeslot.Telegram do
       user_id: user_id,
       bot_mode: "shared",
       name: dgettext("dashboard_automation_chat", "My Telegram"),
-      events: ["meeting.created"],
-      link_token: generate_link_token()
+      events: ["meeting.created"]
     }
 
     Repo.transaction(fn ->
       TelegramQueries.delete_pending_stubs(user_id)
 
-      case TelegramQueries.create_integration(attrs) do
+      case TelegramQueries.create_link_stub(attrs, generate_link_token()) do
         {:ok, stub} -> stub
         {:error, changeset} -> Repo.rollback(changeset)
       end

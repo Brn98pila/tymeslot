@@ -410,7 +410,7 @@ defmodule Tymeslot.TelegramTest do
 
     test "keeps a stub the bot linked after it was loaded" do
       stub = pending_stub(insert(:user))
-      {:ok, _linked} = TelegramQueries.update_integration(stub, %{chat_id: "777"})
+      {:ok, _linked} = TelegramQueries.update_link_state(stub, %{chat_id: "777"})
 
       assert :ok = Telegram.discard_pending(stub)
       assert %{chat_id: "777"} = Repo.get(TelegramIntegrationSchema, stub.id)
