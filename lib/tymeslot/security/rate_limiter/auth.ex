@@ -3,8 +3,10 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Security.AccountLockout
   alias Tymeslot.Security.RateLimiter.Helpers
+  alias Tymeslot.Security.SecurityLogger
+
+  require Logger
 
   # Per-source tiers. A source can only spend its own budget, so these may
   # run long.
@@ -64,6 +66,21 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
   @login_email_ceiling 50
   @login_window_ms 1_800_000
 
+  # The failed-login throttle, per email and client address: once a pair has
+  # ten failures inside the last hour, `check_auth/2` refuses it until the
+  # oldest age out. It is a Hammer bucket charged only on failure and cleared
+  # on success, so every row it leaves expires with its window and the
+  # limiter's periodic clean drops it, whatever the traffic.
+  #
+  # There is one tier, deliberately. The pre-check in `check_auth/2` is
+  # read-only, so once the threshold is reached the login path stops before
+  # recording another failure, and a harder tier above it is unreachable by
+  # sequential guessing. Making it reachable would mean recording attempts the
+  # pre-check already refused, which turns the throttle into a lock anyone who
+  # can reach the login form can set off against the account's owner.
+  @failed_login_limit 10
+  @failed_login_window_ms 3_600_000
+
   @spec check_auth(String.t(), String.t() | nil) :: :ok | {:error, :rate_limited, String.t()}
   def check_auth(email, ip) do
     # Normalise so whitespace-padded and case-variant emails share one bucket,
@@ -71,7 +88,7 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
     downcased_email = normalise_email(email)
     pair = login_pair(downcased_email, ip)
 
-    with :ok <- AccountLockout.check_lockout_status(pair),
+    with :ok <- check_failed_logins(pair),
          :ok <-
            Helpers.check_with_logging(
              "login:#{pair}",
@@ -87,23 +104,49 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
              @login_window_ms,
              "authentication (account)",
              downcased_email
-           ),
-         :ok <- check_auth_ip_bucket(ip) do
-      :ok
-    else
-      {:error, :account_throttled, message} -> {:error, :rate_limited, message}
-      error -> error
+           ) do
+      check_auth_ip_bucket(ip)
     end
   end
 
   @spec record_attempt(String.t(), String.t() | nil, boolean()) ::
-          :ok | {:error, atom(), String.t()}
-  def record_attempt(email, ip, success) do
-    email
-    |> normalise_email()
-    |> login_pair(ip)
-    |> AccountLockout.check_and_record_attempt(success)
+          :ok | {:error, :account_throttled, String.t()}
+  def record_attempt(email, ip, true) do
+    email |> normalise_email() |> login_pair(ip) |> failed_login_key() |> Helpers.clear_bucket()
   end
+
+  def record_attempt(email, ip, false) do
+    downcased_email = normalise_email(email)
+
+    # Fires on every failed attempt, so it is the highest-volume line in the
+    # auth path under a credential-stuffing run; the address is masked here
+    # rather than left to the global metadata filter.
+    Logger.info("Failed attempt recorded",
+      identifier_masked: SecurityLogger.mask_email(downcased_email)
+    )
+
+    # Charged with a limit one below the threshold, so the failure that
+    # brings the count to the threshold is itself the one refused, exactly
+    # when the pre-check starts refusing.
+    key = downcased_email |> login_pair(ip) |> failed_login_key()
+
+    case Helpers.check_rate(key, @failed_login_window_ms, @failed_login_limit - 1) do
+      {:allow, _count} -> :ok
+      {:deny, _retry_after_ms} -> {:error, :account_throttled, throttled_message()}
+    end
+  end
+
+  defp check_failed_logins(pair) do
+    if Helpers.bucket_count(failed_login_key(pair), @failed_login_window_ms) >=
+         @failed_login_limit,
+       do: {:error, :rate_limited, throttled_message()},
+       else: :ok
+  end
+
+  defp failed_login_key(pair), do: "login_fail:#{pair}"
+
+  defp throttled_message,
+    do: dgettext("auth", "Too many failed attempts. Please wait before trying again")
 
   defp normalise_email(email), do: email |> String.trim() |> String.downcase()
 

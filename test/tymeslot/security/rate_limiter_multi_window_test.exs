@@ -2,7 +2,6 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
   use Tymeslot.DataCase, async: false
   @moduletag :security
 
-  alias Tymeslot.Security.AccountLockout
   alias Tymeslot.Security.RateLimiter
 
   describe "signup multi-window limits (email + IP)" do
@@ -65,19 +64,21 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
     end
   end
 
-  describe "AccountLockout — concurrent write safety" do
-    test "all concurrent failed attempts are counted (no lost updates)" do
+  describe "failed-login throttle under concurrent failures" do
+    test "a concurrent burst of failures engages the throttle" do
       email = "concurrent-lockout@example.com"
-      n = 20
 
       tasks =
-        for _i <- 1..n do
-          Task.async(fn -> AccountLockout.check_and_record_attempt(email, false) end)
+        for _i <- 1..20 do
+          Task.async(fn -> RateLimiter.record_auth_attempt(email, nil, false) end)
         end
 
-      Task.await_many(tasks, 10_000)
+      results = Task.await_many(tasks, 10_000)
 
-      assert AccountLockout.get_failed_attempt_count(email) == n
+      assert Enum.any?(results, &match?({:error, :account_throttled, _}, &1))
+
+      assert {:error, :rate_limited, message} = RateLimiter.check_auth_rate_limit(email, nil)
+      assert message =~ "Too many failed attempts"
     end
   end
 

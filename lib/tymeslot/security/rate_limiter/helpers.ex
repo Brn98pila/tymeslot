@@ -43,6 +43,21 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
     Enum.EmptyError -> {:deny, 0}
   end
 
+  @doc "How many hits a bucket holds inside its window, without charging it."
+  @spec bucket_count(bucket_key(), pos_integer()) :: non_neg_integer()
+  def bucket_count(bucket_key, window_ms), do: RateLimit.get(bucket_key, window_ms)
+
+  @doc """
+  Drops every hit a bucket holds. Hammer's sliding window has no per-key
+  reset, so this reaches into its table, whose rows are keyed
+  `{bucket_key, timestamp}`.
+  """
+  @spec clear_bucket(bucket_key()) :: :ok
+  def clear_bucket(bucket_key) do
+    :ets.match_delete(RateLimit, {{bucket_key, :_}, :_})
+    :ok
+  end
+
   @spec check_rate_limit(bucket_key(), pos_integer(), pos_integer()) ::
           :ok | {:error, :rate_limited}
   def check_rate_limit(bucket_key, limit, window_ms) do

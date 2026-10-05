@@ -189,10 +189,10 @@ defmodule Tymeslot.Security.RateLimiterAuthTest do
     end
   end
 
-  describe "AccountLockout integration with check_auth_rate_limit/2" do
-    # Isolated AccountLockout behaviour (thresholds, durations, counts) is tested in
-    # account_lockout_test.exs. This block covers only the integration point where
-    # check_auth_rate_limit/2 delegates to AccountLockout before the Hammer buckets.
+  describe "failed-login throttle integration with check_auth_rate_limit/2" do
+    # The throttle's own behaviour (threshold, clearing, keys) is tested in
+    # rate_limiter_failed_login_test.exs. This block covers only the point where
+    # check_auth_rate_limit/2 consults it before the per-attempt buckets.
     test "throttled account is blocked by check_auth_rate_limit" do
       email = "lockout-hammer-#{System.unique_integer([:positive])}@example.com"
 
@@ -204,7 +204,7 @@ defmodule Tymeslot.Security.RateLimiterAuthTest do
       assert message =~ "Too many failed attempts"
     end
 
-    # Throttling is the only tier AccountLockout has; piling on failures never
+    # Throttling is the only tier the failed-login throttle has; piling on failures never
     # escalates the account to a different, harder rejection.
     test "far more failures than the threshold still surface as the throttle" do
       email = "lockout-escalation-#{System.unique_integer([:positive])}@example.com"

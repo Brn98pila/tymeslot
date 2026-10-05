@@ -13,7 +13,6 @@ defmodule Tymeslot.ApplicationTest do
 
   alias Tymeslot.Integrations.Calendar.RequestCoalescer
   alias Tymeslot.Payments.Webhooks.IdempotencyCache
-  alias Tymeslot.Security.AccountLockout
   alias Tymeslot.Security.RateLimit
 
   describe "core application services" do
@@ -45,16 +44,6 @@ defmodule Tymeslot.ApplicationTest do
     end
 
     test "security services are started" do
-      identifier = "application-test-#{System.unique_integer([:positive])}@example.com"
-      on_exit(fn -> AccountLockout.clear_failed_attempts(identifier) end)
-
-      # AccountLockout is a plain module backed by ETS; the table is owned by
-      # AccountLockout.TableOwner in the supervision tree, so a recorded attempt
-      # round-tripping proves the owner started.
-      assert AccountLockout.get_failed_attempt_count(identifier) == 0
-      assert AccountLockout.check_and_record_attempt(identifier, false) == :ok
-      assert AccountLockout.get_failed_attempt_count(identifier) == 1
-
       # RateLimit (Hammer ETS) is not a named process; a first hit against a
       # fresh bucket proves its table is up.
       bucket = "application-test:#{System.unique_integer([:positive])}"

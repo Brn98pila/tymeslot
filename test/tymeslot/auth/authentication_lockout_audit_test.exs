@@ -10,7 +10,7 @@ defmodule Tymeslot.Auth.AuthenticationLockoutAuditTest do
   @moduletag :security
 
   alias Tymeslot.Auth.Authentication
-  alias Tymeslot.Security.{AccountLockout, Password, RateLimiter}
+  alias Tymeslot.Security.{Password, RateLimiter}
   alias Tymeslot.Test.LogCapture
 
   import Tymeslot.Factory
@@ -18,11 +18,11 @@ defmodule Tymeslot.Auth.AuthenticationLockoutAuditTest do
   @password "ValidPass123!"
   @opts [ip: "203.0.113.7", user_agent: "curl/8.0"]
 
-  # The lockout tracker lives in ETS and outlives the sandbox transaction, so
-  # each test clears its own account's attempts on the way out.
+  # The failed-login throttle lives in the rate limiter's ETS table and
+  # outlives the sandbox transaction, so each test clears it on the way out.
   setup do
     user = insert(:user, password_hash: Password.hash_password(@password))
-    on_exit(fn -> AccountLockout.clear_all() end)
+    on_exit(fn -> RateLimiter.clear_all() end)
     {:ok, user: user}
   end
 

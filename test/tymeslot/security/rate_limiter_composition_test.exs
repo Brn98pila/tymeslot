@@ -5,7 +5,7 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
   The per-bucket unit suites already exist:
 
     * `rate_limiter_auth_test.exs` — login bucket, case/whitespace
-      normalisation, AccountLockout integration.
+      normalisation, failed-login throttle integration.
     * `rate_limiter_multi_window_test.exs` — signup / verification /
       password-reset multi-window buckets.
     * `rate_limiter_dashboard_test.exs` et al. — dashboard buckets.

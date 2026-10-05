@@ -743,7 +743,7 @@ msgstr "Ces informations sont déjà utilisées. Veuillez en essayer d’autres.
 msgid "Too many %{operation} attempts. Please try again later."
 msgstr "Trop de tentatives (%{operation}). Veuillez réessayer plus tard."
 
-#: lib/tymeslot/security/account_lockout.ex
+#: lib/tymeslot/security/rate_limiter/auth.ex
 #, elixir-autogen, elixir-format
 msgid "Too many failed attempts. Please wait before trying again"
 msgstr "Trop de tentatives échouées. Veuillez patienter avant de réessayer"

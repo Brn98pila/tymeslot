@@ -26,14 +26,9 @@ defmodule Tymeslot.Security.RateLimiter do
 
   @doc """
   Clear rate limit data for a specific bucket key.
-
-  Test-only — bypasses Hammer's internal state management.
   """
   @spec clear_bucket(bucket_key()) :: :ok
-  def clear_bucket(bucket_key) do
-    :ets.match_delete(RateLimit, {{bucket_key, :_}, :_})
-    :ok
-  end
+  defdelegate clear_bucket(bucket_key), to: Helpers
 
   @doc """
   Clear all rate limit data.
@@ -61,9 +56,9 @@ defmodule Tymeslot.Security.RateLimiter do
   # Auth
 
   @doc """
-  Rate limit authentication attempts with account lockout.
+  Rate limit authentication attempts, including the failed-login throttle.
 
-  The lockout and the per-account budget are keyed on the email *and* the
+  The throttle and the per-account budget are keyed on the email *and* the
   client address, so failures from one address never lock the owner out from
   another; a wider per-email ceiling covers a run spread across many
   addresses. Returns :ok if allowed, {:error, :rate_limited, message} if
@@ -74,11 +69,13 @@ defmodule Tymeslot.Security.RateLimiter do
   def check_auth_rate_limit(email, ip), do: Auth.check_auth(email, ip)
 
   @doc """
-  Record an authentication attempt's result for lockout tracking, against the
-  same email and client address `check_auth_rate_limit/2` consults.
+  Record an authentication attempt's result for the failed-login throttle,
+  against the same email and client address `check_auth_rate_limit/2`
+  consults. Returns `{:error, :account_throttled, message}` for the failure
+  that crosses the threshold, and for every failure after it.
   """
   @spec record_auth_attempt(String.t(), String.t() | nil, boolean()) ::
-          :ok | {:error, atom(), String.t()}
+          :ok | {:error, :account_throttled, String.t()}
   def record_auth_attempt(email, ip, success), do: Auth.record_attempt(email, ip, success)
 
   @doc """

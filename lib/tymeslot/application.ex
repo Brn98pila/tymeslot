@@ -129,8 +129,6 @@ defmodule Tymeslot.Application do
           {Oban, oban_config()},
           # Start Hammer-backed rate limiter (ETS sliding window)
           {Tymeslot.Security.RateLimit, clean_period: :timer.minutes(5)},
-          # Own the account lockout ETS table (AccountLockout is a plain module)
-          Tymeslot.Security.AccountLockout.TableOwner,
           # Start circuit breaker supervisor
           Tymeslot.Infrastructure.CircuitBreakerSupervisor,
           # Alert when queries keep waiting for a database connection
@@ -151,8 +149,6 @@ defmodule Tymeslot.Application do
           Tymeslot.Integrations.Calendar.Shared.DiscoveryCache,
           # Start Hammer-backed rate limiter (ETS sliding window)
           {Tymeslot.Security.RateLimit, clean_period: :timer.minutes(5)},
-          # Own the account lockout ETS table (AccountLockout is a plain module)
-          Tymeslot.Security.AccountLockout.TableOwner,
           # Start Oban for background job processing (in manual mode for tests)
           {Oban, oban_config()},
           # Start circuit breaker supervisor (needed for some tests)
