@@ -3,11 +3,12 @@ defmodule Tymeslot.Auth.AdminRolesTest do
   Who may change admin roles. The admin UI's hook is not the only guard: the
   domain refuses any actor that is not a current admin or the CLI.
   """
-  use Tymeslot.DataCase, async: true
+  use Tymeslot.DataCase, async: false
 
   @moduletag :auth
 
   import Tymeslot.Factory
+  import Tymeslot.AppSettingsEnvHelpers
 
   alias Tymeslot.Auth.{AdminRoles, AdminUserQueries}
   alias Tymeslot.Repo
@@ -138,6 +139,48 @@ defmodule Tymeslot.Auth.AdminRolesTest do
       _other = insert(:unverified_user, is_admin: true)
 
       assert {:ok, %{is_admin: false}} = AdminRoles.demote(:cli, target.id)
+    end
+  end
+
+  # A verified password admin only keeps the install reachable while password
+  # sign-in is switched on. These tests toggle global sign-in settings, which
+  # is why this module is not async.
+  describe "demote/2 last-admin guard with password sign-in disabled" do
+    setup :restore_app_settings_env
+
+    setup do
+      enable_credentialed_oauth()
+      Application.put_env(:tymeslot, :password_auth_enabled, false)
+      :ok
+    end
+
+    test "refuses self-demotion when the only other admin signs in with a password" do
+      admin =
+        insert(:user,
+          is_admin: true,
+          provider: "oauth",
+          provider_uid: "oidc-uid-1",
+          password_hash: nil
+        )
+
+      _password_admin = insert(:user, is_admin: true)
+
+      assert {:error, :last_admin} = AdminRoles.demote(admin, admin.id)
+      assert Repo.reload!(admin).is_admin
+    end
+
+    test "allows self-demotion when another admin signs in through a usable provider" do
+      admin = insert(:user, is_admin: true)
+
+      _sso_admin =
+        insert(:user,
+          is_admin: true,
+          provider: "oauth",
+          provider_uid: "oidc-uid-2",
+          password_hash: nil
+        )
+
+      assert {:ok, %{is_admin: false}} = AdminRoles.demote(admin, admin.id)
     end
   end
 end

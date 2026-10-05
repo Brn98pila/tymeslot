@@ -118,17 +118,22 @@ defmodule Tymeslot.AppSettings.LockoutPolicy do
   }
 
   @doc """
-  The SSO providers (`:google`, `:github`, `:oauth`) that are a live sign-in
-  path right now: enabled system-wide and with client credentials configured.
+  The sign-in paths that are live right now: `:password` when password
+  sign-in is switched on, plus each SSO provider (`:google`, `:github`,
+  `:oauth`) that is enabled system-wide and has client credentials
+  configured.
 
   Used by the last-admin guard, which passes the result as data to
   `Tymeslot.Auth.AdminUserQueries.count_signin_capable_admins_excluding/3` so
-  an admin whose only identity is with a disabled provider is not counted as
-  able to sign in.
+  an admin whose only way in is a switched-off path is not counted as able to
+  sign in.
   """
-  @spec usable_sso_providers() :: [:google | :github | :oauth]
-  def usable_sso_providers do
-    for {provider, key} <- @sso_providers, sso_path_usable?(key, Env.read(key)), do: provider
+  @spec usable_signin_paths() :: [:password | :google | :github | :oauth]
+  def usable_signin_paths do
+    password = if Env.read(:password_auth_enabled) == true, do: [:password], else: []
+
+    password ++
+      for {provider, key} <- @sso_providers, sso_path_usable?(key, Env.read(key)), do: provider
   end
 
   @doc """

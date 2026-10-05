@@ -115,7 +115,7 @@ defmodule Tymeslot.Auth.AdminRoles do
   def remaining_signin_capable_admins?(%UserSchema{id: target_id}) do
     AdminUserQueries.count_signin_capable_admins_excluding(
       target_id,
-      LockoutPolicy.usable_sso_providers()
+      LockoutPolicy.usable_signin_paths()
     ) > 0
   end
 

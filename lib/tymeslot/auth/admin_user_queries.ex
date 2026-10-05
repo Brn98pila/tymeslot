@@ -79,16 +79,16 @@ defmodule Tymeslot.Auth.AdminUserQueries do
 
   @doc """
   Counts admins, other than `excluded_user_id`, who can actually sign in
-  today: password-capable per `any_admin_uses_password_auth?/1`'s criteria,
-  or authenticated via one of `usable_sso_providers` (`:google`, `:github`,
-  `:oauth`).
+  today through one of `usable_paths`: `:password` (per
+  `any_admin_uses_password_auth?/1`'s criteria), `:google`, `:github` or
+  `:oauth`.
 
-  `usable_sso_providers` is data, not a config lookup: the caller
+  `usable_paths` is data, not a config lookup: the caller
   (`Tymeslot.Auth.AdminRoles.remaining_signin_capable_admins?/1`) passes
-  `Tymeslot.AppSettings.LockoutPolicy.usable_sso_providers/0`, the providers
-  enabled *and* credential-configured system-wide. This
-  keeps the query module free of `AppSettings` reads while still refusing to
-  count an SSO identity nobody can currently use to log in.
+  `Tymeslot.AppSettings.LockoutPolicy.usable_signin_paths/0`, the paths
+  switched on (and, for SSO, credential-configured) system-wide. This keeps
+  the query module free of `AppSettings` reads while still refusing to count
+  an identity nobody can currently use to log in.
 
   Used to guard demoting the last admin: counting bare `is_admin` rows (as
   `count_admins/1` does) would let an operator demote the only admin who can
@@ -96,24 +96,11 @@ defmodule Tymeslot.Auth.AdminUserQueries do
   exist without a usable sign-in path.
   """
   @spec count_signin_capable_admins_excluding(integer(), [atom()], module()) :: non_neg_integer()
-  def count_signin_capable_admins_excluding(
-        excluded_user_id,
-        usable_sso_providers,
-        repo \\ Repo
-      ) do
-    password_capable =
-      dynamic(
-        [u],
-        not is_nil(u.password_hash) and not is_nil(u.verified_at) and
-          (is_nil(u.provider) or u.provider == "email")
-      )
-
-    sso_capable = sso_capable_condition(usable_sso_providers)
-
+  def count_signin_capable_admins_excluding(excluded_user_id, usable_paths, repo \\ Repo) do
     condition =
       dynamic(
         [u],
-        u.is_admin and u.id != ^excluded_user_id and (^password_capable or ^sso_capable)
+        u.is_admin and u.id != ^excluded_user_id and ^signin_capable_condition(usable_paths)
       )
 
     repo.aggregate(
@@ -123,12 +110,27 @@ defmodule Tymeslot.Auth.AdminUserQueries do
     )
   end
 
-  defp sso_capable_condition(usable_sso_providers) do
-    Enum.reduce(usable_sso_providers, dynamic(false), fn
-      :google, acc -> dynamic([u], ^acc or not is_nil(u.google_user_id))
-      :github, acc -> dynamic([u], ^acc or not is_nil(u.github_user_id))
-      :oauth, acc -> dynamic([u], ^acc or (u.provider == "oauth" and not is_nil(u.provider_uid)))
-      _other, acc -> acc
+  defp signin_capable_condition(usable_paths) do
+    Enum.reduce(usable_paths, dynamic(false), fn
+      :password, acc ->
+        dynamic(
+          [u],
+          ^acc or
+            (not is_nil(u.password_hash) and not is_nil(u.verified_at) and
+               (is_nil(u.provider) or u.provider == "email"))
+        )
+
+      :google, acc ->
+        dynamic([u], ^acc or not is_nil(u.google_user_id))
+
+      :github, acc ->
+        dynamic([u], ^acc or not is_nil(u.github_user_id))
+
+      :oauth, acc ->
+        dynamic([u], ^acc or (u.provider == "oauth" and not is_nil(u.provider_uid)))
+
+      _other, acc ->
+        acc
     end)
   end
 
