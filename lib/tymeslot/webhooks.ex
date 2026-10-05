@@ -168,22 +168,53 @@ defmodule Tymeslot.Webhooks do
     end
   end
 
+  @signature_header "X-Tymeslot-Signature"
+
   @doc """
-  Builds the standard headers for a webhook request.
+  Builds the standard headers for a webhook request whose body is `body`, the
+  exact bytes that will be posted.
+
+  With a token, the request carries it in `X-Tymeslot-Token` and is signed in
+  `X-Tymeslot-Signature` (see `sign/3`), so a receiver can check that the body
+  and timestamp it got are the ones Tymeslot sent. The token header is kept
+  for receivers that only compare the token.
   """
-  @spec build_headers(map(), String.t() | nil) :: [{String.t(), String.t()}]
-  def build_headers(_payload, token) do
+  @spec build_headers(binary(), String.t() | nil) :: [{String.t(), String.t()}]
+  def build_headers(body, token) when is_binary(body) do
+    now = DateTime.utc_now()
+
     base_headers = [
       {"Content-Type", "application/json"},
       {"User-Agent", "Tymeslot-Webhooks/1.0"},
-      {"X-Tymeslot-Timestamp", DateTime.to_iso8601(DateTime.utc_now())}
+      {"X-Tymeslot-Timestamp", DateTime.to_iso8601(now)}
     ]
 
     if token do
-      [{"X-Tymeslot-Token", token} | base_headers]
+      [
+        {"X-Tymeslot-Token", token},
+        {@signature_header, sign(token, DateTime.to_unix(now), body)}
+        | base_headers
+      ]
     else
       base_headers
     end
+  end
+
+  @doc """
+  Returns the `X-Tymeslot-Signature` value for `body` sent at `timestamp`
+  (Unix seconds): `t=<timestamp>,v1=<signature>`, where the signature is the
+  lowercase hex HMAC-SHA256 of `"<timestamp>.<body>"` keyed with the webhook
+  token.
+
+  Binding the timestamp into the signed string lets a receiver reject a
+  replayed request by its age as well as a forged or altered body.
+  """
+  @spec sign(String.t(), integer(), binary()) :: String.t()
+  def sign(token, timestamp, body)
+      when is_binary(token) and is_integer(timestamp) and is_binary(body) do
+    signed = "#{timestamp}.#{body}"
+    digest = Base.encode16(:crypto.mac(:hmac, :sha256, token, signed), case: :lower)
+    "t=#{timestamp},v1=#{digest}"
   end
 
   # ============================================================================
@@ -214,17 +245,17 @@ defmodule Tymeslot.Webhooks do
   @spec test_webhook_connection(String.t(), String.t() | nil) :: :ok | {:error, String.t()}
   def test_webhook_connection(url, token \\ nil) do
     with {:ok, addresses} <- SsrfValidator.check_pinned(url) do
-      payload = PayloadBuilder.build_test_payload()
-      headers = build_headers(payload, token)
+      body = Jason.encode!(PayloadBuilder.build_test_payload())
+      headers = build_headers(body, token)
 
-      run_bounded_test_connection(url, addresses, payload, headers)
+      run_bounded_test_connection(url, addresses, body, headers)
     end
   end
 
-  defp run_bounded_test_connection(url, addresses, payload, headers) do
+  defp run_bounded_test_connection(url, addresses, body, headers) do
     task =
       Tasks.async(Tymeslot.TaskSupervisor, fn ->
-        HttpDelivery.post(url, Jason.encode!(payload), headers,
+        HttpDelivery.post(url, body, headers,
           skip_initial_check: true,
           pin_addresses: addresses
         )

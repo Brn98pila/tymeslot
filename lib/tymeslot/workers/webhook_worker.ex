@@ -4,8 +4,11 @@ defmodule Tymeslot.Workers.WebhookWorker do
 
   Handles:
   - HTTP POST delivery with timeout protection
-  - HMAC signature generation
-  - Exponential backoff retry logic
+  - Signed requests: an `X-Tymeslot-Signature` HMAC-SHA256 over the
+    timestamp and the exact body posted (`Tymeslot.Webhooks.sign/3`),
+    alongside the plain `X-Tymeslot-Token`
+  - Retries spread over hours (`backoff/1`), so a receiver that is down for
+    a deploy still gets the event
   - Circuit breaker (auto-disable after consecutive failures)
   - Delivery logging and metrics
   - At-most-once posting per job, and a stable delivery id on the wire
@@ -17,6 +20,10 @@ defmodule Tymeslot.Workers.WebhookWorker do
   post it again. A post that failed is still retried as before, and a retry
   after a timeout can reach a receiver that did get the first request.
 
+  Only the post itself is claimed. The delivery log and the webhook's status
+  are written after the claim settles, so a log write that fails after a
+  successful post cannot release the claim and post the event again.
+
   Every request therefore carries an `X-Tymeslot-Delivery-Id` header: the
   Oban job id, identical on every attempt of the same delivery and different
   for every other one. A receiver that records it can discard a second copy.
@@ -24,7 +31,7 @@ defmodule Tymeslot.Workers.WebhookWorker do
 
   use Oban.Worker,
     queue: :webhooks,
-    max_attempts: 5,
+    max_attempts: 8,
     priority: 2
 
   require Logger
@@ -342,10 +349,15 @@ defmodule Tymeslot.Workers.WebhookWorker do
     end
   end
 
+  # Seconds to wait after each failed attempt: 30s, 2m, 10m, 30m, 1h, 3h,
+  # then 6h. With `max_attempts: 8` the last retry lands about eleven hours
+  # after the first, so a receiver down for a deploy or a short outage still
+  # receives the event, while a hard 4xx is still discarded at once.
+  @backoff_seconds {30, 120, 600, 1_800, 3_600, 10_800, 21_600}
+
   @impl Oban.Worker
   def backoff(%Oban.Job{attempt: attempt}) do
-    # Exponential backoff: 1s, 2s, 4s, 8s, 16s
-    min(round(:math.pow(2, attempt - 1)), 16)
+    elem(@backoff_seconds, min(attempt, tuple_size(@backoff_seconds)) - 1)
   end
 
   # Private functions
@@ -442,12 +454,25 @@ defmodule Tymeslot.Workers.WebhookWorker do
 
   defp decode_snapshot_field(_field, value), do: value
 
+  # The claim covers the post alone. Recording the outcome happens once the
+  # claim has settled: a delivered post keeps its claim whatever the log write
+  # then does, so a rescued or retried run never posts it a second time. A
+  # bare `:ok` is an earlier run's claim, whose outcome that run recorded.
   defp deliver_once(webhook, event_type, meeting, job) do
     case DeliveryClaims.once(job, "webhook", fn ->
            deliver_webhook(webhook, event_type, meeting, job)
          end) do
-      {:ok, _delivery} -> :ok
-      other -> other
+      :ok ->
+        :ok
+
+      {:ok, {:posted, payload, result}} ->
+        log_and_update_status(webhook, event_type, meeting, payload, job.attempt, result)
+
+      {:not_delivered, payload, result} ->
+        log_and_update_status(webhook, event_type, meeting, payload, job.attempt, result)
+
+      {:error, _reason} = error ->
+        error
     end
   end
 
@@ -489,16 +514,19 @@ defmodule Tymeslot.Workers.WebhookWorker do
   defp do_deliver_webhook(webhook, event_type, meeting, %Oban.Job{} = job) do
     webhook = WebhookSchema.decrypt_token(webhook)
     payload = PayloadBuilder.build_payload(event_type, meeting, to_string(webhook.id))
+    body = Jason.encode!(payload)
 
+    # Signed over `body` itself, the bytes posted, so the receiver can verify
+    # the signature against the raw request body it reads.
     headers =
-      payload
+      body
       |> Webhooks.build_headers(webhook.webhook_token)
       |> put_delivery_id(job)
 
-    encoded_payload = Jason.encode!(payload)
-    result = HttpDelivery.post(webhook.url, encoded_payload, headers)
-
-    log_and_update_status(webhook, event_type, meeting, payload, job.attempt, result)
+    case HttpDelivery.post(webhook.url, body, headers) do
+      {:ok, status, _body} = result when status in 200..299 -> {:ok, {:posted, payload, result}}
+      result -> {:not_delivered, payload, result}
+    end
   end
 
   # The job id is the delivery id because it is the one identifier that stays
@@ -531,27 +559,33 @@ defmodule Tymeslot.Workers.WebhookWorker do
           Map.put(delivery_attrs, :error_message, truncate_response(error_message))
       end
 
-    case WebhookQueries.create_delivery(delivery_attrs) do
-      {:ok, delivery} ->
-        # Update webhook status (success/failure)
-        # We only record success/failure on the first attempt or if it's a success
-        # to avoid double-counting failures if Oban retries.
-        case result do
-          {:ok, status, _body} when status >= 200 and status < 300 ->
-            WebhookQueries.record_success(webhook)
-            {:ok, delivery}
+    case {WebhookQueries.create_delivery(delivery_attrs), result} do
+      # The receiver has the event, so the job is done even if the log row
+      # could not be written; retrying would only post it again.
+      {{:error, reason}, {:ok, status, _body}} when status in 200..299 ->
+        Logger.warning("Failed to create webhook delivery log after a successful delivery",
+          error: LogFormat.reason(reason)
+        )
 
-          {:ok, status, _body} ->
-            http_failure(webhook, status, attempt)
+        WebhookQueries.record_success(webhook)
+        :ok
 
-          {:error, reason} ->
-            if attempt == 1, do: Webhooks.record_delivery_failure(webhook, to_string(reason))
-            {:error, reason}
-        end
-
-      {:error, reason} ->
+      {{:error, reason}, _result} ->
         Logger.warning("Failed to create webhook delivery log", error: LogFormat.reason(reason))
         {:error, :delivery_log_failed}
+
+      # Failures are recorded on the first attempt only (or once for a hard
+      # failure), so Oban's retries do not count one delivery several times.
+      {{:ok, _delivery}, {:ok, status, _body}} when status in 200..299 ->
+        WebhookQueries.record_success(webhook)
+        :ok
+
+      {{:ok, _delivery}, {:ok, status, _body}} ->
+        http_failure(webhook, status, attempt)
+
+      {{:ok, _delivery}, {:error, reason}} ->
+        if attempt == 1, do: Webhooks.record_delivery_failure(webhook, to_string(reason))
+        {:error, reason}
     end
   end
 

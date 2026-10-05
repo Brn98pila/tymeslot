@@ -694,3 +694,13 @@ msgstr "Smazat"
 #, elixir-autogen, elixir-format
 msgid "Delete %{name}"
 msgstr "Smazat %{name}"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_documentation.ex
+#, elixir-autogen, elixir-format
+msgid "For stronger protection, verify the signature. The header has the form t=TIMESTAMP,v1=SIGNATURE. Compute the HMAC-SHA256 of the timestamp, a full stop and the raw request body, keyed with your webhook token, and compare its hexadecimal form with the signature. Reject requests whose timestamp is more than five minutes old."
+msgstr "Pro silnější ochranu ověřujte podpis. Hlavička má tvar t=TIMESTAMP,v1=SIGNATURE. Vypočítejte HMAC-SHA256 z časového razítka, tečky a nezměněného těla požadavku s tokenem webhooku jako klíčem a porovnejte jeho šestnáctkovou podobu s podpisem. Odmítněte požadavky, jejichž časové razítko je starší než pět minut."
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_documentation.ex
+#, elixir-autogen, elixir-format
+msgid "Request signature"
+msgstr "Podpis požadavku"
