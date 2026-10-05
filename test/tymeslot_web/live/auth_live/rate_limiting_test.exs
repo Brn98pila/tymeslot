@@ -97,13 +97,9 @@ defmodule TymeslotWeb.AuthLive.RateLimitingTest do
     } do
       ip = "203.0.113.44"
 
-      # Exhaust the 1-hour per-IP bucket (limit: 5) using five DISTINCT emails,
-      # so none of their individual per-email buckets goes anywhere near its
-      # own limit — only the shared IP bucket accumulates all five charges.
-      for _i <- 1..5 do
-        prime_email = "rl-reset-ip-prime-#{System.unique_integer([:positive])}@example.com"
-        RateLimiter.check_password_reset_rate_limit(prime_email, ip)
-      end
+      # Exhaust the 1-hour per-IP bucket (limit: 5) without charging any
+      # address's own budget.
+      for _i <- 1..5, do: RateLimiter.check_password_reset_ip_rate_limit(ip)
 
       # A brand-new email, never charged before, submitted from the same IP.
       fresh_email = "rl-reset-ip-fresh-#{System.unique_integer([:positive])}@example.com"

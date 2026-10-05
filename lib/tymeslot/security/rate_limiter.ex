@@ -130,22 +130,18 @@ defmodule Tymeslot.Security.RateLimiter do
     do: Auth.check_social_signup_confirmation(email)
 
   @doc """
-  Rate limit password reset requests per IP and then per recipient address.
-  """
-  @spec check_password_reset_rate_limit(
-          String.t(),
-          String.t() | :inet.ip_address() | nil
-        ) :: :ok | {:error, :rate_limited, String.t()}
-  def check_password_reset_rate_limit(email, ip), do: Auth.check_password_reset(email, ip)
-
-  @doc """
-  The per-IP half of `check_password_reset_rate_limit/2`, on the same bucket.
+  Rate limit password reset requests per IP. A refusal here is the only one
+  the requester is shown.
   """
   @spec check_password_reset_ip_rate_limit(String.t() | :inet.ip_address() | nil) ::
           :ok | {:error, :rate_limited, String.t()}
   def check_password_reset_ip_rate_limit(ip), do: Auth.check_password_reset_ip(ip)
 
-  @doc "The per-recipient half of `check_password_reset_rate_limit/2`, on the same bucket."
+  @doc """
+  Rate limit password reset emails per recipient address, with tiers stopping
+  at a day. Charge it only once `check_password_reset_ip_rate_limit/1` has
+  allowed the request.
+  """
   @spec check_password_reset_recipient_rate_limit(String.t()) ::
           :ok | {:error, :rate_limited, String.t()}
   def check_password_reset_recipient_rate_limit(email),

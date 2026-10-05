@@ -41,27 +41,31 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
   end
 
   describe "password reset multi-window limits (email + IP)" do
-    test "blocks after 5 attempts in 1 hour" do
-      email = "reset@example.com"
+    test "the IP bucket blocks after 5 requests in 1 hour, across addresses" do
       ip = "192.0.2.44"
 
-      Enum.each(1..5, fn _i ->
-        assert :ok = RateLimiter.check_password_reset_rate_limit(email, ip)
-      end)
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check_password_reset_ip_rate_limit(ip))
 
-      assert {:error, :rate_limited, _msg} =
-               RateLimiter.check_password_reset_rate_limit(email, ip)
+      assert {:error, :rate_limited, _msg} = RateLimiter.check_password_reset_ip_rate_limit(ip)
+      assert :ok = RateLimiter.check_password_reset_ip_rate_limit("192.0.2.45")
     end
 
     test "normalizes nil IPs for password reset buckets" do
-      email = "reset-nil@example.com"
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check_password_reset_ip_rate_limit(nil))
 
-      Enum.each(1..5, fn _i ->
-        assert :ok = RateLimiter.check_password_reset_rate_limit(email, nil)
-      end)
+      assert {:error, :rate_limited, _msg} = RateLimiter.check_password_reset_ip_rate_limit(nil)
+    end
+
+    test "the recipient bucket blocks after 5 requests in 1 hour, per address" do
+      email = "reset@example.com"
+
+      for _i <- 1..5,
+          do: assert(:ok = RateLimiter.check_password_reset_recipient_rate_limit(email))
 
       assert {:error, :rate_limited, _msg} =
-               RateLimiter.check_password_reset_rate_limit(email, nil)
+               RateLimiter.check_password_reset_recipient_rate_limit(email)
+
+      assert :ok = RateLimiter.check_password_reset_recipient_rate_limit("other@example.com")
     end
   end
 
@@ -140,7 +144,7 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
       user_id = "recipient-window-user"
 
       assert :ok = RateLimiter.check_signup_recipient_rate_limit(email)
-      assert :ok = RateLimiter.check_password_reset_rate_limit(email, "203.0.113.65")
+      assert :ok = RateLimiter.check_password_reset_recipient_rate_limit(email)
       assert :ok = RateLimiter.check_verification_rate_limit(user_id, "203.0.113.66")
 
       for bucket <- [

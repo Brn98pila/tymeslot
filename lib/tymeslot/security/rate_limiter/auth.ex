@@ -228,15 +228,8 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
 
   defp verification_action, do: dgettext("errors", "verification emails")
 
-  @spec check_password_reset(String.t(), String.t() | :inet.ip_address() | nil) ::
-          :ok | {:error, :rate_limited, String.t()}
-  def check_password_reset(email, ip) do
-    with :ok <- check_password_reset_ip(ip), do: check_password_reset_recipient(email)
-  end
-
-  # The two halves of `check_password_reset/2`, charging the same buckets, so
-  # that the reset flow can refuse on the source's budget and stay silent on
-  # the recipient's.
+  # Two separate checks, so that the reset flow can refuse on the source's
+  # budget and stay silent on the recipient's.
   @spec check_password_reset_ip(String.t() | :inet.ip_address() | nil) ::
           :ok | {:error, :rate_limited, String.t()}
   def check_password_reset_ip(ip) do

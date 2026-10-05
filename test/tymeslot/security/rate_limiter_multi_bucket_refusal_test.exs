@@ -53,13 +53,12 @@ defmodule Tymeslot.Security.RateLimiterMultiBucketRefusalTest do
     end
 
     test "password reset names its hourly tier" do
-      email = "refusal-reset@example.com"
       ip = "203.0.113.92"
 
-      for _i <- 1..5, do: assert(:ok = RateLimiter.check_password_reset_rate_limit(email, ip))
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check_password_reset_ip_rate_limit(ip))
 
       assert {:error, :rate_limited, message} =
-               RateLimiter.check_password_reset_rate_limit(email, ip)
+               RateLimiter.check_password_reset_ip_rate_limit(ip)
 
       assert message ==
                "You've reached the limit of 5 password reset requests per hour. " <>
