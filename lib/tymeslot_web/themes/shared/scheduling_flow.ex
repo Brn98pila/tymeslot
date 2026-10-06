@@ -16,9 +16,9 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
   alias TymeslotWeb.Themes.Shared.BookingFlow
   alias TymeslotWeb.Themes.Shared.BookingLocation
-  alias TymeslotWeb.Themes.Shared.CustomQuestions.Engine, as: QEngine
   alias TymeslotWeb.Themes.Shared.GuestBooking
   alias TymeslotWeb.Themes.Shared.Journey.Ambient
+  alias TymeslotWeb.Themes.Shared.Journey.Facts.Answers
   alias TymeslotWeb.Themes.Shared.Journey.Facts.MeetingType
   alias TymeslotWeb.Themes.Shared.Journey.Facts.Slot
   alias TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry
@@ -48,7 +48,12 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
     end
   end
 
-  def handle_step_event(socket, :questions, event, data), do: questions_event(socket, event, data)
+  def handle_step_event(socket, :questions, event, data) do
+    if event in Answers.events(),
+      do: Answers.handle(socket, event, data),
+      else: questions_event(socket, event, data)
+  end
+
   def handle_step_event(socket, :booking, event, data), do: booking_event(socket, event, data)
 
   def handle_step_event(socket, :confirmation, event, data),
@@ -73,8 +78,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   @spec handle_state_entry(Socket.t(), atom(), map()) :: Socket.t()
   def handle_state_entry(socket, :schedule, params), do: Slot.enter(socket, params)
 
-  def handle_state_entry(socket, :questions, _params),
-    do: StepEntry.handle_questions_entry(socket)
+  def handle_state_entry(socket, :questions, _params), do: Answers.enter(socket, %{})
 
   def handle_state_entry(socket, :booking, params),
     do: StepEntry.handle_booking_entry(socket, params)
@@ -143,65 +147,21 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
 
   # Questions
 
-  defp questions_event(socket, :answer, {id, value}) do
-    engine = QEngine.answer(socket.assigns.engine, id, value)
-    {:noreply, assign(socket, :engine, engine)}
+  defp questions_event(socket, :next_step, _data) do
+    case Answers.continue(socket) do
+      {:done, socket} -> {:noreply, transition_to(socket, :booking, %{})}
+      {:stay, socket} -> {:noreply, socket}
+    end
   end
 
-  defp questions_event(socket, :next_step, _data), do: questions_next(socket)
-  defp questions_event(socket, :back_step, _data), do: questions_back(socket)
+  defp questions_event(socket, :back_step, _data) do
+    case Answers.back(socket) do
+      {:leave, socket} -> {:noreply, transition_to(socket, :schedule, %{})}
+      {:stay, socket} -> {:noreply, socket}
+    end
+  end
+
   defp questions_event(_socket, _event, _data), do: :unhandled
-
-  # Advance within the questions wizard, or proceed to :booking when all
-  # questions have been answered and validated.
-  #
-  # Transitions to :booking only when the booker is already on the last
-  # question and presses Next — this ensures a single optional question is
-  # always shown before the wizard exits, even when it validates as empty.
-  defp questions_next(socket) do
-    engine = socket.assigns.engine
-
-    if QEngine.skipped?(engine) do
-      {:noreply, transition_to(socket, :booking, %{})}
-    else
-      last_index = QEngine.total(engine) - 1
-
-      cond do
-        engine.current_index < last_index ->
-          case QEngine.next(engine) do
-            {:ok, engine} -> {:noreply, assign(socket, :engine, engine)}
-            {:error, engine} -> {:noreply, assign(socket, :engine, engine)}
-          end
-
-        engine.current_index == last_index ->
-          case QEngine.validate_all(engine) do
-            {:ok, _answers} ->
-              socket = assign(socket, :engine, QEngine.mark_reviewed(engine))
-              {:noreply, transition_to(socket, :booking, %{})}
-
-            {:error, _errors} ->
-              case QEngine.next(engine) do
-                {:ok, engine} -> {:noreply, assign(socket, :engine, engine)}
-                {:error, engine} -> {:noreply, assign(socket, :engine, engine)}
-              end
-          end
-
-        true ->
-          {:noreply, socket}
-      end
-    end
-  end
-
-  # Move backwards within the wizard, or return to :schedule from the first question.
-  defp questions_back(socket) do
-    engine = socket.assigns.engine
-
-    if engine.current_index == 0 do
-      {:noreply, transition_to(socket, :schedule, %{})}
-    else
-      {:noreply, assign(socket, :engine, QEngine.prev(engine))}
-    end
-  end
 
   # Booking
 
