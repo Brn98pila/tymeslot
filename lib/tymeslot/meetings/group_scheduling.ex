@@ -74,10 +74,12 @@ defmodule Tymeslot.Meetings.GroupScheduling do
       behind each other instead of deadlocking.
 
   Returns `{:ok, booking}` or `{:error, :slot_full | :time_conflict |
-  Ecto.Changeset.t() | term}`.
+  :organizer_required | Ecto.Changeset.t() | term}`; a slot without an
+  organiser is refused with `:organizer_required`.
   """
   @spec book_seat(map(), seat_request(), keyword()) ::
-          {:ok, booking()} | {:error, :slot_full | :time_conflict | Changeset.t() | term()}
+          {:ok, booking()}
+          | {:error, :slot_full | :time_conflict | :organizer_required | Changeset.t() | term()}
   def book_seat(meeting_attrs, seat_request, opts \\ []) do
     seats_requested = 1 + length(seat_request.guest_emails)
 
@@ -86,13 +88,19 @@ defmodule Tymeslot.Meetings.GroupScheduling do
       also_lock: Keyword.get(opts, :also_lock)
     }
 
-    # A limit of one means the type is no longer a group type: it takes no
-    # new seats at all, neither on an existing group meeting nor on a fresh
-    # slot (which would otherwise be a capacity-1 meeting with no attendee).
-    if seat_request.max_participants < 2 or seats_requested > seat_request.max_participants do
-      {:error, :slot_full}
-    else
-      attempt_booking(meeting_attrs, seat_request, seats_requested, hooks, _retries_left = 1)
+    cond do
+      # The schedule lock is keyed on the organiser, as in `Scheduling`.
+      not is_integer(meeting_attrs.organizer_user_id) ->
+        {:error, :organizer_required}
+
+      # A limit of one means the type is no longer a group type: it takes no
+      # new seats at all, neither on an existing group meeting nor on a fresh
+      # slot (which would otherwise be a capacity-1 meeting with no attendee).
+      seat_request.max_participants < 2 or seats_requested > seat_request.max_participants ->
+        {:error, :slot_full}
+
+      true ->
+        attempt_booking(meeting_attrs, seat_request, seats_requested, hooks, _retries_left = 1)
     end
   end
 

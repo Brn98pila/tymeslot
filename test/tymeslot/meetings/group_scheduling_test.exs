@@ -71,6 +71,18 @@ defmodule Tymeslot.Meetings.GroupSchedulingTest do
       assert [_only] = ParticipantQueries.list_live_for_meeting(meeting.id)
     end
 
+    test "refuses a slot without an organiser instead of raising", ctx do
+      attrs = %{
+        meeting_attrs(ctx.user, ctx.meeting_type, ctx.start_time)
+        | organizer_user_id: nil
+      }
+
+      assert {:error, :organizer_required} =
+               GroupScheduling.book_seat(attrs, seat_request("one@example.com"))
+
+      assert Repo.all(MeetingSchema) == []
+    end
+
     test "rejects a first booking whose guests alone exceed capacity", ctx do
       attrs = meeting_attrs(ctx.user, ctx.meeting_type, ctx.start_time)
 
