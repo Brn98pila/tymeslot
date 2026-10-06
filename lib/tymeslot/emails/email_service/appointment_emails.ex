@@ -328,18 +328,6 @@ defmodule Tymeslot.Emails.EmailService.AppointmentEmails do
 
   @doc """
   Sends appointment reminders to both organizer and attendee.
-  """
-  @spec send_appointment_reminders(Tymeslot.Emails.EmailService.appointment_details()) ::
-          {{:ok, any()} | {:error, any()}, {:ok, any()} | {:error, any()}}
-  def send_appointment_reminders(appointment_details) do
-    time_until =
-      appointment_details[:time_until] || appointment_details[:reminder_time] || "30 minutes"
-
-    send_appointment_reminders(appointment_details, time_until)
-  end
-
-  @doc """
-  Sends appointment reminders to both organizer and attendee.
   Takes a time_until parameter (e.g., "30 minutes", "1 hour", "24 hours").
   """
   @spec send_appointment_reminders(

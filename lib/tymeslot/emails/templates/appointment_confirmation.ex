@@ -32,6 +32,9 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
   # A confirmation email announces a positive outcome — the booking is set.
   @intent :confirmed
 
+  # The organiser reminder line's lead time when the payload names none.
+  @default_organizer_reminder %{value: 15, unit: "minutes"}
+
   @spec render(
           :attendee | :organizer | :guest,
           String.t(),
@@ -438,23 +441,19 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
     end
   end
 
-  # Format reminder time in organizer's locale, avoiding pre-localized attendee strings
+  # The reminder's lead time in the organiser's locale, in the form the
+  # "before" sentence takes ("1 Tag", "1 годину"), not a duration's ("24
+  # Stunden", "1 година"), and never the attendee's pre-localised string. A
+  # payload without one reads as the 15 minutes it always has.
   defp format_reminder_for_organizer(appointment_details) do
-    case Map.get(appointment_details, :reminder_raw) do
-      %{value: value, unit: unit} ->
-        Formatting.format_duration(
-          reminder_to_minutes(value, unit),
-          organizer_locale(appointment_details)
-        )
+    raw =
+      case Map.get(appointment_details, :reminder_raw) do
+        %{value: _value, unit: _unit} = raw -> raw
+        _other -> @default_organizer_reminder
+      end
 
-      _other ->
-        dgettext("emails_booking", "15 minutes")
-    end
+    Formatting.format_reminder_label(raw, organizer_locale(appointment_details))
   end
-
-  defp reminder_to_minutes(value, "hours"), do: value * 60
-  defp reminder_to_minutes(value, "days"), do: value * 60 * 24
-  defp reminder_to_minutes(value, _unit), do: value
 
   defp organizer_locale(appointment_details),
     do: RecipientLocale.organizer_locale(appointment_details)

@@ -57,26 +57,7 @@ defmodule Tymeslot.Emails.EmailServiceTest do
     end
   end
 
-  describe "send_appointment_reminders/1" do
-    test "sends both reminders with the default time_until" do
-      details = build_appointment_details()
-
-      {org_result, att_result} = EmailService.send_appointment_reminders(details)
-
-      assert {:ok, _response} = org_result
-      assert {:ok, _response} = att_result
-
-      organizer = next_email()
-      assert organizer.to == [{"John Organizer", "organizer@example.com"}]
-      assert organizer.subject =~ "in 30 minutes"
-
-      attendee = next_email()
-      assert attendee.to == [{"Jane Attendee", "attendee@example.com"}]
-      assert attendee.subject =~ "30 minutes"
-
-      assert_no_more_emails()
-    end
-
+  describe "send_appointment_reminders/2" do
     test "a custom time_until reaches both subjects" do
       details = build_appointment_details()
 
