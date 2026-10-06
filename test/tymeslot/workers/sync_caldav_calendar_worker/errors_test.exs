@@ -185,6 +185,69 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker.ErrorsTest do
       assert updated.needs_reauth == false
     end
 
+    # The booking calendar is the one the integration names, not the first
+    # path: a read-only share can be listed before it.
+    test "a gone read-only share listed first is deselected, not taken for the booking calendar" do
+      integration =
+        insert(:calendar_integration,
+          provider: "caldav",
+          is_active: true,
+          caldav_sync_tier: 3,
+          calendar_paths: [path2(), path1()],
+          default_booking_calendar_id: path1(),
+          calendar_list: [
+            %{id: path2(), path: path2(), name: "Shared", selected: true, read_only: true},
+            %{id: path1(), path: path1(), name: "Bookings", selected: true}
+          ]
+        )
+
+      stub_only_path1_exists()
+
+      assert :ok =
+               perform_job(SyncCalDavCalendarWorker, %{
+                 "calendar_integration_id" => integration.id
+               })
+
+      updated =
+        Repo.get!(Tymeslot.Integrations.Calendar.CalendarIntegrationSchema, integration.id)
+
+      assert updated.needs_reauth == false
+      assert Enum.find(updated.calendar_list, &(&1.path == path2())).selected == false
+      assert updated.calendar_paths == [path1()]
+    end
+
+    # Deselecting the booking calendar would leave the page offering times
+    # whose bookings then fail to write; it is flagged for the owner instead.
+    test "a gone booking calendar listed second is flagged, never deselected" do
+      integration =
+        insert(:calendar_integration,
+          provider: "caldav",
+          is_active: true,
+          caldav_sync_tier: 3,
+          calendar_paths: [path1(), path2()],
+          default_booking_calendar_id: path2(),
+          calendar_list: [
+            %{id: path1(), path: path1(), name: "Personal", selected: true},
+            %{id: path2(), path: path2(), name: "Bookings", selected: true}
+          ]
+        )
+
+      stub_only_path1_exists()
+
+      assert {:discard, _reason} =
+               perform_job(SyncCalDavCalendarWorker, %{
+                 "calendar_integration_id" => integration.id
+               })
+
+      updated =
+        Repo.get!(Tymeslot.Integrations.Calendar.CalendarIntegrationSchema, integration.id)
+
+      assert updated.needs_reauth == true
+      assert updated.sync_error =~ "no longer exists"
+      assert Enum.find(updated.calendar_list, &(&1.path == path2())).selected == true
+      assert path2() in updated.calendar_paths
+    end
+
     # A calendar shared read-only and since unshared answers 404. Left
     # selected, it stays in the set availability reads, so every booking
     # page load fails closed on a calendar that no longer exists while the
@@ -510,5 +573,17 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker.ErrorsTest do
 
       assert updated.caldav_sync_tokens == %{path1() => "known-token"}
     end
+  end
+
+  defp stub_only_path1_exists do
+    ReqTest.stub(:tymeslot_http, fn conn ->
+      if conn.request_path == path1() do
+        conn
+        |> Conn.put_resp_header("content-type", "application/xml")
+        |> Conn.send_resp(207, caldav_report_xml("#{path1()}event1.ics", ical_path1()))
+      else
+        Conn.send_resp(conn, 404, "Not Found")
+      end
+    end)
   end
 end

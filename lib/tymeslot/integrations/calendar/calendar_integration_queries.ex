@@ -9,6 +9,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Repo
+  alias Tymeslot.Utils.UriUtils
 
   # Postgres advisory-lock class id for the first-integration primary-election
   # race (see `acquire_primary_lock/1`). Advisory-lock class ids share a single
@@ -322,20 +323,18 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   Removes the given paths from an integration's `calendar_paths`, and
   deselects the `calendar_list` entries for them, in one update.
 
-  Used when a CalDAV collection no longer exists on the server (HTTP 404), so
-  the sync stops fetching it: the CalDAV counterpart to `deselect_calendars/2`.
-  Availability reads the selected `calendar_list` entries, so pruning the
-  paths alone would leave a vanished calendar (a revoked share) failing every
-  booking page closed. Entries match on their path, or id without one.
+  For a CalDAV collection gone (HTTP 404), like `deselect_calendars/2`: pruning
+  paths alone would leave it selected, failing booking pages closed.
   """
   @spec remove_calendar_paths(CalendarIntegrationSchema.t(), [String.t()]) ::
           {:ok, CalendarIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
   def remove_calendar_paths(%CalendarIntegrationSchema{} = integration, paths) do
-    remaining = Enum.reject(integration.calendar_paths || [], &(&1 in paths))
+    gone? = fn path -> Enum.any?(paths, &UriUtils.uri_safe_match?(&1, path)) end
+    remaining = Enum.reject(integration.calendar_paths || [], gone?)
 
     calendar_list =
       Enum.map(integration.calendar_list || [], fn cal ->
-        if (cal.path || cal.id) in paths, do: %{cal | selected: false}, else: cal
+        if gone?.(cal.path || cal.id), do: %{cal | selected: false}, else: cal
       end)
 
     integration
