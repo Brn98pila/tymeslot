@@ -45,20 +45,30 @@ defmodule Tymeslot.Bookings.MeetingLinks do
   the struct. Those are returned as the struct carries them.
   """
   @spec for_meeting(map()) :: links()
-  def for_meeting(%MeetingSchema{capacity: capacity} = meeting)
-      when is_integer(capacity) and capacity > 1 do
+  def for_meeting(meeting), do: links(meeting, &current_username/1)
+
+  @doc """
+  `for_meeting/1` for a caller already holding the organiser's profile
+  (`nil` when they have none), which saves reading it again.
+  """
+  @spec for_meeting(map(), map() | nil) :: links()
+  def for_meeting(meeting, organizer_profile),
+    do: links(meeting, fn _user_id -> organizer_profile && organizer_profile.username end)
+
+  defp links(%MeetingSchema{capacity: capacity} = meeting, _username_fn)
+       when is_integer(capacity) and capacity > 1 do
     Map.take(meeting, [:view_url, :reschedule_url, :cancel_url])
   end
 
-  def for_meeting(%{uid: uid} = meeting) when is_binary(uid) do
+  defp links(%{uid: uid} = meeting, username_fn) when is_binary(uid) do
     meeting
     |> Map.get(:organizer_user_id)
-    |> current_username()
+    |> username_fn.()
     |> build(uid)
   end
 
   # Without a uid there is nothing to link to; whatever the map carries stands.
-  def for_meeting(meeting) when is_map(meeting) do
+  defp links(meeting, _username_fn) when is_map(meeting) do
     %{
       view_url: Map.get(meeting, :view_url),
       reschedule_url: Map.get(meeting, :reschedule_url),

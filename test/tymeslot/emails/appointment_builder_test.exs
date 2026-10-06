@@ -472,6 +472,38 @@ defmodule Tymeslot.Emails.AppointmentBuilderTest do
       assert result.cancel_url == base <> "/cancel"
     end
 
+    test "reads the host's username once for the links and the booking page URL" do
+      %{user: user} = create_user_with_profile(%{username: "builder-once"})
+      meeting = insert_meeting_for_user(user, %{start_offset: 3600, duration: 3600})
+
+      parent = self()
+      ref = make_ref()
+      handler_id = "appointment-builder-query-spy-#{inspect(ref)}"
+
+      :telemetry.attach(
+        handler_id,
+        [:tymeslot, :repo, :query],
+        # The handler runs in the process that issued the query, so this is
+        # what keeps a concurrently running async test's queries out.
+        fn _event, _measurements, %{source: source, query: query}, _config ->
+          if self() == parent, do: send(parent, {:query, ref, source, query})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      result = AppointmentBuilder.from_meeting(meeting)
+
+      assert result.cancel_url =~ "/builder-once/meeting/#{meeting.uid}/cancel"
+      assert result.booking_url =~ "/builder-once"
+
+      # One read for the host's timezone, one for the profile the avatar, the
+      # booking page URL and the action links are all built from. The links
+      # used to read the profile a third time.
+      assert length(drain_profile_reads(ref, [])) == 2
+    end
+
     test "includes time_until_friendly field" do
       %{user: user} = create_user_with_profile()
 
@@ -560,6 +592,15 @@ defmodule Tymeslot.Emails.AppointmentBuilderTest do
 
       assert result.custom_fields_snapshot == snapshot
       assert result.custom_field_answers == answers
+    end
+  end
+
+  defp drain_profile_reads(ref, acc) do
+    receive do
+      {:query, ^ref, "profiles", query} -> drain_profile_reads(ref, [query | acc])
+      {:query, ^ref, _source, _query} -> drain_profile_reads(ref, acc)
+    after
+      0 -> Enum.reverse(acc)
     end
   end
 end

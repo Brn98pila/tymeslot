@@ -57,6 +57,15 @@ defmodule Tymeslot.Bookings.MeetingLinksTest do
              }
     end
 
+    test "for_meeting/2 builds them from the profile it is handed", %{meeting: meeting} do
+      {:ok, profile} = Profiles.get_profile_by_user_id(meeting.organizer_user_id)
+
+      assert MeetingLinks.for_meeting(meeting, profile) == MeetingLinks.for_meeting(meeting)
+
+      assert MeetingLinks.for_meeting(meeting, nil).cancel_url ==
+               "#{@base}/meeting/#{meeting.uid}/cancel"
+    end
+
     test "a reminder carries the new username's links", %{meeting: meeting} do
       details = AppointmentBuilder.from_meeting(meeting, %{value: 30, unit: "minutes"})
       email = AppointmentReminder.render(:attendee, meeting.attendee_email, details)

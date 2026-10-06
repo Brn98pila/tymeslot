@@ -257,7 +257,7 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
   end
 
   defp url_details(meeting, organizer_profile) do
-    links = MeetingLinks.for_meeting(meeting)
+    links = MeetingLinks.for_meeting(meeting, organizer_profile)
 
     %{
       view_url: links.view_url || "#",
