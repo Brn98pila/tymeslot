@@ -92,10 +92,28 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesSplit do
   # through the API, or a monthly one on the 10th that starts on the 5th) does
   # not have that start as an occurrence: its first occurrence is the
   # pattern's first date, and `numberOfOccurrences` does not include the
-  # start. The count follows an RRULE on the start's own day (the converter
-  # keeps no BYMONTHDAY or BYMONTH), stepping once per period as Graph does,
-  # and RFC 5545 always counts the start, so it comes off again here.
-  defp count_before(
+  # start.
+  #
+  # An absolute monthly or yearly pattern is counted as Graph counts it: one
+  # date per period, on the pattern's day (and month), from the start's
+  # period on. An RRULE cannot stand in for it, because the converter keeps
+  # no BYMONTHDAY or BYMONTH, so it would step on the start's own day, and RFC
+  # 5545 skips the months without that day (a start on the 31st skips every
+  # 30-day month and February) where Graph has a pattern date in each.
+  #
+  # Any other pattern follows its RRULE, which RFC 5545 always starts with
+  # the start, so a start off the pattern comes off again here.
+  defp count_before(%{"pattern" => pattern} = recurrence, {start, _finish} = timing, slot, zone) do
+    case absolute_dates(pattern) do
+      {:ok, nth_date} ->
+        {:ok, count_dates_before(nth_date, date_of(start), date_of(slot))}
+
+      :not_absolute ->
+        count_by_rule(recurrence, timing, slot, zone)
+    end
+  end
+
+  defp count_by_rule(
          %{"pattern" => pattern, "range" => range},
          {start, _finish} = timing,
          slot,
@@ -107,23 +125,56 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesSplit do
     end
   end
 
+  # The pattern date of the nth period counted from the start's, for an
+  # absolute monthly or yearly pattern. A day of the month a month does not
+  # have falls on its last day.
+  defp absolute_dates(%{"type" => "absoluteMonthly", "dayOfMonth" => day} = pattern)
+       when is_integer(day) do
+    step = interval(pattern)
+
+    {:ok,
+     fn start, n ->
+       month_index = start.year * 12 + start.month - 1 + n * step
+       clamped_date(div(month_index, 12), rem(month_index, 12) + 1, day)
+     end}
+  end
+
+  defp absolute_dates(
+         %{"type" => "absoluteYearly", "dayOfMonth" => day, "month" => month} = pattern
+       )
+       when is_integer(day) and is_integer(month) do
+    step = interval(pattern)
+    {:ok, fn start, n -> clamped_date(start.year + n * step, month, day) end}
+  end
+
+  defp absolute_dates(_pattern), do: :not_absolute
+
+  defp interval(%{"interval" => interval}) when is_integer(interval) and interval > 0,
+    do: interval
+
+  defp interval(_pattern), do: 1
+
+  defp clamped_date(year, month, day) do
+    first = Date.new!(year, month, 1)
+    %{first | day: min(day, Date.days_in_month(first))}
+  end
+
+  # The pattern dates on or after the start and before the slot's date.
+  defp count_dates_before(nth_date, start_date, slot_date) do
+    0
+    |> Stream.iterate(&(&1 + 1))
+    |> Stream.map(&nth_date.(start_date, &1))
+    |> Stream.take_while(&(Date.compare(&1, slot_date) == :lt))
+    |> Enum.count(&(Date.compare(&1, start_date) != :lt))
+  end
+
   # Whether the master's start is a date the pattern itself makes: a weekly
-  # pattern's days, an absolute monthly pattern's day of the month, and an
-  # absolute yearly one's day and month. A daily pattern makes every day.
+  # pattern's days. A daily pattern makes every day; absolute monthly and
+  # yearly patterns are counted without a rule (`absolute_dates/1`).
   defp on_pattern?(%{"type" => "weekly", "daysOfWeek" => days}, start)
        when is_list(days) and days != [] do
     weekday = start |> date_of() |> Calendar.strftime("%A") |> String.downcase()
     weekday in Enum.map(days, &String.downcase/1)
-  end
-
-  defp on_pattern?(%{"type" => "absoluteMonthly", "dayOfMonth" => day}, start)
-       when is_integer(day),
-       do: date_of(start).day == day
-
-  defp on_pattern?(%{"type" => "absoluteYearly", "dayOfMonth" => day, "month" => month}, start)
-       when is_integer(day) and is_integer(month) do
-    date = date_of(start)
-    date.day == day and date.month == month
   end
 
   defp on_pattern?(_pattern, _start), do: true

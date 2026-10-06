@@ -207,6 +207,16 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesSplitTest do
     end
   end
 
+  defp late_start_master(pattern, date) do
+    pattern
+    |> off_day_master()
+    |> Map.merge(%{
+      "start" => %{"dateTime" => "#{date}T08:00:00.0000000", "timeZone" => "UTC"},
+      "end" => %{"dateTime" => "#{date}T09:00:00.0000000", "timeZone" => "UTC"}
+    })
+    |> put_in(["recurrence", "range", "startDate"], date)
+  end
+
   # An API-created absolute pattern on the 10th whose master starts on
   # Friday 5 June: Graph's first occurrence is the 10th, and
   # `numberOfOccurrences` counts the 10ths only.
@@ -267,6 +277,28 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesSplitTest do
 
       assert SeriesSplit.build(master, edit(%{}, ~U[2026-06-10 07:00:00Z])) ==
                :first_occurrence
+    end
+  end
+
+  # A start on a day some months lack: an RRULE stepping on that day skips
+  # those months, while Graph has a pattern date in every period.
+  describe "an absolute series whose start falls on a day some months lack" do
+    test "a monthly one counts a 10th in every month since the start" do
+      # From 31 January, 10 June: the 10ths of February to May come before it.
+      master = late_start_master(@monthly_on_the_10th, "2027-01-31")
+
+      assert {:ok, %{tail: tail}} = SeriesSplit.build(master, edit(%{}, ~U[2027-06-10 07:00:00Z]))
+
+      assert get_in(tail, ["recurrence", "range", "numberOfOccurrences"]) == 6
+    end
+
+    test "a yearly one counts a 10 June in every year since the start" do
+      # From 29 February 2028, 10 June 2031: 2028, 2029 and 2030 come before it.
+      master = late_start_master(@yearly_on_10_june, "2028-02-29")
+
+      assert {:ok, %{tail: tail}} = SeriesSplit.build(master, edit(%{}, ~U[2031-06-10 07:00:00Z]))
+
+      assert get_in(tail, ["recurrence", "range", "numberOfOccurrences"]) == 7
     end
   end
 
