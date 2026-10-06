@@ -166,6 +166,7 @@ defmodule TymeslotWeb.BookingDriverTest do
         %{user: user, profile: profile} =
           seed_booking_account(theme_id, "drive-slot-#{slug}", @timezone)
 
+        widen_window(profile)
         view = open(conn, profile)
         to_picker(view, journey)
 
@@ -173,9 +174,12 @@ defmodule TymeslotWeb.BookingDriverTest do
           if theme_id in @bounded do
             BookingDriver.pick_first_slot(view)
           else
-            # Nine days out always lies in a later week than today's, and in a
-            # later month for part of every month.
-            day = Date.utc_today() |> Date.add(9) |> Date.to_iso8601()
+            day = Date.to_iso8601(past_first_period(9))
+
+            # The picker must have to move to reach it, or the way there
+            # goes untested.
+            refute day in days_on_show(view), "#{day} is already on show"
+
             BookingDriver.pick_slot(view, day, "10:00 AM")
             {day, "10:00 AM"}
           end
@@ -193,18 +197,23 @@ defmodule TymeslotWeb.BookingDriverTest do
       test "pick_first_slot/2 finds the first free time more than a week out",
            %{conn: conn, theme_id: theme_id, slug: slug, journey: journey} do
         %{profile: profile} = seed_booking_account(theme_id, "drive-later-#{slug}", @timezone)
+        earliest = past_first_period(8)
 
-        AvailabilityScheduleSchema
-        |> Repo.get_by!(profile_id: profile.id)
-        |> Changeset.change(min_advance_hours: 8 * 24)
-        |> Repo.update!()
+        widen_window(profile,
+          min_advance_hours: Date.diff(earliest, Date.utc_today()) * 24
+        )
 
+        # The page lands the booker on the week and month of the first free
+        # day (`calendar_landing`), here in a later month than today's, so the
+        # pick reads a period the page moved to by itself; the way on by
+        # `later` is pinned by the `pick_slot/3` test.
         view = open(conn, profile)
         to_picker(view, journey)
 
         {iso, time} = BookingDriver.pick_first_slot(view)
 
         assert Date.diff(Date.from_iso8601!(iso), Date.utc_today()) >= 8
+        assert Date.compare(Date.from_iso8601!(iso), earliest) != :lt
         assert %{selected_date: ^iso, selected_time: ^time} = live_assigns(view)
         refute has_element?(view, "[data-intent='continue'][disabled]")
       end
@@ -263,6 +272,45 @@ defmodule TymeslotWeb.BookingDriverTest do
         BookingDriver.restart(view)
 
         assert BookingDriver.meeting_types(view) == ["quick-chat"]
+      end
+
+      test "choose_meeting_type/2 names the types offered when asked for another",
+           %{conn: conn, theme_id: theme_id, slug: slug} do
+        %{profile: profile} = seed_booking_account(theme_id, "drive-other-#{slug}", @timezone)
+        view = open(conn, profile)
+
+        assert_raise ExUnit.AssertionError, ~r/"long-talk" \(offered: \["quick-chat"\]\)/, fn ->
+          BookingDriver.choose_meeting_type(view, "long-talk")
+        end
+      end
+
+      test "book/2 checks the meeting type asked for where the page renders no choice",
+           %{conn: conn, theme_id: theme_id, slug: slug} do
+        %{profile: profile} = seed_booking_account(theme_id, "drive-held-#{slug}", @timezone)
+
+        # The meeting type's own link opens on its slot picker, with no choice.
+        assert_raise ExUnit.AssertionError, ~r/holds "quick-chat", not "long-talk"/, fn ->
+          conn
+          |> open(profile, "quick-chat")
+          |> BookingDriver.book(meeting_type: "long-talk", until: :attendee)
+        end
+
+        html =
+          conn
+          |> open(profile, "quick-chat")
+          |> BookingDriver.book(meeting_type: "quick-chat", until: :attendee)
+
+        assert html =~ ~s(data-fact="attendee")
+      end
+
+      test "pick_first_slot/2 names the facts a page without a picker lacks",
+           %{conn: conn, theme_id: theme_id, slug: slug} do
+        %{profile: profile} = seed_booking_account(theme_id, "drive-none-#{slug}", @timezone)
+        view = open(conn, profile)
+
+        assert_raise ExUnit.AssertionError,
+                     ~r/marks no day \(data-fact=date\) and no slot \(data-fact=slot\)/,
+                     fn -> BookingDriver.pick_first_slot(view) end
       end
     end
   end
@@ -343,8 +391,10 @@ defmodule TymeslotWeb.BookingDriverTest do
     "<main>" <> sections <> extra <> "</main>"
   end
 
-  defp open(conn, profile) do
-    {:ok, view, _html} = live(conn, "/#{profile.username}?timezone=#{@timezone}")
+  # The organiser's page, or with `meeting_type` that type's own link.
+  defp open(conn, profile, meeting_type \\ nil) do
+    path = Enum.join(Enum.reject([profile.username, meeting_type], &is_nil/1), "/")
+    {:ok, view, _html} = live(conn, "/#{path}?timezone=#{@timezone}")
     view
   end
 
@@ -360,14 +410,34 @@ defmodule TymeslotWeb.BookingDriverTest do
   defp to_picker(view, :custom), do: BookingDriver.choose_meeting_type(view, "quick-chat")
 
   # The last day a bounded picker shows, as a day button or a slot button.
-  defp last_day_on_show(view) do
+  defp last_day_on_show(view), do: view |> days_on_show() |> Enum.max()
+
+  # The free days the picker shows, as enabled day buttons or slot buttons.
+  defp days_on_show(view) do
     BookingDriver.load(view)
     doc = view |> render() |> Floki.parse_document!()
 
-    Enum.max(
+    Enum.uniq(
       Floki.attribute(doc, "[data-fact='date']:not([disabled])", "data-value") ++
         Floki.attribute(doc, "[data-fact='slot']:not([disabled])", "data-date")
     )
+  end
+
+  # At least `days` out and past the current month, whatever today is: so
+  # past the period any picker opens on (today's week, today's month), and
+  # within six weeks, which a week-by-week picker reaches in its six moves.
+  defp past_first_period(days) do
+    today = Date.utc_today()
+    Enum.max([Date.add(today, days), today |> Date.end_of_month() |> Date.add(1)], Date)
+  end
+
+  # Opens the booking window to sixty days, so a day past the current month
+  # is always bookable, with any other schedule changes in `changes`.
+  defp widen_window(profile, changes \\ []) do
+    AvailabilityScheduleSchema
+    |> Repo.get_by!(profile_id: profile.id)
+    |> Changeset.change(Keyword.put(changes, :advance_booking_days, 60))
+    |> Repo.update!()
   end
 
   # A picked `{iso, "10:00 AM"}` as the meeting's start in the test's zone.

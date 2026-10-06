@@ -124,9 +124,13 @@ defmodule TymeslotWeb.Themes.MarkupContractTest do
     slots = slot_pairs(view)
 
     assert days ++ slots != [], "a moment collecting the slot marks no day and no slot"
+
+    # One control per value, checked on the first period the picker shows.
     assert days == Enum.uniq(days), "two day buttons share a data-value"
     assert slots == Enum.uniq(slots), "two slot buttons share a day and a time"
-    assert Enum.all?(days, &match?({:ok, _date}, Date.from_iso8601(&1)))
+
+    assert Enum.all?(days, &match?({:ok, _date}, Date.from_iso8601(&1))),
+           "a day button's data-value is not an ISO date"
 
     {day, time} = BookingDriver.pick_first_slot(view)
     times = attribute(view, "[data-fact='time']", "data-value")
@@ -143,11 +147,11 @@ defmodule TymeslotWeb.Themes.MarkupContractTest do
     do: answer_all(view, [], map_size(@answers) + 1)
 
   defp check_and_do(view, :attendee, _ctx, _assigns) do
-    assert [_form] =
-             view
-             |> render()
-             |> Floki.parse_document!()
-             |> Floki.find("form[data-fact='attendee']")
+    forms =
+      view |> render() |> Floki.parse_document!() |> Floki.find("form[data-fact='attendee']")
+
+    assert length(forms) == 1,
+           "the attendee's moment does not render exactly one form[data-fact=attendee]"
 
     assert has_element?(view, "[data-intent='submit']"), "the attendee's moment has no submit"
 

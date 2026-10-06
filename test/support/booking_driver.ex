@@ -10,7 +10,9 @@ defmodule TymeslotWeb.BookingDriver do
     * `data-fact="slot"`, `data-date` and `data-time`: a day and a time in
       one click;
     * `data-fact="answer"`, `data-question` the question id: a `<form>` for a
-      question typed into, or each choice with its `data-value`;
+      question typed into, whose input is named `value` (the shared question
+      inputs' name, which `answer/3` fills), or each choice with its
+      `data-value`;
     * `form[data-fact="attendee"]`, the booking form;
     * `data-intent` on the controls that move: `continue`, `back`, `submit`,
       `restart`, and `earlier` and `later` on a picker's period arrows.
@@ -35,14 +37,15 @@ defmodule TymeslotWeb.BookingDriver do
   asked for.
 
   `book/2` composes the steps in the order the page asks for them; the other
-  functions are the steps, for a test that drives one itself.
+  functions are the steps, for a test that drives one itself. Reading the
+  page and waiting on it live in `TymeslotWeb.BookingDriver.Page`.
   """
 
   import ExUnit.Assertions, only: [flunk: 1]
   import Phoenix.LiveViewTest
+  import TymeslotWeb.BookingDriver.Page
 
   alias Phoenix.LiveViewTest.View
-  alias Tymeslot.TestHelpers.Eventually
 
   @meeting_type "[data-fact='meeting_type']"
   @date "[data-fact='date']"
@@ -59,7 +62,6 @@ defmodule TymeslotWeb.BookingDriver do
 
   @max_periods 6
   @max_moves 24
-  @wait_ms 5_000
   @outcome_wait_ms 10_000
 
   @default_attendee %{name: "Test Booker", email: "booker@example.com", message: ""}
@@ -83,6 +85,15 @@ defmodule TymeslotWeb.BookingDriver do
   def choose_meeting_type(view, duration) do
     case choice_move(render(view), assigns(view)[:selected_duration], duration) do
       :click ->
+        offered = meeting_types(view)
+
+        unless duration in offered,
+          do:
+            flunk(
+              "BookingDriver.choose_meeting_type/2: the page offers no meeting type " <>
+                "#{inspect(duration)} (offered: #{inspect(offered)})"
+            )
+
         remember(view)
         view |> element("#{@meeting_type}[data-value='#{duration}']") |> render_click()
         sync(view)
@@ -134,7 +145,7 @@ defmodule TymeslotWeb.BookingDriver do
       "the page's availability never finished loading"
     )
 
-    for {event, cid} <- mounted_pushes(view) do
+    for {event, cid} <- new_mounted_pushes(view) do
       view |> with_target("[data-phx-component='#{cid}']") |> render_click(event, %{})
     end
 
@@ -151,6 +162,7 @@ defmodule TymeslotWeb.BookingDriver do
   @spec pick_date(View.t(), String.t()) :: :ok
   def pick_date(view, iso) do
     load(view)
+    marks_slot_fact!(view)
     show(view, iso, @date, "data-value", @max_periods)
     click(view, "#{@date}[data-value='#{iso}']")
   end
@@ -167,6 +179,7 @@ defmodule TymeslotWeb.BookingDriver do
   @spec pick_slot(View.t(), String.t(), String.t()) :: :ok
   def pick_slot(view, iso, time) do
     load(view)
+    marks_slot_fact!(view)
 
     if has_element?(view, @slot) do
       show(view, iso, @slot, "data-date", @max_periods)
@@ -185,6 +198,7 @@ defmodule TymeslotWeb.BookingDriver do
   @spec pick_first_slot(View.t(), keyword()) :: {String.t(), String.t()}
   def pick_first_slot(view, opts \\ []) do
     load(view)
+    marks_slot_fact!(view)
 
     case Keyword.get(opts, :on) do
       nil ->
@@ -204,8 +218,9 @@ defmodule TymeslotWeb.BookingDriver do
   # Questions
 
   @doc """
-  Answers the question `question_id`: fills its form when it is typed into,
-  or clicks the choice whose `data-value` is `value` (each one, for a list).
+  Answers the question `question_id`: fills its form's input named `value`
+  when it is typed into, or clicks the choice whose `data-value` is `value`
+  (each one, for a list).
   """
   @spec answer(View.t(), String.t(), term()) :: :ok
   def answer(view, question_id, value) do
@@ -244,9 +259,16 @@ defmodule TymeslotWeb.BookingDriver do
     )
 
     case continue_move(render(view), last) do
-      :click -> click(view, @continue)
-      :opened -> :ok
-      {:stuck, reason} -> flunk("BookingDriver.continue/1: " <> reason)
+      :click ->
+        click(view, @continue)
+
+      # The move is used up: a second `continue/1` with no action between
+      # must see the page move on again, not this move once more.
+      :opened ->
+        remember(view)
+
+      {:stuck, reason} ->
+        flunk("BookingDriver.continue/1: " <> reason)
     end
   end
 
@@ -349,7 +371,7 @@ defmodule TymeslotWeb.BookingDriver do
   end
 
   defp drive(view, opts, done, moves_left) do
-    case next_ask(view, done) do
+    case next_ask(view, done, opts[:meeting_type]) do
       :attendee ->
         finish(view, opts)
 
@@ -359,12 +381,20 @@ defmodule TymeslotWeb.BookingDriver do
     end
   end
 
-  defp next_ask(view, done) do
-    cond do
-      :meeting_type not in done and has_element?(view, @meeting_type) -> :meeting_type
-      :slot not in done and slot_picker?(view) -> :slot
-      true -> question_or_attendee(view, done)
-    end
+  # A meeting type asked for by name is checked even where the page renders
+  # no choice (a defaulted type): once the page asks for anything that needs
+  # it, `choose_meeting_type/2` confirms that the booking holds that type.
+  defp next_ask(view, done, wanted) do
+    ask =
+      cond do
+        :meeting_type not in done and has_element?(view, @meeting_type) -> :meeting_type
+        :slot not in done and slot_picker?(view) -> :slot
+        true -> question_or_attendee(view, done)
+      end
+
+    if ask not in [:meeting_type, :continue] and :meeting_type not in done and wanted != nil,
+      do: :meeting_type,
+      else: ask
   end
 
   defp question_or_attendee(view, done) do
@@ -425,8 +455,15 @@ defmodule TymeslotWeb.BookingDriver do
     end
   end
 
-  defp slot_picker?(view),
-    do: has_element?(view, "#{@date}, #{@slot}") or mounted_pushes(view) != []
+  # A page is a slot picker when it shows a day or a slot control, before or
+  # after `load/1` runs its mounted pushes (a week grid shows its slots only
+  # once it has asked for its week).
+  defp slot_picker?(view) do
+    shows_picker?(view) or
+      (mounted_pushes(view) != [] and load(view) == :ok and shows_picker?(view))
+  end
+
+  defp shows_picker?(view), do: has_element?(view, "#{@date}, #{@slot}")
 
   defp pending_question(view, done) do
     view
@@ -453,11 +490,30 @@ defmodule TymeslotWeb.BookingDriver do
         {iso, pick_first_time(view)}
 
       {node, _days} ->
-        [iso] = Floki.attribute(node, "data-date")
-        [time] = Floki.attribute(node, "data-time")
+        {iso, time} = slot_of(node)
         click(view, "#{@slot}[data-date='#{iso}'][data-time='#{time}']")
         {iso, time}
     end
+  end
+
+  defp slot_of(node) do
+    case {Floki.attribute(node, "data-date"), Floki.attribute(node, "data-time")} do
+      {[iso], [time]} ->
+        {iso, time}
+
+      _missing ->
+        flunk(
+          "a data-fact=\"slot\" button lacks its data-date or data-time: " <>
+            Floki.raw_html(node)
+        )
+    end
+  end
+
+  defp marks_slot_fact!(view) do
+    unless shows_picker?(view),
+      do: flunk("the slot moment marks no day (data-fact=date) and no slot (data-fact=slot)")
+
+    :ok
   end
 
   defp pick_first_time(view) do
@@ -514,54 +570,6 @@ defmodule TymeslotWeb.BookingDriver do
     load(view)
   end
 
-  # A week of slots is a `start_async/3` task: it is on show once the week
-  # fetched is the week on screen and no fetch is running. A page that shows
-  # no week of slots (`week_slots` nil) has nothing to wait for.
-  defp settle(view) do
-    wait(
-      fn ->
-        render_async(view)
-        week_settled?(assigns(view))
-      end,
-      "the week of slots never finished loading"
-    )
-
-    :ok
-  end
-
-  defp week_settled?(%{week_slots: nil}), do: true
-
-  defp week_settled?(%{
-         week_slots: %{},
-         week_slots_start: week,
-         current_week_start: week,
-         week_slots_loading: false
-       }),
-       do: true
-
-  defp week_settled?(_assigns), do: false
-
-  # The `push` commands of the page's `phx-mounted` bindings, as
-  # `{event, component id}`; other commands (a transition, a focus) are the
-  # browser's alone.
-  defp mounted_pushes(view) do
-    view
-    |> attribute("[phx-mounted]", "phx-mounted")
-    |> Enum.flat_map(&pushes/1)
-  end
-
-  defp pushes(js) do
-    case Jason.decode(js) do
-      {:ok, ops} when is_list(ops) ->
-        for ["push", %{"event" => event, "target" => cid}] <- ops,
-            is_integer(cid),
-            do: {event, cid}
-
-      _not_commands ->
-        []
-    end
-  end
-
   # Plumbing
 
   defp click(view, selector) do
@@ -575,62 +583,5 @@ defmodule TymeslotWeb.BookingDriver do
     sync(view)
   end
 
-  # The journey moments the page marks (`data-moment`, `data-moment-state`),
-  # as `{moment, state}` in document order, which is journey order. A page
-  # of the classic journey marks none.
-  defp moments(doc) do
-    for node <- Floki.find(doc, "[data-moment][data-moment-state]") do
-      [moment] = Floki.attribute(node, "data-moment")
-      [state] = Floki.attribute(node, "data-moment-state")
-      {moment, state}
-    end
-  end
-
-  defp moved_on?(moments, nil) do
-    moments
-    |> Enum.map(fn {_moment, state} -> state end)
-    |> Enum.drop_while(&(&1 != "done"))
-    |> Enum.member?("current")
-  end
-
-  defp moved_on?(moments, last),
-    do: {last, "done"} in moments and Enum.any?(moments, &match?({_moment, "current"}, &1))
-
-  # The moment current before an action, so that `continue/1` can tell a
-  # page that moved on by itself from one still where it was. Kept per view
-  # in the test process, the one process that drives the view.
-  defp remember(view) do
-    current =
-      view
-      |> render()
-      |> Floki.parse_document!()
-      |> moments()
-      |> Enum.find_value(fn {moment, state} -> if state == "current", do: moment end)
-
-    Process.put({__MODULE__, :last_moment, view.pid}, current)
-    :ok
-  end
-
-  defp last_moment(view), do: Process.get({__MODULE__, :last_moment, view.pid})
-
-  # A step component relays its event to the LiveView as a message, handled
-  # after the click returns; a synchronous call lets the LiveView handle it
-  # before the page is read again.
-  defp sync(view) do
-    _state = :sys.get_state(view.pid)
-    :ok
-  end
-
   defp booking_params(attrs), do: Map.new(attrs, fn {key, value} -> {to_string(key), value} end)
-
-  defp attribute(view, selector, name),
-    do: view |> render() |> Floki.parse_document!() |> Floki.attribute(selector, name)
-
-  defp first_node(view, selector),
-    do: view |> render() |> Floki.parse_document!() |> Floki.find(selector) |> List.first()
-
-  defp assigns(view), do: :sys.get_state(view.pid).socket.assigns
-
-  defp wait(fun, message, timeout \\ @wait_ms),
-    do: Eventually.eventually(fun, timeout: timeout, interval: 50, message: message)
 end
