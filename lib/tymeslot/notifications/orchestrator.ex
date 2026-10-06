@@ -22,28 +22,38 @@ defmodule Tymeslot.Notifications.Orchestrator do
   }
 
   @doc """
-  Schedules all notifications for a newly created meeting.
+  Schedules all notifications for a newly created meeting: the confirmation
+  and the reminders.
+
+  The two are scheduled independently, like the steps of
+  `schedule_request_notifications/2`: the meeting's announcement is claimed
+  before this runs and nothing retries it, so a failure to schedule the
+  confirmation must not leave the booking without its reminders too. Both
+  always run and each failure is logged; any failure is returned, keyed by
+  the step that failed.
   """
-  @spec schedule_meeting_notifications(%{atom() => term()}) :: {:ok, atom()} | {:error, term()}
+  @spec schedule_meeting_notifications(%{atom() => term()}) ::
+          {:ok, :notifications_scheduled} | {:error, term()}
   def schedule_meeting_notifications(meeting) do
     Logger.info("Scheduling notifications for meeting", meeting_id: meeting.id)
 
-    with :ok <- schedule_confirmation_notifications(meeting),
-         result <- schedule_reminder_notifications(meeting) do
-      case result do
-        :ok -> {:ok, :notifications_scheduled}
-        {:ok, _result} -> {:ok, :notifications_scheduled}
-        error -> error
-      end
-    else
-      {:error, reason} = error ->
+    results = [
+      confirmation: schedule_confirmation_notifications(meeting),
+      reminders: schedule_reminder_notifications(meeting)
+    ]
+
+    errors =
+      for {step, {:error, reason}} <- results do
         Logger.error("Failed to schedule meeting notifications",
           meeting_id: meeting.id,
+          step: step,
           reason: LogFormat.reason(reason)
         )
 
-        error
-    end
+        {step, reason}
+      end
+
+    if errors == [], do: {:ok, :notifications_scheduled}, else: {:error, errors}
   end
 
   @doc """

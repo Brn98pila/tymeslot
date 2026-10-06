@@ -22,6 +22,18 @@ defmodule Tymeslot.Notifications.OrchestratorLifecycleTest do
     end
   end
 
+  # Confirmation enqueue fails, reminders schedule normally.
+  defmodule ConfirmationFailingWorker do
+    @spec schedule_confirmation_emails(term()) :: {:error, String.t()}
+    def schedule_confirmation_emails(_meeting_id), do: {:error, "queue down"}
+
+    @spec schedule_reminder_emails(term(), term(), term(), term()) :: :ok
+    def schedule_reminder_emails(meeting_id, value, unit, _scheduled_at) do
+      send(self(), {:scheduled_reminder, meeting_id, value, unit})
+      :ok
+    end
+  end
+
   defmodule SuccessEmailService do
     @spec send_reschedule_emails(map()) :: {{:ok, term()}, {:ok, term()}}
     def send_reschedule_emails(content) do
@@ -71,6 +83,27 @@ defmodule Tymeslot.Notifications.OrchestratorLifecycleTest do
         attrs
       )
     )
+  end
+
+  describe "schedule_meeting_notifications/1" do
+    # The announcement is claimed before this runs and nothing retries it, so
+    # a failed confirmation enqueue must not cost the booking its reminders.
+    test "still schedules the reminders when the confirmation fails to enqueue" do
+      Application.put_env(:tymeslot, :email_worker_module, ConfirmationFailingWorker)
+
+      meeting =
+        meeting_for_lifecycle(%{
+          start_time: DateTime.add(DateTime.utc_now(), 2, :day),
+          end_time: DateTime.add(DateTime.utc_now(), 2 * 86_400 + 1_800, :second),
+          reminders: [%{"value" => 1, "unit" => "hours"}]
+        })
+
+      assert {:error, [confirmation: "queue down"]} =
+               Orchestrator.schedule_meeting_notifications(meeting)
+
+      assert_received {:scheduled_reminder, meeting_id, 1, "hours"}
+      assert meeting_id == meeting.id
+    end
   end
 
   describe "send_cancellation_notifications/1" do
