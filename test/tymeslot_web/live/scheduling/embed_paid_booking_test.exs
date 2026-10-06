@@ -255,6 +255,48 @@ defmodule TymeslotWeb.Live.Scheduling.EmbedPaidBookingTest do
         refute has_element?(view, "form[phx-submit='submit']")
       end
     end
+
+    # A client may ask for a patch to any URL this LiveView serves, which
+    # runs `handle_params` on the same socket; the wait must survive it and
+    # still end on the webhook.
+    @tag :capture_log
+    test "a URL patch cannot leave the payment wait",
+         %{conn: conn, profile: profile, meeting_type: meeting_type} do
+      expect(StripeAdapterMock, :create_checkout_session, fn _params, _opts ->
+        {:ok, %{id: "cs_patch", url: "https://checkout.stripe.com/cs_patch"}}
+      end)
+
+      view = navigate_to_booking_form_embedded(conn, profile, meeting_type)
+
+      view
+      |> form("form[phx-submit='submit']", %{
+        "booking" => %{
+          "name" => "Patch Piper",
+          "email" => "piper@example.com",
+          "message" => ""
+        }
+      })
+      |> render_submit()
+
+      _drain = :sys.get_state(view.pid)
+      assert has_element?(view, "[data-testid='awaiting-payment']")
+
+      slug = Tymeslot.MeetingTypes.effective_slug(meeting_type)
+
+      for path <- ["/#{profile.username}/#{slug}?embed=1", "/#{profile.username}?embed=1"] do
+        render_patch(view, path)
+
+        assert has_element?(view, "[data-testid='awaiting-payment']")
+        refute has_element?(view, "button[phx-click='next_month']")
+        refute has_element?(view, "button[data-testid='duration-option']")
+      end
+
+      meeting_id = :sys.get_state(view.pid).socket.assigns[:awaiting_payment_meeting].id
+      Phoenix.PubSub.broadcast(Tymeslot.PubSub, "meeting_payment:#{meeting_id}", :paid)
+      _drain = :sys.get_state(view.pid)
+
+      assert has_element?(view, "[data-testid='confirmation-heading']")
+    end
   end
 
   describe "non-embed (control)" do

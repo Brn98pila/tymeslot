@@ -95,9 +95,18 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
     end
   end
 
-  @doc "Applies the URL parameters and enters the moment the route opens on."
+  @doc """
+  Applies the URL parameters and enters the moment the route opens on.
+
+  On the payment wait (`:awaiting_payment`) it applies nothing: a client may
+  patch this socket to any URL the page serves, and only the payment webhook
+  (`:paid`, `:expired`) ends the wait. A reload is a fresh mount, not this.
+  """
   @spec handle_scheduling_params(Phoenix.LiveView.Socket.t(), map()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_scheduling_params(%{assigns: %{current_state: :awaiting_payment}} = socket, _params),
+    do: {:noreply, socket}
+
   def handle_scheduling_params(socket, params) do
     initial_state = entry(socket)
 
