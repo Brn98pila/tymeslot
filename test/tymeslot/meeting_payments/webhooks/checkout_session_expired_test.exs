@@ -9,10 +9,12 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpiredTest do
   # event arrives from it, as Stripe delivers them for a genuine booking.
   @account "acct_TEST_HOST"
 
+  import Ecto.Query, only: [from: 2]
   import Tymeslot.Factory
 
   alias Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpired
   alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Meetings.MeetingSchema, as: Meeting
   alias Tymeslot.Repo
 
   describe "handle/1" do
@@ -186,6 +188,29 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpiredTest do
 
       assert :ok = CheckoutSessionExpired.handle(expired_event("evt_FAILED_HELD_2", object))
       refute_receive :expired, 100
+    end
+
+    # The disconnect's meeting write can fail because the row no longer
+    # passes the full meeting validation (here a solo meeting with no
+    # attendee name, as older rows can carry). Expiring it must not depend
+    # on that validation, or the expiry fails the same way and the event is
+    # retried instead of acknowledged.
+    test "expires a meeting whose other fields no longer pass validation" do
+      meeting = insert(:meeting, status: "awaiting_payment")
+
+      Repo.update_all(from(m in Meeting, where: m.id == ^meeting.id), set: [attendee_name: nil])
+
+      insert(:booking_payment,
+        stripe_account_id: @account,
+        meeting: meeting,
+        status: "failed",
+        stripe_checkout_session_id: "cs_FAILED_LEGACY"
+      )
+
+      object = %{"id" => "cs_FAILED_LEGACY", "client_reference_id" => meeting.id}
+
+      assert :ok = CheckoutSessionExpired.handle(expired_event("evt_FAILED_LEGACY", object))
+      assert {:ok, %{status: "expired"}} = MeetingQueries.get_meeting(meeting.id)
     end
 
     test "leaves a meeting that has moved on" do

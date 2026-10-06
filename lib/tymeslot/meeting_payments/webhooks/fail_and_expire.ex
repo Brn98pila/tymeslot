@@ -143,7 +143,9 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
   defp expire_meeting(meeting_id) do
     case MeetingQueries.get_meeting_for_update(meeting_id) do
       {:ok, %{status: "awaiting_payment"} = meeting} ->
-        case MeetingQueries.update_meeting(meeting, %{status: "expired"}) do
+        # A status write only, so a row whose other fields fail today's full
+        # validation is still expired.
+        case MeetingQueries.update_meeting_status(meeting, %{status: "expired"}) do
           {:ok, _meeting} -> {:ok, :expired}
           {:error, _changeset} = err -> err
         end

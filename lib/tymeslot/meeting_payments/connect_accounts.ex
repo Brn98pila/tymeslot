@@ -201,7 +201,9 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
   defp maybe_expire_meeting(nil), do: :ok
 
   defp maybe_expire_meeting(%{status: "awaiting_payment"} = meeting) do
-    case MeetingQueries.update_meeting(meeting, %{status: "expired"}) do
+    # A status write only, so a row whose other fields fail today's full
+    # validation is still expired.
+    case MeetingQueries.update_meeting_status(meeting, %{status: "expired"}) do
       {:ok, _updated} ->
         :ok
 
