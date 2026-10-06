@@ -13,15 +13,12 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
 
   alias Phoenix.LiveView.Socket
   alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
-  alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
-  alias TymeslotWeb.Themes.Shared.BookingFlow
-  alias TymeslotWeb.Themes.Shared.BookingLocation
   alias TymeslotWeb.Themes.Shared.GuestBooking
   alias TymeslotWeb.Themes.Shared.Journey.Ambient
   alias TymeslotWeb.Themes.Shared.Journey.Facts.Answers
+  alias TymeslotWeb.Themes.Shared.Journey.Facts.Attendee
   alias TymeslotWeb.Themes.Shared.Journey.Facts.MeetingType
   alias TymeslotWeb.Themes.Shared.Journey.Facts.Slot
-  alias TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry
   alias TymeslotWeb.Themes.Shared.ReschedulePin
   alias TymeslotWeb.Themes.Shared.StateMachineHelpers, as: StateMachine
 
@@ -54,7 +51,11 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
       else: questions_event(socket, event, data)
   end
 
-  def handle_step_event(socket, :booking, event, data), do: booking_event(socket, event, data)
+  def handle_step_event(socket, :booking, event, data) do
+    if event in Attendee.events(),
+      do: Attendee.handle(socket, event, data),
+      else: booking_event(socket, event, data)
+  end
 
   def handle_step_event(socket, :confirmation, event, data),
     do: confirmation_event(socket, event, data)
@@ -80,8 +81,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
 
   def handle_state_entry(socket, :questions, _params), do: Answers.enter(socket, %{})
 
-  def handle_state_entry(socket, :booking, params),
-    do: StepEntry.handle_booking_entry(socket, params)
+  def handle_state_entry(socket, :booking, params), do: Attendee.enter(socket, params)
 
   def handle_state_entry(socket, _state, _params), do: socket
 
@@ -164,30 +164,6 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   defp questions_event(_socket, _event, _data), do: :unhandled
 
   # Booking
-
-  defp booking_event(socket, :validate, data),
-    do: BookingFlow.handle_form_validation(socket, data)
-
-  defp booking_event(socket, :field_blur, field),
-    do: {:noreply, OrganizerHelpers.mark_field_touched(socket, field)}
-
-  defp booking_event(socket, event, data)
-       when event in [:select_location, :select_video_provider, :location_phone],
-       do: {:noreply, BookingLocation.apply_event(socket, event, data)}
-
-  defp booking_event(socket, :toggle_guests, _data), do: {:noreply, GuestBooking.open(socket)}
-  defp booking_event(socket, :close_guests, _data), do: {:noreply, GuestBooking.close(socket)}
-
-  defp booking_event(socket, :guest_input, data),
-    do: {:noreply, GuestBooking.set_input(socket, data)}
-
-  defp booking_event(socket, :add_guest, data), do: {:noreply, GuestBooking.add(socket, data)}
-
-  defp booking_event(socket, :remove_guest, data),
-    do: {:noreply, GuestBooking.remove(socket, data)}
-
-  defp booking_event(socket, :submit, data),
-    do: BookingFlow.submit_booking(socket, data, &transition_to/3)
 
   # Route back to :questions when the meeting type has custom fields, else :schedule.
   defp booking_event(socket, :back_step, _data) do
