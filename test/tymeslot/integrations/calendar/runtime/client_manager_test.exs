@@ -196,6 +196,64 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManagerTest do
     end
   end
 
+  # A calendar shared read-only (a team rota, a subscribed calendar) cannot
+  # take a booking, but the organiser selected it so that its events block
+  # time, as Google's read-only calendars and a subscribed feed's do.
+  describe "a read-only calendar selected on a CalDAV-family integration" do
+    for provider <- ~w(caldav nextcloud radicale apple baikal mailbox_org zimbra) do
+      test "gets a #{provider} read client, but is never a write target", %{user: user} do
+        inserted =
+          insert(:calendar_integration,
+            user: user,
+            provider: unquote(provider),
+            base_url: "https://cal.example.com",
+            calendar_paths: ["/cal/bookings/", "/cal/rota/"],
+            default_booking_calendar_id: "/cal/bookings/",
+            calendar_list: [
+              %{id: "/cal/bookings/", path: "/cal/bookings/", name: "Bookings", selected: true},
+              %{
+                id: "/cal/rota/",
+                path: "/cal/rota/",
+                name: "Team rota",
+                selected: true,
+                read_only: true
+              }
+            ]
+          )
+
+        {:ok, integration} = CalendarManagement.fetch_integration_for_user(inserted.id, user.id)
+
+        reads = ClientManager.clients_for_integration(integration)
+        assert length(reads) == 2
+        assert Enum.all?(reads, &(&1.client.writable_calendar_paths == ["/cal/bookings/"]))
+
+        assert [write_client] = ClientManager.writable_clients_for_integration(integration)
+        assert write_client == ClientManager.booking_client({integration.id, user.id})
+        assert write_client in reads
+        refute Enum.any?(write_client.client.calendar_paths, &(&1 =~ "/cal/rota"))
+      end
+    end
+
+    test "counts towards availability", %{user: user} do
+      insert(:calendar_integration,
+        user: user,
+        provider: "caldav",
+        base_url: "https://cal.example.com",
+        calendar_paths: ["/cal/bookings/", "/cal/rota/"],
+        calendar_list: [
+          %{id: "/cal/bookings/", path: "/cal/bookings/", name: "Bookings", selected: true},
+          %{id: "/cal/rota/", path: "/cal/rota/", name: "Rota", selected: true, read_only: true},
+          %{id: "/cal/old/", path: "/cal/old/", name: "Old", selected: false, read_only: true}
+        ]
+      )
+
+      {clients, []} = ClientManager.availability_sources(user.id)
+
+      assert clients |> Enum.flat_map(& &1.client.calendar_paths) |> Enum.sort() ==
+               ["/cal/bookings/", "/cal/rota/"]
+    end
+  end
+
   describe "get_booking_integration_info/1 — with a user id" do
     test "returns the primary integration's id and its first calendar path", %{user: user} do
       integration =

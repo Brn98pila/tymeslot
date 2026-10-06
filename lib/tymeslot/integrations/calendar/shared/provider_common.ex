@@ -227,16 +227,23 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ProviderCommon do
 
   @doc """
   Returns one CalDAV client config per selected calendar path on the
-  integration. Drives the multi-calendar sync/fetch path in `ClientManager`.
+  integration. Drives the multi-calendar fetch path in `ClientManager`,
+  availability included.
 
   Honors `integration.calendar_list` selection when present, falling back to
   `integration.calendar_paths` (the legacy path-only representation).
-  Read-only entries are skipped.
+  A read-only calendar the organiser selected gets a client too: it cannot
+  take a booking, but its events still block time, as Google's and a
+  subscribed feed's do. Every config carries only the writable paths as
+  `:writable_calendar_paths`, so a write never targets a read-only one.
   """
   @spec caldav_build_client_configs(map()) :: [map()]
   def caldav_build_client_configs(integration) do
     writable_paths = caldav_writable_paths(integration)
-    Enum.map(writable_paths, &caldav_path_config(integration, &1, writable_paths))
+
+    integration
+    |> caldav_selected_paths()
+    |> Enum.map(&caldav_path_config(integration, &1, writable_paths))
   end
 
   @doc """
@@ -261,10 +268,18 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ProviderCommon do
   predates calendar selection.
   """
   @spec caldav_writable_paths(map()) :: [String.t()]
-  def caldav_writable_paths(integration) do
+  def caldav_writable_paths(integration),
+    do: caldav_paths(integration, &Selection.writable_calendars/1)
+
+  # Every selected collection, read-only ones included, or the stored paths
+  # when the integration predates calendar selection.
+  defp caldav_selected_paths(integration),
+    do: caldav_paths(integration, &Selection.selected_calendars/1)
+
+  defp caldav_paths(integration, pick) do
     if integration.calendar_list && integration.calendar_list != [] do
       integration.calendar_list
-      |> Selection.writable_calendars()
+      |> pick.()
       |> Enum.map(&(&1.path || &1.id))
       |> Enum.reject(&is_nil/1)
     else

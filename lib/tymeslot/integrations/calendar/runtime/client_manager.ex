@@ -51,8 +51,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   def availability_sources(user_id) do
     case fetch_active_integrations(user_id) do
       {:ok, integrations, unreadable} ->
-        {Enum.flat_map(integrations, &create_clients_from_integration/1),
-         Enum.map(unreadable, & &1.id)}
+        {Enum.flat_map(integrations, &clients_for_integration/1), Enum.map(unreadable, & &1.id)}
 
       :not_found ->
         Logger.warning(
@@ -75,7 +74,20 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   """
   @spec clients_for_integration(map()) :: [client()]
   def clients_for_integration(integration) do
-    create_clients_from_integration(integration)
+    create_clients_from_integration(integration, fn _config -> true end)
+  end
+
+  @doc """
+  The clients of `clients_for_integration/1` for calendars the organiser can
+  write to.
+
+  A read-only calendar the organiser selected gets a read client so that its
+  events block time, but an event Tymeslot wrote can never be in it, so a
+  search for one leaves it out.
+  """
+  @spec writable_clients_for_integration(map()) :: [client()]
+  def writable_clients_for_integration(integration) do
+    create_clients_from_integration(integration, &write_target?/1)
   end
 
   @doc """
@@ -211,7 +223,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   defp booking_calendar_path(_stored_id, _stored_path, integration),
     do: CalendarPathResolver.resolve(integration)
 
-  defp create_clients_from_integration(integration) do
+  defp create_clients_from_integration(integration, keep?) do
     with {:ok, provider} <- ProviderConfig.parse_known(integration.provider),
          provider_module when is_atom(provider_module) and provider_module != nil <-
            ProviderConfig.get_provider_module(provider),
@@ -220,6 +232,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
       # keeps the static type checker from flagging providers that omit it.
       # credo:disable-for-next-line Credo.Check.Refactor.Apply
       apply(provider_module, :build_client_configs, [integration])
+      |> Enum.filter(keep?)
       |> Enum.map(&create_adapter_client(provider, &1))
       |> Enum.reject(&is_nil/1)
     else
@@ -231,6 +244,16 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
         []
     end
   end
+
+  # A CalDAV config names its own collection and the integration's writable
+  # ones (`ProviderCommon.caldav_build_client_configs/1`); it is compared
+  # before `new/1`, which may rewrite the collection into the server's form.
+  # Any other provider's client reaches the whole account.
+  defp write_target?(%{calendar_path: path, writable_calendar_paths: writable})
+       when is_list(writable),
+       do: path in writable
+
+  defp write_target?(_config), do: true
 
   defp create_booking_client_from_integration(nil), do: nil
 
