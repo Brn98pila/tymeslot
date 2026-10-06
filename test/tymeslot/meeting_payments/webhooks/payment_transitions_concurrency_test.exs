@@ -20,13 +20,16 @@ defmodule Tymeslot.MeetingPayments.Webhooks.PaymentTransitionsConcurrencyTest do
   import Tymeslot.Factory
   import Tymeslot.Test.RaceConductor, only: [race: 1, unboxed: 1]
 
+  alias Ecto.Changeset
   alias Ecto.UUID
   alias Tymeslot.Auth.UserSchema
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
   alias Tymeslot.MeetingPayments.StripeAdapterMock
   alias Tymeslot.MeetingPayments.Webhooks.ChargeDisputeClosed
+  alias Tymeslot.MeetingPayments.Webhooks.ChargeDisputeCreated
   alias Tymeslot.MeetingPayments.Webhooks.ChargeRefunded
   alias Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted
+  alias Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpired
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.Scheduling
   alias Tymeslot.Repo
@@ -143,6 +146,85 @@ defmodule Tymeslot.MeetingPayments.Webhooks.PaymentTransitionsConcurrencyTest do
     reloaded = unboxed(fn -> Repo.get!(BookingPaymentSchema, payment.id) end)
     assert reloaded.refunded_amount_cents == 3000
     assert reloaded.status == "partially_refunded"
+  end
+
+  # A charge can be disputed the instant it is captured, so the dispute can
+  # commit between the completion resolving its row and writing it.
+  test "a dispute committing while a completion is under way stays disputed", ctx do
+    {meeting, payment} = awaiting_payment_booking(ctx.user, "cs_RACE_DISPUTE")
+
+    unboxed(fn ->
+      Repo.update!(Changeset.change(payment, stripe_payment_intent_id: "pi_RACE_DOUBLE"))
+    end)
+
+    Mox.stub(StripeAdapterMock, :retrieve_payment_intent, fn _id, _opts ->
+      {:ok, %{"latest_charge" => "ch_RACE_DISPUTE"}}
+    end)
+
+    results =
+      race([
+        fn hold ->
+          # Parks right after resolving the row, before the dispute commits.
+          RaceConductor.arm(hold, read_of("booking_payments"))
+          complete(nil, "evt_RACE_COMPLETED", meeting, "cs_RACE_DISPUTE")
+        end,
+        fn _hold ->
+          ChargeDisputeCreated.handle(%{
+            "id" => "evt_RACE_DISPUTED",
+            "account" => @account,
+            "data" => %{
+              "object" => %{
+                "id" => "dp_RACE",
+                "charge" => "ch_RACE_DISPUTE",
+                "payment_intent" => "pi_RACE_DOUBLE",
+                "amount" => 5000
+              }
+            }
+          })
+        end
+      ])
+
+    assert results == [:ok, :ok]
+
+    reloaded = unboxed(fn -> Repo.get!(BookingPaymentSchema, payment.id) end)
+    assert reloaded.status == "disputed"
+    assert reloaded.last_event_id == "evt_RACE_COMPLETED"
+    assert unboxed(fn -> Repo.get!(MeetingSchema, meeting.id).status end) == "confirmed"
+  end
+
+  # Stripe can deliver a session's expiry while its completion is being
+  # handled; once the payment is taken, the expiry has nothing left to fail.
+  test "an expiry arriving while a completion commits leaves the booking paid", ctx do
+    {meeting, payment} = awaiting_payment_booking(ctx.user, "cs_RACE_EXPIRY")
+
+    Mox.stub(StripeAdapterMock, :retrieve_payment_intent, fn _id, _opts ->
+      {:ok, %{"latest_charge" => "ch_RACE_EXPIRY"}}
+    end)
+
+    results =
+      race([
+        fn _hold -> complete(nil, "evt_RACE_PAID", meeting, "cs_RACE_EXPIRY") end,
+        fn hold ->
+          # Parks right after resolving the row, before the completion commits.
+          RaceConductor.arm(hold, read_of("booking_payments"))
+
+          CheckoutSessionExpired.handle(%{
+            "id" => "evt_RACE_EXPIRED",
+            "account" => @account,
+            "type" => "checkout.session.expired",
+            "data" => %{
+              "object" => %{"id" => "cs_RACE_EXPIRY", "client_reference_id" => meeting.id}
+            }
+          })
+        end
+      ])
+
+    assert results == [:ok, :ok]
+
+    reloaded = unboxed(fn -> Repo.get!(BookingPaymentSchema, payment.id) end)
+    assert reloaded.status == "paid"
+    assert reloaded.last_event_id == "evt_RACE_PAID"
+    assert unboxed(fn -> Repo.get!(MeetingSchema, meeting.id).status end) == "confirmed"
   end
 
   # The expiry released the slot, so a late completion bringing the booking

@@ -58,18 +58,32 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
 
   # Decided from the locked rows (`LockedPayment`, then the meeting), so a
   # completion committed since the row was resolved is seen rather than
-  # raced.
+  # raced. Only a payment still `pending` can fail: one that has since been
+  # paid, disputed or refunded keeps its status and its meeting.
   defp run(payment, event_id, reason) do
     result =
-      LockedPayment.run(payment, event_id, fn locked ->
-        with {:ok, _bp} <- mark_failed(locked, event_id, reason),
-             :ok <- maybe_expire_meeting(locked.meeting_id) do
-          {:ok, :expired}
-        end
+      LockedPayment.run(payment, event_id, fn
+        %BookingPaymentSchema{status: "pending"} = locked ->
+          with {:ok, _bp} <- mark_failed(locked, event_id, reason),
+               :ok <- maybe_expire_meeting(locked.meeting_id) do
+            {:ok, :expired}
+          end
+
+        %BookingPaymentSchema{status: status} ->
+          {:ok, {:not_pending, status}}
       end)
 
     case result do
       {:ok, :idempotent_replay} ->
+        :ok
+
+      {:ok, {:not_pending, status}} ->
+        Logger.info("Connect event ignored: booking payment is no longer pending",
+          payment_id: payment.id,
+          event_id: event_id,
+          status: status
+        )
+
         :ok
 
       {:ok, :expired} ->

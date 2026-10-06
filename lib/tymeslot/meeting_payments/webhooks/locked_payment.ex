@@ -13,8 +13,11 @@ defmodule Tymeslot.MeetingPayments.Webhooks.LockedPayment do
   then is the change decided, so concurrent handlers of one payment run one
   after the other and each sees what the previous one committed.
 
-  Lock order: the payment row comes before the meeting row, as in every
-  other writer of both (`ConnectAccounts.disconnect/1`, `FailAndExpire`).
+  Lock order: the organiser's schedule lock first (taken only by a late
+  completion recovering an expired booking, through
+  `Scheduling.reinstate_with_conflict_check/2`), then the payment row, then
+  the meeting row, as in every other writer of both
+  (`ConnectAccounts.disconnect/1`, `FailAndExpire`).
   """
 
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
