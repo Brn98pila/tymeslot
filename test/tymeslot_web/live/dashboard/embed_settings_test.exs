@@ -602,6 +602,26 @@ defmodule TymeslotWeb.Live.Dashboard.EmbedSettingsTest do
     end
   end
 
+  describe "embed snippet for a username containing --" do
+    # The strict sanitiser drops everything from `--` onwards, so the snippet
+    # for "team--alpha" once embedded "team": another organiser's booking page.
+    setup do
+      insert(:profile, username: "team")
+
+      user = insert(:user, onboarding_completed_at: DateTime.utc_now())
+      insert(:profile, user: user, username: "team--alpha", allowed_embed_domains: [])
+
+      {:ok, conn: log_in_user(build_conn(), user)}
+    end
+
+    test "points at the organiser's own page, not the truncated one", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/dashboard/embed")
+
+      assert html =~ ~s(data-username=&quot;team--alpha&quot;)
+      refute html =~ ~s(data-username=&quot;team&quot;)
+    end
+  end
+
   # Helper function to log in user for tests
   defp log_in_user(conn, user) do
     session = insert(:user_session, user: user)

@@ -7,8 +7,7 @@ defmodule TymeslotWeb.Live.Dashboard.EmbedSettings.Helpers do
 
   alias Phoenix.HTML
   alias Tymeslot.Locales
-  alias Tymeslot.Security.FieldValidators.UsernameValidator
-  alias Tymeslot.Security.UniversalSanitizer
+  alias Tymeslot.Security.InputProcessor
   alias TymeslotWeb.Themes.Core.Context, as: ThemeContext
 
   @doc "Returns the list of valid embed type strings."
@@ -247,11 +246,12 @@ defmodule TymeslotWeb.Live.Dashboard.EmbedSettings.Helpers do
   defp escape(nil), do: ""
   defp escape(val), do: val |> HTML.html_escape() |> HTML.safe_to_string()
 
+  # The username is interpolated into HTML and JavaScript, so only one the
+  # username rules accept is emitted. It is never rewritten: a shortened
+  # username can be another organiser's booking page.
   defp sanitize_username(username) do
-    with {:ok, sanitized} <- UniversalSanitizer.sanitize_and_validate(username || ""),
-         :ok <- UsernameValidator.validate(sanitized) do
-      sanitized
-    else
+    case InputProcessor.validate_field(username || "", :username) do
+      {:ok, valid} -> valid
       {:error, _error} -> "invalid-username"
     end
   end

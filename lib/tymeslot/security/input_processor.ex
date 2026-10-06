@@ -39,13 +39,15 @@ defmodule Tymeslot.Security.InputProcessor do
   ]
 
   # Validators whose field is an identifier: a value an account is created,
-  # looked up or mailed under. Such a field is sanitised in `:plain_text` mode
-  # and then accepted or rejected by its validator, never rewritten. `:strict`
-  # mode strips `0x<hex>` runs and everything from `--` onwards, so it would
-  # turn "crypto0xabc@example.com" into "crypto@example.com": a different,
-  # valid address that belongs to someone else. Plain-text mode keeps only the
-  # changes that cannot alter which address it is (null bytes, NFC, trimming).
-  @identifier_validators [FieldValidators.EmailValidator]
+  # looked up or mailed under, or a public booking page is addressed by. Such a
+  # field is sanitised in `:plain_text` mode and then accepted or rejected by
+  # its validator, never rewritten. `:strict` mode strips `0x<hex>` runs and
+  # everything from `--` onwards, so it would turn "crypto0xabc@example.com"
+  # into "crypto@example.com", and the username "team--alpha" into "team":
+  # each a different, valid identifier that can belong to someone else.
+  # Plain-text mode keeps only the changes that cannot alter which identifier
+  # it is (null bytes, NFC, trimming).
+  @identifier_validators [FieldValidators.EmailValidator, FieldValidators.UsernameValidator]
 
   @doc """
   Validates a form with universal sanitization and field-specific validation.
