@@ -16,12 +16,23 @@ defmodule Tymeslot.Media.Transcoder do
   # a progress line every half second.
   @output_tail_bytes 16_384
 
-  # The longest one variant's encode may run before it is killed. VP9 is the
-  # slow one: a 1080p clip takes about four times its own length to encode on
-  # a 12-core box, so a 100 MB upload at a low bitrate (several minutes of
-  # footage) needs tens of minutes on a small self-hosted one. Generous on
-  # purpose: this bounds a stalled ffmpeg, not a slow one.
-  @variant_timeout :timer.minutes(45)
+  # How long one variant's encode may run before it is killed: the source's
+  # length times `@encode_time_factor`, within the floor and ceiling below.
+  # Generous on purpose: this bounds a stalled ffmpeg, not a slow one. VP9 is
+  # the slow encoder, at about four times a 1080p clip's own length on a
+  # 12-core box and several times that on a small self-hosted one, and a
+  # 100 MB upload at a low bitrate holds many minutes of footage.
+  @encode_time_factor 10
+  @variant_timeout_floor :timer.minutes(45)
+
+  # The ceiling keeps the whole job, every variant at its limit (see
+  # `Workers.VideoTranscoder.timeout/1`), inside the five hours the Oban
+  # lifeline allows a job before it runs it again (`ObanRescue`).
+  @variant_timeout_ceiling :timer.minutes(70)
+
+  # Reading the source's length takes ffmpeg a moment; a probe that takes
+  # longer is not going to answer.
+  @probe_timeout :timer.seconds(30)
 
   @variant_definitions [
     %{
@@ -62,11 +73,55 @@ defmodule Tymeslot.Media.Transcoder do
   def variant_definitions, do: @variant_definitions
 
   @doc """
-  The longest a single `transcode/3` call runs before ffmpeg is killed and it
-  returns `{:error, :timeout}`. Override per call with the `:timeout` option.
+  The longest any `transcode/3` call runs before ffmpeg is killed and it
+  returns `{:error, :timeout}`, whatever the source's length.
   """
-  @spec variant_timeout() :: pos_integer()
-  def variant_timeout, do: @variant_timeout
+  @spec max_variant_timeout() :: pos_integer()
+  def max_variant_timeout, do: @variant_timeout_ceiling
+
+  @doc """
+  How long `transcode/3` lets ffmpeg encode one variant of `source_path`
+  before killing it: #{@encode_time_factor} times the source's length, at
+  least #{div(@variant_timeout_floor, 60_000)} minutes and at most
+  #{div(@variant_timeout_ceiling, 60_000)}. A source whose length ffmpeg
+  cannot read gets the floor. Override per call with the `:timeout` option.
+  """
+  @spec variant_timeout(String.t()) :: pos_integer()
+  def variant_timeout(source_path) do
+    case source_duration_ms(source_path) do
+      nil ->
+        @variant_timeout_floor
+
+      duration_ms ->
+        (duration_ms * @encode_time_factor)
+        |> max(@variant_timeout_floor)
+        |> min(@variant_timeout_ceiling)
+    end
+  end
+
+  # ffmpeg given an input and no output describes the input, length included
+  # (`Duration: 00:13:02.40`), and exits non-zero. Read from ffmpeg itself
+  # rather than ffprobe, so the transcoder needs no second executable.
+  defp source_duration_ms(source_path) do
+    case run_ffmpeg_bounded(["-nostdin", "-hide_banner", "-i", source_path], @probe_timeout) do
+      {:exit, _status, output} -> parse_duration_ms(output)
+      _timeout_or_not_found -> nil
+    end
+  end
+
+  defp parse_duration_ms(output) do
+    case Regex.run(~r/Duration: (\d+):(\d{2}):(\d{2}(?:\.\d+)?)/, output) do
+      [_match, hours, minutes, seconds] ->
+        {seconds, _rest} = Float.parse(seconds)
+
+        round(
+          (String.to_integer(hours) * 3600 + String.to_integer(minutes) * 60 + seconds) * 1000
+        )
+
+      nil ->
+        nil
+    end
+  end
 
   @spec derive_variant_paths(String.t()) :: [String.t()]
   def derive_variant_paths(original_path) do
@@ -93,7 +148,7 @@ defmodule Tymeslot.Media.Transcoder do
     max_height = Keyword.fetch!(opts, :max_height)
     format = Keyword.fetch!(opts, :format)
 
-    timeout = Keyword.get(opts, :timeout, @variant_timeout)
+    timeout = Keyword.get_lazy(opts, :timeout, fn -> variant_timeout(source_path) end)
 
     args = build_ffmpeg_args(source_path, output_path, codec, max_height, format)
 

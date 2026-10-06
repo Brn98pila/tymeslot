@@ -157,7 +157,8 @@ defmodule Tymeslot.Media.TranscoderTest do
       File.write!(stub, "#!/bin/sh\necho $$ > \"$0.pid\"\nexec /bin/sleep 5\n")
       File.chmod!(stub, 0o755)
 
-      variant = [codec: "libx264", max_height: 1080, format: "mp4", timeout: 300]
+      # Long enough for the stub to have written its pid before it is killed.
+      variant = [codec: "libx264", max_height: 1080, format: "mp4", timeout: 1_000]
 
       assert {:error, :timeout} =
                with_path(tmp_dir, fn -> Transcoder.transcode(source, output, variant) end)
@@ -169,6 +170,61 @@ defmodule Tymeslot.Media.TranscoderTest do
       eventually(fn -> not os_process_alive?(os_pid) end,
         message: "ffmpeg (pid #{os_pid}) is still running after the timeout"
       )
+    end
+  end
+
+  describe "variant_timeout/1" do
+    # An ffmpeg that describes its input as the real one does when given no
+    # output: on stderr, then a non-zero exit.
+    defp probe_stub(tmp_dir, duration) do
+      stub = Path.join(tmp_dir, "ffmpeg")
+
+      File.write!(stub, """
+      #!/bin/sh
+      echo "Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'upload.mp4':" >&2
+      echo "  Duration: #{duration}, start: 0.000000, bitrate: 1046 kb/s" >&2
+      echo "At least one output file must be specified" >&2
+      exit 1
+      """)
+
+      File.chmod!(stub, 0o755)
+      source = Path.join(tmp_dir, "upload.mp4")
+      File.write!(source, "video")
+      source
+    end
+
+    @tag :tmp_dir
+    test "is ten times the source's length", %{tmp_dir: tmp_dir} do
+      source = probe_stub(tmp_dir, "00:06:00.00")
+
+      assert with_path(tmp_dir, fn -> Transcoder.variant_timeout(source) end) ==
+               :timer.minutes(60)
+    end
+
+    @tag :tmp_dir
+    test "gives a short clip the 45-minute floor", %{tmp_dir: tmp_dir} do
+      source = probe_stub(tmp_dir, "00:00:30.50")
+
+      assert with_path(tmp_dir, fn -> Transcoder.variant_timeout(source) end) ==
+               :timer.minutes(45)
+    end
+
+    @tag :tmp_dir
+    test "stops at the ceiling for a long clip", %{tmp_dir: tmp_dir} do
+      source = probe_stub(tmp_dir, "02:00:00.00")
+
+      assert with_path(tmp_dir, fn -> Transcoder.variant_timeout(source) end) ==
+               Transcoder.max_variant_timeout()
+
+      assert Transcoder.max_variant_timeout() == :timer.minutes(70)
+    end
+
+    @tag :tmp_dir
+    test "gives a source whose length cannot be read the floor", %{tmp_dir: tmp_dir} do
+      source = probe_stub(tmp_dir, "N/A")
+
+      assert with_path(tmp_dir, fn -> Transcoder.variant_timeout(source) end) ==
+               :timer.minutes(45)
     end
   end
 

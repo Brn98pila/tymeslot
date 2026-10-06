@@ -168,12 +168,23 @@ defmodule Tymeslot.Workers.VideoTranscoderTest do
       timeout = VideoTranscoder.timeout(job)
 
       assert is_integer(timeout)
-      assert timeout > length(Transcoder.variant_definitions()) * Transcoder.variant_timeout()
+
+      assert timeout >
+               length(Transcoder.variant_definitions()) * Transcoder.max_variant_timeout()
+    end
+
+    test "ends the job before the Oban lifeline would run it a second time" do
+      job = VideoTranscoder.new(%{theme_customization_id: 1, video_path: "uploads/v.mp4"})
+
+      # `ObanRescue`'s longest legitimate job: the lifeline rescues after more.
+      assert VideoTranscoder.timeout(job) <= :timer.hours(5)
     end
   end
 
   describe "perform/1 - a variant that times out" do
-    test "marks the video failed on the final attempt" do
+    test "marks the video failed on the first attempt, without a retry" do
+      # A retry would run as long again, holding the one-at-a-time queue for
+      # every other video.
       theme_customization = insert_theme_customization()
 
       expect(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
@@ -182,14 +193,14 @@ defmodule Tymeslot.Workers.VideoTranscoderTest do
         {:error, :timeout}
       end)
 
-      assert {:error, :timeout} =
+      assert {:cancel, "Video encode timed out"} =
                perform_job(
                  VideoTranscoder,
                  %{
                    "theme_customization_id" => theme_customization.id,
                    "video_path" => "uploads/test-video.mp4"
                  },
-                 attempt: 3
+                 attempt: 1
                )
 
       updated = Repo.get!(ThemeCustomizationSchema, theme_customization.id)

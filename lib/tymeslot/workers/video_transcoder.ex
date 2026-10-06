@@ -37,6 +37,7 @@ defmodule Tymeslot.Workers.VideoTranscoder do
   # The upload was removed before it was transcoded. A missing ffmpeg is the
   # operator's to fix, and is recorded.
   @source_gone "Video source no longer present"
+  @timed_out "Video encode timed out"
 
   @impl ExpectedJobOutcome
   def expected_outcome?(reason),
@@ -48,7 +49,7 @@ defmodule Tymeslot.Workers.VideoTranscoder do
   # and the queue runs one job at a time.
   @impl Oban.Worker
   def timeout(_job) do
-    length(Transcoder.variant_definitions()) * Transcoder.variant_timeout() +
+    length(Transcoder.variant_definitions()) * Transcoder.max_variant_timeout() +
       :timer.minutes(5)
   end
 
@@ -110,6 +111,15 @@ defmodule Tymeslot.Workers.VideoTranscoder do
       {:error, :source_missing} ->
         cleanup_variants(base_path)
         handle_missing_source(id, job)
+
+      # The encode ran past a limit already sized generously from the clip's
+      # length. Another attempt would take as long and hold the one-at-a-time
+      # queue for every other video meanwhile, so the video is failed now.
+      {:error, :timeout} ->
+        cleanup_variants(base_path)
+        update_status(id, @status_failed)
+        Logger.error("Video transcoding timed out", theme_customization_id: id)
+        {:cancel, @timed_out}
 
       {:error, reason} ->
         cleanup_variants(base_path)
