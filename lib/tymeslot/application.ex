@@ -443,6 +443,7 @@ defmodule Tymeslot.Application do
     base_config
     |> Keyword.put_new(:engine, ObanEngine)
     |> ObanQueues.build()
+    |> ObanCron.extend()
   end
 
   # Schedule periodic jobs using TaskSupervisor for proper error handling

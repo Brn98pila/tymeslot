@@ -30,6 +30,49 @@ defmodule Tymeslot.Infrastructure.ObanCron do
   ]
 
   @doc """
+  Returns `oban_config` with the `:oban_additional_crontab` entries appended
+  to its crontab: the extension point through which a wrapper application
+  schedules its own periodic workers, mirroring `:oban_additional_queues`.
+
+  Scheduling them here rather than from each worker re-inserting its own next
+  run means a run that crashes cannot end the schedule, and runs stay on the
+  clock instead of drifting a little later every day.
+
+  With the `:cron` service absent or disabled (the test environment, for one)
+  there is no crontab to extend and the configuration is returned unchanged.
+  Raises `ArgumentError` when the additional crontab is not a list.
+  """
+  @spec extend(keyword()) :: keyword()
+  def extend(oban_config),
+    do: extend(oban_config, Application.get_env(:tymeslot, :oban_additional_crontab, []))
+
+  @doc false
+  @spec extend(keyword(), term()) :: keyword()
+  def extend(oban_config, []), do: oban_config
+
+  def extend(oban_config, additional) when is_list(additional) do
+    case Keyword.get(oban_config, :cron) do
+      {module, opts} when is_list(opts) ->
+        Keyword.put(oban_config, :cron, {module, append_crontab(opts, additional)})
+
+      opts when is_list(opts) ->
+        Keyword.put(oban_config, :cron, append_crontab(opts, additional))
+
+      _absent_or_disabled ->
+        oban_config
+    end
+  end
+
+  def extend(_oban_config, additional) do
+    raise ArgumentError,
+          ":oban_additional_crontab must be a list of crontab entries, got: " <>
+            inspect(additional)
+  end
+
+  defp append_crontab(opts, additional),
+    do: Keyword.update(opts, :crontab, additional, &(&1 ++ additional))
+
+  @doc """
   The critical workers `oban_config` fails to schedule.
 
   `:no_crontab` means the `:cron` service itself is absent or disabled, which

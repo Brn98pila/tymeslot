@@ -91,6 +91,25 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
       }
     end
 
+    test "a forwarded dispute carries the Stripe event's creation time" do
+      event = %{
+        "id" => "evt_upd_created",
+        "created" => 1_700_000_456,
+        "type" => "charge.dispute.updated"
+      }
+
+      expect(Tymeslot.Payments.StripeMock, :get_charge, fn _charge_id ->
+        {:ok, subscription_charge()}
+      end)
+
+      assert {:ok, :dispute_updated} = DisputeHandler.process(event, dispute("under_review"))
+
+      assert_received %{
+        event: :dispute_updated,
+        data: %{event_id: "evt_upd_created", event_created: 1_700_000_456}
+      }
+    end
+
     test "one-time charge dispute update does not broadcast" do
       user = insert(:user)
 

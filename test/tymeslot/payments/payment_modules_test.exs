@@ -69,12 +69,16 @@ defmodule Tymeslot.Payments.PaymentModulesTest do
       assert_receive ^event_data
     end
 
-    test "broadcast_payment_event broadcasts to payment_events topic", %{
+    test "hand_off_payment_event publishes to payment_events topic", %{
       pubsub_server: pubsub_server
     } do
       Phoenix.PubSub.subscribe(pubsub_server, "payment_events:tymeslot")
 
-      PubSub.broadcast_payment_event(:charge_succeeded, %{charge_id: "ch_123", user_id: 42})
+      assert :ok =
+               PubSub.hand_off_payment_event(:charge_succeeded, %{
+                 charge_id: "ch_123",
+                 user_id: 42
+               })
 
       assert_receive %{event: :charge_succeeded, data: %{charge_id: "ch_123", user_id: 42}}
     end

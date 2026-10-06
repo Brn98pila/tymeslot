@@ -27,6 +27,39 @@ defmodule Tymeslot.Infrastructure.ObanCronTest do
     ]
   end
 
+  # The extension point a wrapper application schedules its own periodic
+  # workers through: without it they can only re-insert their own next run,
+  # a chain that one crash ends for good.
+  describe "extend/2" do
+    test "appends the additional entries to the crontab" do
+      extra = [{"0 2 * * *", ObanMaintenanceWorker, args: %{"extra" => true}}]
+
+      config = ObanCron.extend(cron_config(all_workers()), extra)
+
+      assert config[:cron][:crontab] == all_workers() ++ extra
+    end
+
+    test "extends a crontab given as a {module, opts} plugin tuple" do
+      extra = [{"0 2 * * *", ObanMaintenanceWorker}]
+      config = [cron: {Oban.Plugins.Cron, crontab: all_workers()}]
+
+      assert {Oban.Plugins.Cron, opts} = ObanCron.extend(config, extra)[:cron]
+      assert opts[:crontab] == all_workers() ++ extra
+    end
+
+    test "leaves a configuration without a cron service as it is" do
+      config = [repo: Tymeslot.Repo, testing: :manual]
+
+      assert ObanCron.extend(config, [{"0 2 * * *", ObanMaintenanceWorker}]) == config
+    end
+
+    test "rejects an additional crontab that is not a list" do
+      assert_raise ArgumentError, fn ->
+        ObanCron.extend(cron_config(all_workers()), {"0 2 * * *", ObanMaintenanceWorker})
+      end
+    end
+  end
+
   describe "missing_workers/1" do
     test "finds nothing missing when the crontab schedules every critical worker" do
       assert ObanCron.missing_workers(cron_config(all_workers())) == []

@@ -2,21 +2,14 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandlerTest do
   use Tymeslot.DataCase, async: false
   @moduletag :payments
 
-  alias Ecto.Adapters.SQL.Sandbox
   alias Phoenix.PubSub.Supervisor
   alias Tymeslot.Payments
   alias Tymeslot.Payments.Webhooks.SubscriptionHandler
-  alias TymeslotSaas.Payments.PaymentEventListener
 
   setup do
     # Ensure Tymeslot.PubSub is started
     unless Process.whereis(Tymeslot.PubSub) do
       Supervisor.start_link(name: Tymeslot.PubSub, adapter: Phoenix.PubSub.PG2)
-    end
-
-    # Allow the PaymentEventListener to access the database connection
-    if pid = Process.whereis(PaymentEventListener) do
-      Sandbox.allow(Tymeslot.Repo, self(), pid)
     end
 
     :ok
@@ -60,6 +53,29 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandlerTest do
         event: :subscription_created,
         subscription_id: "sub_123",
         subscription_data: ^subscription
+      }
+    end
+
+    # The receiver orders events by Stripe's creation time and deduplicates
+    # them by id, so both must travel with the subscription.
+    test "carries the Stripe event's id and creation time" do
+      assert :ok = Payments.subscribe_to_payment_events()
+
+      subscription = %{"id" => "sub_ordered", "status" => "active"}
+
+      event = %{
+        "id" => "evt_ordered",
+        "created" => 1_700_000_123,
+        "type" => "customer.subscription.updated",
+        type: "customer.subscription.updated"
+      }
+
+      assert {:ok, :event_processed} = SubscriptionHandler.process(event, subscription)
+
+      assert_receive %{
+        subscription_id: "sub_ordered",
+        event_id: "evt_ordered",
+        event_created: 1_700_000_123
       }
     end
 

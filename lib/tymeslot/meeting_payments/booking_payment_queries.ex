@@ -265,24 +265,36 @@ defmodule Tymeslot.MeetingPayments.BookingPaymentQueries do
     Repo.one(query)
   end
 
-  @spec lifetime_stats(integer()) :: %{
-          received: integer(),
-          refunded: integer(),
-          platform_fee: integer()
-        }
+  @doc """
+  Lifetime totals for a host, one row per currency, ordered by currency.
+
+  Grouped because a host who changed their default currency holds money in
+  more than one, and amounts in different currencies cannot be added up.
+  """
+  @spec lifetime_stats(integer()) :: [
+          %{
+            currency: String.t(),
+            received: integer(),
+            refunded: integer(),
+            platform_fee: integer()
+          }
+        ]
   def lifetime_stats(host_user_id) do
     query =
       from b in BookingPaymentSchema,
         where:
           b.host_user_id == ^host_user_id and
             b.status in ["paid", "partially_refunded", "refunded"],
+        group_by: b.currency,
+        order_by: [asc: b.currency],
         select: %{
-          received: coalesce(sum(b.amount_cents), 0),
-          refunded: coalesce(sum(b.refunded_amount_cents), 0),
-          platform_fee: coalesce(sum(b.application_fee_cents), 0)
+          currency: b.currency,
+          received: type(coalesce(sum(b.amount_cents), 0), :integer),
+          refunded: type(coalesce(sum(b.refunded_amount_cents), 0), :integer),
+          platform_fee: type(coalesce(sum(b.application_fee_cents), 0), :integer)
         }
 
-    Repo.one(query)
+    Repo.all(query)
   end
 
   @spec insert(map()) :: {:ok, BookingPaymentSchema.t()} | {:error, Ecto.Changeset.t()}

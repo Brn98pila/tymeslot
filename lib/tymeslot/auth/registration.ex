@@ -12,6 +12,7 @@ defmodule Tymeslot.Auth.Registration do
     ErrorFormatter,
     Helpers.AccountLogging,
     RateLimit,
+    RegistrationAnnouncement,
     SignupSecurity,
     UserSchema,
     Validation,
@@ -19,7 +20,7 @@ defmodule Tymeslot.Auth.Registration do
   }
 
   alias Tymeslot.Emails.EmailScheduler
-  alias Tymeslot.Infrastructure.{Config, PubSub}
+  alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Profiles
   alias Tymeslot.Repo
@@ -320,8 +321,8 @@ defmodule Tymeslot.Auth.Registration do
       {:ok, _profile} ->
         Logger.info("Created profile", user_id: user.id)
 
-        # Notify apps about successful registration via PubSub
-        PubSub.broadcast_user_registered(user, Keyword.fetch!(opts, :metadata))
+        # Notify apps about the completed registration
+        RegistrationAnnouncement.announce(user, Keyword.fetch!(opts, :metadata))
         :ok
 
       {:error, reason} ->

@@ -50,7 +50,7 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettingsComponent do
      |> assign(:payments, [])
      |> assign(:outstanding_refunds, [])
      |> assign(:outstanding_refunds_summary, %{count: 0, totals: []})
-     |> assign(:stats, %{received: 0, refunded: 0, platform_fee: 0})
+     |> assign(:stats, [])
      |> assign(:pending_payments_count, 0)}
   end
 
