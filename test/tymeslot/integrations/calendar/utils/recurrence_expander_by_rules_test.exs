@@ -85,10 +85,23 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderByRulesTest do
   end
 
   describe "expand/4 counting COUNT after BYDAY" do
-    test "a weekly series on two days makes COUNT occurrences when it starts on neither" do
-      # Tuesday 13 January is not one of the rule's days.
+    # RFC 5545 §3.3.10: "The DTSTART property value always counts as the
+    # first occurrence", whether or not the rule would make it.
+    test "a weekly series on two days starting on neither occurs first on its start" do
+      # Tuesday 13 January is not one of the rule's days; it counts all the same.
       assert dates("FREQ=WEEKLY;BYDAY=MO,WE;COUNT=4", ~D[2026-01-13]) ==
-               [~D[2026-01-14], ~D[2026-01-19], ~D[2026-01-21], ~D[2026-01-26]]
+               [~D[2026-01-13], ~D[2026-01-14], ~D[2026-01-19], ~D[2026-01-21]]
+    end
+
+    test "a monthly series starting off its rule occurs first on its start" do
+      # Wednesday 7 January is not the second Tuesday.
+      assert dates("FREQ=MONTHLY;BYDAY=2TU;COUNT=3", ~D[2026-01-07]) ==
+               [~D[2026-01-07], ~D[2026-01-13], ~D[2026-02-10]]
+    end
+
+    test "a start the rule also makes occurs once and counts once" do
+      assert dates("FREQ=WEEKLY;BYDAY=TU,TH;COUNT=3", ~D[2026-01-13]) ==
+               [~D[2026-01-13], ~D[2026-01-15], ~D[2026-01-20]]
     end
 
     test "a daily series limited to three weekdays makes COUNT occurrences" do
@@ -110,6 +123,15 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderByRulesTest do
                ~U[2026-01-13 09:00:00Z],
                ~U[2026-06-01 00:00:00Z]
              ) == 5
+    end
+
+    test "counts a start the rule does not make" do
+      # Tuesday 13 January, then Wednesday 14, Monday 19 and Wednesday 21.
+      assert RecurrenceExpander.count_before(
+               "FREQ=WEEKLY;BYDAY=MO,WE",
+               ~U[2026-01-13 09:00:00Z],
+               ~U[2026-01-22 00:00:00Z]
+             ) == 4
     end
   end
 

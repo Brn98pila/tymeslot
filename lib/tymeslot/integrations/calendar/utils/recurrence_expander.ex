@@ -329,8 +329,11 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
   # The starts the rule makes within the range, in order. The rule is expanded
   # period by period (RFC 5545 §3.3.10): each period of FREQ yields the dates
   # its BYxxx parts select, BYSETPOS picks among them, and every date takes
-  # the first start's wall-clock time in its zone. COUNT counts the starts so
-  # made from the first start, before the range and EXDATE are applied.
+  # the first start's wall-clock time in its zone. The first start (DTSTART)
+  # always counts as the first occurrence, whether or not the rule makes it,
+  # and a date the rule makes on that day is not made twice. COUNT counts the
+  # starts so made from the first start, before the range and EXDATE are
+  # applied.
   defp occurrence_starts(start_dt, rule, range_start_dt, range_end_dt, limits) do
     first_date = DateTime.to_date(start_dt)
     first_period = period_start(first_date, rule)
@@ -343,14 +346,18 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
 
     last_date = last_period_date(rule, range_end_dt)
 
-    skip
-    |> Stream.iterate(&(&1 + 1))
-    |> Stream.map(&nth_period(first_period, rule, &1))
-    |> Stream.take_while(&(Date.compare(&1, last_date) != :gt))
-    |> within_step_budget(max_periods, rule)
-    |> Stream.flat_map(&period_dates(&1, rule, first_date))
-    |> Stream.reject(&(Date.compare(&1, first_date) == :lt))
-    |> Stream.map(&if(&1 == first_date, do: start_dt, else: rebuild_in_zone(start_dt, &1)))
+    rule_starts =
+      skip
+      |> Stream.iterate(&(&1 + 1))
+      |> Stream.map(&nth_period(first_period, rule, &1))
+      |> Stream.take_while(&(Date.compare(&1, last_date) != :gt))
+      |> within_step_budget(max_periods, rule)
+      |> Stream.flat_map(&period_dates(&1, rule, first_date))
+      |> Stream.filter(&(Date.compare(&1, first_date) == :gt))
+      |> Stream.map(&rebuild_in_zone(start_dt, &1))
+
+    [start_dt]
+    |> Stream.concat(rule_starts)
     |> take_at_most(rule.count)
     |> Stream.take_while(&before_end?(&1, rule, range_end_dt))
     |> Stream.filter(&in_range?(&1, range_start_dt, range_end_dt))
