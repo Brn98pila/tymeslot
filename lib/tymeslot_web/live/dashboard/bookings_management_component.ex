@@ -75,10 +75,10 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
     last_per_page = socket.assigns[:_last_per_page]
     initialized? = socket.assigns[:_initialized]
 
-    # `?meeting=<id>` (a host's link to one booking) shows that booking alone.
-    # Choosing a tab drops the focus while the URL still carries the param, so
-    # only a change of the param itself brings it back.
-    focus_param = get_in(socket.assigns, [:params, "meeting"])
+    # `?meeting=<id>` (a host's link to one booking) shows it alone; an empty
+    # or non-string param (`?meeting[x]=1`) names none. Choosing a tab drops the
+    # focus while the URL keeps the param, so only a change of it restores it.
+    focus_param = focus_param(get_in(socket.assigns, [:params, "meeting"]))
     focus_changed? = focus_param != socket.assigns._last_focus_param
 
     socket =
@@ -578,6 +578,9 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
         |> assign(:is_empty, true)
     end
   end
+
+  defp focus_param(param) when is_binary(param) and param != "", do: param
+  defp focus_param(_none), do: nil
 
   defp fetch_page(nil, user_id, filter, per_page),
     do: Meetings.list_user_meetings_by_filter(user_id, filter, per_page: per_page)

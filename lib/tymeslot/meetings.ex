@@ -345,7 +345,7 @@ defmodule Tymeslot.Meetings do
   meeting's organiser links lead to
   (`Tymeslot.Bookings.MeetingLinks.host_view_url/1`).
   """
-  @spec list_user_meeting(integer(), String.t()) :: {:ok, CursorPage.t()}
+  @spec list_user_meeting(integer(), term()) :: {:ok, CursorPage.t()}
   defdelegate list_user_meeting(user_id, meeting_id), to: Listing
 
   @doc """

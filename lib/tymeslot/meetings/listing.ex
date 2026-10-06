@@ -52,13 +52,15 @@ defmodule Tymeslot.Meetings.Listing do
   dashboard list loads its cards; an empty page when they own no meeting by
   that id, including when `meeting_id` is no id at all (a mangled link).
   """
-  @spec list_user_meeting(integer(), String.t()) :: {:ok, CursorPage.t()}
-  def list_user_meeting(user_id, meeting_id) do
+  @spec list_user_meeting(integer(), term()) :: {:ok, CursorPage.t()}
+  def list_user_meeting(user_id, meeting_id) when is_binary(meeting_id) do
     case UUID.cast(String.trim(meeting_id)) do
       {:ok, id} -> list_organizer_meetings_cursor_page(user_id, id: id, per_page: 1)
       :error -> {:ok, %CursorPage{items: [], page_size: 1}}
     end
   end
+
+  def list_user_meeting(_user_id, _meeting_id), do: {:ok, %CursorPage{items: [], page_size: 1}}
 
   @doc """
   High-level function to list meetings for a user based on a filter string.

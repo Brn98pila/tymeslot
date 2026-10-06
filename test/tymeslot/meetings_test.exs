@@ -346,6 +346,14 @@ defmodule Tymeslot.MeetingsTest do
     end
   end
 
+  describe "list_user_meeting/2" do
+    test "returns an empty page for a meeting id that is not a string" do
+      for mangled <- [%{"x" => "1"}, ["a"], nil] do
+        assert {:ok, %{items: []}} = Meetings.list_user_meeting(1, mangled)
+      end
+    end
+  end
+
   describe "list_organizer_meetings_cursor_page/2" do
     test "returns meetings for valid user id" do
       %{user: user} = create_user_with_profile()

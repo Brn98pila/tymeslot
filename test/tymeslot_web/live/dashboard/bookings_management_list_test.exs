@@ -100,6 +100,31 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementListTest do
       refute html =~ "Unrelated Booking"
     end
 
+    # The param is user-controlled: Plug parses `?meeting[x]=1` into a map and
+    # `?meeting[]=a` into a list, neither of which names a booking.
+    for {label, query} <- [
+          {"empty", "meeting="},
+          {"a map", "meeting[x]=1"},
+          {"a list", "meeting[]=a"}
+        ] do
+      test "shows the normal list when the meeting param is #{label}",
+           %{conn: conn, user: user} do
+        insert(:meeting,
+          organizer_user_id: user.id,
+          organizer_email: user.email,
+          attendee_name: "Listed Booking",
+          start_time: DateTime.add(DateTime.utc_now(), 1, :day),
+          end_time: DateTime.add(DateTime.utc_now(), 24 * 60 + 30, :minute)
+        )
+
+        {:ok, view, _html} = live(conn, "/dashboard/meetings?" <> unquote(query))
+
+        html = render(view)
+        assert html =~ "Listed Booking"
+        refute html =~ "This booking isn&#39;t available."
+      end
+    end
+
     test "marks no tab as current while it shows a past booking", %{conn: conn, user: user} do
       past =
         insert(:meeting,
