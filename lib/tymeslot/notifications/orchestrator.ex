@@ -8,7 +8,6 @@ defmodule Tymeslot.Notifications.Orchestrator do
 
   alias Tymeslot.Clock
   alias Tymeslot.Emails.EmailScheduler
-  alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.ApprovalJobs
@@ -291,8 +290,15 @@ defmodule Tymeslot.Notifications.Orchestrator do
   end
 
   @doc """
-  Sends reschedule notifications immediately, to the host and the booker and
-  then to the booking's guests (`GuestNotifications.notify_rescheduled/2`).
+  Schedules the reschedule notices to the host, the booker and the booking's
+  guests, after resetting the guests' answers, which applied to the previous
+  time.
+
+  The notices go out from a retrying email job
+  (`Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails`), like every other
+  booking email, so a mail outage delays them rather than losing them, and
+  the reschedule does not wait on the mail provider. The job carries the time
+  the booking moved from, which the meeting row no longer holds.
   """
   @spec send_reschedule_notifications(%{atom() => term()}, %{atom() => term()}) ::
           {:ok, atom()} | {:error, term()}
@@ -302,10 +308,8 @@ defmodule Tymeslot.Notifications.Orchestrator do
 
     with :ok <- Recipients.validate_recipients(recipients),
          :ok <- ContentBuilder.validate_content(content) do
-      # Send immediately via EmailService
-      result = send_reschedule_emails(content)
-      GuestNotifications.notify_rescheduled(updated_meeting, content)
-      result
+      GuestNotifications.reset_for_new_time(updated_meeting)
+      schedule_reschedule_job(updated_meeting.id, original_meeting)
     end
   end
 
@@ -324,6 +328,9 @@ defmodule Tymeslot.Notifications.Orchestrator do
 
   A first approval (no `first_announced_at`) sends nothing here: the regular
   confirmation announces it.
+
+  Scheduled like `send_reschedule_notifications/2`, from a retrying email job
+  that also writes to the guests who had been invited.
   """
   @spec send_reapproval_notifications(%{atom() => term()}) ::
           {:ok, atom()} | {:error, term()}
@@ -335,7 +342,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
 
     with :ok <- Recipients.validate_recipients(recipients),
          :ok <- ContentBuilder.validate_content(content) do
-      send_reschedule_emails(content)
+      schedule_reschedule_job(meeting.id, nil)
     end
   end
 
@@ -446,20 +453,10 @@ defmodule Tymeslot.Notifications.Orchestrator do
     )
   end
 
-  defp send_reschedule_emails(content) do
-    email_service = Config.email_service_module()
-
-    case email_service.send_reschedule_emails(content) do
-      {{:ok, _organizer}, {:ok, _attendee}} ->
-        {:ok, :reschedules_sent}
-
-      {organizer_result, attendee_result} ->
-        Logger.warning("Some reschedule emails may have failed",
-          organizer_result: LogFormat.reason(organizer_result),
-          attendee_result: LogFormat.reason(attendee_result)
-        )
-
-        {:ok, :reschedules_partially_sent}
+  defp schedule_reschedule_job(meeting_id, original_meeting) do
+    case get_email_worker_module().schedule_reschedule_emails(meeting_id, original_meeting) do
+      :ok -> {:ok, :reschedules_scheduled}
+      {:error, _reason} = error -> error
     end
   end
 

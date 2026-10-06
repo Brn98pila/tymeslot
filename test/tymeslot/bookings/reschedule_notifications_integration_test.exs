@@ -269,7 +269,9 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
 
   # The two emails a reschedule sends, keyed by recipient address, so a test
   # names the one it means instead of depending on delivery order.
+  # The notices go out from an email job, so the queue is run first.
   defp delivered_emails do
+    Oban.drain_queue(queue: :emails)
     assert_received {:email, first}
     assert_received {:email, second}
 

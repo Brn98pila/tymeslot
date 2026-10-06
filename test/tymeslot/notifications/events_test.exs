@@ -27,6 +27,9 @@ defmodule Tymeslot.Notifications.EventsTest do
     @spec schedule_cancellation_emails(term()) :: no_return()
     def schedule_cancellation_emails(_meeting_id), do: raise("email pipeline down")
 
+    @spec schedule_reschedule_emails(term(), term()) :: no_return()
+    def schedule_reschedule_emails(_meeting_id, _original), do: raise("email pipeline down")
+
     @spec cancel_reminder_emails(term()) :: :ok
     def cancel_reminder_emails(_meeting_id), do: :ok
 
@@ -280,8 +283,9 @@ defmodule Tymeslot.Notifications.EventsTest do
     end
   end
 
-  # Issue #76: the email step renders templates in-process, so a payload the
-  # templates don't fit raises instead of returning `{:error, _}`. That
+  # Issue #76: the email step can raise instead of returning `{:error, _}`
+  # (it used to render templates in-process, where a payload they did not fit
+  # raised). That
   # exception used to escape before the webhook, Telegram and Slack dispatches
   # sequenced after it, silently costing a reschedule every downstream channel.
   describe "a raising email step" do
@@ -321,11 +325,7 @@ defmodule Tymeslot.Notifications.EventsTest do
       meeting: meeting,
       telegram_integration: telegram_integration
     } do
-      stub(Tymeslot.EmailServiceMock, :send_reschedule_emails, fn _details ->
-        raise KeyError, key: :reminders_summary, term: %{}
-      end)
-
-      assert {:error, {:notifications_failed, %KeyError{}}} =
+      assert {:error, {:notifications_failed, %RuntimeError{}}} =
                Events.meeting_rescheduled(meeting, meeting)
 
       assert_enqueued(

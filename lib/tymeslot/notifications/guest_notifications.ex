@@ -8,15 +8,16 @@ defmodule Tymeslot.Notifications.GuestNotifications do
   guest heard nothing more: not when the booking moved, and not when it was
   cancelled. Here:
 
-    * **Rescheduled** (`notify_rescheduled/2`): every guest's answer and
-      reminder history is reset, since both applied to the previous time, and
-      every guest, including those who declined, gets a reschedule email with
-      their RSVP links and an updated calendar entry.
-    * **Rescheduled into the approval gate** (`prepare_for_reapproval/1`): no
+    * **Rescheduled** (`reset_for_new_time/1`, then `notify_rescheduled/3`
+      from the reschedule email job): every guest's answer and reminder
+      history is reset, since both applied to the previous time, and every
+      guest, including those who declined, gets a reschedule email with their
+      RSVP links and an updated calendar entry.
+    * **Rescheduled into the approval gate** (`reset_for_new_time/1`): no
       email yet, since nobody has agreed to the new time; the answers and
       reminder history are reset. Once the host approves the new time
-      (`notify_reapproved/1`), the guests who had been invited get the
-      reschedule email. A request that was never approved has guests who were
+      (`notify_reapproved/3`, from the same job), the guests who had been
+      invited get the reschedule email. A request that was never approved has guests who were
       never invited; the confirmation that follows its approval invites them
       as usual.
     * **Cancelled, declined or expired** (`notify_cancelled/3`): every guest gets
@@ -46,36 +47,32 @@ defmodule Tymeslot.Notifications.GuestNotifications do
   alias Tymeslot.Meetings.Recipient
 
   @doc """
-  Resets the guests' answers and reminder history, and sends each guest the
-  reschedule email.
+  Sends every guest the reschedule email, declined ones included. Their
+  answers were reset when the booking moved (`reset_for_new_time/1`).
 
   `content` is the reschedule payload built by
-  `Tymeslot.Notifications.ContentBuilder.build_reschedule_details/2`.
+  `Tymeslot.Notifications.ContentBuilder.build_reschedule_details/2`. `once`
+  wraps each guest's send as in `notify_cancelled/3`.
   """
-  @spec notify_rescheduled(map(), map()) :: :ok
-  def notify_rescheduled(%{id: meeting_id} = _meeting, content) do
-    case GuestQueries.list_live_for_meeting(meeting_id) do
-      [] ->
-        :ok
+  @spec notify_rescheduled(map(), map(), (String.t(), (-> term()) -> term())) :: :ok
+  def notify_rescheduled(meeting, content, once \\ fn _key, send -> send.() end)
 
-      guests ->
-        GuestQueries.reset_for_new_time(meeting_id)
-
-        guests
-        |> Enum.map(&{&1, content})
-        |> send_to_guests(meeting_id, "reschedule", fn guest, details ->
-          Config.email_service_module().send_guest_reschedule(guest.email, details)
-        end)
-    end
+  def notify_rescheduled(%{id: meeting_id} = _meeting, content, once) do
+    meeting_id
+    |> GuestQueries.list_live_for_meeting()
+    |> send_reschedules(meeting_id, content, once)
   end
 
   @doc """
-  Prepares the guests of a booking that a reschedule sent back into the
-  approval gate: their answers and reminder history applied to the previous
-  time and are reset. Nobody is emailed until the host approves the new time.
+  Resets the guests' answers and reminder history, which applied to the
+  booking's previous time: when it is rescheduled, and when a reschedule sends
+  it back into the approval gate. Nobody is emailed here: the reschedule
+  notice tells the guests (`notify_rescheduled/3`), or, for a booking held
+  for approval, the notice that follows the host's approval
+  (`notify_reapproved/3`).
   """
-  @spec prepare_for_reapproval(map()) :: :ok
-  def prepare_for_reapproval(%{id: meeting_id}) do
+  @spec reset_for_new_time(map()) :: :ok
+  def reset_for_new_time(%{id: meeting_id}) do
     GuestQueries.reset_for_new_time(meeting_id)
     :ok
   end
@@ -86,27 +83,26 @@ defmodule Tymeslot.Notifications.GuestNotifications do
 
   Only a booking that was confirmed before has invited guests, so for a first
   approval this sends nothing and the confirmation invites the guests instead.
-  The previous time is no longer known at this point, so the email states the
-  new time without it.
+  The previous time is no longer known at this point, so `details` (the
+  booking's payload) states the new time without it. `once` wraps each
+  guest's send as in `notify_cancelled/3`.
   """
-  @spec notify_reapproved(map()) :: :ok
-  def notify_reapproved(%{id: meeting_id} = meeting) do
-    case Enum.reject(
-           GuestQueries.list_live_for_meeting(meeting_id),
-           &is_nil(&1.confirmation_sent_at)
-         ) do
-      [] ->
-        :ok
+  @spec notify_reapproved(map(), map(), (String.t(), (-> term()) -> term())) :: :ok
+  def notify_reapproved(%{id: meeting_id} = _meeting, details, once) do
+    meeting_id
+    |> GuestQueries.list_live_for_meeting()
+    |> Enum.reject(&is_nil(&1.confirmation_sent_at))
+    |> send_reschedules(meeting_id, details, once)
+  end
 
-      invited ->
-        details = AppointmentBuilder.from_meeting(meeting)
-
-        invited
-        |> Enum.map(&{&1, details})
-        |> send_to_guests(meeting_id, "reschedule", fn guest, details ->
-          Config.email_service_module().send_guest_reschedule(guest.email, details)
-        end)
-    end
+  defp send_reschedules(guests, meeting_id, details, once) do
+    guests
+    |> Enum.map(&{&1, details})
+    |> send_to_guests(meeting_id, "reschedule", fn guest, details ->
+      once.("reschedule:guest:#{guest.id}", fn ->
+        Config.email_service_module().send_guest_reschedule(guest.email, details)
+      end)
+    end)
   end
 
   @doc """
