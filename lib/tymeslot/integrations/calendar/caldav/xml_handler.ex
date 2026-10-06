@@ -351,11 +351,6 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
   defp build_prop_element(other),
     do: raise(ArgumentError, "unknown CalDAV property atom: #{inspect(other)}")
 
-  # Keep only calendar collections that support VEVENT. When the server omits
-  # supported-calendar-component-set, accept the calendar by default — RFC 4791
-  # treats VEVENT support as implied. Collections that explicitly declare
-  # components without VEVENT are filtered out (e.g. mailbox.org's task-only
-  # "Aufgaben" collection).
   # A calendar whose reported privilege set grants neither read nor write
   # (a free/busy-only share) cannot have its events read, so it is not
   # offered at all. A set listing write alone is taken as readable: a server
@@ -372,6 +367,11 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
     false
   end
 
+  # Keep only calendar collections that support VEVENT. When the server omits
+  # supported-calendar-component-set, accept the calendar by default: RFC 4791
+  # treats VEVENT support as implied. Collections that explicitly declare
+  # components without VEVENT are filtered out (e.g. mailbox.org's task-only
+  # "Aufgaben" collection).
   defp include_calendar?(%{is_calendar: true, component_names: []}), do: true
 
   defp include_calendar?(%{is_calendar: true, component_names: names, href: href}) do
