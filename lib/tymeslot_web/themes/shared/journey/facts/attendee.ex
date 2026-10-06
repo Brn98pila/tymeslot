@@ -20,8 +20,8 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.Attendee do
   alias TymeslotWeb.Themes.Shared.GuestBooking
   alias TymeslotWeb.Themes.Shared.Journey.Fact
   alias TymeslotWeb.Themes.Shared.Journey.Facts.Answers
+  alias TymeslotWeb.Themes.Shared.Journey.Runtime
   alias TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry
-  alias TymeslotWeb.Themes.Shared.SchedulingFlow
 
   @events [
     :validate,
@@ -70,7 +70,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.Attendee do
   def handle(socket, :remove_guest, data), do: {:noreply, GuestBooking.remove(socket, data)}
 
   def handle(socket, :submit, data),
-    do: BookingFlow.submit_booking(socket, data, &SchedulingFlow.transition_to/3)
+    do: BookingFlow.submit_booking(socket, data, &Runtime.transition_to/3)
 
   @impl Fact
   def enter(socket, params), do: StepEntry.handle_booking_entry(socket, params)

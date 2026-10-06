@@ -35,12 +35,14 @@ defmodule TymeslotWeb.Live.Scheduling.CustomFieldsBookingFlowTest do
   import Tymeslot.Factory
   import Tymeslot.BookingTestHelpers
 
+  alias Phoenix.Component
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.TestMocks
+  alias TymeslotWeb.Themes.Shared.CustomQuestions.Engine
   alias TymeslotWeb.ThemeTestMatrix
 
   # Every theme's booking step carries this testid; its heading wording is the
@@ -348,13 +350,15 @@ defmodule TymeslotWeb.Live.Scheduling.CustomFieldsBookingFlowTest do
 
         assert has_element?(view, @booking_form)
 
-        # Now wipe the answer from engine state (simulates tampered params /
-        # corrupted client state reaching the submit handler). The parent
-        # LiveView's `:step_event` info handler stores the new value without
-        # re-validating, so the engine.answers map ends up missing the
-        # required field by the time validate_and_submit runs.
-        send(view.pid, {:step_event, :questions, :answer, {"cf-text-001", ""}})
-        _drain = :sys.get_state(view.pid)
+        # Now wipe the answer from engine state (simulates corrupted state
+        # reaching the submit). An answer event is not taken once the
+        # questions are off screen, so the engine is changed in the
+        # LiveView's state directly; the required answer is then missing when
+        # the booking is submitted.
+        :sys.replace_state(view.pid, fn state ->
+          engine = Engine.answer(state.socket.assigns.engine, "cf-text-001", "")
+          %{state | socket: Component.assign(state.socket, :engine, engine)}
+        end)
 
         view
         |> form("form[phx-submit='submit']", %{
@@ -368,8 +372,8 @@ defmodule TymeslotWeb.Live.Scheduling.CustomFieldsBookingFlowTest do
 
         _drain = :sys.get_state(view.pid)
 
-        # No booking was created — the error branch short-circuited before
-        # `Bookings.Create.execute/3`.
+        # No booking was created: the submit is refused while a required
+        # answer is missing.
         assert Repo.all_by(MeetingSchema, attendee_email: "mallory@example.com") == []
 
         html = render(view)

@@ -62,10 +62,11 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
   catch-all clause calling `super/3`, which logs the name and returns
   `{:noreply, socket}`; without one, an unknown name raises.
 
-  A step event the flow does not handle is dropped with a warning
-  (`StepEvents.log_ignored/3`), whatever the step, as is an event no hook
-  clause takes, and a message nothing routes is logged and ignored
-  (`InfoHandlers.handle_unexpected/2`).
+  Step events are routed by `Journey.Runtime.handle_step_event/4`: an event
+  it does not take (an unknown name, or a canonical one from a moment not on
+  screen) is dropped with a warning (`StepEvents.log_ignored/3`), as is an
+  event no hook clause takes, and a message nothing routes is logged and
+  ignored (`InfoHandlers.handle_unexpected/2`).
 
   The macro also generates `handle_async/3` for the flow's `start_async/3`
   results (a week view's week of slots,
@@ -85,8 +86,9 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       alias TymeslotWeb.Live.Scheduling.WeekSlots
       alias TymeslotWeb.Themes.Shared.{EventHandlers, InfoHandlers, PathHandlers}
       alias TymeslotWeb.Themes.Shared.Journey
+      alias TymeslotWeb.Themes.Shared.Journey.Runtime
       alias TymeslotWeb.Themes.Shared.LiveHelpers.{Mount, Tracking}
-      alias TymeslotWeb.Themes.Shared.{SchedulingFlow, SchedulingPage, StepEvents}
+      alias TymeslotWeb.Themes.Shared.{SchedulingPage, StepEvents}
 
       # The theme's journey, built from the literal `use` was given, which
       # was checked when the theme compiled.
@@ -122,7 +124,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
         do: handle_theme_event(name, params, socket)
 
       def handle_info({:step_event, step, event, data}, socket) do
-        case SchedulingFlow.handle_step_event(socket, step, event, data) do
+        case Runtime.handle_step_event(socket, step, event, data) do
           :unhandled ->
             StepEvents.log_ignored(socket.assigns, step, event)
             {:noreply, socket}
@@ -167,7 +169,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       # `handle_theme_event/3` would be replaced wholesale by a theme's own
       # override of that hook.
       def handle_event("navigate_to_step", params, socket),
-        do: SchedulingFlow.navigate_to_step(socket, params)
+        do: Runtime.navigate_to_step(socket, params)
 
       def handle_event("theme:" <> name, params, socket),
         do: handle_theme_event(name, params, socket)

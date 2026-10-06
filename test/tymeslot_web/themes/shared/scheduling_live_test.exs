@@ -69,11 +69,18 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest do
       ]
   end
 
-  defp socket(assigns), do: %Socket{assigns: Map.merge(%{__changed__: %{}, flash: %{}}, assigns)}
+  defp socket(assigns) do
+    %Socket{
+      assigns:
+        Map.merge(%{__changed__: %{}, flash: %{}, journey: OverridingLive.__journey__()}, assigns)
+    }
+  end
 
   describe "a theme with its own events" do
     test "still lets the booker go back through the step indicator" do
-      socket = socket(%{current_state: :schedule, meeting_type: nil})
+      # A booker who came through the overview: only they may return to it.
+      socket =
+        socket(%{current_state: :schedule, meeting_type: nil, entered_via_overview: true})
 
       assert {:noreply, socket} =
                OverridingLive.handle_event("navigate_to_step", %{"step" => "1"}, socket)
