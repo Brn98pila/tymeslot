@@ -96,6 +96,11 @@ config :tymeslot,
   # succeed before a user is deleted. See delete_user/1.
   account_deletion_hook: nil,
 
+  # Additional Oban crontab entries - none by default. An external layer adds
+  # its periodic workers here; they are appended to the crontab at startup
+  # (see Tymeslot.Infrastructure.ObanCron.extend/1).
+  oban_additional_crontab: [],
+
   # Payment-event handler - nil by default. An external layer can provide a
   # module implementing Tymeslot.Payments.Behaviours.PaymentEventHandler to
   # receive subscription, dispute, refund and trial events durably: an error
