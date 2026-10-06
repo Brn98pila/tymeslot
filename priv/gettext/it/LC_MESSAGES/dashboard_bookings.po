@@ -709,3 +709,13 @@ msgstr "Tutti i posti sono stati liberati"
 #, elixir-autogen, elixir-format
 msgid "Left this slot"
 msgstr "Ha lasciato questo orario"
+
+#: lib/tymeslot_web/live/dashboard/bookings_management/cancellation.ex
+#, elixir-autogen, elixir-format
+msgid "This booking was already cancelled, so no refund was issued."
+msgstr "Questa prenotazione è già stata annullata, quindi non è stato emesso alcun rimborso."
+
+#: lib/tymeslot_web/live/dashboard/bookings_management/cancellation.ex
+#, elixir-autogen, elixir-format
+msgid "This booking was already cancelled."
+msgstr "Questa prenotazione è già stata annullata."

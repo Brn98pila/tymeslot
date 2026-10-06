@@ -482,6 +482,14 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
     {:noreply, close_cancel_modal(socket)}
   end
 
+  # The attendee (or a calendar sync) cancelled the meeting while the modal
+  # was open. Nothing is left to do: the cancellation stopped before the
+  # refund step, so the host is told no refund came from this action.
+  defp handle_cancellation(socket, _meeting, refund_action, {:error, :already_cancelled}) do
+    Flash.info(Cancellation.already_cancelled_message(refund_action))
+    {:noreply, close_cancel_modal(socket)}
+  end
+
   defp handle_cancellation(socket, meeting, _refund_action, {:error, reason}) do
     Logger.error("cancel_meeting_failed",
       reason: LogFormat.reason(reason),

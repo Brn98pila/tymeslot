@@ -719,3 +719,13 @@ msgstr "Všechna místa byla uvolněna"
 #, elixir-autogen, elixir-format
 msgid "Left this slot"
 msgstr "Opustil(a) tento termín"
+
+#: lib/tymeslot_web/live/dashboard/bookings_management/cancellation.ex
+#, elixir-autogen, elixir-format
+msgid "This booking was already cancelled, so no refund was issued."
+msgstr "Tato rezervace už byla zrušena, proto nebyla vrácena žádná platba."
+
+#: lib/tymeslot_web/live/dashboard/bookings_management/cancellation.ex
+#, elixir-autogen, elixir-format
+msgid "This booking was already cancelled."
+msgstr "Tato rezervace už byla zrušena."
