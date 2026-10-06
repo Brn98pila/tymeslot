@@ -260,6 +260,20 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePaymentTest do
     assert second.id == first.id
   end
 
+  # The first job, discarded while a dispute held the money, must not
+  # swallow the one a won dispute schedules; that one is unique in turn.
+  test "is scheduled once more, and only once, after a won dispute", %{payment: payment} do
+    {:ok, first} = Oban.insert(RefundLatePayment.new_for(payment.id))
+    Repo.update_all(from(j in Oban.Job, where: j.id == ^first.id), set: [state: "discarded"])
+
+    {:ok, after_dispute} = Oban.insert(RefundLatePayment.new_after_dispute(payment.id))
+    refute after_dispute.conflict?
+
+    {:ok, again} = Oban.insert(RefundLatePayment.new_after_dispute(payment.id))
+    assert again.conflict?
+    assert again.id == after_dispute.id
+  end
+
   test "spreads its attempts over about four hours, inside Stripe's idempotency window" do
     total =
       Enum.sum(for attempt <- 1..9, do: RefundLatePayment.backoff(%Oban.Job{attempt: attempt}))

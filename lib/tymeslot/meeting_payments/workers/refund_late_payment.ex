@@ -35,21 +35,24 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
 
     * `:under_dispute`: Stripe holds the money until the dispute is decided.
       A dispute the attendee wins returns it to them; one the host wins sets
-      the payment back to `paid`, which puts the booking back on the host's
-      outstanding-refunds list.
+      the payment back to `paid` and schedules this job again
+      (`new_after_dispute/1`), the booking on the host's outstanding-refunds
+      list until it has run.
     * `:outside_refund_window` and `:not_paid`: the payment is `paid` and
       its booking expired, so it stays on the host's outstanding-refunds
       list, offered as a refund to make in Stripe.
 
-  Inserted at most once per booking payment: the uniqueness covers every
-  state, completed and discarded included, so a redelivered completion can
-  never refund twice.
+  Inserted at most once per booking payment and reason: the uniqueness
+  covers every state, completed and discarded included, so a redelivered
+  completion (or dispute outcome) can never refund twice. The job a won
+  dispute schedules carries `reason: "after_dispute"`, so the first job,
+  discarded while the dispute was open, does not swallow it.
   """
 
   use Oban.Worker,
     queue: :payments,
     max_attempts: 10,
-    unique: [keys: [:booking_payment_id], states: :all, period: :infinity]
+    unique: [keys: [:booking_payment_id, :reason], states: :all, period: :infinity]
 
   require Logger
 
@@ -84,6 +87,14 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
   """
   @spec new_for(Ecto.UUID.t()) :: Oban.Job.changeset()
   def new_for(booking_payment_id), do: new(%{booking_payment_id: booking_payment_id})
+
+  @doc """
+  Builds the job for `booking_payment_id` once a dispute the host won has
+  set the payment back to `paid`. Insert it in the transaction that does.
+  """
+  @spec new_after_dispute(Ecto.UUID.t()) :: Oban.Job.changeset()
+  def new_after_dispute(booking_payment_id),
+    do: new(%{booking_payment_id: booking_payment_id, reason: "after_dispute"})
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"booking_payment_id" => id}} = job) do

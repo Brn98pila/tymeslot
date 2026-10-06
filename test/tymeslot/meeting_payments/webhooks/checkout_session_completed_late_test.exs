@@ -16,11 +16,14 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedLateTest do
   @account "acct_TEST_HOST"
   @paid_session %{"payment_status" => "paid", "amount_total" => 5000, "currency" => "eur"}
 
+  import Ecto.Query, only: [from: 2]
   import Mox, only: [expect: 3, stub: 3, verify_on_exit!: 1]
   import Tymeslot.Factory
 
   alias Tymeslot.MeetingPayments
   alias Tymeslot.MeetingPayments.StripeAdapterMock
+  alias Tymeslot.MeetingPayments.Webhooks.ChargeDisputeClosed
+  alias Tymeslot.MeetingPayments.Webhooks.ChargeDisputeCreated
   alias Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted
   alias Tymeslot.MeetingPayments.Workers.RefundLatePayment
   alias Tymeslot.Meetings.MeetingQueries
@@ -235,6 +238,112 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedLateTest do
   end
 
   # An expired booking whose slot another confirmed booking now holds.
+  # The attendee disputes the late payment before the refund job runs, so
+  # the job leaves it to the dispute. When the host wins, the money is back
+  # with them for a booking that never happened, and is refunded after all.
+  describe "a late payment disputed before its refund" do
+    test "is refunded, once, after the host wins the dispute" do
+      user = insert(:user)
+      {meeting, bp} = taken_slot_booking(user, "LATE_DISPUTED")
+
+      stub(StripeAdapterMock, :retrieve_payment_intent, fn _id, _opts ->
+        {:ok, %{"latest_charge" => "ch_LATE_DISPUTED"}}
+      end)
+
+      assert :ok = CheckoutSessionCompleted.handle(late_event("LATE_DISPUTED", meeting))
+
+      assert :ok =
+               ChargeDisputeCreated.handle(
+                 dispute_event("evt_DISPUTE_OPENED", "charge.dispute.created", %{
+                   "reason" => "fraudulent"
+                 })
+               )
+
+      assert %{discard: 1} = Oban.drain_queue(queue: :payments)
+      assert Repo.reload!(bp).status == "disputed"
+
+      assert :ok =
+               ChargeDisputeClosed.handle(
+                 dispute_event("evt_DISPUTE_WON", "charge.dispute.closed", %{"status" => "won"})
+               )
+
+      expect(StripeAdapterMock, :create_refund, fn params, _opts ->
+        assert params.charge == "ch_LATE_DISPUTED"
+        assert params.amount == bp.amount_cents
+        {:ok, %{"id" => "re_LATE_DISPUTED"}}
+      end)
+
+      assert %{success: 1} = Oban.drain_queue(queue: :payments)
+
+      assert Repo.reload!(bp).status == "refunded"
+      assert {:ok, %{status: "expired"}} = MeetingQueries.get_meeting(meeting.id)
+
+      assert [_one] =
+               all_enqueued(
+                 worker: SendBookingPaymentRefunded,
+                 args: %{booking_payment_id: bp.id}
+               )
+
+      # A redelivered outcome schedules nothing more.
+      assert :ok =
+               ChargeDisputeClosed.handle(
+                 dispute_event("evt_DISPUTE_WON_2", "charge.dispute.closed", %{"status" => "won"})
+               )
+
+      refund_jobs =
+        Repo.all(
+          from(j in Oban.Job,
+            where: j.worker == "Tymeslot.MeetingPayments.Workers.RefundLatePayment",
+            select: {j.state, j.args}
+          )
+        )
+
+      assert Enum.sort(refund_jobs) == [
+               {"completed", %{"booking_payment_id" => bp.id, "reason" => "after_dispute"}},
+               {"discarded", %{"booking_payment_id" => bp.id}}
+             ]
+    end
+
+    test "schedules no refund for a dispute the host wins on a booking that went ahead" do
+      meeting = insert(:meeting, status: "confirmed")
+
+      insert_payment(
+        meeting: meeting,
+        status: "disputed",
+        paid_at: DateTime.utc_now(:second),
+        stripe_charge_id: "ch_LATE_DISPUTED"
+      )
+
+      assert :ok =
+               ChargeDisputeClosed.handle(
+                 dispute_event("evt_DISPUTE_WON", "charge.dispute.closed", %{"status" => "won"})
+               )
+
+      refute_enqueued(worker: RefundLatePayment)
+    end
+  end
+
+  defp dispute_event(event_id, type, fields) do
+    %{
+      "id" => event_id,
+      "account" => @account,
+      "type" => type,
+      "created" => System.os_time(:second),
+      "data" => %{
+        "object" =>
+          Map.merge(
+            %{
+              "id" => "dp_LATE_DISPUTED",
+              "object" => "dispute",
+              "charge" => "ch_LATE_DISPUTED",
+              "amount" => 5000
+            },
+            fields
+          )
+      }
+    }
+  end
+
   defp taken_slot_booking(user, suffix) do
     meeting =
       insert(:meeting,

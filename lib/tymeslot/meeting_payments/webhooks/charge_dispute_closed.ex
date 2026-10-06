@@ -5,7 +5,11 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeClosed do
   Reconciles status after a dispute is decided:
 
     * `won` → revert to `paid` (or `partially_refunded` if any prior
-      refund was on the row before the dispute opened)
+      refund was on the row before the dispute opened). A payment whose
+      booking expired (it completed after its slot was taken, say) still
+      owes the attendee: its automatic refund was given up while the
+      dispute held the money, so it is scheduled again here, in the same
+      transaction (`RefundLatePayment.new_after_dispute/1`).
     * `lost` → set `refunded_amount_cents` to the disputed amount and
       derive `refunded` / `partially_refunded` accordingly. Stripe debits
       the host's balance for the disputed amount when a dispute is lost,
@@ -24,6 +28,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeClosed do
   alias Tymeslot.MeetingPayments.Telemetry
   alias Tymeslot.MeetingPayments.Webhooks.LockedPayment
   alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
+  alias Tymeslot.MeetingPayments.Workers.RefundLatePayment
+  alias Tymeslot.Meetings.MeetingQueries
 
   @event_type "charge.dispute.closed"
 
@@ -60,12 +66,11 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeClosed do
        when status in ["won", "lost"] do
     result =
       LockedPayment.run(payment, event_id, fn locked ->
-        case BookingPaymentQueries.update(
-               locked,
-               Map.put(outcome_attrs(locked, status, disputed_amount), :last_event_id, event_id)
-             ) do
-          {:ok, updated} -> {:ok, {locked.status, updated.status}}
-          {:error, _changeset} = error -> error
+        attrs = Map.put(outcome_attrs(locked, status, disputed_amount), :last_event_id, event_id)
+
+        with {:ok, updated} <- BookingPaymentQueries.update(locked, attrs),
+             {:ok, _job} <- maybe_schedule_refund(updated) do
+          {:ok, {locked.status, updated.status}}
         end
       end)
 
@@ -83,6 +88,20 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeClosed do
   end
 
   defp apply_outcome(_payment, _event_id, _status, _amount), do: :ok
+
+  # Money back with the host for a booking that never happened is owed to
+  # the attendee, as it was before the dispute opened.
+  defp maybe_schedule_refund(%{status: status, meeting_id: meeting_id} = payment)
+       when is_binary(meeting_id) do
+    with true <- status in BookingPaymentSchema.refundable_statuses(),
+         {:ok, %{status: "expired"}} <- MeetingQueries.get_meeting(meeting_id) do
+      Oban.insert(RefundLatePayment.new_after_dispute(payment.id))
+    else
+      _not_owed -> {:ok, :none}
+    end
+  end
+
+  defp maybe_schedule_refund(_payment), do: {:ok, :none}
 
   defp outcome_attrs(payment, "won", _disputed_amount),
     do: %{status: derive_status_from_refund(payment, payment.refunded_amount_cents)}
