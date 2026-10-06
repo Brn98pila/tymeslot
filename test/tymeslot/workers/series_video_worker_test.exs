@@ -111,6 +111,59 @@ defmodule Tymeslot.Workers.SeriesVideoWorkerTest do
     assert job.args["video_integration_id"] == other_video.id
   end
 
+  # An `:executing` row whose node stopped stays so until the Lifeline
+  # rescues it hours later, and is discarded then if its attempts are spent.
+  # A later choice must not fold into it and wait, or be lost, with it.
+  describe "a later choice while an orphaned run holds the series" do
+    setup %{user: user, integration: integration, video: video} do
+      series = %{integration_id: integration.id, address: {:master, "series1"}, uid: nil}
+      {:ok, orphaned} = SeriesVideoWorker.enqueue(series, {video.id, @link})
+      other_video = insert(:video_integration, user: user, provider: "mirotalk")
+      %{series: series, orphaned: orphaned, other_video: other_video}
+    end
+
+    defp run_since(job, seconds_ago) do
+      Repo.update_all(where(Job, id: ^job.id),
+        set: [
+          state: "executing",
+          attempt: 3,
+          attempted_at: DateTime.add(DateTime.utc_now(), -seconds_ago, :second)
+        ]
+      )
+    end
+
+    test "gets a job of its own once the run is past saving", %{
+      series: series,
+      orphaned: orphaned,
+      other_video: other_video
+    } do
+      run_since(orphaned, 3600)
+
+      {:ok, job} =
+        SeriesVideoWorker.enqueue(series, {other_video.id, "https://video.example.com/b"})
+
+      assert job.id != orphaned.id
+      assert [waiting] = all_enqueued(worker: SeriesVideoWorker)
+      assert waiting.id == job.id
+      assert waiting.args["video_integration_id"] == other_video.id
+    end
+
+    test "folds into a run still in progress, as before", %{
+      series: series,
+      orphaned: orphaned,
+      other_video: other_video
+    } do
+      run_since(orphaned, 5)
+
+      {:ok, job} =
+        SeriesVideoWorker.enqueue(series, {other_video.id, "https://video.example.com/b"})
+
+      assert job.id == orphaned.id
+      assert all_enqueued(worker: SeriesVideoWorker) == []
+      assert Repo.get!(Job, orphaned.id).args["video_integration_id"] == other_video.id
+    end
+  end
+
   # A write that lands while the job runs folds into that job; the job then
   # runs once more with it instead of finishing without it.
   test "runs again when its args were replaced during the run", %{

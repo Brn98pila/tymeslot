@@ -27,6 +27,10 @@ defmodule Tymeslot.Workers.SeriesVideoWorker do
   video rather than racing it with a job of its own. A write that lands
   while the job runs replaces its args, and the job, once that run has
   succeeded, runs once more with them (`SyncRequest.rerun_if_requested/2`).
+  An `:executing` row left behind by a node that stopped is not folded into
+  past half an hour (`SyncRequest.insert_unique/3`): the write gets a job of
+  its own rather than waiting hours for the row's rescue, or being lost with
+  it when the rescue finds its attempts spent.
   """
   use Oban.Worker,
     queue: :calendar_events,
@@ -69,15 +73,15 @@ defmodule Tymeslot.Workers.SeriesVideoWorker do
   @spec enqueue(SeriesCarry.series(), {pos_integer(), String.t()}) ::
           {:ok, Oban.Job.t()} | {:error, term()}
   def enqueue(%{integration_id: integration_id, address: {kind, id}, uid: uid}, {video_id, link}) do
-    %{
+    args = %{
       "calendar_integration_id" => integration_id,
       "address" => [Atom.to_string(kind), id],
       "series_uid" => uid,
       "video_integration_id" => video_id,
       "video_link" => link
     }
-    |> new(replace: @replace)
-    |> Oban.insert()
+
+    SyncRequest.insert_unique(__MODULE__, args, replace: @replace)
   end
 
   @impl ExpectedJobOutcome
