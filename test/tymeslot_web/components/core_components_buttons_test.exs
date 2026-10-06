@@ -295,11 +295,7 @@ defmodule TymeslotWeb.Components.CoreComponentsButtonsTest do
     end
 
     test "rejects an unknown variant rather than emitting a class nothing styles" do
-      # Called through apply/3 so the compiler's type check does not flag the
-      # deliberately invalid variant.
-      assert_raise FunctionClauseError, fn ->
-        apply(Buttons, :button_classes, [:brand, :md])
-      end
+      assert_raise FunctionClauseError, fn -> Buttons.button_classes(:brand, :md) end
     end
   end
 
