@@ -14,7 +14,8 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
   Stripe before inserting this job, but commits the payment and the job
   whether or not that worked, so each attempt here first backfills a charge
   id still missing (`ChargeBackfill`), and an attempt that cannot is retried
-  like any other failed one.
+  like any other failed one. The refusals below are checked before that,
+  since they need no charge id and no Stripe call.
 
   The refund is `Refunds.issue_refund/3`, whose Stripe idempotency key is
   derived from the payment id, its refunded total and the amount
@@ -118,6 +119,7 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
   # so it is returned rather than raised, and the last one is alerted on.
   defp refund(id) do
     with %BookingPaymentSchema{} = payment <- MeetingPayments.get_payment(id),
+         :ok <- Refunds.refusal(payment),
          {:ok, payment} <- ensure_charge(payment) do
       Refunds.issue_refund(payment, Refunds.refundable_remaining_cents(payment))
     else

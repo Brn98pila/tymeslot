@@ -159,6 +159,30 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePaymentTest do
     refute_received {:send_alert, _type, _payload}
   end
 
+  # The refusals need no charge id, so a payment still missing one is not
+  # sent to Stripe for it first, only to be retried for hours while the
+  # lookup fails.
+  test "a refusal is discarded at once even while the charge id is missing",
+       %{payment: payment} do
+    stale = DateTime.add(DateTime.utc_now(:second), -61, :day)
+
+    for {changes, reason} <- [
+          {[status: "disputed"], :under_dispute},
+          {[paid_at: stale], :outside_refund_window},
+          {[paid_at: nil], :not_paid}
+        ] do
+      payment
+      |> Changeset.change([stripe_charge_id: nil, stripe_payment_intent_id: "pi_LATE"] ++ changes)
+      |> Repo.update!()
+
+      assert {:discard, ^reason} = perform(payment)
+      payment |> Changeset.change(status: "paid", paid_at: payment.paid_at) |> Repo.update!()
+    end
+
+    assert refund_emails(payment) == 0
+    refute_received {:send_alert, _type, _payload}
+  end
+
   test "the discarded refusals are expected outcomes, not failures to record" do
     for reason <- [:not_paid, :outside_refund_window, :under_dispute] do
       assert RefundLatePayment.expected_outcome?(reason)

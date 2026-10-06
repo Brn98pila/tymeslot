@@ -97,6 +97,30 @@ defmodule Tymeslot.MeetingPayments.Refunds do
   defp within_refund_window?(_payment), do: false
 
   @doc """
+  Returns why the payment cannot be refunded at all, from what is recorded
+  locally: `:not_paid` without a paid time, `:outside_refund_window` past the
+  #{@refund_window_days}-day window, `:under_dispute` while Stripe holds the
+  money for a dispute.
+
+  These are the refusals no retry turns round, and they need no Stripe call,
+  so a caller about to make one (fetching a missing charge id, say) can check
+  them first. `issue_refund/3` and `issue_host_refund/4` apply them too.
+  """
+  @spec refusal(BookingPaymentSchema.t()) ::
+          :ok | {:error, :not_paid | :outside_refund_window | :under_dispute}
+  def refusal(%{paid_at: nil}), do: {:error, :not_paid}
+
+  # Stripe's Refund API rejects a disputed charge, so the dispute is caught
+  # here rather than by a wasted round-trip that errors.
+  def refusal(payment) do
+    cond do
+      not within_refund_window?(payment) -> {:error, :outside_refund_window}
+      payment.status == "disputed" -> {:error, :under_dispute}
+      true -> :ok
+    end
+  end
+
+  @doc """
   Parses raw refund-form params into a validated `{:ok, pos_integer()}` or
   a tagged `{:error, atom()}`.
 
@@ -186,7 +210,7 @@ defmodule Tymeslot.MeetingPayments.Refunds do
   defp refund_locked(lock_payment, amount_cents, reason) do
     Repo.transaction(fn ->
       with {:ok, locked} <- lock_payment.(),
-           :ok <- validate_within_window(locked),
+           :ok <- refusal(locked),
            :ok <- validate_amount(locked, amount_cents),
            :ok <- validate_charge(locked),
            {:ok, _stripe_refund} <- create_stripe_refund(locked, amount_cents, reason),
@@ -199,19 +223,7 @@ defmodule Tymeslot.MeetingPayments.Refunds do
     end)
   end
 
-  defp validate_within_window(%{paid_at: nil}), do: {:error, :not_paid}
-
-  defp validate_within_window(payment) do
-    if within_refund_window?(payment), do: :ok, else: {:error, :outside_refund_window}
-  end
-
   defp validate_amount(%{status: "refunded"}, _amount_cents), do: {:error, :already_refunded}
-
-  # A disputed charge cannot be refunded through the normal Refund API — Stripe
-  # rejects it, and the funds are already held pending the dispute outcome.
-  # Catch it during local validation so the host gets a meaningful message
-  # instead of a wasted Stripe round-trip that errors.
-  defp validate_amount(%{status: "disputed"}, _amount_cents), do: {:error, :under_dispute}
 
   defp validate_amount(
          %{amount_cents: amount, refunded_amount_cents: refunded},
