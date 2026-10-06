@@ -1,6 +1,6 @@
 defmodule Tymeslot.Meetings.Listing do
   @moduledoc """
-  Listing, filtering, and cursor pagination for a user's meetings.
+  Listing, filtering, and cursor pagination for the meetings a user organises.
 
   Owns the read-side presentation concerns of the Meetings context: turning a
   filter string into query options and paging results with an opaque cursor. The
@@ -10,23 +10,26 @@ defmodule Tymeslot.Meetings.Listing do
 
   require Logger
 
-  alias Tymeslot.Auth.UserQueries
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings.MeetingListQueries
   alias Tymeslot.Pagination.CursorPage
 
   @doc """
-  Cursor-based pagination for a user's meetings.
+  Cursor-based pagination for the meetings `organizer_user_id` organises.
+
+  Ownership is the organiser's user id, never an email address: the email
+  columns on a meeting are snapshots taken at booking time, and an address can
+  change hands.
   """
-  @spec list_user_meetings_cursor_page(String.t(), keyword()) ::
+  @spec list_organizer_meetings_cursor_page(pos_integer(), keyword()) ::
           {:ok, CursorPage.t()} | {:error, :invalid_cursor}
-  def list_user_meetings_cursor_page(user_email, opts) do
+  def list_organizer_meetings_cursor_page(organizer_user_id, opts) do
     per_page = Keyword.get(opts, :per_page, 20)
     cursor = Keyword.get(opts, :after)
 
     case decode_cursor_opt(cursor) do
       :no_cursor ->
-        items = list_user_meetings_internal(user_email, opts)
+        items = list_organizer_meetings_internal(organizer_user_id, opts)
         {:ok, build_cursor_page(items, per_page)}
 
       {:ok, %{after_start: after_start, after_id: after_id}} ->
@@ -34,34 +37,12 @@ defmodule Tymeslot.Meetings.Listing do
           opts
           |> Keyword.put(:after_start, after_start)
           |> Keyword.put(:after_id, after_id)
-          |> then(&list_user_meetings_internal(user_email, &1))
+          |> then(&list_organizer_meetings_internal(organizer_user_id, &1))
 
         {:ok, build_cursor_page(items, per_page)}
 
       {:error, :invalid_cursor} ->
         {:error, :invalid_cursor}
-    end
-  end
-
-  @doc """
-  Cursor-based pagination by user_id.
-  """
-  @spec list_user_meetings_cursor_page_by_id(integer(), keyword()) ::
-          {:ok, CursorPage.t()} | {:error, :invalid_cursor}
-  def list_user_meetings_cursor_page_by_id(user_id, opts) do
-    case UserQueries.get_user(user_id) do
-      {:ok, user} ->
-        list_user_meetings_cursor_page(user.email, opts)
-
-      {:error, :not_found} ->
-        {:ok,
-         %CursorPage{
-           items: [],
-           next_cursor: nil,
-           prev_cursor: nil,
-           page_size: Keyword.get(opts, :per_page, 20),
-           has_more: false
-         }}
     end
   end
 
@@ -112,7 +93,7 @@ defmodule Tymeslot.Meetings.Listing do
     query_opts =
       if after_cursor, do: Keyword.put(query_opts, :after, after_cursor), else: query_opts
 
-    case list_user_meetings_cursor_page_by_id(user_id, query_opts) do
+    case list_organizer_meetings_cursor_page(user_id, query_opts) do
       {:ok, page} ->
         {:ok, page}
 
@@ -131,7 +112,7 @@ defmodule Tymeslot.Meetings.Listing do
       {:error, :failed_to_list_meetings}
   end
 
-  defp list_user_meetings_internal(user_email, opts) do
+  defp list_organizer_meetings_internal(organizer_user_id, opts) do
     per_page = Keyword.get(opts, :per_page, 20)
     status = Keyword.get(opts, :status)
     exclude_status = Keyword.get(opts, :exclude_status)
@@ -140,7 +121,7 @@ defmodule Tymeslot.Meetings.Listing do
     after_id = Keyword.get(opts, :after_id)
     order = Keyword.get(opts, :order, :desc)
 
-    MeetingListQueries.list_meetings_for_user_paginated_cursor(user_email,
+    MeetingListQueries.list_meetings_for_organizer_paginated_cursor(organizer_user_id,
       per_page: per_page,
       status: status,
       exclude_status: exclude_status,

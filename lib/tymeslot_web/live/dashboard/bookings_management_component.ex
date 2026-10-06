@@ -129,8 +129,8 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
         user_id = socket.assigns.current_user.id
         Cancellation.emit_open(user_id, meeting.id)
 
-        # Scoped to the signed-in user: an attendee may cancel from here too,
-        # but the payment is the host's, so they see no refund options.
+        # Scoped to the signed-in host: only a payment they took offers
+        # refund options.
         booking_payment = MeetingPayments.payment_for_meeting(meeting.id, user_id)
 
         {:noreply,
@@ -563,10 +563,10 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
 
   defp fetch_meeting_for_modal(socket, params, opts) do
     policy_fun = Keyword.fetch!(opts, :policy_fun)
-    user_email = socket.assigns.current_user.email
+    user_id = socket.assigns.current_user.id
 
     with {:ok, validated_id} <- validate_meeting_id(params),
-         {:ok, meeting} <- fetch_meeting_for_user(validated_id, user_email),
+         {:ok, meeting} <- fetch_meeting_for_organizer(validated_id, user_id),
          :ok <- policy_fun.(meeting) do
       {:ok, meeting}
     else
@@ -578,8 +578,8 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
 
   # A group meeting's modals and flashes speak of its participants, so they
   # arrive with it.
-  defp fetch_meeting_for_user(id, user_email) do
-    with {:ok, meeting} <- Meetings.get_meeting_for_user(id, user_email) do
+  defp fetch_meeting_for_organizer(id, user_id) do
+    with {:ok, meeting} <- Meetings.get_meeting_for_organizer(id, user_id) do
       if Meetings.group?(meeting),
         do: {:ok, Meetings.with_live_participants(meeting)},
         else: {:ok, meeting}

@@ -198,9 +198,10 @@ defmodule Tymeslot.Meetings do
   @doc """
   Cancels a meeting and issues the resolved refund to the attendee.
 
-  Only the host who took the payment may ask for a refund; anyone else gets
-  `{:error, :not_found}` before the meeting is cancelled. Cancelling with
-  `:none` is open to whoever the caller already allows to cancel.
+  Only the meeting's organiser (`acting_user_id` must be its
+  `organizer_user_id`) may cancel through here, and a refund additionally
+  needs the payment to be theirs; anyone else gets `{:error, :not_found}`
+  before the meeting is touched.
 
   Returns `{:error, {:refund_failed, reason}}` when the meeting was cancelled
   but the refund could not be issued, so callers can tell the host to settle it
@@ -284,20 +285,18 @@ defmodule Tymeslot.Meetings do
   # =====================================
 
   @doc """
-  Lists upcoming meetings for a specific user with a limit.
+  Lists the organiser's upcoming live bookings, soonest first, up to `limit`.
   """
-  @spec list_upcoming_meetings_for_user(String.t(), integer()) :: [MeetingSchema.t()]
-  def list_upcoming_meetings_for_user(user_email, limit) do
-    MeetingListQueries.upcoming_meetings_for_user(user_email, limit)
-  end
+  @spec list_upcoming_meetings_for_organizer(pos_integer(), integer()) :: [MeetingSchema.t()]
+  defdelegate list_upcoming_meetings_for_organizer(organizer_user_id, limit),
+    to: MeetingListQueries,
+    as: :upcoming_meetings_for_organizer
 
   @doc """
-  Lists all upcoming meetings for a specific user.
+  Lists every upcoming meeting the organiser holds, whatever its status.
   """
-  @spec list_upcoming_meetings_for_user(String.t()) :: [MeetingSchema.t()]
-  def list_upcoming_meetings_for_user(user_email) do
-    MeetingListQueries.list_upcoming_meetings_for_user(user_email)
-  end
+  @spec list_upcoming_meetings_for_organizer(pos_integer()) :: [MeetingSchema.t()]
+  defdelegate list_upcoming_meetings_for_organizer(organizer_user_id), to: MeetingListQueries
 
   @doc """
   Lists the organiser's live bookings overlapping the `[from, to)` window,
@@ -355,25 +354,12 @@ defmodule Tymeslot.Meetings do
   defdelegate get_meeting(id), to: MeetingAccess
 
   @doc """
-  Gets a single meeting by ID for a specific user.
-
-  Verifies that the meeting belongs to the specified user
-  (either as organizer or attendee) before returning it.
-  """
-  @spec get_meeting_for_user(String.t() | integer(), String.t()) ::
-          {:ok, MeetingSchema.t()} | {:error, :not_found}
-  defdelegate get_meeting_for_user(id, user_email), to: MeetingAccess
-
-  @doc """
   Fetches a meeting by ID only if the given `organizer_user_id` owns it.
 
-  Unlike `get_meeting_for_user/2`, this never matches on the attendee side:
-  it is for actions (approving or declining a held request) that only the
-  organiser is allowed to take, where an attendee holding a Tymeslot account
-  under the booking email must not be able to act on their own request.
-
-  Use this instead of `get_meeting_for_user/2` on any organiser-only action
-  that accepts a meeting id from the client.
+  The dashboard's lookup for every action that accepts a meeting id from the
+  client. It never matches on an email address: an attendee holding an account
+  under the booking email, or whoever later verifies an address the organiser
+  gave up, must not be able to open or act on the meeting.
   """
   @spec get_meeting_for_organizer(String.t(), integer()) ::
           {:ok, MeetingSchema.t()} | {:error, :not_found}

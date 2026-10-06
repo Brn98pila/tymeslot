@@ -252,7 +252,9 @@ defmodule Tymeslot.Bookings.CancelSeatIntegrationTest do
   # meeting, and the participant-facing link must still be refused.
   test "the host's dashboard cancel-with-refund still cancels a group meeting",
        %{meeting: meeting} do
-    assert {:ok, cancelled} = Meetings.cancel_meeting_with_refund(meeting, nil, :none)
+    assert {:ok, cancelled} =
+             Meetings.cancel_meeting_with_refund(meeting, meeting.organizer_user_id, :none)
+
     assert cancelled.status == "cancelled"
     assert Repo.get!(MeetingSchema, meeting.id).status == "cancelled"
   end
