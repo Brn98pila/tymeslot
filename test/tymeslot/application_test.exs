@@ -103,6 +103,39 @@ defmodule Tymeslot.ApplicationTest do
     end
   end
 
+  describe "start order" do
+    # Oban's queues start fetching during its own init, so every process a
+    # job calls has to be up before it, and still up while it drains on
+    # shutdown. The tree's order is the behaviour.
+    # credo:disable-for-next-line Jump.CredoChecks.VacuousTest
+    test "Oban starts after the services its jobs call" do
+      start_order =
+        Tymeslot.Supervisor
+        |> Supervisor.which_children()
+        |> Enum.map(fn {id, _pid, _type, _modules} -> id end)
+        |> Enum.reverse()
+
+      position = fn id ->
+        Enum.find_index(start_order, &(&1 == id)) || flunk("#{inspect(id)} is not a child")
+      end
+
+      oban = position.(Oban)
+
+      for dependency <- [
+            CircuitBreakerSupervisor,
+            RateLimit,
+            AvailabilityCache,
+            DashboardCache,
+            IdempotencyCache,
+            RequestCoalescer,
+            Tymeslot.Repo
+          ] do
+        assert position.(dependency) < oban,
+               "#{inspect(dependency)} starts after Oban"
+      end
+    end
+  end
+
   # Oban queue merging, validation, and the "no queues configured" fallback are
   # covered against the real implementation in
   # Tymeslot.Infrastructure.ObanQueuesTest.

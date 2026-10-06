@@ -47,6 +47,10 @@ defmodule Tymeslot.Application do
   alias TymeslotWeb.Plugs.AdditionalDashboardPlugs
   alias TymeslotWeb.Router
 
+  # Children the test environment does without: periodic schedulers whose
+  # timers would fire into unrelated tests.
+  @not_started_in_test [HealthCheck, PoolPressureMonitor]
+
   @impl Application
   def start(_type, _args) do
     validate_config!()
@@ -86,6 +90,8 @@ defmodule Tymeslot.Application do
     # Surface dropped/failed booking-analytics page-view writes in the logs.
     AnalyticsTelemetry.attach_default_handler()
 
+    test? = Application.get_env(:tymeslot, :environment) == :test
+
     # Base children that are always started
     base_children = [
       TymeslotWeb.Telemetry,
@@ -107,56 +113,39 @@ defmodule Tymeslot.Application do
        max_children: Application.get_env(:tymeslot, :error_tracking_max_concurrent_reports, 10)}
     ]
 
-    # Additional children for non-test environments
-    production_children =
-      if Application.get_env(:tymeslot, :environment) != :test do
+    # Services the request path and background jobs both rely on. One list
+    # for every environment, so the order tests run against is the order
+    # production starts in; the few children tests do without are filtered
+    # out below rather than kept in a second hand-maintained list.
+    #
+    # Oban comes after everything its jobs call (caches, the rate limiter,
+    # the circuit breakers): its queues start fetching during its own init,
+    # and children stop in reverse order, so placed here it starts after them
+    # and stops before them, and no job runs against a dependency that is
+    # not up.
+    service_children =
+      Enum.reject(
         [
-          # Start health check service
-          HealthCheck,
-          # Start dashboard cache GenServer
           Tymeslot.Infrastructure.DashboardCache,
-          # Start availability cache GenServer
           Tymeslot.Infrastructure.AvailabilityCache,
-          # Start webhook idempotency cache
+          # Webhook idempotency cache
           Tymeslot.Payments.Webhooks.IdempotencyCache,
-          # Start booking-analytics dashboard cache
+          # Booking-analytics dashboard cache
           Tymeslot.Analytics.MetricsCache,
-          # Start calendar discovery cache
           Tymeslot.Integrations.Calendar.Shared.DiscoveryCache,
-          # Start calendar request coalescer
           Tymeslot.Integrations.Calendar.RequestCoalescer,
-          # Start Oban for background job processing
-          {Oban, oban_config()},
-          # Start Hammer-backed rate limiter (ETS sliding window)
+          # Hammer-backed rate limiter (ETS sliding window)
           {Tymeslot.Security.RateLimit, clean_period: :timer.minutes(5)},
-          # Start circuit breaker supervisor
           Tymeslot.Infrastructure.CircuitBreakerSupervisor,
+          # Background jobs (manual testing mode in tests)
+          {Oban, oban_config()},
+          # Schedules integration health checks, which it enqueues as jobs
+          HealthCheck,
           # Alert when queries keep waiting for a database connection
           PoolPressureMonitor
-        ]
-      else
-        # Only start essential services for tests
-        [
-          # Start dashboard cache GenServer
-          Tymeslot.Infrastructure.DashboardCache,
-          # Start availability cache GenServer
-          Tymeslot.Infrastructure.AvailabilityCache,
-          # Start webhook idempotency cache
-          Tymeslot.Payments.Webhooks.IdempotencyCache,
-          # Start booking-analytics dashboard cache (ETS table needed in tests too)
-          Tymeslot.Analytics.MetricsCache,
-          # Start calendar discovery cache (ETS table needed in tests too)
-          Tymeslot.Integrations.Calendar.Shared.DiscoveryCache,
-          # Start Hammer-backed rate limiter (ETS sliding window)
-          {Tymeslot.Security.RateLimit, clean_period: :timer.minutes(5)},
-          # Start Oban for background job processing (in manual mode for tests)
-          {Oban, oban_config()},
-          # Start circuit breaker supervisor (needed for some tests)
-          Tymeslot.Infrastructure.CircuitBreakerSupervisor,
-          # Start calendar request coalescer (needed for calendar tests)
-          Tymeslot.Integrations.Calendar.RequestCoalescer
-        ]
-      end
+        ],
+        &(test? and &1 in @not_started_in_test)
+      )
 
     # Interactive dev calendar rule store. Started only when opted in via
     # config/dev.exs (DEV_CALENDAR / DEV_EMPTY_CALENDAR); the module is compiled
@@ -168,7 +157,7 @@ defmodule Tymeslot.Application do
 
     children =
       base_children ++
-        production_children ++
+        service_children ++
         dev_children ++
         [
           # Guardians that finish the calendar grid's queued writes when the
