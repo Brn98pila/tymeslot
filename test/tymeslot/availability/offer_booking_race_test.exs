@@ -78,14 +78,20 @@ defmodule Tymeslot.Availability.OfferBookingRaceTest do
   # Holds the first process other than the test's own, once it has read the
   # host's meetings, until the test lets it go. The query event is emitted
   # in the process that ran the query, after it returned.
+  #
+  # Only the first such read is held, whichever process makes it: the flag is
+  # an atomic shared by every process, not one process's dictionary, so a
+  # read from another process (a task the offer spawns) is not held as well
+  # and left waiting for a release that never comes.
   defp hold_after_reading_bookings(test_pid) do
+    held = :atomics.new(1, [])
+
     :telemetry.attach(
       @handler_id,
       [:tymeslot, :repo, :query],
       fn _event, _measurements, metadata, _config ->
         if self() != test_pid and metadata[:source] == "meetings" and
-             Process.get(:held) == nil do
-          Process.put(:held, true)
+             :atomics.compare_exchange(held, 1, 0, 1) == :ok do
           send(test_pid, {:read_bookings, self()})
 
           receive do
