@@ -60,13 +60,26 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
   # completion committed since the row was resolved is seen rather than
   # raced. Only a payment still `pending` can fail: one that has since been
   # paid, disputed or refunded keeps its status and its meeting.
+  #
+  # A payment failed already can still have its meeting awaiting payment:
+  # a Stripe disconnect fails its pending payments and expires their
+  # meetings in separate writes, and one whose meeting write failed leaves
+  # the slot held. That meeting is expired here, with the usual side
+  # effects; a failed payment whose meeting has moved on is left alone.
   defp run(payment, event_id, reason) do
     result =
       LockedPayment.run(payment, event_id, fn
         %BookingPaymentSchema{status: "pending"} = locked ->
           with {:ok, _bp} <- mark_failed(locked, event_id, reason),
-               :ok <- maybe_expire_meeting(locked.meeting_id) do
+               {:ok, _outcome} <- expire_meeting(locked.meeting_id) do
             {:ok, :expired}
+          end
+
+        %BookingPaymentSchema{status: "failed"} = locked ->
+          case expire_meeting(locked.meeting_id) do
+            {:ok, :expired} -> {:ok, :expired}
+            {:ok, :unchanged} -> {:ok, {:not_pending, "failed"}}
+            {:error, _reason} = error -> error
           end
 
         %BookingPaymentSchema{status: status} ->
@@ -125,21 +138,21 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
     end
   end
 
-  defp maybe_expire_meeting(nil), do: :ok
+  defp expire_meeting(nil), do: {:ok, :unchanged}
 
-  defp maybe_expire_meeting(meeting_id) do
+  defp expire_meeting(meeting_id) do
     case MeetingQueries.get_meeting_for_update(meeting_id) do
       {:ok, %{status: "awaiting_payment"} = meeting} ->
         case MeetingQueries.update_meeting(meeting, %{status: "expired"}) do
-          {:ok, _meeting} -> :ok
+          {:ok, _meeting} -> {:ok, :expired}
           {:error, _changeset} = err -> err
         end
 
       {:ok, _other} ->
-        :ok
+        {:ok, :unchanged}
 
       {:error, :not_found} ->
-        :ok
+        {:ok, :unchanged}
     end
   end
 end

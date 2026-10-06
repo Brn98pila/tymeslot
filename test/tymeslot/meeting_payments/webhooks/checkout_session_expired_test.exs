@@ -156,6 +156,63 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpiredTest do
     end
   end
 
+  # A Stripe disconnect fails pending payments and expires their meetings in
+  # separate writes; when the meeting write fails, the slot stays held behind
+  # a payment that is failed already.
+  describe "handle/1 for a payment failed already" do
+    test "expires a meeting still awaiting payment, once" do
+      meeting = insert(:meeting, status: "awaiting_payment")
+
+      bp =
+        insert(:booking_payment,
+          stripe_account_id: @account,
+          meeting: meeting,
+          status: "failed",
+          last_event_id: "disconnect",
+          stripe_checkout_session_id: "cs_FAILED_HELD"
+        )
+
+      Phoenix.PubSub.subscribe(Tymeslot.PubSub, "meeting_payment:#{meeting.id}")
+      object = %{"id" => "cs_FAILED_HELD", "client_reference_id" => meeting.id}
+
+      assert :ok = CheckoutSessionExpired.handle(expired_event("evt_FAILED_HELD", object))
+
+      assert {:ok, %{status: "expired"}} = MeetingQueries.get_meeting(meeting.id)
+      assert_receive :expired, 1_000
+
+      reloaded = Repo.reload!(bp)
+      assert reloaded.status == "failed"
+      assert reloaded.last_event_id == "disconnect"
+
+      assert :ok = CheckoutSessionExpired.handle(expired_event("evt_FAILED_HELD_2", object))
+      refute_receive :expired, 100
+    end
+
+    test "leaves a meeting that has moved on" do
+      meeting = insert(:meeting, status: "cancelled")
+
+      insert(:booking_payment,
+        stripe_account_id: @account,
+        meeting: meeting,
+        status: "failed",
+        stripe_checkout_session_id: "cs_FAILED_GONE"
+      )
+
+      Phoenix.PubSub.subscribe(Tymeslot.PubSub, "meeting_payment:#{meeting.id}")
+
+      event =
+        expired_event("evt_FAILED_GONE", %{
+          "id" => "cs_FAILED_GONE",
+          "client_reference_id" => meeting.id
+        })
+
+      assert :ok = CheckoutSessionExpired.handle(event)
+
+      assert {:ok, %{status: "cancelled"}} = MeetingQueries.get_meeting(meeting.id)
+      refute_receive :expired, 100
+    end
+  end
+
   describe "handle/1 with an event from another connected account" do
     test "leaves the booking and its meeting untouched" do
       meeting = insert(:meeting, status: "awaiting_payment")
