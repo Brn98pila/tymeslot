@@ -17,6 +17,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   require Logger
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Providers.ProviderAdapter
   alias Tymeslot.Integrations.Calendar.Runtime.BookingIntegrationResolver
@@ -92,9 +93,11 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
 
   @doc """
   The client a write for `user_id` falls back to when nothing names an
-  integration: the user's booking client, or failing that the first calendar
-  they can write to. Never a read-only calendar, which `clients/1` includes
-  so that its events block time, but which takes no writes.
+  integration: the user's booking client, or failing that the first writable
+  calendar of an integration that can take bookings and whose credentials
+  have not been refused. Never a read-only calendar or a subscribed feed,
+  which `clients/1` includes so that their events block time, but which take
+  no writes.
   """
   @spec client(user_id() | nil) :: client() | nil
   def client(user_id \\ nil) do
@@ -299,10 +302,15 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
     end
   end
 
+  # Only an integration a booking could be written to: never a subscribed
+  # feed (whose single calendar `write_target?/1` cannot tell from a writable
+  # one), nor one whose credentials were refused.
   defp first_writable_client(user_id) do
     case fetch_active_integrations(user_id) do
       {:ok, integrations, _unreadable} ->
-        Enum.find_value(integrations, &List.first(writable_clients_for_integration(&1)))
+        integrations
+        |> Enum.filter(&(BookingEligibility.bookable?(&1) and &1.needs_reauth != true))
+        |> Enum.find_value(&List.first(writable_clients_for_integration(&1)))
 
       _none ->
         nil

@@ -20,6 +20,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManagerTest do
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
+  alias Tymeslot.Security.Encryption
 
   setup do
     user = insert(:user)
@@ -567,6 +568,35 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManagerTest do
         assert paths != []
         refute Enum.any?(paths, &(&1 =~ "/cal/rota")), "wrote through the read-only calendar"
       end
+    end
+
+    # With nothing a booking can be written to, there is no fallback: not a
+    # subscribed feed, which takes no writes, nor an integration whose
+    # credentials were refused.
+    test "falls back to no calendar rather than a feed or a refused integration",
+         %{user: user} do
+      insert(:calendar_integration,
+        user: user,
+        provider: "ics_url",
+        is_active: true,
+        base_url: "https://feeds.example.com",
+        username_encrypted: nil,
+        password_encrypted: nil,
+        subscription_url_encrypted: Encryption.encrypt("https://feeds.example.com/team.ics")
+      )
+
+      insert(:calendar_integration,
+        user: user,
+        provider: "caldav",
+        is_active: true,
+        needs_reauth: true,
+        base_url: "https://cal.example.com",
+        calendar_paths: ["/cal/bookings/"]
+      )
+
+      insert(:profile, user: user)
+
+      assert ClientManager.resolve_client(user.id) == nil
     end
 
     test "returns nil for an unrelated user that has no integrations", _ctx do
