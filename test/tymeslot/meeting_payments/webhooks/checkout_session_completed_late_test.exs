@@ -19,6 +19,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedLateTest do
   import Mox, only: [expect: 3, stub: 3, verify_on_exit!: 1]
   import Tymeslot.Factory
 
+  alias Tymeslot.MeetingPayments
   alias Tymeslot.MeetingPayments.StripeAdapterMock
   alias Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted
   alias Tymeslot.MeetingPayments.Workers.RefundLatePayment
@@ -171,23 +172,62 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedLateTest do
       assert reloaded_meeting.status == "expired"
     end
 
-    # The refund needs the charge id, which only Stripe can supply. Without it
-    # nothing is committed, so Stripe's redelivery tries again.
-    test "leaves a late completion for redelivery when its charge cannot be found" do
+    # The refund needs the charge id, which only Stripe can supply. Held back
+    # until Stripe supplied it, the payment stayed `failed`, off the host's
+    # outstanding refunds, once Stripe stopped redelivering. It is committed
+    # paid with its job instead, and the job backfills the charge id first.
+    test "records a late completion and its refund even when its charge cannot be found yet" do
       user = insert(:user)
       {meeting, bp} = taken_slot_booking(user, "LATE_NO_CHARGE")
+      stripe_up = start_supervised!({Agent, fn -> false end})
 
-      stub(StripeAdapterMock, :retrieve_payment_intent, fn _id, _opts ->
-        {:error, :stripe_down}
+      stub(StripeAdapterMock, :retrieve_payment_intent, fn "pi_LATE_NO_CHARGE", opts ->
+        assert opts[:connect_account] == @account
+
+        if Agent.get(stripe_up, & &1),
+          do: {:ok, %{"latest_charge" => "ch_LATE_NO_CHARGE"}},
+          else: {:error, :stripe_down}
       end)
 
-      assert {:error, :missing_charge} =
-               CheckoutSessionCompleted.handle(late_event("LATE_NO_CHARGE", meeting))
+      event = late_event("LATE_NO_CHARGE", meeting)
+      assert :ok = CheckoutSessionCompleted.handle(event)
 
-      reloaded_bp = Repo.reload!(bp)
-      assert reloaded_bp.status == "failed"
-      assert is_nil(reloaded_bp.last_event_id)
-      refute_enqueued(worker: RefundLatePayment)
+      recorded = Repo.reload!(bp)
+      assert recorded.status == "paid"
+      assert is_nil(recorded.stripe_charge_id)
+      assert recorded.last_event_id == "evt_LATE_NO_CHARGE"
+      assert [job] = all_enqueued(worker: RefundLatePayment, args: %{booking_payment_id: bp.id})
+      bp_id = bp.id
+      assert [%{id: ^bp_id}] = MeetingPayments.list_outstanding_refunds_for_host(bp.host_user_id)
+
+      # Stripe's redelivery and the reconciler's replay change nothing.
+      assert :ok = CheckoutSessionCompleted.handle(event)
+
+      assert :ok =
+               CheckoutSessionCompleted.handle(%{event | "id" => "reconcile:cs_LATE_NO_CHARGE"})
+
+      assert [^job] = all_enqueued(worker: RefundLatePayment, args: %{booking_payment_id: bp.id})
+      assert Repo.reload!(bp).last_event_id == "evt_LATE_NO_CHARGE"
+
+      # The job retries while the charge id is still unavailable.
+      assert {:error, :stripe_down} =
+               perform_job(RefundLatePayment, %{booking_payment_id: bp.id}, attempt: 1)
+
+      assert Repo.reload!(bp).status == "paid"
+
+      Agent.update(stripe_up, fn _down -> true end)
+
+      expect(StripeAdapterMock, :create_refund, fn params, _opts ->
+        assert params.charge == "ch_LATE_NO_CHARGE"
+        assert params.amount == bp.amount_cents
+        {:ok, %{"id" => "re_LATE_NO_CHARGE"}}
+      end)
+
+      assert :ok = perform_job(RefundLatePayment, %{booking_payment_id: bp.id}, attempt: 2)
+
+      refunded = Repo.reload!(bp)
+      assert refunded.status == "refunded"
+      assert refunded.stripe_charge_id == "ch_LATE_NO_CHARGE"
 
       {:ok, reloaded_meeting} = MeetingQueries.get_meeting(meeting.id)
       assert reloaded_meeting.status == "expired"

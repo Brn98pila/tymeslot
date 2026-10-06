@@ -89,6 +89,39 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePaymentTest do
     assert [%{id: ^payment_id}] = MeetingPayments.list_outstanding_refunds_for_host(host.id)
   end
 
+  # The webhook commits the payment and this job even when it could not
+  # fetch the charge id, so the job fetches it before refunding.
+  test "backfills a missing charge id before refunding, retrying until Stripe supplies it",
+       %{payment: payment} do
+    payment
+    |> Changeset.change(stripe_charge_id: nil, stripe_payment_intent_id: "pi_LATE")
+    |> Repo.update!()
+
+    expect(StripeAdapterMock, :retrieve_payment_intent, fn "pi_LATE", opts ->
+      assert opts[:connect_account] == "acct_LATE"
+      {:error, :stripe_down}
+    end)
+
+    assert {:error, :stripe_down} = perform(payment)
+    assert is_nil(Repo.reload!(payment).stripe_charge_id)
+
+    expect(StripeAdapterMock, :retrieve_payment_intent, fn "pi_LATE", _opts ->
+      {:ok, %{"latest_charge" => %{"id" => "ch_BACKFILLED"}}}
+    end)
+
+    expect(StripeAdapterMock, :create_refund, fn params, _opts ->
+      assert params.charge == "ch_BACKFILLED"
+      {:ok, %{"id" => "re_LATE"}}
+    end)
+
+    assert :ok = perform(payment, attempt: 2)
+
+    refunded = Repo.reload!(payment)
+    assert refunded.stripe_charge_id == "ch_BACKFILLED"
+    assert refunded.status == "refunded"
+    assert refund_emails(payment) == 1
+  end
+
   # The dispute decides where the money goes: an attendee who wins it has
   # it back, and a host who wins it finds the payment `paid` again and back
   # on the outstanding-refunds list.

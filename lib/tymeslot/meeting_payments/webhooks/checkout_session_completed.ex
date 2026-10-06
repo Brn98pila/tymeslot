@@ -37,7 +37,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
-  alias Tymeslot.MeetingPayments.StripeAdapter
+  alias Tymeslot.MeetingPayments.ChargeBackfill
   alias Tymeslot.MeetingPayments.Telemetry
   alias Tymeslot.MeetingPayments.Webhooks.LockedPayment
   alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
@@ -175,52 +175,26 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
     end
   end
 
-  # The checkout.session.completed event carries payment_intent as a bare ID.
-  # The actual charge ID lives on PaymentIntent.latest_charge, which requires
-  # a Stripe API expansion call.  We write it as a separate DB update so the
-  # charge.refunded / charge.dispute.* handlers can look up the row.
+  # Best effort: a failure is logged and the payment transition stands. For
+  # a late payment being refunded, `RefundLatePayment` backfills again before
+  # it refunds.
   defp backfill_charge_id(payment, object) do
-    with intent_id when is_binary(intent_id) <- object["payment_intent"],
-         {:ok, intent} <-
-           StripeAdapter.retrieve_payment_intent(intent_id,
-             connect_account: payment.stripe_account_id
-           ),
-         charge_id when is_binary(charge_id) <- extract_charge_id(intent) do
-      case BookingPaymentQueries.update(payment, %{stripe_charge_id: charge_id}) do
-        {:ok, _updated} ->
-          :ok
+    case ChargeBackfill.backfill(payment, object["payment_intent"]) do
+      {:ok, _updated} ->
+        :ok
 
-        {:error, reason} ->
-          Logger.error("checkout.session.completed: failed to persist stripe_charge_id",
-            payment_id: payment.id,
-            reason: LogFormat.reason(reason)
-          )
-      end
-    else
-      nil ->
+      {:error, reason} when reason in [:missing_payment_intent, :charge_not_available] ->
         Logger.warning("checkout.session.completed: charge ID not available on payment intent",
           payment_id: payment.id
         )
 
       {:error, reason} ->
-        Logger.error(
-          "checkout.session.completed: failed to retrieve payment intent for charge id",
+        Logger.error("checkout.session.completed: failed to backfill stripe_charge_id",
           payment_id: payment.id,
           reason: LogFormat.reason(reason)
         )
     end
   end
-
-  # The mock adapter (and `construct_webhook_event`) yields string-keyed maps;
-  # the real Stripity adapter returns an atom-keyed `%Stripe.PaymentIntent{}`
-  # whose expanded `latest_charge` is a `%Stripe.Charge{}` struct. Handle both
-  # so the charge id is captured regardless of adapter — without it, every
-  # refund/dispute lookup (keyed on `stripe_charge_id`) fails.
-  defp extract_charge_id(%{"latest_charge" => %{"id" => id}}) when is_binary(id), do: id
-  defp extract_charge_id(%{"latest_charge" => id}) when is_binary(id), do: id
-  defp extract_charge_id(%{latest_charge: %{id: id}}) when is_binary(id), do: id
-  defp extract_charge_id(%{latest_charge: id}) when is_binary(id), do: id
-  defp extract_charge_id(_other), do: nil
 
   # A completion arriving after its booking expired (`:recovered` below)
   # brings the booking back only if nobody has taken the slot since the
@@ -294,15 +268,18 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   # host's outstanding-refunds list until the refund goes through.
   #
   # The refund needs the charge id, which is backfilled beforehand, outside
-  # the transaction, since that is a Stripe call. Without it nothing is
-  # committed, so Stripe's redelivery of this event tries the backfill again.
+  # the transaction, since that is a Stripe call. A backfill that fails does
+  # not hold the payment back: it is committed paid with its job all the
+  # same, and the job backfills the charge id before it refunds, retrying
+  # until Stripe supplies it. Left uncommitted instead, the payment would
+  # stay `failed`, off the host's outstanding refunds, once Stripe stopped
+  # redelivering this event.
   defp refund_late_payment(payment, event_id, object) do
     backfill_charge_id(payment, object)
 
     LockedPayment.run(payment, event_id, fn locked ->
       with {:ok, meeting} <- lock_meeting(locked.meeting_id),
            {:proceed, :recovered} <- check_transition(meeting, locked),
-           :ok <- charge_known(locked),
            {:ok, paid} <- mark_paid(locked, event_id, object),
            {:ok, _job} <- Oban.insert(RefundLatePayment.new_for(paid.id)) do
         {:ok, {:refund_scheduled, paid, meeting}}
@@ -312,11 +289,6 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
       end
     end)
   end
-
-  defp charge_known(%{stripe_charge_id: charge}) when is_binary(charge) and charge != "",
-    do: :ok
-
-  defp charge_known(_payment), do: {:error, :missing_charge}
 
   # Payment clearing does not always mean the booking is on. The gate
   # decision is read from the meeting row rather than re-derived from the

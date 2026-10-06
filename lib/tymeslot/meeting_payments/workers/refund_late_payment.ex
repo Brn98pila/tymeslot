@@ -10,6 +10,12 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
   goes through, the booking is on the host's outstanding-refunds list, where
   the host can also refund it by hand.
 
+  The refund needs the payment's charge id. The webhook backfills it from
+  Stripe before inserting this job, but commits the payment and the job
+  whether or not that worked, so each attempt here first backfills a charge
+  id still missing (`ChargeBackfill`), and an attempt that cannot is retried
+  like any other failed one.
+
   The refund is `Refunds.issue_refund/3`, whose Stripe idempotency key is
   derived from the payment id, its refunded total and the amount
   (`refund:<id>:<total after>:<amount>`). Every attempt of this job asks for
@@ -50,6 +56,8 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.MeetingPayments
+  alias Tymeslot.MeetingPayments.BookingPaymentSchema
+  alias Tymeslot.MeetingPayments.ChargeBackfill
   alias Tymeslot.MeetingPayments.Refunds
   alias Tymeslot.Workers.SendBookingPaymentRefunded
 
@@ -109,13 +117,23 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
   # A raise (a dropped connection, say) is an attempt failing like any other,
   # so it is returned rather than raised, and the last one is alerted on.
   defp refund(id) do
-    case MeetingPayments.get_payment(id) do
+    with %BookingPaymentSchema{} = payment <- MeetingPayments.get_payment(id),
+         {:ok, payment} <- ensure_charge(payment) do
+      Refunds.issue_refund(payment, Refunds.refundable_remaining_cents(payment))
+    else
       nil -> {:error, :not_found}
-      payment -> Refunds.issue_refund(payment, Refunds.refundable_remaining_cents(payment))
+      {:error, _reason} = error -> error
     end
   rescue
     exception -> {:error, exception}
   end
+
+  defp ensure_charge(%{stripe_charge_id: charge} = payment)
+       when is_binary(charge) and charge != "",
+       do: {:ok, payment}
+
+  defp ensure_charge(payment),
+    do: ChargeBackfill.backfill(payment, payment.stripe_payment_intent_id)
 
   # The payment is refunded already, by the host from the dashboard, or by
   # an earlier attempt whose refund Stripe accepted and `charge.refunded`
