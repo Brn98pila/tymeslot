@@ -35,6 +35,7 @@ defmodule TymeslotWeb.Live.Scheduling.EmbedPaidBookingTest do
   alias Phoenix.LiveViewTest
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.MeetingPayments.StripeAdapterMock
+  alias Tymeslot.MeetingTypes
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.TestMocks
 
@@ -281,7 +282,7 @@ defmodule TymeslotWeb.Live.Scheduling.EmbedPaidBookingTest do
       _drain = :sys.get_state(view.pid)
       assert has_element?(view, "[data-testid='awaiting-payment']")
 
-      slug = Tymeslot.MeetingTypes.effective_slug(meeting_type)
+      slug = MeetingTypes.effective_slug(meeting_type)
 
       for path <- ["/#{profile.username}/#{slug}?embed=1", "/#{profile.username}?embed=1"] do
         render_patch(view, path)
