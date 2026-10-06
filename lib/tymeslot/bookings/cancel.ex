@@ -37,8 +37,9 @@ defmodule Tymeslot.Bookings.Cancel do
       has settled. Defaults to `true`.
 
   Returns {:ok, meeting} or {:error, reason}. `{:error, :already_cancelled}`
-  means a concurrent request cancelled the meeting after `meeting` was read;
-  that request ran the side effects, so this one ran none.
+  means the meeting was cancelled already, whether `meeting` says so or a
+  concurrent request cancelled it after `meeting` was read; whoever cancelled
+  it ran the side effects, so this call ran none.
 
   Accepts the same `opts` as `validate_cancellation/2`; see there for
   `:caller`.
@@ -59,7 +60,7 @@ defmodule Tymeslot.Bookings.Cancel do
       meeting_id: meeting.id
     )
 
-    {:error, "Meeting is already cancelled"}
+    {:error, :already_cancelled}
   end
 
   def execute(%Meeting{} = meeting, opts) do

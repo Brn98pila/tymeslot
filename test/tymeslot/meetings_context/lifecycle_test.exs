@@ -96,7 +96,7 @@ defmodule Tymeslot.MeetingsContext.LifecycleTest do
       %{user: user} = create_user_with_profile()
       meeting = insert_meeting_for_user(user, %{status: "cancelled"})
 
-      assert {:error, "Meeting is already cancelled"} = Meetings.cancel_meeting(meeting.uid)
+      assert {:error, :already_cancelled} = Meetings.cancel_meeting(meeting.uid)
     end
 
     test "non-existent meeting returns not found error" do
