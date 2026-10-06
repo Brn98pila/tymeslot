@@ -35,11 +35,33 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   end
 
   @doc """
-  Lists only active calendar integrations for a user.
+  Lists the user's active calendar integrations whose credentials can be read,
+  decrypted.
+
+  An integration whose credentials no longer decrypt is left out and flagged
+  for reconnection; see `partition_active_calendar_integrations/1`.
   """
   @spec list_active_calendar_integrations(user_id()) :: [CalendarIntegrationSchema.t()]
   def list_active_calendar_integrations(user_id) do
-    CalendarIntegrationQueries.list_active_for_user(user_id)
+    {readable, _unreadable} = partition_active_calendar_integrations(user_id)
+    readable
+  end
+
+  @doc """
+  Splits the user's active calendar integrations into those whose credentials
+  can be read, decrypted, and those whose credentials no longer decrypt (a
+  changed key, a corrupt row), as stored.
+
+  Each unreadable integration not already awaiting reconnection is flagged for
+  it, which also tells the owner. The caller decides what an unreadable one
+  means: the availability check treats it as a calendar it could not read.
+  """
+  @spec partition_active_calendar_integrations(user_id()) ::
+          {[CalendarIntegrationSchema.t()], [CalendarIntegrationSchema.t()]}
+  def partition_active_calendar_integrations(user_id) do
+    user_id
+    |> CalendarIntegrationQueries.list_active_for_user()
+    |> decrypt_or_flag()
   end
 
   @doc """
@@ -299,6 +321,23 @@ defmodule Tymeslot.Integrations.CalendarManagement do
         opts
       )
     )
+  end
+
+  # Only an integration not yet flagged is flagged here: these listings run on
+  # every booking page load, and re-flagging reports the same undecryptable
+  # row to error tracking each time.
+  defp decrypt_or_flag(integrations) do
+    {readable, unreadable} =
+      Enum.split_with(
+        integrations,
+        &(CalendarIntegrationSchema.decryption_status(&1) == :ok)
+      )
+
+    unreadable
+    |> Enum.reject(& &1.needs_reauth)
+    |> Enum.each(&flag_for_reauth/1)
+
+    {Enum.map(readable, &CalendarIntegrationSchema.decrypt_credentials/1), unreadable}
   end
 
   # Callers supply the virtual field names (`:password`), never the encrypted

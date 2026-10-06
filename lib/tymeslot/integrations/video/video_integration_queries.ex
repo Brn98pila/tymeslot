@@ -9,33 +9,16 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
   alias Tymeslot.Repo
 
   @doc """
-  Gets all active video integrations for a user.
+  Gets all active video integrations for a user, credentials left encrypted:
+  its callers only need the id, name and provider.
   """
   @spec list_active_for_user(integer()) :: [VideoIntegrationSchema.t()]
   def list_active_for_user(user_id) do
-    user_id
-    |> base_active_query()
-    |> Repo.all()
-    |> Enum.map(&VideoIntegrationSchema.decrypt_credentials/1)
-  end
-
-  @doc """
-  Gets all active video integrations for a user without decrypting credentials.
-  Use this in UI contexts that only need id/name/provider.
-  """
-  @spec list_active_for_user_public(integer()) :: [VideoIntegrationSchema.t()]
-  def list_active_for_user_public(user_id) do
-    user_id
-    |> base_active_query()
-    |> Repo.all()
-  end
-
-  # Private helper for shared query pattern
-  defp base_active_query(user_id) do
     VideoIntegrationSchema
     |> exclude_deleted()
     |> where([v], v.user_id == ^user_id and v.is_active == true)
     |> order_by([v], asc: v.name)
+    |> Repo.all()
   end
 
   # Soft-deleted rows exist only so background cleanup can still authenticate

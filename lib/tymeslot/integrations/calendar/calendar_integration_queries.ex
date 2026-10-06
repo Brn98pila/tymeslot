@@ -18,7 +18,12 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   @primary_lock_class 1
 
   @doc """
-  Gets all active calendar integrations for a user.
+  Gets all active calendar integrations for a user, credentials left encrypted.
+
+  Callers that read credentials go through
+  `CalendarManagement.list_active_calendar_integrations/1`, which decrypts the
+  readable rows and flags the rest for reconnection. Decrypting here would let
+  one row that no longer decrypts raise for the whole listing.
   """
   @spec list_active_for_user(integer()) :: [CalendarIntegrationSchema.t()]
   def list_active_for_user(user_id) do
@@ -26,7 +31,6 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
     |> where([c], c.user_id == ^user_id and c.is_active == true)
     |> order_by([c], asc: c.name)
     |> Repo.all()
-    |> Enum.map(&CalendarIntegrationSchema.decrypt_credentials/1)
   end
 
   @doc """
@@ -50,8 +54,9 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   the given accumulator. Uses `Repo.stream/2` inside a transaction to avoid
   loading all rows into memory at once.
 
-  `fun` receives each decrypted integration and the current accumulator.
-  Returns the final accumulator value.
+  `fun` receives each integration, credentials left encrypted as for
+  `list_all_active/0`, and the current accumulator. Returns the final
+  accumulator value.
   """
   @spec stream_all_active(pos_integer(), acc, (CalendarIntegrationSchema.t(), acc -> acc)) :: acc
         when acc: term()
@@ -63,9 +68,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
           |> where([c], c.is_active == true and c.needs_reauth == false)
           |> order_by([c], asc: c.id)
           |> Repo.stream(max_rows: max_rows)
-          |> Enum.reduce(initial_acc, fn row, acc ->
-            fun.(CalendarIntegrationSchema.decrypt_credentials(row), acc)
-          end)
+          |> Enum.reduce(initial_acc, fun)
         end,
         timeout: :infinity
       )
@@ -75,6 +78,9 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
 
   @doc """
   Gets all calendar integrations for a user (including inactive).
+
+  A row whose credentials no longer decrypt is returned as stored, so the
+  owner still sees it listed and can reconnect it.
   """
   @spec list_all_for_user(integer()) :: [CalendarIntegrationSchema.t()]
   def list_all_for_user(user_id) do
@@ -82,7 +88,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
     |> where([c], c.user_id == ^user_id)
     |> order_by([c], desc: c.is_active, asc: c.name)
     |> Repo.all()
-    |> Enum.map(&CalendarIntegrationSchema.decrypt_credentials/1)
+    |> Enum.map(&decrypt_if_readable/1)
   end
 
   @doc """
@@ -166,6 +172,10 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   @doc """
   Gets a calendar integration by user ID and provider.
   Returns {:ok, integration} if found, {:error, :not_found} otherwise.
+
+  This and the two account lookups below find the row a reconnection is
+  about to overwrite, so a row whose credentials no longer decrypt is
+  returned as stored rather than raising.
   """
   @spec get_by_user_and_provider(integer(), String.t()) ::
           {:ok, CalendarIntegrationSchema.t()} | {:error, :not_found}
@@ -178,7 +188,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
 
     case result do
       nil -> {:error, :not_found}
-      integration -> {:ok, CalendarIntegrationSchema.decrypt_credentials(integration)}
+      integration -> {:ok, decrypt_if_readable(integration)}
     end
   end
 
@@ -203,7 +213,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
 
     case result do
       nil -> {:error, :not_found}
-      integration -> {:ok, CalendarIntegrationSchema.decrypt_credentials(integration)}
+      integration -> {:ok, decrypt_if_readable(integration)}
     end
   end
 
@@ -229,7 +239,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
 
     case result do
       nil -> {:error, :not_found}
-      integration -> {:ok, CalendarIntegrationSchema.decrypt_credentials(integration)}
+      integration -> {:ok, decrypt_if_readable(integration)}
     end
   end
 
@@ -530,6 +540,13 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
       {:error, :duplicate_account}
     else
       :ok
+    end
+  end
+
+  defp decrypt_if_readable(integration) do
+    case CalendarIntegrationSchema.decryption_status(integration) do
+      :ok -> CalendarIntegrationSchema.decrypt_credentials(integration)
+      :requires_reencryption -> integration
     end
   end
 

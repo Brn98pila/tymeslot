@@ -35,23 +35,38 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   """
   @spec clients(user_id() | nil) :: [client()]
   def clients(user_id) do
+    {clients, _unreadable_ids} = availability_sources(user_id)
+    clients
+  end
+
+  @doc """
+  The calendar clients `clients/1` returns, plus the ids of the user's active
+  integrations whose credentials no longer decrypt.
+
+  The availability check must count each of those as a calendar it could not
+  read rather than one with no events, so they are returned rather than
+  dropped.
+  """
+  @spec availability_sources(user_id() | nil) :: {[client()], [integration_id()]}
+  def availability_sources(user_id) do
     case fetch_active_integrations(user_id) do
-      {:ok, integrations} ->
-        Enum.flat_map(integrations, &create_clients_from_integration/1)
+      {:ok, integrations, unreadable} ->
+        {Enum.flat_map(integrations, &create_clients_from_integration/1),
+         Enum.map(unreadable, & &1.id)}
 
       :not_found ->
         Logger.warning(
           "No calendar integrations configured. Please add calendar integrations in the dashboard."
         )
 
-        []
+        {[], []}
 
       {:error, :user_id_required} ->
         Logger.warning(
           "User ID is required for calendar operations. Please ensure user context is available."
         )
 
-        []
+        {[], []}
     end
   end
 
@@ -261,9 +276,9 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   defp fetch_active_integrations(nil), do: {:error, :user_id_required}
 
   defp fetch_active_integrations(user_id) do
-    case CalendarManagement.list_active_calendar_integrations(user_id) do
-      [] -> :not_found
-      integrations -> {:ok, integrations}
+    case CalendarManagement.partition_active_calendar_integrations(user_id) do
+      {[], []} -> :not_found
+      {integrations, unreadable} -> {:ok, integrations, unreadable}
     end
   end
 end
