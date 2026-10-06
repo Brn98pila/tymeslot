@@ -36,12 +36,9 @@ defmodule TymeslotWeb.BookingDriverTest do
 
   @timezone "Etc/UTC"
 
-  # Every entry carries `journey:` from JB11 on; until then every registered
-  # theme is classic.
-  @stepwise Enum.filter(
-              ThemeTestMatrix.registered(),
-              &(Map.get(&1, :journey, :classic) == :classic)
-            )
+  # One page per step: the step-level tests run on the classic journey only
+  # (Reconciliation 24).
+  @stepwise Enum.filter(ThemeTestMatrix.registered(), &(&1.journey == :classic))
 
   # Pickers that show a bounded run of days with no way to a later one while
   # it has a free time: Fixture Talk's `DayChips` (JC6, no period arrows) and
@@ -68,7 +65,7 @@ defmodule TymeslotWeb.BookingDriverTest do
     describe "#{theme.name}" do
       @describetag theme_id: theme.id
       @describetag slug: theme.slug
-      @describetag journey: Map.get(theme, :journey, :classic)
+      @describetag journey: theme.journey
 
       @tag :capture_log
       test "book/2 books the first free time and returns the outcome",
