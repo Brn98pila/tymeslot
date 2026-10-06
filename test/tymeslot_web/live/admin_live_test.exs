@@ -8,13 +8,10 @@ defmodule TymeslotWeb.AdminLiveTest do
   import Tymeslot.Factory
   import Tymeslot.AuthTestHelpers
 
-  alias Ecto.Changeset
   alias Phoenix.Flash
   alias Tymeslot.Analytics
   alias Tymeslot.AppSettings
   alias Tymeslot.Auth
-  alias Tymeslot.Auth.AdminUserQueries
-  alias Tymeslot.Repo
   alias TymeslotWeb.Helpers.ClientIP
 
   setup do
