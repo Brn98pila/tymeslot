@@ -138,27 +138,10 @@ defmodule Tymeslot.Infrastructure.FinchPoolTest do
     end
   end
 
-  describe "a pool registered for one destination" do
-    test "is torn down once idle rather than kept for the life of the node" do
-      # Destinations are user-supplied (webhook, ICS and CalDAV hosts), so a
-      # pool that never goes away is a leak bounded by nothing.
-      url = "https://93.184.216.39/notify"
-      {:ok, options} = FinchPool.request_option(url, hostname: "reaped.example.com")
-      {:ok, pid} = Finch.find_pool(Tymeslot.Finch, Pool.new(url, tag: options[:pool_tag]))
-
-      max_idle_time = pool_config(pid).pool_max_idle_time
-
-      assert is_integer(max_idle_time)
-      assert max_idle_time <= :timer.minutes(10)
-    end
-  end
-
   # The pool process's own state is the only place the merged configuration is
   # observable, and it is what the socket is opened with.
-  defp pool_conn_opts(pid), do: pool_config(pid).conn_opts
-
-  defp pool_config(pid) do
-    %{state: %{opts: opts}} = :sys.get_state(pid)
-    opts
+  defp pool_conn_opts(pid) do
+    %{state: %{opts: %{conn_opts: conn_opts}}} = :sys.get_state(pid)
+    conn_opts
   end
 end

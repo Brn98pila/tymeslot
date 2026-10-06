@@ -28,15 +28,6 @@ defmodule Tymeslot.Infrastructure.FinchPool do
 
   @finch Tymeslot.Finch
 
-  # How long a tagged pool may sit unused before Finch tears it down. Tagged
-  # pools are keyed by destination (a pinned IP plus its hostname), and
-  # webhook, ICS and CalDAV destinations are user-supplied, so without a limit
-  # every destination ever contacted, and every address it ever resolved to,
-  # keeps a pool for the life of the node. `request_option/2` registers the
-  # pool again before each request, so a reaped one costs only a cold
-  # connection next time.
-  @tagged_pool_max_idle_time :timer.minutes(5)
-
   @doc """
   The pool configuration `Tymeslot.Finch` itself starts with.
 
@@ -100,20 +91,15 @@ defmodule Tymeslot.Infrastructure.FinchPool do
   # Finch pool configuration, so borrowing it keeps a pinned request connecting
   # on exactly the terms it did before this module existed. Only the pool's
   # identity changes, never the socket's.
-  #
-  # Unlike the shared pool (see `default_options/0`), a tagged pool is reaped
-  # once idle: it serves one destination, and churn on a rarely used one is
-  # the price of not keeping it forever.
   defp pool_options(connect_options) do
-    default_options()
-    |> Keyword.merge(
+    Keyword.merge(
+      default_options(),
       Req.Finch.pool_options(connect_options: connect_options),
       fn
         :conn_opts, ours, theirs -> merge_conn_opts(ours, theirs)
         _key, _ours, theirs -> theirs
       end
     )
-    |> Keyword.put(:pool_max_idle_time, @tagged_pool_max_idle_time)
   end
 
   defp merge_conn_opts(ours, theirs) do
