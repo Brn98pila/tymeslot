@@ -35,8 +35,10 @@ defmodule Tymeslot.Release do
   @doc """
   Demotes the user with the given email from admin.
 
-  Refuses to demote the only remaining admin unless `force?` is true. This
-  mirrors the pre-check `mix tymeslot.demote_admin` applies before reaching
+  Refuses to demote an admin when no other admin could still sign in
+  (the guard is `AdminRoles.remaining_signin_capable_admins?/1`) unless
+  `force?` is true. This mirrors the
+  pre-check `mix tymeslot.demote_admin` applies before reaching
   this function, so the documented production path
   (`bin/tymeslot rpc 'Tymeslot.Release.demote_admin("…")'`) gets the same
   protection rather than relying solely on the dev-only Mix task. Below this
