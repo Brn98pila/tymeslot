@@ -74,6 +74,7 @@ defmodule Tymeslot.Workers.VideoRoomWorker do
   @announce_without_room [
     :video_integration_missing,
     :video_integration_inactive,
+    :video_integration_needs_reauth,
     :video_meeting_not_enabled,
     :invalid_configuration,
     :unauthorized

@@ -76,6 +76,8 @@ defmodule Tymeslot.Meetings.VideoRooms do
       to the booking's calendar event and that event is not written yet, or
       was replaced while the meeting was being attached to it
     - {:error, :video_integration_inactive} if integration is disabled
+    - {:error, :video_integration_needs_reauth} if its owner has been asked
+      to reconnect the integration, so no call is made
     - {:error, :unknown_provider} if provider is unsupported
     - {:error, :incomplete_video_room} if the provider returned a room carrying
       neither a room id nor a meeting URL
@@ -553,7 +555,7 @@ defmodule Tymeslot.Meetings.VideoRooms do
         {:error, :video_integration_inactive}
 
       {:ok, %{needs_reauth: true}} when refuse_needs_reauth? ->
-        {:error, :unauthorized}
+        {:error, :video_integration_needs_reauth}
 
       {:ok, integration} ->
         case ProviderConfig.parse(integration.provider) do

@@ -191,7 +191,9 @@ defmodule Tymeslot.Meetings.VideoRoomsTransactionTest do
       |> Changeset.change(needs_reauth: true)
       |> Repo.update!()
 
-      assert {:error, :unauthorized} = VideoRooms.add_video_room_to_meeting(meeting.id)
+      assert {:error, :video_integration_needs_reauth} =
+               VideoRooms.add_video_room_to_meeting(meeting.id)
+
       refute __MODULE__.FakeVideoModule.called?()
     end
 
