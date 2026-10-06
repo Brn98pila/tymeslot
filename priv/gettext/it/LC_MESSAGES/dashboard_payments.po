@@ -455,3 +455,13 @@ msgstr "Scaduta, pagata il %{date}"
 #, elixir-autogen, elixir-format
 msgid "Expired bookings were paid for but never confirmed, for example because the payment arrived after the slot was taken. Their refund is issued automatically; if one is still listed later, refund it here or in Stripe."
 msgstr "Le prenotazioni scadute sono state pagate ma mai confermate, ad esempio perché il pagamento è arrivato dopo che la fascia oraria era già stata assegnata. Il rimborso viene emesso automaticamente; se una di esse è ancora elencata più avanti, rimborsala da qui o in Stripe."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Declined %{date}"
+msgstr "Rifiutata il %{date}"
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "You declined these bookings, but their automatic refund didn't go through. Refund them here or in Stripe."
+msgstr "Hai rifiutato queste prenotazioni, ma il loro rimborso automatico non è andato a buon fine. Rimborsale da qui o in Stripe."

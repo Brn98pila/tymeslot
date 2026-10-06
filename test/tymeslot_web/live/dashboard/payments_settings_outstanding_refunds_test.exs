@@ -13,11 +13,13 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettingsOutstandingRefundsTest do
 
   use TymeslotWeb.ConnCase, async: false
 
+  import ExUnit.CaptureLog
   import Phoenix.LiveViewTest
   import Tymeslot.AuthTestHelpers
   import Tymeslot.Factory
 
   alias Tymeslot.MeetingPayments.StripeAdapterMock
+  alias Tymeslot.Meetings.Approval
   alias Tymeslot.Repo
 
   @moduletag :payments
@@ -211,6 +213,82 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettingsOutstandingRefundsTest do
 
       refute html =~ "theirs@example.com"
       refute html =~ "Refunds outstanding"
+    end
+  end
+
+  # Declining a paid request refunds it there and then, so the card only
+  # meets a declined booking whose automatic refund failed, and must not tell
+  # the host that cancelling never refunds.
+  describe "a declined request" do
+    defp declined_paid_request(host, meeting_attrs \\ %{}) do
+      meeting =
+        insert(
+          :meeting,
+          Map.merge(
+            %{
+              status: "awaiting_approval",
+              organizer_user_id: host.id,
+              approval_requested_at: DateTime.utc_now(:second),
+              approval_deadline_at: DateTime.add(DateTime.utc_now(:second), 24, :hour)
+            },
+            meeting_attrs
+          )
+        )
+
+      payment =
+        cancelled_payment_for(host, %{
+          meeting: meeting,
+          stripe_charge_id: "ch_DECLINED_#{System.unique_integer([:positive])}",
+          paid_at: DateTime.utc_now(:second)
+        })
+
+      capture_log(fn ->
+        assert {:ok, _declined} = Approval.decline(meeting, "Double-booked")
+      end)
+
+      payment
+    end
+
+    test "explains a row whose automatic refund failed as a decline", %{conn: conn} do
+      host = connected_host()
+      Mox.stub(StripeAdapterMock, :create_refund, fn _params, _opts -> {:error, :api_error} end)
+
+      payment = declined_paid_request(host)
+
+      {view, html} = open_payments(conn, host)
+
+      assert html =~
+               "You declined these bookings, but their automatic refund didn&#39;t go through. Refund them here or in Stripe."
+
+      refute html =~ "Cancelling never refunds on its own"
+      assert has_element?(view, "#outstanding-refund-#{payment.id}", "Declined ")
+      assert has_element?(view, refund_button(payment))
+    end
+
+    test "lists nothing once the automatic refund has gone through", %{conn: conn} do
+      host = connected_host()
+      Mox.stub(StripeAdapterMock, :create_refund, fn _params, _opts -> {:ok, %{id: "re_OK"}} end)
+
+      declined_paid_request(host)
+
+      {_view, html} = open_payments(conn, host)
+
+      refute html =~ "Refunds outstanding"
+    end
+
+    # A confirmed meeting sent back for approval by a reschedule is not
+    # refunded when declined; the host chooses, as for a cancellation.
+    test "explains a re-requested meeting, which declining never refunds, as a cancellation",
+         %{conn: conn} do
+      host = connected_host()
+
+      payment = declined_paid_request(host, %{first_announced_at: DateTime.utc_now(:second)})
+
+      {view, html} = open_payments(conn, host)
+
+      assert html =~ "Cancelling never refunds on its own"
+      refute html =~ "You declined these bookings"
+      assert has_element?(view, "#outstanding-refund-#{payment.id}")
     end
   end
 

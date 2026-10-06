@@ -1,6 +1,6 @@
 defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
   @moduledoc """
-  Cancelled and expired bookings whose money the host still holds.
+  Cancelled, declined and expired bookings whose money the host still holds.
 
   Stateless function component rendered by `PaymentsSettingsComponent` at the
   top of the payments screen, and only when there is something to show.
@@ -15,9 +15,15 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
   An expired booking here was paid for but never confirmed: its payment
   arrived after the slot was taken, or it was a paid request that lapsed
   unapproved. Those refund automatically, so such a row is one whose refund
-  has not gone through (yet). The card explains each kind it lists in its
-  own words, and dates an expired row by its payment, since an expired
-  meeting carries no cancellation date.
+  has not gone through (yet). A declined request is stored as a cancelled
+  meeting, but it too refunds on its own (`Approval.refunds_on_release?/1`),
+  synchronously as the host declines, so a declined row is one whose
+  automatic refund failed; it must not be told that cancelling never
+  refunds. A request that was a confirmed meeting before a reschedule sent
+  it back for approval is the exception: declining it refunds nothing, so it
+  reads as a cancellation. The card explains each kind it lists in its own
+  words, and dates an expired row by its payment, since an expired meeting
+  carries no cancellation date.
 
   Each row offers the same `open_refund_modal` event as the payments table.
   A row only carries that button when both halves of the question say yes:
@@ -40,6 +46,7 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.MeetingPayments
+  alias Tymeslot.Meetings.Approval
   alias TymeslotWeb.Helpers.LocaleFormat
 
   import TymeslotWeb.Components.PaymentHelpers, only: [format_amount: 2]
@@ -54,13 +61,28 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
     ~H"""
     <div :if={@payments != []} id="outstanding-refunds">
       <.detail_card title={dgettext("dashboard_payments", "Refunds outstanding")}>
-        <p :if={Enum.any?(@payments, &cancelled?/1)} class="text-token-sm text-tymeslot-700 mb-4">
+        <p
+          :if={Enum.any?(@payments, &(kind(&1) == :cancelled))}
+          class="text-token-sm text-tymeslot-700 mb-4"
+        >
           {dgettext(
             "dashboard_payments",
             "These bookings were cancelled while you still held the attendee's money. Cancelling never refunds on its own."
           )}
         </p>
-        <p :if={Enum.any?(@payments, &expired?/1)} class="text-token-sm text-tymeslot-700 mb-4">
+        <p
+          :if={Enum.any?(@payments, &(kind(&1) == :declined))}
+          class="text-token-sm text-tymeslot-700 mb-4"
+        >
+          {dgettext(
+            "dashboard_payments",
+            "You declined these bookings, but their automatic refund didn't go through. Refund them here or in Stripe."
+          )}
+        </p>
+        <p
+          :if={Enum.any?(@payments, &(kind(&1) == :expired))}
+          class="text-token-sm text-tymeslot-700 mb-4"
+        >
           {dgettext(
             "dashboard_payments",
             "Expired bookings were paid for but never confirmed, for example because the payment arrived after the slot was taken. Their refund is issued automatically; if one is still listed later, refund it here or in Stripe."
@@ -145,10 +167,15 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
   defp connected_for_refunds?(%{deleted_at: %DateTime{}}), do: false
   defp connected_for_refunds?(_account), do: true
 
-  defp cancelled?(payment), do: not expired?(payment)
+  # Which explanation a row needs: an expired or declined booking refunds on
+  # its own, a cancelled one never does.
+  defp kind(%{meeting: %{status: "expired"}}), do: :expired
 
-  defp expired?(%{meeting: %{status: "expired"}}), do: true
-  defp expired?(_payment), do: false
+  defp kind(%{meeting: meeting}) do
+    if Approval.declined?(meeting) and Approval.refunds_on_release?(meeting),
+      do: :declined,
+      else: :cancelled
+  end
 
   # An expired meeting carries no cancellation date, so its row is dated by
   # the payment. A cancelled meeting always carries `cancelled_at`, and an
@@ -161,8 +188,11 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
   defp format_date_cell(%{meeting: %{status: "expired"}}),
     do: dgettext("dashboard_payments", "Expired")
 
-  defp format_date_cell(%{meeting: %{cancelled_at: %DateTime{} = cancelled_at}}),
-    do: dgettext("dashboard_payments", "Cancelled %{date}", date: format_date(cancelled_at))
+  defp format_date_cell(%{meeting: %{cancelled_at: %DateTime{} = cancelled_at} = meeting}) do
+    if Approval.declined?(meeting),
+      do: dgettext("dashboard_payments", "Declined %{date}", date: format_date(cancelled_at)),
+      else: dgettext("dashboard_payments", "Cancelled %{date}", date: format_date(cancelled_at))
+  end
 
   defp format_date_cell(_payment), do: ""
 

@@ -459,3 +459,13 @@ msgstr "Vypršelo, zaplaceno %{date}"
 #, elixir-autogen, elixir-format
 msgid "Expired bookings were paid for but never confirmed, for example because the payment arrived after the slot was taken. Their refund is issued automatically; if one is still listed later, refund it here or in Stripe."
 msgstr "Vypršelé rezervace byly zaplaceny, ale nikdy nepotvrzeny, například proto, že platba dorazila až po obsazení termínu. Peníze se vracejí automaticky; pokud tu některá z nich bude uvedena i později, vraťte peníze zde nebo ve Stripe."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Declined %{date}"
+msgstr "Odmítnuto %{date}"
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "You declined these bookings, but their automatic refund didn't go through. Refund them here or in Stripe."
+msgstr "Tyto rezervace jste odmítli, ale jejich automatické vrácení peněz se nezdařilo. Vraťte peníze zde nebo ve Stripe."

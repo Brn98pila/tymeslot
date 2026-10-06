@@ -459,3 +459,13 @@ msgstr "Прострочено, оплачено %{date}"
 #, elixir-autogen, elixir-format
 msgid "Expired bookings were paid for but never confirmed, for example because the payment arrived after the slot was taken. Their refund is issued automatically; if one is still listed later, refund it here or in Stripe."
 msgstr "Прострочені бронювання було оплачено, але так і не підтверджено, наприклад, тому що оплата надійшла вже після того, як слот зайняли. Повернення коштів відбувається автоматично; якщо якесь із них згодом усе ще буде в цьому списку, поверніть кошти тут або в Stripe."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Declined %{date}"
+msgstr "Відхилено %{date}"
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "You declined these bookings, but their automatic refund didn't go through. Refund them here or in Stripe."
+msgstr "Ви відхилили ці бронювання, але автоматичне повернення коштів за них не вдалося. Поверніть кошти тут або в Stripe."
