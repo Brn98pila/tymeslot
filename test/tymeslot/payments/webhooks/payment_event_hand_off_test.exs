@@ -12,7 +12,14 @@ defmodule Tymeslot.Payments.Webhooks.PaymentEventHandOffTest do
   @moduletag :webhooks
 
   alias Tymeslot.Payments.PubSub
-  alias Tymeslot.Payments.Webhooks.{Idempotency, IdempotencyCache, SubscriptionHandler}
+
+  alias Tymeslot.Payments.Webhooks.{
+    Idempotency,
+    IdempotencyCache,
+    SubscriptionHandler,
+    TrialWillEndHandler
+  }
+
   alias Tymeslot.Payments.Webhooks.WebhookProcessor
 
   defmodule RecordingHandler do
@@ -80,6 +87,16 @@ defmodule Tymeslot.Payments.Webhooks.PaymentEventHandOffTest do
                )
 
       assert IdempotencyCache.check_idempotency("evt_hand_off_fails") == {:ok, :not_processed}
+    end
+
+    test "a trial-ending event the handler could not take fails the delivery" do
+      Application.put_env(:tymeslot, :payment_event_handler, FailingHandler)
+
+      trial_end = DateTime.to_unix(DateTime.add(DateTime.utc_now(), 3, :day))
+      subscription = %{"id" => "sub_trial_fails", "trial_end" => trial_end}
+      event = %{"id" => "evt_trial_fails", "type" => "customer.subscription.trial_will_end"}
+
+      assert {:error, :retry_later, _message} = TrialWillEndHandler.process(event, subscription)
     end
 
     test "a dispute, refund or trial event is handed off with its Stripe event id" do
