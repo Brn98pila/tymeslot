@@ -1,6 +1,12 @@
 defmodule Tymeslot.Bookings.MeetingLinks do
   @moduledoc """
-  The public view, reschedule and cancel links of a booking.
+  The view, reschedule and cancel links of a booking.
+
+  The reschedule and cancel links are the booker's, on the public booking
+  pages. The view link is the organiser's: every message that carries it
+  (the external-change email, chat notifications, webhook payloads) goes to
+  the host, so it opens the booking in their dashboard, behind sign-in
+  (`host_view_url/1`). There is no public page that shows a booking.
 
   The links are built when they are rendered, from the meeting's uid, the
   organiser's username *now* and the application's base URL *now*. A booking
@@ -27,7 +33,6 @@ defmodule Tymeslot.Bookings.MeetingLinks do
   @type page :: :cancel | :cancel_confirmed | :reschedule
 
   @suffixes %{
-    view: "",
     cancel: "/cancel",
     cancel_confirmed: "/cancel-confirmed",
     reschedule: "/reschedule"
@@ -55,9 +60,11 @@ defmodule Tymeslot.Bookings.MeetingLinks do
   def for_meeting(meeting, organizer_profile),
     do: links(meeting, fn _user_id -> organizer_profile && organizer_profile.username end)
 
-  defp links(%MeetingSchema{capacity: capacity} = meeting, _username_fn)
+  defp links(%MeetingSchema{capacity: capacity, uid: uid} = meeting, _username_fn)
        when is_integer(capacity) and capacity > 1 do
-    Map.take(meeting, [:view_url, :reschedule_url, :cancel_url])
+    meeting
+    |> Map.take([:view_url, :reschedule_url, :cancel_url])
+    |> Map.put(:view_url, uid && host_view_url(uid))
   end
 
   defp links(%{uid: uid} = meeting, username_fn) when is_binary(uid) do
@@ -96,11 +103,20 @@ defmodule Tymeslot.Bookings.MeetingLinks do
         }
   def build(username, uid) when is_binary(uid) do
     %{
-      view_url: url(username, uid, :view),
+      view_url: host_view_url(uid),
       reschedule_url: url(username, uid, :reschedule),
       cancel_url: url(username, uid, :cancel)
     }
   end
+
+  @doc """
+  The organiser's link to the booking with `uid`: their dashboard's meetings
+  list showing that booking alone. Built from the application's base URL
+  now, never read from the stored `view_url`.
+  """
+  @spec host_view_url(String.t()) :: String.t()
+  def host_view_url(uid) when is_binary(uid),
+    do: UrlBuilder.build_url("/dashboard/meetings?" <> URI.encode_query(meeting: uid))
 
   @doc """
   Where `page` for the booking with `uid` lives now, as a path.

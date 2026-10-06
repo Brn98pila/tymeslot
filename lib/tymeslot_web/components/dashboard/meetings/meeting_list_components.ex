@@ -6,6 +6,7 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.MeetingListComponents do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias TymeslotWeb.Components.CoreComponents.Buttons
+  alias TymeslotWeb.Components.CoreComponents.Containers
   alias TymeslotWeb.Components.CoreComponents.Feedback
   alias TymeslotWeb.Components.CoreComponents.Navigation
   alias TymeslotWeb.Components.Dashboard.Meetings.MeetingCard
@@ -52,6 +53,24 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.MeetingListComponents do
         attention
       />
     </Navigation.segmented_control>
+    """
+  end
+
+  @doc """
+  The notice above a list narrowed to one booking (`?meeting=<uid>`, where a
+  host's links to a booking land), with the way back to the whole list.
+  """
+  @spec focus_notice(map()) :: Phoenix.LiveView.Rendered.t()
+  def focus_notice(assigns) do
+    ~H"""
+    <Containers.info_box variant={:info}>
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <span>{dgettext("dashboard_bookings", "Showing one booking.")}</span>
+        <.link patch="/dashboard/meetings" class="font-semibold underline">
+          {dgettext("dashboard_bookings", "Show all meetings")}
+        </.link>
+      </div>
+    </Containers.info_box>
     """
   end
 

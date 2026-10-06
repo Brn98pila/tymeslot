@@ -9,6 +9,7 @@ defmodule Tymeslot.Telegram.MessageBuilder do
   """
 
   alias Phoenix.HTML
+  alias Tymeslot.Bookings.MeetingLinks
 
   @spec build_message(String.t(), %{atom() => term()}, String.t()) :: String.t()
   def build_message("meeting.created", meeting, timezone) do
@@ -196,15 +197,12 @@ defmodule Tymeslot.Telegram.MessageBuilder do
   end
 
   defp link_line(meeting) do
-    uid = Map.get(meeting, :uid)
+    case Map.get(meeting, :uid) do
+      uid when is_binary(uid) ->
+        "\n\n<a href=\"#{esc(MeetingLinks.host_view_url(uid))}\">View in dashboard</a>"
 
-    if uid do
-      endpoint_config = Application.get_env(:tymeslot, TymeslotWeb.Endpoint)
-      host = System.get_env("PHX_HOST") || get_in(endpoint_config, [:url, :host]) || "localhost"
-      scheme = get_in(endpoint_config, [:url, :scheme]) || "https"
-      "\n\n<a href=\"#{scheme}://#{host}/dashboard/meetings\">View in dashboard</a>"
-    else
-      ""
+      _none ->
+        ""
     end
   end
 

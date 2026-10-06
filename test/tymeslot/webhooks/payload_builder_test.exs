@@ -66,7 +66,8 @@ defmodule Tymeslot.Webhooks.PayloadBuilderTest do
 
       base = Endpoint.url() <> "/meeting/#{meeting.uid}"
       urls = payload.data.meeting.urls
-      assert urls.view == base
+      # The view link is the host's, to the booking in their dashboard.
+      assert urls.view == Endpoint.url() <> "/dashboard/meetings?meeting=#{meeting.uid}"
       assert urls.cancel == base <> "/cancel"
       assert urls.reschedule == base <> "/reschedule"
     end

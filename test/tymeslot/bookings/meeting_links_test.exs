@@ -51,7 +51,7 @@ defmodule Tymeslot.Bookings.MeetingLinksTest do
 
     test "for_meeting/1 builds the links with the new username", %{meeting: meeting} do
       assert MeetingLinks.for_meeting(meeting) == %{
-               view_url: "#{@base}/links-after/meeting/#{meeting.uid}",
+               view_url: "#{@base}/dashboard/meetings?meeting=#{meeting.uid}",
                reschedule_url: "#{@base}/links-after/meeting/#{meeting.uid}/reschedule",
                cancel_url: "#{@base}/links-after/meeting/#{meeting.uid}/cancel"
              }
@@ -90,7 +90,7 @@ defmodule Tymeslot.Bookings.MeetingLinksTest do
       assert Enum.sort(Map.keys(urls)) == [:cancel, :meeting, :reschedule, :view]
       assert urls.cancel == "#{@base}/links-after/meeting/#{meeting.uid}/cancel"
       assert urls.reschedule == "#{@base}/links-after/meeting/#{meeting.uid}/reschedule"
-      assert urls.view == "#{@base}/links-after/meeting/#{meeting.uid}"
+      assert urls.view == "#{@base}/dashboard/meetings?meeting=#{meeting.uid}"
     end
 
     test "current_path/2 resolves the uid to the new username's page", %{meeting: meeting} do

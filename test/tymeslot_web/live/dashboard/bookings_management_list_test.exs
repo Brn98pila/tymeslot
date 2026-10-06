@@ -12,6 +12,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementListTest do
   import Tymeslot.AuthTestHelpers
 
   alias Plug.Test
+  alias Tymeslot.Bookings.MeetingLinks
 
   setup %{conn: conn} do
     user = insert(:user, onboarding_completed_at: DateTime.utc_now())
@@ -19,6 +20,61 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementListTest do
 
     conn = conn |> Test.init_test_session(%{}) |> fetch_session()
     {:ok, conn: log_in_user(conn, user), user: user}
+  end
+
+  # Every organiser-facing message about a booking (the external-change
+  # email, Slack, Telegram, webhook payloads) links to it with
+  # `MeetingLinks.host_view_url/1`. That link has to open, and show the
+  # booking it names.
+  describe "the link to one booking" do
+    test "opens the dashboard on that booking alone", %{conn: conn, user: user} do
+      now = DateTime.utc_now()
+
+      target =
+        insert(:meeting,
+          organizer_user_id: user.id,
+          organizer_email: user.email,
+          attendee_name: "Linked Booking",
+          start_time: DateTime.add(now, 2, :day),
+          end_time: DateTime.add(now, 2 * 24 * 60 + 30, :minute)
+        )
+
+      insert(:meeting,
+        organizer_user_id: user.id,
+        organizer_email: user.email,
+        attendee_name: "Other Booking",
+        start_time: DateTime.add(now, 1, :day),
+        end_time: DateTime.add(now, 24 * 60 + 30, :minute)
+      )
+
+      %URI{path: path, query: query} = URI.parse(MeetingLinks.host_view_url(target.uid))
+      assert get(conn, path <> "?" <> query).status == 200
+
+      {:ok, view, _html} = live(conn, path <> "?" <> query)
+
+      html = render(view)
+      assert html =~ "Linked Booking"
+      refute html =~ "Other Booking"
+
+      view |> element("a", "Show all meetings") |> render_click()
+      assert render(view) =~ "Other Booking"
+    end
+
+    test "shows nothing of a booking the host does not own", %{conn: conn} do
+      stranger = insert(:user)
+
+      theirs =
+        insert(:meeting,
+          organizer_user_id: stranger.id,
+          attendee_name: "Stranger Owned Booking",
+          start_time: DateTime.add(DateTime.utc_now(), 1, :day),
+          end_time: DateTime.add(DateTime.utc_now(), 24 * 60 + 30, :minute)
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/meetings?meeting=#{theirs.uid}")
+
+      refute render(view) =~ "Stranger Owned Booking"
+    end
   end
 
   describe "Meetings list" do

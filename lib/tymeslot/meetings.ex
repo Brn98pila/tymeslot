@@ -340,6 +340,14 @@ defmodule Tymeslot.Meetings do
   end
 
   @doc """
+  The organiser's meeting with `uid`, as a one-item page of dashboard cards
+  (empty when they own none by that uid): the dashboard view a meeting's
+  organiser links lead to (`Tymeslot.Bookings.MeetingLinks.host_view_url/1`).
+  """
+  @spec list_user_meeting_by_uid(integer(), String.t()) :: {:ok, CursorPage.t()}
+  defdelegate list_user_meeting_by_uid(user_id, uid), to: Listing
+
+  @doc """
   High-level function to list meetings for a user based on a filter string.
   """
   @spec list_user_meetings_by_filter(integer(), String.t(), keyword()) ::

@@ -25,6 +25,9 @@ defmodule Tymeslot.Meetings.MeetingListQueries do
   defp for_organizer(query, user_id),
     do: from(m in query, where: m.organizer_user_id == ^user_id)
 
+  defp with_uid(query, nil), do: query
+  defp with_uid(query, uid), do: from(m in query, where: m.uid == ^uid)
+
   defp with_status(query, nil), do: query
   defp with_status(query, status), do: from(m in query, where: m.status == ^status)
 
@@ -326,7 +329,7 @@ defmodule Tymeslot.Meetings.MeetingListQueries do
   @doc """
   Cursor-based pagination for the organiser's meetings using keyset on start_time and id.
   Accepts opts: :after_start (DateTime), :after_id (binary_id), :per_page, :status, :time_filter (:upcoming | :past),
-  :order (:desc, the default, newest first; or :asc, soonest first).
+  :uid (one meeting only), :order (:desc, the default, newest first; or :asc, soonest first).
   Returns a list limited to per_page.
   """
   @spec list_meetings_for_organizer_paginated_cursor(pos_integer(), Keyword.t()) :: [Meeting.t()]
@@ -345,6 +348,7 @@ defmodule Tymeslot.Meetings.MeetingListQueries do
 
     Meeting
     |> for_organizer(organizer_user_id)
+    |> with_uid(Keyword.get(opts, :uid))
     |> with_status(status)
     |> without_status(exclude_status)
     |> apply_time_filter(time_filter, now)

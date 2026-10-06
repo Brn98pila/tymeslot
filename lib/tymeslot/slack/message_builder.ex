@@ -13,7 +13,7 @@ defmodule Tymeslot.Slack.MessageBuilder do
   Block Kit reference: https://api.slack.com/block-kit
   """
 
-  alias Tymeslot.Utils.UrlBuilder
+  alias Tymeslot.Bookings.MeetingLinks
 
   @max_reason_length 500
 
@@ -280,8 +280,8 @@ defmodule Tymeslot.Slack.MessageBuilder do
 
   defp meeting_url(meeting) do
     case Map.get(meeting, :uid) do
-      nil -> nil
-      _uid -> UrlBuilder.build_url("/dashboard/meetings")
+      uid when is_binary(uid) -> MeetingLinks.host_view_url(uid)
+      _none -> nil
     end
   end
 

@@ -82,7 +82,7 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
 
   defp render_html(meeting, {owner_time, time_format}, discrepancy, locale) do
     dashboard_url = UrlBuilder.build_url("/dashboard/meetings")
-    view_url = meeting.view_url || dashboard_url
+    view_url = view_url(meeting, dashboard_url)
 
     {alert_intent, alert_message, alert_title} = alert_parts(discrepancy, meeting)
     safe_title = Sanitise.sanitize_for_email(meeting.title)
@@ -177,7 +177,7 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
 
   defp render_text(meeting, {owner_time, time_format}, :deleted, locale) do
     dashboard_url = UrlBuilder.build_url("/dashboard/meetings")
-    view_url = meeting.view_url || dashboard_url
+    view_url = view_url(meeting, dashboard_url)
     custom_answers = TextBodyHelper.format_custom_answers(meeting, locale)
 
     """
@@ -202,7 +202,7 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
 
   defp render_text(meeting, {owner_time, time_format}, :modified, locale) do
     dashboard_url = UrlBuilder.build_url("/dashboard/meetings")
-    view_url = meeting.view_url || dashboard_url
+    view_url = view_url(meeting, dashboard_url)
     custom_answers = TextBodyHelper.format_custom_answers(meeting, locale)
 
     """
@@ -246,4 +246,12 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
         title: title,
         date: date_short
       )
+
+  # Built now, to the host's dashboard view of this booking; the stored
+  # `view_url` is a copy from booking time that may name a page that no
+  # longer exists.
+  defp view_url(%{uid: uid}, _dashboard_url) when is_binary(uid),
+    do: MeetingLinks.host_view_url(uid)
+
+  defp view_url(_meeting, dashboard_url), do: dashboard_url
 end

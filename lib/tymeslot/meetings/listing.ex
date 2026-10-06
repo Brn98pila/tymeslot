@@ -47,6 +47,14 @@ defmodule Tymeslot.Meetings.Listing do
   end
 
   @doc """
+  The organiser's meeting with `uid` as a one-item page, loaded as the
+  dashboard list loads its cards; an empty page when they own none by that uid.
+  """
+  @spec list_user_meeting_by_uid(integer(), String.t()) :: {:ok, CursorPage.t()}
+  def list_user_meeting_by_uid(user_id, uid),
+    do: list_organizer_meetings_cursor_page(user_id, uid: uid, per_page: 1)
+
+  @doc """
   High-level function to list meetings for a user based on a filter string.
   """
   @spec list_user_meetings_by_filter(integer(), String.t(), keyword()) ::
@@ -122,6 +130,7 @@ defmodule Tymeslot.Meetings.Listing do
     order = Keyword.get(opts, :order, :desc)
 
     MeetingListQueries.list_meetings_for_organizer_paginated_cursor(organizer_user_id,
+      uid: Keyword.get(opts, :uid),
       per_page: per_page,
       status: status,
       exclude_status: exclude_status,
