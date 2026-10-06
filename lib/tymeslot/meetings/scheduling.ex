@@ -132,6 +132,13 @@ defmodule Tymeslot.Meetings.Scheduling do
   change of time is checked; a time change on a meeting without an organiser
   is refused with `{:error, :organizer_required}`.
 
+  A time change is written to the meeting row as it stands under its row
+  lock, taken after the schedule lock, never to the possibly stale `meeting`
+  passed in. Pass `guard:`, a function of that locked row returning `:ok` or
+  `{:error, reason}`, to refuse the write when the row has moved on since
+  `meeting` was read; a refusal comes back as `{:error, {:refused, reason}}`,
+  and a row deleted meanwhile as `{:error, :not_found}`.
+
   ## Examples
 
       iex> update_meeting_with_conflict_check(meeting, %{start_time: ~U[2024-01-01 10:00:00Z], end_time: ~U[2024-01-01 11:00:00Z]})
@@ -147,8 +154,10 @@ defmodule Tymeslot.Meetings.Scheduling do
              :time_conflict
              | :booking_limit_reached
              | :organizer_required
+             | :not_found
              | :database_error
              | Changeset.t()
+             | {:refused, term()}
              | {:validation_error, Changeset.t()}}
   def update_meeting_with_conflict_check(%Meeting{} = meeting, attrs, opts \\ []) do
     # Only check conflicts if time is being changed
@@ -179,7 +188,7 @@ defmodule Tymeslot.Meetings.Scheduling do
             meeting.uid,
             opts
           ),
-          fn -> update_meeting_in_transaction(meeting, attrs) end,
+          fn -> update_meeting_in_transaction(meeting, attrs, Keyword.get(opts, :guard)) end,
           &log_update_conflict(meeting, start_time, end_time, &1)
         )
     end
@@ -315,10 +324,30 @@ defmodule Tymeslot.Meetings.Scheduling do
     {:error, :database_error}
   end
 
-  defp update_meeting_in_transaction(meeting, attrs) do
-    case MeetingQueries.update_meeting(meeting, with_held_venue(attrs)) do
-      {:ok, updated_meeting} -> updated_meeting
-      {:error, changeset} -> Repo.rollback(write_error(changeset))
+  # Locks the row only now, under the schedule lock the caller already holds,
+  # keeping the lock order every writer uses (schedule, then rows). The write
+  # goes to the locked copy: `meeting` may have been read long before (a
+  # reschedule holds it across a calendar provider fetch), and whatever
+  # committed to the row since, a cancellation say, must be seen by the guard
+  # rather than written over.
+  defp update_meeting_in_transaction(meeting, attrs, guard) do
+    with {:ok, current} <- MeetingQueries.get_meeting_for_update(meeting.id),
+         :ok <- run_guard(guard, current),
+         {:ok, updated_meeting} <- MeetingQueries.update_meeting(current, with_held_venue(attrs)) do
+      updated_meeting
+    else
+      {:error, :not_found} -> Repo.rollback(:not_found)
+      {:refused, reason} -> Repo.rollback({:refused, reason})
+      {:error, %Changeset{} = changeset} -> Repo.rollback(write_error(changeset))
+    end
+  end
+
+  defp run_guard(nil, _meeting), do: :ok
+
+  defp run_guard(guard, meeting) when is_function(guard, 1) do
+    case guard.(meeting) do
+      :ok -> :ok
+      {:error, reason} -> {:refused, reason}
     end
   end
 

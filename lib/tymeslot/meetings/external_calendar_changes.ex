@@ -231,6 +231,11 @@ defmodule Tymeslot.Meetings.ExternalCalendarChanges do
       {:ok, _cancelled} ->
         :ok
 
+      # Cancelled through some other path while this deletion was being
+      # handled; that path already told everyone, so there is nothing to retry.
+      {:error, :already_cancelled} ->
+        :ok
+
       {:error, reason} ->
         Logger.warning("Auto-cancel failed, reverting sync status for retry",
           meeting_id: meeting.id,

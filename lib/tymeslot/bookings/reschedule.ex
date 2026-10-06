@@ -216,7 +216,8 @@ defmodule Tymeslot.Bookings.Reschedule do
       {:ok, updated} -> {:ok, updated}
       {:error, :slot_taken} -> {:error, :slot_taken}
       {:error, :booking_limit_reached} -> {:error, :booking_limit_reached}
-      {:error, :failed_to_update_meeting} -> {:error, :failed_to_update_meeting}
+      {:error, :meeting_not_found} -> {:error, :meeting_not_found}
+      {:error, {:refused, reason}} -> {:error, reason}
       {:error, _reason} -> {:error, :failed_to_update_meeting}
     end
   end
@@ -490,11 +491,20 @@ defmodule Tymeslot.Bookings.Reschedule do
   defp fetch_meeting_type(meeting_type_id, organizer_user_id, _duration_minutes),
     do: MeetingTypes.get_meeting_type(meeting_type_id, organizer_user_id)
 
+  # The meeting was read and validated before the provider calendar fetch,
+  # which can take seconds; a cancellation (or anything else that ends it)
+  # may have committed since. The guard re-runs the same validation against
+  # the row as it stands under its lock, so a meeting cancelled meanwhile is
+  # refused rather than moved, or returned to the approval gate.
   defp update_meeting(meeting, attrs) do
-    case Scheduling.update_meeting_with_conflict_check(meeting, attrs) do
+    case Scheduling.update_meeting_with_conflict_check(meeting, attrs,
+           guard: &validate_can_reschedule/1
+         ) do
       {:ok, updated} -> {:ok, updated}
       {:error, :time_conflict} -> {:error, :slot_taken}
       {:error, :booking_limit_reached} -> {:error, :booking_limit_reached}
+      {:error, :not_found} -> {:error, :meeting_not_found}
+      {:error, {:refused, _reason} = refused} -> {:error, refused}
       {:error, _reason} -> {:error, :failed_to_update_meeting}
     end
   end

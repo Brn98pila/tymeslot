@@ -32,6 +32,7 @@ defmodule TymeslotWeb.Live.Scheduling.DispatcherCancelCompositionTest do
   import Mox
   import Tymeslot.Factory
 
+  alias Tymeslot.Bookings.Cancel
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
@@ -80,6 +81,30 @@ defmodule TymeslotWeb.Live.Scheduling.DispatcherCancelCompositionTest do
              live(conn, "/#{profile.username}/meeting/#{meeting.uid}/cancel")
 
     assert flash["error"] =~ "already cancelled"
+  end
+
+  @tag :capture_log
+  test "cancel-click on a meeting cancelled since the page loaded says it was already cancelled",
+       %{conn: conn, user: user, profile: profile} do
+    meeting =
+      insert(:meeting,
+        organizer_user: user,
+        organizer_user_id: user.id,
+        organizer_name: user.name,
+        attendee_timezone: profile.timezone,
+        status: "confirmed"
+      )
+
+    {:ok, view, _html} =
+      live(conn, "/#{profile.username}/meeting/#{meeting.uid}/cancel")
+
+    # The host cancels from their dashboard while the attendee's page,
+    # loaded while the meeting was still confirmed, is open.
+    assert {:ok, _cancelled} = Cancel.execute(meeting, caller: :organizer)
+
+    view |> element("[data-testid='cancel-meeting']") |> render_click()
+
+    assert render(view) =~ "This booking was already cancelled."
   end
 
   @tag :capture_log

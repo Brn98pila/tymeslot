@@ -18,6 +18,8 @@ defmodule Tymeslot.Bookings.Cancel do
   alias Tymeslot.Notifications.Events
   alias Tymeslot.Workers.VideoSyncWorker
 
+  @external_cancellation_reason "Cancelled externally via calendar sync"
+
   @doc """
   Cancels a meeting by its ID.
 
@@ -34,7 +36,9 @@ defmodule Tymeslot.Bookings.Cancel do
       cancellation email reports on). That caller owes an `announce/1` once it
       has settled. Defaults to `true`.
 
-  Returns {:ok, meeting} or {:error, reason}
+  Returns {:ok, meeting} or {:error, reason}. `{:error, :already_cancelled}`
+  means a concurrent request cancelled the meeting after `meeting` was read;
+  that request ran the side effects, so this one ran none.
 
   Accepts the same `opts` as `validate_cancellation/2`; see there for
   `:caller`.
@@ -118,19 +122,11 @@ defmodule Tymeslot.Bookings.Cancel do
       meeting_id: meeting.id
     )
 
-    with {:ok, updated_meeting} <- update_meeting_status(meeting),
+    with {:ok, updated_meeting} <- transition_to_cancelled(meeting, nil),
          :ok <- Meetings.cancel_calendar_event(updated_meeting),
          :ok <- delete_provider_video_room(updated_meeting),
          :ok <- maybe_announce(updated_meeting, announce?) do
       {:ok, updated_meeting}
-    else
-      {:error, reason} = error ->
-        Logger.error("Failed to cancel meeting",
-          meeting_id: meeting.id,
-          reason: LogFormat.reason(reason)
-        )
-
-        error
     end
   end
 
@@ -183,7 +179,9 @@ defmodule Tymeslot.Bookings.Cancel do
   pending reschedule request, legitimately has no event, so its absence
   must not trigger an auto-cancel.
 
-  Returns {:ok, meeting} or {:error, reason}
+  Returns {:ok, meeting} or {:error, reason}, where `:already_cancelled`
+  means the meeting was cancelled by some other path first, as for
+  `execute/2`.
   """
   @spec execute_external(Meeting.t()) :: {:ok, Meeting.t()} | {:error, atom() | String.t()}
   def execute_external(%Meeting{} = meeting) do
@@ -265,7 +263,7 @@ defmodule Tymeslot.Bookings.Cancel do
 
     with {:ok, released} <-
            Approval.withdraw(meeting,
-             cancellation_reason: "Cancelled externally via calendar sync"
+             cancellation_reason: @external_cancellation_reason
            ),
          :ok <- send_cancellation_notifications(released) do
       {:ok, released}
@@ -285,69 +283,45 @@ defmodule Tymeslot.Bookings.Cancel do
       meeting_id: meeting.id
     )
 
-    with {:ok, updated_meeting} <- update_meeting_status_external(meeting),
+    with {:ok, updated_meeting} <-
+           transition_to_cancelled(meeting, @external_cancellation_reason),
          :ok <- delete_provider_video_room(updated_meeting),
          :ok <- send_cancellation_notifications(updated_meeting) do
       {:ok, updated_meeting}
-    else
-      {:error, reason} = error ->
-        Logger.error("Failed to auto-cancel externally deleted meeting",
+    end
+  end
+
+  # The status flip is guarded (see `MeetingQueries.transition_to_cancelled/2`):
+  # `meeting` may be a copy read before a concurrent cancellation committed,
+  # and only the caller whose write actually cancelled the row goes on to
+  # delete the calendar event and tell everyone. The loser gets
+  # `{:error, :already_cancelled}` and does nothing further.
+  defp transition_to_cancelled(meeting, cancellation_reason) do
+    changes =
+      Enum.reject(
+        [
+          cancelled_at: DateTime.truncate(Clock.utc_now(), :second),
+          cancellation_reason: cancellation_reason
+        ],
+        fn {_key, value} -> is_nil(value) end
+      )
+
+    case MeetingQueries.transition_to_cancelled(meeting.id, changes) do
+      {:ok, updated_meeting} ->
+        Logger.info("Meeting status updated to cancelled",
           meeting_id: meeting.id,
-          reason: LogFormat.reason(reason)
+          cancellation_reason: cancellation_reason
+        )
+
+        AvailabilityCache.invalidate_for_user(updated_meeting.organizer_user_id)
+        {:ok, updated_meeting}
+
+      {:error, :already_cancelled} = error ->
+        Logger.info("Meeting was already cancelled by a concurrent request",
+          meeting_id: meeting.id
         )
 
         error
-    end
-  end
-
-  defp update_meeting_status(meeting) do
-    attrs = %{
-      status: "cancelled",
-      cancelled_at: DateTime.truncate(Clock.utc_now(), :second)
-    }
-
-    case MeetingQueries.update_meeting_status(meeting, attrs) do
-      {:ok, updated_meeting} ->
-        Logger.info("Meeting status updated to cancelled",
-          meeting_id: meeting.id
-        )
-
-        AvailabilityCache.invalidate_for_user(updated_meeting.organizer_user_id)
-        {:ok, updated_meeting}
-
-      {:error, changeset} ->
-        Logger.error("Failed to update meeting status",
-          meeting_id: meeting.id,
-          errors: LogFormat.reason(changeset.errors)
-        )
-
-        {:error, "Failed to update meeting status"}
-    end
-  end
-
-  defp update_meeting_status_external(meeting) do
-    attrs = %{
-      status: "cancelled",
-      cancelled_at: DateTime.truncate(Clock.utc_now(), :second),
-      cancellation_reason: "Cancelled externally via calendar sync"
-    }
-
-    case MeetingQueries.update_meeting_status(meeting, attrs) do
-      {:ok, updated_meeting} ->
-        Logger.info("Meeting auto-cancelled via external calendar deletion",
-          meeting_id: meeting.id
-        )
-
-        AvailabilityCache.invalidate_for_user(updated_meeting.organizer_user_id)
-        {:ok, updated_meeting}
-
-      {:error, changeset} ->
-        Logger.error("Failed to auto-cancel meeting",
-          meeting_id: meeting.id,
-          errors: LogFormat.reason(changeset.errors)
-        )
-
-        {:error, "Failed to update meeting status"}
     end
   end
 

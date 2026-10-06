@@ -576,3 +576,8 @@ msgstr "Schůzku se nepodařilo zrušit. Zkuste to prosím znovu."
 #, elixir-autogen, elixir-format
 msgid "This is a group session, so it cannot be changed from this link. To cancel or move your spot, use the links in your confirmation email."
 msgstr "Toto je skupinové setkání, a proto ho nelze změnit přes tento odkaz. Chcete-li své místo zrušit nebo přesunout, použijte odkazy v potvrzovacím e-mailu."
+
+#: lib/tymeslot_web/themes/core/meeting_management.ex
+#, elixir-autogen, elixir-format
+msgid "This booking was already cancelled."
+msgstr "Tato rezervace už byla zrušena."

@@ -129,6 +129,11 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   # A refusal reason is a code that must never reach the visitor as it stands.
   defp cancel_error_message(:group_meeting_not_cancellable), do: group_meeting_message()
 
+  # The page was loaded while the meeting was live, and someone else (the
+  # host, or this attendee in another tab) cancelled it since.
+  defp cancel_error_message(:already_cancelled),
+    do: dgettext("booking_manage", "This booking was already cancelled.")
+
   defp cancel_error_message(_reason),
     do: dgettext("booking_manage", "The meeting could not be cancelled. Please try again.")
 

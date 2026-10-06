@@ -209,6 +209,41 @@ defmodule Tymeslot.Meetings.MeetingQueries do
   end
 
   @doc """
+  Moves a meeting to `"cancelled"`, atomically, unless it is already over.
+
+  Like `transition_from_awaiting_approval/2`, the guard is in the `WHERE`
+  clause rather than read-then-write: a guest cancelling from the email link,
+  the host cancelling from the dashboard and the external-deletion sync can
+  all act on the same meeting at once, each holding a copy read before the
+  others wrote. Exactly one of them changes the row and receives it; every
+  other gets `{:error, :already_cancelled}` and must not repeat the
+  cancellation's side effects. A meeting that completed or expired in the
+  meantime refuses the same way, since there is nothing left to cancel.
+
+  `changes` carries `cancelled_at` and, where there is one,
+  `cancellation_reason`; `status` is always set here. Bypasses the changeset,
+  as `update_all` does, so `updated_at` is set here too.
+  """
+  @spec transition_to_cancelled(String.t(), keyword()) ::
+          {:ok, Meeting.t()} | {:error, :already_cancelled}
+  def transition_to_cancelled(meeting_id, changes) when is_list(changes) do
+    now = DateTime.utc_now(:second)
+
+    query =
+      MeetingState.where_not_terminal(from(m in Meeting, where: m.id == ^meeting_id, select: m))
+
+    changes =
+      changes
+      |> Keyword.put(:status, "cancelled")
+      |> Keyword.put_new(:updated_at, now)
+
+    case Repo.update_all(query, set: changes) do
+      {1, [meeting]} -> {:ok, meeting}
+      {0, _none} -> {:error, :already_cancelled}
+    end
+  end
+
+  @doc """
   Held requests whose deadline has passed, oldest first.
 
   Backs the expiry sweep, which exists because a per-meeting scheduled job can

@@ -33,6 +33,10 @@ defmodule Tymeslot.Meetings.MeetingState do
   # request that expired unanswered. Releasing one deletes its video room.
   @released_statuses ["cancelled", "expired"]
 
+  # Statuses a meeting never leaves: it is over, one way or another, so
+  # nothing may cancel, move or confirm it again.
+  @terminal_statuses ["cancelled", "completed", "expired"]
+
   @doc """
   Whether the meeting still represents a live booking a user should be able
   to interact with (view, cancel, reschedule). Excludes cancelled,
@@ -164,6 +168,17 @@ defmodule Tymeslot.Meetings.MeetingState do
   """
   @spec released_status?(String.t() | nil) :: boolean()
   def released_status?(status), do: status in @released_statuses
+
+  @doc """
+  Composes onto `query` a filter keeping only meetings still in a status they
+  can move on from, that is, not cancelled, completed or expired. A guarded
+  transition writes through it so that, of two callers acting on the same
+  meeting, only the first finds a row to change.
+  """
+  @spec where_not_terminal(Ecto.Queryable.t()) :: Ecto.Query.t()
+  def where_not_terminal(query) do
+    where(query, [m], m.status not in ^@terminal_statuses)
+  end
 
   @doc """
   Query-side counterpart of `awaiting_approval?/1`.
