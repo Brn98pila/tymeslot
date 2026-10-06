@@ -214,6 +214,36 @@ defmodule TymeslotWeb.Dashboard.AnalyticsLiveTest do
     end
   end
 
+  describe "when the plan check fails rather than refuses" do
+    defmodule FailingAnalyticsChecker do
+      @behaviour Tymeslot.Features.CheckerBehaviour
+      @impl Tymeslot.Features.CheckerBehaviour
+      def check_access(_user_id, :analytics_allowed), do: {:error, :timeout}
+      def check_access(_user_id, _feature), do: :ok
+    end
+
+    # A failed check says nothing about the plan, so the organiser is asked
+    # to retry rather than offered an upgrade they may already have.
+    setup do
+      setup_config(:tymeslot, :feature_access_checker, FailingAnalyticsChecker)
+    end
+
+    test "says analytics are unavailable instead of offering an upgrade", %{
+      conn: conn,
+      user: user
+    } do
+      seed_visit(user, "linkedin", "hash-a")
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/analytics")
+
+      html = render(view)
+      assert html =~ "Analytics are temporarily unavailable"
+      refute html =~ "linkedin"
+      refute has_element?(view, "[data-testid='analytics-pro-badge']")
+      assert has_element?(view, "button[phx-click='refresh']")
+    end
+  end
+
   describe "refresh" do
     test "reflects visits recorded after the initial (cached) load", %{conn: conn, user: user} do
       seed_visit(user, "linkedin", "hash-a")

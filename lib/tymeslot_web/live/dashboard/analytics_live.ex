@@ -164,6 +164,13 @@ defmodule TymeslotWeb.Dashboard.AnalyticsLive do
           )}
         </p>
 
+        <.info_box :if={@unavailable?} variant={:warning}>
+          {dgettext(
+            "dashboard_analytics",
+            "Analytics are temporarily unavailable. Please try refreshing in a moment."
+          )}
+        </.info_box>
+
         <.info_box :if={@partial_window?} variant={:info}>
           {dgettext(
             "dashboard_analytics",
@@ -221,6 +228,7 @@ defmodule TymeslotWeb.Dashboard.AnalyticsLive do
       loaded?: false,
       refreshed_at: nil,
       refreshing?: false,
+      unavailable?: false,
       visits: 0,
       unique_visitors: 0,
       bookings: 0,
@@ -267,7 +275,9 @@ defmodule TymeslotWeb.Dashboard.AnalyticsLive do
 
   # The context owns the entitlement check, the window and the metrics cache.
   # A refusal (the plan changed since mount, or the assign was wrong) falls back
-  # to the upgrade placeholder rather than rendering empty metrics.
+  # to the upgrade placeholder rather than rendering empty metrics. A checker
+  # that failed says nothing about the plan, so it keeps the page and asks the
+  # organiser to retry instead of offering an upgrade they may already have.
   defp load_data(socket, fetch \\ &Analytics.dashboard_metrics/3)
 
   defp load_data(
@@ -279,7 +289,11 @@ defmodule TymeslotWeb.Dashboard.AnalyticsLive do
         socket
         |> assign(Map.to_list(data))
         |> assign(:loaded?, true)
+        |> assign(:unavailable?, false)
         |> assign(:refreshed_at, DateTime.utc_now())
+
+      {:error, :feature_access_checker_failed} ->
+        assign(socket, :unavailable?, true)
 
       {:error, _reason} ->
         assign(socket, :analytics_allowed, false)
