@@ -6,6 +6,7 @@ defmodule TymeslotWeb.Themes.Shared.StateMachineHelpers do
   alias Tymeslot.Availability.Calculate
   alias Tymeslot.MeetingTypes
   alias TymeslotWeb.Themes.Shared.Journey.Facts.MeetingType
+  alias TymeslotWeb.Themes.Shared.Journey.Facts.Slot
 
   # `awaiting_payment` is a transitional state used by embedded paid
   # bookings: Stripe Checkout opens in a new tab and the iframe waits for
@@ -110,10 +111,9 @@ defmodule TymeslotWeb.Themes.Shared.StateMachineHelpers do
     do: validate_step_requirements(socket, :booking)
 
   defp validate_step_requirements(socket, :booking) do
-    Calculate.validate_time_selection(
-      socket.assigns[:selected_date],
-      socket.assigns[:selected_time],
-      socket.assigns[:available_slots]
-    )
+    case Slot.continue(socket) do
+      {:done, _socket} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
   end
 end

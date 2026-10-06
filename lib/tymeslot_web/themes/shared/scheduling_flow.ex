@@ -12,11 +12,9 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   import Phoenix.LiveView, only: [put_flash: 3]
 
   alias Phoenix.LiveView.Socket
-  alias TymeslotWeb.Components.MeetingUtils
 
   alias TymeslotWeb.Live.Scheduling.{
     AvailabilityHelpers,
-    CalendarHelpers,
     NextAvailable,
     OrganizerHelpers,
     WeekSlots
@@ -31,9 +29,9 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   alias TymeslotWeb.Themes.Shared.EventHandlers
   alias TymeslotWeb.Themes.Shared.GuestBooking
   alias TymeslotWeb.Themes.Shared.Journey.Facts.MeetingType
+  alias TymeslotWeb.Themes.Shared.Journey.Facts.Slot
   alias TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry
   alias TymeslotWeb.Themes.Shared.ReschedulePin
-  alias TymeslotWeb.Themes.Shared.SlotGrouping
   alias TymeslotWeb.Themes.Shared.StateMachineHelpers, as: StateMachine
 
   @type reply :: {:noreply, Socket.t()}
@@ -51,7 +49,12 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
       else: overview_event(socket, event, data)
   end
 
-  def handle_step_event(socket, :schedule, event, data), do: schedule_event(socket, event, data)
+  def handle_step_event(socket, :schedule, event, data) do
+    if event in Slot.events(),
+      do: Slot.handle(socket, event, data),
+      else: schedule_event(socket, event, data)
+  end
+
   def handle_step_event(socket, :questions, event, data), do: questions_event(socket, event, data)
   def handle_step_event(socket, :booking, event, data), do: booking_event(socket, event, data)
 
@@ -75,15 +78,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   a transition made inside the page.
   """
   @spec handle_state_entry(Socket.t(), atom(), map()) :: Socket.t()
-  # Every arrival at the step fetches a week view's week again: the duration
-  # can have changed on the overview, and a booking that lost its slot comes
-  # back here. A no-op for a page that shows no week.
-  def handle_state_entry(socket, :schedule, params) do
-    socket
-    |> StepEntry.handle_schedule_entry(params)
-    |> refresh_stale_slot_snapshot()
-    |> WeekSlots.refetch()
-  end
+  def handle_state_entry(socket, :schedule, params), do: Slot.enter(socket, params)
 
   def handle_state_entry(socket, :questions, _params),
     do: StepEntry.handle_questions_entry(socket)
@@ -136,14 +131,6 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
 
   # Schedule
 
-  defp schedule_event(socket, :select_date, date), do: select_date(socket, date)
-
-  defp schedule_event(socket, :select_time, time) do
-    new_time = if socket.assigns[:selected_time] == time, do: nil, else: time
-    {:noreply, assign(socket, :selected_time, new_time)}
-  end
-
-  defp schedule_event(socket, :toggle_hour, hour), do: toggle_hour(socket, hour)
   defp schedule_event(socket, :change_timezone, data), do: change_timezone(socket, data)
 
   defp schedule_event(socket, :search_timezone, data),
@@ -158,31 +145,6 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
     Process.send_after(self(), :close_dropdown, 150)
     {:noreply, socket}
   end
-
-  defp schedule_event(socket, :prev_week, _data),
-    do: {:noreply, socket |> CalendarHelpers.handle_week_navigation(:prev) |> WeekSlots.refetch()}
-
-  defp schedule_event(socket, :next_week, _data),
-    do: {:noreply, socket |> CalendarHelpers.handle_week_navigation(:next) |> WeekSlots.refetch()}
-
-  # A week view asking for its week; see `WeekSlots.load/1`.
-  defp schedule_event(socket, :load_week, _data), do: {:noreply, WeekSlots.load(socket)}
-
-  defp schedule_event(socket, :select_slot, {date, time})
-       when is_binary(date) and is_binary(time),
-       do: select_slot(socket, date, time)
-
-  defp schedule_event(socket, :select_slot, _data), do: {:noreply, socket}
-
-  # Back to the week the page landed the booker on; the week view follows.
-  defp schedule_event(socket, :first_available_week, _data),
-    do: {:noreply, socket |> CalendarHelpers.return_to_landing() |> WeekSlots.follow_week()}
-
-  defp schedule_event(socket, :prev_month, _data),
-    do: {:noreply, CalendarHelpers.handle_month_navigation(socket, :prev)}
-
-  defp schedule_event(socket, :next_month, _data),
-    do: {:noreply, CalendarHelpers.handle_month_navigation(socket, :next)}
 
   # Only allow returning to the overview when the booker actually entered via
   # it. A direct/private-link entry sets `entered_via_overview: false` and must
@@ -205,87 +167,6 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   end
 
   defp schedule_event(_socket, _event, _data), do: :unhandled
-
-  # Defensive on the nil date: neither theme's day button deselects any
-  # more, so nothing reaches here with nil today. The guard stays because
-  # sending {:load_slots, nil} would fetch slots for no day at all.
-  #
-  # Resets `:expanded_hour` here, at the point the booker actively picks
-  # a date, rather than in the fetch that follows: the fetch also runs
-  # for refetches the booker did not cause a date change with (a
-  # timezone change, a lost-slot retry), which must not spring a
-  # deliberately collapsed `:none` back open.
-  defp select_date(socket, date) do
-    socket =
-      assign(socket,
-        selected_date: date,
-        selected_time: nil,
-        expanded_hour: nil,
-        loading_slots: date != nil,
-        calendar_error: nil
-      )
-
-    if date, do: send(self(), {:load_slots, date})
-    {:noreply, socket}
-  end
-
-  # The week grid's one click: a day and a time together. Unlike
-  # `select_date/2` it keeps the time, and unlike `:select_time` a second click
-  # never unchooses it. A new day's slots are loaded as a day pick loads them,
-  # so the booking step and a reschedule see the state a day and a time click
-  # leave. The payload is visitor input, so a pair the loaded week does not
-  # offer is ignored; the submit would refuse it anyway. So is every pair
-  # while the week is being fetched again: the map kept on screen then may
-  # predate the change that caused the fetch (a timezone switch), and a time
-  # picked from it would be read in the new zone.
-  defp select_slot(socket, date, time) do
-    cond do
-      socket.assigns[:week_slots_loading] ->
-        {:noreply, socket}
-
-      not WeekSlots.offered?(socket.assigns, date, time) ->
-        {:noreply, socket}
-
-      socket.assigns[:selected_date] == date ->
-        {:noreply, assign(socket, :selected_time, time)}
-
-      true ->
-        socket = assign(socket, selected_date: date, selected_time: time, expanded_hour: nil)
-        {:ok, socket} = SlotFetchingHandlerComponent.load_slots(socket, date)
-        {:noreply, socket}
-    end
-  end
-
-  # `expanded_hour` holds three states, not two: nil means "not chosen, so
-  # open the earliest hour", an integer means that hour, and :none means the
-  # booker closed it and it must stay closed until they choose again.
-  #
-  # `hour` is guarded to a binary because event payloads for non-"form"
-  # events reach `handle_event/3` verbatim from client JSON with no type
-  # coercion — a crafted socket push can deliver a list or map here, which
-  # `Integer.parse/1` has no clause for. A non-binary payload is ignored,
-  # leaving state untouched, the same way an unparsable string already is.
-  defp toggle_hour(socket, hour) when is_binary(hour) do
-    grouping =
-      SlotGrouping.group(
-        MeetingUtils.normalize_slot_list(socket.assigns[:available_slots] || []),
-        socket.assigns[:slot_interval_minutes],
-        socket.assigns[:duration_minutes]
-      )
-
-    current = SlotGrouping.effective_expanded_hour(socket.assigns[:expanded_hour], grouping)
-
-    next =
-      case Integer.parse(hour) do
-        {^current, ""} -> :none
-        {requested, ""} -> requested
-        _unparsable -> socket.assigns[:expanded_hour]
-      end
-
-    {:noreply, assign(socket, :expanded_hour, next)}
-  end
-
-  defp toggle_hour(socket, _hour), do: {:noreply, socket}
 
   # The picker's choice goes through `TimezoneHandlerComponent`, which switches
   # the zone. A zone that actually changed then decides which day stays
@@ -441,42 +322,6 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
 
       {:error, reason} ->
         {:noreply, put_flash(socket, :error, BookingErrorMessage.message(reason))}
-    end
-  end
-
-  # `:available_slots`, `:duration_minutes`, `:slot_interval_minutes` and
-  # `:expanded_hour` are snapshotted by `SlotFetchingHandlerComponent` at
-  # fetch time and do not track a meeting-type/duration change made while
-  # away from this step (e.g. back to :overview, pick a different
-  # duration, forward again). Only compare against a snapshot that
-  # actually exists (`:duration_minutes` non-nil) — the very first entry
-  # into :schedule has no snapshot yet and nothing stale to refresh.
-  defp refresh_stale_slot_snapshot(socket) do
-    case socket.assigns[:duration_minutes] do
-      nil ->
-        socket
-
-      snapshot_duration ->
-        current_duration = AvailabilityHelpers.duration_minutes(socket)
-        current_interval = AvailabilityHelpers.slot_interval_minutes(socket)
-
-        if snapshot_duration == current_duration and
-             socket.assigns[:slot_interval_minutes] == current_interval do
-          socket
-        else
-          socket
-          |> assign(
-            available_slots: [],
-            selected_time: nil,
-            expanded_hour: nil,
-            duration_minutes: nil,
-            slot_interval_minutes: nil
-          )
-          |> then(fn socket ->
-            {:ok, socket} = SlotFetchingHandlerComponent.maybe_reload_slots(socket)
-            socket
-          end)
-        end
     end
   end
 end
