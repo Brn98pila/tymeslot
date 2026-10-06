@@ -39,6 +39,10 @@ defmodule Tymeslot.Integrations.Calendar.Tokens do
   @doc """
   Refresh the access token for an integration.
   Persists refreshed credentials when possible.
+
+  When the stored credentials no longer decrypt, the integration is flagged
+  for reconnection and the answer is `{:error, :requires_reencryption}`, or
+  `{:error, :reauth_flag_failed}` when the flag could not be written.
   """
   @spec refresh_oauth_token(integration()) :: {:ok, integration()} | {:error, term()}
   def refresh_oauth_token(%{provider: provider} = integration)
@@ -82,8 +86,17 @@ defmodule Tymeslot.Integrations.Calendar.Tokens do
   defp refresh_under_lock(integration, integration_id) do
     case CalendarIntegrationQueries.get(integration_id) do
       {:ok, fresh_integration} -> refresh_if_expired(fresh_integration)
-      {:error, :requires_reencryption, stale} -> CalendarManagement.handle_reauth_required(stale)
+      {:error, :requires_reencryption, stale} -> flag_unreadable(stale)
       _error -> refresh_if_expired(integration)
+    end
+  end
+
+  # `handle_reauth_required/1` answers in Oban's terms; this function's
+  # callers expect `{:ok, _} | {:error, _}`.
+  defp flag_unreadable(stale) do
+    case CalendarManagement.handle_reauth_required(stale) do
+      {:discard, _reason} -> {:error, :requires_reencryption}
+      {:error, _reason} -> {:error, :reauth_flag_failed}
     end
   end
 
