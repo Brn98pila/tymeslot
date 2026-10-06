@@ -72,10 +72,35 @@ defmodule Tymeslot.Meetings.SchedulingConcurrencyTest do
     assert committed_meetings(ctx.user) == 1
   end
 
+  # A writer that skips the schedule lock can commit the same slot between
+  # the conflict count and the insert. The organiser's unique slot index then
+  # refuses the insert, and that refusal is a lost race, not invalid input.
+  test "a slot taken past the conflict count by an unlocked writer is a time conflict", ctx do
+    insert_outside_the_lock = fn _arg ->
+      {:ok, _meeting} =
+        Task.await(Task.async(fn -> unboxed(fn -> insert_slot(ctx.user, ctx.start) end) end))
+
+      {:ok, :released}
+    end
+
+    result =
+      unboxed(fn ->
+        RaceConductor.arm(insert_outside_the_lock, &conflict_count?/1)
+        Scheduling.create_meeting_with_conflict_check(meeting_attrs(ctx.user, ctx.start, 30))
+      end)
+
+    assert result == {:error, :time_conflict}
+    assert committed_meetings(ctx.user) == 1
+  end
+
   defp book(user, start_time, minutes, hold) do
     RaceConductor.arm(hold, RaceConductor.insert_into("meetings"))
 
-    Scheduling.create_meeting_with_conflict_check(%{
+    Scheduling.create_meeting_with_conflict_check(meeting_attrs(user, start_time, minutes))
+  end
+
+  defp meeting_attrs(user, start_time, minutes) do
+    %{
       uid: UUID.generate(),
       title: "Race",
       start_time: start_time,
@@ -89,8 +114,17 @@ defmodule Tymeslot.Meetings.SchedulingConcurrencyTest do
       attendee_email: "attendee-#{System.unique_integer([:positive])}@example.com",
       attendee_timezone: "Etc/UTC",
       attendee_locale: "en"
-    })
+    }
   end
+
+  defp insert_slot(user, start_time) do
+    %MeetingSchema{}
+    |> MeetingSchema.changeset(meeting_attrs(user, start_time, 30))
+    |> Repo.insert()
+  end
+
+  defp conflict_count?(metadata),
+    do: metadata[:source] == "meetings" and metadata[:query] =~ "count("
 
   defp committed_meetings(user) do
     unboxed(fn ->
