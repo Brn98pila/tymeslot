@@ -113,13 +113,44 @@ defmodule TymeslotWeb.Themes.Shared.Journey.RuntimeTest do
                :unhandled
     end
 
-    test "the timezone picker's events are accepted from any moment" do
+    test "the timezone picker's events are accepted from any moment on screen" do
       socket = socket(%{current_state: :booking, timezone_dropdown_open: false})
 
       assert {:noreply, socket} =
                Runtime.handle_step_event(socket, :booking, :toggle_timezone_dropdown, nil)
 
       assert socket.assigns.timezone_dropdown_open
+    end
+
+    test "the timezone picker's events are not taken from an outcome or a moment off screen" do
+      confirmation = socket(%{current_state: :confirmation, user_timezone: "Europe/London"})
+      schedule = socket(%{current_state: :schedule, user_timezone: "Europe/London"})
+
+      assert Runtime.handle_step_event(
+               confirmation,
+               :confirmation,
+               :change_timezone,
+               "Asia/Tokyo"
+             ) ==
+               :unhandled
+
+      assert Runtime.handle_step_event(schedule, nil, :change_timezone, "Asia/Tokyo") ==
+               :unhandled
+
+      assert Runtime.handle_step_event(schedule, :booking, :change_timezone, "Asia/Tokyo") ==
+               :unhandled
+
+      assert {:noreply, _socket} =
+               Runtime.handle_step_event(schedule, :schedule, :change_timezone, "Europe/London")
+    end
+
+    test "nothing is handled on a page without a journey" do
+      socket = %Socket{assigns: %{__changed__: %{}, flash: %{}, current_state: :schedule}}
+
+      assert Runtime.handle_step_event(socket, :schedule, :next_step, nil) == :unhandled
+
+      assert Runtime.handle_step_event(socket, :schedule, :change_timezone, "Asia/Tokyo") ==
+               :unhandled
     end
 
     test "next and back from the moment on screen go to the navigator" do
@@ -185,6 +216,12 @@ defmodule TymeslotWeb.Themes.Shared.Journey.RuntimeTest do
 
       assert {:noreply, ^socket} = Runtime.navigate_to_step(socket, %{"step" => 1})
       assert {:noreply, ^socket} = Runtime.navigate_to_step(socket, %{})
+    end
+
+    test "moves nothing on a page without a journey" do
+      socket = %Socket{assigns: %{__changed__: %{}, flash: %{}, current_state: :schedule}}
+
+      assert {:noreply, ^socket} = Runtime.navigate_to_step(socket, %{"step" => "1"})
     end
   end
 end

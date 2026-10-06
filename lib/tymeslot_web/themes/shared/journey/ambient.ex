@@ -2,7 +2,8 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Ambient do
   @moduledoc """
   Events that belong to no fact: the timezone picker's. They change how the
   page shows times, not what the booking holds, so the engine accepts them
-  from every moment (`Journey.Runtime.handle_step_event/4`).
+  from every moment on screen, never from an outcome
+  (`Journey.Runtime.handle_step_event/4`).
   """
 
   import Phoenix.Component, only: [assign: 3]

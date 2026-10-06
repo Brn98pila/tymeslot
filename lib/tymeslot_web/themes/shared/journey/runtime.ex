@@ -12,7 +12,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
     2. `schedule_another` from the confirmation starts the booking again
        (`restart/1`);
     3. an ambient event (`Journey.Ambient`: the timezone picker's) is
-       accepted from every moment;
+       accepted from every visible moment, never from an outcome;
     4. an event a fact owns goes to that fact's `handle/3` when the moment
        it came from is visible (`Navigator.visible/2`) and collects the
        fact, this booking needs the owner (`required?/1`), and every fact
@@ -21,7 +21,9 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
 
   A theme's own `theme:<name>` events never reach this module. With
   `Navigators.Paged` only the current moment is visible, so a canonical
-  event sent from another step is dropped, as it always was.
+  event sent from another step is dropped, as it always was. A page without
+  a journey (the meeting and poll pages the same LiveView serves) handles
+  none of them, and its step indicator moves nothing.
 
   `transition_to/3` shows a moment or an outcome: it sets `:current_state`
   and, for a moment, runs each collected fact's `enter/2` with `params` (the
@@ -47,9 +49,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
   the LiveView can log and drop it.
   """
   @spec handle_step_event(Socket.t(), atom(), atom(), term()) :: reply() | :unhandled
-  def handle_step_event(socket, moment_key, event, data) do
-    journey = socket.assigns.journey
-
+  def handle_step_event(%Socket{assigns: %{journey: journey}} = socket, moment_key, event, data) do
     cond do
       navigation?(journey, socket.assigns, moment_key, event) ->
         navigate(journey, socket, event)
@@ -58,12 +58,14 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
         {:noreply, restart(socket)}
 
       event in Ambient.events() ->
-        Ambient.handle(socket, event, data)
+        ambient_event(journey, socket, moment_key, event, data)
 
       true ->
         fact_event(journey, socket, moment_key, event, data)
     end
   end
+
+  def handle_step_event(_socket, _moment_key, _event, _data), do: :unhandled
 
   @doc "Shows the moment or outcome `key`, running what its facts set up."
   @spec transition_to(Socket.t(), atom(), map()) :: Socket.t()
@@ -104,10 +106,9 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
   # `step` is guarded to a binary: a crafted socket push can deliver a
   # non-binary payload, which `Integer.parse/1` has no clause for.
   @spec navigate_to_step(Socket.t(), map()) :: reply()
-  def navigate_to_step(socket, %{"step" => step}) when is_binary(step) do
-    journey = socket.assigns.journey
-    journey.navigator.go_to(journey, socket, step)
-  end
+  def navigate_to_step(%Socket{assigns: %{journey: journey}} = socket, %{"step" => step})
+      when is_binary(step),
+      do: journey.navigator.go_to(journey, socket, step)
 
   def navigate_to_step(socket, _params), do: {:noreply, socket}
 
@@ -122,6 +123,13 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
   defp restart?(assigns, moment_key, event) do
     event == :schedule_another and moment_key == :confirmation and
       assigns[:current_state] == :confirmation
+  end
+
+  defp ambient_event(journey, socket, moment_key, event, data) do
+    case visible_moment(journey, socket.assigns, moment_key) do
+      {:ok, _moment} -> Ambient.handle(socket, event, data)
+      :none -> :unhandled
+    end
   end
 
   defp fact_event(journey, socket, moment_key, event, data) do
