@@ -15,6 +15,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeCreated do
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
   alias Tymeslot.MeetingPayments.Telemetry
+  alias Tymeslot.MeetingPayments.Webhooks.LockedPayment
   alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
   alias Tymeslot.Workers.SendChargeDisputeOpened
 
@@ -47,10 +48,23 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeCreated do
   defp classify(:ok), do: {:ok, :ok}
   defp classify({:error, _reason} = err), do: {err, :error}
 
+  # Written to the locked row (`LockedPayment`); the email is enqueued only
+  # once the dispute status has committed, and not at all for a replay.
   defp mark_disputed(payment, event_id, object) do
-    case BookingPaymentQueries.update(payment, %{status: "disputed", last_event_id: event_id}) do
-      {:ok, updated} ->
-        Telemetry.emit_status_changed(payment.status, updated.status, :webhook_dispute_created)
+    result =
+      LockedPayment.run(payment, event_id, fn locked ->
+        case BookingPaymentQueries.update(locked, %{status: "disputed", last_event_id: event_id}) do
+          {:ok, updated} -> {:ok, {locked.status, updated}}
+          {:error, _changeset} = error -> error
+        end
+      end)
+
+    case result do
+      {:ok, :idempotent_replay} ->
+        :ok
+
+      {:ok, {old_status, updated}} ->
+        Telemetry.emit_status_changed(old_status, updated.status, :webhook_dispute_created)
         enqueue_dispute_email(updated, object)
         :ok
 

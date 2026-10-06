@@ -22,6 +22,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeClosed do
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
   alias Tymeslot.MeetingPayments.Telemetry
+  alias Tymeslot.MeetingPayments.Webhooks.LockedPayment
   alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
 
   @event_type "charge.dispute.closed"
@@ -53,40 +54,49 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeClosed do
   defp classify(:ok), do: {:ok, :ok}
   defp classify({:error, _reason} = err), do: {err, :error}
 
-  defp apply_outcome(payment, event_id, "won", _amount) do
-    new_status = derive_status_from_refund(payment, payment.refunded_amount_cents)
+  # Decided from the locked row (`LockedPayment`): a `charge.refunded`
+  # committed since the row was resolved must be counted, not written over.
+  defp apply_outcome(payment, event_id, status, disputed_amount)
+       when status in ["won", "lost"] do
+    result =
+      LockedPayment.run(payment, event_id, fn locked ->
+        case BookingPaymentQueries.update(
+               locked,
+               Map.put(outcome_attrs(locked, status, disputed_amount), :last_event_id, event_id)
+             ) do
+          {:ok, updated} -> {:ok, {locked.status, updated.status}}
+          {:error, _changeset} = error -> error
+        end
+      end)
 
-    update(payment, event_id, %{status: new_status})
-  end
+    case result do
+      {:ok, :idempotent_replay} ->
+        :ok
 
-  defp apply_outcome(payment, event_id, "lost", disputed_amount) do
-    new_total = max(payment.refunded_amount_cents, disputed_amount)
-    new_status = derive_status_from_refund(%{payment | refunded_amount_cents: 0}, new_total)
+      {:ok, {old_status, new_status}} ->
+        Telemetry.emit_status_changed(old_status, new_status, :webhook_dispute_closed)
+        :ok
 
-    update(payment, event_id, %{
-      status: new_status,
-      refunded_amount_cents: new_total
-    })
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   defp apply_outcome(_payment, _event_id, _status, _amount), do: :ok
+
+  defp outcome_attrs(payment, "won", _disputed_amount),
+    do: %{status: derive_status_from_refund(payment, payment.refunded_amount_cents)}
+
+  defp outcome_attrs(payment, "lost", disputed_amount) do
+    new_total = max(payment.refunded_amount_cents, disputed_amount)
+    %{status: derive_status_from_refund(payment, new_total), refunded_amount_cents: new_total}
+  end
 
   defp derive_status_from_refund(%{amount_cents: amount_cents}, refunded) do
     cond do
       refunded >= amount_cents -> "refunded"
       refunded > 0 -> "partially_refunded"
       true -> "paid"
-    end
-  end
-
-  defp update(payment, event_id, attrs) do
-    case BookingPaymentQueries.update(payment, Map.put(attrs, :last_event_id, event_id)) do
-      {:ok, updated} ->
-        Telemetry.emit_status_changed(payment.status, updated.status, :webhook_dispute_closed)
-        :ok
-
-      {:error, reason} ->
-        {:error, reason}
     end
   end
 end

@@ -19,9 +19,9 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
   alias Tymeslot.MeetingPayments.Telemetry
+  alias Tymeslot.MeetingPayments.Webhooks.LockedPayment
   alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
   alias Tymeslot.Meetings.MeetingQueries
-  alias Tymeslot.Repo
 
   @doc """
   Runs the fail-and-expire flow for `event`, wrapped in the webhook telemetry
@@ -56,19 +56,23 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
   defp classify(:ok), do: {:ok, :ok}
   defp classify({:error, _reason} = err), do: {err, :error}
 
+  # Decided from the locked rows (`LockedPayment`, then the meeting), so a
+  # completion committed since the row was resolved is seen rather than
+  # raced.
   defp run(payment, event_id, reason) do
     result =
-      Repo.transaction(fn ->
-        with {:ok, _bp} <- mark_failed(payment, event_id, reason),
-             :ok <- maybe_expire_meeting(payment.meeting_id) do
-          :ok
-        else
-          {:error, rollback_reason} -> Repo.rollback(rollback_reason)
+      LockedPayment.run(payment, event_id, fn locked ->
+        with {:ok, _bp} <- mark_failed(locked, event_id, reason),
+             :ok <- maybe_expire_meeting(locked.meeting_id) do
+          {:ok, :expired}
         end
       end)
 
     case result do
-      {:ok, :ok} ->
+      {:ok, :idempotent_replay} ->
+        :ok
+
+      {:ok, :expired} ->
         # An `awaiting_payment` booking holds its slot on the booking page as
         # well as at the submit, so expiring it has to release the cached
         # offer, exactly as confirming the payment does.
@@ -110,7 +114,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
   defp maybe_expire_meeting(nil), do: :ok
 
   defp maybe_expire_meeting(meeting_id) do
-    case MeetingQueries.get_meeting(meeting_id) do
+    case MeetingQueries.get_meeting_for_update(meeting_id) do
       {:ok, %{status: "awaiting_payment"} = meeting} ->
         case MeetingQueries.update_meeting(meeting, %{status: "expired"}) do
           {:ok, _meeting} -> :ok

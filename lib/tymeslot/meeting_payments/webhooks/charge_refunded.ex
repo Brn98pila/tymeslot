@@ -20,8 +20,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeRefunded do
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
   alias Tymeslot.MeetingPayments.Telemetry
+  alias Tymeslot.MeetingPayments.Webhooks.LockedPayment
   alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
-  alias Tymeslot.Repo
 
   @event_type "charge.refunded"
 
@@ -53,34 +53,20 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeRefunded do
   defp classify(:ok), do: {:ok, :ok}
   defp classify({:error, _reason} = err), do: {err, :error}
 
+  # Decided from the locked row (`LockedPayment`), so a concurrent refund
+  # or dispute handler cannot have its committed amount written over.
   defp update_payment(payment, event_id, amount_refunded) do
     result =
-      Repo.transaction(fn ->
-        case BookingPaymentQueries.get_for_update(payment.id) do
-          {:ok, locked} ->
-            # Re-check idempotency after acquiring the lock to avoid reprocessing
-            # during a concurrent in-app refund race.
-            if locked.last_event_id == event_id do
-              :idempotent_replay
-            else
-              new_total = max(locked.refunded_amount_cents, amount_refunded)
-              new_status = derive_status(locked, new_total)
+      LockedPayment.run(payment, event_id, fn locked ->
+        new_total = max(locked.refunded_amount_cents, amount_refunded)
 
-              case BookingPaymentQueries.update(locked, %{
-                     refunded_amount_cents: new_total,
-                     status: new_status,
-                     last_event_id: event_id
-                   }) do
-                {:ok, updated} ->
-                  {locked.status, updated.status}
-
-                {:error, reason} ->
-                  Repo.rollback(reason)
-              end
-            end
-
-          {:error, reason} ->
-            Repo.rollback(reason)
+        case BookingPaymentQueries.update(locked, %{
+               refunded_amount_cents: new_total,
+               status: derive_status(locked, new_total),
+               last_event_id: event_id
+             }) do
+          {:ok, updated} -> {:ok, {locked.status, updated.status}}
+          {:error, _changeset} = error -> error
         end
       end)
 

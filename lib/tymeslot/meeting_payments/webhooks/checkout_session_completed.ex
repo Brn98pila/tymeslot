@@ -6,7 +6,9 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   from `awaiting_payment` to `confirmed`, and triggers the same
   side-effect pipeline (calendar push + confirmation emails) that the
   free booking flow uses. The whole state mutation runs inside a single
-  `Repo.transaction/1` so a crash mid-flow rolls back cleanly.
+  transaction, decided from the payment and meeting rows under their row
+  locks, so a crash mid-flow rolls back cleanly and two completions of one
+  payment cannot both confirm it.
 
   Idempotent — replaying an event whose id matches the stored
   `last_event_id` is a no-op, as is delivering an event for a meeting
@@ -32,10 +34,10 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
   alias Tymeslot.MeetingPayments.StripeAdapter
   alias Tymeslot.MeetingPayments.Telemetry
+  alias Tymeslot.MeetingPayments.Webhooks.LockedPayment
   alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
   alias Tymeslot.Meetings.Approval
   alias Tymeslot.Meetings.MeetingQueries
-  alias Tymeslot.Repo
 
   @event_type "checkout.session.completed"
 
@@ -108,8 +110,12 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   defp classify(:ok), do: {:ok, :ok}
   defp classify({:error, _reason} = err), do: {err, :error}
 
+  # Activation (the video room, the emails) runs only for the transaction
+  # that moved the rows itself. A second completion of the same payment, the
+  # reconciler replaying it under its own event id say, waits on the row
+  # lock, then finds the meeting no longer awaiting payment and does nothing.
   defp run(payment, event_id, object) do
-    case Repo.transaction(fn -> run_in_transaction(payment, event_id, object) end) do
+    case LockedPayment.run(payment, event_id, &run_in_transaction(&1, event_id, object)) do
       {:ok, {:advanced, paid, meeting}} ->
         # Backfill stripe_charge_id outside the transaction — this requires a
         # Stripe API call (expanding payment_intent.latest_charge) which must
@@ -137,7 +143,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
         enqueue_post_payment_effects(meeting, paid)
         :ok
 
-      {:ok, :no_op} ->
+      {:ok, outcome} when outcome in [:no_op, :idempotent_replay] ->
         :ok
 
       {:error, reason} ->
@@ -197,19 +203,18 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   defp extract_charge_id(%{latest_charge: id}) when is_binary(id), do: id
   defp extract_charge_id(_other), do: nil
 
+  # Runs under the payment's row lock (`LockedPayment`); the meeting row is
+  # locked next, so the transition is decided from both rows as committed.
   defp run_in_transaction(payment, event_id, object) do
-    with {:ok, meeting} <- fetch_meeting(payment.meeting_id),
+    with {:ok, meeting} <- lock_meeting(payment.meeting_id),
          {:proceed, transition} <- check_transition(meeting, payment),
          {:ok, paid} <- mark_paid(payment, event_id, object),
          {:ok, confirmed} <- MeetingQueries.update_meeting(meeting, post_payment_status(meeting)),
          {:ok, _job_status} <- schedule_calendar_creation(confirmed) do
-      {transition, paid, confirmed}
+      {:ok, {transition, paid, confirmed}}
     else
-      :no_op ->
-        :no_op
-
-      {:error, reason} ->
-        Repo.rollback(reason)
+      :no_op -> {:ok, :no_op}
+      {:error, _reason} = error -> error
     end
   end
 
@@ -271,8 +276,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
     end
   end
 
-  defp fetch_meeting(nil), do: {:error, :meeting_missing}
-  defp fetch_meeting(meeting_id), do: MeetingQueries.get_meeting(meeting_id)
+  defp lock_meeting(nil), do: {:error, :meeting_missing}
+  defp lock_meeting(meeting_id), do: MeetingQueries.get_meeting_for_update(meeting_id)
 
   # Determine the transition type based on meeting and payment state.
   # Returns `{:proceed, type}` to continue the with-chain, or `:no_op` to
