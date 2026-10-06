@@ -18,6 +18,8 @@ defmodule TymeslotWeb.Themes.Shared.Journey.RuntimeTest do
   alias TymeslotWeb.Themes.Shared.Journey
   alias TymeslotWeb.Themes.Shared.Journey.Runtime
 
+  @intro %{name: "Intro call", slug: "intro-call", duration_minutes: 30}
+
   defp classic do
     Journey.new(
       Journey.classic(%{
@@ -55,6 +57,126 @@ defmodule TymeslotWeb.Themes.Shared.Journey.RuntimeTest do
       assert socket.assigns.current_state == :questions
       assert %Engine{} = socket.assigns.engine
       assert Engine.total(socket.assigns.engine) == 1
+    end
+  end
+
+  describe "handle_step_event/4" do
+    test "a fact's event from the moment on screen reaches the fact" do
+      socket = socket(%{current_state: :schedule, meeting_type: @intro, selected_time: "09:00"})
+
+      assert {:noreply, socket} =
+               Runtime.handle_step_event(socket, :schedule, :select_date, "2027-01-05")
+
+      assert socket.assigns.selected_date == "2027-01-05"
+      assert_received {:load_slots, "2027-01-05"}
+    end
+
+    test "a fact's event waits for the facts it needs" do
+      socket = socket(%{current_state: :schedule, meeting_types: [@intro]})
+
+      assert Runtime.handle_step_event(socket, :schedule, :select_date, "2027-01-05") ==
+               :unhandled
+    end
+
+    test "an event of a moment that is not on screen is not handled" do
+      overview = socket(%{current_state: :overview})
+
+      booking =
+        socket(%{
+          current_state: :booking,
+          meeting_type: %{custom_fields: [question("company")]},
+          engine: Engine.init([question("company")])
+        })
+
+      assert Runtime.handle_step_event(overview, :overview, :select_date, "2030-01-01") ==
+               :unhandled
+
+      assert Runtime.handle_step_event(booking, :questions, :answer, {"company", ""}) ==
+               :unhandled
+    end
+
+    test "an event the flow does not know is left to the theme" do
+      assert Runtime.handle_step_event(
+               socket(%{current_state: :schedule}),
+               :schedule,
+               :spin_globe,
+               nil
+             ) ==
+               :unhandled
+    end
+
+    test "the timezone picker's events are accepted from any moment" do
+      socket = socket(%{current_state: :booking, timezone_dropdown_open: false})
+
+      assert {:noreply, socket} =
+               Runtime.handle_step_event(socket, :booking, :toggle_timezone_dropdown, nil)
+
+      assert socket.assigns.timezone_dropdown_open
+    end
+
+    test "next and back from the moment on screen go to the navigator" do
+      next = socket(%{current_state: :overview, meeting_types: [@intro]})
+      back = socket(%{current_state: :schedule, entered_via_overview: true})
+
+      assert {:noreply, next} = Runtime.handle_step_event(next, :overview, :next_step, nil)
+      assert next.assigns.flash["error"]
+
+      assert {:noreply, %{assigns: %{current_state: :overview}}} =
+               Runtime.handle_step_event(back, :schedule, :back_step, nil)
+    end
+
+    test "next from a moment no longer on screen is not handled" do
+      socket = socket(%{current_state: :schedule})
+
+      assert Runtime.handle_step_event(socket, :overview, :next_step, nil) == :unhandled
+    end
+
+    test "schedule_another starts again, from the confirmation only" do
+      socket =
+        socket(%{
+          current_state: :confirmation,
+          client_ip: "127.0.0.1",
+          selected_date: "2027-01-05",
+          selected_time: "10:00",
+          reschedule_meeting_uid: "abc",
+          is_rescheduling: true,
+          guest_emails: ["a@b.c"]
+        })
+
+      assert {:noreply, restarted} =
+               Runtime.handle_step_event(socket, :confirmation, :schedule_another, nil)
+
+      assert %{
+               current_state: :overview,
+               selected_date: nil,
+               selected_time: nil,
+               reschedule_meeting_uid: nil,
+               is_rescheduling: false,
+               guest_emails: []
+             } = restarted.assigns
+
+      assert Runtime.handle_step_event(
+               socket(%{current_state: :booking}),
+               :confirmation,
+               :schedule_another,
+               nil
+             ) == :unhandled
+    end
+  end
+
+  describe "navigate_to_step/2" do
+    test "hands the step to the navigator" do
+      socket = socket(%{current_state: :schedule, meeting_type: nil})
+
+      assert {:noreply, socket} = Runtime.navigate_to_step(socket, %{"step" => "1"})
+      assert socket.assigns.current_state == :overview
+    end
+
+    test "ignores a step that is not a string" do
+      socket = socket(%{current_state: :schedule, meeting_type: nil})
+
+      assert {:noreply, ^socket} = Runtime.navigate_to_step(socket, %{"step" => 1})
+      assert {:noreply, ^socket} = Runtime.navigate_to_step(socket, %{})
     end
   end
 end
