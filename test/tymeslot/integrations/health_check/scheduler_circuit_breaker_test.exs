@@ -5,6 +5,7 @@ defmodule Tymeslot.Integrations.HealthCheck.SchedulerCircuitBreakerTest do
   use Tymeslot.DataCase, async: false
   use Oban.Testing, repo: Tymeslot.Repo
 
+  import ExUnit.CaptureLog
   import Tymeslot.Factory
 
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
@@ -47,6 +48,34 @@ defmodule Tymeslot.Integrations.HealthCheck.SchedulerCircuitBreakerTest do
         worker: IntegrationHealthWorker,
         args: %{"type" => "calendar", "integration_id" => up.id}
       )
+    end
+  end
+
+  describe "schedule_all/1 with a self-hosted calendar whose server has had no traffic yet" do
+    # Host breakers start on a server's first call and are reaped once idle,
+    # so after a boot (or a quiet day) there is none for a healthy server.
+    # The module captures logs; capture this test's own to see an error.
+    test "checks it as a closed breaker, without logging an error" do
+      host = "dav-fresh-#{System.unique_integer([:positive])}.example"
+
+      fresh =
+        insert(:calendar_integration,
+          user: insert(:user),
+          provider: "caldav",
+          is_active: true,
+          base_url: "https://#{host}/remote.php/dav"
+        )
+
+      assert {:error, :breaker_not_found} = CalendarCircuitBreaker.status(:caldav, host)
+
+      log = capture_log([level: :error], fn -> Scheduler.schedule_all(force: true) end)
+
+      assert_enqueued(
+        worker: IntegrationHealthWorker,
+        args: %{"type" => "calendar", "integration_id" => fresh.id}
+      )
+
+      refute log =~ "Circuit breaker not initialized"
     end
   end
 
