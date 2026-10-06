@@ -288,7 +288,7 @@ defmodule Tymeslot.Meetings.VideoRooms do
   end
 
   defp should_create_video_room(meeting, user_id) do
-    case check_video_provider_type(meeting, user_id) do
+    case check_video_provider_type(meeting, user_id, true) do
       {:ok, :none} ->
         Logger.info("Video provider is 'none', skipping video room creation",
           meeting_id: meeting.id
@@ -538,7 +538,10 @@ defmodule Tymeslot.Meetings.VideoRooms do
     meeting_url || room_id
   end
 
-  defp check_video_provider_type(meeting, user_id) do
+  # `refuse_needs_reauth?` is set for room creation alone: an integration
+  # whose owner was told to reconnect would refuse the call anyway, so none
+  # is made. Rebuilding join links for an existing room stays as it was.
+  defp check_video_provider_type(meeting, user_id, refuse_needs_reauth? \\ false) do
     integration_result =
       case meeting.video_integration_id do
         nil -> {:error, :not_found}
@@ -548,6 +551,9 @@ defmodule Tymeslot.Meetings.VideoRooms do
     case integration_result do
       {:ok, %{is_active: false}} ->
         {:error, :video_integration_inactive}
+
+      {:ok, %{needs_reauth: true}} when refuse_needs_reauth? ->
+        {:error, :unauthorized}
 
       {:ok, integration} ->
         case ProviderConfig.parse(integration.provider) do

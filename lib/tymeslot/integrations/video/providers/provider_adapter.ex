@@ -18,6 +18,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   """
 
   require Logger
+  alias Tymeslot.Infrastructure.BreakerOutcome
   alias Tymeslot.Infrastructure.CircuitBreakerHelpers
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Logging.Redactor
@@ -486,9 +487,23 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
         # unwrap the tag back to a plain `{:error, reason}` for the caller.
         with_breaker(provider_type, config, fn -> {:provider_error, reason} end)
 
-      {:error, _reason} = error ->
-        error
+      {:error, reason} = error ->
+        if BreakerOutcome.permanent_credential_error?(reason),
+          do: refuse_revoked_grant(provider_module, config),
+          else: error
     end
+  end
+
+  # The provider refused the grant for good while refreshing it: no retry
+  # will mint a token, and only the owner reconnecting fixes it. So the
+  # integration is flagged now (which also emails the owner, once), and the
+  # failure comes back as `:unauthorized`, the reason room creation treats as
+  # final, rather than as provider text it would retry as an outage.
+  defp refuse_revoked_grant(provider_module, config) do
+    if callback_exported?(provider_module, :flag_revoked_token, 1),
+      do: provider_module.flag_revoked_token(config)
+
+    {:error, :unauthorized}
   end
 
   # function_exported?/3 returns false for modules that haven't been loaded

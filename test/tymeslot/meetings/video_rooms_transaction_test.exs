@@ -20,6 +20,7 @@ defmodule Tymeslot.Meetings.VideoRoomsTransactionTest do
   import Mox
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
   alias Tymeslot.Integrations.Video.MeetingContext
   alias Tymeslot.Integrations.Video.RoomData
   alias Tymeslot.Meetings.MeetingQueries
@@ -178,6 +179,20 @@ defmodule Tymeslot.Meetings.VideoRoomsTransactionTest do
       assert {:ok, _returned} = VideoRooms.add_video_room_to_meeting(meeting.id)
 
       refute_enqueued(worker: Tymeslot.Workers.VideoSyncWorker)
+    end
+
+    # The owner was told to reconnect; until they do every call would be
+    # refused, so room creation fails as unauthorised at once instead of
+    # spending the job's retries on it.
+    test "refuses an integration flagged for reconnection without calling the provider" do
+      %{meeting: meeting, integration: integration} = build_mirotalk_scenario()
+
+      integration
+      |> Changeset.change(needs_reauth: true)
+      |> Repo.update!()
+
+      assert {:error, :unauthorized} = VideoRooms.add_video_room_to_meeting(meeting.id)
+      refute __MODULE__.FakeVideoModule.called?()
     end
 
     test "releases instead of attaching a room when the meeting changed location mid-call" do
