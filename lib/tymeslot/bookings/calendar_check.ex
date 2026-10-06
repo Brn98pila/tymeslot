@@ -143,9 +143,10 @@ defmodule Tymeslot.Bookings.CalendarCheck do
   A clash refuses with `:slot_unavailable`, and a busy set we could not read in
   full refuses with `:availability_unverifiable`: the booker gets the same
   "pick another slot" outcome either way, and the distinction survives in the
-  logs rather than in the copy. A fetch that crashed counts as unreadable. A transport or timeout failure is logged and
-  returns `:ok`: the slot was already validated against the display path, and
-  an unreachable provider must not take the booking page down with it.
+  logs rather than in the copy. A fetch that crashed counts as unreadable. A
+  transport or timeout failure is logged and returns `:ok`: the slot was
+  already validated against the display path, and an unreachable provider
+  must not take the booking page down with it.
 
   Takes the same options as `probe/3`.
   """
