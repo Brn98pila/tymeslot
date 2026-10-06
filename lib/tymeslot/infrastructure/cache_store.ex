@@ -215,7 +215,7 @@ defmodule Tymeslot.Infrastructure.CacheStore do
 
   @doc false
   @spec handle_join_computation(atom(), any(), GenServer.from(), state()) ::
-          {:reply, :lead | {:value, any()}, state()} | {:noreply, state()}
+          {:reply, {:lead, reference()} | {:value, any()}, state()} | {:noreply, state()}
   def handle_join_computation(table_name, key, from, state) do
     case lookup(table_name, key) do
       {:ok, value} ->
