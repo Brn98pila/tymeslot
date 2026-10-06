@@ -11,6 +11,9 @@ defmodule Tymeslot.Workers.SeriesVideoWorkerTest do
   @moduletag :video
   @moduletag :workers
 
+  import Ecto.Query, only: [where: 2]
+
+  alias Oban.Job
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Workers.SeriesVideoWorker
 
@@ -79,6 +82,54 @@ defmodule Tymeslot.Workers.SeriesVideoWorkerTest do
     assert video_of(plain) == {video.id, @link}
     assert video_of(own) == {other.id, "https://video.example.com/join/own"}
     assert video_of(elsewhere) == {nil, nil}
+  end
+
+  # The job snoozes for up to two hours, so a second choice of video made
+  # minutes after the first must still take over the waiting job rather than
+  # start a second one beside it, which could wake first and keep the
+  # superseded video.
+  test "a later choice of video takes over the waiting job, however old", %{
+    user: user,
+    integration: integration,
+    video: video
+  } do
+    other_video = insert(:video_integration, user: user, provider: "mirotalk")
+    series = %{integration_id: integration.id, address: {:master, "series1"}, uid: nil}
+
+    {:ok, first} = SeriesVideoWorker.enqueue(series, {video.id, @link})
+
+    Repo.update_all(
+      where(Job, id: ^first.id),
+      set: [inserted_at: DateTime.add(DateTime.utc_now(), -600, :second)]
+    )
+
+    {:ok, _second} =
+      SeriesVideoWorker.enqueue(series, {other_video.id, "https://video.example.com/b"})
+
+    assert [job] = all_enqueued(worker: SeriesVideoWorker)
+    assert job.id == first.id
+    assert job.args["video_integration_id"] == other_video.id
+  end
+
+  # A write that lands while the job runs folds into that job; the job then
+  # runs once more with it instead of finishing without it.
+  test "runs again when its args were replaced during the run", %{
+    integration: integration,
+    video: video
+  } do
+    occurrence(integration, "a_20260601T070000Z")
+
+    {:ok, job} =
+      args(integration, video)
+      |> SeriesVideoWorker.new()
+      |> Oban.insert()
+
+    Repo.update_all(
+      where(Job, id: ^job.id),
+      set: [args: Map.put(job.args, "video_link", "https://video.example.com/b")]
+    )
+
+    assert {:snooze, _seconds} = SeriesVideoWorker.perform(job)
   end
 
   test "waits, less often each time, while no occurrence is cached", %{

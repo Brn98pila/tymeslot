@@ -334,7 +334,7 @@ defmodule Tymeslot.Bookings.Reschedule do
   # that work rather than bolted on here.
   defp announce(%{status: "awaiting_approval"} = updated, original) do
     cancel_stale_reminders(updated)
-    GuestNotifications.prepare_for_reapproval(updated)
+    GuestNotifications.reset_for_new_time(updated)
 
     case Events.meeting_requested(updated, previous_start_opts(updated, original)) do
       {:ok, _result} ->
@@ -551,7 +551,7 @@ defmodule Tymeslot.Bookings.Reschedule do
   defp send_reschedule_notifications(updated_meeting, original_meeting) do
     case Events.meeting_rescheduled(updated_meeting, original_meeting) do
       {:ok, _result} ->
-        Logger.info("Reschedule notifications sent", meeting_id: updated_meeting.id)
+        Logger.info("Reschedule notifications scheduled", meeting_id: updated_meeting.id)
         :ok
 
       {:error, reason} ->

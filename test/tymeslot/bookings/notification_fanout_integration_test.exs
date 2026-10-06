@@ -272,6 +272,7 @@ defmodule Tymeslot.Bookings.NotificationFanoutIntegrationTest do
 
       # The invitee's side is unchanged: the approval of the new time is sent
       # as a reschedule notice, and the reminders follow the new time.
+      run_reschedule_emails()
       assert_received {:reschedule_emails, details}
       assert details.is_rescheduled
       assert DateTime.compare(details.start_time, reapproved.start_time) == :eq
@@ -429,5 +430,12 @@ defmodule Tymeslot.Bookings.NotificationFanoutIntegrationTest do
       "email" => "attendee@example.com",
       "message" => "Looking forward to it!"
     }
+  end
+
+  # Runs the reschedule notice jobs alone: the queue also holds jobs whose
+  # emails this test does not stub.
+  defp run_reschedule_emails do
+    for job <- all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"}),
+        do: perform_job(EmailWorker, job.args)
   end
 end

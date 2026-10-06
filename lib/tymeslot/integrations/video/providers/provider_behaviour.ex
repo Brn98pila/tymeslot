@@ -315,6 +315,19 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderBehaviour do
   """
   @callback room_creation_budget_ms() :: pos_integer()
 
+  @doc """
+  Marks the integration behind `config` "Reconnect required" because the
+  provider refused its OAuth grant, with the provider's own message.
+
+  `ProviderAdapter` calls it when `precheck_create_meeting_room/1` reports a
+  refresh the provider rejected for good (a revoked or expired grant), so the
+  owner is told at once and room creation fails as unauthorised instead of
+  being retried as if the provider were down.
+
+  Optional: only providers holding an OAuth grant implement it.
+  """
+  @callback flag_revoked_token(config :: map()) :: :ok
+
   @optional_callbacks shared_join_url: 2,
                       time_bound_join_urls?: 1,
                       update_meeting_room: 2,
@@ -323,5 +336,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderBehaviour do
                       precheck_create_meeting_room: 1,
                       finish_create_meeting_room: 2,
                       ensure_valid_token: 1,
-                      room_creation_budget_ms: 0
+                      room_creation_budget_ms: 0,
+                      flag_revoked_token: 1
 end

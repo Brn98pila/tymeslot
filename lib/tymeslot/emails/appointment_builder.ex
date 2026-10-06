@@ -10,6 +10,7 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
   alias Tymeslot.CalendarGrid
   alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Emails.Shared.BookingRequestLocation
+  alias Tymeslot.Emails.Shared.Formatting
   alias Tymeslot.MeetingPayments
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.Recipient
@@ -408,26 +409,12 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
     meeting.reminder_time || meeting.default_reminder_time
   end
 
-  # Formats a reminder label using locale-aware unit words.
-  # Must be called from within a Gettext.with_locale block.
-  #
-  # These carry the "time until" context because the label is always consumed
-  # after a preposition ("in %{label}", "%{label} before the meeting"). Case
-  # languages inflect it there: Ukrainian needs the accusative "за 1 годину",
-  # where Shared.Formatting's bare duration needs the nominative "1 година".
-  # Same English words, different grammar — hence a separate msgctxt.
+  # The reminder label in the locale this payload is built in (the
+  # attendee's); see `Formatting.format_reminder_label/2`.
   defp localized_reminder_label(value, unit) do
-    value = ReminderUtils.parse_reminder_value(value)
-    unit = ReminderUtils.normalize_reminder_unit(unit)
-
-    unit_word =
-      case unit do
-        "minutes" -> dpngettext("emails", "time until", "minute", "minutes", value)
-        "hours" -> dpngettext("emails", "time until", "hour", "hours", value)
-        "days" -> dpngettext("emails", "time until", "day", "days", value)
-        _other -> dpngettext("emails", "time until", "minute", "minutes", value)
-      end
-
-    "#{value} #{unit_word}"
+    Formatting.format_reminder_label(
+      %{value: value, unit: unit},
+      Gettext.get_locale(TymeslotWeb.Gettext)
+    )
   end
 end

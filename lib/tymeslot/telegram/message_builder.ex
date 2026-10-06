@@ -46,6 +46,40 @@ defmodule Tymeslot.Telegram.MessageBuilder do
     """)
   end
 
+  def build_message("meeting.requested", meeting, timezone) do
+    String.trim("""
+    #{emoji(:calendar)} <b>New Booking Request</b>
+
+    <b>#{esc(attendee_name(meeting))}</b> asked for <i>#{esc(meeting_title(meeting))}</i>
+    #{emoji(:clock)} #{format_time(meeting, timezone)}
+    #{emoji(:email)} #{esc(meeting.attendee_email)}
+    #{deadline_line(meeting, timezone)}\
+    #{link_line(meeting)}\
+    """)
+  end
+
+  def build_message("meeting.declined", meeting, timezone) do
+    String.trim("""
+    #{emoji(:cancel)} <b>Booking Request Declined</b>
+
+    <b>#{esc(attendee_name(meeting))}</b> — <i>#{esc(meeting_title(meeting))}</i>
+    #{emoji(:clock)} #{format_time(meeting, timezone)}
+    #{decline_line(meeting)}\
+    #{link_line(meeting)}\
+    """)
+  end
+
+  def build_message("meeting.request_expired", meeting, timezone) do
+    String.trim("""
+    #{emoji(:cancel)} <b>Booking Request Expired</b>
+
+    <b>#{esc(attendee_name(meeting))}</b> — <i>#{esc(meeting_title(meeting))}</i>
+    #{emoji(:clock)} #{format_time(meeting, timezone)}
+    Nobody responded before the deadline, so the slot was released.
+    #{link_line(meeting)}\
+    """)
+  end
+
   def build_message(event_type, meeting, timezone) do
     String.trim("""
     #{emoji(:calendar)} <b>Meeting Update</b>
@@ -135,6 +169,29 @@ defmodule Tymeslot.Telegram.MessageBuilder do
       "\n#{emoji(:note)} Reason: #{esc(reason)}"
     else
       ""
+    end
+  end
+
+  defp deadline_line(meeting, timezone) do
+    case Map.get(meeting, :approval_deadline_at) do
+      %DateTime{} = deadline ->
+        local =
+          case DateTime.shift_zone(deadline, timezone) do
+            {:ok, dt} -> dt
+            _error -> deadline
+          end
+
+        "\n#{emoji(:note)} Respond by #{Calendar.strftime(local, "%a %d %b %Y, %H:%M")}"
+
+      _none ->
+        ""
+    end
+  end
+
+  defp decline_line(meeting) do
+    case Map.get(meeting, :decline_reason) do
+      reason when is_binary(reason) and reason != "" -> "\n#{emoji(:note)} Reason: #{esc(reason)}"
+      _none -> ""
     end
   end
 

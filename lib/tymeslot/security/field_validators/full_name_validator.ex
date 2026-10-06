@@ -6,6 +6,8 @@ defmodule Tymeslot.Security.FieldValidators.FullNameValidator do
   international names and handling optional name fields.
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   @name_max_length 100
   @invalid_chars_regex ~r/[<>"%;`\\\/\{\}\[\]]/
 
@@ -48,7 +50,7 @@ defmodule Tymeslot.Security.FieldValidators.FullNameValidator do
   end
 
   def validate(_full_name, _opts) do
-    {:error, "Full name must be a text value"}
+    {:error, dgettext("errors", "Full name must be a text value")}
   end
 
   # Private helper functions
@@ -56,16 +58,19 @@ defmodule Tymeslot.Security.FieldValidators.FullNameValidator do
   defp validate_non_empty_name(name, max_length) do
     cond do
       String.length(name) > max_length ->
-        {:error, "Full name is too long (maximum #{max_length} characters)"}
+        {:error,
+         dgettext("errors", "Full name is too long (maximum %{max_length} characters)",
+           max_length: max_length
+         )}
 
       Regex.match?(@invalid_chars_regex, name) ->
-        {:error, "Full name contains invalid characters"}
+        {:error, dgettext("errors", "Full name contains invalid characters")}
 
       all_numbers?(name) ->
-        {:error, "Full name cannot be only numbers"}
+        {:error, dgettext("errors", "Full name cannot be only numbers")}
 
       excessive_whitespace?(name) ->
-        {:error, "Full name contains excessive whitespace"}
+        {:error, dgettext("errors", "Full name contains excessive whitespace")}
 
       true ->
         :ok

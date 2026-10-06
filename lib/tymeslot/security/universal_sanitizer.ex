@@ -9,6 +9,8 @@ defmodule Tymeslot.Security.UniversalSanitizer do
   - Dangerous protocol injections
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   require Logger
   alias Tymeslot.Security.SecurityLogger
 
@@ -114,7 +116,7 @@ defmodule Tymeslot.Security.UniversalSanitizer do
         SecurityLogger.log_blocked_input(field, "invalid_encoding", metadata)
       end
 
-      {:error, "Invalid text encoding"}
+      {:error, dgettext("errors", "Invalid text encoding")}
     end
   end
 
@@ -142,7 +144,10 @@ defmodule Tymeslot.Security.UniversalSanitizer do
             max_input_bytes: max_input_bytes
           })
 
-          {:error, "Input exceeds maximum size (#{max_input_bytes} bytes)"}
+          {:error,
+           dgettext("errors", "Input exceeds maximum size (%{max_input_bytes} bytes)",
+             max_input_bytes: max_input_bytes
+           )}
       end
     end
   end
@@ -383,7 +388,10 @@ defmodule Tymeslot.Security.UniversalSanitizer do
           {:ok, String.slice(input, 0, max_length)}
 
         _mode ->
-          {:error, "Input exceeds maximum length (#{max_length} characters)"}
+          {:error,
+           dgettext("errors", "Input exceeds maximum length (%{max_length} characters)",
+             max_length: max_length
+           )}
       end
     end
   end

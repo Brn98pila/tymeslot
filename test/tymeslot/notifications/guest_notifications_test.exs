@@ -1,5 +1,6 @@
 defmodule Tymeslot.Notifications.GuestNotificationsTest do
   use Tymeslot.DataCase, async: true
+  use Oban.Testing, repo: Tymeslot.Repo
 
   @moduletag :notifications
 
@@ -12,6 +13,7 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
   alias Tymeslot.Meetings.GuestQueries
   alias Tymeslot.Meetings.Guests
   alias Tymeslot.Notifications.GuestNotifications
+  alias Tymeslot.Workers.EmailWorker
   alias Tymeslot.Workers.EmailWorkerHandlers
 
   setup :verify_on_exit!
@@ -39,7 +41,7 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
     %{meeting: meeting, accepted: accepted, declined: declined}
   end
 
-  describe "notify_rescheduled/2" do
+  describe "reset_for_new_time/1, then notify_rescheduled/3" do
     test "resets every answer and asks every guest again, declined ones included" do
       %{meeting: meeting, accepted: accepted, declined: declined} = meeting_with_guests()
 
@@ -50,6 +52,7 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
         {:ok, :sent}
       end)
 
+      assert :ok = GuestNotifications.reset_for_new_time(meeting)
       assert :ok = GuestNotifications.notify_rescheduled(meeting, %{uid: meeting.uid})
 
       # Guests are loaded without an order, so compare the set of emails sent
@@ -88,11 +91,11 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
     end
   end
 
-  describe "prepare_for_reapproval/1" do
+  describe "reset_for_new_time/1" do
     test "resets the answers without emailing anyone" do
       %{meeting: meeting} = meeting_with_guests()
 
-      assert :ok = GuestNotifications.prepare_for_reapproval(meeting)
+      assert :ok = GuestNotifications.reset_for_new_time(meeting)
 
       assert Enum.all?(GuestQueries.list_for_meeting(meeting.id), &(&1.status == "pending"))
       # Still on record as invited: approval tells them about the move.
@@ -100,7 +103,7 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
     end
   end
 
-  describe "notify_reapproved/1 (via Approval.approve/1)" do
+  describe "notify_reapproved/3 (via Approval.approve/1 and the reschedule email job)" do
     defp held(attrs) do
       user = insert(:user)
 
@@ -119,7 +122,11 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
 
     test "approving a rescheduled booking sends its invited guests the reschedule email" do
       %{meeting: meeting} = meeting_with_guests(held(%{}))
-      GuestNotifications.prepare_for_reapproval(meeting)
+      GuestNotifications.reset_for_new_time(meeting)
+
+      expect(EmailServiceMock, :send_reschedule_emails, fn _details ->
+        {{:ok, :sent}, {:ok, :sent}}
+      end)
 
       expect(EmailServiceMock, :send_guest_reschedule, 2, fn _email, details ->
         assert details.guest_accept_url
@@ -127,6 +134,7 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
       end)
 
       assert {:ok, _confirmed} = Approval.approve(meeting)
+      run_reschedule_emails()
     end
 
     test "approving a first request leaves its guests to the confirmation invitation" do
@@ -135,6 +143,7 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
 
       # verify_on_exit! fails the test if a reschedule email is sent.
       assert {:ok, _confirmed} = Approval.approve(meeting)
+      run_reschedule_emails()
       assert length(GuestQueries.list_unsent_for_meeting(meeting.id)) == 1
     end
   end
@@ -206,5 +215,10 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
                  "meeting_id" => meeting.id
                })
     end
+  end
+
+  defp run_reschedule_emails do
+    for job <- all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"}),
+        do: perform_job(EmailWorker, job.args)
   end
 end

@@ -429,6 +429,7 @@ defmodule Tymeslot.Bookings.TeamsDoubleRescheduleTest do
   # of the Teams meeting it is actually held in.
   defp assert_last_email_link(meeting) do
     updated = Repo.get!(MeetingSchema, meeting.id)
+    Oban.drain_queue(queue: :emails)
     emails = reschedule_emails()
     assert [_email | _more] = emails
     last = List.last(emails)

@@ -408,7 +408,9 @@ defmodule Tymeslot.Bookings.RescheduleVideoJoinUrlsTest do
     }
   end
 
+  # The notices go out from an email job, so the queue is run first.
   defp delivered_emails do
+    Oban.drain_queue(queue: :emails)
     assert_received {:email, first}
     assert_received {:email, second}
 

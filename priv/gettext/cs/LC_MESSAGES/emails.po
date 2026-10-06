@@ -400,7 +400,7 @@ msgstr[0] "Před schůzkou vám přijde %{count} připomínka."
 msgstr[1] "Před schůzkou vám přijdou %{count} připomínky."
 msgstr[2] "Před schůzkou vám přijde %{count} připomínek."
 
-#: lib/tymeslot/emails/appointment_builder.ex
+#: lib/tymeslot/emails/shared/formatting.ex
 #, elixir-autogen, elixir-format
 msgctxt "time until"
 msgid "day"
@@ -409,7 +409,7 @@ msgstr[0] "den"
 msgstr[1] "dny"
 msgstr[2] "dní"
 
-#: lib/tymeslot/emails/appointment_builder.ex
+#: lib/tymeslot/emails/shared/formatting.ex
 #, elixir-autogen, elixir-format
 msgctxt "time until"
 msgid "hour"
@@ -418,7 +418,7 @@ msgstr[0] "hodinu"
 msgstr[1] "hodiny"
 msgstr[2] "hodin"
 
-#: lib/tymeslot/emails/appointment_builder.ex
+#: lib/tymeslot/emails/shared/formatting.ex
 #, elixir-autogen, elixir-format
 msgctxt "time until"
 msgid "minute"

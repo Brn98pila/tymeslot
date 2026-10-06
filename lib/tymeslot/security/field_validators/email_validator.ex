@@ -18,6 +18,8 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidator do
   `existing: true` to check only presence and length.
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   alias Tymeslot.Security.FieldValidators.TLDList
 
   @email_max_length 254
@@ -67,8 +69,8 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidator do
   @spec validate(any(), keyword()) :: :ok | {:error, String.t()}
   def validate(email, opts \\ [])
 
-  def validate(nil, _opts), do: {:error, "Email is required"}
-  def validate("", _opts), do: {:error, "Email is required"}
+  def validate(nil, _opts), do: {:error, dgettext("errors", "Email is required")}
+  def validate("", _opts), do: {:error, dgettext("errors", "Email is required")}
 
   def validate(email, opts) when is_binary(email) do
     max_length = Keyword.get(opts, :max_length, @email_max_length)
@@ -79,7 +81,7 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidator do
   end
 
   def validate(_email, _opts) do
-    {:error, "Email must be a text value"}
+    {:error, dgettext("errors", "Email must be a text value")}
   end
 
   # Private helper functions
@@ -93,7 +95,10 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidator do
 
   defp validate_length(email, max_length) do
     if String.length(email) > max_length do
-      {:error, "Email exceeds maximum length (#{max_length} characters)"}
+      {:error,
+       dgettext("errors", "Email exceeds maximum length (%{max_length} characters)",
+         max_length: max_length
+       )}
     else
       :ok
     end
@@ -102,19 +107,19 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidator do
   defp validate_basic_format(email) do
     cond do
       not String.contains?(email, "@") ->
-        {:error, "Email format is invalid (missing @ symbol)"}
+        {:error, dgettext("errors", "Email format is invalid (missing @ symbol)")}
 
       String.ends_with?(email, "@") ->
-        {:error, "Email domain is missing"}
+        {:error, dgettext("errors", "Email domain is missing")}
 
       String.starts_with?(email, "@") ->
-        {:error, "Email username is missing"}
+        {:error, dgettext("errors", "Email username is missing")}
 
       String.contains?(email, "..") ->
-        {:error, "Email format is invalid (consecutive dots not allowed)"}
+        {:error, dgettext("errors", "Email format is invalid (consecutive dots not allowed)")}
 
       String.contains?(email, " ") ->
-        {:error, "Email format is invalid (spaces not allowed)"}
+        {:error, dgettext("errors", "Email format is invalid (spaces not allowed)")}
 
       true ->
         :ok
@@ -124,19 +129,19 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidator do
   defp validate_advanced_format(email) do
     cond do
       multiple_at_symbols?(email) ->
-        {:error, "Email format is invalid (multiple @ symbols)"}
+        {:error, dgettext("errors", "Email format is invalid (multiple @ symbols)")}
 
       invalid_domain_format?(email) ->
-        {:error, "Email domain format is invalid"}
+        {:error, dgettext("errors", "Email domain format is invalid")}
 
       not Regex.match?(@email_regex, email) ->
-        {:error, "Email format is invalid"}
+        {:error, dgettext("errors", "Email format is invalid")}
 
       not Regex.match?(@local_part_regex, local_part(email)) ->
-        {:error, "Email format is invalid"}
+        {:error, dgettext("errors", "Email format is invalid")}
 
       not Regex.match?(@domain_regex, domain(email)) ->
-        {:error, "Email domain format is invalid"}
+        {:error, dgettext("errors", "Email domain format is invalid")}
 
       true ->
         :ok

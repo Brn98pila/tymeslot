@@ -16,6 +16,8 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestExpired do
 
   import Swoosh.Email
 
+  alias Tymeslot.Emails.HostClock
+
   alias Tymeslot.Emails.Shared.{
     Formatting,
     MeetingComponents,
@@ -30,7 +32,6 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestExpired do
 
   alias Tymeslot.Emails.Shared.BookingRequestLocation
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
-  alias Tymeslot.Profiles
 
   use Gettext, backend: TymeslotWeb.Gettext
 
@@ -39,9 +40,9 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestExpired do
   @spec render(Meeting.t(), String.t()) :: Swoosh.Email.t()
   def render(%Meeting{} = meeting, locale) do
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
-      host_tz = host_timezone(meeting)
-      host_time = TimezoneHelper.convert_to_timezone(meeting.start_time, host_tz)
-      details = meeting_details(meeting, host_time, host_tz)
+      clock = HostClock.for_meeting(meeting, locale)
+      host_time = TimezoneHelper.convert_to_timezone(meeting.start_time, clock.timezone)
+      details = meeting_details(meeting, host_time, clock)
 
       mjml_content = """
       #{MeetingComponents.attendee_info_section(@intent, %{name: meeting.attendee_name, email: meeting.attendee_email})}
@@ -96,14 +97,8 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestExpired do
     )
   end
 
-  # Same resolution as `BookingApprovalRequest`: the host's profile timezone,
-  # falling back to the platform default for an unregistered organiser.
-  defp host_timezone(%Meeting{organizer_user_id: nil}), do: Profiles.get_default_timezone()
-
-  defp host_timezone(%Meeting{organizer_user_id: user_id}),
-    do: Profiles.get_user_timezone(user_id)
-
-  defp meeting_details(meeting, host_time, host_tz) do
+  # The host reads the time in their own zone and on their own clock.
+  defp meeting_details(meeting, host_time, clock) do
     %{
       date: host_time,
       start_time: host_time,
@@ -111,7 +106,8 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestExpired do
       location: meeting.location,
       location_type: BookingRequestLocation.type(meeting),
       meeting_type: meeting.meeting_type || dgettext("emails_booking_requests", "Meeting"),
-      timezone: host_tz,
+      timezone: clock.timezone,
+      time_format: clock.time_format,
       audience: :host
     }
   end

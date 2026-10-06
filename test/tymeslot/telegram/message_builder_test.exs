@@ -23,6 +23,27 @@ defmodule Tymeslot.Telegram.MessageBuilderTest do
   @timezone "UTC"
 
   describe "build_message/3" do
+    test "builds meeting.requested message with the deadline to respond by" do
+      meeting = Map.put(@meeting, :approval_deadline_at, ~U[2026-03-09 18:00:00Z])
+      msg = MessageBuilder.build_message("meeting.requested", meeting, @timezone)
+      assert msg =~ "<b>New Booking Request</b>"
+      assert msg =~ "John Smith"
+      assert msg =~ "Respond by Mon 09 Mar 2026, 18:00"
+    end
+
+    test "builds meeting.declined message with the host's reason" do
+      meeting = Map.put(@meeting, :decline_reason, "Fully booked <that> week")
+      msg = MessageBuilder.build_message("meeting.declined", meeting, @timezone)
+      assert msg =~ "<b>Booking Request Declined</b>"
+      assert msg =~ "Fully booked &lt;that&gt; week"
+    end
+
+    test "builds meeting.request_expired message" do
+      msg = MessageBuilder.build_message("meeting.request_expired", @meeting, @timezone)
+      assert msg =~ "<b>Booking Request Expired</b>"
+      assert msg =~ "slot was released"
+    end
+
     test "builds meeting.created message" do
       msg = MessageBuilder.build_message("meeting.created", @meeting, @timezone)
       assert msg =~ "<b>New Meeting</b>"

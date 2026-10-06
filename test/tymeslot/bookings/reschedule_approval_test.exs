@@ -256,6 +256,7 @@ defmodule Tymeslot.Bookings.RescheduleApprovalTest do
 
       assert {:ok, _confirmed} = Approval.approve(reload(meeting))
 
+      run_reschedule_emails()
       assert_received {:reschedule_emails, details}
       assert details.is_rescheduled
       assert DateTime.compare(details.start_time, rescheduled.start_time) == :eq
@@ -565,5 +566,12 @@ defmodule Tymeslot.Bookings.RescheduleApprovalTest do
       # decide something that no longer exists.
       refute_enqueued(worker: ApprovalExpiryWorker, args: %{"meeting_id" => held.id})
     end
+  end
+
+  # Runs the reschedule notice jobs alone: the queue also holds jobs whose
+  # emails this test does not stub.
+  defp run_reschedule_emails do
+    for job <- all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"}),
+        do: perform_job(EmailWorker, job.args)
   end
 end

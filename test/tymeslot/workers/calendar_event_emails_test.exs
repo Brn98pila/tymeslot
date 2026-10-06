@@ -167,8 +167,11 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.CalendarEventEmailsTest do
       expect(EmailServiceMock, :send_event_update_notification, fn _email, details ->
         assert details.first_notification
 
-        assert details.changes == [
-                 {:time, nil, event.start_at},
+        # The time is stated in the organiser's timezone: the same instant.
+        assert [{:time, nil, time} | fields] = details.changes
+        assert DateTime.compare(time, event.start_at) == :eq
+
+        assert fields == [
                  {:title, nil, "Updated Title"},
                  {:location, nil, "New Room"},
                  {:description, nil, "Updated description"}

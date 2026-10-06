@@ -107,6 +107,9 @@ defmodule Tymeslot.Bookings.GuestInvitePrivacyIntegrationTest do
     assert {:ok, _rescheduled} =
              Reschedule.execute(meeting.uid, reschedule_params(at_ten(5)), %{}, user.id)
 
+    [notices] = all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"})
+    assert :ok = perform_job(EmailWorker, notices.args)
+
     reschedule = calendar_files()
 
     assert {:ok, _cancelled} = Cancel.execute(Repo.get!(MeetingSchema, meeting.id))

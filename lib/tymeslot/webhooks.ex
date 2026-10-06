@@ -408,71 +408,11 @@ defmodule Tymeslot.Webhooks do
   # ============================================================================
 
   @doc """
-  Returns all available event types.
-
-  Derived from `EventTypes.all/0` rather than restated here, so a webhook
-  cannot silently gain an event it has no way to be subscribed to — that
-  restatement is exactly how `meeting.requested`, `meeting.declined` and
-  `meeting.request_expired` went live undispatchable in the first place.
+  Returns all available event types, with their translated labels; see
+  `EventTypes.options/0`.
   """
-  @spec available_events() :: [
-          %{
-            required(:value) => String.t(),
-            required(:label) => String.t(),
-            required(:description) => String.t()
-          }
-        ]
-  def available_events do
-    Enum.map(EventTypes.all(), fn value ->
-      %{value: value, label: event_label(value), description: event_description(value)}
-    end)
-  end
-
-  defp event_label("meeting.created"), do: dgettext("dashboard_automation", "Meeting Created")
-  defp event_label("meeting.requested"), do: dgettext("dashboard_automation", "Booking Requested")
-  defp event_label("meeting.declined"), do: dgettext("dashboard_automation", "Booking Declined")
-
-  defp event_label("meeting.request_expired"),
-    do: dgettext("dashboard_automation", "Booking Request Expired")
-
-  defp event_label("meeting.cancelled"), do: dgettext("dashboard_automation", "Meeting Cancelled")
-
-  defp event_label("meeting.rescheduled"),
-    do: dgettext("dashboard_automation", "Meeting Rescheduled")
-
-  # Catch-all so a future `EventTypes` entry with no dedicated copy yet
-  # renders something readable on the automation dashboard instead of
-  # crashing `available_events/0` (and the page that calls it).
-  defp event_label(value), do: value
-
-  defp event_description("meeting.created"),
-    do: dgettext("dashboard_automation", "Triggers when a new booking is successfully created")
-
-  defp event_description("meeting.requested"),
-    do:
-      dgettext(
-        "dashboard_automation",
-        "Triggers when someone requests a booking on a meeting type that needs your approval"
-      )
-
-  defp event_description("meeting.declined"),
-    do: dgettext("dashboard_automation", "Triggers when you decline a booking request")
-
-  defp event_description("meeting.request_expired"),
-    do:
-      dgettext(
-        "dashboard_automation",
-        "Triggers when nobody answers a booking request before its deadline"
-      )
-
-  defp event_description("meeting.cancelled"),
-    do: dgettext("dashboard_automation", "Triggers when an existing booking is cancelled")
-
-  defp event_description("meeting.rescheduled"),
-    do: dgettext("dashboard_automation", "Triggers when a booking time is changed")
-
-  defp event_description(_value),
-    do: dgettext("dashboard_automation", "Triggers on this event")
+  @spec available_events() :: [EventTypes.option()]
+  defdelegate available_events, to: EventTypes, as: :options
 
   # ============================================================================
   # Private Helpers

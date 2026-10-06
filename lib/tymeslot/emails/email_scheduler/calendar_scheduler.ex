@@ -83,10 +83,15 @@ defmodule Tymeslot.Emails.EmailScheduler.CalendarScheduler do
   end
 
   @doc """
-  Schedules an event update notification with a 2-minute delay.
+  Schedules an event update notification, sent at once.
 
-  Uses Oban uniqueness (keyed on action + event_uid, 5-minute period) to
-  coalesce rapid edits into a single notification.
+  Rapid edits are coalesced before this is called, by the attendee
+  notification worker's own debounce
+  (`Tymeslot.Meetings.AttendeeNotifications.Dispatcher`), which calls this
+  once per change it decided to announce. So the job is neither delayed nor
+  unique here: a second debounce, or a uniqueness window that also matched
+  completed jobs, swallowed a later edit announced within minutes of the
+  first.
 
   `before_start_date`/`before_end_date` are the ISO 8601 dates of an all-day
   baseline. `first_notification: true` marks an event that was never
@@ -125,22 +130,12 @@ defmodule Tymeslot.Emails.EmailScheduler.CalendarScheduler do
         "sequence" => sequence
       }
       |> Map.merge(snapshot_args(params))
-      |> EmailWorker.new(update_job_opts(params))
+      |> EmailWorker.new(queue: :emails, priority: 1)
       |> Oban.insert()
 
     case result do
       {:ok, _job} ->
-        Logger.info("Event update notification job scheduled",
-          event_uid: params.event_uid,
-          scheduled_in: if(params[:event], do: "now", else: "2 minutes")
-        )
-
-        :ok
-
-      {:error, %Changeset{errors: [unique: _details]}} ->
-        Logger.info("Event update notification job already pending, coalescing",
-          event_uid: params.event_uid
-        )
+        Logger.info("Event update notification job scheduled", event_uid: params.event_uid)
 
         :ok
 
@@ -158,19 +153,4 @@ defmodule Tymeslot.Emails.EmailScheduler.CalendarScheduler do
     do: %{"event" => event, "series" => Atom.to_string(series)}
 
   defp snapshot_args(_params), do: %{}
-
-  defp update_job_opts(%{event: %{}}), do: [queue: :emails, priority: 1]
-
-  defp update_job_opts(_params) do
-    [
-      queue: :emails,
-      priority: 1,
-      scheduled_at: DateTime.add(DateTime.utc_now(), 120, :second),
-      unique: [
-        period: 300,
-        fields: [:args, :queue],
-        keys: [:action, :event_uid, :method]
-      ]
-    ]
-  end
 end

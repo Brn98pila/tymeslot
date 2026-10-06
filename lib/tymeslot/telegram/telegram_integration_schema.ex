@@ -5,6 +5,7 @@ defmodule Tymeslot.Telegram.TelegramIntegrationSchema do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Tymeslot.Notifications.EventTypes
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Security.Token
   alias Tymeslot.Validation.Constraints
@@ -34,11 +35,7 @@ defmodule Tymeslot.Telegram.TelegramIntegrationSchema do
           updated_at: DateTime.t() | nil
         }
 
-  @valid_events [
-    "meeting.created",
-    "meeting.cancelled",
-    "meeting.rescheduled"
-  ]
+  @valid_events EventTypes.all()
 
   @valid_bot_modes ["shared", "own"]
   @max_failure_count 10
