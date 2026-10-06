@@ -315,8 +315,8 @@ defmodule Tymeslot.Availability.BusinessHours do
   end
 
   def business_day?(date, schedule_id, config) do
-    # Read once and passed on: this runs per rendered day on the week strip's
-    # fallback path, which exists precisely to avoid a query per date.
+    # Read once and passed on, so a caller iterating dates with prefetched
+    # data pays no query per date.
     periods = lookup_time_off(date, schedule_id, config)
 
     not TimeOff.all_day?(periods, date) and

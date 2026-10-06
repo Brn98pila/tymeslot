@@ -459,11 +459,13 @@ defmodule Tymeslot.Availability.Calculate do
   Whether a date can be offered when no conflict-aware availability map has
   been fetched yet.
 
-  This is the rule the calendar grid falls back to: business hours, the
-  advance-booking window, and — for today alone — whether the hours still to
-  come clear the minimum notice. Public so the week strip answers the same
-  question the month grid does; the two used to disagree about today, and the
-  web copy treated it as unconditionally bookable.
+  This is the rule the calendar grid falls back to: the date offers at least
+  one slot from business hours, ignoring calendar events. It asks the same
+  slot generator `range_availability/6` does, with an empty event list, so
+  the booker's date is read through the owner's adjacent days (a Tokyo
+  Monday morning is a Los Angeles Sunday evening), and the minimum notice and
+  advance-booking window apply slot by slot. Public so the week strip answers
+  the same question the month grid does.
   """
   @spec day_bookable_by_business_hours?(Date.t(), String.t(), availability_config()) :: boolean()
   def day_bookable_by_business_hours?(date, user_timezone, config) do
@@ -472,47 +474,11 @@ defmodule Tymeslot.Availability.Calculate do
   end
 
   defp fallback_day_available?(date, today, now, config) do
-    schedule_id = Map.get(config, :schedule_id)
-    max_advance_booking_days = config_policy(config).max_advance_booking_days
-
-    is_business_day = BusinessHours.business_day?(date, schedule_id, config)
-    is_future = Date.compare(date, today) == :gt
-    is_today = date == today
-    is_within_limit = Date.diff(date, today) <= max_advance_booking_days
-
-    today_available =
-      if is_today and is_business_day do
-        check_today_fallback_availability(date, now, config)
-      else
-        false
-      end
-
-    (is_future or today_available) and is_business_day and is_within_limit
-  end
-
-  defp check_today_fallback_availability(date, now, config) do
-    schedule_id = Map.get(config, :schedule_id)
+    max_booking_date = Date.add(today, config_policy(config).max_advance_booking_days)
     owner_timezone = Map.get(config, :owner_timezone, "Etc/UTC")
-    user_timezone = now.time_zone
+    config = Map.put(config, :duration_minutes, Map.get(config, :duration_minutes) || 30)
 
-    result =
-      BusinessHours.get_business_hours_in_timezone(
-        date,
-        schedule_id,
-        owner_timezone,
-        user_timezone,
-        config
-      )
-
-    case result do
-      {:ok, %{end_datetime: %DateTime{} = end_dt}} ->
-        min_advance_hours = config_policy(config).min_advance_hours
-        duration_minutes = config |> Map.get(:duration_minutes) |> Kernel.||(30)
-        latest_start = DateTime.add(end_dt, -(min_advance_hours * 60 + duration_minutes), :minute)
-        DateTime.compare(now, latest_start) != :gt
-
-      _other ->
-        false
-    end
+    Date.compare(date, today) != :lt and Date.compare(date, max_booking_date) != :gt and
+      Conflicts.date_has_slots_with_events?(date, owner_timezone, now.time_zone, [], now, config)
   end
 end
