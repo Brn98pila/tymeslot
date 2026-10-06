@@ -33,11 +33,14 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Fact do
     * `default/2` and `default_strategies/0` (optional): settle the fact
       without asking, by a named strategy, and the strategies it takes.
 
-  A fact `use`s this module, which defines every optional callback (`enter/2`
-  returns the socket, `continue/1` is `{:done, socket}` once `known?/1` and
-  `{:error, :incomplete}` before, `back/1` leaves, `revisitable?/1` is true,
-  `default_strategies/0` is empty), each overridable. The engine calls them
-  without checking, so a fact that only declares `@behaviour` is incomplete.
+  A fact `use`s this module, which defines every optional callback except
+  `default/2` (`enter/2` returns the socket, `continue/1` is
+  `{:done, socket}` once `known?/1` and `{:error, :incomplete}` before,
+  `back/1` leaves, `revisitable?/1` is true, `default_strategies/0` is
+  empty), each overridable. The engine calls them without checking, so a
+  fact that only declares `@behaviour` is incomplete. `default/2` has no
+  default: it is only called with a strategy listed in
+  `default_strategies/0`, which `Journey.build!/2` checks.
   """
 
   alias Phoenix.LiveView.Socket

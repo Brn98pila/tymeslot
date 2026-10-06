@@ -21,6 +21,8 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.MeetingType do
   alias TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry
   alias TymeslotWeb.Themes.Shared.ReschedulePin
 
+  @strategies [:first, :shortest]
+
   @impl Fact
   def key, do: :meeting_type
 
@@ -74,10 +76,10 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.MeetingType do
   def revisitable?(assigns), do: assigns[:entered_via_overview] == true
 
   @impl Fact
-  def default_strategies, do: [:first, :shortest]
+  def default_strategies, do: @strategies
 
   @impl Fact
-  def default(socket, strategy) when strategy in [:first, :shortest] do
+  def default(socket, strategy) when strategy in @strategies do
     with false <- known?(socket.assigns),
          %{} = meeting_type <- pick(socket.assigns[:meeting_types] || [], strategy) do
       {:noreply, socket} =

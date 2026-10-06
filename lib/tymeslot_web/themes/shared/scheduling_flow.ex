@@ -87,8 +87,8 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   map (4 steps without custom fields, 5 with).
   """
   @spec navigate_to_step(Socket.t(), map()) :: reply()
-  # `step` is guarded to a binary for the same reason `toggle_hour/2` below
-  # is: a crafted socket push can deliver a non-binary payload, which
+  # `step` is guarded to a binary for the same reason `toggle_hour/2` in
+  # `Journey.Facts.Slot` is: a crafted socket push can deliver a non-binary payload, which
   # `Integer.parse/1` has no clause for.
   def navigate_to_step(socket, %{"step" => step}) when is_binary(step) do
     states = StateMachine.states_for(socket.assigns[:meeting_type] || %{})
@@ -124,13 +124,8 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
 
   # Schedule
 
-  # Only allow returning to the overview when the booker actually entered via
-  # it. A direct/private-link entry sets `entered_via_overview: false` and must
-  # never expose the organiser's other meeting types — enforce this
-  # server-side so a client cannot bypass the template-level `:if` guard by
-  # pushing the event directly.
   defp schedule_event(socket, :back_step, _data) do
-    if socket.assigns[:entered_via_overview] do
+    if MeetingType.revisitable?(socket.assigns) do
       validated_transition(socket, :schedule, :overview)
     else
       {:noreply, socket}
