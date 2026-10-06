@@ -23,6 +23,17 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
   24 hours Stripe keeps an idempotency key. When the last attempt fails an
   admin alert is raised, and the booking stays on the host's list.
 
+  A refund that no retry can make is discarded at once, with one log line,
+  rather than retried for four hours towards an alert:
+
+    * `:under_dispute`: Stripe holds the money until the dispute is decided.
+      A dispute the attendee wins returns it to them; one the host wins sets
+      the payment back to `paid`, which puts the booking back on the host's
+      outstanding-refunds list.
+    * `:outside_refund_window` and `:not_paid`: the payment is `paid` and
+      its booking expired, so it stays on the host's outstanding-refunds
+      list, offered as a refund to make in Stripe.
+
   Inserted at most once per booking payment: the uniqueness covers every
   state, completed and discarded included, so a redelivered completion can
   never refund twice.
@@ -36,6 +47,7 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
   require Logger
 
   alias Tymeslot.Infrastructure.AdminAlerts
+  alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.MeetingPayments
   alias Tymeslot.MeetingPayments.Refunds
@@ -45,6 +57,17 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
   # attempts add up to 14_580 seconds (4h03m).
   @base_backoff_seconds 60
   @max_backoff_seconds 3_600
+
+  # Refusals no retry can turn round; see the moduledoc for where each
+  # leaves the money owed.
+  @unretryable [:not_paid, :outside_refund_window, :under_dispute]
+
+  @behaviour ExpectedJobOutcome
+
+  # The booking is left with the host or with Stripe's dispute, as the
+  # moduledoc describes, so the discard is not a failure to record.
+  @impl ExpectedJobOutcome
+  def expected_outcome?(reason), do: reason in @unretryable
 
   @doc """
   Builds the job for `booking_payment_id`. Insert it in the transaction that
@@ -65,8 +88,16 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
       {:error, :not_found} ->
         {:discard, "booking_payment not found"}
 
+      {:error, reason} when reason in @unretryable ->
+        Logger.warning("Late payment refund cannot be made automatically, left to the host",
+          booking_payment_id: id,
+          reason: reason
+        )
+
+        {:discard, reason}
+
       {:error, reason} ->
-        if job.attempt >= job.max_attempts, do: alert(id, reason)
+        if job.attempt >= job.max_attempts, do: alert(job, id, reason)
         {:error, reason}
     end
   end
@@ -104,7 +135,7 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
     end
   end
 
-  defp alert(id, reason) do
+  defp alert(job, id, reason) do
     Logger.error("Late payment refund failed for good",
       booking_payment_id: id,
       reason: LogFormat.reason(reason)
@@ -113,7 +144,7 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
     AdminAlerts.report(:late_payment_refund_failed,
       summary: "A payment that completed after its slot was taken could not be refunded",
       reason: reason,
-      context: %{booking_payment_id: id}
+      context: %{booking_payment_id: id, oban_job_id: job.id}
     )
   end
 end

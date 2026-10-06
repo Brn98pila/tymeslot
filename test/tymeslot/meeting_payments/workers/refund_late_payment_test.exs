@@ -83,9 +83,55 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePaymentTest do
                      %{booking_payment_id: ^payment_id} = alert}
 
     assert alert.summary =~ "could not be refunded"
+    assert is_integer(alert.oban_job_id)
     assert Repo.reload!(payment).status == "paid"
     assert refund_emails(payment) == 0
     assert [%{id: ^payment_id}] = MeetingPayments.list_outstanding_refunds_for_host(host.id)
+  end
+
+  # The dispute decides where the money goes: an attendee who wins it has
+  # it back, and a host who wins it finds the payment `paid` again and back
+  # on the outstanding-refunds list.
+  test "a disputed payment is left to the dispute at once, without retries or an alert",
+       %{payment: payment} do
+    payment |> Changeset.change(status: "disputed") |> Repo.update!()
+
+    assert {:discard, :under_dispute} = perform(payment)
+
+    assert Repo.reload!(payment).status == "disputed"
+    assert refund_emails(payment) == 0
+    refute_received {:send_alert, _type, _payload}
+  end
+
+  test "a payment past the refund window is left on the host's list at once",
+       %{host: host, payment: payment} do
+    paid_at = DateTime.add(DateTime.utc_now(:second), -61, :day)
+    payment |> Changeset.change(paid_at: paid_at) |> Repo.update!()
+
+    assert {:discard, :outside_refund_window} = perform(payment)
+
+    payment_id = payment.id
+    assert [%{id: ^payment_id}] = MeetingPayments.list_outstanding_refunds_for_host(host.id)
+    refute_received {:send_alert, _type, _payload}
+  end
+
+  test "a payment with no paid time is left on the host's list at once",
+       %{host: host, payment: payment} do
+    payment |> Changeset.change(paid_at: nil) |> Repo.update!()
+
+    assert {:discard, :not_paid} = perform(payment)
+
+    payment_id = payment.id
+    assert [%{id: ^payment_id}] = MeetingPayments.list_outstanding_refunds_for_host(host.id)
+    refute_received {:send_alert, _type, _payload}
+  end
+
+  test "the discarded refusals are expected outcomes, not failures to record" do
+    for reason <- [:not_paid, :outside_refund_window, :under_dispute] do
+      assert RefundLatePayment.expected_outcome?(reason)
+    end
+
+    refute RefundLatePayment.expected_outcome?(:stripe_down)
   end
 
   # Stripe accepts the refund, then the transaction that records it dies
