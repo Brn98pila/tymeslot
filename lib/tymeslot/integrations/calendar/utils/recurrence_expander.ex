@@ -33,10 +33,18 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
     sunday: 7
   }
 
-  # Safety cap — never generate more than this many occurrences per event,
-  # regardless of RRULE or date range. Prevents runaway expansion from
-  # malformed rules like FREQ=SECONDLY with no COUNT/UNTIL.
+  # Safety cap: `expand/4` never returns more than this many occurrences of
+  # one event, however wide the range. It counts occurrences inside the range,
+  # not steps from the series' first start, so a series that has run for years
+  # still shows in this week's range.
   @max_occurrences 500
+
+  # Runaway guard: `expand/4` stops after this many steps whatever they yield,
+  # so a rule that never reaches the range (or never moves forward at all, such
+  # as `INTERVAL=0`) cannot spin for ever. A series without `COUNT` is first
+  # fast-forwarded to the range when its period is fixed (`fast_forward/3`), so
+  # this only binds on rules that cannot be.
+  @max_steps 100_000
 
   # The rule parts `generate_occurrences/6` steps through as the providers do
   # (see `countable?/1`).
@@ -66,7 +74,7 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
 
     case parse_rrule(rrule) do
       {:ok, rule} ->
-        generate_occurrences(event, rule, range_start, range_end, exdates, @max_occurrences)
+        generate_occurrences(event, rule, range_start, range_end, exdates, :capped)
 
       :error ->
         # Fail-open: return the original event rather than silently dropping it
@@ -88,7 +96,7 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
   its wall clock across a DST change.
 
   Unlike `expand/4`, the count is not capped at #{@max_occurrences}
-  occurrences: `boundary` bounds it, and so does the rule's own `COUNT`, so
+  occurrences and steps through every one from `first`: `boundary` bounds it, and so does the rule's own `COUNT`, so
   a split far into a long series still takes the right number off. The count
   is only right for a rule `countable?/1` accepts.
   """
@@ -99,9 +107,12 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
     event = %{start_time: first, end_time: first, recurrence_rule: rule}
 
     case parse_rrule(rule) do
-      {:ok, parsed} -> event |> generate_occurrences(parsed, first, last, [], nil) |> length()
+      {:ok, parsed} ->
+        event |> generate_occurrences(parsed, first, last, [], :uncapped) |> length()
+
       # `expand/4` shows an unreadable rule's event once, as it is.
-      :error -> 1
+      :error ->
+        1
     end
   end
 
@@ -240,9 +251,12 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
 
   # --- Private: Occurrence generation ---
 
-  # `cap` is the most occurrences stepped through, `nil` for no cap but the
-  # rule's own end and `range_end`.
-  defp generate_occurrences(event, rule, range_start, range_end, exdates, cap) do
+  # `:capped` (for `expand/4`) fast-forwards to the range where it can, and
+  # bounds the steps by `@max_steps` and the occurrences returned by
+  # `@max_occurrences`. `:uncapped` (for `count_before/3`) steps every
+  # occurrence from the first start, bounded only by the rule's own end and
+  # `range_end`, so the count it makes is exact.
+  defp generate_occurrences(event, rule, range_start, range_end, exdates, limits) do
     # All-day events store Date structs; normalise to DateTime for uniform arithmetic
     all_day? = is_struct(event.start_time, Date) and not is_struct(event.start_time, DateTime)
     start_dt = step_datetime(event.start_time)
@@ -253,14 +267,57 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
     exdates_dt = exdates |> Enum.map(&step_datetime/1) |> Enum.reject(&is_nil/1)
 
     start_dt
+    |> occurrence_starts(rule, range_start_dt, range_end_dt, limits)
+    |> Stream.reject(&excluded?(&1, exdates_dt))
+    |> take_at_most(if limits == :capped, do: @max_occurrences)
+    |> Enum.map(&build_occurrence(event, &1, duration, all_day?))
+  end
+
+  # The starts the rule makes within the range, in order.
+  defp occurrence_starts(start_dt, rule, range_start_dt, range_end_dt, limits) do
+    {first_step, max_steps} =
+      case limits do
+        :capped -> {fast_forward(start_dt, rule, range_start_dt), @max_steps}
+        :uncapped -> {start_dt, nil}
+      end
+
+    first_step
     |> Stream.iterate(&advance(&1, rule))
-    |> take_at_most([cap, rule.count] |> Enum.reject(&is_nil/1) |> Enum.min(fn -> nil end))
+    |> take_at_most(rule.count)
+    |> take_at_most(max_steps)
     |> Stream.take_while(&before_end?(&1, rule, range_end_dt))
     |> Stream.filter(&in_range?(&1, range_start_dt, range_end_dt))
     |> Stream.filter(&matches_byday?(&1, rule))
-    |> Stream.reject(&excluded?(&1, exdates_dt))
-    |> Enum.map(&build_occurrence(event, &1, duration, all_day?))
   end
+
+  # Moves a series' first step forward by whole periods to just before
+  # `range_start`, landing on a step the series makes anyway, so a series that
+  # began years ago does not step through every occurrence since. Only a
+  # series without `COUNT` can skip ahead: `COUNT` is spent on the steps
+  # skipped. Only a fixed period can be skipped arithmetically: DAILY and
+  # WEEKLY (with BYDAY, a whole number of weeks keeps to the series' own weeks).
+  # MONTHLY and YEARLY step from the first start, which their few steps a year
+  # allow.
+  #
+  # The jump stops at least one full period short of `range_start`, so a
+  # daylight-saving offset or a BYDAY day earlier in the landing week cannot
+  # put an occurrence inside the range behind it. Days are added on the
+  # series' own wall clock, as `advance/2` does.
+  defp fast_forward(start_dt, %{count: nil} = rule, range_start_dt) do
+    with period when is_integer(period) <- period_days(rule),
+         periods when periods > 0 <-
+           div(DateTime.diff(range_start_dt, start_dt, :second), period * 86_400) - 1 do
+      shift_calendar_days(start_dt, periods * period)
+    else
+      _no_skip -> start_dt
+    end
+  end
+
+  defp fast_forward(start_dt, _rule, _range_start_dt), do: start_dt
+
+  defp period_days(%{freq: :daily, interval: interval}) when interval > 0, do: interval
+  defp period_days(%{freq: :weekly, interval: interval}) when interval > 0, do: 7 * interval
+  defp period_days(_rule), do: nil
 
   # An all-day series is stepped through as DateTimes at UTC midnight purely
   # for uniform arithmetic, and turned back into dates by `build_occurrence/4`.
