@@ -9,6 +9,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
   alias Tymeslot.Emails.RecipientLocale
 
   alias Tymeslot.Emails.Shared.{
+    JoinUrl,
     MeetingComponents,
     MjmlEmail,
     Sanitise,
@@ -50,8 +51,8 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
 
       #{MeetingComponents.custom_answers_section(appointment_details)}
 
-      #{if Map.get(appointment_details, :meeting_url) do
-        MeetingComponents.video_meeting_section(@intent, appointment_details.meeting_url,
+      #{if attendee_video_url = JoinUrl.with_room_fallback(:attendee, appointment_details) do
+        MeetingComponents.video_meeting_section(@intent, attendee_video_url,
         title: dgettext("emails_booking", "Join when you're ready"),
         button_text: dgettext("emails_booking", "Join Meeting"))
       end}
@@ -98,7 +99,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       guest_name = Map.get(appointment_details, :guest_name) || guest_email
-      guest_video_url = guest_join_url(appointment_details)
+      guest_video_url = JoinUrl.for(:guest, appointment_details)
 
       meeting_details = %{
         date: appointment_details.date,
@@ -183,8 +184,8 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
 
       #{MeetingComponents.attendee_message_box(@intent, appointment_details[:attendee_message])}
 
-      #{if Map.get(appointment_details, :meeting_url) do
-        MeetingComponents.video_meeting_section(@intent, appointment_details.meeting_url,
+      #{if organizer_video_url = JoinUrl.for(:organizer, appointment_details) do
+        MeetingComponents.video_meeting_section(@intent, organizer_video_url,
         title: dgettext("emails_booking", "Host video call"),
         button_text: dgettext("emails_booking", "Start Meeting"))
       end}
@@ -250,7 +251,10 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
     meeting_details = TextBodyHelper.format_meeting_details(appointment_details, locale)
 
     video_section =
-      TextBodyHelper.format_video_section(Map.get(appointment_details, :meeting_url), locale)
+      TextBodyHelper.format_video_section(
+        JoinUrl.with_room_fallback(:attendee, appointment_details),
+        locale
+      )
 
     action_links = TextBodyHelper.format_action_links(appointment_details, locale)
     custom_answers = TextBodyHelper.format_custom_answers(appointment_details, locale)
@@ -277,7 +281,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
     meeting_details = TextBodyHelper.format_meeting_details(appointment_details, locale)
 
     video_section =
-      TextBodyHelper.format_video_section(guest_join_url(appointment_details), locale)
+      TextBodyHelper.format_video_section(JoinUrl.for(:guest, appointment_details), locale)
 
     """
     #{dgettext("emails_booking", "REMINDER: the meeting is in %{time_until}", time_until: appointment_details.time_until)}
@@ -314,7 +318,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
 
     video_section =
       TextBodyHelper.format_video_section(
-        Map.get(appointment_details, :meeting_url),
+        JoinUrl.for(:organizer, appointment_details),
         organizer_locale(appointment_details)
       )
 
@@ -339,27 +343,13 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
     #{meeting_details}#{video_section}#{attendee_info}#{custom_answers}
 
     #{dgettext("emails_booking", "QUICK PREP:")}
-    #{if Map.get(appointment_details, :meeting_url), do: dgettext("emails_booking", "• Camera & mic ready"), else: dgettext("emails_booking", "• Location confirmed")}
+    #{if JoinUrl.for(:organizer, appointment_details), do: dgettext("emails_booking", "• Camera & mic ready"), else: dgettext("emails_booking", "• Location confirmed")}
     #{dgettext("emails_booking", "• Materials prepared")}
     #{dgettext("emails_booking", "• Agenda ready")}#{action_links}
 
     #{dgettext("emails_booking", "Best,")}
     #{appointment_details.organizer_name}
     """
-  end
-
-  # A guest has no per-role join URL of their own, so they get the link
-  # `Meetings.VideoRooms.guest_join_url/1` builds for a recipient the room
-  # cannot name: the room URL on most providers, and on one whose links carry
-  # a credential that same URL with a token naming nobody, which is the only
-  # link a server enforcing tokens will admit. A payload built before that key
-  # existed still has the room URL to fall back on.
-  #
-  # The organiser and attendee bodies above deliberately keep reading
-  # `meeting_url`; giving them their own per-role link is a separate change.
-  defp guest_join_url(appointment_details) do
-    Map.get(appointment_details, :guest_video_url) ||
-      Map.get(appointment_details, :meeting_url)
   end
 
   defp organizer_locale(appointment_details),
