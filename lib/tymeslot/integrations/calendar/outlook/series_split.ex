@@ -55,7 +55,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesSplit do
     with {:ok, timing, {zone, label}} <- SeriesPatch.master_timing(master),
          {:ok, recurrence} <- find_recurrence(master),
          {:ok, slot} <- SeriesSplit.slot_wall(slot, timing, zone),
-         :ok <- SeriesSplit.ensure_occurrences_before(timing, slot),
+         :ok <- ensure_occurrences_before(recurrence, timing, slot, zone),
          {:ok, range} <- tail_range(recurrence, timing, slot, zone),
          tail = tail(master, timing, slot, label, %{recurrence | "range" => range}),
          {:ok, patch} <- SeriesPatch.build(tail, edit) do
@@ -87,10 +87,51 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesSplit do
     end
   end
 
-  defp count_before(%{"pattern" => pattern, "range" => range}, timing, slot, zone) do
+  # Graph counts only the dates its pattern makes, so a master whose start is
+  # off the pattern (a Monday-and-Wednesday series created on a Tuesday
+  # through the API) does not have that start as an occurrence: its first
+  # occurrence is the pattern's first date, and `numberOfOccurrences` does
+  # not include the start. RFC 5545, which the count follows, always counts
+  # it, so it comes off again here.
+  defp count_before(
+         %{"pattern" => pattern, "range" => range},
+         {start, _finish} = timing,
+         slot,
+         zone
+       ) do
+    with {:ok, rule} <- rule(pattern, range),
+         {:ok, count} <- SeriesSplit.count_before(rule, timing, slot, zone) do
+      {:ok, if(on_pattern?(pattern, start), do: count, else: count - 1)}
+    end
+  end
+
+  # Of the patterns the count follows (daily and weekly; see
+  # `RecurrenceExpander.countable?/1`), only a weekly one's days can miss the
+  # master's start.
+  defp on_pattern?(%{"type" => "weekly", "daysOfWeek" => days}, start)
+       when is_list(days) and days != [] do
+    weekday = start |> date_of() |> Calendar.strftime("%A") |> String.downcase()
+    weekday in Enum.map(days, &String.downcase/1)
+  end
+
+  defp on_pattern?(_pattern, _start), do: true
+
+  defp rule(pattern, range) do
     case SeriesPatch.pattern_rule(pattern, range) do
-      {:ok, rule} -> SeriesSplit.count_before(rule, timing, slot, zone)
+      {:ok, rule} -> {:ok, rule}
       {:error, _pinned} -> {:error, :unsupported_rule}
+    end
+  end
+
+  # A slot with no pattern date before it is the series' first occurrence,
+  # even when the master's start, off the pattern, comes earlier. A pattern
+  # the count cannot follow is judged by the master's start alone.
+  defp ensure_occurrences_before(recurrence, timing, slot, zone) do
+    with :ok <- SeriesSplit.ensure_occurrences_before(timing, slot) do
+      case count_before(recurrence, timing, slot, zone) do
+        {:ok, 0} -> :first_occurrence
+        _some_or_uncountable -> :ok
+      end
     end
   end
 

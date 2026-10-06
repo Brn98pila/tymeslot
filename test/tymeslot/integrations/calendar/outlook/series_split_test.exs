@@ -168,6 +168,45 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesSplitTest do
     end
   end
 
+  # A Monday-and-Wednesday series created through the API on Tuesday 2 June:
+  # Graph keeps the master's start on the Tuesday, but its first occurrence
+  # is Wednesday 3 June, and `numberOfOccurrences` counts pattern dates only
+  # (3, 8, 10, 15 June, ...), unlike RFC 5545, where the start always counts.
+  @off_pattern_master @master
+                      |> Map.merge(%{
+                        "start" => %{
+                          "dateTime" => "2026-06-02T07:00:00.0000000",
+                          "timeZone" => "UTC"
+                        },
+                        "end" => %{
+                          "dateTime" => "2026-06-02T08:00:00.0000000",
+                          "timeZone" => "UTC"
+                        }
+                      })
+                      |> put_in(["recurrence", "pattern", "daysOfWeek"], ["monday", "wednesday"])
+                      |> put_in(["recurrence", "range"], %{
+                        "type" => "numbered",
+                        "startDate" => "2026-06-02",
+                        "numberOfOccurrences" => 10,
+                        "recurrenceTimeZone" => @zone
+                      })
+
+  describe "a series whose start is off its pattern" do
+    test "counts only pattern dates before the slot, so the tail keeps every occurrence" do
+      # Monday 15 June: three occurrences (3, 8 and 10 June) come before it.
+      slot = ~U[2026-06-15 07:00:00Z]
+
+      assert {:ok, %{tail: tail}} = SeriesSplit.build(@off_pattern_master, edit(%{}, slot))
+
+      assert get_in(tail, ["recurrence", "range", "numberOfOccurrences"]) == 7
+    end
+
+    test "at its first pattern date is an edit of every occurrence" do
+      assert SeriesSplit.build(@off_pattern_master, edit(%{}, ~U[2026-06-03 07:00:00Z])) ==
+               :first_occurrence
+    end
+  end
+
   describe "what is not split" do
     test "the first occurrence is an edit of every occurrence" do
       assert SeriesSplit.build(@master, edit(%{}, ~U[2026-06-01 07:00:00Z])) ==
