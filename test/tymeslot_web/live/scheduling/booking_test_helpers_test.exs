@@ -44,7 +44,9 @@ defmodule Tymeslot.BookingTestHelpersTest do
       %{profile: profile} =
         seed_booking_account(unquote(theme.id), "walk-#{unquote(theme.slug)}", timezone)
 
-      {:ok, view, _html} = live(conn, "/#{profile.username}?timezone=#{timezone}")
+      {:ok, view, _html} = live(conn, "/#{profile.username}?" <> URI.encode_query(%{"timezone" => timezone}))
+
+      assert live_assigns(view).user_timezone == timezone
 
       walk_to_booking_form(view, timezone)
 
@@ -57,7 +59,7 @@ defmodule Tymeslot.BookingTestHelpersTest do
   # A fixed-offset zone in which it is now about 07:00. The organiser is
   # available from 09:00, so today still has free times at any hour the suite
   # runs, and a walk that took the first free time instead of tomorrow's would
-  # land on today and fail the date assertion. In UTC it would only fail
+  # land on today and fail the date assertion. In UTC the check only bites
   # before about 16:30. `Etc/GMT+N` is UTC-N.
   defp early_morning_timezone do
     offset = Integer.mod(7 - DateTime.utc_now().hour + 12, 24) - 12
