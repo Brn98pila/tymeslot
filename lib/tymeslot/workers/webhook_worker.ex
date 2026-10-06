@@ -351,7 +351,8 @@ defmodule Tymeslot.Workers.WebhookWorker do
   # Seconds to wait after each failed attempt: 30s, 2m, 10m, 30m, 1h, 3h,
   # then 6h. With `max_attempts: 8` the last retry lands about eleven hours
   # after the first, so a receiver down for a deploy or a short outage still
-  # receives the event, while any 4xx but a 408 or 429 is discarded at once.
+  # receives the event, while any 4xx but a 408, 425 or 429 is discarded at
+  # once.
   @backoff_seconds {30, 120, 600, 1_800, 3_600, 10_800, 21_600}
 
   @impl Oban.Worker
@@ -589,8 +590,9 @@ defmodule Tymeslot.Workers.WebhookWorker do
   end
 
   # A non-2xx response is only worth another attempt if a later one could
-  # plausibly differ: a 5xx, a 408 (the receiver timed out) or a 429 (it is
-  # rate limiting us). Every other status is the subscriber's endpoint
+  # plausibly differ: a 5xx, a 408 (the receiver timed out), a 425 (it will
+  # not process a request that might be replayed yet) or a 429 (it is rate
+  # limiting us). Every other status is the subscriber's endpoint
   # answering for good. A 400, 404 or 422 comes back identically on every
   # remaining attempt, eleven hours of them, and then Oban raises
   # `PerformError`, which pages an operator about a subscriber's own
@@ -600,21 +602,19 @@ defmodule Tymeslot.Workers.WebhookWorker do
   #
   # Both paths record one failure per delivery, so a permanent 400 advances
   # the circuit breaker exactly as far as a 503 does.
-  @retryable_statuses [408, 429]
+  @retryable_statuses [408, 425, 429]
 
   defp http_failure(webhook, status, attempt) do
     reason = "#{@http_status_prefix}#{status}"
 
-    if retryable_status?(status) do
-      # Recorded on the first attempt only, so one failing delivery advances
-      # the circuit breaker by one rather than once per retry.
-      if attempt == 1, do: Webhooks.record_delivery_failure(webhook, reason)
-      {:error, {:http_error, status}}
-    else
-      # No retries follow, so this is the only chance to record the failure.
-      Webhooks.record_delivery_failure(webhook, reason)
-      {:discard, reason}
-    end
+    # Recorded on the first attempt only, so one failing delivery advances the
+    # circuit breaker by one, whether it is retried, discarded at once, or
+    # discarded on a later attempt after a retryable first failure.
+    if attempt == 1, do: Webhooks.record_delivery_failure(webhook, reason)
+
+    if retryable_status?(status),
+      do: {:error, {:http_error, status}},
+      else: {:discard, reason}
   end
 
   defp retryable_status?(status), do: status >= 500 or status in @retryable_statuses

@@ -245,6 +245,36 @@ defmodule Tymeslot.Workers.WebhookWorkerRetryTest do
       assert {:error, {:http_error, 429}} = deliver(webhook, meeting)
     end
 
+    test "keeps retrying a 425, which a later attempt may clear", %{
+      meeting: meeting,
+      webhook: webhook
+    } do
+      respond_with(425)
+
+      assert {:error, {:http_error, 425}} = deliver(webhook, meeting)
+      assert Repo.get(WebhookSchema, webhook.id).failure_count == 1
+    end
+
+    test "counts a 503 followed by a discarded 4xx as one failure", %{
+      meeting: meeting,
+      webhook: webhook
+    } do
+      job =
+        persisted_job(WebhookWorker, %{
+          "webhook_id" => webhook.id,
+          "event_type" => "meeting.cancelled",
+          "meeting_id" => meeting.id
+        })
+
+      respond_with(503)
+      assert {:error, {:http_error, 503}} = WebhookWorker.perform(job)
+
+      respond_with(400)
+      assert {:discard, "HTTP 400"} = WebhookWorker.perform(%{job | attempt: 2})
+
+      assert Repo.get(WebhookSchema, webhook.id).failure_count == 1
+    end
+
     test "keeps retrying a 503, which a later attempt may clear", %{
       meeting: meeting,
       webhook: webhook
