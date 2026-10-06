@@ -52,7 +52,7 @@ defmodule Tymeslot.Telegram do
       with :ok <- Features.check_access(user_id, :automations_allowed) do
         attrs
         |> Map.put(:user_id, user_id)
-        |> Map.put(:bot_mode, if(shared_bot_mode?(), do: "shared", else: "own"))
+        |> Map.put(:bot_mode, installation_bot_mode())
         |> TelegramQueries.create_integration()
       end
     else
@@ -429,6 +429,17 @@ defmodule Tymeslot.Telegram do
   def shared_bot_mode? do
     Application.get_env(:tymeslot, :telegram_shared_bot, false)
   end
+
+  @doc """
+  The bot mode the integration form validates and renders against. An edit
+  follows the integration's own mode, which never changes after creation;
+  creating one follows the installation's, which is the mode it will get.
+  """
+  @spec form_bot_mode(:create | :edit, TelegramIntegrationSchema.t() | nil) :: String.t()
+  def form_bot_mode(:edit, %TelegramIntegrationSchema{bot_mode: bot_mode}), do: bot_mode
+  def form_bot_mode(_mode, _integration), do: installation_bot_mode()
+
+  defp installation_bot_mode, do: if(shared_bot_mode?(), do: "shared", else: "own")
 
   @spec telegram_enabled?() :: boolean()
   def telegram_enabled? do

@@ -351,6 +351,110 @@ defmodule TymeslotWeb.Dashboard.Automation.TelegramCrudJourneyTest do
     end
   end
 
+  describe "editing follows the integration's own bot, not the installation's" do
+    # The installation's bot mode decides how a *new* integration links its
+    # chat. An existing integration keeps the mode it was created with, so
+    # its edit form must validate and render against that mode instead.
+
+    test "an own-bot integration's token and chat stay editable with the shared bot on", %{
+      conn: conn,
+      user: user
+    } do
+      ConfigTestHelpers.setup_config(:tymeslot, telegram_shared_bot: true)
+
+      integration =
+        insert(:telegram_integration,
+          user: user,
+          name: "Own Bot",
+          bot_mode: "own",
+          bot_token_encrypted: Encryption.encrypt(@bot_token),
+          chat_id: @chat_id,
+          events: ["meeting.created"]
+        )
+
+      new_token = "9876543210:ZYXwvuTSRqpoNMLkjiHGFedcba987654321"
+
+      view = open_telegram_tab(conn)
+      view |> element(edit_button(integration)) |> render_click()
+
+      assert has_element?(view, "#telegram-form input[name='telegram[bot_token]']")
+      assert has_element?(view, "#telegram-form input[name='telegram[chat_id]']")
+
+      view
+      |> element("#telegram-form")
+      |> render_submit(%{
+        "telegram" => %{
+          "name" => "Own Bot",
+          "bot_token" => new_token,
+          "chat_id" => "200002",
+          "events" => ["meeting.created"]
+        }
+      })
+
+      assert {:ok, saved} = Telegram.get_integration(integration.id, user.id)
+      assert saved.bot_mode == "own"
+      assert saved.chat_id == "200002"
+      assert Encryption.decrypt(saved.bot_token_encrypted) == new_token
+    end
+
+    test "a shared-bot integration can be renamed with the shared bot off", %{
+      conn: conn,
+      user: user
+    } do
+      integration = insert_shared_integration(user)
+
+      view = open_telegram_tab(conn)
+      view |> element(edit_button(integration)) |> render_click()
+
+      refute has_element?(view, "#telegram-form input[name='telegram[chat_id]']")
+
+      view
+      |> element("#telegram-form")
+      |> render_submit(%{
+        "telegram" => %{"name" => "Renamed Chat", "events" => ["meeting.created"]}
+      })
+
+      assert {:ok, saved} = Telegram.get_integration(integration.id, user.id)
+      assert saved.name == "Renamed Chat"
+      assert saved.chat_id == @chat_id
+    end
+
+    test "a chat id forged into a shared-bot edit is ignored with the shared bot off", %{
+      conn: conn,
+      user: user
+    } do
+      integration = insert_shared_integration(user)
+
+      view = open_telegram_tab(conn)
+      view |> element(edit_button(integration)) |> render_click()
+
+      view
+      |> element("#telegram-form")
+      |> render_submit(%{
+        "telegram" => %{
+          "name" => "Forged Chat",
+          "chat_id" => "-1009999999999",
+          "events" => ["meeting.created"]
+        }
+      })
+
+      assert {:ok, saved} = Telegram.get_integration(integration.id, user.id)
+      assert saved.name == "Forged Chat"
+      assert saved.chat_id == @chat_id
+    end
+
+    defp insert_shared_integration(user) do
+      insert(:telegram_integration,
+        user: user,
+        name: "Linked Chat",
+        bot_mode: "shared",
+        bot_token_encrypted: nil,
+        chat_id: @chat_id,
+        events: ["meeting.created"]
+      )
+    end
+  end
+
   describe "switching an integration off" do
     setup %{user: user} do
       integration =

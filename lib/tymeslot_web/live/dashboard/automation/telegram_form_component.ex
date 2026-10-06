@@ -1,7 +1,8 @@
 defmodule TymeslotWeb.Dashboard.Automation.TelegramFormComponent do
   @moduledoc """
   Form component for creating and editing Telegram integrations.
-  Renders own-bot mode form or shared-bot wizard based on feature flag.
+  Renders the own-bot form or the shared-bot wizard: on create by the
+  installation's bot mode, on edit by the integration's own.
   """
   use TymeslotWeb, :live_component
   use Gettext, backend: TymeslotWeb.Gettext
@@ -22,7 +23,6 @@ defmodule TymeslotWeb.Dashboard.Automation.TelegramFormComponent do
      |> assign(:form_values, %{})
      |> assign(:saving, false)
      |> assign(:available_events, Telegram.available_events())
-     |> assign(:shared_bot_mode, Telegram.shared_bot_mode?())
      |> assign(:wizard_step, 1)
      |> assign(:deep_link, nil)
      |> assign(:link_expired, false)}
@@ -53,6 +53,7 @@ defmodule TymeslotWeb.Dashboard.Automation.TelegramFormComponent do
       |> assign(assigns)
       |> assign(:mode, mode)
       |> assign(:integration, integration)
+      |> assign(:shared_bot_mode, Telegram.form_bot_mode(mode, integration) == "shared")
       |> assign(:form_values, form_values)
       |> assign(:form_errors, assigns[:form_errors] || %{})
 
