@@ -41,10 +41,12 @@ defmodule Tymeslot.Availability.TimeOff do
   @type period :: TimeOffPeriodSchema.t()
   @type result :: {:ok, period()} | {:error, Ecto.Changeset.t()}
 
-  # The last instant a wall-clock day can name. Slot generation already treats
-  # 23:59:59 as the end of a day (see `TimeSlots.determine_slot_range/5`), so
-  # an open-ended period ends where the longest possible business-hours window
-  # does and cannot leave a sliver of bookable evening behind.
+  # The last second a `Time` can name, standing in for the midnight that ends
+  # the day, which a `Time` cannot express. These windows only ever meet the
+  # owner's own business hours for the same owner date (see
+  # `BusinessHours.breaks_for_day/3`), and a working day set in the schedule
+  # ends no later than this, so an open-ended period still blocks the whole
+  # rest of it. The exclusive reading, to next midnight, is `interval/2`'s.
   @end_of_day ~T[23:59:59]
 
   # A profile with more periods than this is not describing holidays any more,

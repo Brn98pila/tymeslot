@@ -24,8 +24,10 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyTest do
 
   import Mox
   import Tymeslot.AvailabilityTestHelpers
+  import Tymeslot.Test.ClockHelpers
 
   alias Ecto.Changeset
+  alias Tymeslot.Availability.Offer
   alias Tymeslot.Availability.TimeSlots
   alias Tymeslot.Bookings.Create
   alias Tymeslot.CalendarMock
@@ -382,6 +384,71 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyTest do
 
       assert {:ok, meeting} = book.(List.first(booker_slots))
       assert meeting.status == "confirmed"
+    end
+  end
+
+  # A host whose working day begins on the booker's previous date: Kolkata's
+  # 09:00 is 23:30 the evening before in New York (EDT), so the host's first
+  # slot ends at or after the booker's midnight. Cutting the window there used
+  # to lose it for every duration of 30 minutes or more.
+  describe "a slot that ends at or crosses the booker's midnight" do
+    # 2027-09-06 is a Monday; 09:00 IST that day is 23:30 EDT on Sunday the 5th.
+    @booker_sunday ~D[2027-09-05]
+
+    setup do
+      freeze_clock(DateTime.new!(~D[2027-08-25], ~T[00:00:00], "Etc/UTC"))
+      TestMocks.stub_no_calendar_events()
+
+      %{user: user, profile: profile} =
+        create_bookable_profile(
+          timezone: "Asia/Kolkata",
+          hours: %{is_available: true, start_time: ~T[09:00:00], end_time: ~T[17:00:00]}
+        )
+
+      %{user: user, profile: profile}
+    end
+
+    for duration <- [30, 60] do
+      test "the host's 09:00 is offered at 11:30 PM and books, for #{duration} minutes",
+           %{user: user, profile: profile} do
+        duration = unquote(duration)
+        slug = "#{duration}min"
+
+        assert offered(profile, @booker_sunday, slug, timezone: "America/New_York") ==
+                 ["11:30 PM"]
+
+        assert {:ok, meeting} =
+                 Create.execute(
+                   %{
+                     date: @booker_sunday,
+                     time: "11:30 PM",
+                     duration: slug,
+                     user_timezone: "America/New_York",
+                     organizer_user_id: user.id
+                   },
+                   %{
+                     "name" => "Late Attendee",
+                     "email" => "late-attendee@example.com",
+                     "message" => "Booking across midnight"
+                   }
+                 )
+
+        assert meeting.status == "confirmed"
+        assert DateTime.compare(meeting.start_time, ~U[2027-09-06 03:30:00Z]) == :eq
+        assert DateTime.diff(meeting.end_time, meeting.start_time, :minute) == duration
+      end
+    end
+
+    test "the month view marks the booker's date as available", %{profile: profile} do
+      request = %{profile: profile, user_timezone: "America/New_York", meeting_type: nil}
+
+      assert {:ok, days} =
+               Offer.days_in_range(request, @booker_sunday, Date.add(@booker_sunday, 1), 60)
+
+      assert days[Date.to_iso8601(@booker_sunday)] == true
+      # Saturday the 4th has no host hours on either side of it.
+      assert {:ok, %{"2027-09-04" => false}} =
+               Offer.days_in_range(request, ~D[2027-09-04], ~D[2027-09-04], 60)
     end
   end
 

@@ -69,19 +69,20 @@ defmodule Tymeslot.Availability.TimeSlots do
   end
 
   @doc """
-  Generates time slots for a date range, excluding break periods.
+  Generates the time slots starting on `selected_date`, excluding break
+  periods.
 
   ## Parameters
-    - start_dt: Start datetime
-    - end_dt: End datetime
+    - start_dt, end_dt: One owner availability window, already shifted into
+      the booker's timezone. The window may cross the booker's midnight in
+      either direction.
     - duration_minutes: Meeting duration in minutes
-    - selected_date: The date for slot generation
+    - selected_date: The booker's date the slots are offered for
     - breaks: Break periods as absolute `{start, end}` instants, already
       resolved against the owner's date and zone by `resolve_breaks/3`.
       They must arrive resolved: `start_dt` here is in the *booker's* zone,
       so a break carried as a bare `Time` would be read on the booker's wall
       clock and land on the wrong hours whenever the two zones differ.
-    - breaks: List of {start_time, end_time} tuples representing break periods
     - interval_minutes: Optional spacing between slot starts. Defaults to the
       meeting duration, which is the historical behaviour. A shorter interval
       offers overlapping starts; a longer one offers fewer, rounder starts.
@@ -94,6 +95,11 @@ defmodule Tymeslot.Availability.TimeSlots do
       the boundary has to be measured somewhere else: the interval is the
       owner's setting and means "this far apart, on my clock". Required
       whenever `interval_minutes` is set, ignored when it is nil.
+
+  The grid is laid over the whole window in absolute time, and a slot belongs
+  to the booker's date it *starts* on. Cutting the window at the booker's
+  midnight instead would lose every slot that ends at or runs past it, and
+  would restart the grid at midnight rather than continue the owner's.
 
   Returns a list of formatted time strings like "9:00 AM", excluding slots that
   would overlap with break periods.
@@ -116,87 +122,16 @@ defmodule Tymeslot.Availability.TimeSlots do
         interval_minutes,
         owner_timezone
       ) do
-    start_date = DateTime.to_date(start_dt)
-    end_date = DateTime.to_date(end_dt)
-
-    slot_range = determine_slot_range(start_date, end_date, selected_date, start_dt, end_dt)
-
-    # Generate all possible slots first
-    all_slots =
-      generate_slots_for_determined_range(
-        slot_range,
-        duration_minutes,
-        interval_minutes,
-        owner_timezone
-      )
-
-    # Filter out slots that overlap with breaks
-    case slot_range do
-      {range_start, _range_end} ->
-        filter_slots_by_breaks(all_slots, breaks, range_start, duration_minutes)
-
-      :no_slots ->
-        []
-    end
-  end
-
-  defp determine_slot_range(start_date, end_date, selected_date, start_dt, end_dt) do
-    case {Date.compare(start_date, selected_date), Date.compare(end_date, selected_date)} do
-      {:eq, :eq} ->
-        # Normal case: availability is on the same day
-        {start_dt, end_dt}
-
-      {:lt, :eq} ->
-        # Availability spans from previous day (e.g., late night hours)
-        midnight =
-          DateTimeUtils.create_datetime_safe(selected_date, ~T[00:00:00], start_dt.time_zone)
-
-        {midnight, end_dt}
-
-      {:eq, :gt} ->
-        # Availability spans to next day (e.g., early morning hours)
-        end_of_day =
-          DateTimeUtils.create_datetime_safe(selected_date, ~T[23:59:59], start_dt.time_zone)
-
-        {start_dt, end_of_day}
-
-      {:lt, :gt} ->
-        # Full day availability (extreme timezone difference)
-        midnight =
-          DateTimeUtils.create_datetime_safe(selected_date, ~T[00:00:00], start_dt.time_zone)
-
-        end_of_day =
-          DateTimeUtils.create_datetime_safe(selected_date, ~T[23:59:59], start_dt.time_zone)
-
-        {midnight, end_of_day}
-
-      _other ->
-        # No slots for this date
-        :no_slots
-    end
-  end
-
-  defp generate_slots_for_determined_range(
-         :no_slots,
-         _duration_minutes,
-         _interval_minutes,
-         _owner_timezone
-       ),
-       do: []
-
-  defp generate_slots_for_determined_range(
-         {start_dt, end_dt},
-         duration_minutes,
-         interval_minutes,
-         owner_timezone
-       ) do
-    generate_slots_for_single_day(
-      start_dt,
-      end_dt,
-      duration_minutes,
-      interval_minutes,
-      owner_timezone
-    )
+    start_dt
+    |> slot_starts(end_dt, duration_minutes, interval_minutes, owner_timezone)
+    |> Enum.filter(&(Date.compare(DateTime.to_date(&1), selected_date) == :eq))
+    # On a DST fall-back day the wall-clock hour repeats, producing two
+    # instants with the same label. Users can't disambiguate "1:00 AM EDT"
+    # from "1:00 AM EST" when booking, and a booked label resolves to the
+    # earlier one, so the earlier occurrence is the one kept and checked.
+    |> Enum.uniq_by(&format_datetime_slot/1)
+    |> Enum.reject(&overlaps_break?(&1, duration_minutes, breaks))
+    |> Enum.map(&format_datetime_slot/1)
   end
 
   @doc """
@@ -249,13 +184,7 @@ defmodule Tymeslot.Availability.TimeSlots do
 
   # Private functions
 
-  defp generate_slots_for_single_day(
-         start_dt,
-         end_dt,
-         duration_minutes,
-         interval_minutes,
-         owner_timezone
-       ) do
+  defp slot_starts(start_dt, end_dt, duration_minutes, interval_minutes, owner_timezone) do
     # Only an explicit interval anchors the grid to a wall-clock boundary
     # (e.g. 60 minutes lands on the hour), and the clock it lands on is the
     # owner's, not the booker's: the interval is the owner's setting, so a
@@ -278,17 +207,9 @@ defmodule Tymeslot.Availability.TimeSlots do
       # With interval == duration this is exactly div(total, duration).
       slot_count = div(total_minutes - duration_minutes, interval) + 1
 
-      # Iteration walks forward in UTC. On a DST fall-back day the wall-clock
-      # hour repeats, producing two DateTime structs with different offsets but
-      # the same formatted label. Users can't disambiguate "1:00 AM EDT" from
-      # "1:00 AM EST" when booking, so collapse duplicates to the earlier
-      # occurrence.
-      0..(slot_count - 1)
-      |> Enum.map(fn i ->
-        slot_datetime = DateTime.add(grid_start, i * interval, :minute)
-        format_datetime_slot(slot_datetime)
-      end)
-      |> Enum.uniq()
+      # Iteration walks forward in absolute time, so a DST change inside the
+      # window neither skips nor doubles a slot's real start.
+      Enum.map(0..(slot_count - 1), &DateTime.add(grid_start, &1 * interval, :minute))
     end
   end
 
@@ -340,23 +261,15 @@ defmodule Tymeslot.Availability.TimeSlots do
     end
   end
 
-  defp filter_slots_by_breaks(slots, [], _start_dt, _duration_minutes), do: slots
+  # Slots are instants on the booker's clock, which is where they are
+  # offered; breaks arrive already absolute, resolved on the owner's. Both
+  # sides are instants by the time they meet, so the comparison holds across
+  # any offset.
+  defp overlaps_break?(slot_start_dt, duration_minutes, breaks) do
+    slot_end_dt = DateTime.add(slot_start_dt, duration_minutes, :minute)
 
-  # Slots are resolved on the booker's clock, which is where they are offered;
-  # breaks arrive already absolute, resolved on the owner's. Both sides are
-  # instants by the time they meet, so the comparison holds across any offset.
-  defp filter_slots_by_breaks(slots, breaks, start_dt, duration_minutes) do
-    date = DateTime.to_date(start_dt)
-    timezone = start_dt.time_zone
-
-    Enum.filter(slots, fn slot ->
-      slot_time = parse_time_slot(slot)
-      slot_start_dt = DateTimeUtils.create_datetime_safe(date, slot_time, timezone)
-      slot_end_dt = DateTime.add(slot_start_dt, duration_minutes, :minute)
-
-      not Enum.any?(breaks, fn {break_start_dt, break_end_dt} ->
-        TimeRange.overlaps?(slot_start_dt, slot_end_dt, break_start_dt, break_end_dt)
-      end)
+    Enum.any?(breaks, fn {break_start_dt, break_end_dt} ->
+      TimeRange.overlaps?(slot_start_dt, slot_end_dt, break_start_dt, break_end_dt)
     end)
   end
 end
