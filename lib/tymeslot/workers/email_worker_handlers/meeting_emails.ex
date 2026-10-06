@@ -168,16 +168,20 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails do
 
     # Guests are told whenever at least one participant email went out, even
     # on a partial failure that is discarded rather than retried, so they are
-    # told now or never.
+    # told now or never. A guest send that failed after the participants'
+    # went out retries the job, which then writes only to the guests missed.
     if result == :ok or match?({:discard, _reason}, result) do
-      GuestNotifications.notify_cancelled(
-        meeting,
-        appointment_details,
-        &DeliveryClaims.once(job_id, &1, &2)
-      )
-    end
+      guests_result =
+        GuestNotifications.notify_cancelled(
+          meeting,
+          appointment_details,
+          &DeliveryClaims.once(job_id, &1, &2)
+        )
 
-    result
+      if result == :ok, do: guests_result, else: result
+    else
+      result
+    end
   end
 
   defp send_participant_cancellations(meeting, appointment_details) do

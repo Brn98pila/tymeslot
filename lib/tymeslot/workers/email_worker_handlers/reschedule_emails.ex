@@ -18,8 +18,8 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails do
   in one call, and one per guest, so a rescued run repeats nothing already
   sent. When both participant emails fail the job retries, and an open mail
   circuit snoozes it, as for every other booking email; a partial send is
-  discarded rather than duplicated. Guest sends are logged and never fail the
-  job, as everywhere else.
+  discarded rather than duplicated. A failed guest send retries the job too,
+  which then writes only to the guests not yet reached.
   """
 
   require Logger
@@ -120,10 +120,14 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails do
     # participant email went out, even on a partial failure that is discarded
     # rather than retried, so they are told now or never.
     if result == :ok or match?({:discard, _reason}, result),
-      do: notify_guests(meeting, content, original, once)
-
-    result
+      do: with_guests(result, notify_guests(meeting, content, original, once)),
+      else: result
   end
+
+  # A guest send that failed after the participants' went out retries the
+  # job: their claim is kept, so the retry writes only to the guests missed.
+  defp with_guests(:ok, guests_result), do: guests_result
+  defp with_guests(result, _guests_result), do: result
 
   defp notify_guests(meeting, content, nil, once),
     do: GuestNotifications.notify_reapproved(meeting, content, once)

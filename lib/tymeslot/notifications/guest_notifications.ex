@@ -30,9 +30,14 @@ defmodule Tymeslot.Notifications.GuestNotifications do
   (`with_inviter_details/4`): that participant's language, timezone and seat
   calendar entry, not the slot row's.
 
-  Guest emails never fail the operation that triggered them: a failed send is
-  logged, and the booking and the host's and booker's emails are unaffected.
+  Guest emails never fail the booking change that triggered them, nor undo the
+  host's and booker's emails. A failed send is logged and, for the reschedule
+  and cancellation notices, returned as `{:error, {:guest_emails_failed,
+  count}}`, so the email job retries; each guest's send is claimed on the job,
+  so the retry writes only to the guests who were missed.
   """
+
+  @type result :: :ok | {:error, {:guest_emails_failed, pos_integer()}}
 
   require Logger
 
@@ -54,7 +59,7 @@ defmodule Tymeslot.Notifications.GuestNotifications do
   `Tymeslot.Notifications.ContentBuilder.build_reschedule_details/2`. `once`
   wraps each guest's send as in `notify_cancelled/3`.
   """
-  @spec notify_rescheduled(map(), map(), (String.t(), (-> term()) -> term())) :: :ok
+  @spec notify_rescheduled(map(), map(), (String.t(), (-> term()) -> term())) :: result()
   def notify_rescheduled(meeting, content, once \\ fn _key, send -> send.() end)
 
   def notify_rescheduled(%{id: meeting_id} = _meeting, content, once) do
@@ -87,7 +92,7 @@ defmodule Tymeslot.Notifications.GuestNotifications do
   booking's payload) states the new time without it. `once` wraps each
   guest's send as in `notify_cancelled/3`.
   """
-  @spec notify_reapproved(map(), map(), (String.t(), (-> term()) -> term())) :: :ok
+  @spec notify_reapproved(map(), map(), (String.t(), (-> term()) -> term())) :: result()
   def notify_reapproved(%{id: meeting_id} = _meeting, details, once) do
     meeting_id
     |> GuestQueries.list_live_for_meeting()
@@ -115,7 +120,7 @@ defmodule Tymeslot.Notifications.GuestNotifications do
   `&Tymeslot.Workers.DeliveryClaims.once(job, &1, &2)`, so a rescued run
   skips the guests already told and still reaches the rest.
   """
-  @spec notify_cancelled(map(), map(), (String.t(), (-> term()) -> term())) :: :ok
+  @spec notify_cancelled(map(), map(), (String.t(), (-> term()) -> term())) :: result()
   def notify_cancelled(meeting, appointment_details, once \\ fn _key, send -> send.() end)
 
   def notify_cancelled(meeting, appointment_details, once) do
@@ -152,7 +157,7 @@ defmodule Tymeslot.Notifications.GuestNotifications do
           [GuestSchema.t()],
           map(),
           (String.t(), (-> term()) -> term())
-        ) :: :ok
+        ) :: result()
   def notify_seat_cancelled(%{id: meeting_id}, guests, seat_details, once) do
     guests
     |> Enum.reject(&is_nil(&1.confirmation_sent_at))
@@ -209,7 +214,7 @@ defmodule Tymeslot.Notifications.GuestNotifications do
   the booking is off. Only a request a reschedule sent back into the gate had
   invited guests; `notify_cancelled/3` sends nothing for any other.
   """
-  @spec notify_released(map()) :: :ok
+  @spec notify_released(map()) :: result()
   def notify_released(%{first_announced_at: nil}), do: :ok
 
   def notify_released(meeting),
@@ -269,23 +274,31 @@ defmodule Tymeslot.Notifications.GuestNotifications do
   defp ever_confirmed?(%MeetingSchema{} = meeting), do: MeetingSchema.group?(meeting)
   defp ever_confirmed?(_meeting), do: false
 
+  # Every guest is tried, whatever became of the others. Returns
+  # `{:error, {:guest_emails_failed, count}}` when any of them failed, so a
+  # job whose sends are claimed per guest can retry and reach only those.
   defp send_to_guests(guests_with_details, meeting_id, kind, send_fun) do
-    Enum.each(guests_with_details, fn {guest, appointment_details} ->
-      case send_fun.(guest, guest_details(appointment_details, guest)) do
-        {:ok, _result} ->
-          :ok
+    failed =
+      Enum.count(guests_with_details, fn {guest, appointment_details} ->
+        case send_fun.(guest, guest_details(appointment_details, guest)) do
+          {:ok, _result} ->
+            false
 
-        # Already sent by an earlier run of the same job (see `notify_cancelled/3`).
-        :ok ->
-          :ok
+          # Already sent by an earlier run of the same job (see `notify_cancelled/3`).
+          :ok ->
+            false
 
-        other ->
-          Logger.error("Guest email failed",
-            email_kind: kind,
-            meeting_id: meeting_id,
-            result: LogFormat.reason(other)
-          )
-      end
-    end)
+          other ->
+            Logger.error("Guest email failed",
+              email_kind: kind,
+              meeting_id: meeting_id,
+              result: LogFormat.reason(other)
+            )
+
+            true
+        end
+      end)
+
+    if failed == 0, do: :ok, else: {:error, {:guest_emails_failed, failed}}
   end
 end
