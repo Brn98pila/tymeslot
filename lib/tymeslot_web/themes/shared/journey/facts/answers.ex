@@ -3,11 +3,12 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.Answers do
   The answers to the organiser's questions: the meeting type's custom fields,
   held in the questions engine (`:engine`).
 
-  Needed only when the meeting type has custom fields, and needing only the
-  meeting type, so a journey may ask them before the calendar. Known when the
-  answers validate and none carried over from a rescheduled booking is still
-  waiting to be shown. The wizard moves within the fact: `continue/1` stays
-  on the questions until the last one validates, `back/1` until the first.
+  Needed only when the meeting type has custom fields. It needs only the
+  meeting type, so a journey may ask the questions before the calendar. Known
+  when the answers validate and none carried over from a rescheduled booking
+  is still waiting to be shown. The wizard moves within the fact:
+  `continue/1` stays on the questions until the last one validates, and
+  `back/1` steps back until the first question, then leaves.
   """
 
   use TymeslotWeb.Themes.Shared.Journey.Fact

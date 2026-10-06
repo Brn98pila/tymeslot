@@ -79,7 +79,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   @spec handle_state_entry(Socket.t(), atom(), map()) :: Socket.t()
   def handle_state_entry(socket, :schedule, params), do: Slot.enter(socket, params)
 
-  def handle_state_entry(socket, :questions, _params), do: Answers.enter(socket, %{})
+  def handle_state_entry(socket, :questions, params), do: Answers.enter(socket, params)
 
   def handle_state_entry(socket, :booking, params), do: Attendee.enter(socket, params)
 

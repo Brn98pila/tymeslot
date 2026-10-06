@@ -1,5 +1,5 @@
 defmodule TymeslotWeb.Themes.Shared.Journey.Facts.AnswersTest do
-  use Tymeslot.DataCase, async: true
+  use ExUnit.Case, async: true
 
   @moduletag :scheduling
   @moduletag :themes
