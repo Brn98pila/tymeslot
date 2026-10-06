@@ -255,6 +255,15 @@ defmodule Tymeslot.Infrastructure.CacheStoreTest do
       assert TestCache.get_or_compute(other, fn -> :recomputed end) == :current
     end
 
+    test "invalidating while the cache is restarting does not crash the caller" do
+      # Callers invalidate after committing a change; the table is owned by
+      # the cache process, so with the process down there is nothing to drop.
+      stop_supervised!(TestCache)
+
+      assert TestCache.invalidate("anything") == true
+      assert TestCache.invalidate_pattern({:range, :_}) == true
+    end
+
     test "a superseded leader that dies hands over without storing" do
       key = "superseded-promotion"
 

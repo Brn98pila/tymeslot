@@ -103,7 +103,7 @@ defmodule Tymeslot.Infrastructure.CacheStore do
       is still in flight: its result is not stored.
       """
       def invalidate(key) do
-        GenServer.call(__MODULE__, {:invalidate, {:key, key}})
+        CacheStore.invalidate(__MODULE__, {:key, key})
       end
 
       @doc """
@@ -111,14 +111,14 @@ defmodule Tymeslot.Infrastructure.CacheStore do
       computation whose key matches it.
       """
       def invalidate_pattern(pattern) do
-        GenServer.call(__MODULE__, {:invalidate, {:pattern, pattern}})
+        CacheStore.invalidate(__MODULE__, {:pattern, pattern})
       end
 
       @doc """
       Clear all cache entries, and detach every in-flight computation.
       """
       def clear_all do
-        GenServer.call(__MODULE__, {:invalidate, :all})
+        CacheStore.invalidate(__MODULE__, :all)
       end
 
       @doc """
@@ -272,10 +272,23 @@ defmodule Tymeslot.Infrastructure.CacheStore do
   end
 
   @doc false
+  # The table belongs to the cache process, so while the process is down (a
+  # restart in progress) there is nothing cached to invalidate. Callers
+  # invalidate after committing a change and must not crash for it.
+  @spec invalidate(GenServer.server(), {:key, any()} | {:pattern, any()} | :all) :: true
+  def invalidate(server, scope) do
+    GenServer.call(server, {:invalidate, scope})
+  catch
+    :exit, {:noproc, _call} -> true
+  end
+
+  @doc false
   @spec handle_invalidate(atom(), {:key, any()} | {:pattern, any()} | :all, state()) ::
           {:reply, true, state()}
   def handle_invalidate(table_name, scope, state) do
-    delete_entries(table_name, scope)
+    # A table someone dropped from outside leaves nothing to delete; failing
+    # here would take the cache process down with it.
+    if :ets.whereis(table_name) != :undefined, do: delete_entries(table_name, scope)
 
     {detached, pending} =
       Map.split_with(state.pending, fn {key, _entry} -> in_scope?(scope, key) end)
