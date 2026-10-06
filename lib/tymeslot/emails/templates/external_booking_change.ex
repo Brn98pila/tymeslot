@@ -250,8 +250,8 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
   # Built now, to the host's dashboard view of this booking; the stored
   # `view_url` is a copy from booking time that may name a page that no
   # longer exists.
-  defp view_url(%{uid: uid}, _dashboard_url) when is_binary(uid),
-    do: MeetingLinks.host_view_url(uid)
+  defp view_url(%{id: id}, _dashboard_url) when is_binary(id),
+    do: MeetingLinks.host_view_url(id)
 
   defp view_url(_meeting, dashboard_url), do: dashboard_url
 end

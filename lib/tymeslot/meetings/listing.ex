@@ -10,6 +10,7 @@ defmodule Tymeslot.Meetings.Listing do
 
   require Logger
 
+  alias Ecto.UUID
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings.MeetingListQueries
   alias Tymeslot.Pagination.CursorPage
@@ -47,12 +48,17 @@ defmodule Tymeslot.Meetings.Listing do
   end
 
   @doc """
-  The organiser's meeting with `uid` as a one-item page, loaded as the
-  dashboard list loads its cards; an empty page when they own none by that uid.
+  The organiser's meeting with `meeting_id` as a one-item page, loaded as the
+  dashboard list loads its cards; an empty page when they own no meeting by
+  that id, including when `meeting_id` is no id at all (a mangled link).
   """
-  @spec list_user_meeting_by_uid(integer(), String.t()) :: {:ok, CursorPage.t()}
-  def list_user_meeting_by_uid(user_id, uid),
-    do: list_organizer_meetings_cursor_page(user_id, uid: uid, per_page: 1)
+  @spec list_user_meeting(integer(), String.t()) :: {:ok, CursorPage.t()}
+  def list_user_meeting(user_id, meeting_id) do
+    case UUID.cast(String.trim(meeting_id)) do
+      {:ok, id} -> list_organizer_meetings_cursor_page(user_id, id: id, per_page: 1)
+      :error -> {:ok, %CursorPage{items: [], page_size: 1}}
+    end
+  end
 
   @doc """
   High-level function to list meetings for a user based on a filter string.
@@ -130,7 +136,7 @@ defmodule Tymeslot.Meetings.Listing do
     order = Keyword.get(opts, :order, :desc)
 
     MeetingListQueries.list_meetings_for_organizer_paginated_cursor(organizer_user_id,
-      uid: Keyword.get(opts, :uid),
+      id: Keyword.get(opts, :id),
       per_page: per_page,
       status: status,
       exclude_status: exclude_status,

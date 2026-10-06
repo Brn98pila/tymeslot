@@ -25,7 +25,8 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementListTest do
   # Every organiser-facing message about a booking (the external-change
   # email, Slack, Telegram, webhook payloads) links to it with
   # `MeetingLinks.host_view_url/1`. That link has to open, and show the
-  # booking it names.
+  # booking it names. It names it by id: the uid is the booker's capability
+  # and must not travel in messages to the host.
   describe "the link to one booking" do
     test "opens the dashboard on that booking alone", %{conn: conn, user: user} do
       now = DateTime.utc_now()
@@ -47,7 +48,10 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementListTest do
         end_time: DateTime.add(now, 24 * 60 + 30, :minute)
       )
 
-      %URI{path: path, query: query} = URI.parse(MeetingLinks.host_view_url(target.uid))
+      link = MeetingLinks.host_view_url(target.id)
+      refute link =~ target.uid
+
+      %URI{path: path, query: query} = URI.parse(link)
       assert get(conn, path <> "?" <> query).status == 200
 
       {:ok, view, _html} = live(conn, path <> "?" <> query)
@@ -71,9 +75,48 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementListTest do
           end_time: DateTime.add(DateTime.utc_now(), 24 * 60 + 30, :minute)
         )
 
-      {:ok, view, _html} = live(conn, ~p"/dashboard/meetings?meeting=#{theirs.uid}")
+      {:ok, view, _html} = live(conn, ~p"/dashboard/meetings?meeting=#{theirs.id}")
 
-      refute render(view) =~ "Stranger Owned Booking"
+      html = render(view)
+      refute html =~ "Stranger Owned Booking"
+      assert html =~ "This booking isn&#39;t available."
+      refute html =~ "Showing one booking."
+    end
+
+    test "says a malformed link names no booking rather than showing them all",
+         %{conn: conn, user: user} do
+      insert(:meeting,
+        organizer_user_id: user.id,
+        organizer_email: user.email,
+        attendee_name: "Unrelated Booking",
+        start_time: DateTime.add(DateTime.utc_now(), 1, :day),
+        end_time: DateTime.add(DateTime.utc_now(), 24 * 60 + 30, :minute)
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/meetings?meeting=not-a-booking")
+
+      html = render(view)
+      assert html =~ "This booking isn&#39;t available."
+      refute html =~ "Unrelated Booking"
+    end
+
+    test "marks no tab as current while it shows a past booking", %{conn: conn, user: user} do
+      past =
+        insert(:meeting,
+          organizer_user_id: user.id,
+          organizer_email: user.email,
+          attendee_name: "Last Week Booking",
+          start_time: DateTime.add(DateTime.utc_now(), -7, :day),
+          end_time: DateTime.add(DateTime.utc_now(), -7 * 24 * 60 + 30, :minute)
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/meetings?meeting=#{past.id}")
+
+      assert render(view) =~ "Last Week Booking"
+      refute has_element?(view, ~s(#meetings-filter button[aria-pressed="true"]))
+
+      view |> element("#meetings-filter-past") |> render_click()
+      assert has_element?(view, ~s(#meetings-filter-past[aria-pressed="true"]))
     end
   end
 

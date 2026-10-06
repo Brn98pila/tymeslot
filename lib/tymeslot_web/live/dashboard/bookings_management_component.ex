@@ -32,7 +32,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
      socket
      |> LiveView.stream(:meetings, [])
      |> assign(:filter, "upcoming")
-     |> assign(:focus_uid, nil)
+     |> assign(:focus, nil)
      |> assign(:_last_focus_param, nil)
      |> assign(:loading, true)
      |> assign(:is_empty, true)
@@ -75,13 +75,15 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
     last_per_page = socket.assigns[:_last_per_page]
     initialized? = socket.assigns[:_initialized]
 
-    # `?meeting=<uid>` (a host's link to one booking) shows that booking alone.
+    # `?meeting=<id>` (a host's link to one booking) shows that booking alone.
+    # Choosing a tab drops the focus while the URL still carries the param, so
+    # only a change of the param itself brings it back.
     focus_param = get_in(socket.assigns, [:params, "meeting"])
     focus_changed? = focus_param != socket.assigns._last_focus_param
 
     socket =
       if focus_changed?,
-        do: assign(socket, focus_uid: focus_uid(focus_param), _last_focus_param: focus_param),
+        do: assign(socket, focus: focus_param, _last_focus_param: focus_param),
         else: socket
 
     should_load =
@@ -119,7 +121,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
             {:noreply,
              socket
              |> assign(:filter, validated_filter)
-             |> assign(:focus_uid, nil)
+             |> assign(:focus, nil)
              |> assign(:next_cursor, nil)
              |> assign(:has_more, false)
              |> assign(:loading, true)
@@ -396,16 +398,18 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
     <div id="bookings-management">
       <.dashboard_page icon="hero-clock" title={dgettext("dashboard_common", "Meetings")}>
         <div class="mb-10">
+          <%!-- No tab is current while the list shows one linked booking. --%>
           <MeetingListComponents.filter_tabs
-            active={@filter}
+            active={if @focus, do: nil, else: @filter}
             awaiting_approval_count={@awaiting_approval_count}
             target={@myself}
           />
         </div>
 
-        <MeetingListComponents.focus_notice :if={@focus_uid} />
+        <MeetingListComponents.focus_notice :if={@focus} found={@loading or !@is_empty} />
 
         <MeetingListComponents.meetings_list
+          :if={!@focus or @loading or !@is_empty}
           loading={@loading}
           is_empty={@is_empty}
           meetings_stream={@streams.meetings}
@@ -541,7 +545,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
       %{user_id: current_user.id, filter: filter}
     )
 
-    case fetch_page(socket.assigns.focus_uid, current_user.id, filter, per_page) do
+    case fetch_page(socket.assigns.focus, current_user.id, filter, per_page) do
       {:ok, page} ->
         :telemetry.execute(
           [:tymeslot, :dashboard, :meetings, :load, :stop],
@@ -578,15 +582,8 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
   defp fetch_page(nil, user_id, filter, per_page),
     do: Meetings.list_user_meetings_by_filter(user_id, filter, per_page: per_page)
 
-  defp fetch_page(uid, user_id, _filter, _per_page),
-    do: Meetings.list_user_meeting_by_uid(user_id, uid)
-
-  defp focus_uid(param) do
-    case validate_meeting_id(%{"id" => param}) do
-      {:ok, uid} -> uid
-      {:error, _invalid} -> nil
-    end
-  end
+  defp fetch_page(focus, user_id, _filter, _per_page),
+    do: Meetings.list_user_meeting(user_id, focus)
 
   defp fetch_meeting_for_modal(socket, params, opts) do
     policy_fun = Keyword.fetch!(opts, :policy_fun)

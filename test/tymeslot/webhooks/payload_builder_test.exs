@@ -6,6 +6,7 @@ defmodule Tymeslot.Webhooks.PayloadBuilderTest do
 
   import Tymeslot.Factory
 
+  alias Ecto.UUID
   alias Tymeslot.Meetings.GuestSchema
   alias Tymeslot.Webhooks.PayloadBuilder
   alias TymeslotWeb.Endpoint
@@ -57,6 +58,7 @@ defmodule Tymeslot.Webhooks.PayloadBuilderTest do
     test "includes booking URLs built now, not the stored copy" do
       meeting =
         build(:meeting,
+          id: UUID.generate(),
           view_url: "https://example.com/view",
           cancel_url: "https://example.com/cancel",
           reschedule_url: "https://example.com/reschedule"
@@ -67,7 +69,7 @@ defmodule Tymeslot.Webhooks.PayloadBuilderTest do
       base = Endpoint.url() <> "/meeting/#{meeting.uid}"
       urls = payload.data.meeting.urls
       # The view link is the host's, to the booking in their dashboard.
-      assert urls.view == Endpoint.url() <> "/dashboard/meetings?meeting=#{meeting.uid}"
+      assert urls.view == Endpoint.url() <> "/dashboard/meetings?meeting=#{meeting.id}"
       assert urls.cancel == base <> "/cancel"
       assert urls.reschedule == base <> "/reschedule"
     end

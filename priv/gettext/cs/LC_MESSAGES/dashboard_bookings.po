@@ -739,3 +739,8 @@ msgstr "Zobrazit všechny schůzky"
 #, elixir-autogen, elixir-format
 msgid "Showing one booking."
 msgstr "Zobrazena je jedna rezervace."
+
+#: lib/tymeslot_web/components/dashboard/meetings/meeting_list_components.ex
+#, elixir-autogen, elixir-format
+msgid "This booking isn't available."
+msgstr "Tato rezervace není k dispozici."

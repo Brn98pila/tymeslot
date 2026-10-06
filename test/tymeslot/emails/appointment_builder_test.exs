@@ -37,10 +37,10 @@ defmodule Tymeslot.Emails.AppointmentBuilderTest do
       assert result.attendee_name == meeting.attendee_name
       assert result.attendee_email == meeting.attendee_email
 
-      # URLs: built from the uid now, never read from the stored copy. This
+      # URLs: built from the uid and id now, never read from the stored copy. This
       # host has no username, so they take the uid-only form.
       base = Endpoint.url()
-      assert result.view_url == "#{base}/dashboard/meetings?meeting=#{meeting.uid}"
+      assert result.view_url == "#{base}/dashboard/meetings?meeting=#{meeting.id}"
       assert result.reschedule_url == "#{base}/meeting/#{meeting.uid}/reschedule"
       assert result.cancel_url == "#{base}/meeting/#{meeting.uid}/cancel"
 
@@ -448,7 +448,7 @@ defmodule Tymeslot.Emails.AppointmentBuilderTest do
 
       # Should have fallback values; the view link is the host's dashboard
       # view, which a group meeting has like any other.
-      assert result.view_url == "#{Endpoint.url()}/dashboard/meetings?meeting=#{meeting.uid}"
+      assert result.view_url == "#{Endpoint.url()}/dashboard/meetings?meeting=#{meeting.id}"
       assert result.reschedule_url == "#"
       assert result.cancel_url == "#"
     end
@@ -468,7 +468,7 @@ defmodule Tymeslot.Emails.AppointmentBuilderTest do
       result = AppointmentBuilder.from_meeting(meeting)
       base = Endpoint.url() <> "/builder-host/meeting/#{meeting.uid}"
 
-      assert result.view_url == "#{Endpoint.url()}/dashboard/meetings?meeting=#{meeting.uid}"
+      assert result.view_url == "#{Endpoint.url()}/dashboard/meetings?meeting=#{meeting.id}"
       assert result.reschedule_url == base <> "/reschedule"
       assert result.cancel_url == base <> "/cancel"
     end

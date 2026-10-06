@@ -279,8 +279,8 @@ defmodule Tymeslot.Slack.MessageBuilder do
   end
 
   defp meeting_url(meeting) do
-    case Map.get(meeting, :uid) do
-      uid when is_binary(uid) -> MeetingLinks.host_view_url(uid)
+    case Map.get(meeting, :id) do
+      id when is_binary(id) -> MeetingLinks.host_view_url(id)
       _none -> nil
     end
   end

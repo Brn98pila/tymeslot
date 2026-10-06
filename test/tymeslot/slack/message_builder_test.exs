@@ -13,6 +13,7 @@ defmodule Tymeslot.Slack.MessageBuilderTest do
     start_time: ~U[2026-03-10 14:00:00Z],
     end_time: ~U[2026-03-10 14:30:00Z],
     event_type: %{name: "30-minute intro call"},
+    id: "6f1d2c3b-0a4e-4b8f-9c7d-1e2f3a4b5c6d",
     uid: "abc123",
     cancellation_reason: nil
   }
@@ -189,6 +190,17 @@ defmodule Tymeslot.Slack.MessageBuilderTest do
       meeting = %{@meeting | attendee_name: nil}
       blocks = MessageBuilder.build_blocks("meeting.created", meeting, @timezone)
       assert Jason.encode!(blocks) =~ "john@example.com"
+    end
+  end
+
+  # The uid is the booker's capability (the cancel and reschedule links are
+  # built from it), so the host's link names the booking by its id.
+  describe "build_blocks/3: the link to the booking" do
+    test "names the booking by its id, never its uid" do
+      out = Jason.encode!(MessageBuilder.build_blocks("meeting.created", @meeting, @timezone))
+
+      assert out =~ "/dashboard/meetings?meeting=#{@meeting.id}"
+      refute out =~ @meeting.uid
     end
   end
 

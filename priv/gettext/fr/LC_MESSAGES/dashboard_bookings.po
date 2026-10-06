@@ -729,3 +729,8 @@ msgstr "Afficher toutes les réunions"
 #, elixir-autogen, elixir-format
 msgid "Showing one booking."
 msgstr "Une seule réservation est affichée."
+
+#: lib/tymeslot_web/components/dashboard/meetings/meeting_list_components.ex
+#, elixir-autogen, elixir-format
+msgid "This booking isn't available."
+msgstr "Cette réservation n'est pas disponible."

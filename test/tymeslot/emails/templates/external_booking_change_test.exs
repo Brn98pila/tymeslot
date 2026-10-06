@@ -40,17 +40,21 @@ defmodule Tymeslot.Emails.ExternalBookingChangeTest do
     end
 
     # The stored `view_url` named a public page that never existed. The
-    # host's link is built now, to their dashboard view of the booking.
+    # host's link is built now, to their dashboard view of the booking, and
+    # by its id: the uid is the booker's capability.
     test "links the host to the booking in their dashboard, not the stored link" do
+      id = UUID.generate()
       uid = UUID.generate()
-      meeting = build_meeting(%{uid: uid})
-      link = MeetingLinks.host_view_url(uid)
+      meeting = build_meeting(%{id: id, uid: uid})
+      link = MeetingLinks.host_view_url(id)
 
       email = ExternalBookingChange.render(meeting, "john@example.com", :deleted, "UTC")
 
-      assert link =~ "/dashboard/meetings?meeting=#{uid}"
+      assert link =~ "/dashboard/meetings?meeting=#{id}"
       assert email.text_body =~ link
-      assert email.html_body =~ "/dashboard/meetings?meeting=#{uid}"
+      assert email.html_body =~ "/dashboard/meetings?meeting=#{id}"
+      refute email.text_body =~ uid
+      refute email.html_body =~ uid
       refute email.text_body =~ "tymeslot.example.com/meetings/abc"
       refute email.html_body =~ "tymeslot.example.com/meetings/abc"
     end

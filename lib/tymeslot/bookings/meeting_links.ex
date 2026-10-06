@@ -6,9 +6,12 @@ defmodule Tymeslot.Bookings.MeetingLinks do
   pages. The view link is the organiser's: every message that carries it
   (the external-change email, chat notifications, webhook payloads) goes to
   the host, so it opens the booking in their dashboard, behind sign-in
-  (`host_view_url/1`). There is no public page that shows a booking.
+  (`host_view_url/1`). There is no public page that shows a booking. It is
+  keyed on the meeting's id, never its uid: the uid is the booker's bearer
+  capability, and the view link travels to chat channels, webhook endpoints
+  and inboxes the booker never chose to trust with it.
 
-  The links are built when they are rendered, from the meeting's uid, the
+  The links are built when they are rendered, from the meeting's uid and id, the
   organiser's username *now* and the application's base URL *now*. A booking
   also stores a copy of them (`view_url`, `reschedule_url`, `cancel_url`),
   written once at booking time; that copy goes stale as soon as the host
@@ -64,7 +67,7 @@ defmodule Tymeslot.Bookings.MeetingLinks do
        when is_integer(capacity) and capacity > 1 do
     meeting
     |> Map.take([:view_url, :reschedule_url, :cancel_url])
-    |> Map.put(:view_url, uid && host_view_url(uid))
+    |> Map.put(:view_url, uid && view_url(meeting))
   end
 
   defp links(%{uid: uid} = meeting, username_fn) when is_binary(uid) do
@@ -72,6 +75,7 @@ defmodule Tymeslot.Bookings.MeetingLinks do
     |> Map.get(:organizer_user_id)
     |> username_fn.()
     |> build(uid)
+    |> Map.put(:view_url, view_url(meeting))
   end
 
   # Without a uid there is nothing to link to; whatever the map carries stands.
@@ -95,6 +99,8 @@ defmodule Tymeslot.Bookings.MeetingLinks do
   The links for a booking with `uid` whose organiser is called `username`.
 
   Used at booking time to fill the stored columns, and by `for_meeting/1`.
+  The booking has no id yet at that point, so its `view_url` is the
+  organiser's meetings list; `for_meeting/1` narrows it to the booking.
   """
   @spec build(String.t() | nil, String.t()) :: %{
           view_url: String.t(),
@@ -103,20 +109,25 @@ defmodule Tymeslot.Bookings.MeetingLinks do
         }
   def build(username, uid) when is_binary(uid) do
     %{
-      view_url: host_view_url(uid),
+      view_url: meetings_list_url(),
       reschedule_url: url(username, uid, :reschedule),
       cancel_url: url(username, uid, :cancel)
     }
   end
 
   @doc """
-  The organiser's link to the booking with `uid`: their dashboard's meetings
-  list showing that booking alone. Built from the application's base URL
-  now, never read from the stored `view_url`.
+  The organiser's link to the booking with id `meeting_id`: their
+  dashboard's meetings list showing that booking alone. Built from the
+  application's base URL now, never read from the stored `view_url`.
   """
-  @spec host_view_url(String.t()) :: String.t()
-  def host_view_url(uid) when is_binary(uid),
-    do: UrlBuilder.build_url("/dashboard/meetings?" <> URI.encode_query(meeting: uid))
+  @spec host_view_url(Ecto.UUID.t()) :: String.t()
+  def host_view_url(meeting_id) when is_binary(meeting_id),
+    do: UrlBuilder.build_url("/dashboard/meetings?" <> URI.encode_query(meeting: meeting_id))
+
+  defp view_url(%{id: id}) when is_binary(id), do: host_view_url(id)
+  defp view_url(_unsaved), do: meetings_list_url()
+
+  defp meetings_list_url, do: UrlBuilder.build_url("/dashboard/meetings")
 
   @doc """
   Where `page` for the booking with `uid` lives now, as a path.

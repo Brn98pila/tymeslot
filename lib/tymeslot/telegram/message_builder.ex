@@ -197,9 +197,9 @@ defmodule Tymeslot.Telegram.MessageBuilder do
   end
 
   defp link_line(meeting) do
-    case Map.get(meeting, :uid) do
-      uid when is_binary(uid) ->
-        "\n\n<a href=\"#{esc(MeetingLinks.host_view_url(uid))}\">View in dashboard</a>"
+    case Map.get(meeting, :id) do
+      id when is_binary(id) ->
+        "\n\n<a href=\"#{esc(MeetingLinks.host_view_url(id))}\">View in dashboard</a>"
 
       _none ->
         ""
