@@ -22,6 +22,7 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker.ErrorsTest do
   alias Req.Test, as: ReqTest
   alias Tymeslot.EmailServiceMock
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
+  alias Tymeslot.Integrations.Calendar.Runtime.ClientManager
   alias Tymeslot.Workers.EmailWorker
   alias Tymeslot.Workers.SyncCalDavCalendarWorker
 
@@ -182,6 +183,51 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker.ErrorsTest do
 
       assert updated.calendar_paths == [path1()]
       assert updated.needs_reauth == false
+    end
+
+    # A calendar shared read-only and since unshared answers 404. Left
+    # selected, it stays in the set availability reads, so every booking
+    # page load fails closed on a calendar that no longer exists while the
+    # sync reports healthy.
+    test "deselects a selected calendar that is gone, so availability stops reading it" do
+      user = insert(:user)
+
+      integration =
+        insert(:calendar_integration,
+          user: user,
+          provider: "caldav",
+          is_active: true,
+          caldav_sync_tier: 3,
+          calendar_paths: [path1(), path2()],
+          calendar_list: [
+            %{id: path1(), path: path1(), name: "Bookings", selected: true},
+            %{id: path2(), path: path2(), name: "Shared", selected: true, read_only: true}
+          ]
+        )
+
+      ReqTest.stub(:tymeslot_http, fn conn ->
+        if conn.request_path == path1() do
+          conn
+          |> Conn.put_resp_header("content-type", "application/xml")
+          |> Conn.send_resp(207, caldav_report_xml("#{path1()}event1.ics", ical_path1()))
+        else
+          Conn.send_resp(conn, 404, "Not Found")
+        end
+      end)
+
+      assert :ok =
+               perform_job(SyncCalDavCalendarWorker, %{
+                 "calendar_integration_id" => integration.id
+               })
+
+      updated =
+        Repo.get!(Tymeslot.Integrations.Calendar.CalendarIntegrationSchema, integration.id)
+
+      assert Enum.find(updated.calendar_list, &(&1.path == path2())).selected == false
+      assert Enum.find(updated.calendar_list, &(&1.path == path1())).selected == true
+
+      {clients, []} = ClientManager.availability_sources(user.id)
+      assert Enum.flat_map(clients, & &1.client.calendar_paths) == [path1()]
     end
   end
 

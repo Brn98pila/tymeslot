@@ -319,20 +319,30 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   end
 
   @doc """
-  Removes the given paths from an integration's `calendar_paths`.
+  Removes the given paths from an integration's `calendar_paths`, and
+  deselects the `calendar_list` entries for them, in one update.
 
-  Used when a CalDAV calendar collection no longer exists on the server
-  (HTTP 404), so the sync worker stops fetching it on every run — the CalDAV
-  counterpart to `deselect_calendars/2`. A no-op (returns `{:ok, integration}`)
-  when nothing matches.
+  Used when a CalDAV collection no longer exists on the server (HTTP 404), so
+  the sync stops fetching it: the CalDAV counterpart to `deselect_calendars/2`.
+  Availability reads the selected `calendar_list` entries, so pruning the
+  paths alone would leave a vanished calendar (a revoked share) failing every
+  booking page closed. Entries match on their path, or id without one.
   """
   @spec remove_calendar_paths(CalendarIntegrationSchema.t(), [String.t()]) ::
           {:ok, CalendarIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
   def remove_calendar_paths(%CalendarIntegrationSchema{} = integration, paths) do
-    remaining = Enum.reject(integration.calendar_paths, &(&1 in paths))
+    remaining = Enum.reject(integration.calendar_paths || [], &(&1 in paths))
+
+    calendar_list =
+      Enum.map(integration.calendar_list || [], fn cal ->
+        if (cal.path || cal.id) in paths, do: %{cal | selected: false}, else: cal
+      end)
 
     integration
-    |> CalendarIntegrationSchema.changeset(%{calendar_paths: remaining})
+    |> CalendarIntegrationSchema.changeset(%{
+      calendar_paths: remaining,
+      calendar_list: calendar_list
+    })
     |> Repo.update()
   end
 
