@@ -74,7 +74,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
     if charged_as_booked?(payment, object) do
       classify(run(payment, event_id, object))
     else
-      Logger.warning("checkout.session.completed: amount or currency does not match the booking",
+      Logger.error("checkout.session.completed: amount or currency does not match the booking",
         payment_id: payment.id,
         checkout_session_id: object["id"],
         amount_total: object["amount_total"],

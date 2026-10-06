@@ -17,6 +17,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedOwnershipTes
   alias Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Repo
+  alias Tymeslot.Test.LogCapture
   alias Tymeslot.Workers.EmailWorker
 
   describe "handle/1 refuses a session that is not this booking's payment" do
@@ -61,6 +62,28 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedOwnershipTes
       assert_untouched(meeting, bp)
     end
 
+    # A paid session that does not match the booking's price is either
+    # tampering or a bug in checkout creation, and money has moved either
+    # way, so it is logged as an error for someone to act on.
+    test "logs a price mismatch as an error", %{meeting: meeting, bp: bp} do
+      LogCapture.attach()
+
+      event =
+        completed_event("evt_CHEAP_LOGGED", %{
+          "id" => "cs_CHEAP_LOGGED",
+          "client_reference_id" => meeting.id,
+          "amount_total" => 50
+        })
+
+      assert :ok = CheckoutSessionCompleted.handle(event)
+
+      assert %{level: :error, meta: meta} =
+               LogCapture.await_log("amount or currency does not match the booking")
+
+      assert meta.payment_id == bp.id
+      assert meta.amount_total == 50
+    end
+
     test "ignores a session whose currency differs from the booking's",
          %{meeting: meeting, bp: bp} do
       event =
@@ -87,6 +110,37 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedOwnershipTes
 
       assert :ok = CheckoutSessionCompleted.handle(event)
       assert_untouched(meeting, bp)
+    end
+  end
+
+  describe "handle/1 matching the booking's price" do
+    # Stripe reports ISO currency codes in lower case, but the comparison
+    # must not depend on it: the same currency in a different case is the
+    # same price.
+    test "confirms a session whose currency differs only in case" do
+      meeting = insert(:meeting, status: "awaiting_payment")
+
+      bp =
+        insert(:booking_payment,
+          stripe_account_id: @account,
+          meeting: meeting,
+          status: "pending",
+          amount_cents: 5000,
+          currency: "eur",
+          stripe_checkout_session_id: "cs_UPPER"
+        )
+
+      event =
+        completed_event("evt_UPPER", %{
+          "id" => "cs_UPPER",
+          "client_reference_id" => meeting.id,
+          "currency" => "EUR"
+        })
+
+      assert :ok = CheckoutSessionCompleted.handle(event)
+
+      assert %{status: "paid", last_event_id: "evt_UPPER"} = Repo.reload!(bp)
+      assert {:ok, %{status: "confirmed"}} = MeetingQueries.get_meeting(meeting.id)
     end
   end
 
