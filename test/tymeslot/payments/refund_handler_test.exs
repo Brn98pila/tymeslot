@@ -197,6 +197,27 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandlerTest do
                )
       end
     end
+
+    # Only a live subscription has access a refund can end; an incomplete or
+    # paused one never had it, so the email must not claim it was revoked.
+    test "a subscription that is incomplete or paused is not refunded" do
+      for status <- ~w(incomplete paused) do
+        refute RefundHandler.refunds_current_subscription?(
+                 %{invoice_id: "in_1", subscription_id: "sub_current"},
+                 %{@current | status: status}
+               )
+      end
+    end
+
+    test "every live subscription status is refunded" do
+      for status <- ~w(active trialing past_due unpaid) do
+        assert RefundHandler.refunds_current_subscription?(
+                 %{invoice_id: "in_1", subscription_id: "sub_current"},
+                 %{@current | status: status}
+               ),
+               status
+      end
+    end
   end
 
   describe "validate/1" do

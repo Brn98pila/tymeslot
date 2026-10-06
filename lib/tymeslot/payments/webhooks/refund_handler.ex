@@ -38,8 +38,10 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandler do
   alias Tymeslot.Payments.Webhooks.WebhookUtils
   alias Tymeslot.Utils.MapKeys
 
-  # Stripe statuses of a subscription that has ended for good.
-  @ended_subscription_statuses ~w(canceled incomplete_expired)
+  # Stripe statuses of a subscription that still exists and bills, or can
+  # resume billing. A refund only revokes one of these: an incomplete or
+  # paused subscription has nothing to revoke.
+  @live_subscription_statuses ~w(active trialing past_due unpaid)
 
   @impl Tymeslot.Payments.Behaviours.WebhookHandler
   def can_handle?(event_type) when event_type in ["charge.refunded", "charge.refund.updated"] do
@@ -198,7 +200,7 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandler do
   end
 
   # Whether the refunded charge paid for the subscription the customer holds
-  # now, and that subscription is still running. A charge with no invoice
+  # now, and that subscription is still live. A charge with no invoice
   # paid for no subscription; one whose invoice names a different
   # subscription paid for an earlier one. An invoice no subscription is
   # recorded for is taken to be the current subscription's.
@@ -208,7 +210,7 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandler do
   def refunds_current_subscription?(%{invoice_id: nil}, _subscription), do: false
 
   def refunds_current_subscription?(%{subscription_id: subscription_id}, subscription) do
-    Map.get(subscription, :status) not in @ended_subscription_statuses and
+    Map.get(subscription, :status) in @live_subscription_statuses and
       (is_nil(subscription_id) or
          subscription_id == Map.get(subscription, :stripe_subscription_id))
   end

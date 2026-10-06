@@ -73,9 +73,11 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
 
     customer_id = Keyword.get(opts, :customer_id, "cus_#{System.unique_integer([:positive])}")
 
+    # Stands in for a subscription row, so it carries the status of a live
+    # subscription: only a live one has access a refund can end.
     insert(:payment_transaction,
       user: user,
-      status: "completed",
+      status: "active",
       stripe_customer_id: customer_id
     )
 
