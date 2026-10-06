@@ -22,6 +22,8 @@ defmodule Tymeslot.Emails.Templates.CalendarInvitation do
 
   import Swoosh.Email
 
+  alias Tymeslot.Emails.RecipientLocale
+
   alias Tymeslot.Emails.Shared.{
     Formatting,
     MeetingComponents,
@@ -45,7 +47,7 @@ defmodule Tymeslot.Emails.Templates.CalendarInvitation do
   """
   @spec render(String.t(), map()) :: Swoosh.Email.t()
   def render(attendee_email, invitation_details) do
-    locale = Map.get(invitation_details, :attendee_locale, "en")
+    locale = RecipientLocale.attendee_locale(invitation_details)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       meeting_details =

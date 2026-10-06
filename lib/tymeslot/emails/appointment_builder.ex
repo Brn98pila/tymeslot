@@ -99,7 +99,7 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
   end
 
   defp build(meeting, reminder_interval) do
-    attendee_locale = Map.get(meeting, :attendee_locale, "en")
+    attendee_locale = RecipientLocale.attendee_locale(meeting)
 
     Gettext.with_locale(TymeslotWeb.Gettext, attendee_locale, fn ->
       owner_timezone = owner_timezone(meeting)

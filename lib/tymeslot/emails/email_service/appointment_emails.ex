@@ -5,6 +5,7 @@ defmodule Tymeslot.Emails.EmailService.AppointmentEmails do
 
   alias Swoosh.Email
   alias Tymeslot.Emails.Delivery
+  alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Integrations.Calendar.IcsGenerator
 
   alias Tymeslot.Emails.Templates.{
@@ -135,7 +136,7 @@ defmodule Tymeslot.Emails.EmailService.AppointmentEmails do
   @spec send_seat_reschedule_to_participant(String.t(), map(), map()) ::
           {:ok, any()} | {:error, any()}
   def send_seat_reschedule_to_participant(participant_email, appointment_details, old_event) do
-    locale = Map.get(appointment_details, :attendee_locale, "en")
+    locale = RecipientLocale.attendee_locale(appointment_details)
 
     old_event_details =
       Map.merge(appointment_details, %{

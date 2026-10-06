@@ -7,6 +7,7 @@ defmodule Tymeslot.Notifications.ContentBuilder do
   alias Tymeslot.Auth.UserQueries
   alias Tymeslot.Bookings.MeetingLinks
   alias Tymeslot.Emails.AppointmentBuilder
+  alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Notifications.Recipients
   alias Tymeslot.Profiles
   alias Tymeslot.Profiles.ProfileQueries
@@ -31,7 +32,7 @@ defmodule Tymeslot.Notifications.ContentBuilder do
       # Attendee information
       attendee_name: meeting.attendee_name,
       attendee_email: meeting.attendee_email,
-      attendee_locale: meeting.attendee_locale || "en",
+      attendee_locale: RecipientLocale.attendee_locale(meeting),
       attendee_message: meeting.attendee_message || "",
       attendee_timezone: attendee_timezone,
 
@@ -98,7 +99,7 @@ defmodule Tymeslot.Notifications.ContentBuilder do
       # Participant information
       attendee_name: meeting.attendee_name,
       attendee_email: meeting.attendee_email,
-      attendee_locale: meeting.attendee_locale || "en",
+      attendee_locale: RecipientLocale.attendee_locale(meeting),
       attendee_timezone: attendee_timezone,
       organizer_name: meeting.organizer_name,
       organizer_email: meeting.organizer_email,

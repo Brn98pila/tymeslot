@@ -45,6 +45,14 @@ defmodule Tymeslot.Emails.Shared.FormattingTest do
     test "falls back to to_string/1 for non-DateTime values" do
       assert Formatting.format_time_short(nil, "de") == ""
     end
+
+    # IST is India, Ireland or Israel; the zone's own name settles which.
+    test "names the zone alongside an ambiguous abbreviation" do
+      kolkata = DateTime.shift_zone!(~U[2026-03-05 09:00:00Z], "Asia/Kolkata")
+
+      assert Formatting.format_time_short(kolkata, "en") ==
+               "05 Mar 2026, 14:30 IST (Asia/Kolkata)"
+    end
   end
 
   describe "truncate/2" do

@@ -38,7 +38,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
           Tymeslot.Emails.EmailService.appointment_details()
         ) :: Swoosh.Email.t()
   def render(:attendee, attendee_email, appointment_details) do
-    locale = Map.get(appointment_details, :attendee_locale, "en")
+    locale = RecipientLocale.attendee_locale(appointment_details)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       attendee_video_url = JoinUrl.for(:attendee, appointment_details)
@@ -135,7 +135,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
 
     # Guests have no per-guest locale field; they intentionally inherit the
     # booker's locale (`:attendee_locale`) set when the booking was created.
-    locale = Map.get(appointment_details, :attendee_locale, "en")
+    locale = RecipientLocale.attendee_locale(appointment_details)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       guest_name = Map.get(appointment_details, :guest_name) || guest_email

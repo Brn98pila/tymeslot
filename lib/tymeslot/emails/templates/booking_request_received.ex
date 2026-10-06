@@ -23,6 +23,8 @@ defmodule Tymeslot.Emails.Templates.BookingRequestReceived do
   alias Tymeslot.Bookings.BookingTitle
   alias Tymeslot.Bookings.MeetingLinks
 
+  alias Tymeslot.Emails.RecipientLocale
+
   alias Tymeslot.Emails.Shared.{
     Formatting,
     MeetingComponents,
@@ -46,7 +48,7 @@ defmodule Tymeslot.Emails.Templates.BookingRequestReceived do
 
   @spec render(Meeting.t(), keyword()) :: Swoosh.Email.t()
   def render(%Meeting{} = meeting, opts \\ []) do
-    locale = meeting.attendee_locale || "en"
+    locale = RecipientLocale.attendee_locale(meeting)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       # The stored title is in the organiser's language; the booker reads it in

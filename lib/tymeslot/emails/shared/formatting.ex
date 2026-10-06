@@ -111,11 +111,14 @@ defmodule Tymeslot.Emails.Shared.Formatting do
 
   @doc """
   Formats a datetime as a short timestamp for change-summary displays, in the
-  datetime's own zone, named by its abbreviation. The clock is always 24-hour:
+  datetime's own zone, named by its abbreviation and, outside UTC, by its
+  IANA name as well: an abbreviation alone is ambiguous (IST is India,
+  Ireland or Israel; CST is the US or China). The clock is always 24-hour:
   these summaries compare two instants, so a stable, unambiguous rendering
   matters more than local convention. Only the month abbreviation is
   localised.
-  Example (en): "25 Jun 2026, 14:30 UTC", (de): "25 Jun 2026, 16:30 CEST"
+  Example (en): "25 Jun 2026, 14:30 UTC",
+  (de): "25 Jun 2026, 16:30 CEST (Europe/Berlin)"
   An all-day event's timing is a `Date.Range` of the days it covers and
   renders as a date range, since it has no clock time to show.
   Falls back to `to_string/1` for other values.
@@ -124,12 +127,16 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   def format_time_short(%DateTime{} = dt, locale) do
     month = LocaleFormat.format_month_name(dt.month, locale, :short)
     day = dt.day |> to_string() |> String.pad_leading(2, "0")
-    "#{day} #{month} #{dt.year}, #{Calendar.strftime(dt, "%H:%M %Z")}"
+    "#{day} #{month} #{dt.year}, #{Calendar.strftime(dt, "%H:%M %Z")}#{zone_name(dt)}"
   end
 
   def format_time_short(%Date.Range{} = days, locale), do: format_date_range(days, locale)
 
   def format_time_short(val, _locale), do: to_string(val)
+
+  defp zone_name(%DateTime{time_zone: "Etc/UTC"}), do: ""
+  defp zone_name(%DateTime{time_zone: zone, zone_abbr: zone}), do: ""
+  defp zone_name(%DateTime{time_zone: zone}), do: " (#{zone})"
 
   @doc """
   Formats the inclusive range of days an all-day event covers: one date for a

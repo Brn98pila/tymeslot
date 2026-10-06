@@ -25,6 +25,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation.PaymentBlocks do
   should call it.
   """
 
+  alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Emails.Shared.{Formatting, Sanitise, Stack, Styles, Text}
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.MeetingPayments
@@ -293,7 +294,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation.PaymentBlocks do
   end
 
   defp format_paid_at(%{paid_at: %DateTime{} = paid_at}, appointment_details) do
-    locale = Map.get(appointment_details, :attendee_locale, "en")
+    locale = RecipientLocale.attendee_locale(appointment_details)
     Formatting.format_datetime(paid_at, locale)
   end
 
