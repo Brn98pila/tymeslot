@@ -8,6 +8,7 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
   alias Swoosh.Email
   alias Tymeslot.Payments
   alias Tymeslot.Payments.PaymentTransactionSchema
+  alias Tymeslot.Payments.SubscriptionInvoiceQueries
   alias Tymeslot.Payments.Webhooks.RefundHandler
 
   defmodule RevocationManager do
@@ -18,11 +19,9 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
     end
   end
 
-  defmodule FailingManager do
-    @spec update_subscription_status(String.t(), String.t(), DateTime.t()) :: {:error, term()}
-    def update_subscription_status(_customer_id, _status, _at) do
-      {:error, :downstream_unavailable}
-    end
+  defmodule FailingHandler do
+    @spec handle_payment_event(map()) :: {:error, term()}
+    def handle_payment_event(_event), do: {:error, :downstream_unavailable}
   end
 
   defmodule CapturingTemplate do
@@ -44,6 +43,7 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
     original_manager = Application.get_env(:tymeslot, :subscription_manager)
     original_repo = Application.get_env(:tymeslot, :repo)
     original_template = Application.get_env(:tymeslot, :refund_processed_template)
+    original_handler = Application.get_env(:tymeslot, :payment_event_handler)
 
     Application.put_env(:tymeslot, :refund_processed_template, CapturingTemplate)
 
@@ -59,6 +59,7 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
       restore(:subscription_schema, original_schema)
       restore(:subscription_manager, original_manager)
       restore(:repo, original_repo)
+      restore(:payment_event_handler, original_handler)
     end)
 
     :ok = Payments.subscribe_to_payment_events()
@@ -82,13 +83,14 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
     {user, customer_id}
   end
 
-  defp refunded_charge(customer_id, refunded_cents, charge_cents) do
+  defp refunded_charge(customer_id, refunded_cents, charge_cents, invoice_id \\ nil) do
     %{
       "id" => "ch_test_#{System.unique_integer([:positive])}",
       "customer" => customer_id,
       "amount" => charge_cents,
       "amount_refunded" => refunded_cents,
-      "currency" => "eur"
+      "currency" => "eur",
+      "invoice" => invoice_id
     }
   end
 
@@ -97,7 +99,11 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
   end
 
   describe "process/2 — charge.refunded" do
-    test "full refund revokes subscription access and notifies the user" do
+    # Revocation has exactly one path: the payment-event handler, which gets
+    # the decision in the event. The handler no longer also flips the
+    # subscription through the manager, a second, local-only revocation
+    # that left the subscription billing at Stripe.
+    test "full refund hands the revocation to the payment-event handler and notifies the user" do
       Application.put_env(:tymeslot, :subscription_manager, RevocationManager)
       {user, customer_id} = linked_subscription()
 
@@ -106,11 +112,9 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
 
       assert {:ok, :refund_processed} = RefundHandler.process(event, charge)
 
-      # Revocation called with the right arguments
-      assert_received {:revoked, ^customer_id, "canceled", %DateTime{}}
+      refute_received {:revoked, _customer, _status, _at}
 
-      # Global payment event also fired, carrying the revocation decision so
-      # the SaaS consumer doesn't have to re-derive (or skip) it
+      # The payment event carries the revocation decision
       assert_received %{
         event: :charge_refunded,
         data: %{
@@ -186,8 +190,27 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
       refute_received {:revoked, _customer, _status, _at}
     end
 
-    test "manager error returns retry_later and skips the user notification" do
-      Application.put_env(:tymeslot, :subscription_manager, FailingManager)
+    test "names the subscription the refunded charge paid for, when its invoice is known" do
+      {_user, customer_id} = linked_subscription()
+
+      {:ok, _invoice} =
+        SubscriptionInvoiceQueries.upsert(%{
+          stripe_invoice_id: "in_refunded",
+          subscription_id: "sub_paid_for"
+        })
+
+      charge = refunded_charge(customer_id, 10_000, 10_000, "in_refunded")
+
+      assert {:ok, :refund_processed} = RefundHandler.process(refunded_event(), charge)
+
+      assert_received %{
+        event: :charge_refunded,
+        data: %{invoice_id: "in_refunded", subscription_id: "sub_paid_for"}
+      }
+    end
+
+    test "a handler failure returns retry_later and skips the user notification" do
+      Application.put_env(:tymeslot, :payment_event_handler, FailingHandler)
       {_user, customer_id} = linked_subscription()
 
       charge = refunded_charge(customer_id, 10_000, 10_000)

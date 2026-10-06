@@ -2,8 +2,13 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandler do
   @moduledoc """
   Handles Stripe refund webhook events.
 
-  CRITICAL: This handler protects revenue by revoking Pro access when refunds are issued.
-  Without this handler, users could receive refunds while keeping Pro access indefinitely.
+  CRITICAL: a full refund must end the subscription it paid for, or the user
+  keeps Pro access and is billed again. This handler decides whether a refund
+  revokes access and hands that decision, with the refunded charge's invoice
+  and subscription where known, to the configured payment-event handler,
+  which is the one place access is revoked (cancelling the subscription at
+  Stripe as well as locally). A handler failure fails the delivery, so
+  Stripe redelivers the refund. The handler itself then tells the user.
 
   ## Partial Refund Handling
 
@@ -27,9 +32,9 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandler do
   require Logger
 
   alias Tymeslot.Infrastructure.AdminAlerts
-  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Payments.CustomerLookup
   alias Tymeslot.Payments.PubSub
+  alias Tymeslot.Payments.SubscriptionInvoices
   alias Tymeslot.Payments.Webhooks.WebhookUtils
   alias Tymeslot.Utils.MapKeys
 
@@ -84,12 +89,19 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandler do
       stripe_event_id: event["id"]
     )
 
+    invoice_id = charge["invoice"]
+
     # Hand the refund to the configured payment-event handler first: if it
-    # fails, nothing below has run yet and Stripe redelivers the event.
+    # fails, nothing below has run yet and Stripe redelivers the event. The
+    # subscription the charge paid for, when its invoice is known, lets the
+    # handler revoke that subscription rather than whichever one the
+    # customer holds now.
     case PubSub.hand_off_payment_event(:charge_refunded, %{
            event_id: event["id"],
            charge_id: charge_id,
            customer_id: customer_id,
+           invoice_id: invoice_id,
+           subscription_id: SubscriptionInvoices.subscription_id_for_invoice(invoice_id),
            total_refunded: total_refunded,
            charge_amount: charge_amount,
            refund_percentage: calculate_refund_percentage(total_refunded, charge_amount),
@@ -129,52 +141,37 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandler do
         {:ok, :refund_logged}
 
       subscription ->
-        result =
-          if should_revoke do
-            ensure_revoked_access(
-              subscription,
-              charge_id,
-              customer_id,
-              total_refunded,
-              charge_amount
-            )
-          else
-            Logger.info("Refund below threshold - not revoking access",
-              user_id: subscription.user_id,
-              charge_id: charge_id,
-              total_refunded: total_refunded,
-              charge_amount: charge_amount,
-              refund_percentage: calculate_refund_percentage(total_refunded, charge_amount),
-              threshold: refund_revocation_threshold_percent()
-            )
-
-            :ok
-          end
-
-        case result do
-          :ok ->
-            # Alert admin about processed refund
-            AdminAlerts.report(:refund_processed,
-              summary: "Refund processed for subscription",
-              context: %{
-                user_id: subscription.user_id,
-                charge_id: charge_id,
-                total_refunded: total_refunded,
-                charge_amount: charge_amount,
-                access_revoked: should_revoke
-              }
-            )
-
-            # Send email notification to user, quoting the amount of THIS
-            # refund rather than the cumulative total across the charge.
-            latest_refund_amount = calculate_latest_refund_amount(charge)
-            send_refund_email(subscription, latest_refund_amount, should_revoke, charge)
-
-            {:ok, :refund_processed}
-
-          error ->
-            error
+        # Revoking access is the payment-event handler's job: it received
+        # this refund, with the decision, above. Here the user is told.
+        if !should_revoke do
+          Logger.info("Refund below threshold - not revoking access",
+            user_id: subscription.user_id,
+            charge_id: charge_id,
+            total_refunded: total_refunded,
+            charge_amount: charge_amount,
+            refund_percentage: calculate_refund_percentage(total_refunded, charge_amount),
+            threshold: refund_revocation_threshold_percent()
+          )
         end
+
+        # Alert admin about processed refund
+        AdminAlerts.report(:refund_processed,
+          summary: "Refund processed for subscription",
+          context: %{
+            user_id: subscription.user_id,
+            charge_id: charge_id,
+            total_refunded: total_refunded,
+            charge_amount: charge_amount,
+            access_revoked: should_revoke
+          }
+        )
+
+        # Send email notification to user, quoting the amount of THIS
+        # refund rather than the cumulative total across the charge.
+        latest_refund_amount = calculate_latest_refund_amount(charge)
+        send_refund_email(subscription, latest_refund_amount, should_revoke, charge)
+
+        {:ok, :refund_processed}
     end
   end
 
@@ -298,53 +295,5 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandler do
       error_msg: "Failed to send refund notification: ",
       standalone_msg: "Refund processed template not configured (Standalone mode)"
     )
-  end
-
-  defp revoke_subscription_access(stripe_customer_id) do
-    manager = subscription_manager()
-
-    if manager && Code.ensure_loaded?(manager) do
-      manager.update_subscription_status(stripe_customer_id, "canceled", DateTime.utc_now())
-    else
-      {:error, :subscription_manager_unavailable,
-       "Subscription manager not configured - cannot revoke access"}
-    end
-  end
-
-  defp subscription_manager do
-    Application.get_env(:tymeslot, :subscription_manager)
-  end
-
-  defp ensure_revoked_access(subscription, charge_id, customer_id, total_refunded, charge_amount) do
-    case revoke_subscription_access(customer_id) do
-      {:ok, _result} ->
-        Logger.info("Refund processed - access revoked",
-          user_id: subscription.user_id,
-          charge_id: charge_id,
-          customer_id: customer_id,
-          total_refunded: total_refunded,
-          charge_amount: charge_amount,
-          refund_percentage: calculate_refund_percentage(total_refunded, charge_amount)
-        )
-
-        :ok
-
-      {:error, :subscription_manager_unavailable, _message} ->
-        Logger.info("REFUND SKIPPED - Subscription manager not configured",
-          charge_id: charge_id,
-          customer_id: customer_id
-        )
-
-        :ok
-
-      {:error, reason} ->
-        Logger.error("Refund error - failed to revoke access",
-          user_id: subscription.user_id,
-          charge_id: charge_id,
-          error: LogFormat.reason(reason)
-        )
-
-        {:error, :retry_later, "Subscription revocation failed"}
-    end
   end
 end
