@@ -97,7 +97,8 @@ defmodule Tymeslot.Bookings.Validation do
   enforces for the display path. They are then turned into instants by
   `Availability.Events.convert_events_to_timezone/3`, the conversion the
   display path uses, so an all-day event blocks the owner's local day here
-  exactly as it does on the booking page.
+  exactly as it does on the booking page, and an event without an end blocks
+  the same stretch on both.
   """
   @spec check_slot_availability(
           DateTime.t(),
@@ -110,7 +111,6 @@ defmodule Tymeslot.Bookings.Validation do
     intervals =
       events
       |> Enum.filter(&CalendarEvent.blocking?/1)
-      |> Enum.map(&with_end/1)
       |> Events.convert_events_to_timezone(owner_timezone, "Etc/UTC")
 
     if TimeRange.has_conflict_with_events?(start_datetime, end_datetime, intervals, buffers) do
@@ -225,17 +225,6 @@ defmodule Tymeslot.Bookings.Validation do
   end
 
   defp parse_date(_invalid), do: {:error, :invalid_date}
-
-  # An event without an end still blocks: a timed one for thirty minutes, and
-  # an all-day one for its day, as RFC 5545 reads a date-only DTSTART with no
-  # DTEND.
-  defp with_end(%{start_time: %Date{} = start_date, end_time: nil} = event),
-    do: %{event | end_time: Date.add(start_date, 1)}
-
-  defp with_end(%{start_time: %DateTime{} = start_time, end_time: nil} = event),
-    do: %{event | end_time: DateTime.add(start_time, 30, :minute)}
-
-  defp with_end(event), do: event
 
   # `TimeSlots.parse_time_slot/1` raises on unparsable input; its underlying
   # parser already reports the failure as a tuple, so call that directly and

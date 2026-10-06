@@ -23,6 +23,9 @@ defmodule Tymeslot.Availability.Events do
   - **Timed events** (`all_day: false`): `start_at` / `end_at` are shifted to
     the target timezone via `DateTime.shift_zone/2`.
 
+  - **Events without an end** block thirty minutes when timed and their whole
+    day when date-only.
+
   Events that cannot be converted (e.g. invalid timezone data) are dropped.
   """
   @spec convert_events_to_timezone([CalendarEvent.t()], String.t(), String.t()) :: [map()]
@@ -58,7 +61,7 @@ defmodule Tymeslot.Availability.Events do
   end
 
   defp interval(event, owner_timezone, target_timezone) do
-    {start_val, end_val} = bounds(event)
+    {start_val, end_val} = event |> bounds() |> with_default_end()
 
     with {:ok, s} <- shift_safe(start_val, owner_timezone, target_timezone),
          {:ok, e} <- shift_safe(end_val, owner_timezone, target_timezone) do
@@ -87,6 +90,17 @@ defmodule Tymeslot.Availability.Events do
     do: maybe_reanchor_utc_midnight(event)
 
   defp bounds(_other), do: {nil, nil}
+
+  # An event without an end still blocks: a timed one for thirty minutes, and
+  # an all-day one for its day, as RFC 5545 reads a date-only DTSTART with no
+  # DTEND. Applied here so the booking page and the booking submit read such
+  # an event the same way.
+  defp with_default_end({%Date{} = start_date, nil}), do: {start_date, Date.add(start_date, 1)}
+
+  defp with_default_end({%DateTime{} = start_time, nil}),
+    do: {start_time, DateTime.add(start_time, 30, :minute)}
+
+  defp with_default_end(bounds), do: bounds
 
   defp shift_safe(nil, _owner_timezone, _target_timezone), do: {:error, nil}
 

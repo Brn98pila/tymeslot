@@ -83,6 +83,50 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyAllDayTest do
     end
   end
 
+  # A provider can send an event with no end. Both paths read it the same
+  # way: a date-only one blocks the host's day, a timed one thirty minutes.
+  describe "an event without an end" do
+    setup :host_in_sydney
+
+    test "an all-day one hides the host's day and the submit refuses it", ctx do
+      %{user: user, profile: profile, meeting_type: meeting_type, holiday: holiday} = ctx
+      config = Policy.scheduling_config(user.id, meeting_type)
+      stub_calendar([no_end_event(holiday, all_day: true)])
+
+      assert offered(profile, holiday, "30min", meeting_type: meeting_type) == []
+
+      assert CalendarCheck.probe(slot(user, holiday, "9:00 AM", ctx.timezone), config) ==
+               {:error, :slot_unavailable}
+
+      assert {:error, :slot_taken} = book_at(ctx, holiday, "9:00 AM")
+
+      assert "9:00 AM" in offered(profile, Date.add(holiday, 1), "30min",
+               meeting_type: meeting_type
+             )
+    end
+
+    test "a timed one blocks thirty minutes on both paths", ctx do
+      %{user: user, profile: profile, meeting_type: meeting_type, holiday: day} = ctx
+      config = Policy.scheduling_config(user.id, meeting_type)
+
+      stub_calendar([
+        no_end_event(DateTime.new!(day, ~T[10:00:00], ctx.timezone), all_day: false)
+      ])
+
+      offered = offered(profile, day, "30min", meeting_type: meeting_type)
+
+      # Hidden at its start, offered again soon after: a block of thirty
+      # minutes (plus the buffers), not a dropped event and not a whole day.
+      refute "10:00 AM" in offered
+      assert "11:00 AM" in offered
+
+      for time <- ["9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM"] do
+        expected = if time in offered, do: :ok, else: {:error, :slot_unavailable}
+        assert CalendarCheck.probe(slot(user, day, time, ctx.timezone), config) == expected
+      end
+    end
+  end
+
   # A booking submitted from a page drawn before the host added the event, or
   # a reschedule onto that day, is refused by the submit-time re-read alone.
   # These hosts' local day sits wholly or partly in a neighbouring UTC day, so
@@ -114,6 +158,18 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyAllDayTest do
     meeting_type = insert(:meeting_type, user: user, duration_minutes: 30)
 
     %{user: user, profile: profile, meeting_type: meeting_type, timezone: timezone}
+  end
+
+  defp no_end_event(start, all_day: all_day) do
+    %{
+      uid: "no-end-#{System.unique_integer([:positive])}",
+      start_time: start,
+      end_time: nil,
+      all_day: all_day,
+      status: "confirmed",
+      transparency: "opaque",
+      summary: "No end"
+    }
   end
 
   # Returns only the events overlapping the requested UTC days, reading an
