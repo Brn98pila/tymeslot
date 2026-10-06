@@ -25,6 +25,7 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
     TimezoneHelper
   }
 
+  alias Tymeslot.Emails.HostClock
   alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Utils.UrlBuilder
 
@@ -55,8 +56,10 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
         | title: meeting.title || dgettext("emails_booking", "Meeting")
       }
 
-      html_body = render_html(meeting, owner_time, discrepancy, locale)
-      text_body = render_text(meeting, owner_time, discrepancy, locale)
+      # The host's own clock, as their other booking emails use.
+      time_format = HostClock.for_meeting(meeting, locale).time_format
+      html_body = render_html(meeting, {owner_time, time_format}, discrepancy, locale)
+      text_body = render_text(meeting, {owner_time, time_format}, discrepancy, locale)
 
       MjmlEmail.base_email()
       |> to(recipient(meeting.organizer_name, organizer_email))
@@ -77,7 +80,7 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
   # HTML rendering
   # ---------------------------------------------------------------------------
 
-  defp render_html(meeting, owner_time, discrepancy, locale) do
+  defp render_html(meeting, {owner_time, time_format}, discrepancy, locale) do
     dashboard_url = UrlBuilder.build_url("/dashboard/meetings")
     view_url = meeting.view_url || dashboard_url
 
@@ -89,7 +92,7 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
 
     #{Text.section_title(safe_title, padding: "24px 0 16px 0")}
 
-    #{MeetingComponents.meeting_details_table(%{date: owner_time, start_time: owner_time, duration: meeting.duration, location: meeting.location, location_type: if(meeting.meeting_url, do: :video, else: :custom), meeting_type: meeting.meeting_type},
+    #{MeetingComponents.meeting_details_table(%{date: owner_time, start_time: owner_time, duration: meeting.duration, location: meeting.location, location_type: if(meeting.meeting_url, do: :video, else: :custom), meeting_type: meeting.meeting_type, time_format: time_format},
     locale)}
 
     #{MeetingComponents.custom_answers_section(meeting)}
@@ -172,7 +175,7 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
   # Plain-text rendering
   # ---------------------------------------------------------------------------
 
-  defp render_text(meeting, owner_time, :deleted, locale) do
+  defp render_text(meeting, {owner_time, time_format}, :deleted, locale) do
     dashboard_url = UrlBuilder.build_url("/dashboard/meetings")
     view_url = meeting.view_url || dashboard_url
     custom_answers = TextBodyHelper.format_custom_answers(meeting, locale)
@@ -184,7 +187,7 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
 
     #{dgettext("emails_booking", "MEETING DETAILS:")}
     #{dgettext("emails_booking", "Date:")} #{Formatting.format_date(owner_time, locale)}
-    #{dgettext("emails_booking", "Time:")} #{Formatting.format_time(owner_time, locale)}
+    #{dgettext("emails_booking", "Time:")} #{Formatting.format_time(owner_time, locale, time_format)}
     #{dgettext("emails_booking", "Duration:")} #{Formatting.format_duration(meeting.duration, locale)}
     #{dgettext("emails_booking", "Location:")} #{meeting.location || dgettext("emails_booking", "Not specified")}
     #{custom_answers}
@@ -197,7 +200,7 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
     """
   end
 
-  defp render_text(meeting, owner_time, :modified, locale) do
+  defp render_text(meeting, {owner_time, time_format}, :modified, locale) do
     dashboard_url = UrlBuilder.build_url("/dashboard/meetings")
     view_url = meeting.view_url || dashboard_url
     custom_answers = TextBodyHelper.format_custom_answers(meeting, locale)
@@ -209,7 +212,7 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
 
     #{dgettext("emails_booking", "ORIGINAL BOOKING DETAILS:")}
     #{dgettext("emails_booking", "Date:")} #{Formatting.format_date(owner_time, locale)}
-    #{dgettext("emails_booking", "Time:")} #{Formatting.format_time(owner_time, locale)}
+    #{dgettext("emails_booking", "Time:")} #{Formatting.format_time(owner_time, locale, time_format)}
     #{dgettext("emails_booking", "Duration:")} #{Formatting.format_duration(meeting.duration, locale)}
     #{dgettext("emails_booking", "Location:")} #{meeting.location || dgettext("emails_booking", "Not specified")}
     #{custom_answers}

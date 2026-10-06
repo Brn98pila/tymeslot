@@ -216,6 +216,23 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   end
 
   @doc """
+  Formats a complete datetime, letting an organiser's chosen clock override
+  the locale convention, as `format_time/3` does for a time alone. `nil`
+  behaves exactly like `format_datetime/2`.
+  """
+  @spec format_datetime(DateTime.t(), String.t(), String.t() | nil) :: String.t()
+  def format_datetime(%DateTime{} = datetime, locale, nil), do: format_datetime(datetime, locale)
+
+  def format_datetime(%DateTime{} = datetime, locale, time_format) do
+    Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
+      dgettext("emails", "%{date} at %{time}",
+        date: format_date(datetime, locale),
+        time: format_time(datetime, locale, time_format)
+      )
+    end)
+  end
+
+  @doc """
   Formats a meeting duration in a locale-aware way.
   Example (en): "30 minutes", "1 hour"; (de): "30 Minuten", "1 Stunde"
 
