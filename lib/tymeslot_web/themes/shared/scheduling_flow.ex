@@ -30,6 +30,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   alias TymeslotWeb.Themes.Shared.CustomQuestions.Engine, as: QEngine
   alias TymeslotWeb.Themes.Shared.EventHandlers
   alias TymeslotWeb.Themes.Shared.GuestBooking
+  alias TymeslotWeb.Themes.Shared.Journey.Facts.MeetingType
   alias TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry
   alias TymeslotWeb.Themes.Shared.ReschedulePin
   alias TymeslotWeb.Themes.Shared.SlotGrouping
@@ -44,7 +45,12 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   offer it to the theme.
   """
   @spec handle_step_event(Socket.t(), atom(), atom(), term()) :: reply() | :unhandled
-  def handle_step_event(socket, :overview, event, data), do: overview_event(socket, event, data)
+  def handle_step_event(socket, :overview, event, data) do
+    if event in MeetingType.events(),
+      do: MeetingType.handle(socket, event, data),
+      else: overview_event(socket, event, data)
+  end
+
   def handle_step_event(socket, :schedule, event, data), do: schedule_event(socket, event, data)
   def handle_step_event(socket, :questions, event, data), do: questions_event(socket, event, data)
   def handle_step_event(socket, :booking, event, data), do: booking_event(socket, event, data)
@@ -122,22 +128,6 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   def navigate_to_step(socket, _params), do: {:noreply, socket}
 
   # Overview
-
-  # A pinned reschedule has no choice of type to make, so the payload is
-  # ignored rather than trusted; `ReschedulePin` says why that matters even
-  # though no second card is rendered to click.
-  defp overview_event(socket, :select_duration, data) do
-    duration = ReschedulePin.selected_duration(socket, data)
-
-    socket =
-      socket
-      |> assign(selected_duration: duration, duration: duration)
-      |> StepEntry.maybe_assign_meeting_type(duration)
-      # Trigger availability refresh when duration changes
-      |> AvailabilityHelpers.fetch_month_availability_async()
-
-    {:noreply, socket}
-  end
 
   defp overview_event(socket, :next_step, _data),
     do: validated_transition(socket, :overview, :schedule)

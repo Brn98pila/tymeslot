@@ -5,6 +5,7 @@ defmodule TymeslotWeb.Themes.Shared.StateMachineHelpers do
 
   alias Tymeslot.Availability.Calculate
   alias Tymeslot.MeetingTypes
+  alias TymeslotWeb.Themes.Shared.Journey.Facts.MeetingType
 
   # `awaiting_payment` is a transitional state used by embedded paid
   # bookings: Stripe Checkout opens in a new tab and the iframe waits for
@@ -98,10 +99,10 @@ defmodule TymeslotWeb.Themes.Shared.StateMachineHelpers do
   @spec validate_step_requirements(Phoenix.LiveView.Socket.t(), atom()) ::
           :ok | {:error, MeetingTypes.Duration.selection_error() | Calculate.selection_error()}
   defp validate_step_requirements(socket, :schedule) do
-    MeetingTypes.validate_duration_selection(
-      socket.assigns[:selected_duration],
-      validatable_meeting_types(socket)
-    )
+    case MeetingType.continue(socket) do
+      {:done, _socket} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   # Same precondition as :booking — booker must have selected a date and time.
@@ -114,17 +115,5 @@ defmodule TymeslotWeb.Themes.Shared.StateMachineHelpers do
       socket.assigns[:selected_time],
       socket.assigns[:available_slots]
     )
-  end
-
-  # The booker's selection is authoritative once resolved. A private type is
-  # reached by its direct link and is absent from the public `:meeting_types`
-  # list, so include the resolved `:meeting_type` to validate against.
-  defp validatable_meeting_types(socket) do
-    list = socket.assigns[:meeting_types] || []
-
-    case socket.assigns[:meeting_type] do
-      nil -> list
-      meeting_type -> [meeting_type | list]
-    end
   end
 end
