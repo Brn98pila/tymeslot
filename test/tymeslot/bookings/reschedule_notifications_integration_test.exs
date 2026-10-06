@@ -34,7 +34,9 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
   alias Tymeslot.Notifications.Orchestrator
   alias Tymeslot.Repo
   alias Tymeslot.TestMocks
+  alias Tymeslot.Workers.DeliveryClaims.DeliveryClaimQueries
   alias Tymeslot.Workers.EmailWorker
+  alias Tymeslot.Workers.EmailWorkerHandlers
   alias Tymeslot.Workers.TelegramWorker
   alias Tymeslot.Workers.WebhookWorker
 
@@ -350,6 +352,29 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
 
       assert [%{args: %{"event_type" => "meeting.rescheduled"}}] =
                all_enqueued(worker: TelegramWorker)
+    end
+
+    # The send now runs in the email job, not in `execute/4`, so the raise is
+    # only reached there. It must fail the job, which Oban then retries, and
+    # must not leave the participants' send claimed, or the retry would skip
+    # it. The handler is run here directly: in the worker it runs in a linked
+    # task, whose crash takes the job's process (here the test's) with it.
+    test "the email job fails for a retry, leaving nothing claimed", %{
+      user: user,
+      meeting: meeting
+    } do
+      new_params = reschedule_params_for(future_datetime(8, :day))
+
+      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
+
+      [job] = all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"})
+
+      assert_raise KeyError, fn ->
+        EmailWorkerHandlers.execute_email_action("send_reschedule_emails", job.args, job.id)
+      end
+
+      refute DeliveryClaimQueries.claimed?(job.id, "reschedule:participants")
+      refute_received {:email, _email}
     end
 
     test "still persists the new meeting time", %{user: user, meeting: meeting} do

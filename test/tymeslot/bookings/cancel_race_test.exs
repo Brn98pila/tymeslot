@@ -28,6 +28,7 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.TestMocks
   alias Tymeslot.Workers.CalendarEventWorker
+  alias Tymeslot.Workers.EmailWorker
 
   # Records every cancellation the notification pipeline is asked to send.
   # Oban's uniqueness window would fold a second cancellation job into the
@@ -135,10 +136,14 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
       %{meeting: meeting, user: user, params: params} = booking(false)
 
       cancel_during_calendar_fetch(meeting)
-      expect(Tymeslot.EmailServiceMock, :send_reschedule_emails, 0, fn _details -> nil end)
 
       assert {:error, "Cannot reschedule a cancelled meeting"} =
                Reschedule.execute(meeting.uid, params, %{}, user.id)
+
+      refute_enqueued(
+        worker: EmailWorker,
+        args: %{"action" => "send_reschedule_emails", "meeting_id" => meeting.id}
+      )
 
       assert {:ok, reloaded} = MeetingQueries.get_meeting(meeting.id)
       assert reloaded.status == "cancelled"

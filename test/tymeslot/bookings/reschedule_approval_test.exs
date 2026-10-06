@@ -270,11 +270,14 @@ defmodule Tymeslot.Bookings.RescheduleApprovalTest do
           approval_deadline_at: DateTime.add(DateTime.utc_now(:second), 11, :hour)
         })
 
-      expect(Tymeslot.EmailServiceMock, :send_reschedule_emails, 0, fn _details ->
-        {{:ok, :sent}, {:ok, :sent}}
-      end)
-
       assert {:ok, _confirmed} = Approval.approve(reload(meeting))
+
+      # The notice would go out from an email job, so its absence is checked
+      # there: a mail mock expecting no call is never reached either way.
+      refute_enqueued(
+        worker: EmailWorker,
+        args: %{"action" => "send_reschedule_emails", "meeting_id" => meeting.id}
+      )
     end
 
     test "tells the host when the request to move a confirmed booking lapses" do
