@@ -432,13 +432,26 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   carries it; `nil` for a booking whose new time the host approved after a
   reschedule, whose previous time is no longer known. Not unique: every move
   is its own notice.
+
+  The job also carries the time `meeting` moved to and the status the move
+  left it in, so a notice overtaken by a later move, a cancellation or a
+  pending reschedule request is dropped rather than sent with times it never
+  announced.
   """
-  @spec schedule_reschedule_emails(term(), map() | nil) :: :ok | {:error, String.t()}
-  def schedule_reschedule_emails(meeting_id, original) do
-    %{"action" => "send_reschedule_emails", "meeting_id" => meeting_id}
+  @spec schedule_reschedule_emails(
+          %{id: term(), start_time: DateTime.t(), status: String.t()},
+          map() | nil
+        ) :: :ok | {:error, String.t()}
+  def schedule_reschedule_emails(meeting, original) do
+    %{
+      "action" => "send_reschedule_emails",
+      "meeting_id" => meeting.id,
+      "rescheduled_to" => DateTime.to_iso8601(meeting.start_time),
+      "status" => meeting.status
+    }
     |> maybe_put_original(original)
     |> EmailWorker.new(queue: :emails, priority: 0)
-    |> insert_job("Reschedule emails", meeting_id)
+    |> insert_job("Reschedule emails", meeting.id)
   end
 
   defp maybe_put_original(args, nil), do: args

@@ -87,6 +87,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers do
     IntegrationEmails,
     MeetingEmails,
     PollEmails,
+    RescheduleEmails,
     SeatJobs
   ]
 

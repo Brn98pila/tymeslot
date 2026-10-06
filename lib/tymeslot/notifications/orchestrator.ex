@@ -309,7 +309,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
     with :ok <- Recipients.validate_recipients(recipients),
          :ok <- ContentBuilder.validate_content(content) do
       GuestNotifications.reset_for_new_time(updated_meeting)
-      schedule_reschedule_job(updated_meeting.id, original_meeting)
+      schedule_reschedule_job(updated_meeting, original_meeting)
     end
   end
 
@@ -342,7 +342,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
 
     with :ok <- Recipients.validate_recipients(recipients),
          :ok <- ContentBuilder.validate_content(content) do
-      schedule_reschedule_job(meeting.id, nil)
+      schedule_reschedule_job(meeting, nil)
     end
   end
 
@@ -453,8 +453,8 @@ defmodule Tymeslot.Notifications.Orchestrator do
     )
   end
 
-  defp schedule_reschedule_job(meeting_id, original_meeting) do
-    case get_email_worker_module().schedule_reschedule_emails(meeting_id, original_meeting) do
+  defp schedule_reschedule_job(meeting, original_meeting) do
+    case get_email_worker_module().schedule_reschedule_emails(meeting, original_meeting) do
       :ok -> {:ok, :reschedules_scheduled}
       {:error, _reason} = error -> error
     end

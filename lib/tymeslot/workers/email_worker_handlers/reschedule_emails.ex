@@ -24,29 +24,80 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails do
 
   require Logger
 
+  alias Tymeslot.Clock
   alias Tymeslot.Infrastructure.Config
+  alias Tymeslot.Meetings.MeetingState
   alias Tymeslot.Notifications.ContentBuilder
   alias Tymeslot.Notifications.GuestNotifications
   alias Tymeslot.Workers.DeliveryClaims
   alias Tymeslot.Workers.EmailWorkerHandlers.DeliveryOutcome
   alias Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails
 
-  # The same reason `MeetingEmails` gives, so it counts as an expected end of
-  # the job there.
+  # A notice overtaken by events since the move it announces. The cancelled
+  # reason is the one `MeetingEmails` gives, the void-slot one the one
+  # `SeatJobs` gives.
   @meeting_cancelled "Meeting cancelled"
+  @slot_void "Meeting time no longer holds"
+  @moved_again "Meeting moved again"
+  @status_changed "Meeting status changed"
+  @meeting_started "Meeting already started"
 
+  @doc """
+  Whether `reason`, from a discard this module returned, is an expected end
+  of the email job rather than a fault
+  (see `Tymeslot.Infrastructure.ExpectedJobOutcome`).
+  """
+  @spec expected_discard?(term()) :: boolean()
+  def expected_discard?(reason),
+    do:
+      reason in [@meeting_cancelled, @slot_void, @moved_again, @status_changed, @meeting_started]
+
+  @doc """
+  Sends the notices for the move the job announces, unless the booking has
+  moved on since: cancelled, sent back for a new time, moved again (the later
+  move's own job tells everyone the time it now has), approved or declined
+  into another status, or already started. Each of those discards the job
+  rather than sending times nobody should act on.
+  """
   @spec handle_reschedule_emails(%{String.t() => term()}, DeliveryClaims.job_id()) ::
           :ok | {:error, term()} | {:discard, String.t()}
   def handle_reschedule_emails(%{"meeting_id" => meeting_id} = args, job_id) do
     MeetingEmails.with_meeting(meeting_id, "reschedule emails", fn meeting ->
-      if meeting.status == "cancelled" do
-        Logger.info("Skipping reschedule emails for cancelled meeting", meeting_id: meeting_id)
-        {:discard, @meeting_cancelled}
-      else
-        send_reschedule_emails(meeting, Map.get(args, "original"), job_id)
+      case overtaken(meeting, args) do
+        nil ->
+          send_reschedule_emails(meeting, Map.get(args, "original"), job_id)
+
+        reason ->
+          Logger.info("Skipping reschedule emails overtaken by a later change",
+            meeting_id: meeting_id,
+            reason: reason
+          )
+
+          {:discard, reason}
       end
     end)
   end
+
+  defp overtaken(meeting, args) do
+    cond do
+      meeting.status == "cancelled" -> @meeting_cancelled
+      MeetingState.slot_void?(meeting) -> @slot_void
+      moved_again?(meeting, args["rescheduled_to"]) -> @moved_again
+      status_changed?(meeting, args["status"]) -> @status_changed
+      DateTime.compare(meeting.start_time, Clock.utc_now()) != :gt -> @meeting_started
+      true -> nil
+    end
+  end
+
+  # Jobs enqueued before the move's time and status were carried have
+  # neither, and are judged on the rest.
+  defp moved_again?(_meeting, nil), do: false
+
+  defp moved_again?(meeting, rescheduled_to),
+    do: DateTime.compare(meeting.start_time, parse_datetime(rescheduled_to)) != :eq
+
+  defp status_changed?(_meeting, nil), do: false
+  defp status_changed?(meeting, status), do: meeting.status != status
 
   defp send_reschedule_emails(meeting, original, job_id) do
     content = content(meeting, original)

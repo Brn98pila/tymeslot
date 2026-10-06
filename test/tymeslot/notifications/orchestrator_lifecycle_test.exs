@@ -154,15 +154,15 @@ defmodule Tymeslot.Notifications.OrchestratorLifecycleTest do
 
       original =
         meeting_for_lifecycle(%{
-          start_time: ~U[2026-06-01 10:00:00Z],
-          end_time: ~U[2026-06-01 11:00:00Z]
+          start_time: ~U[2036-06-01 10:00:00Z],
+          end_time: ~U[2036-06-01 11:00:00Z]
         })
 
       updated =
         original
         |> Changeset.change(
-          start_time: ~U[2026-06-02 14:00:00Z],
-          end_time: ~U[2026-06-02 15:00:00Z]
+          start_time: ~U[2036-06-02 14:00:00Z],
+          end_time: ~U[2036-06-02 15:00:00Z]
         )
         |> Repo.update!()
 
@@ -174,15 +174,15 @@ defmodule Tymeslot.Notifications.OrchestratorLifecycleTest do
       assert [job] =
                all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"})
 
-      assert job.args["original"]["start_time"] == "2026-06-01T10:00:00Z"
+      assert job.args["original"]["start_time"] == "2036-06-01T10:00:00Z"
       assert :ok = perform_job(EmailWorker, job.args)
 
       assert_received {:reschedule_emails_sent, content}
       assert content.organizer_email == "alice@example.com"
       assert content.attendee_email == "bob@example.com"
       assert content.is_rescheduled == true
-      assert content.original_start_time == ~U[2026-06-01 10:00:00Z]
-      assert content.start_time == ~U[2026-06-02 14:00:00Z]
+      assert content.original_start_time == ~U[2036-06-01 10:00:00Z]
+      assert content.start_time == ~U[2036-06-02 14:00:00Z]
     end
 
     # With the mail provider unavailable nobody may be left untold that the
