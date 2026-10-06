@@ -42,6 +42,16 @@ defmodule Tymeslot.Workers.VideoTranscoder do
   def expected_outcome?(reason),
     do: reason in [@source_gone]
 
+  # Every variant gets its own bound inside the transcoder; this is the
+  # backstop for the job as a whole, with room for the status writes and
+  # cleanup around the four encodes. Without it Oban lets a job run forever,
+  # and the queue runs one job at a time.
+  @impl Oban.Worker
+  def timeout(_job) do
+    length(Transcoder.variant_definitions()) * Transcoder.variant_timeout() +
+      :timer.minutes(5)
+  end
+
   @impl Oban.Worker
   def perform(
         %Oban.Job{args: %{"theme_customization_id" => id, "video_path" => video_path}} = job
