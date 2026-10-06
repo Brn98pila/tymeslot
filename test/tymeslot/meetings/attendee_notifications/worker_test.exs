@@ -6,6 +6,8 @@ defmodule Tymeslot.Meetings.AttendeeNotifications.WorkerTest do
   @moduletag :meetings
   @moduletag :notifications
 
+  import Ecto.Query, only: [from: 2]
+
   alias Ecto.Changeset
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Meetings.AttendeeNotifications.LastNotifiedState
@@ -91,6 +93,36 @@ defmodule Tymeslot.Meetings.AttendeeNotifications.WorkerTest do
                  worker: EmailWorker,
                  args: %{"action" => "send_event_update_notification"}
                )
+    end
+
+    # The worker is the debounce. A second edit announced after the first
+    # announcement's email went out (more than the debounce apart, within
+    # minutes) is a change of its own and must reach the attendees.
+    test "a second change announced after the first email went out is sent too", %{
+      event: event
+    } do
+      {:ok, event} = event |> Changeset.change(summary: "first change") |> Repo.update()
+      assert :ok = perform_job(Worker, update_args(event))
+
+      {1, _rows} =
+        Repo.update_all(
+          from(j in Oban.Job, where: j.worker == "Tymeslot.Workers.EmailWorker"),
+          set: [state: "completed", completed_at: DateTime.utc_now()]
+        )
+
+      {:ok, event} = event |> Changeset.change(summary: "second change") |> Repo.update()
+      assert :ok = perform_job(Worker, update_args(event))
+
+      jobs =
+        Repo.all(
+          from(j in Oban.Job,
+            where: j.worker == "Tymeslot.Workers.EmailWorker",
+            order_by: j.id
+          )
+        )
+
+      assert Enum.map(jobs, & &1.args["before_title"]) == ["original", "first change"]
+      assert Enum.map(jobs, & &1.state) == ["completed", "available"]
     end
 
     test "no-ops when diff is empty (user reverted edits)", %{event: event} do

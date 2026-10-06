@@ -370,8 +370,8 @@ defmodule Tymeslot.Notifications.Orchestrator do
   Schedules a delayed event update notification for all attendees.
 
   Captures the "before" snapshot of attendee-relevant fields. The Oban job
-  fires after 2 minutes, reads the current event state, diffs against the
-  snapshot, and sends one email per attendee if changes remain.
+  reads the current event state, diffs against the snapshot, and sends one
+  email per attendee if changes remain.
   """
   @spec schedule_event_update_notification(pos_integer(), map()) :: :ok
   def schedule_event_update_notification(user_id, original_event) do
