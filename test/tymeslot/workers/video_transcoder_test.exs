@@ -240,6 +240,47 @@ defmodule Tymeslot.Workers.VideoTranscoderTest do
       )
     end
 
+    # A long encode is where a replacement is most likely to arrive mid-run,
+    # and its timeout must not fail the replacement nor cancel the job that
+    # now carries the replacement's args.
+    test "a replacement arriving during an encode that then times out snoozes too" do
+      theme_customization = insert_theme_customization()
+
+      {:ok, job} = VideoTranscoder.enqueue(theme_customization.id, "uploads/old.mp4")
+
+      assert {:ok, %Oban.Job{conflict?: true}} =
+               VideoTranscoder.enqueue(theme_customization.id, "uploads/new.mp4")
+
+      # What the replacement upload sets before its transcode runs.
+      :ok =
+        ThemeCustomizationQueries.update_video_processing_status(
+          theme_customization.id,
+          "pending"
+        )
+
+      expect(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
+
+      expect(Tymeslot.Media.TranscoderMock, :transcode, fn _src, _out, _opts ->
+        {:error, :timeout}
+      end)
+
+      job = %{
+        job
+        | args: %{
+            "theme_customization_id" => theme_customization.id,
+            "video_path" => "uploads/old.mp4"
+          },
+          attempt: 1,
+          attempted_at: DateTime.utc_now(),
+          scheduled_at: DateTime.utc_now()
+      }
+
+      assert {:snooze, 1} = perform_job(job)
+
+      updated = Repo.get!(ThemeCustomizationSchema, theme_customization.id)
+      assert updated.video_processing == "pending"
+    end
+
     test "a replacement arriving mid-run snoozes so the next run transcodes it" do
       theme_customization = insert_theme_customization()
 

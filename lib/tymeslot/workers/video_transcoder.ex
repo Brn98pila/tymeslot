@@ -114,12 +114,13 @@ defmodule Tymeslot.Workers.VideoTranscoder do
 
       # The encode ran past a limit already sized generously from the clip's
       # length. Another attempt would take as long and hold the one-at-a-time
-      # queue for every other video meanwhile, so the video is failed now.
+      # queue for every other video meanwhile, so the video is failed now,
+      # unless it has been replaced meanwhile (see `handle_missing_source/2`):
+      # the replacement is then still to transcode, and the old video's fate
+      # must not be reported against it.
       {:error, :timeout} ->
         cleanup_variants(base_path)
-        update_status(id, @status_failed)
-        Logger.error("Video transcoding timed out", theme_customization_id: id)
-        {:cancel, @timed_out}
+        handle_timeout(id, job)
 
       {:error, reason} ->
         cleanup_variants(base_path)
@@ -138,22 +139,38 @@ defmodule Tymeslot.Workers.VideoTranscoder do
   # args instead, which this running process never rereads. Check the row now;
   # if the path has moved on, snooze so the next run picks the replacement up
   # rather than letting it die with a cancelled job.
-  defp handle_missing_source(id, %Oban.Job{args: %{"video_path" => ran_path}} = job) do
-    case Jobs.get_current_args(job) do
-      %{"video_path" => current_path} when current_path != ran_path ->
-        Logger.info("Video source replaced mid-transcode, rerunning for the replacement",
-          theme_customization_id: id
-        )
+  defp handle_missing_source(id, job) do
+    if replaced?(job) do
+      rerun_for_replacement(id)
+    else
+      Logger.info("Video source no longer present, cancelling transcode",
+        theme_customization_id: id
+      )
 
-        {:snooze, 1}
-
-      _unchanged_or_gone ->
-        Logger.info("Video source no longer present, cancelling transcode",
-          theme_customization_id: id
-        )
-
-        {:cancel, @source_gone}
+      {:cancel, @source_gone}
     end
+  end
+
+  defp handle_timeout(id, job) do
+    if replaced?(job) do
+      rerun_for_replacement(id)
+    else
+      update_status(id, @status_failed)
+      Logger.error("Video transcoding timed out", theme_customization_id: id)
+      {:cancel, @timed_out}
+    end
+  end
+
+  defp rerun_for_replacement(id) do
+    Logger.info("Video source replaced mid-transcode, rerunning for the replacement",
+      theme_customization_id: id
+    )
+
+    {:snooze, 1}
+  end
+
+  defp replaced?(%Oban.Job{args: %{"video_path" => ran_path}} = job) do
+    match?(%{"video_path" => current} when current != ran_path, Jobs.get_current_args(job))
   end
 
   defp update_status(id, status) do
