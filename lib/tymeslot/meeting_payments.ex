@@ -233,13 +233,16 @@ defmodule Tymeslot.MeetingPayments do
     do: BookingPaymentQueries.count_pending_for_host(host_user_id)
 
   @doc """
-  Returns lifetime payment totals for a host.
+  Returns lifetime payment totals for a host, one entry per currency.
   """
-  @spec lifetime_stats_for_host(integer()) :: %{
-          received: integer(),
-          refunded: integer(),
-          platform_fee: integer()
-        }
+  @spec lifetime_stats_for_host(integer()) :: [
+          %{
+            currency: String.t(),
+            received: integer(),
+            refunded: integer(),
+            platform_fee: integer()
+          }
+        ]
   def lifetime_stats_for_host(host_user_id),
     do: BookingPaymentQueries.lifetime_stats(host_user_id)
 
