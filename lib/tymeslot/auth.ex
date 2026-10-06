@@ -494,6 +494,13 @@ defmodule Tymeslot.Auth do
   defdelegate any_admin?(), to: AdminUserQueries
 
   @doc """
+  Whether at least one admin other than `user` can currently sign in.
+
+  See `Tymeslot.Auth.AdminRoles.remaining_signin_capable_admins?/1`.
+  """
+  defdelegate remaining_signin_capable_admins?(user), to: AdminRoles
+
+  @doc """
   Promotes the user identified by `user_id` to admin.
 
   See `Tymeslot.Auth.AdminRoles.promote/2` for the full contract.

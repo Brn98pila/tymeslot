@@ -15,6 +15,11 @@ defmodule TymeslotWeb.AdminLive.Components.Users do
   attr :current_user, :map, required: true
   attr :user_count, :integer, required: true
   attr :admin_count, :integer, required: true
+
+  attr :self_demote_blocked?, :boolean,
+    required: true,
+    doc: "whether no other admin could sign in if the current user demoted themselves"
+
   attr :pending_action, :any, required: true
   attr :role_change_submitting, :boolean, required: true
 
@@ -72,7 +77,7 @@ defmodule TymeslotWeb.AdminLive.Components.Users do
               <.user_row_action
                 user={user}
                 is_self={user.id == @current_user.id}
-                is_last_admin={@admin_count <= 1}
+                self_demote_blocked?={@self_demote_blocked?}
               />
             </td>
           </tr>
@@ -116,13 +121,13 @@ defmodule TymeslotWeb.AdminLive.Components.Users do
 
   attr :user, :map, required: true
   attr :is_self, :boolean, required: true
-  attr :is_last_admin, :boolean, required: true
+  attr :self_demote_blocked?, :boolean, required: true
 
   defp user_row_action(assigns) do
     ~H"""
-    <%!-- Only-admin self row: explain why demote is disabled. --%>
+    <%!-- Self row with no other admin able to sign in: explain why demote is disabled. --%>
     <div
-      :if={@user.is_admin and @is_self and @is_last_admin}
+      :if={@user.is_admin and @is_self and @self_demote_blocked?}
       class="inline-flex flex-col items-end gap-1"
       data-testid="last-admin-self-note"
     >
@@ -132,16 +137,16 @@ defmodule TymeslotWeb.AdminLive.Components.Users do
       <span class="text-xs text-tymeslot-500 font-medium max-w-xs text-right">
         {dgettext(
           "dashboard_admin",
-          "You're the only admin. Promote someone else before demoting yourself."
+          "No other admin can sign in. Make sure another admin can sign in before demoting yourself."
         )}
       </span>
     </div>
 
-    <%!-- @admin_count is loaded per handle_params; the server guard in AdminRoles
-         is authoritative and will block the last-admin demote even if this button
-         is momentarily visible due to concurrent role changes between sessions. --%>
+    <%!-- @self_demote_blocked? is loaded per handle_params; the server guard in
+         AdminRoles is authoritative and will block the last-admin demote even if
+         this button is momentarily visible due to concurrent role changes. --%>
     <.action_button
-      :if={@user.is_admin and not (@is_self and @is_last_admin)}
+      :if={@user.is_admin and not (@is_self and @self_demote_blocked?)}
       variant={:danger_soft}
       size={:sm}
       phx-click="request_demote"
