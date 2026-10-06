@@ -226,7 +226,7 @@ defmodule Tymeslot.Auth.Registration do
   end
 
   defp create_new_user(validated_params, opts) do
-    case create_user(validated_params) do
+    case create_user(validated_params, Keyword.fetch!(opts, :metadata)) do
       {:ok, user} ->
         AccountLogging.log_user_created(user)
         verify_and_notify_user(user, opts)
@@ -240,6 +240,9 @@ defmodule Tymeslot.Auth.Registration do
           # The winner is already gone again; there is no one to tell.
           {:error, :not_found} -> {:ok, :existing_account}
         end
+
+      {:error, :registration_hook, _message} = error ->
+        error
 
       {:error, :auth, reason} ->
         AccountLogging.log_operation_failure(
@@ -357,7 +360,9 @@ defmodule Tymeslot.Auth.Registration do
     {:ok, user}
   end
 
-  defp create_user(params) do
+  # The registration hook's job is enqueued in the same transaction, so the
+  # account never commits without it (and the terms acceptance it records).
+  defp create_user(params, metadata) do
     user_params = %{
       email: params["email"],
       password: params["password"],
@@ -368,21 +373,26 @@ defmodule Tymeslot.Auth.Registration do
 
     transaction_result =
       Repo.transaction(fn ->
-        case Config.user_queries_module().create_user(user_params) do
-          {:ok, user} ->
-            case AdminBootstrap.maybe_promote_first_user(user) do
-              {:ok, bootstrapped_user} -> bootstrapped_user
-              {:error, changeset} -> Repo.rollback(changeset)
-            end
-
-          {:error, changeset} ->
-            Repo.rollback(changeset)
+        with {:ok, user} <- Config.user_queries_module().create_user(user_params),
+             {:ok, bootstrapped_user} <- AdminBootstrap.maybe_promote_first_user(user),
+             :ok <- RegistrationAnnouncement.enqueue_hook(bootstrapped_user.id, metadata) do
+          bootstrapped_user
+        else
+          {:error, changeset} -> Repo.rollback(changeset)
         end
       end)
 
     case transaction_result do
       {:ok, user} ->
         {:ok, user}
+
+      {:error, {:registration_hook, reason}} ->
+        Logger.error("Could not enqueue the registration hook; account not created",
+          reason: LogFormat.reason(reason)
+        )
+
+        {:error, :registration_hook,
+         dgettext("auth", "Failed to create user account. Please try again.")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         if email_taken?(changeset),

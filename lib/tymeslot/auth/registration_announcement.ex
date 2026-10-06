@@ -6,39 +6,37 @@ defmodule Tymeslot.Auth.RegistrationAnnouncement do
 
   The hook gets a job rather than the broadcast because whatever it records
   (terms acceptance, say) must not depend on a subscriber process being
-  alive at the moment of sign-up. With no hook configured, only the
-  broadcast happens.
+  alive at the moment of sign-up. The job is enqueued inside the
+  transaction that creates the account (`enqueue_hook/2`), so an account
+  never exists without it; the broadcast (`announce/2`) follows the commit.
+  With no hook configured, only the broadcast happens.
   """
 
-  require Logger
-
-  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.PubSub
   alias Tymeslot.Workers.UserRegisteredHookWorker
 
   @doc """
-  Runs both announcements for `user`. Never fails the registration: an
-  enqueue failure is logged, since the account itself is already complete.
+  Enqueues the registration hook job for `user_id`, when a hook is
+  configured. Call it inside the transaction that creates the account and
+  roll the transaction back on `{:error, {:registration_hook, reason}}`, so
+  the account and the job commit together or not at all.
+  """
+  @spec enqueue_hook(pos_integer(), map()) :: :ok | {:error, {:registration_hook, term()}}
+  def enqueue_hook(user_id, metadata) do
+    if Application.get_env(:tymeslot, :user_registered_hook) do
+      case user_id |> UserRegisteredHookWorker.new_job(metadata) |> Oban.insert() do
+        {:ok, _job} -> :ok
+        {:error, reason} -> {:error, {:registration_hook, reason}}
+      end
+    else
+      :ok
+    end
+  end
+
+  @doc """
+  Broadcasts the completed registration to in-process subscribers. Call it
+  after the account has committed.
   """
   @spec announce(struct(), map()) :: :ok
-  def announce(user, metadata) do
-    if Application.get_env(:tymeslot, :user_registered_hook) do
-      enqueue_hook(user.id, metadata)
-    end
-
-    PubSub.broadcast_user_registered(user, metadata)
-  end
-
-  defp enqueue_hook(user_id, metadata) do
-    case user_id |> UserRegisteredHookWorker.new_job(metadata) |> Oban.insert() do
-      {:ok, _job} ->
-        :ok
-
-      {:error, reason} ->
-        Logger.error("Could not enqueue the registration hook",
-          user_id: user_id,
-          reason: LogFormat.reason(reason)
-        )
-    end
-  end
+  def announce(user, metadata), do: PubSub.broadcast_user_registered(user, metadata)
 end

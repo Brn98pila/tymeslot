@@ -48,6 +48,7 @@ defmodule Tymeslot.Infrastructure.AdminAlerts do
           | :dunning_stalled
           | :late_payment_refund_failed
           | :analytics_tracking_anomaly
+          | :user_registered_hook_failed
           | atom()
 
   @callback send_alert(alert_type(), map()) :: :ok | {:error, any()}

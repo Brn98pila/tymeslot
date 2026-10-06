@@ -512,6 +512,7 @@ msgstr "K dokončení registrace je potřeba e-mailová adresa. Zadejte prosím
 msgid "Enter your email to receive a password reset link for your Tymeslot account."
 msgstr "Zadejte svůj e-mail a pošleme vám odkaz pro obnovení hesla k účtu Tymeslot."
 
+#: lib/tymeslot/auth/registration.ex
 #: lib/tymeslot_web/controllers/auth/helpers/controller_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Failed to create user account. Please try again."

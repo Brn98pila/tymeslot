@@ -70,7 +70,8 @@ defmodule Tymeslot.Auth.OAuth.UserRegistration do
     case TransactionalUserCreation.find_or_create_oauth_user(
            provider,
            auth_params,
-           profile_params
+           profile_params,
+           metadata
          ) do
       {:ok, %{user: user, created: true}} ->
         RegistrationAnnouncement.announce(user, metadata)

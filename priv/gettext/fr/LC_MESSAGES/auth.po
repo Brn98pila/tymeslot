@@ -511,6 +511,7 @@ msgstr "L’adresse e-mail est requise pour terminer l’inscription. Veuillez i
 msgid "Enter your email to receive a password reset link for your Tymeslot account."
 msgstr "Saisissez votre e-mail pour recevoir un lien de réinitialisation du mot de passe de votre compte Tymeslot."
 
+#: lib/tymeslot/auth/registration.ex
 #: lib/tymeslot_web/controllers/auth/helpers/controller_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Failed to create user account. Please try again."

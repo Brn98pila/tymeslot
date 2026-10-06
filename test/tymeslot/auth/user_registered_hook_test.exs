@@ -13,7 +13,12 @@ defmodule Tymeslot.Auth.UserRegisteredHookTest do
   @moduletag :auth
   @moduletag :workers
 
+  import Tymeslot.AdminAlertsCaptureHelpers
+
   alias Tymeslot.Auth
+  alias Tymeslot.Auth.OAuth.TransactionalUserCreation
+  alias Tymeslot.Auth.UserSchema
+  alias Tymeslot.Repo
   alias Tymeslot.Workers.UserRegisteredHookWorker
   alias TymeslotWeb.Helpers.ClientIP
 
@@ -49,9 +54,9 @@ defmodule Tymeslot.Auth.UserRegisteredHookTest do
     :ok
   end
 
-  defp register do
+  defp register(email \\ "hooked#{System.unique_integer([:positive])}@example.com") do
     params = %{
-      "email" => "hooked#{System.unique_integer([:positive])}@example.com",
+      "email" => email,
       "password" => "ValidPassword123!",
       "password_confirmation" => "ValidPassword123!",
       "name" => "Hooked User",
@@ -93,5 +98,73 @@ defmodule Tymeslot.Auth.UserRegisteredHookTest do
     register()
 
     assert all_enqueued(worker: UserRegisteredHookWorker) == []
+  end
+
+  # The hook's job commits with the account. Enqueued after the commit, a
+  # failed or raising enqueue left an account whose terms acceptance would
+  # never be recorded (and, raising, one that never got its profile or its
+  # verification email).
+  describe "the hook job commits with the account" do
+    setup do
+      Application.put_env(:tymeslot, :user_registered_hook, RecordingHook)
+
+      # Make any insert of the hook's job fail at the database. The DDL is
+      # rolled back with the test's sandbox transaction.
+      Repo.query!("""
+      ALTER TABLE oban_jobs ADD CONSTRAINT test_refuse_registration_hook
+      CHECK (worker <> 'Tymeslot.Workers.UserRegisteredHookWorker')
+      """)
+
+      :ok
+    end
+
+    test "a sign-up whose hook job cannot be enqueued creates no account" do
+      email = "unhooked#{System.unique_integer([:positive])}@example.com"
+
+      assert_raise Ecto.ConstraintError, fn -> register(email) end
+
+      refute Repo.get_by(UserSchema, email: email)
+    end
+
+    test "an OAuth sign-up whose hook job cannot be enqueued creates no account" do
+      auth_params = %{
+        "email" => "unhooked-oauth@example.com",
+        "github_user_id" => "hook-#{System.unique_integer([:positive])}",
+        "provider" => "github",
+        "is_verified" => true
+      }
+
+      assert_raise Ecto.ConstraintError, fn ->
+        TransactionalUserCreation.find_or_create_oauth_user(:github, auth_params, %{}, %{})
+      end
+
+      refute Repo.get_by(UserSchema, email: "unhooked-oauth@example.com")
+    end
+  end
+
+  describe "a hook that keeps failing" do
+    setup :capture_admin_alerts
+
+    test "alerts once Oban stops retrying" do
+      Application.put_env(:tymeslot, :user_registered_hook, FailingHook)
+
+      assert {:error, :database_unavailable} =
+               perform_job(UserRegisteredHookWorker, %{"user_id" => 42, "metadata" => %{}},
+                 attempt: 10
+               )
+
+      assert_receive {:send_alert, :user_registered_hook_failed, %{user_id: 42}}
+    end
+
+    test "does not alert while retries remain" do
+      Application.put_env(:tymeslot, :user_registered_hook, FailingHook)
+
+      assert {:error, :database_unavailable} =
+               perform_job(UserRegisteredHookWorker, %{"user_id" => 42, "metadata" => %{}},
+                 attempt: 9
+               )
+
+      refute_received {:send_alert, :user_registered_hook_failed, _payload}
+    end
   end
 end
