@@ -160,7 +160,7 @@ defmodule Tymeslot.Bookings.NotificationFanoutIntegrationTest do
     test "the deferred event fans out once the room exists", ctx do
       params = booking_params(%{user: ctx.user, meeting_type: ctx.video_type})
 
-      assert {:ok, meeting} = Create.execute_with_video_room(params, form_data())
+      assert {:ok, meeting} = Create.execute(params, form_data(), with_video_room: true)
 
       # Nothing has been announced yet: the booking handed the whole event to
       # the job so the payload can carry the join link.
@@ -185,7 +185,7 @@ defmodule Tymeslot.Bookings.NotificationFanoutIntegrationTest do
     test "the event still fans out when the room can never be created", ctx do
       params = booking_params(%{user: ctx.user, meeting_type: ctx.video_type})
 
-      assert {:ok, meeting} = Create.execute_with_video_room(params, form_data())
+      assert {:ok, meeting} = Create.execute(params, form_data(), with_video_room: true)
 
       # A room that cannot be created must not cost the subscriber the booking.
       {:ok, _inactive} = VideoIntegrationQueries.toggle_active(ctx.video_integration)

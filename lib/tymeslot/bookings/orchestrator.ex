@@ -151,13 +151,10 @@ defmodule Tymeslot.Bookings.Orchestrator do
   end
 
   defp create_meeting(meeting_params, sanitized_data) do
-    # Use the appropriate creation method based on context
     result =
-      if meeting_params[:with_video_room] do
-        Create.execute_with_video_room(meeting_params, sanitized_data)
-      else
-        Create.execute(meeting_params, sanitized_data)
-      end
+      Create.execute(meeting_params, sanitized_data,
+        with_video_room: meeting_params[:with_video_room] == true
+      )
 
     as_booked_seat(result, sanitized_data)
   end

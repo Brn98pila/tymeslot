@@ -47,7 +47,11 @@ defmodule Tymeslot.Bookings.CalendarCheck do
   # is therefore incomplete, and proceeding would skip the conflict check
   # entirely, strictly worse than checking against a partial set, because a
   # clash sitting in a calendar that did respond would be missed too.
-  @unverifiable_reasons [:some_calendars_unavailable, :all_calendars_unavailable]
+  #
+  # A fetch that crashed (a provider adapter raising past its own handling)
+  # joins them: nothing was read, and nothing says the slot is free, so the
+  # booking is refused rather than confirmed on no evidence at all.
+  @unverifiable_reasons [:some_calendars_unavailable, :all_calendars_unavailable, :fetch_crashed]
 
   @typedoc """
   The slot to check. Any map carrying the two instants and the organiser
@@ -67,6 +71,7 @@ defmodule Tymeslot.Bookings.CalendarCheck do
           | :some_calendars_unavailable
           | :all_calendars_unavailable
           | :timeout
+          | :fetch_crashed
           | term()
 
   @typedoc "What the shared refusal policy decided."
@@ -75,11 +80,14 @@ defmodule Tymeslot.Bookings.CalendarCheck do
   @doc """
   Reads the organiser's calendars afresh and reports whether `slot` is free.
 
-  Returns `:ok`, `{:error, :slot_unavailable}` for a clash, and the calendar
-  layer's own reason for everything else, so a caller that wants to fail fast
-  on a clash while tolerating an unreachable provider (the pre-check in
-  `Create.execute_with_video_room/3`) can tell them apart. Most callers want
-  `enforce/3` instead.
+  Returns `:ok`, `{:error, :slot_unavailable}` for a clash,
+  `{:error, :fetch_crashed}` when the fetch itself crashed, and the calendar
+  layer's own reason for everything else, so a caller can tell a clash from
+  an unreachable provider. Most callers want `enforce/3` instead.
+
+  The fetch runs in an unlinked task, so a provider adapter that raises is
+  reported here as `:fetch_crashed` instead of taking the caller (the
+  booker's LiveView) down with it.
 
   Options:
 
@@ -96,7 +104,7 @@ defmodule Tymeslot.Bookings.CalendarCheck do
     {start_date, end_date} = fetch_range(slot, Calculate.config_buffers(config))
 
     fetch =
-      Tasks.async(Tymeslot.TaskSupervisor, fn ->
+      Tasks.async_nolink(Tymeslot.TaskSupervisor, fn ->
         CalendarEvents.get_events_for_range_fresh(organizer_user_id, start_date, end_date)
       end)
 
@@ -108,6 +116,14 @@ defmodule Tymeslot.Bookings.CalendarCheck do
 
       {:ok, {:error, reason}} ->
         {:error, reason}
+
+      {:exit, reason} ->
+        Logger.error("Calendar availability check crashed",
+          organizer_user_id: organizer_user_id,
+          reason: LogFormat.reason(reason)
+        )
+
+        {:error, :fetch_crashed}
 
       nil ->
         Logger.warning("Calendar availability check timed out",
@@ -127,7 +143,7 @@ defmodule Tymeslot.Bookings.CalendarCheck do
   A clash refuses with `:slot_unavailable`, and a busy set we could not read in
   full refuses with `:availability_unverifiable`: the booker gets the same
   "pick another slot" outcome either way, and the distinction survives in the
-  logs rather than in the copy. A transport or timeout failure is logged and
+  logs rather than in the copy. A fetch that crashed counts as unreadable. A transport or timeout failure is logged and
   returns `:ok`: the slot was already validated against the display path, and
   an unreachable provider must not take the booking page down with it.
 
