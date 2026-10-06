@@ -84,16 +84,27 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandler do
       stripe_event_id: event["id"]
     )
 
-    # Broadcast event for SaaS to handle subscription revocation
-    PubSub.broadcast_payment_event(:charge_refunded, %{
-      event_id: event["id"],
-      charge_id: charge_id,
-      customer_id: customer_id,
-      total_refunded: total_refunded,
-      charge_amount: charge_amount,
-      refund_percentage: calculate_refund_percentage(total_refunded, charge_amount),
-      should_revoke: should_revoke
-    })
+    # Hand the refund to the configured payment-event handler first: if it
+    # fails, nothing below has run yet and Stripe redelivers the event.
+    case PubSub.hand_off_payment_event(:charge_refunded, %{
+           event_id: event["id"],
+           charge_id: charge_id,
+           customer_id: customer_id,
+           total_refunded: total_refunded,
+           charge_amount: charge_amount,
+           refund_percentage: calculate_refund_percentage(total_refunded, charge_amount),
+           should_revoke: should_revoke
+         }) do
+      :ok ->
+        handle_refunded_locally(charge, charge_id, customer_id, total_refunded, charge_amount)
+
+      {:error, _reason} ->
+        {:error, :retry_later, "Refund event hand-off failed"}
+    end
+  end
+
+  defp handle_refunded_locally(charge, charge_id, customer_id, total_refunded, charge_amount) do
+    should_revoke = should_revoke_access?(total_refunded, charge_amount)
 
     # Find the subscription by Stripe customer ID for local notifications
     case CustomerLookup.get_subscription_by_customer_id(customer_id) do

@@ -6,8 +6,8 @@ defmodule Tymeslot.Auth.OAuth.UserRegistration do
   require Logger
   alias Tymeslot.Auth.Helpers.AccountLogging
   alias Tymeslot.Auth.OAuth.{Providers, TransactionalUserCreation}
-  alias Tymeslot.Auth.{UserQueries, UserSchema, UserTokenQueries}
-  alias Tymeslot.Infrastructure.{Config, PubSub}
+  alias Tymeslot.Auth.{RegistrationAnnouncement, UserQueries, UserSchema, UserTokenQueries}
+  alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Repo
   alias Tymeslot.Security.FieldValidators.EmailValidator
@@ -73,7 +73,7 @@ defmodule Tymeslot.Auth.OAuth.UserRegistration do
            profile_params
          ) do
       {:ok, %{user: user, created: true}} ->
-        PubSub.broadcast_user_registered(user, metadata)
+        RegistrationAnnouncement.announce(user, metadata)
         {:ok, user}
 
       {:ok, %{user: user, created: false}} ->

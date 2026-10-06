@@ -96,6 +96,17 @@ config :tymeslot,
   # succeed before a user is deleted. See delete_user/1.
   account_deletion_hook: nil,
 
+  # Payment-event handler - nil by default. An external layer can provide a
+  # module implementing Tymeslot.Payments.Behaviours.PaymentEventHandler to
+  # receive subscription, dispute, refund and trial events durably: an error
+  # from it makes Stripe redeliver the webhook.
+  payment_event_handler: nil,
+
+  # Registration hook - nil by default. An external layer can provide a module
+  # implementing Tymeslot.Auth.Behaviours.UserRegisteredHook, run from a
+  # retried Oban job for every completed registration.
+  user_registered_hook: nil,
+
   # Admin alerts — disabled by default. Self-hosters can enable via the
   # ADMIN_ALERTS_ENABLED env var (set true) plus a valid ADMIN_ALERT_EMAIL.
   # A downstream overlay may override admin_alerts_enabled in its own config.

@@ -40,14 +40,14 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandler do
       subscription_id: subscription_id
     )
 
-    # Broadcast event for apps to handle
-    PubSub.broadcast_to_payment_events(%{
-      event: normalize_event_name(event_type),
-      subscription_id: subscription_id,
-      subscription_data: subscription
-    })
-
-    {:ok, :event_processed}
+    case PubSub.hand_off_subscription_event(%{
+           event: normalize_event_name(event_type),
+           subscription_id: subscription_id,
+           subscription_data: subscription
+         }) do
+      :ok -> {:ok, :event_processed}
+      {:error, _reason} -> {:error, :retry_later, "Subscription event hand-off failed"}
+    end
   end
 
   defp normalize_event_name("customer.subscription.created"), do: :subscription_created

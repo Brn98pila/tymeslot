@@ -38,27 +38,15 @@ defmodule Tymeslot.Payments.Webhooks.TrialWillEndHandler do
     # Convert Unix timestamp to DateTime
     case is_integer(trial_end) && DateTime.from_unix(trial_end) do
       {:ok, trial_ends_at} ->
-        # Broadcast event for SaaS to update trial end date and handle notifications
-        PubSub.broadcast_payment_event(:trial_will_end, %{
-          event_id: event["id"],
-          stripe_subscription_id: subscription_id,
-          trial_ends_at: trial_ends_at
-        })
-
-        # Find subscription in our database for local notifications
-        case find_subscription(subscription_id) do
-          nil ->
-            Logger.warning("Trial ending - subscription not found",
-              subscription_id: subscription_id
-            )
-
-            {:ok, :subscription_not_found}
-
-          subscription ->
-            # Send reminder email
-            send_trial_ending_email(subscription)
-
-            {:ok, :trial_ending_notified}
+        # Hand off first: if the handler fails, no email has gone out yet and
+        # Stripe redelivers the event.
+        case PubSub.hand_off_payment_event(:trial_will_end, %{
+               event_id: event["id"],
+               stripe_subscription_id: subscription_id,
+               trial_ends_at: trial_ends_at
+             }) do
+          :ok -> notify_trial_ending(subscription_id)
+          {:error, _reason} -> {:error, :retry_later, "Trial event hand-off failed"}
         end
 
       _other ->
@@ -68,6 +56,24 @@ defmodule Tymeslot.Payments.Webhooks.TrialWillEndHandler do
         )
 
         {:error, :invalid_timestamp, "Invalid trial_end timestamp: #{inspect(trial_end)}"}
+    end
+  end
+
+  defp notify_trial_ending(subscription_id) do
+    # Find subscription in our database for local notifications
+    case find_subscription(subscription_id) do
+      nil ->
+        Logger.warning("Trial ending - subscription not found",
+          subscription_id: subscription_id
+        )
+
+        {:ok, :subscription_not_found}
+
+      subscription ->
+        # Send reminder email
+        send_trial_ending_email(subscription)
+
+        {:ok, :trial_ending_notified}
     end
   end
 
