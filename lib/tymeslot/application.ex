@@ -99,6 +99,9 @@ defmodule Tymeslot.Application do
       # that no report can reach the database unthrottled once it is up.
       Throttle,
       Tymeslot.Repo,
+      # Apply DB-backed admin overrides on top of config-layer values before
+      # anything that serves requests or runs jobs starts.
+      AppSettings.loader_child_spec(),
       {DNSCluster, query: Application.get_env(:tymeslot, :dns_cluster_query) || :ignore},
       {PubSub, name: Tymeslot.PubSub},
       # Start the Finch HTTP client (used by Req for all HTTP requests).
@@ -178,11 +181,6 @@ defmodule Tymeslot.Application do
     case Supervisor.start_link(children, opts) do
       {:ok, pid} ->
         Logger.info("Tymeslot application started successfully", pid: LogFormat.reason(pid))
-
-        # Apply DB-backed admin overrides on top of config-layer values.
-        # Must run after Repo is started; safe in test mode (the singleton row
-        # has all nils on a fresh test DB, so load!/0 is effectively a no-op).
-        AppSettings.load!()
 
         if Application.get_env(:tymeslot, :environment) != :test do
           check_deployment_config()

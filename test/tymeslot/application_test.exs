@@ -136,6 +136,30 @@ defmodule Tymeslot.ApplicationTest do
     end
   end
 
+  describe "admin settings" do
+    # The overrides an admin set (registration disabled, reCAPTCHA required)
+    # must be in force before anything serves a request or runs a job. The
+    # loader leaves no process behind, but the supervisor keeps its spec.
+    # credo:disable-for-next-line Jump.CredoChecks.VacuousTest
+    test "are applied after the Repo and before Oban and the Endpoint" do
+      start_order =
+        Tymeslot.Supervisor
+        |> Supervisor.which_children()
+        |> Enum.map(fn {id, _pid, _type, _modules} -> id end)
+        |> Enum.reverse()
+
+      position = fn id ->
+        Enum.find_index(start_order, &(&1 == id)) || flunk("#{inspect(id)} is not a child")
+      end
+
+      loader = position.(Tymeslot.AppSettings.Loader)
+
+      assert position.(Tymeslot.Repo) < loader
+      assert loader < position.(Oban)
+      assert loader < position.(TymeslotWeb.Endpoint)
+    end
+  end
+
   # Oban queue merging, validation, and the "no queues configured" fallback are
   # covered against the real implementation in
   # Tymeslot.Infrastructure.ObanQueuesTest.
