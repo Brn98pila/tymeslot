@@ -119,10 +119,12 @@ defmodule Tymeslot.FreeBusyTest do
                )
     end
 
-    test "maps all-day events to midnight-to-midnight UTC intervals", %{
+    test "maps an all-day event to the owner's local day", %{
       profile: profile,
       integration: integration
     } do
+      profile = %{profile | timezone: "Australia/Sydney"}
+
       insert(:provider_calendar_event,
         calendar_integration: integration,
         all_day: true,
@@ -137,9 +139,10 @@ defmodule Tymeslot.FreeBusyTest do
       intervals =
         FreeBusy.busy_intervals(profile, ~U[2030-05-01 00:00:00Z], ~U[2030-07-01 00:00:00Z])
 
+      # 1 June in Sydney (AEST, +10:00), not 1 June in UTC.
       assert [{s, e}] = intervals
-      assert s == ~U[2030-06-01 00:00:00Z]
-      assert e == ~U[2030-06-02 00:00:00Z]
+      assert DateTime.compare(s, ~U[2030-05-31 14:00:00Z]) == :eq
+      assert DateTime.compare(e, ~U[2030-06-01 14:00:00Z]) == :eq
     end
   end
 

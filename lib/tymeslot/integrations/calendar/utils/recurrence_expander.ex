@@ -95,7 +95,7 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
   @spec count_before(String.t(), Date.t() | DateTime.t(), Date.t() | DateTime.t()) ::
           non_neg_integer()
   def count_before(rule, first, boundary) do
-    last = boundary |> DateTimeUtils.to_datetime() |> DateTime.add(-1, :second)
+    last = boundary |> step_datetime() |> DateTime.add(-1, :second)
     event = %{start_time: first, end_time: first, recurrence_rule: rule}
 
     case parse_rrule(rule) do
@@ -245,12 +245,12 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
   defp generate_occurrences(event, rule, range_start, range_end, exdates, cap) do
     # All-day events store Date structs; normalise to DateTime for uniform arithmetic
     all_day? = is_struct(event.start_time, Date) and not is_struct(event.start_time, DateTime)
-    start_dt = DateTimeUtils.to_datetime(event.start_time)
-    end_dt = DateTimeUtils.to_datetime(event.end_time) || DateTime.add(start_dt, 30, :minute)
+    start_dt = step_datetime(event.start_time)
+    end_dt = step_datetime(event.end_time) || DateTime.add(start_dt, 30, :minute)
     duration = DateTime.diff(end_dt, start_dt, :second)
-    range_start_dt = DateTimeUtils.to_datetime(range_start)
-    range_end_dt = DateTimeUtils.to_datetime(range_end)
-    exdates_dt = exdates |> Enum.map(&DateTimeUtils.to_datetime/1) |> Enum.reject(&is_nil/1)
+    range_start_dt = step_datetime(range_start)
+    range_end_dt = step_datetime(range_end)
+    exdates_dt = exdates |> Enum.map(&step_datetime/1) |> Enum.reject(&is_nil/1)
 
     start_dt
     |> Stream.iterate(&advance(&1, rule))
@@ -261,6 +261,14 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
     |> Stream.reject(&excluded?(&1, exdates_dt))
     |> Enum.map(&build_occurrence(event, &1, duration, all_day?))
   end
+
+  # An all-day series is stepped through as DateTimes at UTC midnight purely
+  # for uniform arithmetic, and turned back into dates by `build_occurrence/4`.
+  # The instant means nothing: an all-day event's real span depends on the
+  # owner's timezone (`Tymeslot.Availability.Events.to_interval/2`).
+  defp step_datetime(%DateTime{} = datetime), do: datetime
+  defp step_datetime(%Date{} = date), do: DateTime.new!(date, ~T[00:00:00], "Etc/UTC")
+  defp step_datetime(nil), do: nil
 
   defp take_at_most(occurrences, nil), do: occurrences
   defp take_at_most(occurrences, most), do: Stream.take(occurrences, most)

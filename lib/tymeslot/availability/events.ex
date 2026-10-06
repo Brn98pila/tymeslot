@@ -32,6 +32,42 @@ defmodule Tymeslot.Availability.Events do
     |> Enum.reject(&is_nil/1)
   end
 
+  @doc """
+  The UTC `{start, end}` instants an event blocks, with an all-day event
+  anchored to midnight in the owner's timezone.
+
+  This is the one conversion every consumer of calendar events goes through
+  (the booking page, the submit-time re-check, the free/busy feed, a poll's
+  slot health), so an all-day event covers the same stretch of time
+  everywhere. Accepts `CalendarEvent` structs and the plain maps the
+  fresh-fetch path returns (see `convert_events_to_timezone/3`). Returns
+  `:error` for an event whose times are missing or cannot be converted.
+  """
+  @spec to_interval(CalendarEvent.t() | map(), String.t()) ::
+          {:ok, {DateTime.t(), DateTime.t()}} | :error
+  def to_interval(event, owner_timezone), do: interval(event, owner_timezone, "Etc/UTC")
+
+  defp convert_event(event, owner_timezone, target_timezone) do
+    case interval(event, owner_timezone, target_timezone) do
+      {:ok, {s, e}} ->
+        %{start_time: s, end_time: e, uid: Map.get(event, :uid) || Map.get(event, "uid")}
+
+      :error ->
+        nil
+    end
+  end
+
+  defp interval(event, owner_timezone, target_timezone) do
+    {start_val, end_val} = bounds(event)
+
+    with {:ok, s} <- shift_safe(start_val, owner_timezone, target_timezone),
+         {:ok, e} <- shift_safe(end_val, owner_timezone, target_timezone) do
+      {:ok, {s, e}}
+    else
+      _other -> :error
+    end
+  end
+
   # Plain maps from the OAuth / CalDAV fresh-fetch path carry start_time/end_time
   # directly. Timed events have DateTime values; all-day events typically have
   # Date values (anchored to midnight in the owner's timezone before shifting).
@@ -44,39 +80,13 @@ defmodule Tymeslot.Availability.Events do
   # re-anchor to owner-local midnight instead. Events without `all_day: true`
   # (or with `all_day: false`) are passed through as timed events so that a
   # genuine 24-hour timed slot starting at UTC midnight is never mis-classified.
-  defp convert_event(
-         %{start_time: _start_time, end_time: _end_time} = event,
-         owner_timezone,
-         target_timezone
-       )
-       when not is_struct(event) do
-    {start_val, end_val} = maybe_reanchor_utc_midnight(event)
+  defp bounds(%CalendarEvent{all_day: true} = event), do: {event.start_date, event.end_date}
+  defp bounds(%CalendarEvent{all_day: false} = event), do: {event.start_at, event.end_at}
 
-    with {:ok, s} <- shift_safe(start_val, owner_timezone, target_timezone),
-         {:ok, e} <- shift_safe(end_val, owner_timezone, target_timezone) do
-      %{start_time: s, end_time: e, uid: Map.get(event, :uid) || Map.get(event, "uid")}
-    else
-      _other -> nil
-    end
-  end
+  defp bounds(%{start_time: _start_time, end_time: _end_time} = event) when not is_struct(event),
+    do: maybe_reanchor_utc_midnight(event)
 
-  defp convert_event(%CalendarEvent{all_day: true} = event, owner_timezone, target_timezone) do
-    with {:ok, s} <- shift_safe(event.start_date, owner_timezone, target_timezone),
-         {:ok, e} <- shift_safe(event.end_date, owner_timezone, target_timezone) do
-      %{start_time: s, end_time: e, uid: event.uid}
-    else
-      _other -> nil
-    end
-  end
-
-  defp convert_event(%CalendarEvent{all_day: false} = event, owner_timezone, target_timezone) do
-    with {:ok, s} <- shift_safe(event.start_at, owner_timezone, target_timezone),
-         {:ok, e} <- shift_safe(event.end_at, owner_timezone, target_timezone) do
-      %{start_time: s, end_time: e, uid: event.uid}
-    else
-      _other -> nil
-    end
-  end
+  defp bounds(_other), do: {nil, nil}
 
   defp shift_safe(nil, _owner_timezone, _target_timezone), do: {:error, nil}
 
