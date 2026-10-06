@@ -12,22 +12,13 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   import Phoenix.LiveView, only: [put_flash: 3]
 
   alias Phoenix.LiveView.Socket
-
-  alias TymeslotWeb.Live.Scheduling.{
-    AvailabilityHelpers,
-    NextAvailable,
-    OrganizerHelpers,
-    WeekSlots
-  }
-
   alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
-  alias TymeslotWeb.Live.Scheduling.Handlers.SlotFetchingHandlerComponent
-  alias TymeslotWeb.Live.Scheduling.Handlers.TimezoneHandlerComponent
+  alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
   alias TymeslotWeb.Themes.Shared.BookingFlow
   alias TymeslotWeb.Themes.Shared.BookingLocation
   alias TymeslotWeb.Themes.Shared.CustomQuestions.Engine, as: QEngine
-  alias TymeslotWeb.Themes.Shared.EventHandlers
   alias TymeslotWeb.Themes.Shared.GuestBooking
+  alias TymeslotWeb.Themes.Shared.Journey.Ambient
   alias TymeslotWeb.Themes.Shared.Journey.Facts.MeetingType
   alias TymeslotWeb.Themes.Shared.Journey.Facts.Slot
   alias TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry
@@ -50,9 +41,11 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   end
 
   def handle_step_event(socket, :schedule, event, data) do
-    if event in Slot.events(),
-      do: Slot.handle(socket, event, data),
-      else: schedule_event(socket, event, data)
+    cond do
+      event in Slot.events() -> Slot.handle(socket, event, data)
+      event in Ambient.events() -> Ambient.handle(socket, event, data)
+      true -> schedule_event(socket, event, data)
+    end
   end
 
   def handle_step_event(socket, :questions, event, data), do: questions_event(socket, event, data)
@@ -131,21 +124,6 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
 
   # Schedule
 
-  defp schedule_event(socket, :change_timezone, data), do: change_timezone(socket, data)
-
-  defp schedule_event(socket, :search_timezone, data),
-    do: EventHandlers.handle_timezone_search(socket, data)
-
-  defp schedule_event(socket, :toggle_timezone_dropdown, _data),
-    do:
-      {:noreply,
-       assign(socket, :timezone_dropdown_open, !socket.assigns[:timezone_dropdown_open])}
-
-  defp schedule_event(socket, :close_timezone_dropdown, _data) do
-    Process.send_after(self(), :close_dropdown, 150)
-    {:noreply, socket}
-  end
-
   # Only allow returning to the overview when the booker actually entered via
   # it. A direct/private-link entry sets `entered_via_overview: false` and must
   # never expose the organiser's other meeting types — enforce this
@@ -167,33 +145,6 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingFlow do
   end
 
   defp schedule_event(_socket, _event, _data), do: :unhandled
-
-  # The picker's choice goes through `TimezoneHandlerComponent`, which switches
-  # the zone. A zone that actually changed then decides which day stays
-  # selected (`NextAvailable.follow_timezone_change/1`), reloads that day's
-  # slots in the new zone, if one is left, and refetches the month, whose days
-  # are worked out in the visitor's timezone. A week view's week is fetched
-  # again too, for the times in the new zone. The slots are reloaded only after
-  # the day is settled, so none are fetched for a day about to be dropped. An
-  # invalid choice leaves `:user_timezone`, and so everything else, as it was.
-  defp change_timezone(socket, data) do
-    previous = socket.assigns[:user_timezone]
-
-    case TimezoneHandlerComponent.handle_timezone_change(socket, data) do
-      {:ok, %Socket{assigns: %{user_timezone: ^previous}} = unchanged} ->
-        {:noreply, unchanged}
-
-      {:ok, updated_socket} ->
-        socket =
-          updated_socket
-          |> NextAvailable.follow_timezone_change()
-          |> AvailabilityHelpers.fetch_month_availability_async()
-          |> WeekSlots.refetch()
-
-        {:ok, socket} = SlotFetchingHandlerComponent.maybe_reload_slots(socket)
-        {:noreply, socket}
-    end
-  end
 
   # Questions
 
