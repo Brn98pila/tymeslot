@@ -13,7 +13,9 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.Paged do
   it); otherwise the booker stays. The step indicator (`go_to/3`) numbers
   the moments with a needed fact from 1, gives every outcome the number
   after them, and only moves back to a moment that may be revisited, as Back
-  does.
+  does. On the payment wait (`:awaiting_payment`) it moves nowhere: that
+  outcome's number would let it back to the booking form while the checkout
+  is open, so only the payment webhook ends the wait.
 
   A moment none of whose facts this booking needs is skipped: the questions
   of a meeting type that has none. Moments are shown through
@@ -73,8 +75,14 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.Paged do
     end
   end
 
-  # `step` is the page's string; one that is not a number moves nothing.
+  # While a checkout is open only the payment webhook moves the booker on
+  # (`:paid` to the confirmation, `:expired` to the booking form): a moment
+  # behind the wait would take a second submit for the slot it holds.
   @impl Navigator
+  def go_to(_journey, %{assigns: %{current_state: :awaiting_payment}} = socket, _step),
+    do: {:noreply, socket}
+
+  # `step` is the page's string; one that is not a number moves nothing.
   def go_to(journey, socket, step) do
     numbered = numbered_moments(journey, socket.assigns)
     current = number_of(journey, numbered, socket.assigns[:current_state])

@@ -286,6 +286,19 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.PagedTest do
       assert {:noreply, ^socket} = Paged.go_to(classic(), socket, "4")
     end
 
+    test "moves nowhere while the booker waits on an open checkout" do
+      socket =
+        socket(%{
+          current_state: :awaiting_payment,
+          meeting_type: %{custom_fields: []},
+          entered_via_overview: true
+        })
+
+      for step <- ["1", "2", "3"] do
+        assert {:noreply, ^socket} = Paged.go_to(classic(), socket, step)
+      end
+    end
+
     test "never returns to the overview a booker who came by a direct link" do
       socket = socket(%{current_state: :schedule, meeting_type: nil, entered_via_overview: false})
 

@@ -222,6 +222,39 @@ defmodule TymeslotWeb.Live.Scheduling.EmbedPaidBookingTest do
       refute rendered =~ "Complete your payment in the new tab"
       refute rendered =~ ~s(data-testid="confirmation-heading")
     end
+
+    # While the checkout is open only the webhook moves the booker on: the
+    # booking form behind the step indicator would take a second submit for
+    # a slot this booking already holds.
+    @tag :capture_log
+    test "the step indicator cannot leave the payment wait",
+         %{conn: conn, profile: profile, meeting_type: meeting_type} do
+      expect(StripeAdapterMock, :create_checkout_session, fn _params, _opts ->
+        {:ok, %{id: "cs_wait", url: "https://checkout.stripe.com/cs_wait"}}
+      end)
+
+      view = navigate_to_booking_form_embedded(conn, profile, meeting_type)
+
+      view
+      |> form("form[phx-submit='submit']", %{
+        "booking" => %{
+          "name" => "Wait Wren",
+          "email" => "wren@example.com",
+          "message" => ""
+        }
+      })
+      |> render_submit()
+
+      _drain = :sys.get_state(view.pid)
+      assert has_element?(view, "[data-testid='awaiting-payment']")
+
+      for step <- ["3", "2", "1"] do
+        render_hook(view, "navigate_to_step", %{"step" => step})
+
+        assert has_element?(view, "[data-testid='awaiting-payment']")
+        refute has_element?(view, "form[phx-submit='submit']")
+      end
+    end
   end
 
   describe "non-embed (control)" do
