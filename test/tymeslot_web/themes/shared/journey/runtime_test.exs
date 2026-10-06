@@ -174,6 +174,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.RuntimeTest do
       socket =
         socket(%{
           current_state: :confirmation,
+          entered_via_overview: true,
           client_ip: "127.0.0.1",
           selected_date: "2027-01-05",
           selected_time: "10:00",
@@ -200,6 +201,50 @@ defmodule TymeslotWeb.Themes.Shared.Journey.RuntimeTest do
                :schedule_another,
                nil
              ) == :unhandled
+    end
+  end
+
+  describe "restart/1" do
+    test "returns a booker who came through the overview to it" do
+      socket =
+        socket(%{
+          current_state: :confirmation,
+          client_ip: "127.0.0.1",
+          entered_via_overview: true,
+          meeting_type: @intro,
+          selected_duration: "intro-call",
+          selected_date: "2027-01-05",
+          selected_time: "10:00"
+        })
+
+      assert %{current_state: :overview, selected_date: nil, selected_time: nil} =
+               Runtime.restart(socket).assigns
+    end
+
+    # A private link must never show the organiser's other meeting types, so
+    # the booking starts again where that link opens: the schedule of the
+    # same type, with a fresh slot.
+    test "keeps a booker who came by a direct link on the same meeting type's schedule" do
+      socket =
+        socket(%{
+          current_state: :confirmation,
+          client_ip: "127.0.0.1",
+          entered_via_overview: false,
+          meeting_type: @intro,
+          selected_duration: "intro-call",
+          selected_date: "2027-01-05",
+          selected_time: "10:00",
+          guest_emails: ["a@b.c"]
+        })
+
+      assert %{
+               current_state: :schedule,
+               meeting_type: @intro,
+               selected_duration: "intro-call",
+               selected_date: nil,
+               selected_time: nil,
+               guest_emails: []
+             } = Runtime.restart(socket).assigns
     end
   end
 

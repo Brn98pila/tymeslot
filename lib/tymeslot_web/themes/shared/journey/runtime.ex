@@ -79,8 +79,11 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
   end
 
   @doc """
-  Starts the booking again, in place, on the journey's opening moment: the
-  confirmation's "Schedule another meeting".
+  Starts the booking again, in place: the confirmation's "Schedule another
+  meeting". A booker who came through the overview returns to the journey's
+  opening moment; any other (a private or direct link, a reschedule) to the
+  moment a meeting type's own link opens on, for the same meeting type, so
+  the organiser's other types stay hidden.
   """
   # The flow restarts here without navigating, so the reschedule context has
   # to be dropped explicitly or the next submit moves the meeting that was
@@ -90,7 +93,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
   @spec restart(Socket.t()) :: Socket.t()
   def restart(socket) do
     journey = socket.assigns.journey
-    opening = journey.navigator.entry(journey, :overview, socket.assigns)
+    opening = journey.navigator.entry(journey, restart_route(socket.assigns), socket.assigns)
 
     socket
     |> GuestBooking.assign_defaults()
@@ -119,6 +122,12 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
 
   defp navigate(journey, socket, :next_step), do: journey.navigator.continue(journey, socket)
   defp navigate(journey, socket, :back_step), do: journey.navigator.back(journey, socket)
+
+  # The route whose entry the booking starts again on: the overview, or the
+  # meeting type's own link (`/:username/:slug`, live action `:schedule`),
+  # so a restart opens where a fresh visit by the same way in would.
+  defp restart_route(%{entered_via_overview: true}), do: :overview
+  defp restart_route(_assigns), do: :schedule
 
   defp restart?(assigns, moment_key, event) do
     event == :schedule_another and moment_key == :confirmation and
