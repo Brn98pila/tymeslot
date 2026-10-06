@@ -63,7 +63,7 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
         <p :if={Enum.any?(@payments, &expired?/1)} class="text-token-sm text-tymeslot-700 mb-4">
           {dgettext(
             "dashboard_payments",
-            "Expired bookings were paid for but never confirmed, for example because the payment arrived after the slot was taken. Their refund is issued automatically; if one is still listed later, refund it here."
+            "Expired bookings were paid for but never confirmed, for example because the payment arrived after the slot was taken. Their refund is issued automatically; if one is still listed later, refund it here or in Stripe."
           )}
         </p>
         <.info_box :if={not connected_for_refunds?(@account)} variant={:warning} class="mb-4">

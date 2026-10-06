@@ -166,10 +166,10 @@ defmodule Tymeslot.MeetingPayments.BookingPaymentQueries do
 
   Derived from the meeting's status and the payment's own balance rather than
   from a stored "refund owed" flag, so it cannot drift out of step with either
-  side. Expired bookings come first, since no cancellation date orders them
-  and an automatic refund that has not gone through needs the host most;
-  then oldest cancellation first: the longer an attendee has been out of
-  pocket, the more urgent the row.
+  side. Oldest first, the longer an attendee has been out of pocket the more
+  urgent the row: a cancelled booking dated by its cancellation, an expired
+  one, which has no cancellation date, by its payment. Ties go by id, so the
+  bounded window below is the same rows on every read.
 
   Deliberately not bounded by `for_host/2`'s recent-payments window, which is
   what let an older unrefunded cancellation drop off the dashboard entirely.
@@ -182,8 +182,8 @@ defmodule Tymeslot.MeetingPayments.BookingPaymentQueries do
     limit = Keyword.get(opts, :limit, @outstanding_refunds_limit)
 
     query =
-      from [_b, m] in outstanding_refunds_query(host_user_id),
-        order_by: [asc_nulls_first: m.cancelled_at],
+      from [b, m] in outstanding_refunds_query(host_user_id),
+        order_by: [asc: coalesce(m.cancelled_at, b.paid_at), asc: b.id],
         limit: ^limit,
         preload: [meeting: m]
 

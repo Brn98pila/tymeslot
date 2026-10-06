@@ -133,9 +133,35 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettingsOutstandingRefundsTest do
       {view, html} = open_payments(conn, host)
 
       assert html =~ "Expired bookings were paid for but never confirmed"
-      assert html =~ "Their refund is issued automatically"
+      assert html =~ "if one is still listed later, refund it here or in Stripe."
       refute html =~ "Cancelling never refunds on its own"
       assert has_element?(view, "#outstanding-refund-#{payment.id}", "Expired, paid 30 Sep 2026")
+    end
+
+    # The card shows a bounded window and says how much it leaves out; the
+    # rows it shows are the oldest, an expired row placed by its payment
+    # date among the cancellations, so the newest of 51 is the one left out.
+    test "shows the oldest outstanding refunds when there are more than it lists",
+         %{conn: conn} do
+      host = connected_host()
+      now = DateTime.utc_now(:second)
+
+      cancelled =
+        for hour <- 1..50 do
+          meeting =
+            insert(:meeting, status: "cancelled", cancelled_at: DateTime.add(now, -hour, :hour))
+
+          cancelled_payment_for(host, %{meeting: meeting})
+        end
+
+      newest =
+        cancelled_payment_for(host, %{meeting: insert(:meeting, status: "expired"), paid_at: now})
+
+      {view, html} = open_payments(conn, host)
+
+      assert html =~ "Showing the 50 oldest of 51 outstanding refunds."
+      refute has_element?(view, "#outstanding-refund-#{newest.id}")
+      assert Enum.all?(cancelled, &has_element?(view, "#outstanding-refund-#{&1.id}"))
     end
 
     test "shows only the balance left after a partial refund", %{conn: conn} do
