@@ -539,6 +539,36 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManagerTest do
       assert %{provider_type: :caldav} = ClientManager.resolve_client({integration.id, user.id})
     end
 
+    # A meeting whose integration was disconnected and reconnected has no
+    # integration id any more, and a cancel or reschedule then falls back to
+    # the user's calendars. A read-only one listed first must not be where it
+    # writes: the write fails and the booking's event is left behind.
+    test "falls back to a writable calendar, never a read-only one listed first",
+         %{user: user} do
+      insert(:calendar_integration,
+        user: user,
+        provider: "caldav",
+        is_active: true,
+        base_url: "https://cal.example.com",
+        calendar_paths: ["/cal/rota/", "/cal/bookings/"],
+        default_booking_calendar_id: "/cal/bookings/",
+        calendar_list: [
+          %{id: "/cal/rota/", path: "/cal/rota/", name: "Rota", selected: true, read_only: true},
+          %{id: "/cal/bookings/", path: "/cal/bookings/", name: "Bookings", selected: true}
+        ]
+      )
+
+      insert(:profile, user: user)
+
+      meeting = %MeetingSchema{organizer_user_id: user.id, calendar_integration_id: nil}
+
+      for context <- [meeting, user.id] do
+        assert %{client: %{calendar_paths: paths}} = ClientManager.resolve_client(context)
+        assert paths != []
+        refute Enum.any?(paths, &(&1 =~ "/cal/rota")), "wrote through the read-only calendar"
+      end
+    end
+
     test "returns nil for an unrelated user that has no integrations", _ctx do
       stranger = insert(:user)
       insert(:profile, user: stranger)

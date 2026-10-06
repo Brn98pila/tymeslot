@@ -91,11 +91,14 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   end
 
   @doc """
-  Gets a single configured calendar client. Uses the first configured path.
+  The client a write for `user_id` falls back to when nothing names an
+  integration: the user's booking client, or failing that the first calendar
+  they can write to. Never a read-only calendar, which `clients/1` includes
+  so that its events block time, but which takes no writes.
   """
   @spec client(user_id() | nil) :: client() | nil
   def client(user_id \\ nil) do
-    List.first(clients(user_id))
+    booking_client(user_id) || first_writable_client(user_id)
   end
 
   @doc """
@@ -292,6 +295,16 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
           reason: reason
         )
 
+        nil
+    end
+  end
+
+  defp first_writable_client(user_id) do
+    case fetch_active_integrations(user_id) do
+      {:ok, integrations, _unreadable} ->
+        Enum.find_value(integrations, &List.first(writable_clients_for_integration(&1)))
+
+      _none ->
         nil
     end
   end
