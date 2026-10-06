@@ -12,10 +12,14 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
 
   Idempotent — replaying an event whose id matches the stored
   `last_event_id` is a no-op, as is delivering an event for a meeting
-  that is no longer in `awaiting_payment`. Also a no-op when the session's
-  `payment_status` is not `"paid"` (an asynchronous payment method still
-  settling), matching the gate `ReconcileAwaitingPayments.dispatch/2`
-  applies when it replays this same event.
+  that is no longer in `awaiting_payment`, with one exception: a meeting
+  that expired while its payment was being taken (its payment marked
+  `failed`) is confirmed after all if its slot is still free, and the
+  payment is refunded in full if the slot has been taken since. Also a
+  no-op when the session's `payment_status` is not `"paid"` (an
+  asynchronous payment method still settling), matching the gate
+  `ReconcileAwaitingPayments.dispatch/2` applies when it replays this
+  same event.
 
   The booking is resolved through `PaymentLookup.find_for_session/1`, which
   ignores events from any connected account other than the one the booking
@@ -32,12 +36,15 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
+  alias Tymeslot.MeetingPayments.Refunds
   alias Tymeslot.MeetingPayments.StripeAdapter
   alias Tymeslot.MeetingPayments.Telemetry
   alias Tymeslot.MeetingPayments.Webhooks.LockedPayment
   alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
   alias Tymeslot.Meetings.Approval
   alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Meetings.Scheduling
+  alias Tymeslot.Repo
 
   @event_type "checkout.session.completed"
 
@@ -115,7 +122,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   # reconciler replaying it under its own event id say, waits on the row
   # lock, then finds the meeting no longer awaiting payment and does nothing.
   defp run(payment, event_id, object) do
-    case LockedPayment.run(payment, event_id, &run_in_transaction(&1, event_id, object)) do
+    case complete(payment, event_id, object) do
       {:ok, {:advanced, paid, meeting}} ->
         # Backfill stripe_charge_id outside the transaction — this requires a
         # Stripe API call (expanding payment_intent.latest_charge) which must
@@ -125,7 +132,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
         # payment transition; the reconciler can retry if needed.
         backfill_charge_id(paid, object)
         emit_payment_succeeded(paid, meeting)
-        broadcast_paid(meeting.id)
+        broadcast(meeting.id, :paid)
         enqueue_post_payment_effects(meeting, paid)
         :ok
 
@@ -139,8 +146,19 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
 
         backfill_charge_id(paid, object)
         emit_payment_succeeded(paid, meeting)
-        broadcast_paid(meeting.id)
+        broadcast(meeting.id, :paid)
         enqueue_post_payment_effects(meeting, paid)
+        :ok
+
+      {:ok, {:refunded, refunded, meeting}} ->
+        Logger.warning(
+          "checkout.session.completed: completed after expiry with the slot taken, payment refunded",
+          meeting_id: meeting.id,
+          payment_id: refunded.id,
+          event_id: event_id
+        )
+
+        broadcast(meeting.id, :expired)
         :ok
 
       {:ok, outcome} when outcome in [:no_op, :idempotent_replay] ->
@@ -203,11 +221,55 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   defp extract_charge_id(%{latest_charge: id}) when is_binary(id), do: id
   defp extract_charge_id(_other), do: nil
 
+  # A completion arriving after its booking expired (`:recovered` below)
+  # brings the booking back only if nobody has taken the slot since the
+  # expiry released it. The first attempt takes no schedule lock and backs
+  # out on finding that case; the second runs under the organiser's schedule
+  # lock with the slot counted free (`Scheduling.reinstate_with_conflict_check/2`),
+  # and a slot found taken refunds the payment instead.
+  defp complete(payment, event_id, object) do
+    case LockedPayment.run(
+           payment,
+           event_id,
+           &run_in_transaction(&1, event_id, object, :unchecked)
+         ) do
+      {:error, :slot_unchecked} -> recover(payment, event_id, object)
+      result -> result
+    end
+  end
+
+  defp recover(payment, event_id, object) do
+    with {:ok, meeting} <- fetch_meeting(payment.meeting_id) do
+      write_fn = fn ->
+        case LockedPayment.run(
+               payment,
+               event_id,
+               &run_in_transaction(&1, event_id, object, :free)
+             ) do
+          {:ok, value} -> value
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end
+
+      # A meeting whose organiser is gone has no schedule to come back into.
+      case Scheduling.reinstate_with_conflict_check(meeting, write_fn) do
+        {:error, reason} when reason in [:time_conflict, :organizer_required] ->
+          refund_late_payment(payment, event_id, object)
+
+        result ->
+          result
+      end
+    end
+  end
+
   # Runs under the payment's row lock (`LockedPayment`); the meeting row is
   # locked next, so the transition is decided from both rows as committed.
-  defp run_in_transaction(payment, event_id, object) do
+  # `slot` says whether the organiser's schedule lock is held with the
+  # meeting's slot counted free, which a recovery needs.
+  defp run_in_transaction(payment, event_id, object, slot) do
     with {:ok, meeting} <- lock_meeting(payment.meeting_id),
          {:proceed, transition} <- check_transition(meeting, payment),
+         :ok <- slot_checked(transition, slot),
          {:ok, paid} <- mark_paid(payment, event_id, object),
          {:ok, confirmed} <- MeetingQueries.update_meeting(meeting, post_payment_status(meeting)),
          {:ok, _job_status} <- schedule_calendar_creation(confirmed) do
@@ -216,6 +278,33 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
       :no_op -> {:ok, :no_op}
       {:error, _reason} = error -> error
     end
+  end
+
+  defp slot_checked(:recovered, :unchecked), do: {:error, :slot_unchecked}
+  defp slot_checked(_transition, _slot), do: :ok
+
+  # The attendee paid for a booking whose slot someone else has since been
+  # given, so the booking stays expired and the whole payment goes back,
+  # through the same refund as any other (`Refunds.issue_refund/3`: on the
+  # connected account that took the charge, with the attendee's refund
+  # email). The payment is marked paid first, as it truly was; a failed
+  # refund rolls all of it back, so Stripe's redelivery of this event tries
+  # again. The charge id the refund needs is backfilled beforehand, outside
+  # the transaction, since that is a Stripe call.
+  defp refund_late_payment(payment, event_id, object) do
+    backfill_charge_id(payment, object)
+
+    LockedPayment.run(payment, event_id, fn locked ->
+      with {:ok, meeting} <- lock_meeting(locked.meeting_id),
+           {:proceed, :recovered} <- check_transition(meeting, locked),
+           {:ok, paid} <- mark_paid(locked, event_id, object),
+           {:ok, refunded} <- Refunds.issue_refund(paid, Refunds.refundable_remaining_cents(paid)) do
+        {:ok, {:refunded, refunded, meeting}}
+      else
+        {:error, _reason} = error -> error
+        _no_longer_recoverable -> {:ok, :no_op}
+      end
+    end)
   end
 
   # Payment clearing does not always mean the booking is on. The gate
@@ -276,6 +365,9 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
     end
   end
 
+  defp fetch_meeting(nil), do: {:error, :meeting_missing}
+  defp fetch_meeting(meeting_id), do: MeetingQueries.get_meeting(meeting_id)
+
   defp lock_meeting(nil), do: {:error, :meeting_missing}
   defp lock_meeting(meeting_id), do: MeetingQueries.get_meeting_for_update(meeting_id)
 
@@ -285,14 +377,13 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   #
   # Transitions:
   #   :advanced  — normal happy path (meeting awaiting_payment)
-  #   :recovered — race: completed event arrived after the expired webhook ran;
-  #                both events are authoritative; we recover by re-confirming
+  #   :recovered — completed event arrived after the booking expired and its
+  #                payment was failed (the expired webhook, or a disconnect,
+  #                ran first); re-confirmed only if the slot is still free,
+  #                refunded otherwise (see `complete/3`)
   #   :no_op     — meeting already in a non-recoverable terminal state; skip
   defp check_transition(%{status: "awaiting_payment"}, _payment), do: {:proceed, :advanced}
-
-  defp check_transition(%{status: "expired"}, %{status: payment_status})
-       when payment_status in ["failed", "cancelled"],
-       do: {:proceed, :recovered}
+  defp check_transition(%{status: "expired"}, %{status: "failed"}), do: {:proceed, :recovered}
 
   defp check_transition(_meeting, _payment), do: :no_op
 
@@ -327,8 +418,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
     )
   end
 
-  defp broadcast_paid(meeting_id) do
-    Phoenix.PubSub.broadcast(Tymeslot.PubSub, "meeting_payment:#{meeting_id}", :paid)
+  defp broadcast(meeting_id, message) do
+    Phoenix.PubSub.broadcast(Tymeslot.PubSub, "meeting_payment:#{meeting_id}", message)
   end
 
   # The public booking page derives occupancy from the organiser's connected

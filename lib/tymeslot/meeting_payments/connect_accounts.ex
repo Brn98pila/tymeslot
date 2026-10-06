@@ -119,9 +119,12 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
   will not be overwritten — the update silently skips that row, and
   `cancelled_count` reflects only the rows that were actually cancelled.
 
-  If the webhook arrives *after* step 3 sets the meeting to `expired`, the
-  `CheckoutSessionCompleted.ensure_awaiting_payment/1` guard will find the
-  meeting in `expired` status and return `:no_op`, leaving the payment untouched.
+  If the webhook arrives *after* step 3, it finds the meeting `expired` and
+  the payment `failed`, and the money has been taken all the same, so
+  `CheckoutSessionCompleted` does not ignore it: it confirms the booking
+  after all if the slot is still free (checked under the organiser's
+  schedule lock), and refunds the payment in full on the connected account
+  if the slot has been taken since, leaving the meeting expired.
 
   ## Stripe session expiry failures
 

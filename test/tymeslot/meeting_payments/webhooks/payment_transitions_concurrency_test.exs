@@ -20,12 +20,15 @@ defmodule Tymeslot.MeetingPayments.Webhooks.PaymentTransitionsConcurrencyTest do
   import Tymeslot.Factory
   import Tymeslot.Test.RaceConductor, only: [race: 1, unboxed: 1]
 
+  alias Ecto.UUID
   alias Tymeslot.Auth.UserSchema
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
+  alias Tymeslot.MeetingPayments.StripeAdapterMock
   alias Tymeslot.MeetingPayments.Webhooks.ChargeDisputeClosed
   alias Tymeslot.MeetingPayments.Webhooks.ChargeRefunded
   alias Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted
   alias Tymeslot.Meetings.MeetingSchema
+  alias Tymeslot.Meetings.Scheduling
   alias Tymeslot.Repo
   alias Tymeslot.Test.RaceConductor
 
@@ -33,18 +36,32 @@ defmodule Tymeslot.MeetingPayments.Webhooks.PaymentTransitionsConcurrencyTest do
   @succeeded [:tymeslot, :meeting_payments, :booking_payment, :succeeded]
 
   setup do
-    user = unboxed(fn -> insert(:user) end)
+    user =
+      unboxed(fn ->
+        user = insert(:user)
+        insert(:profile, user: user)
+        user
+      end)
 
     on_exit(fn ->
       unboxed(fn ->
         meeting_ids =
           Repo.all(from(m in MeetingSchema, where: m.organizer_user_id == ^user.id, select: m.id))
 
-        Repo.delete_all(from(b in BookingPaymentSchema, where: b.host_user_id == ^user.id))
+        payment_ids =
+          Repo.all(
+            from(b in BookingPaymentSchema, where: b.host_user_id == ^user.id, select: b.id)
+          )
 
         Repo.delete_all(
-          from(j in Oban.Job, where: fragment("?->>'meeting_id'", j.args) in ^meeting_ids)
+          from(j in Oban.Job,
+            where:
+              fragment("?->>'meeting_id'", j.args) in ^meeting_ids or
+                fragment("?->>'booking_payment_id'", j.args) in ^payment_ids
+          )
         )
+
+        Repo.delete_all(from(b in BookingPaymentSchema, where: b.host_user_id == ^user.id))
 
         Repo.delete_all(from(m in MeetingSchema, where: m.organizer_user_id == ^user.id))
         Repo.delete_all(from(u in UserSchema, where: u.id == ^user.id))
@@ -128,9 +145,55 @@ defmodule Tymeslot.MeetingPayments.Webhooks.PaymentTransitionsConcurrencyTest do
     assert reloaded.status == "partially_refunded"
   end
 
-  defp complete(hold, event_id, meeting) do
+  # The expiry released the slot, so a late completion bringing the booking
+  # back competes with any new booking for it, and must count the slot under
+  # the same organiser schedule lock that booking takes.
+  test "a late completion and a new booking of an overlapping slot: one ends up live", ctx do
+    {meeting, payment} = expired_booking(ctx.user, "cs_RACE_LATE")
+
+    Mox.stub(StripeAdapterMock, :retrieve_payment_intent, fn _id, _opts ->
+      {:ok, %{"latest_charge" => "ch_RACE_LATE"}}
+    end)
+
+    Mox.stub(StripeAdapterMock, :create_refund, fn _params, _opts ->
+      {:ok, %{"id" => "re_RACE"}}
+    end)
+
+    results =
+      race([
+        fn hold ->
+          RaceConductor.arm(hold, update_of("meetings"))
+          complete(nil, "evt_RACE_LATE", meeting, "cs_RACE_LATE")
+        end,
+        fn hold ->
+          RaceConductor.arm(hold, RaceConductor.insert_into("meetings"))
+
+          Scheduling.create_meeting_with_conflict_check(
+            booking_attrs(ctx.user, DateTime.add(meeting.start_time, 30, :minute))
+          )
+        end
+      ])
+
+    [completion, booking] = results
+    assert completion == :ok
+    assert live_meetings(ctx.user) == 1
+
+    refunded = unboxed(fn -> Repo.get!(BookingPaymentSchema, payment.id) end)
+
+    case booking do
+      {:ok, %MeetingSchema{}} ->
+        assert refunded.status == "refunded"
+        assert unboxed(fn -> Repo.get!(MeetingSchema, meeting.id).status end) == "expired"
+
+      {:error, :time_conflict} ->
+        assert refunded.status == "paid"
+        assert unboxed(fn -> Repo.get!(MeetingSchema, meeting.id).status end) == "confirmed"
+    end
+  end
+
+  defp complete(hold, event_id, meeting, session_id \\ "cs_RACE_DOUBLE") do
     # Parks holding the payment row it has just written, before committing.
-    RaceConductor.arm(hold, update_of("booking_payments"))
+    if hold, do: RaceConductor.arm(hold, update_of("booking_payments"))
 
     CheckoutSessionCompleted.handle(%{
       "id" => event_id,
@@ -138,7 +201,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.PaymentTransitionsConcurrencyTest do
       "type" => "checkout.session.completed",
       "data" => %{
         "object" => %{
-          "id" => "cs_RACE_DOUBLE",
+          "id" => session_id,
           "client_reference_id" => meeting.id,
           "payment_intent" => "pi_RACE_DOUBLE",
           "payment_status" => "paid",
@@ -167,6 +230,57 @@ defmodule Tymeslot.MeetingPayments.Webhooks.PaymentTransitionsConcurrencyTest do
         )
 
       {meeting, payment}
+    end)
+  end
+
+  defp expired_booking(user, session_id) do
+    unboxed(fn ->
+      meeting =
+        insert(:meeting,
+          status: "expired",
+          organizer_user_id: user.id,
+          organizer_email: user.email
+        )
+
+      payment =
+        insert(:booking_payment,
+          meeting_id: meeting.id,
+          host_user_id: user.id,
+          status: "failed",
+          stripe_account_id: @account,
+          stripe_checkout_session_id: session_id
+        )
+
+      {meeting, payment}
+    end)
+  end
+
+  defp booking_attrs(user, start_time) do
+    %{
+      uid: UUID.generate(),
+      title: "Race",
+      start_time: start_time,
+      end_time: DateTime.add(start_time, 60, :minute),
+      duration: 60,
+      status: "confirmed",
+      organizer_user_id: user.id,
+      organizer_name: "Organiser",
+      organizer_email: user.email,
+      attendee_name: "Attendee",
+      attendee_email: "attendee-#{System.unique_integer([:positive])}@example.com",
+      attendee_timezone: "Etc/UTC",
+      attendee_locale: "en"
+    }
+  end
+
+  defp live_meetings(user) do
+    unboxed(fn ->
+      Repo.aggregate(
+        from(m in MeetingSchema,
+          where: m.organizer_user_id == ^user.id and m.status == "confirmed"
+        ),
+        :count
+      )
     end)
   end
 

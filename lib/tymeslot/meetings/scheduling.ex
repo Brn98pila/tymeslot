@@ -196,6 +196,54 @@ defmodule Tymeslot.Meetings.Scheduling do
       handle_database_error(error, __STACKTRACE__, %{operation: "update", meeting_id: meeting.id})
   end
 
+  @doc """
+  Runs `write_fn` in a conflict-checked transaction for the slot `meeting`
+  already has, for bringing back a meeting that stopped holding it (an
+  expired booking whose payment completed late). Under the same organiser
+  schedule lock as `create_meeting_with_conflict_check/2`, the organiser's
+  live meetings overlapping the buffered slot, other than `meeting` itself,
+  are counted; `write_fn` runs, still holding the lock, only when there are
+  none.
+
+  Booking limits are not counted again: the meeting was admitted under them
+  when it was booked.
+
+  `write_fn` returns the transaction's value or calls `Repo.rollback/1`, and
+  locks any row it writes itself. Returns `{:ok, value}`,
+  `{:error, :time_conflict}` when the slot has been taken, or
+  `{:error, reason}`.
+  """
+  @spec reinstate_with_conflict_check(Meeting.t(), (-> value)) ::
+          {:ok, value}
+          | {:error, :time_conflict | :organizer_required | :database_error | term()}
+        when value: term()
+  def reinstate_with_conflict_check(
+        %Meeting{organizer_user_id: organizer_user_id} = meeting,
+        write_fn
+      )
+      when is_integer(organizer_user_id) do
+    conflict_checked_transaction(
+      %{
+        start_time: meeting.start_time,
+        end_time: meeting.end_time,
+        organizer_user_id: organizer_user_id,
+        meeting_type_id: meeting.meeting_type_id,
+        exclude_uid: meeting.uid
+      },
+      nil,
+      write_fn,
+      &log_conflict(meeting.start_time, meeting.end_time, &1, meeting.uid)
+    )
+  rescue
+    error ->
+      handle_database_error(error, __STACKTRACE__, %{
+        operation: "reinstate",
+        meeting_id: meeting.id
+      })
+  end
+
+  def reinstate_with_conflict_check(%Meeting{}, _write_fn), do: {:error, :organizer_required}
+
   # Private functions
 
   # The schedule lock comes first, before the limit counts, the conflict

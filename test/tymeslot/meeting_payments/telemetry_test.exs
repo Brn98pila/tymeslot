@@ -165,8 +165,9 @@ defmodule Tymeslot.MeetingPayments.TelemetryTest do
     test "a recovered paid booking also emits booking_payment_succeeded telemetry" do
       # Simulates the race where checkout.session.completed arrives after the
       # expiry webhook has already run — the meeting is expired and the payment
-      # is in a failed/cancelled state.
-      meeting = insert(:meeting, status: "expired")
+      # is failed. The slot is still free, so the booking is brought back.
+      user = insert(:user)
+      meeting = insert(:meeting, status: "expired", organizer_user_id: user.id)
 
       _bp =
         insert(:booking_payment,
