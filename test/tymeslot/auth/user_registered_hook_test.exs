@@ -39,6 +39,12 @@ defmodule Tymeslot.Auth.UserRegisteredHookTest do
     def on_user_registered(_user_id, _metadata), do: {:error, :database_unavailable}
   end
 
+  defmodule RaisingHook do
+    @spec on_user_registered(pos_integer(), map()) :: no_return()
+    def on_user_registered(_user_id, _metadata),
+      do: raise(DBConnection.ConnectionError, "connection not available")
+  end
+
   setup do
     original = Application.get_env(:tymeslot, :user_registered_hook)
     Application.put_env(:tymeslot, :registration_hook_test_pid, self())
@@ -163,6 +169,26 @@ defmodule Tymeslot.Auth.UserRegisteredHookTest do
                perform_job(UserRegisteredHookWorker, %{"user_id" => 42, "metadata" => %{}},
                  attempt: 9
                )
+
+      refute_received {:send_alert, :user_registered_hook_failed, _payload}
+    end
+
+    test "alerts when the hook raises on the final attempt, and still raises" do
+      Application.put_env(:tymeslot, :user_registered_hook, RaisingHook)
+
+      assert_raise DBConnection.ConnectionError, fn ->
+        perform_job(UserRegisteredHookWorker, %{"user_id" => 42, "metadata" => %{}}, attempt: 10)
+      end
+
+      assert_receive {:send_alert, :user_registered_hook_failed, %{user_id: 42}}
+    end
+
+    test "does not alert on a raise while retries remain" do
+      Application.put_env(:tymeslot, :user_registered_hook, RaisingHook)
+
+      assert_raise DBConnection.ConnectionError, fn ->
+        perform_job(UserRegisteredHookWorker, %{"user_id" => 42, "metadata" => %{}}, attempt: 9)
+      end
 
       refute_received {:send_alert, :user_registered_hook_failed, _payload}
     end

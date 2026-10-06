@@ -2,8 +2,8 @@ defmodule Tymeslot.Workers.UserRegisteredHookWorker do
   @moduledoc """
   Runs the configured `:user_registered_hook` for one completed
   registration (see `Tymeslot.Auth.Behaviours.UserRegisteredHook`). An
-  `{:error, reason}` from the hook is retried with Oban's backoff, and one
-  on the final attempt raises an admin alert.
+  `{:error, reason}` or a raise from the hook is retried with Oban's
+  backoff, and either on the final attempt raises an admin alert.
   """
 
   use Oban.Worker,
@@ -29,9 +29,9 @@ defmodule Tymeslot.Workers.UserRegisteredHookWorker do
         :ok
 
       hook ->
-        case hook.on_user_registered(user_id, Map.get(args, "metadata", %{})) do
+        case run_hook(hook, user_id, Map.get(args, "metadata", %{}), job) do
           {:error, reason} = error ->
-            if job.attempt >= job.max_attempts, do: alert_exhausted(user_id, reason)
+            if final_attempt?(job), do: alert_exhausted(user_id, reason)
             error
 
           result ->
@@ -39,6 +39,19 @@ defmodule Tymeslot.Workers.UserRegisteredHookWorker do
         end
     end
   end
+
+  # A raise (a dropped database connection inside the hook, say) is the
+  # likeliest way the hook runs out of attempts, so it alerts on the final
+  # one too; it is re-raised so Oban records and retries it as before.
+  defp run_hook(hook, user_id, metadata, job) do
+    hook.on_user_registered(user_id, metadata)
+  rescue
+    exception ->
+      if final_attempt?(job), do: alert_exhausted(user_id, exception)
+      reraise exception, __STACKTRACE__
+  end
+
+  defp final_attempt?(job), do: job.attempt >= job.max_attempts
 
   # Whatever the hook records (the terms acceptance, say) is lost for good
   # once Oban stops retrying, so an operator has to act on it by hand.
