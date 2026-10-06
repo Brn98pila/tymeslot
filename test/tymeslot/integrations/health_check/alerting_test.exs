@@ -336,6 +336,33 @@ defmodule Tymeslot.Integrations.HealthCheck.AlertingTest do
     end
   end
 
+  describe "recover_after configuration" do
+    test "is refused below one window, rather than reading every quiet hour as a recovery",
+         %{hour: hour} do
+      for windows <- [0, -1, nil] do
+        with_config(:tymeslot, :integration_health_alerting,
+          window_hours: 1,
+          reauth_flags_threshold: 3,
+          recover_after: windows
+        )
+
+        assert_raise ArgumentError, ~r/recover_after/, fn ->
+          Alerting.check_signal(:reauth_flags, at(hour, 1))
+        end
+      end
+    end
+
+    test "accepts a single quiet window", %{hour: hour} do
+      with_config(:tymeslot, :integration_health_alerting,
+        window_hours: 1,
+        reauth_flags_threshold: 3,
+        recover_after: 1
+      )
+
+      assert :ok = Alerting.check_signal(:reauth_flags, at(hour, 1))
+    end
+  end
+
   describe "IntegrationHealthAlertWorker" do
     test "a signal whose check raises does not stop the others", %{user: user, hour: hour} do
       setup_config(:tymeslot, :integration_health_alerting,

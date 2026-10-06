@@ -208,7 +208,10 @@ config :tymeslot, :integration_health_alerting,
   # alerting: a few a day is ordinary OAuth churn, a burst in one hour is not
   reauth_flags_threshold: 10,
   # Integrations paused by one daily auto-pause run before alerting
-  auto_pause_threshold: 1
+  auto_pause_threshold: 1,
+  # Consecutive windows under the threshold before a signal counts as
+  # recovered; a shorter dip belongs to the incident. At least 1
+  recover_after: 2
 
 # Webhook configuration
 config :tymeslot, :webhook_base_url, nil

@@ -47,7 +47,8 @@ defmodule Tymeslot.Integrations.HealthCheck.Alerting do
     * `:auto_pause_threshold` [1]: integrations paused in one run before
       alerting
     * `:recover_after` [2]: consecutive windows under the threshold before a
-      signal counts as recovered; a shorter dip belongs to the incident
+      signal counts as recovered; a shorter dip belongs to the incident. At
+      least 1: anything else raises `ArgumentError`
 
   ## Deduplication
 
@@ -355,7 +356,21 @@ defmodule Tymeslot.Integrations.HealthCheck.Alerting do
   defp hour_start(%DateTime{} = datetime),
     do: %{DateTime.truncate(datetime, :second) | minute: 0, second: 0}
 
+  # A signal can only recover after at least one quiet window: with fewer, the
+  # look back over the quiet windows covers nothing and every window under
+  # the threshold would read as a fresh recovery.
   defp config do
-    Keyword.merge(@defaults, Application.get_env(:tymeslot, :integration_health_alerting, []))
+    config =
+      Keyword.merge(@defaults, Application.get_env(:tymeslot, :integration_health_alerting, []))
+
+    case Keyword.fetch!(config, :recover_after) do
+      windows when is_integer(windows) and windows >= 1 ->
+        config
+
+      other ->
+        raise ArgumentError,
+              "config :tymeslot, :integration_health_alerting, recover_after: must be a " <>
+                "positive integer, got: #{inspect(other)}"
+    end
   end
 end
