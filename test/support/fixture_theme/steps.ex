@@ -36,6 +36,8 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.OverviewStep do
         phx-value-duration={MeetingTypes.effective_slug(meeting_type)}
         phx-target={@myself}
         data-testid="duration-option"
+        data-fact="meeting_type"
+        data-value={MeetingTypes.effective_slug(meeting_type)}
         aria-pressed={to_string(@selected_duration == MeetingTypes.effective_slug(meeting_type))}
       >
         {meeting_type.name}
@@ -45,6 +47,7 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.OverviewStep do
         phx-click="next_step"
         phx-target={@myself}
         data-testid="next-step"
+        data-intent="continue"
         disabled={is_nil(@selected_duration)}
       >
         Next
@@ -94,7 +97,13 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.ScheduleStep do
         landing_week={CalendarHelpers.landing_week(assigns)}
         target={@myself}
       />
-      <button type="button" phx-click="back_step" phx-target={@myself} data-testid="back-step">
+      <button
+        type="button"
+        phx-click="back_step"
+        phx-target={@myself}
+        data-testid="back-step"
+        data-intent="back"
+      >
         Back
       </button>
       <button
@@ -102,6 +111,7 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.ScheduleStep do
         phx-click="next_step"
         phx-target={@myself}
         data-testid="next-step"
+        data-intent="continue"
         disabled={is_nil(@selected_date) or is_nil(@selected_time)}
       >
         Next
@@ -112,10 +122,15 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.ScheduleStep do
 end
 
 defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.QuestionsStep do
-  @moduledoc "The fixture theme's custom-questions step: a marker only."
+  @moduledoc """
+  The fixture theme's custom-questions step: the current question through
+  the shared inputs (`CustomQuestions.Inputs.Renderer`), its error, and the
+  ways back and on, unstyled.
+  """
   use TymeslotWeb, :live_component
 
   alias TymeslotWeb.Themes.Shared.CustomQuestions.Events
+  alias TymeslotWeb.Themes.Shared.CustomQuestions.Inputs.Renderer, as: InputRenderer
   alias TymeslotWeb.Themes.Shared.StepEvents
 
   @impl Phoenix.LiveComponent
@@ -126,8 +141,20 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.QuestionsStep do
 
   @impl Phoenix.LiveComponent
   def render(assigns) do
+    assigns = Events.assign_render_state(assigns)
+
     ~H"""
-    <section class="booker-card" data-testid="fixture-questions"></section>
+    <section class="booker-card" data-testid="fixture-questions">
+      <h2>{@definition["label"]}</h2>
+      <InputRenderer.render definition={@definition} value={@value} myself={@myself} />
+      <p :if={@error} data-testid="fixture-question-error">{@error}</p>
+      <button type="button" phx-click="back_step" phx-target={@myself} data-intent="back">
+        Back
+      </button>
+      <button type="button" phx-click="next_step" phx-target={@myself} data-intent="continue">
+        Next
+      </button>
+    </section>
     """
   end
 end
@@ -159,8 +186,12 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.BookingStep do
         validation_errors={@validation_errors}
         target={@myself}
       />
-      <button type="submit" form="booking-form" data-testid="submit-booking">Book</button>
-      <button type="button" phx-click="back_step" phx-target={@myself}>Back</button>
+      <button type="submit" form="booking-form" data-testid="submit-booking" data-intent="submit">
+        Book
+      </button>
+      <button type="button" phx-click="back_step" phx-target={@myself} data-intent="back">
+        Back
+      </button>
     </section>
     """
   end
@@ -182,7 +213,9 @@ defmodule TymeslotWeb.Test.FixtureTheme.Scheduling.ConfirmationStep do
   def render(assigns) do
     ~H"""
     <section class="booker-card" data-testid="fixture-confirmation">
-      <button type="button" phx-click="schedule_another" phx-target={@myself}>Again</button>
+      <button type="button" phx-click="schedule_another" phx-target={@myself} data-intent="restart">
+        Again
+      </button>
     </section>
     """
   end
