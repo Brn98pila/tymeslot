@@ -403,9 +403,8 @@ defmodule Tymeslot.Notifications.Events do
   # `meeting.declined`, `meeting.request_expired`) included, fans out to all
   # three channels through the guarded `dispatch_channel/3`, so a raising
   # channel cannot abort the fan-out or escape into callers this module
-  # documents as non-failing. Telegram finds no subscriber to the request
-  # events yet (`TelegramIntegrationSchema`'s `@valid_events` still lists the
-  # original three), so widening that allowlist is all it will need.
+  # documents as non-failing. Each channel may subscribe to every event
+  # (`Tymeslot.Notifications.EventTypes.all/0`).
   defp dispatch_channels(event, meeting) do
     dispatch_webhooks(event, meeting)
     dispatch_telegram(event, meeting)
