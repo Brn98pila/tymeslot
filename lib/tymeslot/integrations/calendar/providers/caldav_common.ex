@@ -269,10 +269,11 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
   # the union of successful results. This keeps degraded multi-calendar
   # setups working while still making errors observable in logs.
   #
-  # We deliberately don't expand recurrences here — `event_processor.normalise_events`
-  # does its own expansion downstream. Expanding in both places produces N×N
-  # occurrences because each first-pass occurrence still carries the master
-  # RRULE and gets re-expanded.
+  # We deliberately don't expand recurrences here: the caller expands them,
+  # through `ICalNormaliser` on both the sync and the live availability read
+  # (`EventsRead`). Expanding in both places produces N×N occurrences because
+  # each first-pass occurrence still carries the master RRULE and gets
+  # re-expanded.
   defp handle_fetch_results(successes, errors) do
     Enum.each(errors, fn {path, {:error, reason}} ->
       Logger.warning("CalDAV fetch failed for one calendar path",

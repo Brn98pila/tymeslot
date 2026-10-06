@@ -6,8 +6,8 @@ defmodule Tymeslot.Integrations.Calendar.EventsRead do
 
   require Logger
   alias Tymeslot.Infrastructure.Logging.Redactor
+  alias Tymeslot.Integrations.Calendar.ICalNormaliser
   alias Tymeslot.Integrations.Calendar.Providers.ProviderAdapter
-  alias Tymeslot.Integrations.Calendar.RecurrenceExpander
   alias Tymeslot.Integrations.Calendar.Shared.FetchAggregate.Outcome
 
   # The furthest any timezone sits ahead of and behind UTC, for reading an
@@ -127,40 +127,13 @@ defmodule Tymeslot.Integrations.Calendar.EventsRead do
   end
 
   # Expands recurring events (those with a recurrence_rule) into individual
-  # occurrences within the requested date range. Non-recurring events pass
-  # through unchanged. Each occurrence replaces start_time/end_time with the
-  # concrete occurrence times so downstream availability checking sees them
-  # as distinct events.
-  defp expand_recurring_events(events, range_start, range_end) do
-    Enum.flat_map(events, &expand_event(&1, range_start, range_end))
-  end
-
-  defp expand_event(event, range_start, range_end) do
-    rrule = event[:rrule] || event[:recurrence_rule]
-
-    if rrule && rrule != "" do
-      expander_event = %{
-        start_time: event[:dtstart] || event[:start_time],
-        end_time: event[:dtend] || event[:end_time],
-        recurrence_rule: rrule
-      }
-
-      exdates = parse_exdates(event[:exdate] || event[:exdates] || [])
-
-      expander_event
-      |> RecurrenceExpander.expand(range_start, range_end, exdates: exdates)
-      |> Enum.map(fn occurrence ->
-        event
-        |> Map.put(:start_time, occurrence.start_time)
-        |> Map.put(:end_time, occurrence.end_time)
-      end)
-    else
-      [event]
-    end
-  end
-
-  defp parse_exdates(exdates) when is_list(exdates), do: exdates
-  defp parse_exdates(_other), do: []
+  # occurrences within the requested date range, through the same expansion
+  # the sync uses: in the series' own zone, so a series keeps its wall-clock
+  # time across a DST change, and without the occurrences its `RECURRENCE-ID`
+  # overrides have moved. Google and Outlook arrive already expanded and carry
+  # no rule, so their events pass through unchanged.
+  defp expand_recurring_events(events, range_start, range_end),
+    do: ICalNormaliser.expand_occurrences(events, range_start, range_end)
 
   # All-day events carry bare `%Date{}` values the whole way down this path:
   # the iCal parser emits them for DATE-form DTSTART/DTEND, `RecurrenceExpander`
