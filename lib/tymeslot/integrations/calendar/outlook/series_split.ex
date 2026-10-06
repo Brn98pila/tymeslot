@@ -89,10 +89,12 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesSplit do
 
   # Graph counts only the dates its pattern makes, so a master whose start is
   # off the pattern (a Monday-and-Wednesday series created on a Tuesday
-  # through the API) does not have that start as an occurrence: its first
-  # occurrence is the pattern's first date, and `numberOfOccurrences` does
-  # not include the start. RFC 5545, which the count follows, always counts
-  # it, so it comes off again here.
+  # through the API, or a monthly one on the 10th that starts on the 5th) does
+  # not have that start as an occurrence: its first occurrence is the
+  # pattern's first date, and `numberOfOccurrences` does not include the
+  # start. The count follows an RRULE on the start's own day (the converter
+  # keeps no BYMONTHDAY or BYMONTH), stepping once per period as Graph does,
+  # and RFC 5545 always counts the start, so it comes off again here.
   defp count_before(
          %{"pattern" => pattern, "range" => range},
          {start, _finish} = timing,
@@ -105,13 +107,23 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesSplit do
     end
   end
 
-  # Of the patterns the count follows (daily and weekly; see
-  # `RecurrenceExpander.countable?/1`), only a weekly one's days can miss the
-  # master's start.
+  # Whether the master's start is a date the pattern itself makes: a weekly
+  # pattern's days, an absolute monthly pattern's day of the month, and an
+  # absolute yearly one's day and month. A daily pattern makes every day.
   defp on_pattern?(%{"type" => "weekly", "daysOfWeek" => days}, start)
        when is_list(days) and days != [] do
     weekday = start |> date_of() |> Calendar.strftime("%A") |> String.downcase()
     weekday in Enum.map(days, &String.downcase/1)
+  end
+
+  defp on_pattern?(%{"type" => "absoluteMonthly", "dayOfMonth" => day}, start)
+       when is_integer(day),
+       do: date_of(start).day == day
+
+  defp on_pattern?(%{"type" => "absoluteYearly", "dayOfMonth" => day, "month" => month}, start)
+       when is_integer(day) and is_integer(month) do
+    date = date_of(start)
+    date.day == day and date.month == month
   end
 
   defp on_pattern?(_pattern, _start), do: true
