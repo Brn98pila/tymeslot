@@ -50,12 +50,15 @@ defmodule Tymeslot.Polls.SlotHealth do
     end
   end
 
+  # Padded by a day each side: an all-day event blocks the host's local day,
+  # which can sit in the UTC day before or after a slot's, and a provider asked
+  # only about the slots' UTC days would not return it.
   @spec fetch_events(integer(), DateTime.t(), DateTime.t()) :: {:ok, list()} | {:error, term()}
   defp fetch_events(user_id, range_start, range_end) do
     CalendarEvents.get_events_for_range_fresh(
       user_id,
-      DateTime.to_date(range_start),
-      DateTime.to_date(range_end)
+      range_start |> DateTime.to_date() |> Date.add(-1),
+      range_end |> DateTime.to_date() |> Date.add(1)
     )
   end
 

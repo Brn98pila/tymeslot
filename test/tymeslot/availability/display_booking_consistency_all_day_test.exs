@@ -8,6 +8,10 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyAllDayTest do
   event's dates at UTC midnight instead: Sydney's morning is the previous UTC
   day, so such a path refuses the morning after the event, which the booking
   page offers, and lets through the morning of the event itself.
+
+  The calendar stub answers only for the range it is asked about, as a
+  provider does, so a fetch whose range misses the host's local day misses
+  the event too.
   """
 
   use Tymeslot.DataCase, async: false
@@ -24,66 +28,121 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyAllDayTest do
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.TestMocks
 
-  @timezone "Australia/Sydney"
-
   setup :verify_on_exit!
 
   setup do
     TestMocks.setup_all_mocks()
 
-    %{user: user, profile: profile} = create_always_bookable_profile(timezone: @timezone)
-    meeting_type = insert(:meeting_type, user: user, duration_minutes: 30)
     holiday = Date.add(Date.utc_today(), 10)
 
-    stub(CalendarMock, :get_events_for_range_fresh, fn _user_id, _start, _end ->
+    stub_calendar([
+      %{
+        uid: "holiday-#{System.unique_integer([:positive])}",
+        start_time: holiday,
+        end_time: Date.add(holiday, 1),
+        all_day: true,
+        status: "confirmed",
+        transparency: "opaque",
+        summary: "Public holiday"
+      }
+    ])
+
+    %{holiday: holiday}
+  end
+
+  describe "a host in Sydney" do
+    setup :host_in_sydney
+
+    test "the morning after an all-day event is offered and accepted", ctx do
+      %{user: user, profile: profile, meeting_type: meeting_type, holiday: holiday} = ctx
+      day_after = Date.add(holiday, 1)
+      config = Policy.scheduling_config(user.id, meeting_type)
+
+      # 09:00 and 10:00 in Sydney are still the holiday's date in UTC.
+      for time <- ["9:00 AM", "10:00 AM"] do
+        assert time in offered(profile, day_after, "30min", meeting_type: meeting_type)
+        assert CalendarCheck.probe(slot(user, day_after, time, ctx.timezone), config) == :ok
+      end
+
+      assert {:ok, %MeetingSchema{status: "confirmed"}} =
+               book_at(ctx, day_after, "9:00 AM")
+    end
+
+    test "the morning of an all-day event is hidden and refused", ctx do
+      %{user: user, profile: profile, meeting_type: meeting_type, holiday: holiday} = ctx
+      config = Policy.scheduling_config(user.id, meeting_type)
+
+      assert offered(profile, holiday, "30min", meeting_type: meeting_type) == []
+
+      for time <- ["9:00 AM", "10:00 AM"] do
+        assert CalendarCheck.probe(slot(user, holiday, time, ctx.timezone), config) ==
+                 {:error, :slot_unavailable}
+      end
+
+      assert {:error, :slot_taken} = book_at(ctx, holiday, "9:00 AM")
+    end
+  end
+
+  # A booking submitted from a page drawn before the host added the event, or
+  # a reschedule onto that day, is refused by the submit-time re-read alone.
+  # These hosts' local day sits wholly or partly in a neighbouring UTC day, so
+  # the re-read must ask the calendar about more than the slot's UTC date.
+  for {timezone, time, utc_day} <- [
+        {"Pacific/Kiritimati", "9:00 AM", "the day before"},
+        {"Pacific/Honolulu", "3:00 PM", "the day after"}
+      ] do
+    describe "a host in #{timezone}" do
+      setup ctx, do: host_in(ctx, unquote(timezone))
+
+      test "a stale page cannot book #{time} on the all-day event (#{utc_day} in UTC)", ctx do
+        %{user: user, meeting_type: meeting_type, holiday: holiday} = ctx
+        config = Policy.scheduling_config(user.id, meeting_type)
+
+        assert CalendarCheck.probe(slot(user, holiday, unquote(time), ctx.timezone), config) ==
+                 {:error, :slot_unavailable}
+
+        assert {:error, :slot_taken} = book_at(ctx, holiday, unquote(time))
+        assert Repo.aggregate(MeetingSchema, :count) == 0
+      end
+    end
+  end
+
+  defp host_in_sydney(ctx), do: host_in(ctx, "Australia/Sydney")
+
+  defp host_in(_ctx, timezone) do
+    %{user: user, profile: profile} = create_always_bookable_profile(timezone: timezone)
+    meeting_type = insert(:meeting_type, user: user, duration_minutes: 30)
+
+    %{user: user, profile: profile, meeting_type: meeting_type, timezone: timezone}
+  end
+
+  # Returns only the events overlapping the requested UTC days, reading an
+  # all-day event's dates as UTC days: a fetch that asks about too narrow a
+  # range gets nothing back, which the submit-time re-read must survive.
+  defp stub_calendar(events) do
+    stub(CalendarMock, :get_events_for_range_fresh, fn _user_id, start_date, end_date ->
+      range_start = utc_instant(start_date)
+      range_end = end_date |> Date.add(1) |> utc_instant()
+
       {:ok,
-       [
-         %{
-           uid: "holiday-#{System.unique_integer([:positive])}",
-           start_time: holiday,
-           end_time: Date.add(holiday, 1),
-           all_day: true,
-           status: "confirmed",
-           transparency: "opaque",
-           summary: "Public holiday"
-         }
-       ]}
+       Enum.filter(events, fn event ->
+         starts = utc_instant(event.start_time)
+
+         DateTime.compare(starts, range_end) == :lt and
+           DateTime.compare(ends_at(event, starts), range_start) == :gt
+       end)}
     end)
-
-    %{user: user, profile: profile, meeting_type: meeting_type, holiday: holiday}
   end
 
-  test "the morning after an all-day event is offered and accepted",
-       %{user: user, profile: profile, meeting_type: meeting_type, holiday: holiday} do
-    day_after = Date.add(holiday, 1)
-    config = Policy.scheduling_config(user.id, meeting_type)
+  # An event without an end is read as the instant it starts.
+  defp ends_at(%{end_time: nil}, starts), do: DateTime.add(starts, 1, :second)
+  defp ends_at(%{end_time: end_time}, _starts), do: utc_instant(end_time)
 
-    # 09:00 and 10:00 in Sydney are still the holiday's date in UTC.
-    for time <- ["9:00 AM", "10:00 AM"] do
-      assert time in offered(profile, day_after, "30min", meeting_type: meeting_type)
-      assert CalendarCheck.probe(slot(user, day_after, time), config) == :ok
-    end
+  defp utc_instant(%Date{} = date), do: DateTime.new!(date, ~T[00:00:00], "Etc/UTC")
+  defp utc_instant(%DateTime{} = datetime), do: DateTime.shift_zone!(datetime, "Etc/UTC")
 
-    assert {:ok, %MeetingSchema{status: "confirmed"}} =
-             book_at(user, meeting_type, day_after, "9:00 AM")
-  end
-
-  test "the morning of an all-day event is hidden and refused",
-       %{user: user, profile: profile, meeting_type: meeting_type, holiday: holiday} do
-    config = Policy.scheduling_config(user.id, meeting_type)
-
-    assert offered(profile, holiday, "30min", meeting_type: meeting_type) == []
-
-    for time <- ["9:00 AM", "10:00 AM"] do
-      assert CalendarCheck.probe(slot(user, holiday, time), config) ==
-               {:error, :slot_unavailable}
-    end
-
-    assert {:error, :slot_taken} = book_at(user, meeting_type, holiday, "9:00 AM")
-  end
-
-  defp slot(user, date, time) do
-    start = DateTime.new!(date, TimeSlots.parse_time_slot(time), @timezone)
+  defp slot(user, date, time, timezone) do
+    start = DateTime.new!(date, TimeSlots.parse_time_slot(time), timezone)
 
     %{
       organizer_user_id: user.id,
@@ -92,13 +151,13 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyAllDayTest do
     }
   end
 
-  defp book_at(user, meeting_type, date, time) do
+  defp book_at(%{user: user, meeting_type: meeting_type, timezone: timezone}, date, time) do
     Create.execute(
       %{
         date: date,
         time: time,
         duration: "30min",
-        user_timezone: @timezone,
+        user_timezone: timezone,
         organizer_user_id: user.id,
         meeting_type_id: meeting_type.id
       },

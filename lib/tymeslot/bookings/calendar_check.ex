@@ -182,11 +182,20 @@ defmodule Tymeslot.Bookings.CalendarCheck do
   # local date would not contain the slot at all. The buffers are folded in
   # because a conflict is anything within the before-buffer ahead of the slot
   # or the after-buffer behind it, and either can reach a neighbouring day.
+  #
+  # The range is then padded by a day each side, because an all-day event
+  # blocks the host's local day (`Availability.Events.to_interval/2`), which
+  # can sit in the UTC day before or after the slot's: for a host in Honolulu
+  # a 15:00 slot is the next UTC day, and a provider asked only about that day
+  # would not return the host's all-day event at all.
   defp fetch_range(
          %{start_datetime: start_datetime, end_datetime: end_datetime},
          {buffer_before, buffer_after}
        ) do
-    {utc_date(start_datetime, -buffer_before), utc_date(end_datetime, buffer_after)}
+    {
+      start_datetime |> utc_date(-buffer_before) |> Date.add(-1),
+      end_datetime |> utc_date(buffer_after) |> Date.add(1)
+    }
   end
 
   defp utc_date(datetime, offset_minutes) do
