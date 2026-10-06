@@ -3,7 +3,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedLateTest do
   `checkout.session.completed` arriving after its booking expired and its
   payment was failed (the expired webhook, or a disconnect, ran first). The
   money was taken all the same, so the booking is brought back when its slot
-  is still free and the payment is refunded when it is not.
+  is still free and the payment is refunded, by `RefundLatePayment`, when it
+  is not.
   """
 
   use Tymeslot.DataCase, async: false
@@ -20,6 +21,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedLateTest do
 
   alias Tymeslot.MeetingPayments.StripeAdapterMock
   alias Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted
+  alias Tymeslot.MeetingPayments.Workers.RefundLatePayment
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Repo
   alias Tymeslot.Workers.CalendarEventWorker
@@ -70,36 +72,26 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedLateTest do
     end
 
     # The expiry released the slot, and another booking has taken it since:
-    # the attendee's money goes back instead of a double booking.
+    # the attendee's money goes back instead of a double booking. The webhook
+    # records the payment and schedules the refund; the job makes it.
     test "refunds a completion that arrived after expiry once the slot has been taken" do
       user = insert(:user)
-
-      meeting =
-        insert(:meeting,
-          status: "expired",
-          organizer_user_id: user.id,
-          organizer_email: user.email
-        )
-
-      _taker =
-        insert(:meeting,
-          status: "confirmed",
-          organizer_user_id: user.id,
-          start_time: meeting.start_time,
-          end_time: meeting.end_time
-        )
-
-      bp =
-        insert_payment(
-          meeting: meeting,
-          status: "failed",
-          stripe_checkout_session_id: "cs_LATE_TAKEN"
-        )
+      {meeting, bp} = taken_slot_booking(user, "LATE_TAKEN")
 
       stub(StripeAdapterMock, :retrieve_payment_intent, fn "pi_LATE_TAKEN", opts ->
         assert opts[:connect_account] == @account
         {:ok, %{"latest_charge" => "ch_LATE_TAKEN"}}
       end)
+
+      assert :ok = CheckoutSessionCompleted.handle(late_event("LATE_TAKEN", meeting))
+
+      recorded = Repo.reload!(bp)
+      assert recorded.status == "paid"
+      assert recorded.paid_at
+      assert recorded.stripe_charge_id == "ch_LATE_TAKEN"
+      assert recorded.last_event_id == "evt_LATE_TAKEN"
+      assert_enqueued(worker: RefundLatePayment, args: %{booking_payment_id: bp.id})
+      refute_enqueued(worker: SendBookingPaymentRefunded)
 
       expect(StripeAdapterMock, :create_refund, fn params, opts ->
         assert params.charge == "ch_LATE_TAKEN"
@@ -108,27 +100,42 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedLateTest do
         {:ok, %{"id" => "re_LATE_TAKEN"}}
       end)
 
-      event =
-        completed_event("evt_LATE_TAKEN", %{
-          "id" => "cs_LATE_TAKEN",
-          "client_reference_id" => meeting.id,
-          "payment_intent" => "pi_LATE_TAKEN"
-        })
-
-      assert :ok = CheckoutSessionCompleted.handle(event)
+      assert %{success: 1} = Oban.drain_queue(queue: :payments)
 
       reloaded_bp = Repo.reload!(bp)
       assert reloaded_bp.status == "refunded"
       assert reloaded_bp.refunded_amount_cents == bp.amount_cents
-      assert reloaded_bp.paid_at
-      assert reloaded_bp.last_event_id == "evt_LATE_TAKEN"
 
       {:ok, reloaded_meeting} = MeetingQueries.get_meeting(meeting.id)
       assert reloaded_meeting.status == "expired"
 
-      assert_enqueued(worker: SendBookingPaymentRefunded, args: %{booking_payment_id: bp.id})
+      assert [_one] =
+               all_enqueued(
+                 worker: SendBookingPaymentRefunded,
+                 args: %{booking_payment_id: bp.id}
+               )
+
       refute_enqueued(worker: CalendarEventWorker)
       refute_enqueued(worker: EmailWorker)
+    end
+
+    # Stripe's redelivery, and the reconciler's replay under its own event id,
+    # find the payment already recorded and must not schedule a second refund.
+    test "a redelivered late completion schedules no second refund" do
+      user = insert(:user)
+      {meeting, bp} = taken_slot_booking(user, "LATE_AGAIN")
+
+      stub(StripeAdapterMock, :retrieve_payment_intent, fn _id, _opts ->
+        {:ok, %{"latest_charge" => "ch_LATE_AGAIN"}}
+      end)
+
+      event = late_event("LATE_AGAIN", meeting)
+
+      assert :ok = CheckoutSessionCompleted.handle(event)
+      assert :ok = CheckoutSessionCompleted.handle(event)
+      assert :ok = CheckoutSessionCompleted.handle(%{event | "id" => "reconcile:cs_LATE_AGAIN"})
+
+      assert [_one] = all_enqueued(worker: RefundLatePayment, args: %{booking_payment_id: bp.id})
     end
 
     test "refunds a completion that arrived after expiry for a meeting whose organiser is gone" do
@@ -157,59 +164,69 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedLateTest do
         })
 
       assert :ok = CheckoutSessionCompleted.handle(event)
+      assert %{success: 1} = Oban.drain_queue(queue: :payments)
 
       assert Repo.reload!(bp).status == "refunded"
       {:ok, reloaded_meeting} = MeetingQueries.get_meeting(meeting.id)
       assert reloaded_meeting.status == "expired"
     end
 
-    test "leaves a late completion for redelivery when refunding the taken slot fails" do
+    # The refund needs the charge id, which only Stripe can supply. Without it
+    # nothing is committed, so Stripe's redelivery tries again.
+    test "leaves a late completion for redelivery when its charge cannot be found" do
       user = insert(:user)
-
-      meeting =
-        insert(:meeting,
-          status: "expired",
-          organizer_user_id: user.id,
-          organizer_email: user.email
-        )
-
-      _taker =
-        insert(:meeting,
-          status: "confirmed",
-          organizer_user_id: user.id,
-          start_time: meeting.start_time,
-          end_time: meeting.end_time
-        )
-
-      bp =
-        insert_payment(
-          meeting: meeting,
-          status: "failed",
-          stripe_checkout_session_id: "cs_LATE_FAIL"
-        )
+      {meeting, bp} = taken_slot_booking(user, "LATE_NO_CHARGE")
 
       stub(StripeAdapterMock, :retrieve_payment_intent, fn _id, _opts ->
-        {:ok, %{"latest_charge" => "ch_LATE_FAIL"}}
+        {:error, :stripe_down}
       end)
 
-      expect(StripeAdapterMock, :create_refund, fn _params, _opts -> {:error, :stripe_down} end)
-
-      event =
-        completed_event("evt_LATE_FAIL", %{
-          "id" => "cs_LATE_FAIL",
-          "client_reference_id" => meeting.id,
-          "payment_intent" => "pi_LATE_FAIL"
-        })
-
-      assert {:error, :stripe_down} = CheckoutSessionCompleted.handle(event)
+      assert {:error, :missing_charge} =
+               CheckoutSessionCompleted.handle(late_event("LATE_NO_CHARGE", meeting))
 
       reloaded_bp = Repo.reload!(bp)
       assert reloaded_bp.status == "failed"
       assert is_nil(reloaded_bp.last_event_id)
+      refute_enqueued(worker: RefundLatePayment)
 
       {:ok, reloaded_meeting} = MeetingQueries.get_meeting(meeting.id)
       assert reloaded_meeting.status == "expired"
     end
+  end
+
+  # An expired booking whose slot another confirmed booking now holds.
+  defp taken_slot_booking(user, suffix) do
+    meeting =
+      insert(:meeting,
+        status: "expired",
+        organizer_user_id: user.id,
+        organizer_email: user.email
+      )
+
+    _taker =
+      insert(:meeting,
+        status: "confirmed",
+        organizer_user_id: user.id,
+        start_time: meeting.start_time,
+        end_time: meeting.end_time
+      )
+
+    payment =
+      insert_payment(
+        meeting: meeting,
+        status: "failed",
+        stripe_checkout_session_id: "cs_#{suffix}"
+      )
+
+    {meeting, payment}
+  end
+
+  defp late_event(suffix, meeting) do
+    completed_event("evt_#{suffix}", %{
+      "id" => "cs_#{suffix}",
+      "client_reference_id" => meeting.id,
+      "payment_intent" => "pi_#{suffix}"
+    })
   end
 
   defp insert_payment(attrs),

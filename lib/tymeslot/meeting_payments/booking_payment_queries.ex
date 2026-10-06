@@ -159,12 +159,17 @@ defmodule Tymeslot.MeetingPayments.BookingPaymentQueries do
 
   @doc """
   Lists the host's payments whose meeting has been cancelled while the host
-  still holds the attendee's money.
+  still holds the attendee's money, and those whose meeting expired before
+  it was settled: a payment that completed after its slot was taken, or a
+  paid request that lapsed unapproved, whose automatic refund has not gone
+  through (yet).
 
   Derived from the meeting's status and the payment's own balance rather than
   from a stored "refund owed" flag, so it cannot drift out of step with either
-  side. Ordered oldest cancellation first: the longer an attendee has been out
-  of pocket, the more urgent the row.
+  side. Expired bookings come first, since no cancellation date orders them
+  and an automatic refund that has not gone through needs the host most;
+  then oldest cancellation first: the longer an attendee has been out of
+  pocket, the more urgent the row.
 
   Deliberately not bounded by `for_host/2`'s recent-payments window, which is
   what let an older unrefunded cancellation drop off the dashboard entirely.
@@ -178,7 +183,7 @@ defmodule Tymeslot.MeetingPayments.BookingPaymentQueries do
 
     query =
       from [_b, m] in outstanding_refunds_query(host_user_id),
-        order_by: [asc: m.cancelled_at],
+        order_by: [asc_nulls_first: m.cancelled_at],
         limit: ^limit,
         preload: [meeting: m]
 
@@ -226,9 +231,14 @@ defmodule Tymeslot.MeetingPayments.BookingPaymentQueries do
     }
   end
 
-  # Cancelled bookings whose money the host still holds. Derived from the
-  # meeting's status and the payment's own balance rather than from a stored
-  # "refund owed" flag, so it cannot drift out of step with either side.
+  # Cancelled or expired bookings whose money the host still holds. A paid
+  # booking ends expired when its payment completed after the slot was taken
+  # (`CheckoutSessionCompleted`), or when a paid request lapsed unapproved
+  # (`Meetings.Approval`); both owe a full refund and refund it on their own,
+  # so a row here is one whose refund has not gone through yet. Derived
+  # from the meeting's status and the payment's own balance rather than from
+  # a stored "refund owed" flag, so it cannot drift out of step with either
+  # side.
   defp outstanding_refunds_query(host_user_id) do
     from b in BookingPaymentSchema,
       join: m in assoc(b, :meeting),
@@ -236,7 +246,7 @@ defmodule Tymeslot.MeetingPayments.BookingPaymentQueries do
         b.host_user_id == ^host_user_id and
           b.status in ^BookingPaymentSchema.refundable_statuses() and
           b.refunded_amount_cents < b.amount_cents and
-          m.status == "cancelled"
+          m.status in ["cancelled", "expired"]
   end
 
   @doc """

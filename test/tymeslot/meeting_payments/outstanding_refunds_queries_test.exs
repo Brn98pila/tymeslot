@@ -86,6 +86,21 @@ defmodule Tymeslot.MeetingPayments.OutstandingRefundsQueriesTest do
       assert found.id == theirs.id
     end
 
+    # A payment that completed after its slot was taken leaves the booking
+    # expired and the money owed until its automatic refund goes through.
+    test "lists an expired booking whose money the host still holds, ahead of cancellations" do
+      cancelled = payment_for(1, cancelled_meeting())
+      expired = payment_for(1, insert(:meeting, status: "expired"))
+
+      ids =
+        1
+        |> MeetingPayments.list_outstanding_refunds_for_host()
+        |> Enum.map(& &1.id)
+
+      assert ids == [expired.id, cancelled.id]
+      assert MeetingPayments.outstanding_refunds_summary_for_host(1).count == 2
+    end
+
     # Oldest first: the longer somebody has been out of pocket, the more
     # urgent the row.
     test "orders by cancellation date, oldest first" do

@@ -237,10 +237,6 @@ defmodule Tymeslot.MeetingPayments.Webhooks.PaymentTransitionsConcurrencyTest do
       {:ok, %{"latest_charge" => "ch_RACE_LATE"}}
     end)
 
-    Mox.stub(StripeAdapterMock, :create_refund, fn _params, _opts ->
-      {:ok, %{"id" => "re_RACE"}}
-    end)
-
     results =
       race([
         fn hold ->
@@ -260,16 +256,17 @@ defmodule Tymeslot.MeetingPayments.Webhooks.PaymentTransitionsConcurrencyTest do
     assert completion == :ok
     assert live_meetings(ctx.user) == 1
 
-    refunded = unboxed(fn -> Repo.get!(BookingPaymentSchema, payment.id) end)
+    paid = unboxed(fn -> Repo.get!(BookingPaymentSchema, payment.id) end)
+    assert paid.status == "paid"
 
     case booking do
       {:ok, %MeetingSchema{}} ->
-        assert refunded.status == "refunded"
         assert unboxed(fn -> Repo.get!(MeetingSchema, meeting.id).status end) == "expired"
+        assert refunds_scheduled(payment) == 1
 
       {:error, :time_conflict} ->
-        assert refunded.status == "paid"
         assert unboxed(fn -> Repo.get!(MeetingSchema, meeting.id).status end) == "confirmed"
+        assert refunds_scheduled(payment) == 0
     end
   end
 
@@ -353,6 +350,19 @@ defmodule Tymeslot.MeetingPayments.Webhooks.PaymentTransitionsConcurrencyTest do
       attendee_timezone: "Etc/UTC",
       attendee_locale: "en"
     }
+  end
+
+  defp refunds_scheduled(payment) do
+    unboxed(fn ->
+      Repo.aggregate(
+        from(j in Oban.Job,
+          where:
+            j.worker == "Tymeslot.MeetingPayments.Workers.RefundLatePayment" and
+              fragment("?->>'booking_payment_id'", j.args) == ^payment.id
+        ),
+        :count
+      )
+    end)
   end
 
   defp live_meetings(user) do

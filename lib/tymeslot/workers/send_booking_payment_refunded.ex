@@ -3,7 +3,9 @@ defmodule Tymeslot.Workers.SendBookingPaymentRefunded do
   Sends the attendee email confirming a booking-payment refund.
 
   Enqueued synchronously by `Tymeslot.MeetingPayments.Refunds.issue_refund/3`
-  whenever a refund (full or partial) succeeds. The Stripe `charge.refunded`
+  whenever a refund (full or partial) succeeds, and by
+  `Tymeslot.MeetingPayments.Workers.RefundLatePayment` for a refund Stripe
+  accepted whose own transaction rolled back. The Stripe `charge.refunded`
   webhook reconciles `refunded_amount_cents` and `status` but does not
   re-enqueue the email — host-initiated refunds are the only path that
   notifies the attendee, matching §7 of the meeting-payments design.

@@ -46,6 +46,7 @@ defmodule Tymeslot.Infrastructure.AdminAlerts do
           | :payment_event_enqueue_failed
           | :payment_event_orphaned
           | :dunning_stalled
+          | :late_payment_refund_failed
           | :analytics_tracking_anomaly
           | atom()
 

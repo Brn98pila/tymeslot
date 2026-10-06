@@ -1,0 +1,119 @@
+defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
+  @moduledoc """
+  Refunds, in full, a payment that completed after its booking had expired
+  and its slot had been given to someone else.
+
+  `CheckoutSessionCompleted` records such a payment as paid, leaves the
+  meeting expired and inserts this job in the same transaction, so the
+  webhook no longer waits on Stripe and a lasting Stripe failure no longer
+  rolls back every delivery while the money sits unseen. Until the refund
+  goes through, the booking is on the host's outstanding-refunds list, where
+  the host can also refund it by hand.
+
+  The refund is `Refunds.issue_refund/3`, whose Stripe idempotency key is
+  derived from the payment id, its refunded total and the amount
+  (`refund:<id>:<total after>:<amount>`). Every attempt of this job asks for
+  the same remaining balance from the same refunded total, so the key is the
+  same each time: when Stripe accepted a refund but the transaction that
+  records it rolled back, the retry gets the same refund back from Stripe
+  instead of a second one. The attendee's refund email is enqueued in that
+  same transaction, so only once Stripe has accepted the refund.
+
+  Retries are spread over about four hours (`backoff/1`), well inside the
+  24 hours Stripe keeps an idempotency key. When the last attempt fails an
+  admin alert is raised, and the booking stays on the host's list.
+
+  Inserted at most once per booking payment: the uniqueness covers every
+  state, completed and discarded included, so a redelivered completion can
+  never refund twice.
+  """
+
+  use Oban.Worker,
+    queue: :payments,
+    max_attempts: 10,
+    unique: [keys: [:booking_payment_id], states: :all, period: :infinity]
+
+  require Logger
+
+  alias Tymeslot.Infrastructure.AdminAlerts
+  alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.MeetingPayments
+  alias Tymeslot.MeetingPayments.Refunds
+  alias Tymeslot.Workers.SendBookingPaymentRefunded
+
+  # Sixty seconds, doubling, capped at an hour: nine waits between ten
+  # attempts add up to 14_580 seconds (4h03m).
+  @base_backoff_seconds 60
+  @max_backoff_seconds 3_600
+
+  @doc """
+  Builds the job for `booking_payment_id`. Insert it in the transaction that
+  records the payment as paid.
+  """
+  @spec new_for(Ecto.UUID.t()) :: Oban.Job.changeset()
+  def new_for(booking_payment_id), do: new(%{booking_payment_id: booking_payment_id})
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: %{"booking_payment_id" => id}} = job) do
+    case refund(id) do
+      {:ok, _refunded} ->
+        :ok
+
+      {:error, :already_refunded} ->
+        notify_attendee_once(id)
+
+      {:error, :not_found} ->
+        {:discard, "booking_payment not found"}
+
+      {:error, reason} ->
+        if job.attempt >= job.max_attempts, do: alert(id, reason)
+        {:error, reason}
+    end
+  end
+
+  @impl Oban.Worker
+  def backoff(%Oban.Job{attempt: attempt}),
+    do: min(@base_backoff_seconds * 2 ** (attempt - 1), @max_backoff_seconds)
+
+  # A raise (a dropped connection, say) is an attempt failing like any other,
+  # so it is returned rather than raised, and the last one is alerted on.
+  defp refund(id) do
+    case MeetingPayments.get_payment(id) do
+      nil -> {:error, :not_found}
+      payment -> Refunds.issue_refund(payment, Refunds.refundable_remaining_cents(payment))
+    end
+  rescue
+    exception -> {:error, exception}
+  end
+
+  # The payment is refunded already, by the host from the dashboard, or by
+  # an earlier attempt whose refund Stripe accepted and `charge.refunded`
+  # recorded after that attempt's own transaction rolled back. The host's
+  # refund and a committed attempt each enqueued the email; the rolled-back
+  # attempt did not. Unique over every state, the insert sends it only in
+  # that last case.
+  defp notify_attendee_once(id) do
+    email =
+      SendBookingPaymentRefunded.new(%{booking_payment_id: id},
+        unique: [keys: [:booking_payment_id], states: :all, period: :infinity]
+      )
+
+    case Oban.insert(email) do
+      {:ok, _job} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp alert(id, reason) do
+    Logger.error("Late payment refund failed for good",
+      booking_payment_id: id,
+      reason: LogFormat.reason(reason)
+    )
+
+    AdminAlerts.report(:late_payment_refund_failed,
+      summary: "A payment that completed after its slot was taken could not be refunded",
+      reason: reason,
+      context: %{booking_payment_id: id}
+    )
+  end
+end

@@ -39,6 +39,7 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     payment_event_enqueue_failed: %{category: "Payment", severity: :error},
     payment_event_orphaned: %{category: "Payment", severity: :error},
     dunning_stalled: %{category: "Payment", severity: :error},
+    late_payment_refund_failed: %{category: "Payment", severity: :error},
     analytics_tracking_anomaly: %{category: "Analytics", severity: :warning},
     recipient_email_rejected: %{category: "Email", severity: :warning}
   }
@@ -203,6 +204,12 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
   # window while it lasts, which collapses to one per repo and hour.
   def dedup_key(:database_pool_pressure, metadata) do
     "database_pool_pressure:#{Map.get(metadata, :repo)}:#{hour_bucket(metadata, :detected_at)}"
+  end
+
+  # Each payment left unrefunded is money an attendee is owed, so one alert
+  # per payment, whatever the reason text says.
+  def dedup_key(:late_payment_refund_failed, metadata) do
+    "late_payment_refund_failed:#{Map.get(metadata, :booking_payment_id, "unknown")}"
   end
 
   def dedup_key(:stripe_webhook_secret_missing, metadata) do
@@ -388,6 +395,15 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
 
     "Payment event #{event_type} (ID: #{event_id}, referent: #{referent}) discarded: " <>
       "#{summary} (#{reason_text(metadata)})"
+  end
+
+  # The booking stays on the host's outstanding-refunds list; the id is what
+  # the operator needs to find the charge in Stripe.
+  def format_message(:late_payment_refund_failed, metadata) do
+    id = Map.get(metadata, :booking_payment_id, "unknown")
+
+    "Refund of booking payment #{id}, paid after its slot was taken, failed on every " <>
+      "attempt (#{reason_text(metadata)}); the attendee is still owed the money"
   end
 
   # One alert per integration and sync run (`Calendar.InvalidEventReport`).

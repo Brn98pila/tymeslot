@@ -34,6 +34,16 @@ defmodule Tymeslot.MeetingPayments.Refunds do
 
   @refund_window_days 60
 
+  # The refund call runs while its transaction holds the payment's row lock,
+  # so it is bounded tighter than hackney's defaults (8_000 ms to connect,
+  # 5_000 ms per receive). stripity_stripe passes these through to hackney
+  # and retries a timed-out request up to three more times, with at most
+  # 2_000 ms between attempts, safely under the same idempotency key: four
+  # attempts at 3_000 + 5_000 ms plus 3_500 ms of backoff bound the call at
+  # about 35 seconds instead of about 55.
+  @stripe_connect_timeout_ms 3_000
+  @stripe_recv_timeout_ms 5_000
+
   @type refund_error ::
           :not_paid
           | :outside_refund_window
@@ -235,7 +245,9 @@ defmodule Tymeslot.MeetingPayments.Refunds do
 
     StripeAdapter.create_refund(params,
       connect_account: payment.stripe_account_id,
-      idempotency_key: "refund:#{payment.id}:#{cumulative_after}:#{amount_cents}"
+      idempotency_key: "refund:#{payment.id}:#{cumulative_after}:#{amount_cents}",
+      connect_timeout: @stripe_connect_timeout_ms,
+      recv_timeout: @stripe_recv_timeout_ms
     )
   end
 

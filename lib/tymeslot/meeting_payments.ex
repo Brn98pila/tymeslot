@@ -199,6 +199,7 @@ defmodule Tymeslot.MeetingPayments do
 
   @doc """
   Lists the host's cancelled bookings that still hold the attendee's money,
+  and expired ones paid after their slot was taken: expired first, then
   oldest cancellation first.
 
   Not bounded by `list_payments_for_host/2`'s recent-payments window, so an

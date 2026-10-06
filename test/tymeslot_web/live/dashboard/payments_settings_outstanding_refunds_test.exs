@@ -17,6 +17,9 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettingsOutstandingRefundsTest do
   import Tymeslot.AuthTestHelpers
   import Tymeslot.Factory
 
+  alias Tymeslot.MeetingPayments.StripeAdapterMock
+  alias Tymeslot.Repo
+
   @moduletag :payments
   @moduletag :live
 
@@ -162,6 +165,29 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettingsOutstandingRefundsTest do
       view |> element(refund_button(payment)) |> render_click()
 
       assert has_element?(view, "#refund-modal")
+    end
+
+    # A payment that completed after its slot was taken leaves its booking
+    # expired, with no cancellation date, while the money is still owed.
+    test "an expired booking paid after its slot was taken can be refunded", %{conn: conn} do
+      host = connected_host()
+      payment = cancelled_payment_for(host, %{meeting: insert(:meeting, status: "expired")})
+
+      Mox.stub(StripeAdapterMock, :create_refund, fn params, _opts ->
+        assert params.amount == 5000
+        {:ok, %{id: "re_EXPIRED"}}
+      end)
+
+      {view, _html} = open_payments(conn, host)
+
+      view |> element(refund_button(payment)) |> render_click()
+
+      view
+      |> form("#refund-form", %{"refund_type" => "full"})
+      |> render_submit()
+
+      assert Repo.reload!(payment).status == "refunded"
+      refute has_element?(view, refund_button(payment))
     end
 
     # Past 60 days only the host's Stripe dashboard can settle it, so the row
