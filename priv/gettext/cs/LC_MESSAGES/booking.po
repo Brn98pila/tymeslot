@@ -1443,3 +1443,8 @@ msgstr "Toto je váš současný termín. Pro přesunutí místa vyberte jiný �
 #, elixir-autogen, elixir-format
 msgid "This link to move your spot has already been used. You can book a new time below."
 msgstr "Tento odkaz na přesunutí místa už byl použit. Níže si můžete rezervovat nový termín."
+
+#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
+#, elixir-autogen, elixir-format
+msgid "We couldn't check the host's calendar right now. Please try again in a few minutes."
+msgstr "Kalendář hostitele se nám teď nepodařilo ověřit. Zkuste to prosím znovu za pár minut."

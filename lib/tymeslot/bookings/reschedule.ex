@@ -462,9 +462,10 @@ defmodule Tymeslot.Bookings.Reschedule do
   # or (through the buffer) adjacent to the slot it already occupies, so a
   # booking could not be nudged by fifteen minutes.
   #
-  # Both refusals collapse to `:slot_taken`, exactly as `Create` classifies
-  # them, so the invitee is returned to the grid to pick another time rather
-  # than shown a distinction they cannot act on.
+  # A clash collapses to `:slot_taken`, returning the invitee to the grid to
+  # pick another time; a busy set that could not be read stays
+  # `:availability_unverifiable`, as `Create` classifies it, since every other
+  # time would be refused the same way.
   defp verify_calendar_free(meeting, %{start_time: start_time, end_time: end_time}, config) do
     slot = %{
       organizer_user_id: meeting.organizer_user_id,
@@ -474,6 +475,7 @@ defmodule Tymeslot.Bookings.Reschedule do
 
     case CalendarCheck.enforce(slot, config, exclude: meeting) do
       :ok -> :ok
+      {:error, :availability_unverifiable} = unverifiable -> unverifiable
       {:error, _reason} -> {:error, :slot_taken}
     end
   end

@@ -147,7 +147,8 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
   # event is excluded, exactly as `Create` excludes it for a joining seat;
   # the old meeting is not, since it keeps its time (and its other seats)
   # whatever this seat does, and the move's own conflict check inside the
-  # seat transaction counts it too. Both refusals collapse to `:slot_taken`.
+  # seat transaction counts it too. A clash collapses to `:slot_taken`; an
+  # unreadable busy set stays `:availability_unverifiable`.
   defp verify_calendar_free(old_meeting, new_times, config, guest_emails) do
     slot = %{
       organizer_user_id: old_meeting.organizer_user_id,
@@ -164,6 +165,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
 
     case CalendarCheck.enforce(slot, config, exclude: join_target) do
       :ok -> :ok
+      {:error, :availability_unverifiable} = unverifiable -> unverifiable
       {:error, _reason} -> {:error, :slot_taken}
     end
   end

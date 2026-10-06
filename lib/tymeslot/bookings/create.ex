@@ -281,9 +281,10 @@ defmodule Tymeslot.Bookings.Create do
   end
 
   # The refusal policy lives in `CalendarCheck.enforce/3`, shared with the
-  # reschedule submit: a clash and an unreadable busy set both refuse (and
-  # `classify_error/1` collapses either to `:slot_taken`, returning the booker
-  # to the schedule step), while a transport failure proceeds.
+  # reschedule submit: a clash and an unreadable busy set both refuse (a clash
+  # classifies as `:slot_taken`, returning the booker to the schedule step; an
+  # unreadable busy set as `:availability_unverifiable`), while a transport
+  # failure proceeds.
   defp validate_calendar_availability(booking_data, config) do
     case CalendarCheck.enforce(booking_data, config, calendar_check_opts(booking_data)) do
       :ok -> {:ok, :validated}

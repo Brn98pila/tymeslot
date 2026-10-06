@@ -169,8 +169,12 @@ defmodule TymeslotWeb.Live.Scheduling.BookingSubmitCompositionTest do
     assert drained.socket.assigns.available_slots == []
   end
 
+  # The host's calendar could not be read, so the booking is refused, but not
+  # as a taken slot: every other time would be refused the same way, so
+  # "select a different time" would send the booker round every slot. They
+  # stay on the form, details kept, and are told to try again later.
   @tag :capture_log
-  test "a calendar adapter that raises on submit → flash, the page survives, nothing booked",
+  test "a calendar adapter that raises on submit → try-later flash, booker stays on the form",
        %{conn: conn, profile: profile, meeting_type: meeting_type} do
     view = navigate_to_booking_form(conn, profile, meeting_type)
 
@@ -193,9 +197,12 @@ defmodule TymeslotWeb.Live.Scheduling.BookingSubmitCompositionTest do
     drained = :sys.get_state(view.pid)
 
     rendered = render(view)
-    assert rendered =~ "select a different time"
+    assert rendered =~ "check the host"
+    assert rendered =~ "Please try again in a few minutes."
+    refute rendered =~ "select a different time"
     refute rendered =~ "Meeting Confirmed"
-    assert drained.socket.assigns.current_state == :schedule
+    refute drained.socket.assigns.current_state == :schedule
+    assert has_element?(view, "form[phx-submit='submit']")
     assert Repo.aggregate(MeetingSchema, :count) == 0
   end
 

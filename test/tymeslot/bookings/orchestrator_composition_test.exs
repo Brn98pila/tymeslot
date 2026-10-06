@@ -168,7 +168,8 @@ defmodule Tymeslot.Bookings.OrchestratorCompositionTest do
          %{user: user, meeting_type: meeting_type} do
       count_fresh_fetches(fn -> raise "provider adapter blew up" end)
 
-      assert {:error, :slot_taken} =
+      # Unverifiable, not taken: the booker is told to try again later.
+      assert {:error, :availability_unverifiable} =
                Orchestrator.submit_booking(video_submit(user, meeting_type))
 
       assert_received {:fresh_fetch, _user_id}
