@@ -34,6 +34,7 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     new_error: %{category: "Errors", severity: :error},
     error_regression: %{category: "Errors", severity: :error},
     reconciliation_discrepancies: %{category: "Payment", severity: :warning},
+    reconciliation_incomplete: %{category: "Payment", severity: :warning},
     subscription_not_in_database: %{category: "Payment", severity: :warning},
     payment_event_enqueue_failed: %{category: "Payment", severity: :error},
     payment_event_orphaned: %{category: "Payment", severity: :error},
@@ -355,6 +356,13 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
   def format_message(:reconciliation_discrepancies, metadata) do
     count = Map.get(metadata, :discrepancies_count, "unknown")
     "Payment reconciliation found #{count} discrepancies"
+  end
+
+  def format_message(:reconciliation_incomplete, metadata) do
+    count = Map.get(metadata, :unresolved_count, "unknown")
+
+    "Payment reconciliation could not look up #{count} subscriptions at Stripe, " <>
+      "so it did not check for subscriptions missing there"
   end
 
   def format_message(:subscription_not_in_database, metadata) do

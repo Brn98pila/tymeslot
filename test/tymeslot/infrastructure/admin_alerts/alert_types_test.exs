@@ -194,6 +194,12 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypesTest do
       assert msg == "New error: RuntimeError in Tymeslot.Bookings.create_booking/2: boom"
     end
 
+    test ":reconciliation_incomplete names how many subscriptions could not be looked up" do
+      assert AlertTypes.format_message(:reconciliation_incomplete, %{unresolved_count: 12}) ==
+               "Payment reconciliation could not look up 12 subscriptions at Stripe, " <>
+                 "so it did not check for subscriptions missing there"
+    end
+
     test ":reconciliation_discrepancies includes count" do
       msg =
         AlertTypes.format_message(:reconciliation_discrepancies, %{discrepancies_count: 3})

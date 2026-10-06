@@ -41,6 +41,7 @@ defmodule Tymeslot.Infrastructure.AdminAlerts do
           | :dispute_created
           | :dispute_lost
           | :reconciliation_discrepancies
+          | :reconciliation_incomplete
           | :subscription_not_in_database
           | :payment_event_enqueue_failed
           | :payment_event_orphaned
