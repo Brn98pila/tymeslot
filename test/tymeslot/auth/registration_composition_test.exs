@@ -11,6 +11,7 @@ defmodule Tymeslot.Auth.RegistrationCompositionTest do
     create user →
     create profile →
     create default availability schedule with its weekly days (7 rows) →
+    enqueue the registration hook with the sign-up's metadata →
     broadcast `:user_registered` on PubSub
 
   The critical invariant here — asserted nowhere else — is that a
@@ -36,10 +37,25 @@ defmodule Tymeslot.Auth.RegistrationCompositionTest do
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Workers.EmailWorker
+  alias Tymeslot.Workers.UserRegisteredHookWorker
   alias TymeslotWeb.Helpers.ClientIP
+
+  defmodule NoopHook do
+    @spec on_user_registered(pos_integer(), map()) :: :ok
+    def on_user_registered(_user_id, _metadata), do: :ok
+  end
 
   setup do
     :ok = Auth.subscribe_to_user_registrations()
+
+    original_hook = Application.get_env(:tymeslot, :user_registered_hook)
+    Application.put_env(:tymeslot, :user_registered_hook, NoopHook)
+
+    on_exit(fn ->
+      if original_hook,
+        do: Application.put_env(:tymeslot, :user_registered_hook, original_hook),
+        else: Application.delete_env(:tymeslot, :user_registered_hook)
+    end)
 
     RateLimiter.clear_all()
 
@@ -101,16 +117,23 @@ defmodule Tymeslot.Auth.RegistrationCompositionTest do
         args: %{"action" => "send_email_verification", "user_id" => user.id}
       )
 
-      # PubSub event for cross-app listeners (SaaS, etc.).
-      assert_received {:user_registered, %{user: broadcast_user, metadata: metadata}}
-      assert broadcast_user.id == user.id
+      # The registration hook receives the sign-up's metadata.
+      assert [hook_job] = all_enqueued(worker: UserRegisteredHookWorker)
+      assert hook_job.args["user_id"] == user.id
 
-      assert metadata == %{
-               source: "signup",
-               ip: "203.0.113.41",
-               user_agent: "Composition/1.0",
-               terms_accepted: true
+      assert hook_job.args["metadata"] == %{
+               "source" => "signup",
+               "ip" => "203.0.113.41",
+               "user_agent" => "Composition/1.0",
+               "terms_accepted" => true
              }
+
+      # The PubSub event, delivered to every subscriber in the node, names
+      # the account and its provider and carries nothing else: no password
+      # hash, email or request data.
+      user_id = user.id
+      assert_received {:user_registered, payload}
+      assert payload == %{user_id: user_id, provider: user.provider}
     end
   end
 
@@ -129,9 +152,9 @@ defmodule Tymeslot.Auth.RegistrationCompositionTest do
                  via: :provisioning
                )
 
-      user_id = user.id
-      assert_received {:user_registered, %{user: %{id: ^user_id}, metadata: metadata}}
-      assert metadata == %{source: "provisioning"}
+      assert [hook_job] = all_enqueued(worker: UserRegisteredHookWorker)
+      assert hook_job.args["user_id"] == user.id
+      assert hook_job.args["metadata"] == %{"source" => "provisioning"}
     end
   end
 

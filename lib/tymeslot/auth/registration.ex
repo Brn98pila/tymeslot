@@ -313,19 +313,19 @@ defmodule Tymeslot.Auth.Registration do
   # committed user row with no profile and no broadcast, because the address is
   # then rejected as a duplicate on retry and the account can never be reached.
   defp verify_and_notify_user(user, opts) do
-    case create_profile_and_announce(user, opts) do
+    case create_profile_and_announce(user) do
       :ok -> send_verification_email(user, opts[:ip])
       {:error, _reason, _message} = error -> error
     end
   end
 
-  defp create_profile_and_announce(user, opts) do
+  defp create_profile_and_announce(user) do
     case Profiles.create_profile(user.id) do
       {:ok, _profile} ->
         Logger.info("Created profile", user_id: user.id)
 
         # Notify apps about the completed registration
-        RegistrationAnnouncement.announce(user, Keyword.fetch!(opts, :metadata))
+        RegistrationAnnouncement.announce(user)
         :ok
 
       {:error, reason} ->

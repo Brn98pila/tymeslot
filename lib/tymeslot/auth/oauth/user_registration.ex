@@ -74,7 +74,7 @@ defmodule Tymeslot.Auth.OAuth.UserRegistration do
            metadata
          ) do
       {:ok, %{user: user, created: true}} ->
-        RegistrationAnnouncement.announce(user, metadata)
+        RegistrationAnnouncement.announce(user)
         {:ok, user}
 
       {:ok, %{user: user, created: false}} ->

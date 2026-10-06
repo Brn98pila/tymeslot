@@ -8,7 +8,8 @@ defmodule Tymeslot.Auth.RegistrationAnnouncement do
   (terms acceptance, say) must not depend on a subscriber process being
   alive at the moment of sign-up. The job is enqueued inside the
   transaction that creates the account (`enqueue_hook/2`), so an account
-  never exists without it; the broadcast (`announce/2`) follows the commit.
+  never exists without it; the broadcast (`announce/1`) follows the commit
+  and names only the account and its sign-up provider.
   With no hook configured, only the broadcast happens.
   """
 
@@ -37,6 +38,6 @@ defmodule Tymeslot.Auth.RegistrationAnnouncement do
   Broadcasts the completed registration to in-process subscribers. Call it
   after the account has committed.
   """
-  @spec announce(struct(), map()) :: :ok
-  def announce(user, metadata), do: PubSub.broadcast_user_registered(user, metadata)
+  @spec announce(struct()) :: :ok
+  def announce(user), do: PubSub.broadcast_user_registered(user)
 end

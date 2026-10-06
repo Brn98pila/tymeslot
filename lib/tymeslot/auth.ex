@@ -387,7 +387,7 @@ defmodule Tymeslot.Auth do
   Subscribes the calling process to user-registration events.
 
   Every account that completes registration is delivered to the caller's
-  mailbox as `{:user_registered, %{user: user, metadata: metadata}}`. The
+  mailbox as `{:user_registered, %{user_id: user_id, provider: provider}}`. The
   context owns the topic, so a subscriber never spells one itself. Returns
   `{:error, reason}` rather than raising when no PubSub server is running,
   leaving the caller to decide whether a missing subscription is fatal.
@@ -402,8 +402,13 @@ defmodule Tymeslot.Auth do
   rather than the transport, so the topic stays an implementation detail of
   this context.
   """
-  @spec broadcast_user_registered(struct(), map()) :: :ok
-  defdelegate broadcast_user_registered(user, metadata \\ %{}), to: PubSub
+  @spec broadcast_user_registered(%{
+          :id => term(),
+          :provider => term(),
+          optional(atom()) => term()
+        }) ::
+          :ok
+  defdelegate broadcast_user_registered(user), to: PubSub
 
   @doc """
   Generates a fresh verification token for a user and persists it without sending an email.
