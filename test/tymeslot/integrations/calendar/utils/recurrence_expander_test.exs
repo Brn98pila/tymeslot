@@ -26,9 +26,14 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderTest do
                RecurrenceExpander.parse_rrule("FREQ=WEEKLY;COUNT=10")
     end
 
-    test "parses BYDAY" do
-      assert {:ok, %{freq: :weekly, by_day: [:monday, :wednesday, :friday]}} =
+    test "parses BYDAY into ISO weekdays" do
+      assert {:ok, %{freq: :weekly, by_day: [{nil, 1}, {nil, 3}, {nil, 5}]}} =
                RecurrenceExpander.parse_rrule("FREQ=WEEKLY;BYDAY=MO,WE,FR")
+    end
+
+    test "keeps BYDAY ordinals, counted from the end when negative" do
+      assert {:ok, %{freq: :monthly, by_day: [{2, 2}, {-1, 5}]}} =
+               RecurrenceExpander.parse_rrule("FREQ=MONTHLY;BYDAY=2TU,-1FR")
     end
 
     test "returns error for nil" do
