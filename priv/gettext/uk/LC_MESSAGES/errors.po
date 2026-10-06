@@ -474,7 +474,7 @@ msgstr "Потрібно вказати дату"
 #: lib/tymeslot/security/field_validators/date_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Date must be in YYYY-MM-DD format"
-msgstr "Дата має бути у форматі YYYY-MM-DD"
+msgstr "Дата має бути у форматі РРРР-ММ-ДД"
 
 #: lib/tymeslot/security/field_validators/date_validator.ex
 #, elixir-autogen, elixir-format
@@ -498,12 +498,12 @@ msgstr "Домен має некоректне закінчення (.%{tld})"
 
 #: lib/tymeslot/security/field_validators/tld_list.ex
 #, elixir-autogen, elixir-format
-msgid "Domain has an invalid domain ending (.%{tld}) — did you mean .%{suggestion}?"
+msgid "Domain has an invalid domain ending (.%{tld}). Did you mean .%{suggestion}?"
 msgstr "Домен має некоректне закінчення (.%{tld}). Ви мали на увазі .%{suggestion}?"
 
 #: lib/tymeslot/security/field_validators/tld_list.ex
 #, elixir-autogen, elixir-format
-msgid "Domain has an unrecognised domain ending (.%{tld}) — did you mean .%{suggestion}?"
+msgid "Domain has an unrecognised domain ending (.%{tld}). Did you mean .%{suggestion}?"
 msgstr "Домен має нерозпізнане закінчення (.%{tld}). Ви мали на увазі .%{suggestion}?"
 
 #: lib/tymeslot/security/field_validators/tld_list.ex
@@ -524,7 +524,7 @@ msgstr "Домен електронної пошти відсутній"
 #: lib/tymeslot/security/field_validators/email_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Email exceeds maximum length (%{max_length} characters)"
-msgstr "Електронна адреса перевищує максимальну довжину (символів: %{max_length})"
+msgstr "Електронна адреса перевищує максимальну кількість символів (%{max_length})"
 
 #: lib/tymeslot/security/field_validators/email_validator.ex
 #, elixir-autogen, elixir-format
@@ -563,12 +563,12 @@ msgstr "Електронна адреса має некоректне закін
 
 #: lib/tymeslot/security/field_validators/tld_list.ex
 #, elixir-autogen, elixir-format
-msgid "Email has an invalid domain ending (.%{tld}) — did you mean .%{suggestion}?"
+msgid "Email has an invalid domain ending (.%{tld}). Did you mean .%{suggestion}?"
 msgstr "Електронна адреса має некоректне закінчення (.%{tld}). Ви мали на увазі .%{suggestion}?"
 
 #: lib/tymeslot/security/field_validators/tld_list.ex
 #, elixir-autogen, elixir-format
-msgid "Email has an unrecognised domain ending (.%{tld}) — did you mean .%{suggestion}?"
+msgid "Email has an unrecognised domain ending (.%{tld}). Did you mean .%{suggestion}?"
 msgstr "Електронна адреса має нерозпізнане закінчення (.%{tld}). Ви мали на увазі .%{suggestion}?"
 
 #: lib/tymeslot/security/field_validators/tld_list.ex
@@ -589,42 +589,42 @@ msgstr "Електронна адреса має бути текстом"
 #: lib/tymeslot/security/field_validators/email_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Email username is missing"
-msgstr "Ім'я користувача в електронній адресі відсутнє"
+msgstr "В електронній адресі бракує частини перед @"
 
 #: lib/tymeslot/security/field_validators/full_name_validator.ex
 #, elixir-autogen, elixir-format
-msgid "Full name cannot be only numbers"
-msgstr "Повне ім'я не може складатися лише з цифр"
+msgid "Display name cannot be only numbers"
+msgstr "Ім'я для відображення не може складатися лише з цифр"
 
 #: lib/tymeslot/security/field_validators/full_name_validator.ex
 #, elixir-autogen, elixir-format
-msgid "Full name contains excessive whitespace"
-msgstr "Повне ім'я містить зайві пробіли"
+msgid "Display name contains excessive whitespace"
+msgstr "Ім'я для відображення містить зайві пробіли"
 
 #: lib/tymeslot/security/field_validators/full_name_validator.ex
 #, elixir-autogen, elixir-format
-msgid "Full name contains invalid characters"
-msgstr "Повне ім'я містить недопустимі символи"
+msgid "Display name contains invalid characters"
+msgstr "Ім'я для відображення містить недопустимі символи"
 
 #: lib/tymeslot/security/field_validators/full_name_validator.ex
 #, elixir-autogen, elixir-format
-msgid "Full name is too long (maximum %{max_length} characters)"
-msgstr "Повне ім'я задовге (максимум символів: %{max_length})"
+msgid "Display name is too long (maximum %{max_length} characters)"
+msgstr "Ім'я для відображення задовге (максимальна кількість символів: %{max_length})"
 
 #: lib/tymeslot/security/field_validators/full_name_validator.ex
 #, elixir-autogen, elixir-format
-msgid "Full name must be a text value"
-msgstr "Повне ім'я має бути текстом"
+msgid "Display name must be a text value"
+msgstr "Ім'я для відображення має бути текстом"
 
 #: lib/tymeslot/security/universal_sanitizer.ex
 #, elixir-autogen, elixir-format
 msgid "Input exceeds maximum length (%{max_length} characters)"
-msgstr "Введений текст перевищує максимальну довжину (символів: %{max_length})"
+msgstr "Введений текст перевищує максимальну кількість символів (%{max_length})"
 
 #: lib/tymeslot/security/universal_sanitizer.ex
 #, elixir-autogen, elixir-format
 msgid "Input exceeds maximum size (%{max_input_bytes} bytes)"
-msgstr "Введений текст перевищує максимальний розмір (байтів: %{max_input_bytes})"
+msgstr "Введений текст перевищує максимальний розмір (%{max_input_bytes} Б)"
 
 #: lib/tymeslot/security/field_validators/integration_name_validator.ex
 #, elixir-autogen, elixir-format
@@ -664,12 +664,12 @@ msgstr "Потрібно вказати повідомлення"
 #: lib/tymeslot/security/field_validators/message_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Message is too long (maximum %{max_length} characters)"
-msgstr "Повідомлення задовге (максимум символів: %{max_length})"
+msgstr "Повідомлення задовге (максимальна кількість символів: %{max_length})"
 
 #: lib/tymeslot/security/field_validators/message_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Message is too short (minimum %{min_length} characters)"
-msgstr "Повідомлення закоротке (мінімум символів: %{min_length})"
+msgstr "Повідомлення закоротке (мінімальна кількість символів: %{min_length})"
 
 #: lib/tymeslot/security/field_validators/message_validator.ex
 #, elixir-autogen, elixir-format
@@ -709,12 +709,12 @@ msgstr "Потрібно вказати ім'я"
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name is too long (maximum %{max_length} characters)"
-msgstr "Ім'я задовге (максимум символів: %{max_length})"
+msgstr "Ім'я задовге (максимальна кількість символів: %{max_length})"
 
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name is too short (minimum %{min_length} characters)"
-msgstr "Ім'я закоротке (мінімум символів: %{min_length})"
+msgstr "Ім'я закоротке (мінімальна кількість символів: %{min_length})"
 
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
@@ -749,7 +749,7 @@ msgstr "Число має бути не більше %{max}"
 #: lib/tymeslot/security/field_validators/number_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Number must be numeric"
-msgstr "Число має бути числовим"
+msgstr "Значення має бути числом"
 
 #: lib/tymeslot/security/field_validators/phone_validator.ex
 #, elixir-autogen, elixir-format
@@ -789,7 +789,7 @@ msgstr "Виберіть варіант"
 #: lib/tymeslot/security/field_validators/multi_select_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Please choose at least %{min}"
-msgstr "Виберіть щонайменше: %{min}"
+msgstr "Виберіть щонайменше %{min}"
 
 #: lib/tymeslot/security/field_validators/multi_select_validator.ex
 #, elixir-autogen, elixir-format
@@ -799,7 +799,7 @@ msgstr "Виберіть хоча б один варіант"
 #: lib/tymeslot/security/field_validators/multi_select_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Please choose at most %{max}"
-msgstr "Виберіть щонайбільше: %{max}"
+msgstr "Виберіть щонайбільше %{max}"
 
 #: lib/tymeslot/security/field_validators/select_validator.ex
 #, elixir-autogen, elixir-format
@@ -809,7 +809,7 @@ msgstr "Виберіть один із доступних варіантів"
 #: lib/tymeslot/security/field_validators/select_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Selection must be a single option"
-msgstr "Вибір має бути одним варіантом"
+msgstr "Можна вибрати лише один варіант"
 
 #: lib/tymeslot/security/field_validators/multi_select_validator.ex
 #, elixir-autogen, elixir-format
@@ -824,7 +824,7 @@ msgstr "Вибір має складатися з текстових рядкі�
 #: lib/tymeslot/security/field_validators/multi_select_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Some selections are not valid options"
-msgstr "Деякі вибрані значення не є допустимими варіантами"
+msgstr "Деякі з вибраних варіантів недопустимі"
 
 #: lib/tymeslot/security/field_validators/text_validator.ex
 #, elixir-autogen, elixir-format
@@ -839,12 +839,12 @@ msgstr "Потрібно вказати текст"
 #: lib/tymeslot/security/field_validators/text_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Text is too long (maximum %{max_length} characters)"
-msgstr "Текст задовгий (максимум символів: %{max_length})"
+msgstr "Текст задовгий (максимальна кількість символів: %{max_length})"
 
 #: lib/tymeslot/security/field_validators/text_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Text is too short (minimum %{min_length} characters)"
-msgstr "Текст закороткий (мінімум символів: %{min_length})"
+msgstr "Текст закороткий (мінімальна кількість символів: %{min_length})"
 
 #: lib/tymeslot/security/field_validators/text_validator.ex
 #, elixir-autogen, elixir-format
@@ -869,7 +869,7 @@ msgstr "Потрібно вказати час"
 #: lib/tymeslot/security/field_validators/time_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Time must be in HH:MM format"
-msgstr "Час має бути у форматі HH:MM"
+msgstr "Час має бути у форматі ГГ:ХХ"
 
 #: lib/tymeslot/security/field_validators/time_validator.ex
 #, elixir-autogen, elixir-format

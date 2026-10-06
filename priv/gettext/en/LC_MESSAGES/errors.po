@@ -480,12 +480,12 @@ msgstr ""
 
 #: lib/tymeslot/security/field_validators/tld_list.ex
 #, elixir-autogen, elixir-format
-msgid "Domain has an invalid domain ending (.%{tld}) — did you mean .%{suggestion}?"
+msgid "Domain has an invalid domain ending (.%{tld}). Did you mean .%{suggestion}?"
 msgstr ""
 
 #: lib/tymeslot/security/field_validators/tld_list.ex
 #, elixir-autogen, elixir-format
-msgid "Domain has an unrecognised domain ending (.%{tld}) — did you mean .%{suggestion}?"
+msgid "Domain has an unrecognised domain ending (.%{tld}). Did you mean .%{suggestion}?"
 msgstr ""
 
 #: lib/tymeslot/security/field_validators/tld_list.ex
@@ -545,12 +545,12 @@ msgstr ""
 
 #: lib/tymeslot/security/field_validators/tld_list.ex
 #, elixir-autogen, elixir-format
-msgid "Email has an invalid domain ending (.%{tld}) — did you mean .%{suggestion}?"
+msgid "Email has an invalid domain ending (.%{tld}). Did you mean .%{suggestion}?"
 msgstr ""
 
 #: lib/tymeslot/security/field_validators/tld_list.ex
 #, elixir-autogen, elixir-format
-msgid "Email has an unrecognised domain ending (.%{tld}) — did you mean .%{suggestion}?"
+msgid "Email has an unrecognised domain ending (.%{tld}). Did you mean .%{suggestion}?"
 msgstr ""
 
 #: lib/tymeslot/security/field_validators/tld_list.ex
@@ -575,27 +575,27 @@ msgstr ""
 
 #: lib/tymeslot/security/field_validators/full_name_validator.ex
 #, elixir-autogen, elixir-format
-msgid "Full name cannot be only numbers"
+msgid "Display name cannot be only numbers"
 msgstr ""
 
 #: lib/tymeslot/security/field_validators/full_name_validator.ex
 #, elixir-autogen, elixir-format
-msgid "Full name contains excessive whitespace"
+msgid "Display name contains excessive whitespace"
 msgstr ""
 
 #: lib/tymeslot/security/field_validators/full_name_validator.ex
 #, elixir-autogen, elixir-format
-msgid "Full name contains invalid characters"
+msgid "Display name contains invalid characters"
 msgstr ""
 
 #: lib/tymeslot/security/field_validators/full_name_validator.ex
 #, elixir-autogen, elixir-format
-msgid "Full name is too long (maximum %{max_length} characters)"
+msgid "Display name is too long (maximum %{max_length} characters)"
 msgstr ""
 
 #: lib/tymeslot/security/field_validators/full_name_validator.ex
 #, elixir-autogen, elixir-format
-msgid "Full name must be a text value"
+msgid "Display name must be a text value"
 msgstr ""
 
 #: lib/tymeslot/security/universal_sanitizer.ex

@@ -28,7 +28,7 @@ defmodule Tymeslot.Security.FieldValidators.FullNameValidator do
       :ok
       
       iex> validate("John<script>")
-      {:error, "Full name contains invalid characters"}
+      {:error, "Display name contains invalid characters"}
   """
   @spec validate(any(), keyword()) :: :ok | {:error, String.t()}
   def validate(full_name, opts \\ [])
@@ -50,7 +50,7 @@ defmodule Tymeslot.Security.FieldValidators.FullNameValidator do
   end
 
   def validate(_full_name, _opts) do
-    {:error, dgettext("errors", "Full name must be a text value")}
+    {:error, dgettext("errors", "Display name must be a text value")}
   end
 
   # Private helper functions
@@ -59,18 +59,18 @@ defmodule Tymeslot.Security.FieldValidators.FullNameValidator do
     cond do
       String.length(name) > max_length ->
         {:error,
-         dgettext("errors", "Full name is too long (maximum %{max_length} characters)",
+         dgettext("errors", "Display name is too long (maximum %{max_length} characters)",
            max_length: max_length
          )}
 
       Regex.match?(@invalid_chars_regex, name) ->
-        {:error, dgettext("errors", "Full name contains invalid characters")}
+        {:error, dgettext("errors", "Display name contains invalid characters")}
 
       all_numbers?(name) ->
-        {:error, dgettext("errors", "Full name cannot be only numbers")}
+        {:error, dgettext("errors", "Display name cannot be only numbers")}
 
       excessive_whitespace?(name) ->
-        {:error, dgettext("errors", "Full name contains excessive whitespace")}
+        {:error, dgettext("errors", "Display name contains excessive whitespace")}
 
       true ->
         :ok

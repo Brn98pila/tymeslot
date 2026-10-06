@@ -22,38 +22,51 @@ defmodule Tymeslot.Security.FieldValidators.FullNameValidatorTest do
     test "returns error for long names" do
       long_name = String.duplicate("a", 101)
 
-      assert {:error, "Full name is too long (maximum 100 characters)"} =
+      assert {:error, "Display name is too long (maximum 100 characters)"} =
                FullNameValidator.validate(long_name)
     end
 
     test "returns error for invalid characters" do
-      assert {:error, "Full name contains invalid characters"} =
+      assert {:error, "Display name contains invalid characters"} =
                FullNameValidator.validate("John<script>")
 
-      assert {:error, "Full name contains invalid characters"} =
+      assert {:error, "Display name contains invalid characters"} =
                FullNameValidator.validate("Name;")
     end
 
     test "returns error for only numbers" do
-      assert {:error, "Full name cannot be only numbers"} = FullNameValidator.validate("12345")
-      assert {:error, "Full name cannot be only numbers"} = FullNameValidator.validate("123 45")
+      assert {:error, "Display name cannot be only numbers"} = FullNameValidator.validate("12345")
+
+      assert {:error, "Display name cannot be only numbers"} =
+               FullNameValidator.validate("123 45")
     end
 
     test "returns error for excessive whitespace" do
-      assert {:error, "Full name contains excessive whitespace"} =
+      assert {:error, "Display name contains excessive whitespace"} =
                FullNameValidator.validate("John   Smith")
     end
 
     test "supports custom max_length option" do
-      assert {:error, "Full name is too long (maximum 5 characters)"} =
+      assert {:error, "Display name is too long (maximum 5 characters)"} =
                FullNameValidator.validate("Too long", max_length: 5)
     end
 
     test "returns error for non-binary values" do
-      assert {:error, "Full name must be a text value"} = FullNameValidator.validate(123)
+      assert {:error, "Display name must be a text value"} = FullNameValidator.validate(123)
 
-      assert {:error, "Full name must be a text value"} =
+      assert {:error, "Display name must be a text value"} =
                FullNameValidator.validate(%{key: "value"})
+    end
+  end
+
+  # The field these errors are raised on is labelled "Display Name" (in German
+  # "Anzeigename"), so every locale names it by that label.
+  describe "validate/2 in another language" do
+    test "names the field by its label" do
+      Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+        assert {:error, "Anzeigename darf nicht nur aus Zahlen bestehen"} =
+                 FullNameValidator.validate("12345")
+      end)
     end
   end
 end

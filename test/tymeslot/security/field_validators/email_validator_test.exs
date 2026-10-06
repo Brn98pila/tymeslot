@@ -152,12 +152,12 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidatorTest do
       {:error, msg} = EmailValidator.validate("user@example.ocm")
       assert msg =~ "unrecognised domain ending"
       assert msg =~ ".ocm"
-      assert msg =~ "did you mean .com?"
+      assert msg =~ "Did you mean .com?"
     end
 
     test "omits suggestion when there is no confident correction" do
       {:error, msg} = EmailValidator.validate("user@example.1")
-      refute msg =~ "did you mean"
+      refute msg =~ "Did you mean"
     end
 
     test "handles case-insensitive TLDs" do

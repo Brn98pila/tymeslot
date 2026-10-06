@@ -221,7 +221,7 @@ defmodule Tymeslot.Security.FieldValidators.TLDList do
     do:
       dgettext(
         "errors",
-        "Email has an unrecognised domain ending (.%{tld}) — did you mean .%{suggestion}?",
+        "Email has an unrecognised domain ending (.%{tld}). Did you mean .%{suggestion}?",
         tld: tld,
         suggestion: suggestion
       )
@@ -230,7 +230,7 @@ defmodule Tymeslot.Security.FieldValidators.TLDList do
     do:
       dgettext(
         "errors",
-        "Domain has an unrecognised domain ending (.%{tld}) — did you mean .%{suggestion}?",
+        "Domain has an unrecognised domain ending (.%{tld}). Did you mean .%{suggestion}?",
         tld: tld,
         suggestion: suggestion
       )
@@ -245,7 +245,7 @@ defmodule Tymeslot.Security.FieldValidators.TLDList do
     do:
       dgettext(
         "errors",
-        "Email has an invalid domain ending (.%{tld}) — did you mean .%{suggestion}?",
+        "Email has an invalid domain ending (.%{tld}). Did you mean .%{suggestion}?",
         tld: tld,
         suggestion: suggestion
       )
@@ -254,7 +254,7 @@ defmodule Tymeslot.Security.FieldValidators.TLDList do
     do:
       dgettext(
         "errors",
-        "Domain has an invalid domain ending (.%{tld}) — did you mean .%{suggestion}?",
+        "Domain has an invalid domain ending (.%{tld}). Did you mean .%{suggestion}?",
         tld: tld,
         suggestion: suggestion
       )

@@ -33,7 +33,7 @@ defmodule Tymeslot.Security.FieldValidators.TranslatedMessagesTest do
     assert {:error, message} =
              in_locale("uk", fn -> NameValidator.validate("A", min_length: 2) end)
 
-    assert message == "Ім'я закоротке (мінімум символів: 2)"
+    assert message == "Ім'я закоротке (мінімальна кількість символів: 2)"
   end
 
   test "a domain ending suggestion is translated with both endings" do
