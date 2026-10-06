@@ -107,7 +107,7 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
       Application.put_env(:tymeslot, :subscription_manager, RevocationManager)
       {user, customer_id} = linked_subscription()
 
-      charge = refunded_charge(customer_id, 10_000, 10_000)
+      charge = refunded_charge(customer_id, 10_000, 10_000, "in_current")
       event = refunded_event()
 
       assert {:ok, :refund_processed} = RefundHandler.process(event, charge)
@@ -179,7 +179,7 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
       Application.delete_env(:tymeslot, :subscription_manager)
       {user, customer_id} = linked_subscription()
 
-      charge = refunded_charge(customer_id, 10_000, 10_000)
+      charge = refunded_charge(customer_id, 10_000, 10_000, "in_current")
       event = refunded_event()
 
       assert {:ok, :refund_processed} = RefundHandler.process(event, charge)
@@ -207,6 +207,37 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
         event: :charge_refunded,
         data: %{invoice_id: "in_refunded", subscription_id: "sub_paid_for"}
       }
+    end
+
+    # The hand-off above only queues the revocation; the email must not
+    # promise access ends when the refund is not for the subscription the
+    # customer holds now.
+    test "a full refund of a charge with no invoice does not tell the user access ended" do
+      {user, customer_id} = linked_subscription()
+
+      charge = refunded_charge(customer_id, 10_000, 10_000)
+
+      assert {:ok, :refund_processed} = RefundHandler.process(refunded_event(), charge)
+
+      user_id = user.id
+      assert_received {:refund_email, ^user_id, 10_000, "eur", false}
+    end
+
+    test "a full refund of an earlier subscription's charge does not tell the user access ended" do
+      {user, customer_id} = linked_subscription()
+
+      {:ok, _invoice} =
+        SubscriptionInvoiceQueries.upsert(%{
+          stripe_invoice_id: "in_earlier",
+          subscription_id: "sub_earlier"
+        })
+
+      charge = refunded_charge(customer_id, 10_000, 10_000, "in_earlier")
+
+      assert {:ok, :refund_processed} = RefundHandler.process(refunded_event(), charge)
+
+      user_id = user.id
+      assert_received {:refund_email, ^user_id, 10_000, "eur", false}
     end
 
     test "a handler failure returns retry_later and skips the user notification" do
