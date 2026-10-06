@@ -24,9 +24,11 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   uid names the shared slot, which `Tymeslot.Bookings.Cancel` and
   `Tymeslot.Bookings.Reschedule` refuse to act on for a visitor. Each
   participant manages their own spot from the links in their emails.
+
+  `{:error, :not_found}` when the organiser has no meeting with that uid.
   """
   @spec validate_and_load_meeting(String.t(), atom(), integer()) ::
-          {:ok, map()} | {:error, String.t() | :group_meeting}
+          {:ok, map()} | {:error, String.t() | :group_meeting | :not_found}
   def validate_and_load_meeting(meeting_uid, action, organizer_user_id) do
     case Meetings.get_meeting_by_uid_for_organizer(meeting_uid, organizer_user_id) do
       {:ok, meeting} ->
@@ -36,7 +38,7 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
         end
 
       {:error, :not_found} ->
-        {:error, "Meeting not found"}
+        {:error, :not_found}
     end
   end
 

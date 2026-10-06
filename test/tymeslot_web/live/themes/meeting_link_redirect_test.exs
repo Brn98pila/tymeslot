@@ -74,6 +74,47 @@ defmodule TymeslotWeb.Live.Themes.MeetingLinkRedirectTest do
     end
   end
 
+  describe "when the old username is now held by another host" do
+    setup do
+      %{user: user_a, profile: profile_a} = host("claimed-before")
+      meeting_a = future_meeting(user_a)
+      rename!(profile_a, "claimed-moved")
+
+      %{user: user_b} = host("claimed-before")
+      meeting_b = future_meeting(user_b)
+
+      %{meeting_a: meeting_a, meeting_b: meeting_b}
+    end
+
+    test "the old cancel and reschedule links redirect to the original host's page", %{
+      conn: conn,
+      meeting_a: meeting_a
+    } do
+      assert {:error, {:redirect, %{to: to}}} =
+               live(conn, "/claimed-before/meeting/#{meeting_a.uid}/cancel")
+
+      assert to == "/claimed-moved/meeting/#{meeting_a.uid}/cancel"
+
+      assert {:error, {:redirect, %{to: to}}} =
+               live(build_conn(), "/claimed-before/meeting/#{meeting_a.uid}/reschedule")
+
+      assert to == "/claimed-moved/meeting/#{meeting_a.uid}/reschedule"
+    end
+
+    test "the new holder's own meeting pages are unaffected", %{
+      conn: conn,
+      meeting_b: meeting_b
+    } do
+      assert {:ok, view, _html} = live(conn, "/claimed-before/meeting/#{meeting_b.uid}/cancel")
+      assert view |> element("[data-testid='cancel-meeting']") |> has_element?()
+    end
+
+    test "an unknown uid under the new holder's username is still not found", %{conn: conn} do
+      assert {:error, {:redirect, %{to: "/", flash: %{"error" => "Meeting not found"}}}} =
+               live(conn, "/claimed-before/meeting/#{UUID.generate()}/cancel")
+    end
+  end
+
   test "an unknown username with an unknown uid is still a 404", %{conn: conn} do
     assert_raise TymeslotWeb.NotFoundError, fn ->
       live(conn, "/nobody-here/meeting/#{UUID.generate()}/cancel")

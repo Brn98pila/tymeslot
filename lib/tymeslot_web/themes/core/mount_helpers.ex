@@ -62,9 +62,9 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
 
   # A cancel or reschedule link under a username nobody holds any more: the
   # host has since renamed themselves. The uid names the meeting, so send the
-  # visitor to the host's current page for it. A username someone *does* hold
-  # never gets here, so a uid pasted under another host's name is still
-  # refused by that host's scoped lookup rather than redirected.
+  # visitor to the host's current page for it. A username someone else has
+  # since claimed is handled by `meeting_not_found/4` instead, after that
+  # host's scoped lookup has found nothing of theirs.
   defp renamed_host_meeting_path(%{"username" => username, "meeting_uid" => uid}, action)
        when is_binary(username) and is_binary(uid) and
               action in [:reschedule, :cancel, :cancel_confirmed],
@@ -143,12 +143,38 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
          |> LiveView.put_flash(:error, MeetingManagement.group_meeting_message())
          |> LiveView.redirect(to: ~p"/#{profile.username}")}
 
+      {:error, :not_found} ->
+        {:ok, meeting_not_found(socket, profile, meeting_uid, action)}
+
       {:error, reason} ->
         {:ok,
          socket
          |> LiveView.put_flash(:error, reason)
          |> LiveView.redirect(to: ~p"/")}
     end
+  end
+
+  # The host this username names has no meeting with that uid. When another
+  # host does, the link was handed out under a username its host has since
+  # given up and someone else has claimed: send the visitor to the owner's
+  # current page, exactly as the uid-only link would. Nothing of the new
+  # holder's is shown, and their scoped lookup never acts on the meeting.
+  defp meeting_not_found(socket, profile, meeting_uid, action) do
+    case MeetingLinks.current_path(meeting_uid, action) do
+      {:ok, path} ->
+        if String.starts_with?(path, "/#{profile.username}/"),
+          do: meeting_not_found_redirect(socket),
+          else: LiveView.redirect(socket, to: path)
+
+      {:error, :not_found} ->
+        meeting_not_found_redirect(socket)
+    end
+  end
+
+  defp meeting_not_found_redirect(socket) do
+    socket
+    |> LiveView.put_flash(:error, "Meeting not found")
+    |> LiveView.redirect(to: ~p"/")
   end
 
   # Mounts the public poll voting page for a known organizer profile.
