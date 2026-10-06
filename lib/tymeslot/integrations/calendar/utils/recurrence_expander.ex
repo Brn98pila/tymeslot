@@ -484,13 +484,12 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
         &(on_month_days?(&1, rule) and on_weekdays?(&1, rule, {year, year_end}))
       )
     else
-      [clamped_date(year.year, first_date.month, first_date.day)]
+      valid_date(year.year, first_date.month, first_date.day)
     end
   end
 
   # The days of a month a MONTHLY rule (or a YEARLY one by BYMONTH) selects.
-  # Without BYMONTHDAY or BYDAY that is the first start's day, moved back to
-  # the month's last day when the month is shorter.
+  # Without BYMONTHDAY or BYDAY that is the first start's day.
   defp month_dates(month, rule, first_date) do
     if rule.by_month_day || rule.by_day do
       month_end = Date.end_of_month(month)
@@ -500,12 +499,20 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
         &(on_month_days?(&1, rule) and on_weekdays?(&1, rule, {month, month_end}))
       )
     else
-      [clamped_date(month.year, month.month, first_date.day)]
+      valid_date(month.year, month.month, first_date.day)
     end
   end
 
-  defp clamped_date(year, month, day),
-    do: Date.new!(year, month, min(day, Date.days_in_month(Date.new!(year, month, 1))))
+  # A month (or a year's February) without the first start's day has no
+  # occurrence: RFC 5545 §3.3.10 skips a repetition on an invalid date, and
+  # it is not counted towards COUNT. Moving it to the month's last day would
+  # block a day the series never takes, and spend COUNT on it.
+  defp valid_date(year, month, day) do
+    case Date.new(year, month, day) do
+      {:ok, date} -> [date]
+      {:error, _invalid} -> []
+    end
+  end
 
   defp in_months?(_date, %{by_month: nil}), do: true
   defp in_months?(date, %{by_month: months}), do: date.month in months
