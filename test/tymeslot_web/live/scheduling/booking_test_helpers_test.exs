@@ -44,7 +44,8 @@ defmodule Tymeslot.BookingTestHelpersTest do
       %{profile: profile} =
         seed_booking_account(unquote(theme.id), "walk-#{unquote(theme.slug)}", timezone)
 
-      {:ok, view, _html} = live(conn, "/#{profile.username}?" <> URI.encode_query(%{"timezone" => timezone}))
+      {:ok, view, _html} =
+        live(conn, "/#{profile.username}?" <> URI.encode_query(%{"timezone" => timezone}))
 
       assert live_assigns(view).user_timezone == timezone
 
