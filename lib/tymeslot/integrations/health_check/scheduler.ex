@@ -168,18 +168,21 @@ defmodule Tymeslot.Integrations.HealthCheck.Scheduler do
   end
 
   defp check_circuit_breaker(type, integration, provider_atom) do
+    # Self-hosted providers (the CalDAV family and Exchange for calendars,
+    # MiroTalk for video) key their circuit breaker per host, so this must
+    # check the same breaker their calls actually trip, or a tenant whose
+    # host is down never gets skipped here.
+    base_url = Map.get(integration, :base_url)
+
     circuit_status =
       try do
         case type do
           :calendar ->
-            CalendarCircuitBreaker.status(provider_atom)
+            host = CalendarCircuitBreaker.breaker_host(provider_atom, base_url)
+            CalendarCircuitBreaker.status(provider_atom, host)
 
           :video ->
-            # Self-hosted providers (MiroTalk) key their circuit breaker per
-            # host — see `VideoCircuitBreaker.status/2` — so this must check
-            # the same breaker `ProviderAdapter` actually trips, or a tenant
-            # whose host is down never gets skipped here.
-            host = CircuitBreakerHelpers.host_from_base_url(Map.get(integration, :base_url))
+            host = CircuitBreakerHelpers.host_from_base_url(base_url)
             VideoCircuitBreaker.status(provider_atom, host)
         end
       rescue

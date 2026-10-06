@@ -161,6 +161,42 @@ defmodule Tymeslot.Workers.VideoTranscoderTest do
     end
   end
 
+  describe "timeout/1" do
+    test "bounds the job, with room for every variant's own bound" do
+      job = VideoTranscoder.new(%{theme_customization_id: 1, video_path: "uploads/v.mp4"})
+
+      timeout = VideoTranscoder.timeout(job)
+
+      assert is_integer(timeout)
+      assert timeout > length(Transcoder.variant_definitions()) * Transcoder.variant_timeout()
+    end
+  end
+
+  describe "perform/1 - a variant that times out" do
+    test "marks the video failed on the final attempt" do
+      theme_customization = insert_theme_customization()
+
+      expect(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
+
+      expect(Tymeslot.Media.TranscoderMock, :transcode, fn _src, _out, _opts ->
+        {:error, :timeout}
+      end)
+
+      assert {:error, :timeout} =
+               perform_job(
+                 VideoTranscoder,
+                 %{
+                   "theme_customization_id" => theme_customization.id,
+                   "video_path" => "uploads/test-video.mp4"
+                 },
+                 attempt: 3
+               )
+
+      updated = Repo.get!(ThemeCustomizationSchema, theme_customization.id)
+      assert updated.video_processing == "failed"
+    end
+  end
+
   describe "perform/1 - path traversal" do
     test "rejects video_path containing directory traversal and sets status to failed" do
       theme_customization = insert_theme_customization()
