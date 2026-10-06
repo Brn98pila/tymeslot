@@ -56,6 +56,29 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandlerTest do
       }
     end
 
+    # The receiver orders events by Stripe's creation time and deduplicates
+    # them by id, so both must travel with the subscription.
+    test "carries the Stripe event's id and creation time" do
+      assert :ok = Payments.subscribe_to_payment_events()
+
+      subscription = %{"id" => "sub_ordered", "status" => "active"}
+
+      event = %{
+        "id" => "evt_ordered",
+        "created" => 1_700_000_123,
+        "type" => "customer.subscription.updated",
+        type: "customer.subscription.updated"
+      }
+
+      assert {:ok, :event_processed} = SubscriptionHandler.process(event, subscription)
+
+      assert_receive %{
+        subscription_id: "sub_ordered",
+        event_id: "evt_ordered",
+        event_created: 1_700_000_123
+      }
+    end
+
     test "handles unknown subscription events with generic name" do
       assert :ok = Payments.subscribe_to_payment_events()
 

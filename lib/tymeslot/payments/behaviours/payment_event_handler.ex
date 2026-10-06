@@ -16,7 +16,11 @@ defmodule Tymeslot.Payments.Behaviours.PaymentEventHandler do
   The event is the same map Core also publishes on the payment-events PubSub
   topic: `%{event: atom, subscription_id: id, subscription_data: map}` for
   subscription changes, `%{event: atom, data: map, timestamp: DateTime}` for
-  everything else.
+  everything else. Each carries the Stripe event's `event_id`, and
+  subscription and dispute events also its `event_created` Unix time (at the
+  top level for a subscription change, in `data` for a dispute), so a
+  receiver can deduplicate redeliveries and ignore an event older than one it
+  has already applied: Stripe does not deliver them in order.
   """
 
   @callback handle_payment_event(event :: map()) :: :ok | {:error, term()}

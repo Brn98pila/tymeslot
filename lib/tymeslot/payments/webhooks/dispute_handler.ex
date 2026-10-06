@@ -96,7 +96,12 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
         if subscription_charge?(charge) do
           hand_off_dispute(
             :dispute_created,
-            %{event_id: event["id"], stripe_customer_id: customer_id, dispute: dispute},
+            %{
+              event_id: event["id"],
+              event_created: event["created"],
+              stripe_customer_id: customer_id,
+              dispute: dispute
+            },
             :subscription_dispute_forwarded
           )
         else
@@ -146,7 +151,12 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
         if subscription_charge?(charge) do
           hand_off_dispute(
             :dispute_updated,
-            %{event_id: event["id"], stripe_dispute_id: dispute_id, status: status},
+            %{
+              event_id: event["id"],
+              event_created: event["created"],
+              stripe_dispute_id: dispute_id,
+              status: status
+            },
             :dispute_updated
           )
         else
@@ -175,6 +185,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
             :dispute_closed,
             %{
               event_id: event["id"],
+              event_created: event["created"],
               stripe_dispute_id: dispute_id,
               status: status,
               dispute: dispute
