@@ -34,17 +34,19 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
   rather than retried for four hours towards an alert:
 
     * `:under_dispute`: Stripe holds the money until the dispute is decided.
-      A dispute the attendee wins returns it to them; one the host wins sets
-      the payment back to `paid` and schedules this job again
-      (`new_after_dispute/1`), the booking on the host's outstanding-refunds
-      list until it has run.
+      A dispute the attendee wins in full returns it to them. One the host
+      wins sets the payment back to `paid` (or `partially_refunded`), and
+      one the attendee wins only in part leaves it `partially_refunded`;
+      either way the rest is still owed, so the job is scheduled again
+      (`new_after_dispute/1`) and refunds what is left, the booking on the
+      host's outstanding-refunds list until it has run.
     * `:outside_refund_window` and `:not_paid`: the payment is `paid` and
       its booking expired, so it stays on the host's outstanding-refunds
       list, offered as a refund to make in Stripe.
 
   Inserted at most once per booking payment and reason: the uniqueness
   covers every state, completed and discarded included, so a redelivered
-  completion (or dispute outcome) can never refund twice. The job a won
+  completion (or dispute outcome) can never refund twice. The job a decided
   dispute schedules carries `reason: "after_dispute"`, so the first job,
   discarded while the dispute was open, does not swallow it.
   """
@@ -89,8 +91,9 @@ defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
   def new_for(booking_payment_id), do: new(%{booking_payment_id: booking_payment_id})
 
   @doc """
-  Builds the job for `booking_payment_id` once a dispute the host won has
-  set the payment back to `paid`. Insert it in the transaction that does.
+  Builds the job for `booking_payment_id` once a decided dispute has left
+  part or all of the payment with the host: a won dispute, or one lost only
+  in part. Insert it in the transaction that records the outcome.
   """
   @spec new_after_dispute(Ecto.UUID.t()) :: Oban.Job.changeset()
   def new_after_dispute(booking_payment_id),

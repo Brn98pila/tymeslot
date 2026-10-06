@@ -304,6 +304,35 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedLateTest do
              ]
     end
 
+    # Whatever the dispute decided, what is left with the host for a booking
+    # that never happened goes back to the attendee.
+    test "refunds what is left after a won dispute on a partly refunded payment" do
+      bp = disputed_expired_payment(refunded_amount_cents: 1500)
+
+      assert :ok =
+               ChargeDisputeClosed.handle(
+                 dispute_event("evt_DISPUTE_WON", "charge.dispute.closed", %{"status" => "won"})
+               )
+
+      assert Repo.reload!(bp).status == "partially_refunded"
+      assert_remainder_refunded(bp, 3500)
+    end
+
+    test "refunds what is left after a partly lost dispute" do
+      bp = disputed_expired_payment(refunded_amount_cents: 0)
+
+      assert :ok =
+               ChargeDisputeClosed.handle(
+                 dispute_event("evt_DISPUTE_LOST", "charge.dispute.closed", %{
+                   "status" => "lost",
+                   "amount" => 2000
+                 })
+               )
+
+      assert %{status: "partially_refunded", refunded_amount_cents: 2000} = Repo.reload!(bp)
+      assert_remainder_refunded(bp, 3000)
+    end
+
     test "schedules no refund for a dispute the host wins on a booking that went ahead" do
       meeting = insert(:meeting, status: "confirmed")
 
@@ -321,6 +350,31 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedLateTest do
 
       refute_enqueued(worker: RefundLatePayment)
     end
+  end
+
+  defp disputed_expired_payment(attrs) do
+    meeting = insert(:meeting, status: "expired")
+
+    insert_payment(
+      [
+        meeting: meeting,
+        status: "disputed",
+        amount_cents: 5000,
+        paid_at: DateTime.utc_now(:second),
+        stripe_charge_id: "ch_LATE_DISPUTED"
+      ] ++ attrs
+    )
+  end
+
+  defp assert_remainder_refunded(bp, remainder) do
+    expect(StripeAdapterMock, :create_refund, fn params, _opts ->
+      assert params.charge == "ch_LATE_DISPUTED"
+      assert params.amount == remainder
+      {:ok, %{"id" => "re_#{bp.id}"}}
+    end)
+
+    assert %{success: 1} = Oban.drain_queue(queue: :payments)
+    assert %{status: "refunded", refunded_amount_cents: 5000} = Repo.reload!(bp)
   end
 
   defp dispute_event(event_id, type, fields) do

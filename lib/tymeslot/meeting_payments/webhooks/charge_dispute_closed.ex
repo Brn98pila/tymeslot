@@ -18,6 +18,12 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeClosed do
     * other statuses (`warning_closed`, `warning_under_review`, …) are
       not decisive — leave the booking in `disputed` and ignore.
 
+  Whichever way a decisive dispute goes, a payment whose booking expired is
+  refunded whatever is left of it with the host: all of it after a won
+  dispute, the part a lost one did not take back after a partial loss
+  (`partially_refunded`). The attendee paid for a booking that never
+  happened, so nothing of it is the host's to keep.
+
   Idempotent on `last_event_id`.
   """
 
@@ -90,7 +96,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeClosed do
   defp apply_outcome(_payment, _event_id, _status, _amount), do: :ok
 
   # Money back with the host for a booking that never happened is owed to
-  # the attendee, as it was before the dispute opened.
+  # the attendee, as it was before the dispute opened: after a won dispute,
+  # and after a partly lost one, for the part the dispute did not take.
   defp maybe_schedule_refund(%{status: status, meeting_id: meeting_id} = payment)
        when is_binary(meeting_id) do
     with true <- status in BookingPaymentSchema.refundable_statuses(),
