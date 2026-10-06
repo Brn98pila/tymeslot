@@ -46,7 +46,10 @@ defmodule TymeslotWeb.Themes.Shared.Journey do
   @spec facts() :: %{atom() => module()}
   def facts, do: merge_facts!(shipped_facts(), @extra_facts)
 
-  # In a function body, so the fact modules stay runtime references.
+  # In a function body, so the fact modules are runtime references of this
+  # module. That keeps them off a theme's compile-connected graph only while
+  # the theme reaches `Journey` without a compile-time alias (through a
+  # function returning the module's name).
   defp shipped_facts,
     do: %{meeting_type: MeetingType, slot: Slot, answers: Answers, attendee: Attendee}
 

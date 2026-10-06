@@ -12,7 +12,8 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.Paged do
   (`Fact.revisitable?/1`: the overview only for a booker who came through
   it); otherwise the booker stays. The step indicator (`go_to/3`) numbers
   the moments with a needed fact from 1, gives every outcome the number
-  after them, and only moves back to a moment.
+  after them, and only moves back to a moment that may be revisited, as Back
+  does.
 
   A moment none of whose facts this booking needs is skipped: the questions
   of a meeting type that has none. Moments are shown through
@@ -80,7 +81,8 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.Paged do
 
     with {number, _rest} <- Integer.parse(step),
          {target, ^number} <- List.keyfind(numbered, number, 1),
-         true <- is_integer(current) and number < current do
+         true <- is_integer(current) and number < current,
+         true <- revisitable?(Journey.moment(journey, target), socket.assigns) do
       {:noreply, Runtime.transition_to(socket, target, %{})}
     else
       _no_move -> {:noreply, socket}

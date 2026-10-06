@@ -123,6 +123,20 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.PagedTest do
       assert Engine.total(socket.assigns.engine) == 1
     end
 
+    test "moves from the schedule straight to the booking when the meeting type has no questions" do
+      socket =
+        socket(%{
+          current_state: :schedule,
+          meeting_type: %{custom_fields: []},
+          selected_date: "2027-01-05",
+          selected_time: "10:00",
+          available_slots: []
+        })
+
+      assert {:noreply, socket} = Paged.continue(classic(), socket)
+      assert socket.assigns.current_state == :booking
+    end
+
     test "says which half of the slot is missing, and stays" do
       socket =
         socket(%{
@@ -218,11 +232,18 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.PagedTest do
       assert {:noreply, socket} = Paged.back(classic(), socket)
       assert socket.assigns.current_state == :questions
     end
+
+    test "from the booking returns to the schedule when the meeting type has no questions" do
+      socket = socket(%{current_state: :booking, meeting_type: %{custom_fields: []}})
+
+      assert {:noreply, socket} = Paged.back(classic(), socket)
+      assert socket.assigns.current_state == :schedule
+    end
   end
 
   describe "go_to/3" do
     test "moves back to an earlier step" do
-      socket = socket(%{current_state: :schedule, meeting_type: nil})
+      socket = socket(%{current_state: :schedule, meeting_type: nil, entered_via_overview: true})
 
       assert {:noreply, socket} = Paged.go_to(classic(), socket, "1")
       assert socket.assigns.current_state == :overview
@@ -237,7 +258,13 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.PagedTest do
 
     test "numbers the questions only when the meeting type has them" do
       with_fields = socket(%{current_state: :booking, meeting_type: with_questions(["company"])})
-      without = socket(%{current_state: :booking, meeting_type: %{custom_fields: []}})
+
+      without =
+        socket(%{
+          current_state: :booking,
+          meeting_type: %{custom_fields: []},
+          entered_via_overview: true
+        })
 
       assert {:noreply, %{assigns: %{current_state: :questions}}} =
                Paged.go_to(classic(), with_fields, "3")
@@ -250,12 +277,26 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.PagedTest do
     end
 
     test "from an outcome moves back to any moment, never to an outcome" do
-      socket = socket(%{current_state: :confirmation, meeting_type: nil})
+      socket =
+        socket(%{current_state: :confirmation, meeting_type: nil, entered_via_overview: true})
 
       assert {:noreply, %{assigns: %{current_state: :overview}}} =
                Paged.go_to(classic(), socket, "1")
 
       assert {:noreply, ^socket} = Paged.go_to(classic(), socket, "4")
+    end
+
+    test "never returns to the overview a booker who came by a direct link" do
+      socket = socket(%{current_state: :schedule, meeting_type: nil, entered_via_overview: false})
+
+      assert {:noreply, ^socket} = Paged.go_to(classic(), socket, "1")
+    end
+
+    test "returns to the overview a booker who came through it" do
+      socket = socket(%{current_state: :booking, meeting_type: nil, entered_via_overview: true})
+
+      assert {:noreply, %{assigns: %{current_state: :overview}}} =
+               Paged.go_to(classic(), socket, "1")
     end
 
     test "ignores a step that is not a number" do

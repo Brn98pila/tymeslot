@@ -78,6 +78,14 @@ defmodule TymeslotWeb.Themes.Shared.Journey.RuntimeTest do
                :unhandled
     end
 
+    test "a fact's event is not handled when this booking does not need the fact" do
+      socket =
+        socket(%{current_state: :questions, meeting_type: %{custom_fields: []}, engine: nil})
+
+      assert Runtime.handle_step_event(socket, :questions, :answer, {"company", "Acme"}) ==
+               :unhandled
+    end
+
     test "an event of a moment that is not on screen is not handled" do
       overview = socket(%{current_state: :overview})
 
@@ -166,7 +174,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.RuntimeTest do
 
   describe "navigate_to_step/2" do
     test "hands the step to the navigator" do
-      socket = socket(%{current_state: :schedule, meeting_type: nil})
+      socket = socket(%{current_state: :schedule, meeting_type: nil, entered_via_overview: true})
 
       assert {:noreply, socket} = Runtime.navigate_to_step(socket, %{"step" => "1"})
       assert socket.assigns.current_state == :overview

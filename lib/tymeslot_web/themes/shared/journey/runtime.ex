@@ -15,7 +15,8 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
        accepted from every moment;
     4. an event a fact owns goes to that fact's `handle/3` when the moment
        it came from is visible (`Navigator.visible/2`) and collects the
-       fact, and every fact the owner `requires/1` is known;
+       fact, this booking needs the owner (`required?/1`), and every fact
+       the owner `requires/1` is known;
     5. anything else is `:unhandled`, which `SchedulingLive` logs and drops.
 
   A theme's own `theme:<name>` events never reach this module. With
@@ -131,10 +132,12 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
   end
 
   # The fact owning `event` among those `moment_key` collects, when that
-  # moment is on screen and every fact the owner needs is known.
+  # moment is on screen, this booking needs the owner, and every fact the
+  # owner needs is known.
   defp owner(journey, assigns, moment_key, event) do
     with {:ok, moment} <- visible_moment(journey, assigns, moment_key),
          {:ok, fact} <- owning_fact(moment, event),
+         true <- fact.required?(assigns),
          true <- Enum.all?(fact.requires(assigns), &Journey.fact!(&1).known?(assigns)) do
       {:ok, fact}
     else
