@@ -350,11 +350,17 @@ defmodule TymeslotWeb.Dashboard.Automation.TelegramFormComponent do
     if assigns.shared_bot_mode do
       base
     else
-      base &&
-        AutomationHelpers.field_present?(values, "bot_token") &&
+      base && bot_token_given?(assigns.mode, values) &&
         AutomationHelpers.field_present?(values, "chat_id")
     end
   end
+
+  # On edit a blank token keeps the stored one, so only a new integration
+  # needs it typed.
+  defp bot_token_given?(:create, values),
+    do: AutomationHelpers.field_present?(values, "bot_token")
+
+  defp bot_token_given?(:edit, _values), do: true
 
   defp form_title(:create, true, 1), do: dgettext("dashboard_automation_chat", "Connect Telegram")
 

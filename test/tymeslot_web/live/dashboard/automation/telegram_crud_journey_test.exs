@@ -74,6 +74,12 @@ defmodule TymeslotWeb.Dashboard.Automation.TelegramCrudJourneyTest do
     view |> element("[phx-click*='show_telegram_form']") |> render_click()
   end
 
+  defp blur_field(view, field, value) do
+    view
+    |> element("#telegram-form input[name='telegram[#{field}]']")
+    |> render_blur(%{"value" => value})
+  end
+
   defp edit_button(integration) do
     ~s([phx-click*='show_edit_telegram_form'][phx-click*='"id":#{integration.id}'])
   end
@@ -148,6 +154,26 @@ defmodule TymeslotWeb.Dashboard.Automation.TelegramCrudJourneyTest do
       refute render(view) =~ @bot_token
     end
 
+    # `render_submit/1` ignores `disabled`, so the button's attribute is what
+    # tells whether an organiser can submit at all.
+    test "the submit button stays disabled until a bot token is typed", %{conn: conn} do
+      view = open_telegram_tab(conn)
+      open_create_form(view)
+
+      blur_field(view, "name", "Booking Alerts")
+      blur_field(view, "chat_id", @chat_id)
+
+      view
+      |> element(~s(#telegram-form input[type=checkbox][value="meeting.created"]))
+      |> render_click()
+
+      assert has_element?(view, "#telegram-form button[type=submit][disabled]")
+
+      blur_field(view, "bot_token", @bot_token)
+
+      assert has_element?(view, "#telegram-form button[type=submit]:not([disabled])")
+    end
+
     test "a submission with no events selected is rejected", %{conn: conn, user: user} do
       stub_telegram_api(telegram_ok())
 
@@ -194,6 +220,17 @@ defmodule TymeslotWeb.Dashboard.Automation.TelegramCrudJourneyTest do
       view |> element(edit_button(integration)) |> render_click()
 
       assert render(view) =~ "Original Bot"
+    end
+
+    test "the submit button is enabled without retyping the bot token", %{
+      conn: conn,
+      integration: integration
+    } do
+      view = open_telegram_tab(conn)
+      view |> element(edit_button(integration)) |> render_click()
+
+      assert has_element?(view, "#telegram-form input[name='telegram[bot_token]']")
+      assert has_element?(view, "#telegram-form button[type=submit]:not([disabled])")
     end
 
     test "renaming and re-subscribing persists both changes", %{
