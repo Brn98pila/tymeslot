@@ -23,11 +23,12 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
   # still shows in this week's range.
   @max_occurrences 500
 
-  # Runaway guard: `expand/4` stops after this many periods (days, weeks,
-  # months or years of the rule's FREQ) whatever they yield, so a rule that
-  # never reaches the range cannot spin for ever. A series without `COUNT` is
-  # first fast-forwarded to the range (`periods_to_skip/3`), so this only binds
-  # on a series with a `COUNT` that has run for a very long time.
+  # Runaway guard: `expand/4` stops, with a warning, after this many periods
+  # (days, weeks, months or years of the rule's FREQ) whatever they yield, so
+  # a rule that never reaches the range cannot spin for ever. A series
+  # without `COUNT` is first fast-forwarded to the range (`periods_to_skip/3`),
+  # so this only binds on a series with a `COUNT` that has run for a very long
+  # time.
   @max_steps 100_000
 
   # The rule parts `expand/4` follows (RFC 5545 §3.3.10). Any other part
@@ -95,9 +96,10 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
   its wall clock across a DST change.
 
   Unlike `expand/4`, the count is not capped at #{@max_occurrences}
-  occurrences and steps through every one from `first`: `boundary` bounds it, and so does the rule's own `COUNT`, so
-  a split far into a long series still takes the right number off. The count
-  is only right for a rule `countable?/1` accepts.
+  occurrences and steps through every one from `first`: `boundary` bounds it,
+  and so does the rule's own `COUNT`, so a split far into a long series still
+  takes the right number off. The count is only right for a rule
+  `countable?/1` accepts.
   """
   @spec count_before(String.t(), Date.t() | DateTime.t(), Date.t() | DateTime.t()) ::
           non_neg_integer()
@@ -344,14 +346,39 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
     skip
     |> Stream.iterate(&(&1 + 1))
     |> Stream.map(&nth_period(first_period, rule, &1))
-    |> take_at_most(max_periods)
     |> Stream.take_while(&(Date.compare(&1, last_date) != :gt))
+    |> within_step_budget(max_periods, rule)
     |> Stream.flat_map(&period_dates(&1, rule, first_date))
     |> Stream.reject(&(Date.compare(&1, first_date) == :lt))
     |> Stream.map(&if(&1 == first_date, do: start_dt, else: rebuild_in_zone(start_dt, &1)))
     |> take_at_most(rule.count)
     |> Stream.take_while(&before_end?(&1, rule, range_end_dt))
     |> Stream.filter(&in_range?(&1, range_start_dt, range_end_dt))
+  end
+
+  # Passes on at most `budget` periods, and warns when the range still
+  # reaches a period beyond them: the series is then cut short, and its
+  # later occurrences are missing. Streams are lazy, so a series that COUNT
+  # or the range ends first never gets that far and never warns.
+  defp within_step_budget(periods, nil, _rule), do: periods
+
+  defp within_step_budget(periods, budget, rule) do
+    periods
+    |> Stream.with_index()
+    |> Stream.transform(nil, fn
+      {_period, ^budget}, acc ->
+        Logger.warning(
+          "Recurrence expansion stopped after #{budget} periods; " <>
+            "the series misses its later occurrences",
+          freq: rule.freq,
+          count: rule.count
+        )
+
+        {:halt, acc}
+
+      {period, _index}, acc ->
+        {[period], acc}
+    end)
   end
 
   # The first day of the period of FREQ holding `date`.

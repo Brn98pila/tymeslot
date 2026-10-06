@@ -5,6 +5,7 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderEdgeCasesTest do
 
   alias Tymeslot.Integrations.Calendar.ICalNormaliser
   alias Tymeslot.Integrations.Calendar.RecurrenceExpander
+  alias Tymeslot.Test.LogCapture
 
   describe "expand/4 with EXDATE exclusions" do
     test "excludes specific dates" do
@@ -490,6 +491,25 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderEdgeCasesTest do
 
       assert micros < 1_000_000
       assert expanded == events
+    end
+
+    test "a series that runs out of step budget before the range says so" do
+      # COUNT stops the series being moved forward to the range, so its
+      # periods are stepped one by one from 1700; the budget runs out in the
+      # 1970s, and the series' later occurrences are then missing.
+      LogCapture.attach(level: :warning)
+
+      occurrences =
+        "FREQ=DAILY;COUNT=987654321"
+        |> old_series(~D[1700-01-01])
+        |> RecurrenceExpander.expand(@week_start, @week_end)
+
+      assert occurrences == []
+
+      %{level: :warning, meta: meta} =
+        LogCapture.await_log("Recurrence expansion stopped after 100000 periods")
+
+      assert %{freq: :daily, count: 987_654_321} = meta
     end
 
     test "the live busy-time check sees this week's occurrence of a years-old series" do
