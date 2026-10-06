@@ -139,8 +139,9 @@ defmodule Tymeslot.Auth.Registration do
 
   defp via(opts), do: Keyword.get(opts, :via, :signup_form)
 
-  # A listener records legal acceptance from the broadcast, so only a sign-up
-  # form's carries it; a provisioning task must be able to leave it pending.
+  # The registration hook records legal acceptance from this metadata, so only
+  # a sign-up form's carries it; a provisioning task must be able to leave it
+  # pending.
   defp broadcast_metadata(opts, terms_accepted) do
     case via(opts) do
       :signup_form ->

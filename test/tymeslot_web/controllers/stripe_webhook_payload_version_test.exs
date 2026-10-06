@@ -17,11 +17,11 @@ defmodule TymeslotWeb.StripeWebhookPayloadVersionTest do
   @moduletag :controllers
   @moduletag :integration
 
+  import Tymeslot.Test.PaymentEventCapture
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
 
   alias Tymeslot.MeetingPayments.StripeAdapter
-  alias Tymeslot.Payments
   alias Tymeslot.Payments.PaymentTransactionSchema
   alias Tymeslot.Payments.SubscriptionInvoiceQueries
   alias Tymeslot.Payments.Webhooks.IdempotencyCache
@@ -53,8 +53,7 @@ defmodule TymeslotWeb.StripeWebhookPayloadVersionTest do
         subscription_schema: PaymentTransactionSchema
       )
 
-      :ok = Payments.subscribe_to_payment_events()
-      :ok
+      capture_payment_events()
     end
 
     test "a subscription update hands on the billing period at the top of the subscription",

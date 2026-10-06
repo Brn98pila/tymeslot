@@ -23,7 +23,6 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     dispute_lost: %{category: "Dispute", severity: :error},
     calendar_sync_error: %{category: "Calendar", severity: :error},
     invalid_calendar_event: %{category: "Calendar", severity: :warning},
-    pubsub_broadcast_failed: %{category: "System", severity: :error},
     integration_health_failure: %{category: "System", severity: :error},
     integration_health_recovery: %{category: "System", severity: :info},
     oban_queue_stuck: %{category: "Queue", severity: :error},
@@ -278,11 +277,6 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
   def format_message(:calendar_sync_error, metadata) do
     email = Map.get(metadata, :owner_email_masked, "unknown")
     "Calendar sync error for #{email}: #{reason_text(metadata)}"
-  end
-
-  def format_message(:pubsub_broadcast_failed, metadata) do
-    event = Map.get(metadata, :event, "unknown")
-    "PubSub broadcast failed for #{event}"
   end
 
   # Aggregate signals (`HealthCheck.Alerting`) describe many integrations, so

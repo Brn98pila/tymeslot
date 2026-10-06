@@ -104,11 +104,6 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypesTest do
       assert message == "Calendar sync error for unknown: timeout"
     end
 
-    test ":pubsub_broadcast_failed includes event name" do
-      msg = AlertTypes.format_message(:pubsub_broadcast_failed, %{event: :payment_successful})
-      assert msg =~ "payment_successful"
-    end
-
     test ":integration_health_failure includes integration_id" do
       msg = AlertTypes.format_message(:integration_health_failure, %{integration_id: 7})
       assert msg =~ "7"

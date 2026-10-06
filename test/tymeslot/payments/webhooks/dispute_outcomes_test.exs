@@ -3,10 +3,10 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
 
   @moduletag :payments
 
+  import Tymeslot.Test.PaymentEventCapture
   import Mox
   import Tymeslot.Factory
 
-  alias Tymeslot.Payments
   alias Tymeslot.Payments.Webhooks.DisputeHandler
 
   setup :set_mox_from_context
@@ -37,8 +37,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
       restore(:subscription_manager, original_manager)
     end)
 
-    :ok = Payments.subscribe_to_payment_events()
-    :ok
+    capture_payment_events()
   end
 
   defp restore(key, nil), do: Application.delete_env(:tymeslot, key)
@@ -71,7 +70,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
   end
 
   describe "process/2 — charge.dispute.updated" do
-    test "subscription dispute is forwarded to SaaS via PubSub" do
+    test "subscription dispute is handed off to the payment-event handler" do
       d = dispute("under_review")
       event = %{"id" => "evt_upd_1", "type" => "charge.dispute.updated"}
 
@@ -163,7 +162,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
   end
 
   describe "process/2 — charge.dispute.closed" do
-    test "subscription dispute close is forwarded to SaaS via PubSub" do
+    test "subscription dispute close is handed off to the payment-event handler" do
       d = dispute("won")
       event = %{"id" => "evt_close_1", "type" => "charge.dispute.closed"}
 

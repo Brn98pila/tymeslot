@@ -11,7 +11,6 @@ defmodule Tymeslot.Payments do
   alias Tymeslot.Payments.{
     CustomerLookup,
     DatabaseOperations,
-    PubSub,
     SubscriptionFlow,
     SubscriptionInvoice,
     SubscriptionInvoices,
@@ -181,25 +180,4 @@ defmodule Tymeslot.Payments do
                 metadata
               ),
               to: DatabaseOperations
-
-  @doc """
-  Broadcasts a subscription lifecycle event to the payment-events topic.
-  """
-  @spec broadcast_subscription_event(%{
-          required(:event) => atom(),
-          required(:user_id) => integer(),
-          optional(atom()) => term()
-        }) :: :ok
-  defdelegate broadcast_subscription_event(event_data), to: PubSub
-
-  @doc """
-  Subscribes the calling process to payment lifecycle events.
-
-  Every subscription, dispute, refund and trial event the payment webhooks
-  produce arrives as a message in the caller's mailbox. Returns
-  `{:error, reason}` rather than raising when no PubSub server is running, so a
-  supervised listener can start regardless.
-  """
-  @spec subscribe_to_payment_events() :: :ok | {:error, term()}
-  defdelegate subscribe_to_payment_events, to: PubSub
 end

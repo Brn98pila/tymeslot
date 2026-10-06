@@ -16,6 +16,10 @@ defmodule Tymeslot.Infrastructure.ObanCron do
   normalised state, so it has to know the shapes `:cron` accepts: a keyword
   list, a `{module, opts}` tuple, a bare module, or `false` to disable the
   service outright. Only the first two can carry a crontab of ours.
+
+  It also appends the `:oban_additional_crontab` entries a wrapper
+  application schedules (`extend/1`, or `extend/2` with the entries given
+  explicitly).
   """
 
   alias Tymeslot.Infrastructure.Logging.LogFormat

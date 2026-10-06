@@ -2,18 +2,9 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandlerTest do
   use Tymeslot.DataCase, async: false
   @moduletag :payments
 
-  alias Phoenix.PubSub.Supervisor
-  alias Tymeslot.Payments
+  import Tymeslot.Test.PaymentEventCapture
+
   alias Tymeslot.Payments.Webhooks.SubscriptionHandler
-
-  setup do
-    # Ensure Tymeslot.PubSub is started
-    unless Process.whereis(Tymeslot.PubSub) do
-      Supervisor.start_link(name: Tymeslot.PubSub, adapter: Phoenix.PubSub.PG2)
-    end
-
-    :ok
-  end
 
   describe "can_handle?/1" do
     test "returns true for supported subscription events" do
@@ -39,10 +30,8 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandlerTest do
   end
 
   describe "process/2" do
-    test "broadcasts subscription events" do
-      # Subscribe through the context, so a topic rename cannot leave the
-      # handler broadcasting where nobody listens.
-      assert :ok = Payments.subscribe_to_payment_events()
+    test "hands off subscription events" do
+      capture_payment_events()
 
       subscription = %{"id" => "sub_123", "status" => "active"}
       event = %{type: "customer.subscription.created"}
@@ -59,7 +48,7 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandlerTest do
     # The receiver orders events by Stripe's creation time and deduplicates
     # them by id, so both must travel with the subscription.
     test "carries the Stripe event's id and creation time" do
-      assert :ok = Payments.subscribe_to_payment_events()
+      capture_payment_events()
 
       subscription = %{"id" => "sub_ordered", "status" => "active"}
 
@@ -80,7 +69,7 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandlerTest do
     end
 
     test "handles unknown subscription events with generic name" do
-      assert :ok = Payments.subscribe_to_payment_events()
+      capture_payment_events()
 
       subscription = %{"id" => "sub_123"}
       event = %{type: "customer.subscription.something_else"}

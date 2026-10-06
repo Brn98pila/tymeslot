@@ -3,10 +3,10 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
 
   @moduletag :payments
 
+  import Tymeslot.Test.PaymentEventCapture
   import Tymeslot.Factory
 
   alias Swoosh.Email
-  alias Tymeslot.Payments
   alias Tymeslot.Payments.PaymentTransactionSchema
   alias Tymeslot.Payments.SubscriptionInvoiceQueries
   alias Tymeslot.Payments.Webhooks.RefundHandler
@@ -62,8 +62,7 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
       restore(:payment_event_handler, original_handler)
     end)
 
-    :ok = Payments.subscribe_to_payment_events()
-    :ok
+    capture_payment_events()
   end
 
   defp restore(key, nil), do: Application.delete_env(:tymeslot, key)

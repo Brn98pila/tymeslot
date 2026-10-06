@@ -38,7 +38,6 @@ defmodule Tymeslot.Infrastructure.AdminAlerts do
           | :stripe_webhook_secret_missing
           | :new_error
           | :error_regression
-          | :pubsub_broadcast_failed
           | :dispute_created
           | :dispute_lost
           | :reconciliation_discrepancies
