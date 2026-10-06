@@ -123,6 +123,22 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.SoapTest do
       refute LogCapture.dump(event) =~ "PrivateMeetingSubject"
     end
 
+    test "refuses a body nested past the depth limit as malformed, without quoting it" do
+      LogCapture.attach()
+      depth = 100
+
+      body =
+        String.duplicate("<PrivateMeetingSubject>", depth) <>
+          String.duplicate("</PrivateMeetingSubject>", depth)
+
+      assert {:error, :malformed_xml} = Soap.parse(body)
+
+      event = LogCapture.await_log("not parseable XML")
+
+      assert LogCapture.dump(event) =~ "nested too deeply"
+      refute LogCapture.dump(event) =~ "PrivateMeetingSubject"
+    end
+
     test "returns an error rather than raising when the parser itself blows up" do
       # A malformed hexadecimal character reference once raised out of the
       # parser instead of taking its own fatal-error exit.

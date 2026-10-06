@@ -21,6 +21,12 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXml do
   of a DTD for it to refuse. Byte caps stay with the callers, which know
   their protocol's budget.
 
+  Elements nested more than 64 deep are refused at the first one past the
+  limit. The deepest CalDAV or EWS response nests about a dozen levels, and
+  callers that match an element and then search beneath each match take time
+  quadratic in the nesting, so a hostile server could otherwise spend minutes
+  of a sync on one document that fits its byte cap.
+
   ## Queries
 
   `xpath/2,3` evaluates the expressions SweetXml's `~x` sigil builds, so the
@@ -59,10 +65,14 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXml do
   @type spec :: %SweetXpath{}
 
   @typedoc """
-  Why a document could not be parsed. Neither form quotes the document: the
+  Why a document could not be parsed. No form quotes the document: the
   parser's own reason names elements out of it, and callers log this term.
   """
-  @type parse_error :: :doctype_not_allowed | {:malformed_xml, line :: pos_integer() | nil}
+  @type parse_error ::
+          :doctype_not_allowed | :too_deep | {:malformed_xml, line :: pos_integer() | nil}
+
+  # Deepest element nesting accepted; see the moduledoc.
+  @max_depth 64
 
   # Belt and braces behind the `startDTD` refusal in `handle_event/3`.
   @sax_options [:skip_external_dtd, :disallow_entities, {:external_entities, :none}]
@@ -71,7 +81,8 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXml do
   Parses `xml` into its root element.
 
   Returns `{:error, :doctype_not_allowed}` for a document whose `DOCTYPE`
-  names an external DTD or carries an internal subset, and
+  names an external DTD or carries an internal subset,
+  `{:error, :too_deep}` for one nesting elements past the depth limit, and
   `{:error, {:malformed_xml, line}}` for one that is not well-formed. Never
   raises or exits on bad input.
   """
@@ -79,7 +90,7 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXml do
   def parse(xml) when is_binary(xml) do
     xml
     |> :xmerl_sax_parser.stream(
-      [event_fun: &handle_event/3, event_state: {[], nil}] ++ @sax_options
+      [event_fun: &handle_event/3, event_state: {[], 0, nil}] ++ @sax_options
     )
     |> parse_result()
   catch
@@ -87,11 +98,13 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXml do
     _kind, _reason -> {:error, {:malformed_xml, nil}}
   end
 
-  defp parse_result({:ok, {[], %__MODULE__{} = root}, _rest}), do: {:ok, root}
+  defp parse_result({:ok, {[], 0, %__MODULE__{} = root}, _rest}), do: {:ok, root}
   defp parse_result({:ok, _state, _rest}), do: {:error, {:malformed_xml, nil}}
 
   defp parse_result({:doctype_not_allowed, _location, _reason, _tags, _state}),
     do: {:error, :doctype_not_allowed}
+
+  defp parse_result({:too_deep, _location, _reason, _tags, _state}), do: {:error, :too_deep}
 
   defp parse_result({_tag, {_current, _entity, line}, _reason, _tags, _state})
        when is_integer(line),
@@ -99,19 +112,25 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXml do
 
   defp parse_result(_other), do: {:error, {:malformed_xml, nil}}
 
-  # The event state is `{open_elements, root}`. Each open element is held as
-  # `{element, children_reversed}`, its children filled in when it closes.
+  # The event state is `{open_elements, depth, root}`. Each open element is
+  # held as `{element, children_reversed}`, its children filled in when it
+  # closes; `depth` counts them, so the limit costs nothing per event.
   #
-  # A DOCTYPE ends the parse before any declaration in it is read. The parser
+  # A DOCTYPE ends the parse before any declaration in it is read, and an
+  # element past the depth limit before anything beneath it is. The parser
   # turns a thrown `{tag, reason}` into its `{tag, location, reason, end_tags,
   # state}` return, which `parse_result/1` matches.
   defp handle_event({:startDTD, _name, _public_id, _system_id}, _location, _state),
     do: throw({:doctype_not_allowed, :refused})
 
+  defp handle_event({:startElement, _uri, _local, _qualified, _attrs}, _location, state)
+       when elem(state, 1) >= @max_depth,
+       do: throw({:too_deep, :refused})
+
   defp handle_event(
          {:startElement, uri, local_name, _qualified, attributes},
          _location,
-         {open, root}
+         {open, depth, root}
        ) do
     element = %__MODULE__{
       namespace: to_binary(uri),
@@ -122,22 +141,26 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXml do
         end)
     }
 
-    {[{element, []} | open], root}
+    {[{element, []} | open], depth + 1, root}
   end
 
-  defp handle_event({:endElement, _uri, _local_name, _qualified}, _location, {open, root}) do
+  defp handle_event(
+         {:endElement, _uri, _local_name, _qualified},
+         _location,
+         {open, depth, root}
+       ) do
     [{element, children} | rest] = open
     closed = %{element | children: finalise_children(children)}
 
     case rest do
-      [] -> {[], closed}
-      [{parent, siblings} | outer] -> {[{parent, [closed | siblings]} | outer], root}
+      [] -> {[], 0, closed}
+      [{parent, siblings} | outer] -> {[{parent, [closed | siblings]} | outer], depth - 1, root}
     end
   end
 
-  defp handle_event({kind, chars}, _location, {[{element, children} | rest], root})
+  defp handle_event({kind, chars}, _location, {[{element, children} | rest], depth, root})
        when kind in [:characters, :ignorableWhitespace] do
-    {[{element, [{:text, chars} | children]} | rest], root}
+    {[{element, [{:text, chars} | children]} | rest], depth, root}
   end
 
   defp handle_event(_event, _location, state), do: state

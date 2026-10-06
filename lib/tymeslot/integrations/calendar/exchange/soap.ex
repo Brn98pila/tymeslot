@@ -252,6 +252,7 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Soap do
   # mailbox. `SafeXml` already reduces a failure to its shape and line, so
   # neither form here can carry input.
   defp cause_label(:doctype_not_allowed), do: "DOCTYPE refused"
+  defp cause_label(:too_deep), do: "elements nested too deeply"
   defp cause_label({:malformed_xml, nil}), do: "malformed XML"
   defp cause_label({:malformed_xml, line}), do: "malformed XML at line #{line}"
 end

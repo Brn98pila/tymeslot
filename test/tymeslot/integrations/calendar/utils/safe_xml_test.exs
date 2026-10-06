@@ -31,6 +31,9 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXmlTest do
   </D:multistatus>
   """
 
+  defp nested(name, depth),
+    do: String.duplicate("<#{name}>", depth) <> "x" <> String.duplicate("</#{name}>", depth)
+
   defp parse!(xml) do
     {:ok, doc} = SafeXml.parse(xml)
     doc
@@ -74,6 +77,27 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXmlTest do
       assert {:error, {:malformed_xml, _line}} = SafeXml.parse("")
       assert {:error, {:malformed_xml, _line}} = SafeXml.parse("this is not xml <<<")
     end
+
+    test "parses a document nested exactly 64 elements deep" do
+      assert {:ok, %SafeXml{name: "a"} = doc} = SafeXml.parse(nested("a", 64))
+      assert SafeXml.xpath(doc, ~x"//a/text()"l) == ["x"]
+    end
+
+    test "refuses a document nested one element past the limit" do
+      assert SafeXml.parse(nested("a", 65)) == {:error, :too_deep}
+    end
+
+    # The refusal comes at the first element past the limit, so a document
+    # nested as deep as a response's byte cap allows costs no more to refuse
+    # than a shallow one.
+    test "refuses a hostile deeply nested document quickly" do
+      xml = nested("a", 500_000)
+
+      {microseconds, result} = :timer.tc(fn -> SafeXml.parse(xml) end)
+
+      assert result == {:error, :too_deep}
+      assert microseconds < 1_000_000
+    end
   end
 
   describe "xpath/3" do
@@ -83,12 +107,16 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXmlTest do
       assert SafeXml.xpath(doc, ~x"//a/text()"l) == ["1", "2", "3", "4", "5"]
     end
 
-    # A hostile server can nest elements as deep as the byte cap allows. A
-    # walk that copies each subtree once per level of nesting takes tens of
-    # seconds here; a linear one takes milliseconds.
+    # `parse/1` refuses deep nesting, but a walk that copies each subtree once
+    # per level would take tens of seconds over this tree, built directly; a
+    # linear one takes milliseconds.
     test "searches a deeply nested document in time linear in its size" do
-      depth = 200_000
-      doc = parse!(String.duplicate("<a>", depth) <> "x" <> String.duplicate("</a>", depth))
+      leaf = %SafeXml{namespace: "", name: "a", children: ["x"]}
+
+      doc =
+        Enum.reduce(2..200_000//1, leaf, fn _level, child ->
+          %SafeXml{namespace: "", name: "a", children: [child]}
+        end)
 
       {microseconds, matches} = :timer.tc(fn -> SafeXml.xpath(doc, ~x"//a/text()"l) end)
 
