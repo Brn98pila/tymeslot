@@ -6,7 +6,7 @@ defmodule Tymeslot.Meetings.VideoRoomAttachment do
   and the only one inside a database transaction: the provider call happens
   before it, so a slow provider never holds a connection. The meeting row is
   re-locked and re-checked here, so a concurrent worker that attached a room
-  first wins and this one's room is discarded, and a room created for a
+  first wins and this one's room is released, and a room created for a
   location the meeting has since left is released instead of attached.
   """
 
@@ -84,9 +84,12 @@ defmodule Tymeslot.Meetings.VideoRoomAttachment do
 
       {:ok, {:already_attached, existing_meeting}} ->
         Logger.info(
-          "Video room already attached by a concurrent writer; discarding provider response",
+          "Video room already attached by a concurrent writer; releasing this one",
           meeting_id: existing_meeting.id
         )
+
+        if releasable_duplicate?(video_room_attrs, existing_meeting, meeting),
+          do: release_unattached_room(meeting, video_room_attrs)
 
         {:ok, existing_meeting}
 
@@ -107,6 +110,22 @@ defmodule Tymeslot.Meetings.VideoRoomAttachment do
         error
     end
   end
+
+  # The room a losing concurrent creator made exists on the provider and
+  # nothing in the database points at it, so it is released, unless it is the
+  # very room that won (a provider that hands back the same room twice) or
+  # the booking's own calendar event: a Teams meeting placed on that event is
+  # the event, and releasing it would replace the booking's calendar entry.
+  defp releasable_duplicate?(%{video_room_id: room_id}, existing_meeting, meeting)
+       when is_binary(room_id) do
+    room_id not in [
+      existing_meeting.video_room_id,
+      existing_meeting.provider_event_id,
+      meeting.provider_event_id
+    ]
+  end
+
+  defp releasable_duplicate?(_video_room_attrs, _existing_meeting, _meeting), do: false
 
   defp schedule_calendar_update(meeting) do
     case CalendarEventScheduler.schedule_calendar_update(meeting.id) do
