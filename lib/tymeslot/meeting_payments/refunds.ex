@@ -6,7 +6,10 @@ defmodule Tymeslot.MeetingPayments.Refunds do
   The contract shared by `issue_refund/3` (system refunds, unscoped) and
   `issue_host_refund/4` (a host refunding a payment they took):
 
-    * Validates the payment is within the 60-day refund window.
+    * Refuses a payment `refusal/1` rules out, before any Stripe call:
+      one never paid (`:not_paid`), one past the 60-day refund window
+      (`:outside_refund_window`), and one Stripe holds for a dispute
+      (`:under_dispute`).
     * Validates the requested amount is positive and does not exceed
       the remaining refundable balance.
     * Calls Stripe with an idempotency key keyed on the payment id,
