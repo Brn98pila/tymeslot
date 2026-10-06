@@ -136,7 +136,10 @@ defmodule Tymeslot.Meetings.Scheduling do
   passed in. Pass `guard:`, a function of that locked row returning `:ok` or
   `{:error, reason}`, to refuse the write when the row has moved on since
   `meeting` was read; a refusal comes back as `{:error, {:refused, reason}}`,
-  and a row deleted meanwhile as `{:error, :not_found}`.
+  and a row deleted meanwhile as `{:error, :not_found}`. Pass
+  `locked_attrs:`, a function of the same locked row returning a map, for
+  changes derived from the row's current values (a counter to advance, say);
+  they are merged over `attrs`.
 
   ## Examples
 
@@ -187,7 +190,7 @@ defmodule Tymeslot.Meetings.Scheduling do
             meeting.uid,
             opts
           ),
-          fn -> update_meeting_in_transaction(meeting, attrs, Keyword.get(opts, :guard)) end,
+          fn -> update_meeting_in_transaction(meeting, attrs, opts) end,
           &log_update_conflict(meeting, start_time, end_time, &1)
         )
     end
@@ -377,9 +380,10 @@ defmodule Tymeslot.Meetings.Scheduling do
   # reschedule holds it across a calendar provider fetch), and whatever
   # committed to the row since, a cancellation say, must be seen by the guard
   # rather than written over.
-  defp update_meeting_in_transaction(meeting, attrs, guard) do
+  defp update_meeting_in_transaction(meeting, attrs, opts) do
     with {:ok, current} <- MeetingQueries.get_meeting_for_update(meeting.id),
-         :ok <- run_guard(guard, current),
+         :ok <- run_guard(Keyword.get(opts, :guard), current),
+         attrs = Map.merge(attrs, locked_attrs(Keyword.get(opts, :locked_attrs), current)),
          {:ok, updated_meeting} <- MeetingQueries.update_meeting(current, with_held_venue(attrs)) do
       updated_meeting
     else
@@ -397,6 +401,9 @@ defmodule Tymeslot.Meetings.Scheduling do
       {:error, reason} -> {:refused, reason}
     end
   end
+
+  defp locked_attrs(nil, _meeting), do: %{}
+  defp locked_attrs(fun, meeting) when is_function(fun, 1), do: fun.(meeting)
 
   # The organiser's unique slot index can still refuse a write the conflict
   # count let through, when the competing row was written without the

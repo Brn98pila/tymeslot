@@ -191,14 +191,17 @@ defmodule Tymeslot.Bookings.Reschedule do
     # this value, and nothing else has used it in the meantime. A request that
     # is declined or expires simply leaves the revision unspent, which costs
     # nothing: SEQUENCE has to rise, not to run consecutively.
+    #
+    # The bump is taken from the locked row (see `update_meeting/2`), not from
+    # `meeting`: a host-side change committed while the calendar was being
+    # checked may have advanced it, and the new value must go past that one.
     attrs =
       %{
         start_time: start_dt,
         end_time: end_dt,
         reschedule_requested_at: nil,
         reminders_sent: [],
-        reminder_email_sent: false,
-        ical_sequence: meeting.ical_sequence + 1
+        reminder_email_sent: false
       }
       |> Map.merge(gate_attributes(meeting_type, start_dt, meeting))
       |> Map.merge(VideoRooms.refreshed_join_url_attrs(meeting, start_dt))
@@ -498,7 +501,8 @@ defmodule Tymeslot.Bookings.Reschedule do
   # refused rather than moved, or returned to the approval gate.
   defp update_meeting(meeting, attrs) do
     case Scheduling.update_meeting_with_conflict_check(meeting, attrs,
-           guard: &validate_can_reschedule/1
+           guard: &validate_can_reschedule/1,
+           locked_attrs: &%{ical_sequence: &1.ical_sequence + 1}
          ) do
       {:ok, updated} -> {:ok, updated}
       {:error, :time_conflict} -> {:error, :slot_taken}

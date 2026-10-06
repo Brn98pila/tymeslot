@@ -165,6 +165,24 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
     end
   end
 
+  describe "a host-side calendar change landing while a reschedule waits on the host's calendar" do
+    test "moves the calendar revision past the one that change sent" do
+      %{meeting: meeting, user: user, params: params} = booking(false)
+
+      # As `AttendeeNotifications.Worker` does when the host moves the event
+      # in their own calendar and the attendee is sent revision 3.
+      stub(Tymeslot.CalendarMock, :get_events_for_range_fresh, fn _user_id, _from, _to ->
+        {:ok, _bumped} = MeetingQueries.update_meeting(meeting, %{ical_sequence: 3})
+        {:ok, []}
+      end)
+
+      assert {:ok, rescheduled} = Reschedule.execute(meeting.uid, params, %{}, user.id)
+
+      assert rescheduled.ical_sequence == 4
+      assert {:ok, %{ical_sequence: 4}} = MeetingQueries.get_meeting(meeting.id)
+    end
+  end
+
   defp booking(requires_approval) do
     %{user: user} = create_always_bookable_profile()
 
