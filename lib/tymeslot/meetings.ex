@@ -117,9 +117,10 @@ defmodule Tymeslot.Meetings do
 
   Delegates to Bookings.Cancel module.
   """
-  @spec cancel_meeting(Ecto.Schema.t() | String.t()) :: {:ok, Ecto.Schema.t()} | {:error, atom()}
-  def cancel_meeting(meeting_or_uid) do
-    Cancel.execute(meeting_or_uid)
+  @spec cancel_meeting(MeetingSchema.t()) ::
+          {:ok, MeetingSchema.t()} | {:error, atom() | String.t()}
+  def cancel_meeting(%MeetingSchema{} = meeting) do
+    Cancel.execute(meeting)
   end
 
   @doc """

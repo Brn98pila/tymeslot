@@ -21,7 +21,7 @@ defmodule Tymeslot.Bookings.Cancel do
   @external_cancellation_reason "Cancelled externally via calendar sync"
 
   @doc """
-  Cancels a meeting by its ID.
+  Cancels a meeting.
 
   This includes:
   1. Updating meeting status in database
@@ -44,16 +44,8 @@ defmodule Tymeslot.Bookings.Cancel do
   Accepts the same `opts` as `validate_cancellation/2`; see there for
   `:caller`.
   """
-  @spec execute(String.t() | Meeting.t(), keyword()) ::
-          {:ok, Meeting.t()} | {:error, atom() | String.t()}
-  def execute(meeting_or_id, opts \\ [])
-
-  def execute(meeting_id, opts) when is_binary(meeting_id) do
-    case MeetingQueries.get_meeting_by_uid(meeting_id) do
-      {:ok, meeting} -> execute(meeting, opts)
-      {:error, :not_found} -> {:error, :meeting_not_found}
-    end
-  end
+  @spec execute(Meeting.t(), keyword()) :: {:ok, Meeting.t()} | {:error, atom() | String.t()}
+  def execute(meeting, opts \\ [])
 
   def execute(%Meeting{status: "cancelled"} = meeting, _opts) do
     Logger.info("Skipping cancellation for already-cancelled meeting",

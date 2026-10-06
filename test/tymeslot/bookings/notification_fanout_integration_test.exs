@@ -50,6 +50,7 @@ defmodule Tymeslot.Bookings.NotificationFanoutIntegrationTest do
   alias Tymeslot.Bookings.{Cancel, Create, Reschedule}
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
   alias Tymeslot.Meetings.Approval
+  alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Repo
   alias Tymeslot.TestMocks
 
@@ -133,7 +134,7 @@ defmodule Tymeslot.Bookings.NotificationFanoutIntegrationTest do
     test "cancelling fans out meeting.cancelled", ctx do
       assert {:ok, meeting} = Create.execute(booking_params(ctx), form_data())
 
-      assert {:ok, cancelled} = Cancel.execute(meeting.uid)
+      assert {:ok, cancelled} = Cancel.execute(Repo.get_by!(MeetingSchema, uid: meeting.uid))
 
       assert_fanned_out(ctx, cancelled, "meeting.cancelled")
     end
