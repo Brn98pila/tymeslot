@@ -574,12 +574,14 @@ defmodule Tymeslot.Workers.WebhookWorker do
         Logger.warning("Failed to create webhook delivery log", error: LogFormat.reason(reason))
         {:error, :delivery_log_failed}
 
-      # Failures are recorded on the first attempt only (or once for a hard
-      # failure), so Oban's retries do not count one delivery several times.
       {{:ok, _delivery}, {:ok, status, _body}} when status in 200..299 ->
         WebhookQueries.record_success(webhook)
         :ok
 
+      # Both failure clauses record the failure on the first attempt only,
+      # however the delivery then ends (retried, discarded at once, or
+      # discarded on a later attempt), so Oban's retries never count one
+      # delivery several times.
       {{:ok, _delivery}, {:ok, status, _body}} ->
         http_failure(webhook, status, attempt)
 
