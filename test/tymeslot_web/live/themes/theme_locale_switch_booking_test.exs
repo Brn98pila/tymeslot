@@ -17,11 +17,11 @@ defmodule TymeslotWeb.Live.Themes.ThemeLocaleSwitchBookingTest do
   import Mox
   import Phoenix.LiveViewTest
   import Tymeslot.BookingTestHelpers, only: [seed_booking_account: 3]
-  import Tymeslot.ThemeBookingFlowHelpers
 
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Repo
   alias Tymeslot.TestMocks
+  alias TymeslotWeb.BookingDriver
   alias TymeslotWeb.Live.Scheduling.PreviewToken
 
   setup :verify_on_exit!
@@ -62,11 +62,13 @@ defmodule TymeslotWeb.Live.Themes.ThemeLocaleSwitchBookingTest do
       attendee_email = "locale-attendee@example.com"
 
       confirmation_html =
-        complete_booking_flow(view, "quill", "1", %{
-          name: "Locale Attendee",
-          email: attendee_email,
-          message: "Booked after switching language"
-        })
+        BookingDriver.book(view,
+          attendee: %{
+            name: "Locale Attendee",
+            email: attendee_email,
+            message: "Booked after switching language"
+          }
+        )
 
       assert confirmation_html =~ attendee_email
 
@@ -90,11 +92,13 @@ defmodule TymeslotWeb.Live.Themes.ThemeLocaleSwitchBookingTest do
       attendee_email = "stray-theme-attendee@example.com"
 
       confirmation_html =
-        complete_booking_flow(view, "quill", "1", %{
-          name: "Stray Theme Attendee",
-          email: attendee_email,
-          message: "This must persist"
-        })
+        BookingDriver.book(view,
+          attendee: %{
+            name: "Stray Theme Attendee",
+            email: attendee_email,
+            message: "This must persist"
+          }
+        )
 
       assert confirmation_html =~ attendee_email
 
@@ -128,11 +132,13 @@ defmodule TymeslotWeb.Live.Themes.ThemeLocaleSwitchBookingTest do
       {:ok, view, _html} = live(conn)
 
       confirmation_html =
-        complete_booking_flow(view, "quill", "1", %{
-          name: "Preview Attendee",
-          email: "preview-locale@example.com",
-          message: "Still simulating"
-        })
+        BookingDriver.book(view,
+          attendee: %{
+            name: "Preview Attendee",
+            email: "preview-locale@example.com",
+            message: "Still simulating"
+          }
+        )
 
       assert confirmation_html =~ "preview-locale@example.com"
 

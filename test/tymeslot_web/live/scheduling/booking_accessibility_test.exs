@@ -23,10 +23,10 @@ defmodule TymeslotWeb.Live.Scheduling.BookingAccessibilityTest do
   import Phoenix.LiveViewTest
   import Tymeslot.Factory
   import Tymeslot.BookingTestHelpers, only: [seed_booking_account: 3]
-  import Tymeslot.ThemeBookingFlowHelpers
   import TymeslotWeb.AccessibilityAssertions
 
   alias Tymeslot.TestMocks
+  alias TymeslotWeb.BookingDriver
   alias TymeslotWeb.ThemeTestMatrix
 
   setup :verify_on_exit!
@@ -116,7 +116,7 @@ defmodule TymeslotWeb.Live.Scheduling.BookingAccessibilityTest do
       test "#{theme.slug}: no label on the booking form is bound to nothing", %{conn: conn} do
         view = mount_booking_page(conn, unquote(theme.id), "labels-#{unquote(theme.slug)}")
 
-        advance_to_booking_form(view, unquote(theme.slug))
+        BookingDriver.book(view, until: :attendee)
 
         assert_no_orphan_labels(document(view), "#{unquote(theme.slug)} booking form")
       end

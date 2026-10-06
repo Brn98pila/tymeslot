@@ -15,10 +15,10 @@ defmodule TymeslotWeb.Live.Themes.IgnoredStepEventTest do
   import Mox
   import Phoenix.LiveViewTest
   import Tymeslot.BookingTestHelpers, only: [seed_booking_account: 3]
-  import Tymeslot.ThemeBookingFlowHelpers
 
   alias Tymeslot.Test.LogCapture
   alias Tymeslot.TestMocks
+  alias TymeslotWeb.BookingDriver
   alias TymeslotWeb.ThemeTestMatrix
 
   @message "Booking step event ignored"
@@ -106,11 +106,9 @@ defmodule TymeslotWeb.Live.Themes.IgnoredStepEventTest do
 
       {:ok, view, _html} = live(conn, "/#{profile.username}")
 
-      complete_booking_flow(view, unquote(theme.name), unquote(theme.id), %{
-        name: "Ada Lovelace",
-        email: "ada@example.com",
-        message: "Hello"
-      })
+      BookingDriver.book(view,
+        attendee: %{name: "Ada Lovelace", email: "ada@example.com", message: "Hello"}
+      )
 
       ignored = Enum.filter(LogCapture.drain(), &(LogCapture.message_text(&1.msg) == @message))
 
