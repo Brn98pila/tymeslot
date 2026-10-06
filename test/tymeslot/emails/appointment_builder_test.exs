@@ -6,6 +6,7 @@ defmodule Tymeslot.Emails.AppointmentBuilderTest do
   alias Tymeslot.Emails.AppointmentBuilder
   alias Tymeslot.Locales
   alias Tymeslot.Profiles
+  alias TymeslotWeb.Endpoint
 
   import Tymeslot.MeetingTestHelpers
 
@@ -36,10 +37,12 @@ defmodule Tymeslot.Emails.AppointmentBuilderTest do
       assert result.attendee_name == meeting.attendee_name
       assert result.attendee_email == meeting.attendee_email
 
-      # URLs: only reschedule_url is set by the factory; the other two fall back
-      assert result.view_url == "#"
-      assert result.reschedule_url == meeting.reschedule_url
-      assert result.cancel_url == "#"
+      # URLs: built from the uid now, never read from the stored copy. This
+      # host has no username, so they take the uid-only form.
+      base = Endpoint.url()
+      assert result.view_url == "#{base}/meeting/#{meeting.uid}"
+      assert result.reschedule_url == "#{base}/meeting/#{meeting.uid}/reschedule"
+      assert result.cancel_url == "#{base}/meeting/#{meeting.uid}/cancel"
 
       # Timezone conversions: the same instants, expressed in each party's zone
       assert result.attendee_timezone == meeting.attendee_timezone
@@ -429,10 +432,13 @@ defmodule Tymeslot.Emails.AppointmentBuilderTest do
     test "includes all URL fields with fallback to '#'" do
       %{user: user} = create_user_with_profile()
 
+      # A group meeting has no public uid links of its own; its participants'
+      # seat links are laid over it per recipient.
       meeting =
         insert_meeting_for_user(user, %{
           start_offset: 3600,
           duration: 3600,
+          capacity: 3,
           view_url: nil,
           reschedule_url: nil,
           cancel_url: nil
@@ -446,8 +452,8 @@ defmodule Tymeslot.Emails.AppointmentBuilderTest do
       assert result.cancel_url == "#"
     end
 
-    test "preserves all URL fields when provided" do
-      %{user: user} = create_user_with_profile()
+    test "builds the links from the host's current username, ignoring the stored copy" do
+      %{user: user} = create_user_with_profile(%{username: "builder-host"})
 
       meeting =
         insert_meeting_for_user(user, %{
@@ -459,10 +465,11 @@ defmodule Tymeslot.Emails.AppointmentBuilderTest do
         })
 
       result = AppointmentBuilder.from_meeting(meeting)
+      base = Endpoint.url() <> "/builder-host/meeting/#{meeting.uid}"
 
-      assert result.view_url == "https://app.example.com/meetings/123"
-      assert result.reschedule_url == "https://app.example.com/reschedule/token123"
-      assert result.cancel_url == "https://app.example.com/cancel/token123"
+      assert result.view_url == base
+      assert result.reschedule_url == base <> "/reschedule"
+      assert result.cancel_url == base <> "/cancel"
     end
 
     test "includes time_until_friendly field" do

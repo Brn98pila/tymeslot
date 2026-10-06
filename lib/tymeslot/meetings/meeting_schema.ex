@@ -199,7 +199,10 @@ defmodule Tymeslot.Meetings.MeetingSchema do
     field(:attendee_timezone, :string)
     field(:attendee_locale, :string, default: "en")
 
-    # URLs and links
+    # URLs and links. `view_url`, `reschedule_url` and `cancel_url` are a copy
+    # taken at booking time and go stale when the host's username or the base
+    # URL changes; links shown to anyone come from
+    # `Tymeslot.Bookings.MeetingLinks.for_meeting/1`.
     field(:view_url, :string)
     field(:reschedule_url, :string)
     field(:cancel_url, :string)

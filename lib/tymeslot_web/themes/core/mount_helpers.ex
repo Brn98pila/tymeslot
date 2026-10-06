@@ -11,6 +11,7 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
   import Phoenix.Component, only: [assign: 3]
 
   alias Phoenix.LiveView
+  alias Tymeslot.Bookings.MeetingLinks
   alias Tymeslot.Polls
   alias Tymeslot.Profiles
   alias Tymeslot.Scheduling.LinkAccessPolicy
@@ -53,6 +54,25 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
   @spec mount_without_profile(map(), map(), Phoenix.LiveView.Socket.t(), function()) ::
           {:ok, Phoenix.LiveView.Socket.t()}
   def mount_without_profile(params, session, socket, delegate_fn) do
+    case renamed_host_meeting_path(params, socket.assigns[:live_action]) do
+      {:ok, path} -> {:ok, LiveView.redirect(socket, to: path)}
+      {:error, :not_found} -> mount_unknown_or_anonymous(params, session, socket, delegate_fn)
+    end
+  end
+
+  # A cancel or reschedule link under a username nobody holds any more: the
+  # host has since renamed themselves. The uid names the meeting, so send the
+  # visitor to the host's current page for it. A username someone *does* hold
+  # never gets here, so a uid pasted under another host's name is still
+  # refused by that host's scoped lookup rather than redirected.
+  defp renamed_host_meeting_path(%{"username" => username, "meeting_uid" => uid}, action)
+       when is_binary(username) and is_binary(uid) and
+              action in [:reschedule, :cancel, :cancel_confirmed],
+       do: MeetingLinks.current_path(uid, action)
+
+  defp renamed_host_meeting_path(_params, _action), do: {:error, :not_found}
+
+  defp mount_unknown_or_anonymous(params, session, socket, delegate_fn) do
     if params["username"] && is_nil(socket.assigns[:organizer_profile]) do
       # Unknown organizer: raise a real 404 rather than a soft-404 redirect to
       # "/". Raising in mount is handled by Plug.Exception on the dead render,

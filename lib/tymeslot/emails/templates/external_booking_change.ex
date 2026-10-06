@@ -8,6 +8,7 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
 
   import Swoosh.Email
 
+  alias Tymeslot.Bookings.MeetingLinks
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
 
   alias Tymeslot.Emails.Shared.{
@@ -48,7 +49,11 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       owner_time = TimezoneHelper.convert_to_timezone(meeting.start_time, owner_timezone)
       date_short = Formatting.format_date_short(owner_time, locale)
-      meeting = %{meeting | title: meeting.title || dgettext("emails_booking", "Meeting")}
+
+      meeting = %{
+        MeetingLinks.with_current_links(meeting)
+        | title: meeting.title || dgettext("emails_booking", "Meeting")
+      }
 
       html_body = render_html(meeting, owner_time, discrepancy, locale)
       text_body = render_text(meeting, owner_time, discrepancy, locale)

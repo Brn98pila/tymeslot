@@ -16,6 +16,7 @@ defmodule Tymeslot.Meetings.MeetingQueries do
   alias Tymeslot.Meetings.MeetingListQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
   alias Tymeslot.Meetings.MeetingState
+  alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Repo
 
   @doc "Creates a meeting."
@@ -80,6 +81,23 @@ defmodule Tymeslot.Meetings.MeetingQueries do
     case Repo.get_by(Meeting, uid: uid) do
       nil -> {:error, :not_found}
       meeting -> {:ok, meeting}
+    end
+  end
+
+  @doc "The username the organiser of the meeting with `uid` has now, if any."
+  @spec organizer_username_by_uid(String.t()) :: {:ok, String.t()} | {:error, :not_found}
+  def organizer_username_by_uid(uid) when is_binary(uid) do
+    query =
+      from(m in Meeting,
+        join: p in ProfileSchema,
+        on: p.user_id == m.organizer_user_id,
+        where: m.uid == ^uid and not is_nil(p.username) and p.username != "",
+        select: p.username
+      )
+
+    case Repo.one(query) do
+      nil -> {:error, :not_found}
+      username -> {:ok, username}
     end
   end
 

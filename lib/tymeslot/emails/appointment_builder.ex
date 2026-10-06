@@ -6,6 +6,7 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
 
   require Logger
   alias Tymeslot.Bookings.BookingTitle
+  alias Tymeslot.Bookings.MeetingLinks
   alias Tymeslot.CalendarGrid
   alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Emails.Shared.BookingRequestLocation
@@ -256,10 +257,12 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
   end
 
   defp url_details(meeting, organizer_profile) do
+    links = MeetingLinks.for_meeting(meeting)
+
     %{
-      view_url: meeting.view_url || "#",
-      reschedule_url: meeting.reschedule_url || "#",
-      cancel_url: meeting.cancel_url || "#",
+      view_url: links.view_url || "#",
+      reschedule_url: links.reschedule_url || "#",
+      cancel_url: links.cancel_url || "#",
       # The host's public booking page, resolved at send time rather than read
       # from the meeting row. Unlike the per-meeting action URLs it is not
       # persisted, so it always reflects the host's current username.

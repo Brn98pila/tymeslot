@@ -5,6 +5,7 @@ defmodule Tymeslot.Notifications.ContentBuilder do
   """
 
   alias Tymeslot.Auth.UserQueries
+  alias Tymeslot.Bookings.MeetingLinks
   alias Tymeslot.Emails.AppointmentBuilder
   alias Tymeslot.Notifications.Recipients
   alias Tymeslot.Profiles
@@ -19,6 +20,7 @@ defmodule Tymeslot.Notifications.ContentBuilder do
     organizer_timezone = Recipients.get_organizer_timezone(meeting)
     # Get attendee timezone - should always be present
     attendee_timezone = Recipients.get_attendee_timezone(meeting)
+    links = MeetingLinks.for_meeting(meeting)
 
     %{
       # The calendar event's UID, as in `AppointmentBuilder`: never the
@@ -56,9 +58,9 @@ defmodule Tymeslot.Notifications.ContentBuilder do
       meeting_type: meeting.meeting_type,
 
       # URLs and links
-      view_url: meeting.view_url,
-      reschedule_url: meeting.reschedule_url,
-      cancel_url: meeting.cancel_url,
+      view_url: links.view_url,
+      reschedule_url: links.reschedule_url,
+      cancel_url: links.cancel_url,
 
       # Video room information
       meeting_url: meeting.meeting_url,

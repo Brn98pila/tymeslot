@@ -452,6 +452,17 @@ defmodule TymeslotWeb.Router do
     end
   end
 
+  # Booking links without a username: the form handed out while a host had
+  # none. They resolve the meeting by its uid and redirect to the host's
+  # current page. "meeting" is a reserved username, so nothing else can claim
+  # these paths.
+  scope "/meeting/:meeting_uid", TymeslotWeb do
+    pipe_through :theme_browser
+
+    get "/cancel", MeetingLinkController, :cancel
+    get "/reschedule", MeetingLinkController, :reschedule
+  end
+
   # Theme-aware payment return pages (Stripe Checkout success/cancel)
   scope "/", TymeslotWeb do
     pipe_through :theme_browser

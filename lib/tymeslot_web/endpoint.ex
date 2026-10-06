@@ -223,7 +223,10 @@ defmodule TymeslotWeb.Endpoint do
     {[:_, "meeting", :_, "cancel"], false},
     {[:_, "meeting", :_, "cancel-confirmed"], false},
     {[:_, "meeting", :_, "reschedule"], false},
-    {[:_, "meeting", :_, "calendar.ics"], false}
+    {[:_, "meeting", :_, "calendar.ics"], false},
+    # The same pages linked without a username (`MeetingLinkController`).
+    {["meeting", :_, "cancel"], false},
+    {["meeting", :_, "reschedule"], false}
   ]
 
   @request_log_levels @core_request_log_levels ++
