@@ -3,6 +3,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest do
 
   alias Phoenix.LiveView.Socket
   alias TymeslotWeb.Themes.Quill.Scheduling.Wrapper
+  alias TymeslotWeb.Themes.Shared.Journey
 
   @moduletag :themes
 
@@ -36,6 +37,36 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest do
 
     defp handle_theme_event(name, params, socket),
       do: {:noreply, assign(socket, :theme_event, {name, params})}
+  end
+
+  # The classic journey written out, as a theme with its own journey writes
+  # one.
+  defmodule JourneyLive do
+    @moduledoc false
+
+    alias TymeslotWeb.Themes.Quill.Scheduling.Components.{
+      BookingComponent,
+      ConfirmationComponent,
+      CustomQuestionsComponent,
+      OverviewComponent,
+      ScheduleComponent
+    }
+
+    alias TymeslotWeb.Themes.Quill.Scheduling.Wrapper
+    alias TymeslotWeb.Themes.Shared.Journey.Navigators.Paged
+
+    use TymeslotWeb.Themes.Shared.SchedulingLive,
+      wrapper: &Wrapper.quill_wrapper/1,
+      journey: [
+        navigator: Paged,
+        moments: [
+          {:overview, collects: [:meeting_type], component: OverviewComponent},
+          {:schedule, collects: [:slot], component: ScheduleComponent},
+          {:questions, collects: [:answers], component: CustomQuestionsComponent},
+          {:booking, collects: [:attendee], component: BookingComponent}
+        ],
+        outcomes: %{confirmation: ConfirmationComponent, awaiting_payment: :shared}
+      ]
   end
 
   defp socket(assigns), do: %Socket{assigns: Map.merge(%{__changed__: %{}, flash: %{}}, assigns)}
@@ -233,6 +264,94 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest do
           quote do
             defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest.ThemeIdLive do
               use TymeslotWeb.Themes.Shared.SchedulingLive, theme_id: "1"
+            end
+          end
+        )
+      end
+    end
+
+    test "expands steps: to the classic journey" do
+      steps = %{
+        overview: TymeslotWeb.Themes.Quill.Scheduling.Components.OverviewComponent,
+        schedule: TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent,
+        questions: TymeslotWeb.Themes.Quill.Scheduling.Components.CustomQuestionsComponent,
+        booking: TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent,
+        confirmation: TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent
+      }
+
+      assert OverridingLive.__journey__() == Journey.new(Journey.classic(steps))
+    end
+
+    test "takes a journey written out, the classic one included" do
+      assert JourneyLive.__journey__() == OverridingLive.__journey__()
+    end
+
+    test "refuses both steps: and journey:" do
+      assert_raise ArgumentError, ~r/not both/, fn ->
+        Code.compile_quoted(
+          quote do
+            defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest.BothLive do
+              use TymeslotWeb.Themes.Shared.SchedulingLive,
+                wrapper: &Wrapper.quill_wrapper/1,
+                steps: %{},
+                journey: []
+            end
+          end
+        )
+      end
+    end
+
+    test "refuses a theme with neither" do
+      assert_raise ArgumentError, ~r/needs :steps .* or :journey/, fn ->
+        Code.compile_quoted(
+          quote do
+            defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest.NeitherLive do
+              use TymeslotWeb.Themes.Shared.SchedulingLive, wrapper: &Wrapper.quill_wrapper/1
+            end
+          end
+        )
+      end
+    end
+
+    test "refuses a journey that is not literal data" do
+      assert_raise ArgumentError, ~r/literal data/, fn ->
+        Code.compile_quoted(
+          quote do
+            defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest.ComputedLive do
+              use TymeslotWeb.Themes.Shared.SchedulingLive,
+                wrapper: &Wrapper.quill_wrapper/1,
+                journey: Journey.classic(%{})
+            end
+          end
+        )
+      end
+    end
+
+    test "refuses a journey that asks for the slot before the meeting type" do
+      assert_raise CompileError, ~r/collects :slot, which needs :meeting_type/, fn ->
+        Code.compile_quoted(
+          quote do
+            defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest.SlotFirstLive do
+              use TymeslotWeb.Themes.Shared.SchedulingLive,
+                wrapper: &Wrapper.quill_wrapper/1,
+                journey: [
+                  navigator: TymeslotWeb.Themes.Shared.Journey.Navigators.Paged,
+                  moments: [
+                    {:schedule,
+                     collects: [:slot],
+                     component: TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent},
+                    {:overview,
+                     collects: [:meeting_type],
+                     component: TymeslotWeb.Themes.Quill.Scheduling.Components.OverviewComponent},
+                    {:booking,
+                     collects: [:attendee],
+                     component: TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent}
+                  ],
+                  outcomes: %{
+                    confirmation:
+                      TymeslotWeb.Themes.Quill.Scheduling.Components.ConfirmationComponent
+                  }
+                ]
             end
           end
         )

@@ -2,8 +2,9 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
   @moduledoc """
   Shared LiveView macro for scheduling themes.
 
-  A theme passes its wrapper component and one LiveComponent per step, and
-  gets a `render/1` that handles every state the flow can be in:
+  A theme passes its wrapper component and its journey, and gets a `render/1`
+  that handles every state the booking can be in. The classic journey, the
+  five steps Quill and Rhythm show, is one LiveComponent per step:
 
       defmodule MyTheme.Scheduling.Live do
         alias MyTheme.Scheduling.Components.{
@@ -26,6 +27,30 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
             confirmation: ConfirmationComponent
           }
       end
+
+  Any other journey is written out (`TymeslotWeb.Themes.Shared.Journey`):
+
+      use TymeslotWeb.Themes.Shared.SchedulingLive,
+        wrapper: &Wrapper.my_wrapper/1,
+        journey: [
+          navigator: Paged,
+          moments: [
+            {:now,
+             collects: [:meeting_type, :slot],
+             component: NowComponent,
+             defaults: [meeting_type: :first]},
+            {:you, collects: [:answers, :attendee], component: YouComponent}
+          ],
+          outcomes: %{confirmation: ConfirmationComponent, awaiting_payment: :shared}
+        ]
+
+  A theme gives `steps:` or `journey:`, never both; `steps:` is
+  `Journey.classic/1` of its map. Either is literal data (atoms, lists,
+  tuples, maps and module names), checked while the theme compiles
+  (`Journey.build!/2`): a fact asked before one it needs, a component that is
+  not a LiveComponent or an unknown default fails the build, naming the
+  problem. The macro generates `__journey__/0`, the theme's `%Journey{}`, and
+  assigns it as `:journey` on mount and on every `handle_params/3`.
 
   The aliases must come before `use`: the options are expanded where `use` is
   written. One optional hook, a multi-clause `defp`:
@@ -50,24 +75,30 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
   @steps [:overview, :schedule, :questions, :booking, :confirmation]
 
   defmacro __using__(opts) do
-    opts = Keyword.validate!(opts, [:wrapper, :steps])
+    opts = Keyword.validate!(opts, [:wrapper, :steps, :journey])
     wrapper = Keyword.fetch!(opts, :wrapper)
-    steps = Keyword.fetch!(opts, :steps)
-    validate_steps!(steps)
-    validate_step_components!(steps, __CALLER__)
+    journey = journey!(opts, __CALLER__)
 
     quote do
       use TymeslotWeb, :live_view
 
       alias TymeslotWeb.Live.Scheduling.WeekSlots
       alias TymeslotWeb.Themes.Shared.{EventHandlers, InfoHandlers, PathHandlers}
+      alias TymeslotWeb.Themes.Shared.Journey
       alias TymeslotWeb.Themes.Shared.LiveHelpers.{Mount, Tracking}
       alias TymeslotWeb.Themes.Shared.{SchedulingFlow, SchedulingPage, StepEvents}
+
+      # The theme's journey, built from the literal `use` was given, which
+      # was checked when the theme compiled.
+      @doc false
+      @spec __journey__() :: Journey.t()
+      def __journey__, do: Journey.new(unquote(journey))
 
       @impl Phoenix.LiveView
       def mount(params, _session, socket) do
         socket =
           socket
+          |> assign(:journey, __journey__())
           |> Mount.mount_scheduling_view(params)
           |> Tracking.assign_tracking(params)
 
@@ -75,10 +106,13 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       end
 
       @impl Phoenix.LiveView
-      def render(assigns), do: SchedulingPage.render(assigns, unquote(wrapper), unquote(steps))
+      def render(assigns), do: SchedulingPage.render(assigns, unquote(wrapper), __journey__())
 
+      # Assigned again: the dispatcher may hand the page to another theme on
+      # a patch (`?theme=`), and the journey is the rendering theme's.
       @impl Phoenix.LiveView
-      def handle_params(params, _url, socket), do: Mount.handle_scheduling_params(socket, params)
+      def handle_params(params, _url, socket),
+        do: socket |> assign(:journey, __journey__()) |> Mount.handle_scheduling_params(params)
 
       # A theme's own event (`theme:<name>`, relayed untouched by the step
       # relays) goes to the theme's hook without its prefix, from any step;
@@ -151,6 +185,63 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
     end
   end
 
+  # The journey's literal for `__journey__/0`, after checking it: `steps:`
+  # (today's five steps) becomes `Journey.classic/1` of its map. `Journey`
+  # in the returned code is the alias the generated code adds to the theme.
+  defp journey!(opts, caller) do
+    case {Keyword.fetch(opts, :steps), Keyword.fetch(opts, :journey)} do
+      {{:ok, steps}, :error} ->
+        validate_steps!(steps)
+        validate_step_components!(steps, caller)
+        journey_module().build!(journey_module().classic(literal!(steps, caller)), caller)
+        quote do: Journey.classic(unquote(steps))
+
+      {:error, {:ok, journey}} ->
+        journey_module().build!(literal!(journey, caller), caller)
+        journey
+
+      {{:ok, _steps}, {:ok, _journey}} ->
+        raise ArgumentError,
+              "use SchedulingLive takes :steps (the classic journey) or :journey, not both"
+
+      {:error, :error} ->
+        raise ArgumentError,
+              "use SchedulingLive needs :steps (the classic journey) or :journey"
+    end
+  end
+
+  # `Journey`, named through a module atom returned at run time rather than an
+  # alias: xref records an alias as a reference, and every theme's
+  # compile-time edge to this module would then count everything `Journey`
+  # reaches on its compile-connected graph. Only the macro calls it, while a
+  # theme compiles.
+  defp journey_module, do: :"Elixir.TymeslotWeb.Themes.Shared.Journey"
+
+  # The journey's options as data, while the theme compiles: aliases expanded
+  # as if inside a function (see `validate_step_components!/2` for why), the
+  # rest literal. Walked by hand rather than evaluated, so nothing but data
+  # can run here.
+  defp literal!({:__aliases__, _meta, _parts} = alias_ast, caller),
+    do: Macro.expand(alias_ast, %{caller | function: {:__journey__, 0}})
+
+  defp literal!({:%{}, _meta, pairs}, caller),
+    do: Map.new(pairs, fn {key, value} -> {literal!(key, caller), literal!(value, caller)} end)
+
+  defp literal!({:{}, _meta, items}, caller),
+    do: items |> Enum.map(&literal!(&1, caller)) |> List.to_tuple()
+
+  defp literal!({left, right}, caller), do: {literal!(left, caller), literal!(right, caller)}
+  defp literal!(list, caller) when is_list(list), do: Enum.map(list, &literal!(&1, caller))
+
+  defp literal!(term, _caller) when is_atom(term) or is_number(term) or is_binary(term),
+    do: term
+
+  defp literal!(other, _caller) do
+    raise ArgumentError,
+          "use SchedulingLive expects its journey as literal data (atoms, lists, tuples, " <>
+            "maps and module names), got: " <> Macro.to_string(other)
+  end
+
   defp validate_steps!({:%{}, _meta, pairs}) do
     keys = Keyword.keys(pairs)
 
@@ -186,7 +277,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
     Enum.each(pairs, fn {step, alias_ast} ->
       module = Macro.expand(alias_ast, %{caller | function: {:render, 1}})
 
-      unless live_component?(module) do
+      unless journey_module().live_component?(module) do
         raise CompileError,
           file: caller.file,
           line: caller.line,
@@ -195,10 +286,5 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
               "got #{inspect(module)}, which is not a loaded LiveComponent"
       end
     end)
-  end
-
-  defp live_component?(module) do
-    is_atom(module) and match?({:module, _}, Code.ensure_compiled(module)) and
-      function_exported?(module, :__live__, 0) and module.__live__()[:kind] == :component
   end
 end

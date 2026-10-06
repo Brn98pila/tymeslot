@@ -49,7 +49,8 @@ defmodule TymeslotWeb.Themes.Shared.Journey do
   # In a function body, so the fact modules are runtime references of this
   # module. That keeps them off a theme's compile-connected graph only while
   # the theme reaches `Journey` without a compile-time alias (through a
-  # function returning the module's name).
+  # function returning the module's name, `SchedulingLive`'s
+  # `journey_module/0`).
   defp shipped_facts,
     do: %{meeting_type: MeetingType, slot: Slot, answers: Answers, attendee: Attendee}
 
