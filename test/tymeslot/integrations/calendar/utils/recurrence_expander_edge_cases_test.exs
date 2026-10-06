@@ -390,6 +390,55 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderEdgeCasesTest do
     end
   end
 
+  describe "expand/4 for a series whose time falls in an autumn overlap" do
+    # Europe/Berlin turns 03:00 CEST back to 02:00 CET on 2026-10-25, so
+    # 02:30 happens twice that day. The overlap day takes the first (CEST)
+    # 02:30, and the day after is 02:30 CET, whichever range is expanded.
+    setup do
+      first = DateTime.new!(~D[2026-10-20], ~T[02:30:00], "Europe/Berlin")
+
+      event = %{
+        uid: "overlap-daily",
+        summary: "Early sync",
+        start_time: first,
+        end_time: DateTime.add(first, 30, :minute),
+        recurrence_rule: "FREQ=DAILY"
+      }
+
+      %{event: event}
+    end
+
+    test "the overlap day and the day after start the same in every range", %{event: event} do
+      starts =
+        for range_start <- [
+              ~U[2026-10-20 00:00:00Z],
+              ~U[2026-10-24 12:00:00Z],
+              ~U[2026-10-25 00:00:00Z]
+            ] do
+          occurrences = RecurrenceExpander.expand(event, range_start, ~U[2026-10-28 00:00:00Z])
+          {start_on(occurrences, ~D[2026-10-25]), start_on(occurrences, ~D[2026-10-26])}
+        end
+
+      # 00:30Z is 02:30 CEST, the first of the two; 01:30Z is 02:30 CET.
+      expected = {~U[2026-10-25 00:30:00Z], ~U[2026-10-26 01:30:00Z]}
+
+      utc = fn {a, b} ->
+        {DateTime.shift_zone!(a, "Etc/UTC"), DateTime.shift_zone!(b, "Etc/UTC")}
+      end
+
+      assert Enum.map(starts, utc) == [expected, expected, expected]
+      assert {%{zone_abbr: "CEST"}, %{zone_abbr: "CET"}} = hd(starts)
+    end
+
+    test "the day after starts at 02:30 CET from a range after the change", %{event: event} do
+      occurrences =
+        RecurrenceExpander.expand(event, ~U[2026-10-25 02:00:00Z], ~U[2026-10-28 00:00:00Z])
+
+      assert start_on(occurrences, ~D[2026-10-26]) ==
+               DateTime.new!(~D[2026-10-26], ~T[02:30:00], "Europe/Berlin")
+    end
+  end
+
   describe "expand/4 for a series that started long before the range" do
     # The safety cap bounds the occurrences a range gets, not the steps taken
     # from the series' first start: a standing meeting that has run for years
