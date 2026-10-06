@@ -1,174 +1,42 @@
 defmodule Tymeslot.ThemeBookingFlowHelpers do
   @moduledoc """
-  Shared helpers for driving the public booking flow in LiveView tests.
-
-  Keeps the multi-step "select duration → day and time → submit" choreography in
-  one place so feature tests (a real end-to-end booking, an owner-preview
-  simulated booking, …) read as intent rather than repeating the same clicks.
+  The booking walks the shared suites used before `TymeslotWeb.BookingDriver`,
+  kept as calls into it while the suites move to the driver itself; removed
+  once none calls them. New tests use `BookingDriver` directly.
   """
 
-  import ExUnit.Assertions, only: [flunk: 1]
-  import Phoenix.LiveViewTest
-  import Tymeslot.TestHelpers.Eventually
-
-  alias Tymeslot.WeekViewTestHelpers
+  alias TymeslotWeb.BookingDriver
 
   @doc """
-  Drives an already-mounted booking view from overview through to the
-  confirmation step (select duration → date → slot → fill + submit the form),
-  returning the rendered confirmation HTML.
+  Drives an already-mounted booking view from overview to the outcome,
+  booking "quick-chat" for `attendee`; returns the rendered outcome.
   """
   @spec complete_booking_flow(term(), String.t(), String.t(), map()) :: binary()
-  def complete_booking_flow(view, theme_name, theme_id, attendee) do
-    fill_and_submit_booking_flow(view, theme_name, theme_id, attendee)
-
-    eventually(fn -> has_element?(view, "[data-testid='confirmation-heading']") end,
-      timeout: 10_000
-    )
-
-    render(view)
-  end
+  def complete_booking_flow(view, _theme_name, _theme_id, attendee),
+    do: BookingDriver.book(view, meeting_type: "quick-chat", attendee: attendee)
 
   @doc """
-  Drives an already-mounted booking view from overview through form submission
-  (select duration → date → slot → fill + submit) WITHOUT waiting for a
-  confirmation view.
-
-  Use this when the submission is expected NOT to confirm — e.g. a preview page
-  whose owner token is missing/expired, where the booking must be blocked rather
-  than persisted. The caller asserts the resulting blocked/error state itself.
+  As `complete_booking_flow/4`, without waiting for an outcome: for a
+  submission expected not to confirm (a preview without a valid owner token).
   """
   @spec fill_and_submit_booking_flow(term(), String.t(), String.t(), map()) :: :ok
-  def fill_and_submit_booking_flow(view, theme_name, theme_id, attendee) do
-    advance_to_booking_form(view, theme_name)
-    submit_booking_form(view, theme_id, attendee)
+  def fill_and_submit_booking_flow(view, _theme_name, _theme_id, attendee) do
+    _page =
+      BookingDriver.book(view, meeting_type: "quick-chat", attendee: attendee, until: :submitted)
 
     :ok
   end
 
-  @doc """
-  Drives a mounted booking view from overview to the booking form, stopping
-  short of submitting.
-
-  Extracted from `fill_and_submit_booking_flow/4` rather than copied, so a test
-  that only cares about what the form *says* cannot drift from the navigation
-  the end-to-end tests use.
-  """
+  @doc "Drives a mounted booking view from overview to the booking form, without submitting."
   @spec advance_to_booking_form(term(), String.t()) :: :ok
   def advance_to_booking_form(view, _theme_name) do
-    view
-    |> element("button[data-testid='duration-option'][data-duration='quick-chat']")
-    |> render_click()
-
-    view |> element("button[data-testid='next-step']") |> render_click()
-
-    select_first_slot(view)
-
-    eventually(
-      fn -> not has_element?(view, "button[data-testid='next-step'][disabled]") end,
-      timeout: 5000
-    )
-
-    view |> element("button[data-testid='next-step']") |> render_click()
-
-    eventually(fn -> has_element?(view, "form[data-testid='booking-form']") end, timeout: 5000)
-
+    _page = BookingDriver.book(view, meeting_type: "quick-chat", until: :attendee)
     :ok
   end
 
-  @doc """
-  Picks the first free time on the schedule step from whichever picker the
-  theme shows: a calendar of days and the chosen day's times (Quill, Rhythm),
-  or the shared week grid (`Tymeslot.WeekViewTestHelpers`). Returns the day
-  and the time, `{iso_date, time}`.
-  """
+  @doc "Picks the first free time on the schedule step; returns `{iso_date, time}`."
   @spec select_first_slot(term()) :: {String.t(), String.t()}
-  def select_first_slot(view) do
-    eventually(
-      fn ->
-        WeekViewTestHelpers.week_view?(view) or
-          has_element?(view, "button[data-testid='calendar-day']")
-      end,
-      timeout: 5000
-    )
-
-    if WeekViewTestHelpers.week_view?(view) do
-      WeekViewTestHelpers.select_first_slot(view)
-    else
-      date = select_first_available_day(view)
-
-      eventually(fn -> has_element?(view, "button[data-testid='time-slot']") end, timeout: 5000)
-
-      slot = view |> render() |> Floki.parse_document!() |> first_slot_time()
-
-      view
-      |> element("button[data-testid='time-slot'][phx-value-time='#{slot}']")
-      |> render_click()
-
-      {date, slot}
-    end
-  end
-
-  @doc "Fills and submits the booking form with the given attendee details."
-  @spec submit_booking_form(term(), String.t(), map()) :: binary()
-  def submit_booking_form(view, _theme_id, %{name: name, email: email, message: message}) do
-    view
-    |> form("form[data-testid='booking-form']", %{
-      "booking" => %{"name" => name, "email" => email, "message" => message}
-    })
-    |> render_submit()
-  end
-
-  @doc "Returns the first available time-slot value rendered on the schedule step."
-  @spec first_slot_time(term()) :: String.t()
-  def first_slot_time(doc) do
-    val = List.first(Floki.attribute(doc, "button[data-testid='time-slot']", "phx-value-time"))
-
-    case val do
-      nil ->
-        data_time =
-          List.first(Floki.attribute(doc, "button[data-testid='time-slot']", "data-time"))
-
-        case data_time do
-          nil -> flunk("Expected at least one available time slot after selecting a date")
-          slot -> slot
-        end
-
-      slot ->
-        slot
-    end
-  end
-
-  @doc """
-  Waits for the schedule step to finish loading availability, then clicks the
-  first bookable day it renders and returns that day's ISO date.
-
-  The day is read from the page rather than predicted from the clock. Once
-  availability arrives the scheduling page jumps to the first bookable day,
-  which late in the visitor's day is already in the next week (Rhythm) or month
-  (Quill), so any date worked out from `Date.utc_today/0` can name a day that is
-  not on screen. Day buttons stay disabled until availability has loaded, so
-  the first enabled one is only rendered after that jump.
-  """
-  @spec select_first_available_day(term()) :: String.t()
-  def select_first_available_day(view) do
-    enabled_day = "button[data-testid='calendar-day']:not([disabled])"
-
-    eventually(fn -> has_element?(view, enabled_day) end, timeout: 5000)
-
-    date_str =
-      view
-      |> render()
-      |> Floki.parse_document!()
-      |> Floki.attribute(enabled_day, "phx-value-date")
-      |> List.first()
-
-    view
-    |> element("button[data-testid='calendar-day'][phx-value-date='#{date_str}']")
-    |> render_click()
-
-    date_str
-  end
+  def select_first_slot(view), do: BookingDriver.pick_first_slot(view)
 
   @doc "Returns the next weekday strictly after `start_date`."
   @spec next_business_day(Date.t()) :: Date.t()
