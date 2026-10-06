@@ -19,6 +19,7 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   """
 
   alias Tymeslot.Utils.DateTimeUtils.TimeFormat
+  alias Tymeslot.Utils.ReminderUtils
   alias TymeslotWeb.Helpers.LocaleFormat
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -180,6 +181,36 @@ defmodule Tymeslot.Emails.Shared.Formatting do
         date: format_date(datetime, locale),
         time: format_time(datetime, locale)
       )
+    end)
+  end
+
+  @doc """
+  Formats how long before a meeting a reminder goes out ("30 minutes",
+  "1 hour") in `locale`, from the payload's `reminder_raw`.
+
+  These carry the "time until" context because the label is always consumed
+  after a preposition ("in %{label}", "%{label} before the meeting"). Case
+  languages inflect it there: Ukrainian needs the accusative "за 1 годину",
+  where `format_duration/2`'s bare duration needs the nominative "1 година".
+  Same English words, different grammar, hence a separate msgctxt.
+
+  The shared payload is built in the attendee's locale, so an email to anyone
+  else formats the label here, in that recipient's locale, rather than
+  reusing the payload's ready-made string.
+  """
+  @spec format_reminder_label(%{value: term(), unit: term()}, String.t()) :: String.t()
+  def format_reminder_label(%{value: value, unit: unit}, locale) do
+    value = ReminderUtils.parse_reminder_value(value)
+
+    Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
+      unit_word =
+        case ReminderUtils.normalize_reminder_unit(unit) do
+          "hours" -> dpngettext("emails", "time until", "hour", "hours", value)
+          "days" -> dpngettext("emails", "time until", "day", "days", value)
+          _minutes -> dpngettext("emails", "time until", "minute", "minutes", value)
+        end
+
+      "#{value} #{unit_word}"
     end)
   end
 

@@ -352,6 +352,38 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminderTest do
     end
   end
 
+  # The shared payload is built in the attendee's language; the organiser's
+  # copy must not carry the attendee's "30 Minuten" into an English subject.
+  describe "reminder label per recipient language" do
+    defp mixed_language_details do
+      Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+        build_appointment_details(%{
+          attendee_locale: "de",
+          organizer_locale: "en",
+          time_until: "30 Minuten",
+          reminder_raw: %{value: 30, unit: "minutes"}
+        })
+      end)
+    end
+
+    test "the organiser's reminder states the time in the organiser's language" do
+      email =
+        AppointmentReminder.render(:organizer, "organizer@example.com", mixed_language_details())
+
+      assert email.subject =~ "in 30 minutes"
+      refute email.subject =~ "Minuten"
+      refute email.html_body =~ "Minuten"
+      refute email.text_body =~ "Minuten"
+    end
+
+    test "the attendee's reminder keeps the attendee's language" do
+      email =
+        AppointmentReminder.render(:attendee, "attendee@example.com", mixed_language_details())
+
+      assert email.subject =~ "30 Minuten"
+    end
+  end
+
   describe "attendee locale rendering" do
     test "renders without error for all supported locales" do
       for locale <- ["en", "de", "uk", "fr", "it"] do

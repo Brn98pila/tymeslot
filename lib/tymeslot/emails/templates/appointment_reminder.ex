@@ -9,6 +9,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
   alias Tymeslot.Emails.RecipientLocale
 
   alias Tymeslot.Emails.Shared.{
+    Formatting,
     JoinUrl,
     MeetingComponents,
     MjmlEmail,
@@ -172,6 +173,9 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
   end
 
   def render(:organizer, organizer_email, appointment_details) do
+    appointment_details =
+      Map.put(appointment_details, :time_until, organizer_time_until(appointment_details))
+
     Gettext.with_locale(TymeslotWeb.Gettext, organizer_locale(appointment_details), fn ->
       meeting_details = TemplateHelper.organizer_meeting_details(appointment_details)
 
@@ -351,6 +355,14 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
     #{appointment_details.organizer_name}
     """
   end
+
+  # The payload's `time_until` is already formatted in the attendee's
+  # language, so the organiser's copy is formatted again in theirs. A payload
+  # without the raw reminder (a legacy free-text label) keeps its own.
+  defp organizer_time_until(%{reminder_raw: %{value: _value, unit: _unit} = raw} = details),
+    do: Formatting.format_reminder_label(raw, organizer_locale(details))
+
+  defp organizer_time_until(details), do: details.time_until
 
   defp organizer_locale(appointment_details),
     do: RecipientLocale.organizer_locale(appointment_details)
