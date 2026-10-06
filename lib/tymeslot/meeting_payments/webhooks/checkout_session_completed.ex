@@ -246,7 +246,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
          {:proceed, transition} <- check_transition(meeting, payment),
          :ok <- slot_checked(transition, slot),
          {:ok, paid} <- mark_paid(payment, event_id, object),
-         {:ok, confirmed} <- MeetingQueries.update_meeting(meeting, post_payment_status(meeting)),
+         {:ok, confirmed} <-
+           MeetingQueries.update_meeting_status(meeting, post_payment_status(meeting)),
          {:ok, _job_status} <- schedule_calendar_creation(confirmed) do
       {:ok, {transition, paid, confirmed}}
     else

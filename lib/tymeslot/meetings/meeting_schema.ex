@@ -472,10 +472,18 @@ defmodule Tymeslot.Meetings.MeetingSchema do
     |> put_change(:status, "confirmed")
   end
 
-  @status_transition_fields [:status, :cancelled_at, :cancellation_reason]
+  @status_transition_fields [
+    :status,
+    :cancelled_at,
+    :cancellation_reason,
+    :approval_requested_at,
+    :approval_deadline_at
+  ]
 
   @doc """
-  Changeset for a bare status transition (cancel, external auto-cancel).
+  Changeset for a bare status transition (cancel, external auto-cancel, a
+  completed payment confirming its booking or moving it into the approval
+  gate).
 
   Deliberately narrower than `changeset/2`: it casts and validates only the
   fields a status transition ever touches, so it works identically for solo
@@ -490,6 +498,10 @@ defmodule Tymeslot.Meetings.MeetingSchema do
     meeting
     |> cast(attrs, @status_transition_fields)
     |> validate_inclusion(:status, @valid_statuses)
+    |> unique_constraint([:organizer_user_id, :start_time],
+      name: @unique_slot_constraint,
+      message: "You already have a confirmed meeting at this time."
+    )
   end
 
   defp base_changeset(meeting, attrs, required_fields) do

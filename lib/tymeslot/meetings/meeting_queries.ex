@@ -289,12 +289,13 @@ defmodule Tymeslot.Meetings.MeetingQueries do
 
   @doc """
   Updates a meeting's status transition fields only (`status`,
-  `cancelled_at`, `cancellation_reason`).
+  `cancelled_at`, `cancellation_reason`, `approval_requested_at`,
+  `approval_deadline_at`).
 
-  Used by cancellation flows instead of `update_meeting/2`: those touch
-  only these fields, and group meetings legitimately carry no
-  `attendee_name`/`attendee_email` — fields `Meeting.changeset/2` would
-  otherwise demand.
+  Used by cancellation, expiry and payment-confirmation flows instead of
+  `update_meeting/2`: those touch only these fields, and group meetings
+  legitimately carry no `attendee_name`/`attendee_email` (nor do some
+  older solo rows), fields `Meeting.changeset/2` would otherwise demand.
   """
   @spec update_meeting_status(Meeting.t(), map()) :: {:ok, Meeting.t()} | {:error, Changeset.t()}
   def update_meeting_status(%Meeting{} = meeting, attrs) when is_map(attrs) do

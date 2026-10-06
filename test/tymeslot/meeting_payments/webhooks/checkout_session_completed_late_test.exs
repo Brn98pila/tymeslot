@@ -27,6 +27,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedLateTest do
   alias Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted
   alias Tymeslot.MeetingPayments.Workers.RefundLatePayment
   alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Meetings.MeetingSchema, as: Meeting
   alias Tymeslot.Repo
   alias Tymeslot.Workers.CalendarEventWorker
   alias Tymeslot.Workers.EmailWorker
@@ -73,6 +74,31 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedLateTest do
 
       {:ok, reloaded_meeting} = MeetingQueries.get_meeting(meeting.id)
       assert reloaded_meeting.status == "confirmed"
+    end
+
+    test "recovers a meeting whose other fields no longer pass validation" do
+      user = insert(:user)
+
+      meeting =
+        insert(:meeting,
+          status: "expired",
+          organizer_user_id: user.id,
+          organizer_email: user.email
+        )
+
+      Repo.update_all(from(m in Meeting, where: m.id == ^meeting.id), set: [attendee_name: nil])
+
+      bp =
+        insert_payment(
+          meeting: meeting,
+          status: "failed",
+          stripe_checkout_session_id: "cs_LATE_LEGACY"
+        )
+
+      assert :ok = CheckoutSessionCompleted.handle(late_event("LATE_LEGACY", meeting))
+
+      assert Repo.reload!(bp).status == "paid"
+      assert {:ok, %{status: "confirmed"}} = MeetingQueries.get_meeting(meeting.id)
     end
 
     # The expiry released the slot, and another booking has taken it since:
