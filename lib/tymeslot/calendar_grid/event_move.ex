@@ -256,14 +256,16 @@ defmodule Tymeslot.CalendarGrid.EventMove do
   # the row under the booking collection regardless is no longer the truth.
   # `booking_calendar_path/1` resolves nothing when the stored booking calendar
   # id matches no discovered collection, which is the state a rediscovery
-  # leaves behind; the create falls back to the first discovered collection, so
-  # the row follows it rather than being filed under a null the column rejects.
+  # leaves behind; the move then goes to the first writable collection, which
+  # the create is asked for by name, so the row and the event agree. A
+  # destination whose collections are all read-only has nowhere to write to,
+  # and resolves to nil, which refuses the move before anything is written.
   # The "primary" placeholder is only meaningful to the OAuth providers, where
   # it names the account's own calendar.
   def destination_calendar_id(integration, calendar_id) do
     if integration.provider in Calendar.caldav_based_provider_strings() do
       calendar_id || Calendar.booking_calendar_path(integration) ||
-        List.first(integration.calendar_paths)
+        List.first(Calendar.writable_calendar_paths(integration))
     else
       calendar_id || integration.default_booking_calendar_id || "primary"
     end

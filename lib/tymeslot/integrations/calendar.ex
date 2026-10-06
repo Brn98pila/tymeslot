@@ -48,6 +48,7 @@ defmodule Tymeslot.Integrations.Calendar do
   alias Tymeslot.Integrations.Calendar.Reconnection
   alias Tymeslot.Integrations.Calendar.Runtime.CalendarPathResolver
   alias Tymeslot.Integrations.Calendar.Selection
+  alias Tymeslot.Integrations.Calendar.Shared.ProviderCommon
   alias Tymeslot.Integrations.{CalendarManagement, CalendarPrimary}
   alias Tymeslot.Integrations.Providers.Directory
   alias Tymeslot.Integrations.Shared.InputValidators
@@ -301,6 +302,16 @@ defmodule Tymeslot.Integrations.Calendar do
   """
   @spec booking_calendar_path(integration()) :: String.t() | nil
   defdelegate booking_calendar_path(integration), to: CalendarPathResolver, as: :resolve
+
+  @doc """
+  The collections of a CalDAV-family integration a write may be aimed at: its
+  selected calendars that are not read-only. See
+  `Tymeslot.Integrations.Calendar.Shared.ProviderCommon.caldav_writable_paths/1`.
+  """
+  @spec writable_calendar_paths(integration()) :: [String.t()]
+  defdelegate writable_calendar_paths(integration),
+    to: ProviderCommon,
+    as: :caldav_writable_paths
 
   # ---------------------------
   # Public API: Validation/Connection

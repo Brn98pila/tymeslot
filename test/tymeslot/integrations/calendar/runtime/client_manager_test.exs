@@ -570,11 +570,10 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManagerTest do
       end
     end
 
-    # With nothing a booking can be written to, there is no fallback: not a
-    # subscribed feed, which takes no writes, nor an integration whose
-    # credentials were refused.
-    test "falls back to no calendar rather than a feed or a refused integration",
-         %{user: user} do
+    # With nothing a booking can be written to, there is no fallback; each
+    # case stands alone. A subscribed feed takes no writes, though its single
+    # calendar looks writable to the client.
+    test "falls back to no calendar rather than a subscribed feed", %{user: user} do
       insert(:calendar_integration,
         user: user,
         provider: "ics_url",
@@ -585,6 +584,13 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManagerTest do
         subscription_url_encrypted: Encryption.encrypt("https://feeds.example.com/team.ics")
       )
 
+      insert(:profile, user: user)
+
+      assert ClientManager.resolve_client(user.id) == nil
+    end
+
+    test "falls back to no calendar rather than one whose credentials were refused",
+         %{user: user} do
       insert(:calendar_integration,
         user: user,
         provider: "caldav",
