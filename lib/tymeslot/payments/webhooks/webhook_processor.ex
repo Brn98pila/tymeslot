@@ -10,6 +10,7 @@ defmodule Tymeslot.Payments.Webhooks.WebhookProcessor do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Payments.Errors.WebhookError
+  alias Tymeslot.Payments.Webhooks.TransientErrors
   alias Tymeslot.Payments.Webhooks.WebhookRegistry
 
   @doc """
@@ -30,23 +31,36 @@ defmodule Tymeslot.Payments.Webhooks.WebhookProcessor do
       map_transient_errors(handle_exception(exception, event, event_type, __STACKTRACE__))
   end
 
+  # Which failures Stripe should redeliver. The default is to retry: a
+  # handler error is most often a database or downstream failure that a
+  # later delivery can get past, and marking it processed loses the event
+  # for good (a paid checkout that never grants Pro). An error is permanent
+  # only when it says so: a validation failure, a malformed event, a reason
+  # listed in @permanent_reasons, or a handler exception that is not a
+  # transient one (a bug that every redelivery would hit again).
+  @permanent_reasons [:subscriptions_not_supported, :invalid_timestamp]
+
   defp map_transient_errors({:error, :retry_later, _message} = result), do: result
+  defp map_transient_errors({:error, :retry_later}), do: {:error, :retry_later, nil}
 
-  defp map_transient_errors({:error, %Stripe.Error{source: :network} = err, message}) do
-    {:error, :retry_later, message || "Stripe network error: #{err.message}"}
-  end
+  defp map_transient_errors({:error, %WebhookError.ValidationError{}, _message} = result),
+    do: result
 
-  defp map_transient_errors(
-         {:error, %WebhookError.ProcessingError{message: message} = err, stack}
-       ) do
-    # Check if this processing error was caused by a Stripe network error
-    if message &&
-         (String.contains?(message, "Stripe.Error") || String.contains?(message, "network")) do
-      {:error, :retry_later, message}
-    else
-      {:error, err, stack}
-    end
-  end
+  defp map_transient_errors({:error, %WebhookError.ProcessingError{}, _message} = result),
+    do: result
+
+  defp map_transient_errors({:error, reason, _message} = result)
+       when reason in @permanent_reasons,
+       do: result
+
+  defp map_transient_errors({:error, reason} = result) when reason in @permanent_reasons,
+    do: result
+
+  defp map_transient_errors({:error, reason, message}),
+    do: {:error, :retry_later, message || "Transient failure: #{LogFormat.reason(reason)}"}
+
+  defp map_transient_errors({:error, reason}),
+    do: {:error, :retry_later, "Transient failure: #{LogFormat.reason(reason)}"}
 
   defp map_transient_errors(result), do: result
 
@@ -173,12 +187,22 @@ defmodule Tymeslot.Payments.Webhooks.WebhookProcessor do
         event_id: get_field(event, :id)
       })
 
+      handler_exception_result(exception, event)
+  end
+
+  # A lost connection, a lock timeout or a Stripe outage passes; anything
+  # else raised by a handler is a bug that a redelivery would hit again.
+  defp handler_exception_result(exception, event) do
+    if TransientErrors.transient?(exception) do
+      {:error, :retry_later, "Transient handler exception: #{inspect(exception.__struct__)}"}
+    else
       {:error,
        %WebhookError.ProcessingError{
          reason: :handler_exception,
          message: "Handler exception: #{inspect(exception)}",
          event_type: get_field(event, :type)
        }, nil}
+    end
   end
 
   defp clock do
