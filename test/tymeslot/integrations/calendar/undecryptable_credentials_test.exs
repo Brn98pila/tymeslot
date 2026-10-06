@@ -22,6 +22,7 @@ defmodule Tymeslot.Integrations.Calendar.UndecryptableCredentialsTest do
   alias Tymeslot.Integrations.Calendar.Runtime.EventFetcher
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
+  alias Tymeslot.Security.Encryption
   alias Tymeslot.Workers.FallbackSyncSweepWorker
   alias Tymeslot.Workers.SyncGoogleCalendarWorker
 
@@ -38,6 +39,20 @@ defmodule Tymeslot.Integrations.Calendar.UndecryptableCredentialsTest do
         ],
         attrs
       )
+    )
+  end
+
+  # A subscribed feed is read from its cached events, so it is a calendar
+  # that reads successfully without any provider HTTP.
+  defp insert_readable_feed(user) do
+    insert(:calendar_integration,
+      user: user,
+      provider: "ics_url",
+      base_url: "https://feeds.example.com",
+      username_encrypted: nil,
+      password_encrypted: nil,
+      subscription_url_encrypted: Encryption.encrypt("https://feeds.example.com/team.ics"),
+      is_active: true
     )
   end
 
@@ -69,6 +84,57 @@ defmodule Tymeslot.Integrations.Calendar.UndecryptableCredentialsTest do
                EventFetcher.get_events_for_range_fresh(user.id, today, Date.add(today, 7))
 
       assert reload(stale).needs_reauth
+    end
+
+    test "fails closed when one calendar reads and another cannot be read" do
+      user = insert(:user)
+      insert_readable_feed(user)
+      insert_undecryptable(user: user)
+      today = Date.utc_today()
+
+      assert {:error, :some_calendars_unavailable} =
+               EventFetcher.get_events_for_range_fresh(user.id, today, Date.add(today, 7))
+    end
+  end
+
+  describe "listing every event" do
+    test "is empty for an owner with no calendars" do
+      assert {:ok, []} = EventFetcher.list_events(insert(:user).id)
+    end
+
+    test "reads a calendar that decrypts" do
+      user = insert(:user)
+      feed = insert_readable_feed(user)
+      start_at = DateTime.add(DateTime.utc_now(), 1, :day)
+
+      insert(:provider_calendar_event,
+        calendar_integration: feed,
+        provider: "ics_url",
+        provider_calendar_id: "subscription",
+        uid: "busy@example.com",
+        start_at: start_at,
+        end_at: DateTime.add(start_at, 1, :hour),
+        all_day: false
+      )
+
+      assert {:ok, [%{uid: "busy@example.com"}]} = EventFetcher.list_events(user.id)
+    end
+
+    # With only the unreadable calendar there is no client to fetch from,
+    # which must not pass for an owner with no calendars at all.
+    test "fails closed when the only calendar cannot be read" do
+      user = insert(:user)
+      insert_undecryptable(user: user)
+
+      assert {:error, :all_calendars_unavailable} = EventFetcher.list_events(user.id)
+    end
+
+    test "fails closed when one calendar reads and another cannot be read" do
+      user = insert(:user)
+      insert_readable_feed(user)
+      insert_undecryptable(user: user)
+
+      assert {:error, :some_calendars_unavailable} = EventFetcher.list_events(user.id)
     end
   end
 
