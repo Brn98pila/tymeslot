@@ -2,16 +2,21 @@ defmodule TymeslotWeb.ThemeTestMatrix do
   @moduledoc """
   Per-theme test metadata, keyed by theme id.
 
-  The shared flow suites iterate `all/0` instead of listing themes by hand, so
-  a theme added to `Tymeslot.Themes.Catalog` is exercised by every one of them
-  once it has an entry here. `TymeslotWeb.ThemeTestMatrixTest` fails until it
-  does.
+  The shared suites iterate this module instead of listing themes by hand, so
+  a theme added to `Tymeslot.Themes.Catalog` is exercised by them once it has
+  an entry here. `TymeslotWeb.ThemeTestMatrixTest` fails until it does.
 
-  `all/0` and `ids/0` are the shipped themes. `registered/0` and
-  `registered_ids/0` add the test-only fixture themes (registered through
-  `:extra_themes` in `config/test.exs`), which have no booking UI beyond the
-  contract and no stylesheet; the suites that hold a theme to the contract
-  iterate those instead.
+  `registered/0` and `registered_ids/0` are every theme, including the
+  test-only fixture themes (registered through `:extra_themes` in
+  `config/test.exs`). The booking, approval and slot-taken (race) suites, the
+  markup contract test and `TymeslotWeb.BookingDriver`'s tests run those: a
+  fixture renders the approval notice and the confirmation status, and books
+  through the markup contract like any other theme. A fixture has no
+  stylesheet of its own.
+
+  `all/0` and `ids/0` are the shipped themes alone, for the suites tied to
+  their own design (deep links, sort order, cancel pages, accessibility, the
+  e2e embed matrix).
 
   `ids_where/1` narrows `ids/0` to the themes whose customisation spec passes
   a predicate, for a suite that stores one option group's settings (a preset
@@ -48,8 +53,10 @@ defmodule TymeslotWeb.ThemeTestMatrix do
       markup contract test and `TymeslotWeb.BookingDriver`'s booking tests
       run every registered theme; only a suite that asserts one page per
       step filters on `journey: :classic`.
-    * `:fixture` - a test-only theme: left out of `all/0`, and so of every
-      flow suite and the e2e embed matrix.
+    * `:fixture` - a test-only theme: left out of `all/0` (and so of the
+      suites tied to the shipped themes' own design and the e2e embed
+      matrix), but part of `registered/0`, which the booking, approval and
+      race suites, the markup contract test and the driver tests run.
   """
 
   alias Tymeslot.Themes.Catalog
@@ -123,7 +130,12 @@ defmodule TymeslotWeb.ThemeTestMatrix do
     }
   }
 
-  @doc "Every shipped theme's entry, in numeric id order: the themes the flow suites run."
+  @doc """
+  Every shipped theme's entry (no fixtures), in numeric id order: for the
+  suites tied to the shipped themes' own design (deep links, sort order,
+  cancel pages, accessibility). The booking, approval and race suites run
+  `registered/0`.
+  """
   @spec all() :: [entry()]
   def all, do: Enum.reject(registered(), & &1.fixture)
 
