@@ -14,6 +14,7 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
   use Tymeslot.DataCase, async: false
   use Oban.Testing, repo: Tymeslot.Repo
 
+  import ExUnit.CaptureLog
   import Mox
   import Tymeslot.AvailabilityTestHelpers
   import Tymeslot.MeetingTestHelpers
@@ -94,6 +95,41 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
     end
   end
 
+  describe "a withdrawal losing to another exit from the approval gate" do
+    # The invitee's page, or the calendar sync, still holds the request as
+    # it was while held; the host declined it or the expiry sweep released
+    # it before the withdrawal wrote.
+    setup do
+      %{user: user} = create_user_with_profile()
+      %{meeting: insert_meeting_for_user(user, %{status: "awaiting_approval"})}
+    end
+
+    test "the invitee's withdrawal reports the request as already cancelled", %{meeting: meeting} do
+      release_behind_the_caller(meeting, "cancelled")
+
+      log =
+        capture_log([level: :error], fn ->
+          assert {:error, :already_cancelled} = Cancel.execute(meeting)
+        end)
+
+      refute log =~ "Failed to withdraw"
+      assert {:ok, %{status: "cancelled"}} = MeetingQueries.get_meeting(meeting.id)
+    end
+
+    test "the calendar sync's withdrawal of an expired request is already cancelled too",
+         %{meeting: meeting} do
+      release_behind_the_caller(meeting, "expired")
+
+      log =
+        capture_log([level: :error], fn ->
+          assert {:error, :already_cancelled} = Cancel.execute_external(meeting)
+        end)
+
+      refute log =~ "Failed to auto-withdraw"
+      assert {:ok, %{status: "expired"}} = MeetingQueries.get_meeting(meeting.id)
+    end
+  end
+
   describe "a cancellation landing while a reschedule waits on the host's calendar" do
     test "leaves the meeting cancelled at its original time, with nothing announced" do
       %{meeting: meeting, user: user, params: params} = booking(false)
@@ -151,6 +187,10 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
     }
 
     %{user: user, meeting: meeting, params: params}
+  end
+
+  defp release_behind_the_caller(meeting, status) do
+    {:ok, _released} = MeetingQueries.update_meeting(meeting, %{status: status})
   end
 
   # The reschedule has read and validated the meeting by the time it asks the

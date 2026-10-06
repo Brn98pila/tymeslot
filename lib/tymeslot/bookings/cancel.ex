@@ -103,10 +103,13 @@ defmodule Tymeslot.Bookings.Cancel do
       meeting_id: meeting.id
     )
 
-    with {:ok, released} <- Approval.withdraw(meeting),
+    with {:ok, released} <- withdraw(meeting, []),
          :ok <- maybe_announce(released, announce?) do
       {:ok, released}
     else
+      {:error, :already_cancelled} = error ->
+        error
+
       {:error, reason} = error ->
         Logger.error("Failed to withdraw booking request",
           meeting_id: meeting.id,
@@ -262,12 +265,13 @@ defmodule Tymeslot.Bookings.Cancel do
     )
 
     with {:ok, released} <-
-           Approval.withdraw(meeting,
-             cancellation_reason: @external_cancellation_reason
-           ),
+           withdraw(meeting, cancellation_reason: @external_cancellation_reason),
          :ok <- send_cancellation_notifications(released) do
       {:ok, released}
     else
+      {:error, :already_cancelled} = error ->
+        error
+
       {:error, reason} = error ->
         Logger.error("Failed to auto-withdraw externally deleted booking request",
           meeting_id: meeting.id,
@@ -288,6 +292,37 @@ defmodule Tymeslot.Bookings.Cancel do
          :ok <- delete_provider_video_room(updated_meeting),
          :ok <- send_cancellation_notifications(updated_meeting) do
       {:ok, updated_meeting}
+    end
+  end
+
+  # A withdrawal loses its race when the host declined the request or the
+  # expiry sweep released it after `meeting` was read. That is the same
+  # outcome as losing a cancellation race, so it is reported the same way and
+  # the invitee is told the booking is already cancelled. A request the host
+  # approved meanwhile is still live, and keeps `:not_awaiting_approval`.
+  defp withdraw(meeting, extra_changes) do
+    case Approval.withdraw(meeting, extra_changes) do
+      {:error, :not_awaiting_approval} = error -> lost_withdrawal(meeting, error)
+      result -> result
+    end
+  end
+
+  defp lost_withdrawal(meeting, error) do
+    case MeetingQueries.get_meeting(meeting.id) do
+      {:ok, current} ->
+        if MeetingState.terminal?(current) do
+          Logger.info("Booking request was already released by a concurrent request",
+            meeting_id: meeting.id,
+            status: current.status
+          )
+
+          {:error, :already_cancelled}
+        else
+          error
+        end
+
+      {:error, :not_found} ->
+        error
     end
   end
 

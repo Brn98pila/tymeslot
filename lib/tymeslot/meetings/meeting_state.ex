@@ -170,6 +170,14 @@ defmodule Tymeslot.Meetings.MeetingState do
   def released_status?(status), do: status in @released_statuses
 
   @doc """
+  Whether the meeting is over, one way or another (cancelled, completed or
+  expired), so nothing may cancel, move or confirm it again. Struct-side
+  counterpart of `where_not_terminal/1`.
+  """
+  @spec terminal?(Meeting.t()) :: boolean()
+  def terminal?(%{status: status}), do: status in @terminal_statuses
+
+  @doc """
   Composes onto `query` a filter keeping only meetings still in a status they
   can move on from, that is, not cancelled, completed or expired. A guarded
   transition writes through it so that, of two callers acting on the same
