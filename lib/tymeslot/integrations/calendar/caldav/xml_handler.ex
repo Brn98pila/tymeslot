@@ -161,6 +161,14 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
           transform_by(
             ~x".//*[local-name()='current-user-privilege-set']/*[local-name()='privilege']/*[local-name()='write' or local-name()='all' or local-name()='write-content' or local-name()='bind']",
             &(&1 != nil)
+          ),
+        # `DAV:read`, or the `DAV:all` aggregate holding it. A collection
+        # shared for free/busy only (`CALDAV:read-free-busy`) answers the
+        # calendar-query REPORT the sync and availability send with 403.
+        has_read_privilege:
+          transform_by(
+            ~x".//*[local-name()='current-user-privilege-set']/*[local-name()='privilege']/*[local-name()='read' or local-name()='all']",
+            &(&1 != nil)
           )
       )
       |> Enum.filter(&include_calendar?/1)
@@ -348,6 +356,22 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
   # treats VEVENT support as implied. Collections that explicitly declare
   # components without VEVENT are filtered out (e.g. mailbox.org's task-only
   # "Aufgaben" collection).
+  # A calendar whose reported privilege set grants neither read nor write
+  # (a free/busy-only share) cannot have its events read, so it is not
+  # offered at all. A set listing write alone is taken as readable: a server
+  # is not known to grant one without the other, and leaving out a writable
+  # calendar would cost the organiser their booking calendar. Without a
+  # privilege set (most servers send none), readable is assumed.
+  defp include_calendar?(%{
+         has_privilege_set: true,
+         has_read_privilege: false,
+         has_write_privilege: false,
+         href: href
+       }) do
+    Logger.debug("CalDAV calendar excluded: privilege set grants no read access", href: href)
+    false
+  end
+
   defp include_calendar?(%{is_calendar: true, component_names: []}), do: true
 
   defp include_calendar?(%{is_calendar: true, component_names: names, href: href}) do
