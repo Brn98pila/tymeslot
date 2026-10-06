@@ -40,7 +40,6 @@ defmodule Tymeslot.Workers.WebhookWorker do
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Integrations.HealthCheck.ErrorAnalysis
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.SeatView
@@ -352,7 +351,7 @@ defmodule Tymeslot.Workers.WebhookWorker do
   # Seconds to wait after each failed attempt: 30s, 2m, 10m, 30m, 1h, 3h,
   # then 6h. With `max_attempts: 8` the last retry lands about eleven hours
   # after the first, so a receiver down for a deploy or a short outage still
-  # receives the event, while a hard 4xx is still discarded at once.
+  # receives the event, while any 4xx but a 408 or 429 is discarded at once.
   @backoff_seconds {30, 120, 600, 1_800, 3_600, 10_800, 21_600}
 
   @impl Oban.Worker
@@ -590,29 +589,35 @@ defmodule Tymeslot.Workers.WebhookWorker do
   end
 
   # A non-2xx response is only worth another attempt if a later one could
-  # plausibly differ. A 404 or 401 from a subscriber's endpoint is settled: the
-  # remaining attempts post the same body to the same URL, fail identically,
-  # and then Oban raises `PerformError`, which pages an operator about a
-  # subscriber's own misconfiguration. `ErrorAnalysis.classify_error/1` is the
-  # existing shared answer to that question (5xx, 408, 425 and 429 transient;
-  # 401, 403 and 404 hard), already relied on by the integration health checks,
-  # so the retry policy stays in one place instead of drifting per worker.
+  # plausibly differ: a 5xx, a 408 (the receiver timed out) or a 429 (it is
+  # rate limiting us). Every other status is the subscriber's endpoint
+  # answering for good. A 400, 404 or 422 comes back identically on every
+  # remaining attempt, eleven hours of them, and then Oban raises
+  # `PerformError`, which pages an operator about a subscriber's own
+  # misconfiguration. Redirects never reach here: `HttpDelivery` follows them
+  # or fails the delivery itself. Network and transport errors take the
+  # `{:error, reason}` path in `log_and_update_status/6` and are retried.
+  #
+  # Both paths record one failure per delivery, so a permanent 400 advances
+  # the circuit breaker exactly as far as a 503 does.
+  @retryable_statuses [408, 429]
+
   defp http_failure(webhook, status, attempt) do
     reason = "#{@http_status_prefix}#{status}"
 
-    case ErrorAnalysis.classify_error({:http_error, status, reason}) do
-      :transient ->
-        # Recorded on the first attempt only, so one failing delivery advances
-        # the circuit breaker by one rather than once per retry.
-        if attempt == 1, do: Webhooks.record_delivery_failure(webhook, reason)
-        {:error, {:http_error, status}}
-
-      :hard ->
-        # No retries follow, so this is the only chance to record the failure.
-        Webhooks.record_delivery_failure(webhook, reason)
-        {:discard, reason}
+    if retryable_status?(status) do
+      # Recorded on the first attempt only, so one failing delivery advances
+      # the circuit breaker by one rather than once per retry.
+      if attempt == 1, do: Webhooks.record_delivery_failure(webhook, reason)
+      {:error, {:http_error, status}}
+    else
+      # No retries follow, so this is the only chance to record the failure.
+      Webhooks.record_delivery_failure(webhook, reason)
+      {:discard, reason}
     end
   end
+
+  defp retryable_status?(status), do: status >= 500 or status in @retryable_statuses
 
   # Truncate response to prevent database bloat and ensure UTF-8 compatibility
   @spec truncate_response(String.t() | term() | nil) :: String.t() | nil

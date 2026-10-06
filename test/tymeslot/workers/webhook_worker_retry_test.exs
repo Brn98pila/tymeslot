@@ -1,7 +1,7 @@
 defmodule Tymeslot.Workers.WebhookWorkerRetryTest do
   @moduledoc """
-  How long a failed webhook delivery keeps being retried, and that a delivery
-  the receiver already accepted is never posted a second time because its
+  Which failed webhook deliveries are retried and for how long, and that a
+  delivery the receiver already accepted is never posted a second time because its
   delivery log could not be written.
   """
   use Tymeslot.DataCase, async: false
@@ -9,6 +9,7 @@ defmodule Tymeslot.Workers.WebhookWorkerRetryTest do
   @moduletag :workers
   @moduletag :webhooks
 
+  use Oban.Testing, repo: Tymeslot.Repo
   import Mox
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
@@ -123,5 +124,134 @@ defmodule Tymeslot.Workers.WebhookWorkerRetryTest do
 
   defp allow_delivery_log_inserts do
     Repo.query!("DROP TRIGGER test_reject_delivery_log ON webhook_deliveries")
+  end
+
+  # A subscriber's endpoint that is gone, rejects our credentials or rejects
+  # the request returns the same status on every attempt. Retrying it burns
+  # the job's remaining tries, each recorded by error tracking as an
+  # `Oban.PerformError` that can alert an operator about a subscriber's own
+  # misconfiguration. Only `{:discard, _}` avoids that, because an intentional
+  # discard emits `job:stop` rather than the `job:exception` error tracking
+  # records.
+  describe "perform/1 - retryability of HTTP failures" do
+    setup do
+      %{meeting: insert(:meeting), webhook: insert(:webhook, failure_count: 0)}
+    end
+
+    defp respond_with(status) do
+      expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
+        {:ok, %{status: status, body: "irrelevant"}}
+      end)
+    end
+
+    defp deliver(webhook, meeting) do
+      perform_job(WebhookWorker, %{
+        "webhook_id" => webhook.id,
+        "event_type" => "meeting.cancelled",
+        "meeting_id" => meeting.id
+      })
+    end
+
+    test "discards rather than retries a 404", %{meeting: meeting, webhook: webhook} do
+      respond_with(404)
+
+      assert {:discard, "HTTP 404"} = deliver(webhook, meeting)
+    end
+
+    test "discards rather than retries a 401", %{meeting: meeting, webhook: webhook} do
+      respond_with(401)
+
+      assert {:discard, "HTTP 401"} = deliver(webhook, meeting)
+    end
+
+    test "discards rather than retries a 403", %{meeting: meeting, webhook: webhook} do
+      respond_with(403)
+
+      assert {:discard, "HTTP 403"} = deliver(webhook, meeting)
+    end
+
+    test "discards rather than retries a 400", %{meeting: meeting, webhook: webhook} do
+      respond_with(400)
+
+      assert {:discard, "HTTP 400"} = deliver(webhook, meeting)
+    end
+
+    test "discards rather than retries a 422", %{meeting: meeting, webhook: webhook} do
+      respond_with(422)
+
+      assert {:discard, "HTTP 422"} = deliver(webhook, meeting)
+    end
+
+    test "records a discarded 400 as one failure, as a retried 503 is", %{
+      meeting: meeting,
+      webhook: webhook
+    } do
+      respond_with(400)
+
+      assert {:discard, _reason} = deliver(webhook, meeting)
+      assert Repo.get(WebhookSchema, webhook.id).failure_count == 1
+    end
+
+    test "still records the failure when discarding", %{meeting: meeting, webhook: webhook} do
+      # No retry follows, so this is the only chance to advance the circuit
+      # breaker towards auto-disabling a permanently broken endpoint.
+      respond_with(404)
+
+      assert {:discard, _reason} = deliver(webhook, meeting)
+
+      updated = Repo.get(WebhookSchema, webhook.id)
+      assert updated.failure_count == 1
+      assert updated.last_status =~ "failed"
+    end
+
+    test "still logs the delivery attempt when discarding", %{
+      meeting: meeting,
+      webhook: webhook
+    } do
+      respond_with(404)
+
+      assert {:discard, _reason} = deliver(webhook, meeting)
+
+      delivery = Repo.one(WebhookDeliverySchema)
+      assert delivery.response_status == 404
+    end
+
+    test "keeps retrying a 408, which a later attempt may clear", %{
+      meeting: meeting,
+      webhook: webhook
+    } do
+      respond_with(408)
+
+      assert {:error, {:http_error, 408}} = deliver(webhook, meeting)
+    end
+
+    test "keeps retrying a transport error, which a later attempt may clear", %{
+      meeting: meeting,
+      webhook: webhook
+    } do
+      expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
+        {:error, %Req.TransportError{reason: :econnrefused}}
+      end)
+
+      assert {:error, :econnrefused} = deliver(webhook, meeting)
+    end
+
+    test "keeps retrying a 429, which a later attempt may clear", %{
+      meeting: meeting,
+      webhook: webhook
+    } do
+      respond_with(429)
+
+      assert {:error, {:http_error, 429}} = deliver(webhook, meeting)
+    end
+
+    test "keeps retrying a 503, which a later attempt may clear", %{
+      meeting: meeting,
+      webhook: webhook
+    } do
+      respond_with(503)
+
+      assert {:error, {:http_error, 503}} = deliver(webhook, meeting)
+    end
   end
 end
