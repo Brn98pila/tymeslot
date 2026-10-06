@@ -4,6 +4,7 @@ defmodule Tymeslot.Workers.WebhookWorkerTest do
   @moduletag :workers
 
   use Oban.Testing, repo: Tymeslot.Repo
+  import Ecto.Query, only: [where: 2]
   import Mox
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
@@ -11,6 +12,7 @@ defmodule Tymeslot.Workers.WebhookWorkerTest do
 
   alias Ecto.Changeset
   alias Ecto.UUID
+  alias Oban.Job
   alias Tymeslot.Meetings.Guests
   alias Tymeslot.Webhooks.WebhookDeliverySchema
   alias Tymeslot.Webhooks.WebhookSchema
@@ -457,6 +459,52 @@ defmodule Tymeslot.Workers.WebhookWorkerTest do
       )
     end
 
+    test "a later event is not swallowed by a delivery that already ran" do
+      meeting_id = UUID.generate()
+      snapshot = %{"status" => "confirmed"}
+
+      assert :ok =
+               WebhookWorker.schedule_delivery(123, "meeting.rescheduled", meeting_id, snapshot)
+
+      complete_jobs(WebhookWorker)
+
+      assert :ok =
+               WebhookWorker.schedule_delivery(123, "meeting.rescheduled", meeting_id, snapshot)
+
+      assert job_count(WebhookWorker) == 2
+    end
+
+    # The snapshot is replayed at delivery, so a waiting delivery cannot
+    # stand in for an event that asserts a different state.
+    test "a waiting delivery with another snapshot does not absorb a new event" do
+      meeting_id = UUID.generate()
+
+      assert :ok =
+               WebhookWorker.schedule_delivery(123, "meeting.rescheduled", meeting_id, %{
+                 "status" => "awaiting_approval"
+               })
+
+      assert :ok =
+               WebhookWorker.schedule_delivery(123, "meeting.rescheduled", meeting_id, %{
+                 "status" => "confirmed"
+               })
+
+      assert job_count(WebhookWorker) == 2
+    end
+
+    test "a waiting delivery with the same snapshot absorbs a duplicate" do
+      meeting_id = UUID.generate()
+      snapshot = %{"status" => "confirmed"}
+
+      assert :ok =
+               WebhookWorker.schedule_delivery(123, "meeting.rescheduled", meeting_id, snapshot)
+
+      assert :ok =
+               WebhookWorker.schedule_delivery(123, "meeting.rescheduled", meeting_id, snapshot)
+
+      assert job_count(WebhookWorker) == 1
+    end
+
     test "omits the snapshot key entirely when none is given, same as schedule_delivery/3" do
       meeting_id = UUID.generate()
 
@@ -519,6 +567,18 @@ defmodule Tymeslot.Workers.WebhookWorkerTest do
                  "meeting_id" => meeting.id
                })
     end
+  end
+
+  # Marks every job of `worker` completed, as a delivery that already ran.
+  defp complete_jobs(worker) do
+    Repo.update_all(
+      where(Job, worker: ^inspect(worker)),
+      set: [state: "completed", completed_at: DateTime.utc_now()]
+    )
+  end
+
+  defp job_count(worker) do
+    Repo.aggregate(where(Job, worker: ^inspect(worker)), :count)
   end
 end
 

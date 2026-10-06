@@ -125,6 +125,12 @@ defmodule Tymeslot.Workers.SlackWorker do
         priority: 2,
         unique: [
           period: 300,
+          # Only a delivery still waiting to run absorbs a duplicate: it reads
+          # the meeting when it runs, so it already carries the later state.
+          # One that has run (or is running) must not swallow a later event
+          # of the same type, such as a second reschedule minutes after the
+          # first.
+          states: [:available, :scheduled, :retryable],
           # `:worker` has to stay in the comparison. Slack and Telegram
           # integration ids come from separate sequences and routinely
           # coincide, so on args alone the two channels share one uniqueness

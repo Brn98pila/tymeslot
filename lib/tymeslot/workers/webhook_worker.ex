@@ -314,6 +314,9 @@ defmodule Tymeslot.Workers.WebhookWorker do
         unique: [
           # 5 minute uniqueness window
           period: 300,
+          # Only a waiting delivery with the same (replayed) snapshot absorbs
+          # a duplicate: one that ran must not swallow a later event.
+          states: [:available, :scheduled, :retryable],
           fields: [:args],
           keys: unique_keys(participant_id)
         ]
@@ -321,16 +324,16 @@ defmodule Tymeslot.Workers.WebhookWorker do
       |> Oban.insert()
 
     case result do
-      {:ok, _job} ->
-        Logger.debug("Webhook delivery job scheduled",
+      {:ok, %Oban.Job{conflict?: true}} ->
+        Logger.debug("Webhook delivery job already exists",
           webhook_id: webhook_id,
           event_type: event_type
         )
 
         :ok
 
-      {:error, %Ecto.Changeset{errors: [unique: _details]}} ->
-        Logger.debug("Webhook delivery job already exists",
+      {:ok, _job} ->
+        Logger.debug("Webhook delivery job scheduled",
           webhook_id: webhook_id,
           event_type: event_type
         )
@@ -362,8 +365,10 @@ defmodule Tymeslot.Workers.WebhookWorker do
 
   # Private functions
 
-  defp unique_keys(nil), do: [:webhook_id, :event_type, :meeting_id]
-  defp unique_keys(_participant_id), do: [:webhook_id, :event_type, :meeting_id, :participant_id]
+  defp unique_keys(nil), do: [:webhook_id, :event_type, :meeting_id, :snapshot]
+
+  defp unique_keys(_participant_id),
+    do: [:webhook_id, :event_type, :meeting_id, :participant_id, :snapshot]
 
   defp maybe_put_participant(args, nil), do: args
 
