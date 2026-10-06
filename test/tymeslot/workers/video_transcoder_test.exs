@@ -322,4 +322,65 @@ defmodule Tymeslot.Workers.VideoTranscoderTest do
       assert updated.video_processing != "failed"
     end
   end
+
+  # A replacement uploaded while a job runs rewrites that job's args (see the
+  # enqueue tests above). Whatever the old video's encode ends in, the job must
+  # come back for the replacement rather than settle its status.
+  describe "perform/1 - a replacement arriving during the last variant" do
+    setup do
+      theme_customization = insert_theme_customization()
+
+      {:ok, job} = VideoTranscoder.enqueue(theme_customization.id, "uploads/old.mp4")
+
+      assert {:ok, %Oban.Job{conflict?: true}} =
+               VideoTranscoder.enqueue(theme_customization.id, "uploads/new.mp4")
+
+      # What the replacement upload sets before its transcode runs.
+      :ok =
+        ThemeCustomizationQueries.update_video_processing_status(
+          theme_customization.id,
+          "pending"
+        )
+
+      %{theme_customization: theme_customization, job: running(job, theme_customization)}
+    end
+
+    test "does not mark the replacement completed when the old encode succeeds",
+         %{theme_customization: theme_customization, job: job} do
+      stub_all_variants_success()
+
+      assert {:snooze, 1} = perform_job(%{job | attempt: 1})
+
+      updated = Repo.get!(ThemeCustomizationSchema, theme_customization.id)
+      assert updated.video_processing == "pending"
+    end
+
+    test "does not fail the replacement nor drop its job when the final attempt errors",
+         %{theme_customization: theme_customization, job: job} do
+      expect(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
+
+      expect(Tymeslot.Media.TranscoderMock, :transcode, fn _src, _out, _opts ->
+        {:error, "ffmpeg exited with status 1"}
+      end)
+
+      assert {:snooze, 1} = perform_job(%{job | attempt: job.max_attempts})
+
+      updated = Repo.get!(ThemeCustomizationSchema, theme_customization.id)
+      assert updated.video_processing == "pending"
+    end
+  end
+
+  # The stale in-memory struct the running process holds: the old path in
+  # string-keyed args, with the execution stamps a fetched job carries.
+  defp running(job, theme_customization) do
+    %{
+      job
+      | args: %{
+          "theme_customization_id" => theme_customization.id,
+          "video_path" => "uploads/old.mp4"
+        },
+        attempted_at: DateTime.utc_now(),
+        scheduled_at: DateTime.utc_now()
+    }
+  end
 end

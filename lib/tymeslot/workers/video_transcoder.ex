@@ -98,10 +98,18 @@ defmodule Tymeslot.Workers.VideoTranscoder do
       end)
 
     case result do
+      # The variants just written are the old video's if a replacement arrived
+      # during the encode; marking the replacement completed would leave it
+      # never transcoded.
       :ok ->
-        update_status(id, @status_completed)
-        Logger.info("Video transcoding completed", theme_customization_id: id)
-        :ok
+        if replaced?(job) do
+          cleanup_variants(base_path)
+          rerun_for_replacement(id)
+        else
+          update_status(id, @status_completed)
+          Logger.info("Video transcoding completed", theme_customization_id: id)
+          :ok
+        end
 
       # The source was replaced or removed while this job was queued or running.
       # Retrying cannot bring the bytes back, and the status is deliberately not
@@ -124,13 +132,22 @@ defmodule Tymeslot.Workers.VideoTranscoder do
 
       {:error, reason} ->
         cleanup_variants(base_path)
+        handle_failure(id, job, reason)
+    end
+  end
 
-        if job.attempt >= job.max_attempts do
-          update_status(id, @status_failed)
-        end
+  # As for a timeout: on the final attempt a replacement would otherwise be
+  # marked failed and its args discarded with the job.
+  defp handle_failure(id, job, reason) do
+    if replaced?(job) do
+      rerun_for_replacement(id)
+    else
+      if job.attempt >= job.max_attempts do
+        update_status(id, @status_failed)
+      end
 
-        Logger.error("Video transcoding failed", theme_customization_id: id, reason: reason)
-        {:error, reason}
+      Logger.error("Video transcoding failed", theme_customization_id: id, reason: reason)
+      {:error, reason}
     end
   end
 
