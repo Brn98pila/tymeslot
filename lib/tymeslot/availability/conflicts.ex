@@ -52,6 +52,11 @@ defmodule Tymeslot.Availability.Conflicts do
     buffers = {buffer_before_minutes, buffer_after_minutes}
     ignore_event_uids = Map.get(config, :ignore_event_uids, MapSet.new())
 
+    # The events arrive for the host's whole booking window; only those near
+    # this date can touch one of its slots, so narrow once rather than scan
+    # the window for every slot.
+    events = events_near_date(events, date)
+
     current_time = DateTimeUtils.now_in_timezone(timezone)
 
     Enum.filter(all_slots, fn slot ->

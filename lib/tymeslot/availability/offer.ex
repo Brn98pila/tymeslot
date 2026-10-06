@@ -170,12 +170,7 @@ defmodule Tymeslot.Availability.Offer do
   defp free_slots(%{profile: %{user_id: user_id} = profile} = request, date, duration) do
     moving = moving_meeting(request)
 
-    with {:ok, events} <-
-           CalendarEvents.get_calendar_events_from_context(
-             date,
-             user_id,
-             calendar_context(request)
-           ) do
+    with {:ok, events} <- booking_window_events(request, date) do
       duration_minutes = bounded_duration(duration)
       meeting_type = request[:meeting_type]
 
@@ -287,7 +282,12 @@ defmodule Tymeslot.Availability.Offer do
   #
   # So the events get their own entry, keyed on the user alone because that is
   # the fetch's entire input. The folded map keeps its display-range key: the
-  # fold is what actually differs between hops.
+  # fold is what actually differs between hops. A date click reads the same
+  # entry, so picking a day after the month view costs no provider round trip
+  # either. Its slots can therefore be up to the cache's lifetime old; the
+  # booking submit re-reads the calendars uncached
+  # (`Tymeslot.Bookings.CalendarCheck`), and that read is what refuses a slot
+  # taken in the meantime.
   #
   # Errors stay uncached, for the reason `get_or_compute_events/2` exists at
   # all: a timed-out calendar must be retried on the next request, not pinned

@@ -31,6 +31,7 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyTest do
   alias Tymeslot.Availability.TimeSlots
   alias Tymeslot.Bookings.Create
   alias Tymeslot.CalendarMock
+  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.TestMocks
   alias Tymeslot.Utils.DateTimeUtils
@@ -99,14 +100,14 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyTest do
       TestMocks.stub_no_calendar_events()
       slots_without_block = offered(profile, target_date, "30min")
 
-      assert slots_without_block != [],
-             "expected at least one slot before the blocking event was introduced"
+      assert slots_without_block != [], "expected a slot before the blocking event was introduced"
 
       stub(CalendarMock, :get_events_for_range_fresh, fn _user_id, _start, _end ->
         {:ok, [blocking_event]}
       end)
 
-      # Display path with the blocking event: every slot must disappear.
+      # Display path with the blocking event, once a sync drops the cached window.
+      AvailabilityCache.invalidate_for_user(user.id)
       slots_with_block = offered(profile, target_date, "30min")
 
       assert slots_with_block == [],
@@ -115,8 +116,7 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyTest do
       # The diff is load-bearing: it proves the block actually caused the removal.
       blocked_slots = slots_without_block -- slots_with_block
 
-      assert blocked_slots != [],
-             "expected blocking event to hide at least one slot"
+      assert blocked_slots != [], "expected blocking event to hide at least one slot"
 
       # Booking path — each slot the display hid must be rejected by the booking API.
       Enum.each(blocked_slots, fn blocked_slot ->
