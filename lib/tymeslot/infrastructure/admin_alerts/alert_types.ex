@@ -40,7 +40,8 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     dunning_stalled: %{category: "Payment", severity: :error},
     late_payment_refund_failed: %{category: "Payment", severity: :error},
     analytics_tracking_anomaly: %{category: "Analytics", severity: :warning},
-    recipient_email_rejected: %{category: "Email", severity: :warning}
+    recipient_email_rejected: %{category: "Email", severity: :warning},
+    user_registered_hook_failed: %{category: "System", severity: :error}
   }
 
   @doc "Returns the full registry map for enumeration and lookup."
@@ -432,6 +433,15 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
       nil -> "#{summary}: #{reason}"
       identifier -> "#{summary} (#{identifier}): #{reason}"
     end
+  end
+
+  # The hook's record of the sign-up (terms acceptance, say) is lost once
+  # Oban stops retrying; the user id is what the operator needs to restore it.
+  def format_message(:user_registered_hook_failed, metadata) do
+    user_id = Map.get(metadata, :user_id, "unknown")
+
+    "Registration hook failed on its final attempt for user #{user_id}; " <>
+      "its record is missing (#{reason_text(metadata)})"
   end
 
   def format_message(type, _metadata) do

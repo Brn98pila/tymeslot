@@ -28,6 +28,19 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypesTest do
   end
 
   describe "format_message/2 — per-type output" do
+    test ":user_registered_hook_failed is an error naming the user and the reason" do
+      assert %{severity: :error} = AlertTypes.get(:user_registered_hook_failed)
+
+      msg =
+        AlertTypes.format_message(:user_registered_hook_failed, %{
+          user_id: 42,
+          reason_code: :database_unavailable
+        })
+
+      assert msg =~ "user 42"
+      assert msg =~ "database_unavailable"
+    end
+
     test ":unhandled_webhook includes event type and ID" do
       msg =
         AlertTypes.format_message(:unhandled_webhook, %{
