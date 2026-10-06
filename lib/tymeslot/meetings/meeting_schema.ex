@@ -14,6 +14,8 @@ defmodule Tymeslot.Meetings.MeetingSchema do
   alias Tymeslot.ChangesetValidators.TrackingParams
   alias Tymeslot.Locales
 
+  @unique_slot_constraint :unique_confirmed_meeting_per_organizer_at_time
+
   @type t :: %__MODULE__{
           id: binary() | nil,
           uid: String.t() | nil,
@@ -521,7 +523,7 @@ defmodule Tymeslot.Meetings.MeetingSchema do
     |> unique_constraint(:uid)
     |> unique_constraint(:calendar_uid)
     |> unique_constraint([:organizer_user_id, :start_time],
-      name: :unique_confirmed_meeting_per_organizer_at_time,
+      name: @unique_slot_constraint,
       message: "You already have a confirmed meeting at this time."
     )
     |> check_constraint(:end_time, name: :meetings_end_after_start)
@@ -557,6 +559,23 @@ defmodule Tymeslot.Meetings.MeetingSchema do
         changeset
       end
     end
+  end
+
+  @doc """
+  True when a changeset's error is a violation of the organiser's unique
+  slot index, `(organizer_user_id, start_time)` over the rows that hold a
+  slot: a lost race for the slot against a writer that committed first, not
+  invalid input.
+
+  Group seat booking retries on it by joining the winner's meeting, and the
+  booking flow answers it as the slot being taken.
+  """
+  @spec unique_slot_violation?(Ecto.Changeset.t()) :: boolean()
+  def unique_slot_violation?(%Ecto.Changeset{errors: errors}) do
+    Enum.any?(errors, fn {_field, {_message, error_opts}} ->
+      error_opts[:constraint] == :unique and
+        to_string(error_opts[:constraint_name] || "") == Atom.to_string(@unique_slot_constraint)
+    end)
   end
 
   @doc """

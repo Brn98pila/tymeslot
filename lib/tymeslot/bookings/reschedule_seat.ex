@@ -51,6 +51,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
   alias Tymeslot.Meetings.GroupScheduling
   alias Tymeslot.Meetings.GuestQueries
   alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.ParticipantQueries
   alias Tymeslot.MeetingTypes
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
@@ -223,7 +224,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
       # The first-booker race exhausted book_seat/3's retry: the target slot
       # was created by someone else in the meantime, which is the same story
       # for the mover as a full slot.
-      GroupScheduling.lost_first_booker_race?(changeset) ->
+      MeetingSchema.unique_slot_violation?(changeset) ->
         log_and_bounce(old_meeting, participant, changeset, :slot_taken)
 
       # The mover already holds a live seat at the target slot (most likely a

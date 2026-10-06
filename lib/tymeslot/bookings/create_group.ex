@@ -98,7 +98,7 @@ defmodule Tymeslot.Bookings.CreateGroup do
   # wrong advice.
   defp map_result({:error, %Ecto.Changeset{} = changeset}, booking_data, _opts) do
     cond do
-      GroupScheduling.lost_first_booker_race?(changeset) -> {:error, :slot_taken}
+      MeetingSchema.unique_slot_violation?(changeset) -> {:error, :slot_taken}
       duplicate_seat?(changeset) -> {:error, :already_booked}
       true -> {:error, Errors.classify_creation_error(changeset, booking_data)}
     end

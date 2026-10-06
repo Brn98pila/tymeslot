@@ -16,7 +16,6 @@ defmodule Tymeslot.Meetings.Scheduling do
   alias Tymeslot.Meetings.BookingLimits
   alias Tymeslot.Meetings.BookingLimits.Checker
   alias Tymeslot.Meetings.GroupMeetingQueries
-  alias Tymeslot.Meetings.GroupScheduling
   alias Tymeslot.Meetings.MeetingConflictQueries
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
@@ -357,7 +356,7 @@ defmodule Tymeslot.Meetings.Scheduling do
   # it is answered as one. The group create path keeps the changeset: its
   # caller retries the race by joining the winner's meeting.
   defp write_error(changeset) do
-    if GroupScheduling.lost_first_booker_race?(changeset),
+    if Meeting.unique_slot_violation?(changeset),
       do: :time_conflict,
       else: {:validation_error, changeset}
   end

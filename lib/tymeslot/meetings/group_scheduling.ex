@@ -44,8 +44,6 @@ defmodule Tymeslot.Meetings.GroupScheduling do
   alias Tymeslot.Meetings.Seats
   alias Tymeslot.Repo
 
-  @unique_slot_constraint "unique_confirmed_meeting_per_organizer_at_time"
-
   @typedoc "One booker's request for seats at a slot."
   @type seat_request :: %{
           required(:participant) => map(),
@@ -157,7 +155,7 @@ defmodule Tymeslot.Meetings.GroupScheduling do
         {:ok, booking}
 
       {:error, {:validation_error, %Changeset{} = changeset}} ->
-        if lost_first_booker_race?(changeset) and retries_left > 0 do
+        if Meeting.unique_slot_violation?(changeset) and retries_left > 0 do
           attempt_booking(
             meeting_attrs,
             seat_request,
@@ -237,22 +235,5 @@ defmodule Tymeslot.Meetings.GroupScheduling do
       {:ok, _result} -> booking
       {:error, reason} -> Repo.rollback(reason)
     end
-  end
-
-  @doc """
-  True when a changeset's error is the loser's side of the first-booker race
-  on `(organizer_user_id, start_time)` — the partial unique index this module
-  relies on to serialise two concurrent first bookings of the same slot.
-
-  Exposed so callers outside this module (the booking flow's error
-  classification) can recognise the same race without duplicating the
-  constraint name.
-  """
-  @spec lost_first_booker_race?(Changeset.t()) :: boolean()
-  def lost_first_booker_race?(%Changeset{errors: errors}) do
-    Enum.any?(errors, fn {_field, {_message, error_opts}} ->
-      error_opts[:constraint] == :unique and
-        to_string(error_opts[:constraint_name] || "") == @unique_slot_constraint
-    end)
   end
 end
