@@ -50,7 +50,7 @@ defmodule Tymeslot.Emails.Templates.CalendarInvitation do
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       meeting_details =
         invitation_details
-        |> Map.take([:all_day, :last_date])
+        |> Map.take([:all_day, :last_date, :timezone])
         |> Map.merge(%{
           date: invitation_details.date,
           start_time: invitation_details.start_time,
