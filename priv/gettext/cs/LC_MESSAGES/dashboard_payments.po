@@ -108,6 +108,7 @@ msgstr "Měna byla změněna."
 msgid "Currency updated. Paid event-type prices have been reset."
 msgstr "Měna byla změněna. Ceny placených typů schůzek byly vynulovány."
 
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
 #: lib/tymeslot_web/live/dashboard/payments_settings/payments_table.ex
 #, elixir-autogen, elixir-format
 msgid "Date"
@@ -387,11 +388,6 @@ msgstr "Změna měny vynuluje cenu u všech placených typů schůzek – stáv
 
 #: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
 #, elixir-autogen, elixir-format
-msgid "Cancelled"
-msgstr "Zrušeno"
-
-#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
-#, elixir-autogen, elixir-format
 msgid "Outstanding"
 msgstr "K vrácení"
 
@@ -443,3 +439,23 @@ msgstr[2] "Stále dlužíte %{count} plateb k vrácení v celkové výši %{to
 #, elixir-autogen, elixir-format
 msgid "Your Stripe account is not connected, so these refunds have to be issued from your Stripe dashboard. The money is still owed."
 msgstr "Váš účet Stripe není připojený, proto je nutné tyto platby vrátit v nástěnce Stripe. Peníze stále dlužíte."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Cancelled %{date}"
+msgstr "Zrušeno %{date}"
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Expired"
+msgstr "Vypršelo"
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Expired bookings were paid for but never confirmed, for example because the payment arrived after the slot was taken. Their refund is issued automatically; if one is still listed later, refund it here."
+msgstr "Vypršelé rezervace byly zaplaceny, ale nikdy nepotvrzeny, například proto, že platba dorazila až po obsazení termínu. Peníze se vracejí automaticky; pokud tu některá z nich bude uvedena i později, vraťte peníze zde."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Expired, paid %{date}"
+msgstr "Vypršelo, zaplaceno %{date}"

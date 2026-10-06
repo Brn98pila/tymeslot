@@ -102,6 +102,42 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettingsOutstandingRefundsTest do
       assert html =~ "€50.00"
     end
 
+    test "explains a cancelled row as a cancellation", %{conn: conn} do
+      host = connected_host()
+      cancelled_at = ~U[2026-03-14 10:00:00Z]
+
+      payment =
+        cancelled_payment_for(host, %{
+          meeting: insert(:meeting, status: "cancelled", cancelled_at: cancelled_at)
+        })
+
+      {view, html} = open_payments(conn, host)
+
+      assert html =~ "Cancelling never refunds on its own"
+      refute html =~ "Expired bookings were paid for but never confirmed"
+      assert has_element?(view, "#outstanding-refund-#{payment.id}", "Cancelled 14 Mar 2026")
+    end
+
+    # A payment that completed after its slot was taken leaves its booking
+    # expired, with no cancellation date, and refunds it automatically.
+    test "explains an expired row as an automatic refund, dated by its payment",
+         %{conn: conn} do
+      host = connected_host()
+
+      payment =
+        cancelled_payment_for(host, %{
+          meeting: insert(:meeting, status: "expired"),
+          paid_at: ~U[2026-09-30 08:00:00Z]
+        })
+
+      {view, html} = open_payments(conn, host)
+
+      assert html =~ "Expired bookings were paid for but never confirmed"
+      assert html =~ "Their refund is issued automatically"
+      refute html =~ "Cancelling never refunds on its own"
+      assert has_element?(view, "#outstanding-refund-#{payment.id}", "Expired, paid 30 Sep 2026")
+    end
+
     test "shows only the balance left after a partial refund", %{conn: conn} do
       host = connected_host()
 

@@ -108,6 +108,7 @@ msgstr "Devise mise à jour."
 msgid "Currency updated. Paid event-type prices have been reset."
 msgstr "Devise mise à jour. Les prix des types d’événements payants ont été réinitialisés."
 
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
 #: lib/tymeslot_web/live/dashboard/payments_settings/payments_table.ex
 #, elixir-autogen, elixir-format
 msgid "Date"
@@ -386,11 +387,6 @@ msgstr "Changer de devise rendra gratuits tous les types d’événements payant
 
 #: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
 #, elixir-autogen, elixir-format
-msgid "Cancelled"
-msgstr "Annulée"
-
-#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
-#, elixir-autogen, elixir-format
 msgid "Outstanding"
 msgstr "Restant dû"
 
@@ -439,3 +435,23 @@ msgstr[1] "Vous devez encore %{count} remboursements pour un total de %{total}. 
 #, elixir-autogen, elixir-format
 msgid "Your Stripe account is not connected, so these refunds have to be issued from your Stripe dashboard. The money is still owed."
 msgstr "Votre compte Stripe n’est pas connecté ; ces remboursements doivent donc être effectués depuis votre tableau de bord Stripe. L’argent reste dû."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Cancelled %{date}"
+msgstr "Annulée le %{date}"
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Expired"
+msgstr "Expirée"
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Expired bookings were paid for but never confirmed, for example because the payment arrived after the slot was taken. Their refund is issued automatically; if one is still listed later, refund it here."
+msgstr "Les réservations expirées ont été payées mais jamais confirmées, par exemple parce que le paiement est arrivé après l'attribution du créneau. Leur remboursement est émis automatiquement ; si l'une d'elles figure encore dans cette liste plus tard, remboursez-la ici."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Expired, paid %{date}"
+msgstr "Expirée, payée le %{date}"

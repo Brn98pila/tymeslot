@@ -1,6 +1,6 @@
 defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
   @moduledoc """
-  Cancelled bookings whose money the host still holds.
+  Cancelled and expired bookings whose money the host still holds.
 
   Stateless function component rendered by `PaymentsSettingsComponent` at the
   top of the payments screen, and only when there is something to show.
@@ -11,6 +11,13 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
   25-row window drops the older ones off the screen entirely. A cancellation
   never refunds on its own, and when the attendee is the one who cancelled no
   refund is even offered, so without this card the money can sit unnoticed.
+
+  An expired booking here was paid for but never confirmed: its payment
+  arrived after the slot was taken, or it was a paid request that lapsed
+  unapproved. Those refund automatically, so such a row is one whose refund
+  has not gone through (yet). The card explains each kind it lists in its
+  own words, and dates an expired row by its payment, since an expired
+  meeting carries no cancellation date.
 
   Each row offers the same `open_refund_modal` event as the payments table.
   A row only carries that button when both halves of the question say yes:
@@ -47,10 +54,16 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
     ~H"""
     <div :if={@payments != []} id="outstanding-refunds">
       <.detail_card title={dgettext("dashboard_payments", "Refunds outstanding")}>
-        <p class="text-token-sm text-tymeslot-700 mb-4">
+        <p :if={Enum.any?(@payments, &cancelled?/1)} class="text-token-sm text-tymeslot-700 mb-4">
           {dgettext(
             "dashboard_payments",
             "These bookings were cancelled while you still held the attendee's money. Cancelling never refunds on its own."
+          )}
+        </p>
+        <p :if={Enum.any?(@payments, &expired?/1)} class="text-token-sm text-tymeslot-700 mb-4">
+          {dgettext(
+            "dashboard_payments",
+            "Expired bookings were paid for but never confirmed, for example because the payment arrived after the slot was taken. Their refund is issued automatically; if one is still listed later, refund it here."
           )}
         </p>
         <.info_box :if={not connected_for_refunds?(@account)} variant={:warning} class="mb-4">
@@ -71,7 +84,7 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
           <table class="w-full">
             <thead class="text-left text-token-sm text-tymeslot-500 border-b border-tymeslot-100">
               <tr>
-                <th class="p-2">{dgettext("dashboard_payments", "Cancelled")}</th>
+                <th class="p-2">{dgettext("dashboard_payments", "Date")}</th>
                 <th class="p-2">{dgettext("dashboard_payments", "Attendee")}</th>
                 <th class="p-2">{dgettext("dashboard_payments", "Meeting type")}</th>
                 <th class="p-2 text-right">{dgettext("dashboard_payments", "Outstanding")}</th>
@@ -79,8 +92,12 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
               </tr>
             </thead>
             <tbody>
-              <tr :for={p <- @payments} class="border-b border-tymeslot-50">
-                <td class="p-2 text-token-sm">{format_cancelled_at(p.meeting)}</td>
+              <tr
+                :for={p <- @payments}
+                id={"outstanding-refund-#{p.id}"}
+                class="border-b border-tymeslot-50"
+              >
+                <td class="p-2 text-token-sm">{format_date_cell(p)}</td>
                 <td class="p-2 text-token-sm">{p.attendee_email}</td>
                 <td class="p-2 text-token-sm">{p.meeting_type_name}</td>
                 <td class="p-2 text-token-sm text-right font-semibold">
@@ -128,14 +145,30 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
   defp connected_for_refunds?(%{deleted_at: %DateTime{}}), do: false
   defp connected_for_refunds?(_account), do: true
 
-  # A cancelled meeting always carries `cancelled_at`, so the fallback should
-  # not arise; it is tolerated rather than raising, because an empty cell beats
-  # a 500 on the payments screen.
-  defp format_cancelled_at(%{cancelled_at: %DateTime{} = cancelled_at}) do
-    locale = Gettext.get_locale(TymeslotWeb.Gettext)
-    month = LocaleFormat.format_month_name(cancelled_at.month, locale, :short)
-    "#{cancelled_at.day} #{month} #{cancelled_at.year}"
-  end
+  defp cancelled?(payment), do: not expired?(payment)
 
-  defp format_cancelled_at(_meeting), do: ""
+  defp expired?(%{meeting: %{status: "expired"}}), do: true
+  defp expired?(_payment), do: false
+
+  # An expired meeting carries no cancellation date, so its row is dated by
+  # the payment. A cancelled meeting always carries `cancelled_at`, and an
+  # expired payment `paid_at`, so the bare fallbacks should not arise; they
+  # are tolerated rather than raising, because a vaguer cell beats a 500 on
+  # the payments screen.
+  defp format_date_cell(%{meeting: %{status: "expired"}, paid_at: %DateTime{} = paid_at}),
+    do: dgettext("dashboard_payments", "Expired, paid %{date}", date: format_date(paid_at))
+
+  defp format_date_cell(%{meeting: %{status: "expired"}}),
+    do: dgettext("dashboard_payments", "Expired")
+
+  defp format_date_cell(%{meeting: %{cancelled_at: %DateTime{} = cancelled_at}}),
+    do: dgettext("dashboard_payments", "Cancelled %{date}", date: format_date(cancelled_at))
+
+  defp format_date_cell(_payment), do: ""
+
+  defp format_date(%DateTime{} = datetime) do
+    locale = Gettext.get_locale(TymeslotWeb.Gettext)
+    month = LocaleFormat.format_month_name(datetime.month, locale, :short)
+    "#{datetime.day} #{month} #{datetime.year}"
+  end
 end
