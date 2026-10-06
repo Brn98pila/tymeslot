@@ -6,6 +6,7 @@ defmodule Tymeslot.BookingTestHelpers do
   import ExUnit.Assertions
   import Phoenix.ConnTest
   import Phoenix.LiveViewTest
+  import Tymeslot.Factory
 
   alias Tymeslot.TestHelpers.Eventually
   alias Tymeslot.WeekViewTestHelpers
@@ -28,6 +29,52 @@ defmodule Tymeslot.BookingTestHelpers do
   @prev_month "button[phx-click='prev_month']"
   @month_label ".calendar-month-label"
   @next_week "button[phx-click='next_week']"
+
+  @doc """
+  Inserts a booking-ready organiser: profile, an active 30-minute meeting type,
+  full-week availability, and an active calendar integration (so the page is
+  publicly ready). Returns `%{user: user, profile: profile}`.
+  """
+  @spec seed_booking_account(String.t(), String.t(), String.t()) :: %{
+          user: map(),
+          profile: map()
+        }
+  def seed_booking_account(theme_id, username, timezone) do
+    user = insert(:user)
+
+    profile =
+      insert(:profile,
+        user: user,
+        username: username,
+        booking_theme: theme_id,
+        timezone: timezone
+      )
+
+    schedule =
+      insert(:availability_schedule,
+        profile: profile,
+        is_default: true,
+        advance_booking_days: 30,
+        min_advance_hours: 0,
+        buffer_minutes: 0
+      )
+
+    insert(:meeting_type, user: user, duration_minutes: 30, name: "Quick Chat", is_active: true)
+
+    Enum.each(1..7, fn day_of_week ->
+      insert(:weekly_availability,
+        schedule: schedule,
+        day_of_week: day_of_week,
+        is_available: true,
+        start_time: ~T[09:00:00],
+        end_time: ~T[17:00:00]
+      )
+    end)
+
+    insert(:calendar_integration, user: user, is_active: true)
+
+    %{user: user, profile: profile}
+  end
 
   @doc """
   Navigates through the complete booking flow from profile page to booking form.

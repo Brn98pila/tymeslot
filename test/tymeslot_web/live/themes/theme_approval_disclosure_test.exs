@@ -15,6 +15,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeApprovalDisclosureTest do
   import Mox
   import Phoenix.LiveViewTest
   import Tymeslot.Factory
+  import Tymeslot.BookingTestHelpers, only: [seed_booking_account: 3]
   import Tymeslot.ThemeBookingFlowHelpers
 
   @moduletag :themes

@@ -22,6 +22,7 @@ defmodule TymeslotWeb.Live.Scheduling.BookingAccessibilityTest do
   import Mox
   import Phoenix.LiveViewTest
   import Tymeslot.Factory
+  import Tymeslot.BookingTestHelpers, only: [seed_booking_account: 3]
   import Tymeslot.ThemeBookingFlowHelpers
   import TymeslotWeb.AccessibilityAssertions
 

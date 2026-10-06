@@ -14,6 +14,7 @@ defmodule TymeslotWeb.Live.Themes.IgnoredStepEventTest do
 
   import Mox
   import Phoenix.LiveViewTest
+  import Tymeslot.BookingTestHelpers, only: [seed_booking_account: 3]
   import Tymeslot.ThemeBookingFlowHelpers
 
   alias Tymeslot.Test.LogCapture

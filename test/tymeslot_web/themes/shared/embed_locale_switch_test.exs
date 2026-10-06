@@ -20,6 +20,7 @@ defmodule TymeslotWeb.Themes.Shared.EmbedLocaleSwitchTest do
 
   import Mox
   import Phoenix.LiveViewTest
+  import Tymeslot.BookingTestHelpers, only: [seed_booking_account: 3]
   import Tymeslot.ThemeBookingFlowHelpers
 
   alias Ecto.Changeset

@@ -13,8 +13,8 @@ defmodule Tymeslot.WeekViewTestHelpersTest do
   @moduletag :integration
 
   import Mox
-  import Tymeslot.BookingTestHelpers, only: [walk_to_booking_form: 2]
-  import Tymeslot.ThemeBookingFlowHelpers, only: [seed_booking_account: 3, select_first_slot: 1]
+  import Tymeslot.BookingTestHelpers, only: [seed_booking_account: 3, walk_to_booking_form: 2]
+  import Tymeslot.ThemeBookingFlowHelpers, only: [select_first_slot: 1]
 
   alias Ecto.Changeset
   alias Tymeslot.Availability.AvailabilityScheduleSchema

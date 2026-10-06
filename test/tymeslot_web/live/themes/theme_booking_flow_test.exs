@@ -7,6 +7,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeBookingFlowTest do
   import Mox
   import Phoenix.LiveViewTest
   import Tymeslot.Factory
+  import Tymeslot.BookingTestHelpers, only: [seed_booking_account: 3]
   import Tymeslot.ThemeBookingFlowHelpers
 
   alias Tymeslot.Availability.AvailabilityScheduleSchema

@@ -16,6 +16,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeLocaleSwitchBookingTest do
 
   import Mox
   import Phoenix.LiveViewTest
+  import Tymeslot.BookingTestHelpers, only: [seed_booking_account: 3]
   import Tymeslot.ThemeBookingFlowHelpers
 
   alias Tymeslot.Meetings.MeetingSchema
