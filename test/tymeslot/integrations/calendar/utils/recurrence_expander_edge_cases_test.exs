@@ -313,6 +313,82 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderEdgeCasesTest do
     end
   end
 
+  describe "expand/4 for a series whose time falls in a spring-forward gap" do
+    # Europe/Berlin skips 02:00 to 03:00 on 2026-03-29, so a daily 02:30
+    # series has no 02:30 that day. Every occurrence must take its wall clock
+    # from the first start, never from the occurrence before it: otherwise
+    # the gap day's 03:00 carries forward, and the same occurrence starts at
+    # another time depending on whether the range reached back past the gap.
+    # The start is what an occurrence's uid is built from, so a moving start
+    # also churns the stored occurrence and breaks RECURRENCE-ID matching.
+
+    setup do
+      first = DateTime.new!(~D[2026-03-20], ~T[02:30:00], "Europe/Berlin")
+
+      event = %{
+        uid: "gap-daily",
+        summary: "Early sync",
+        start_time: first,
+        end_time: DateTime.add(first, 30, :minute),
+        recurrence_rule: "FREQ=DAILY"
+      }
+
+      %{event: event}
+    end
+
+    defp start_on(occurrences, date),
+      do:
+        Enum.find_value(occurrences, &(DateTime.to_date(&1.start_time) == date && &1.start_time))
+
+    test "an occurrence after the gap starts the same whatever the range", %{event: event} do
+      across_gap =
+        RecurrenceExpander.expand(event, ~U[2026-03-25 00:00:00Z], ~U[2026-04-10 00:00:00Z])
+
+      after_gap =
+        RecurrenceExpander.expand(event, ~U[2026-04-07 00:00:00Z], ~U[2026-04-10 00:00:00Z])
+
+      expected = DateTime.new!(~D[2026-04-08], ~T[02:30:00], "Europe/Berlin")
+      assert start_on(across_gap, ~D[2026-04-08]) == expected
+      assert start_on(after_gap, ~D[2026-04-08]) == expected
+    end
+
+    test "the gap day itself resolves to the same instant in every range", %{event: event} do
+      starts =
+        for range_start <- [
+              ~U[2026-03-20 00:00:00Z],
+              ~U[2026-03-28 12:00:00Z],
+              ~U[2026-03-29 00:00:00Z]
+            ] do
+          event
+          |> RecurrenceExpander.expand(range_start, ~U[2026-03-31 00:00:00Z])
+          |> start_on(~D[2026-03-29])
+        end
+
+      # 02:30 does not exist that day; it resolves forward to 03:00 CEST.
+      gap_start = DateTime.new!(~D[2026-03-29], ~T[03:00:00], "Europe/Berlin")
+      assert starts == [gap_start, gap_start, gap_start]
+    end
+
+    test "a monthly and a yearly series keep their time after a gap month", %{event: event} do
+      first = DateTime.new!(~D[2025-03-29], ~T[02:30:00], "Europe/Berlin")
+
+      for rule <- ["FREQ=MONTHLY", "FREQ=YEARLY"] do
+        series = %{
+          event
+          | start_time: first,
+            end_time: DateTime.add(first, 30, :minute),
+            recurrence_rule: rule
+        }
+
+        occurrences =
+          RecurrenceExpander.expand(series, ~U[2025-01-01 00:00:00Z], ~U[2027-12-31 00:00:00Z])
+
+        assert DateTime.to_time(start_on(occurrences, ~D[2026-03-29])) == ~T[03:00:00]
+        assert DateTime.to_time(start_on(occurrences, ~D[2027-03-29])) == ~T[02:30:00]
+      end
+    end
+  end
+
   describe "expand/4 for a series that started long before the range" do
     # The safety cap bounds the occurrences a range gets, not the steps taken
     # from the series' first start: a standing meeting that has run for years
