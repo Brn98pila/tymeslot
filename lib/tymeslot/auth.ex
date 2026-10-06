@@ -103,6 +103,15 @@ defmodule Tymeslot.Auth do
   defdelegate validate_email(email, metadata \\ %{}), to: Validation
 
   @doc """
+  Validates an email address typed to find an existing account (password
+  reset), for instant feedback: presence and length only, the same rule the
+  lookup applies, so an account whose address predates the format rules is
+  not told its own address is invalid.
+  """
+  @spec validate_lookup_email(term(), map()) :: {:ok, String.t()} | {:error, String.t()}
+  defdelegate validate_lookup_email(email, metadata \\ %{}), to: Validation
+
+  @doc """
   Requests an email change for a user.
   Validates password, creates token, stores pending email, and sends verification emails.
   A failure is `{:error, %{field => message}}`, keyed by the form field each

@@ -170,4 +170,20 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidatorTest do
       assert :ok = EmailValidator.validate("user@uni.ac.jp")
     end
   end
+
+  describe "validate/2 with existing: true" do
+    test "accepts a stored address the format rules would refuse" do
+      assert {:error, _message} = EmailValidator.validate(~s("legacy"@example.com))
+      assert :ok = EmailValidator.validate(~s("legacy"@example.com), existing: true)
+    end
+
+    test "still refuses a missing or overlong address" do
+      assert {:error, "Email is required"} = EmailValidator.validate("", existing: true)
+      assert {:error, "Email is required"} = EmailValidator.validate(nil, existing: true)
+
+      overlong = String.duplicate("a", 250) <> "@example.com"
+      assert {:error, message} = EmailValidator.validate(overlong, existing: true)
+      assert message =~ "maximum length"
+    end
+  end
 end

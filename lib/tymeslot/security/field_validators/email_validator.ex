@@ -6,7 +6,16 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidator do
   providing specific feedback for common email format issues.
 
   The local part must be an RFC 5322 dot-atom and the domain a run of
-  hostname labels; non-ASCII letters are accepted in both (RFC 6531).
+  hostname labels. Both halves also accept any non-ASCII character other
+  than whitespace and control, format or other invisible characters, so
+  internationalised addresses (RFC 6531) pass; this is broader than letters,
+  admitting non-ASCII punctuation and symbols too.
+
+  The format rules apply to an address being entered: at sign-up, on an
+  email change, on a booking or invitation form. An address that is already
+  an account's stored identity may predate the current rules and not meet
+  them, so a sign-in or reset lookup, or a copy of the stored address, passes
+  `existing: true` to check only presence and length.
   """
 
   alias Tymeslot.Security.FieldValidators.TLDList
@@ -14,9 +23,10 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidator do
   @email_max_length 254
   @email_regex ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-  # A character outside ASCII that is neither whitespace nor a control,
-  # format or other invisible character. RFC 6531 admits these in both halves
-  # of an internationalised address (`jürgen@müller.de`).
+  # Any character outside ASCII that is neither whitespace (`\p{Z}`) nor a
+  # control, format, private-use, surrogate or unassigned code point (`\p{C}`).
+  # This admits non-ASCII letters, as RFC 6531 needs for an internationalised
+  # address (`jürgen@müller.de`), and also non-ASCII punctuation and symbols.
   @non_ascii "(?![\\p{Z}\\p{C}])[^\\x00-\\x7F]"
 
   # The local part as an RFC 5322 dot-atom: runs of `atext` joined by single
@@ -44,6 +54,15 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidator do
       
       iex> validate("user@")
       {:error, "Email domain is missing"}
+
+      iex> validate(~s("quoted"@example.com), existing: true)
+      :ok
+
+  ## Options
+
+    * `:max_length` - the longest address accepted (default #{@email_max_length})
+    * `:existing` - `true` for an address that is already a stored identity:
+      only presence and length are checked, never the format
   """
   @spec validate(any(), keyword()) :: :ok | {:error, String.t()}
   def validate(email, opts \\ [])
@@ -54,10 +73,8 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidator do
   def validate(email, opts) when is_binary(email) do
     max_length = Keyword.get(opts, :max_length, @email_max_length)
 
-    with :ok <- validate_length(email, max_length),
-         :ok <- validate_basic_format(email),
-         :ok <- validate_advanced_format(email) do
-      validate_tld(email)
+    with :ok <- validate_length(email, max_length) do
+      if Keyword.get(opts, :existing, false), do: :ok, else: validate_format(email)
     end
   end
 
@@ -66,6 +83,13 @@ defmodule Tymeslot.Security.FieldValidators.EmailValidator do
   end
 
   # Private helper functions
+
+  defp validate_format(email) do
+    with :ok <- validate_basic_format(email),
+         :ok <- validate_advanced_format(email) do
+      validate_tld(email)
+    end
+  end
 
   defp validate_length(email, max_length) do
     if String.length(email) > max_length do

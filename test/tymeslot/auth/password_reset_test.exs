@@ -29,8 +29,16 @@ defmodule Tymeslot.Auth.PasswordResetTest do
       assert {:error, :invalid_input, _message} = PasswordReset.initiate_reset("")
     end
 
-    test "rejects malformed email with an error rather than the anti-enumeration success" do
-      assert {:error, :invalid_input, _message} = PasswordReset.initiate_reset("not-an-email")
+    test "rejects an overlong email with an error rather than the anti-enumeration success" do
+      overlong = String.duplicate("a", 250) <> "@example.com"
+      assert {:error, :invalid_input, _message} = PasswordReset.initiate_reset(overlong)
+    end
+
+    test "answers a malformed address like any other unknown one, and sends nothing" do
+      # The format rules govern new addresses only; a lookup that finds no
+      # account gets the same reply as every other address.
+      assert {:ok, :reset_initiated, _message} = PasswordReset.initiate_reset("not-an-email")
+      assert all_enqueued(worker: EmailWorker) == []
     end
 
     test "password reset returns consistent messages to prevent email enumeration" do
@@ -533,5 +541,20 @@ defmodule Tymeslot.Auth.PasswordResetTest do
     sent_at = DateTime.add(DateTime.utc_now(:second), offset_seconds, :second)
 
     Repo.update_all(from(u in UserSchema, where: u.id == ^user.id), set: [reset_sent_at: sent_at])
+  end
+
+  describe "an account whose stored address predates the email format rules" do
+    test "can request a reset, and the reset email targets that account" do
+      address = ~s("legacy"@example.com)
+      user = insert(:user, email: address, password_hash: Password.hash_password("OldPass123!"))
+
+      assert {:ok, :reset_initiated, _message} = PasswordReset.initiate_reset(address)
+
+      assert [job] =
+               all_enqueued(worker: EmailWorker, args: %{"action" => "send_password_reset"})
+
+      assert job.args["user_id"] == user.id
+      assert Repo.get!(UserSchema, user.id).reset_token_hash == job.args["token_hash"]
+    end
   end
 end

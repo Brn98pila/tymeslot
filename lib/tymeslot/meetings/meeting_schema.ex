@@ -492,7 +492,11 @@ defmodule Tymeslot.Meetings.MeetingSchema do
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> ensure_calendar_uid()
     |> validate_required([:calendar_uid | required_fields])
-    |> EmailChangeset.validate_email(:organizer_email)
+    # Every writer copies `organizer_email` from the host's stored account (or
+    # the operator's configured fallback), never from a form, so it is held
+    # only to presence and length: an account whose address predates the
+    # current format rules must still be able to take bookings.
+    |> EmailChangeset.validate_email(:organizer_email, existing: true)
     |> EmailChangeset.validate_email(:attendee_email)
     |> validate_inclusion(:status, @valid_statuses)
     |> validate_required([:attendee_locale])

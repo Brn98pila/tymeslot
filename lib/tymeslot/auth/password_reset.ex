@@ -32,7 +32,7 @@ defmodule Tymeslot.Auth.PasswordReset do
       the rate limit and its audit entry
 
   ## Returns
-    - `{:ok, :reset_initiated, message}` for every well-formed address within
+    - `{:ok, :reset_initiated, message}` for every address within
       the requester's rate limit, whether it belongs to a password account, an
       account that signs in through a provider, or no account at all, and
       whether or not the address has used up its own allowance. The reply is
@@ -46,7 +46,7 @@ defmodule Tymeslot.Auth.PasswordReset do
           {:ok, :reset_initiated, String.t()}
           | {:error, :invalid_input | :rate_limited, String.t()}
   def initiate_reset(email, opts \\ []) do
-    with {:ok, validated_email} <- validate_email_format(email),
+    with {:ok, validated_email} <- validate_lookup_email(email),
          :ok <- check_reset_rate_limit(validated_email, opts) do
       process_password_reset_secure(validated_email, recipient_allowance(validated_email, opts))
     else
@@ -118,8 +118,8 @@ defmodule Tymeslot.Auth.PasswordReset do
 
   defp handle_password_reset_attempt({:ok, user}, _email), do: notify_no_password(user)
 
-  defp validate_email_format(email) do
-    case Validation.validate_email(email) do
+  defp validate_lookup_email(email) do
+    case Validation.validate_lookup_email(email) do
       {:ok, validated} -> {:ok, validated}
       {:error, msg} -> {:error, :invalid_input, msg}
     end
