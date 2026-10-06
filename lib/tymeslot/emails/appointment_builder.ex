@@ -7,7 +7,7 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
   require Logger
   alias Tymeslot.Bookings.BookingTitle
   alias Tymeslot.Bookings.MeetingLinks
-  alias Tymeslot.CalendarGrid
+  alias Tymeslot.Emails.HostClock
   alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Emails.Shared.BookingRequestLocation
   alias Tymeslot.Emails.Shared.Formatting
@@ -132,9 +132,8 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
   # template. Deliberately namespaced away from the plain `:time_format` key the
   # hero and text bodies read, so an attendee-addressed branch cannot pick it up
   # by accident: only the organiser branches copy it across.
-  defp organizer_time_format(meeting, organizer_locale) do
-    CalendarGrid.get_user_time_format(Map.get(meeting, :organizer_user_id), organizer_locale)
-  end
+  defp organizer_time_format(meeting, organizer_locale),
+    do: HostClock.time_format(meeting, organizer_locale)
 
   # Look up the booking payment row attached to this meeting, if any.
   # Free bookings have no booking_payment row, so this returns nil and the
@@ -153,8 +152,8 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
 
         @default_timezone
 
-      user_id ->
-        Profiles.get_user_timezone(user_id)
+      _user_id ->
+        HostClock.timezone(meeting)
     end
   end
 

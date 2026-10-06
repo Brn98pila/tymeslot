@@ -21,13 +21,26 @@ defmodule Tymeslot.Emails.HostClock do
   decides the clock when the host never chose one.
   """
   @spec for_meeting(map(), String.t()) :: t()
-  def for_meeting(%{organizer_user_id: nil}, _locale),
-    do: %{timezone: Profiles.get_default_timezone(), time_format: nil}
+  def for_meeting(meeting, locale),
+    do: %{timezone: timezone(meeting), time_format: time_format(meeting, locale)}
 
-  def for_meeting(%{organizer_user_id: user_id}, locale) do
-    %{
-      timezone: Profiles.get_user_timezone(user_id),
-      time_format: CalendarGrid.get_user_time_format(user_id, locale)
-    }
-  end
+  @doc """
+  The organiser's timezone alone, for a sender that needs no clock format.
+  """
+  @spec timezone(map()) :: String.t()
+  def timezone(%{organizer_user_id: nil}), do: Profiles.get_default_timezone()
+  def timezone(%{organizer_user_id: user_id}), do: Profiles.get_user_timezone(user_id)
+  def timezone(_meeting), do: Profiles.get_default_timezone()
+
+  @doc """
+  The organiser's 12- or 24-hour choice alone, or nil (the locale's own
+  clock) for an organiser-less meeting.
+  """
+  @spec time_format(map(), String.t()) :: String.t() | nil
+  def time_format(%{organizer_user_id: nil}, _locale), do: nil
+
+  def time_format(%{organizer_user_id: user_id}, locale),
+    do: CalendarGrid.get_user_time_format(user_id, locale)
+
+  def time_format(_meeting, _locale), do: nil
 end

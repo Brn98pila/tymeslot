@@ -57,7 +57,7 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
       }
 
       # The host's own clock, as their other booking emails use.
-      time_format = HostClock.for_meeting(meeting, locale).time_format
+      time_format = HostClock.time_format(meeting, locale)
       html_body = render_html(meeting, {owner_time, time_format}, discrepancy, locale)
       text_body = render_text(meeting, {owner_time, time_format}, discrepancy, locale)
 

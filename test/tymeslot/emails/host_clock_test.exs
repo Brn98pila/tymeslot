@@ -14,10 +14,12 @@ defmodule Tymeslot.Emails.HostClockTest do
   alias Tymeslot.CalendarGrid
   alias Tymeslot.Emails.HostClock
   alias Tymeslot.Emails.Templates.BookingApprovalRequest
+  alias Tymeslot.Emails.Templates.CalendarSyncError
   alias Tymeslot.Emails.Templates.ExternalBookingChange
   alias Tymeslot.Emails.Templates.RescheduleRequestExpired
   alias Tymeslot.Emails.Templates.SeatUpdateForOrganizer
   alias Tymeslot.Meetings.MeetingSchema
+  alias Tymeslot.Profiles
 
   @urls %{
     review_url: "https://example.com/meeting-request/tok",
@@ -98,6 +100,22 @@ defmodule Tymeslot.Emails.HostClockTest do
       )
 
     assert_24_hour(email, "14:30")
+  end
+
+  test "the calendar sync failure notice uses the host's clock", %{host: host} do
+    {html, text} =
+      Gettext.with_locale(TymeslotWeb.Gettext, "en", fn ->
+        CalendarSyncError.render_both(meeting(host, %{status: "confirmed"}), :timeout)
+      end)
+
+    assert_24_hour(%{html_body: html, text_body: text}, "14:30")
+  end
+
+  test "an organiser-less meeting reads in the default zone on the locale's own clock" do
+    meeting = %{organizer_user_id: nil}
+
+    assert HostClock.timezone(meeting) == Profiles.get_default_timezone()
+    assert HostClock.time_format(meeting, "en") == nil
   end
 
   test "the seat-moved notice uses the host's clock" do
