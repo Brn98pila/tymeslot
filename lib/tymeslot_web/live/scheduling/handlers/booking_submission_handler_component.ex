@@ -187,10 +187,18 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
       |> BookingGuards.release_submission()
       |> Flash.put_flash(:error, BookingErrorMessage.message(reason))
 
-    Logger.error("Failed to create meeting appointment", reason: LogFormat.reason(reason))
+    log_booking_error(reason)
 
     {:error, socket}
   end
+
+  # A refusal because the organiser's calendars could not all be read is the
+  # check working as meant; `CalendarCheck` has already logged its cause.
+  defp log_booking_error(:availability_unverifiable),
+    do: Logger.info("Booking refused: the organiser's availability could not be verified")
+
+  defp log_booking_error(reason),
+    do: Logger.error("Failed to create meeting appointment", reason: LogFormat.reason(reason))
 
   # Private functions
 

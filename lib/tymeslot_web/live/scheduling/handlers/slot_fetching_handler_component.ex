@@ -105,10 +105,11 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.SlotFetchingHandlerComponent do
           |> assign(:slot_interval_minutes, AvailabilityHelpers.slot_interval_minutes(socket))
           |> assign(:duration_minutes, duration_to_fetch)
           |> assign(:loading_slots, false)
-          # Deliberately says nothing about *why*. This is the most
-          # conversion-critical screen in the product, and a booker who has
-          # never heard of a calendar provider can act on "try again" but
-          # not on a parser. The reason is in the log line above, where the
+          # Names no provider or parser: this is the most conversion-critical
+          # screen in the product, and a booker can act on "try again" but
+          # not on a parser. Only an organiser calendar that could not be
+          # read is said to be that, so the booker knows retrying may not
+          # help; the reason itself is in the log line above, where the
           # person who can act on it will look.
           |> assign(:calendar_error, slot_fetch_error_message(reason))
 

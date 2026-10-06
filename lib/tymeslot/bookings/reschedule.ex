@@ -101,8 +101,10 @@ defmodule Tymeslot.Bookings.Reschedule do
   `:meeting_not_found` when the lookup fails, `:slot_taken` when a concurrent
   booking claims the new time first, when the requested time is one the
   organiser's schedule never offers, or when their connected calendar has
-  since been blocked over it, or `:failed_to_update_meeting` when
-  persisting the new time fails for any other reason) or an arbitrary
+  since been blocked over it, `:availability_unverifiable` when their
+  connected calendars could not all be read to check the new time, or
+  `:failed_to_update_meeting` when persisting the new time fails for any
+  other reason) or an arbitrary
   policy/validation string from `Tymeslot.Bookings.Policy` or
   `Tymeslot.Bookings.Validation`.
   """
