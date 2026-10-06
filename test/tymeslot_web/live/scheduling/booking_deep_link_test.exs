@@ -149,7 +149,8 @@ defmodule TymeslotWeb.Live.Scheduling.BookingDeepLinkTest do
         "/#{profile.username}/deep-dive/book?reschedule_meeting_uid=does-not-exist"
       )
 
-    assert :sys.get_state(view.pid).socket.assigns.current_state in [:booking, :questions]
+    # The meeting type has no questions, so the link opens the booking form.
+    assert has_element?(view, "[data-testid='booking-form']")
   end
 
   describe "query parameters of an unexpected shape" do

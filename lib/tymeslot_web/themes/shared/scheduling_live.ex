@@ -49,7 +49,8 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
   tuples, maps and module names), checked while the theme compiles
   (`Journey.build!/2`): a fact asked before one it needs, a component that is
   not a LiveComponent or an unknown default fails the build, naming the
-  problem. The macro generates `__journey__/0`, the theme's `%Journey{}`, and
+  problem (`defaults:` are checked now and applied once the runtime opens
+  moments). The macro generates `__journey__/0`, the theme's `%Journey{}`, and
   assigns it as `:journey` on mount and on every `handle_params/3`.
 
   The aliases must come before `use`: the options are expanded where `use` is
@@ -75,6 +76,10 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
 
   @steps [:overview, :schedule, :questions, :booking, :confirmation]
 
+  # The generated code names every module in full rather than through an
+  # alias, which would also apply to the theme's own code (see `__using__/1`).
+  # credo:disable-for-this-file Credo.Check.Design.AliasUsage
+
   defmacro __using__(opts) do
     opts = Keyword.validate!(opts, [:wrapper, :steps, :journey])
     wrapper = Keyword.fetch!(opts, :wrapper)
@@ -83,38 +88,45 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
     quote do
       use TymeslotWeb, :live_view
 
-      alias TymeslotWeb.Live.Scheduling.WeekSlots
-      alias TymeslotWeb.Themes.Shared.{EventHandlers, InfoHandlers, PathHandlers}
-      alias TymeslotWeb.Themes.Shared.Journey
-      alias TymeslotWeb.Themes.Shared.Journey.Runtime
-      alias TymeslotWeb.Themes.Shared.LiveHelpers.{Mount, Tracking}
-      alias TymeslotWeb.Themes.Shared.{SchedulingPage, StepEvents}
-
-      # The theme's journey, built from the literal `use` was given, which
-      # was checked when the theme compiled.
+      # Module names are written in full here, never through an alias of
+      # this code's own, which would also apply to the theme's code around
+      # it. The theme's journey, built from the literal `use` was given with
+      # its aliases already resolved, as it was checked when the theme
+      # compiled.
       @doc false
-      @spec __journey__() :: Journey.t()
-      def __journey__, do: Journey.new(unquote(journey))
+      @spec __journey__() :: TymeslotWeb.Themes.Shared.Journey.t()
+      def __journey__, do: TymeslotWeb.Themes.Shared.Journey.new(unquote(journey))
 
       @impl Phoenix.LiveView
       def mount(params, _session, socket) do
         socket =
           socket
           |> assign(:journey, __journey__())
-          |> Mount.mount_scheduling_view(params)
-          |> Tracking.assign_tracking(params)
+          |> TymeslotWeb.Themes.Shared.LiveHelpers.Mount.mount_scheduling_view(params)
+          |> TymeslotWeb.Themes.Shared.LiveHelpers.Tracking.assign_tracking(params)
 
         {:ok, socket}
       end
 
       @impl Phoenix.LiveView
-      def render(assigns), do: SchedulingPage.render(assigns, unquote(wrapper), __journey__())
+      # From `__journey__/0`, not `assigns.journey`: an error page renders
+      # before mount has assigned it.
+      def render(assigns),
+        do:
+          TymeslotWeb.Themes.Shared.SchedulingPage.render(
+            assigns,
+            unquote(wrapper),
+            __journey__()
+          )
 
       # Assigned again: the dispatcher may hand the page to another theme on
       # a patch (`?theme=`), and the journey is the rendering theme's.
       @impl Phoenix.LiveView
       def handle_params(params, _url, socket),
-        do: socket |> assign(:journey, __journey__()) |> Mount.handle_scheduling_params(params)
+        do:
+          socket
+          |> assign(:journey, __journey__())
+          |> TymeslotWeb.Themes.Shared.LiveHelpers.Mount.handle_scheduling_params(params)
 
       # A theme's own event (`theme:<name>`, relayed untouched by the step
       # relays) goes to the theme's hook without its prefix, from any step;
@@ -124,9 +136,14 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
         do: handle_theme_event(name, params, socket)
 
       def handle_info({:step_event, step, event, data}, socket) do
-        case Runtime.handle_step_event(socket, step, event, data) do
+        case TymeslotWeb.Themes.Shared.Journey.Runtime.handle_step_event(
+               socket,
+               step,
+               event,
+               data
+             ) do
           :unhandled ->
-            StepEvents.log_ignored(socket.assigns, step, event)
+            TymeslotWeb.Themes.Shared.StepEvents.log_ignored(socket.assigns, step, event)
             {:noreply, socket}
 
           reply ->
@@ -139,8 +156,8 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       # a function's clauses wholesale, so one theme-specific clause would
       # silently drop slot loading, calendar refresh and payment handling.
       def handle_info(message, socket) do
-        case InfoHandlers.route(message, socket) do
-          :unhandled -> InfoHandlers.handle_unexpected(socket, message)
+        case TymeslotWeb.Themes.Shared.InfoHandlers.route(message, socket) do
+          :unhandled -> TymeslotWeb.Themes.Shared.InfoHandlers.handle_unexpected(socket, message)
           reply -> reply
         end
       end
@@ -149,7 +166,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       # week view's week of slots is the only one.
       @impl Phoenix.LiveView
       def handle_async(name, result, socket) do
-        case WeekSlots.handle_async(name, result, socket) do
+        case TymeslotWeb.Live.Scheduling.WeekSlots.handle_async(name, result, socket) do
           :unhandled -> {:noreply, socket}
           reply -> reply
         end
@@ -157,19 +174,24 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
 
       @impl Phoenix.LiveView
       def handle_event("toggle_language_dropdown", _params, socket),
-        do: EventHandlers.handle_toggle_language_dropdown(socket)
+        do: TymeslotWeb.Themes.Shared.EventHandlers.handle_toggle_language_dropdown(socket)
 
       def handle_event("close_language_dropdown", _params, socket),
-        do: EventHandlers.handle_close_language_dropdown(socket)
+        do: TymeslotWeb.Themes.Shared.EventHandlers.handle_close_language_dropdown(socket)
 
       def handle_event("change_locale", %{"locale" => locale}, socket),
-        do: EventHandlers.handle_change_locale(socket, locale, PathHandlers)
+        do:
+          TymeslotWeb.Themes.Shared.EventHandlers.handle_change_locale(
+            socket,
+            locale,
+            TymeslotWeb.Themes.Shared.PathHandlers
+          )
 
       # Step navigation belongs to the flow, not to a theme: a clause of
       # `handle_theme_event/3` would be replaced wholesale by a theme's own
       # override of that hook.
       def handle_event("navigate_to_step", params, socket),
-        do: Runtime.navigate_to_step(socket, params)
+        do: TymeslotWeb.Themes.Shared.Journey.Runtime.navigate_to_step(socket, params)
 
       def handle_event("theme:" <> name, params, socket),
         do: handle_theme_event(name, params, socket)
@@ -179,7 +201,12 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
       # Extension point. Override with multi-clause defps ending in a
       # catch-all clause that calls super/3, so an unknown name is logged.
       defp handle_theme_event(event, _params, socket) do
-        StepEvents.log_ignored(socket.assigns, socket.assigns[:current_state], event)
+        TymeslotWeb.Themes.Shared.StepEvents.log_ignored(
+          socket.assigns,
+          socket.assigns[:current_state],
+          event
+        )
+
         {:noreply, socket}
       end
 
@@ -188,19 +215,19 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
   end
 
   # The journey's literal for `__journey__/0`, after checking it: `steps:`
-  # (today's five steps) becomes `Journey.classic/1` of its map. `Journey`
-  # in the returned code is the alias the generated code adds to the theme.
+  # (today's five steps) becomes `Journey.classic/1` of its map. Its aliases
+  # are resolved here, where they were checked (`qualify/2`).
   defp journey!(opts, caller) do
     case {Keyword.fetch(opts, :steps), Keyword.fetch(opts, :journey)} do
       {{:ok, steps}, :error} ->
         validate_steps!(steps)
         validate_step_components!(steps, caller)
         journey_module().build!(journey_module().classic(literal!(steps, caller)), caller)
-        quote do: Journey.classic(unquote(steps))
+        quote do: TymeslotWeb.Themes.Shared.Journey.classic(unquote(qualify(steps, caller)))
 
       {:error, {:ok, journey}} ->
         journey_module().build!(literal!(journey, caller), caller)
-        journey
+        qualify(journey, caller)
 
       {{:ok, _steps}, {:ok, _journey}} ->
         raise ArgumentError,
@@ -242,6 +269,30 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLive do
     raise ArgumentError,
           "use SchedulingLive expects its journey as literal data (atoms, lists, tuples, " <>
             "maps and module names), got: " <> Macro.to_string(other)
+  end
+
+  # The literal with each alias replaced by the module it names in the
+  # theme, written in full and marked so no alias applies to it again: the
+  # generated code adds aliases of its own (`use TymeslotWeb, :live_view`),
+  # which must not change what the theme's journey names. A module name
+  # stays a runtime reference, as an alias is.
+  defp qualify(literal, caller) do
+    Macro.prewalk(literal, fn
+      {:__aliases__, meta, _parts} = alias_ast ->
+        alias_ast |> literal!(caller) |> full_alias(meta)
+
+      other ->
+        other
+    end)
+  end
+
+  # `alias: false` is how `quote` marks a name no alias may change; one
+  # segment holding the whole module expands to that module.
+  defp full_alias(module, meta) do
+    case Atom.to_string(module) do
+      "Elixir." <> _name -> {:__aliases__, Keyword.put(meta, :alias, false), [module]}
+      _erlang -> module
+    end
   end
 
   defp validate_steps!({:%{}, _meta, pairs}) do

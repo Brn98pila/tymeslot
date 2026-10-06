@@ -69,6 +69,55 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest do
       ]
   end
 
+  # A theme's own module named `Journey`, holding one of its components.
+  defmodule Own.Journey.OverviewComponent do
+    @moduledoc false
+    use Phoenix.LiveComponent
+
+    @impl Phoenix.LiveComponent
+    def render(assigns), do: ~H"<div></div>"
+  end
+
+  # Named like an alias `use TymeslotWeb, :live_view` adds to every LiveView.
+  defmodule Own.Flash.ScheduleComponent do
+    @moduledoc false
+    use Phoenix.LiveComponent
+
+    @impl Phoenix.LiveComponent
+    def render(assigns), do: ~H"<div></div>"
+  end
+
+  # A theme whose own aliases `Journey` and `Flash` are not the ones the
+  # generated code knows: its journey must mean the same modules when
+  # checked and when built at run time.
+  defmodule OwnJourneyLive do
+    @moduledoc false
+
+    alias TymeslotWeb.Themes.Quill.Scheduling.Components.{
+      BookingComponent,
+      ConfirmationComponent,
+      CustomQuestionsComponent
+    }
+
+    alias TymeslotWeb.Themes.Quill.Scheduling.Wrapper
+    alias TymeslotWeb.Themes.Shared.Journey.Navigators.Paged
+    alias TymeslotWeb.Themes.Shared.SchedulingLiveTest.Own.Flash
+    alias TymeslotWeb.Themes.Shared.SchedulingLiveTest.Own.Journey
+
+    use TymeslotWeb.Themes.Shared.SchedulingLive,
+      wrapper: &Wrapper.quill_wrapper/1,
+      journey: [
+        navigator: Paged,
+        moments: [
+          {:overview, collects: [:meeting_type], component: Journey.OverviewComponent},
+          {:schedule, collects: [:slot], component: Flash.ScheduleComponent},
+          {:questions, collects: [:answers], component: CustomQuestionsComponent},
+          {:booking, collects: [:attendee], component: BookingComponent}
+        ],
+        outcomes: %{confirmation: ConfirmationComponent}
+      ]
+  end
+
   defp socket(assigns) do
     %Socket{
       assigns:
@@ -291,6 +340,16 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingLiveTest do
 
     test "takes a journey written out, the classic one included" do
       assert JourneyLive.__journey__() == OverridingLive.__journey__()
+    end
+
+    test "builds a journey with the theme's own aliases, as it was checked" do
+      journey = OwnJourneyLive.__journey__()
+
+      assert Journey.moment(journey, :overview).component ==
+               TymeslotWeb.Themes.Shared.SchedulingLiveTest.Own.Journey.OverviewComponent
+
+      assert Journey.moment(journey, :schedule).component ==
+               TymeslotWeb.Themes.Shared.SchedulingLiveTest.Own.Flash.ScheduleComponent
     end
 
     test "refuses both steps: and journey:" do

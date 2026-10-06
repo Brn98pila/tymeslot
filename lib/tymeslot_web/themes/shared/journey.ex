@@ -6,7 +6,8 @@ defmodule TymeslotWeb.Themes.Shared.Journey do
 
   A moment (`Journey.Moment`) is a LiveComponent the theme writes, collecting
   zero or more facts, and may settle a fact it collects without asking
-  (`defaults:`). Outcomes are where a submit ends, not moments: the
+  (`defaults:`, checked now and applied once the runtime opens moments).
+  Outcomes are where a submit ends, not moments: the
   confirmation, and the wait for an embedded payment, `:shared` meaning
   `Shared.Components.AwaitingPayment`.
 
