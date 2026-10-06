@@ -152,7 +152,8 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
 
   Supported properties: FREQ, INTERVAL, UNTIL, COUNT, BYDAY (with ordinals),
   BYMONTHDAY, BYMONTH, BYSETPOS and WKST. The names of any other parts are
-  listed under `:unsupported`. Returns `{:ok, map()}` or `:error`.
+  listed under `:unsupported`. Returns `{:ok, map()}`, or `:error` for a rule
+  without a known FREQ or with an INTERVAL below 1.
   """
   @spec parse_rrule(String.t() | nil) :: {:ok, map()} | :error
   def parse_rrule(nil), do: :error
@@ -172,23 +173,25 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
         end
       end)
 
-    case parse_freq(parts["FREQ"]) do
-      {:ok, freq} ->
-        {:ok,
-         Map.merge(
-           %{
-             freq: freq,
-             interval: parse_int(parts["INTERVAL"], 1),
-             until: parse_until(parts["UNTIL"]),
-             count: parse_int(parts["COUNT"], nil),
-             unsupported:
-               parts |> Map.keys() |> Enum.reject(&(&1 in @supported_parts)) |> Enum.sort()
-           },
-           parse_by_parts(parts)
-         )}
-
-      :error ->
-        :error
+    # RFC 5545 requires a positive INTERVAL. A rule that never moves forward
+    # (`INTERVAL=0`) or moves backwards is unreadable like any other invalid
+    # rule, so its event is shown once, as it is.
+    with {:ok, freq} <- parse_freq(parts["FREQ"]),
+         interval when interval > 0 <- parse_int(parts["INTERVAL"], 1) do
+      {:ok,
+       Map.merge(
+         %{
+           freq: freq,
+           interval: interval,
+           until: parse_until(parts["UNTIL"]),
+           count: parse_int(parts["COUNT"], nil),
+           unsupported:
+             parts |> Map.keys() |> Enum.reject(&(&1 in @supported_parts)) |> Enum.sort()
+         },
+         parse_by_parts(parts)
+       )}
+    else
+      _invalid -> :error
     end
   end
 
@@ -336,8 +339,6 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
         :uncapped -> {0, nil}
       end
 
-    # A rule that never moves forward (`INTERVAL=0`) has one period.
-    max_periods = if rule.interval < 1, do: 1, else: max_periods
     last_date = last_period_date(rule, range_end_dt)
 
     skip
@@ -379,8 +380,7 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
   # since. Only a series without `COUNT` can skip ahead: `COUNT` is spent on
   # the periods skipped. The skip stops a full period short of the range, so
   # an occurrence that the range's zone puts on another day is not passed.
-  defp periods_to_skip(first_period, %{count: nil, interval: interval} = rule, range_start_dt)
-       when interval > 0 do
+  defp periods_to_skip(first_period, %{count: nil, interval: interval} = rule, range_start_dt) do
     max(
       div(periods_between(first_period, DateTime.to_date(range_start_dt), rule), interval) - 1,
       0

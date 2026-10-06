@@ -387,15 +387,33 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderEdgeCasesTest do
       assert hd(dates(occurrences)) == ~D[2026-01-01]
     end
 
-    test "a rule that never moves forward stops instead of running away" do
-      # INTERVAL=0 steps on the same instant for ever; the step budget is the
-      # only thing that ends it.
-      occurrences =
-        "FREQ=DAILY;INTERVAL=0"
-        |> old_series(~D[2023-10-02])
-        |> RecurrenceExpander.expand(@week_start, @week_end)
+    test "a rule that never moves forward is unreadable, so its event shows once" do
+      # INTERVAL=0 (or below) would step on the same period for ever. RFC 5545
+      # requires a positive INTERVAL, so the rule is refused like any other
+      # invalid rule and the event is returned as it is.
+      for rule <- ["FREQ=DAILY;INTERVAL=0", "FREQ=WEEKLY;INTERVAL=-1;BYDAY=MO,WE"] do
+        event = old_series(rule, ~D[2023-10-02])
 
-      assert occurrences == []
+        assert RecurrenceExpander.parse_rrule(rule) == :error
+        assert RecurrenceExpander.expand(event, @week_start, @week_end) == [event]
+        assert RecurrenceExpander.count_before(rule, event.start_time, @week_start) == 1
+      end
+    end
+
+    test "a feed full of rules that never move forward expands quickly" do
+      # Each such rule once spent the whole step budget (about a quarter of a
+      # second) before giving up, so a hostile feed stalled availability.
+      events =
+        for n <- 1..200,
+            do: old_series("FREQ=DAILY;INTERVAL=0;COUNT=#{n + 1_000_000}", ~D[1900-01-01])
+
+      {micros, expanded} =
+        :timer.tc(fn ->
+          Enum.flat_map(events, &RecurrenceExpander.expand(&1, @week_start, @week_end))
+        end)
+
+      assert micros < 1_000_000
+      assert expanded == events
     end
 
     test "the live busy-time check sees this week's occurrence of a years-old series" do
