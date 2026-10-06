@@ -179,6 +179,9 @@ defmodule Tymeslot.Meetings.VideoRoomsTransactionTest do
       assert {:ok, _returned} = VideoRooms.add_video_room_to_meeting(meeting.id)
 
       refute_enqueued(worker: Tymeslot.Workers.VideoSyncWorker)
+      # Releasing a room placed on the booking's calendar event goes through
+      # the calendar job, which deletes that event.
+      refute_enqueued(worker: Tymeslot.Workers.CalendarEventWorker)
     end
 
     # The owner was told to reconnect; until they do every call would be

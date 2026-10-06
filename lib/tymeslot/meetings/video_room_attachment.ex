@@ -83,14 +83,7 @@ defmodule Tymeslot.Meetings.VideoRoomAttachment do
         {:error, :calendar_event_pending}
 
       {:ok, {:already_attached, existing_meeting}} ->
-        Logger.info(
-          "Video room already attached by a concurrent writer; releasing this one",
-          meeting_id: existing_meeting.id
-        )
-
-        if releasable_duplicate?(video_room_attrs, existing_meeting, meeting),
-          do: release_unattached_room(meeting, video_room_attrs)
-
+        release_duplicate(meeting, existing_meeting, video_room_attrs)
         {:ok, existing_meeting}
 
       {:error, reason} = error ->
@@ -116,6 +109,21 @@ defmodule Tymeslot.Meetings.VideoRoomAttachment do
   # very room that won (a provider that hands back the same room twice) or
   # the booking's own calendar event: a Teams meeting placed on that event is
   # the event, and releasing it would replace the booking's calendar entry.
+  defp release_duplicate(meeting, existing_meeting, video_room_attrs) do
+    if releasable_duplicate?(video_room_attrs, existing_meeting, meeting) do
+      Logger.info("Video room already attached by a concurrent writer; releasing this one",
+        meeting_id: existing_meeting.id
+      )
+
+      release_unattached_room(meeting, video_room_attrs)
+    else
+      # This room is the attached one, or the booking's own calendar event.
+      Logger.info("Video room already attached by a concurrent writer; nothing to release",
+        meeting_id: existing_meeting.id
+      )
+    end
+  end
+
   defp releasable_duplicate?(%{video_room_id: room_id}, existing_meeting, meeting)
        when is_binary(room_id) do
     room_id not in [
