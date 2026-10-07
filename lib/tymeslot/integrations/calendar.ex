@@ -196,21 +196,7 @@ defmodule Tymeslot.Integrations.Calendar do
   @spec toggle_calendar_selection(integration(), String.t() | integer()) ::
           {:ok, integration()} | {:error, any()}
   def toggle_calendar_selection(integration, calendar_id) do
-    current_selection =
-      Enum.reduce(integration.calendar_list || [], [], fn cal, acc ->
-        is_now_selected =
-          if to_string(cal.id) == to_string(calendar_id), do: !cal.selected, else: cal.selected
-
-        if is_now_selected, do: [to_string(cal.id) | acc], else: acc
-      end)
-
-    update_calendar_selection(integration, %{"selected_calendars" => current_selection})
-  end
-
-  @spec update_calendar_selection(integration(), %{String.t() => term()}) ::
-          {:ok, integration()} | {:error, any()}
-  defp update_calendar_selection(integration, params) do
-    Selection.update_calendar_selection(integration, params)
+    Selection.toggle_calendar(integration, calendar_id)
   end
 
   @doc """

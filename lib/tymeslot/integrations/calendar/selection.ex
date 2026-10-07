@@ -123,6 +123,33 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   end
 
   @doc """
+  Flips one calendar's selection, leaving every other calendar as the row
+  stands. Read and written under the row lock: a selection rebuilt from the
+  caller's copy would re-select a calendar a discovery refresh has since
+  dropped, or revert a choice made in another tab meanwhile.
+  """
+  @spec toggle_calendar(
+          Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t(),
+          String.t() | integer()
+        ) :: {:ok, Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t()} | {:error, any()}
+  def toggle_calendar(integration, calendar_id) do
+    calendar_id = to_string(calendar_id)
+
+    CalendarSelectionQueries.with_locked(integration.id, fn fresh ->
+      calendar_list =
+        Enum.map(fresh.calendar_list || [], fn cal ->
+          entry = cal |> CalendarEntry.normalize() |> CalendarEntry.with_defaults()
+
+          if UriUtils.uri_safe_match?(to_string(entry.id), calendar_id),
+            do: %{entry | selected: !entry.selected},
+            else: entry
+        end)
+
+      persist_calendar_list(fresh, calendar_list)
+    end)
+  end
+
+  @doc """
   Merges freshly `discovered` calendars into the integration's selection and
   persists the result, returning the updated integration and the merged list.
 
