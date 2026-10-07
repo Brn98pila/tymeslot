@@ -118,7 +118,7 @@ defmodule TymeslotWeb.Themes.MarkupContractTest do
     BookingDriver.choose_meeting_type(view, ctx.booked)
   end
 
-  defp check_and_do(view, :slot, _ctx, _assigns) do
+  defp check_and_do(view, :slot, _ctx, before) do
     BookingDriver.load(view)
     days = attribute(view, "[data-fact='date']", "data-value")
     slots = slot_pairs(view)
@@ -144,12 +144,15 @@ defmodule TymeslotWeb.Themes.MarkupContractTest do
     assert {assigns.selected_date, assigns.selected_time} == {day, time},
            "the time picked is not the day and time its marked control named"
 
-    # A picker still on show marks the time picked among its choices (a time
-    # button belongs to the day picked; a slot button names its own). A page
-    # that answers the moment in its place (a transcript) shows no picker.
+    # The picker marks the time picked among its choices (a time button
+    # belongs to the day picked; a slot button names its own) while it is on
+    # show, and always while its moment is still the one being answered. A
+    # page that answers the moment in its place once the time is picked (a
+    # transcript, moving on by itself) may show no picker.
     marked = Enum.map(times, &{day, &1}) ++ slot_pairs(view)
+    must_mark = marked != [] or assigns.current_state == before.current_state
 
-    assert {day, time} in marked == (marked != []),
+    assert {day, time} in marked == must_mark,
            "the time picked is marked neither as a time nor as a slot"
   end
 
