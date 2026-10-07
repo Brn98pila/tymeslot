@@ -77,8 +77,15 @@ defmodule Tymeslot.Integrations.Calendar.Google.OAuthHelper do
   @spec handle_callback(String.t(), String.t(), State.validated()) ::
           {:ok, CalendarIntegrationSchema.t()}
           | {:error, Tymeslot.Integrations.Calendar.Auth.OAuthHelperBehaviour.callback_error()}
-  def handle_callback(code, redirect_uri, %{user_id: user_id, integration_id: integration_id}) do
-    with {:ok, tokens} <- GoogleOAuthHelper.exchange_code_for_tokens(code, redirect_uri),
+  def handle_callback(
+        code,
+        redirect_uri,
+        %{user_id: user_id, integration_id: integration_id} = flow
+      ) do
+    with {:ok, tokens} <-
+           GoogleOAuthHelper.exchange_code_for_tokens(code, redirect_uri,
+             code_verifier: flow[:code_verifier]
+           ),
          :ok <- ensure_calendar_write_scope(tokens, user_id),
          {:ok, integration} <-
            CallbackPersistence.upsert("google", user_id, integration_id, tokens) do
@@ -124,9 +131,10 @@ defmodule Tymeslot.Integrations.Calendar.Google.OAuthHelper do
   Exchanges authorization code for access and refresh tokens.
   """
   @impl Tymeslot.Integrations.Calendar.Auth.OAuthHelperBehaviour
-  @spec exchange_code_for_tokens(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
-  def exchange_code_for_tokens(code, redirect_uri) do
-    GoogleOAuthHelper.exchange_code_for_tokens(code, redirect_uri)
+  @spec exchange_code_for_tokens(String.t(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def exchange_code_for_tokens(code, redirect_uri, opts \\ []) do
+    GoogleOAuthHelper.exchange_code_for_tokens(code, redirect_uri, opts)
   end
 
   @doc """

@@ -10,6 +10,7 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Common.OAuth.{IdToken, State}
   alias Tymeslot.Integrations.Shared.GoogleConfig
+  alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.Integrations.Shared.OAuth.ProviderHelpers
   alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
 
@@ -38,7 +39,12 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
     integration_id = Keyword.get(options, :integration_id)
     login_hint = Keyword.get(options, :login_hint)
     return_to = Keyword.get(options, :return_to)
-    state = generate_state(user_id, integration_id, return_to: return_to)
+
+    state =
+      generate_state(user_id, integration_id,
+        return_to: return_to,
+        nonce: PendingFlow.nonce(options)
+      )
 
     # Always include openid and email for account identification
     all_scopes = Enum.uniq([:openid, :email | scopes])
@@ -64,6 +70,7 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
       options
       |> Keyword.take(@forwarded_options)
       |> Enum.into(base_params)
+      |> Map.merge(PendingFlow.challenge_params(options))
 
     ProviderHelpers.build_authorization_url(
       GoogleConfig.authorize_url(),
@@ -76,21 +83,24 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
   Exchanges an authorisation code for tokens, with the Google account the id
   token names (`provider_account_id`, `provider_account_email`).
 
-  The callback's `state` is verified by the caller before the code is spent.
+  The callback's `state` is verified by the caller before the code is spent;
+  `opts` carries its flow's `:code_verifier`.
 
   Returns {:ok, tokens} or {:error, reason}
   """
-  @spec exchange_code_for_tokens(String.t(), String.t()) :: {:ok, map()} | {:error, String.t()}
-  def exchange_code_for_tokens(code, redirect_uri) do
+  @spec exchange_code_for_tokens(String.t(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, String.t()}
+  def exchange_code_for_tokens(code, redirect_uri, opts \\ []) do
     with {:ok, client_id} <- GoogleConfig.fetch_client_id(),
          {:ok, client_secret} <- GoogleConfig.fetch_client_secret() do
-      body = %{
-        code: code,
-        client_id: client_id,
-        client_secret: client_secret,
-        redirect_uri: redirect_uri,
-        grant_type: "authorization_code"
-      }
+      body =
+        PendingFlow.verifier_param(opts, %{
+          code: code,
+          client_id: client_id,
+          client_secret: client_secret,
+          redirect_uri: redirect_uri,
+          grant_type: "authorization_code"
+        })
 
       # No second log line on failure: `TokenEndpoint` already logs the status
       # and the redacted body, and names the provider too.

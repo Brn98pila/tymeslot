@@ -176,6 +176,34 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
     end
   end
 
+  describe "PKCE" do
+    @pkce [pkce: %{nonce: "flow-nonce", code_challenge: "flow-challenge"}]
+
+    test "the authorisation URL carries the flow's challenge, and its state the nonce" do
+      query =
+        ZoomOAuthHelper.authorization_url(123, "http://cb", @pkce)
+        |> URI.parse()
+        |> Map.fetch!(:query)
+        |> URI.decode_query()
+
+      assert query["code_challenge"] == "flow-challenge"
+      assert query["code_challenge_method"] == "S256"
+      assert {:ok, %{nonce: "flow-nonce"}} = State.validate(query["state"], "zoom-state-secret")
+    end
+
+    test "the code exchange presents the flow's verifier" do
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, body, _headers, _opts ->
+        assert URI.decode_query(body)["code_verifier"] == "flow-verifier"
+        {:ok, %{status: 400, body: ~s({"error":"invalid_grant"})}}
+      end)
+
+      assert {:error, _reason} =
+               ZoomOAuthHelper.exchange_code_for_tokens("code", "http://cb",
+                 code_verifier: "flow-verifier"
+               )
+    end
+  end
+
   defp oauth_test_data do
     resp_body =
       Jason.encode!(%{

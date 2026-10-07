@@ -15,7 +15,8 @@ defmodule Tymeslot.Integrations.Common.OAuth.State do
   @type validated :: %{
           user_id: user_id(),
           integration_id: pos_integer() | nil,
-          return_to: String.t() | nil
+          return_to: String.t() | nil,
+          nonce: String.t() | nil
         }
 
   @default_ttl_seconds 3600
@@ -28,6 +29,9 @@ defmodule Tymeslot.Integrations.Common.OAuth.State do
     - `:return_to`: a relative path to redirect to after the OAuth callback,
       embedded after a `|` separator in the signed data. Dropped unless
       `Tymeslot.Security.RedirectPath.safe?/1` accepts it.
+    - `:nonce`: the key of the flow's
+      `Tymeslot.Integrations.Shared.OAuth.PendingFlow`, which makes the state
+      single-use. URL-safe base64, so it cannot contain the separators.
   """
   @spec generate(user_id(), secret(), pos_integer() | nil, keyword()) :: state()
   def generate(user_id, secret, integration_id \\ nil, opts \\ [])
@@ -36,9 +40,11 @@ defmodule Tymeslot.Integrations.Common.OAuth.State do
     return_to = Keyword.get(opts, :return_to)
 
     core =
-      if integration_id,
-        do: "#{user_id}:#{timestamp}:#{integration_id}",
-        else: "#{user_id}:#{timestamp}"
+      case {integration_id, Keyword.get(opts, :nonce)} do
+        {nil, nil} -> "#{user_id}:#{timestamp}"
+        {id, nil} -> "#{user_id}:#{timestamp}:#{id}"
+        {id, nonce} -> "#{user_id}:#{timestamp}:#{id}:#{nonce}"
+      end
 
     data =
       if valid_return_to?(return_to),
@@ -115,29 +121,48 @@ defmodule Tymeslot.Integrations.Common.OAuth.State do
 
     case parts do
       [user_id_str, timestamp_str] ->
-        parse_state_parts(user_id_str, timestamp_str, nil, return_to, ttl_seconds)
+        parse_state_parts([user_id_str, timestamp_str, nil, nil], return_to, ttl_seconds)
 
       [user_id_str, timestamp_str, integration_id_str] ->
-        parse_state_parts(user_id_str, timestamp_str, integration_id_str, return_to, ttl_seconds)
+        parse_state_parts(
+          [user_id_str, timestamp_str, integration_id_str, nil],
+          return_to,
+          ttl_seconds
+        )
+
+      [_user_id_str, _timestamp_str, _integration_id_str, nonce] = fields when nonce != "" ->
+        parse_state_parts(fields, return_to, ttl_seconds)
 
       _other ->
         {:error, "Invalid state format"}
     end
   end
 
-  defp parse_state_parts(user_id_str, timestamp_str, integration_id_str, return_to, ttl_seconds) do
+  defp parse_state_parts(
+         [user_id_str, timestamp_str, integration_id_str, nonce],
+         return_to,
+         ttl_seconds
+       ) do
     with {user_id, ""} <- Integer.parse(user_id_str),
          {timestamp, ""} <- Integer.parse(timestamp_str),
          true <- within_ttl?(timestamp, ttl_seconds),
          {:ok, integration_id} <- parse_optional_integration_id(integration_id_str) do
       validated_return_to = if valid_return_to?(return_to), do: return_to
-      {:ok, %{user_id: user_id, integration_id: integration_id, return_to: validated_return_to}}
+
+      {:ok,
+       %{
+         user_id: user_id,
+         integration_id: integration_id,
+         return_to: validated_return_to,
+         nonce: nonce
+       }}
     else
       _error -> {:error, "Invalid or expired state"}
     end
   end
 
   defp parse_optional_integration_id(nil), do: {:ok, nil}
+  defp parse_optional_integration_id(""), do: {:ok, nil}
 
   defp parse_optional_integration_id(str) do
     case Integer.parse(str) do

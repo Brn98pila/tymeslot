@@ -17,6 +17,7 @@ defmodule Tymeslot.Integrations.Video.OAuth do
   """
 
   alias Tymeslot.Integrations.Google.GoogleOAuthHelper
+  alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.Integrations.Shared.OAuthConfig
   alias Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper
   alias Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper
@@ -61,10 +62,12 @@ defmodule Tymeslot.Integrations.Video.OAuth do
   def reconnect_url(provider, user_id, opts), do: build(provider, user_id, opts)
 
   defp build(provider, user_id, opts) do
-    if supported?(provider) do
-      {:ok, url_for(provider, user_id, redirect_uri(provider), opts)}
+    with true <- supported?(provider),
+         {:ok, flow} <- PendingFlow.start(user_id, provider) do
+      {:ok, url_for(provider, user_id, redirect_uri(provider), Keyword.put(opts, :pkce, flow))}
     else
-      {:error, "Provider does not support OAuth"}
+      false -> {:error, "Provider does not support OAuth"}
+      {:error, _changeset} -> {:error, "Failed to setup #{@providers[provider].label} OAuth"}
     end
   rescue
     error -> {:error, format_error(provider, error)}

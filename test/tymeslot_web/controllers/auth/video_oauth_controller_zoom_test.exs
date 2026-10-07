@@ -3,6 +3,7 @@ defmodule TymeslotWeb.VideoOAuthControllerZoomTest do
   @moduletag :integrations
 
   import Tymeslot.AuthTestHelpers, only: [log_in_user: 2]
+  import Tymeslot.OAuthFlowHelpers
 
   alias Phoenix.Flash
   alias Tymeslot.Factory
@@ -74,7 +75,7 @@ defmodule TymeslotWeb.VideoOAuthControllerZoomTest do
       user_id = 5001
       conn = authenticate_state_user(conn, user_id)
 
-      :meck.expect(ZoomOAuthHelper, :exchange_code_for_tokens, fn "code", _uri ->
+      :meck.expect(ZoomOAuthHelper, :exchange_code_for_tokens, fn "code", _uri, _opts ->
         {:ok,
          %{
            user_id: user_id,
@@ -154,7 +155,7 @@ defmodule TymeslotWeb.VideoOAuthControllerZoomTest do
       user_id = 5003
       conn = authenticate_state_user(conn, user_id)
 
-      :meck.expect(ZoomOAuthHelper, :exchange_code_for_tokens, fn _code, _uri ->
+      :meck.expect(ZoomOAuthHelper, :exchange_code_for_tokens, fn _code, _uri, _opts ->
         {:ok,
          %{
            user_id: user_id,
@@ -189,5 +190,5 @@ defmodule TymeslotWeb.VideoOAuthControllerZoomTest do
     log_in_user(conn, user)
   end
 
-  defp signed_state(user_id), do: State.generate(user_id, "test_zoom_state_secret")
+  defp signed_state(user_id), do: flow_state(user_id, :zoom, "test_zoom_state_secret")
 end

@@ -22,6 +22,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
   alias Tymeslot.Infrastructure.Logging.Redactor
   alias Tymeslot.Infrastructure.Retry
   alias Tymeslot.Integrations.Common.OAuth.State
+  alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.Integrations.Shared.OAuth.ProviderHelpers
   alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
   alias Tymeslot.Integrations.Shared.ZoomConfig
@@ -57,7 +58,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
   def authorization_url(user_id, redirect_uri, options) do
     integration_id = Keyword.get(options, :integration_id)
     login_hint = Keyword.get(options, :login_hint)
-    state = generate_state(user_id, integration_id)
+    state = generate_state(user_id, integration_id, PendingFlow.nonce(options))
 
     params = %{
       client_id: ZoomConfig.client_id!(),
@@ -67,6 +68,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
       state: state
     }
 
+    params = Map.merge(params, PendingFlow.challenge_params(options))
     url = ProviderHelpers.build_authorization_url(@authorize_url, params, login_hint)
     Logger.info("Generated Zoom OAuth URL", scope: zoom_scope())
     url
@@ -79,10 +81,11 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
   Zoom user profile so the integration can be uniquely identified by the Zoom account ID.
   """
   @impl Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperBehaviour
-  @spec exchange_code_for_tokens(String.t(), String.t()) :: {:ok, map()} | {:error, String.t()}
+  @spec exchange_code_for_tokens(String.t(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, String.t()}
   # credo:disable-for-next-line Credo.Check.Design.DuplicatedCode
-  def exchange_code_for_tokens(code, redirect_uri) do
-    with {:ok, tokens} <- fetch_tokens(code, redirect_uri),
+  def exchange_code_for_tokens(code, redirect_uri, opts \\ []) do
+    with {:ok, tokens} <- fetch_tokens(code, redirect_uri, opts),
          :ok <- verify_required_scopes(tokens),
          {:ok, profile} <- fetch_user_profile(tokens.access_token) do
       {:ok, build_result_tokens(tokens, profile)}
@@ -156,13 +159,14 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
   end
 
   # Zoom takes the client credentials as basic auth, not in the body.
-  defp fetch_tokens(code, redirect_uri) do
-    body = %{
-      code: code,
-      redirect_uri: redirect_uri,
-      grant_type: "authorization_code",
-      scope: zoom_scope()
-    }
+  defp fetch_tokens(code, redirect_uri, opts) do
+    body =
+      PendingFlow.verifier_param(opts, %{
+        code: code,
+        redirect_uri: redirect_uri,
+        grant_type: "authorization_code",
+        scope: zoom_scope()
+      })
 
     with {:ok, headers} <- basic_auth_headers() do
       case TokenEndpoint.exchange_code(@token_url, body,
@@ -245,7 +249,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
     end
   end
 
-  defp generate_state(user_id, integration_id) do
-    State.generate(user_id, ZoomConfig.state_secret(), integration_id)
+  defp generate_state(user_id, integration_id, nonce) do
+    State.generate(user_id, ZoomConfig.state_secret(), integration_id, nonce: nonce)
   end
 end

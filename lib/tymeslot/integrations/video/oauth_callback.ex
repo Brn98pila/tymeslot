@@ -17,6 +17,7 @@ defmodule Tymeslot.Integrations.Video.OAuthCallback do
   alias Tymeslot.Integrations.Common.OAuth.AccountMatch
   alias Tymeslot.Integrations.Common.OAuth.State
   alias Tymeslot.Integrations.Google.GoogleOAuthHelper
+  alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.Integrations.Video.OAuth
   alias Tymeslot.Integrations.Video.ProviderConfig
   alias Tymeslot.Integrations.Video.Reconnect
@@ -25,8 +26,8 @@ defmodule Tymeslot.Integrations.Video.OAuthCallback do
   alias Tymeslot.Integrations.Video.VideoIntegrationSchema
   alias Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper
 
-  # Every helper exchanges with the same `(code, redirect_uri)` shape; the
-  # state is verified here, before the code is spent.
+  # Every helper exchanges with the same `(code, redirect_uri, opts)` shape;
+  # the state and its flow are verified here, before the code is spent.
   @exchange_helpers %{
     google_meet: GoogleOAuthHelper,
     teams: TeamsOAuthHelper,
@@ -38,8 +39,9 @@ defmodule Tymeslot.Integrations.Video.OAuthCallback do
 
   @doc """
   Completes an OAuth callback for `user_id`, the signed-in user: verifies the
-  state was issued to that user, exchanges the code, checks the grant, and
-  creates or reconnects their integration for `provider`.
+  state was issued to that user, consumes the flow it names (once), exchanges
+  the code with that flow's PKCE verifier, checks the grant, and creates or
+  reconnects their integration for `provider`.
 
   On success the user's cached dashboard integration status is invalidated, so
   the dashboard reflects the new connection straight away rather than after the
@@ -53,7 +55,11 @@ defmodule Tymeslot.Integrations.Video.OAuthCallback do
     helper = Map.fetch!(@exchange_helpers, provider)
 
     with {:ok, validated} <- State.verify(state, Map.fetch!(@state_providers, provider), user_id),
-         {:ok, tokens} <- helper.exchange_code_for_tokens(code, OAuth.redirect_uri(provider)),
+         {:ok, code_verifier} <- PendingFlow.consume(validated.nonce, user_id, provider),
+         {:ok, tokens} <-
+           helper.exchange_code_for_tokens(code, OAuth.redirect_uri(provider),
+             code_verifier: code_verifier
+           ),
          tokens = Map.merge(tokens, Map.take(validated, [:user_id, :integration_id])),
          :ok <- validate_tokens(provider, tokens),
          {:ok, integration} <- persist(provider, tokens) do

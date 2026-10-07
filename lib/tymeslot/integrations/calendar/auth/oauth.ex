@@ -10,6 +10,7 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
   alias Tymeslot.Integrations.Calendar.Google.Provider, as: GoogleProvider
   alias Tymeslot.Integrations.Calendar.Outlook.OAuthHelper, as: OutlookOAuthHelper
   alias Tymeslot.Integrations.Common.OAuth.State
+  alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.Integrations.Shared.OAuthConfig
   alias TymeslotWeb.Endpoint
 
@@ -39,9 +40,10 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
   }
 
   @doc """
-  Starts `provider`'s OAuth flow for `user_id` and returns the authorisation
-  URL to send the browser to, or an error naming what an operator has to
-  configure.
+  Starts `provider`'s OAuth flow for `user_id` (a single-use PKCE flow, see
+  `Tymeslot.Integrations.Shared.OAuth.PendingFlow`) and returns the
+  authorisation URL to send the browser to, or an error naming what an
+  operator has to configure.
 
   ## Options
     - `:return_to` — relative path to redirect to after the OAuth callback
@@ -50,7 +52,16 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
   """
   @spec initiate(provider(), user_id(), keyword()) :: {:ok, String.t()} | {:error, String.t()}
   def initiate(provider, user_id, opts \\ []) when is_integer(user_id) do
-    {:ok, url_helper(provider).authorization_url(user_id, redirect_uri(provider), opts)}
+    %{label: label} = Map.fetch!(@providers, provider)
+
+    case PendingFlow.start(user_id, provider) do
+      {:ok, flow} ->
+        url_opts = Keyword.put(opts, :pkce, flow)
+        {:ok, url_helper(provider).authorization_url(user_id, redirect_uri(provider), url_opts)}
+
+      {:error, _changeset} ->
+        {:error, "Failed to setup #{label} OAuth"}
+    end
   rescue
     error ->
       %{label: label, config: config} = Map.fetch!(@providers, provider)
@@ -59,8 +70,10 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
 
   @doc """
   Completes an OAuth callback for `user_id`, the signed-in user: verifies the
-  state was issued to that user, exchanges the code, and creates or updates
-  their calendar integration. The state is checked before the code is spent.
+  state was issued to that user, consumes the flow it names (once), exchanges
+  the code with that flow's PKCE verifier, and creates or updates their
+  calendar integration. Nothing is sent to the provider until the state and
+  the flow have both checked out.
 
   On success the user's cached dashboard integration status is invalidated, so
   the dashboard reflects the new connection straight away rather than after the
@@ -72,11 +85,12 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
     %{config: config, helper: helper} = Map.fetch!(@providers, provider)
 
     with {:ok, validated} <- State.verify(state, config, user_id),
+         {:ok, code_verifier} <- PendingFlow.consume(validated.nonce, user_id, provider),
          {:ok, integration} <-
            helper.handle_callback(
              code,
              redirect_uri(provider),
-             validated
+             Map.put(validated, :code_verifier, code_verifier)
            ) do
       DashboardContext.invalidate_integration_status(integration.user_id)
       {:ok, integration}

@@ -16,6 +16,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
   alias Tymeslot.Integrations.Common.OAuth.IdToken
   alias Tymeslot.Integrations.Common.OAuth.State
   alias Tymeslot.Integrations.Shared.MicrosoftConfig
+  alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.Integrations.Shared.OAuth.ProviderHelpers
   alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
   alias Tymeslot.Workers.RefreshOutlookCalendarWorker
@@ -32,18 +33,23 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
 
     state =
       State.generate(user_id, MicrosoftConfig.state_secret(), integration_id,
-        return_to: return_to
+        return_to: return_to,
+        nonce: PendingFlow.nonce(options)
       )
 
-    params = %{
-      client_id: MicrosoftConfig.client_id!(),
-      redirect_uri: redirect_uri,
-      response_type: "code",
-      scope: MicrosoftConfig.scope(),
-      state: state,
-      response_mode: "query",
-      prompt: "select_account"
-    }
+    params =
+      Map.merge(
+        %{
+          client_id: MicrosoftConfig.client_id!(),
+          redirect_uri: redirect_uri,
+          response_type: "code",
+          scope: MicrosoftConfig.scope(),
+          state: state,
+          response_mode: "query",
+          prompt: "select_account"
+        },
+        PendingFlow.challenge_params(options)
+      )
 
     ProviderHelpers.build_authorization_url(MicrosoftConfig.authorize_url(), params, login_hint)
   end
@@ -55,8 +61,13 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
   @impl Tymeslot.Integrations.Calendar.Auth.OAuthHelperBehaviour
   @spec handle_callback(String.t(), String.t(), State.validated()) ::
           {:ok, CalendarIntegrationSchema.t()} | {:error, String.t()}
-  def handle_callback(code, redirect_uri, %{user_id: user_id, integration_id: integration_id}) do
-    with {:ok, tokens} <- exchange_code_for_tokens(code, redirect_uri),
+  def handle_callback(
+        code,
+        redirect_uri,
+        %{user_id: user_id, integration_id: integration_id} = flow
+      ) do
+    with {:ok, tokens} <-
+           exchange_code_for_tokens(code, redirect_uri, code_verifier: flow[:code_verifier]),
          {:ok, integration} <-
            CallbackPersistence.upsert(
              "outlook",
@@ -97,18 +108,20 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
   Exchanges authorization code for access and refresh tokens.
   """
   @impl Tymeslot.Integrations.Calendar.Auth.OAuthHelperBehaviour
-  @spec exchange_code_for_tokens(String.t(), String.t()) :: {:ok, map()} | {:error, String.t()}
-  def exchange_code_for_tokens(code, redirect_uri) do
+  @spec exchange_code_for_tokens(String.t(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, String.t()}
+  def exchange_code_for_tokens(code, redirect_uri, opts \\ []) do
     with {:ok, client_id} <- MicrosoftConfig.fetch_client_id(),
          {:ok, client_secret} <- MicrosoftConfig.fetch_client_secret() do
-      body = %{
-        code: code,
-        client_id: client_id,
-        client_secret: client_secret,
-        redirect_uri: redirect_uri,
-        grant_type: "authorization_code",
-        scope: MicrosoftConfig.scope()
-      }
+      body =
+        PendingFlow.verifier_param(opts, %{
+          code: code,
+          client_id: client_id,
+          client_secret: client_secret,
+          redirect_uri: redirect_uri,
+          grant_type: "authorization_code",
+          scope: MicrosoftConfig.scope()
+        })
 
       case TokenEndpoint.exchange_code(MicrosoftConfig.token_url(), body,
              fallback_scope: MicrosoftConfig.scope(),

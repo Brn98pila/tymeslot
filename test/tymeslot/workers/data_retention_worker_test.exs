@@ -11,7 +11,10 @@ defmodule Tymeslot.Workers.DataRetentionWorkerTest do
   alias Tymeslot.Analytics.EventSchema
   alias Tymeslot.Analytics.SaltSchema
   alias Tymeslot.Auth.UserSchema
+  alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
+  alias Tymeslot.Integrations.Shared.OAuth.PendingFlowSchema
   alias Tymeslot.Profiles.ProfileSchema
+  alias Tymeslot.Repo
   alias Tymeslot.Slack.SlackDeliverySchema
   alias Tymeslot.Telegram.TelegramDeliverySchema
   alias Tymeslot.Telegram.TelegramIntegrationSchema
@@ -254,6 +257,21 @@ defmodule Tymeslot.Workers.DataRetentionWorkerTest do
 
       assert :ok = perform_job(DataRetentionWorker, %{"telegram_delivery_retention_days" => 30})
       refute Repo.get(TelegramDeliverySchema, delivery.id)
+    end
+  end
+
+  describe "perform/1 - integration OAuth flow cleanup" do
+    test "removes flows past their expiry, with the verifiers they hold" do
+      user = insert(:user)
+      freeze_clock(~U[2026-10-07 12:00:00Z])
+      {:ok, %{nonce: expired}} = PendingFlow.start(user.id, :outlook)
+      freeze_clock(~U[2026-10-07 13:30:00Z])
+      {:ok, %{nonce: live}} = PendingFlow.start(user.id, :outlook)
+
+      assert :ok = DataRetentionWorker.perform(%Oban.Job{args: %{}})
+
+      assert Repo.get_by(PendingFlowSchema, nonce: expired) == nil
+      assert Repo.get_by(PendingFlowSchema, nonce: live)
     end
   end
 

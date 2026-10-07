@@ -19,7 +19,8 @@ defmodule Tymeslot.Integrations.Calendar.OAuthTest do
       expect(Tymeslot.GoogleOAuthHelperMock, :authorization_url, fn user_id, redirect_uri, opts ->
         assert user_id == user.id
         assert redirect_uri == "#{Endpoint.url()}/auth/google/calendar/callback"
-        assert opts == []
+        # The context starts a PKCE flow and hands the helper its challenge.
+        assert [pkce: %{nonce: _nonce, code_challenge: _challenge}] = opts
 
         "https://accounts.google.com/o/oauth2/v2/auth?client_id=test"
       end)
@@ -66,7 +67,8 @@ defmodule Tymeslot.Integrations.Calendar.OAuthTest do
                                                                      opts ->
         assert user_id == user.id
         assert redirect_uri == "#{Endpoint.url()}/auth/outlook/calendar/callback"
-        assert opts == []
+        # The context starts a PKCE flow and hands the helper its challenge.
+        assert [pkce: %{nonce: _nonce, code_challenge: _challenge}] = opts
 
         "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=test"
       end)

@@ -16,6 +16,7 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
   alias Tymeslot.Integrations.Common.OAuth.IdToken
   alias Tymeslot.Integrations.Common.OAuth.State
   alias Tymeslot.Integrations.Shared.MicrosoftConfig
+  alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.Integrations.Shared.OAuth.ProviderHelpers
   alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
   alias Tymeslot.Integrations.Video.OAuthTokenManager
@@ -29,7 +30,7 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
   def authorization_url(user_id, redirect_uri, options \\ []) do
     integration_id = Keyword.get(options, :integration_id)
     login_hint = Keyword.get(options, :login_hint)
-    state = generate_state(user_id, integration_id)
+    state = generate_state(user_id, integration_id, PendingFlow.nonce(options))
 
     params = %{
       client_id: MicrosoftConfig.client_id!(),
@@ -40,6 +41,8 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
       response_mode: "query",
       prompt: "select_account"
     }
+
+    params = Map.merge(params, PendingFlow.challenge_params(options))
 
     url =
       ProviderHelpers.build_authorization_url(MicrosoftConfig.authorize_url(), params, login_hint)
@@ -52,10 +55,11 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
   Exchanges authorization code for access and refresh tokens.
   Also fetches the user profile to get the Microsoft user ID and tenant ID.
   """
-  @spec exchange_code_for_tokens(String.t(), String.t()) :: {:ok, map()} | {:error, String.t()}
+  @spec exchange_code_for_tokens(String.t(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, String.t()}
   # credo:disable-for-next-line Credo.Check.Design.DuplicatedCode
-  def exchange_code_for_tokens(code, redirect_uri) do
-    with {:ok, tokens} <- fetch_tokens(code, redirect_uri),
+  def exchange_code_for_tokens(code, redirect_uri, opts \\ []) do
+    with {:ok, tokens} <- fetch_tokens(code, redirect_uri, opts),
          :ok <- verify_required_scopes(tokens),
          {:ok, profile} <- fetch_user_profile(tokens.access_token) do
       {:ok, build_result_tokens(tokens, profile)}
@@ -183,17 +187,18 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
 
   # Private functions
 
-  defp fetch_tokens(code, redirect_uri) do
+  defp fetch_tokens(code, redirect_uri, opts) do
     with {:ok, client_id} <- MicrosoftConfig.fetch_client_id(),
          {:ok, client_secret} <- MicrosoftConfig.fetch_client_secret() do
-      body = %{
-        code: code,
-        client_id: client_id,
-        client_secret: client_secret,
-        redirect_uri: redirect_uri,
-        grant_type: "authorization_code",
-        scope: MicrosoftConfig.scope()
-      }
+      body =
+        PendingFlow.verifier_param(opts, %{
+          code: code,
+          client_id: client_id,
+          client_secret: client_secret,
+          redirect_uri: redirect_uri,
+          grant_type: "authorization_code",
+          scope: MicrosoftConfig.scope()
+        })
 
       case TokenEndpoint.exchange_code(MicrosoftConfig.token_url(), body,
              fallback_scope: MicrosoftConfig.scope(),
@@ -205,8 +210,8 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
     end
   end
 
-  defp generate_state(user_id, integration_id) do
-    State.generate(user_id, MicrosoftConfig.state_secret(), integration_id)
+  defp generate_state(user_id, integration_id, nonce) do
+    State.generate(user_id, MicrosoftConfig.state_secret(), integration_id, nonce: nonce)
   end
 
   defp verify_required_scopes(tokens) do

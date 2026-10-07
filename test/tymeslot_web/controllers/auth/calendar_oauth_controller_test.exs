@@ -12,6 +12,7 @@ defmodule TymeslotWeb.CalendarOAuthControllerTest do
   alias Tymeslot.Security.RateLimiter
 
   import Tymeslot.AuthTestHelpers, only: [log_in_user: 2]
+  import Tymeslot.OAuthFlowHelpers
 
   setup do
     RateLimiter.clear_all()
@@ -268,5 +269,5 @@ defmodule TymeslotWeb.CalendarOAuthControllerTest do
   @state_secrets %{google: "test_google_state_secret", outlook: "test_outlook_state_secret"}
 
   defp signed(provider, user_id, opts \\ []),
-    do: State.generate(user_id, Map.fetch!(@state_secrets, provider), nil, opts)
+    do: flow_state(user_id, provider, Map.fetch!(@state_secrets, provider), opts)
 end
