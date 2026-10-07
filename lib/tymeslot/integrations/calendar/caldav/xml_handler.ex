@@ -1,5 +1,6 @@
 defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Integrations.Calendar.CalDAV.Base, as: CalDAVBase
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.ICalParser
   alias Tymeslot.Integrations.Calendar.Utils.SafeXml
@@ -299,10 +300,12 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
   # Private helper functions
 
   defp parse_with_security(xml_string) do
-    # Validate XML size to prevent memory exhaustion
-    # 10MB limit
-    if byte_size(xml_string) > 10_000_000 do
-      raise "XML document too large"
+    # Defensive only: every body reaching these parsers was already capped in
+    # transit, a REPORT at `CalDAVBase.max_report_bytes/0` and a PROPFIND well
+    # below it. One past the largest of those came from a path that skipped the
+    # cap, and is refused like a malformed document rather than parsed.
+    if byte_size(xml_string) > CalDAVBase.max_report_bytes() do
+      raise "XML parse failed: :too_large"
     end
 
     # Raised rather than returned so the rescue clause in each public parser

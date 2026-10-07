@@ -519,6 +519,20 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandlerTest do
   # ---------------------------------------------------------------------------
 
   describe "parse_calendar_query/1" do
+    test "refuses a body past the 8 MB REPORT budget like a malformed one, and reads one at it" do
+      budget = 8 * 1024 * 1024
+      # Trailing whitespace after the root element is well-formed, so a valid
+      # response can be padded to any size.
+      padded = fn size ->
+        @calendar_query_xml <> String.duplicate(" ", size - byte_size(@calendar_query_xml))
+      end
+
+      assert XmlHandler.parse_calendar_query(padded.(budget + 1)) ==
+               {:error, "Failed to parse calendar query response"}
+
+      assert {:ok, [_, _]} = XmlHandler.parse_calendar_query(padded.(budget))
+    end
+
     test "parses two events from a calendar-query response" do
       assert {:ok, events} = XmlHandler.parse_calendar_query(@calendar_query_xml)
 
