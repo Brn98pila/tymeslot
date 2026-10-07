@@ -100,6 +100,10 @@ defmodule Tymeslot.Workers.SeriesVideoWorker do
         SyncRequest.rerun_if_requested(:ok, job)
 
       :not_cached ->
+        # Snoozes only, not `SnoozePolicy.executions/1`: this ladder waits for
+        # a sync to cache the series, which is all `@max_snoozes` bounds, and a
+        # failed attempt in between must not shorten the wait. Oban (2.24 and
+        # later) counts each snooze in `meta["snoozed"]`.
         snoozed = Map.get(meta, "snoozed", 0)
 
         if snoozed < @max_snoozes do
