@@ -183,20 +183,22 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
           String.t()
         ) :: {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_fetch_available_slots(socket, date, duration, timezone) do
-    case SlotFetchingHandlerComponent.fetch_available_slots(socket, date, duration, timezone) do
-      {:ok, updated_socket} -> {:noreply, check_carried_time(updated_socket, date)}
-      {:error, updated_socket} -> {:noreply, updated_socket}
-    end
+    {_result, updated_socket} =
+      SlotFetchingHandlerComponent.fetch_available_slots(socket, date, duration, timezone)
+
+    {:noreply, check_carried_time(updated_socket, date)}
   end
 
   # A time the URL carried (a deep link, or a language switch, which
   # redirects with the day and time chosen) is checked once, against the
   # first times fetched for its day. On a page that opens its moments by
   # itself the time alone made the slot known, so the page moved on past
-  # the calendar; a time no longer free is dropped there, with what was built
-  # on it, and the page settles back on the moment collecting the slot. A
-  # paged journey keeps it: its booking step is already on screen, and the
-  # submission refuses a time that was taken.
+  # the calendar; a time no longer free, or one whose day's times failed to
+  # load (a failed fetch offers none, so it cannot be confirmed free), is
+  # dropped there, with what was built on it, and the page settles back on
+  # the moment collecting the slot. A paged journey keeps it: its booking
+  # step is already on screen, and the submission refuses a time that was
+  # taken.
   defp check_carried_time(%{assigns: %{carried_time: time, selected_date: date}} = socket, date)
        when is_binary(time) do
     socket = assign(socket, :carried_time, nil)

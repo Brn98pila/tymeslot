@@ -136,6 +136,28 @@ defmodule TymeslotWeb.Live.Themes.ScrollLocaleSwitchTest do
     end
   end
 
+  describe "a carried time that cannot be checked" do
+    @tag :capture_log
+    test "is dropped when its day's times fail to load", %{conn: conn} do
+      %{profile: profile} = seed_organiser(@theme_id, "scroll-locale-unchecked", types: @types)
+
+      stub(CalendarMock, :get_events_for_range_fresh, fn _user_id, _start, _end ->
+        {:error, :all_calendars_unavailable}
+      end)
+
+      day = Date.utc_today() |> Date.add(3) |> Date.to_iso8601()
+
+      {:ok, view, _html} =
+        live(conn, "/#{profile.username}/quick-chat?date=#{day}&time=2:00%20PM&locale=de")
+
+      Eventually.eventually(fn -> live_assigns(view)[:calendar_error] != nil end)
+      await_moment(view, :when, "current")
+
+      assert live_assigns(view).selected_time == nil
+      refute has_element?(view, "#you-step")
+    end
+  end
+
   describe "a switch after choosing a timezone" do
     test "keeps the timezone chosen over the browser's, and the time in it", %{conn: conn} do
       %{profile: profile} = seed_organiser(@theme_id, "scroll-locale-zone", types: @types)
