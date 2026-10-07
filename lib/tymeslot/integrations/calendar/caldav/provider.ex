@@ -77,29 +77,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Provider do
     base_url = MapKeys.get(config, :base_url)
 
     # Auto-detect server type and use detected type for proper path construction
-    detected_provider =
-      if is_binary(base_url) do
-        case ServerDetector.detect_from_url(base_url) do
-          # Use detected server types for proper path handling
-          server_type
-          when server_type in [
-                 :radicale,
-                 :nextcloud,
-                 :owncloud,
-                 :baikal,
-                 :baikal_legacy,
-                 :sabredav,
-                 :zimbra
-               ] ->
-            server_type
-
-          # Fall back to generic caldav for unknown servers
-          _other ->
-            :caldav
-        end
-      else
-        :caldav
-      end
+    detected_provider = client_provider(base_url)
 
     common_config = %{
       base_url: if(is_binary(base_url), do: CaldavCommon.normalize_url(base_url), else: nil),
@@ -113,6 +91,39 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Provider do
 
     CaldavCommon.build_client(common_config, provider: detected_provider)
   end
+
+  @doc """
+  The provider a client for a server at `base_url` carries: the server type
+  detected from the URL (`/remote.php/dav` is Nextcloud, for one), or plain
+  `:caldav` for a server nothing identifies.
+
+  The client's calls run through a host breaker keyed by this provider, so
+  this is also how that breaker is found again; see
+  `CalendarCircuitBreaker.breaker_key/2`.
+  """
+  @spec client_provider(String.t() | nil) :: atom()
+  def client_provider(base_url) when is_binary(base_url) do
+    case ServerDetector.detect_from_url(base_url) do
+      # Use detected server types for proper path handling
+      server_type
+      when server_type in [
+             :radicale,
+             :nextcloud,
+             :owncloud,
+             :baikal,
+             :baikal_legacy,
+             :sabredav,
+             :zimbra
+           ] ->
+        server_type
+
+      # Fall back to generic caldav for unknown servers
+      _other ->
+        :caldav
+    end
+  end
+
+  def client_provider(_base_url), do: :caldav
 
   @doc """
   Tests connection to the CalDAV server.

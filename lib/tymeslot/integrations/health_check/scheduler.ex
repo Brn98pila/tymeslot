@@ -187,8 +187,8 @@ defmodule Tymeslot.Integrations.HealthCheck.Scheduler do
       try do
         case type do
           :calendar ->
-            host = CalendarCircuitBreaker.breaker_host(provider_atom, base_url)
-            provider_atom |> CalendarCircuitBreaker.status(host) |> unstarted_as_closed(host)
+            {breaker_provider, host} = CalendarCircuitBreaker.breaker_key(provider_atom, base_url)
+            breaker_provider |> CalendarCircuitBreaker.status(host) |> unstarted_as_closed(host)
 
           :video ->
             host = CircuitBreakerHelpers.host_from_base_url(base_url)

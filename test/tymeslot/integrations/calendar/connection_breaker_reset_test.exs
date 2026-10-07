@@ -21,9 +21,16 @@ defmodule Tymeslot.Integrations.Calendar.ConnectionBreakerResetTest do
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.Connection
+  alias Tymeslot.Integrations.Calendar.Discovery
+  alias Tymeslot.Integrations.Calendar.Providers.ProviderAdapter
   alias Tymeslot.Integrations.Calendar.Reconnection
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Test.CalDAVAccountStub
+
+  # A generic CalDAV integration on a Nextcloud-shaped URL: its client takes
+  # the server type detected from the URL, so every call it makes trips a
+  # `:nextcloud` breaker for the host, never a `:caldav` one.
+  @calendar_path "/remote.php/dav/calendars/bob/a/"
 
   setup :set_mox_global
   setup :verify_on_exit!
@@ -31,19 +38,17 @@ defmodule Tymeslot.Integrations.Calendar.ConnectionBreakerResetTest do
   setup do
     host = "dav-#{System.unique_integer([:positive])}.example.com"
 
-    # A URL that names no known server, so the client keeps the `:caldav`
-    # breaker rather than one for a detected server type.
     inserted =
       insert(:calendar_integration,
         provider: "caldav",
-        base_url: "https://#{host}/cal/",
-        calendar_paths: []
+        base_url: "https://#{host}/remote.php/dav",
+        calendar_paths: [@calendar_path]
       )
 
     # As every caller has it: read back, credentials decrypted.
     {:ok, integration} = CalendarIntegrationQueries.get(inserted.id)
 
-    trip_host_breaker(:caldav, host)
+    trip_host_breaker(:nextcloud, host)
     %{integration: integration, host: host}
   end
 
@@ -56,7 +61,7 @@ defmodule Tymeslot.Integrations.Calendar.ConnectionBreakerResetTest do
     end)
 
     assert {:ok, _message} = Connection.test_connection(integration, scope: :background)
-    assert %{status: :closed} = CalendarCircuitBreaker.status(:caldav, host)
+    assert %{status: :closed} = CalendarCircuitBreaker.status(:nextcloud, host)
   end
 
   # Discovery is what a reconnect and a connection check run, and it goes
@@ -66,27 +71,36 @@ defmodule Tymeslot.Integrations.Calendar.ConnectionBreakerResetTest do
     integration: integration,
     host: host
   } do
-    stub_discovery(["/cal/bob/a/"])
+    stub_discovery([@calendar_path])
 
-    params = %{"url" => "https://#{host}/cal/", "username" => "bob", "password" => "pass"}
+    params = %{
+      "url" => "https://#{host}/remote.php/dav",
+      "username" => "bob",
+      "password" => "pass"
+    }
 
     assert {:ok, :needs_calendar_selection, payload} = Reconnection.reconnect(integration, params)
     assert [%{path: path}] = payload.calendars
 
-    assert {:ok, _updated} = Reconnection.finalise_account_change(integration, payload, [path])
-    assert %{status: :closed} = CalendarCircuitBreaker.status(:caldav, host)
+    # A reconnect stores the server's origin, whose client names no server
+    # type: the reconnected integration's traffic runs through the host's
+    # `:caldav` breaker from here on, which an outage would have opened too.
+    trip_host_breaker(:caldav, host)
+
+    assert {:ok, updated} = Reconnection.finalise_account_change(integration, payload, [path])
+    assert_sync_reaches(updated, host)
   end
 
   test "checking a connection reaches a server its breaker refuses, and closes the breaker", %{
     integration: integration,
     host: host
   } do
-    stub_discovery(["/cal/bob/a/"])
+    stub_discovery([@calendar_path])
 
     assert {:ok, _integration} =
              Connection.validate_connection(integration, integration.user_id)
 
-    assert %{status: :closed} = CalendarCircuitBreaker.status(:caldav, host)
+    assert %{status: :closed} = CalendarCircuitBreaker.status(:nextcloud, host)
   end
 
   test "an Exchange connection test reaches a server its breaker refuses, and closes it" do
@@ -134,6 +148,49 @@ defmodule Tymeslot.Integrations.Calendar.ConnectionBreakerResetTest do
     assert %{status: :open} = CalendarCircuitBreaker.status(:apple, "caldav.icloud.com")
   end
 
+  # The breaker closed has to be the one the integration's own traffic
+  # trips, or a reconnect reports success while sync and discovery stay
+  # refused until the breaker times out.
+  test "once a connection check closes the breaker, sync and discovery reach the server", %{
+    integration: integration,
+    host: host
+  } do
+    stub_discovery([@calendar_path])
+    assert {:ok, _integration} = Connection.validate_connection(integration, integration.user_id)
+
+    assert_sync_reaches(integration, host)
+
+    assert {:ok, [_calendar]} =
+             Discovery.discover_calendars(
+               :caldav,
+               %{base_url: integration.base_url, username: "carol", password: "pass"},
+               actor: {:user, integration.user_id}
+             )
+
+    assert_received {:reached, :propfind, ^host}
+  end
+
+  # A detected server type need not be a provider of its own: ownCloud is
+  # only ever a generic CalDAV integration, and its breaker is still the one
+  # to close.
+  test "a connection check closes the breaker of a server type that is not a provider" do
+    host = "oc-#{System.unique_integer([:positive])}.example.com"
+
+    inserted =
+      insert(:calendar_integration,
+        provider: "caldav",
+        base_url: "https://#{host}/remote.php/caldav",
+        calendar_paths: []
+      )
+
+    {:ok, integration} = CalendarIntegrationQueries.get(inserted.id)
+    trip_host_breaker(:owncloud, host)
+    stub_discovery(["/remote.php/caldav/calendars/bob/a/"])
+
+    assert {:ok, _integration} = Connection.validate_connection(integration, integration.user_id)
+    assert %{status: :closed} = CalendarCircuitBreaker.status(:owncloud, host)
+  end
+
   test "a connection test that fails leaves the breaker open", %{
     integration: integration,
     host: host
@@ -143,7 +200,27 @@ defmodule Tymeslot.Integrations.Calendar.ConnectionBreakerResetTest do
     end)
 
     assert {:error, _reason} = Connection.test_connection(integration, scope: :background)
-    assert %{status: :open} = CalendarCircuitBreaker.status(:caldav, host)
+    assert %{status: :open} = CalendarCircuitBreaker.status(:nextcloud, host)
+  end
+
+  # Fetches the integration's events as a sync does, and asserts the request
+  # reached the server rather than being refused by an open breaker. Leaves a
+  # recording stub in place for any further request.
+  defp assert_sync_reaches(integration, host) do
+    test_pid = self()
+
+    stub(Tymeslot.HTTPClientMock, :request, fn method, url, body, _headers, _opts ->
+      send(test_pid, {:reached, method, URI.parse(url).host})
+
+      case method do
+        :report -> {:ok, %Req.Response{status: 207, body: ~s(<D:multistatus xmlns:D="DAV:"/>)}}
+        :propfind -> CalDAVAccountStub.answer(%{calendars: [@calendar_path]}, method, url, body)
+      end
+    end)
+
+    {:ok, client} = ProviderAdapter.new_client_from_integration(integration)
+    assert {:ok, _events} = ProviderAdapter.get_events(client)
+    assert_received {:reached, :report, ^host}
   end
 
   defp stub_discovery(calendars) do

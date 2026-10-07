@@ -13,6 +13,7 @@ defmodule Tymeslot.Infrastructure.CalendarCircuitBreaker do
   """
 
   alias Tymeslot.Infrastructure.{CircuitBreaker, CircuitBreakerHelpers}
+  alias Tymeslot.Integrations.Calendar.CalDAV.Provider, as: CalDAVProvider
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   require Logger
 
@@ -26,6 +27,11 @@ defmodule Tymeslot.Infrastructure.CalendarCircuitBreaker do
   # OAuth providers share the provider-level breaker.
   @host_keyed_providers ProviderConfig.caldav_based_providers() ++
                           ProviderConfig.ews_providers()
+
+  # A host breaker is started for whatever provider a client carries, which
+  # includes server types detected from a URL (`:owncloud`, `:sabredav`) that
+  # are not providers of their own; see `breaker_key/2`.
+  defguardp is_host(provider, host) when is_atom(provider) and is_binary(host) and host != ""
 
   @default_config %{
     failure_threshold: 3,
@@ -146,17 +152,26 @@ defmodule Tymeslot.Infrastructure.CalendarCircuitBreaker do
   end
 
   @doc """
-  The host whose breaker guards `provider`'s calls to `base_url`, or `nil`
-  for a provider whose calls go through the provider-level breaker.
+  The `{provider, host}` of the breaker that `provider`'s calls to `base_url`
+  actually trip, to pass to `status/2` and `reset/2`.
 
-  Pass the result as the `host` of `status/2` and `reset/2` to address the
-  breaker the provider's traffic actually trips.
+  Self-hosted providers key it by their server's host, and by the provider
+  their client carries, which is not always the integration's: a generic
+  CalDAV client takes the server type detected from the URL
+  (`CalDAV.Provider.client_provider/1`), so a `:caldav` integration at
+  `/remote.php/dav` trips a `:nextcloud` breaker. Every other provider runs
+  through its provider-level breaker, and gets a `nil` host.
   """
-  @spec breaker_host(atom(), String.t() | nil) :: String.t() | nil
-  def breaker_host(provider, base_url) when provider in @host_keyed_providers,
-    do: CircuitBreakerHelpers.host_from_base_url(base_url)
+  @spec breaker_key(atom(), String.t() | nil) :: {atom(), String.t() | nil}
+  def breaker_key(:caldav, base_url),
+    do:
+      {CalDAVProvider.client_provider(base_url),
+       CircuitBreakerHelpers.host_from_base_url(base_url)}
 
-  def breaker_host(_provider, _base_url), do: nil
+  def breaker_key(provider, base_url) when provider in @host_keyed_providers,
+    do: {provider, CircuitBreakerHelpers.host_from_base_url(base_url)}
+
+  def breaker_key(provider, _base_url), do: {provider, nil}
 
   @doc """
   Gets the status of a provider's circuit breaker, or of the host-specific
@@ -165,13 +180,14 @@ defmodule Tymeslot.Infrastructure.CalendarCircuitBreaker do
   Self-hosted providers (the CalDAV family, Exchange) run every call through
   a breaker keyed by their server's host (see `with_breaker/3`), so a check
   of their health has to read that breaker: the provider-level one never
-  records their traffic. Derive `host` with `breaker_host/2`. Returns a status map (`:closed`, `:open` or `:half_open`).
+  records their traffic. Derive the provider and host with `breaker_key/2`.
+  Returns a status map (`:closed`, `:open` or `:half_open`).
   """
   @spec status(atom(), String.t() | nil) ::
           map() | {:error, atom()} | {:error, {:invalid_provider, atom()}}
   def status(provider, host \\ nil)
 
-  def status(provider, host) when provider in @calendar_providers do
+  def status(provider, host) when provider in @calendar_providers or is_host(provider, host) do
     breaker_name = breaker_name(provider, host)
 
     if breaker_exists?(breaker_name) do
@@ -195,7 +211,7 @@ defmodule Tymeslot.Infrastructure.CalendarCircuitBreaker do
   @spec reset(atom(), String.t() | nil) :: :ok | {:error, atom()}
   def reset(provider, host \\ nil)
 
-  def reset(provider, host) when provider in @calendar_providers do
+  def reset(provider, host) when provider in @calendar_providers or is_host(provider, host) do
     breaker_name = breaker_name(provider, host)
 
     if breaker_exists?(breaker_name) do

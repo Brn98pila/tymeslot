@@ -35,7 +35,9 @@ defmodule Tymeslot.Integrations.HealthCheck.SchedulerCircuitBreakerTest do
           base_url: "https://dav.up.example/remote.php/dav"
         )
 
-      trip_host_breaker(:caldav, "dav.down.example")
+      # A generic CalDAV client on a `/remote.php/dav` URL is a Nextcloud
+      # client, so its calls trip the host's `:nextcloud` breaker.
+      trip_host_breaker(:nextcloud, "dav.down.example")
 
       assert :ok = Scheduler.schedule_all(force: true)
 
@@ -66,7 +68,7 @@ defmodule Tymeslot.Integrations.HealthCheck.SchedulerCircuitBreakerTest do
           base_url: "https://#{host}/remote.php/dav"
         )
 
-      assert {:error, :breaker_not_found} = CalendarCircuitBreaker.status(:caldav, host)
+      assert {:error, :breaker_not_found} = CalendarCircuitBreaker.status(:nextcloud, host)
 
       log = capture_log([level: :error], fn -> Scheduler.schedule_all(force: true) end)
 

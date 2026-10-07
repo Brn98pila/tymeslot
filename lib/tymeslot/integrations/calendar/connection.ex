@@ -166,9 +166,9 @@ defmodule Tymeslot.Integrations.Calendar.Connection do
   def reset_host_breaker(%{provider: provider} = integration) do
     with {:ok, provider_atom} <- ProviderConfig.parse_known(provider),
          nil <- ProviderConfig.locked_url_for(provider_atom),
-         host when is_binary(host) <-
-           CalendarCircuitBreaker.breaker_host(provider_atom, Map.get(integration, :base_url)) do
-      CalendarCircuitBreaker.reset(provider_atom, host)
+         {breaker_provider, host} when is_binary(host) <-
+           CalendarCircuitBreaker.breaker_key(provider_atom, Map.get(integration, :base_url)) do
+      CalendarCircuitBreaker.reset(breaker_provider, host)
     end
 
     :ok
