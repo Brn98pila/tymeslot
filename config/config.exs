@@ -458,13 +458,6 @@ config :tymeslot, :calendar_providers, %{
   debug: [enabled: false]
 }
 
-# Integration locking configuration
-config :tymeslot, :integration_locks,
-  default_timeout: 90_000,
-  google: 60_000,
-  outlook: 60_000,
-  teams: 120_000
-
 # Pin the Stripe API version instead of inheriting stripity_stripe's built-in
 # default, which travels with the library: upgrading the dependency would move
 # the wire contract without any change here. This matches the version the

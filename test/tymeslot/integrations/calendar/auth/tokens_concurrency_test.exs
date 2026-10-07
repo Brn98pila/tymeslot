@@ -21,8 +21,13 @@ defmodule Tymeslot.Integrations.Calendar.TokensConcurrencyTest do
   @moduletag :integrations
 
   import Mox
+  import Tymeslot.Factory
+  alias Ecto.Changeset
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.Shared.AccessToken
   alias Tymeslot.Integrations.Calendar.Tokens
   alias Tymeslot.Integrations.Shared.Lock
+  alias Tymeslot.Repo
 
   setup :verify_on_exit!
 
@@ -68,13 +73,14 @@ defmodule Tymeslot.Integrations.Calendar.TokensConcurrencyTest do
       assert updated.access_token == "new_access"
     end
 
-    test "handles expired locks gracefully" do
-      # This test manually inserts an "old" lock to verify expiration logic
+    test "takes over a lock whose holder has died" do
       integration_id = 777_666
 
-      # Insert lock from far in the past using the new helper
+      {dead_pid, ref} = spawn_monitor(fn -> :ok end)
+      assert_receive {:DOWN, ^ref, :process, ^dead_pid, _reason}
+
       old_now = System.monotonic_time(:millisecond) - 3_600_000
-      Lock.put_lock({:google, integration_id}, old_now, self())
+      Lock.put_lock(Tokens.refresh_lock_key(integration_id), old_now, dead_pid)
 
       integration = %{
         id: integration_id,
@@ -88,13 +94,12 @@ defmodule Tymeslot.Integrations.Calendar.TokensConcurrencyTest do
         {:ok, {"recovered_access", "refresh", DateTime.add(DateTime.utc_now(), 3600)}}
       end)
 
-      # Should succeed because the existing lock is expired
+      # Should succeed because the existing lock's holder is gone
       assert {:ok, updated} = Tokens.refresh_oauth_token(integration)
       assert updated.access_token == "recovered_access"
     end
 
     test "double-checks expiry after acquiring lock to avoid redundant refresh" do
-      import Tymeslot.Factory
       user = insert(:user)
 
       integration =
@@ -141,8 +146,7 @@ defmodule Tymeslot.Integrations.Calendar.TokensConcurrencyTest do
 
     test "slow refresh does not allow second process to 'steal' the lock prematurely" do
       # This test verifies that even if a refresh takes a long time,
-      # as long as it's within the timeout (now 90s), a second process
-      # will still see the lock as active.
+      # a second process still sees the lock as held.
       integration_id = 555_444
 
       integration = %{
@@ -172,5 +176,127 @@ defmodule Tymeslot.Integrations.Calendar.TokensConcurrencyTest do
       # Wait for first one to finish
       assert {:ok, _result} = Task.await(task1)
     end
+  end
+
+  # The hourly refresh job and a provider API call that finds its token
+  # expired must not refresh the same integration at once: each would POST
+  # the same refresh token, and with a provider that rotates refresh tokens
+  # the later write could persist the older one.
+  describe "the refresh job and the API-call refresh" do
+    setup do
+      user = insert(:user)
+
+      integration =
+        insert(:calendar_integration,
+          user: user,
+          provider: "google",
+          access_token: "old",
+          token_expires_at: DateTime.add(DateTime.utc_now(), -3600)
+        )
+
+      {:ok, integration: integration}
+    end
+
+    test "exclude each other", %{integration: integration} do
+      test_pid = self()
+
+      api_refresh = fn _integration ->
+        send(test_pid, {:api_refresh_started, self()})
+
+        receive do
+          :proceed -> :ok
+        after
+          2_000 -> raise "timed out waiting for :proceed"
+        end
+
+        {:ok, {"api-access", "api-refresh", DateTime.add(DateTime.utc_now(), 3600)}}
+      end
+
+      api_call =
+        Task.async(fn ->
+          AccessToken.with_access_token(integration, api_refresh, &{:ok, &1})
+        end)
+
+      assert_receive {:api_refresh_started, api_pid}, 2_000
+
+      # No GoogleCalendarAPIMock expectation: a second refresh would raise.
+      assert {:error, :refresh_in_progress} = Tokens.refresh_oauth_token(integration)
+
+      send(api_pid, :proceed)
+      assert {:ok, "api-access"} = Task.await(api_call, 5_000)
+    end
+
+    test "an API-call refresh writes its tokens before releasing the lock",
+         %{integration: integration} do
+      test_pid = self()
+      handler_id = {__MODULE__, :persist_under_lock}
+      key = Tokens.refresh_lock_key(integration.id)
+
+      :telemetry.attach(
+        handler_id,
+        [:tymeslot, :repo, :query],
+        fn _event, _measurements, metadata, _config ->
+          if String.starts_with?(metadata.query, ~s(UPDATE "calendar_integrations")) and
+               integration.id in metadata.params do
+            # Any release this process cast before the write is handled
+            # before this call returns, so the table shows the lock as the
+            # write saw it.
+            _state = :sys.get_state(Lock)
+
+            send(
+              test_pid,
+              {:written_under_lock, :ets.lookup(:integration_operation_locks, key) != []}
+            )
+          end
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      refresh = fn _integration ->
+        {:ok, {"api-access", "api-refresh", DateTime.add(DateTime.utc_now(), 3600)}}
+      end
+
+      assert {:ok, "api-access"} =
+               AccessToken.with_access_token(integration, refresh, &{:ok, &1})
+
+      assert_receive {:written_under_lock, true}
+    end
+
+    test "an API-call refresh clears a stale sync error", %{integration: integration} do
+      integration = set_sync_state(integration, sync_error: "Token refresh failed")
+
+      refresh = fn _integration ->
+        {:ok, {"api-access", "api-refresh", DateTime.add(DateTime.utc_now(), 3600)}}
+      end
+
+      assert {:ok, "api-access"} =
+               AccessToken.with_access_token(integration, refresh, &{:ok, &1})
+
+      assert Repo.get!(CalendarIntegrationSchema, integration.id).sync_error == nil
+    end
+
+    test "an API-call refresh keeps the reason an integration needs reconnecting",
+         %{integration: integration} do
+      integration =
+        set_sync_state(integration, sync_error: "Booking calendar deleted", needs_reauth: true)
+
+      refresh = fn _integration ->
+        {:ok, {"api-access", "api-refresh", DateTime.add(DateTime.utc_now(), 3600)}}
+      end
+
+      assert {:ok, "api-access"} =
+               AccessToken.with_access_token(integration, refresh, &{:ok, &1})
+
+      assert Repo.get!(CalendarIntegrationSchema, integration.id).sync_error ==
+               "Booking calendar deleted"
+    end
+  end
+
+  defp set_sync_state(integration, changes) do
+    integration
+    |> Changeset.change(changes)
+    |> Repo.update!()
   end
 end
