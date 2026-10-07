@@ -29,7 +29,9 @@ defmodule Tymeslot.Payments.Webhooks.WebhookRegistry do
       "invoice.paid",
       "invoice.payment_succeeded",
       "invoice.payment_failed",
-      "invoice.upcoming"
+      "invoice.upcoming",
+      "invoice.voided",
+      "invoice.marked_uncollectible"
     ],
     Tymeslot.Payments.Webhooks.RefundHandler => [
       "charge.refunded",

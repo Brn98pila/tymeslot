@@ -5,7 +5,7 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
   alias Tymeslot.Payments.PaymentQueries
   alias Tymeslot.Payments.SubscriptionInvoices
   alias Tymeslot.Payments.SubscriptionInvoiceSchema
-  alias Tymeslot.Payments.Webhooks.{InvoiceHandler, WebhookRegistry}
+  alias Tymeslot.Payments.Webhooks.{InvoiceHandler, WebhookProcessor, WebhookRegistry}
   import Tymeslot.Factory
 
   defp invoice_for(stripe_invoice_id),
@@ -61,6 +61,36 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
       # invoice.paid requires an ID in InvoiceHandler.validate/2
       assert {:error, :missing_field, "Invoice ID missing"} =
                WebhookRegistry.validate("invoice.paid", %{})
+    end
+  end
+
+  describe "routing a delivered invoice event" do
+    # The registry, not the handler, decides which events reach it: an event
+    # type missing there is answered as unhandled and its document never lands.
+    for {event_type, status} <- [
+          {"invoice.voided", :void},
+          {"invoice.marked_uncollectible", :uncollectible}
+        ] do
+      test "#{event_type} updates the captured invoice's status" do
+        invoice_id = "in_#{unquote(status)}"
+
+        assert {:ok, :invoice_finalized} =
+                 InvoiceHandler.process(%{"type" => "invoice.finalized"}, %{
+                   "id" => invoice_id,
+                   "status" => "open"
+                 })
+
+        assert {:ok, _result} =
+                 WebhookProcessor.process_event(%{
+                   "id" => "evt_#{unquote(status)}",
+                   "type" => unquote(event_type),
+                   "data" => %{
+                     "object" => %{"id" => invoice_id, "status" => unquote(to_string(status))}
+                   }
+                 })
+
+        assert invoice_for(invoice_id).status == unquote(status)
+      end
     end
   end
 
