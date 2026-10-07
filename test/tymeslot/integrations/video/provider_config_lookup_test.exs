@@ -98,7 +98,11 @@ defmodule Tymeslot.Integrations.Video.ProviderConfigLookupTest do
 
       assert ProviderConfig.room_creation_budget_ms() == largest
       assert ProviderConfig.room_creation_budget_ms(:unknown) == largest
-      assert ProviderConfig.room_creation_budget_ms(:nextcloud_talk) < largest
+    end
+
+    test "a provider's own budget can be well below the largest" do
+      assert ProviderConfig.room_creation_budget_ms(:nextcloud_talk) <
+               ProviderConfig.room_creation_budget_ms()
     end
   end
 
@@ -117,6 +121,15 @@ defmodule Tymeslot.Integrations.Video.ProviderConfigLookupTest do
 
       assert {:ok, _message} = ProviderAdapter.test_connection(:mirotalk, config)
       assert Agent.get(counter, & &1) == 1
+    end
+
+    # No HTTP expectation: a config missing its server is refused before any
+    # request.
+    test "refuses a MiroTalk config missing its server address" do
+      assert {:error, {_tag, message}} =
+               ProviderAdapter.test_connection(:mirotalk, %{api_key: "test_key"})
+
+      assert message =~ "Base URL is required"
     end
 
     test "answers an unknown provider with an error" do

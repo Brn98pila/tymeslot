@@ -389,9 +389,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
     {:error, :unauthorized}
   end
 
-  # function_exported?/3 returns false for modules that haven't been loaded
-  # yet, which silently turns optional callbacks into no-ops in tests that
-  # haven't touched the provider module before. Force-load first.
   # `:meeting_not_found` stays an error for an update, where it tells the
   # caller the booking's room is gone.
   defp already_gone_is_deleted({:error, :meeting_not_found}, provider_type, room_id) do
@@ -412,6 +409,9 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
         prefix: [:tymeslot, :video]
       )
 
+  # function_exported?/3 returns false for modules that haven't been loaded
+  # yet, which silently turns optional callbacks into no-ops in tests that
+  # haven't touched the provider module before. Force-load first.
   defp callback_exported?(module, fun, arity) do
     Code.ensure_loaded?(module) and function_exported?(module, fun, arity)
   end
