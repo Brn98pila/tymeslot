@@ -183,32 +183,8 @@ defmodule Tymeslot.Integrations.Calendar.Baikal.Provider do
 
   defp build_baikal_calendar_paths(config) do
     case config[:calendar_paths] do
-      paths when is_list(paths) and paths != [] ->
-        paths
-
-      _other ->
-        build_baikal_default_paths(config)
-    end
-  end
-
-  defp build_baikal_default_paths(config) do
-    username = config[:username]
-    calendar_names = config[:calendar_names] || []
-
-    if Enum.empty?(calendar_names) do
-      []
-    else
-      Enum.map(calendar_names, &format_baikal_path(&1, username))
-    end
-  end
-
-  defp format_baikal_path(calendar_name, username) do
-    dav_prefix = "/dav.php/calendars/#{username}/"
-
-    if String.starts_with?(calendar_name, dav_prefix) do
-      calendar_name
-    else
-      "#{dav_prefix}#{calendar_name}/"
+      paths when is_list(paths) -> paths
+      _other -> []
     end
   end
 

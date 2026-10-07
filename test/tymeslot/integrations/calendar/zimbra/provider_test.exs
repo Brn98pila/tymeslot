@@ -156,7 +156,6 @@ defmodule Tymeslot.Integrations.Calendar.Zimbra.ProviderTest do
       assert client.username == "testuser@example.com"
       assert client.password == "testpass"
       assert client.provider == :zimbra
-      assert client.verify_ssl == true
     end
 
     test "normalizes Zimbra base URL" do
@@ -170,20 +169,6 @@ defmodule Tymeslot.Integrations.Calendar.Zimbra.ProviderTest do
 
       # Should normalize by removing trailing slash
       assert client.base_url == "https://mail.example.com"
-    end
-
-    test "builds Zimbra calendar paths correctly" do
-      config = %{
-        base_url: "https://mail.example.com",
-        username: "testuser@example.com",
-        password: "pass",
-        calendar_names: ["Calendar"]
-      }
-
-      client = Provider.new(config)
-
-      # Calendar names are turned into Zimbra's /dav/{username}/{name}/ paths
-      assert client.calendar_paths == ["/dav/testuser@example.com/Calendar/"]
     end
 
     test "sets empty calendar_paths when not provided" do

@@ -19,10 +19,6 @@ alias Tymeslot.Mocks.StripeBehaviours.{
 # --- Calendar ---
 Mox.defmock(Tymeslot.CalendarMock, for: Tymeslot.Integrations.Calendar.CalendarBehaviour)
 
-Mox.defmock(Tymeslot.RadicaleClientMock,
-  for: Tymeslot.Integrations.Calendar.CalDAV.ClientBehaviour
-)
-
 Mox.defmock(GoogleCalendarAPIMock,
   for: Tymeslot.Integrations.Calendar.Google.CalendarAPIBehaviour
 )

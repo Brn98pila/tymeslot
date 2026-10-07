@@ -183,33 +183,9 @@ defmodule Tymeslot.Integrations.Calendar.Radicale.Provider do
   end
 
   defp build_radicale_calendar_paths(config) do
-    # If calendar_paths is provided (from operations.ex for fetching), use it directly
-    # Otherwise, build from calendar_names (for initial setup/discovery)
     case config[:calendar_paths] do
-      paths when is_list(paths) and paths != [] ->
-        paths
-
-      _other ->
-        build_radicale_default_paths(config)
-    end
-  end
-
-  defp build_radicale_default_paths(config) do
-    username = config[:username]
-    calendar_names = config[:calendar_names] || []
-
-    if Enum.empty?(calendar_names) do
-      []
-    else
-      Enum.map(calendar_names, &format_radicale_path(&1, username))
-    end
-  end
-
-  defp format_radicale_path(calendar_name, username) do
-    if String.starts_with?(calendar_name, "/#{username}/") do
-      calendar_name
-    else
-      "/#{username}/#{calendar_name}/"
+      paths when is_list(paths) -> paths
+      _other -> []
     end
   end
 

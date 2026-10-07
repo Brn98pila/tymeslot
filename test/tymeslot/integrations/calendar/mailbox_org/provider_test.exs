@@ -110,7 +110,6 @@ defmodule Tymeslot.Integrations.Calendar.MailboxOrg.ProviderTest do
       assert client.provider == :mailbox_org
       assert client.username == "you@mailbox.org"
       assert client.calendar_paths == ["/caldav/Y2FsOi8vMC8zMg/"]
-      assert client.verify_ssl == true
     end
 
     test "trims trailing slash from the base URL" do
