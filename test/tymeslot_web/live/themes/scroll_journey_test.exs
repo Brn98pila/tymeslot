@@ -17,10 +17,20 @@ defmodule TymeslotWeb.Live.Themes.ScrollJourneyTest do
 
   alias Tymeslot.CalendarMock
   alias Tymeslot.Infrastructure.AvailabilityCache
+  alias Tymeslot.Meetings.MeetingSchema
+  alias Tymeslot.Repo
   alias Tymeslot.TestMocks
   alias TymeslotWeb.BookingDriver
 
   @theme_id "96"
+
+  @company %{
+    "id" => "cf-company",
+    "type" => "short_text",
+    "label" => "Company",
+    "required" => true,
+    "position" => 0
+  }
 
   setup :verify_on_exit!
 
@@ -67,6 +77,76 @@ defmodule TymeslotWeb.Live.Themes.ScrollJourneyTest do
       # A page that opens its moments by itself keeps the language switcher
       # past its first moment.
       assert has_element?(view, ".journey-fixture-language.visible")
+    end
+  end
+
+  describe "a meeting type with questions" do
+    @tag :capture_log
+    test "asks them before it shows the calendar, and books with the answers", %{conn: conn} do
+      %{user: user, profile: profile} =
+        seed_organiser(@theme_id, "scroll-questions",
+          types: [[name: "Quick Chat", duration_minutes: 30, custom_fields: [@company]]]
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/#{profile.username}")
+
+      BookingDriver.choose_meeting_type(view, "quick-chat")
+
+      assert state(view, :offer) == "done"
+      assert state(view, :ask) == "current"
+      refute has_element?(view, "#when-step")
+
+      BookingDriver.answer(view, "cf-company", "Acme")
+      BookingDriver.continue(view)
+
+      assert state(view, :ask) == "done"
+      assert state(view, :when) == "current"
+      refute has_element?(view, "#you-step")
+
+      BookingDriver.pick_time(view, await_first_time(view))
+
+      assert state(view, :offer) == "done"
+      assert state(view, :when) == "done"
+      assert state(view, :you) == "current"
+
+      BookingDriver.submit(view, %{name: "Ada Lovelace", email: "ada@example.com"})
+      await(view, "[data-testid='confirmation-heading']")
+
+      meeting =
+        Repo.get_by!(MeetingSchema, organizer_user_id: user.id, attendee_email: "ada@example.com")
+
+      assert meeting.custom_field_answers == %{"cf-company" => "Acme"}
+    end
+  end
+
+  describe "the submission token" do
+    test "is created when the attendee moment opens, and again when it opens again",
+         %{conn: conn} do
+      %{profile: profile} = seed_organiser(@theme_id, "scroll-token")
+      {:ok, view, _html} = live(conn, ~p"/#{profile.username}")
+
+      BookingDriver.choose_meeting_type(view, "quick-chat")
+      time = await_first_time(view)
+
+      assert live_assigns(view).submission_token == nil
+
+      BookingDriver.pick_time(view, time)
+      first = live_assigns(view).submission_token
+
+      assert is_binary(first)
+
+      # Another day forgets the time, so the attendee moment closes; a time on
+      # that day opens it again.
+      BookingDriver.pick_date(view, another_free_date(view, live_assigns(view).selected_date))
+
+      refute has_element?(view, "#you-step")
+      assert state(view, :when) == "current"
+
+      BookingDriver.pick_time(view, await_first_time(view))
+      second = live_assigns(view).submission_token
+
+      assert is_binary(second)
+      assert second != first
     end
   end
 end
