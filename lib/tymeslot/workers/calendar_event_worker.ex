@@ -86,7 +86,23 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
     end
   end
 
+  # Every "wait for the calendar to recover" verdict below (a timeout, an open
+  # breaker, an unresponsive server, a failed connection, a rate limit) is a
+  # snooze, and from Oban 2.24 a snooze costs no attempt, so without a bound a
+  # calendar that never recovers keeps the booking's job alive for ever and
+  # its owner is never told. Twelve runs is hours at these snooze lengths.
+  @max_recovery_snoozes 12
+
   defp run(action, meeting_id, job, attempt) do
+    action
+    |> run_unbounded(meeting_id, job, attempt)
+    |> SnoozePolicy.bound(job,
+      max_snoozes: @max_recovery_snoozes,
+      reason: "Calendar server did not recover within the maximum wait"
+    )
+  end
+
+  defp run_unbounded(action, meeting_id, job, attempt) do
     if Application.get_env(:tymeslot, :test_mode, false) do
       # In test mode, run synchronously to avoid SQL sandbox and Mox allowance issues
       # with child processes created by Task.async
@@ -383,9 +399,8 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
     # file lock, worsening the condition that's slowing it down in the
     # first place. Back off for 10 minutes so the server has a real chance
     # to recover (whatever was slowing it — backup, GC pause, lock
-    # contention from another client) before we touch it again. Oban's
-    # default max_attempts: 5 combined with this snooze gives ~50 minutes
-    # of graceful retry before the job is considered genuinely stuck.
+    # contention from another client) before we touch it again. A snooze
+    # costs no attempt, so it is `run/4`'s bound that ends the wait.
     Logger.warning(
       "CalDAV server unresponsive on write, snoozing 10 minutes to avoid worsening wedge"
     )

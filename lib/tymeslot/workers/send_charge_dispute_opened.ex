@@ -62,7 +62,7 @@ defmodule Tymeslot.Workers.SendChargeDisputeOpened do
         {:discard, "missing host_email"}
 
       %BookingPaymentSchema{} = payment ->
-        DeliveryClaims.once(job, "dispute_email", fn -> send_email(payment, args) end)
+        DeliveryClaims.once(job, "dispute_email", fn -> send_email(payment, args, job) end)
     end
   end
 
@@ -74,12 +74,12 @@ defmodule Tymeslot.Workers.SendChargeDisputeOpened do
     {:discard, "missing booking_payment_id"}
   end
 
-  defp send_email(payment, args) do
+  defp send_email(payment, args, job) do
     context = build_context(payment, args)
 
     context
     |> ChargeDisputeOpened.render()
-    |> TransactionalEmailDelivery.deliver("Dispute email delivery failed",
+    |> TransactionalEmailDelivery.deliver(job, "Dispute email delivery failed",
       booking_payment_id: payment.id
     )
   end

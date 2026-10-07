@@ -35,6 +35,10 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
+  # An open breaker or a rate limit is waited out with a snooze, which from
+  # Oban 2.24 costs no attempt; without a bound a provider that never
+  # recovers would keep this job snoozing for ever, with no alert.
+  @max_unavailable_snoozes 12
   require Logger
 
   alias Tymeslot.Infrastructure.Config
@@ -49,6 +53,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
+  alias Tymeslot.Workers.SnoozePolicy
   alias Tymeslot.Workers.SyncHealth
   alias Tymeslot.Workers.SyncRequest
 
@@ -99,6 +104,10 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
         fn ->
           integration
           |> sync_integration(args[@list_booking_calendar] == true)
+          |> SnoozePolicy.bound(job,
+            max_snoozes: @max_unavailable_snoozes,
+            reason: "Google Calendar did not recover within the maximum wait"
+          )
           |> tap(&SyncHealth.record_outcome(integration, &1))
         end
         |> InvalidEventReport.collect()

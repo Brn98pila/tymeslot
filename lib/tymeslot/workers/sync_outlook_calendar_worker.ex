@@ -20,6 +20,10 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
+  # An open breaker or a rate limit is waited out with a snooze, which from
+  # Oban 2.24 costs no attempt; without a bound a provider that never
+  # recovers would keep this job snoozing for ever, with no alert.
+  @max_unavailable_snoozes 12
   require Logger
 
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
@@ -34,6 +38,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.RetryHelpers
+  alias Tymeslot.Workers.SnoozePolicy
   alias Tymeslot.Workers.SyncHealth
 
   # CalendarGrid enqueues Outlook jobs with only calendar_integration_id (no graph_resource_id).
@@ -63,12 +68,14 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
     {:discard, "graph_resource_id required — Outlook syncs are webhook-driven"}
   end
 
-  def perform(%Oban.Job{
-        args: %{
-          "calendar_integration_id" => integration_id,
-          "graph_resource_id" => graph_resource_id
-        }
-      }) do
+  def perform(
+        %Oban.Job{
+          args: %{
+            "calendar_integration_id" => integration_id,
+            "graph_resource_id" => graph_resource_id
+          }
+        } = job
+      ) do
     Logger.metadata(
       calendar_integration_id: integration_id,
       graph_resource_id: graph_resource_id
@@ -76,7 +83,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
 
     case CalendarIntegrationQueries.get(integration_id) do
       {:ok, integration} ->
-        InvalidEventReport.collect(fn -> sync_event(integration, graph_resource_id) end)
+        InvalidEventReport.collect(fn -> sync_event(integration, graph_resource_id, job) end)
 
       {:error, :not_found} ->
         Logger.warning("Calendar integration not found, discarding sync job",
@@ -94,7 +101,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   # Private helpers
   # ---------------------------------------------------------------------------
 
-  defp sync_event(integration, graph_resource_id) do
+  defp sync_event(integration, graph_resource_id, job) do
     result =
       AccessToken.with_access_token(integration, &OutlookCalendarAPI.refresh_token/1, fn token ->
         # Check for 404 (deleted event) and 401 BEFORE the circuit breaker so
@@ -121,6 +128,10 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
 
     result
     |> handle_sync_result(integration, graph_resource_id)
+    |> SnoozePolicy.bound(job,
+      max_snoozes: @max_unavailable_snoozes,
+      reason: "Outlook Calendar did not recover within the maximum wait"
+    )
     |> tap(&SyncHealth.record_outcome(integration, &1))
   end
 

@@ -87,7 +87,7 @@ defmodule Tymeslot.Workers.SendBookingPaymentRefunded do
   defp send_email(payment, job) do
     case build_context(payment) do
       {:ok, context} ->
-        DeliveryClaims.once(job, "refund_email", fn -> deliver(context, payment) end)
+        DeliveryClaims.once(job, "refund_email", fn -> deliver(context, payment, job) end)
 
       {:error, :missing_attendee_email} ->
         Logger.warning("Refund email skipped — booking_payment has no attendee_email",
@@ -98,10 +98,10 @@ defmodule Tymeslot.Workers.SendBookingPaymentRefunded do
     end
   end
 
-  defp deliver(context, payment) do
+  defp deliver(context, payment, job) do
     context
     |> BookingPaymentRefunded.render()
-    |> TransactionalEmailDelivery.deliver("Refund email delivery failed",
+    |> TransactionalEmailDelivery.deliver(job, "Refund email delivery failed",
       booking_payment_id: payment.id
     )
   end
