@@ -25,6 +25,8 @@ defmodule TymeslotWeb.Themes.Shared.Journey do
   alias TymeslotWeb.Themes.Shared.Journey.Moment
   alias TymeslotWeb.Themes.Shared.Journey.Navigators.Paged
 
+  require Logger
+
   @enforce_keys [:navigator, :moments, :outcomes]
   defstruct [:navigator, :moments, :outcomes]
 
@@ -196,7 +198,9 @@ defmodule TymeslotWeb.Themes.Shared.Journey do
         Code.ensure_compiled!(module)
         Code.ensure_loaded?(module)
       rescue
-        ArgumentError -> false
+        error in ArgumentError ->
+          Logger.debug("Journey module unavailable", reason: Exception.message(error))
+          false
       end
   end
 
