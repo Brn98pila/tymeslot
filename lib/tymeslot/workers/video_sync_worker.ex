@@ -63,6 +63,7 @@ defmodule Tymeslot.Workers.VideoSyncWorker do
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Integrations.Video.EventDetails
   alias Tymeslot.Integrations.Video.IntegrationResolver
+  alias Tymeslot.Meetings
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Workers.SnoozePolicy
   alias Tymeslot.Workers.VideoRoom.ErrorPolicy
@@ -587,7 +588,10 @@ defmodule Tymeslot.Workers.VideoSyncWorker do
     {:error, reason}
   end
 
-  defp clear_room(%{kind: :meeting, record: meeting}), do: clear_video_room(meeting)
+  # The booking's join links are dead and go with the room. Its calendar event
+  # is left alone: every booking whose room this job deletes was released or
+  # has ended (see `Tymeslot.Meetings.VideoRoomAttachment.forget/2`).
+  defp clear_room(%{kind: :meeting, record: meeting}), do: Meetings.forget_video_room(meeting)
 
   # A room no record holds: once it is gone there is nothing left to clear.
   defp clear_room(%{kind: :room}), do: :ok
@@ -600,32 +604,4 @@ defmodule Tymeslot.Workers.VideoSyncWorker do
   # The meeting let go of a released room before the job was enqueued, so
   # there is nothing left to clear.
   defp clear_room(%{kind: :released}), do: :ok
-
-  # The room is gone on the provider, so the booking's join links are dead and
-  # go with it, as `Tymeslot.Workers.VideoIntegrationDisconnectWorker` already
-  # does for the same reason. A cancellation used to clear the room id alone and
-  # leave `organizer_video_url` and `attendee_video_url` pointing at a
-  # conversation nobody can join, for every reader that keeps showing them.
-  defp clear_video_room(meeting) do
-    case MeetingQueries.update_meeting(meeting, %{
-           video_room_id: nil,
-           video_room_enabled: false,
-           organizer_video_url: nil,
-           attendee_video_url: nil
-         }) do
-      {:ok, _updated} ->
-        :ok
-
-      {:error, changeset} ->
-        # The provider room is gone either way, so the job has done its work.
-        # Only the local marker is stale, and the orphan scan will retry it
-        # harmlessly.
-        Logger.warning("Failed to clear video room marker after provider delete",
-          meeting_id: meeting.id,
-          errors: LogFormat.reason(changeset.errors)
-        )
-
-        :ok
-    end
-  end
 end

@@ -36,11 +36,10 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorker do
   alias Tymeslot.CalendarGrid
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Integrations.Calendar.CalendarEventScheduler
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
+  alias Tymeslot.Meetings
   alias Tymeslot.Meetings.MeetingListQueries
-  alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Repo
   alias Tymeslot.Workers.SnoozePolicy
   alias Tymeslot.Workers.VideoRoom.ErrorPolicy
@@ -62,14 +61,6 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorker do
   # How long a run that used up its pages waits before the next: only long
   # enough to yield the queue.
   @next_run_snooze_seconds 5
-
-  # What a booking keeps of a room that is gone: nothing.
-  @cleared_room %{
-    video_room_id: nil,
-    video_room_enabled: false,
-    organizer_video_url: nil,
-    attendee_video_url: nil
-  }
 
   # Overridable at runtime (rather than a plain module attribute) so tests can
   # drive the full-page retry path without inserting hundreds of meetings.
@@ -197,7 +188,7 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorker do
         ErrorPolicy.to_result(:circuit_open, executions, integration.provider)
 
       full_page? and progress? and page < @max_pages_per_run ->
-        # More rooms on this integration than one page covers. `clear_room/1`
+        # More rooms on this integration than one page covers. Clearing a room
         # removed every drained meeting from the result set, so the next query
         # returns the next page rather than the same one.
         drain_page(integration, executions, page + 1, total - failures)
@@ -329,11 +320,11 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorker do
     do:
       delete_room(integration, meeting.organizer_user_id, meeting.video_room_id,
         log: [meeting_id: meeting.id],
-        on_deleted: fn -> clear_room(meeting) end
+        on_deleted: fn -> Meetings.forget_video_room(meeting) end
       )
 
   defp release_attached_room(meeting) do
-    with {:ok, _updated} <- MeetingQueries.update_meeting(meeting, @cleared_room),
+    with {:ok, _updated} <- Meetings.clear_video_room(meeting),
          {:ok, _scheduled} <- VideoSyncWorker.release(meeting) do
       :ok
     else
@@ -367,41 +358,6 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorker do
         )
 
         :error
-    end
-  end
-
-  # The room is gone on the provider, so the booking's join links are dead. They
-  # are cleared rather than left pointing at nothing, and the calendar event is
-  # refreshed so the attendee's invite stops advertising a URL that no longer
-  # works.
-  defp clear_room(meeting) do
-    case MeetingQueries.update_meeting(meeting, @cleared_room) do
-      {:ok, updated} ->
-        schedule_calendar_update(updated)
-        :ok
-
-      {:error, changeset} ->
-        Logger.warning("Failed to clear video room after disconnect cleanup",
-          meeting_id: meeting.id,
-          errors: LogFormat.reason(changeset.errors)
-        )
-
-        :ok
-    end
-  end
-
-  defp schedule_calendar_update(meeting) do
-    case CalendarEventScheduler.schedule_calendar_update(meeting.id) do
-      {:ok, _job} ->
-        :ok
-
-      {:error, reason} ->
-        Logger.warning("Failed to schedule calendar update after room removal",
-          meeting_id: meeting.id,
-          reason: LogFormat.reason(reason)
-        )
-
-        :ok
     end
   end
 end
