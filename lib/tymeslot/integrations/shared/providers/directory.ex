@@ -1,4 +1,4 @@
-defmodule Tymeslot.Integrations.Providers.Directory do
+defmodule Tymeslot.Integrations.Shared.Providers.Directory do
   @moduledoc """
   Single source of truth for provider metadata and utilities across domains.
 
@@ -6,7 +6,7 @@ defmodule Tymeslot.Integrations.Providers.Directory do
   config schemas, and OAuth support.
   """
 
-  alias Tymeslot.Integrations.Providers.Descriptor
+  alias Tymeslot.Integrations.Shared.Providers.Descriptor
 
   @type domain :: :calendar | :video
 

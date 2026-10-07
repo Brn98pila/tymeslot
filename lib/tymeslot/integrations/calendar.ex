@@ -50,8 +50,8 @@ defmodule Tymeslot.Integrations.Calendar do
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Calendar.Shared.ProviderCommon
   alias Tymeslot.Integrations.{CalendarManagement, CalendarPrimary}
-  alias Tymeslot.Integrations.Providers.Directory
   alias Tymeslot.Integrations.Shared.InputValidators
+  alias Tymeslot.Integrations.Shared.Providers.Directory
   alias Tymeslot.Security.EncryptedString
   alias Tymeslot.Workers.SyncIcsCalendarWorker
 

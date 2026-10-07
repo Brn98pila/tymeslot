@@ -10,14 +10,14 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Infrastructure.Config
-  alias Tymeslot.Integrations.Providers.Families
   alias Tymeslot.Integrations.Shared.{ProviderConfigHelper, ProviderToggle}
+  alias Tymeslot.Integrations.Shared.Providers.Families
 
   @providers [:mirotalk, :google_meet, :teams, :zoom, :kmeet, :jitsi, :nextcloud_talk, :custom]
   @dev_only_providers []
 
   # The single declaration site for "how does this provider connect?", in the
-  # shared vocabulary of `Tymeslot.Integrations.Providers.Families`. Video has
+  # shared vocabulary of `Tymeslot.Integrations.Shared.Providers.Families`. Video has
   # no CalDAV or subscription providers, so those families are simply empty
   # here; a provider missing from this table fails the build.
   @provider_families %{
