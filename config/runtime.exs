@@ -108,6 +108,21 @@ if config_env() == :prod do
   # "cloudron" or the legacy "main"; "docker" if DEPLOYMENT_TYPE is unset or unknown
   deployment_type = Tymeslot.Infrastructure.DeploymentType.current()
 
+  # A blank OAuth state secret counts as unset, which leaves that provider
+  # unconfigured. Documented setups ship the variables blank, so this only
+  # warns, in case a blank one was meant to hold a value.
+  case Tymeslot.Integrations.Shared.OAuthConfig.blank_state_secrets(System.get_env()) do
+    [] ->
+      :ok
+
+    names ->
+      IO.warn(
+        "#{Enum.join(names, ", ")} set but blank; the provider is treated as not " <>
+          "configured. Set a random value to enable it, or unset the variable.",
+        []
+      )
+  end
+
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
   # want to use a different value for prod and you most likely don't want
@@ -127,11 +142,6 @@ if config_env() == :prod do
   # a malformed value raises in the encryption module. Once set, run the
   # re-encryption sweep (see README, "Data-at-rest encryption") to migrate
   # existing values, then the two secrets are fully independent.
-  # An integration's OAuth state secret signs the `state` its flows carry. Unset
-  # leaves the provider unconfigured, which a self-hoster without it relies on;
-  # set but blank would sign with an empty HMAC key, so it stops the boot.
-  Tymeslot.Integrations.Shared.OAuthConfig.check_state_secrets!(System.get_env())
-
   data_encryption_key = System.get_env("DATA_ENCRYPTION_KEY")
 
   if is_nil(data_encryption_key) do

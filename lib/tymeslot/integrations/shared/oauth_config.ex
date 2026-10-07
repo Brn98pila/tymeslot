@@ -76,22 +76,18 @@ defmodule Tymeslot.Integrations.Shared.OAuthConfig do
   end
 
   @doc """
-  Raises when a provider's state secret environment variable is set but
-  blank. Called by `config/runtime.exs` at boot: unset leaves the provider
-  unconfigured, which a self-hoster without it relies on, but a blank secret
-  would sign OAuth `state` with an empty HMAC key, so it stops the boot
-  rather than fail at the first connection attempt.
+  The providers' state secret environment variables that are set but blank
+  in `env`. Each counts as unset, so its provider is unconfigured;
+  `config/runtime.exs` warns about them at boot in case one was meant to hold
+  a value.
   """
-  @spec check_state_secrets!(%{optional(String.t()) => String.t()}) :: :ok
-  def check_state_secrets!(env) do
+  @spec blank_state_secrets(%{optional(String.t()) => String.t()}) :: [String.t()]
+  def blank_state_secrets(env) do
     for provider <- Map.keys(@providers),
         name = env_var(provider, :state_secret),
         value = Map.get(env, name),
-        is_binary(value) and not present?(value) do
-      raise "environment variable #{name} is set but blank; set a random value or unset it"
-    end
-
-    :ok
+        is_binary(value) and not present?(value),
+        do: name
   end
 
   @doc """

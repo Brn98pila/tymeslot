@@ -84,16 +84,18 @@ defmodule Tymeslot.Integrations.Shared.OAuthConfigTest do
     end
   end
 
-  describe "check_state_secrets!/1" do
-    test "allows a state secret that is unset or set" do
-      assert :ok = OAuthConfig.check_state_secrets!(%{"GOOGLE_STATE_SECRET" => "s3cret"})
-      assert :ok = OAuthConfig.check_state_secrets!(%{})
-    end
+  describe "blank_state_secrets/1" do
+    test "names the state secrets that are set but blank, and no others" do
+      env = %{
+        "GOOGLE_STATE_SECRET" => "",
+        "OUTLOOK_STATE_SECRET" => "s3cret",
+        "ZOOM_STATE_SECRET" => "  "
+      }
 
-    test "stops the boot on a state secret that is set but blank" do
-      assert_raise RuntimeError, ~r/OUTLOOK_STATE_SECRET is set but blank/, fn ->
-        OAuthConfig.check_state_secrets!(%{"OUTLOOK_STATE_SECRET" => " "})
-      end
+      assert Enum.sort(OAuthConfig.blank_state_secrets(env)) ==
+               ["GOOGLE_STATE_SECRET", "ZOOM_STATE_SECRET"]
+
+      assert OAuthConfig.blank_state_secrets(%{}) == []
     end
   end
 end
