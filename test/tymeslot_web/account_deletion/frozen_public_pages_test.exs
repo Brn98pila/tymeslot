@@ -2,21 +2,30 @@ defmodule TymeslotWeb.AccountDeletion.FrozenPublicPagesTest do
   use TymeslotWeb.ConnCase, async: false
 
   @moduletag :bookings
+  @moduletag :polls
   @moduletag :integration
 
   import Phoenix.LiveViewTest
   import Tymeslot.AvailabilityTestHelpers
   import Tymeslot.Factory
+  import Tymeslot.MeetingTestHelpers, only: [insert_meeting_for_user: 1]
+  import Tymeslot.ThemeBookingFlowHelpers, only: [seed_booking_account: 3]
 
   alias Tymeslot.Auth.UserQueries
   alias Tymeslot.Bookings.Create
+  alias Tymeslot.Bookings.Reschedule
   alias Tymeslot.Bookings.RescheduleSeat
   alias Tymeslot.Meetings.ApprovalToken
   alias Tymeslot.Meetings.Guests
+  alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.ParticipantQueries
+  alias Tymeslot.Polls
+  alias Tymeslot.Polls.PollParticipantQueries
+  alias Tymeslot.Polls.PollParticipantSchema
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Repo
+  alias Tymeslot.TestMocks
 
   defp freeze(user) do
     now = DateTime.utc_now(:second)
@@ -120,6 +129,85 @@ defmodule TymeslotWeb.AccountDeletion.FrozenPublicPagesTest do
     freeze(user)
 
     assert Guests.get_open_invitation(guest.rsvp_token) == {:error, :not_found}
+  end
+
+  test "a reschedule submitted from a page opened before the freeze is refused" do
+    TestMocks.setup_email_mocks()
+    TestMocks.stub_no_calendar_events()
+    %{user: user} = create_always_bookable_profile(timezone: "Etc/UTC")
+    meeting = insert_meeting_for_user(user)
+    freeze(user)
+
+    new_params = %{
+      date: Date.to_string(next_bookable_weekday(5)),
+      time: "10:00 AM",
+      duration: "60min",
+      user_timezone: "Etc/UTC"
+    }
+
+    assert Reschedule.execute(meeting.uid, new_params, %{}, user.id) ==
+             {:error, :meeting_not_found}
+
+    assert {:ok, unchanged} = MeetingQueries.get_meeting(meeting.id)
+    assert DateTime.compare(unchanged.start_time, meeting.start_time) == :eq
+  end
+
+  describe "the poll voting link of a host pending deletion" do
+    setup %{conn: conn} do
+      %{user: user, profile: profile} = seed_booking_account("1", "frozen-poll", "Etc/UTC")
+      poll = insert(:poll, user: user, title: "Frozen poll")
+      slot = insert(:poll_time_slot, poll: poll)
+      path = "/#{profile.username}/poll/#{poll.token}"
+
+      {:ok, view, html} = live(conn, path)
+      assert html =~ "Frozen poll"
+
+      %{user: user, poll: poll, slot: slot, view: view, path: path}
+    end
+
+    test "answers as if the poll did not exist", %{conn: conn, user: user, poll: poll, path: path} do
+      assert {:ok, _poll} = Polls.get_poll_for_voting(poll.token)
+      freeze(user)
+
+      assert Polls.get_poll_for_voting(poll.token) == {:error, :not_found}
+      assert_error_sent(404, fn -> get(conn, path) end)
+    end
+
+    test "takes no registration from a page opened before the freeze",
+         %{user: user, poll: poll, view: view} do
+      freeze(user)
+
+      html =
+        view
+        |> form("form[data-testid='poll-register-form']", %{
+          "name" => "Ada Lovelace",
+          "email" => "ada@example.com"
+        })
+        |> render_submit()
+
+      assert html =~ "Voting has closed for this poll."
+      assert PollParticipantQueries.count_for_poll(poll.id) == 0
+    end
+
+    test "takes no votes from a page opened before the freeze",
+         %{user: user, poll: poll, slot: slot, view: view} do
+      view
+      |> form("form[data-testid='poll-register-form']", %{
+        "name" => "Grace",
+        "email" => "grace@example.com"
+      })
+      |> render_submit()
+
+      freeze(user)
+
+      html =
+        view
+        |> form("form[data-testid='poll-vote-form']", %{"votes" => %{slot.id => "yes"}})
+        |> render_submit()
+
+      assert html =~ "Voting has closed for this poll."
+      assert %{voted_at: nil} = Repo.get_by!(PollParticipantSchema, poll_id: poll.id)
+    end
   end
 
   describe "a group booking seat link of a host pending deletion" do

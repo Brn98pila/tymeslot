@@ -29,6 +29,8 @@ defmodule Tymeslot.Bookings.Reschedule do
 
   require Logger
 
+  alias Tymeslot.Auth
+
   alias Tymeslot.Bookings.{
     CalendarCheck,
     CalendarJobs,
@@ -98,7 +100,8 @@ defmodule Tymeslot.Bookings.Reschedule do
 
   Returns `{:ok, meeting}` or `{:error, reason}`, where `reason` is either a
   semantic atom (`Tymeslot.Bookings.Errors.classified_error/0` — currently
-  `:meeting_not_found` when the lookup fails, `:slot_taken` when a concurrent
+  `:meeting_not_found` when the lookup fails or the organiser's account is
+  pending deletion, `:slot_taken` when a concurrent
   booking claims the new time first, when the requested time is one the
   organiser's schedule never offers, or when their connected calendar has
   since been blocked over it, or `:failed_to_update_meeting` when
@@ -110,8 +113,7 @@ defmodule Tymeslot.Bookings.Reschedule do
           {:ok, Ecto.Schema.t()} | {:error, Errors.classified_error() | String.t()}
   def execute(meeting_uid, new_params, _form_data, organizer_user_id)
       when is_binary(meeting_uid) and is_integer(organizer_user_id) do
-    with {:ok, original_meeting} <-
-           MeetingQueries.get_meeting_by_uid_for_organizer(meeting_uid, organizer_user_id),
+    with {:ok, original_meeting} <- fetch_meeting(meeting_uid, organizer_user_id),
          :ok <- validate_can_reschedule(original_meeting),
          meeting_type <-
            fetch_meeting_type(
@@ -139,6 +141,14 @@ defmodule Tymeslot.Bookings.Reschedule do
   end
 
   # Private functions
+
+  # A reschedule page opened before its host asked to delete their account can
+  # still submit; the host's meetings are about to go, so the meeting is unknown.
+  defp fetch_meeting(meeting_uid, organizer_user_id) do
+    if Auth.deletion_pending?(organizer_user_id),
+      do: {:error, :meeting_not_found},
+      else: MeetingQueries.get_meeting_by_uid_for_organizer(meeting_uid, organizer_user_id)
+  end
 
   # Everything a committed reschedule sets off outside the meeting row: fresh
   # availability, the provider side of any room the move left behind or
