@@ -125,6 +125,33 @@ defmodule Tymeslot.MeetingPayments.Webhooks.WebhookProcessorTest do
       assert DateTime.to_unix(reloaded.last_account_event_at) == now
     end
 
+    test "a failed account update is retried rather than acknowledged" do
+      now = System.os_time(:second)
+      account = insert(:connect_account, charges_enabled: false, last_account_event_at: nil)
+      event_id = unique_event_id("evt_REJECTED")
+
+      expect(StripeAdapterMock, :construct_webhook_event, fn _payload, _sig, _secret ->
+        {:ok,
+         %{
+           "id" => event_id,
+           "type" => "account.updated",
+           "created" => now,
+           "data" => %{
+             "object" => %{
+               "id" => account.stripe_account_id,
+               "created" => now,
+               "charges_enabled" => "not-a-boolean"
+             }
+           }
+         }}
+      end)
+
+      assert {:error, :retry_later} = WebhookProcessor.process(~s({}), "t=1,v1=GOOD")
+      # Released, so Stripe's redelivery is taken up again.
+      assert IdempotencyCache.reserve(event_id) == {:ok, :reserved}
+      refute Repo.get!(ConnectAccountSchema, account.id).charges_enabled
+    end
+
     test "dispatches events with missing created timestamp to handlers" do
       # Per-handler logic uses an epoch-0 fallback for missing `created` so a
       # subsequent real event with a genuine timestamp is always considered

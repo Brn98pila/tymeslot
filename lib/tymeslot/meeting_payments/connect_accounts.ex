@@ -256,7 +256,7 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
   has no envelope and stamps the current time, since it reflects Stripe's
   current truth as of the fetch.
   """
-  @spec apply_account_event(map(), DateTime.t()) :: :ok
+  @spec apply_account_event(map(), DateTime.t()) :: :ok | {:error, Ecto.Changeset.t()}
   def apply_account_event(%{"id" => stripe_account_id} = account, %DateTime{} = event_at) do
     case ConnectAccountQueries.by_stripe_account_id(stripe_account_id) do
       nil ->
@@ -269,18 +269,17 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
           now = DateTime.utc_now(:second)
           new_disabled_reason = get_in(account, ["requirements", "disabled_reason"])
 
-          {:ok, updated} =
-            ConnectAccountQueries.update(local, %{
-              charges_enabled: account["charges_enabled"],
-              payouts_enabled: account["payouts_enabled"],
-              details_submitted: account["details_submitted"],
-              disabled_reason: new_disabled_reason,
-              last_synced_at: now,
-              last_account_event_at: event_at
-            })
-
-          maybe_notify_restriction(updated, local.disabled_reason)
-          :ok
+          with {:ok, updated} <-
+                 ConnectAccountQueries.update(local, %{
+                   charges_enabled: account["charges_enabled"],
+                   payouts_enabled: account["payouts_enabled"],
+                   details_submitted: account["details_submitted"],
+                   disabled_reason: new_disabled_reason,
+                   last_synced_at: now,
+                   last_account_event_at: event_at
+                 }) do
+            maybe_notify_restriction(updated, local.disabled_reason)
+          end
         end
     end
   end
@@ -321,7 +320,7 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
 
   defp maybe_notify_restriction(_updated, _previous), do: :ok
 
-  # Stripe Express dashboard always lives at this canonical URL; we keep the
+  # The Stripe dashboard always lives at this canonical URL; we keep the
   # link generic rather than per-account because account_link sessions are
   # short-lived and would force us to call into Stripe synchronously.
   defp stripe_dashboard_url, do: "https://dashboard.stripe.com/"

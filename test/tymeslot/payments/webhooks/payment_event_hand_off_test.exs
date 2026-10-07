@@ -64,7 +64,7 @@ defmodule Tymeslot.Payments.Webhooks.PaymentEventHandOffTest do
 
       assert {:ok, :event_processed} =
                SubscriptionHandler.process(
-                 %{type: "customer.subscription.updated"},
+                 %{"type" => "customer.subscription.updated"},
                  %{"id" => "sub_hand_off", "status" => "active"}
                )
 

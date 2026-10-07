@@ -25,7 +25,7 @@ defmodule Tymeslot.Payments.Webhooks.SetupIntentHandler do
     setup_intent_id = setup_intent["id"]
 
     Logger.info("Processing setup_intent event",
-      event_type: Map.get(event, :type),
+      event_type: event["type"],
       setup_intent_id: setup_intent_id
     )
 

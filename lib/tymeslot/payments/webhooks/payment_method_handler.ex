@@ -24,7 +24,7 @@ defmodule Tymeslot.Payments.Webhooks.PaymentMethodHandler do
     customer_id = payment_method["customer"]
 
     Logger.info("Processing payment_method event",
-      event_type: Map.get(event, :type),
+      event_type: event["type"],
       payment_method_id: payment_method_id,
       customer_id: customer_id
     )

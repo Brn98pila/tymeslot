@@ -85,7 +85,7 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
         "status" => "paid"
       }
 
-      event = %{type: "invoice.payment_succeeded"}
+      event = %{"type" => "invoice.payment_succeeded"}
 
       assert {:ok, :invoice_processed} = InvoiceHandler.process(event, invoice)
 
@@ -119,7 +119,7 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
       }
 
       assert {:ok, :invoice_finalized} =
-               InvoiceHandler.process(%{type: "invoice.finalized"}, invoice)
+               InvoiceHandler.process(%{"type" => "invoice.finalized"}, invoice)
 
       captured = invoice_for("in_finalized")
       assert captured.user_id == user.id
@@ -143,7 +143,7 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
       }
 
       assert {:ok, :invoice_finalized} =
-               InvoiceHandler.process(%{type: "invoice.finalized"}, invoice)
+               InvoiceHandler.process(%{"type" => "invoice.finalized"}, invoice)
 
       captured = invoice_for("in_orphan")
       assert captured.hosted_invoice_url == "https://invoice.stripe.com/i/orphan"
@@ -174,7 +174,7 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
       }
 
       assert {:ok, :invoice_finalized} =
-               InvoiceHandler.process(%{type: "invoice.finalized"}, invoice)
+               InvoiceHandler.process(%{"type" => "invoice.finalized"}, invoice)
 
       captured = invoice_for("in_out_of_band")
       assert captured.user_id == user.id
@@ -202,7 +202,7 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
       }
 
       assert {:ok, :invoice_finalized} =
-               InvoiceHandler.process(%{type: "invoice.finalized"}, invoice)
+               InvoiceHandler.process(%{"type" => "invoice.finalized"}, invoice)
 
       captured = invoice_for("in_pending_only")
       assert captured.user_id == nil
@@ -231,7 +231,7 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
       }
 
       assert {:ok, :invoice_processed} =
-               InvoiceHandler.process(%{type: "invoice.paid"}, invoice)
+               InvoiceHandler.process(%{"type" => "invoice.paid"}, invoice)
 
       assert {:ok, renewal} = PaymentQueries.get_transaction_by_stripe_id("in_renewal_doc")
       assert renewal.amount == 900
@@ -263,11 +263,11 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
       }
 
       assert {:ok, :invoice_finalized} =
-               InvoiceHandler.process(%{type: "invoice.finalized"}, finalized)
+               InvoiceHandler.process(%{"type" => "invoice.finalized"}, finalized)
 
       paid = Map.merge(finalized, %{"amount_paid" => 1100, "total" => 1100})
 
-      assert {:ok, :invoice_processed} = InvoiceHandler.process(%{type: "invoice.paid"}, paid)
+      assert {:ok, :invoice_processed} = InvoiceHandler.process(%{"type" => "invoice.paid"}, paid)
 
       assert Repo.aggregate(
                from(pi in SubscriptionInvoiceSchema,
@@ -304,7 +304,7 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
         "total" => 1100
       }
 
-      assert {:ok, :invoice_processed} = InvoiceHandler.process(%{type: "invoice.paid"}, paid)
+      assert {:ok, :invoice_processed} = InvoiceHandler.process(%{"type" => "invoice.paid"}, paid)
 
       finalized =
         Map.merge(paid, %{
@@ -313,7 +313,7 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
         })
 
       assert {:ok, :invoice_finalized} =
-               InvoiceHandler.process(%{type: "invoice.finalized"}, finalized)
+               InvoiceHandler.process(%{"type" => "invoice.finalized"}, finalized)
 
       assert Repo.aggregate(
                from(pi in SubscriptionInvoiceSchema,
@@ -369,10 +369,10 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
 
       # finalize N -> paid N
       assert {:ok, :invoice_finalized} =
-               InvoiceHandler.process(%{type: "invoice.finalized"}, cycle_one)
+               InvoiceHandler.process(%{"type" => "invoice.finalized"}, cycle_one)
 
       assert {:ok, :already_processed} =
-               InvoiceHandler.process(%{type: "invoice.paid"}, cycle_one)
+               InvoiceHandler.process(%{"type" => "invoice.paid"}, cycle_one)
 
       cycle_two = %{
         "id" => "in_cycle_2",
@@ -389,13 +389,13 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
 
       # finalize N+1 -> paid N+1
       assert {:ok, :invoice_finalized} =
-               InvoiceHandler.process(%{type: "invoice.finalized"}, cycle_two)
+               InvoiceHandler.process(%{"type" => "invoice.finalized"}, cycle_two)
 
       # This is the exact webhook call that previously failed with
       # `stripe_invoice_id: has already been taken` once a legacy,
       # never-invoiced checkout transaction existed for the subscription.
       assert {:ok, :invoice_processed} =
-               InvoiceHandler.process(%{type: "invoice.paid"}, cycle_two)
+               InvoiceHandler.process(%{"type" => "invoice.paid"}, cycle_two)
 
       cycle_one_invoice = invoice_for("in_cycle_1")
 
@@ -444,7 +444,7 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
         "created" => 1_234_567_890
       }
 
-      event = %{type: "invoice.payment_failed"}
+      event = %{"type" => "invoice.payment_failed"}
 
       assert {:ok, :invoice_processed} = InvoiceHandler.process(event, invoice)
 
@@ -474,7 +474,7 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
         "status" => "paid"
       }
 
-      event = %{type: "invoice.paid"}
+      event = %{"type" => "invoice.paid"}
 
       assert {:ok, :invoice_processed} = InvoiceHandler.process(event, invoice)
 
@@ -501,8 +501,8 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
         "status" => "paid"
       }
 
-      payment_succeeded = %{type: "invoice.payment_succeeded"}
-      paid = %{type: "invoice.paid"}
+      payment_succeeded = %{"type" => "invoice.payment_succeeded"}
+      paid = %{"type" => "invoice.paid"}
 
       assert {:ok, :invoice_processed} = InvoiceHandler.process(payment_succeeded, invoice)
       assert {:ok, :already_processed} = InvoiceHandler.process(paid, invoice)
@@ -536,7 +536,7 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
         "status" => "paid"
       }
 
-      event = %{type: "invoice.paid"}
+      event = %{"type" => "invoice.paid"}
 
       assert {:ok, :invoice_processed} = InvoiceHandler.process(event, invoice)
 
@@ -566,7 +566,7 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
         "status" => "paid"
       }
 
-      event = %{type: "invoice.paid"}
+      event = %{"type" => "invoice.paid"}
 
       assert {:ok, :invoice_processed} = InvoiceHandler.process(event, invoice)
 
@@ -600,11 +600,11 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
       }
 
       assert {:ok, :invoice_finalized} =
-               InvoiceHandler.process(%{type: "invoice.finalized"}, finalized)
+               InvoiceHandler.process(%{"type" => "invoice.finalized"}, finalized)
 
       paid = Map.merge(finalized, %{"amount_paid" => 1000, "total" => 1000, "status" => "paid"})
 
-      assert {:ok, :already_processed} = InvoiceHandler.process(%{type: "invoice.paid"}, paid)
+      assert {:ok, :already_processed} = InvoiceHandler.process(%{"type" => "invoice.paid"}, paid)
 
       captured = invoice_for("in_checkout_race")
       assert captured.user_id == user.id
@@ -615,14 +615,14 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
 
     test "returns error when subscription not found" do
       invoice = %{"id" => "in_123", "subscription" => "nonexistent"}
-      event = %{type: "invoice.payment_succeeded"}
+      event = %{"type" => "invoice.payment_succeeded"}
 
       assert {:error, :retry_later, _error_reason} = InvoiceHandler.process(event, invoice)
     end
 
     test "returns ok for missing subscription id" do
       invoice = %{"id" => "in_123", "subscription" => nil}
-      event = %{type: "invoice.payment_succeeded"}
+      event = %{"type" => "invoice.payment_succeeded"}
 
       assert {:ok, :no_subscription} = InvoiceHandler.process(event, invoice)
     end

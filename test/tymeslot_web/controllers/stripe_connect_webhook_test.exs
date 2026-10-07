@@ -5,6 +5,7 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
   @moduletag :controllers
 
   import Mox
+  import Tymeslot.Factory
 
   alias Tymeslot.MeetingPayments.StripeAdapterMock
   alias Tymeslot.Payments.Webhooks.IdempotencyCache
@@ -78,6 +79,31 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
 
       assert WebhookQueries.get_webhook_event_by_stripe_id(event_id).event_type ==
                "account.updated"
+    end
+
+    test "answers 503 when the account update fails, so Stripe redelivers the event",
+         %{conn: conn} do
+      now = System.os_time(:second)
+      account = insert(:connect_account, charges_enabled: false, last_account_event_at: nil)
+      event_id = unique_event_id("evt_REJECTED")
+
+      verified(%{
+        "id" => event_id,
+        "type" => "account.updated",
+        "created" => now,
+        "data" => %{
+          "object" => %{
+            "id" => account.stripe_account_id,
+            "created" => now,
+            "charges_enabled" => "not-a-boolean"
+          }
+        }
+      })
+
+      payload = ~s({"id":"#{event_id}","type":"account.updated","created":#{now}})
+
+      assert conn |> post_connect(payload) |> response(503) == ""
+      refute WebhookQueries.get_webhook_event_by_stripe_id(event_id)
     end
 
     test "returns 200 when event type has no registered handler (silently ignored)",

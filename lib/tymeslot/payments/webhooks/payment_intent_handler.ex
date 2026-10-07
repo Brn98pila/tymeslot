@@ -18,7 +18,7 @@ defmodule Tymeslot.Payments.Webhooks.PaymentIntentHandler do
   end
 
   @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def process(%{type: "payment_intent.succeeded"}, payment_intent) do
+  def process(%{"type" => "payment_intent.succeeded"}, payment_intent) do
     Logger.info("Processing payment_intent.succeeded",
       payment_intent_id: Map.get(payment_intent, "id")
     )
@@ -29,7 +29,7 @@ defmodule Tymeslot.Payments.Webhooks.PaymentIntentHandler do
   end
 
   @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def process(%{type: "payment_intent.created"}, payment_intent) do
+  def process(%{"type" => "payment_intent.created"}, payment_intent) do
     Logger.info("Processing payment_intent.created",
       payment_intent_id: Map.get(payment_intent, "id")
     )
