@@ -4,8 +4,8 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.QueueQueries do
 
   A cache row carries the ordinary provider columns *and* a small set of
   bookkeeping columns (`sync_state`, `sync_attempts`, `sync_last_attempt_at`,
-  `sync_last_error`) recording a local change that has not yet reached the
-  server. Those columns have their own lifecycle: they are written when
+  `sync_last_error`, `sync_deferred_since`) recording a local change that has
+  not yet reached the server. Those columns have their own lifecycle: they are written when
   Tymeslot declares a local intent, read back by `OfflineQueue.flush/2` at the
   start of each sync cycle, and cleared when the replay succeeds. That is a
   different concern from caching what a provider returned, and it is used by
