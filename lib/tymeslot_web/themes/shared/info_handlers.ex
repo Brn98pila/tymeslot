@@ -14,6 +14,7 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
   alias TymeslotWeb.Live.Scheduling.Handlers.SlotFetchingHandlerComponent
   alias TymeslotWeb.Live.Scheduling.NextAvailable
   alias TymeslotWeb.Live.Scheduling.WeekSlots
+  alias TymeslotWeb.Themes.Shared.Journey.Progress
   alias TymeslotWeb.Themes.Shared.Journey.Runtime
 
   @doc """
@@ -63,21 +64,22 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
 
   Re-fetches the month availability map and a week view's week, and clears any
   cached slot data so the scheduling page reflects the latest calendar state.
+  The chosen time is dropped only while the visitor has not moved past the
+  moment collecting the slot (`Progress.at_or_before?/2`); once they have,
+  the booking they are completing keeps it.
   """
   @spec handle_calendar_events_updated(Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_calendar_events_updated(socket) do
     socket =
-      case socket.assigns[:current_state] do
-        state when state in [:overview, :schedule, nil] ->
-          socket
-          |> assign(:available_slots, nil)
-          |> assign(:selected_time, nil)
-          |> AvailabilityHelpers.fetch_month_availability_async()
-          |> WeekSlots.refetch()
-
-        _committed ->
-          AvailabilityHelpers.fetch_month_availability_async(socket)
+      if Progress.at_or_before?(socket.assigns, :slot) do
+        socket
+        |> assign(:available_slots, nil)
+        |> assign(:selected_time, nil)
+        |> AvailabilityHelpers.fetch_month_availability_async()
+        |> WeekSlots.refetch()
+      else
+        AvailabilityHelpers.fetch_month_availability_async(socket)
       end
 
     {:noreply, socket}
@@ -227,8 +229,9 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
   Handles the `:expired` PubSub broadcast for an embedded paid booking.
 
   When the Stripe Checkout session expires (attendee closed the tab,
-  30 minutes elapsed, etc.) we send the booker back to the booking form
-  with a flash so they can try again.
+  30 minutes elapsed, etc.) we send the booker back to the moment
+  collecting the attendee (the classic booking step) with a flash so they
+  can try again.
   """
   @spec handle_payment_expired(Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -243,7 +246,12 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
         dgettext("booking", "Payment was cancelled. Please try booking again.")
       )
 
-    {:noreply, Runtime.transition_to(socket, :booking, %{})}
+    {:noreply,
+     Runtime.transition_to(
+       socket,
+       Progress.moment_for(socket.assigns.journey, :attendee),
+       %{}
+     )}
   end
 
   @doc """
