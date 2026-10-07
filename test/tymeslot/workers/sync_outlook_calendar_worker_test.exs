@@ -8,6 +8,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorkerTest do
   import Mox
   import Tymeslot.Factory
 
+  alias Oban.Job
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
   alias Tymeslot.Integrations.HealthCheck.Monitor
   alias Tymeslot.Security.Encryption
@@ -351,6 +352,32 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorkerTest do
                })
 
       assert health(integration).consecutive_sync_failures == 1
+    end
+  end
+
+  # One job per Graph notification: a waiting one absorbs a burst, since it
+  # reads the event when it runs, but one that has already read it must not
+  # swallow a later edit.
+  describe "uniqueness" do
+    defp notify(integration_id, resource_id) do
+      %{"calendar_integration_id" => integration_id, "graph_resource_id" => resource_id}
+      |> SyncOutlookCalendarWorker.new()
+      |> Oban.insert()
+    end
+
+    test "a notification while a job for the event still waits is folded into it" do
+      assert {:ok, %Job{conflict?: false}} = notify(1, "event-1")
+      assert {:ok, %Job{conflict?: true}} = notify(1, "event-1")
+    end
+
+    test "a notification after the event's job has run is a job of its own" do
+      assert {:ok, %Job{id: first_id, conflict?: false}} = notify(1, "event-1")
+
+      Repo.update_all(where(Job, id: ^first_id),
+        set: [state: "completed", completed_at: DateTime.utc_now()]
+      )
+
+      assert {:ok, %Job{conflict?: false}} = notify(1, "event-1")
     end
   end
 

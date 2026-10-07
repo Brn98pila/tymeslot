@@ -171,6 +171,7 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
   # Oban 2.24 costs no attempt; without a bound a provider that never
   # recovers would keep this job snoozing for ever, with no alert.
   @max_unavailable_snoozes 12
+
   require Logger
 
   alias Tymeslot.Infrastructure.ExpectedJobOutcome

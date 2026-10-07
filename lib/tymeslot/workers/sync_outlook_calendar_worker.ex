@@ -16,7 +16,16 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   use Oban.Worker,
     queue: :calendar_events,
     max_attempts: 5,
-    unique: [period: 60, keys: [:calendar_integration_id, :graph_resource_id]]
+    unique: [
+      period: 60,
+      keys: [:calendar_integration_id, :graph_resource_id],
+      # Only a job still waiting to run absorbs a second notification for the
+      # same event: it fetches the event when it runs, so it reads the later
+      # change too. One that has fetched already (running or finished) must
+      # not swallow it, or a second edit within the minute never reaches the
+      # cache.
+      states: [:available, :scheduled, :retryable]
+    ]
 
   use Gettext, backend: TymeslotWeb.Gettext
 
@@ -24,6 +33,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   # Oban 2.24 costs no attempt; without a bound a provider that never
   # recovers would keep this job snoozing for ever, with no alert.
   @max_unavailable_snoozes 12
+
   require Logger
 
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
