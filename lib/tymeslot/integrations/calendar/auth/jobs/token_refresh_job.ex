@@ -175,6 +175,11 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
 
         :ok
 
+      {:error, :requires_reencryption} ->
+        # The row stopped decrypting after `perform/1` read it. Tokens has
+        # already flagged it, so there is nothing left to retry.
+        {:discard, ReauthHandling.discard_reason()}
+
       {:error, {type, msg}} ->
         handle_refresh_error(integration, "#{type}: #{msg}", provider)
 

@@ -33,6 +33,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
     Callouts,
     Formatting,
     GroupSession,
+    JoinUrl,
     MeetingComponents,
     MjmlEmail,
     Sanitise,
@@ -53,10 +54,10 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
           Tymeslot.Emails.EmailService.appointment_details()
         ) :: Swoosh.Email.t()
   def render(:attendee, attendee_email, appointment_details) do
-    locale = Map.get(appointment_details, :attendee_locale, "en")
+    locale = RecipientLocale.attendee_locale(appointment_details)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
-      attendee_video_url = join_url(:attendee, appointment_details)
+      attendee_video_url = JoinUrl.for(:attendee, appointment_details)
 
       meeting_details = %{
         date: appointment_details.date,
@@ -120,11 +121,11 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
     appointment_details = TemplateHelper.as_guest_view(appointment_details)
 
     # Guests inherit the booker's locale, as their invitation does.
-    locale = Map.get(appointment_details, :attendee_locale, "en")
+    locale = RecipientLocale.attendee_locale(appointment_details)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       guest_name = Map.get(appointment_details, :guest_name) || guest_email
-      guest_video_url = join_url(:guest, appointment_details)
+      guest_video_url = JoinUrl.for(:guest, appointment_details)
 
       meeting_details = %{
         date: appointment_details.date,
@@ -202,7 +203,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
     locale = organizer_locale(appointment_details)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
-      organizer_video_url = join_url(:organizer, appointment_details)
+      organizer_video_url = JoinUrl.for(:organizer, appointment_details)
 
       mjml_content = """
       #{MeetingComponents.attendee_info_section(@intent, %{name: appointment_details.attendee_name, email: appointment_details.attendee_email})}
@@ -433,7 +434,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
     meeting_details = TextBodyHelper.format_meeting_details(appointment_details, locale)
 
     video_section =
-      TextBodyHelper.format_video_section(join_url(:attendee, appointment_details), locale)
+      TextBodyHelper.format_video_section(JoinUrl.for(:attendee, appointment_details), locale)
 
     action_links = TextBodyHelper.format_action_links(appointment_details, locale)
     custom_answers = TextBodyHelper.format_custom_answers(appointment_details, locale)
@@ -498,7 +499,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
     meeting_details = TextBodyHelper.format_meeting_details(appointment_details, locale)
 
     video_section =
-      TextBodyHelper.format_video_section(join_url(:guest, appointment_details), locale)
+      TextBodyHelper.format_video_section(JoinUrl.for(:guest, appointment_details), locale)
 
     """
     #{dgettext("emails_booking", "Meeting Rescheduled")}
@@ -526,7 +527,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
     attendee_info = TextBodyHelper.format_attendee_info(appointment_details, locale)
 
     video_section =
-      TextBodyHelper.format_video_section(join_url(:organizer, appointment_details), locale)
+      TextBodyHelper.format_video_section(JoinUrl.for(:organizer, appointment_details), locale)
 
     action_links = TextBodyHelper.format_action_links(appointment_details, locale)
     custom_answers = TextBodyHelper.format_custom_answers(appointment_details, locale)
@@ -541,17 +542,6 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
 
     #{dgettext("emails_booking", "The attendee has been notified of the new time.")}
     """
-  end
-
-  # Same per-role join URL rules as the confirmation email; see the note there.
-  defp join_url(:organizer, details) do
-    Map.get(details, :organizer_video_url) || Map.get(details, :meeting_url)
-  end
-
-  defp join_url(:attendee, details), do: Map.get(details, :attendee_video_url)
-
-  defp join_url(:guest, details) do
-    Map.get(details, :guest_video_url) || Map.get(details, :meeting_url)
   end
 
   defp organizer_locale(appointment_details),

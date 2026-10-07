@@ -5,6 +5,7 @@ defmodule Tymeslot.Emails.EmailService.AppointmentEmails do
 
   alias Swoosh.Email
   alias Tymeslot.Emails.Delivery
+  alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Integrations.Calendar.IcsGenerator
 
   alias Tymeslot.Emails.Templates.{
@@ -135,7 +136,7 @@ defmodule Tymeslot.Emails.EmailService.AppointmentEmails do
   @spec send_seat_reschedule_to_participant(String.t(), map(), map()) ::
           {:ok, any()} | {:error, any()}
   def send_seat_reschedule_to_participant(participant_email, appointment_details, old_event) do
-    locale = Map.get(appointment_details, :attendee_locale, "en")
+    locale = RecipientLocale.attendee_locale(appointment_details)
 
     old_event_details =
       Map.merge(appointment_details, %{
@@ -323,18 +324,6 @@ defmodule Tymeslot.Emails.EmailService.AppointmentEmails do
           {:ok, any()} | {:error, any()}
   def send_guest_reminder(guest_email, appointment_details) do
     Delivery.deliver(AppointmentReminder.render(:guest, guest_email, appointment_details))
-  end
-
-  @doc """
-  Sends appointment reminders to both organizer and attendee.
-  """
-  @spec send_appointment_reminders(Tymeslot.Emails.EmailService.appointment_details()) ::
-          {{:ok, any()} | {:error, any()}, {:ok, any()} | {:error, any()}}
-  def send_appointment_reminders(appointment_details) do
-    time_until =
-      appointment_details[:time_until] || appointment_details[:reminder_time] || "30 minutes"
-
-    send_appointment_reminders(appointment_details, time_until)
   end
 
   @doc """

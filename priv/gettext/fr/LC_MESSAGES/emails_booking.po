@@ -86,11 +86,6 @@ msgstr "- Définir un rappel %{time} à l’avance"
 msgid "- Test video/audio setup if virtual"
 msgstr "- Tester la configuration vidéo/audio si en visioconférence"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#, elixir-autogen, elixir-format
-msgid "15 minutes"
-msgstr "15 minutes"
-
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
 msgid "A meeting changed in your external calendar."

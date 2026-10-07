@@ -145,6 +145,12 @@ defmodule Tymeslot.Workers.EmailWorker do
     {:discard, @meeting_cancelled}
   end
 
+  # Some guests were not reached; their sends are claimed per guest, so the
+  # retry writes only to them.
+  defp handle_email_error({:guest_emails_failed, count}, _job) do
+    {:error, "#{count} guest email(s) failed"}
+  end
+
   defp handle_email_error(reason, _job) when is_binary(reason) do
     # Generic error - retry with backoff
     {:error, reason}

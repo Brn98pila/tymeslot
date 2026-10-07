@@ -197,10 +197,12 @@ defmodule Tymeslot.MeetingPayments.StripeAdapter.Stripity do
 
   @impl StripeAdapter
   def construct_webhook_event(payload, signature, secret) do
-    case Webhook.construct_event(payload, signature, secret) do
-      # Stripity returns a struct; normalise to a string-keyed map so the rest
-      # of the pipeline doesn't depend on stripity-internal layout. Shares the
-      # same recursive normaliser as the read responses.
+    # An endpoint renders events at the API version it was created with,
+    # not the one this library pins, so the event is decoded as sent rather
+    # than cast into the library's structs, which drop every field their
+    # own version lacks. `normalise/1` leaves the decoded, string-keyed map
+    # as it is.
+    case Webhook.construct_event(payload, signature, secret, response_as: :map) do
       {:ok, event} -> {:ok, StripeAdapter.normalise(event)}
       {:error, _reason} = err -> err
     end

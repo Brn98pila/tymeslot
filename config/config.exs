@@ -96,6 +96,22 @@ config :tymeslot,
   # succeed before a user is deleted. See delete_user/1.
   account_deletion_hook: nil,
 
+  # Additional Oban crontab entries - none by default. An external layer adds
+  # its periodic workers here; they are appended to the crontab at startup
+  # (see Tymeslot.Infrastructure.ObanCron.extend/1).
+  oban_additional_crontab: [],
+
+  # Payment-event handler - nil by default. An external layer can provide a
+  # module implementing Tymeslot.Payments.Behaviours.PaymentEventHandler to
+  # receive subscription, dispute, refund and trial events durably: an error
+  # from it makes Stripe redeliver the webhook.
+  payment_event_handler: nil,
+
+  # Registration hook - nil by default. An external layer can provide a module
+  # implementing Tymeslot.Auth.Behaviours.UserRegisteredHook, run from a
+  # retried Oban job for every completed registration.
+  user_registered_hook: nil,
+
   # Admin alerts — disabled by default. Self-hosters can enable via the
   # ADMIN_ALERTS_ENABLED env var (set true) plus a valid ADMIN_ALERT_EMAIL.
   # A downstream overlay may override admin_alerts_enabled in its own config.
@@ -192,7 +208,10 @@ config :tymeslot, :integration_health_alerting,
   # alerting: a few a day is ordinary OAuth churn, a burst in one hour is not
   reauth_flags_threshold: 10,
   # Integrations paused by one daily auto-pause run before alerting
-  auto_pause_threshold: 1
+  auto_pause_threshold: 1,
+  # Consecutive windows under the threshold before a signal counts as
+  # recovered; a shorter dip belongs to the incident. At least 1
+  recover_after: 2
 
 # Webhook configuration
 config :tymeslot, :webhook_base_url, nil
@@ -455,13 +474,6 @@ config :tymeslot, :calendar_providers, %{
   demo: [enabled: false],
   debug: [enabled: false]
 }
-
-# Integration locking configuration
-config :tymeslot, :integration_locks,
-  default_timeout: 90_000,
-  google: 60_000,
-  outlook: 60_000,
-  teams: 120_000
 
 # Pin the Stripe API version instead of inheriting stripity_stripe's built-in
 # default, which travels with the library: upgrading the dependency would move

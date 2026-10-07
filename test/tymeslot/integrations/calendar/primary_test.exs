@@ -385,6 +385,68 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
     assert profile.primary_calendar_integration_id == nil
   end
 
+  # A primary whose credentials do not decrypt for now (a rotated key, say)
+  # is still the calendar the user chose; turning another calendar on must
+  # not quietly demote it.
+  test "activating a calendar keeps an unreadable but active primary", %{user: user} do
+    unreadable =
+      insert(:calendar_integration,
+        user: user,
+        provider: "caldav",
+        username_encrypted: :crypto.strong_rand_bytes(40),
+        password_encrypted: :crypto.strong_rand_bytes(40)
+      )
+
+    {:ok, _profile} = ProfileQueries.set_primary_calendar_integration(user.id, unreadable.id)
+
+    assert {:error, :requires_reencryption, _stale} =
+             CalendarIntegrationQueries.get(unreadable.id)
+
+    other = insert(:calendar_integration, user: user, provider: "google", is_active: false)
+
+    assert {:ok, %{is_active: true}} = CalendarManagement.toggle_with_primary_rebalance(other)
+
+    {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
+    assert profile.primary_calendar_integration_id == unreadable.id
+  end
+
+  test "activating a calendar adopts it when the primary is paused", %{user: user} do
+    paused = insert(:calendar_integration, user: user, provider: "google", is_active: false)
+    {:ok, _profile} = ProfileQueries.set_primary_calendar_integration(user.id, paused.id)
+    other = insert(:calendar_integration, user: user, provider: "caldav", is_active: false)
+
+    assert {:ok, %{is_active: true}} = CalendarManagement.toggle_with_primary_rebalance(other)
+
+    {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
+    assert profile.primary_calendar_integration_id == other.id
+  end
+
+  test "set_primary_calendar_integration refuses a paused integration", %{user: user} do
+    paused = insert(:calendar_integration, user: user, is_active: false)
+
+    assert {:error, :inactive} =
+             CalendarPrimary.set_primary_calendar_integration(user.id, paused.id)
+  end
+
+  test "toggling the primary off never promotes a calendar waiting to be reconnected", %{
+    user: user
+  } do
+    primary = insert(:calendar_integration, user: user, inserted_at: ~N[2024-01-01 10:00:00])
+
+    _flagged =
+      insert(:calendar_integration,
+        user: user,
+        needs_reauth: true,
+        inserted_at: ~N[2024-01-02 10:00:00]
+      )
+
+    assert {:ok, _result} = CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
+    assert {:ok, _toggled} = CalendarManagement.toggle_with_primary_rebalance(primary)
+
+    {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
+    assert profile.primary_calendar_integration_id == nil
+  end
+
   describe "auto_select_primary_calendar/2" do
     test "CalDAV provider: writes calendar_paths from selected calendars alongside calendar_list",
          %{user: user} do

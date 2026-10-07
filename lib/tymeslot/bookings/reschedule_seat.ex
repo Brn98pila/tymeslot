@@ -65,6 +65,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
   alias Tymeslot.Meetings.GroupScheduling
   alias Tymeslot.Meetings.GuestQueries
   alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.ParticipantQueries
   alias Tymeslot.MeetingTypes
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
@@ -189,8 +190,9 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
   # (see the module doc); with other seats on it, it keeps its time whatever
   # this seat does. That read is unlocked: should someone join the old
   # meeting meanwhile, the conflict check inside the seat transaction
-  # re-decides under the lock and counts the old meeting after all. Both
-  # refusals collapse to `:slot_taken`.
+  # re-decides under the lock and counts the old meeting after all. A clash
+  # collapses to `:slot_taken`; an unreadable busy set stays
+  # `:availability_unverifiable`.
   defp verify_calendar_free(old_meeting, participant, new_times, config, guest_emails) do
     slot = %{
       organizer_user_id: old_meeting.organizer_user_id,
@@ -209,6 +211,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
 
     case CalendarCheck.enforce(slot, config, exclude: [join_target, vacated]) do
       :ok -> :ok
+      {:error, :availability_unverifiable} = unverifiable -> unverifiable
       {:error, _reason} -> {:error, :slot_taken}
     end
   end
@@ -293,7 +296,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
       # The first-booker race exhausted book_seat/3's retry: the target slot
       # was created by someone else in the meantime, which is the same story
       # for the mover as a full slot.
-      GroupScheduling.lost_first_booker_race?(changeset) ->
+      MeetingSchema.unique_slot_violation?(changeset) ->
         log_and_bounce(old_meeting, participant, changeset, :slot_taken)
 
       # The mover already holds a live seat at the target slot (most likely a

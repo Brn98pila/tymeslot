@@ -103,6 +103,15 @@ defmodule Tymeslot.Auth do
   defdelegate validate_email(email, metadata \\ %{}), to: Validation
 
   @doc """
+  Validates an email address typed to find an existing account (password
+  reset), for instant feedback: presence and length only, the same rule the
+  lookup applies, so an account whose address predates the format rules is
+  not told its own address is invalid.
+  """
+  @spec validate_lookup_email(term(), map()) :: {:ok, String.t()} | {:error, String.t()}
+  defdelegate validate_lookup_email(email, metadata \\ %{}), to: Validation
+
+  @doc """
   Requests an email change for a user.
   Validates password, creates token, stores pending email, and sends verification emails.
   A failure is `{:error, %{field => message}}`, keyed by the form field each
@@ -182,9 +191,10 @@ defmodule Tymeslot.Auth do
   `:user_agent`) and `:via`; see `Tymeslot.Auth.Registration.register_user/2`.
 
   Returns `{:ok, user, message}` for a new account and
-  `{:existing_account, message}` when the address was already registered, or
-  `{:honeypot, message}` when a bot was caught. The message is identical in
-  all three, and the owner of a taken address is emailed instead.
+  `{:existing_account, message}` when the address was already registered or
+  has used up its own sign-up allowance, or `{:honeypot, message}` when a bot
+  was caught. The message is identical in all three, and the owner of a taken
+  address is emailed instead.
   """
   @spec register_user(map(), keyword()) ::
           {:ok, Tymeslot.Auth.UserSchema.t(), String.t()}
@@ -377,7 +387,7 @@ defmodule Tymeslot.Auth do
   Subscribes the calling process to user-registration events.
 
   Every account that completes registration is delivered to the caller's
-  mailbox as `{:user_registered, %{user: user, metadata: metadata}}`. The
+  mailbox as `{:user_registered, %{user_id: user_id, provider: provider}}`. The
   context owns the topic, so a subscriber never spells one itself. Returns
   `{:error, reason}` rather than raising when no PubSub server is running,
   leaving the caller to decide whether a missing subscription is fatal.
@@ -392,8 +402,13 @@ defmodule Tymeslot.Auth do
   rather than the transport, so the topic stays an implementation detail of
   this context.
   """
-  @spec broadcast_user_registered(struct(), map()) :: :ok
-  defdelegate broadcast_user_registered(user, metadata \\ %{}), to: PubSub
+  @spec broadcast_user_registered(%{
+          :id => term(),
+          :provider => term(),
+          optional(atom()) => term()
+        }) ::
+          :ok
+  defdelegate broadcast_user_registered(user), to: PubSub
 
   @doc """
   Generates a fresh verification token for a user and persists it without sending an email.
@@ -488,18 +503,16 @@ defmodule Tymeslot.Auth do
   defdelegate any_admin_uses_password_auth?(), to: AdminUserQueries
 
   @doc """
-  Counts admins, other than `user_id`, who can actually sign in today.
-  See `Tymeslot.Auth.AdminUserQueries.count_signin_capable_admins_excluding/3`.
-  """
-  @spec count_signin_capable_admins_excluding(integer(), [atom()]) :: non_neg_integer()
-  def count_signin_capable_admins_excluding(user_id, usable_sso_providers) do
-    AdminUserQueries.count_signin_capable_admins_excluding(user_id, usable_sso_providers)
-  end
-
-  @doc """
   Returns `true` if at least one admin account exists.
   """
   defdelegate any_admin?(), to: AdminUserQueries
+
+  @doc """
+  Whether at least one admin other than `user` can currently sign in.
+
+  See `Tymeslot.Auth.AdminRoles.remaining_signin_capable_admins?/1`.
+  """
+  defdelegate remaining_signin_capable_admins?(user), to: AdminRoles
 
   @doc """
   Promotes the user identified by `user_id` to admin.

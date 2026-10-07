@@ -248,7 +248,8 @@ defmodule Tymeslot.CalendarGrid.EventMove do
   @doc """
   The calendar a move to `integration` writes to: `calendar_id` when the
   organiser chose one, else the integration's booking calendar. `nil` for a
-  CalDAV integration whose discovery left no collection at all.
+  CalDAV integration with no collection to write to: discovery left none at
+  all, every collection is read-only, or none is selected.
   """
   @spec destination_calendar_id(map(), String.t() | nil) :: String.t() | nil
   # The chosen calendar first, for every provider: CalDAV writes now honour
@@ -256,23 +257,26 @@ defmodule Tymeslot.CalendarGrid.EventMove do
   # the row under the booking collection regardless is no longer the truth.
   # `booking_calendar_path/1` resolves nothing when the stored booking calendar
   # id matches no discovered collection, which is the state a rediscovery
-  # leaves behind; the create falls back to the first discovered collection, so
-  # the row follows it rather than being filed under a null the column rejects.
+  # leaves behind; the move then goes to the first writable collection, which
+  # the create is asked for by name, so the row and the event agree. A
+  # destination whose collections are all read-only has nowhere to write to,
+  # and resolves to nil, which refuses the move before anything is written.
   # The "primary" placeholder is only meaningful to the OAuth providers, where
   # it names the account's own calendar.
   def destination_calendar_id(integration, calendar_id) do
     if integration.provider in Calendar.caldav_based_provider_strings() do
       calendar_id || Calendar.booking_calendar_path(integration) ||
-        List.first(integration.calendar_paths)
+        List.first(Calendar.writable_calendar_paths(integration))
     else
       calendar_id || integration.default_booking_calendar_id || "primary"
     end
   end
 
-  # An integration whose discovery left no collection at all has nowhere to
-  # write to. Refusing before the create keeps a destination the cache row
-  # cannot name from accepting the event anyway, which would leave a copy on
-  # the destination while the organiser is told nothing moved.
+  # An integration with no collection to write to (none discovered, every
+  # one read-only, or none selected) has nowhere to put the event. Refusing
+  # before the create keeps a destination the cache row cannot name from
+  # accepting the event anyway, which would leave a copy on the destination
+  # while the organiser is told nothing moved.
   defp ensure_destination(%{provider_calendar_id: nil}), do: {:error, :no_destination_calendar}
   defp ensure_destination(_moved), do: :ok
 

@@ -6,7 +6,7 @@ defmodule Tymeslot.Bookings.Validation do
   All validation is based on the data passed in as parameters.
   """
 
-  alias Tymeslot.Availability.{Calculate, Offer, TimeSlots}
+  alias Tymeslot.Availability.{Calculate, Events, Offer, TimeSlots}
   alias Tymeslot.Bookings.Errors
   alias Tymeslot.Bookings.ScheduleCheck
   alias Tymeslot.Clock
@@ -94,33 +94,26 @@ defmodule Tymeslot.Bookings.Validation do
   Events are first filtered through `CalendarEvent.blocking?/1` so that
   cancelled, declined, and `TRANSP:TRANSPARENT` (free/busy = free) events
   never block a booking, matching the contract that `Availability.Conflicts`
-  enforces for the display path.
+  enforces for the display path. They are then turned into instants by
+  `Availability.Events.convert_events_to_timezone/3`, the conversion the
+  display path uses, so an all-day event blocks the owner's local day here
+  exactly as it does on the booking page, and an event without an end blocks
+  the same stretch on both.
   """
   @spec check_slot_availability(
           DateTime.t(),
           DateTime.t(),
           [calendar_event()],
-          TimeRange.buffers()
+          TimeRange.buffers(),
+          String.t()
         ) :: :ok | {:error, :slot_unavailable}
-  def check_slot_availability(start_datetime, end_datetime, events, buffers \\ {0, 0}) do
-    normalized_events =
+  def check_slot_availability(start_datetime, end_datetime, events, buffers, owner_timezone) do
+    intervals =
       events
       |> Enum.filter(&CalendarEvent.blocking?/1)
-      |> Enum.map(fn event ->
-        start_time = DateTimeUtils.to_datetime(event.start_time)
+      |> Events.convert_events_to_timezone(owner_timezone, "Etc/UTC")
 
-        end_time =
-          DateTimeUtils.to_datetime(event.end_time) || DateTime.add(start_time, 30, :minute)
-
-        %{event | start_time: start_time, end_time: end_time}
-      end)
-
-    if TimeRange.has_conflict_with_events?(
-         start_datetime,
-         end_datetime,
-         normalized_events,
-         buffers
-       ) do
+    if TimeRange.has_conflict_with_events?(start_datetime, end_datetime, intervals, buffers) do
       {:error, :slot_unavailable}
     else
       :ok
@@ -130,7 +123,8 @@ defmodule Tymeslot.Bookings.Validation do
   @doc """
   Validates that a time slot has no conflicts with existing events.
 
-  Takes calendar events and checks for overlaps.
+  Takes calendar events and checks for overlaps, with all-day events anchored
+  in the config's `:owner_timezone`.
   """
   @spec validate_no_conflicts(DateTime.t(), DateTime.t(), [calendar_event()], scheduling_config()) ::
           :ok | {:error, :slot_unavailable}
@@ -139,7 +133,8 @@ defmodule Tymeslot.Bookings.Validation do
       start_datetime,
       end_datetime,
       events,
-      Calculate.config_buffers(config)
+      Calculate.config_buffers(config),
+      Map.get(config, :owner_timezone, "Etc/UTC")
     )
   end
 

@@ -186,7 +186,7 @@ defmodule TymeslotWeb.OnboardingLive.CaldavDiscoveryTest do
       # An exit rather than a raise, which takes a different route out:
       # `CalendarCircuitBreaker.with_breaker/3` rescues exceptions, and
       # `rescue` does not catch exits. What stops this one is
-      # `Tymeslot.Infrastructure.CacheStore.compute_and_store/5` — every
+      # `Tymeslot.Infrastructure.CacheStore.compute/3` — every
       # discovery runs inside `DiscoveryCache.get_or_compute/2` — whose
       # `catch` resolves any non-local exit to `{:error, :computation_failed}`.
       # So the async task returns normally, `handle_async/3` never sees

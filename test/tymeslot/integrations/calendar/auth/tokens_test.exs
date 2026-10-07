@@ -5,9 +5,11 @@ defmodule Tymeslot.Integrations.Calendar.TokensTest do
   import Tymeslot.Factory
   import Mox
 
+  alias Ecto.Changeset
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Tokens
   alias Tymeslot.Repo
+  alias Tymeslot.Security.Encryption
 
   setup :verify_on_exit!
 
@@ -261,6 +263,29 @@ defmodule Tymeslot.Integrations.Calendar.TokensTest do
       }
 
       assert {:error, :unsupported_provider} = Tokens.refresh_oauth_token(integration)
+    end
+  end
+
+  describe "refresh_oauth_token/1 when the stored credentials stop decrypting" do
+    test "flags the integration and answers in its own contract, not an Oban return value" do
+      integration =
+        insert(:calendar_integration,
+          provider: "google",
+          access_token_encrypted: Encryption.encrypt("old-access"),
+          refresh_token_encrypted: Encryption.encrypt("old-refresh"),
+          token_expires_at: DateTime.add(DateTime.utc_now(), -60, :second)
+        )
+
+      # The caller holds a copy it read while the row still decrypted; the row
+      # stops decrypting before the re-read under the refresh lock.
+      held = CalendarIntegrationSchema.decrypt_credentials(integration)
+
+      integration
+      |> Changeset.change(refresh_token_encrypted: :crypto.strong_rand_bytes(40))
+      |> Repo.update!()
+
+      assert {:error, :requires_reencryption} = Tokens.refresh_oauth_token(held)
+      assert Repo.get!(CalendarIntegrationSchema, integration.id).needs_reauth
     end
   end
 end

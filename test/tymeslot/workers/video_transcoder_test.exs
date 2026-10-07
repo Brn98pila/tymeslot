@@ -161,6 +161,53 @@ defmodule Tymeslot.Workers.VideoTranscoderTest do
     end
   end
 
+  describe "timeout/1" do
+    test "bounds the job, with room for every variant's own bound" do
+      job = VideoTranscoder.new(%{theme_customization_id: 1, video_path: "uploads/v.mp4"})
+
+      timeout = VideoTranscoder.timeout(job)
+
+      assert is_integer(timeout)
+
+      assert timeout >
+               length(Transcoder.variant_definitions()) * Transcoder.max_variant_timeout()
+    end
+
+    test "ends the job before the Oban lifeline would run it a second time" do
+      job = VideoTranscoder.new(%{theme_customization_id: 1, video_path: "uploads/v.mp4"})
+
+      # `ObanRescue`'s longest legitimate job: the lifeline rescues after more.
+      assert VideoTranscoder.timeout(job) <= :timer.hours(5)
+    end
+  end
+
+  describe "perform/1 - a variant that times out" do
+    test "marks the video failed on the first attempt, without a retry" do
+      # A retry would run as long again, holding the one-at-a-time queue for
+      # every other video.
+      theme_customization = insert_theme_customization()
+
+      expect(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
+
+      expect(Tymeslot.Media.TranscoderMock, :transcode, fn _src, _out, _opts ->
+        {:error, :timeout}
+      end)
+
+      assert {:cancel, "Video encode timed out"} =
+               perform_job(
+                 VideoTranscoder,
+                 %{
+                   "theme_customization_id" => theme_customization.id,
+                   "video_path" => "uploads/test-video.mp4"
+                 },
+                 attempt: 1
+               )
+
+      updated = Repo.get!(ThemeCustomizationSchema, theme_customization.id)
+      assert updated.video_processing == "failed"
+    end
+  end
+
   describe "perform/1 - path traversal" do
     test "rejects video_path containing directory traversal and sets status to failed" do
       theme_customization = insert_theme_customization()
@@ -191,6 +238,47 @@ defmodule Tymeslot.Workers.VideoTranscoderTest do
           "video_path" => "uploads/video.mp4"
         }
       )
+    end
+
+    # A long encode is where a replacement is most likely to arrive mid-run,
+    # and its timeout must not fail the replacement nor cancel the job that
+    # now carries the replacement's args.
+    test "a replacement arriving during an encode that then times out snoozes too" do
+      theme_customization = insert_theme_customization()
+
+      {:ok, job} = VideoTranscoder.enqueue(theme_customization.id, "uploads/old.mp4")
+
+      assert {:ok, %Oban.Job{conflict?: true}} =
+               VideoTranscoder.enqueue(theme_customization.id, "uploads/new.mp4")
+
+      # What the replacement upload sets before its transcode runs.
+      :ok =
+        ThemeCustomizationQueries.update_video_processing_status(
+          theme_customization.id,
+          "pending"
+        )
+
+      expect(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
+
+      expect(Tymeslot.Media.TranscoderMock, :transcode, fn _src, _out, _opts ->
+        {:error, :timeout}
+      end)
+
+      job = %{
+        job
+        | args: %{
+            "theme_customization_id" => theme_customization.id,
+            "video_path" => "uploads/old.mp4"
+          },
+          attempt: 1,
+          attempted_at: DateTime.utc_now(),
+          scheduled_at: DateTime.utc_now()
+      }
+
+      assert {:snooze, 1} = perform_job(job)
+
+      updated = Repo.get!(ThemeCustomizationSchema, theme_customization.id)
+      assert updated.video_processing == "pending"
     end
 
     test "a replacement arriving mid-run snoozes so the next run transcodes it" do
@@ -233,5 +321,66 @@ defmodule Tymeslot.Workers.VideoTranscoderTest do
       updated = Repo.get!(ThemeCustomizationSchema, theme_customization.id)
       assert updated.video_processing != "failed"
     end
+  end
+
+  # A replacement uploaded while a job runs rewrites that job's args (see the
+  # enqueue tests above). Whatever the old video's encode ends in, the job must
+  # come back for the replacement rather than settle its status.
+  describe "perform/1 - a replacement arriving during the last variant" do
+    setup do
+      theme_customization = insert_theme_customization()
+
+      {:ok, job} = VideoTranscoder.enqueue(theme_customization.id, "uploads/old.mp4")
+
+      assert {:ok, %Oban.Job{conflict?: true}} =
+               VideoTranscoder.enqueue(theme_customization.id, "uploads/new.mp4")
+
+      # What the replacement upload sets before its transcode runs.
+      :ok =
+        ThemeCustomizationQueries.update_video_processing_status(
+          theme_customization.id,
+          "pending"
+        )
+
+      %{theme_customization: theme_customization, job: running(job, theme_customization)}
+    end
+
+    test "does not mark the replacement completed when the old encode succeeds",
+         %{theme_customization: theme_customization, job: job} do
+      stub_all_variants_success()
+
+      assert {:snooze, 1} = perform_job(%{job | attempt: 1})
+
+      updated = Repo.get!(ThemeCustomizationSchema, theme_customization.id)
+      assert updated.video_processing == "pending"
+    end
+
+    test "does not fail the replacement nor drop its job when the final attempt errors",
+         %{theme_customization: theme_customization, job: job} do
+      expect(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
+
+      expect(Tymeslot.Media.TranscoderMock, :transcode, fn _src, _out, _opts ->
+        {:error, "ffmpeg exited with status 1"}
+      end)
+
+      assert {:snooze, 1} = perform_job(%{job | attempt: job.max_attempts})
+
+      updated = Repo.get!(ThemeCustomizationSchema, theme_customization.id)
+      assert updated.video_processing == "pending"
+    end
+  end
+
+  # The stale in-memory struct the running process holds: the old path in
+  # string-keyed args, with the execution stamps a fetched job carries.
+  defp running(job, theme_customization) do
+    %{
+      job
+      | args: %{
+          "theme_customization_id" => theme_customization.id,
+          "video_path" => "uploads/old.mp4"
+        },
+        attempted_at: DateTime.utc_now(),
+        scheduled_at: DateTime.utc_now()
+    }
   end
 end

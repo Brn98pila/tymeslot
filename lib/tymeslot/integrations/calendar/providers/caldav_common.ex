@@ -11,6 +11,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Calendar.CalDAV.{Base, Client, Discovery, Events, Http, UrlBuilder}
+  alias Tymeslot.Integrations.Calendar.CalDAV.Provider, as: CalDAVProvider
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CreatedEvent
   alias Tymeslot.Integrations.Calendar.ICalNormaliser
@@ -48,7 +49,8 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
         password: config[:password],
         calendar_paths: calendar_paths,
         writable_calendar_paths: config[:writable_calendar_paths],
-        verify_ssl: true
+        verify_ssl: true,
+        skip_breaker: config[:skip_breaker] || false
       },
       provider: provider
     )
@@ -77,14 +79,17 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
         Map.get(config, :writable_calendar_paths) ||
           Map.get(config, "writable_calendar_paths") || [],
       verify_ssl: Map.get(config, :verify_ssl, true),
+      skip_breaker: Map.get(config, :skip_breaker, false),
       provider: provider
     }
   end
 
   # The provider is a string on the integration row and an atom on the client,
-  # so the mapping belongs here, next to the client it feeds. Anything outside
-  # the CalDAV family never reaches this module and falls back to plain
-  # `:caldav`.
+  # so the mapping belongs here, next to the client it feeds. A generic
+  # `"caldav"` row is not in it: its client takes the server type detected
+  # from the URL, as every other generic CalDAV client does, so that its
+  # calls trip the host breaker a reset closes
+  # (`CalendarCircuitBreaker.breaker_key/2`).
   @provider_atoms %{
     "radicale" => :radicale,
     "nextcloud" => :nextcloud,
@@ -107,8 +112,15 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
         calendar_paths: integration.calendar_paths,
         verify_ssl: Map.get(integration, :verify_ssl, true)
       },
-      provider: Map.get(@provider_atoms, integration.provider, :caldav)
+      provider: client_provider(integration)
     )
+  end
+
+  defp client_provider(%{provider: provider, base_url: base_url}) do
+    case Map.fetch(@provider_atoms, provider) do
+      {:ok, provider_atom} -> provider_atom
+      :error -> CalDAVProvider.client_provider(base_url)
+    end
   end
 
   @doc """
@@ -269,10 +281,11 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
   # the union of successful results. This keeps degraded multi-calendar
   # setups working while still making errors observable in logs.
   #
-  # We deliberately don't expand recurrences here — `event_processor.normalise_events`
-  # does its own expansion downstream. Expanding in both places produces N×N
-  # occurrences because each first-pass occurrence still carries the master
-  # RRULE and gets re-expanded.
+  # We deliberately don't expand recurrences here: the caller expands them,
+  # through `ICalNormaliser` on both the sync and the live availability read
+  # (`EventsRead`). Expanding in both places produces N×N occurrences because
+  # each first-pass occurrence still carries the master RRULE and gets
+  # re-expanded.
   defp handle_fetch_results(successes, errors) do
     Enum.each(errors, fn {path, {:error, reason}} ->
       Logger.warning("CalDAV fetch failed for one calendar path",

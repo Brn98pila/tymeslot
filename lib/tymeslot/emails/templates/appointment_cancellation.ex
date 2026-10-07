@@ -45,7 +45,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentCancellation do
           Swoosh.Email.t()
   def render(:attendee, attendee_email, %{seat_given_up: true} = appointment_details) do
     appointment_details = Formatting.without_location_note(appointment_details)
-    locale = Map.get(appointment_details, :attendee_locale, "en")
+    locale = RecipientLocale.attendee_locale(appointment_details)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       meeting_details = %{
@@ -97,7 +97,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentCancellation do
   def render(:attendee, attendee_email, appointment_details) do
     appointment_details = Formatting.without_location_note(appointment_details)
 
-    locale = Map.get(appointment_details, :attendee_locale, "en")
+    locale = RecipientLocale.attendee_locale(appointment_details)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       meeting_details = %{
@@ -157,7 +157,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentCancellation do
     appointment_details = Formatting.without_location_note(appointment_details)
 
     # Guests inherit the booker's locale, as their invitation does.
-    locale = Map.get(appointment_details, :attendee_locale, "en")
+    locale = RecipientLocale.attendee_locale(appointment_details)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       guest_name = Map.get(appointment_details, :guest_name) || guest_email

@@ -105,7 +105,7 @@ defmodule Tymeslot.Security.SecurityTest do
 
     test "includes suggestion when confident" do
       {:error, msg} = Security.validate_domain("example.ocm")
-      assert msg =~ "did you mean .com?"
+      assert msg =~ "Did you mean .com?"
     end
 
     test "accepts wildcard domains with valid TLDs" do

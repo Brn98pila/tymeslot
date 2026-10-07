@@ -21,6 +21,13 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage do
     )
   end
 
+  def message(:availability_unverifiable) do
+    dgettext(
+      "booking",
+      "We couldn't check the host's calendar right now. Please try again in a few minutes."
+    )
+  end
+
   def message(:booking_limit_reached) do
     dgettext(
       "booking",

@@ -72,6 +72,32 @@ defmodule Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries do
   end
 
   @doc """
+  `get_or_init/3`, then the row read again under `FOR UPDATE`, so a caller
+  inside a transaction holds it until that transaction ends.
+
+  The probe and a sync of one integration both read the row, work out the new
+  state and write it back. Each doing so under this lock means neither can
+  write over a state the other wrote after it read.
+  """
+  @spec get_or_init_for_update(String.t() | atom(), integer(), integer()) ::
+          {:ok, IntegrationHealthStateSchema.t()} | {:error, :not_found}
+  def get_or_init_for_update(type, integration_id, user_id) do
+    type_str = to_string(type)
+
+    with {:ok, _record} <- get_or_init(type, integration_id, user_id) do
+      case Repo.one(
+             from(s in IntegrationHealthStateSchema,
+               where: s.integration_type == ^type_str and s.integration_id == ^integration_id,
+               lock: "FOR UPDATE"
+             )
+           ) do
+        nil -> {:error, :not_found}
+        record -> {:ok, record}
+      end
+    end
+  end
+
+  @doc """
   Updates specific fields on an existing health state record.
   Only updates if a record already exists (no INSERT). Safe to call
   concurrently — a genuinely atomic single statement, so a row deleted

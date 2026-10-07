@@ -5,12 +5,14 @@ defmodule Tymeslot.Workers.TelegramWorkerTest do
   @moduletag :telegram
 
   use Oban.Testing, repo: Tymeslot.Repo
+  import Ecto.Query, only: [where: 2]
   import Mox
   import Tymeslot.AdminAlertsCaptureHelpers
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
   import Tymeslot.WorkerTestHelpers
 
+  alias Oban.Job
   alias Tymeslot.Telegram.TelegramDeliverySchema
   alias Tymeslot.Telegram.TelegramIntegrationSchema
   alias Tymeslot.Workers.TelegramWorker
@@ -587,6 +589,16 @@ defmodule Tymeslot.Workers.TelegramWorkerTest do
   end
 
   describe "schedule_delivery/3" do
+    # A second event of the same type (a second reschedule minutes after the
+    # first) is news of its own once the first message went out.
+    test "a later event is not swallowed by a delivery that already ran" do
+      assert :ok = TelegramWorker.schedule_delivery(42, "meeting.rescheduled", "m-later")
+      complete_jobs(TelegramWorker)
+      assert :ok = TelegramWorker.schedule_delivery(42, "meeting.rescheduled", "m-later")
+
+      assert job_count(TelegramWorker) == 2
+    end
+
     test "enqueues an Oban job with correct arguments" do
       assert :ok = TelegramWorker.schedule_delivery(123, "meeting.created", "meeting-uuid-123")
 
@@ -599,6 +611,18 @@ defmodule Tymeslot.Workers.TelegramWorkerTest do
         }
       )
     end
+  end
+
+  # Marks every job of `worker` completed, as a delivery that already ran.
+  defp complete_jobs(worker) do
+    Repo.update_all(
+      where(Job, worker: ^inspect(worker)),
+      set: [state: "completed", completed_at: DateTime.utc_now()]
+    )
+  end
+
+  defp job_count(worker) do
+    Repo.aggregate(where(Job, worker: ^inspect(worker)), :count)
   end
 end
 

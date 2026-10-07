@@ -406,7 +406,7 @@ defmodule Tymeslot.Bookings.CreateTest do
     end
   end
 
-  describe "execute_with_video_room/3 with calendar validation" do
+  describe "execute/3 with_video_room: true with calendar validation" do
     setup do
       setup_booking_test()
     end
@@ -419,11 +419,11 @@ defmodule Tymeslot.Bookings.CreateTest do
       set_calendar_error(:timeout)
 
       # Should succeed despite calendar error
-      assert {:ok, meeting} = Create.execute_with_video_room(meeting_params, form_data)
+      assert {:ok, meeting} = Create.execute(meeting_params, form_data, with_video_room: true)
       assert meeting.uid =~ @uuid_v4
     end
 
-    test "fails fast when calendar check detects conflict", %{
+    test "refuses when calendar check detects conflict", %{
       meeting_params: meeting_params,
       form_data: form_data
     } do
@@ -432,9 +432,9 @@ defmodule Tymeslot.Bookings.CreateTest do
 
       set_calendar_events([conflicting_event])
 
-      # Should fail fast with the semantic :slot_taken atom
+      # Refused with the semantic :slot_taken atom
       assert {:error, :slot_taken} =
-               Create.execute_with_video_room(meeting_params, form_data)
+               Create.execute(meeting_params, form_data, with_video_room: true)
     end
   end
 

@@ -8,6 +8,7 @@ defmodule Tymeslot.Workers.VideoRoomWorkerTest do
   import Tymeslot.Factory
   import Tymeslot.WorkerTestHelpers
 
+  alias Ecto.Changeset
   alias Ecto.UUID
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Webhooks
@@ -157,6 +158,86 @@ defmodule Tymeslot.Workers.VideoRoomWorkerTest do
       # terminal discard that skipped the announcement would silently notify
       # no one of the booking.
       assert_enqueued(worker: EmailWorker)
+    end
+  end
+
+  # A grant the provider refused for good is the owner's to fix. The first
+  # booking that meets it flags the integration and emails the owner; every
+  # booking after that is refused before any call, as an expected end of the
+  # job rather than one more authentication fault per booking.
+  describe "perform/1 - a revoked video grant" do
+    setup do
+      user = insert(:user)
+      _profile = insert(:profile, user: user)
+
+      integration =
+        insert(:video_integration,
+          user: user,
+          provider: "zoom",
+          oauth_scope: "meeting:write:meeting meeting:read:meeting",
+          token_expires_at: DateTime.add(DateTime.utc_now(), -3600, :second)
+        )
+
+      %{user: user, integration: integration}
+    end
+
+    defp booking(user, integration) do
+      insert(:meeting,
+        organizer_user_id: user.id,
+        organizer_email: user.email,
+        video_integration_id: integration.id
+      )
+    end
+
+    test "a refused refresh discards, announces without a link and asks the owner to reconnect",
+         %{user: user, integration: integration} do
+      stub(ZoomOAuthHelperMock, :validate_token, fn _config -> {:ok, :needs_refresh} end)
+
+      expect(ZoomOAuthHelperMock, :refresh_access_token, fn _refresh, nil, _opts ->
+        {:error, "Token refresh failed: invalid_grant"}
+      end)
+
+      meeting = booking(user, integration)
+
+      assert {:discard, "Authentication failed"} =
+               perform_job(
+                 VideoRoomWorker,
+                 %{"meeting_id" => meeting.id, "announce" => true},
+                 attempt: 1
+               )
+
+      assert Repo.reload!(integration).needs_reauth
+      assert is_nil(Repo.reload!(meeting).video_room_id)
+      assert_enqueued(worker: EmailWorker, args: %{"action" => "send_confirmation_emails"})
+
+      assert_enqueued(
+        worker: EmailWorker,
+        args: %{
+          "action" => "send_integration_reauth_notification",
+          "integration_id" => integration.id
+        }
+      )
+    end
+
+    test "a booking on an integration already flagged is refused without a call, as expected",
+         %{user: user, integration: integration} do
+      integration |> Changeset.change(needs_reauth: true) |> Repo.update!()
+
+      expect(ZoomOAuthHelperMock, :validate_token, 0, fn _config -> {:ok, :valid} end)
+      expect(ZoomOAuthHelperMock, :refresh_access_token, 0, fn _refresh, _scope, _opts -> nil end)
+
+      meeting = booking(user, integration)
+
+      assert {:discard, reason} =
+               perform_job(
+                 VideoRoomWorker,
+                 %{"meeting_id" => meeting.id, "announce" => true},
+                 attempt: 1
+               )
+
+      assert reason == "Video integration needs reconnecting"
+      assert VideoRoomWorker.expected_outcome?(reason)
+      assert_enqueued(worker: EmailWorker, args: %{"action" => "send_confirmation_emails"})
     end
   end
 

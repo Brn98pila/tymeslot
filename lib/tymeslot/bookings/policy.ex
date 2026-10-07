@@ -14,6 +14,7 @@ defmodule Tymeslot.Bookings.Policy do
   alias Tymeslot.Availability.Schedules
   alias Tymeslot.Bookings.BookingTitle
   alias Tymeslot.Bookings.BuildParams
+  alias Tymeslot.Bookings.MeetingLinks
   alias Tymeslot.Clock
   alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Integrations.Calendar.Events, as: CalendarEvents
@@ -365,14 +366,13 @@ defmodule Tymeslot.Bookings.Policy do
     end
   end
 
-  # Builds URLs for meeting actions (view, reschedule, cancel)
+  # A booking-time copy of the action links, kept on the row for readers of
+  # the stored columns. Anything shown to a person builds them afresh with
+  # `MeetingLinks.for_meeting/1`, since this copy goes stale.
   defp build_meeting_action_urls(meeting_uid, org_username) do
-    %{
-      view_url: build_meeting_url(meeting_uid, "", org_username),
-      reschedule_url: build_meeting_url(meeting_uid, "/reschedule", org_username),
-      cancel_url: build_meeting_url(meeting_uid, "/cancel", org_username),
-      meeting_url: nil
-    }
+    org_username
+    |> MeetingLinks.build(meeting_uid)
+    |> Map.put(:meeting_url, nil)
   end
 
   @doc """
@@ -525,15 +525,6 @@ defmodule Tymeslot.Bookings.Policy do
   end
 
   # Private functions
-
-  defp build_meeting_url(meeting_uid, path, username) do
-    if username do
-      app_url() <> "/#{username}/meeting/#{meeting_uid}#{path}"
-    else
-      # Fallback to old URL structure if no username available
-      app_url() <> "/meeting/#{meeting_uid}#{path}"
-    end
-  end
 
   # Private helper to get organizer details from profile or fallback to config
   defp get_organizer_details(nil), do: {organizer_name(), organizer_email(), nil}

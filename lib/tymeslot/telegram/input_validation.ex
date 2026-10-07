@@ -10,6 +10,13 @@ defmodule Tymeslot.Telegram.InputValidation do
   @chat_id_numeric_regex ~r/^-?\d+$/
   @chat_id_username_regex ~r/^@[a-zA-Z][a-zA-Z0-9_]{4,31}$/
 
+  @doc """
+  Validates the integration form. `:bot_mode` selects the fields: on the own
+  bot the organiser supplies the bot token and chat id; on the shared bot the
+  chat is linked only through the bot's deep link, so any `chat_id` param is
+  dropped. The bot mode itself is never part of the result: the context sets
+  it on create and an edit never changes it.
+  """
   @spec validate_form(map(), keyword()) :: {:ok, map()} | {:error, map()}
   def validate_form(params, opts) do
     bot_mode = Keyword.get(opts, :bot_mode, "own")
@@ -28,12 +35,12 @@ defmodule Tymeslot.Telegram.InputValidation do
         {cid, errors} = validate_chat_id(params["chat_id"], errors)
         {token, cid, errors}
       else
-        {nil, params["chat_id"], errors}
+        {nil, nil, errors}
       end
 
     if map_size(errors) == 0 do
       sanitized =
-        %{name: name, events: events, bot_mode: bot_mode}
+        %{name: name, events: events}
         |> maybe_put(:bot_token, bot_token)
         |> maybe_put(:chat_id, chat_id)
 

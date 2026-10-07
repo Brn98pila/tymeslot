@@ -15,6 +15,7 @@ defmodule Tymeslot.Integrations.HealthCheck.AlertingTest do
   import Tymeslot.Factory
   import Tymeslot.WorkerTestHelpers, only: [insert_unhealthy_health_row: 4]
 
+  alias Tymeslot.Application, as: TymeslotApplication
   alias Tymeslot.Bookings.CalendarCheck
   alias Tymeslot.Infrastructure.AdminAlerts.AlertTypes
   alias Tymeslot.Infrastructure.AdminAlerts.PIIScrubber
@@ -112,8 +113,9 @@ defmodule Tymeslot.Integrations.HealthCheck.AlertingTest do
     end
 
     test "ignores refusals outside the window", %{user: user, hour: hour} do
-      # Two hours back: outside both the window and the previous evaluation's.
-      insert_refusals(user, DateTime.add(hour, -2, :hour), 50)
+      # Three hours back: outside both the window and the windows a recovery
+      # looks back over (`:recover_after`, two by default).
+      insert_refusals(user, DateTime.add(hour, -3, :hour), 50)
       insert_refusals(user, DateTime.add(hour, 1, :hour), 50)
 
       assert :ok = Alerting.check_signal(:availability_refusals, at(hour, 1))
@@ -211,9 +213,11 @@ defmodule Tymeslot.Integrations.HealthCheck.AlertingTest do
       insert_refusals(user, later, 5)
 
       assert :alerted = Alerting.check_signal(:availability_refusals, at(hour, 1))
-      assert :recovered = Alerting.check_signal(:availability_refusals, at(hour, 2))
+      assert :ok = Alerting.check_signal(:availability_refusals, at(hour, 2))
+      assert :recovered = Alerting.check_signal(:availability_refusals, at(hour, 3))
       assert :alerted = Alerting.check_signal(:availability_refusals, at(later, 1))
-      assert :recovered = Alerting.check_signal(:availability_refusals, at(later, 2))
+      assert :ok = Alerting.check_signal(:availability_refusals, at(later, 2))
+      assert :recovered = Alerting.check_signal(:availability_refusals, at(later, 3))
 
       assert_received {:send_alert, :integration_health_failure, first_failure}
       assert_received {:send_alert, :integration_health_recovery, first_recovery}
@@ -281,14 +285,44 @@ defmodule Tymeslot.Integrations.HealthCheck.AlertingTest do
       assert :alerted = Alerting.check_signal(:availability_refusals, at(hour, 1))
       assert_received {:send_alert, :integration_health_failure, _payload}
 
-      assert :recovered = Alerting.check_signal(:availability_refusals, at(hour, 2))
+      # One quiet window is a dip, not yet a recovery.
+      assert :ok = Alerting.check_signal(:availability_refusals, at(hour, 2))
+      refute_received {:send_alert, _type, _payload}
+
+      assert :recovered = Alerting.check_signal(:availability_refusals, at(hour, 3))
 
       assert_received {:send_alert, :integration_health_recovery,
                        %{signal: "availability_refusals", count: 0} = recovery}
 
       assert recovery.summary =~ "back under threshold"
 
-      assert :ok = Alerting.check_signal(:availability_refusals, at(hour, 3))
+      assert :ok = Alerting.check_signal(:availability_refusals, at(hour, 4))
+      refute_received {:send_alert, _type, _payload}
+    end
+
+    # One organiser's dead calendar whose page is visited more than the
+    # threshold in some hours and less in others is one incident: one alert
+    # (repeated each bad hour under one dedup key) and one recovery, not an
+    # alert and a recovery every other hour.
+    test "a signal alternating around its threshold is one incident", %{
+      user: user,
+      hour: hour
+    } do
+      for offset <- [0, 2, 4], do: insert_refusals(user, DateTime.add(hour, offset, :hour), 6)
+
+      results =
+        for offset <- 1..7, do: Alerting.check_signal(:availability_refusals, at(hour, offset))
+
+      assert results == [:alerted, :ok, :alerted, :ok, :alerted, :ok, :recovered]
+
+      failure_keys =
+        for _n <- 1..3 do
+          assert_received {:send_alert, :integration_health_failure, payload}
+          AlertTypes.dedup_key(:integration_health_failure, PIIScrubber.scrub(payload))
+        end
+
+      assert [_one_key] = Enum.uniq(failure_keys)
+      assert_received {:send_alert, :integration_health_recovery, _recovery}
       refute_received {:send_alert, _type, _payload}
     end
 
@@ -300,6 +334,37 @@ defmodule Tymeslot.Integrations.HealthCheck.AlertingTest do
 
       assert :ok = Alerting.check_signal(:availability_refusals, at(hour, 2))
       refute_received {:send_alert, _type, _payload}
+    end
+  end
+
+  describe "recover_after configuration" do
+    test "is refused below one window, rather than reading every quiet hour as a recovery" do
+      for windows <- [0, -1, nil] do
+        with_config(:tymeslot, :integration_health_alerting, recover_after: windows)
+
+        assert_raise ArgumentError, ~r/recover_after/, fn -> Alerting.validate_config!() end
+      end
+    end
+
+    # The check runs at boot: a bad value stops the application starting,
+    # instead of raising inside every hourly alert run.
+    test "a value below one window stops the application starting" do
+      with_config(:tymeslot, :integration_health_alerting, recover_after: 0)
+
+      assert_raise ArgumentError, ~r/recover_after/, fn ->
+        TymeslotApplication.start(:normal, [])
+      end
+    end
+
+    test "accepts a single quiet window", %{hour: hour} do
+      with_config(:tymeslot, :integration_health_alerting,
+        window_hours: 1,
+        reauth_flags_threshold: 3,
+        recover_after: 1
+      )
+
+      assert :ok = Alerting.validate_config!()
+      assert :ok = Alerting.check_signal(:reauth_flags, at(hour, 1))
     end
   end
 

@@ -59,6 +59,24 @@ defmodule Tymeslot.MeetingTypes.InputValidationTest do
     end
   end
 
+  describe "validate_meeting_type_form/2 - target calendar" do
+    test "keeps a provider calendar id containing a double hyphen and a hex run" do
+      # The id is matched against the integration's calendar list afterwards,
+      # so a rewritten id refuses a calendar the organiser picked from it.
+      calendar_id = "/dav/calendars/alice/work--0xabc/"
+
+      params = %{
+        "name" => "Coffee Chat",
+        "duration" => "30",
+        "icon" => "hero-bolt",
+        "target_calendar_id" => calendar_id
+      }
+
+      assert {:ok, sanitized} = InputValidation.validate_meeting_type_form(params)
+      assert sanitized["target_calendar_id"] == calendar_id
+    end
+  end
+
   describe "validate_meeting_type_form/2 - duration constraints" do
     test "rejects duration below 5 minutes" do
       params = %{

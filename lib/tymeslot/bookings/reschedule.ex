@@ -101,8 +101,10 @@ defmodule Tymeslot.Bookings.Reschedule do
   `:meeting_not_found` when the lookup fails, `:slot_taken` when a concurrent
   booking claims the new time first, when the requested time is one the
   organiser's schedule never offers, or when their connected calendar has
-  since been blocked over it, or `:failed_to_update_meeting` when
-  persisting the new time fails for any other reason) or an arbitrary
+  since been blocked over it, `:availability_unverifiable` when their
+  connected calendars could not all be read to check the new time, or
+  `:failed_to_update_meeting` when persisting the new time fails for any
+  other reason) or an arbitrary
   policy/validation string from `Tymeslot.Bookings.Policy` or
   `Tymeslot.Bookings.Validation`.
   """
@@ -191,14 +193,17 @@ defmodule Tymeslot.Bookings.Reschedule do
     # this value, and nothing else has used it in the meantime. A request that
     # is declined or expires simply leaves the revision unspent, which costs
     # nothing: SEQUENCE has to rise, not to run consecutively.
+    #
+    # The bump is taken from the locked row (see `update_meeting/2`), not from
+    # `meeting`: a host-side change committed while the calendar was being
+    # checked may have advanced it, and the new value must go past that one.
     attrs =
       %{
         start_time: start_dt,
         end_time: end_dt,
         reschedule_requested_at: nil,
         reminders_sent: [],
-        reminder_email_sent: false,
-        ical_sequence: meeting.ical_sequence + 1
+        reminder_email_sent: false
       }
       |> Map.merge(gate_attributes(meeting_type, start_dt, meeting))
       |> Map.merge(VideoRooms.refreshed_join_url_attrs(meeting, start_dt))
@@ -216,7 +221,8 @@ defmodule Tymeslot.Bookings.Reschedule do
       {:ok, updated} -> {:ok, updated}
       {:error, :slot_taken} -> {:error, :slot_taken}
       {:error, :booking_limit_reached} -> {:error, :booking_limit_reached}
-      {:error, :failed_to_update_meeting} -> {:error, :failed_to_update_meeting}
+      {:error, :meeting_not_found} -> {:error, :meeting_not_found}
+      {:error, {:refused, reason}} -> {:error, reason}
       {:error, _reason} -> {:error, :failed_to_update_meeting}
     end
   end
@@ -330,7 +336,7 @@ defmodule Tymeslot.Bookings.Reschedule do
   # that work rather than bolted on here.
   defp announce(%{status: "awaiting_approval"} = updated, original) do
     cancel_stale_reminders(updated)
-    GuestNotifications.prepare_for_reapproval(updated)
+    GuestNotifications.reset_for_new_time(updated)
 
     case Events.meeting_requested(updated, previous_start_opts(updated, original)) do
       {:ok, _result} ->
@@ -458,9 +464,10 @@ defmodule Tymeslot.Bookings.Reschedule do
   # or (through the buffer) adjacent to the slot it already occupies, so a
   # booking could not be nudged by fifteen minutes.
   #
-  # Both refusals collapse to `:slot_taken`, exactly as `Create` classifies
-  # them, so the invitee is returned to the grid to pick another time rather
-  # than shown a distinction they cannot act on.
+  # A clash collapses to `:slot_taken`, returning the invitee to the grid to
+  # pick another time; a busy set that could not be read stays
+  # `:availability_unverifiable`, as `Create` classifies it, since every other
+  # time would be refused the same way.
   defp verify_calendar_free(meeting, %{start_time: start_time, end_time: end_time}, config) do
     slot = %{
       organizer_user_id: meeting.organizer_user_id,
@@ -470,6 +477,7 @@ defmodule Tymeslot.Bookings.Reschedule do
 
     case CalendarCheck.enforce(slot, config, exclude: meeting) do
       :ok -> :ok
+      {:error, :availability_unverifiable} = unverifiable -> unverifiable
       {:error, _reason} -> {:error, :slot_taken}
     end
   end
@@ -490,11 +498,21 @@ defmodule Tymeslot.Bookings.Reschedule do
   defp fetch_meeting_type(meeting_type_id, organizer_user_id, _duration_minutes),
     do: MeetingTypes.get_meeting_type(meeting_type_id, organizer_user_id)
 
+  # The meeting was read and validated before the provider calendar fetch,
+  # which can take seconds; a cancellation (or anything else that ends it)
+  # may have committed since. The guard re-runs the same validation against
+  # the row as it stands under its lock, so a meeting cancelled meanwhile is
+  # refused rather than moved, or returned to the approval gate.
   defp update_meeting(meeting, attrs) do
-    case Scheduling.update_meeting_with_conflict_check(meeting, attrs) do
+    case Scheduling.update_meeting_with_conflict_check(meeting, attrs,
+           guard: &validate_can_reschedule/1,
+           locked_attrs: &%{ical_sequence: &1.ical_sequence + 1}
+         ) do
       {:ok, updated} -> {:ok, updated}
       {:error, :time_conflict} -> {:error, :slot_taken}
       {:error, :booking_limit_reached} -> {:error, :booking_limit_reached}
+      {:error, :not_found} -> {:error, :meeting_not_found}
+      {:error, {:refused, _reason} = refused} -> {:error, refused}
       {:error, _reason} -> {:error, :failed_to_update_meeting}
     end
   end
@@ -537,7 +555,7 @@ defmodule Tymeslot.Bookings.Reschedule do
   defp send_reschedule_notifications(updated_meeting, original_meeting) do
     case Events.meeting_rescheduled(updated_meeting, original_meeting) do
       {:ok, _result} ->
-        Logger.info("Reschedule notifications sent", meeting_id: updated_meeting.id)
+        Logger.info("Reschedule notifications scheduled", meeting_id: updated_meeting.id)
         :ok
 
       {:error, reason} ->

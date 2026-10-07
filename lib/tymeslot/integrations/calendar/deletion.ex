@@ -4,9 +4,9 @@ defmodule Tymeslot.Integrations.Calendar.Deletion do
   calendar invariant (promote another or clear primary).
   """
 
-  alias Tymeslot.Integrations.Calendar.BookingEligibility
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
+  alias Tymeslot.Integrations.Calendar.PrimaryElection
   alias Tymeslot.Integrations.CalendarManagement
-  alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.MeetingTypes.MeetingTypeQueries
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Repo
@@ -30,8 +30,7 @@ defmodule Tymeslot.Integrations.Calendar.Deletion do
       when is_integer(user_id) and is_integer(integration_id) do
     with {:ok, integration} <-
            CalendarManagement.get_calendar_integration(integration_id, user_id),
-         promoted_result <- maybe_handle_primary(user_id, integration),
-         {:ok, _result} <- clear_references_and_delete(integration) do
+         {:ok, promoted_result} <- delete_and_reassign(integration) do
       case promoted_result do
         {:promoted, next_id} -> {:ok, {:deleted_promoted, next_id}}
         :cleared -> {:ok, {:deleted_cleared_primary}}
@@ -43,55 +42,29 @@ defmodule Tymeslot.Integrations.Calendar.Deletion do
     end
   end
 
-  defp maybe_handle_primary(user_id, integration) do
-    with {:ok, %{id: primary_id}} <- CalendarPrimary.get_primary_calendar_integration(user_id),
-         true <- primary_id == integration.id do
-      promote_next_or_clear(user_id, [integration.id])
-    else
-      _not_primary -> :unchanged
-    end
-  end
-
-  defp clear_references_and_delete(integration) do
+  # The promotion and the delete commit together, under the lock a toggle or
+  # an automatic pause takes too, so a failed delete leaves the primary where
+  # it was and a concurrent change cannot elect from a list this one is
+  # changing.
+  defp delete_and_reassign(integration) do
     Repo.transaction(fn ->
+      CalendarIntegrationWebhookQueries.lock_user_profile_and_integrations(integration.user_id)
+      promoted_result = maybe_handle_primary(integration)
       MeetingTypeQueries.clear_calendar_references(integration.id)
 
       case CalendarManagement.delete_calendar_integration(integration) do
-        {:ok, result} -> result
+        {:ok, _result} -> promoted_result
         {:error, reason} -> Repo.rollback(reason)
       end
     end)
   end
 
-  # Promotes the first bookable integration not in `exclude_ids`, or clears
-  # the primary when none is left.
-  #
-  # A candidate can vanish between the listing and the profile update: two
-  # deletions running side by side each list the other's integration as the
-  # next primary, and one of them loses the race. That surfaces as an error
-  # from `set_primary_calendar_integration/2` (a not-found on the pre-check,
-  # or the profile's foreign-key constraint when the row went in between), and
-  # the answer is the same as if the candidate had never been listed: exclude
-  # it and look again. Every pass excludes one more id, so this terminates.
-  defp promote_next_or_clear(user_id, exclude_ids) do
-    others =
-      user_id
-      |> CalendarManagement.list_calendar_integrations()
-      |> Enum.reject(&(&1.id in exclude_ids))
-      |> BookingEligibility.filter_bookable()
-
-    case others do
-      [next | _rest] ->
-        case CalendarPrimary.set_primary_calendar_integration(user_id, next.id) do
-          {:ok, _integration} -> {:promoted, next.id}
-          {:error, _reason} -> promote_next_or_clear(user_id, [next.id | exclude_ids])
-        end
-
-      [] ->
-        case ProfileQueries.clear_primary_calendar_integration(user_id) do
-          {:ok, _profile} -> :cleared
-          _error -> :unchanged
-        end
+  # Decided on the stored primary id rather than a decrypted row, so an
+  # unreadable primary that is deleted still hands the role on.
+  defp maybe_handle_primary(%{id: id, user_id: user_id}) do
+    case ProfileQueries.get_by_user_id(user_id) do
+      {:ok, %{primary_calendar_integration_id: ^id}} -> PrimaryElection.elect_next(user_id, [id])
+      _not_primary -> :unchanged
     end
   end
 end

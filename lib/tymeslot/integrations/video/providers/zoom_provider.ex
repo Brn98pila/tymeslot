@@ -131,6 +131,9 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
     Logger.error("Failed to create Zoom meeting", error: LogFormat.reason(reason))
   end
 
+  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
+  def flag_revoked_token(config), do: Reauth.flag_revoked_token(config)
+
   # A rejected/expired grant (`invalid_grant`, `invalid_client`,
   # `access_denied`) is the tenant's credential, not Zoom's availability —
   # `BreakerOutcome.permanent_credential_error?/1` shares this rule with

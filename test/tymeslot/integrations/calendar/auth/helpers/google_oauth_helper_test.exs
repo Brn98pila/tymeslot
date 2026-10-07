@@ -125,6 +125,31 @@ defmodule Tymeslot.Integrations.Calendar.Google.OAuthHelperTest do
       assert updated.access_token == "new-at"
     end
 
+    # A paused calendar gives up its place as the primary; reconnecting it
+    # reactivates it, and a user with no other calendar gets it back.
+    test "makes a reactivated integration the primary again when the user has none" do
+      user = insert(:user)
+      profile = insert(:profile, user: user)
+      account_id = "google-sub-paused"
+
+      paused =
+        insert(:calendar_integration,
+          user: user,
+          provider: "google",
+          provider_account_id: account_id,
+          is_active: false,
+          calendar_list: [%{"id" => "cal1", "name" => "Primary", "selected" => true}]
+        )
+
+      state = GoogleOAuthHelper.generate_state(user.id)
+      expect_token_response("new-at", "new-rt", id_token: fake_id_token(account_id))
+
+      assert {:ok, reconnected} = OAuthHelper.handle_callback("code", state, "http://uri")
+      assert {reconnected.id, reconnected.is_active} == {paused.id, true}
+
+      assert Repo.reload!(profile).primary_calendar_integration_id == paused.id
+    end
+
     test "handles 3-tuple error from discovery without crashing" do
       user = insert(:user)
       insert(:profile, user: user)

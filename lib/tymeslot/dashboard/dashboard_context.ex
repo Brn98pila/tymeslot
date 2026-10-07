@@ -11,6 +11,7 @@ defmodule Tymeslot.Dashboard.DashboardContext do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Calendar.BookingEligibility
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
   alias Tymeslot.MeetingTypes
@@ -92,7 +93,7 @@ defmodule Tymeslot.Dashboard.DashboardContext do
   def get_meeting_settings_data(user_id) when is_integer(user_id) do
     %{
       meeting_types: MeetingTypes.get_all_meeting_types(user_id),
-      video_integrations: VideoIntegrationQueries.list_active_for_user_public(user_id),
+      video_integrations: VideoIntegrationQueries.list_active_for_user(user_id),
       calendar_integrations: CalendarManagement.list_calendar_integrations(user_id),
       venues: Venues.list_venues(user_id)
     }
@@ -139,7 +140,7 @@ defmodule Tymeslot.Dashboard.DashboardContext do
   defp fetch_integration_status(user_id) do
     calendar_task =
       Tasks.async(Tymeslot.TaskSupervisor, fn ->
-        CalendarManagement.list_active_calendar_integrations(user_id)
+        CalendarIntegrationQueries.list_active_for_user(user_id)
       end)
 
     video_task =

@@ -95,6 +95,9 @@ defmodule Tymeslot.Integrations.Calendar.Discovery do
     - `:force_refresh` - bypass the cache
     - `:actor` - required. Charged only on a real cache miss (i.e. only
       when discovery actually reaches the network), never on a cache hit.
+    - `:skip_breaker` - reach the server even while its host breaker is
+      open. Only for a discovery a person asked for, which is rate-limited
+      already and is how a recovered server's breaker gets closed.
 
   ## Returns
   - `{:ok, calendars}` - List of discovered calendars
@@ -129,7 +132,7 @@ defmodule Tymeslot.Integrations.Calendar.Discovery do
         probe_and_cache(cache_key, actor, force_refresh, fn ->
           ErrorHandler.with_classified_error_handling(
             provider_atom,
-            fn -> dispatch_discovery(provider_atom, config) end,
+            fn -> dispatch_discovery(provider_atom, with_breaker_opt(config, opts)) end,
             %{operation: "calendar_discovery"}
           )
         end)
@@ -181,7 +184,8 @@ defmodule Tymeslot.Integrations.Calendar.Discovery do
              {:ok, calendars} <-
                (case discover_calendars(provider_atom, client_config,
                        force_refresh: force_refresh,
-                       actor: Keyword.fetch!(opts, :actor)
+                       actor: Keyword.fetch!(opts, :actor),
+                       skip_breaker: Keyword.get(opts, :skip_breaker, false)
                      ) do
                   {:ok, cals} -> {:ok, cals}
                   {:error, reason} -> {:error, {:discovery, reason}}
@@ -460,6 +464,14 @@ defmodule Tymeslot.Integrations.Calendar.Discovery do
   # takes the config map itself. Piping an EWS `new/1` into
   # `discover_calendars/1` would hand it a tuple, so the two are dispatched
   # apart rather than through one pipeline that happens to fit only one of them.
+  # `:skip_breaker` rides on the config into the client each family builds,
+  # since the providers' `discover_calendars/1` take no options.
+  defp with_breaker_opt(config, opts) do
+    if Keyword.get(opts, :skip_breaker, false),
+      do: Map.put(config, :skip_breaker, true),
+      else: config
+  end
+
   defp dispatch_discovery(provider_atom, config) do
     cond do
       ProviderConfig.caldav_based?(provider_atom) ->

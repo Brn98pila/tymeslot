@@ -31,6 +31,8 @@ defmodule Tymeslot.Bookings.OrchestratorCompositionTest do
 
   alias Ecto.UUID
   alias Tymeslot.Bookings.Orchestrator
+  alias Tymeslot.Meetings.MeetingSchema
+  alias Tymeslot.Repo
   alias Tymeslot.TestMocks
   alias Tymeslot.Workers.CalendarEventWorker
   alias Tymeslot.Workers.EmailWorker
@@ -131,6 +133,47 @@ defmodule Tymeslot.Bookings.OrchestratorCompositionTest do
         worker: VideoRoomWorker,
         args: %{"meeting_id" => meeting.id, "announce" => true}
       )
+    end
+  end
+
+  # The booking page always submits with `with_video_room: true`, so these go
+  # through the exact path a visitor's submit takes.
+  describe "submit_booking/2 — the fresh calendar read" do
+    test "one submit reads the host's calendars exactly once", %{
+      user: user,
+      meeting_type: meeting_type
+    } do
+      count_fresh_fetches(fn -> {:ok, []} end)
+
+      assert {:ok, %{status: "confirmed"}} =
+               Orchestrator.submit_booking(video_submit(user, meeting_type))
+
+      assert_received {:fresh_fetch, _user_id}
+      refute_received {:fresh_fetch, _user_id}
+    end
+
+    test "an inactive meeting type is refused without reading the calendars", %{user: user} do
+      inactive = insert(:meeting_type, user: user, duration_minutes: 30, is_active: false)
+
+      count_fresh_fetches(fn -> {:ok, []} end)
+
+      assert {:error, :meeting_type_inactive} =
+               Orchestrator.submit_booking(video_submit(user, inactive))
+
+      refute_received {:fresh_fetch, _user_id}
+    end
+
+    @tag :capture_log
+    test "a calendar adapter that raises refuses the booking instead of crashing the caller",
+         %{user: user, meeting_type: meeting_type} do
+      count_fresh_fetches(fn -> raise "provider adapter blew up" end)
+
+      # Unverifiable, not taken: the booker is told to try again later.
+      assert {:error, :availability_unverifiable} =
+               Orchestrator.submit_booking(video_submit(user, meeting_type))
+
+      assert_received {:fresh_fetch, _user_id}
+      assert Repo.aggregate(MeetingSchema, :count) == 0
     end
   end
 
@@ -237,6 +280,32 @@ defmodule Tymeslot.Bookings.OrchestratorCompositionTest do
       duration: 30,
       status: "confirmed"
     )
+  end
+
+  # Reports every fresh calendar read to the test process; the read runs in a
+  # task, so it is counted by message rather than by Mox's call count.
+  defp count_fresh_fetches(response) do
+    test_pid = self()
+
+    Mox.stub(Tymeslot.CalendarMock, :get_events_for_range_fresh, fn user_id, _start, _end ->
+      send(test_pid, {:fresh_fetch, user_id})
+      response.()
+    end)
+  end
+
+  defp video_submit(user, meeting_type) do
+    %{
+      form_data: %{"name" => "Attendee", "email" => "attendee@example.com", "message" => ""},
+      meeting_params: %{
+        date: Date.add(Date.utc_today(), 1),
+        time: "11:00",
+        duration: "30min",
+        user_timezone: "Europe/Berlin",
+        organizer_user_id: user.id,
+        meeting_type_id: meeting_type.id,
+        with_video_room: true
+      }
+    }
   end
 
   defp future_datetime(amount, unit) do

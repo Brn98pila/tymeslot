@@ -126,10 +126,10 @@ defmodule Tymeslot.Integrations.Calendar.Provider do
   Turns a provider's own event representation into `CalendarEvent` structs.
 
   `raw_events` is deliberately untyped. Most providers hand over decoded JSON
-  maps, but Exchange hands over parsed XML elements, which are xmerl records
-  and so tuples. `[map()]` would exclude that outright rather than describe
-  anything a caller can rely on: what the elements are is the implementing
-  provider's business, and no caller ever builds this list itself.
+  maps, but Exchange hands over parsed XML elements. A narrower type would
+  not describe anything a caller can rely on: what the elements are is the
+  implementing provider's business, and no caller ever builds this list
+  itself.
   """
   @callback normalise_events(raw_events :: [term()], context :: context()) ::
               {:ok, [CalendarEvent.t()]} | {:error, term()}

@@ -4,6 +4,7 @@ defmodule Tymeslot.Integrations.Calendar.Orchestration.WorkflowsTest do
 
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
+  alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.CalendarManagement
   import Tymeslot.Factory
   import Mox
@@ -116,6 +117,37 @@ defmodule Tymeslot.Integrations.Calendar.Orchestration.WorkflowsTest do
       # calendar_paths must be written atomically alongside calendar_list;
       # cal_1 is selected and discovery emits no explicit path so it falls back to id
       assert updated.calendar_paths == ["cal_1"]
+    end
+
+    # Discovery spends seconds on the network; a calendar the owner ticks
+    # meanwhile keeps their choice rather than being reverted by the merge.
+    test "keeps a selection the owner saves while discovery is running" do
+      user = insert(:user)
+
+      integration =
+        insert(:calendar_integration,
+          user: user,
+          provider: "google",
+          calendar_list: [
+            %{"id" => "cal_1", "selected" => true, "path" => "cal_1"},
+            %{"id" => "cal_2", "selected" => false, "path" => "cal_2"}
+          ]
+        )
+
+      expect(GoogleCalendarAPIMock, :list_calendars, fn _client ->
+        {:ok, fresh} = CalendarManagement.get_calendar_integration(integration.id, user.id)
+
+        {:ok, _saved} =
+          Selection.update_calendar_selection(fresh, %{"selected_calendars" => ["cal_1", "cal_2"]})
+
+        {:ok,
+         [%{"id" => "cal_1", "summary" => "Cal 1"}, %{"id" => "cal_2", "summary" => "Cal 2"}]}
+      end)
+
+      assert {:ok, updated} = Workflows.update_integration_with_discovery(integration)
+
+      assert Enum.find(updated.calendar_list, &(&1.id == "cal_2")).selected == true
+      assert Enum.sort(updated.calendar_paths) == ["cal_1", "cal_2"]
     end
 
     test "preserves existing list if discovery returns empty" do

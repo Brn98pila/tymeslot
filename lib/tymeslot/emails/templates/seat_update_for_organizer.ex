@@ -167,10 +167,12 @@ defmodule Tymeslot.Emails.Templates.SeatUpdateForOrganizer do
   defp moved_lead(%{original_start_time_owner_tz: %DateTime{} = previous} = details) do
     locale = RecipientLocale.organizer_locale(details)
 
+    time_format = Map.get(details, :organizer_time_format)
+
     dgettext("emails_booking", "%{name} moved their spot from %{from} to %{to}.",
       name: details.attendee_name,
-      from: Formatting.format_datetime(previous, locale),
-      to: Formatting.format_datetime(details.start_time_owner_tz, locale)
+      from: Formatting.format_datetime(previous, locale, time_format),
+      to: Formatting.format_datetime(details.start_time_owner_tz, locale, time_format)
     )
   end
 
@@ -180,7 +182,8 @@ defmodule Tymeslot.Emails.Templates.SeatUpdateForOrganizer do
       to:
         Formatting.format_datetime(
           details.start_time_owner_tz,
-          RecipientLocale.organizer_locale(details)
+          RecipientLocale.organizer_locale(details),
+          Map.get(details, :organizer_time_format)
         )
     )
   end

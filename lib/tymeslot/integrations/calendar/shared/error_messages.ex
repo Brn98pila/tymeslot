@@ -96,7 +96,7 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ErrorMessages do
   def categorize_error(:timeout), do: :timeout
 
   def categorize_error(reason)
-      when reason in [:network_error, :server_error, :server_unresponsive],
+      when reason in [:network_error, :server_error, :service_unavailable, :server_unresponsive],
       do: :network
 
   # Not `:network`, though it is a transport failure: the category decides what

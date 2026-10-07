@@ -24,9 +24,11 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   uid names the shared slot, which `Tymeslot.Bookings.Cancel` and
   `Tymeslot.Bookings.Reschedule` refuse to act on for a visitor. Each
   participant manages their own spot from the links in their emails.
+
+  `{:error, :not_found}` when the organiser has no meeting with that uid.
   """
   @spec validate_and_load_meeting(String.t(), atom(), integer()) ::
-          {:ok, map()} | {:error, String.t() | :group_meeting}
+          {:ok, map()} | {:error, String.t() | :group_meeting | :not_found}
   def validate_and_load_meeting(meeting_uid, action, organizer_user_id) do
     case Meetings.get_meeting_by_uid_for_organizer(meeting_uid, organizer_user_id) do
       {:ok, meeting} ->
@@ -36,7 +38,7 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
         end
 
       {:error, :not_found} ->
-        {:error, "Meeting not found"}
+        {:error, :not_found}
     end
   end
 
@@ -128,6 +130,11 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
 
   # A refusal reason is a code that must never reach the visitor as it stands.
   defp cancel_error_message(:group_meeting_not_cancellable), do: group_meeting_message()
+
+  # The page was loaded while the meeting was live, and someone else (the
+  # host, or this attendee in another tab) cancelled it since.
+  defp cancel_error_message(:already_cancelled),
+    do: dgettext("booking_manage", "This booking was already cancelled.")
 
   defp cancel_error_message(_reason),
     do: dgettext("booking_manage", "The meeting could not be cancelled. Please try again.")

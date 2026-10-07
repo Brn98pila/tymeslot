@@ -189,6 +189,19 @@ defmodule TymeslotWeb.Dashboard.ProfileSettingsUsernameChangeTest do
       assert current_username(profile) == "sarah"
     end
 
+    # The strict sanitiser drops everything from `--` onwards and strips
+    # `0x<hex>` runs, so these once saved as "team" and "studio-": another
+    # organiser's page, or a URL nobody asked for.
+    for username <- ~w(team--alpha studio-0xab1) do
+      test "saves #{username} exactly as typed", %{conn: conn, profile: profile} do
+        {:ok, view, _html} = live(conn, ~p"/dashboard/settings")
+
+        submit_username(view, unquote(username))
+
+        assert current_username(profile) == unquote(username)
+      end
+    end
+
     test "re-submitting the same username does not warn about breaking links",
          %{conn: conn, profile: profile} do
       profile = with_username(profile, "sarah")

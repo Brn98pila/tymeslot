@@ -4,13 +4,15 @@ defmodule Tymeslot.Security.FieldValidators.IntegrationNameValidator do
   Matches existing behavior and error messages in processors.
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   @min_length 2
   @max_length 100
 
   @spec validate(any(), keyword()) :: :ok | {:error, String.t()}
   def validate(name, opts \\ [])
-  def validate(nil, _opts), do: {:error, "Integration name is required"}
-  def validate("", _opts), do: {:error, "Integration name is required"}
+  def validate(nil, _opts), do: {:error, dgettext("errors", "Integration name is required")}
+  def validate("", _opts), do: {:error, dgettext("errors", "Integration name is required")}
 
   # Matches zero-width spaces (U+200B–U+200F), line/paragraph separators
   # (U+2028–U+202F), Unicode invisible formatting characters (U+2060–U+206F),
@@ -30,15 +32,15 @@ defmodule Tymeslot.Security.FieldValidators.IntegrationNameValidator do
 
     cond do
       trimmed_length > @max_length ->
-        {:error, "Integration name must be 100 characters or less"}
+        {:error, dgettext("errors", "Integration name must be 100 characters or less")}
 
       trimmed_length < @min_length ->
-        {:error, "Integration name must be at least 2 characters"}
+        {:error, dgettext("errors", "Integration name must be at least 2 characters")}
 
       true ->
         :ok
     end
   end
 
-  def validate(_other, _opts), do: {:error, "Integration name must be text"}
+  def validate(_other, _opts), do: {:error, dgettext("errors", "Integration name must be text")}
 end

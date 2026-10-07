@@ -13,12 +13,17 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   # Postgres advisory-lock class id for the first-integration primary-election
   # race (see `acquire_primary_lock/1`). Advisory-lock class ids share a single
   # namespace across the whole database connection; other allocations are
-  # `MeetingConflictQueries.@booking_limits_lock_class` (715_001) and the bare
+  # `MeetingConflictQueries.@organizer_schedule_lock_class` (715_001) and the bare
   # `2` in `ProviderCalendarEventQueries`.
   @primary_lock_class 1
 
   @doc """
-  Gets all active calendar integrations for a user.
+  Gets all active calendar integrations for a user, credentials left encrypted.
+
+  Callers that read credentials go through
+  `CalendarManagement.list_active_calendar_integrations/1`, which decrypts the
+  readable rows and flags the rest for reconnection. Decrypting here would let
+  one row that no longer decrypts raise for the whole listing.
   """
   @spec list_active_for_user(integer()) :: [CalendarIntegrationSchema.t()]
   def list_active_for_user(user_id) do
@@ -26,7 +31,6 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
     |> where([c], c.user_id == ^user_id and c.is_active == true)
     |> order_by([c], asc: c.name)
     |> Repo.all()
-    |> Enum.map(&CalendarIntegrationSchema.decrypt_credentials/1)
   end
 
   @doc """
@@ -50,8 +54,9 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   the given accumulator. Uses `Repo.stream/2` inside a transaction to avoid
   loading all rows into memory at once.
 
-  `fun` receives each decrypted integration and the current accumulator.
-  Returns the final accumulator value.
+  `fun` receives each integration, credentials left encrypted as for
+  `list_all_active/0`, and the current accumulator. Returns the final
+  accumulator value.
   """
   @spec stream_all_active(pos_integer(), acc, (CalendarIntegrationSchema.t(), acc -> acc)) :: acc
         when acc: term()
@@ -63,9 +68,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
           |> where([c], c.is_active == true and c.needs_reauth == false)
           |> order_by([c], asc: c.id)
           |> Repo.stream(max_rows: max_rows)
-          |> Enum.reduce(initial_acc, fn row, acc ->
-            fun.(CalendarIntegrationSchema.decrypt_credentials(row), acc)
-          end)
+          |> Enum.reduce(initial_acc, fun)
         end,
         timeout: :infinity
       )
@@ -75,6 +78,9 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
 
   @doc """
   Gets all calendar integrations for a user (including inactive).
+
+  A row whose credentials no longer decrypt is returned as stored, so the
+  owner still sees it listed and can reconnect it.
   """
   @spec list_all_for_user(integer()) :: [CalendarIntegrationSchema.t()]
   def list_all_for_user(user_id) do
@@ -82,7 +88,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
     |> where([c], c.user_id == ^user_id)
     |> order_by([c], desc: c.is_active, asc: c.name)
     |> Repo.all()
-    |> Enum.map(&CalendarIntegrationSchema.decrypt_credentials/1)
+    |> Enum.map(&decrypt_if_readable/1)
   end
 
   @doc """
@@ -166,6 +172,10 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   @doc """
   Gets a calendar integration by user ID and provider.
   Returns {:ok, integration} if found, {:error, :not_found} otherwise.
+
+  This and the two account lookups below find the row a reconnection is
+  about to overwrite, so a row whose credentials no longer decrypt is
+  returned as stored rather than raising.
   """
   @spec get_by_user_and_provider(integer(), String.t()) ::
           {:ok, CalendarIntegrationSchema.t()} | {:error, :not_found}
@@ -178,7 +188,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
 
     case result do
       nil -> {:error, :not_found}
-      integration -> {:ok, CalendarIntegrationSchema.decrypt_credentials(integration)}
+      integration -> {:ok, decrypt_if_readable(integration)}
     end
   end
 
@@ -203,7 +213,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
 
     case result do
       nil -> {:error, :not_found}
-      integration -> {:ok, CalendarIntegrationSchema.decrypt_credentials(integration)}
+      integration -> {:ok, decrypt_if_readable(integration)}
     end
   end
 
@@ -229,7 +239,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
 
     case result do
       nil -> {:error, :not_found}
-      integration -> {:ok, CalendarIntegrationSchema.decrypt_credentials(integration)}
+      integration -> {:ok, decrypt_if_readable(integration)}
     end
   end
 
@@ -277,52 +287,6 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
     integration
     |> CalendarIntegrationSchema.changeset(attrs)
     |> Changeset.put_change(:needs_reauth, false)
-    |> Repo.update()
-  end
-
-  @doc """
-  Marks the given calendars as unselected within an integration's `calendar_list`.
-
-  Used when a previously-selected secondary calendar no longer exists on the
-  provider (HTTP 404), so the sync worker stops attempting to fetch it on every
-  run. Entries are matched on the provider calendar id; `calendar_list` is loaded
-  from JSONB so entries carry string keys, with an atom-key fallback for any
-  in-memory callers. A no-op (returns `{:ok, integration}`) when nothing matches.
-  """
-  @spec deselect_calendars(CalendarIntegrationSchema.t(), [String.t()]) ::
-          {:ok, CalendarIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
-  def deselect_calendars(%CalendarIntegrationSchema{} = integration, calendar_ids) do
-    ids = MapSet.new(calendar_ids)
-
-    updated_list =
-      Enum.map(integration.calendar_list, fn cal ->
-        if MapSet.member?(ids, cal.id) do
-          %{cal | selected: false}
-        else
-          cal
-        end
-      end)
-
-    integration
-    |> CalendarIntegrationSchema.changeset(%{calendar_list: updated_list})
-    |> Repo.update()
-  end
-
-  @doc """
-  Removes the given paths from an integration's `calendar_paths`.
-
-  Used when a CalDAV calendar collection no longer exists on the server
-  (HTTP 404), so the sync worker stops fetching it on every run — the CalDAV
-  counterpart to `deselect_calendars/2`. A no-op (returns `{:ok, integration}`)
-  when nothing matches.
-  """
-  @spec remove_calendar_paths(CalendarIntegrationSchema.t(), [String.t()]) ::
-          {:ok, CalendarIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
-  def remove_calendar_paths(%CalendarIntegrationSchema{} = integration, paths) do
-    remaining = Enum.reject(integration.calendar_paths, &(&1 in paths))
-
-    integration
-    |> CalendarIntegrationSchema.changeset(%{calendar_paths: remaining})
     |> Repo.update()
   end
 
@@ -530,6 +494,13 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
       {:error, :duplicate_account}
     else
       :ok
+    end
+  end
+
+  defp decrypt_if_readable(integration) do
+    case CalendarIntegrationSchema.decryption_status(integration) do
+      :ok -> CalendarIntegrationSchema.decrypt_credentials(integration)
+      :requires_reencryption -> integration
     end
   end
 

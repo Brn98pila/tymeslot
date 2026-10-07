@@ -19,7 +19,7 @@ defmodule Tymeslot.Security.RateLimiter.Bookings do
 
   @spec check_webhook_endpoint(String.t()) :: :ok | {:error, :rate_limited}
   def check_webhook_endpoint(client_ip) do
-    Helpers.check_rate_limit("webhook:#{client_ip}", 100, :timer.minutes(10))
+    Helpers.check_rate_limit("webhook:#{Helpers.source_key(client_ip)}", 100, :timer.minutes(10))
   end
 
   # Stripe delivers every platform and Connect event from a small published
@@ -29,13 +29,17 @@ defmodule Tymeslot.Security.RateLimiter.Bookings do
   # verified after this, so the bucket only bounds unsigned floods.
   @spec check_stripe_webhook_endpoint(String.t()) :: :ok | {:error, :rate_limited}
   def check_stripe_webhook_endpoint(client_ip) do
-    Helpers.check_rate_limit("stripe_webhook:#{client_ip}", 1_000, :timer.minutes(1))
+    Helpers.check_rate_limit(
+      "stripe_webhook:#{Helpers.source_key(client_ip)}",
+      1_000,
+      :timer.minutes(1)
+    )
   end
 
   @spec check_booking_submission(String.t()) ::
           {:allow, pos_integer()} | {:deny, pos_integer()}
   def check_booking_submission(client_ip) do
-    Helpers.check_rate("booking_submit:#{client_ip}", 1_200_000, 10)
+    Helpers.check_rate("booking_submit:#{Helpers.source_key(client_ip)}", 1_200_000, 10)
   end
 
   @spec check_booking_recipient(String.t()) :: :ok | {:error, :rate_limited, String.t()}
@@ -52,7 +56,7 @@ defmodule Tymeslot.Security.RateLimiter.Bookings do
   @spec check_meeting_cancel(String.t()) :: :ok | {:error, :rate_limited, String.t()}
   def check_meeting_cancel(client_ip) do
     Helpers.check_with_logging(
-      "meeting_cancel:#{client_ip}",
+      "meeting_cancel:#{Helpers.source_key(client_ip)}",
       10,
       600_000,
       "meeting cancellation",
@@ -70,7 +74,7 @@ defmodule Tymeslot.Security.RateLimiter.Bookings do
   @spec check_meeting_approval(String.t()) :: :ok | {:error, :rate_limited, String.t()}
   def check_meeting_approval(client_ip) do
     Helpers.check_with_logging(
-      "meeting_approval:#{client_ip}",
+      "meeting_approval:#{Helpers.source_key(client_ip)}",
       20,
       600_000,
       "booking request answer",
@@ -89,7 +93,7 @@ defmodule Tymeslot.Security.RateLimiter.Bookings do
   @spec check_guest_rsvp(String.t()) :: :ok | {:error, :rate_limited, String.t()}
   def check_guest_rsvp(client_ip) do
     Helpers.check_with_logging(
-      "guest_rsvp:#{client_ip}",
+      "guest_rsvp:#{Helpers.source_key(client_ip)}",
       60,
       60_000,
       "guest RSVP",
@@ -105,7 +109,7 @@ defmodule Tymeslot.Security.RateLimiter.Bookings do
   @spec check_seat_manage(String.t()) :: :ok | {:error, :rate_limited, String.t()}
   def check_seat_manage(client_ip) do
     Helpers.check_with_logging(
-      "seat_manage:#{client_ip}",
+      "seat_manage:#{Helpers.source_key(client_ip)}",
       60,
       60_000,
       "seat management",
@@ -116,7 +120,7 @@ defmodule Tymeslot.Security.RateLimiter.Bookings do
   @spec check_meeting_keep(String.t()) :: :ok | {:error, :rate_limited, String.t()}
   def check_meeting_keep(client_ip) do
     Helpers.check_with_logging(
-      "meeting_keep:#{client_ip}",
+      "meeting_keep:#{Helpers.source_key(client_ip)}",
       10,
       600_000,
       "meeting keep",

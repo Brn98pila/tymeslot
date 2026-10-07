@@ -1458,3 +1458,8 @@ msgstr "Telefonát"
 #, elixir-autogen, elixir-format
 msgid "Somewhere else"
 msgstr "Jiné místo"
+
+#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
+#, elixir-autogen, elixir-format
+msgid "We couldn't check the host's calendar right now. Please try again in a few minutes."
+msgstr "Kalendář hostitele se nám teď nepodařilo ověřit. Zkuste to prosím znovu za pár minut."

@@ -61,6 +61,19 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
 
   # Private functions
 
+  # A subscription dispute is the payment-event handler's to record; if the
+  # hand-off fails, Stripe redelivers the event.
+  defp hand_off_dispute(event_type, data, outcome) do
+    case PubSub.hand_off_payment_event(event_type, data) do
+      :ok ->
+        Logger.info("Subscription dispute handed off", event: event_type)
+        {:ok, outcome}
+
+      {:error, _reason} ->
+        {:error, :retry_later, "Dispute event hand-off failed"}
+    end
+  end
+
   defp handle_created(event, dispute) do
     dispute_id = dispute["id"]
     charge_id = dispute["charge"]
@@ -81,18 +94,16 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
         customer_id = get_charge_customer_id(charge)
 
         if subscription_charge?(charge) do
-          PubSub.broadcast_payment_event(:dispute_created, %{
-            event_id: event["id"],
-            stripe_customer_id: customer_id,
-            dispute: dispute
-          })
-
-          Logger.info("DISPUTE FORWARDED - Subscription dispute broadcast to subscribers",
-            dispute_id: dispute_id,
-            charge_id: charge_id
+          hand_off_dispute(
+            :dispute_created,
+            %{
+              event_id: event["id"],
+              event_created: event["created"],
+              stripe_customer_id: customer_id,
+              dispute: dispute
+            },
+            :subscription_dispute_forwarded
           )
-
-          {:ok, :subscription_dispute_forwarded}
         else
           case find_user_by_customer(customer_id) do
             nil ->
@@ -138,14 +149,16 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
     case fetch_charge(charge_id) do
       {:ok, charge} ->
         if subscription_charge?(charge) do
-          # Broadcast event for SaaS to update dispute status
-          PubSub.broadcast_payment_event(:dispute_updated, %{
-            event_id: event["id"],
-            stripe_dispute_id: dispute_id,
-            status: status
-          })
-
-          {:ok, :dispute_updated}
+          hand_off_dispute(
+            :dispute_updated,
+            %{
+              event_id: event["id"],
+              event_created: event["created"],
+              stripe_dispute_id: dispute_id,
+              status: status
+            },
+            :dispute_updated
+          )
         else
           {:ok, :dispute_updated}
         end
@@ -168,15 +181,17 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
     case fetch_charge(charge_id) do
       {:ok, charge} ->
         if subscription_charge?(charge) do
-          # Broadcast event for SaaS to update dispute status and handle outcome
-          PubSub.broadcast_payment_event(:dispute_closed, %{
-            event_id: event["id"],
-            stripe_dispute_id: dispute_id,
-            status: status,
-            dispute: dispute
-          })
-
-          {:ok, :dispute_closed}
+          hand_off_dispute(
+            :dispute_closed,
+            %{
+              event_id: event["id"],
+              event_created: event["created"],
+              stripe_dispute_id: dispute_id,
+              status: status,
+              dispute: dispute
+            },
+            :dispute_closed
+          )
         else
           # We still alert admin in Core for visibility
           if status == "lost" do

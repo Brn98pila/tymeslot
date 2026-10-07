@@ -508,7 +508,8 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProvider do
   # i.e. the credentials are no longer accepted server-side. The dashboard
   # surfaces this via the "Reconnect required" badge on the video row. Purely
   # additive: it does not touch token validation or the OAuthTokenManager flow.
-  defp flag_revoked_token(config) do
+  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
+  def flag_revoked_token(config) do
     NeedsReauth.flag(config,
       label: "Teams",
       event: "teams_token_revoked",

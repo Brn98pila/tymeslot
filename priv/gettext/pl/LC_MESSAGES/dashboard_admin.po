@@ -90,11 +90,6 @@ msgstr "Adres rezerwacji"
 msgid "Cancel"
 msgstr "Anuluj"
 
-#: lib/tymeslot_web/live/admin_live.ex
-#, elixir-autogen, elixir-format
-msgid "Cannot demote the last admin. Promote someone else first."
-msgstr "Nie można odebrać uprawnień ostatniemu administratorowi. Najpierw nadaj je komuś innemu."
-
 #: lib/tymeslot_web/live/admin_live/components/settings.ex
 #, elixir-autogen, elixir-format
 msgid "Changes here take effect immediately and override the matching environment variables and application configuration (e.g. REGISTRATION_ENABLED, PASSWORD_AUTH_ENABLED) for this install."
@@ -335,11 +330,6 @@ msgstr "Odebrano ci uprawnienia administratora."
 #, elixir-autogen, elixir-format
 msgid "You will lose access to admin settings and user management, and be returned to your dashboard."
 msgstr "Stracisz dostęp do ustawień administracyjnych i zarządzania użytkownikami, a następnie wrócisz do panelu."
-
-#: lib/tymeslot_web/live/admin_live/components/users.ex
-#, elixir-autogen, elixir-format
-msgid "You're the only admin. Promote someone else before demoting yourself."
-msgstr "Jesteś jedynym administratorem. Zanim odbierzesz sobie uprawnienia, nadaj je komuś innemu."
 
 #: lib/tymeslot_web/live/admin_live/components/settings.ex
 #, elixir-autogen, elixir-format
@@ -641,3 +631,13 @@ msgstr "Język, na który przechodzą panel, strony konta i e-maile dotyczące k
 #, elixir-autogen, elixir-format
 msgid "General"
 msgstr "Ogólne"
+
+#: lib/tymeslot_web/live/admin_live.ex
+#, elixir-autogen, elixir-format
+msgid "Cannot demote this admin: no other admin can sign in. Make sure another admin can sign in first."
+msgstr "Nie można odebrać uprawnień temu administratorowi: żaden inny administrator nie może się zalogować. Najpierw upewnij się, że inny administrator może się zalogować."
+
+#: lib/tymeslot_web/live/admin_live/components/users.ex
+#, elixir-autogen, elixir-format
+msgid "No other admin can sign in. Make sure another admin can sign in before demoting yourself."
+msgstr "Żaden inny administrator nie może się zalogować. Zanim odbierzesz sobie uprawnienia, upewnij się, że inny administrator może się zalogować."

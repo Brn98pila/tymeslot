@@ -24,13 +24,13 @@ defmodule Tymeslot.Bookings.RescheduleCompositionTest do
   alias Ecto.UUID
   alias Tymeslot.Availability.WeeklySchedule
   alias Tymeslot.Bookings.Reschedule
-  alias Tymeslot.EmailServiceMock
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Repo
   alias Tymeslot.Telegram.TelegramIntegrationSchema
   alias Tymeslot.TestMocks
   alias Tymeslot.Webhooks.WebhookSchema
   alias Tymeslot.Workers.CalendarEventWorker
+  alias Tymeslot.Workers.EmailWorker
   alias Tymeslot.Workers.TelegramWorker
   alias Tymeslot.Workers.WebhookWorker
 
@@ -132,13 +132,6 @@ defmodule Tymeslot.Bookings.RescheduleCompositionTest do
       user: user,
       meeting: meeting
     } do
-      # Over-ride the default stub with a strict expectation so the
-      # email channel counts as "observed" alongside the three Oban
-      # queues.
-      expect(EmailServiceMock, :send_reschedule_emails, 1, fn _details ->
-        {{:ok, :ok}, {:ok, :ok}}
-      end)
-
       new_params = reschedule_params_for(future_datetime(7, :day))
 
       assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
@@ -147,6 +140,13 @@ defmodule Tymeslot.Bookings.RescheduleCompositionTest do
                all_enqueued(worker: CalendarEventWorker)
 
       assert mid == meeting.id
+
+      # The reschedule notices go out from their own email job.
+      assert [_notices] =
+               all_enqueued(
+                 worker: EmailWorker,
+                 args: %{"action" => "send_reschedule_emails", "meeting_id" => mid}
+               )
 
       assert [%{args: %{"event_type" => "meeting.rescheduled", "meeting_id" => ^mid}}] =
                all_enqueued(worker: WebhookWorker)
@@ -167,15 +167,15 @@ defmodule Tymeslot.Bookings.RescheduleCompositionTest do
       Repo.delete_all(WebhookSchema)
       Repo.delete_all(TelegramIntegrationSchema)
 
-      expect(EmailServiceMock, :send_reschedule_emails, 1, fn _details ->
-        {{:ok, :ok}, {:ok, :ok}}
-      end)
-
       new_params = reschedule_params_for(future_datetime(8, :day))
 
       assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
 
       assert [_calendar_job] = all_enqueued(worker: CalendarEventWorker)
+
+      assert [_notices] =
+               all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"})
+
       assert all_enqueued(worker: WebhookWorker) == []
       assert all_enqueued(worker: TelegramWorker) == []
     end

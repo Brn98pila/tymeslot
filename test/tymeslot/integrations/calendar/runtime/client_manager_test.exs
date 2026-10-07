@@ -20,6 +20,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManagerTest do
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
+  alias Tymeslot.Security.Encryption
 
   setup do
     user = insert(:user)
@@ -193,6 +194,64 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManagerTest do
       }
 
       assert %{provider_type: :caldav} = ClientManager.booking_client(meeting_type)
+    end
+  end
+
+  # A calendar shared read-only (a team rota, a subscribed calendar) cannot
+  # take a booking, but the organiser selected it so that its events block
+  # time, as Google's read-only calendars and a subscribed feed's do.
+  describe "a read-only calendar selected on a CalDAV-family integration" do
+    for provider <- ~w(caldav nextcloud radicale apple baikal mailbox_org zimbra) do
+      test "gets a #{provider} read client, but is never a write target", %{user: user} do
+        inserted =
+          insert(:calendar_integration,
+            user: user,
+            provider: unquote(provider),
+            base_url: "https://cal.example.com",
+            calendar_paths: ["/cal/bookings/", "/cal/rota/"],
+            default_booking_calendar_id: "/cal/bookings/",
+            calendar_list: [
+              %{id: "/cal/bookings/", path: "/cal/bookings/", name: "Bookings", selected: true},
+              %{
+                id: "/cal/rota/",
+                path: "/cal/rota/",
+                name: "Team rota",
+                selected: true,
+                read_only: true
+              }
+            ]
+          )
+
+        {:ok, integration} = CalendarManagement.fetch_integration_for_user(inserted.id, user.id)
+
+        reads = ClientManager.clients_for_integration(integration)
+        assert length(reads) == 2
+        assert Enum.all?(reads, &(&1.client.writable_calendar_paths == ["/cal/bookings/"]))
+
+        assert [write_client] = ClientManager.writable_clients_for_integration(integration)
+        assert write_client == ClientManager.booking_client({integration.id, user.id})
+        assert write_client in reads
+        refute Enum.any?(write_client.client.calendar_paths, &(&1 =~ "/cal/rota"))
+      end
+    end
+
+    test "counts towards availability", %{user: user} do
+      insert(:calendar_integration,
+        user: user,
+        provider: "caldav",
+        base_url: "https://cal.example.com",
+        calendar_paths: ["/cal/bookings/", "/cal/rota/"],
+        calendar_list: [
+          %{id: "/cal/bookings/", path: "/cal/bookings/", name: "Bookings", selected: true},
+          %{id: "/cal/rota/", path: "/cal/rota/", name: "Rota", selected: true, read_only: true},
+          %{id: "/cal/old/", path: "/cal/old/", name: "Old", selected: false, read_only: true}
+        ]
+      )
+
+      {clients, []} = ClientManager.availability_sources(user.id)
+
+      assert clients |> Enum.flat_map(& &1.client.calendar_paths) |> Enum.sort() ==
+               ["/cal/bookings/", "/cal/rota/"]
     end
   end
 
@@ -479,6 +538,71 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManagerTest do
       insert(:profile, user: user)
 
       assert %{provider_type: :caldav} = ClientManager.resolve_client({integration.id, user.id})
+    end
+
+    # A meeting whose integration was disconnected and reconnected has no
+    # integration id any more, and a cancel or reschedule then falls back to
+    # the user's calendars. A read-only one listed first must not be where it
+    # writes: the write fails and the booking's event is left behind.
+    test "falls back to a writable calendar, never a read-only one listed first",
+         %{user: user} do
+      insert(:calendar_integration,
+        user: user,
+        provider: "caldav",
+        is_active: true,
+        base_url: "https://cal.example.com",
+        calendar_paths: ["/cal/rota/", "/cal/bookings/"],
+        default_booking_calendar_id: "/cal/bookings/",
+        calendar_list: [
+          %{id: "/cal/rota/", path: "/cal/rota/", name: "Rota", selected: true, read_only: true},
+          %{id: "/cal/bookings/", path: "/cal/bookings/", name: "Bookings", selected: true}
+        ]
+      )
+
+      insert(:profile, user: user)
+
+      meeting = %MeetingSchema{organizer_user_id: user.id, calendar_integration_id: nil}
+
+      for context <- [meeting, user.id] do
+        assert %{client: %{calendar_paths: paths}} = ClientManager.resolve_client(context)
+        assert paths != []
+        refute Enum.any?(paths, &(&1 =~ "/cal/rota")), "wrote through the read-only calendar"
+      end
+    end
+
+    # With nothing a booking can be written to, there is no fallback; each
+    # case stands alone. A subscribed feed takes no writes, though its single
+    # calendar looks writable to the client.
+    test "falls back to no calendar rather than a subscribed feed", %{user: user} do
+      insert(:calendar_integration,
+        user: user,
+        provider: "ics_url",
+        is_active: true,
+        base_url: "https://feeds.example.com",
+        username_encrypted: nil,
+        password_encrypted: nil,
+        subscription_url_encrypted: Encryption.encrypt("https://feeds.example.com/team.ics")
+      )
+
+      insert(:profile, user: user)
+
+      assert ClientManager.resolve_client(user.id) == nil
+    end
+
+    test "falls back to no calendar rather than one whose credentials were refused",
+         %{user: user} do
+      insert(:calendar_integration,
+        user: user,
+        provider: "caldav",
+        is_active: true,
+        needs_reauth: true,
+        base_url: "https://cal.example.com",
+        calendar_paths: ["/cal/bookings/"]
+      )
+
+      insert(:profile, user: user)
+
+      assert ClientManager.resolve_client(user.id) == nil
     end
 
     test "returns nil for an unrelated user that has no integrations", _ctx do

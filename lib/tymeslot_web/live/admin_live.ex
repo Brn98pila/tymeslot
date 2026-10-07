@@ -489,7 +489,11 @@ defmodule TymeslotWeb.AdminLive do
     do: dgettext("dashboard_admin", "Admin UI is disabled.")
 
   defp role_change_error_message(:demote, :last_admin),
-    do: dgettext("dashboard_admin", "Cannot demote the last admin. Promote someone else first.")
+    do:
+      dgettext(
+        "dashboard_admin",
+        "Cannot demote this admin: no other admin can sign in. Make sure another admin can sign in first."
+      )
 
   defp role_change_error_message(:promote, %Ecto.Changeset{}),
     do: dgettext("dashboard_admin", "Could not promote user.")
@@ -521,6 +525,7 @@ defmodule TymeslotWeb.AdminLive do
     |> assign(:users, Auth.list_users())
     |> assign(:user_count, Auth.count_users())
     |> assign(:admin_count, Auth.count_admins())
+    |> assign(:self_demote_blocked?, not Auth.remaining_signin_capable_admins?(user))
   end
 
   # Config-level errors (`:too_many_files`) come from `upload_errors/1`; a
@@ -577,6 +582,7 @@ defmodule TymeslotWeb.AdminLive do
         current_user={@current_user}
         user_count={@user_count}
         admin_count={@admin_count}
+        self_demote_blocked?={@self_demote_blocked?}
         pending_action={@pending_action}
         role_change_submitting={@role_change_submitting}
       />

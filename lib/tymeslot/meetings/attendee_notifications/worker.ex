@@ -105,8 +105,12 @@ defmodule Tymeslot.Meetings.AttendeeNotifications.Worker do
       summary = ChangeDetector.diff(baseline, current, current_sequence: event.ical_sequence)
 
       if ChangeSummary.any_changes?(summary) do
-        :ok = dispatch(event, summary)
-        persist_new_baseline(event, current, summary.next_sequence)
+        # The baseline advances only once the notification is enqueued: a
+        # failed enqueue rolls the transaction back, so the retry diffs
+        # against the same baseline and announces the change after all.
+        with :ok <- dispatch(event, summary) do
+          persist_new_baseline(event, current, summary.next_sequence)
+        end
       else
         log_noop(event, action_atom)
         :ok
@@ -186,10 +190,8 @@ defmodule Tymeslot.Meetings.AttendeeNotifications.Worker do
   end
 
   # One job for the whole recipient list, which is what the handler on the
-  # other end expects (`attendee_emails` is a list it maps over) and what the
-  # scheduler's uniqueness key requires: it is keyed on action + event_uid +
-  # method and deliberately not on the recipients, so a job per attendee
-  # collapses into the first one and everybody else is silently dropped.
+  # other end expects (`attendee_emails` is a list it maps over). Returns the
+  # scheduler's result, so a failed enqueue fails the run.
   defp dispatch_to([], _event, _method, _sequence), do: :ok
 
   defp dispatch_to(recipient_emails, event, method, sequence) do
@@ -209,8 +211,6 @@ defmodule Tymeslot.Meetings.AttendeeNotifications.Worker do
       method: method,
       sequence: sequence
     })
-
-    :ok
   end
 
   defp user_id_for(%{organizer_user_id: id}) when is_integer(id), do: id

@@ -59,6 +59,7 @@ defmodule Tymeslot.Workers.IntegrationAutoPauseWorker do
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
+  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.HealthCheck.Alerting
   alias Tymeslot.Integrations.HealthCheck.HealthStatus
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries
@@ -203,8 +204,11 @@ defmodule Tymeslot.Workers.IntegrationAutoPauseWorker do
     end
   end
 
+  # Through the domain rather than the row: pausing the user's primary
+  # calendar must hand that role to another calendar, under the same lock as
+  # the user's own toggle.
   defp deactivate(:calendar, integration) do
-    CalendarIntegrationQueries.toggle_active(integration)
+    CalendarManagement.pause_integration(integration)
   end
 
   defp deactivate(:video, integration) do

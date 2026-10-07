@@ -35,18 +35,38 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
 
   @max_delta_pages 100
 
+  # A delta link tracks the fixed window of the bootstrap that issued it, so
+  # each day it covers one day less of the future. Replacing it after a week
+  # keeps the cache reaching (nearly) the full window ahead.
+  @rebootstrap_after_seconds 7 * 24 * 60 * 60
+
+  @doc """
+  Whether the stored delta link is old enough to be replaced by a fresh
+  bootstrap. Graph fixes a delta link's window at the bootstrap that issued
+  it, so without one events further ahead than that window never reach the
+  cache. A link with no recorded bootstrap time (written before it was
+  recorded) is due at once.
+  """
+  @spec rebootstrap_due?(map(), DateTime.t()) :: boolean()
+  def rebootstrap_due?(integration, now \\ DateTime.utc_now())
+  def rebootstrap_due?(%{last_full_sync_at: nil}, _now), do: true
+
+  def rebootstrap_due?(%{last_full_sync_at: %DateTime{} = bootstrapped_at}, now),
+    do: DateTime.diff(now, bootstrapped_at) >= @rebootstrap_after_seconds
+
   @doc """
   Fetches and applies Outlook delta changes for an integration that has a
   stored `graph_delta_link`. Returns `:ok` on success, or `{:error, class}` on
   any failure (already logged with context).
 
-  The class distinguishes a remote that is briefly unwell (`:transient` — a
+  `{:error, :unauthorized}` means Graph refused the stored credentials. Any
+  other class distinguishes a remote that is briefly unwell (`:transient` — a
   Graph 5xx, a timeout, an open circuit) from one that needs somebody to act
   (`:hard` — bad credentials, a failed local write). The caller decides what to
   do with a job that runs out of retries; only `:transient` is safe to abandon
   to the next scheduled sweep.
   """
-  @spec fetch_and_apply(map()) :: :ok | {:error, ErrorAnalysis.error_class()}
+  @spec fetch_and_apply(map()) :: :ok | {:error, ErrorAnalysis.error_class() | :unauthorized}
   def fetch_and_apply(integration) do
     delta_link = integration.graph_delta_link
 
@@ -54,7 +74,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
       # Older bootstraps wrote a `/me/events/delta` link whose `$deltatoken`
       # froze a ~30-day window at the moment of bootstrap and never widened.
       # Clearing the link forces the next sync to re-bootstrap via
-      # `calendarView/delta` with a rolling ±365-day window.
+      # `calendarView/delta`, whose window is fixed at ±365 days from that
+      # bootstrap and renewed by `rebootstrap_due?/2`.
       Logger.info(
         "Outlook delta link uses obsolete /events/delta endpoint; clearing for re-bootstrap",
         calendar_integration_id: integration.id
@@ -106,6 +127,28 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
 
     CalendarIntegrationWebhookQueries.update_delta_link(integration, nil)
     {:error, :transient}
+  end
+
+  # Graph refused the stored credentials: only the owner can fix that, so it
+  # is told apart from every other hard failure and the caller flags the
+  # integration for reconnection rather than retrying.
+  defp handle_fetch_result({:error, :unauthorized}, integration) do
+    Logger.warning("Outlook delta fetch unauthorised",
+      calendar_integration_id: integration.id
+    )
+
+    {:error, :unauthorized}
+  end
+
+  # The same refusal from the token refresh `AccessToken.with_access_token/4`
+  # runs first: a revoked refresh token. Retrying cannot bring it back, so it
+  # is flagged like the fetch's own 401 rather than retried as a hard failure.
+  defp handle_fetch_result({:error, :unauthorized, _message}, integration) do
+    Logger.warning("Outlook token refresh unauthorised during delta sync",
+      calendar_integration_id: integration.id
+    )
+
+    {:error, :unauthorized}
   end
 
   defp handle_fetch_result({:error, reason} = fetch_error, integration) do

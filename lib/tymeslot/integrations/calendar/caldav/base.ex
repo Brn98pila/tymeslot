@@ -26,7 +26,8 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
   | `Http.put_event/5`              | ✗          | No retry (write operation) |
   | `Http.delete_event/4`           | ✗          | No retry (write operation) |
 
-  Retryable errors: `:network_error`, `:timeout`, `:server_error`
+  Retryable errors: `:network_error`, `:timeout`, `:server_error`,
+  `:service_unavailable`
 
   ## Related modules
 
@@ -43,6 +44,15 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
   # Audit tooling prefers wide fetch ranges specifically to sidestep the
   # narrow-filter slowness.
   @report_timeout_ms 20_000
+
+  # A calendar-query REPORT carries the whole iCalendar text of every event in
+  # the window, and is parsed whole into a tree that holds text as charlists
+  # at sixteen bytes or more per character, so its memory peaks at many times
+  # the size of the XML. Past this budget a response is abandoned
+  # mid-transfer and answers `{:error, :response_too_large}`, rather than
+  # being downloaded (up to the HTTP client's much larger default) only for
+  # the parser to give up on it.
+  @max_report_bytes 8 * 1024 * 1024
   @task_await_timeout_ms 45_000
   @coalescer_call_timeout_ms 50_000
 
@@ -51,11 +61,15 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
     base_delay_ms: 500,
     max_delay_ms: 2_000,
     jitter_factor: 0.1,
-    retryable_errors: [:network_error, :timeout, :server_error]
+    retryable_errors: [:network_error, :timeout, :server_error, :service_unavailable]
   ]
 
   @spec report_timeout_ms() :: non_neg_integer()
   def report_timeout_ms, do: @report_timeout_ms
+
+  @doc "The body budget for a calendar-query REPORT; see `@max_report_bytes`."
+  @spec max_report_bytes() :: pos_integer()
+  def max_report_bytes, do: @max_report_bytes
 
   @spec task_await_timeout_ms() :: non_neg_integer()
   def task_await_timeout_ms, do: @task_await_timeout_ms
@@ -82,6 +96,9 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
           # abandoned mid-transfer.
           | :response_too_large
           | :server_error
+          # A 502, 503 or 504: the server is down rather than failing this
+          # request.
+          | :service_unavailable
           | :server_unresponsive
           | :sync_token_expired
           | :timeout

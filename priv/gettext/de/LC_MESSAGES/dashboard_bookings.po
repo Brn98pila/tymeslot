@@ -714,3 +714,28 @@ msgstr "Hat diesen Termin verlassen"
 #, elixir-autogen, elixir-format
 msgid "Cancel meeting"
 msgstr "Termin absagen"
+
+#: lib/tymeslot_web/live/dashboard/bookings_management/cancellation.ex
+#, elixir-autogen, elixir-format
+msgid "This booking was already cancelled, so no refund was issued."
+msgstr "Diese Buchung wurde bereits storniert, daher wurde keine Rückerstattung ausgelöst."
+
+#: lib/tymeslot_web/live/dashboard/bookings_management/cancellation.ex
+#, elixir-autogen, elixir-format
+msgid "This booking was already cancelled."
+msgstr "Diese Buchung wurde bereits storniert."
+
+#: lib/tymeslot_web/components/dashboard/meetings/meeting_list_components.ex
+#, elixir-autogen, elixir-format
+msgid "Show all meetings"
+msgstr "Alle Termine anzeigen"
+
+#: lib/tymeslot_web/components/dashboard/meetings/meeting_list_components.ex
+#, elixir-autogen, elixir-format
+msgid "Showing one booking."
+msgstr "Es wird eine Buchung angezeigt."
+
+#: lib/tymeslot_web/components/dashboard/meetings/meeting_list_components.ex
+#, elixir-autogen, elixir-format
+msgid "This booking isn't available."
+msgstr "Diese Buchung ist nicht verfügbar."

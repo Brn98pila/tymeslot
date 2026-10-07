@@ -17,7 +17,7 @@ defmodule Tymeslot.Emails.Templates.CalendarSyncError do
     TimezoneHelper
   }
 
-  alias Tymeslot.Profiles
+  alias Tymeslot.Emails.HostClock
 
   use Gettext, backend: TymeslotWeb.Gettext
 
@@ -38,22 +38,22 @@ defmodule Tymeslot.Emails.Templates.CalendarSyncError do
   @spec render_both(meeting_map(), any()) :: {String.t(), String.t()}
   def render_both(meeting, error_reason) do
     error_details = TemplateHelper.format_error_reason(error_reason)
-    owner_start_time = owner_start_time(meeting)
+    locale = Gettext.get_locale(TymeslotWeb.Gettext)
+    clock = HostClock.for_meeting(meeting, locale)
+    owner_start_time = TimezoneHelper.convert_to_timezone(meeting.start_time, clock.timezone)
 
-    {do_render_html(error_details, owner_start_time, meeting),
-     do_render_text(error_details, owner_start_time, meeting)}
+    {do_render_html(error_details, {owner_start_time, clock}, meeting, locale),
+     do_render_text(error_details, {owner_start_time, clock}, meeting, locale)}
   end
 
-  defp do_render_html(error_details, owner_start_time, meeting) do
-    locale = Gettext.get_locale(TymeslotWeb.Gettext)
-
+  defp do_render_html(error_details, {owner_start_time, clock}, meeting, locale) do
     mjml_content = """
     #{Callouts.alert_box(:cancelled,
     dgettext("emails_integrations", "I was unable to add this meeting to your calendar. The appointment has been successfully confirmed in Tymeslot and both you and the attendee have received confirmation emails. However, you'll need to manually add it to your calendar."),
     title: dgettext("emails_integrations", "Calendar Sync Error"))}
 
     #{Text.title_section(dgettext("emails_integrations", "Meeting Details"))}
-    #{MeetingComponents.meeting_details_table(%{date: owner_start_time, start_time: owner_start_time, duration: meeting.duration, location: meeting.location}, locale)}
+    #{MeetingComponents.meeting_details_table(%{date: owner_start_time, start_time: owner_start_time, duration: meeting.duration, location: meeting.location, time_format: clock.time_format}, locale)}
 
     #{Text.divider()}
 
@@ -87,9 +87,7 @@ defmodule Tymeslot.Emails.Templates.CalendarSyncError do
     )
   end
 
-  defp do_render_text(error_details, owner_start_time, meeting) do
-    locale = Gettext.get_locale(TymeslotWeb.Gettext)
-
+  defp do_render_text(error_details, {owner_start_time, clock}, meeting, locale) do
     """
     #{dgettext("emails_integrations", "Calendar Sync Error - Manual Action Required")}
 
@@ -97,7 +95,7 @@ defmodule Tymeslot.Emails.Templates.CalendarSyncError do
 
     #{dgettext("emails_integrations", "MEETING DETAILS:")}
     #{dgettext("emails_integrations", "Date:")} #{Formatting.format_date(owner_start_time, locale)}
-    #{dgettext("emails_integrations", "Time:")} #{Formatting.format_time(owner_start_time, locale)}
+    #{dgettext("emails_integrations", "Time:")} #{Formatting.format_time(owner_start_time, locale, clock.time_format)}
     #{dgettext("emails_integrations", "Duration:")} #{Formatting.format_duration(meeting.duration, locale)}
     #{dgettext("emails_integrations", "Location:")} #{meeting.location || dgettext("emails_integrations", "Not specified")}
 
@@ -128,15 +126,5 @@ defmodule Tymeslot.Emails.Templates.CalendarSyncError do
   defp common_causes_text do
     causes = Enum.map_join(common_causes(), "\n- ", & &1)
     "#{dgettext("emails_integrations", "Common causes:")}\n- #{causes}"
-  end
-
-  defp owner_start_time(meeting) do
-    owner_timezone =
-      case meeting.organizer_user_id do
-        nil -> Profiles.get_default_timezone()
-        user_id -> Profiles.get_user_timezone(user_id)
-      end
-
-    TimezoneHelper.convert_to_timezone(meeting.start_time, owner_timezone)
   end
 end

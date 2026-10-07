@@ -199,7 +199,9 @@ defmodule Tymeslot.MeetingPayments do
 
   @doc """
   Lists the host's cancelled bookings that still hold the attendee's money,
-  oldest cancellation first.
+  and expired ones paid after their slot was taken. Oldest first, by when
+  the booking was cancelled, or by when it was paid for one that never was
+  (an expired booking), with ties broken by payment id.
 
   Not bounded by `list_payments_for_host/2`'s recent-payments window, so an
   older unrefunded cancellation stays visible instead of scrolling out of
@@ -232,13 +234,16 @@ defmodule Tymeslot.MeetingPayments do
     do: BookingPaymentQueries.count_pending_for_host(host_user_id)
 
   @doc """
-  Returns lifetime payment totals for a host.
+  Returns lifetime payment totals for a host, one entry per currency.
   """
-  @spec lifetime_stats_for_host(integer()) :: %{
-          received: integer(),
-          refunded: integer(),
-          platform_fee: integer()
-        }
+  @spec lifetime_stats_for_host(integer()) :: [
+          %{
+            currency: String.t(),
+            received: integer(),
+            refunded: integer(),
+            platform_fee: integer()
+          }
+        ]
   def lifetime_stats_for_host(host_user_id),
     do: BookingPaymentQueries.lifetime_stats(host_user_id)
 

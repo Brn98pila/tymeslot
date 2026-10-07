@@ -61,4 +61,33 @@ defmodule Tymeslot.AppSettingsEnvHelpers do
       oauth_enabled: false
     )
   end
+
+  @doc """
+  Enables the generic OIDC provider and gives it client credentials, so it
+  counts as a usable sign-in path. `restore_app_settings_env/1` restores
+  `:social_auth`; `:oauth_provider` is not an AppSettings key, so this
+  restores it itself.
+  """
+  @spec enable_credentialed_oauth() :: :ok
+  def enable_credentialed_oauth do
+    original = Application.get_env(:tymeslot, :oauth_provider)
+
+    on_exit(fn ->
+      case original do
+        nil -> Application.delete_env(:tymeslot, :oauth_provider)
+        value -> Application.put_env(:tymeslot, :oauth_provider, value)
+      end
+    end)
+
+    Application.put_env(:tymeslot, :oauth_provider,
+      client_id: "oidc-client-id",
+      client_secret: "oidc-client-secret"
+    )
+
+    Application.put_env(:tymeslot, :social_auth,
+      google_enabled: false,
+      github_enabled: false,
+      oauth_enabled: true
+    )
+  end
 end

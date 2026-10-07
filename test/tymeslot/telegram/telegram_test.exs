@@ -73,6 +73,28 @@ defmodule Tymeslot.TelegramTest do
     end
   end
 
+  describe "form_bot_mode/2" do
+    test "an edit follows the integration's own mode, whatever the installation's" do
+      setup_config(:tymeslot, telegram_shared_bot: true)
+      assert Telegram.form_bot_mode(:edit, %TelegramIntegrationSchema{bot_mode: "own"}) == "own"
+
+      setup_config(:tymeslot, telegram_shared_bot: false)
+
+      assert Telegram.form_bot_mode(:edit, %TelegramIntegrationSchema{bot_mode: "shared"}) ==
+               "shared"
+    end
+
+    test "creating follows the installation's mode" do
+      setup_config(:tymeslot, telegram_shared_bot: true)
+
+      assert Telegram.form_bot_mode(:create, %TelegramIntegrationSchema{bot_mode: "own"}) ==
+               "shared"
+
+      setup_config(:tymeslot, telegram_shared_bot: false)
+      assert Telegram.form_bot_mode(:create, nil) == "own"
+    end
+  end
+
   describe "status derivation" do
     test "active when is_active=true and chat_id set" do
       integration = insert(:telegram_integration, is_active: true)
@@ -410,7 +432,7 @@ defmodule Tymeslot.TelegramTest do
 
     test "keeps a stub the bot linked after it was loaded" do
       stub = pending_stub(insert(:user))
-      {:ok, _linked} = TelegramQueries.update_integration(stub, %{chat_id: "777"})
+      {:ok, _linked} = TelegramQueries.update_link_state(stub, %{chat_id: "777"})
 
       assert :ok = Telegram.discard_pending(stub)
       assert %{chat_id: "777"} = Repo.get(TelegramIntegrationSchema, stub.id)

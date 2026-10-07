@@ -106,7 +106,7 @@ defmodule Tymeslot.Bookings.CreateAdHocTest do
       assert {:ok, _uuid} = UUID.cast(meeting.uid)
 
       base = "#{Endpoint.url()}/#{profile.username}/meeting/#{meeting.uid}"
-      assert meeting.view_url == base
+      assert meeting.view_url == "#{Endpoint.url()}/dashboard/meetings"
       assert meeting.reschedule_url == base <> "/reschedule"
       assert meeting.cancel_url == base <> "/cancel"
     end

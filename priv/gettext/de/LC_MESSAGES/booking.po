@@ -1454,3 +1454,8 @@ msgstr "Telefonanruf"
 #, elixir-autogen, elixir-format
 msgid "Somewhere else"
 msgstr "Anderer Ort"
+
+#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
+#, elixir-autogen, elixir-format
+msgid "We couldn't check the host's calendar right now. Please try again in a few minutes."
+msgstr "Wir konnten den Kalender des Gastgebers gerade nicht prüfen. Bitte versuchen Sie es in ein paar Minuten erneut."

@@ -32,6 +32,8 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
      socket
      |> LiveView.stream(:meetings, [])
      |> assign(:filter, "upcoming")
+     |> assign(:focus, nil)
+     |> assign(:_last_focus_param, nil)
      |> assign(:loading, true)
      |> assign(:is_empty, true)
      |> assign(:cancelling_meeting, nil)
@@ -73,8 +75,19 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
     last_per_page = socket.assigns[:_last_per_page]
     initialized? = socket.assigns[:_initialized]
 
+    # `?meeting=<id>` (a host's link to one booking) shows it alone; an empty
+    # or non-string param (`?meeting[x]=1`) names none. Choosing a tab drops the
+    # focus while the URL keeps the param, so only a change of it restores it.
+    focus_param = focus_param(get_in(socket.assigns, [:params, "meeting"]))
+    focus_changed? = focus_param != socket.assigns._last_focus_param
+
+    socket =
+      if focus_changed?,
+        do: assign(socket, focus: focus_param, _last_focus_param: focus_param),
+        else: socket
+
     should_load =
-      !initialized? or
+      !initialized? or focus_changed? or
         new_filter != last_filter or
         new_user_id != last_user_id or
         new_per_page != last_per_page
@@ -108,6 +121,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
             {:noreply,
              socket
              |> assign(:filter, validated_filter)
+             |> assign(:focus, nil)
              |> assign(:next_cursor, nil)
              |> assign(:has_more, false)
              |> assign(:loading, true)
@@ -129,8 +143,8 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
         user_id = socket.assigns.current_user.id
         Cancellation.emit_open(user_id, meeting.id)
 
-        # Scoped to the signed-in user: an attendee may cancel from here too,
-        # but the payment is the host's, so they see no refund options.
+        # Scoped to the signed-in host: only a payment they took offers
+        # refund options.
         booking_payment = MeetingPayments.payment_for_meeting(meeting.id, user_id)
 
         {:noreply,
@@ -384,14 +398,18 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
     <div id="bookings-management">
       <.dashboard_page icon="hero-clock" title={dgettext("dashboard_common", "Meetings")}>
         <div class="mb-10">
+          <%!-- No tab is current while the list shows one linked booking. --%>
           <MeetingListComponents.filter_tabs
-            active={@filter}
+            active={if @focus, do: nil, else: @filter}
             awaiting_approval_count={@awaiting_approval_count}
             target={@myself}
           />
         </div>
 
+        <MeetingListComponents.focus_notice :if={@focus} found={@loading or !@is_empty} />
+
         <MeetingListComponents.meetings_list
+          :if={!@focus or @loading or !@is_empty}
           loading={@loading}
           is_empty={@is_empty}
           meetings_stream={@streams.meetings}
@@ -482,6 +500,14 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
     {:noreply, close_cancel_modal(socket)}
   end
 
+  # The attendee (or a calendar sync) cancelled the meeting while the modal
+  # was open. Nothing is left to do: the cancellation stopped before the
+  # refund step, so the host is told no refund came from this action.
+  defp handle_cancellation(socket, _meeting, refund_action, {:error, :already_cancelled}) do
+    Flash.info(Cancellation.already_cancelled_message(refund_action))
+    {:noreply, close_cancel_modal(socket)}
+  end
+
   defp handle_cancellation(socket, meeting, _refund_action, {:error, reason}) do
     Logger.error("cancel_meeting_failed",
       reason: LogFormat.reason(reason),
@@ -519,7 +545,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
       %{user_id: current_user.id, filter: filter}
     )
 
-    case Meetings.list_user_meetings_by_filter(current_user.id, filter, per_page: per_page) do
+    case fetch_page(socket.assigns.focus, current_user.id, filter, per_page) do
       {:ok, page} ->
         :telemetry.execute(
           [:tymeslot, :dashboard, :meetings, :load, :stop],
@@ -553,12 +579,21 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
     end
   end
 
+  defp focus_param(param) when is_binary(param) and param != "", do: param
+  defp focus_param(_none), do: nil
+
+  defp fetch_page(nil, user_id, filter, per_page),
+    do: Meetings.list_user_meetings_by_filter(user_id, filter, per_page: per_page)
+
+  defp fetch_page(focus, user_id, _filter, _per_page),
+    do: Meetings.list_user_meeting(user_id, focus)
+
   defp fetch_meeting_for_modal(socket, params, opts) do
     policy_fun = Keyword.fetch!(opts, :policy_fun)
-    user_email = socket.assigns.current_user.email
+    user_id = socket.assigns.current_user.id
 
     with {:ok, validated_id} <- validate_meeting_id(params),
-         {:ok, meeting} <- fetch_meeting_for_user(validated_id, user_email),
+         {:ok, meeting} <- fetch_meeting_for_organizer(validated_id, user_id),
          :ok <- policy_fun.(meeting) do
       {:ok, meeting}
     else
@@ -570,8 +605,8 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
 
   # A group meeting's modals and flashes speak of its participants, so they
   # arrive with it.
-  defp fetch_meeting_for_user(id, user_email) do
-    with {:ok, meeting} <- Meetings.get_meeting_for_user(id, user_email) do
+  defp fetch_meeting_for_organizer(id, user_id) do
+    with {:ok, meeting} <- Meetings.get_meeting_for_organizer(id, user_id) do
       if Meetings.group?(meeting),
         do: {:ok, Meetings.with_live_participants(meeting)},
         else: {:ok, meeting}

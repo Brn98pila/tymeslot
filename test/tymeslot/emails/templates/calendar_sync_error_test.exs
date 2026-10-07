@@ -64,7 +64,8 @@ defmodule Tymeslot.Emails.Templates.CalendarSyncErrorTest do
 
       owner_local = DateTime.shift_zone!(meeting.start_time, "America/New_York")
 
-      assert html =~ Formatting.format_time(owner_local, "en")
+      # On the host's clock: one who never chose takes English's 12-hour one.
+      assert html =~ Formatting.format_time(owner_local, "en", "12h")
       refute html =~ Formatting.format_time(meeting.start_time, "en")
     end
 

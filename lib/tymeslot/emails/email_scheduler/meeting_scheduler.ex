@@ -423,6 +423,48 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   end
 
   @doc """
+  Schedules the notices for a booking that moved, to its organiser, attendee
+  and guests, sent at once with high priority
+  (`Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails`).
+
+  `original` is the time the booking moved from, `%{start_time:, end_time:,
+  attendee_video_url:}`, which the meeting row no longer holds, so the job
+  carries it; `nil` for a booking whose new time the host approved after a
+  reschedule, whose previous time is no longer known. Not unique: every move
+  is its own notice.
+
+  The job also carries the time `meeting` moved to and the status the move
+  left it in, so a notice overtaken by a later move, a cancellation or a
+  pending reschedule request is dropped rather than sent with times it never
+  announced.
+  """
+  @spec schedule_reschedule_emails(
+          %{id: term(), start_time: DateTime.t(), status: String.t()},
+          map() | nil
+        ) :: :ok | {:error, String.t()}
+  def schedule_reschedule_emails(meeting, original) do
+    %{
+      "action" => "send_reschedule_emails",
+      "meeting_id" => meeting.id,
+      "rescheduled_to" => DateTime.to_iso8601(meeting.start_time),
+      "status" => meeting.status
+    }
+    |> maybe_put_original(original)
+    |> EmailWorker.new(queue: :emails, priority: 0)
+    |> insert_job("Reschedule emails", meeting.id)
+  end
+
+  defp maybe_put_original(args, nil), do: args
+
+  defp maybe_put_original(args, original) do
+    Map.put(args, "original", %{
+      "start_time" => DateTime.to_iso8601(original.start_time),
+      "end_time" => DateTime.to_iso8601(original.end_time),
+      "attendee_video_url" => Map.get(original, :attendee_video_url)
+    })
+  end
+
+  @doc """
   Schedules cancellation emails to be sent immediately with high priority.
   """
   @spec schedule_cancellation_emails(term()) :: :ok | {:error, String.t()}

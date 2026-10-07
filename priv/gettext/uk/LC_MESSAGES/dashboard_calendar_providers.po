@@ -1247,6 +1247,7 @@ msgstr "Для цього облікового запису Google не ввім
 msgid "Google rejected the stored credentials. Please reconnect the integration."
 msgstr "Google відхилив збережені облікові дані. Перепідключіть інтеграцію."
 
+#: lib/tymeslot/workers/refresh_outlook_calendar_worker.ex
 #: lib/tymeslot/workers/sync_outlook_calendar_worker.ex
 #, elixir-autogen, elixir-format
 msgid "Microsoft rejected the stored credentials. Please reconnect the integration."

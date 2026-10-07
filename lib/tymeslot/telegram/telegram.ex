@@ -11,6 +11,7 @@ defmodule Tymeslot.Telegram do
 
   alias Tymeslot.Features
   alias Tymeslot.Meetings.SeatView
+  alias Tymeslot.Notifications.EventTypes
   alias Tymeslot.Repo
   alias Tymeslot.Security.SharedSecret
   alias Tymeslot.Telegram.{API, MessageBuilder, TelegramDeliverySchema, TelegramIntegrationSchema}
@@ -52,7 +53,7 @@ defmodule Tymeslot.Telegram do
       with :ok <- Features.check_access(user_id, :automations_allowed) do
         attrs
         |> Map.put(:user_id, user_id)
-        |> Map.put(:bot_mode, if(shared_bot_mode?(), do: "shared", else: "own"))
+        |> Map.put(:bot_mode, installation_bot_mode())
         |> TelegramQueries.create_integration()
       end
     else
@@ -331,7 +332,7 @@ defmodule Tymeslot.Telegram do
   @spec auto_disable(TelegramIntegrationSchema.t(), String.t()) ::
           {:ok, TelegramIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
   def auto_disable(%TelegramIntegrationSchema{} = integration, reason) do
-    TelegramQueries.update_integration(integration, %{
+    TelegramQueries.update_state(integration, %{
       is_active: false,
       disabled_at: DateTime.utc_now(),
       disabled_reason: reason
@@ -347,9 +348,9 @@ defmodule Tymeslot.Telegram do
   must not be gated behind a feature-access check.
   """
   @spec migrate_chat_id(TelegramIntegrationSchema.t(), String.t()) ::
-          {:ok, TelegramIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, TelegramIntegrationSchema.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def migrate_chat_id(%TelegramIntegrationSchema{} = integration, new_chat_id) do
-    TelegramQueries.update_integration(integration, %{chat_id: new_chat_id})
+    TelegramQueries.update_link_state(integration, %{chat_id: new_chat_id})
   end
 
   # ============================================================================
@@ -398,37 +399,28 @@ defmodule Tymeslot.Telegram do
   # Events & Feature Checks
   # ============================================================================
 
-  @spec available_events() :: [
-          %{
-            required(:value) => String.t(),
-            required(:label) => String.t(),
-            required(:description) => String.t()
-          }
-        ]
-  def available_events do
-    [
-      %{
-        value: "meeting.created",
-        label: "Meeting Created",
-        description: "Triggered when a new booking is created"
-      },
-      %{
-        value: "meeting.cancelled",
-        label: "Meeting Cancelled",
-        description: "Triggered when a booking is cancelled"
-      },
-      %{
-        value: "meeting.rescheduled",
-        label: "Meeting Rescheduled",
-        description: "Triggered when a booking time is changed"
-      }
-    ]
-  end
+  @doc """
+  The events a Telegram integration can subscribe to, with their translated
+  labels; see `EventTypes.options/0`.
+  """
+  @spec available_events() :: [EventTypes.option()]
+  defdelegate available_events, to: EventTypes, as: :options
 
   @spec shared_bot_mode?() :: boolean()
   def shared_bot_mode? do
     Application.get_env(:tymeslot, :telegram_shared_bot, false)
   end
+
+  @doc """
+  The bot mode the integration form validates and renders against. An edit
+  follows the integration's own mode, which never changes after creation;
+  creating one follows the installation's, which is the mode it will get.
+  """
+  @spec form_bot_mode(:create | :edit, TelegramIntegrationSchema.t() | nil) :: String.t()
+  def form_bot_mode(:edit, %TelegramIntegrationSchema{bot_mode: bot_mode}), do: bot_mode
+  def form_bot_mode(_mode, _integration), do: installation_bot_mode()
+
+  defp installation_bot_mode, do: if(shared_bot_mode?(), do: "shared", else: "own")
 
   @spec telegram_enabled?() :: boolean()
   def telegram_enabled? do
@@ -465,14 +457,13 @@ defmodule Tymeslot.Telegram do
       user_id: user_id,
       bot_mode: "shared",
       name: dgettext("dashboard_automation_chat", "My Telegram"),
-      events: ["meeting.created"],
-      link_token: generate_link_token()
+      events: ["meeting.created"]
     }
 
     Repo.transaction(fn ->
       TelegramQueries.delete_pending_stubs(user_id)
 
-      case TelegramQueries.create_integration(attrs) do
+      case TelegramQueries.create_link_stub(attrs, generate_link_token()) do
         {:ok, stub} -> stub
         {:error, changeset} -> Repo.rollback(changeset)
       end

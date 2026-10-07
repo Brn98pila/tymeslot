@@ -582,9 +582,10 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries do
   # cache-update maps that may omit them), Tymeslot-owned fields that are written
   # independently of provider data (:ical_sequence, :last_notified_state,
   # :video_link, :video_integration_id), and the offline write queue columns
-  # (:sync_state, :sync_attempts, :sync_last_attempt_at, :sync_last_error) which
-  # must survive a server-sourced upsert so OfflineQueue can still replay the
-  # local change after the cache row has been refreshed.
+  # (:sync_state, :sync_attempts, :sync_last_attempt_at, :sync_last_error,
+  # :sync_deferred_since) which must survive a server-sourced upsert so
+  # OfflineQueue can still replay the local change after the cache row has
+  # been refreshed.
   #
   # :created_by_tymeslot is excluded so a sync can never clear it: the ownership
   # lookup can miss (a meeting outside the queried window), and that false must

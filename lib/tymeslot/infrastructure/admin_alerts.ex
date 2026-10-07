@@ -38,15 +38,17 @@ defmodule Tymeslot.Infrastructure.AdminAlerts do
           | :stripe_webhook_secret_missing
           | :new_error
           | :error_regression
-          | :pubsub_broadcast_failed
           | :dispute_created
           | :dispute_lost
           | :reconciliation_discrepancies
+          | :reconciliation_incomplete
           | :subscription_not_in_database
           | :payment_event_enqueue_failed
           | :payment_event_orphaned
           | :dunning_stalled
+          | :late_payment_refund_failed
           | :analytics_tracking_anomaly
+          | :user_registered_hook_failed
           | atom()
 
   @callback send_alert(alert_type(), map()) :: :ok | {:error, any()}

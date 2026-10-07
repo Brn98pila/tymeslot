@@ -120,18 +120,18 @@ defmodule Tymeslot.Auth.Authentication do
     end
   end
 
-  # Records the attempt against the account lockout tracker and audits the
+  # Records the attempt against the failed-login throttle and audits the
   # moment the account crosses the throttle threshold.
   #
   # `check_auth_rate_limit/2` runs *before* this, as a read-only pre-check
-  # (`AccountLockout.check_lockout_status/1`) that returns an error without
+  # (a count of the failed-login bucket) that returns an error without
   # recording anything once the failure count reaches the throttle threshold
   # (10 in the last hour). Under strictly sequential brute force that
   # short-circuits `authenticate_with_password/3` before this function can
   # record another failure, so the count freezes at the threshold and this
   # emits once per hour, as the 1-hour sliding window ages old attempts out
   # and throttling re-triggers. Throttling is the whole defence by design;
-  # see `Tymeslot.Security.AccountLockout` for why there is no harder tier.
+  # see `Tymeslot.Security.RateLimiter.Auth` for why there is no harder tier.
   #
   # That is not the concurrent case: the pre-check is read-only and separate
   # from the write below, so every request already past the pre-check when

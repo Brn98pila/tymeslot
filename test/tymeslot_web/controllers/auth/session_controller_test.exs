@@ -241,7 +241,8 @@ defmodule TymeslotWeb.SessionControllerTest do
         })
 
       assert redirected_to(conn) == "/auth/login"
-      # AccountLockout throttle kicks in at 10 attempts; message differs from normal auth failure
+
+      # The failed-login throttle kicks in at 10 attempts; message differs from normal auth failure
       assert Flash.get(conn.assigns.flash, :error) ==
                "Too many failed attempts. Please wait before trying again"
     end

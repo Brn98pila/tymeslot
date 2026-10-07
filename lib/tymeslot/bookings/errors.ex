@@ -23,6 +23,7 @@ defmodule Tymeslot.Bookings.Errors do
           :meeting_type_inactive
           | :meeting_type_not_found
           | :slot_taken
+          | :availability_unverifiable
           | :booking_limit_reached
           | :organizer_required
           | :booking_failed
@@ -35,10 +36,11 @@ defmodule Tymeslot.Bookings.Errors do
 
   # Table rather than a clause ladder: every entry is the same behaviour over
   # varying data, so the mapping is the whole content. `:availability_unverifiable`
-  # collapses to `:slot_taken` because the organiser's full busy set could not
-  # be read and so the slot cannot be proven free — the booker gets the same
-  # "pick another slot" outcome as a genuine clash, and the distinction survives
-  # in the logs rather than the copy. `:time_conflict` and `:slot_unavailable`
+  # (and the calendar fetch failures behind it, as the booking page meets them)
+  # stays its own outcome: the organiser's busy set could not be read, so the
+  # booking is still refused, but every other time would be refused the same
+  # way, and "pick another slot" would send the booker round them all. They
+  # are told to try again later instead. `:time_conflict` and `:slot_unavailable`
   # both describe the same lost-race outcome and collapse to `:slot_taken`;
   # `:host_not_found`/`:host_missing` and `:meeting_type_not_found`/
   # `:meeting_type_missing` are likewise distinct upstream reasons that share
@@ -57,7 +59,10 @@ defmodule Tymeslot.Bookings.Errors do
     meeting_type_missing: :meeting_type_not_found,
     time_conflict: :slot_taken,
     slot_unavailable: :slot_taken,
-    availability_unverifiable: :slot_taken,
+    availability_unverifiable: :availability_unverifiable,
+    some_calendars_unavailable: :availability_unverifiable,
+    all_calendars_unavailable: :availability_unverifiable,
+    fetch_crashed: :availability_unverifiable,
     booking_limit_reached: :booking_limit_reached,
     organizer_required: :organizer_required,
     validation_error: :booking_failed,

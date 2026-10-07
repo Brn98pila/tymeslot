@@ -23,7 +23,6 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     dispute_lost: %{category: "Dispute", severity: :error},
     calendar_sync_error: %{category: "Calendar", severity: :error},
     invalid_calendar_event: %{category: "Calendar", severity: :warning},
-    pubsub_broadcast_failed: %{category: "System", severity: :error},
     integration_health_failure: %{category: "System", severity: :error},
     integration_health_recovery: %{category: "System", severity: :info},
     oban_queue_stuck: %{category: "Queue", severity: :error},
@@ -35,12 +34,15 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     new_error: %{category: "Errors", severity: :error},
     error_regression: %{category: "Errors", severity: :error},
     reconciliation_discrepancies: %{category: "Payment", severity: :warning},
+    reconciliation_incomplete: %{category: "Payment", severity: :warning},
     subscription_not_in_database: %{category: "Payment", severity: :warning},
     payment_event_enqueue_failed: %{category: "Payment", severity: :error},
     payment_event_orphaned: %{category: "Payment", severity: :error},
     dunning_stalled: %{category: "Payment", severity: :error},
+    late_payment_refund_failed: %{category: "Payment", severity: :error},
     analytics_tracking_anomaly: %{category: "Analytics", severity: :warning},
-    recipient_email_rejected: %{category: "Email", severity: :warning}
+    recipient_email_rejected: %{category: "Email", severity: :warning},
+    user_registered_hook_failed: %{category: "System", severity: :error}
   }
 
   @doc "Returns the full registry map for enumeration and lookup."
@@ -205,6 +207,12 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     "database_pool_pressure:#{Map.get(metadata, :repo)}:#{hour_bucket(metadata, :detected_at)}"
   end
 
+  # Each payment left unrefunded is money an attendee is owed, so one alert
+  # per payment, whatever the reason text says.
+  def dedup_key(:late_payment_refund_failed, metadata) do
+    "late_payment_refund_failed:#{Map.get(metadata, :booking_payment_id, "unknown")}"
+  end
+
   def dedup_key(:stripe_webhook_secret_missing, metadata) do
     "stripe_webhook_secret_missing:#{Map.get(metadata, :env_var)}"
   end
@@ -271,11 +279,6 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
   def format_message(:calendar_sync_error, metadata) do
     email = Map.get(metadata, :owner_email_masked, "unknown")
     "Calendar sync error for #{email}: #{reason_text(metadata)}"
-  end
-
-  def format_message(:pubsub_broadcast_failed, metadata) do
-    event = Map.get(metadata, :event, "unknown")
-    "PubSub broadcast failed for #{event}"
   end
 
   # Aggregate signals (`HealthCheck.Alerting`) describe many integrations, so
@@ -355,6 +358,13 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     "Payment reconciliation found #{count} discrepancies"
   end
 
+  def format_message(:reconciliation_incomplete, metadata) do
+    count = Map.get(metadata, :unresolved_count, "unknown")
+
+    "Payment reconciliation could not look up #{count} subscriptions at Stripe, " <>
+      "so it did not check for subscriptions missing there"
+  end
+
   def format_message(:subscription_not_in_database, metadata) do
     stripe_id = Map.get(metadata, :stripe_subscription_id, "unknown")
     "Active Stripe subscription #{stripe_id} has no matching database record"
@@ -390,6 +400,20 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
       "#{summary} (#{reason_text(metadata)})"
   end
 
+  # The booking stays on the host's outstanding-refunds list; the id is what
+  # the operator needs to find the charge in Stripe. The job is unique per
+  # payment over every state, so a fresh one cannot be inserted: retrying
+  # means retrying this one.
+  def format_message(:late_payment_refund_failed, metadata) do
+    id = Map.get(metadata, :booking_payment_id, "unknown")
+    job_id = Map.get(metadata, :oban_job_id, "unknown")
+
+    "Refund of booking payment #{id}, paid after its slot was taken, failed on every " <>
+      "attempt (#{reason_text(metadata)}); the attendee is still owed the money. " <>
+      "To settle it, refund the booking from the host's payments settings (or the " <>
+      "Stripe dashboard), or once the cause is fixed retry Oban job #{job_id}"
+  end
+
   # One alert per integration and sync run (`Calendar.InvalidEventReport`).
   def format_message(:invalid_calendar_event, %{count: count} = metadata) do
     provider = Map.get(metadata, :provider, "unknown")
@@ -417,6 +441,15 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
       nil -> "#{summary}: #{reason}"
       identifier -> "#{summary} (#{identifier}): #{reason}"
     end
+  end
+
+  # The hook's record of the sign-up (terms acceptance, say) is lost once
+  # Oban stops retrying; the user id is what the operator needs to restore it.
+  def format_message(:user_registered_hook_failed, metadata) do
+    user_id = Map.get(metadata, :user_id, "unknown")
+
+    "Registration hook failed on its final attempt for user #{user_id}; " <>
+      "its record is missing (#{reason_text(metadata)})"
   end
 
   def format_message(type, _metadata) do

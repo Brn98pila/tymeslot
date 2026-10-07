@@ -49,6 +49,12 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
   alias Tymeslot.Workers.SyncHealth
   alias Tymeslot.Workers.SyncRequest
 
+  # Without one Oban lets a job run for ever. A sync is the offline queue's
+  # bounded replay (see `CalDAV.OfflineQueue`) followed by the pull; this is
+  # far above what either needs, and only ends a job that is truly stuck.
+  @impl Oban.Worker
+  def timeout(_job), do: :timer.minutes(15)
+
   @doc """
   Enqueues a full fetch of the CalDAV integration `integration_id`, the sync
   the dashboard's Refresh asks for: every calendar is read in full rather
@@ -208,7 +214,8 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
   # permanent-failure admin alert each time about an outage no operator here
   # can fix. Discard and let the scheduled sync retry minutes later; the health
   # check is what surfaces a remote that never comes back.
-  defp handle_sync_result({:error, :server_error}, _integration) do
+  defp handle_sync_result({:error, reason}, _integration)
+       when reason in [:server_error, :service_unavailable] do
     {:discard, @server_error}
   end
 

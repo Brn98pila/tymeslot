@@ -7,8 +7,13 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPIBehaviour do
 
   @type api_error ::
           {:error,
-           :unauthorized | :not_found | :rate_limited | :network_error | :authentication_error,
-           String.t()}
+           :unauthorized
+           | :not_found
+           | :rate_limited
+           | :network_error
+           | :authentication_error
+           # A list read followed more next links than the page cap allows.
+           | :too_many_pages, String.t()}
 
   @callback list_calendars(CalendarIntegrationSchema.t()) ::
               {:ok, [map()]} | api_error()

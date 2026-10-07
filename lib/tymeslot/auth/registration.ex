@@ -12,6 +12,7 @@ defmodule Tymeslot.Auth.Registration do
     ErrorFormatter,
     Helpers.AccountLogging,
     RateLimit,
+    RegistrationAnnouncement,
     SignupSecurity,
     UserSchema,
     Validation,
@@ -19,7 +20,7 @@ defmodule Tymeslot.Auth.Registration do
   }
 
   alias Tymeslot.Emails.EmailScheduler
-  alias Tymeslot.Infrastructure.{Config, PubSub}
+  alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Profiles
   alias Tymeslot.Repo
@@ -31,8 +32,9 @@ defmodule Tymeslot.Auth.Registration do
   Registers a new user with the provided parameters.
 
   Every sign-up passes `Tymeslot.Auth.SignupSecurity.gate/2` first, so the
-  signup rate limit is charged exactly once per attempt, before any bot check
-  that costs an external call.
+  per-IP signup rate limit is charged exactly once per attempt, before any bot
+  check that costs an external call. The per-address limit is charged once
+  the input is valid.
 
   ## Options
     - `:ip` (required), `:user_agent` - the requesting client, for the rate
@@ -48,11 +50,15 @@ defmodule Tymeslot.Auth.Registration do
     - `{:ok, user, message}` when a new account was created. A verification
       email that could not be sent (rate limited, or a scheduling failure)
       does not change this: the account waits for a resend.
-    - `{:existing_account, message}` when the address already had an
-      account. `message` is the same one a new account gets, and nothing
-      user-facing may tell the two apart: the owner is emailed instead (see
-      `create_and_verify_user/2`). The distinct tag exists so machine callers
-      cannot mistake it for a created account.
+    - `{:existing_account, message}` when no account was created because the
+      address already had one, or because it has used up its own sign-up
+      allowance. `message` is the same one a new account gets, and nothing
+      user-facing may tell these apart: the owner of a taken address is
+      emailed instead (see `create_and_verify_user/2`), and an address over
+      its allowance is sent nothing. The distinct tag exists so machine
+      callers cannot mistake it for a created account. A `:provisioning`
+      caller is refused with `{:error, :rate_limited, message}` over the
+      address's allowance instead.
     - `{:honeypot, message}` when the honeypot caught a bot. Nothing is
       created, but the reply and the verification allowance spent match a
       real sign-up's, so the bot learns nothing.
@@ -75,25 +81,67 @@ defmodule Tymeslot.Auth.Registration do
     end
   end
 
+  # The address's own allowance is charged only once the input is valid, so a
+  # malformed form is still told what is wrong with it rather than answered
+  # as a sign-up.
   defp validate_and_register(params, opts) do
     with {:ok, validated_params} <- validate_input(params) do
-      terms_accepted = Validation.terms_accepted?(params["terms_accepted"])
-      validated_params = Map.put(validated_params, "terms_accepted", terms_accepted)
+      case recipient_allowance(validated_params["email"], opts) do
+        :ok ->
+          register_validated(params, validated_params, opts)
 
-      opts = Keyword.put(opts, :metadata, broadcast_metadata(opts, terms_accepted))
-
-      case create_and_verify_user(validated_params, opts) do
-        {:ok, :existing_account} -> {:existing_account, success_message()}
-        {:ok, user} -> {:ok, user, success_message()}
-        {:error, _reason, _message} = error -> error
+        {:error, :rate_limited, _message} = refused ->
+          answer_over_allowance(refused, validated_params, opts)
       end
+    end
+  end
+
+  # Caps the sign-ups one address can see. Anyone can spend it by typing the
+  # address, so a refusal is audited here and answered by the caller.
+  defp recipient_allowance(email, opts) do
+    RateLimit.check(RateLimiter.check_signup_recipient_rate_limit(email),
+      event: "signup",
+      identifier: email,
+      ip: opts[:ip],
+      user_agent: opts[:user_agent]
+    )
+  end
+
+  # On the sign-up form, an address over its allowance is answered exactly as
+  # a taken one is, at the same bcrypt cost and verification allowance, but
+  # nothing is sent: refusing out loud would let one client keep the
+  # address's owner from signing up for a day. A provisioning caller has no
+  # visitor to keep it from, so it is told.
+  defp answer_over_allowance(refused, validated_params, opts) do
+    case via(opts) do
+      :signup_form ->
+        _discarded = Password.hash_password(validated_params["password"])
+        _allowance = RateLimiter.check_verification_ip_rate_limit(opts[:ip])
+        {:existing_account, success_message()}
+
+      :provisioning ->
+        refused
+    end
+  end
+
+  defp register_validated(params, validated_params, opts) do
+    terms_accepted = Validation.terms_accepted?(params["terms_accepted"])
+    validated_params = Map.put(validated_params, "terms_accepted", terms_accepted)
+
+    opts = Keyword.put(opts, :metadata, broadcast_metadata(opts, terms_accepted))
+
+    case create_and_verify_user(validated_params, opts) do
+      {:ok, :existing_account} -> {:existing_account, success_message()}
+      {:ok, user} -> {:ok, user, success_message()}
+      {:error, _reason, _message} = error -> error
     end
   end
 
   defp via(opts), do: Keyword.get(opts, :via, :signup_form)
 
-  # A listener records legal acceptance from the broadcast, so only a sign-up
-  # form's carries it; a provisioning task must be able to leave it pending.
+  # The registration hook records legal acceptance from this metadata, so only
+  # a sign-up form's carries it; a provisioning task must be able to leave it
+  # pending.
   defp broadcast_metadata(opts, terms_accepted) do
     case via(opts) do
       :signup_form ->
@@ -179,7 +227,7 @@ defmodule Tymeslot.Auth.Registration do
   end
 
   defp create_new_user(validated_params, opts) do
-    case create_user(validated_params) do
+    case create_user(validated_params, Keyword.fetch!(opts, :metadata)) do
       {:ok, user} ->
         AccountLogging.log_user_created(user)
         verify_and_notify_user(user, opts)
@@ -193,6 +241,9 @@ defmodule Tymeslot.Auth.Registration do
           # The winner is already gone again; there is no one to tell.
           {:error, :not_found} -> {:ok, :existing_account}
         end
+
+      {:error, :registration_hook, _message} = error ->
+        error
 
       {:error, :auth, reason} ->
         AccountLogging.log_operation_failure(
@@ -263,19 +314,19 @@ defmodule Tymeslot.Auth.Registration do
   # committed user row with no profile and no broadcast, because the address is
   # then rejected as a duplicate on retry and the account can never be reached.
   defp verify_and_notify_user(user, opts) do
-    case create_profile_and_announce(user, opts) do
+    case create_profile_and_announce(user) do
       :ok -> send_verification_email(user, opts[:ip])
       {:error, _reason, _message} = error -> error
     end
   end
 
-  defp create_profile_and_announce(user, opts) do
+  defp create_profile_and_announce(user) do
     case Profiles.create_profile(user.id) do
       {:ok, _profile} ->
         Logger.info("Created profile", user_id: user.id)
 
-        # Notify apps about successful registration via PubSub
-        PubSub.broadcast_user_registered(user, Keyword.fetch!(opts, :metadata))
+        # Notify apps about the completed registration
+        RegistrationAnnouncement.announce(user)
         :ok
 
       {:error, reason} ->
@@ -310,7 +361,9 @@ defmodule Tymeslot.Auth.Registration do
     {:ok, user}
   end
 
-  defp create_user(params) do
+  # The registration hook's job is enqueued in the same transaction, so the
+  # account never commits without it (and the terms acceptance it records).
+  defp create_user(params, metadata) do
     user_params = %{
       email: params["email"],
       password: params["password"],
@@ -321,21 +374,26 @@ defmodule Tymeslot.Auth.Registration do
 
     transaction_result =
       Repo.transaction(fn ->
-        case Config.user_queries_module().create_user(user_params) do
-          {:ok, user} ->
-            case AdminBootstrap.maybe_promote_first_user(user) do
-              {:ok, bootstrapped_user} -> bootstrapped_user
-              {:error, changeset} -> Repo.rollback(changeset)
-            end
-
-          {:error, changeset} ->
-            Repo.rollback(changeset)
+        with {:ok, user} <- Config.user_queries_module().create_user(user_params),
+             {:ok, bootstrapped_user} <- AdminBootstrap.maybe_promote_first_user(user),
+             :ok <- RegistrationAnnouncement.enqueue_hook(bootstrapped_user.id, metadata) do
+          bootstrapped_user
+        else
+          {:error, changeset} -> Repo.rollback(changeset)
         end
       end)
 
     case transaction_result do
       {:ok, user} ->
         {:ok, user}
+
+      {:error, {:registration_hook, reason}} ->
+        Logger.error("Could not enqueue the registration hook; account not created",
+          reason: LogFormat.reason(reason)
+        )
+
+        {:error, :registration_hook,
+         dgettext("auth", "Failed to create user account. Please try again.")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         if email_taken?(changeset),

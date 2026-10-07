@@ -114,7 +114,9 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Client do
     options = options(config)
     envelope = Soap.envelope(body)
 
-    with_breaker(url, fn -> post(url, envelope, headers, options) end)
+    with_breaker(url, Map.get(config, :skip_breaker, false), fn ->
+      post(url, envelope, headers, options)
+    end)
   end
 
   defp post(url, envelope, headers, options) do
@@ -136,10 +138,10 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Client do
   # A base URL with no parseable host resolves to a nil host, which
   # `CalendarCircuitBreaker.with_breaker/3` answers with the provider-level
   # breaker rather than by running unprotected.
-  defp with_breaker(url, fun) do
+  defp with_breaker(url, skip_breaker, fun) do
     host = CircuitBreakerHelpers.host_from_base_url(url)
 
-    CalendarCircuitBreaker.with_breaker(:exchange, [host: host], fun)
+    CalendarCircuitBreaker.with_breaker(:exchange, [host: host, skip_breaker: skip_breaker], fun)
   end
 
   # A 500 carrying anything other than a fault is the server failing without

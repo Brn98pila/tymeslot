@@ -16,9 +16,23 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   use Oban.Worker,
     queue: :calendar_events,
     max_attempts: 5,
-    unique: [period: 60, keys: [:calendar_integration_id, :graph_resource_id]]
+    unique: [
+      period: 60,
+      keys: [:calendar_integration_id, :graph_resource_id],
+      # Only a job still waiting to run absorbs a second notification for the
+      # same event: it fetches the event when it runs, so it reads the later
+      # change too. One that has fetched already (running or finished) must
+      # not swallow it, or a second edit within the minute never reaches the
+      # cache.
+      states: [:available, :scheduled, :retryable]
+    ]
 
   use Gettext, backend: TymeslotWeb.Gettext
+
+  # An open breaker or a rate limit is waited out with a snooze, which from
+  # Oban 2.24 costs no attempt; without a bound a provider that never
+  # recovers would keep this job snoozing for ever, with no alert.
+  @max_unavailable_snoozes 12
 
   require Logger
 
@@ -34,6 +48,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.RetryHelpers
+  alias Tymeslot.Workers.SnoozePolicy
   alias Tymeslot.Workers.SyncHealth
 
   # CalendarGrid enqueues Outlook jobs with only calendar_integration_id (no graph_resource_id).
@@ -63,12 +78,14 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
     {:discard, "graph_resource_id required — Outlook syncs are webhook-driven"}
   end
 
-  def perform(%Oban.Job{
-        args: %{
-          "calendar_integration_id" => integration_id,
-          "graph_resource_id" => graph_resource_id
-        }
-      }) do
+  def perform(
+        %Oban.Job{
+          args: %{
+            "calendar_integration_id" => integration_id,
+            "graph_resource_id" => graph_resource_id
+          }
+        } = job
+      ) do
     Logger.metadata(
       calendar_integration_id: integration_id,
       graph_resource_id: graph_resource_id
@@ -76,7 +93,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
 
     case CalendarIntegrationQueries.get(integration_id) do
       {:ok, integration} ->
-        InvalidEventReport.collect(fn -> sync_event(integration, graph_resource_id) end)
+        InvalidEventReport.collect(fn -> sync_event(integration, graph_resource_id, job) end)
 
       {:error, :not_found} ->
         Logger.warning("Calendar integration not found, discarding sync job",
@@ -94,7 +111,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   # Private helpers
   # ---------------------------------------------------------------------------
 
-  defp sync_event(integration, graph_resource_id) do
+  defp sync_event(integration, graph_resource_id, job) do
     result =
       AccessToken.with_access_token(integration, &OutlookCalendarAPI.refresh_token/1, fn token ->
         # Check for 404 (deleted event) and 401 BEFORE the circuit breaker so
@@ -121,6 +138,10 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
 
     result
     |> handle_sync_result(integration, graph_resource_id)
+    |> SnoozePolicy.bound(job,
+      max_snoozes: @max_unavailable_snoozes,
+      reason: "Outlook Calendar did not recover within the maximum wait"
+    )
     |> tap(&SyncHealth.record_outcome(integration, &1))
   end
 
@@ -204,9 +225,23 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
 
     case OutlookProvider.normalise_events([event], context) do
       {:ok, [_cal_event | _rest] = calendar_events} ->
-        Sync.persist_normalised_events(integration, calendar_events)
-        stamp_external_sync(integration)
-        :ok
+        # A cache write that failed is a cycle that did not sync: the job
+        # retries and health state counts it, rather than the sync being
+        # stamped as done over an event the cache never received.
+        case Sync.persist_normalised_events(integration, calendar_events) do
+          :ok ->
+            stamp_external_sync(integration)
+            :ok
+
+          {:error, reason} ->
+            Logger.error("Outlook event could not be written to the cache",
+              calendar_integration_id: integration.id,
+              graph_resource_id: graph_resource_id,
+              error: LogFormat.reason(reason)
+            )
+
+            {:error, :cache_write_failed}
+        end
 
       {:ok, []} ->
         Logger.warning("Outlook event could not be normalised; skipping",

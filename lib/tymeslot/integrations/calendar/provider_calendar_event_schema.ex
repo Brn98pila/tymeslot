@@ -91,6 +91,7 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema do
           sync_attempts: integer(),
           sync_last_attempt_at: DateTime.t() | nil,
           sync_last_error: String.t() | nil,
+          sync_deferred_since: DateTime.t() | nil,
           created_by_tymeslot: boolean(),
           ical_sequence: integer(),
           last_notified_state: map(),
@@ -169,6 +170,9 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema do
     field :sync_attempts, :integer, default: 0
     field :sync_last_attempt_at, :utc_datetime_usec
     field :sync_last_error, :string
+    # When a replay of the queued change first went unanswered, for as long
+    # as every replay since has; `nil` otherwise. See `OfflineQueue`.
+    field :sync_deferred_since, :utc_datetime_usec
 
     # Notification tracking
     field :ical_sequence, :integer, default: 0
@@ -219,6 +223,7 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema do
     :sync_attempts,
     :sync_last_attempt_at,
     :sync_last_error,
+    :sync_deferred_since,
     :created_by_tymeslot,
     :ical_sequence,
     :last_notified_state,

@@ -16,6 +16,7 @@ defmodule Tymeslot.Meetings.MeetingQueries do
   alias Tymeslot.Meetings.MeetingListQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
   alias Tymeslot.Meetings.MeetingState
+  alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Repo
 
   @doc "Creates a meeting."
@@ -80,6 +81,23 @@ defmodule Tymeslot.Meetings.MeetingQueries do
     case Repo.get_by(Meeting, uid: uid) do
       nil -> {:error, :not_found}
       meeting -> {:ok, meeting}
+    end
+  end
+
+  @doc "The username the organiser of the meeting with `uid` has now, if any."
+  @spec organizer_username_by_uid(String.t()) :: {:ok, String.t()} | {:error, :not_found}
+  def organizer_username_by_uid(uid) when is_binary(uid) do
+    query =
+      from(m in Meeting,
+        join: p in ProfileSchema,
+        on: p.user_id == m.organizer_user_id,
+        where: m.uid == ^uid and not is_nil(p.username) and p.username != "",
+        select: p.username
+      )
+
+    case Repo.one(query) do
+      nil -> {:error, :not_found}
+      username -> {:ok, username}
     end
   end
 
@@ -209,6 +227,41 @@ defmodule Tymeslot.Meetings.MeetingQueries do
   end
 
   @doc """
+  Moves a meeting to `"cancelled"`, atomically, unless it is already over.
+
+  Like `transition_from_awaiting_approval/2`, the guard is in the `WHERE`
+  clause rather than read-then-write: a guest cancelling from the email link,
+  the host cancelling from the dashboard and the external-deletion sync can
+  all act on the same meeting at once, each holding a copy read before the
+  others wrote. Exactly one of them changes the row and receives it; every
+  other gets `{:error, :already_cancelled}` and must not repeat the
+  cancellation's side effects. A meeting that completed or expired in the
+  meantime refuses the same way, since there is nothing left to cancel.
+
+  `changes` carries `cancelled_at` and, where there is one,
+  `cancellation_reason`; `status` is always set here. Bypasses the changeset,
+  as `update_all` does, so `updated_at` is set here too.
+  """
+  @spec transition_to_cancelled(String.t(), keyword()) ::
+          {:ok, Meeting.t()} | {:error, :already_cancelled}
+  def transition_to_cancelled(meeting_id, changes) when is_list(changes) do
+    now = DateTime.utc_now(:second)
+
+    query =
+      MeetingState.where_not_terminal(from(m in Meeting, where: m.id == ^meeting_id, select: m))
+
+    changes =
+      changes
+      |> Keyword.put(:status, "cancelled")
+      |> Keyword.put_new(:updated_at, now)
+
+    case Repo.update_all(query, set: changes) do
+      {1, [meeting]} -> {:ok, meeting}
+      {0, _none} -> {:error, :already_cancelled}
+    end
+  end
+
+  @doc """
   Held requests whose deadline has passed, oldest first.
 
   Backs the expiry sweep, which exists because a per-meeting scheduled job can
@@ -236,12 +289,13 @@ defmodule Tymeslot.Meetings.MeetingQueries do
 
   @doc """
   Updates a meeting's status transition fields only (`status`,
-  `cancelled_at`, `cancellation_reason`).
+  `cancelled_at`, `cancellation_reason`, `approval_requested_at`,
+  `approval_deadline_at`).
 
-  Used by cancellation flows instead of `update_meeting/2`: those touch
-  only these fields, and group meetings legitimately carry no
-  `attendee_name`/`attendee_email` — fields `Meeting.changeset/2` would
-  otherwise demand.
+  Used by cancellation, expiry and payment-confirmation flows instead of
+  `update_meeting/2`: those touch only these fields, and group meetings
+  legitimately carry no `attendee_name`/`attendee_email` (nor do some
+  older solo rows), fields `Meeting.changeset/2` would otherwise demand.
   """
   @spec update_meeting_status(Meeting.t(), map()) :: {:ok, Meeting.t()} | {:error, Changeset.t()}
   def update_meeting_status(%Meeting{} = meeting, attrs) when is_map(attrs) do

@@ -5,7 +5,7 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
   The per-bucket unit suites already exist:
 
     * `rate_limiter_auth_test.exs` — login bucket, case/whitespace
-      normalisation, AccountLockout integration.
+      normalisation, failed-login throttle integration.
     * `rate_limiter_multi_window_test.exs` — signup / verification /
       password-reset multi-window buckets.
     * `rate_limiter_dashboard_test.exs` et al. — dashboard buckets.
@@ -95,18 +95,17 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
       assert {:error, :rate_limited, _msg} = RateLimiter.check_auth_rate_limit(email_a, ip_a)
 
       # A fresh email signing up from a different IP is unaffected.
-      assert :ok = RateLimiter.check_signup_rate_limit(email_b, ip_b)
+      assert :ok = RateLimiter.check_signup_ip_rate_limit(ip_b)
+      assert :ok = RateLimiter.check_signup_recipient_rate_limit(email_b)
     end
 
     test "exhausting password-reset for one IP does not block OAuth initiation from the same IP" do
-      email = unique_email("reset-victim")
       ip = unique_ip("shared-ip")
 
       # Burn through the short password-reset window (5/hour).
-      for _i <- 1..5, do: RateLimiter.check_password_reset_rate_limit(email, ip)
+      for _i <- 1..5, do: RateLimiter.check_password_reset_ip_rate_limit(ip)
 
-      assert {:error, :rate_limited, _msg} =
-               RateLimiter.check_password_reset_rate_limit(email, ip)
+      assert {:error, :rate_limited, _msg} = RateLimiter.check_password_reset_ip_rate_limit(ip)
 
       # OAuth initiation has its own bucket and is still allowed.
       assert :ok = RateLimiter.check_oauth_initiation_rate_limit(ip)
