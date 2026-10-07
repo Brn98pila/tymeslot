@@ -84,6 +84,39 @@ defmodule Tymeslot.Integrations.Video.OAuthTokenManagerTest do
       assert result == {:ok, :refreshed}
     end
 
+    # Zoom rotates the refresh token on every refresh, so a caller whose copy
+    # predates a sibling's refresh holds one the provider has already retired.
+    test "refreshes with the refresh token stored on the row, not the caller's copy" do
+      user = insert(:user)
+
+      {:ok, integration} =
+        VideoIntegrationQueries.create(%{
+          user_id: user.id,
+          name: "Zoom",
+          provider: "zoom",
+          access_token: "expired-token",
+          refresh_token: "latest-db-refresh-token",
+          token_expires_at: DateTime.add(DateTime.utc_now(), -10, :second),
+          oauth_scope: "meeting:write:meeting"
+        })
+
+      config = %{
+        access_token: "expired-token",
+        refresh_token: "older-in-memory-refresh-token",
+        integration_id: integration.id,
+        user_id: user.id
+      }
+
+      hooks = %{
+        provider: :zoom,
+        refresh: fn received_config -> {:ok, received_config.refresh_token} end,
+        already_refreshed: fn _config, _decrypted -> {:ok, :already_refreshed} end
+      }
+
+      assert OAuthTokenManager.refresh_with_lock(config, hooks) ==
+               {:ok, "latest-db-refresh-token"}
+    end
+
     test "invokes :refresh when the integration vanished mid-flight" do
       config = %{
         access_token: "stale",

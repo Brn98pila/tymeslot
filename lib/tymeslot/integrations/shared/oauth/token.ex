@@ -8,13 +8,14 @@ defmodule Tymeslot.Integrations.Common.OAuth.Token do
 
   require Logger
 
-  alias Tymeslot.Clock
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Tokens
   alias Tymeslot.Integrations.CalendarManagement
-  alias Tymeslot.Integrations.Shared.Lock
+  alias Tymeslot.Integrations.Shared.OAuth.Refresh
+
+  @default_lock_timeout_ms 60_000
 
   @type integration :: map()
   @type decrypt_fun :: (integration() -> integration())
@@ -26,15 +27,12 @@ defmodule Tymeslot.Integrations.Common.OAuth.Token do
   @doc """
   Returns true if the integration token is valid with a buffer (in seconds).
 
-  Defaults to a 5 minute (300s) buffer to proactively refresh tokens.
+  Defaults to a 5 minute (300s) buffer to proactively refresh tokens. See
+  `Tymeslot.Integrations.Shared.OAuth.Refresh.valid?/2`.
   """
   @spec valid?(integration(), non_neg_integer()) :: boolean()
-  def valid?(integration, buffer_seconds \\ 300)
-  def valid?(%{token_expires_at: nil}, _buffer_seconds), do: false
-
-  def valid?(%{token_expires_at: expires_at}, buffer_seconds) do
-    DateTime.compare(expires_at, DateTime.add(Clock.utc_now(), buffer_seconds, :second)) == :gt
-  end
+  def valid?(integration, buffer_seconds \\ 300),
+    do: Refresh.valid?(Map.get(integration, :token_expires_at), buffer_seconds)
 
   @doc """
   Ensures a valid access token is available for the given integration.
@@ -44,89 +42,56 @@ defmodule Tymeslot.Integrations.Common.OAuth.Token do
     - :refresh_fun - REQUIRED function to refresh tokens, returns {:ok, {access, refresh, expires_at}} or {:error, ...}
     - :buffer_seconds - seconds before expiry to consider invalid (default: 300)
     - :persist - when true (default), persist refreshed tokens to storage when possible
+    - :refetch_fun - re-reads the integration by id under the lock
+    - :lock_timeout - how long to wait for the refresh lock (default: 60s)
 
   Returns {:ok, access_token} or {:error, reason}.
   """
-  @default_lock_timeout_ms 60_000
-
   @spec ensure_valid_access_token(integration(), keyword()) :: {:ok, String.t()} | {:error, any()}
   def ensure_valid_access_token(integration, opts) when is_map(integration) and is_list(opts) do
     decrypt_fun = Keyword.get(opts, :decrypt_fun, &Function.identity/1)
-    refresh_fun = Keyword.fetch!(opts, :refresh_fun)
     buffer_seconds = Keyword.get(opts, :buffer_seconds, 300)
-    persist? = Keyword.get(opts, :persist, true)
-    refetch_fun = Keyword.get(opts, :refetch_fun)
-    lock_timeout = Keyword.get(opts, :lock_timeout, @default_lock_timeout_ms)
 
     if valid?(integration, buffer_seconds) do
-      integration
-      |> decrypt_fun.()
-      |> then(fn decrypted ->
-        {:ok, Map.get(decrypted, :access_token) || Map.get(decrypted, "access_token")}
-      end)
+      {:ok, access_token(decrypt_fun.(integration))}
     else
-      refresh_and_persist(
-        integration,
-        refresh_fun,
-        persist?,
-        decrypt_fun,
-        buffer_seconds,
-        refetch_fun,
-        lock_timeout
-      )
+      refresh(integration, decrypt_fun, buffer_seconds, opts)
     end
   end
 
-  defp refresh_and_persist(
-         integration,
-         refresh_fun,
-         persist?,
-         decrypt_fun,
-         buffer_seconds,
-         refetch_fun,
-         lock_timeout
-       ) do
+  # A stale token is refreshed from the row re-read under the lock, not the
+  # caller's copy: a long job's copy can predate a reconnect flag, and the
+  # attributes written after the refresh depend on that flag.
+  defp refresh(integration, decrypt_fun, buffer_seconds, opts) do
     integration_id = Map.get(integration, :id) || Map.get(integration, "id") || :no_id
+    refresh_fun = Keyword.fetch!(opts, :refresh_fun)
+    refetch_fun = Keyword.get(opts, :refetch_fun)
+    persist? = Keyword.get(opts, :persist, true)
 
-    # The new tokens are written before the lock is released: a caller
-    # queued behind this one re-reads the row as soon as it gets the lock,
-    # and must find the refreshed expiry there rather than refresh again.
-    lock_result =
-      Lock.with_lock(
-        Tokens.refresh_lock_key(integration_id),
-        fn ->
-          # Re-fetch from DB and re-validate to avoid redundant refreshes
-          # when another caller already refreshed while we waited for the lock.
-          # A stale token is refreshed from the row just read, not the
-          # caller's copy: a long job's copy can predate a reconnect flag, and
-          # the attributes written after the refresh depend on that flag.
-          case maybe_refetch_valid_token(
-                 integration,
-                 refetch_fun,
-                 decrypt_fun,
-                 buffer_seconds,
-                 integration_id
-               ) do
-            {:ok, _access_token} = already_valid ->
-              already_valid
+    Refresh.run(
+      Tokens.refresh_lock_key(integration_id),
+      %{
+        fetch: fn -> {:ok, refetch(integration, refetch_fun, integration_id)} end,
+        already_valid: &{:ok, access_token(decrypt_fun.(&1))},
+        refresh: &refresh_fun.(&1),
+        persist: &handle_refresh_result({:ok, &2}, &1, persist?)
+      },
+      buffer_seconds: buffer_seconds,
+      lock_timeout: Keyword.get(opts, :lock_timeout, @default_lock_timeout_ms)
+    )
+  end
 
-            {:stale, current} ->
-              handle_refresh_result(refresh_fun.(current), current, persist?)
-          end
-        end,
-        mode: :blocking,
-        timeout: lock_timeout
-      )
+  defp refetch(integration, nil, _id), do: integration
 
-    case lock_result do
-      {:error, :lock_manager_not_started} ->
-        # Fallback: run without lock if Lock GenServer isn't running
-        handle_refresh_result(refresh_fun.(integration), integration, persist?)
-
-      result ->
-        result
+  defp refetch(integration, refetch_fun, id) do
+    case refetch_fun.(id) do
+      %{} = fresh -> fresh
+      _missing -> integration
     end
   end
+
+  defp access_token(decrypted),
+    do: Map.get(decrypted, :access_token) || Map.get(decrypted, "access_token")
 
   defp handle_refresh_result(result, integration, persist?) do
     case result do
@@ -165,24 +130,6 @@ defmodule Tymeslot.Integrations.Common.OAuth.Token do
 
       {:error, reason} ->
         {:error, reason}
-    end
-  end
-
-  defp maybe_refetch_valid_token(integration, nil, _decrypt_fun, _buffer_seconds, _id),
-    do: {:stale, integration}
-
-  defp maybe_refetch_valid_token(integration, refetch_fun, decrypt_fun, buffer_seconds, id) do
-    case refetch_fun.(id) do
-      %{} = fresh ->
-        if valid?(fresh, buffer_seconds) do
-          decrypted = decrypt_fun.(fresh)
-          {:ok, Map.get(decrypted, :access_token) || Map.get(decrypted, "access_token")}
-        else
-          {:stale, fresh}
-        end
-
-      _error ->
-        {:stale, integration}
     end
   end
 

@@ -12,6 +12,7 @@ defmodule Tymeslot.Integrations.Calendar.Tokens do
   alias Tymeslot.Integrations.Calendar.TokenUtils
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.Lock
+  alias Tymeslot.Integrations.Shared.OAuth.Refresh
 
   require Logger
 
@@ -85,8 +86,8 @@ defmodule Tymeslot.Integrations.Calendar.Tokens do
   token at once, and with a provider that rotates refresh tokens the later
   write could keep the older one.
   """
-  @spec refresh_lock_key(term()) :: {:calendar_token_refresh, term()}
-  def refresh_lock_key(integration_id), do: {:calendar_token_refresh, integration_id}
+  @spec refresh_lock_key(term()) :: Refresh.lock_key()
+  def refresh_lock_key(integration_id), do: Refresh.lock_key(:calendar, integration_id)
 
   @doc """
   The attributes to write after a successful refresh: the new tokens, and a
