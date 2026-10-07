@@ -20,6 +20,7 @@ defmodule TymeslotWeb.Live.Themes.ExpressJourneyTest do
   alias Tymeslot.CalendarMock
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Meetings.MeetingSchema
+  alias Tymeslot.MeetingTypes
   alias Tymeslot.Repo
   alias Tymeslot.TestMocks
   alias TymeslotWeb.BookingDriver
@@ -209,6 +210,68 @@ defmodule TymeslotWeb.Live.Themes.ExpressJourneyTest do
       assert has_element?(view, "#now-step [data-testid='journey-fixture-answer']", "Long Talk")
       assert live_assigns(view).meeting_type.name == "Long Talk"
     end
+
+    test "keeps its type against a crafted choice of another", %{conn: conn} do
+      %{profile: profile} =
+        seed_organiser(@theme_id, "express-direct-push",
+          types: [
+            [name: "Quick Chat", duration_minutes: 30],
+            [name: "Long Talk", duration_minutes: 60]
+          ]
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/#{profile.username}/long-talk")
+
+      push_duration(view, "quick-chat")
+
+      assert live_assigns(view).meeting_type.name == "Long Talk"
+      assert live_assigns(view).selected_duration == "long-talk"
+    end
+
+    test "of a private type keeps it against a crafted choice of another private one",
+         %{conn: conn} do
+      %{profile: profile, meeting_types: [_public, secret, hidden]} =
+        seed_organiser(@theme_id, "express-private-push",
+          types: [
+            [name: "Quick Chat", duration_minutes: 30],
+            [name: "Secret", is_private: true],
+            [name: "Hidden", is_private: true]
+          ]
+        )
+
+      {:ok, view, _html} =
+        live(conn, ~p"/#{profile.username}/#{MeetingTypes.effective_slug(secret)}")
+
+      assert live_assigns(view).meeting_type.id == secret.id
+
+      push_duration(view, MeetingTypes.effective_slug(hidden))
+
+      assert live_assigns(view).meeting_type.id == secret.id
+    end
+  end
+
+  describe "the profile page" do
+    test "still takes another type sent from the first screen", %{conn: conn} do
+      %{profile: profile} =
+        seed_organiser(@theme_id, "express-overview-push",
+          types: [
+            [name: "Quick Chat", duration_minutes: 30],
+            [name: "Long Talk", duration_minutes: 60]
+          ]
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/#{profile.username}")
+
+      push_duration(view, "long-talk")
+
+      assert live_assigns(view).meeting_type.name == "Long Talk"
+    end
+  end
+
+  # A `select_duration` push as a crafted client would send it, whether or
+  # not the moment renders a control for it.
+  defp push_duration(view, slug) do
+    view |> with_target("#now-step") |> render_click("select_duration", %{"duration" => slug})
   end
 
   defp weekend?(iso), do: iso |> Date.from_iso8601!() |> Date.day_of_week() >= 6
