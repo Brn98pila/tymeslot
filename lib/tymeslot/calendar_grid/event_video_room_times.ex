@@ -59,7 +59,8 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomTimes do
     rule = blank_to_nil(Map.get(event, :recurrence_rule))
 
     if recurring?(event) do
-      {:series, lobby(all_day, start), rule && series_end(rule, all_day, start, finish)}
+      {:series, lobby(all_day, start),
+       rule && series_end(rule, all_day, start, finish, series_zone(event, all_day))}
     else
       {:exact, lobby(all_day, start), one_off_end(all_day, finish)}
     end
@@ -124,12 +125,12 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomTimes do
   defp one_off_end(false, %DateTime{} = finish), do: truncate(finish)
   defp one_off_end(_all_day, _finish), do: nil
 
-  defp series_end(rule, all_day, start, finish) do
+  defp series_end(rule, all_day, start, finish, zone) do
     with {:ok, parsed} <- RRule.parse(rule),
          true <- bounded_rule?(parsed),
          %DateTime{} = start_dt <- to_datetime(start),
          %DateTime{} = end_dt <- to_datetime(finish),
-         %DateTime{} = last_start <- last_start_bound(parsed, start_dt, all_day) do
+         %DateTime{} = last_start <- last_start_bound(parsed, start_dt, all_day, zone) do
       duration = max(DateTime.diff(end_dt, start_dt, :second), 0)
 
       last_start
@@ -150,13 +151,15 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomTimes do
   # No occurrence can start after UNTIL, nor after COUNT repetitions of the
   # longest span one repetition can take. A weekday filter can push matching
   # days up to a week further apart per repetition.
-  defp last_start_bound(%RRule{until: until} = parsed, start, _all_day) when is_binary(until),
-    do: RRule.until_instant(parsed, start.time_zone)
+  defp last_start_bound(%RRule{until: until} = parsed, _start, _all_day, zone)
+       when is_binary(until),
+       do: RRule.until_instant(parsed, zone)
 
   defp last_start_bound(
          %RRule{count: count, freq: freq, interval: interval} = parsed,
          start,
-         all_day
+         all_day,
+         _zone
        )
        when is_integer(count) and count > 0 do
     if skipping_rule?(parsed, start, all_day) do
@@ -168,7 +171,7 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomTimes do
     end
   end
 
-  defp last_start_bound(_parsed, _start, _all_day), do: nil
+  defp last_start_bound(_parsed, _start, _all_day, _zone), do: nil
 
   # RFC 5545 skips a repetition that falls on a date the month or year does
   # not have, so COUNT repetitions can then span far more than COUNT periods.
@@ -192,6 +195,17 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomTimes do
 
   defp day_limit(day, true), do: day + 1
   defp day_limit(day, false), do: day
+
+  # The zone the series' UNTIL is read in, as the expander reads it: the
+  # event's own for a timed series, UTC (the zone an all-day series is
+  # stepped in) for an all-day one or a row without a known zone.
+  defp series_zone(_event, true = _all_day), do: "Etc/UTC"
+
+  defp series_zone(event, _all_day) do
+    zone = Map.get(event, :timezone)
+
+    if is_binary(zone) and match?({:ok, _now}, DateTime.now(zone)), do: zone, else: "Etc/UTC"
+  end
 
   defp to_datetime(%DateTime{} = datetime), do: datetime
   defp to_datetime(%Date{} = date), do: midnight(date)
