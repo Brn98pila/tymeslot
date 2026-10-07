@@ -7,6 +7,7 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ProviderCommon do
 
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Providers.CaldavCommon
   alias Tymeslot.Integrations.Calendar.Runtime.CalendarPathResolver
   alias Tymeslot.Integrations.Calendar.Selection
@@ -286,8 +287,8 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ProviderCommon do
     }
   end
 
-  defp normalize_provider(provider) when is_atom(provider), do: provider
-
-  defp normalize_provider(provider) when is_binary(provider),
-    do: String.to_existing_atom(provider)
+  defp normalize_provider(provider) do
+    {:ok, provider} = ProviderConfig.parse_known(provider)
+    provider
+  end
 end
