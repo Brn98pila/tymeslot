@@ -15,6 +15,7 @@ defmodule Tymeslot.Integrations.HealthCheck.AlertingTest do
   import Tymeslot.Factory
   import Tymeslot.WorkerTestHelpers, only: [insert_unhealthy_health_row: 4]
 
+  alias Tymeslot.Application, as: TymeslotApplication
   alias Tymeslot.Bookings.CalendarCheck
   alias Tymeslot.Infrastructure.AdminAlerts.AlertTypes
   alias Tymeslot.Infrastructure.AdminAlerts.PIIScrubber
@@ -337,18 +338,21 @@ defmodule Tymeslot.Integrations.HealthCheck.AlertingTest do
   end
 
   describe "recover_after configuration" do
-    test "is refused below one window, rather than reading every quiet hour as a recovery",
-         %{hour: hour} do
+    test "is refused below one window, rather than reading every quiet hour as a recovery" do
       for windows <- [0, -1, nil] do
-        with_config(:tymeslot, :integration_health_alerting,
-          window_hours: 1,
-          reauth_flags_threshold: 3,
-          recover_after: windows
-        )
+        with_config(:tymeslot, :integration_health_alerting, recover_after: windows)
 
-        assert_raise ArgumentError, ~r/recover_after/, fn ->
-          Alerting.check_signal(:reauth_flags, at(hour, 1))
-        end
+        assert_raise ArgumentError, ~r/recover_after/, fn -> Alerting.validate_config!() end
+      end
+    end
+
+    # The check runs at boot: a bad value stops the application starting,
+    # instead of raising inside every hourly alert run.
+    test "a value below one window stops the application starting" do
+      with_config(:tymeslot, :integration_health_alerting, recover_after: 0)
+
+      assert_raise ArgumentError, ~r/recover_after/, fn ->
+        TymeslotApplication.start(:normal, [])
       end
     end
 
@@ -359,6 +363,7 @@ defmodule Tymeslot.Integrations.HealthCheck.AlertingTest do
         recover_after: 1
       )
 
+      assert :ok = Alerting.validate_config!()
       assert :ok = Alerting.check_signal(:reauth_flags, at(hour, 1))
     end
   end

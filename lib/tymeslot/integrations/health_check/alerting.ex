@@ -356,21 +356,27 @@ defmodule Tymeslot.Integrations.HealthCheck.Alerting do
   defp hour_start(%DateTime{} = datetime),
     do: %{DateTime.truncate(datetime, :second) | minute: 0, second: 0}
 
-  # A signal can only recover after at least one quiet window: with fewer, the
-  # look back over the quiet windows covers nothing and every window under
-  # the threshold would read as a fresh recovery.
-  defp config do
-    config =
-      Keyword.merge(@defaults, Application.get_env(:tymeslot, :integration_health_alerting, []))
-
-    case Keyword.fetch!(config, :recover_after) do
+  @doc """
+  Refuses a configuration the hourly check could not run on: a signal can
+  only recover after at least one quiet window, and with fewer the look back
+  over the quiet windows covers nothing, so every window under the threshold
+  would read as a fresh recovery. Called at boot, so a bad value stops the
+  application starting instead of raising in every hourly alert run.
+  """
+  @spec validate_config!() :: :ok
+  def validate_config! do
+    case Keyword.fetch!(config(), :recover_after) do
       windows when is_integer(windows) and windows >= 1 ->
-        config
+        :ok
 
       other ->
         raise ArgumentError,
               "config :tymeslot, :integration_health_alerting, recover_after: must be a " <>
                 "positive integer, got: #{inspect(other)}"
     end
+  end
+
+  defp config do
+    Keyword.merge(@defaults, Application.get_env(:tymeslot, :integration_health_alerting, []))
   end
 end

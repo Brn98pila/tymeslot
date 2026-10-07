@@ -38,6 +38,7 @@ defmodule Tymeslot.Application do
   alias Tymeslot.Infrastructure.Logging.{FileSink, LogFormat, MetadataRedactor}
   alias Tymeslot.Integrations.Calendar.TokenRefreshJob
   alias Tymeslot.Integrations.{HealthCheck, Telemetry}
+  alias Tymeslot.Integrations.HealthCheck.Alerting
   alias Tymeslot.Integrations.Shared.Lock
   alias Tymeslot.Mailer.HealthCheck, as: MailerHealthCheck
   alias Tymeslot.Payments.Webhooks.SecretCheck
@@ -283,6 +284,10 @@ defmodule Tymeslot.Application do
     # start with one that could not run, rather than failing at first use.
     Router.validate_additional_hooks!()
     AdditionalDashboardPlugs.validate_config!()
+
+    # The integration health alert thresholds are read by an hourly job; a
+    # value it cannot run on is refused here rather than at every run.
+    Alerting.validate_config!()
   end
 
   # The startup checks that only work once the rest of the tree is up: the
