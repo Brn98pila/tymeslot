@@ -175,12 +175,6 @@ defmodule Tymeslot.Integrations.Video.Providers.CustomProvider do
   end
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def provider_type, do: :custom
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def display_name, do: "Custom Video Link"
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def connection_test_bucket, do: :custom
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour

@@ -11,18 +11,6 @@ defmodule Tymeslot.Integrations.Video.Providers.MiroTalkProviderTest do
 
   setup :verify_on_exit!
 
-  describe "provider_type/0" do
-    test "returns :mirotalk" do
-      assert MiroTalkProvider.provider_type() == :mirotalk
-    end
-  end
-
-  describe "display_name/0" do
-    test "returns correct display name" do
-      assert MiroTalkProvider.display_name() == "MiroTalk P2P"
-    end
-  end
-
   describe "config_schema/0" do
     test "returns schema with required fields" do
       schema = MiroTalkProvider.config_schema()

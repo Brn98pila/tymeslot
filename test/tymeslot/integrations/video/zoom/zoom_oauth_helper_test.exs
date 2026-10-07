@@ -4,7 +4,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
 
   import Mox
 
-  alias Tymeslot.Integrations.Common.OAuth.State
+  alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper
 
   setup :verify_on_exit!
@@ -75,9 +75,9 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
     end
   end
 
-  describe "exchange_code_for_tokens/3" do
+  describe "exchange_code_for_tokens/2" do
     test "exchanges code, fetches profile, and returns merged tokens" do
-      %{user_id: user_id, state: state, resp_body: resp_body} = oauth_test_data()
+      %{resp_body: resp_body} = oauth_test_data()
 
       profile_body =
         Jason.encode!(%{
@@ -100,22 +100,16 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
       end)
 
       assert {:ok, tokens} =
-               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb", state)
+               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb")
 
       assert tokens.access_token == "at-123"
       assert tokens.refresh_token == "rt-123"
-      assert tokens.user_id == user_id
       assert tokens.provider_account_id == "zoom-user-123"
       assert tokens.provider_account_email == "alice@example.com"
     end
 
-    test "rejects invalid state without making HTTP calls" do
-      assert {:error, _reason} =
-               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb", "bogus")
-    end
-
     test "fails when profile is missing id" do
-      %{state: state, resp_body: resp_body} = oauth_test_data()
+      %{resp_body: resp_body} = oauth_test_data()
       profile_body = Jason.encode!(%{"email" => "alice@example.com"})
 
       expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, _body, _headers, _opts ->
@@ -127,7 +121,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
       end)
 
       assert {:error, "Zoom profile missing unique ID"} =
-               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb", state)
+               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb")
     end
   end
 
@@ -177,15 +171,42 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
       assert {:ok, :needs_refresh} = ZoomOAuthHelper.validate_token(%{token_expires_at: soon})
     end
 
-    test "returns error when expiration info is missing" do
-      assert {:error, _reason} = ZoomOAuthHelper.validate_token(%{})
+    # A token whose lifetime was never stored is renewed, not refused.
+    test "asks for a refresh when the expiry is unknown" do
+      assert {:ok, :needs_refresh} = ZoomOAuthHelper.validate_token(%{})
+      assert {:ok, :needs_refresh} = ZoomOAuthHelper.validate_token(%{token_expires_at: nil})
+    end
+  end
+
+  describe "PKCE" do
+    @pkce [pkce: %{nonce: "flow-nonce", code_challenge: "flow-challenge"}]
+
+    test "the authorisation URL carries the flow's challenge, and its state the nonce" do
+      query =
+        ZoomOAuthHelper.authorization_url(123, "http://cb", @pkce)
+        |> URI.parse()
+        |> Map.fetch!(:query)
+        |> URI.decode_query()
+
+      assert query["code_challenge"] == "flow-challenge"
+      assert query["code_challenge_method"] == "S256"
+      assert {:ok, %{nonce: "flow-nonce"}} = State.validate(query["state"], "zoom-state-secret")
+    end
+
+    test "the code exchange presents the flow's verifier" do
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, body, _headers, _opts ->
+        assert URI.decode_query(body)["code_verifier"] == "flow-verifier"
+        {:ok, %{status: 400, body: ~s({"error":"invalid_grant"})}}
+      end)
+
+      assert {:error, _reason} =
+               ZoomOAuthHelper.exchange_code_for_tokens("code", "http://cb",
+                 code_verifier: "flow-verifier"
+               )
     end
   end
 
   defp oauth_test_data do
-    user_id = 123
-    state = State.generate(user_id, "zoom-state-secret")
-
     resp_body =
       Jason.encode!(%{
         "access_token" => "at-123",
@@ -194,6 +215,6 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
         "scope" => "meeting:write:meeting meeting:read:meeting user:read:user"
       })
 
-    %{user_id: user_id, state: state, resp_body: resp_body}
+    %{resp_body: resp_body}
   end
 end

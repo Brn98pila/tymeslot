@@ -6,7 +6,6 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelperTest do
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Outlook.OAuthHelper
-  alias Tymeslot.Integrations.Common.OAuth.State
   alias Tymeslot.Workers.RefreshOutlookCalendarWorker
   import Tymeslot.Factory
   import Mox
@@ -41,7 +40,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelperTest do
     test "creates new integration and performs discovery" do
       user = insert(:user)
       insert(:profile, user: user)
-      state = State.generate(user.id, "outlook-state")
+      state = %{user_id: user.id, integration_id: nil}
 
       expect_token_response("at-123", "rt-123")
 
@@ -50,7 +49,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelperTest do
         {:ok, [%{"id" => "cal1", "name" => "Calendar", "isDefaultCalendar" => true}]}
       end)
 
-      assert {:ok, integration} = OAuthHelper.handle_callback("code", state, "http://uri")
+      assert {:ok, integration} = OAuthHelper.handle_callback("code", "http://uri", state)
       assert integration.user_id == user.id
       assert integration.provider == "outlook"
 
@@ -73,7 +72,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelperTest do
     test "handles 3-tuple error from discovery without crashing" do
       user = insert(:user)
       insert(:profile, user: user)
-      state = State.generate(user.id, "outlook-state")
+      state = %{user_id: user.id, integration_id: nil}
 
       expect_token_response("at-ok", "rt-ok")
 
@@ -83,7 +82,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelperTest do
       end)
 
       # Should still succeed — discovery failure is non-fatal
-      assert {:ok, integration} = OAuthHelper.handle_callback("code", state, "http://uri")
+      assert {:ok, integration} = OAuthHelper.handle_callback("code", "http://uri", state)
       assert integration.provider == "outlook"
     end
   end
@@ -108,10 +107,10 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelperTest do
           calendar_list: [%{"id" => "cal1", "name" => "Calendar", "selected" => true}]
         )
 
-      state = State.generate(user.id, "outlook-state", paused.id)
+      state = %{user_id: user.id, integration_id: paused.id}
       expect_token_response("at-new", "rt-new", id_token("outlook-oid-paused"))
 
-      assert {:ok, reconnected} = OAuthHelper.handle_callback("code", state, "http://uri")
+      assert {:ok, reconnected} = OAuthHelper.handle_callback("code", "http://uri", state)
       assert {reconnected.id, reconnected.is_active} == {paused.id, true}
 
       assert Repo.reload!(profile).primary_calendar_integration_id == paused.id

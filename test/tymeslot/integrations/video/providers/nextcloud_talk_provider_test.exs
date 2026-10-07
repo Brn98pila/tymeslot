@@ -32,8 +32,6 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProviderTest do
 
   describe "identity" do
     test "declares its provider type, name and bucket" do
-      assert NextcloudTalkProvider.provider_type() == :nextcloud_talk
-      assert NextcloudTalkProvider.display_name() == "Nextcloud Talk"
       assert NextcloudTalkProvider.connection_test_bucket() == :nextcloud_talk
     end
   end
@@ -505,12 +503,14 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProviderTest do
       assert :ok = NextcloudTalkProvider.delete_meeting_room("abc123xy", @config)
     end
 
-    test "treats a conversation already gone as deleted" do
+    # `ProviderAdapter` counts it as deleted.
+    test "reports a conversation already gone as not found" do
       expect(HTTPClientMock, :request, fn :delete, _url, _body, _headers, _opts ->
         {:ok, %Req.Response{status: 404, body: failure(404, [])}}
       end)
 
-      assert :ok = NextcloudTalkProvider.delete_meeting_room("abc123xy", @config)
+      assert {:error, :meeting_not_found} =
+               NextcloudTalkProvider.delete_meeting_room("abc123xy", @config)
     end
 
     test "treats a conversation its owner marked to be preserved as done" do
@@ -522,7 +522,8 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProviderTest do
     end
 
     test "treats a token Talk would not route as no conversation, without a request" do
-      assert :ok = NextcloudTalkProvider.delete_meeting_room("../abc", @config)
+      assert {:error, :meeting_not_found} =
+               NextcloudTalkProvider.delete_meeting_room("../abc", @config)
     end
 
     test "reports a deletion the server refuses as a configuration error" do

@@ -14,18 +14,6 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProviderTest do
 
   setup :verify_on_exit!
 
-  describe "provider_type/0" do
-    test "returns :google_meet" do
-      assert GoogleMeetProvider.provider_type() == :google_meet
-    end
-  end
-
-  describe "display_name/0" do
-    test "returns correct display name" do
-      assert GoogleMeetProvider.display_name() == "Google Meet"
-    end
-  end
-
   describe "config_schema/0" do
     test "returns schema with required OAuth fields" do
       schema = GoogleMeetProvider.config_schema()

@@ -24,8 +24,8 @@ defmodule Tymeslot.Integrations.Calendar.ProviderConfig do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Infrastructure.Config
-  alias Tymeslot.Integrations.Providers.Families
   alias Tymeslot.Integrations.Shared.{ProviderConfigHelper, ProviderToggle}
+  alias Tymeslot.Integrations.Shared.Providers.Families
 
   # How far back and forward sync workers fetch events from providers.
   # Shared across all providers so the dashboard calendar shows a consistent range.

@@ -15,14 +15,11 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   alias Tymeslot.Integrations.Calendar.Google.PushChannel
   alias Tymeslot.Integrations.Calendar.HTTP
   alias Tymeslot.Integrations.Calendar.ProviderConfig
-  alias Tymeslot.Integrations.Calendar.Shared.AccessToken
   alias Tymeslot.Integrations.Calendar.Shared.ApiResponse
-  alias Tymeslot.Integrations.Common.OAuth.ErrorParser
-  alias Tymeslot.Integrations.Common.OAuth.Token, as: OAuthToken
-  alias Tymeslot.Integrations.Common.OAuth.TokenExchange
-  alias Tymeslot.Integrations.Google.Endpoints
-
-  import ErrorParser, only: [is_oauth_error_status: 1]
+  alias Tymeslot.Integrations.Calendar.Tokens
+  alias Tymeslot.Integrations.Shared.GoogleConfig
+  alias Tymeslot.Integrations.Shared.OAuth.Refresh
+  alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
 
   @base_url "https://www.googleapis.com/calendar/v3"
 
@@ -44,7 +41,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   @impl CalendarAPIBehaviour
   @spec list_calendars(CalendarIntegrationSchema.t()) :: {:ok, [map()]} | api_error()
   def list_calendars(%CalendarIntegrationSchema{} = integration) do
-    AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       with {:ok, response} <- make_request(:get, "/users/me/calendarList", token) do
         {:ok, response["items"] || []}
       end
@@ -70,7 +67,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
     # Outside the circuit breaker, as this read has always been: its live
     # callers (availability, the connection test) handle no
     # `{:error, :circuit_open}`.
-    AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       with {:ok, %{events: events}} <-
              EventListing.fetch_all(token, calendar_id, params, breaker: false),
            do: {:ok, events}
@@ -108,7 +105,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
     params = write_params(event_data)
     conference_requested? = EventMapper.requires_conference_data_version?(event_data)
 
-    AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       with {:ok, created} <-
              make_request_with_body(:post, events_path(calendar_id), token, body, params: params) do
         if conference_requested? and conference_pending?(created) do
@@ -173,7 +170,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
 
     google_event_id = EventMapper.uuid_to_google_event_id(event_id)
 
-    AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       make_request_with_body(
         :put,
         event_path(calendar_id, google_event_id),
@@ -211,7 +208,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
       color_id ->
         google_event_id = EventMapper.uuid_to_google_event_id(event_id)
 
-        AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+        Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
           make_request_with_body(
             :patch,
             event_path(calendar_id, google_event_id),
@@ -235,7 +232,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   def patch_event(%CalendarIntegrationSchema{} = integration, calendar_id, event_id, body) do
     google_event_id = EventMapper.uuid_to_google_event_id(event_id)
 
-    AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       make_request_with_body(
         :patch,
         event_path(calendar_id, google_event_id),
@@ -262,7 +259,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
         do: %{"sendUpdates" => "none", "conferenceDataVersion" => "1"},
         else: %{"sendUpdates" => "none"}
 
-    AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       make_request_with_body(:post, events_path(calendar_id), token, body, params: params)
     end)
   end
@@ -277,7 +274,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   @spec get_event(CalendarIntegrationSchema.t(), String.t(), String.t()) ::
           {:ok, calendar_event()} | api_error()
   def get_event(%CalendarIntegrationSchema{} = integration, calendar_id, event_id) do
-    AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       google_event_id = EventMapper.uuid_to_google_event_id(event_id)
       make_request(:get, event_path(calendar_id, google_event_id), token)
     end)
@@ -303,7 +300,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
       "timeMax" => DateTime.to_iso8601(end_time)
     }
 
-    AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       with {:ok, %{events: events}} <-
              EventListing.fetch_all(token, calendar_id, params, instances_of: master_id),
            do: {:ok, events}
@@ -322,7 +319,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   def list_series_events(%CalendarIntegrationSchema{} = integration, calendar_id, ical_uid) do
     params = %{"iCalUID" => ical_uid, "showDeleted" => "true"}
 
-    AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       with {:ok, %{events: events}} <- EventListing.fetch_all(token, calendar_id, params),
            do: {:ok, events}
     end)
@@ -335,7 +332,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   @spec delete_event(CalendarIntegrationSchema.t(), String.t(), String.t()) ::
           :ok | api_error()
   def delete_event(%CalendarIntegrationSchema{} = integration, calendar_id, event_id) do
-    AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       google_event_id = EventMapper.uuid_to_google_event_id(event_id)
 
       case make_request(:delete, event_path(calendar_id, google_event_id), token) do
@@ -363,7 +360,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
         event_id,
         destination_calendar_id
       ) do
-    AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       google_event_id = EventMapper.uuid_to_google_event_id(event_id)
 
       make_request(
@@ -395,7 +392,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
     calendar_id = integration.default_booking_calendar_id || "primary"
     sync_token = integration.google_sync_token
 
-    AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       # `syncToken` and `pageToken` travel together through every page of a
       # delta listing. That is what Google's own incremental-sync sample does
       # and what this code has always done; it looks redundant and is not.
@@ -435,7 +432,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
       "singleEvents" => "true"
     }
 
-    AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       EventListing.fetch_all(token, calendar_id, base)
     end)
   end
@@ -449,39 +446,15 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   def refresh_token(%CalendarIntegrationSchema{} = integration) do
     integration = CalendarIntegrationSchema.decrypt_oauth_tokens(integration)
 
-    with {:ok, client_id} <- google_client_id(),
-         {:ok, client_secret} <- google_client_secret() do
-      body = %{
-        "grant_type" => "refresh_token",
-        "refresh_token" => integration.refresh_token,
-        "client_id" => client_id,
-        "client_secret" => client_secret
-      }
-
-      case TokenExchange.refresh_access_token(Endpoints.token_url(), body,
-             fallback_refresh_token: integration.refresh_token,
-             log_context: [
-               integration_id: integration.id,
-               user_id: integration.user_id,
-               provider: :google
-             ]
-           ) do
-        {:ok, %{access_token: access_token, refresh_token: new_refresh, expires_at: expires_at}} ->
-          {:ok, {access_token, new_refresh, expires_at}}
-
-        {:error, {:http_error, status, body}} when is_oauth_error_status(status) ->
-          {:error, :unauthorized, ErrorParser.build_message("Token refresh failed", status, body)}
-
-        {:error, {:http_error, status, _body}} ->
-          {:error, :network_error, "HTTP #{status}"}
-
-        {:error, {:network_error, reason}} ->
-          {:error, :network_error, "Network error: #{inspect(reason)}"}
-      end
-    else
-      {:error, :misconfigured} ->
-        {:error, :authentication_error, "Google OAuth credentials not configured"}
-    end
+    ApiResponse.token_refresh(
+      TokenEndpoint.refresh_grant(GoogleConfig, integration.refresh_token, nil,
+        log_context: [
+          integration_id: integration.id,
+          user_id: integration.user_id,
+          provider: :google
+        ]
+      )
+    )
   end
 
   @doc """
@@ -490,7 +463,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   @impl CalendarAPIBehaviour
   @spec token_valid?(CalendarIntegrationSchema.t()) :: boolean()
   def token_valid?(%CalendarIntegrationSchema{} = integration) do
-    OAuthToken.valid?(integration, 300)
+    Refresh.valid?(integration.token_expires_at)
   end
 
   @doc """
@@ -545,23 +518,5 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
 
   defp handle_http_response(response, path) do
     ApiResponse.handle(response, path, label: "Google Calendar", custom: &ApiStatus.classify/1)
-  end
-
-  # --- Config helpers ---
-
-  defp google_client_id do
-    case Application.get_env(:tymeslot, :google_oauth)[:client_id] ||
-           System.get_env("GOOGLE_CLIENT_ID") do
-      nil -> {:error, :misconfigured}
-      value -> {:ok, value}
-    end
-  end
-
-  defp google_client_secret do
-    case Application.get_env(:tymeslot, :google_oauth)[:client_secret] ||
-           System.get_env("GOOGLE_CLIENT_SECRET") do
-      nil -> {:error, :misconfigured}
-      value -> {:ok, value}
-    end
   end
 end

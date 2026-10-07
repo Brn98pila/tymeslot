@@ -11,8 +11,6 @@ defmodule Tymeslot.Meetings do
 
   alias Tymeslot.Bookings.{Cancel, CancelSeat, Reschedule, RescheduleRequest}
 
-  alias Tymeslot.Infrastructure.Logging.LogFormat
-
   alias Tymeslot.Meetings.{
     BusyPeriods,
     CalendarEventLink,
@@ -32,6 +30,7 @@ defmodule Tymeslot.Meetings do
     ParticipantSchema,
     Recipient,
     SeatLookup,
+    VideoRoomAttachment,
     VideoRooms
   }
 
@@ -284,15 +283,28 @@ defmodule Tymeslot.Meetings do
 
         error
 
-      {:error, reason} = error ->
-        Logger.error("Failed to add video room",
-          meeting_id: meeting_id,
-          reason: LogFormat.reason(reason)
-        )
-
+      # `Tymeslot.Workers.VideoRoomWorker` logs a failure once, with what it
+      # does about it.
+      {:error, _reason} = error ->
         error
     end
   end
+
+  @doc """
+  Lets go of a video room the provider no longer has, and refreshes the
+  calendar event of a booking still to come so it stops carrying the dead
+  join link. See `Tymeslot.Meetings.VideoRoomAttachment.forget/2`.
+  """
+  @spec forget_video_room(MeetingSchema.t()) :: :ok
+  defdelegate forget_video_room(meeting), to: VideoRoomAttachment, as: :forget
+
+  @doc """
+  Clears a video room off `meeting`, writing nothing else, for a caller that
+  pairs the write with another in one transaction.
+  """
+  @spec clear_video_room(MeetingSchema.t()) ::
+          {:ok, MeetingSchema.t()} | {:error, Ecto.Changeset.t()}
+  defdelegate clear_video_room(meeting), to: VideoRoomAttachment, as: :clear
 
   # =====================================
   # Meeting List and Query Functions
