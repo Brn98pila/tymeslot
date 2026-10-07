@@ -157,6 +157,12 @@ defmodule TymeslotWeb.Themes.MarkupContractTest do
     do: answer_all(view, [], map_size(@answers) + 1)
 
   defp check_and_do(view, :attendee, _ctx, _assigns) do
+    # Answers asked beside the details are confirmed by the way on before
+    # the form shows.
+    if not has_element?(view, "form[data-fact='attendee']") and
+         has_element?(view, "[data-intent='continue']"),
+       do: BookingDriver.continue(view)
+
     forms =
       view |> render() |> Floki.parse_document!() |> Floki.find("form[data-fact='attendee']")
 
@@ -178,7 +184,8 @@ defmodule TymeslotWeb.Themes.MarkupContractTest do
   # is answered (one, on a page that asks one at a time; several, on one that
   # shows them together). Between rounds the walk takes the way on to the next
   # question; after the last answer it stops, leaving the moment to `walk/4`
-  # (a moment that also collects the attendee shows its form by then).
+  # (a moment that also collects the attendee shows its form then, or once
+  # the answers are confirmed with its way on).
   defp answer_all(_view, answered, 0),
     do: flunk("the questions moment kept asking after #{inspect(answered)}")
 

@@ -379,6 +379,12 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.You do
   form with the guest field, the approval notice for a type the organiser
   must accept, the submit control (named as every theme names it) and, on a
   paged journey, the way back.
+
+  A moment that collects the answers beside the attendee (Fixture Express)
+  first asks the meeting type's questions, one at a time through the shared
+  inputs, with Continue; the form follows once the visitor has confirmed the
+  answers with Continue past the last question (`Engine.confirmed?/1`), so an
+  optional question after a required one is still shown.
   """
   use TymeslotWeb, :live_component
 
@@ -391,22 +397,34 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.You do
   alias TymeslotWeb.Themes.Shared.Components.BookingForm
   alias TymeslotWeb.Themes.Shared.Components.GuestField
   alias TymeslotWeb.Themes.Shared.Components.LocationField
+  alias TymeslotWeb.Themes.Shared.CustomQuestions.Engine
+  alias TymeslotWeb.Themes.Shared.CustomQuestions.Events
+  alias TymeslotWeb.Themes.Shared.CustomQuestions.Inputs.Renderer, as: InputRenderer
   alias TymeslotWeb.Themes.Shared.GuestBooking
+  alias TymeslotWeb.Themes.Shared.Journey
   alias TymeslotWeb.Themes.Shared.Journey.Components, as: JourneyComponents
+  alias TymeslotWeb.Themes.Shared.Journey.Facts.Answers
+  alias TymeslotWeb.Themes.Shared.Journey.Moment
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
   alias TymeslotWeb.Themes.Shared.StepEvents
+
+  @question_events ~w(answer multi_toggle)
 
   @impl Phoenix.LiveComponent
   defdelegate update(assigns, socket), to: StepEvents
 
   @impl Phoenix.LiveComponent
-  defdelegate handle_event(event, params, socket), to: StepEvents
+  def handle_event(event, params, socket) when event in @question_events,
+    do: Events.handle_event(event, params, socket)
+
+  def handle_event(event, params, socket), do: StepEvents.handle_event(event, params, socket)
 
   @impl Phoenix.LiveComponent
   def render(assigns) do
-    assigns
-    |> assign(:paged, Markup.paged?(assigns))
-    |> Markup.moment_root(&body/1)
+    assigns = assign(assigns, paged: Markup.paged?(assigns), asking: asking?(assigns))
+    assigns = if assigns.asking, do: Events.assign_render_state(assigns), else: assigns
+
+    Markup.moment_root(assigns, &body/1)
   end
 
   defp body(assigns) do
@@ -421,6 +439,48 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.You do
     <p data-testid="journey-fixture-slot">
       {LocalizationHelpers.format_booking_datetime(@selected_date, @selected_time, @user_timezone)}
     </p>
+    <%= if @asking do %>
+      <div data-testid="journey-fixture-questions">
+        <p>{@definition["label"]}</p>
+        <InputRenderer.render definition={@definition} value={@value} myself={@myself} />
+        <p :if={@error} class="form-field__error">{@error}</p>
+        <button type="button" phx-click="next_step" phx-target={@myself} data-intent="continue">
+          Continue
+        </button>
+      </div>
+    <% else %>
+      <.details {assigns} />
+    <% end %>
+    <button
+      :if={@paged}
+      type="button"
+      phx-click="back_step"
+      phx-target={@myself}
+      data-intent="back"
+    >
+      Back
+    </button>
+    """
+  end
+
+  # This moment asks the questions itself when it collects the answers and
+  # this booking has some not yet confirmed; otherwise another moment asked
+  # them, or there are none.
+  defp asking?(%{journey: %Journey{} = journey, moment: key} = assigns) do
+    case Journey.moment(journey, key) do
+      %Moment{collects: collects} ->
+        :answers in collects and Answers.required?(assigns) and
+          not Engine.confirmed?(assigns.engine)
+
+      nil ->
+        false
+    end
+  end
+
+  defp asking?(_assigns), do: false
+
+  defp details(assigns) do
+    ~H"""
     <LocationField.location_field
       :if={BookingLocation.choice_required?(assigns)}
       location_options={@location_options}
@@ -452,14 +512,82 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.You do
     <button type="submit" form="booking-form" data-intent="submit" data-testid="submit-booking">
       {BookingLabels.submit_label(assigns[:is_rescheduling] || false, @meeting_type, "Book")}
     </button>
-    <button
-      :if={@paged}
-      type="button"
-      phx-click="back_step"
-      phx-target={@myself}
-      data-intent="back"
+    """
+  end
+end
+
+defmodule TymeslotWeb.Test.JourneyFixtures.Moments.Now do
+  @moduledoc """
+  Fixture Express's first screen: the soonest free times (`NextSlots`), the
+  meeting type already chosen by the moment's default (named, with its
+  approval pill, when the organiser offers only it), a switcher above the
+  times when the organiser has more than one type, and Continue.
+  """
+  use TymeslotWeb, :live_component
+
+  alias Tymeslot.Meetings.Approval
+  alias Tymeslot.MeetingTypes
+  alias TymeslotWeb.Test.JourneyFixtures.Markup
+  alias TymeslotWeb.Themes.Shared.Blocks.NextSlots
+  alias TymeslotWeb.Themes.Shared.Components.ApprovalNotice
+  alias TymeslotWeb.Themes.Shared.Journey.Components, as: JourneyComponents
+  alias TymeslotWeb.Themes.Shared.StepEvents
+
+  @impl Phoenix.LiveComponent
+  defdelegate update(assigns, socket), to: StepEvents
+
+  @impl Phoenix.LiveComponent
+  defdelegate handle_event(event, params, socket), to: StepEvents
+
+  @impl Phoenix.LiveComponent
+  def render(assigns), do: Markup.moment_root(assigns, &body/1)
+
+  defp body(assigns) do
+    ~H"""
+    <JourneyComponents.moment_heading
+      moment={@moment}
+      moment_state={@moment_state}
+      focus={assigns[:journey_focus]}
     >
-      Back
+      Next available
+    </JourneyComponents.moment_heading>
+    <%= if length(@meeting_types) > 1 do %>
+      <div role="group" aria-label="Meeting type">
+        <button
+          :for={meeting_type <- @meeting_types}
+          type="button"
+          data-testid="duration-option"
+          data-fact="meeting_type"
+          data-value={MeetingTypes.effective_slug(meeting_type)}
+          phx-click="select_duration"
+          phx-value-duration={MeetingTypes.effective_slug(meeting_type)}
+          phx-target={@myself}
+          aria-pressed={to_string(@selected_duration == MeetingTypes.effective_slug(meeting_type))}
+        >
+          {meeting_type.name}
+          <ApprovalNotice.pill :if={Approval.required?(meeting_type)} />
+        </button>
+      </div>
+    <% else %>
+      <p :if={@meeting_type} data-testid="journey-fixture-answer">
+        {@meeting_type.name}
+        <ApprovalNotice.pill :if={Approval.required?(@meeting_type)} />
+      </p>
+    <% end %>
+    <NextSlots.next_slots
+      id={"#{@moment}-slots"}
+      week_slots={@week_slots}
+      loading={@week_slots_loading}
+      error={@week_slots_error}
+      user_timezone={@user_timezone}
+      selected_date={@selected_date}
+      selected_time={@selected_time}
+      target={@myself}
+    />
+    <%!-- Enabled before a time is picked: `Paged` keeps the moment and
+         flashes why, as for any moment whose facts are not known. --%>
+    <button type="button" phx-click="next_step" phx-target={@myself} data-intent="continue">
+      Continue
     </button>
     """
   end

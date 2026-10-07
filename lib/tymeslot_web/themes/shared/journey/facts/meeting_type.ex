@@ -18,6 +18,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.MeetingType do
 
   alias Tymeslot.MeetingTypes
   alias TymeslotWeb.Live.Scheduling.AvailabilityHelpers
+  alias TymeslotWeb.Live.Scheduling.WeekSlots
   alias TymeslotWeb.Themes.Shared.Journey.Fact
   alias TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry
   alias TymeslotWeb.Themes.Shared.ReschedulePin
@@ -56,6 +57,10 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.MeetingType do
       |> StepEntry.maybe_assign_meeting_type(duration)
       # Trigger availability refresh when duration changes
       |> AvailabilityHelpers.fetch_month_availability_async()
+      # A week of times already on screen follows the new type too: on a
+      # moment collecting both (a time-first journey) there is no arrival at
+      # a schedule step to fetch it again. A no-op when no week is loaded.
+      |> WeekSlots.refetch()
 
     {:noreply, socket}
   end

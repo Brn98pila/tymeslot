@@ -53,6 +53,15 @@ config :tymeslot, :extra_themes, [
     module: TymeslotWeb.Test.JourneyFixtures.Talk.Theme
   },
   %{
+    id: "94",
+    key: :fixture_express,
+    name: "Fixture Express",
+    heading_style: :generic,
+    customization_spec: Tymeslot.Test.JourneyFixtureSpec,
+    status: :beta,
+    module: TymeslotWeb.Test.JourneyFixtures.Express.Theme
+  },
+  %{
     id: "99",
     key: :fixture,
     name: "Fixture",

@@ -19,10 +19,10 @@ defmodule Tymeslot.JourneyFixtureHelpers do
 
   @doc """
   A booking-ready organiser on `theme_id`: a profile in UTC, availability
-  every day from 09:00 to 17:00 up to 30 days ahead, an active calendar
-  integration, and the meeting types in `opts[:types]` (keyword lists for the
-  factory, plus `:custom_fields`, a list of question definitions), by default
-  one 30-minute "Quick Chat". `opts[:profile]` adds fields to the profile.
+  every day (or the ISO weekdays in `opts[:days]`) from 09:00 to 17:00 up to
+  30 days ahead, an active calendar integration, and the meeting types in
+  `opts[:types]` (keyword lists for the factory, plus `:custom_fields`, a
+  list of question definitions), by default one 30-minute "Quick Chat". `opts[:profile]` adds fields to the profile.
   Returns `%{user:, profile:, meeting_types:}`, the types in order.
   """
   @spec seed_organiser(String.t(), String.t(), keyword()) :: map()
@@ -45,7 +45,7 @@ defmodule Tymeslot.JourneyFixtureHelpers do
         buffer_minutes: 0
       )
 
-    for day_of_week <- 1..7 do
+    for day_of_week <- Keyword.get(opts, :days, 1..7) do
       insert(:weekly_availability,
         schedule: schedule,
         day_of_week: day_of_week,
@@ -101,6 +101,40 @@ defmodule Tymeslot.JourneyFixtureHelpers do
       timeout: 5000
     )
   end
+
+  @doc """
+  Sends the week view's `load_week` as its `phx-mounted` binding would, once
+  the month's availability is in (the landing on the first free day can move
+  the week), to the moment component `moment_selector` names, and waits for
+  the week.
+  """
+  @spec load_week(Phoenix.LiveViewTest.View.t(), String.t()) :: :ok
+  def load_week(view, moment_selector) do
+    await_availability(view)
+    view |> with_target(moment_selector) |> render_click("load_week", %{})
+    await_week(view)
+  end
+
+  @doc "Waits until the week on screen is the week last fetched, and its fetch is done."
+  @spec await_week(Phoenix.LiveViewTest.View.t()) :: :ok
+  def await_week(view) do
+    Eventually.eventually(
+      fn ->
+        render_async(view)
+
+        match?(%{week_slots: %{}, week_slots_loading: false}, live_assigns(view)) and
+          live_assigns(view).week_slots_start == live_assigns(view).current_week_start
+      end,
+      timeout: 5000
+    )
+
+    :ok
+  end
+
+  @doc "Every slot time the page offers (`data-fact=\"slot\"`), hidden ones included."
+  @spec slot_times(Phoenix.LiveViewTest.View.t()) :: [String.t()]
+  def slot_times(view),
+    do: view |> Page.attribute("[data-fact='slot']", "data-time") |> Enum.uniq()
 
   @doc "The first value of `attr` on the elements `selector` matches, or nil."
   @spec first_value(Phoenix.LiveViewTest.View.t(), String.t(), String.t()) :: String.t() | nil

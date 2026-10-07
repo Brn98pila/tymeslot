@@ -30,6 +30,10 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Wrapper do
   @spec talk(map()) :: Phoenix.LiveView.Rendered.t()
   def talk(assigns), do: shell(assigns, :fixture_talk, "journey-fixture-talk")
 
+  @doc "Fixture Express's wrapper."
+  @spec express(map()) :: Phoenix.LiveView.Rendered.t()
+  def express(assigns), do: shell(assigns, :fixture_express, "journey-fixture-express")
+
   defp shell(assigns, key, class) do
     {:ok, theme_id} = Catalog.key_to_id(key)
 
