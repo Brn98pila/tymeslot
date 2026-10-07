@@ -240,17 +240,21 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
   @spec handle_payment_paid(Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_payment_paid(socket) do
-    case socket.assigns[:awaiting_payment_meeting] do
-      %{} = meeting ->
+    case socket.assigns do
+      %{current_state: :awaiting_payment, awaiting_payment_meeting: %{} = meeting} ->
         socket =
           socket
           |> assign(:meeting_uid, meeting.uid)
           |> assign(:name, meeting.attendee_name)
           |> assign(:email, meeting.attendee_email)
+          |> Runtime.forget_payment_wait()
 
         {:noreply, Runtime.transition_to(socket, :confirmation, %{})}
 
-      _other ->
+      # Only the wait ends on a payment: a broadcast repeated once the page
+      # has moved on (the confirmation, a booking started again) moves
+      # nothing.
+      _not_waiting ->
         {:noreply, socket}
     end
   end

@@ -133,4 +133,26 @@ defmodule TymeslotWeb.Live.Themes.ScrollPaidReturnTest do
     refute has_element?(view, "#you-step")
     refute has_element?(view, "[data-testid='awaiting-payment']")
   end
+
+  # A repeated broadcast for the booking just paid must not move the next one.
+  @tag :capture_log
+  test "Book another forgets the paid meeting's payment", %{conn: conn, profile: profile} do
+    {view, meeting_id} = book_and_await_payment(conn, profile)
+    topic = "meeting_payment:#{meeting_id}"
+
+    Phoenix.PubSub.broadcast(Tymeslot.PubSub, topic, :paid)
+    _drain = :sys.get_state(view.pid)
+    assert has_element?(view, "[data-testid='confirmation-heading']")
+
+    BookingDriver.restart(view)
+
+    assert live_assigns(view).awaiting_payment_meeting == nil
+    refute view.pid in Enum.map(Registry.lookup(Tymeslot.PubSub, topic), &elem(&1, 0))
+
+    Phoenix.PubSub.broadcast(Tymeslot.PubSub, topic, :paid)
+    _drain = :sys.get_state(view.pid)
+
+    refute has_element?(view, "[data-testid='confirmation-heading']")
+    assert state(view, :offer) in ["current", "done"]
+  end
 end

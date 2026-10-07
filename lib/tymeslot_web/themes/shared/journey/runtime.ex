@@ -47,6 +47,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
   alias TymeslotWeb.Themes.Shared.Journey.Ambient
   alias TymeslotWeb.Themes.Shared.Journey.Moment
   alias TymeslotWeb.Themes.Shared.Journey.Progress
+  alias TymeslotWeb.Themes.Shared.PaymentReturn
   alias TymeslotWeb.Themes.Shared.ReschedulePin
 
   @type reply :: {:noreply, Socket.t()}
@@ -163,11 +164,27 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
 
     socket
     |> clear(Progress.dependents(:meeting_type, socket.assigns) -- [:meeting_type])
+    |> forget_payment_wait()
     |> GuestBooking.assign_defaults()
     |> ReschedulePin.abandon()
     |> assign(selected_date: nil, selected_time: nil)
     |> assign(:journey_opened, MapSet.new())
     |> transition_to(opening, %{})
+  end
+
+  @doc """
+  Forgets a paid booking's payment wait: the meeting it waited on and its
+  checkout link, and the page's subscription to that meeting's payment
+  broadcasts, so a repeated broadcast for it cannot move a later booking.
+  """
+  @spec forget_payment_wait(Socket.t()) :: Socket.t()
+  def forget_payment_wait(socket) do
+    case socket.assigns[:awaiting_payment_meeting] do
+      %{id: id} -> Phoenix.PubSub.unsubscribe(Tymeslot.PubSub, PaymentReturn.topic(id))
+      _none -> :ok
+    end
+
+    assign(socket, awaiting_payment_meeting: nil, awaiting_payment_checkout_url: nil)
   end
 
   @doc """
