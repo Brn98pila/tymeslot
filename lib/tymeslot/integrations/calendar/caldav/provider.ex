@@ -107,7 +107,8 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Provider do
       password: MapKeys.get(config, :password),
       calendar_paths: MapKeys.get(config, :calendar_paths) || [],
       writable_calendar_paths: MapKeys.get(config, :writable_calendar_paths),
-      verify_ssl: true
+      verify_ssl: true,
+      skip_breaker: MapKeys.get(config, :skip_breaker) || false
     }
 
     CaldavCommon.build_client(common_config, provider: detected_provider)

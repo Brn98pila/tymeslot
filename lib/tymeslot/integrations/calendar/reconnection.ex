@@ -55,12 +55,15 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
   @spec reconnect(integration(), params(), keyword()) :: reconnect_ok() | reconnect_error()
   def reconnect(%CalendarIntegrationSchema{} = integration, params, opts \\ []) do
     default_discover = fn provider, url, username, password ->
+      # Past the host breaker: a reconnect is how a server that recovered
+      # gets used again, and the breaker its outage opened would refuse it.
       Calendar.discover_and_filter_calendars(
         provider,
         url,
         username,
         password,
-        integration.user_id
+        integration.user_id,
+        skip_breaker: true
       )
     end
 

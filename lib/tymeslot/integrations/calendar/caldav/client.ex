@@ -31,7 +31,12 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Client do
     # Carried on the client but never applied: nothing below this module
     # builds a TLS option from it, so CalDAV always verifies. See the field
     # comment on `CalendarIntegrationSchema` before changing it.
-    verify_ssl: true
+    verify_ssl: true,
+    # Set only for a discovery a person asked for (validating a connection,
+    # reconnecting it): it has to reach a server whose host breaker its
+    # earlier failures opened, since that is how the breaker gets closed.
+    # Those paths are rate-limited per user already.
+    skip_breaker: false
   ]
 
   @type t :: %__MODULE__{
@@ -41,6 +46,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Client do
           provider: atom(),
           calendar_paths: [String.t()],
           writable_calendar_paths: [String.t()],
-          verify_ssl: boolean()
+          verify_ssl: boolean(),
+          skip_breaker: boolean()
         }
 end

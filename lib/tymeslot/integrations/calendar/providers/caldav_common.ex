@@ -48,7 +48,8 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
         password: config[:password],
         calendar_paths: calendar_paths,
         writable_calendar_paths: config[:writable_calendar_paths],
-        verify_ssl: true
+        verify_ssl: true,
+        skip_breaker: config[:skip_breaker] || false
       },
       provider: provider
     )
@@ -77,6 +78,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
         Map.get(config, :writable_calendar_paths) ||
           Map.get(config, "writable_calendar_paths") || [],
       verify_ssl: Map.get(config, :verify_ssl, true),
+      skip_breaker: Map.get(config, :skip_breaker, false),
       provider: provider
     }
   end

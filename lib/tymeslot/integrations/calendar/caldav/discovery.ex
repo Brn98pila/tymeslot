@@ -288,7 +288,11 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Discovery do
   defp with_discovery_breaker(client, opts, fun) when is_function(fun, 0) do
     provider = Map.get(client, :provider, :caldav)
     host = Base.extract_host_from_url(client.base_url)
-    opts = Keyword.put(opts, :host, host)
+
+    opts =
+      opts
+      |> Keyword.put(:host, host)
+      |> Keyword.put_new(:skip_breaker, Map.get(client, :skip_breaker, false))
 
     case CalendarCircuitBreaker.with_breaker(provider, opts, fun) do
       {:error, :circuit_breaker_error} = error ->
