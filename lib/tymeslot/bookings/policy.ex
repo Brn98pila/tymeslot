@@ -1,68 +1,17 @@
 defmodule Tymeslot.Bookings.Policy do
   @moduledoc """
   The booking rules: whether a meeting can still be cancelled, rescheduled or
-  asked to move, whether a booking may bring guests, and the scheduling
-  policy a booking time is checked against.
+  asked to move, and whether a booking may bring guests.
 
   The verdict predicates read the system clock (`Tymeslot.Clock`) and log
-  their blocked branches; `scheduling_config/2` reads the organiser's profile
-  and schedule. The attributes a booking is written with are assembled by
+  their blocked branches. The scheduling policy a booking time is checked
+  against is `Tymeslot.Availability.Schedules.booking_config/2`. The attributes a booking is written with are assembled by
   `Tymeslot.Bookings.MeetingAttributes`, and its links by
   `Tymeslot.Bookings.MeetingLinks`.
   """
-  alias Tymeslot.Availability.Schedules
   alias Tymeslot.Clock
-  alias Tymeslot.Profiles
-  alias Tymeslot.Profiles.ProfileQueries
 
   require Logger
-
-  @doc """
-  Scheduling policy for a booking: buffers, minimum notice, advance window and
-  the organiser's timezone.
-
-  The policy comes from the schedule the meeting type is booked against, so
-  server-side validation applies exactly the rules the offered slots were
-  computed from. A nil meeting type resolves the organiser's default schedule.
-  """
-  @spec scheduling_config(integer() | nil, map() | nil) :: %{
-          required(:schedule_id) => integer() | nil,
-          required(:buffer_before_minutes) => integer(),
-          required(:buffer_after_minutes) => integer(),
-          required(:min_advance_hours) => integer(),
-          required(:max_advance_booking_days) => integer(),
-          required(:owner_timezone) => String.t(),
-          required(:slot_interval_minutes) => pos_integer() | nil
-        }
-  def scheduling_config(nil, _meeting_type) do
-    nil
-    |> Schedules.config(nil)
-    |> Map.put(:owner_timezone, Profiles.get_default_timezone())
-  end
-
-  def scheduling_config(organizer_user_id, meeting_type) do
-    # `Profiles.get_profile_settings/1` already resolves a profile with no
-    # timezone to `Profiles.get_default_timezone()`, the same fallback the
-    # booking page applies, so a nil profile timezone resolves to one zone on
-    # both sides.
-    settings = Profiles.get_profile_settings(organizer_user_id)
-
-    organizer_user_id
-    |> resolve_schedule(meeting_type)
-    |> Schedules.config(meeting_type)
-    |> Map.put(:owner_timezone, settings.timezone)
-  end
-
-  defp resolve_schedule(_organizer_user_id, %{} = meeting_type) do
-    Schedules.resolve_for_meeting_type(meeting_type)
-  end
-
-  defp resolve_schedule(organizer_user_id, _meeting_type) do
-    case ProfileQueries.get_by_user_id(organizer_user_id) do
-      {:ok, profile} -> Schedules.get_default(profile.id)
-      {:error, :not_found} -> nil
-    end
-  end
 
   @typedoc "A meeting record with the fields required by the policy checks."
   @type meeting_record :: %{

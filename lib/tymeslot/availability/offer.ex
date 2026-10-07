@@ -6,7 +6,7 @@ defmodule Tymeslot.Availability.Offer do
   date (`slots_for_date/3`), and which days in a range have any free time at
   all (`days_in_range/4`). Both build their rules from `config/4`, which rests
   on `Tymeslot.Availability.Schedules.config/2`, the same rules the booking
-  submit re-checks against (`Tymeslot.Bookings.Policy.scheduling_config/2`).
+  submit re-checks against (`Tymeslot.Bookings.Schedules.booking_config/2`).
   A time offered here is therefore a time the submit accepts.
 
   For a group meeting type the offer is seat-aware: each time carries how

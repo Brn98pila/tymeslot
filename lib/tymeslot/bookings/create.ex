@@ -5,6 +5,7 @@ defmodule Tymeslot.Bookings.Create do
   """
 
   alias Tymeslot.Availability.Offer
+  alias Tymeslot.Availability.Schedules
 
   alias Tymeslot.Bookings.{
     Activation,
@@ -328,7 +329,7 @@ defmodule Tymeslot.Bookings.Create do
   # lookup it cannot use), and handed to the three checks that need it: the
   # booking window, the schedule's own slots and the calendar conflict check.
   defp scheduling_config(booking_data) do
-    Policy.scheduling_config(
+    Schedules.booking_config(
       Map.get(booking_data, :organizer_user_id),
       Map.get(booking_data, :meeting_type)
     )

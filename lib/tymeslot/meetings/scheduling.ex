@@ -11,7 +11,7 @@ defmodule Tymeslot.Meetings.Scheduling do
   require Logger
 
   alias Ecto.Changeset
-  alias Tymeslot.Bookings.Policy
+  alias Tymeslot.Availability.Schedules
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Meetings.BookingLimits
   alias Tymeslot.Meetings.BookingLimits.Checker
@@ -339,7 +339,7 @@ defmodule Tymeslot.Meetings.Scheduling do
     meeting_type = fetch_meeting_type(meeting_type_id, organizer_user_id)
 
     %{buffer_before_minutes: buffer_before, buffer_after_minutes: buffer_after} =
-      Policy.scheduling_config(organizer_user_id, meeting_type)
+      Schedules.booking_config(organizer_user_id, meeting_type)
 
     {buffer_before, buffer_after}
   end

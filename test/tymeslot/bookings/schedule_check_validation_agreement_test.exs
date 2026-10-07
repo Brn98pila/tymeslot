@@ -18,6 +18,7 @@ defmodule Tymeslot.Bookings.ScheduleCheckValidationAgreementTest do
   @moduletag :bookings
 
   alias Tymeslot.Availability.Calculate
+  alias Tymeslot.Availability.Schedules
   alias Tymeslot.Bookings.{Policy, ScheduleCheck, Validation}
   alias Tymeslot.Test.ClockHelpers
 
@@ -37,7 +38,7 @@ defmodule Tymeslot.Bookings.ScheduleCheckValidationAgreementTest do
 
       config =
         user.id
-        |> Policy.scheduling_config(nil)
+        |> Schedules.booking_config(nil)
         |> Map.put(:min_advance_hours, 3)
         |> Map.put(:max_advance_booking_days, 365)
 
@@ -74,7 +75,7 @@ defmodule Tymeslot.Bookings.ScheduleCheckValidationAgreementTest do
 
       config =
         user.id
-        |> Policy.scheduling_config(nil)
+        |> Schedules.booking_config(nil)
         |> Map.put(:min_advance_hours, 3)
         |> Map.put(:max_advance_booking_days, 365)
 

@@ -52,6 +52,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
 
   require Logger
 
+  alias Tymeslot.Availability.Schedules
   alias Tymeslot.Bookings.BuildParams
   alias Tymeslot.Bookings.CalendarCheck
   alias Tymeslot.Bookings.CalendarJobs
@@ -93,7 +94,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
          :ok <- ensure_same_organizer(old_meeting, organizer_user_id),
          :ok <- Policy.can_reschedule_meeting?(old_meeting) do
       meeting_type = resolve_meeting_type(old_meeting)
-      config = Policy.scheduling_config(old_meeting.organizer_user_id, meeting_type)
+      config = Schedules.booking_config(old_meeting.organizer_user_id, meeting_type)
       guest_emails = guest_emails(participant)
 
       with :ok <- ensure_group_type(meeting_type),

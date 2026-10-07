@@ -8,10 +8,10 @@ defmodule Tymeslot.Bookings.MeetingAttributes do
   meeting type, calendar and video integrations along the way.
   """
 
+  alias Tymeslot.Availability.Schedules
   alias Tymeslot.Bookings.BookingTitle
   alias Tymeslot.Bookings.BuildParams
   alias Tymeslot.Bookings.MeetingLinks
-  alias Tymeslot.Bookings.Policy
   alias Tymeslot.Clock
   alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Integrations.Calendar.Events, as: CalendarEvents
@@ -97,7 +97,7 @@ defmodule Tymeslot.Bookings.MeetingAttributes do
     {org_name, org_email, org_username} = get_organizer_details(organizer_user_id)
 
     # Resolve attendee timezone
-    config = Policy.scheduling_config(organizer_user_id, meeting_type_record)
+    config = Schedules.booking_config(organizer_user_id, meeting_type_record)
     user_timezone = params.user_timezone || config.owner_timezone
 
     # Get calendar integration info

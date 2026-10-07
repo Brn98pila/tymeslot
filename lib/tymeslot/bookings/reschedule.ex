@@ -38,6 +38,7 @@ defmodule Tymeslot.Bookings.Reschedule do
     Validation
   }
 
+  alias Tymeslot.Availability.Schedules
   alias Tymeslot.Clock
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Logging.LogFormat
@@ -120,7 +121,7 @@ defmodule Tymeslot.Bookings.Reschedule do
              organizer_user_id,
              original_meeting.duration
            ),
-         config <- Policy.scheduling_config(original_meeting.organizer_user_id, meeting_type),
+         config <- Schedules.booking_config(original_meeting.organizer_user_id, meeting_type),
          {:ok, new_times} <-
            Validation.prepare_new_times(new_params, original_meeting, meeting_type, config),
          :ok <- verify_calendar_free(original_meeting, new_times, config),
