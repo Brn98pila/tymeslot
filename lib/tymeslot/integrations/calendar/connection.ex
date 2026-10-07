@@ -54,11 +54,14 @@ defmodule Tymeslot.Integrations.Calendar.Connection do
     # Reaches `Discovery` directly rather than through `probe/3` — metering
     # happens at the `Discovery` funnel itself, charged to the acting user,
     # so no second charge is needed here. Past the host breaker, which an
-    # earlier outage may have opened: a person is checking whether the server
-    # is back, and only a request that reaches it can say so.
+    # earlier outage may have opened, and past the discovery cache: a person
+    # is checking whether the server is back, and only a request that
+    # reaches it can say so. A cached answer would report success, and close
+    # the breaker, for a server nobody has asked.
     case Discovery.discover_calendars(provider_atom, client_config,
            actor: {:user, user_id},
-           skip_breaker: true
+           skip_breaker: true,
+           force_refresh: true
          ) do
       {:ok, _result} ->
         reset_host_breaker(integration)

@@ -191,6 +191,37 @@ defmodule Tymeslot.Integrations.Calendar.ConnectionBreakerResetTest do
     assert %{status: :closed} = CalendarCircuitBreaker.status(:owncloud, host)
   end
 
+  # Discovery answers from a cache for a while. A check served from it never
+  # reached the server, so it can say nothing about whether the server is
+  # back, and must not close the breaker as though it had.
+  test "a connection check asks the server, not an earlier discovery's cached answer", %{
+    integration: integration,
+    host: host
+  } do
+    stub_discovery([@calendar_path])
+
+    assert {:ok, [_calendar]} =
+             Discovery.discover_calendars(
+               :caldav,
+               %{
+                 base_url: integration.base_url,
+                 username: integration.username,
+                 password: integration.password
+               },
+               actor: {:user, integration.user_id},
+               skip_breaker: true
+             )
+
+    stub(Tymeslot.HTTPClientMock, :request, fn _method, _url, _body, _headers, _opts ->
+      {:ok, %Req.Response{status: 503, body: ""}}
+    end)
+
+    assert {:error, :network_error} =
+             Connection.validate_connection(integration, integration.user_id)
+
+    assert %{status: :open} = CalendarCircuitBreaker.status(:nextcloud, host)
+  end
+
   test "a connection test that fails leaves the breaker open", %{
     integration: integration,
     host: host
