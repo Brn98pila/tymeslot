@@ -104,7 +104,7 @@ defmodule TymeslotWeb.AccountLiveDeleteTest do
     view = open_modal(conn)
     html = render(view)
     assert html =~ "deleted immediately"
-    refute html =~ "Your booking page is offline"
+    refute html =~ "your booking page is offline"
 
     result = submit(view, %{current_password: "Password123!"})
 

@@ -25,6 +25,12 @@ defmodule Tymeslot.Integrations.Video.AccountCleanupTest do
     )
   end
 
+  defp flip_last_byte(binary) do
+    size = byte_size(binary) - 1
+    <<head::binary-size(^size), last>> = binary
+    head <> <<Bitwise.bxor(last, 1)>>
+  end
+
   test "revokes a Google Meet grant with its refresh token" do
     user = insert(:user)
     oauth_video(user, "google_meet", "meet-access", "meet-refresh")
@@ -110,6 +116,36 @@ defmodule Tymeslot.Integrations.Video.AccountCleanupTest do
       assert AccountCleanup.run(user.id) == :ok
 
       assert_received {:revoke, "https://oauth2.googleapis.com/revoke", "token=meet-refresh"}
+      LogCapture.await_log("video grant revocation failed")
+    end
+
+    test "an integration whose credentials no longer decrypt does not stop the next one",
+         %{user: user} do
+      # Ciphertext the current key cannot open, as after a lost key.
+      unreadable = flip_last_byte(Encryption.encrypt("meet-refresh-under-an-old-key"))
+      assert Encryption.decrypt_with_status(unreadable) == {:error, :requires_reencryption}
+
+      insert(:video_integration,
+        user: user,
+        name: "A unreadable",
+        provider: "google_meet",
+        access_token_encrypted: unreadable,
+        refresh_token_encrypted: unreadable
+      )
+
+      oauth_video(user, "google_meet", "meet-access", "meet-refresh", "B meet")
+
+      test_pid = self()
+
+      stub(Tymeslot.HTTPClientMock, :post, fn url, body, _headers, _opts ->
+        send(test_pid, {:revoke, url, body})
+        {:ok, %Req.Response{status: 200, body: ""}}
+      end)
+
+      assert AccountCleanup.run(user.id) == :ok
+
+      assert_received {:revoke, "https://oauth2.googleapis.com/revoke", "token=meet-refresh"}
+      refute_received {:revoke, _url, _body}
       LogCapture.await_log("video grant revocation failed")
     end
 
