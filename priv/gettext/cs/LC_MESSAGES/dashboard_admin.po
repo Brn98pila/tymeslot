@@ -639,11 +639,6 @@ msgstr "Obecné"
 
 #: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
-msgid "Cannot delete the last admin. Promote someone else first."
-msgstr "Posledního správce nelze smazat. Nejprve udělejte správcem někoho jiného."
-
-#: lib/tymeslot_web/live/admin_live/user_actions.ex
-#, elixir-autogen, elixir-format
 msgid "Could not delete user."
 msgstr "Uživatele se nepodařilo smazat."
 
@@ -701,3 +696,8 @@ msgstr "Čeká na smazání"
 #, elixir-autogen, elixir-format
 msgid "No other admin can sign in. Make sure another admin can sign in before demoting yourself."
 msgstr "Žádný jiný správce se nemůže přihlásit. Než si oprávnění odeberete, zajistěte, aby se mohl přihlásit jiný správce."
+
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
+#, elixir-autogen, elixir-format
+msgid "Cannot delete this admin: no other admin can sign in. Make sure another admin can sign in first."
+msgstr "Tohoto správce nelze smazat: žádný jiný správce se nemůže přihlásit. Nejprve zajistěte, aby se mohl přihlásit jiný správce."

@@ -172,7 +172,11 @@ defmodule TymeslotWeb.AdminLive.UserActions do
   end
 
   defp delete_error_message(:last_admin),
-    do: dgettext("dashboard_admin", "Cannot delete the last admin. Promote someone else first.")
+    do:
+      dgettext(
+        "dashboard_admin",
+        "Cannot delete this admin: no other admin can sign in. Make sure another admin can sign in first."
+      )
 
   defp delete_error_message(reason) when reason in [:not_found, :forbidden, :admin_ui_disabled],
     do: role_change_error_message(:delete, reason)

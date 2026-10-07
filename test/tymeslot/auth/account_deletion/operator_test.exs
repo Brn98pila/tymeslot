@@ -100,4 +100,12 @@ defmodule Tymeslot.Auth.AccountDeletion.OperatorTest do
     assert Auth.delete_account_now(:cli, only_admin.id) == {:error, :last_admin}
     assert {:ok, _pending} = Auth.delete_account_now(:cli, only_admin.id, force: true)
   end
+
+  test "an admin nobody can sign in with does not count towards the last admin" do
+    target = insert(:user, is_admin: true)
+    _unverified = insert(:unverified_user, is_admin: true)
+
+    assert Auth.delete_account_now(:cli, target.id) == {:error, :last_admin}
+    refute Repo.reload!(target).deletion_scheduled_at
+  end
 end

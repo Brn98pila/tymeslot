@@ -7,8 +7,8 @@ defmodule Tymeslot.Auth.AccountDeletion.Operator do
   re-read inside the transaction, so a stale struct does not count, and the
   admins are locked, so two concurrent deletions cannot remove the last
   admin between them. An admin can delete neither themselves (their own
-  account settings do that, with re-authentication) nor the last admin;
-  `:cli` may delete the last admin only with `force: true`, as with
+  account settings do that, with re-authentication) nor the last admin
+  who can sign in; `:cli` may delete that admin only with `force: true`, as with
   `Tymeslot.Release.demote_admin/2`. The admin UI switch gates admin actors
   only, so operators of an install without the admin UI can still use the
   release shell.
@@ -89,8 +89,12 @@ defmodule Tymeslot.Auth.AccountDeletion.Operator do
   defp refuse_self(%UserSchema{id: id}, %UserSchema{id: id}), do: {:error, :self}
   defp refuse_self(_actor, _target), do: :ok
 
-  defp refuse_last_admin(%UserSchema{is_admin: true}, false) do
-    if AdminUserQueries.count_admins() <= 1, do: {:error, :last_admin}, else: :ok
+  # The same rule as demotion: an admin row nobody can sign in with does not
+  # count, so deleting the only admin who can still sign in is refused.
+  defp refuse_last_admin(%UserSchema{is_admin: true} = target, false) do
+    if AdminRoles.remaining_signin_capable_admins?(target),
+      do: :ok,
+      else: {:error, :last_admin}
   end
 
   defp refuse_last_admin(_target, _force?), do: :ok

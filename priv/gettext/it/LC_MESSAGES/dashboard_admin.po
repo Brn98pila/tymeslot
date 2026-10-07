@@ -639,11 +639,6 @@ msgstr "Generale"
 
 #: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
-msgid "Cannot delete the last admin. Promote someone else first."
-msgstr "Impossibile eliminare l'ultimo amministratore. Promuovi prima un altro utente ad amministratore."
-
-#: lib/tymeslot_web/live/admin_live/user_actions.ex
-#, elixir-autogen, elixir-format
 msgid "Could not delete user."
 msgstr "Impossibile eliminare l'utente."
 
@@ -701,3 +696,8 @@ msgstr "Eliminazione in sospeso"
 #, elixir-autogen, elixir-format
 msgid "No other admin can sign in. Make sure another admin can sign in before demoting yourself."
 msgstr "Nessun altro amministratore può accedere. Assicurati che un altro amministratore possa accedere prima di rimuovere il tuo ruolo."
+
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
+#, elixir-autogen, elixir-format
+msgid "Cannot delete this admin: no other admin can sign in. Make sure another admin can sign in first."
+msgstr "Impossibile eliminare questo amministratore: nessun altro amministratore può accedere. Assicurati prima che un altro amministratore possa accedere."
