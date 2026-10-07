@@ -554,6 +554,20 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRuleTest do
              ) == "FREQ=WEEKLY;BYDAY=TU;X-NAME=kept"
     end
 
+    test "drops a weekly rule's BYSETPOS once the editor gives its days" do
+      assert RRule.build(%{freq: :weekly, by_day: [:mo, :we, :fr]},
+               keep: "FREQ=WEEKLY;BYDAY=MO,WE;BYSETPOS=1"
+             ) == "FREQ=WEEKLY;BYDAY=MO,WE,FR"
+
+      assert RRule.build(%{freq: :weekly}, keep: "FREQ=WEEKLY;BYDAY=MO,WE;BYSETPOS=1") ==
+               "FREQ=WEEKLY"
+    end
+
+    test "never keeps a BYSETPOS with no other BY part to pick among" do
+      assert RRule.build(%{freq: :monthly}, keep: "FREQ=MONTHLY;BYSETPOS=-1;X-NAME=kept") ==
+               "FREQ=MONTHLY;X-NAME=kept"
+    end
+
     test "drops the old period's BY parts when the frequency changes" do
       assert RRule.build(%{freq: :weekly, count: 4},
                keep: "FREQ=MONTHLY;BYDAY=2TU;BYMONTHDAY=8;BYHOUR=9;WKST=SU;X-NAME=kept"

@@ -201,11 +201,17 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRule do
     - `:timezone` — the event's timezone, used to resolve a timed `UNTIL`.
       Defaults to `nil`, which ends the day in UTC.
     - `:keep` — the rule being edited, or `nil`. The parts of it the editor
-      does not show are kept: `WKST` and any part `parse/1` does not follow
-      always, and, while the frequency stays the same, `BYMONTH`,
-      `BYMONTHDAY`, `BYSETPOS` and (for any frequency but weekly, whose
-      weekdays the editor shows) `BYDAY`. A rule that changes frequency drops
-      the `BY` parts it was filtered by, which belonged to the old period.
+      does not show are kept on top of the options:
+        * always, `WKST` and every part that is not a `BY` part;
+        * while the frequency stays the same, every `BY` part too
+          (`BYMONTH`, `BYMONTHDAY`, `BYDAY`, `BYSETPOS`, and ones `parse/1`
+          does not follow such as `BYHOUR`), except that a weekly rule takes
+          its `BYDAY` from the options, since the editor shows its weekdays,
+          and drops its `BYSETPOS`, which picked among the old days;
+        * a rule that changes frequency drops every `BY` part, which
+          belonged to the old period.
+      A `BYSETPOS` left with no other `BY` part to pick among is dropped, as
+      RFC 5545 §3.3.10 allows it only beside one.
   """
   @spec build(opts(), keyword()) :: String.t()
   def build(opts, extra \\ []) do
@@ -435,19 +441,28 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRule do
 
   defp keep_parts(built, kept) when is_binary(kept) do
     case parse(kept) do
+      {:ok, %{freq: :weekly} = kept} when built.freq == :weekly ->
+        without_lone_set_pos(%{
+          built
+          | by_month: kept.by_month,
+            by_month_day: kept.by_month_day,
+            week_start: kept.week_start,
+            other: kept.other
+        })
+
       {:ok, %{freq: freq} = kept} when freq == built.freq ->
-        %{
+        without_lone_set_pos(%{
           built
           | by_month: kept.by_month,
             by_month_day: kept.by_month_day,
             by_set_pos: kept.by_set_pos,
-            by_day: if(freq == :weekly, do: built.by_day, else: kept.by_day),
+            by_day: kept.by_day,
             week_start: kept.week_start,
             other: kept.other
-        }
+        })
 
       {:ok, kept} ->
-        other = Enum.reject(kept.other, fn {name, _value} -> String.starts_with?(name, "BY") end)
+        other = Enum.reject(kept.other, fn {name, _value} -> by_part?(name) end)
         %{built | week_start: kept.week_start, other: other}
 
       :error ->
@@ -456,6 +471,17 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRule do
   end
 
   defp keep_parts(built, _no_rule), do: built
+
+  defp without_lone_set_pos(%{by_set_pos: nil} = rule), do: rule
+
+  defp without_lone_set_pos(rule) do
+    if rule.by_day || rule.by_month_day || rule.by_month ||
+         Enum.any?(rule.other, fn {name, _value} -> by_part?(name) end),
+       do: rule,
+       else: %{rule | by_set_pos: nil}
+  end
+
+  defp by_part?(name), do: String.starts_with?(name, "BY")
 
   defp format_by_day(nil), do: nil
 
