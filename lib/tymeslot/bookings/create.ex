@@ -337,11 +337,10 @@ defmodule Tymeslot.Bookings.Create do
       with {:ok, meeting} <- create_meeting(meeting_attrs),
            {:ok, _guests} <- create_guests(meeting, booking_data),
            {:ok, _result} <- schedule_calendar_job(meeting) do
-        # Post-creation side effects (emails/video) are now part of the transaction
-        # This ensures that if meeting creation fails due to a race condition (unique index),
-        # no side-effect jobs (Oban) are committed.
-        Activation.activate(meeting, opts)
-        meeting
+        # The emails, reminders and room job commit with the meeting, so a
+        # booking that loses its slot leaves none behind; the integration
+        # fan-out waits for the commit (`Activation.activate_in_transaction/2`).
+        {meeting, Activation.activate_in_transaction(meeting, opts)}
       else
         {:error, reason} ->
           Repo.rollback(reason)
@@ -377,7 +376,8 @@ defmodule Tymeslot.Bookings.Create do
     CalendarJobs.schedule_job(meeting, "create")
   end
 
-  defp map_transaction_result({:ok, meeting}, _booking_data) do
+  defp map_transaction_result({:ok, {meeting, pending_integrations}}, _booking_data) do
+    :ok = Activation.after_commit(pending_integrations)
     AvailabilityCache.invalidate_for_user(meeting.organizer_user_id)
     Telemetry.booking_created()
     {:ok, meeting}

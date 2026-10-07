@@ -18,6 +18,13 @@ defmodule Tymeslot.Bookings.Activation do
   room exists — and falls back to sending them without a link if the provider
   is unreachable, so a broken video integration never costs the attendee their
   confirmation.
+
+  A booking created inside a transaction (`Tymeslot.Bookings.Create`,
+  `Tymeslot.Bookings.CreateAdHoc`) takes the work in two halves: the room job,
+  emails and reminders in the transaction (`activate_in_transaction/2`), and
+  the webhook, Telegram and Slack fan-out after it commits (`after_commit/1`).
+  A booking confirmed after the fact (approval, payment) takes both at once
+  (`activate/2`).
   """
 
   require Logger
@@ -51,7 +58,8 @@ defmodule Tymeslot.Bookings.Activation do
   end
 
   @doc """
-  Runs the side effects a newly created or newly confirmed meeting needs.
+  Runs the side effects a newly created or newly confirmed meeting needs,
+  for a meeting already committed (approval, payment confirmation).
 
   A meeting still awaiting the host's approval takes the request fan-out; any
   other status takes the confirmation one.
@@ -65,7 +73,27 @@ defmodule Tymeslot.Bookings.Activation do
   success would only invite callers to roll back a booking that exists.
   """
   @spec activate(Meeting.t(), keyword()) :: :ok
-  def activate(meeting, opts \\ [])
+  def activate(meeting, opts \\ []) do
+    meeting
+    |> activate_in_transaction(opts)
+    |> after_commit()
+  end
+
+  @doc """
+  `activate/2` for a booking being created inside a transaction, in two
+  halves.
+
+  This half runs in the transaction: the video room job, the emails and the
+  reminders, all of them jobs written with the meeting, so a booking that
+  loses its slot and rolls back leaves none of them behind. It returns the
+  integration fan-out (webhooks, Telegram, Slack) still owed, which the
+  caller hands to `after_commit/1` once the transaction has committed, and
+  drops if it rolls back. The fan-out stays out of the transaction because a
+  database error inside one of those best-effort dispatchers, even rescued,
+  would leave the transaction unable to commit and lose the booking.
+  """
+  @spec activate_in_transaction(Meeting.t(), keyword()) :: Events.pending()
+  def activate_in_transaction(meeting, opts \\ [])
 
   # A booking still held for the host to approve is not a booking anyone has
   # agreed to, so none of the confirmation work runs. Branching here rather
@@ -76,28 +104,34 @@ defmodule Tymeslot.Bookings.Activation do
   # The request still has to reach people — the invitee needs telling their
   # booking is not final, and the host cannot approve what they never heard
   # about — so it takes the request fan-out instead.
-  def activate(%Meeting{status: "awaiting_approval"} = meeting, _opts) do
-    case Events.meeting_requested(meeting) do
-      {:ok, _result} ->
-        :ok
+  def activate_in_transaction(%Meeting{status: "awaiting_approval"} = meeting, _opts) do
+    {result, pending} = Events.meeting_requested_deferred(meeting)
 
-      {:error, reason} ->
-        Logger.error("Failed to schedule booking request emails",
-          meeting_id: meeting.id,
-          error: LogFormat.reason(reason)
-        )
-
-        :ok
+    with {:error, reason} <- result do
+      Logger.error("Failed to schedule booking request emails",
+        meeting_id: meeting.id,
+        error: LogFormat.reason(reason)
+      )
     end
+
+    pending
   end
 
-  def activate(%Meeting{} = meeting, opts) do
+  def activate_in_transaction(%Meeting{} = meeting, opts) do
     if wants_video_room?(meeting, opts) do
       schedule_video_room_with_announcement(meeting)
     else
       notify(meeting)
     end
   end
+
+  @doc """
+  The second half of `activate_in_transaction/2`: the integration fan-out it
+  returned, run once the booking has committed. Always returns `:ok`; a
+  failing channel is logged and reported, and the booking stands.
+  """
+  @spec after_commit(Events.pending()) :: :ok
+  def after_commit(pending), do: Events.dispatch_deferred(pending)
 
   @doc """
   True when the meeting's video provider creates its room through an API, so
@@ -121,26 +155,26 @@ defmodule Tymeslot.Bookings.Activation do
     end
   end
 
+  # The room job announces the booking itself once it runs, after commit, so
+  # nothing is owed from here.
   defp schedule_video_room_with_announcement(meeting) do
     case VideoRoomWorker.schedule_video_room_creation_with_announcement(meeting.id) do
-      :ok -> :ok
+      :ok -> []
       {:error, _reason} -> notify(meeting)
     end
   end
 
   defp notify(meeting) do
-    case Events.meeting_created(meeting) do
-      {:ok, _result} ->
-        :ok
+    {result, pending} = Events.meeting_created_deferred(meeting)
 
-      {:error, reason} ->
-        Logger.error("Failed to schedule confirmation emails for meeting",
-          meeting_id: meeting.id,
-          error: LogFormat.reason(reason)
-        )
-
-        :ok
+    with {:error, reason} <- result do
+      Logger.error("Failed to schedule confirmation emails for meeting",
+        meeting_id: meeting.id,
+        error: LogFormat.reason(reason)
+      )
     end
+
+    pending
   end
 
   defp video_provider_for(%Meeting{video_integration_id: nil}), do: {:error, :not_found}

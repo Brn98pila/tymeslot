@@ -43,11 +43,69 @@ defmodule Tymeslot.Notifications.Events do
   """
   @spec meeting_created(term()) :: {:ok, term()} | {:error, term()}
   def meeting_created(meeting) do
+    {result, pending} = meeting_created_deferred(meeting)
+    :ok = dispatch_deferred(pending)
+    result
+  end
+
+  @typedoc """
+  The integration fan-out (webhooks, Telegram, Slack) an event still owes:
+  for each dispatch, the channel event, the meeting it is about, and whether
+  a group meeting fans out per seat (`:per_seat`) or once (`:once`).
+  """
+  @type pending :: [{atom(), term(), :per_seat | :once}]
+
+  @doc """
+  `meeting_created/1` without its integration fan-out, for a caller inside a
+  transaction: the claim and the emails and reminders run now, and the
+  webhook, Telegram and Slack dispatch is returned as `pending`, to be handed
+  to `dispatch_deferred/1` once the transaction has committed.
+
+  The emails and reminders are jobs, written in the caller's transaction, so
+  they commit with the booking or not at all. The integrations are kept out
+  of it because a database error inside a dispatcher, rescued here as
+  best-effort, would still leave the caller's transaction unable to commit.
+  """
+  @spec meeting_created_deferred(term()) :: {{:ok, term()} | {:error, term()}, pending()}
+  def meeting_created_deferred(meeting) do
     case MeetingDeliveryQueries.claim_announcement(Map.get(meeting, :id)) do
-      {:ok, :first_announcement} -> dispatch_meeting_created(meeting, :meeting_created)
-      {:ok, :re_announcement} -> dispatch_meeting_created(meeting, :meeting_rescheduled)
-      :already_announced -> already_announced(meeting)
+      {:ok, :first_announcement} -> announce_meeting_created(meeting, :meeting_created)
+      {:ok, :re_announcement} -> announce_meeting_created(meeting, :meeting_rescheduled)
+      :already_announced -> {already_announced(meeting), []}
     end
+  end
+
+  @doc """
+  Runs the integration fan-out `meeting_created_deferred/1` or
+  `meeting_requested_deferred/2` returned. Never fails the caller: each
+  channel is best-effort, and a failure is logged and reported.
+  """
+  @spec dispatch_deferred(pending()) :: :ok
+  def dispatch_deferred(pending) when is_list(pending) do
+    Enum.each(pending, fn {event, meeting, fan_out} ->
+      dispatch_deferred_event(event, meeting, fan_out)
+    end)
+  end
+
+  # The channels are each guarded already (`dispatch_channel/3`); this guards
+  # what runs around them, such as reading a group meeting's seats.
+  defp dispatch_deferred_event(event, meeting, fan_out) do
+    case fan_out do
+      :per_seat -> dispatch_integrations(event, meeting)
+      :once -> dispatch_channels(event, meeting)
+    end
+  rescue
+    exception ->
+      Logger.error("Deferred integration dispatch failed",
+        event: event,
+        meeting_id: Map.get(meeting, :id),
+        error: LogFormat.reason(exception)
+      )
+
+      ErrorTracking.report_error(exception, __STACKTRACE__, %{
+        event: event,
+        meeting_id: Map.get(meeting, :id)
+      })
   end
 
   defp already_announced(meeting) do
@@ -60,15 +118,13 @@ defmodule Tymeslot.Notifications.Events do
 
   # `channel_event` is what webhooks, Telegram and Slack are told; the email
   # and reminder fan-out is the same for both announcements.
-  defp dispatch_meeting_created(meeting, channel_event) do
+  defp announce_meeting_created(meeting, channel_event) do
     result =
       send_notifications(:meeting_created, meeting, fn ->
         Orchestrator.schedule_meeting_notifications(meeting)
       end)
 
-    dispatch_integrations(channel_event, meeting)
-
-    result
+    {result, [{channel_event, meeting, :per_seat}]}
   end
 
   @doc """
@@ -118,14 +174,24 @@ defmodule Tymeslot.Notifications.Events do
   """
   @spec meeting_requested(term(), keyword()) :: {:ok, term()} | {:error, term()}
   def meeting_requested(meeting, opts \\ []) do
+    {result, pending} = meeting_requested_deferred(meeting, opts)
+    :ok = dispatch_deferred(pending)
+    result
+  end
+
+  @doc """
+  `meeting_requested/2` without its integration fan-out, for a caller inside
+  a transaction; see `meeting_created_deferred/1`.
+  """
+  @spec meeting_requested_deferred(term(), keyword()) ::
+          {{:ok, term()} | {:error, term()}, pending()}
+  def meeting_requested_deferred(meeting, opts \\ []) do
     result =
       send_notifications(:meeting_requested, meeting, fn ->
         Orchestrator.schedule_request_notifications(meeting, opts)
       end)
 
-    dispatch_channels(:meeting_requested, meeting)
-
-    result
+    {result, [{:meeting_requested, meeting, :once}]}
   end
 
   @doc """

@@ -168,8 +168,25 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
         with {:ok, meeting} <- create_meeting(meeting_attrs),
              {:ok, _guests} <- Guests.create_for_meeting(meeting.id, guest_emails, :organizer),
              {:ok, _job} <- schedule_calendar_job(meeting) do
-          handle_side_effects(meeting)
-          meeting
+          # The video-room-then-emails-then-webhooks sequence itself lives in
+          # `Bookings.Activation`, shared with every other confirmed-booking path so
+          # the ordering (room before emails, so the join link is in the
+          # confirmation) cannot drift between call sites. `with_video_room: true`
+          # matches this flow's own semantics: the organiser picked the video
+          # integration explicitly, so its presence alone decides whether a room is
+          # created, the same as a paid checkout confirming a booking.
+          # `Activation` is the whole of it. A second, generic calendar invitation used
+          # to go out beside the confirmation, leaving the guest with two emails for
+          # one booking: the confirmation in their language, carrying the ICS file, the
+          # accept/decline links and the video link, and a bare "You're Invited" with
+          # none of those. It was not initialising anything either, whatever the
+          # comment here claimed — `AttendeeNotifications.event_created/2` only sends,
+          # and `last_notified_state` is written after a dispatch by the debounce
+          # worker, never on create. The baseline stays empty here exactly as it does
+          # for every other booking path, which `LastNotifiedState.to_event/2` is built
+          # to handle: the people on the event are the people this path already
+          # invited.
+          {meeting, Activation.activate_in_transaction(meeting, with_video_room: true)}
         else
           {:error, reason} -> Repo.rollback(reason)
         end
@@ -195,30 +212,8 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
     end
   end
 
-  # The video-room-then-emails-then-webhooks sequence itself lives in
-  # `Bookings.Activation`, shared with every other confirmed-booking path so
-  # the ordering (room before emails, so the join link is in the
-  # confirmation) cannot drift between call sites. `with_video_room: true`
-  # matches this flow's own semantics: the organiser picked the video
-  # integration explicitly, so its presence alone decides whether a room is
-  # created, the same as a paid checkout confirming a booking.
-  # `Activation` is the whole of it. A second, generic calendar invitation used
-  # to go out beside the confirmation, leaving the guest with two emails for
-  # one booking: the confirmation in their language, carrying the ICS file, the
-  # accept/decline links and the video link, and a bare "You're Invited" with
-  # none of those. It was not initialising anything either, whatever the
-  # comment here claimed — `AttendeeNotifications.event_created/2` only sends,
-  # and `last_notified_state` is written after a dispatch by the debounce
-  # worker, never on create. The baseline stays empty here exactly as it does
-  # for every other booking path, which `LastNotifiedState.to_event/2` is built
-  # to handle: the people on the event are the people this path already
-  # invited.
-  defp handle_side_effects(meeting) do
-    Activation.activate(meeting, with_video_room: true)
-    :ok
-  end
-
-  defp map_result({:ok, meeting}) do
+  defp map_result({:ok, {meeting, pending_integrations}}) do
+    :ok = Activation.after_commit(pending_integrations)
     AvailabilityCache.invalidate_for_user(meeting.organizer_user_id)
     {:ok, meeting}
   end
