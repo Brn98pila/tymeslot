@@ -6,9 +6,6 @@ defmodule TymeslotWeb.Themes.Shared.Customization.CapabilityTest do
   alias TymeslotWeb.Themes.Shared.Customization.Capability
 
   test "delegates to Tymeslot.ThemeCustomizations.Capability" do
-    # Theme ID "1" is Quill, which supports both colour and background overrides.
-    assert %{color: _color, background: _background} = Capability.get_customization_options("1")
-
     assert Capability.get_capability_defaults("1") == %{
              "background_type" => "gradient",
              "background_value" => "gradient_1",

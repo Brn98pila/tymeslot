@@ -6,7 +6,6 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
 
   alias Tymeslot.Demo
   alias Tymeslot.ThemeCustomizations
-  alias Tymeslot.ThemeCustomizations.Capability
   alias Tymeslot.ThemeCustomizations.Defaults
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
   alias Tymeslot.ThemeCustomizations.Validation
@@ -34,7 +33,6 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
     |> assign(:has_custom_theme, customization != nil)
     |> assign(:theme_customization, effective_customization)
     |> assign(:custom_css, custom_css)
-    |> assign(:customization_options, Capability.get_customization_options(theme_id))
   end
 
   @doc """
