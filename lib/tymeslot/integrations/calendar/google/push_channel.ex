@@ -30,7 +30,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.PushChannel do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
   alias Tymeslot.Integrations.Calendar.Google.CalendarAPI
   alias Tymeslot.Integrations.Calendar.HTTP
-  alias Tymeslot.Integrations.Calendar.Shared.AccessToken
+  alias Tymeslot.Integrations.Calendar.Tokens
 
   @doc """
   Subscribes the integration to Google Calendar push notifications and persists
@@ -69,7 +69,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.PushChannel do
       )
       when is_binary(channel_id) and is_binary(resource_id) do
     result =
-      AccessToken.with_access_token(integration, &CalendarAPI.refresh_token/1, fn token ->
+      Tokens.with_access_token(integration, &CalendarAPI.refresh_token/1, fn token ->
         stop_channel(token, channel_id, resource_id)
       end)
 
@@ -85,7 +85,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.PushChannel do
     channel_id = UUID.generate()
     channel_secret = Base.url_encode64(:crypto.strong_rand_bytes(32))
 
-    AccessToken.with_access_token(integration, &CalendarAPI.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &CalendarAPI.refresh_token/1, fn token ->
       with {:ok, channel_attrs} <-
              subscribe_to_calendar_events(
                token,

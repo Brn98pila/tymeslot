@@ -624,12 +624,6 @@ msgstr "Nieprawidłowe dane logowania do kalendarza. Zaktualizuj połączenie."
 msgid "Invalid mailbox.org URL. Use https://dav.mailbox.org (or your custom mailbox.org-compatible CalDAV endpoint)."
 msgstr "Nieprawidłowy adres mailbox.org. Użyj https://dav.mailbox.org (lub własnego punktu końcowego CalDAV zgodnego z mailbox.org)."
 
-#: lib/tymeslot/integrations/calendar/nextcloud/provider.ex
-#: lib/tymeslot/integrations/calendar/shared/provider_common.ex
-#, elixir-autogen, elixir-format
-msgid "Missing required fields: %{fields}"
-msgstr "Brakuje wymaganych pól: %{fields}"
-
 #: lib/tymeslot/integrations/calendar/shared/error_handler.ex
 #, elixir-autogen, elixir-format
 msgid "Network connection failed. Please check your internet connection."

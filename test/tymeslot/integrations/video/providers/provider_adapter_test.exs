@@ -125,6 +125,22 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapterTest do
       assert :ok = ProviderAdapter.delete_meeting_room(:zoom, "987654321", config)
     end
 
+    # Each provider words "not found" its own way; a delete only needs the
+    # room gone, so callers never handle it.
+    test "counts a room the provider no longer has as deleted" do
+      expect(HTTPClientMock, :request, fn :delete, _url, _body, _headers, _opts ->
+        {:ok, %Req.Response{status: 404, body: ""}}
+      end)
+
+      assert :ok =
+               ProviderAdapter.delete_meeting_room(:nextcloud_talk, "abc123xy", %{
+                 base_url: "https://cloud.example.com",
+                 client_id: "organiser",
+                 client_secret: "Abcde-Fghij-Klmno-Pqrst-Uvwxy",
+                 needs_reauth: false
+               })
+    end
+
     test "returns :ok via no-op fallback for providers without the callback (MiroTalk)" do
       assert :ok = ProviderAdapter.delete_meeting_room(:mirotalk, "room123", %{})
     end

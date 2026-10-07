@@ -628,12 +628,6 @@ msgstr "Недійсні облікові дані календаря. Онов�
 msgid "Invalid mailbox.org URL. Use https://dav.mailbox.org (or your custom mailbox.org-compatible CalDAV endpoint)."
 msgstr "Недійсна URL-адреса mailbox.org. Використовуйте https://dav.mailbox.org (або власну сумісну з mailbox.org кінцеву точку CalDAV)."
 
-#: lib/tymeslot/integrations/calendar/nextcloud/provider.ex
-#: lib/tymeslot/integrations/calendar/shared/provider_common.ex
-#, elixir-autogen, elixir-format
-msgid "Missing required fields: %{fields}"
-msgstr "Не заповнено обов'язкові поля: %{fields}"
-
 #: lib/tymeslot/integrations/calendar/shared/error_handler.ex
 #, elixir-autogen, elixir-format
 msgid "Network connection failed. Please check your internet connection."

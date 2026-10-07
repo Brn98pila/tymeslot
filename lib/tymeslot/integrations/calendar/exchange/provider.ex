@@ -127,6 +127,7 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Provider do
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Integrations.Calendar.Shared.ErrorHandler
   alias Tymeslot.Integrations.Calendar.Shared.ProviderCommon
+  alias Tymeslot.Integrations.Shared.ProviderConfigHelper
 
   # EWS is credentialed HTTP against a user-nominated host, which is exactly
   # what the CalDAV connection-test bucket meters. A bucket of its own would
@@ -195,7 +196,7 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Provider do
   @impl Tymeslot.Integrations.Calendar.Provider
   def validate_config(config) do
     with :ok <-
-           ProviderCommon.validate_required_fields(config, [:base_url, :username, :password]) do
+           ProviderConfigHelper.validate_required_fields(config, [:base_url, :username, :password]) do
       # The shared validator rather than a bespoke one: the endpoint is a URL
       # the account owner typed, so it gets the same HTTPS and private-address
       # posture every other credentialed provider's server URL gets, including

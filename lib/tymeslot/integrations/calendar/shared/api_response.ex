@@ -22,6 +22,10 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ApiResponse do
 
   alias Tymeslot.Infrastructure.Logging.Redactor
   alias Tymeslot.Integrations.Calendar.HTTP
+  alias Tymeslot.Integrations.Shared.OAuth.ErrorParser
+  alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
+
+  import ErrorParser, only: [is_oauth_error_status: 1]
 
   @typedoc """
   The three-element error shape both calendar API clients return: a machine
@@ -83,6 +87,34 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ApiResponse do
         {:error, :network_error, "Forbidden (malformed response)"}
     end
   end
+
+  @doc """
+  Maps a token endpoint refresh onto the calendar clients' refresh result.
+
+  A 400 or 401 is the provider refusing the credential, and its message keeps
+  the OAuth error code so the refresh job and the health check can tell a
+  revoked grant (`invalid_grant`) from other refusals. Anything else, a 200
+  that did not decode included, is transient, and missing client credentials
+  are an authentication error.
+  """
+  @spec token_refresh({:ok, TokenEndpoint.tokens()} | {:error, TokenEndpoint.refresh_error()}) ::
+          {:ok, {String.t(), String.t(), DateTime.t()}} | {:error, atom(), String.t()}
+  def token_refresh(
+        {:ok, %{access_token: access, refresh_token: refresh, expires_at: expires_at}}
+      ),
+      do: {:ok, {access, refresh, expires_at}}
+
+  def token_refresh({:error, {:http_error, status, body}}) when is_oauth_error_status(status),
+    do: {:error, :unauthorized, ErrorParser.build_message("Token refresh failed", status, body)}
+
+  def token_refresh({:error, {:http_error, status, _body}}),
+    do: {:error, :network_error, "HTTP #{status}"}
+
+  def token_refresh({:error, {:network_error, reason}}),
+    do: {:error, :network_error, "Network error: #{inspect(reason)}"}
+
+  def token_refresh({:error, {:not_configured, message}}),
+    do: {:error, :authentication_error, message}
 
   defp default_handle({:ok, %{status: status, body: body}}, _label)
        when status in [200, 201, 204] do

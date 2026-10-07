@@ -36,7 +36,6 @@ defmodule Tymeslot.Application do
   alias Tymeslot.Infrastructure.ErrorTracking.SafeIntegrations
   alias Tymeslot.Infrastructure.ErrorTracking.Throttle
   alias Tymeslot.Infrastructure.Logging.{FileSink, LogFormat, MetadataRedactor}
-  alias Tymeslot.Integrations.Calendar.TokenRefreshJob
   alias Tymeslot.Integrations.{HealthCheck, Telemetry}
   alias Tymeslot.Integrations.HealthCheck.Alerting
   alias Tymeslot.Integrations.Shared.Lock
@@ -454,10 +453,6 @@ defmodule Tymeslot.Application do
   # Schedule periodic jobs using TaskSupervisor for proper error handling
   @spec schedule_periodic_jobs() :: :ok
   defp schedule_periodic_jobs do
-    schedule_supervised("Google Calendar token refresh", fn ->
-      TokenRefreshJob.schedule_periodic_refresh()
-    end)
-
     # Mask the stored error reasons again when the masking rules have
     # changed since the last boot.
     schedule_supervised("ErrorTracker reason re-masking", fn ->

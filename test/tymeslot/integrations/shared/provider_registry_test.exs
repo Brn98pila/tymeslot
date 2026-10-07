@@ -1,4 +1,4 @@
-defmodule Tymeslot.Integrations.Common.ProviderRegistryTest do
+defmodule Tymeslot.Integrations.Shared.ProviderRegistryTest do
   use ExUnit.Case, async: true
   @moduletag :integrations
 
@@ -35,7 +35,7 @@ defmodule Tymeslot.Integrations.Common.ProviderRegistryTest do
   end
 
   defmodule TestRegistry do
-    use Tymeslot.Integrations.Common.ProviderRegistry,
+    use Tymeslot.Integrations.Shared.ProviderRegistry,
       provider_type_name: "test provider",
       default_provider: :google,
       metadata_fields: [:capabilities],

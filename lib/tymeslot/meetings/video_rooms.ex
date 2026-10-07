@@ -312,15 +312,14 @@ defmodule Tymeslot.Meetings.VideoRooms do
     with {:ok, placement_opts} <- room_placement(meeting) do
       Logger.info("Requesting video room from provider", meeting_id: meeting.id)
 
-      user_id
-      |> video_module().create_meeting_room(
+      video_module().create_meeting_room(
+        user_id,
         [
           integration_id: meeting.video_integration_id,
           meeting_id: meeting.id,
           event_details: EventDetails.from_meeting(meeting)
         ] ++ placement_opts
       )
-      |> log_provider_failure(meeting)
     end
   end
 
@@ -343,21 +342,6 @@ defmodule Tymeslot.Meetings.VideoRooms do
 
       :own_event ->
         {:ok, []}
-    end
-  end
-
-  defp log_provider_failure(result, meeting) do
-    case result do
-      {:ok, meeting_context} ->
-        {:ok, meeting_context}
-
-      {:error, reason} = error ->
-        Logger.error("Failed to create video room",
-          meeting_id: meeting.id,
-          reason: LogFormat.reason(reason)
-        )
-
-        error
     end
   end
 
@@ -579,8 +563,10 @@ defmodule Tymeslot.Meetings.VideoRooms do
       {:ok, %{needs_reauth: true}} when refuse_needs_reauth? ->
         {:error, :video_integration_needs_reauth}
 
+      # A provider switched off in config keeps serving the integrations
+      # already connected to it; only connecting a new one is refused.
       {:ok, integration} ->
-        case ProviderConfig.parse(integration.provider) do
+        case ProviderConfig.parse_known(integration.provider) do
           {:ok, provider_type} ->
             {:ok, provider_type}
 
