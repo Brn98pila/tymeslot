@@ -4,9 +4,9 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   for persistence.
   """
 
-  alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.CalendarEntry
+  alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Utils.UriUtils
@@ -37,23 +37,6 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
       |> Enum.map(&%{&1 | selected: true})
 
     %{"calendar_paths" => calendar_paths, "calendar_list" => selected_calendar_info}
-  end
-
-  @doc """
-  Discover calendars for the given integration and merge with existing selection
-  state (integration.calendar_list), returning a unified list where each item
-  includes a boolean "selected" field.
-  """
-  @spec discover_with_selection(Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t()) ::
-          {:ok, list()} | {:error, term()}
-  def discover_with_selection(integration) do
-    case Calendar.discover_calendars_for_integration(integration) do
-      {:ok, calendars} ->
-        {:ok, unify_discovered_with_existing(calendars, integration.calendar_list)}
-
-      error ->
-        error
-    end
   end
 
   @doc """
@@ -125,14 +108,65 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   def update_calendar_selection(integration, params) do
     selected_calendar_ids = params["selected_calendars"] || []
 
-    calendar_list =
-      Enum.map(integration.calendar_list || [], fn cal ->
-        entry = cal |> CalendarEntry.normalize() |> CalendarEntry.with_defaults()
-        is_selected = Enum.any?(selected_calendar_ids, &UriUtils.uri_safe_match?(entry.id, &1))
-        %{entry | selected: is_selected}
-      end)
+    # Applied to the row as it stands, so calendars a discovery refresh added
+    # since `integration` was read are kept rather than dropped.
+    CalendarSelectionQueries.with_locked(integration.id, fn fresh ->
+      calendar_list =
+        Enum.map(fresh.calendar_list || [], fn cal ->
+          entry = cal |> CalendarEntry.normalize() |> CalendarEntry.with_defaults()
+          is_selected = Enum.any?(selected_calendar_ids, &UriUtils.uri_safe_match?(entry.id, &1))
+          %{entry | selected: is_selected}
+        end)
 
-    persist_calendar_list(integration, calendar_list)
+      persist_calendar_list(fresh, calendar_list)
+    end)
+  end
+
+  @doc """
+  Merges freshly `discovered` calendars into the integration's selection and
+  persists the result, returning the updated integration and the merged list.
+
+  The merge is made against the row as it stands once discovery is back, not
+  against the struct discovery started from: discovery spends seconds on the
+  network, and a calendar the owner ticked or unticked meanwhile must keep
+  their choice. A merge that would empty a selection that was not empty
+  keeps the stored list instead (see `keep_selection_if_emptied/2`).
+  """
+  @spec persist_discovered(
+          Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t(),
+          list()
+        ) ::
+          {:ok,
+           {Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t(), [CalendarEntry.t()]}}
+          | {:error, any()}
+  def persist_discovered(%{id: id}, discovered) do
+    CalendarSelectionQueries.with_locked(id, fn fresh ->
+      merged =
+        discovered
+        |> unify_discovered_with_existing(fresh.calendar_list)
+        |> keep_selection_if_emptied(fresh.calendar_list)
+
+      with {:ok, updated} <- persist_calendar_list(fresh, merged) do
+        {:ok, {updated, merged}}
+      end
+    end)
+  end
+
+  # `calendar_paths` is derived from the `selected` flags on `calendar_list`, so
+  # a re-discovery that matches nothing — an empty result, or a server that
+  # changed the shape of the hrefs it returns — silently deselects everything
+  # and leaves the integration syncing no calendars at all. Discovery is
+  # triggered by opening a meeting-type form, so this can happen without the
+  # owner touching their calendar settings. Keep the stored list whenever the
+  # merge would empty a selection that was not empty before; deselecting every
+  # calendar deliberately still works, because that goes through
+  # `persist_calendar_list/2` directly rather than through discovery.
+  defp keep_selection_if_emptied(merged, existing) do
+    if derive_selected_paths(merged) == [] and derive_selected_paths(existing || []) != [] do
+      existing
+    else
+      merged
+    end
   end
 
   @doc """

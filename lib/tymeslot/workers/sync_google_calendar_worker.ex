@@ -41,6 +41,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
+  alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.Google.CacheSweep
   alias Tymeslot.Integrations.Calendar.Google.Provider, as: GoogleProvider
   alias Tymeslot.Integrations.Calendar.InvalidEventReport
@@ -509,7 +510,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
   defp deselect_missing_calendars(_integration, []), do: :ok
 
   defp deselect_missing_calendars(integration, missing_ids) do
-    case CalendarIntegrationQueries.deselect_calendars(integration, missing_ids) do
+    case CalendarSelectionQueries.deselect_calendars(integration, missing_ids) do
       {:ok, _updated} ->
         :ok
 

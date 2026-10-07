@@ -27,7 +27,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Sync.EventFetch do
   alias Tymeslot.Integrations.Calendar.CalDAV.Events, as: CalDAVEvents
   alias Tymeslot.Integrations.Calendar.CalDAV.Sync.State
   alias Tymeslot.Integrations.Calendar.CalDAV.SyncReconciler
-  alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
+  alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Runtime.CalendarPathResolver
   alias Tymeslot.Utils.UriUtils
@@ -185,7 +185,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Sync.EventFetch do
       missing_count: length(missing)
     )
 
-    case CalendarIntegrationQueries.remove_calendar_paths(integration, missing) do
+    case CalendarSelectionQueries.remove_calendar_paths(integration, missing) do
       {:ok, _updated} ->
         :ok
 
