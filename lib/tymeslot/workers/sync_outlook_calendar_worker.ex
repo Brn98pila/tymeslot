@@ -186,7 +186,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   end
 
   # Graph is refusing the credentials, not this one event: the 401 is caught
-  # ahead of the circuit breaker, and `AccessToken.with_access_token/4` has
+  # ahead of the circuit breaker, and `Tokens.with_access_token/4` has
   # already tried a refresh, so reaching here means the refresh failed or the
   # refreshed token was rejected too. Every other event notification for this
   # integration is about to be refused the same way, and the 15-minute sweep
