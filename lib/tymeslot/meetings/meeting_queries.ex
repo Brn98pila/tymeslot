@@ -84,14 +84,15 @@ defmodule Tymeslot.Meetings.MeetingQueries do
     end
   end
 
-  @doc "The username the organiser of the meeting with `uid` has now, if any."
+  @doc "The username the organiser of `uid` has now, if any and not pending deletion."
   @spec organizer_username_by_uid(String.t()) :: {:ok, String.t()} | {:error, :not_found}
   def organizer_username_by_uid(uid) when is_binary(uid) do
     query =
       from(m in Meeting,
         join: p in ProfileSchema,
         on: p.user_id == m.organizer_user_id,
-        where: m.uid == ^uid and not is_nil(p.username) and p.username != "",
+        join: u in assoc(p, :user),
+        where: m.uid == ^uid and p.username != "" and is_nil(u.deletion_scheduled_at),
         select: p.username
       )
 
