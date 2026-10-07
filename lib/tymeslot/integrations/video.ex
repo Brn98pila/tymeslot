@@ -125,7 +125,7 @@ defmodule Tymeslot.Integrations.Video do
   # `mark_needs_reauth` is wired to `flag_and_notify/2` rather than the bare
   # DB write, so that every path ending in "the owner has to reconnect", this
   # one included and not just the provider-level 401 handling in
-  # `OAuthTokenManager`, sends the reauth email on the false to true
+  # the providers (`NeedsReauth`), sends the reauth email on the false to true
   # transition. Keeping this symmetrical with `CalendarManagement` is
   # deliberate: the two used to disagree on which paths notified.
   defp flag_for_reauth(integration, opts \\ []) do
@@ -141,7 +141,7 @@ defmodule Tymeslot.Integrations.Video do
   @doc """
   Marks a video integration `needs_reauth` and emails the owner on the
   false → true transition. Shared by `flag_for_reauth/2` and by
-  `OAuthTokenManager`'s provider-level 401 handling, so the two paths cannot
+  the providers' 401 handling (`NeedsReauth`), so the two paths cannot
   drift on whether reconnecting is announced.
 
   Re-flagging an integration already awaiting reconnection is not news: the

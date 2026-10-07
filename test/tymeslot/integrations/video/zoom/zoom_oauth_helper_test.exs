@@ -171,8 +171,10 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
       assert {:ok, :needs_refresh} = ZoomOAuthHelper.validate_token(%{token_expires_at: soon})
     end
 
-    test "returns error when expiration info is missing" do
-      assert {:error, _reason} = ZoomOAuthHelper.validate_token(%{})
+    # A token whose lifetime was never stored is renewed, not refused.
+    test "asks for a refresh when the expiry is unknown" do
+      assert {:ok, :needs_refresh} = ZoomOAuthHelper.validate_token(%{})
+      assert {:ok, :needs_refresh} = ZoomOAuthHelper.validate_token(%{token_expires_at: nil})
     end
   end
 

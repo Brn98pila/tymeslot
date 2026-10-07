@@ -10,14 +10,13 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Infrastructure.BreakerOutcome
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.HTTPClient
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Logging.Redactor
   alias Tymeslot.Integrations.Shared.ProviderConfigHelper
-  alias Tymeslot.Integrations.Video.OAuthTokenManager
   alias Tymeslot.Integrations.Video.Providers.OAuthCredentials
+  alias Tymeslot.Integrations.Video.Providers.OAuthRoom
   alias Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   alias Tymeslot.Integrations.Video.Providers.ZoomProvider.Payload
   alias Tymeslot.Integrations.Video.Providers.ZoomProvider.Reauth
@@ -41,19 +40,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def create_meeting_room(config) do
     Logger.info("Creating Zoom meeting room")
-
-    case precheck_create_meeting_room(config) do
-      {:ok, token} ->
-        finish_create_meeting_room(token, config)
-
-      {:provider_error, reason} ->
-        log_create_meeting_room_error(reason)
-        {:error, reason}
-
-      {:error, reason} = error ->
-        log_create_meeting_room_error(reason)
-        error
-    end
+    OAuthRoom.create_meeting_room(__MODULE__, config, "Zoom")
   end
 
   @doc false
@@ -73,7 +60,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def precheck_create_meeting_room(config) do
     with {:ok, :valid} <- Reauth.validate_scope(config, :write) do
-      classify_token_result(get_access_token(config))
+      OAuthRoom.classify_token_result(get_access_token(config))
     end
   end
 
@@ -122,19 +109,13 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def flag_revoked_token(config), do: Reauth.flag_revoked_token(config)
 
-  # A rejected/expired grant (`invalid_grant`, `invalid_client`,
-  # `access_denied`) is the tenant's credential, not Zoom's availability —
-  # `BreakerOutcome.permanent_credential_error?/1` shares this rule with
-  # `HealthCheck.ResponseHandler`'s reauth fast-path. Anything else (network
-  # error, an unrecognised HTTP status) is handed back for the breaker to
-  # witness.
-  defp classify_token_result({:ok, _token} = ok), do: ok
-
-  defp classify_token_result({:error, reason} = error) do
-    if BreakerOutcome.permanent_credential_error?(reason),
-      do: error,
-      else: {:provider_error, reason}
-  end
+  @doc """
+  Returns `config` carrying a usable access token, refreshed and written back
+  first if the stored one has expired (see
+  `Tymeslot.Integrations.Video.AccessToken`).
+  """
+  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
+  def ensure_valid_token(config), do: OAuthRoom.ensure_valid_token(config, oauth_spec())
 
   # The slowest creation refreshes the token (through the shared OAuth client,
   # at the HTTP client's default timeouts), creates the meeting and reads it
@@ -274,96 +255,26 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
 
   # ----- Private -----
 
-  defp get_access_token(config) do
-    OAuthTokenManager.validated_access_token(config,
-      oauth_helper: zoom_oauth_helper(),
-      label: "Zoom",
-      on_refresh: &refresh_and_update_token/1
-    )
-  end
-
-  defp refresh_and_update_token(config, opts \\ []) do
-    OAuthTokenManager.refresh_with_lock(
-      config,
-      %{
-        provider: :zoom,
-        refresh: &perform_refresh/1,
-        already_refreshed: fn _config, decrypted -> {:ok, decrypted.access_token} end
-      },
-      opts
-    )
-  end
-
-  defp perform_refresh(config) do
-    case do_actual_refresh(config) do
-      {:ok, refreshed} -> {:ok, refreshed.access_token}
-      error -> error
+  defp get_access_token(config, opts \\ []) do
+    with {:ok, valid} <- OAuthRoom.ensure_valid_token(config, oauth_spec(), opts) do
+      {:ok, valid.access_token}
     end
   end
 
-  defp do_actual_refresh(config) do
-    refresh_token = Map.get(config, :refresh_token)
+  # Zoom rotates its refresh token on every refresh, so a token it cannot
+  # write back is one zoom.us has already invalidated: a failed write fails
+  # the refresh.
+  defp oauth_spec do
+    helper = zoom_oauth_helper()
 
-    case zoom_oauth_helper().refresh_access_token(refresh_token, nil,
-           log_context: [
-             integration_id: Map.get(config, :integration_id),
-             user_id: Map.get(config, :user_id)
-           ]
-         ) do
-      {:ok, refreshed} ->
-        Logger.info("Successfully refreshed Zoom OAuth token")
-        persist_refreshed_tokens(config, refreshed)
-
-      {:error, reason} ->
-        Logger.error("Failed to refresh Zoom OAuth token", reason: LogFormat.reason(reason))
-        {:error, "Token refresh failed: #{reason}"}
-    end
-  end
-
-  # A config without an integration_id is a transient one (a connection probe,
-  # say) with no row to write back to, so the refreshed tokens are simply
-  # returned. Zoom is the one provider that treats a failed write as fatal:
-  # because it rotates the refresh token on every call, a token it cannot
-  # persist is a token already invalidated at zoom.us, and carrying on would
-  # leave the stored credentials permanently unusable.
-  defp persist_refreshed_tokens(config, refreshed) do
-    case Map.get(config, :integration_id) do
-      nil ->
-        {:ok, refreshed}
-
-      _integration_id ->
-        case OAuthTokenManager.persist_tokens(config, token_attrs(refreshed), "Zoom") do
-          :ok -> {:ok, refreshed}
-          {:error, _reason} -> {:error, :token_persist_failed}
-        end
-    end
-  end
-
-  # Zoom rotates refresh tokens on every refresh, but if the response omits a
-  # new one we keep the existing refresh token rather than poisoning the field
-  # with the access token (which would break the next refresh entirely).
-  defp token_attrs(refreshed) do
     %{
-      access_token: refreshed.access_token,
-      token_expires_at: refreshed.expires_at
+      helper: helper,
+      label: "Zoom",
+      validate_token: &helper.validate_token/1,
+      scope: fn _config -> nil end,
+      persist_failure: :fatal
     }
-    |> maybe_put_refresh_token(refreshed.refresh_token)
-    |> maybe_put_scope(refreshed[:scope])
   end
-
-  defp maybe_put_scope(attrs, scope) when is_binary(scope) and scope != "",
-    do: Map.put(attrs, :oauth_scope, scope)
-
-  defp maybe_put_scope(attrs, _scope), do: attrs
-
-  # Only overwrite the stored refresh token when Zoom returned a fresh one. A
-  # blank/missing value means the previous refresh token is still valid, so we
-  # leave the column untouched rather than clobbering it.
-  defp maybe_put_refresh_token(attrs, refresh_token)
-       when is_binary(refresh_token) and refresh_token != "",
-       do: Map.put(attrs, :refresh_token, refresh_token)
-
-  defp maybe_put_refresh_token(attrs, _refresh_token), do: attrs
 
   defp create_scheduled_meeting(token, start_time, end_time, config) do
     duration = max(div(DateTime.diff(end_time, start_time, :second), 60), 15)
@@ -482,7 +393,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
   defp retry_after_401(verb, room_id, config, body) do
     # Force an actual OAuth refresh: the access token was rejected server-side,
     # so the DB validity buffer can't be trusted to short-circuit the refresh.
-    case refresh_and_update_token(config, force: true) do
+    case get_access_token(config, force: true) do
       {:ok, fresh_token} ->
         url = "#{@api_base_url}/meetings/#{room_id}"
 

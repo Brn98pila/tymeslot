@@ -191,8 +191,10 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelperTest do
       assert {:ok, :needs_refresh} = TeamsOAuthHelper.validate_token(%{token_expires_at: soon})
     end
 
-    test "returns error when expiration info is missing" do
-      assert {:error, _reason} = TeamsOAuthHelper.validate_token(%{})
+    # A token whose lifetime was never stored is renewed, not refused.
+    test "asks for a refresh when the expiry is unknown" do
+      assert {:ok, :needs_refresh} = TeamsOAuthHelper.validate_token(%{})
+      assert {:ok, :needs_refresh} = TeamsOAuthHelper.validate_token(%{token_expires_at: nil})
     end
   end
 
