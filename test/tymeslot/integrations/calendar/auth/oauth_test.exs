@@ -6,6 +6,7 @@ defmodule Tymeslot.Integrations.Calendar.OAuthTest do
   import Mox
 
   alias Tymeslot.Integrations.Calendar.OAuth
+  alias Tymeslot.Integrations.Common.OAuth.State
   alias TymeslotWeb.Endpoint
 
   # Make sure mocks are verified
@@ -166,6 +167,29 @@ defmodule Tymeslot.Integrations.Calendar.OAuthTest do
 
       assert String.contains?(message, "Failed to setup Google OAuth")
       assert String.contains?(message, "Something went wrong")
+    end
+  end
+
+  # The state is the only thing binding a provider's code to a Tymeslot user,
+  # so it is checked against the user completing the callback before the code
+  # is spent. No HTTP expectation is set: any token request fails the test.
+  describe "complete/4" do
+    test "refuses a state issued to another user" do
+      user = insert(:user)
+      state = State.generate(insert(:user).id, "test-google-state-secret")
+
+      assert {:error, :state_user_mismatch} = OAuth.complete(:google, "code", state, user.id)
+    end
+
+    test "refuses a state signed with another provider's secret" do
+      user = insert(:user)
+      state = State.generate(user.id, "test-google-state-secret")
+
+      assert {:error, _reason} = OAuth.complete(:outlook, "code", state, user.id)
+    end
+
+    test "refuses a malformed state" do
+      assert {:error, _reason} = OAuth.complete(:google, "code", "bogus", insert(:user).id)
     end
   end
 end

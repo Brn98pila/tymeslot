@@ -124,4 +124,24 @@ defmodule Tymeslot.Integrations.Common.OAuth.StateTest do
     signature = :crypto.mac(:hmac, :sha256, @secret, data)
     "#{Base.url_encode64(data)}.#{Base.url_encode64(signature)}"
   end
+
+  describe "verify/3" do
+    test "accepts a state issued to the acting user under the provider's secret" do
+      state = State.generate(7, "test-google-state-secret", 42)
+
+      assert {:ok, %{user_id: 7, integration_id: 42}} = State.verify(state, :google, 7)
+    end
+
+    test "refuses a state issued to another user" do
+      state = State.generate(7, "test-google-state-secret")
+
+      assert {:error, :state_user_mismatch} = State.verify(state, :google, 8)
+    end
+
+    test "refuses a state signed with another provider's secret" do
+      state = State.generate(7, "test-outlook-state-secret")
+
+      assert {:error, _reason} = State.verify(state, :google, 7)
+    end
+  end
 end

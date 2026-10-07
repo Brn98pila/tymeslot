@@ -75,21 +75,17 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
   @doc """
   Exchanges authorization code for access and refresh tokens.
 
-  Validates the signed state, exchanges the code, then fetches the Zoom user
-  profile so the integration can be uniquely identified by the Zoom account ID.
+  Exchanges the code (the caller has verified the state), then fetches the
+  Zoom user profile so the integration can be uniquely identified by the Zoom account ID.
   """
   @impl Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperBehaviour
-  @spec exchange_code_for_tokens(String.t(), String.t(), String.t()) ::
-          {:ok, map()} | {:error, String.t()}
+  @spec exchange_code_for_tokens(String.t(), String.t()) :: {:ok, map()} | {:error, String.t()}
   # credo:disable-for-next-line Credo.Check.Design.DuplicatedCode
-  def exchange_code_for_tokens(code, redirect_uri, state) do
-    with {:ok, %{user_id: user_id, integration_id: integration_id}} <- verify_state(state),
-         {:ok, tokens} <- fetch_tokens(code, redirect_uri),
+  def exchange_code_for_tokens(code, redirect_uri) do
+    with {:ok, tokens} <- fetch_tokens(code, redirect_uri),
          :ok <- verify_required_scopes(tokens),
          {:ok, profile} <- fetch_user_profile(tokens.access_token) do
-      {:ok, build_result_tokens(tokens, user_id, integration_id, profile)}
-    else
-      {:error, reason} -> {:error, reason}
+      {:ok, build_result_tokens(tokens, profile)}
     end
   end
 
@@ -151,10 +147,8 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
 
   # Private helpers
 
-  defp build_result_tokens(tokens, user_id, integration_id, profile) do
+  defp build_result_tokens(tokens, profile) do
     Map.merge(tokens, %{
-      user_id: user_id,
-      integration_id: integration_id,
       provider_account_id: profile["id"],
       provider_account_email: profile["email"],
       scope: tokens[:scope] || zoom_scope()
@@ -254,10 +248,4 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
   defp generate_state(user_id, integration_id) do
     State.generate(user_id, ZoomConfig.state_secret(), integration_id)
   end
-
-  defp verify_state(state) when is_binary(state) do
-    State.validate(state, ZoomConfig.state_secret())
-  end
-
-  defp verify_state(_arg), do: {:error, "Invalid state parameter"}
 end

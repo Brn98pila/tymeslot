@@ -17,7 +17,7 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
   setup do
     RateLimiter.clear_all()
 
-    modules = [GoogleOAuthHelper, TeamsOAuthHelper, State, VideoIntegrationQueries]
+    modules = [GoogleOAuthHelper, TeamsOAuthHelper, VideoIntegrationQueries]
 
     for mod <- modules do
       try do
@@ -126,7 +126,7 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
       user = Factory.insert(:user, id: user_id)
       conn = log_in_user(conn, user)
 
-      :meck.expect(GoogleOAuthHelper, :exchange_code_for_tokens, fn _code, _uri, ^state ->
+      :meck.expect(GoogleOAuthHelper, :exchange_code_for_tokens, fn _code, _uri ->
         {:ok,
          %{
            user_id: user_id,
@@ -171,7 +171,7 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
       user = Factory.insert(:user, id: user_id)
       conn = log_in_user(conn, user)
 
-      :meck.expect(TeamsOAuthHelper, :exchange_code_for_tokens, fn _code, _uri, ^state ->
+      :meck.expect(TeamsOAuthHelper, :exchange_code_for_tokens, fn _code, _uri ->
         {:ok,
          %{
            user_id: user_id,
@@ -218,7 +218,7 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
       user_id = 123
       conn = authenticate_state_user(conn, user_id)
 
-      :meck.expect(GoogleOAuthHelper, :exchange_code_for_tokens, fn "code", _uri, "state" ->
+      :meck.expect(GoogleOAuthHelper, :exchange_code_for_tokens, fn "code", _uri ->
         {:ok,
          %{
            user_id: user_id,
@@ -248,7 +248,11 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
         {:ok, integration}
       end)
 
-      conn = get(conn, ~p"/auth/google/video/callback", %{"code" => "code", "state" => "state"})
+      conn =
+        get(conn, ~p"/auth/google/video/callback", %{
+          "code" => "code",
+          "state" => signed(:google, user_id)
+        })
 
       assert redirected_to(conn) == "/dashboard/integrations?tab=video"
       assert Flash.get(conn.assigns.flash, :info) =~ "Google Meet connected successfully"
@@ -266,15 +270,14 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
         provider: "google_meet"
       }
 
-      :meck.expect(GoogleOAuthHelper, :exchange_code_for_tokens, fn "code", _uri, "state" ->
+      :meck.expect(GoogleOAuthHelper, :exchange_code_for_tokens, fn "code", _uri ->
         {:ok,
          %{
            user_id: user_id,
            access_token: "new_at",
            refresh_token: "new_rt",
            expires_at: new_expires_at,
-           scope: "new_scope",
-           integration_id: existing.id
+           scope: "new_scope"
          }}
       end)
 
@@ -290,7 +293,11 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
         {:ok, %{existing | access_token: attrs.access_token}, false}
       end)
 
-      conn = get(conn, ~p"/auth/google/video/callback", %{"code" => "code", "state" => "state"})
+      conn =
+        get(conn, ~p"/auth/google/video/callback", %{
+          "code" => "code",
+          "state" => signed(:google, user_id, existing.id)
+        })
 
       assert redirected_to(conn) == "/dashboard/integrations?tab=video"
       assert Flash.get(conn.assigns.flash, :info) =~ "Google Meet connected successfully"
@@ -300,7 +307,7 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
       user_id = 456
       conn = authenticate_state_user(conn, user_id)
 
-      :meck.expect(TeamsOAuthHelper, :exchange_code_for_tokens, fn "code", _uri, "state" ->
+      :meck.expect(TeamsOAuthHelper, :exchange_code_for_tokens, fn "code", _uri ->
         {:ok,
          %{
            user_id: user_id,
@@ -332,7 +339,11 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
         {:ok, integration}
       end)
 
-      conn = get(conn, ~p"/auth/teams/video/callback", %{"code" => "code", "state" => "state"})
+      conn =
+        get(conn, ~p"/auth/teams/video/callback", %{
+          "code" => "code",
+          "state" => signed(:teams, user_id)
+        })
 
       assert redirected_to(conn) == "/dashboard/integrations?tab=video"
       assert Flash.get(conn.assigns.flash, :info) =~ "Microsoft Teams connected successfully"
@@ -349,7 +360,7 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
         provider: "teams"
       }
 
-      :meck.expect(TeamsOAuthHelper, :exchange_code_for_tokens, fn "code", _uri, "state" ->
+      :meck.expect(TeamsOAuthHelper, :exchange_code_for_tokens, fn "code", _uri ->
         {:ok,
          %{
            user_id: user_id,
@@ -358,8 +369,7 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
            expires_at: DateTime.utc_now(),
            scope: "new_scope",
            tenant_id: "new-tenant-id",
-           teams_user_id: "new-teams-user-id",
-           integration_id: existing.id
+           teams_user_id: "new-teams-user-id"
          }}
       end)
 
@@ -377,7 +387,11 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
         {:ok, %{existing | access_token: attrs.access_token}, false}
       end)
 
-      conn = get(conn, ~p"/auth/teams/video/callback", %{"code" => "code", "state" => "state"})
+      conn =
+        get(conn, ~p"/auth/teams/video/callback", %{
+          "code" => "code",
+          "state" => signed(:teams, user_id, existing.id)
+        })
 
       assert redirected_to(conn) == "/dashboard/integrations?tab=video"
       assert Flash.get(conn.assigns.flash, :info) =~ "Microsoft Teams connected successfully"
@@ -386,7 +400,6 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
     test "google_callback handles invalid state", %{conn: conn} do
       user = Factory.insert(:user)
       conn = log_in_user(conn, user)
-      :meck.expect(State, :validate, fn _state, _secret -> {:error, :expired} end)
 
       conn = get(conn, ~p"/auth/google/video/callback", %{"code" => "code", "state" => "invalid"})
 
@@ -434,7 +447,7 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
       user_id = 789
       conn = authenticate_state_user(conn, user_id)
 
-      :meck.expect(TeamsOAuthHelper, :exchange_code_for_tokens, fn _code, _uri, _state ->
+      :meck.expect(TeamsOAuthHelper, :exchange_code_for_tokens, fn _code, _uri ->
         {:ok,
          %{
            user_id: user_id,
@@ -453,7 +466,11 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
 
       :meck.expect(VideoIntegrationQueries, :create, fn _client -> {:error, :db_error} end)
 
-      conn = get(conn, ~p"/auth/teams/video/callback", %{"code" => "code", "state" => "state"})
+      conn =
+        get(conn, ~p"/auth/teams/video/callback", %{
+          "code" => "code",
+          "state" => signed(:teams, user_id)
+        })
 
       assert redirected_to(conn) == "/dashboard/integrations?tab=video"
       assert Flash.get(conn.assigns.flash, :error) =~ "Failed to connect Microsoft Teams"
@@ -463,7 +480,7 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
       user_id = 999
       conn = authenticate_state_user(conn, user_id)
 
-      :meck.expect(TeamsOAuthHelper, :exchange_code_for_tokens, fn _code, _uri, _state ->
+      :meck.expect(TeamsOAuthHelper, :exchange_code_for_tokens, fn _code, _uri ->
         {:ok,
          %{
            user_id: user_id,
@@ -475,7 +492,11 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
          }}
       end)
 
-      conn = get(conn, ~p"/auth/teams/video/callback", %{"code" => "code", "state" => "state"})
+      conn =
+        get(conn, ~p"/auth/teams/video/callback", %{
+          "code" => "code",
+          "state" => signed(:teams, user_id)
+        })
 
       assert redirected_to(conn) == "/dashboard/integrations?tab=video"
 
@@ -489,10 +510,9 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
       user = Factory.insert(:user)
       user_id = user.id
       conn = log_in_user(conn, user)
-      :meck.expect(State, :validate, fn _state, _secret -> {:ok, %{user_id: user_id}} end)
       assert %{has_video: false} = DashboardContext.get_integration_status(user_id)
 
-      :meck.expect(GoogleOAuthHelper, :exchange_code_for_tokens, fn _code, _uri, _state ->
+      :meck.expect(GoogleOAuthHelper, :exchange_code_for_tokens, fn _code, _uri ->
         {:ok,
          %{
            user_id: user_id,
@@ -508,19 +528,26 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
         {:ok, Factory.insert(:video_integration, user: user, provider: attrs.provider)}
       end)
 
-      conn = get(conn, ~p"/auth/google/video/callback", %{"code" => "code", "state" => "state"})
+      conn =
+        get(conn, ~p"/auth/google/video/callback", %{
+          "code" => "code",
+          "state" => signed(:google, user_id)
+        })
 
       assert Flash.get(conn.assigns.flash, :info) =~ "Google Meet connected successfully"
       assert %{has_video: true} = DashboardContext.get_integration_status(user_id)
     end
   end
 
-  # Logs a user in and redirects the mecked `State.validate/2` to return the
-  # same id so the new `OAuthStateGuard.enforce_user_match/3` passes.
   defp authenticate_state_user(conn, user_id) do
     user = Factory.insert(:user, id: user_id)
-    conn = log_in_user(conn, user)
-    :meck.expect(State, :validate, fn _state, _secret -> {:ok, %{user_id: user_id}} end)
-    conn
+    log_in_user(conn, user)
   end
+
+  # Signed as the providers' authorisation URLs sign it, with the secrets the
+  # setup configures.
+  @state_secrets %{google: "test_google_state_secret", teams: "test_state_secret"}
+
+  defp signed(provider, user_id, integration_id \\ nil),
+    do: State.generate(user_id, Map.fetch!(@state_secrets, provider), integration_id)
 end

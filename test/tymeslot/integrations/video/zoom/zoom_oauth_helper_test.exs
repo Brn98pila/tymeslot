@@ -75,9 +75,9 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
     end
   end
 
-  describe "exchange_code_for_tokens/3" do
+  describe "exchange_code_for_tokens/2" do
     test "exchanges code, fetches profile, and returns merged tokens" do
-      %{user_id: user_id, state: state, resp_body: resp_body} = oauth_test_data()
+      %{resp_body: resp_body} = oauth_test_data()
 
       profile_body =
         Jason.encode!(%{
@@ -100,22 +100,16 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
       end)
 
       assert {:ok, tokens} =
-               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb", state)
+               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb")
 
       assert tokens.access_token == "at-123"
       assert tokens.refresh_token == "rt-123"
-      assert tokens.user_id == user_id
       assert tokens.provider_account_id == "zoom-user-123"
       assert tokens.provider_account_email == "alice@example.com"
     end
 
-    test "rejects invalid state without making HTTP calls" do
-      assert {:error, _reason} =
-               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb", "bogus")
-    end
-
     test "fails when profile is missing id" do
-      %{state: state, resp_body: resp_body} = oauth_test_data()
+      %{resp_body: resp_body} = oauth_test_data()
       profile_body = Jason.encode!(%{"email" => "alice@example.com"})
 
       expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, _body, _headers, _opts ->
@@ -127,7 +121,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
       end)
 
       assert {:error, "Zoom profile missing unique ID"} =
-               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb", state)
+               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb")
     end
   end
 
@@ -183,9 +177,6 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
   end
 
   defp oauth_test_data do
-    user_id = 123
-    state = State.generate(user_id, "zoom-state-secret")
-
     resp_body =
       Jason.encode!(%{
         "access_token" => "at-123",
@@ -194,6 +185,6 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
         "scope" => "meeting:write:meeting meeting:read:meeting user:read:user"
       })
 
-    %{user_id: user_id, state: state, resp_body: resp_body}
+    %{resp_body: resp_body}
   end
 end

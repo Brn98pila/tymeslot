@@ -15,6 +15,7 @@ defmodule Tymeslot.Integrations.Video.OAuthCallback do
 
   alias Tymeslot.Dashboard.DashboardContext
   alias Tymeslot.Integrations.Common.OAuth.AccountMatch
+  alias Tymeslot.Integrations.Common.OAuth.State
   alias Tymeslot.Integrations.Google.GoogleOAuthHelper
   alias Tymeslot.Integrations.Video.OAuth
   alias Tymeslot.Integrations.Video.ProviderConfig
@@ -24,18 +25,21 @@ defmodule Tymeslot.Integrations.Video.OAuthCallback do
   alias Tymeslot.Integrations.Video.VideoIntegrationSchema
   alias Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper
 
-  # Every helper exchanges with the same `(code, redirect_uri, state)` shape and
-  # verifies the signed state itself, returning the state's user and integration
-  # alongside the tokens.
+  # Every helper exchanges with the same `(code, redirect_uri)` shape; the
+  # state is verified here, before the code is spent.
   @exchange_helpers %{
     google_meet: GoogleOAuthHelper,
     teams: TeamsOAuthHelper,
     zoom: ZoomOAuthHelper
   }
 
+  # The OAuth client whose state secret signs each provider's flow.
+  @state_providers %{google_meet: :google, teams: :microsoft, zoom: :zoom}
+
   @doc """
-  Completes an OAuth callback: exchanges the code, checks the grant, and
-  creates or reconnects the user's integration for `provider`.
+  Completes an OAuth callback for `user_id`, the signed-in user: verifies the
+  state was issued to that user, exchanges the code, checks the grant, and
+  creates or reconnects their integration for `provider`.
 
   On success the user's cached dashboard integration status is invalidated, so
   the dashboard reflects the new connection straight away rather than after the
@@ -43,16 +47,17 @@ defmodule Tymeslot.Integrations.Video.OAuthCallback do
   `:missing_teams_fields` or `:missing_zoom_account_id` when a Teams or Zoom
   grant lacks the account details the provider's API calls need.
   """
-  @spec complete(OAuth.provider(), String.t(), String.t()) ::
+  @spec complete(OAuth.provider(), String.t(), String.t(), pos_integer()) ::
           {:ok, VideoIntegrationSchema.t()} | {:error, term()}
-  def complete(provider, code, state) do
+  def complete(provider, code, state, user_id) do
     helper = Map.fetch!(@exchange_helpers, provider)
 
-    with {:ok, tokens} <-
-           helper.exchange_code_for_tokens(code, OAuth.redirect_uri(provider), state),
+    with {:ok, validated} <- State.verify(state, Map.fetch!(@state_providers, provider), user_id),
+         {:ok, tokens} <- helper.exchange_code_for_tokens(code, OAuth.redirect_uri(provider)),
+         tokens = Map.merge(tokens, Map.take(validated, [:user_id, :integration_id])),
          :ok <- validate_tokens(provider, tokens),
          {:ok, integration} <- persist(provider, tokens) do
-      DashboardContext.invalidate_integration_status(tokens.user_id)
+      DashboardContext.invalidate_integration_status(user_id)
       {:ok, integration}
     end
   end

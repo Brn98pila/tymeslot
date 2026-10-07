@@ -16,7 +16,7 @@ defmodule TymeslotWeb.CalendarOAuthControllerTest do
   setup do
     RateLimiter.clear_all()
 
-    modules = [GoogleCalendarOAuthHelper, OutlookCalendarOAuthHelper, State]
+    modules = [GoogleCalendarOAuthHelper, OutlookCalendarOAuthHelper]
 
     for mod <- modules do
       try do
@@ -28,9 +28,8 @@ defmodule TymeslotWeb.CalendarOAuthControllerTest do
       :meck.new(mod, [:passthrough])
     end
 
-    # OAuthStateGuard.provider_secret/1 raises if these aren't set, even when
-    # State.validate/2 is mecked — provider_secret/1 is evaluated as an
-    # argument before the mecked call is invoked.
+    # The states below are signed with these secrets, as the providers'
+    # authorisation URLs would sign them.
     original_google_oauth = Application.get_env(:tymeslot, :google_oauth)
     original_outlook_oauth = Application.get_env(:tymeslot, :outlook_oauth)
 
@@ -80,12 +79,15 @@ defmodule TymeslotWeb.CalendarOAuthControllerTest do
     test "google_callback handles success", %{conn: conn} do
       conn = authenticate_state_user(conn, 123)
 
-      :meck.expect(GoogleCalendarOAuthHelper, :handle_callback, fn "code", _state, _uri ->
+      :meck.expect(GoogleCalendarOAuthHelper, :handle_callback, fn "code", _uri, _state ->
         {:ok, %{user_id: 123}}
       end)
 
       conn =
-        get(conn, ~p"/auth/google/calendar/callback", %{"code" => "code", "state" => "state"})
+        get(conn, ~p"/auth/google/calendar/callback", %{
+          "code" => "code",
+          "state" => signed(:google, 123)
+        })
 
       # A successful connect lands on the calendar, not the integrations tab.
       assert redirected_to(conn) == "/dashboard"
@@ -95,12 +97,15 @@ defmodule TymeslotWeb.CalendarOAuthControllerTest do
     test "outlook_callback handles success", %{conn: conn} do
       conn = authenticate_state_user(conn, 123)
 
-      :meck.expect(OutlookCalendarOAuthHelper, :handle_callback, fn "code", _state, _uri ->
+      :meck.expect(OutlookCalendarOAuthHelper, :handle_callback, fn "code", _uri, _state ->
         {:ok, %{user_id: 123}}
       end)
 
       conn =
-        get(conn, ~p"/auth/outlook/calendar/callback", %{"code" => "code", "state" => "state"})
+        get(conn, ~p"/auth/outlook/calendar/callback", %{
+          "code" => "code",
+          "state" => signed(:outlook, 123)
+        })
 
       # A successful connect lands on the calendar, not the integrations tab.
       assert redirected_to(conn) == "/dashboard"
@@ -149,12 +154,15 @@ defmodule TymeslotWeb.CalendarOAuthControllerTest do
     test "outlook_callback handles exchange failure", %{conn: conn} do
       conn = authenticate_state_user(conn, 123)
 
-      :meck.expect(OutlookCalendarOAuthHelper, :handle_callback, fn _code, _state, _uri ->
+      :meck.expect(OutlookCalendarOAuthHelper, :handle_callback, fn _code, _uri, _state ->
         {:error, :invalid_code}
       end)
 
       conn =
-        get(conn, ~p"/auth/outlook/calendar/callback", %{"code" => "code", "state" => "state"})
+        get(conn, ~p"/auth/outlook/calendar/callback", %{
+          "code" => "code",
+          "state" => signed(:outlook, 123)
+        })
 
       assert redirected_to(conn) == "/dashboard/integrations?tab=calendars"
       assert Flash.get(conn.assigns.flash, :error) =~ "Failed to connect Outlook Calendar"
@@ -164,12 +172,15 @@ defmodule TymeslotWeb.CalendarOAuthControllerTest do
          %{conn: conn} do
       conn = authenticate_state_user(conn, 123)
 
-      :meck.expect(GoogleCalendarOAuthHelper, :handle_callback, fn _code, _state, _uri ->
+      :meck.expect(GoogleCalendarOAuthHelper, :handle_callback, fn _code, _uri, _state ->
         {:error, :calendar_scope_missing}
       end)
 
       conn =
-        get(conn, ~p"/auth/google/calendar/callback", %{"code" => "code", "state" => "state"})
+        get(conn, ~p"/auth/google/calendar/callback", %{
+          "code" => "code",
+          "state" => signed(:google, 123)
+        })
 
       assert redirected_to(conn) == "/dashboard/integrations?tab=calendars"
 
@@ -189,14 +200,14 @@ defmodule TymeslotWeb.CalendarOAuthControllerTest do
       test "#{provider} connect refreshes the cached status", %{conn: conn} do
         user = Factory.insert(:user)
         conn = log_in_user(conn, user)
-        :meck.expect(State, :validate, fn _state, _secret -> {:ok, %{user_id: user.id}} end)
         assert %{has_calendar: false} = DashboardContext.get_integration_status(user.id)
 
-        :meck.expect(unquote(helper), :handle_callback, fn _code, _state, _uri ->
+        :meck.expect(unquote(helper), :handle_callback, fn _code, _uri, _state ->
           {:ok, Factory.insert(:calendar_integration, user: user, provider: unquote(provider))}
         end)
 
-        conn = get(conn, unquote(path), %{"code" => "code", "state" => "state"})
+        state = signed(String.to_existing_atom(unquote(provider)), user.id)
+        conn = get(conn, unquote(path), %{"code" => "code", "state" => state})
 
         assert redirected_to(conn) == "/dashboard"
         assert %{has_calendar: true} = DashboardContext.get_integration_status(user.id)
@@ -206,22 +217,18 @@ defmodule TymeslotWeb.CalendarOAuthControllerTest do
 
   describe "return_to" do
     # The redirect target comes from the state only once the state has been
-    # verified: the raw "state" parameter here embeds nothing, so a redirect to
-    # the validated path proves where it was read from.
+    # verified; the last test shows a state that fails verification is not
+    # read for it.
     test "a successful connect lands on the validated return_to", %{conn: conn} do
       user = Factory.insert(:user, id: 123)
       conn = log_in_user(conn, user)
 
-      :meck.expect(State, :validate, fn _state, _secret ->
-        {:ok, %{user_id: 123, integration_id: nil, return_to: "/dashboard/onboarding"}}
-      end)
-
-      :meck.expect(OutlookCalendarOAuthHelper, :handle_callback, fn _code, _state, _uri ->
+      :meck.expect(OutlookCalendarOAuthHelper, :handle_callback, fn _code, _uri, _state ->
         {:ok, %{user_id: 123}}
       end)
 
-      conn =
-        get(conn, ~p"/auth/outlook/calendar/callback", %{"code" => "code", "state" => "state"})
+      state = signed(:outlook, 123, return_to: "/dashboard/onboarding")
+      conn = get(conn, ~p"/auth/outlook/calendar/callback", %{"code" => "code", "state" => state})
 
       assert redirected_to(conn) == "/dashboard/onboarding"
     end
@@ -230,16 +237,12 @@ defmodule TymeslotWeb.CalendarOAuthControllerTest do
       user = Factory.insert(:user, id: 123)
       conn = log_in_user(conn, user)
 
-      :meck.expect(State, :validate, fn _state, _secret ->
-        {:ok, %{user_id: 123, integration_id: nil, return_to: "/dashboard/onboarding"}}
-      end)
-
-      :meck.expect(GoogleCalendarOAuthHelper, :handle_callback, fn _code, _state, _uri ->
+      :meck.expect(GoogleCalendarOAuthHelper, :handle_callback, fn _code, _uri, _state ->
         {:error, :invalid_code}
       end)
 
-      conn =
-        get(conn, ~p"/auth/google/calendar/callback", %{"code" => "code", "state" => "state"})
+      state = signed(:google, 123, return_to: "/dashboard/onboarding")
+      conn = get(conn, ~p"/auth/google/calendar/callback", %{"code" => "code", "state" => state})
 
       assert redirected_to(conn) == "/dashboard/onboarding"
       assert Flash.get(conn.assigns.flash, :error) =~ "Failed to connect Google Calendar"
@@ -257,12 +260,13 @@ defmodule TymeslotWeb.CalendarOAuthControllerTest do
     end
   end
 
-  # Logs a user in and redirects the mecked `State.validate/2` to return the
-  # same id so the new `OAuthStateGuard.enforce_user_match/3` passes.
   defp authenticate_state_user(conn, user_id) do
     user = Factory.insert(:user, id: user_id)
-    conn = log_in_user(conn, user)
-    :meck.expect(State, :validate, fn _state, _secret -> {:ok, %{user_id: user_id}} end)
-    conn
+    log_in_user(conn, user)
   end
+
+  @state_secrets %{google: "test_google_state_secret", outlook: "test_outlook_state_secret"}
+
+  defp signed(provider, user_id, opts \\ []),
+    do: State.generate(user_id, Map.fetch!(@state_secrets, provider), nil, opts)
 end

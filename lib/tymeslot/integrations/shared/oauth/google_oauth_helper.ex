@@ -68,18 +68,15 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
   end
 
   @doc """
-  Exchanges authorization code for access and refresh tokens.
+  Exchanges an authorisation code for tokens, with the Google account the id
+  token names (`provider_account_id`, `provider_account_email`).
 
-  ## Parameters
-    - code: Authorization code from Google
-    - redirect_uri: The same redirect URI used in authorization
-    - state: State parameter for validation
+  The callback's `state` is verified by the caller before the code is spent.
 
   Returns {:ok, tokens} or {:error, reason}
   """
-  @spec exchange_code_for_tokens(String.t(), String.t(), String.t() | nil) ::
-          {:ok, map()} | {:error, String.t()}
-  def exchange_code_for_tokens(code, redirect_uri, state \\ nil) do
+  @spec exchange_code_for_tokens(String.t(), String.t()) :: {:ok, map()} | {:error, String.t()}
+  def exchange_code_for_tokens(code, redirect_uri) do
     with {:ok, client_id} <- GoogleConfig.fetch_client_id(),
          {:ok, client_secret} <- GoogleConfig.fetch_client_secret() do
       body = %{
@@ -90,35 +87,14 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
         grant_type: "authorization_code"
       }
 
-      exchange(body, state)
-    end
-  end
-
-  defp exchange(body, state) do
-    case TokenEndpoint.exchange_code(GoogleConfig.token_url(), body,
-           log_context: [provider: :google]
-         ) do
-      {:ok, tokens} ->
-        tokens = build_token_map(tokens)
-
-        case validate_state(state) do
-          {:ok, %{user_id: user_id} = state_data} ->
-            {:ok,
-             tokens
-             |> Map.put(:user_id, user_id)
-             |> Map.put(:integration_id, state_data.integration_id)}
-
-          {:error, _reason} when is_nil(state) ->
-            {:ok, tokens}
-
-          {:error, reason} ->
-            {:error, reason}
-        end
-
-      # No second log line here: `TokenEndpoint` already logs the status and
-      # the redacted body, and names the provider too.
-      {:error, error} ->
-        {:error, TokenEndpoint.error_message(:exchange, error)}
+      # No second log line on failure: `TokenEndpoint` already logs the status
+      # and the redacted body, and names the provider too.
+      case TokenEndpoint.exchange_code(GoogleConfig.token_url(), body,
+             log_context: [provider: :google]
+           ) do
+        {:ok, tokens} -> {:ok, build_token_map(tokens)}
+        {:error, error} -> {:error, TokenEndpoint.error_message(:exchange, error)}
+      end
     end
   end
 
@@ -157,17 +133,6 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
   def generate_state(user_id, integration_id \\ nil, opts \\ []) do
     State.generate(user_id, state_secret(), integration_id, opts)
   end
-
-  @doc """
-  Validates and extracts state data from state parameter.
-  """
-  @spec validate_state(String.t() | any()) ::
-          {:ok, State.validated()} | {:error, String.t()}
-  def validate_state(state) when is_binary(state) do
-    State.validate(state, state_secret())
-  end
-
-  def validate_state(_invalid), do: {:error, "Invalid state parameter"}
 
   @doc """
   Returns the secret used to sign and verify Google OAuth `state` parameters.

@@ -2,6 +2,7 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelperTest do
   use Tymeslot.DataCase, async: false
   @moduletag :integrations
 
+  alias Tymeslot.Integrations.Common.OAuth.State
   alias Tymeslot.Integrations.Google.GoogleOAuthHelper
   import Mox
 
@@ -58,10 +59,8 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelperTest do
     end
   end
 
-  describe "exchange_code_for_tokens/3" do
-    test "exchanges code and validates state" do
-      state = GoogleOAuthHelper.generate_state(123)
-
+  describe "exchange_code_for_tokens/2" do
+    test "exchanges the code with the client credentials" do
       resp_body =
         Jason.encode!(%{
           "access_token" => "at-123",
@@ -83,10 +82,9 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelperTest do
       end)
 
       assert {:ok, tokens} =
-               GoogleOAuthHelper.exchange_code_for_tokens("auth-code", "http://callback", state)
+               GoogleOAuthHelper.exchange_code_for_tokens("auth-code", "http://callback")
 
       assert tokens.access_token == "at-123"
-      assert tokens.user_id == 123
     end
 
     test "handles error from Google" do
@@ -166,7 +164,7 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelperTest do
     end
   end
 
-  describe "exchange_code_for_tokens/3 OAuth error propagation" do
+  describe "exchange_code_for_tokens/2 OAuth error propagation" do
     test "surfaces invalid_grant from authorization code exchange" do
       resp_body = Jason.encode!(%{"error" => "invalid_grant"})
 
@@ -180,13 +178,11 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelperTest do
   end
 
   describe "state management" do
-    test "generates and validates state" do
+    test "signs state with the Google state secret" do
       state = GoogleOAuthHelper.generate_state(456)
-      assert {:ok, %{user_id: 456, integration_id: nil}} = GoogleOAuthHelper.validate_state(state)
-    end
 
-    test "fails for invalid state" do
-      assert {:error, _error} = GoogleOAuthHelper.validate_state("invalid")
+      assert {:ok, %{user_id: 456, integration_id: nil}} =
+               State.validate(state, @state_secret)
     end
   end
 end

@@ -49,14 +49,14 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
   end
 
   @doc """
-  Handles the OAuth callback and creates a calendar integration.
+  Handles the OAuth callback for the user `state` (already verified) names,
+  and creates or updates their calendar integration.
   """
   @impl Tymeslot.Integrations.Calendar.Auth.OAuthHelperBehaviour
-  @spec handle_callback(String.t(), String.t(), String.t()) ::
+  @spec handle_callback(String.t(), String.t(), State.validated()) ::
           {:ok, CalendarIntegrationSchema.t()} | {:error, String.t()}
-  def handle_callback(code, state, redirect_uri) do
-    with {:ok, %{user_id: user_id, integration_id: integration_id}} <- verify_state(state),
-         {:ok, tokens} <- exchange_code_for_tokens(code, redirect_uri),
+  def handle_callback(code, redirect_uri, %{user_id: user_id, integration_id: integration_id}) do
+    with {:ok, tokens} <- exchange_code_for_tokens(code, redirect_uri),
          {:ok, integration} <-
            CallbackPersistence.upsert(
              "outlook",
@@ -66,8 +66,6 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
            ) do
       enqueue_initial_sync(integration)
       {:ok, integration}
-    else
-      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -123,12 +121,6 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
   end
 
   # Private functions
-
-  defp verify_state(state) when is_binary(state) do
-    State.validate(state, MicrosoftConfig.state_secret())
-  end
-
-  defp verify_state(_invalid), do: {:error, "Invalid state parameter"}
 
   # The provider account the tokens belong to, from the id token's object id,
   # so a reconnect finds the integration already connected to that account.

@@ -17,6 +17,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.OAuthHelper do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CallbackPersistence
   alias Tymeslot.Integrations.Calendar.Google.Provider, as: GoogleProvider
+  alias Tymeslot.Integrations.Common.OAuth.State
   alias Tymeslot.Integrations.Google.GoogleOAuthHelper
   alias Tymeslot.Meetings.MeetingListQueries
   alias Tymeslot.Workers.SyncGoogleCalendarWorker
@@ -69,22 +70,21 @@ defmodule Tymeslot.Integrations.Calendar.Google.OAuthHelper do
   end
 
   @doc """
-  Handles the OAuth callback and creates or updates a calendar integration.
+  Handles the OAuth callback for the user `state` (already verified) names,
+  and creates or updates their calendar integration.
   """
   @impl Tymeslot.Integrations.Calendar.Auth.OAuthHelperBehaviour
-  @spec handle_callback(String.t(), String.t(), String.t()) ::
+  @spec handle_callback(String.t(), String.t(), State.validated()) ::
           {:ok, CalendarIntegrationSchema.t()}
           | {:error, Tymeslot.Integrations.Calendar.Auth.OAuthHelperBehaviour.callback_error()}
-  def handle_callback(code, state, redirect_uri) do
-    with {:ok, tokens} <- GoogleOAuthHelper.exchange_code_for_tokens(code, redirect_uri, state),
-         :ok <- ensure_calendar_write_scope(tokens),
+  def handle_callback(code, redirect_uri, %{user_id: user_id, integration_id: integration_id}) do
+    with {:ok, tokens} <- GoogleOAuthHelper.exchange_code_for_tokens(code, redirect_uri),
+         :ok <- ensure_calendar_write_scope(tokens, user_id),
          {:ok, integration} <-
-           CallbackPersistence.upsert("google", tokens.user_id, tokens[:integration_id], tokens) do
+           CallbackPersistence.upsert("google", user_id, integration_id, tokens) do
       register_push_channel_async(integration)
       enqueue_pending_video_room_retries(integration.user_id)
       {:ok, integration}
-    else
-      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -92,7 +92,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.OAuthHelper do
   # event write access. Without it, downstream Google Meet creation will fail
   # with HTTP 403 (ACCESS_TOKEN_SCOPE_INSUFFICIENT) — so we reject the callback
   # before any database write happens.
-  defp ensure_calendar_write_scope(%{scope: scope, user_id: user_id}) do
+  defp ensure_calendar_write_scope(%{scope: scope}, user_id) do
     if GoogleProvider.has_calendar_write_scope?(scope) do
       :ok
     else

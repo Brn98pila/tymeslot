@@ -443,9 +443,9 @@ defmodule Tymeslot.Integrations.Calendar do
   Completes a Google or Outlook OAuth callback and connects the calendar,
   invalidating the user's cached dashboard integration status on success.
   """
-  @spec complete_oauth(OAuth.provider(), String.t(), String.t()) ::
+  @spec complete_oauth(OAuth.provider(), String.t(), String.t(), pos_integer()) ::
           {:ok, integration()} | {:error, term()}
-  defdelegate complete_oauth(provider, code, state), to: OAuth, as: :complete
+  defdelegate complete_oauth(provider, code, state, user_id), to: OAuth, as: :complete
 
   @doc """
   Initiates a Google scope upgrade for an existing integration.

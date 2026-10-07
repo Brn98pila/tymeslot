@@ -2,7 +2,6 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelperTest do
   use Tymeslot.DataCase, async: false
   @moduletag :integrations
 
-  alias Tymeslot.Integrations.Common.OAuth.State
   alias Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper
   import Mox
 
@@ -28,9 +27,9 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelperTest do
     end
   end
 
-  describe "exchange_code_for_tokens/3" do
-    test "exchanges code and validates state" do
-      %{user_id: user_id, state: state, resp_body: resp_body} = oauth_test_data()
+  describe "exchange_code_for_tokens/2" do
+    test "exchanges the code and reads the Microsoft account" do
+      %{resp_body: resp_body} = oauth_test_data()
 
       profile_body =
         Jason.encode!(%{
@@ -50,17 +49,14 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelperTest do
       end)
 
       assert {:ok, tokens} =
-               TeamsOAuthHelper.exchange_code_for_tokens("code", "http://uri", state)
+               TeamsOAuthHelper.exchange_code_for_tokens("code", "http://uri")
 
       assert tokens.access_token == "at-123"
-      assert tokens.user_id == user_id
       assert tokens.teams_user_id == "microsoft-user-123"
       assert tokens.tenant_id == "common"
     end
 
     test "extracts tenant_id from id_token claims" do
-      %{state: state} = oauth_test_data()
-
       # Mock id_token with tid claim
       header = Base.url_encode64(Jason.encode!(%{alg: "RS256"}), padding: false)
       payload = Base.url_encode64(Jason.encode!(%{tid: "real-tenant-id"}), padding: false)
@@ -90,13 +86,13 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelperTest do
       end)
 
       assert {:ok, tokens} =
-               TeamsOAuthHelper.exchange_code_for_tokens("code", "http://uri", state)
+               TeamsOAuthHelper.exchange_code_for_tokens("code", "http://uri")
 
       assert tokens.tenant_id == "real-tenant-id"
     end
 
     test "fails if profile is missing id" do
-      %{state: state, resp_body: resp_body} = oauth_test_data()
+      %{resp_body: resp_body} = oauth_test_data()
 
       profile_body = Jason.encode!(%{"displayName" => "Microsoft User"})
 
@@ -111,11 +107,11 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelperTest do
       end)
 
       assert {:error, "Microsoft profile missing unique ID"} =
-               TeamsOAuthHelper.exchange_code_for_tokens("code", "http://uri", state)
+               TeamsOAuthHelper.exchange_code_for_tokens("code", "http://uri")
     end
 
     test "retries profile fetch on transient error" do
-      %{state: state, resp_body: resp_body} = oauth_test_data()
+      %{resp_body: resp_body} = oauth_test_data()
 
       profile_body =
         Jason.encode!(%{
@@ -137,7 +133,7 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelperTest do
       end)
 
       assert {:ok, tokens} =
-               TeamsOAuthHelper.exchange_code_for_tokens("code", "http://uri", state)
+               TeamsOAuthHelper.exchange_code_for_tokens("code", "http://uri")
 
       assert tokens.teams_user_id == "microsoft-user-123"
     end
@@ -200,9 +196,6 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelperTest do
   end
 
   defp oauth_test_data do
-    user_id = 123
-    state = State.generate(user_id, "teams-state")
-
     resp_body =
       Jason.encode!(%{
         "access_token" => "at-123",
@@ -211,6 +204,6 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelperTest do
         "scope" => "Calendars.ReadWrite"
       })
 
-    %{user_id: user_id, state: state, resp_body: resp_body}
+    %{resp_body: resp_body}
   end
 end

@@ -52,26 +52,20 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
   Exchanges authorization code for access and refresh tokens.
   Also fetches the user profile to get the Microsoft user ID and tenant ID.
   """
-  @spec exchange_code_for_tokens(String.t(), String.t(), String.t()) ::
-          {:ok, map()} | {:error, String.t()}
+  @spec exchange_code_for_tokens(String.t(), String.t()) :: {:ok, map()} | {:error, String.t()}
   # credo:disable-for-next-line Credo.Check.Design.DuplicatedCode
-  def exchange_code_for_tokens(code, redirect_uri, state) do
-    with {:ok, %{user_id: user_id, integration_id: integration_id}} <- verify_state(state),
-         {:ok, tokens} <- fetch_tokens(code, redirect_uri),
+  def exchange_code_for_tokens(code, redirect_uri) do
+    with {:ok, tokens} <- fetch_tokens(code, redirect_uri),
          :ok <- verify_required_scopes(tokens),
          {:ok, profile} <- fetch_user_profile(tokens.access_token) do
-      {:ok, build_result_tokens(tokens, user_id, integration_id, profile)}
-    else
-      {:error, reason} -> {:error, reason}
+      {:ok, build_result_tokens(tokens, profile)}
     end
   end
 
-  defp build_result_tokens(tokens, user_id, integration_id, profile) do
-    id_claims = decode_id_claims(tokens, user_id)
+  defp build_result_tokens(tokens, profile) do
+    id_claims = decode_id_claims(tokens)
 
     Map.merge(tokens, %{
-      user_id: user_id,
-      integration_id: integration_id,
       teams_user_id: profile["id"],
       tenant_id: id_claims.tid || profile["tenant_id"] || "common",
       provider_account_id: id_claims.oid || profile["id"],
@@ -80,7 +74,7 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
     })
   end
 
-  defp decode_id_claims(tokens, user_id) do
+  defp decode_id_claims(tokens) do
     case IdToken.decode(tokens[:id_token]) do
       {:ok, claims} ->
         claims
@@ -89,7 +83,6 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
         if tokens[:id_token] do
           Logger.warning(
             "Failed to decode Teams id_token — account dedup falling back to profile data",
-            user_id: user_id,
             reason: LogFormat.reason(reason)
           )
         end
@@ -215,12 +208,6 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
   defp generate_state(user_id, integration_id) do
     State.generate(user_id, MicrosoftConfig.state_secret(), integration_id)
   end
-
-  defp verify_state(state) when is_binary(state) do
-    State.validate(state, MicrosoftConfig.state_secret())
-  end
-
-  defp verify_state(_arg), do: {:error, "Invalid state parameter"}
 
   defp verify_required_scopes(tokens) do
     returned_scope = tokens[:scope] || ""

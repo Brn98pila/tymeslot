@@ -9,6 +9,7 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
   alias Tymeslot.Integrations.Calendar.Google.OAuthHelper, as: GoogleOAuthHelper
   alias Tymeslot.Integrations.Calendar.Google.Provider, as: GoogleProvider
   alias Tymeslot.Integrations.Calendar.Outlook.OAuthHelper, as: OutlookOAuthHelper
+  alias Tymeslot.Integrations.Common.OAuth.State
   alias TymeslotWeb.Endpoint
 
   @type user_id :: pos_integer()
@@ -20,6 +21,9 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
   # injectable ones used for authorisation URLs: the test doubles configured
   # for those implement only the URL half of the flow.
   @callback_helpers %{google: GoogleOAuthHelper, outlook: OutlookOAuthHelper}
+
+  # The OAuth client whose state secret signs each provider's flow.
+  @state_providers %{google: :google, outlook: :microsoft}
 
   @doc """
   Initiate Google Calendar OAuth flow and return authorization URL.
@@ -54,21 +58,23 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
   end
 
   @doc """
-  Completes an OAuth callback: verifies the state, exchanges the code, and
-  creates or updates the user's calendar integration.
+  Completes an OAuth callback for `user_id`, the signed-in user: verifies the
+  state was issued to that user, exchanges the code, and creates or updates
+  their calendar integration. The state is checked before the code is spent.
 
   On success the user's cached dashboard integration status is invalidated, so
   the dashboard reflects the new connection straight away rather than after the
   cache expires.
   """
-  @spec complete(provider(), String.t(), String.t()) ::
+  @spec complete(provider(), String.t(), String.t(), user_id()) ::
           {:ok, CalendarIntegrationSchema.t()} | {:error, term()}
-  def complete(provider, code, state) do
-    with {:ok, integration} <-
+  def complete(provider, code, state, user_id) do
+    with {:ok, validated} <- State.verify(state, Map.fetch!(@state_providers, provider), user_id),
+         {:ok, integration} <-
            Map.fetch!(@callback_helpers, provider).handle_callback(
              code,
-             state,
-             redirect_uri(provider)
+             redirect_uri(provider),
+             validated
            ) do
       DashboardContext.invalidate_integration_status(integration.user_id)
       {:ok, integration}

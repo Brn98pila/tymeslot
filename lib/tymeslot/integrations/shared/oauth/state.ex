@@ -6,6 +6,7 @@ defmodule Tymeslot.Integrations.Common.OAuth.State do
   Optionally embeds an integration_id for re-authorization flows.
   """
 
+  alias Tymeslot.Integrations.Shared.OAuthConfig
   alias Tymeslot.Security.RedirectPath
 
   @type user_id :: pos_integer()
@@ -77,6 +78,24 @@ defmodule Tymeslot.Integrations.Common.OAuth.State do
 
       _other ->
         {:error, "Invalid state parameter"}
+    end
+  end
+
+  @doc """
+  Validates a callback's `state` against the provider's state secret and
+  checks it was issued to `user_id`, the user completing the callback.
+
+  This is the domain's own guard: binding the signed state to the acting user
+  is what stops a code issued for one person's account being connected to
+  another person's Tymeslot user, so it cannot be left to the web layer.
+  """
+  @spec verify(term(), OAuthConfig.provider(), user_id()) ::
+          {:ok, validated()} | {:error, :state_user_mismatch | String.t()}
+  def verify(state, provider, user_id) when is_integer(user_id) do
+    case validate(state, OAuthConfig.fetch!(provider, :state_secret)) do
+      {:ok, %{user_id: ^user_id} = validated} -> {:ok, validated}
+      {:ok, _issued_to_another_user} -> {:error, :state_user_mismatch}
+      {:error, _reason} = error -> error
     end
   end
 
