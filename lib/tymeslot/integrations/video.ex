@@ -17,7 +17,6 @@ defmodule Tymeslot.Integrations.Video do
   alias Tymeslot.Integrations.Video.OAuth
   alias Tymeslot.Integrations.Video.OAuthCallback
   alias Tymeslot.Integrations.Video.ProviderConfig
-  alias Tymeslot.Integrations.Video.Providers.JitsiProvider
   alias Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider
   alias Tymeslot.Integrations.Video.Rooms
   alias Tymeslot.Integrations.Video.Update
@@ -176,69 +175,92 @@ defmodule Tymeslot.Integrations.Video do
         ) ::
           {:ok, any()} | {:error, any()}
   def create_integration(user_id, provider, attrs) when is_integer(user_id) and is_map(attrs) do
-    provider =
-      case ProviderConfig.parse(provider) do
-        {:ok, atom} -> atom
-        {:error, :unknown} -> :unknown
+    case ProviderConfig.parse(provider) do
+      {:ok, provider} ->
+        attrs
+        |> AttrsCasting.atomize_known_attrs()
+        |> Map.merge(%{user_id: user_id, provider: to_string(provider)})
+        |> then(&create_pipeline(provider, account_attrs(provider, &1)))
+        |> AccountKey.refuse_taken_key()
+
+      {:error, :unknown} ->
+        {:error, :unknown_provider}
+    end
+  end
+
+  # One order for every provider. Everything before the probe is decided
+  # in-process; the probe is an outbound request to an address the organiser
+  # typed, which the connection-test bucket meters, so a repeat or a
+  # submission the changeset would refuse never spends one. OAuth providers
+  # are connected through their callback (`complete_oauth/4`) rather than
+  # here, so they skip the checks that need a user-supplied config.
+  defp create_pipeline(provider, attrs) do
+    with :ok <- check_no_duplicate(provider, attrs),
+         :ok <- validate_new_config(provider, attrs),
+         :ok <- probe_on_create(provider, attrs) do
+      create(attrs)
+    end
+  end
+
+  # The account key a provider's integrations are deduplicated on: the
+  # address for the URL-keyed providers, server and login for Nextcloud Talk.
+  defp account_attrs(provider, attrs) do
+    case {provider, AccountKey.url_field(provider)} do
+      {:nextcloud_talk, _field} ->
+        NextcloudTalkProvider.account_attrs(attrs)
+
+      {_provider, nil} ->
+        attrs
+
+      {_provider, field} ->
+        Map.put(attrs, :provider_account_id, AccountKey.key_for(provider, attrs[field]))
+    end
+  end
+
+  # A provider keyed on an account cannot be connected to the same one twice;
+  # one keyed on nothing (kMeet's single host) once per user.
+  defp check_no_duplicate(provider, %{user_id: user_id} = attrs) do
+    cond do
+      attrs[:provider_account_id] not in [nil, ""] ->
+        AccountKey.check_free(user_id, attrs.provider, attrs.provider_account_id, nil)
+
+      ProviderConfig.oauth_provider?(provider) or provider == :none ->
+        :ok
+
+      true ->
+        case VideoIntegrationQueries.get_by_provider_for_user(user_id, attrs.provider) do
+          {:ok, _connected} -> {:error, :provider_already_connected}
+          {:error, :not_found} -> :ok
+        end
+    end
+  end
+
+  defp validate_new_config(provider, attrs) do
+    if ProviderConfig.oauth_provider?(provider) or provider == :none do
+      :ok
+    else
+      with {:ok, module} <- ProviderConfig.get_provider(provider),
+           :ok <- module.validate_config(attrs) do
+        VideoIntegrationSchema.validate_new(attrs)
       end
-
-    attrs = AttrsCasting.atomize_known_attrs(attrs)
-
-    # Enforce provider in attrs consistently as string for DB layer
-    attrs = Map.put(Map.put(attrs, :user_id, user_id), :provider, to_string(provider))
-
-    provider
-    |> do_create_integration(attrs)
-    |> AccountKey.refuse_taken_key()
-  end
-
-  # `create_integration/3` has already atomised every key by the time these
-  # clauses run, so the attrs are read one way here.
-  defp do_create_integration(:mirotalk, attrs) do
-    base_url = attrs[:base_url]
-    attrs = Map.put(attrs, :provider_account_id, AccountKey.key_for(:mirotalk, base_url))
-
-    # Pre-test the connection prior to creation for better UX
-    config = %{
-      api_key: attrs[:api_key],
-      base_url: base_url
-    }
-
-    # Order matters, and the probe goes last. Everything above it is decided
-    # in-process, while the probe is an outbound request to an address the
-    # organiser typed, which is the thing the connection-test bucket exists to
-    # meter. Probing first meant a re-added server, or a submission the
-    # changeset was always going to reject, spent a token on a refusal that
-    # never left the machine, and the organiser was then told they had run too
-    # many connection tests after pressing "Add".
-    with :ok <- check_no_duplicate(attrs),
-         :ok <- VideoIntegrationSchema.validate_new(attrs),
-         {:ok, _msg} <- probe_mirotalk_connection(config, attrs[:user_id]) do
-      VideoIntegrationQueries.create(attrs)
     end
   end
 
-  defp do_create_integration(:custom, attrs) do
-    attrs =
-      Map.put(
-        attrs,
-        :provider_account_id,
-        AccountKey.key_for(:custom, attrs[:custom_meeting_url])
-      )
-
-    with :ok <- check_no_duplicate(attrs) do
-      VideoIntegrationQueries.create(attrs)
+  defp probe_on_create(provider, attrs) do
+    if ProviderConfig.probes_on_create?(provider) do
+      with {:ok, module} <- ProviderConfig.get_provider(provider),
+           config = Map.take(attrs, Map.keys(module.config_schema())),
+           {:ok, _message} <- Connection.probe(provider, config, {:user, attrs.user_id}),
+           do: :ok
+    else
+      :ok
     end
   end
 
-  # kMeet has exactly one host, so there is no account to key on. Leaving
-  # `provider_account_id` nil files the row under
-  # `unique_active_video_null_account_per_user`, which is precisely the
-  # "one active kMeet per user" rule we want. Like every provider without an
-  # account id, the rule covers active rows only, so an inactive kMeet row does
-  # not block a new one. The index refusal is translated here, so callers learn
-  # the provider is already connected without knowing the index exists.
-  defp do_create_integration(:kmeet, attrs) do
+  # kMeet's single-host rule also lives in a unique index, which a concurrent
+  # connect can still meet; its refusal is answered as the duplicate check
+  # answers.
+  defp create(attrs) do
     case VideoIntegrationQueries.create(attrs) do
       {:error, %Ecto.Changeset{} = changeset} = error ->
         if provider_already_connected?(changeset),
@@ -249,60 +271,6 @@ defmodule Tymeslot.Integrations.Video do
         result
     end
   end
-
-  # The server URL is the dedup key (`AccountKey`), so one user can connect
-  # several Jitsi servers but not the same one twice. The config is validated before
-  # anything is saved: a half-filled credential pair or a short secret would
-  # otherwise only surface when a later booking fails to get its video link.
-  defp do_create_integration(:jitsi, attrs) do
-    attrs = Map.put(attrs, :provider_account_id, AccountKey.key_for(:jitsi, attrs[:base_url]))
-
-    with :ok <- JitsiProvider.validate_config(attrs),
-         :ok <- check_no_duplicate(attrs) do
-      VideoIntegrationQueries.create(attrs)
-    end
-  end
-
-  # Keyed on server and login together, as the CalDAV integrations are, so one
-  # person can connect two accounts on the same Nextcloud but not one account
-  # twice. The duplicate check comes first, so a repeat never spends a login
-  # attempt against the server; the connection probe then validates the config
-  # and proves the app password and a recent enough Talk before anything is
-  # saved.
-  defp do_create_integration(:nextcloud_talk, attrs) do
-    attrs = NextcloudTalkProvider.account_attrs(attrs)
-
-    with :ok <- check_no_duplicate(attrs),
-         {:ok, _message} <-
-           Connection.probe(
-             :nextcloud_talk,
-             Map.take(attrs, [:base_url, :client_id, :client_secret]),
-             {:user, attrs[:user_id]}
-           ) do
-      VideoIntegrationQueries.create(attrs)
-    end
-  end
-
-  # OAuth providers are created after OAuth callback normally; allow manual create only for none
-  defp do_create_integration(provider, attrs)
-       when provider in [:google_meet, :teams, :zoom, :none] do
-    VideoIntegrationQueries.create(attrs)
-  end
-
-  defp do_create_integration(_unknown, _attrs), do: {:error, :unknown_provider}
-
-  # Structural validation is never rate-limited; only the network probe is,
-  # charged to the user submitting the setup form. Both happen inside
-  # `Connection.probe/3` — the same choke point
-  # `Video.Connection.test_integration/2` uses — rather than reimplementing
-  # the validation, bucket lookup, and charge here.
-  defp probe_mirotalk_connection(config, user_id) do
-    Connection.probe(:mirotalk, config, {:user, user_id})
-  end
-
-  # Active and inactive integrations alike, so no two rows share an account.
-  defp check_no_duplicate(%{user_id: user_id, provider: provider} = attrs),
-    do: AccountKey.check_free(user_id, provider, attrs[:provider_account_id], nil)
 
   defp provider_already_connected?(%Ecto.Changeset{errors: errors}) do
     Enum.any?(Keyword.get_values(errors, :provider), fn {_message, opts} ->

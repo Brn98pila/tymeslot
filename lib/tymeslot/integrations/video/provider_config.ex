@@ -36,6 +36,8 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
   #   * `display_name`, `icon`, `description`, `button_text`, `click_event` —
   #     what the dashboard shows;
   #   * `circuit_breaker_enabled` — whether its calls run behind a breaker;
+  #   * `probe_on_create` — whether connecting it proves the credentials
+  #     against the organiser's server first (a metered connection test);
   #   * `rooms` — what its rooms are like:
   #       - `:deleted_after_meeting`: the room persists on the organiser's own
   #         server until something deletes it, so Tymeslot deletes it some days
@@ -48,6 +50,7 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
   #         name on the provider's side, so a reschedule is sent to it.
   @specs %{
     mirotalk: %{
+      probe_on_create: true,
       module: Providers.MiroTalkProvider,
       family: :other,
       display_name: "MiroTalk P2P",
@@ -127,6 +130,7 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
       circuit_breaker_enabled: false
     },
     nextcloud_talk: %{
+      probe_on_create: true,
       module: Providers.NextcloudTalkProvider,
       family: :other,
       display_name: "Nextcloud Talk",
@@ -446,6 +450,18 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
     case Map.fetch(@specs, provider) do
       {:ok, spec} -> spec.module
       :error -> nil
+    end
+  end
+
+  @doc """
+  Whether connecting `provider` first proves the credentials against the
+  organiser's own server, a connection test charged to them.
+  """
+  @spec probes_on_create?(atom()) :: boolean()
+  def probes_on_create?(provider) do
+    case Map.fetch(@specs, provider) do
+      {:ok, spec} -> Map.get(spec, :probe_on_create, false)
+      :error -> false
     end
   end
 
