@@ -16,16 +16,6 @@ defmodule Tymeslot.Payments.Behaviours.StripeProvider do
   @callback cancel_subscription(subscription_id :: String.t(), opts :: keyword()) ::
               {:ok, map()} | {:error, term()}
 
-  @callback update_subscription(subscription_id :: String.t(), new_price_id :: String.t()) ::
-              {:ok, map()} | {:error, term()}
-
-  @callback update_subscription(
-              subscription_id :: String.t(),
-              new_price_id :: String.t(),
-              opts :: map()
-            ) ::
-              {:ok, map()} | {:error, term()}
-
   @callback get_subscription(subscription_id :: String.t()) ::
               {:ok, map()} | {:error, term()}
 

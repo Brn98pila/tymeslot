@@ -72,35 +72,6 @@ defmodule Tymeslot.Payments.StripeTest do
     end
   end
 
-  describe "update_subscription/3" do
-    test "successfully updates subscription by finding the first item" do
-      sub_id = "sub_123"
-      new_price = "price_456"
-
-      expect(StripeSubscriptionMock, :retrieve, fn ^sub_id, _params, _opts ->
-        {:ok, %{id: sub_id, items: %{data: [%{id: "si_123"}]}}}
-      end)
-
-      expect(StripeSubscriptionMock, :update, fn ^sub_id, params, _opts ->
-        assert [%{id: "si_123", price: ^new_price}] = params.items
-        {:ok, %{id: sub_id}}
-      end)
-
-      assert {:ok, %{id: "sub_123"}} = Stripe.update_subscription(sub_id, new_price)
-    end
-
-    test "returns error if no subscription items found" do
-      sub_id = "sub_123"
-      new_price = "price_456"
-
-      expect(StripeSubscriptionMock, :retrieve, fn ^sub_id, _params, _opts ->
-        {:ok, %{id: sub_id, items: %{data: []}}}
-      end)
-
-      assert {:error, :no_subscription_items} = Stripe.update_subscription(sub_id, new_price)
-    end
-  end
-
   describe "expire_checkout_session/1" do
     test "successfully expires a checkout session" do
       session_id = "cs_live_abc123"
