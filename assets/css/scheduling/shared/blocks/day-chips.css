@@ -58,6 +58,7 @@
 }
 
 .day-chips__loading,
+.day-chips__error,
 .day-chips__empty {
   margin: 0;
   color: var(--ink-2);

@@ -169,6 +169,7 @@ msgid "Bookings available up to %{advance}"
 msgstr ""
 
 #: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/blocks/day_chips.ex
 #: lib/tymeslot_web/themes/shared/blocks/month_calendar.ex
 #, elixir-autogen, elixir-format
 msgid "Calendar is loading slowly"

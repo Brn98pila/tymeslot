@@ -74,11 +74,28 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChipsTest do
     assert Floki.attribute(doc, "[data-value='2027-03-10']", "aria-pressed") == ["false"]
   end
 
-  test "says it is loading before the month's availability arrives" do
+  test "says it is loading while the month's availability is being fetched" do
+    doc = render_chips(availability: :loading, availability_status: :loading)
+
+    assert chips(doc) == []
+    assert doc |> Floki.find(".day-chips__loading") |> Floki.text() =~ "Loading available times"
+    assert Floki.find(doc, ".day-chips__empty") == []
+  end
+
+  test "says it is loading before a fetch has started" do
     doc = render_chips(availability: nil)
 
     assert chips(doc) == []
     assert doc |> Floki.find(".day-chips__loading") |> Floki.text() =~ "Loading available times"
+  end
+
+  test "says so when the fetch failed, instead of loading for ever" do
+    doc = render_chips(availability: nil, availability_status: :error)
+
+    assert chips(doc) == []
+    assert doc |> Floki.find(".day-chips__error") |> Floki.text() =~ "Calendar is loading slowly"
+    assert Floki.find(doc, ".day-chips__loading") == []
+    assert Floki.find(doc, ".day-chips__empty") == []
   end
 
   test "says when no day is free" do

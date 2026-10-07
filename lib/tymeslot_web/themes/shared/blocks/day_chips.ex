@@ -9,12 +9,12 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChips do
   A chip is a button for the date fact (`data-fact="date"`, `data-value` the
   ISO date) sending `select_date`, with its full date as accessible name and
   `aria-pressed` on the chosen day; the row is a group labelled "Select a
-  Date". While the availability has not arrived it says it is loading; when no
+  Date". While the availability has not arrived it says it is loading, and when the fetch failed it says the calendar is slow; when no
   day of the loaded window is free it says so, and the theme offers its way on
   (a month calendar, the next month). Clicks go to `target`.
 
   Classes: `day-chips`, `__list`, `__chip` (`--selected`, `--today`),
-  `__label`, `__loading`, `__empty`. The shared structure is
+  `__label`, `__loading`, `__error`, `__empty`. The shared structure is
   `scheduling/shared/blocks/day-chips.css`, on tokens only; `--day-chips-gap`
   changes the space between chips.
   """
@@ -26,7 +26,11 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChips do
 
   attr :availability, :any,
     required: true,
-    doc: "the flow's `month_availability_map`; nil until it arrives"
+    doc: "the flow's `month_availability_map`; nil before a fetch, `:loading` during one"
+
+  attr :availability_status, :atom,
+    default: :not_loaded,
+    doc: "the flow's `availability_status`: `:not_loaded`, `:loading`, `:loaded` or `:error`"
 
   attr :today, Date, required: true, doc: "the visitor's today (`@calendar_today`)"
   attr :selected_date, :string, default: nil
@@ -62,7 +66,11 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChips do
               <span class="day-chips__label" aria-hidden="true">{day_label(day, @today)}</span>
             </button>
           </div>
-        <% is_nil(@availability) -> %>
+        <% @availability_status == :error -> %>
+          <p class="day-chips__error" role="status">
+            {dgettext("booking", "Calendar is loading slowly")}
+          </p>
+        <% is_nil(@availability) or @availability == :loading or @availability_status == :loading -> %>
           <p class="day-chips__loading" role="status">
             {dgettext("booking", "Loading available times...")}
           </p>
