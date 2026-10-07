@@ -52,10 +52,13 @@ defmodule TymeslotWeb.Live.Themes.ScrollLocaleSwitchTest do
 
   defp state(view, moment), do: first_value(view, "##{moment}-step", "data-moment-state")
 
-  # Chooses the type and the first free time, and returns the day and time.
+  # Chooses the type and the first free time a few days ahead, so neither a
+  # slot boundary nor the minimum notice can take the time between the pick
+  # and the remount. Returns the day and time.
   defp choose(view, slug) do
     BookingDriver.choose_meeting_type(view, slug)
-    BookingDriver.pick_time(view, await_first_time(view))
+    day = Date.utc_today() |> Date.add(3) |> Date.to_iso8601()
+    {^day, _time} = BookingDriver.pick_first_slot(view, on: day)
     Map.take(live_assigns(view), [:selected_date, :selected_time])
   end
 
