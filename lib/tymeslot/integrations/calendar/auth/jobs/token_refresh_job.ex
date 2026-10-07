@@ -166,8 +166,7 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
        ) do
     meta = Keyword.merge(job_meta, user_id: integration.user_id)
 
-    result =
-      Tokens.refresh_oauth_token(integration, buffer_seconds: @refresh_threshold_hours * 3600)
+    result = refresh_recording_crashes(integration)
 
     log_failure(result, integration, meta)
 
@@ -259,8 +258,25 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
     )
   end
 
-  # The wording is part of the stored `sync_error`, which a repair migration
-  # (`ReactivateCalendarsDeactivatedByTokenRefresh`) matches on.
+  # A crash is a bug, so it fails the job and Oban retries it and reports it;
+  # the owner sees it in `sync_error` like any other failed refresh.
+  defp refresh_recording_crashes(integration) do
+    Tokens.refresh_oauth_token(integration, buffer_seconds: @refresh_threshold_hours * 3600)
+  rescue
+    exception ->
+      message =
+        refresh_failure_message(
+          integration.provider,
+          "#{Exception.message(exception)} (RETRYABLE)"
+        )
+
+      persist_refresh_failure(integration, message)
+      reraise exception, __STACKTRACE__
+  end
+
+  # The wording the dashboard shows in `sync_error`. The repair migration
+  # `ReactivateCalendarsDeactivatedByTokenRefresh` matched its `(PERMANENT)`
+  # form; it has run, so nothing reads the text back any more.
   defp refresh_failure_message(provider, reason),
     do: "#{String.capitalize(provider)} integration failed during token refresh: #{reason}"
 

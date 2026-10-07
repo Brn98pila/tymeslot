@@ -337,6 +337,21 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
       assert {:error, _reason} =
                TokenRefreshJob.perform(%Oban.Job{args: %{"integration_id" => integration.id}})
     end
+
+    # A crash fails the job, so Oban retries and reports it, and the owner
+    # still sees on the dashboard that the refresh is failing.
+    test "records a crashed refresh for the owner and fails the job" do
+      integration = insert_expired_google_integration(insert(:user))
+
+      expect(GoogleCalendarAPIMock, :refresh_token, fn _integration -> raise "boom" end)
+
+      assert_raise RuntimeError, "boom", fn ->
+        TokenRefreshJob.perform(%Oban.Job{args: %{"integration_id" => integration.id}})
+      end
+
+      assert Repo.get!(CalendarIntegrationSchema, integration.id).sync_error ==
+               "Google integration failed during token refresh: boom (RETRYABLE)"
+    end
   end
 
   describe "backoff/1" do
