@@ -428,6 +428,85 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
     end
   end
 
+  describe "a repeat rule given to a one-off CalDAV event" do
+    setup %{user: user} do
+      integration =
+        insert(:calendar_integration,
+          user: user,
+          provider: "caldav",
+          base_url: "https://caldav.example.com",
+          calendar_paths: ["/cal/"]
+        )
+
+      start_at =
+        today()
+        |> DateTime.new!(~T[09:00:00], "Europe/Berlin")
+        |> DateTime.shift_zone!("Etc/UTC")
+
+      utc = &Calendar.strftime(&1, "%Y%m%dT%H%M%SZ")
+
+      event =
+        insert(:provider_calendar_event,
+          calendar_integration: integration,
+          uid: "planning",
+          provider: "caldav",
+          provider_calendar_id: "/cal/",
+          provider_event_id: "/cal/planning.ics",
+          summary: "Planning",
+          start_at: start_at,
+          end_at: DateTime.add(start_at, 1, :hour),
+          all_day: false,
+          timezone: "Europe/Berlin",
+          etag: "\"etag-1\"",
+          raw_ical:
+            Enum.join(
+              [
+                "BEGIN:VCALENDAR",
+                "VERSION:2.0",
+                "BEGIN:VEVENT",
+                "UID:planning",
+                "DTSTAMP:20260901T090000Z",
+                "DTSTART:#{utc.(start_at)}",
+                "DTEND:#{utc.(DateTime.add(start_at, 1, :hour))}",
+                "SUMMARY:Planning",
+                "END:VEVENT",
+                "END:VCALENDAR"
+              ],
+              "\r\n"
+            ) <> "\r\n",
+          sync_state: "synced"
+        )
+
+      %{event: event}
+    end
+
+    # As a series it keeps its local time across DST only if it is written in
+    # its zone: RFC 5545 expands a rule in DTSTART's zone.
+    test "writes the new series in the event's own zone", %{conn: conn, event: event} do
+      expect_puts(1)
+      {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+
+      lv
+      |> element("#calendar-grid")
+      |> render_hook("show_event", %{"event-id" => to_string(event.id)})
+
+      lv
+      |> element("#calendar-grid")
+      |> render_hook("update_event_recurrence", %{
+        "freq" => "weekly",
+        "interval" => "1",
+        "end_type" => "never"
+      })
+
+      assert [{_url, body, _headers}] = await_puts(1)
+      lines = LineFolder.unfold_lines(body)
+
+      assert "DTSTART;TZID=Europe/Berlin:#{Calendar.strftime(today(), "%Y%m%d")}T090000" in lines
+      assert "TZID:Europe/Berlin" in lines
+      assert Enum.any?(lines, &String.starts_with?(&1, "RRULE:FREQ=WEEKLY"))
+    end
+  end
+
   defp first_start_line,
     do: "DTSTART;TZID=Europe/Berlin:#{Calendar.strftime(first_day(), "%Y%m%dT090000")}"
 

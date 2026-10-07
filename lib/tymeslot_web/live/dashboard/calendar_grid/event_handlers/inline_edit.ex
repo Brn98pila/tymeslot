@@ -502,8 +502,12 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.InlineEdit do
 
       {:noreply, assign(socket, :recurrence_prompt, prompt)}
     else
+      # A single event given a rule becomes a series, which a CalDAV calendar
+      # stores in the event's own zone so it keeps its local time across DST.
       socket =
-        EditWorkflow.update_event_async(socket, original_event, %{recurrence_rule: new_rule})
+        EditWorkflow.update_event_async(socket, original_event, %{recurrence_rule: new_rule},
+          timezone: Shared.recurrence_timezone(original_event, socket.assigns.user_timezone)
+        )
 
       send(self(), {:flash, {:info, dgettext("dashboard_calendar_events", "Changes saved.")}})
       {:noreply, socket}

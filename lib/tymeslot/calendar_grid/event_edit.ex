@@ -243,6 +243,7 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
          {:ok, payload} <-
            payload
            |> maybe_put_conference(Keyword.get(opts, :conference_data))
+           |> put_series_timezone(Keyword.get(opts, :timezone))
            |> put_stored_document(stored)
            |> scope_attendees(event, changes)
            |> address.() do
@@ -388,6 +389,14 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
       {:error, :until_before_start} = error -> error
     end
   end
+
+  # Read only by the CalDAV writer: a timed event that has, or is given, a
+  # rule is written as wall clocks in this zone
+  # (`ICalBuilder.TimeZoneComponent.series_zone/1`).
+  defp put_series_timezone(payload, zone) when is_binary(zone),
+    do: Map.put(payload, :series_timezone, zone)
+
+  defp put_series_timezone(payload, _zone), do: payload
 
   defp maybe_put_conference(payload, nil), do: payload
   defp maybe_put_conference(payload, change), do: Map.put(payload, :conference_data, change)

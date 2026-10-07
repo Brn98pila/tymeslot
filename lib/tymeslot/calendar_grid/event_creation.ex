@@ -58,8 +58,9 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
   @doc """
   Creates a calendar event from a resolved create-form payload.
 
-  The payload carries the `:creating` form map, the organiser `:user_id`, and
-  the parsed `:start_at`/`:end_at` datetimes. On success the returned map
+  The payload carries the `:creating` form map, the organiser `:user_id`, the
+  parsed `:start_at`/`:end_at` datetimes and, optionally, the organiser's
+  `:timezone`, the zone a repeating event is written in on a CalDAV calendar. On success the returned map
   carries everything the web layer needs to cache the event, notify the grid,
   and flash the user (including `:reauth_required` when the integration's
   credentials need re-encrypting).
@@ -108,13 +109,16 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
       all_day: Map.get(creating, :all_day, false),
       start: start_at,
       end: end_at,
-      recurrence_rule: Map.get(creating, :recurrence_rule)
+      recurrence_rule: Map.get(creating, :recurrence_rule),
+      timezone: payload[:timezone]
     }
 
     video_context = provision_video_room_for_plan(plan, event_details, grid_event)
 
     event_data =
-      build_event_data(uid, creating, start_at, end_at, event_details, video_context, plan)
+      uid
+      |> build_event_data(creating, start_at, end_at, event_details, video_context, plan)
+      |> put_series_timezone(payload[:timezone])
 
     result =
       CalendarEvents.create_event(
@@ -170,6 +174,14 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
   end
 
   # Private
+
+  # Read only by the CalDAV builder, which writes a timed series as wall
+  # clocks in this zone (`ICalBuilder.TimeZoneComponent.series_zone/1`); the
+  # other providers' payloads are left as they were.
+  defp put_series_timezone(event_data, zone) when is_binary(zone),
+    do: Map.put(event_data, :series_timezone, zone)
+
+  defp put_series_timezone(event_data, _zone), do: event_data
 
   defp build_event_data(uid, creating, start_at, end_at, event_details, video_context, plan) do
     description = build_description(creating[:description], video_context)

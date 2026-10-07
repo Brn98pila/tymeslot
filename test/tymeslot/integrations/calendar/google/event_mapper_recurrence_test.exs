@@ -66,6 +66,28 @@ defmodule Tymeslot.Integrations.Calendar.Google.EventMapperRecurrenceTest do
              ]
     end
 
+    # The zone a CalDAV calendar writes a series in is the CalDAV builder's
+    # alone: Google's body, its exclusions included, stays exactly as it was.
+    test "ignores the zone the CalDAV builder writes a series in" do
+      event_data = %{
+        summary: "Standup",
+        start_time: ~U[2026-04-20 10:00:00Z],
+        end_time: ~U[2026-04-20 10:15:00Z],
+        recurrence_rule: "FREQ=DAILY;COUNT=5",
+        recurrence_exceptions: [~D[2026-04-21], ~U[2026-04-23 10:00:00Z]]
+      }
+
+      zoned = Map.put(event_data, :series_timezone, "Europe/Berlin")
+
+      assert EventMapper.format_new_event_data(zoned) ==
+               EventMapper.format_new_event_data(event_data)
+
+      assert EventMapper.format_new_event_data(zoned)["recurrence"] == [
+               "RRULE:FREQ=DAILY;COUNT=5",
+               "EXDATE:20260421T100000Z,20260423T100000Z"
+             ]
+    end
+
     test "excludes a new all-day series' occurrences by date" do
       event_data = %{
         summary: "Gym",
