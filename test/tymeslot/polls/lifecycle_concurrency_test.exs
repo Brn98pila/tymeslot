@@ -5,10 +5,13 @@ defmodule Tymeslot.Polls.LifecycleConcurrencyTest do
   `Tymeslot.Test.RaceConductor` (see its moduledoc for why the module is
   synchronous and why `on_exit` deletes what it committed).
 
-  Each contender parks right after its locking read of the poll. With the
-  cancel and the edit reading under the same lock as the confirmation, one
-  contender parks at a time and the other waits, then finds the poll no
-  longer open; reading without it, both see the poll open and both write.
+  The confirmation parks right after its locking read of the poll; the
+  cancel or edit parks right after its first read of the poll, whatever kind
+  of read that is. With the cancel and the edit reading under the same lock
+  as the confirmation, one contender parks at a time and the other waits,
+  then finds the poll no longer open. Reading without it, the cancel or edit
+  parks having seen the poll open while the confirmation holds the lock, and
+  both write.
   """
 
   use Tymeslot.DataCase, async: false
@@ -133,10 +136,16 @@ defmodule Tymeslot.Polls.LifecycleConcurrencyTest do
     Confirm.confirm(ctx.poll.id, ctx.slot.id, ctx.user.id)
   end
 
+  # Parks on the contender's first read of the poll, locking or not, so that
+  # without the lock it is sure to have seen the poll open before the
+  # confirmation commits.
   defp locked(hold, fun) do
-    RaceConductor.arm(hold, RaceConductor.lock_of("polls"))
+    RaceConductor.arm(hold, &first_poll_read?/1)
     fun.()
   end
+
+  defp first_poll_read?(metadata),
+    do: metadata[:source] == "polls" and metadata[:query] =~ ~r/^SELECT/
 
   defp committed_poll(poll), do: unboxed(fn -> Repo.get!(PollSchema, poll.id) end)
 
