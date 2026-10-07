@@ -89,6 +89,22 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.AgendaIndexTest do
     assert mounted =~ "load_week"
   end
 
+  test "says it is loading, not empty, while another week's slots are fetched" do
+    doc = render_index(week_slots: %{}, loading: true)
+
+    assert doc |> Floki.find(".agenda-index__loading") |> Floki.text() =~
+             "Loading available times"
+
+    assert Floki.find(doc, ".agenda-index__empty") == []
+  end
+
+  test "keeps the rows while the week shown is fetched again" do
+    doc = render_index(loading: true)
+
+    assert Floki.attribute(doc, ".agenda-index__row", "data-date") == ["2027-03-10", "2027-03-12"]
+    assert Floki.find(doc, ".agenda-index__loading") == []
+  end
+
   test "says when the week has nothing free from today on" do
     doc = render_index(week_slots: %{"2027-03-08" => ["9:00 AM"]})
 

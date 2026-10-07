@@ -122,6 +122,19 @@ defmodule TymeslotWeb.Live.Scheduling.WeekSlots do
   end
 
   @doc """
+  What a block listing the week shows: `:error` when the fetch failed (the
+  error wins), `:loading` when no week has been asked for yet or another
+  week is on its way with its slots emptied, else `:loaded`. A refetch of the
+  week shown keeps it `:loaded`. `Blocks.NextSlots` and `Blocks.AgendaIndex`
+  share it, as `WeekGrid` does.
+  """
+  @spec view_state(map() | nil, boolean(), String.t() | nil) :: :error | :loading | :loaded
+  def view_state(_week_slots, _loading, error) when is_binary(error), do: :error
+  def view_state(nil, _loading, _error), do: :loading
+  def view_state(week_slots, true, _error) when map_size(week_slots) == 0, do: :loading
+  def view_state(_week_slots, _loading, _error), do: :loaded
+
+  @doc """
   A `start_async/3` result. Handles `{:week_slots, week_start}`, and returns
   `:unhandled` for any other name.
   """

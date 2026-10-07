@@ -44,6 +44,7 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.AgendaIndex do
     assigns =
       assign(assigns,
         rows: WeekSlots.free_days(assigns.week_slots, assigns.today),
+        state: WeekSlots.view_state(assigns.week_slots, assigns.loading, assigns.error),
         ask: is_nil(assigns.week_slots) && JS.push("load_week", target: assigns.target)
       )
 
@@ -82,9 +83,9 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.AgendaIndex do
         </button>
       </div>
       <%= cond do %>
-        <% is_binary(@error) -> %>
+        <% @state == :error -> %>
           <p class="agenda-index__error" role="status">{@error}</p>
-        <% is_nil(@week_slots) -> %>
+        <% @state == :loading -> %>
           <p class="agenda-index__loading" role="status">
             {dgettext("booking", "Loading available times...")}
           </p>

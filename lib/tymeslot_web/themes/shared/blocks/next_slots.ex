@@ -56,7 +56,7 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlots do
       assign(assigns,
         first: first,
         extra: extra,
-        state: state(assigns),
+        state: WeekSlots.view_state(assigns.week_slots, assigns.loading, assigns.error),
         ask: is_nil(assigns.week_slots) && JS.push("load_week", target: assigns.target)
       )
 
@@ -170,13 +170,6 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlots do
     </section>
     """
   end
-
-  # As `WeekGrid`: a failed fetch wins; then no week yet, or another week on
-  # its way with its slots emptied; a refetch of the week shown keeps it.
-  defp state(%{error: error}) when is_binary(error), do: :error
-  defp state(%{week_slots: nil}), do: :loading
-  defp state(%{loading: true, week_slots: slots}) when map_size(slots) == 0, do: :loading
-  defp state(_assigns), do: :loaded
 
   defp status_text(:error, error), do: error
   defp status_text(:loading, _error), do: dgettext("booking", "Loading available times...")
