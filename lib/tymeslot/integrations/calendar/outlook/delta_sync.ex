@@ -23,9 +23,9 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookCalendarAPI
   alias Tymeslot.Integrations.Calendar.Outlook.Provider, as: OutlookProvider
-  alias Tymeslot.Integrations.Calendar.Shared.AccessToken
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
+  alias Tymeslot.Integrations.Calendar.Tokens
   alias Tymeslot.Integrations.HealthCheck.ErrorAnalysis
 
   # Microsoft Graph rejects these query parameters on the `events/delta`
@@ -92,7 +92,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
     api_module = Config.outlook_calendar_api_module()
 
     result =
-      AccessToken.with_access_token(integration, &api_module.refresh_token/1, fn token ->
+      Tokens.with_access_token(integration, &api_module.refresh_token/1, fn token ->
         CalendarCircuitBreaker.call(:outlook, fn ->
           fetch_delta_page(token, delta_link, [])
         end)

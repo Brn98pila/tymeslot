@@ -1,119 +1,154 @@
 defmodule Tymeslot.Integrations.Calendar.Tokens do
   @moduledoc """
-  Token refresh utilities for OAuth-based calendar providers.
+  The one entry point for a calendar integration's OAuth access token
+  (Google and Outlook).
 
-  Centralizes token expiry checks and refresh flows for Google and Outlook.
+  Every path that needs a usable token goes through here: each provider API
+  call (`with_access_token/4`), and the scheduled refresh job and other
+  forced refreshes (`refresh_oauth_token/2`). Both run the shared locked flow
+  in `Tymeslot.Integrations.Shared.OAuth.Refresh` on one key per integration,
+  and both persist through the same function, so neither can refresh a token
+  the other is refreshing, and both clear a stale `sync_error` the same way.
   """
 
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
-  alias Tymeslot.Integrations.Calendar.TokenUtils
   alias Tymeslot.Integrations.CalendarManagement
-  alias Tymeslot.Integrations.Shared.Lock
   alias Tymeslot.Integrations.Shared.OAuth.Refresh
 
   require Logger
 
-  @type integration :: map()
-  @type user_id :: pos_integer()
+  @type integration :: CalendarIntegrationSchema.t()
+
+  @typedoc """
+  A provider's refresh: the calendar API module's `refresh_token/1`.
+  """
+  @type refresh_fun :: (integration() ->
+                          {:ok, {String.t(), String.t() | nil, DateTime.t()}}
+                          | {:error, term()}
+                          | {:error, atom(), String.t()})
 
   @providers ["google", "outlook"]
 
-  @doc """
-  Ensure an integration has a valid access token, refreshing if needed.
-  Returns {:ok, updated_integration} or {:error, :token_refresh_failed | :unsupported_provider}.
-  """
-  @spec ensure_valid_token(integration(), user_id()) :: {:ok, integration()} | {:error, term()}
-  def ensure_valid_token(integration, _user_id) do
-    if TokenUtils.token_expired?(integration) do
-      refresh_oauth_token(integration)
-    else
-      {:ok, integration}
-    end
-  end
+  # How long before expiry a provider API call refreshes the token.
+  @buffer_seconds 300
 
   @doc """
-  Refresh the access token for an integration.
-  Persists refreshed credentials when possible.
+  Runs `callback` with a usable access token for the integration, refreshing
+  it first when it expires within the buffer.
 
-  When the stored credentials no longer decrypt, the integration is flagged
-  for reconnection and the answer is `{:error, :requires_reencryption}`, or
-  `{:error, :reauth_flag_failed}` when the flag could not be written.
+  `refresh_fun` is the calling API module's own `refresh_token/1`. A refresh
+  failure is returned as it is, so a provider's `{:error, type, message}`
+  reaches the caller unchanged.
+
+  ## Options
+
+    * `:buffer_seconds` — refresh a token expiring within this many seconds
+      (5 minutes).
   """
-  @spec refresh_oauth_token(integration()) :: {:ok, integration()} | {:error, term()}
-  def refresh_oauth_token(%{provider: provider} = integration)
-      when provider in @providers do
-    integration_id = Map.get(integration, :id) || Map.get(integration, "id") || :unknown
+  @spec with_access_token(integration(), refresh_fun(), (String.t() -> result), keyword()) ::
+          result | {:error, term()} | {:error, atom(), String.t()}
+        when result: var
+  def with_access_token(
+        %CalendarIntegrationSchema{} = integration,
+        refresh_fun,
+        callback,
+        opts \\ []
+      ) do
+    buffer_seconds = Keyword.get(opts, :buffer_seconds, @buffer_seconds)
 
-    if integration_id == :unknown do
-      perform_refresh(integration)
-    else
-      # Ensure integration_id is an integer if it's a string
-      integration_id =
-        case integration_id do
-          id when is_integer(id) ->
-            id
-
-          id when is_binary(id) ->
-            case Integer.parse(id) do
-              {int, ""} -> int
-              _other -> :unknown
-            end
-
-          _other ->
-            :unknown
-        end
-
-      if integration_id == :unknown do
-        perform_refresh(integration)
+    result =
+      if Refresh.valid?(integration.token_expires_at, buffer_seconds) do
+        {:ok, CalendarIntegrationSchema.decrypt_oauth_tokens(integration)}
       else
-        Lock.with_lock(refresh_lock_key(integration_id), fn ->
-          refresh_under_lock(integration, integration_id)
-        end)
+        refresh(integration, refresh_fun, &Refresh.valid?(&1.token_expires_at, buffer_seconds))
       end
+
+    with {:ok, %{access_token: access_token}} <- result do
+      callback.(access_token)
     end
   end
 
-  def refresh_oauth_token(_integration), do: {:error, :unsupported_provider}
+  @doc """
+  Refreshes the integration's token unless the row, re-read under the lock,
+  already holds one valid for longer than the buffer, and returns the
+  integration with its tokens decrypted.
+
+  The refresh job passes its own scheduling window as the buffer, so it
+  refreshes ahead of expiry. A row whose expiry has moved past the one on
+  `integration` was refreshed by someone else since the caller read it, and
+  is not refreshed again while it is good for the usual 5 minutes: a Google
+  token lives an hour, inside the job's window, so the buffer alone would
+  have the job refresh a token an API call refreshed a moment earlier.
+
+  A failure is `{:error, reason}`, with a provider's typed failure as
+  `{:error, {type, message}}`. When the stored credentials no longer
+  decrypt, the integration is flagged for reconnection and the answer is
+  `{:error, :requires_reencryption}`, or `{:error, :reauth_flag_failed}` when
+  the flag could not be written. A wait for another holder of the lock that
+  outlasts the lock timeout is `{:error, :lock_timeout}`.
+
+  ## Options
+
+    * `:buffer_seconds` — refresh a token expiring within this many seconds
+      (5 minutes).
+  """
+  @spec refresh_oauth_token(integration(), keyword()) :: {:ok, integration()} | {:error, term()}
+  def refresh_oauth_token(integration, opts \\ [])
+
+  def refresh_oauth_token(%CalendarIntegrationSchema{provider: provider} = integration, opts)
+      when provider in @providers do
+    buffer_seconds = Keyword.get(opts, :buffer_seconds, @buffer_seconds)
+
+    valid? = fn current ->
+      Refresh.valid?(current.token_expires_at, buffer_seconds) or
+        (refreshed_since?(current, integration) and Refresh.valid?(current.token_expires_at))
+    end
+
+    case refresh(integration, &provider_refresh/1, valid?) do
+      {:error, type, message} -> {:error, {type, message}}
+      result -> result
+    end
+  end
+
+  def refresh_oauth_token(_integration, _opts), do: {:error, :unsupported_provider}
 
   @doc """
-  The lock every refresh of a calendar integration's OAuth token takes,
-  whichever path starts it (the hourly refresh job, a connection test, or a
-  provider API call finding its token expired). One key is what makes the
-  refresh single-flight: two keys would let two paths POST the same refresh
-  token at once, and with a provider that rotates refresh tokens the later
-  write could keep the older one.
+  The lock every refresh of a calendar integration's OAuth token takes.
   """
   @spec refresh_lock_key(term()) :: Refresh.lock_key()
   def refresh_lock_key(integration_id), do: Refresh.lock_key(:calendar, integration_id)
 
-  @doc """
-  The attributes to write after a successful refresh: the new tokens, and a
-  cleared `sync_error` unless the integration is flagged for reconnection.
-  """
-  @spec refreshed_token_attrs(integration(), String.t(), String.t() | nil, DateTime.t()) ::
-          map()
-  def refreshed_token_attrs(integration, access, refresh, expires_at) do
-    maybe_clear_sync_error(
-      %{access_token: access, refresh_token: refresh, token_expires_at: expires_at},
-      integration
-    )
+  defp refresh(integration, refresh_fun, valid?) do
+    Refresh.run(refresh_lock_key(integration.id), %{
+      fetch: fn -> fetch(integration.id) end,
+      valid?: valid?,
+      already_valid: &{:ok, CalendarIntegrationSchema.decrypt_oauth_tokens(&1)},
+      # From the row just read, not the caller's copy: a long job's copy can
+      # predate a reconnect flag, and the attributes written depend on it.
+      refresh: refresh_fun,
+      persist: &persist/2
+    })
   end
 
-  # Re-fetch from DB to ensure we have the most up-to-date tokens
-  # (in case another process just refreshed them while we were waiting for the lock)
-  defp refresh_under_lock(integration, integration_id) do
+  defp refreshed_since?(%{token_expires_at: nil}, _seen), do: false
+  defp refreshed_since?(_current, %{token_expires_at: nil}), do: true
+
+  defp refreshed_since?(current, seen),
+    do: DateTime.compare(current.token_expires_at, seen.token_expires_at) == :gt
+
+  defp fetch(integration_id) do
     case CalendarIntegrationQueries.get(integration_id) do
-      {:ok, fresh_integration} -> refresh_if_expired(fresh_integration)
+      {:ok, integration} -> {:ok, integration}
       {:error, :requires_reencryption, stale} -> flag_unreadable(stale)
-      _error -> refresh_if_expired(integration)
+      {:error, :not_found} -> {:error, :not_found}
     end
   end
 
-  # `handle_reauth_required/1` answers in Oban's terms; this function's
-  # callers expect `{:ok, _} | {:error, _}`.
+  # `handle_reauth_required/1` answers in Oban's terms; this module's callers
+  # expect `{:ok, _} | {:error, _}`.
   defp flag_unreadable(stale) do
     case CalendarManagement.handle_reauth_required(stale) do
       {:discard, _reason} -> {:error, :requires_reencryption}
@@ -121,55 +156,18 @@ defmodule Tymeslot.Integrations.Calendar.Tokens do
     end
   end
 
-  defp refresh_if_expired(integration) do
-    if TokenUtils.token_expired?(integration) do
-      perform_refresh(integration)
-    else
-      {:ok, integration}
-    end
-  end
+  defp provider_refresh(%{provider: "google"} = integration),
+    do: Config.google_calendar_api_module().refresh_token(integration)
 
-  defp perform_refresh(%{provider: "google"} = integration) do
-    case Config.google_calendar_api_module().refresh_token(integration) do
-      {:ok, {new_access_token, new_refresh_token, expires_at}} ->
-        # Use new refresh token if provided (rotation), else keep old one
-        refresh_to_persist =
-          if is_binary(new_refresh_token) and new_refresh_token != "",
-            do: new_refresh_token,
-            else: Map.get(integration, :refresh_token)
+  defp provider_refresh(%{provider: "outlook"} = integration),
+    do: Config.outlook_calendar_api_module().refresh_token(integration)
 
-        persist_and_return(
-          integration,
-          new_access_token,
-          refresh_to_persist,
-          expires_at
-        )
-
-      {:error, type, msg} ->
-        {:error, {type, msg}}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp perform_refresh(%{provider: "outlook"} = integration) do
-    case Config.outlook_calendar_api_module().refresh_token(integration) do
-      {:ok, {new_access_token, new_refresh_token, expires_at}} ->
-        persist_and_return(integration, new_access_token, new_refresh_token, expires_at)
-
-      {:error, type, msg} ->
-        {:error, {type, msg}}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  # Best-effort persistence: if we have a schema struct, write to DB; otherwise
-  # return the updated map.
-  defp persist_and_return(%CalendarIntegrationSchema{} = integration, access, refresh, expires_at) do
-    attrs = refreshed_token_attrs(integration, access, refresh, expires_at)
+  # A failed write is surfaced rather than answered with the fresh token:
+  # the row would still hold the old one, so every later caller would refresh
+  # again, risking the provider's rate limit and, with Google's one-use
+  # refresh tokens, revocation.
+  defp persist(integration, {access_token, refresh_token, expires_at}) do
+    attrs = refreshed_token_attrs(integration, access_token, refresh_token, expires_at)
 
     case CalendarIntegrationQueries.update(integration, attrs) do
       {:ok, updated} ->
@@ -181,17 +179,8 @@ defmodule Tymeslot.Integrations.Calendar.Tokens do
           error: LogFormat.reason(changeset.errors)
         )
 
-        {:error, :token_persistence_failed}
+        {:error, :token_persist_failed}
     end
-  end
-
-  defp persist_and_return(integration, access, refresh, expires_at) when is_map(integration) do
-    {:ok,
-     Map.merge(integration, %{
-       access_token: access,
-       refresh_token: refresh,
-       token_expires_at: expires_at
-     })}
   end
 
   # A successful refresh only means the token is valid again; it says nothing
@@ -199,6 +188,13 @@ defmodule Tymeslot.Integrations.Calendar.Tokens do
   # deleted booking calendar, no calendar selected). Clearing `sync_error`
   # here while `needs_reauth` is still true would erase the reason the
   # dashboard notice and reauth email depend on.
+  defp refreshed_token_attrs(integration, access_token, refresh_token, expires_at) do
+    maybe_clear_sync_error(
+      %{access_token: access_token, refresh_token: refresh_token, token_expires_at: expires_at},
+      integration
+    )
+  end
+
   defp maybe_clear_sync_error(attrs, %{needs_reauth: true}), do: attrs
   defp maybe_clear_sync_error(attrs, _integration), do: Map.put(attrs, :sync_error, nil)
 end

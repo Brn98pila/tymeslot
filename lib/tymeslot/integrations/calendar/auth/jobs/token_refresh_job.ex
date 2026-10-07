@@ -5,6 +5,15 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
   This job runs periodically to refresh OAuth tokens that are about to expire,
   ensuring continuous access to calendar APIs for both Google and Outlook.
 
+  The hourly sweep enqueues one job per integration whose token expires
+  within the next two hours, and each job refreshes with that same window as
+  its buffer, so a token is renewed ahead of expiry rather than by the first
+  API call to find it expired. A token whose expiry moved on since the job
+  read the integration was refreshed by someone else in the meantime (an API
+  call, a connection test), and the job then does nothing. The refresh takes
+  the same lock as every other refresh of the integration, so it never
+  overlaps one.
+
   Overrides `c:Oban.Worker.backoff/1` with a schedule optimised for token refresh
   timing:
   - Fast initial retries for transient issues
@@ -30,6 +39,7 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
   alias Tymeslot.Workers.RetryHelpers
 
   @refresh_threshold_hours 2
+  @lock_timeout_snooze_seconds 60
 
   @doc """
   Custom backoff strategy optimized for token refresh.
@@ -150,10 +160,13 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
        ) do
     meta = Keyword.merge(job_meta, user_id: integration.user_id)
 
-    # Use the centralized Tokens.refresh_oauth_token which includes single-flight locking
     result =
       ErrorHandler.handle_with_logging(
-        fn -> Tokens.refresh_oauth_token(integration) end,
+        fn ->
+          Tokens.refresh_oauth_token(integration,
+            buffer_seconds: @refresh_threshold_hours * 3600
+          )
+        end,
         operation: "refresh OAuth token",
         provider: provider,
         log_level: :warning
@@ -164,16 +177,16 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
         # Tokens.refresh_oauth_token handles persistence already
         :ok
 
-      {:error, :refresh_in_progress} ->
-        # Another process is already refreshing this token.
-        # We can just return :ok and let the other process finish,
-        # or snooze if we want to be sure. Given it's a job, :ok is fine.
+      {:error, :lock_timeout} ->
+        # Another refresh of this integration held the lock for longer than
+        # the wait. Come back once it has finished: by then the token is
+        # either refreshed, and this job does nothing, or still due.
         Logger.info(
-          "Token refresh skipped: already in progress",
+          "Token refresh deferred: another refresh holds the lock",
           Keyword.merge(meta, integration_id: integration.id, provider: provider)
         )
 
-        :ok
+        {:snooze, @lock_timeout_snooze_seconds}
 
       {:error, :requires_reencryption} ->
         # The row stopped decrypting after `perform/1` read it. Tokens has
