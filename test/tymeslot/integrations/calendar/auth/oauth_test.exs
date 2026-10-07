@@ -12,7 +12,7 @@ defmodule Tymeslot.Integrations.Calendar.OAuthTest do
   # Make sure mocks are verified
   setup :verify_on_exit!
 
-  describe "initiate_google_oauth/2" do
+  describe "initiate/3 for Google" do
     test "passes the user ID and the Google callback redirect URI to the helper" do
       user = insert(:user)
 
@@ -24,7 +24,7 @@ defmodule Tymeslot.Integrations.Calendar.OAuthTest do
         "https://accounts.google.com/o/oauth2/v2/auth?client_id=test"
       end)
 
-      assert {:ok, _url} = OAuth.initiate_google_oauth(user.id)
+      assert {:ok, _url} = OAuth.initiate(:google, user.id)
     end
 
     test "returns error when mock helper raises configuration error" do
@@ -36,7 +36,7 @@ defmodule Tymeslot.Integrations.Calendar.OAuthTest do
         raise "Client ID not configured"
       end)
 
-      assert {:error, message} = OAuth.initiate_google_oauth(user.id)
+      assert {:error, message} = OAuth.initiate(:google, user.id)
       assert String.contains?(message, "Google OAuth is not configured")
       assert String.contains?(message, "GOOGLE_CLIENT_ID")
     end
@@ -53,11 +53,11 @@ defmodule Tymeslot.Integrations.Calendar.OAuthTest do
       end)
 
       assert {:ok, ^expected_url} =
-               OAuth.initiate_google_oauth(user.id, return_to: "/dashboard/onboarding")
+               OAuth.initiate(:google, user.id, return_to: "/dashboard/onboarding")
     end
   end
 
-  describe "initiate_outlook_oauth/2" do
+  describe "initiate/3 for Outlook" do
     test "passes the user ID and the Outlook callback redirect URI to the helper" do
       user = insert(:user)
 
@@ -71,7 +71,7 @@ defmodule Tymeslot.Integrations.Calendar.OAuthTest do
         "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=test"
       end)
 
-      assert {:ok, _url} = OAuth.initiate_outlook_oauth(user.id)
+      assert {:ok, _url} = OAuth.initiate(:outlook, user.id)
     end
 
     test "returns error when mock helper raises configuration error" do
@@ -83,7 +83,7 @@ defmodule Tymeslot.Integrations.Calendar.OAuthTest do
         raise "Client ID not configured"
       end)
 
-      assert {:error, message} = OAuth.initiate_outlook_oauth(user.id)
+      assert {:error, message} = OAuth.initiate(:outlook, user.id)
       assert String.contains?(message, "Outlook OAuth is not configured")
       assert String.contains?(message, "OUTLOOK_CLIENT_ID")
     end
@@ -102,7 +102,7 @@ defmodule Tymeslot.Integrations.Calendar.OAuthTest do
       end)
 
       assert {:ok, ^expected_url} =
-               OAuth.initiate_outlook_oauth(user.id, return_to: "/dashboard/onboarding")
+               OAuth.initiate(:outlook, user.id, return_to: "/dashboard/onboarding")
     end
   end
 
@@ -141,32 +141,6 @@ defmodule Tymeslot.Integrations.Calendar.OAuthTest do
     test "returns false for non-Google integrations" do
       integration = %{provider: "caldav"}
       refute OAuth.needs_scope_upgrade?(integration)
-    end
-  end
-
-  describe "format_oauth_error/2" do
-    test "formats state secret configuration error for Google" do
-      error = %RuntimeError{message: "State Secret not configured"}
-      message = OAuth.format_oauth_error(error, "Google")
-
-      assert String.contains?(message, "Google OAuth is not configured")
-      assert String.contains?(message, "GOOGLE_STATE_SECRET")
-    end
-
-    test "formats client ID configuration error" do
-      error = %RuntimeError{message: "Client ID not configured"}
-      message = OAuth.format_oauth_error(error, "Outlook")
-
-      assert String.contains?(message, "Outlook OAuth is not configured")
-      assert String.contains?(message, "OUTLOOK_CLIENT_ID")
-    end
-
-    test "formats generic runtime errors" do
-      error = %RuntimeError{message: "Something went wrong"}
-      message = OAuth.format_oauth_error(error, "Google")
-
-      assert String.contains?(message, "Failed to setup Google OAuth")
-      assert String.contains?(message, "Something went wrong")
     end
   end
 

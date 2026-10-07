@@ -75,6 +75,35 @@ defmodule Tymeslot.Integrations.Shared.OAuthConfig do
     end
   end
 
+  @doc """
+  The operator-facing message for a failure to start `provider`'s OAuth flow
+  under the brand `label`. A missing setting is answered with the
+  environment variables to set; anything else with the error itself.
+  """
+  @spec setup_error_message(provider(), String.t(), Exception.t()) :: String.t()
+  def setup_error_message(provider, label, %RuntimeError{message: message} = error) do
+    case Enum.find([:state_secret, :client_id, :client_secret], &missing?(message, &1)) do
+      :state_secret ->
+        "#{label} OAuth is not configured. Please set #{env_var(provider, :client_id)}, " <>
+          "#{env_var(provider, :client_secret)}, and #{env_var(provider, :state_secret)} " <>
+          "environment variables."
+
+      nil ->
+        generic_setup_error(label, error)
+
+      key ->
+        "#{label} OAuth is not configured. Please set #{env_var(provider, key)} environment variable."
+    end
+  end
+
+  def setup_error_message(_provider, label, error), do: generic_setup_error(label, error)
+
+  defp missing?(message, key),
+    do: String.ends_with?(message, "#{@keys[key].label} not configured")
+
+  defp generic_setup_error(label, error),
+    do: "Failed to setup #{label} OAuth: #{Exception.message(error)}"
+
   defp present?(value), do: is_binary(value) and String.trim(value) != ""
 
   # "Google Client ID not configured": `Calendar.OAuth` and `Video.OAuth`

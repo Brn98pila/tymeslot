@@ -418,26 +418,12 @@ defmodule Tymeslot.Integrations.Calendar do
   end
 
   @doc """
-  Initiates Google Calendar OAuth flow and returns the authorization URL.
-
-  ## Options
-    - `:return_to` — relative path to redirect to after the OAuth callback
+  Starts a Google or Outlook calendar OAuth flow and returns the
+  authorisation URL. See `Tymeslot.Integrations.Calendar.OAuth.initiate/3`.
   """
-  @spec initiate_google_oauth(user_id(), keyword()) :: {:ok, String.t()} | {:error, String.t()}
-  def initiate_google_oauth(user_id, opts \\ []) when is_integer(user_id) do
-    OAuth.initiate_google_oauth(user_id, opts)
-  end
-
-  @doc """
-  Initiates Outlook Calendar OAuth flow and returns the authorization URL.
-
-  ## Options
-    - `:return_to` — relative path to redirect to after the OAuth callback
-  """
-  @spec initiate_outlook_oauth(user_id(), keyword()) :: {:ok, String.t()} | {:error, String.t()}
-  def initiate_outlook_oauth(user_id, opts \\ []) when is_integer(user_id) do
-    OAuth.initiate_outlook_oauth(user_id, opts)
-  end
+  @spec initiate_oauth(OAuth.provider(), user_id(), keyword()) ::
+          {:ok, String.t()} | {:error, String.t()}
+  defdelegate initiate_oauth(provider, user_id, opts \\ []), to: OAuth, as: :initiate
 
   @doc """
   Completes a Google or Outlook OAuth callback and connects the calendar,

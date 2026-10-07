@@ -59,4 +59,28 @@ defmodule Tymeslot.Integrations.Shared.OAuthConfigTest do
     assert OAuthConfig.env_var(:microsoft, :state_secret) == "OUTLOOK_STATE_SECRET"
     assert OAuthConfig.env_var(:google, :client_secret) == "GOOGLE_CLIENT_SECRET"
   end
+
+  describe "setup_error_message/3" do
+    test "names every variable a flow needs when its state secret is missing" do
+      error = %RuntimeError{message: "Google State Secret not configured"}
+
+      assert OAuthConfig.setup_error_message(:google, "Google", error) ==
+               "Google OAuth is not configured. Please set GOOGLE_CLIENT_ID, " <>
+                 "GOOGLE_CLIENT_SECRET, and GOOGLE_STATE_SECRET environment variables."
+    end
+
+    test "names the one missing variable, by the provider's own prefix" do
+      error = %RuntimeError{message: "Microsoft Client ID not configured"}
+
+      assert OAuthConfig.setup_error_message(:microsoft, "Outlook", error) ==
+               "Outlook OAuth is not configured. Please set OUTLOOK_CLIENT_ID environment variable."
+    end
+
+    test "passes any other failure through" do
+      error = %RuntimeError{message: "Something went wrong"}
+
+      assert OAuthConfig.setup_error_message(:zoom, "Zoom", error) ==
+               "Failed to setup Zoom OAuth: Something went wrong"
+    end
+  end
 end

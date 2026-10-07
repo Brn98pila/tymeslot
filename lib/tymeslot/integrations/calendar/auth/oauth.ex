@@ -10,6 +10,7 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
   alias Tymeslot.Integrations.Calendar.Google.Provider, as: GoogleProvider
   alias Tymeslot.Integrations.Calendar.Outlook.OAuthHelper, as: OutlookOAuthHelper
   alias Tymeslot.Integrations.Common.OAuth.State
+  alias Tymeslot.Integrations.Shared.OAuthConfig
   alias TymeslotWeb.Endpoint
 
   @type user_id :: pos_integer()
@@ -17,44 +18,43 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
   @typedoc "A calendar provider that authenticates over OAuth."
   @type provider :: :google | :outlook
 
-  # The callback exchange goes to the concrete helpers rather than the
-  # injectable ones used for authorisation URLs: the test doubles configured
-  # for those implement only the URL half of the flow.
-  @callback_helpers %{google: GoogleOAuthHelper, outlook: OutlookOAuthHelper}
-
-  # The OAuth client whose state secret signs each provider's flow.
-  @state_providers %{google: :google, outlook: :microsoft}
+  # `label` names the provider in operator-facing errors; `config` is the
+  # OAuth client whose credentials and state secret its flow uses; `url_helper`
+  # is the application key that can swap the helper building authorisation
+  # URLs for a test double. The callback exchange goes to `helper` directly:
+  # those doubles implement only the URL half of the flow.
+  @providers %{
+    google: %{
+      label: "Google",
+      config: :google,
+      helper: GoogleOAuthHelper,
+      url_helper: :google_calendar_oauth_helper
+    },
+    outlook: %{
+      label: "Outlook",
+      config: :microsoft,
+      helper: OutlookOAuthHelper,
+      url_helper: :outlook_calendar_oauth_helper
+    }
+  }
 
   @doc """
-  Initiate Google Calendar OAuth flow and return authorization URL.
+  Starts `provider`'s OAuth flow for `user_id` and returns the authorisation
+  URL to send the browser to, or an error naming what an operator has to
+  configure.
 
   ## Options
     - `:return_to` — relative path to redirect to after the OAuth callback
+    - `:login_hint`, `:integration_id` — target the account already
+      connected when reconnecting
   """
-  @spec initiate_google_oauth(user_id(), keyword()) :: {:ok, String.t()} | {:error, String.t()}
-  def initiate_google_oauth(user_id, opts \\ []) when is_integer(user_id) do
-    authorization_url =
-      google_oauth_helper().authorization_url(user_id, redirect_uri(:google), opts)
-
-    {:ok, authorization_url}
+  @spec initiate(provider(), user_id(), keyword()) :: {:ok, String.t()} | {:error, String.t()}
+  def initiate(provider, user_id, opts \\ []) when is_integer(user_id) do
+    {:ok, url_helper(provider).authorization_url(user_id, redirect_uri(provider), opts)}
   rescue
-    error -> {:error, format_oauth_error(error, "Google")}
-  end
-
-  @doc """
-  Initiate Outlook Calendar OAuth flow and return authorization URL.
-
-  ## Options
-    - `:return_to` — relative path to redirect to after the OAuth callback
-  """
-  @spec initiate_outlook_oauth(user_id(), keyword()) :: {:ok, String.t()} | {:error, String.t()}
-  def initiate_outlook_oauth(user_id, opts \\ []) when is_integer(user_id) do
-    authorization_url =
-      outlook_oauth_helper().authorization_url(user_id, redirect_uri(:outlook), opts)
-
-    {:ok, authorization_url}
-  rescue
-    error -> {:error, format_oauth_error(error, "Outlook")}
+    error ->
+      %{label: label, config: config} = Map.fetch!(@providers, provider)
+      {:error, OAuthConfig.setup_error_message(config, label, error)}
   end
 
   @doc """
@@ -69,9 +69,11 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
   @spec complete(provider(), String.t(), String.t(), user_id()) ::
           {:ok, CalendarIntegrationSchema.t()} | {:error, term()}
   def complete(provider, code, state, user_id) do
-    with {:ok, validated} <- State.verify(state, Map.fetch!(@state_providers, provider), user_id),
+    %{config: config, helper: helper} = Map.fetch!(@providers, provider)
+
+    with {:ok, validated} <- State.verify(state, config, user_id),
          {:ok, integration} <-
-           Map.fetch!(@callback_helpers, provider).handle_callback(
+           helper.handle_callback(
              code,
              redirect_uri(provider),
              validated
@@ -91,7 +93,7 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
       when is_integer(user_id) and is_integer(integration_id) do
     with {:ok, integration} <- Calendar.get_integration(integration_id, user_id),
          true <- integration.provider == "google",
-         {:ok, url} <- initiate_google_oauth(user_id) do
+         {:ok, url} <- initiate(:google, user_id) do
       {:ok, url}
     else
       false -> {:error, :invalid_provider}
@@ -108,55 +110,13 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
     integration.provider == "google" && GoogleProvider.needs_scope_upgrade?(integration)
   end
 
-  @doc """
-  Format OAuth-related errors into user-friendly strings.
-  """
-  @spec format_oauth_error(any(), String.t()) :: String.t()
-  def format_oauth_error(error, provider) do
-    case error do
-      %RuntimeError{message: message} -> format_runtime_error_message(message, provider)
-      _other -> "Failed to setup #{provider} OAuth: #{Exception.message(error)}"
-    end
-  end
-
-  defp format_runtime_error_message(message, provider) do
-    error_type =
-      cond do
-        String.contains?(message, "State Secret not configured") -> :state_secret
-        String.contains?(message, "Client ID not configured") -> :client_id
-        String.contains?(message, "Client Secret not configured") -> :client_secret
-        true -> :generic
-      end
-
-    format_oauth_config_message(error_type, provider, message)
-  end
-
-  defp format_oauth_config_message(:state_secret, provider, _message) do
-    "#{provider} OAuth is not configured. Please set #{String.upcase(provider)}_CLIENT_ID, #{String.upcase(provider)}_CLIENT_SECRET, and #{String.upcase(provider)}_STATE_SECRET environment variables."
-  end
-
-  defp format_oauth_config_message(:client_id, provider, _message) do
-    "#{provider} OAuth is not configured. Please set #{String.upcase(provider)}_CLIENT_ID environment variable."
-  end
-
-  defp format_oauth_config_message(:client_secret, provider, _message) do
-    "#{provider} OAuth is not configured. Please set #{String.upcase(provider)}_CLIENT_SECRET environment variable."
-  end
-
-  defp format_oauth_config_message(:generic, provider, message) do
-    "Failed to setup #{provider} OAuth: #{message}"
-  end
-
   # The authorisation request and the code exchange must name the same URI, so
   # both are built here.
-  defp redirect_uri(provider) when is_map_key(@callback_helpers, provider),
+  defp redirect_uri(provider) when is_map_key(@providers, provider),
     do: "#{Endpoint.url()}/auth/#{provider}/calendar/callback"
 
-  defp google_oauth_helper do
-    Application.get_env(:tymeslot, :google_calendar_oauth_helper, GoogleOAuthHelper)
-  end
-
-  defp outlook_oauth_helper do
-    Application.get_env(:tymeslot, :outlook_calendar_oauth_helper, OutlookOAuthHelper)
+  defp url_helper(provider) do
+    %{helper: helper, url_helper: key} = Map.fetch!(@providers, provider)
+    Application.get_env(:tymeslot, key, helper)
   end
 end
