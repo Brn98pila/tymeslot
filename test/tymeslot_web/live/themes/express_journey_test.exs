@@ -192,5 +192,24 @@ defmodule TymeslotWeb.Live.Themes.ExpressJourneyTest do
     end
   end
 
+  describe "a meeting type's own link" do
+    test "names its type alone, with no switcher to the others", %{conn: conn} do
+      %{profile: profile} =
+        seed_organiser(@theme_id, "express-direct",
+          types: [
+            [name: "Quick Chat", duration_minutes: 30],
+            [name: "Long Talk", duration_minutes: 60]
+          ]
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/#{profile.username}/long-talk")
+
+      refute has_element?(view, "[data-fact='meeting_type']")
+      refute render(view) =~ "Quick Chat"
+      assert has_element?(view, "#now-step [data-testid='journey-fixture-answer']", "Long Talk")
+      assert live_assigns(view).meeting_type.name == "Long Talk"
+    end
+  end
+
   defp weekend?(iso), do: iso |> Date.from_iso8601!() |> Date.day_of_week() >= 6
 end

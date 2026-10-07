@@ -3,7 +3,10 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.Now do
   Fixture Express's first screen: the soonest free times (`NextSlots`), the
   meeting type already chosen by the moment's default (named, with its
   approval pill, when the organiser offers only it), a switcher above the
-  times when the organiser has more than one type, and Continue.
+  times when the organiser has more than one type, and Continue. A meeting
+  type a direct or private link chose may not be changed
+  (`Markup.revisitable?/1`): the moment then names it alone, never the
+  organiser's other types.
   """
   use TymeslotWeb, :live_component
 
@@ -22,7 +25,11 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.Now do
   defdelegate handle_event(event, params, socket), to: StepEvents
 
   @impl Phoenix.LiveComponent
-  def render(assigns), do: Markup.moment_root(assigns, &body/1)
+  def render(assigns) do
+    assigns
+    |> assign(:switcher, length(assigns.meeting_types) > 1 and Markup.revisitable?(assigns))
+    |> Markup.moment_root(&body/1)
+  end
 
   defp body(assigns) do
     ~H"""
@@ -33,7 +40,7 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.Now do
     >
       Next available
     </JourneyComponents.moment_heading>
-    <%= if length(@meeting_types) > 1 do %>
+    <%= if @switcher do %>
       <div role="group" aria-label="Meeting type">
         <button
           :for={meeting_type <- @meeting_types}
