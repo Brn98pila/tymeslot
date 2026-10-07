@@ -137,10 +137,20 @@ defmodule TymeslotWeb.Themes.MarkupContractTest do
 
     assert times == Enum.uniq(times), "two time buttons share a data-value"
 
-    # A time button belongs to the day picked; a slot button names its own.
+    # The control clicked said what it sends: the booking holds the day and
+    # the time its attributes named.
+    assigns = live_assigns(view)
+
+    assert {assigns.selected_date, assigns.selected_time} == {day, time},
+           "the time picked is not the day and time its marked control named"
+
+    # A picker still on show marks the time picked among its choices (a time
+    # button belongs to the day picked; a slot button names its own). A page
+    # that answers the moment in its place (a transcript) shows no picker.
     marked = Enum.map(times, &{day, &1}) ++ slot_pairs(view)
 
-    assert {day, time} in marked, "the time picked is marked neither as a time nor as a slot"
+    assert {day, time} in marked == (marked != []),
+           "the time picked is marked neither as a time nor as a slot"
   end
 
   defp check_and_do(view, :answers, _ctx, _assigns),

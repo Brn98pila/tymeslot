@@ -45,12 +45,16 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.Offer do
   accept. Once answered, a transcript shows the answer and, where it may be
   changed, an Edit control instead. A meeting type a direct or private link
   chose may not be changed (`Markup.revisitable?/1`): the moment then names
-  the chosen type alone, never the organiser's public list beside it.
+  the chosen type alone, never the organiser's public list beside it. The
+  chosen type keeps its approval pill, so a visitor whose type was chosen for
+  them (a defaulted only type) still learns it needs approval. A transcript
+  opens with the organiser's name, as the first line of the conversation.
   """
   use TymeslotWeb, :live_component
 
   alias Tymeslot.Meetings.Approval
   alias Tymeslot.MeetingTypes
+  alias Tymeslot.Profiles
   alias TymeslotWeb.Test.JourneyFixtures.Markup
   alias TymeslotWeb.Themes.Shared.Components.ApprovalNotice
   alias TymeslotWeb.Themes.Shared.Journey.Components, as: JourneyComponents
@@ -68,6 +72,7 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.Offer do
 
     assigns
     |> assign(
+      transcript: Markup.transcript?(assigns),
       answered: Markup.transcript?(assigns) and done,
       locked: done and not Markup.revisitable?(assigns),
       editable: Markup.revisitable?(assigns)
@@ -77,9 +82,15 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.Offer do
 
   defp body(assigns) do
     ~H"""
+    <p :if={@transcript} data-testid="journey-fixture-host">
+      {Profiles.display_name(@organizer_profile)}
+    </p>
     <%= cond do %>
       <% @answered -> %>
-        <p data-testid="journey-fixture-answer">{@meeting_type && @meeting_type.name}</p>
+        <p data-testid="journey-fixture-answer">
+          {@meeting_type && @meeting_type.name}
+          <ApprovalNotice.pill :if={Approval.required?(@meeting_type)} />
+        </p>
         <button
           :if={@editable}
           type="button"
@@ -90,7 +101,10 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.Offer do
           Change meeting type
         </button>
       <% @locked -> %>
-        <p data-testid="journey-fixture-answer">{@meeting_type && @meeting_type.name}</p>
+        <p data-testid="journey-fixture-answer">
+          {@meeting_type && @meeting_type.name}
+          <ApprovalNotice.pill :if={Approval.required?(@meeting_type)} />
+        </p>
       <% true -> %>
         <JourneyComponents.moment_heading
           moment={@moment}
@@ -248,6 +262,112 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.When do
         target={@myself}
       />
     </section>
+    """
+  end
+end
+
+defmodule TymeslotWeb.Test.JourneyFixtures.Moments.Day do
+  @moduledoc """
+  Fixture Talk's "which day?" bubble: the next free days as chips. It collects
+  nothing, so it is open whenever reached. A fact's event is taken only from
+  a moment collecting the fact, so its chips send the day to the times
+  moment after it (`#time-step`), which collects the slot and is on screen
+  with it. Once a time is chosen it names the day instead.
+  """
+  use TymeslotWeb, :live_component
+
+  alias TymeslotWeb.Test.JourneyFixtures.Markup
+  alias TymeslotWeb.Themes.Shared.Blocks.DayChips
+  alias TymeslotWeb.Themes.Shared.Journey.Components, as: JourneyComponents
+  alias TymeslotWeb.Themes.Shared.LocalizationHelpers
+  alias TymeslotWeb.Themes.Shared.StepEvents
+
+  @impl Phoenix.LiveComponent
+  defdelegate update(assigns, socket), to: StepEvents
+
+  @impl Phoenix.LiveComponent
+  defdelegate handle_event(event, params, socket), to: StepEvents
+
+  @impl Phoenix.LiveComponent
+  def render(assigns), do: Markup.moment_root(assigns, &body/1)
+
+  defp body(assigns) do
+    ~H"""
+    <%= if @selected_time do %>
+      <p data-testid="journey-fixture-day">
+        {LocalizationHelpers.format_full_date_label(@selected_date)}
+      </p>
+    <% else %>
+      <JourneyComponents.moment_heading
+        moment={@moment}
+        moment_state={@moment_state}
+        focus={assigns[:journey_focus]}
+      >
+        Which day suits you?
+      </JourneyComponents.moment_heading>
+      <DayChips.day_chips
+        availability={@month_availability_map}
+        availability_status={@availability_status}
+        user_timezone={@user_timezone}
+        selected_date={@selected_date}
+        target="#time-step"
+      />
+    <% end %>
+    """
+  end
+end
+
+defmodule TymeslotWeb.Test.JourneyFixtures.Moments.Time do
+  @moduledoc """
+  Fixture Talk's times: the chosen day's times (the shared slot list), and
+  once answered the time with an Edit control.
+  """
+  use TymeslotWeb, :live_component
+
+  alias TymeslotWeb.Test.JourneyFixtures.Markup
+  alias TymeslotWeb.Themes.Shared.Components.SlotList
+  alias TymeslotWeb.Themes.Shared.Journey.Components, as: JourneyComponents
+  alias TymeslotWeb.Themes.Shared.LocalizationHelpers
+  alias TymeslotWeb.Themes.Shared.StepEvents
+
+  @impl Phoenix.LiveComponent
+  defdelegate update(assigns, socket), to: StepEvents
+
+  @impl Phoenix.LiveComponent
+  defdelegate handle_event(event, params, socket), to: StepEvents
+
+  @impl Phoenix.LiveComponent
+  def render(assigns), do: Markup.moment_root(assigns, &body/1)
+
+  defp body(assigns) do
+    ~H"""
+    <%= if @moment_state == :done do %>
+      <p data-testid="journey-fixture-answer">
+        {LocalizationHelpers.format_booking_datetime(@selected_date, @selected_time, @user_timezone)}
+      </p>
+      <button type="button" phx-click="navigate_to_step" phx-value-step={@moment} data-intent="edit">
+        Change time
+      </button>
+    <% else %>
+      <JourneyComponents.moment_heading
+        moment={@moment}
+        moment_state={@moment_state}
+        focus={assigns[:journey_focus]}
+      >
+        Which time?
+      </JourneyComponents.moment_heading>
+      <SlotList.slot_list
+        selected_date={@selected_date}
+        selected_time={@selected_time}
+        available_slots={@available_slots}
+        loading_slots={@loading_slots}
+        calendar_error={@calendar_error}
+        slot_interval_minutes={@slot_interval_minutes}
+        duration_minutes={@duration_minutes}
+        expanded_hour={@expanded_hour}
+        target={@myself}
+      />
+    <% end %>
     """
   end
 end

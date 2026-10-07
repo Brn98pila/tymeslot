@@ -26,6 +26,10 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Wrapper do
   @spec scroll(map()) :: Phoenix.LiveView.Rendered.t()
   def scroll(assigns), do: shell(assigns, :fixture_scroll, "journey-fixture-scroll")
 
+  @doc "Fixture Talk's wrapper."
+  @spec talk(map()) :: Phoenix.LiveView.Rendered.t()
+  def talk(assigns), do: shell(assigns, :fixture_talk, "journey-fixture-talk")
+
   defp shell(assigns, key, class) do
     {:ok, theme_id} = Catalog.key_to_id(key)
 
