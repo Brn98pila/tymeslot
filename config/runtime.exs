@@ -256,6 +256,9 @@ if config_env() == :prod do
       crontab: [
         # Run every 30 minutes for Oban maintenance
         {"*/30 * * * *", Tymeslot.Workers.ObanMaintenanceWorker},
+        # Run hourly, ten minutes past: refresh calendar OAuth tokens expiring
+        # within two hours, ahead of the first API call to need them
+        {"10 * * * *", Tymeslot.Integrations.Calendar.TokenRefreshJob},
         # Run every hour for queue health monitoring
         {"0 * * * *", Tymeslot.Workers.ObanQueueMonitorWorker},
         # Run hourly, five minutes past, so the hour it evaluates is complete:

@@ -5,9 +5,9 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
   This job runs periodically to refresh OAuth tokens that are about to expire,
   ensuring continuous access to calendar APIs for both Google and Outlook.
 
-  The hourly sweep enqueues one job per integration whose token expires
-  within the next two hours, and each job refreshes with that same window as
-  its buffer, so a token is renewed ahead of expiry rather than by the first
+  The sweep, on the Oban crontab hourly, enqueues one job per integration
+  whose token expires within the next two hours (unique while it waits or
+  retries), and each job refreshes with that same window as its buffer, so a token is renewed ahead of expiry rather than by the first
   API call to find it expired. A token whose expiry moved on since the job
   read the integration was refreshed by someone else in the meantime (an API
   call, a connection test), and the job then does nothing. The refresh takes
@@ -136,20 +136,12 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
     :ok
   end
 
+  # One job per integration until it has run: a sweep must not enqueue a
+  # second refresh for a token whose first is still waiting or retrying.
   defp schedule_individual_refresh(%CalendarIntegrationSchema{id: id}) do
     %{"integration_id" => id}
-    |> new()
+    |> new(unique: [keys: [:integration_id], states: [:available, :scheduled, :retryable]])
     |> Oban.insert()
-  end
-
-  @doc """
-  Schedules the token refresh job to run every hour.
-  """
-  @spec schedule_periodic_refresh() :: Oban.Job.t()
-  def schedule_periodic_refresh do
-    %{}
-    |> new(schedule_in: 3600)
-    |> Oban.insert!()
   end
 
   # Private functions

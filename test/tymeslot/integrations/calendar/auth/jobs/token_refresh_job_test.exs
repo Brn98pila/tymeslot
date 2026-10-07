@@ -5,6 +5,8 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
 
   use Oban.Testing, repo: Tymeslot.Repo
 
+  alias Config.Reader
+  alias Oban.Cron.Expression
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.TokenRefreshJob
@@ -53,6 +55,24 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
       # Should have 2 jobs in the queue
       assert_enqueued(worker: TokenRefreshJob, args: %{"integration_id" => g_integration.id})
       assert_enqueued(worker: TokenRefreshJob, args: %{"integration_id" => o_integration.id})
+    end
+
+    # A sweep running while a token's refresh still waits or retries must not
+    # queue a second refresh of the same token.
+    test "enqueues one refresh per integration across sweeps" do
+      integration =
+        insert(:calendar_integration,
+          provider: "google",
+          token_expires_at: DateTime.add(DateTime.utc_now(:second), 1, :hour),
+          refresh_token_encrypted: Encryption.encrypt("rt"),
+          is_active: true
+        )
+
+      assert :ok = TokenRefreshJob.perform(%Oban.Job{args: %{}})
+      assert :ok = TokenRefreshJob.perform(%Oban.Job{args: %{}})
+
+      assert [_one] =
+               all_enqueued(worker: TokenRefreshJob, args: %{"integration_id" => integration.id})
     end
 
     test "schedules a refresh for an integration flagged for reconnection so its refresh token doesn't lapse" do
@@ -301,6 +321,34 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
       assert total < 2 * 60 * 60
     end
   end
+
+  describe "schedule" do
+    # Without a crontab entry the sweep ran once per boot, and the proactive
+    # refresh with it.
+    test "the sweep is registered hourly in the runtime crontab" do
+      runtime_exs = "runtime.exs" |> config_path() |> File.read!()
+      pattern = ~r/\{\s*"([^"]+)"\s*,\s*Tymeslot\.Integrations\.Calendar\.TokenRefreshJob\s*\}/
+
+      assert [_match, schedule] = Regex.run(pattern, runtime_exs),
+             "TokenRefreshJob is not registered in the runtime.exs crontab"
+
+      assert {:ok, expression} = Expression.parse(schedule)
+      assert expression.hours == MapSet.new(0..23)
+    end
+
+    test "the sweep is registered in the dev crontab" do
+      crontab =
+        "dev.exs"
+        |> config_path()
+        |> Reader.read!(env: :dev, target: :host)
+        |> get_in([:tymeslot, Oban, :cron, :crontab])
+
+      assert Enum.any?(crontab, &match?({_schedule, TokenRefreshJob}, &1))
+    end
+  end
+
+  defp config_path(file),
+    do: [__DIR__, "..", "..", "..", "..", "..", "..", "config", file] |> Path.join() |> Path.expand()
 
   defp insert_expired_google_integration(user) do
     insert(:calendar_integration,
