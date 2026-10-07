@@ -6,8 +6,10 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
   ensuring continuous access to calendar APIs for both Google and Outlook.
 
   The sweep, on the Oban crontab hourly, enqueues one job per integration
-  whose token expires within the next two hours (unique while it waits or
-  retries), and each job refreshes with that same window as its buffer, so a token is renewed ahead of expiry rather than by the first
+  whose token expires within the next two hours, starting at a random point
+  in the next half hour and unique until it has finished (waiting, running,
+  retrying or snoozed), and each job refreshes with that same window as its
+  buffer, so a token is renewed ahead of expiry rather than by the first
   API call to find it expired. A token whose expiry moved on since the job
   read the integration was refreshed by someone else in the meantime (an API
   call, a connection test), and the job then does nothing. The refresh takes
@@ -41,6 +43,7 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
 
   @refresh_threshold_hours 2
   @lock_timeout_snooze_seconds 60
+  @sweep_spread_seconds 1800
 
   @doc """
   Custom backoff strategy optimized for token refresh.
@@ -137,11 +140,21 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
     :ok
   end
 
-  # One job per integration until it has run: a sweep must not enqueue a
-  # second refresh for a token whose first is still waiting or retrying.
+  # One job per integration until it has finished, however long that takes:
+  # a sweep must not enqueue a second refresh for a token whose first is still
+  # waiting, running, retrying or snoozed, as each one is a real token request.
+  # The start is spread over half an hour so a sweep does not land every
+  # refresh on the queue's few slots at once.
   defp schedule_individual_refresh(%CalendarIntegrationSchema{id: id}) do
     %{"integration_id" => id}
-    |> new(unique: [keys: [:integration_id], states: [:available, :scheduled, :retryable]])
+    |> new(
+      schedule_in: :rand.uniform(@sweep_spread_seconds),
+      unique: [
+        keys: [:integration_id],
+        period: :infinity,
+        states: [:available, :scheduled, :executing, :retryable]
+      ]
+    )
     |> Oban.insert()
   end
 

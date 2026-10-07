@@ -69,10 +69,22 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
         )
 
       assert :ok = TokenRefreshJob.perform(%Oban.Job{args: %{}})
+
+      # The first refresh is still retrying an hour and more later, when the
+      # next sweep runs.
+      Repo.update_all(Oban.Job,
+        set: [
+          state: "retryable",
+          inserted_at: DateTime.add(DateTime.utc_now(), -2, :hour)
+        ]
+      )
+
       assert :ok = TokenRefreshJob.perform(%Oban.Job{args: %{}})
 
-      assert [_one] =
-               all_enqueued(worker: TokenRefreshJob, args: %{"integration_id" => integration.id})
+      refreshes =
+        Enum.filter(Repo.all(Oban.Job), &(&1.args == %{"integration_id" => integration.id}))
+
+      assert [%{state: "retryable"}] = refreshes
     end
 
     test "schedules a refresh for an integration flagged for reconnection so its refresh token doesn't lapse" do
