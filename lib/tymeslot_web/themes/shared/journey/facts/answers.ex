@@ -8,10 +8,9 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.Answers do
   once the booker has confirmed answers that validate (Continue past the last
   question), or when the meeting type has no questions; on a moment that
   also collects the attendee, once they validate (the submit confirms them).
-  The wizard moves
-  within the fact:
-  `continue/1` stays on the questions until the last one validates, and
-  `back/1` steps back until the first question, then leaves.
+  The wizard moves within the fact: `continue/1` stays on the questions until
+  the last one validates, and `back/1` steps back until the first question,
+  then leaves.
   """
 
   use TymeslotWeb.Themes.Shared.Journey.Fact
