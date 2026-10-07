@@ -19,9 +19,10 @@ defmodule Tymeslot.Meetings.GroupScheduling do
   organiser rather than deadlocking against them.
 
   Two racing first bookers queue on that lock, and the second finds the
-  first's committed row and joins it. The partial unique index on
-  `(organizer_user_id, start_time)` stays the backstop against a writer that
-  does not take the lock: the loser's insert fails the constraint, the
+  first's committed row and joins it. Every writer that can occupy a slot
+  must take the lock; that is the invariant this relies on. The partial
+  unique index on `(organizer_user_id, start_time)` is a last backstop for a
+  writer that breaks it: the loser's insert fails the constraint, the
   transaction rolls back, and one retry runs down the join path against the
   winner's now-visible row.
 

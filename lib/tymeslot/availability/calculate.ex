@@ -290,8 +290,8 @@ defmodule Tymeslot.Availability.Calculate do
     # uncached override lookup and a weekly-availability lookup for every
     # non-past day in the grid — up to 42 of each, from inside the template
     # render of a public page. Padded by `@owner_date_reach` at each end to
-    # match `available_slots/6` and `range_availability/6`; the fallback
-    # itself only reads the day before each date.
+    # match `available_slots/6` and `range_availability/6`, which also covers
+    # the fallback's own reads (from the day before each date up to its reach).
     #
     # Only the business-hours fallback (`availability_map` neither a map nor
     # `:loading`) ever reads `weekly_schedule`/`overrides` back out of

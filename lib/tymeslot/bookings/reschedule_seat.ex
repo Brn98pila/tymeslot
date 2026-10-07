@@ -14,7 +14,8 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
   is unique and the cancelled row keeps the old one); the confirmation email
   delivers the new links.
 
-  On `{:error, :slot_full}` (or a lost race, `:time_conflict`) the
+  On `{:error, :slot_full}` (or `:time_conflict`, the target clashing with
+  another of the organiser's meetings) the
   transaction rolls back, the old seat stands, and `{:error, :slot_taken}`
   is returned so the booking UI's existing bounce-back UX fires unchanged.
 
