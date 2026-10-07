@@ -240,6 +240,32 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.HttpTest do
     end
   end
 
+  describe "propfind/4 byte budget" do
+    test "abandons a PROPFIND body past 4 MB as too large, and reads one at 4 MB" do
+      budget = 4 * 1024 * 1024
+      test_pid = self()
+
+      ReqTest.stub(:tymeslot_http, fn conn ->
+        size = if conn.request_path == "/over/", do: budget + 1, else: budget
+        send(test_pid, :propfind)
+
+        conn
+        |> Conn.put_resp_header("content-type", "application/xml")
+        |> Conn.send_resp(207, String.duplicate("x", size))
+      end)
+
+      assert {:error, :response_too_large} =
+               Http.propfind("https://caldav.example.com/over/", "user", "pass")
+
+      # Not retried: the server answered, and would answer the same again.
+      assert_received :propfind
+      refute_received :propfind
+
+      assert {:ok, %Req.Response{status: 207}} =
+               Http.propfind("https://caldav.example.com/at/", "user", "pass")
+    end
+  end
+
   describe "put_event/5" do
     test "routes PUT through HTTPClient" do
       ReqTest.stub(:tymeslot_http, fn conn ->

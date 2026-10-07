@@ -53,6 +53,13 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
   # being downloaded (up to the HTTP client's much larger default) only for
   # the parser to give up on it.
   @max_report_bytes 8 * 1024 * 1024
+
+  # A PROPFIND answers properties, never calendar data: a depth-0 probe is a
+  # few hundred bytes, and a depth-1 listing about half a kilobyte per member.
+  # The budget is sized for the widest legitimate case, discovery pointed at a
+  # calendar collection rather than a home set, which lists every event in it:
+  # 4 MB holds about 8,000 members.
+  @max_propfind_bytes 4 * 1024 * 1024
   @task_await_timeout_ms 45_000
   @coalescer_call_timeout_ms 50_000
 
@@ -70,6 +77,10 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
   @doc "The body budget for a calendar-query REPORT; see `@max_report_bytes`."
   @spec max_report_bytes() :: pos_integer()
   def max_report_bytes, do: @max_report_bytes
+
+  @doc "The body budget for every PROPFIND; see `@max_propfind_bytes`."
+  @spec max_propfind_bytes() :: pos_integer()
+  def max_propfind_bytes, do: @max_propfind_bytes
 
   @spec task_await_timeout_ms() :: non_neg_integer()
   def task_await_timeout_ms, do: @task_await_timeout_ms

@@ -170,6 +170,16 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ErrorMessages do
     )
   end
 
+  # A response past its byte budget is neither a network fault nor a
+  # configuration one, so no category describes it. Same wording as
+  # `CalDAV.Errors.describe_error/1`, which words it for the sync status.
+  def specific_message(:response_too_large, _provider) do
+    dgettext(
+      "dashboard_calendar_providers",
+      "The calendar server returned more data than Tymeslot can process at once."
+    )
+  end
+
   def specific_message({:error, reason}, provider), do: specific_message(reason, provider)
 
   def specific_message(_error, _provider), do: nil
