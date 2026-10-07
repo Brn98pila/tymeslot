@@ -34,17 +34,18 @@ defmodule Tymeslot.Availability.Offer do
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
   alias Tymeslot.Profiles
 
+  @default_duration_minutes 30
+
   # A day. The duration can come from a URL slug, which is visitor input, so an
   # unbounded parse would let `/:username/99999/book` hold a multi-day slot.
-  @max_duration_minutes Reach.max_meeting_minutes()
-  @default_duration_minutes 30
+  defp max_duration_minutes, do: Reach.max_meeting_minutes()
 
   # How far outside the dates being rendered the booking fetch reaches. A
   # slot starting on the last rendered date can run for up to a day and keep
   # its buffer after it, and the window's own bounds are UTC while the days
   # are the booker's, up to a timezone offset away; nothing further out can
   # touch a slot inside.
-  @busy_window_padding_days Reach.utc_padding_days()
+  defp busy_window_padding_days, do: Reach.utc_padding_days()
 
   @typedoc """
   What a booking page is showing, and to whom.
@@ -328,8 +329,8 @@ defmodule Tymeslot.Availability.Offer do
     events
     |> Meetings.merge_busy_periods(
       user_id,
-      utc_day_start(Date.add(first_date, -@busy_window_padding_days)),
-      utc_day_start(Date.add(last_date, 1 + @busy_window_padding_days))
+      utc_day_start(Date.add(first_date, -busy_window_padding_days())),
+      utc_day_start(Date.add(last_date, 1 + busy_window_padding_days()))
     )
     |> Meetings.reject_calendar_event_mirrors(moving)
   end
@@ -408,10 +409,10 @@ defmodule Tymeslot.Availability.Offer do
   defp owner_timezone(profile), do: profile.timezone || Profiles.get_default_timezone()
 
   defp bounded_duration(minutes) when is_integer(minutes) and minutes > 0,
-    do: min(minutes, @max_duration_minutes)
+    do: min(minutes, max_duration_minutes())
 
   defp bounded_duration(slug) when is_binary(slug),
-    do: slug |> TimeSlots.parse_duration() |> min(@max_duration_minutes)
+    do: slug |> TimeSlots.parse_duration() |> min(max_duration_minutes())
 
   defp bounded_duration(_other), do: @default_duration_minutes
 end

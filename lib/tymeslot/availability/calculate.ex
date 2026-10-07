@@ -50,7 +50,7 @@ defmodule Tymeslot.Availability.Calculate do
   # How many owner days either side of the booker's dates the schedule may be
   # read for. A caller that prefetches for the engine pads by the same
   # `Reach.owner_days/0`, or the engine misses what lies beyond.
-  @owner_date_reach Reach.owner_days()
+  defp owner_date_reach, do: Reach.owner_days()
 
   @doc """
   Calculates available time slots for a specific date: `available_starts/6`,
@@ -113,8 +113,8 @@ defmodule Tymeslot.Availability.Calculate do
       prefetch_schedule_data(
         config,
         schedule_id,
-        Date.add(date, -@owner_date_reach),
-        Date.add(date, @owner_date_reach)
+        Date.add(date, -owner_date_reach()),
+        Date.add(date, owner_date_reach())
       )
 
     with {:ok, starts} <-
@@ -206,14 +206,14 @@ defmodule Tymeslot.Availability.Calculate do
     schedule_id = Map.get(config, :schedule_id)
 
     # Prefetch schedule data once for the entire range, padded by the owner
-    # days each booker date may read (`@owner_date_reach`).
+    # days each booker date may read (`owner_date_reach/0`).
     config =
       config
       |> Map.put(:duration_minutes, duration_minutes)
       |> prefetch_schedule_data(
         schedule_id,
-        Date.add(start_date, -@owner_date_reach),
-        Date.add(end_date, @owner_date_reach)
+        Date.add(start_date, -owner_date_reach()),
+        Date.add(end_date, owner_date_reach())
       )
 
     availability_map =
@@ -289,7 +289,7 @@ defmodule Tymeslot.Availability.Calculate do
     # `range_availability/6` already do. Without it the per-day fallback runs an
     # uncached override lookup and a weekly-availability lookup for every
     # non-past day in the grid — up to 42 of each, from inside the template
-    # render of a public page. Padded by `@owner_date_reach` at each end to
+    # render of a public page. Padded by `owner_date_reach/0` at each end to
     # match `available_slots/6` and `range_availability/6`, which also covers
     # the fallback's own reads (from the day before each date up to its reach).
     #
@@ -304,8 +304,8 @@ defmodule Tymeslot.Availability.Calculate do
         prefetch_schedule_data(
           config,
           Map.get(config, :schedule_id),
-          Date.add(first_display_date, -@owner_date_reach),
-          Date.add(end_date, @owner_date_reach)
+          Date.add(first_display_date, -owner_date_reach()),
+          Date.add(end_date, owner_date_reach())
         )
       end
 
