@@ -17,7 +17,9 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
        it came from is visible (`Navigator.visible/2`) and collects the
        fact, this booking needs the owner (`required?/1`), every fact the
        owner `requires/1` is known, and, when the moment is not the current
-       one, the owner may be revisited (`revisitable?/1`);
+       one, the owner may be revisited (`revisitable?/1`); when such an
+       event changes the owner's value, the facts depending on it are
+       forgotten (`clear/2`), so the page moves back to them;
     5. anything else is `:unhandled`, which `SchedulingLive` logs and drops.
 
   A theme's own `theme:<name>` events never reach this module. With
@@ -204,9 +206,55 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
 
   defp fact_event(journey, socket, moment_key, event, data) do
     case owner(journey, socket.assigns, moment_key, event) do
-      {:ok, fact} -> socket |> fact.handle(event, data) |> after_event()
-      :none -> :unhandled
+      {:ok, fact, :current} ->
+        socket |> fact.handle(event, data) |> after_event()
+
+      {:ok, fact, _answered} ->
+        socket |> fact.handle(event, data) |> forget_dependents(fact, socket) |> after_event()
+
+      :none ->
+        :unhandled
     end
+  end
+
+  # A fact answered earlier changed: what the booking built on its old value
+  # (a time picked for another meeting type's length, the details form opened
+  # for it) is forgotten, so settling moves the page back to the first moment
+  # still to complete. The fact itself keeps its new value.
+  defp forget_dependents({:noreply, socket}, fact, before) do
+    if changed?(fact, before, socket) do
+      key = fact.key()
+      {:noreply, clear(socket, Progress.dependents(key, socket.assigns) -- [key])}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp forget_dependents(other, _fact, _before), do: other
+
+  # What a fact holds is what its `clear/1` resets, so it changed when one of
+  # those assigns did. Comparing them, rather than taking every event as a
+  # change, keeps a click on the meeting type already chosen from forgetting
+  # the time. A fact without `clear/1` cannot be forgotten, nor read as
+  # changed.
+  defp changed?(fact, before, socket) do
+    if Code.ensure_loaded?(fact) and function_exported?(fact, :clear, 1) do
+      (held(fact, before) ++ held(fact, socket))
+      |> Enum.uniq()
+      |> Enum.any?(&(Map.get(before.assigns, &1) != Map.get(socket.assigns, &1)))
+    else
+      false
+    end
+  end
+
+  defp held(fact, socket) do
+    assigns = socket.assigns
+    cleared = fact.clear(socket).assigns
+
+    for key <- Enum.uniq(Map.keys(assigns) ++ Map.keys(cleared)),
+        key != :__changed__,
+        Map.get(assigns, key) != Map.get(cleared, key),
+        do: key
   end
 
   defp apply_defaults(socket, %Moment{defaults: defaults}, facts) do
@@ -251,7 +299,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
          true <- fact.required?(assigns),
          true <- Enum.all?(fact.requires(assigns), &Journey.fact!(&1).known?(assigns)),
          true <- state == :current or fact.revisitable?(assigns) do
-      {:ok, fact}
+      {:ok, fact, state}
     else
       _refused -> :none
     end

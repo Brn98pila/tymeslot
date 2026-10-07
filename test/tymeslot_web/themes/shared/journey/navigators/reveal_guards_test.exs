@@ -48,6 +48,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.RevealGuardsTest do
             journey_opened: MapSet.new([:intro, :offer, :when]),
             meeting_type: @intro,
             selected_duration: "intro-call",
+            duration: "intro-call",
             selected_date: nil,
             selected_time: nil,
             timezone_dropdown_open: false,
@@ -116,6 +117,36 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.RevealGuardsTest do
         assert changed.assigns.selected_duration == "private-call"
       end
 
+      test "forgets the time and the details when the answered meeting type changes",
+           %{navigator: nav} do
+        socket = at_details(%{entered_via_overview: true}, nav)
+
+        assert {:noreply, changed} =
+                 Runtime.handle_step_event(socket, :offer, :select_duration, "long-call")
+
+        assert %{
+                 current_state: :when,
+                 journey_focus: :when,
+                 selected_duration: "long-call",
+                 selected_date: "2027-01-05",
+                 selected_time: nil,
+                 submission_token: nil
+               } = changed.assigns
+
+        assert changed.assigns.journey_opened == MapSet.new([:intro, :offer, :when])
+      end
+
+      test "keeps the time and the details when the same meeting type is chosen again",
+           %{navigator: nav} do
+        socket = at_details(%{entered_via_overview: true}, nav)
+
+        assert {:noreply, same} =
+                 Runtime.handle_step_event(socket, :offer, :select_duration, "intro-call")
+
+        assert %{current_state: :you, selected_time: "10:00", submission_token: "token"} =
+                 same.assigns
+      end
+
       test "takes next and back only from the current moment", %{navigator: nav} do
         socket = at_times(nav)
 
@@ -178,9 +209,9 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.RevealGuardsTest do
 
   # A booker on the details: the slot chosen, the attendee moment open with
   # its submission token.
-  defp at_details(assigns) do
+  defp at_details(assigns, navigator \\ Transcript) do
     at_times(
-      Transcript,
+      navigator,
       Map.merge(
         %{
           current_state: :you,
