@@ -578,7 +578,7 @@ msgstr "O e-mail precisa ser um valor de texto"
 #: lib/tymeslot/security/field_validators/email_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Email username is missing"
-msgstr "Falta o nome de usuário do e-mail"
+msgstr "Falta a parte antes do @ no endereço de e-mail"
 
 #: lib/tymeslot/security/universal_sanitizer.ex
 #, elixir-autogen, elixir-format
@@ -718,7 +718,7 @@ msgstr "O número precisa ser no máximo %{max}"
 #: lib/tymeslot/security/field_validators/number_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Number must be numeric"
-msgstr "O número precisa ser numérico"
+msgstr "O valor precisa ser um número"
 
 #: lib/tymeslot/security/field_validators/phone_validator.ex
 #, elixir-autogen, elixir-format
@@ -778,7 +778,7 @@ msgstr "Escolha uma das opções disponíveis"
 #: lib/tymeslot/security/field_validators/select_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Selection must be a single option"
-msgstr "A seleção precisa ser uma única opção"
+msgstr "Só é possível escolher uma opção"
 
 #: lib/tymeslot/security/field_validators/multi_select_validator.ex
 #, elixir-autogen, elixir-format
@@ -793,7 +793,7 @@ msgstr "As seleções precisam ser texto"
 #: lib/tymeslot/security/field_validators/multi_select_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Some selections are not valid options"
-msgstr "Algumas seleções não são opções válidas"
+msgstr "Algumas das opções escolhidas não são válidas"
 
 #: lib/tymeslot/security/field_validators/text_validator.ex
 #, elixir-autogen, elixir-format
@@ -818,7 +818,7 @@ msgstr "O texto é muito curto (mínimo de %{min_length} caracteres)"
 #: lib/tymeslot/security/field_validators/text_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Text must be a text value"
-msgstr "O texto precisa ser um valor de texto"
+msgstr "O valor precisa ser um texto"
 
 #: lib/tymeslot/security/field_validators/time_validator.ex
 #, elixir-autogen, elixir-format
