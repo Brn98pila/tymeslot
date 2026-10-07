@@ -17,12 +17,11 @@ defmodule Tymeslot.Integrations.Video.Providers.MiroTalkProvider do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Logging.Redactor
   alias Tymeslot.Integrations.Shared.ProviderConfigHelper
+  alias Tymeslot.Integrations.Video.Providers.LinkRoom
   alias Tymeslot.Integrations.Video.Providers.MiroTalk.HttpHelpers
   alias Tymeslot.Integrations.Video.Providers.MiroTalk.JoinUrlBuilder
   alias Tymeslot.Integrations.Video.Providers.SsrfOptions
   alias Tymeslot.Integrations.Video.RoomData
-  alias Tymeslot.Security.SsrfGuard
-  alias Tymeslot.Security.UrlValidation
 
   @typedoc """
   A tagged `perform_connection_test/1` failure.
@@ -93,14 +92,9 @@ defmodule Tymeslot.Integrations.Video.Providers.MiroTalkProvider do
   # Returns untagged errors: `validate_config/1` is the structural gate every
   # provider shares, and its contract is `{:error, message}`. Only
   # `perform_connection_test/1` tags what it hands back.
-  defp validate_base_url(url) when url in [nil, ""],
-    do: {:error, dgettext("dashboard_video", "Base URL is required")}
-
-  defp validate_base_url(url) do
-    UrlValidation.validate_http_url(url,
-      block_private_ips: not SsrfGuard.allow_private_for_video?()
-    )
-  end
+  # The API key travels with every request, and a login name or password in
+  # the address would travel beside it as Basic auth.
+  defp validate_base_url(url), do: LinkRoom.validate_server_url(url)
 
   defp test_api_connection(base_url, api_key) do
     headers = build_api_headers(api_key)

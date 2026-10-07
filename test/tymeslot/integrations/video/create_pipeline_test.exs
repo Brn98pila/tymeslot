@@ -72,4 +72,61 @@ defmodule Tymeslot.Integrations.Video.CreatePipelineTest do
                "base_url" => "https://mirotalk.example.com"
              })
   end
+
+  # The API key travels with every request, and a login name or password in
+  # the address would travel beside it as Basic auth. No HTTP expectation: the
+  # refusal spends no connection test.
+  test "refuses a MiroTalk address with a login name, a query or a fragment", %{user: user} do
+    for url <- [
+          "https://admin:secret@mirotalk.example.com",
+          "https://mirotalk.example.com/?x=1",
+          "https://mirotalk.example.com/#top"
+        ] do
+      assert {:error, message} =
+               Video.create_integration(user.id, :mirotalk, %{
+                 "name" => "MiroTalk",
+                 "api_key" => "key",
+                 "base_url" => url
+               })
+
+      assert message =~ "The server URL cannot contain"
+    end
+
+    assert Video.list_integrations(user.id) == []
+  end
+
+  test "refuses an edit moving MiroTalk onto such an address", %{user: user} do
+    integration =
+      insert(:video_integration,
+        user: user,
+        provider: "mirotalk",
+        base_url: "https://mirotalk.example.com",
+        provider_account_id: "https://mirotalk.example.com"
+      )
+
+    assert {:error, message} =
+             Video.update_integration(user.id, integration.id, %{
+               "base_url" => "https://admin:secret@mirotalk.example.com"
+             })
+
+    assert message =~ "cannot contain a login name or password"
+    assert Repo.reload!(integration).base_url == "https://mirotalk.example.com"
+  end
+
+  # The address was saved before the rule; only a new one is checked.
+  test "keeps a MiroTalk address stored before the rule through a rename", %{user: user} do
+    integration =
+      insert(:video_integration,
+        user: user,
+        provider: "mirotalk",
+        base_url: "https://mirotalk.example.com/?team=1",
+        provider_account_id: "https://mirotalk.example.com/?team=1"
+      )
+
+    assert {:ok, %{name: "Team room"}} =
+             Video.update_integration(user.id, integration.id, %{
+               "name" => "Team room",
+               "base_url" => "https://mirotalk.example.com/?team=1"
+             })
+  end
 end

@@ -145,11 +145,10 @@ defmodule Tymeslot.Integrations.Video.Providers.JitsiProviderTest do
       assert message =~ "https://"
     end
 
-    test "allows plain http without credentials, and on a local server with them" do
+    # A local server with credentials: `ServerUrlTest`, as it needs the
+    # operator's private-address switch on.
+    test "allows plain http without credentials" do
       assert JitsiProvider.validate_config(%{base_url: "http://meet.example.com"}) == :ok
-
-      assert JitsiProvider.validate_config(credential_config(base_url: "http://localhost:8443")) ==
-               :ok
     end
 
     test "refuses a login name and password embedded in the server URL" do

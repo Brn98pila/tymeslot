@@ -35,6 +35,7 @@ defmodule Tymeslot.Integrations.Video.Update do
   alias Tymeslot.Integrations.Video.AttrsCasting
   alias Tymeslot.Integrations.Video.Connection
   alias Tymeslot.Integrations.Video.Providers.JitsiProvider
+  alias Tymeslot.Integrations.Video.Providers.LinkRoom
   alias Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider
   alias Tymeslot.Integrations.Video.Reconnect
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
@@ -247,6 +248,19 @@ defmodule Tymeslot.Integrations.Video.Update do
            do: :ok
     else
       :ok
+    end
+  end
+
+  # A new MiroTalk address is checked as a create checks it. The one stored
+  # is not, so a rename resubmitting it is never refused over a rule added
+  # after it was saved.
+  defp validate_update(%VideoIntegrationSchema{provider: "mirotalk"} = integration, attrs) do
+    case Map.fetch(attrs, :base_url) do
+      {:ok, base_url} when base_url != integration.base_url ->
+        LinkRoom.validate_server_url(base_url)
+
+      _unchanged ->
+        :ok
     end
   end
 
