@@ -264,6 +264,36 @@ defmodule Tymeslot.Meetings.MeetingQueries do
   end
 
   @doc """
+  Stamps `reschedule_requested_at` on a meeting, atomically, unless a
+  request is already pending or the meeting is already over.
+
+  The guard is in the `WHERE` clause for the same reason as
+  `transition_to_cancelled/2`: two requests for one meeting (a double click,
+  two tabs, a retried request) each hold a copy read before the other wrote,
+  so a check on that copy lets both through. Exactly one changes the row and
+  receives it; the other gets `{:error, :not_requestable}` and must not
+  queue a second email. Bypasses the changeset, so `updated_at` is set here.
+  """
+  @spec mark_reschedule_requested(String.t(), DateTime.t()) ::
+          {:ok, Meeting.t()} | {:error, :not_requestable}
+  def mark_reschedule_requested(meeting_id, %DateTime{} = requested_at) do
+    query =
+      MeetingState.where_not_terminal(
+        from(m in Meeting,
+          where: m.id == ^meeting_id and is_nil(m.reschedule_requested_at),
+          select: m
+        )
+      )
+
+    case Repo.update_all(query,
+           set: [reschedule_requested_at: requested_at, updated_at: DateTime.utc_now(:second)]
+         ) do
+      {1, [meeting]} -> {:ok, meeting}
+      {0, _none} -> {:error, :not_requestable}
+    end
+  end
+
+  @doc """
   Held requests whose deadline has passed, oldest first.
 
   Backs the expiry sweep, which exists because a per-meeting scheduled job can

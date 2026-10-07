@@ -66,9 +66,19 @@ defmodule Tymeslot.Bookings.RescheduleRequest do
   """
   @spec send_reschedule_request(MeetingSchema.t()) :: :ok | {:error, String.t() | atom()}
   def send_reschedule_request(meeting) do
+    with :ok <- check_requestable(meeting) do
+      update_and_send_reschedule_request(meeting)
+    end
+  end
+
+  # =====================================
+  # Private Helper Functions
+  # =====================================
+
+  defp check_requestable(meeting) do
     with :ok <- check_not_already_requested(meeting),
          :ok <- Policy.can_request_reschedule?(meeting) do
-      update_and_send_reschedule_request(meeting)
+      :ok
     else
       {:error, reason} ->
         Logger.warning("Reschedule request blocked by policy",
@@ -79,10 +89,6 @@ defmodule Tymeslot.Bookings.RescheduleRequest do
         {:error, reason}
     end
   end
-
-  # =====================================
-  # Private Helper Functions
-  # =====================================
 
   # A meeting already awaiting a new time must reject a second request
   # outright — re-stamping `reschedule_requested_at` here would re-run the
@@ -107,11 +113,11 @@ defmodule Tymeslot.Bookings.RescheduleRequest do
   # calendar event (via the update-404 path) and reminders (via the
   # meeting_rescheduled event).
   defp update_and_send_reschedule_request(meeting) do
-    attrs = %{reschedule_requested_at: DateTime.truncate(Clock.utc_now(), :second)}
+    requested_at = DateTime.truncate(Clock.utc_now(), :second)
 
     result =
       Repo.transaction(fn ->
-        with {:ok, updated_meeting} <- MeetingQueries.update_meeting(meeting, attrs),
+        with {:ok, updated_meeting} <- mark_requested(meeting, requested_at),
              :ok <- Events.reschedule_requested(updated_meeting),
              :ok <- schedule_reschedule_email(updated_meeting) do
           updated_meeting
@@ -129,6 +135,9 @@ defmodule Tymeslot.Bookings.RescheduleRequest do
         Meetings.cancel_calendar_event(updated_meeting)
         :ok
 
+      {:error, {:refused, reason}} ->
+        {:error, reason}
+
       {:error, reason} ->
         Logger.error("Failed to process reschedule request",
           meeting_id: meeting.id,
@@ -139,7 +148,29 @@ defmodule Tymeslot.Bookings.RescheduleRequest do
     end
   end
 
+  # `meeting` was read before this request was made, so its check above can
+  # pass for a meeting another request or a cancellation has already moved
+  # on. The guarded write settles it: when it finds nothing to change, the
+  # meeting is read again and checked again, so the refusal names what
+  # actually happened to it.
+  defp mark_requested(meeting, requested_at) do
+    case MeetingQueries.mark_reschedule_requested(meeting.id, requested_at) do
+      {:ok, updated_meeting} -> {:ok, updated_meeting}
+      {:error, :not_requestable} -> {:error, {:refused, refusal_for_current(meeting.id)}}
+    end
+  end
+
+  defp refusal_for_current(meeting_id) do
+    with {:ok, current} <- MeetingQueries.get_meeting(meeting_id),
+         {:error, reason} <- check_requestable(current) do
+      reason
+    else
+      {:error, :not_found} -> :not_found
+      :ok -> :already_requested
+    end
+  end
+
   defp schedule_reschedule_email(meeting) do
-    EmailScheduler.schedule_reschedule_request(meeting.id)
+    EmailScheduler.schedule_reschedule_request(meeting.id, meeting.reschedule_requested_at)
   end
 end

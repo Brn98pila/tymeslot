@@ -53,7 +53,42 @@ defmodule Tymeslot.Workers.EmailWorkerMeetingHandlersTest do
     end
 
     test "handles send_reschedule_request" do
-      meeting = insert(:meeting)
+      requested_at = DateTime.utc_now(:second)
+      meeting = insert(:meeting, reschedule_requested_at: requested_at)
+      expect(EmailServiceMock, :send_reschedule_request, fn _meeting -> {:ok, "sent"} end)
+
+      assert :ok =
+               EmailWorkerHandlers.execute_email_action("send_reschedule_request", %{
+                 "meeting_id" => meeting.id,
+                 "requested_at" => DateTime.to_iso8601(requested_at)
+               })
+    end
+
+    test "drops a reschedule request the attendee has already answered by rebooking" do
+      meeting = insert(:meeting, reschedule_requested_at: nil)
+      expect(EmailServiceMock, :send_reschedule_request, 0, fn _meeting -> {:ok, "sent"} end)
+
+      assert {:discard, "Reschedule request no longer pending"} =
+               EmailWorkerHandlers.execute_email_action("send_reschedule_request", %{
+                 "meeting_id" => meeting.id,
+                 "requested_at" => DateTime.to_iso8601(DateTime.utc_now(:second))
+               })
+    end
+
+    test "drops a reschedule request a later request has replaced" do
+      now = DateTime.utc_now(:second)
+      meeting = insert(:meeting, reschedule_requested_at: now)
+      expect(EmailServiceMock, :send_reschedule_request, 0, fn _meeting -> {:ok, "sent"} end)
+
+      assert {:discard, "Reschedule request no longer pending"} =
+               EmailWorkerHandlers.execute_email_action("send_reschedule_request", %{
+                 "meeting_id" => meeting.id,
+                 "requested_at" => DateTime.to_iso8601(DateTime.add(now, -3600))
+               })
+    end
+
+    test "a reschedule request job queued without its request time sends while one is pending" do
+      meeting = insert(:meeting, reschedule_requested_at: DateTime.utc_now(:second))
       expect(EmailServiceMock, :send_reschedule_request, fn _meeting -> {:ok, "sent"} end)
 
       assert :ok =

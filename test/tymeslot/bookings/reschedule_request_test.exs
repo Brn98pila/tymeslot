@@ -145,6 +145,60 @@ defmodule Tymeslot.Bookings.RescheduleRequestTest do
       assert length(all_jobs) == 1
     end
 
+    test "a second request from the same stale copy is refused, without a second email" do
+      %{user: user} = create_user_with_profile()
+      meeting = insert_meeting_for_user(user, %{start_offset: 86_400, duration: 3_600})
+
+      # Two tabs, or a double click: both hold the copy read before either
+      # request, so only the guarded write can tell them apart.
+      assert :ok = RescheduleRequest.send_reschedule_request(meeting)
+      assert {:error, :already_requested} = RescheduleRequest.send_reschedule_request(meeting)
+
+      assert [_only_one] =
+               all_enqueued(
+                 worker: EmailWorker,
+                 args: %{"action" => "send_reschedule_request", "meeting_id" => meeting.id}
+               )
+    end
+
+    test "a request from a copy read before the meeting was cancelled is refused" do
+      %{user: user} = create_user_with_profile()
+      meeting = insert_meeting_for_user(user, %{start_offset: 86_400, duration: 3_600})
+
+      {:ok, _cancelled} =
+        MeetingQueries.transition_to_cancelled(meeting.id,
+          cancelled_at: DateTime.utc_now(:second)
+        )
+
+      assert {:error, _cancelled_refusal} = RescheduleRequest.send_reschedule_request(meeting)
+
+      {:ok, current} = MeetingQueries.get_meeting(meeting.id)
+      assert current.status == "cancelled"
+      assert is_nil(current.reschedule_requested_at)
+
+      refute_enqueued(
+        worker: EmailWorker,
+        args: %{"action" => "send_reschedule_request", "meeting_id" => meeting.id}
+      )
+    end
+
+    test "the email job names the request it announces" do
+      %{user: user} = create_user_with_profile()
+      meeting = insert_meeting_for_user(user, %{start_offset: 86_400, duration: 3_600})
+
+      assert :ok = RescheduleRequest.send_reschedule_request(meeting)
+      {:ok, requested} = MeetingQueries.get_meeting(meeting.id)
+
+      assert_enqueued(
+        worker: EmailWorker,
+        args: %{
+          "action" => "send_reschedule_request",
+          "meeting_id" => meeting.id,
+          "requested_at" => DateTime.to_iso8601(requested.reschedule_requested_at)
+        }
+      )
+    end
+
     test "leaves everything untouched when policy blocks the request" do
       %{user: user} = create_user_with_profile()
       meeting = insert_meeting_for_user(user, %{start_offset: -7_200, duration: 3_600})

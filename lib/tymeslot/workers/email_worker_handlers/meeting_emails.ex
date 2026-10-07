@@ -28,6 +28,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails do
   @meeting_cancelled "Meeting cancelled"
   @meeting_not_cancelled "Meeting not cancelled"
   @meeting_gone "Meeting not found"
+  @request_not_pending "Reschedule request no longer pending"
 
   @doc """
   Whether `reason`, from a discard this module returned, is an expected end
@@ -36,7 +37,14 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails do
   """
   @spec expected_discard?(term()) :: boolean()
   def expected_discard?(reason),
-    do: reason in [@meeting_started, @meeting_cancelled, @meeting_not_cancelled, @meeting_gone]
+    do:
+      reason in [
+        @meeting_started,
+        @meeting_cancelled,
+        @meeting_not_cancelled,
+        @meeting_gone,
+        @request_not_pending
+      ]
 
   @spec handle_confirmation_emails(%{String.t() => term()}) ::
           :ok | {:error, term()} | {:discard, String.t()}
@@ -93,19 +101,37 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails do
 
   @spec handle_reschedule_request(%{String.t() => term()}) ::
           :ok | {:error, term()} | {:discard, String.t()}
-  def handle_reschedule_request(%{"meeting_id" => meeting_id}) do
+  def handle_reschedule_request(%{"meeting_id" => meeting_id} = args) do
     with_meeting(meeting_id, "reschedule request", fn meeting ->
-      if meeting.status == "cancelled" do
-        Logger.info("Skipping reschedule request for cancelled meeting",
-          meeting_id: meeting_id
-        )
+      cond do
+        meeting.status == "cancelled" ->
+          Logger.info("Skipping reschedule request for cancelled meeting",
+            meeting_id: meeting_id
+          )
 
-        {:discard, @meeting_cancelled}
-      else
-        send_reschedule_request_email(meeting)
+          {:discard, @meeting_cancelled}
+
+        not request_pending?(meeting, args["requested_at"]) ->
+          Logger.info("Skipping reschedule request no longer pending", meeting_id: meeting_id)
+          {:discard, @request_not_pending}
+
+        true ->
+          send_reschedule_request_email(meeting)
       end
     end)
   end
+
+  # The request this job announces is still the one the meeting is waiting
+  # on: the attendee has not booked a new time since, and no later request
+  # (which queues its own job) has replaced it. A job queued before the
+  # request time was carried in its args has only the first check.
+  defp request_pending?(meeting, nil), do: MeetingState.awaiting_new_time?(meeting)
+
+  defp request_pending?(%{reschedule_requested_at: %DateTime{} = at}, requested_at)
+       when is_binary(requested_at),
+       do: DateTime.to_iso8601(at) == requested_at
+
+  defp request_pending?(_meeting, _requested_at), do: false
 
   @spec handle_cancellation_emails(%{String.t() => term()}, DeliveryClaims.job_id()) ::
           :ok | {:error, term()} | {:discard, String.t()}
