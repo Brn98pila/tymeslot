@@ -11,6 +11,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Calendar.CalDAV.{Base, Client, Discovery, Events, Http, UrlBuilder}
+  alias Tymeslot.Integrations.Calendar.CalDAV.Provider, as: CalDAVProvider
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CreatedEvent
   alias Tymeslot.Integrations.Calendar.ICalNormaliser
@@ -84,9 +85,11 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
   end
 
   # The provider is a string on the integration row and an atom on the client,
-  # so the mapping belongs here, next to the client it feeds. Anything outside
-  # the CalDAV family never reaches this module and falls back to plain
-  # `:caldav`.
+  # so the mapping belongs here, next to the client it feeds. A generic
+  # `"caldav"` row is not in it: its client takes the server type detected
+  # from the URL, as every other generic CalDAV client does, so that its
+  # calls trip the host breaker a reset closes
+  # (`CalendarCircuitBreaker.breaker_key/2`).
   @provider_atoms %{
     "radicale" => :radicale,
     "nextcloud" => :nextcloud,
@@ -109,8 +112,15 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
         calendar_paths: integration.calendar_paths,
         verify_ssl: Map.get(integration, :verify_ssl, true)
       },
-      provider: Map.get(@provider_atoms, integration.provider, :caldav)
+      provider: client_provider(integration)
     )
+  end
+
+  defp client_provider(%{provider: provider, base_url: base_url}) do
+    case Map.fetch(@provider_atoms, provider) do
+      {:ok, provider_atom} -> provider_atom
+      :error -> CalDAVProvider.client_provider(base_url)
+    end
   end
 
   @doc """

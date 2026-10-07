@@ -134,8 +134,9 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Provider do
   @impl Tymeslot.Integrations.Calendar.Provider
   @spec perform_connection_test(map()) :: {:ok, String.t()} | {:error, atom() | String.t()}
   def perform_connection_test(integration) do
-    client = build_client(integration)
-    CaldavCommon.test_connection(client)
+    integration
+    |> new()
+    |> CaldavCommon.test_connection()
   end
 
   @doc """
@@ -206,19 +207,4 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Provider do
 
   @impl Tymeslot.Integrations.Calendar.Provider
   def check_connectivity(client), do: CaldavCommon.check_connectivity(client)
-
-  # Private helper functions
-
-  defp build_client(integration) do
-    CaldavCommon.build_client(
-      %{
-        base_url: integration.base_url,
-        username: integration.username,
-        password: integration.password,
-        calendar_paths: integration.calendar_paths || [],
-        verify_ssl: true
-      },
-      provider: :caldav
-    )
-  end
 end

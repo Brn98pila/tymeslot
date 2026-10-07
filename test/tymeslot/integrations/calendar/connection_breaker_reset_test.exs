@@ -19,6 +19,7 @@ defmodule Tymeslot.Integrations.Calendar.ConnectionBreakerResetTest do
 
   alias Tymeslot.ExchangeFixtures
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
+  alias Tymeslot.Integrations.Calendar.CalDAV.Sync, as: CalDAVSync
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.Connection
   alias Tymeslot.Integrations.Calendar.Discovery
@@ -170,6 +171,50 @@ defmodule Tymeslot.Integrations.Calendar.ConnectionBreakerResetTest do
     assert_received {:reached, :propfind, ^host}
   end
 
+  # The sync worker builds its client from the stored row rather than through
+  # the provider adapter. Its traffic has to trip the same breaker the reset
+  # closes, or a server that came back stays refused to sync until the
+  # breaker times out.
+  test "once a connection check closes the breaker a failing sync opened, sync reaches the server" do
+    host = "sync-#{System.unique_integer([:positive])}.example.com"
+
+    inserted =
+      insert(:calendar_integration,
+        provider: "caldav",
+        base_url: "https://#{host}/remote.php/dav",
+        calendar_paths: [@calendar_path],
+        # Tier 3 so each sync is one calendar-query per path.
+        caldav_sync_tier: 3
+      )
+
+    {:ok, integration} = CalendarIntegrationQueries.get(inserted.id)
+    test_pid = self()
+
+    stub(Tymeslot.HTTPClientMock, :request, fn method, url, _body, _headers, _opts ->
+      send(test_pid, {:reached, method, URI.parse(url).host})
+      {:error, %Req.TransportError{reason: :econnrefused}}
+    end)
+
+    # Enough failed syncs to open whichever breaker sync's traffic trips.
+    for _sync <- 1..5, do: CalDAVSync.run(integration, false)
+    flush_reached()
+
+    assert {:error, _reason} = CalDAVSync.run(integration, false)
+    refute_received {:reached, _method, ^host}
+
+    stub_discovery([@calendar_path])
+    assert {:ok, _integration} = Connection.validate_connection(integration, integration.user_id)
+    flush_reached()
+
+    stub(Tymeslot.HTTPClientMock, :request, fn method, url, _body, _headers, _opts ->
+      send(test_pid, {:reached, method, URI.parse(url).host})
+      {:ok, %Req.Response{status: 207, body: ~s(<D:multistatus xmlns:D="DAV:"/>)}}
+    end)
+
+    assert :ok = CalDAVSync.run(integration, false)
+    assert_received {:reached, :report, ^host}
+  end
+
   # A detected server type need not be a provider of its own: ownCloud is
   # only ever a generic CalDAV integration, and its breaker is still the one
   # to close.
@@ -252,6 +297,14 @@ defmodule Tymeslot.Integrations.Calendar.ConnectionBreakerResetTest do
     {:ok, client} = ProviderAdapter.new_client_from_integration(integration)
     assert {:ok, _events} = ProviderAdapter.get_events(client)
     assert_received {:reached, :report, ^host}
+  end
+
+  defp flush_reached do
+    receive do
+      {:reached, _method, _host} -> flush_reached()
+    after
+      0 -> :ok
+    end
   end
 
   defp stub_discovery(calendars) do
