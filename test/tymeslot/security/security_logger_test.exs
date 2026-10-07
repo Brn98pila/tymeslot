@@ -14,7 +14,7 @@ defmodule Tymeslot.Security.SecurityLoggerTest do
   alias Tymeslot.Security.SecurityLogger
   alias Tymeslot.Test.LogCapture
 
-  # SecurityLogger emits at :info, while config/test.exs pins the primary level
+  # SecurityLogger emits most events at :info, while config/test.exs pins the primary level
   # to :warning. Lower it for the duration of the call and restore afterwards.
   #
   # MetadataRedactor is installed as a primary :logger filter and rewrites every
@@ -110,7 +110,11 @@ defmodule Tymeslot.Security.SecurityLoggerTest do
         )
       end)
 
-      assert_receive {:captured_log, %{meta: %{event_type: "authentication_failure"} = meta}}
+      assert_receive {:captured_log,
+                      %{level: level, meta: %{event_type: "authentication_failure"} = meta}}
+
+      # Failed logins are logged at :warning so level-keyed alerting sees them.
+      assert level == :warning
       assert meta.user_id == 42
       assert meta.reason == "bad_password"
       assert meta.email_masked == "j***@example.com"
@@ -125,7 +129,10 @@ defmodule Tymeslot.Security.SecurityLoggerTest do
         SecurityLogger.log_authentication_attempt("x@y.com", true, nil, %{})
       end)
 
-      assert_receive {:captured_log, %{meta: %{event_type: "authentication_success"} = meta}}
+      assert_receive {:captured_log,
+                      %{level: level, meta: %{event_type: "authentication_success"} = meta}}
+
+      assert level == :info
       assert meta.email_masked == "x***@y.com"
       assert meta.reason == nil
       assert meta.user_id == nil

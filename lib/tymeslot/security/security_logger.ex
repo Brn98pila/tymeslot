@@ -152,9 +152,12 @@ defmodule Tymeslot.Security.SecurityLogger do
   it under `:email` so it is masked first. Anything an event builder
   assembles beyond the canonical set is carried to the webhook only, under
   `:additional_data`.
+
+  The Logger line is written at `level`, `:info` unless the caller says
+  otherwise.
   """
-  @spec log_security_event(String.t(), event_metadata()) :: :ok
-  def log_security_event(event_type, details) do
+  @spec log_security_event(String.t(), event_metadata(), Logger.level()) :: :ok
+  def log_security_event(event_type, details, level \\ :info) do
     canonical = %{
       user_id: details[:user_id],
       email_masked: mask_email(details[:email]),
@@ -167,7 +170,7 @@ defmodule Tymeslot.Security.SecurityLogger do
       reason: details[:reason]
     }
 
-    Logger.info("Security event", [event_type: event_type] ++ Map.to_list(canonical))
+    Logger.log(level, "Security event", [event_type: event_type] ++ Map.to_list(canonical))
 
     # Operator opt-in, off in every shipped configuration: no config file sets
     # this key. While it is false, `additional_data` has no sink at all — by
@@ -240,8 +243,13 @@ defmodule Tymeslot.Security.SecurityLogger do
       }
     }
 
-    event_type = if success, do: "authentication_success", else: "authentication_failure"
-    log_security_event(event_type, event_details)
+    # A failed login is logged at :warning so alerting keyed on level sees it.
+    {event_type, level} =
+      if success,
+        do: {"authentication_success", :info},
+        else: {"authentication_failure", :warning}
+
+    log_security_event(event_type, event_details, level)
   end
 
   @doc """
