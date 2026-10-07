@@ -42,7 +42,8 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChipsTest do
 
   defp chips(doc) do
     for chip <- Floki.find(doc, "[data-fact=date]") do
-      {chip |> Floki.attribute("data-value") |> hd(), chip |> Floki.text() |> String.trim()}
+      {chip |> Floki.attribute("data-value") |> hd(),
+       chip |> Floki.find(".day-chips__label") |> Floki.text() |> String.trim()}
     end
   end
 
@@ -67,17 +68,24 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChipsTest do
     assert Floki.find(render_chips(user_timezone: "Asia/Tokyo"), ".day-chips__chip--today") != []
   end
 
-  test "sends select_date and names each chip by its full date" do
+  test "sends select_date from each chip" do
     doc = render_chips()
 
     assert Floki.attribute(doc, "[data-value='2027-03-13']", "phx-click") == ["select_date"]
     assert Floki.attribute(doc, "[data-value='2027-03-13']", "phx-value-date") == ["2027-03-13"]
-
-    assert Floki.attribute(doc, "[data-value='2027-03-13']", "aria-label") == [
-             "Saturday, March 13, 2027"
-           ]
-
     assert Floki.attribute(doc, "[role=group]", "aria-label") == ["Select a Date"]
+  end
+
+  test "names each chip by its visible label plus the full date, with no aria-label" do
+    doc = render_chips()
+    [chip] = Floki.find(doc, "[data-value='2027-03-13']")
+
+    # As NextSlots: the name is the content, not an aria-label that replaces it.
+    assert Floki.attribute(chip, "aria-label") == []
+    assert [label] = Floki.find(chip, ".day-chips__label")
+    assert Floki.attribute(label, "aria-hidden") == ["true"]
+    assert Floki.text(label) == "Sat 13"
+    assert chip |> Floki.find(".sr-only") |> Floki.text() == "Saturday, March 13, 2027"
   end
 
   test "marks the chosen day" do

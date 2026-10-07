@@ -4,14 +4,18 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChips do
   date: "Today", "Tomorrow", then the weekday and the day of the month ("Thu
   9"). Built from the month's availability the flow already fetches
   (`month_availability_map`, ISO date => whether the day has a free time), so
-  it costs no request of its own: the first `count` free days from today in the visitor's `user_timezone`.
+  it costs no request of its own: the first `count` free days from today in
+  the visitor's `user_timezone`.
 
   A chip is a button for the date fact (`data-fact="date"`, `data-value` the
-  ISO date) sending `select_date`, with its full date as accessible name and
-  `aria-pressed` on the chosen day; the row is a group labelled "Select a
-  Date". While the availability has not arrived it says it is loading, and when the fetch failed it says the calendar is slow; when no
-  day of the loaded window is free it says so, and the theme offers its way on
-  (a month calendar, the next month). Clicks go to `target`.
+  ISO date) sending `select_date`, with its full date as accessible name (a
+  visually hidden full date beside the visible label, as `NextSlots` does,
+  not an `aria-label`) and `aria-pressed` on the chosen day; the row is a
+  group labelled "Select a Date". While the availability has not arrived it
+  says it is loading, and when the fetch failed it says the calendar is
+  slow; when no day of the loaded window is free it says so, and the theme
+  offers its way on (a month calendar, the next month). Clicks go to
+  `target`.
 
   Classes: `day-chips`, `__list`, `__chip` (`--selected`, `--today`),
   `__label`, `__loading`, `__error`, `__empty`. The shared structure is
@@ -70,9 +74,9 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChips do
               phx-value-date={Date.to_iso8601(day)}
               phx-target={@target}
               aria-pressed={to_string(@selected_date == Date.to_iso8601(day))}
-              aria-label={LocalizationHelpers.format_full_date_label(day)}
             >
               <span class="day-chips__label" aria-hidden="true">{day_label(day, @today)}</span>
+              <span class="sr-only">{LocalizationHelpers.format_full_date_label(day)}</span>
             </button>
           </div>
         <% @availability_status == :error -> %>
