@@ -55,11 +55,14 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
   @max_report_bytes 8 * 1024 * 1024
 
   # A PROPFIND answers properties, never calendar data: a depth-0 probe is a
-  # few hundred bytes, and a depth-1 listing about half a kilobyte per member.
-  # The budget is sized for the widest legitimate case, discovery pointed at a
-  # calendar collection rather than a home set, which lists every event in it:
-  # 4 MB holds about 8,000 members.
-  @max_propfind_bytes 4 * 1024 * 1024
+  # few hundred bytes. The widest legitimate case is discovery pointed at a
+  # calendar collection rather than a home set, which lists every event in it.
+  # A SabreDAV member answering the discovery body (its privilege set of ten
+  # privileges in a 200 propstat, the calendar-only properties in a 404 one)
+  # is about 1 KB, so this holds about 10,000 events: the same as the parser's
+  # 10 MB guard did before the listing had a budget of its own, so no
+  # collection that connected then is refused now.
+  @max_propfind_bytes 10 * 1024 * 1024
   @task_await_timeout_ms 45_000
   @coalescer_call_timeout_ms 50_000
 
@@ -119,6 +122,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
           # Credentials were accepted but no calendar collection could be
           # reached; carries the server URL to show the account owner.
           | {:calendar_home_not_found, String.t()}
+          | {:calendar_listing_too_large, String.t()}
           | {:unexpected_status, pos_integer()}
           | String.t()
 

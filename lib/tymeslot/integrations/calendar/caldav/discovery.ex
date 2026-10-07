@@ -176,6 +176,12 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Discovery do
 
             discover_via_rfc4791(client)
 
+          # The only listing that grows with the number of events is a calendar
+          # collection's, so an address past the budget is almost always one
+          # calendar rather than the account: say so, with the address.
+          {:error, :response_too_large} ->
+            {:error, {:calendar_listing_too_large, display_url(client.base_url)}}
+
           {:error, reason} ->
             {:error, reason}
         end

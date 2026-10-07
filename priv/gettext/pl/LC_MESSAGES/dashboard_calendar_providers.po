@@ -1274,6 +1274,12 @@ msgid "This change was made to one occurrence of a repeating event, and the cale
 msgstr "Ta zmiana dotyczyła jednego wystąpienia wydarzenia cyklicznego, a serwer kalendarza zastosowałby ją do wszystkich wystąpień, więc nie została wysłana."
 
 #: lib/tymeslot/integrations/calendar/caldav/errors.ex
+#: lib/tymeslot/integrations/calendar/shared/error_messages.ex
 #, elixir-autogen, elixir-format
 msgid "The calendar server returned more data than Tymeslot can process at once."
 msgstr "Serwer kalendarza zwrócił więcej danych, niż Tymeslot może przetworzyć naraz."
+
+#: lib/tymeslot/integrations/calendar/shared/error_messages.ex
+#, elixir-autogen, elixir-format
+msgid "The calendar server at %{url} listed more items than Tymeslot can process at once. If this address points at a single calendar, enter your account's server address instead, and Tymeslot will find your calendars there."
+msgstr "Serwer kalendarza pod adresem %{url} zwrócił listę z większą liczbą elementów, niż Tymeslot może przetworzyć naraz. Jeśli ten adres wskazuje pojedynczy kalendarz, podaj zamiast niego adres serwera swojego konta, a Tymeslot znajdzie na nim twoje kalendarze."

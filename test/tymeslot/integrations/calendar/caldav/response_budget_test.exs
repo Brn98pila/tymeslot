@@ -15,7 +15,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.ResponseBudgetTest do
   alias Tymeslot.Integrations.Calendar.Discovery
   alias Tymeslot.Integrations.Calendar.Shared.DiscoveryCache
 
-  @propfind_budget 4 * 1024 * 1024
+  @propfind_budget 10 * 1024 * 1024
   @report_budget 8 * 1024 * 1024
 
   @calendar_query_xml """
@@ -53,7 +53,12 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.ResponseBudgetTest do
       stub_propfind_body(String.duplicate(" ", @propfind_budget + 1))
 
       assert {:error, %{discovery: message}} = Discovery.maybe_discover_calendars(attrs())
-      assert message =~ "more data than Tymeslot can process at once"
+
+      assert message ==
+               "The calendar server at https://caldav.example.com listed more items than " <>
+                 "Tymeslot can process at once. If this address points at a single calendar, " <>
+                 "enter your account's server address instead, and Tymeslot will find your " <>
+                 "calendars there."
     end
 
     test "a calendar listing exactly at the budget is read" do
@@ -80,7 +85,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.ResponseBudgetTest do
   end
 
   describe "Http.propfind/4" do
-    test "abandons a PROPFIND body past 4 MB as too large, and reads one at 4 MB" do
+    test "abandons a PROPFIND body past 10 MB as too large, and reads one at 10 MB" do
       test_pid = self()
 
       ReqTest.stub(:tymeslot_http, fn conn ->

@@ -92,6 +92,7 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ErrorMessages do
   def categorize_error(:not_found), do: :config
   def categorize_error(:method_not_allowed), do: :config
   def categorize_error({:calendar_home_not_found, _url}), do: :config
+  def categorize_error({:calendar_listing_too_large, _url}), do: :config
   def categorize_error(:rate_limited), do: :rate_limit
   def categorize_error(:timeout), do: :timeout
 
@@ -154,6 +155,14 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ErrorMessages do
     dgettext(
       "dashboard_calendar_providers",
       "Connected to %{url} and your credentials were accepted, but no calendar collection was found. Enter the full URL of your calendar collection, as shown in your calendar server's settings.",
+      url: url
+    )
+  end
+
+  def specific_message({:calendar_listing_too_large, url}, _provider) do
+    dgettext(
+      "dashboard_calendar_providers",
+      "The calendar server at %{url} listed more items than Tymeslot can process at once. If this address points at a single calendar, enter your account's server address instead, and Tymeslot will find your calendars there.",
       url: url
     )
   end
