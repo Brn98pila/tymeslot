@@ -15,20 +15,13 @@ defmodule Tymeslot.Bookings.Errors do
   pass through unchanged.
   """
 
-  alias Tymeslot.Bookings.Policy
-  alias Tymeslot.Bookings.Validation
+  alias Tymeslot.Bookings.Refusal
   alias Tymeslot.Infrastructure.ErrorTracking
 
-  @typedoc """
-  A refusal decided by the booking rules rather than a failure: the meeting
-  can no longer be cancelled or moved, or the requested time is outside what
-  the host's schedule accepts.
-  """
-  @type refusal ::
-          Policy.cancel_refusal()
-          | Policy.reschedule_refusal()
-          | Validation.booking_time_refusal()
-          | :invalid_datetime
+  require Refusal
+
+  @typedoc "A refusal decided by the booking rules (`Tymeslot.Bookings.Refusal`)."
+  @type refusal :: Refusal.t()
 
   @typedoc "Semantic booking error atoms shared across the booking domain."
   @type classified_error ::
@@ -84,15 +77,6 @@ defmodule Tymeslot.Bookings.Errors do
     host_missing: :host_not_found
   }
 
-  @refusal_atoms [:already_cancelled, :in_past, :invalid_datetime]
-  @refusal_tags [:not_cancellable, :not_reschedulable, :too_soon, :too_far_ahead]
-
-  @doc "Whether `reason` is a `refusal/0`."
-  defguard is_refusal(reason)
-           when reason in @refusal_atoms or
-                  (is_tuple(reason) and tuple_size(reason) == 2 and
-                     elem(reason, 0) in @refusal_tags)
-
   # `Tymeslot.Bookings.ScheduleCheck` is shared by `Create` and `Reschedule`,
   # so its failure reasons are classified once, here, rather than in a table
   # per caller: a reason ScheduleCheck grows in the future is then picked up
@@ -115,7 +99,7 @@ defmodule Tymeslot.Bookings.Errors do
   def classify_error(reason) when is_map_key(@error_classifications, reason),
     do: Map.fetch!(@error_classifications, reason)
 
-  def classify_error(reason) when is_refusal(reason), do: reason
+  def classify_error(reason) when Refusal.is_refusal(reason), do: reason
 
   def classify_error({:custom_field_errors, _errors}), do: :custom_field_errors
   def classify_error({:checkout_failed, _reason}), do: :checkout_failed

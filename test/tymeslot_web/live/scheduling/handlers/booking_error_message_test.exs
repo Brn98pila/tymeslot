@@ -45,7 +45,7 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessageTest do
   end
 
   # One entry per refusal `Tymeslot.Bookings.Policy`, `Validation` and
-  # `CreateAdHoc` return (`Tymeslot.Bookings.Errors.refusal/0` and the ad-hoc
+  # `CreateAdHoc` return (`Tymeslot.Bookings.Refusal.t/0` and the ad-hoc
   # atoms), with the copy it must render. A refusal added there without a
   # `message/1` clause falls to the generic fallback and fails here.
   @refusals %{

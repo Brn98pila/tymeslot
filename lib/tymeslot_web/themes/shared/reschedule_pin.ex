@@ -34,15 +34,15 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [push_navigate: 2, push_patch: 2, put_flash: 3]
 
-  alias Tymeslot.Bookings.Errors
   alias Tymeslot.Bookings.Orchestrator
+  alias Tymeslot.Bookings.Refusal
   alias Tymeslot.MeetingTypes
   alias Tymeslot.Scheduling.ThemeFlow
   alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
   alias TymeslotWeb.Themes.Shared.PathHandlers
 
-  require Errors
+  require Refusal
 
   @doc """
   The meeting type a reschedule is committed to, or `nil` when this is not a
@@ -85,7 +85,7 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
       )
       when is_binary(uid) and is_integer(user_id) do
     case Orchestrator.get_meeting_for_reschedule(uid, user_id) do
-      {:error, reason} when Errors.is_refusal(reason) ->
+      {:error, reason} when Refusal.is_refusal(reason) ->
         socket
         |> put_flash(:error, BookingErrorMessage.message(reason))
         |> push_navigate(to: PathHandlers.restart_path(socket))

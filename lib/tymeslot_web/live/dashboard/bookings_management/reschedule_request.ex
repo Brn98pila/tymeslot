@@ -11,7 +11,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagement.RescheduleRequest do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Tymeslot.Bookings.Errors
+  alias Tymeslot.Bookings.Refusal
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings
   alias TymeslotWeb.Components.Dashboard.Meetings.Helpers
@@ -19,7 +19,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagement.RescheduleRequest do
   alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
   alias TymeslotWeb.Live.Shared.Flash
 
-  require Errors
+  require Refusal
 
   require Logger
 
@@ -48,7 +48,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagement.RescheduleRequest do
         |> reload.()
         |> ModalHook.hide_modal(:reschedule_request)
 
-      {:error, reason} when Errors.is_refusal(reason) ->
+      {:error, reason} when Refusal.is_refusal(reason) ->
         emit(user_id, meeting.id, result: :error, reason: inspect(reason))
         Flash.error(BookingErrorMessage.message(reason))
         assign(socket, :sending_reschedule, nil)

@@ -8,13 +8,13 @@ defmodule Tymeslot.Bookings.Orchestrator do
 
   @behaviour Tymeslot.Bookings.Submitter
 
-  alias Tymeslot.Bookings.{Create, Errors, Policy, RescheduleSeat, Submitter}
+  alias Tymeslot.Bookings.{Create, Errors, Policy, Refusal, RescheduleSeat, Submitter}
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.SeatView
 
-  require Errors
+  require Refusal
 
   @typedoc "Parameters for `submit_booking/2`."
   @type booking_submission_params :: %{
@@ -72,7 +72,7 @@ defmodule Tymeslot.Bookings.Orchestrator do
       {:ok, meeting} ->
         {:ok, meeting}
 
-      {:error, reason} when is_atom(reason) or Errors.is_refusal(reason) ->
+      {:error, reason} when is_atom(reason) or Refusal.is_refusal(reason) ->
         {:error, reason}
 
       {:error, _reason} ->

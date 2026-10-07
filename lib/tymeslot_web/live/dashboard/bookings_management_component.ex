@@ -5,8 +5,8 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
   use TymeslotWeb, :live_component
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Bookings.Errors
   alias Tymeslot.Bookings.Policy
+  alias Tymeslot.Bookings.Refusal
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.MeetingPayments
   alias Tymeslot.Meetings
@@ -25,7 +25,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
   alias TymeslotWeb.Dashboard.BookingsManagement.RescheduleRequest
   alias TymeslotWeb.Live.Shared.Flash
 
-  require Errors
+  require Refusal
   require Logger
 
   @impl Phoenix.LiveComponent
@@ -517,7 +517,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
   # The meeting started or ended while the modal was open: retrying cannot
   # help, so the host is told why. Nothing changed, so the list stands.
   defp handle_cancellation(socket, _meeting, _refund_action, {:error, reason})
-       when Errors.is_refusal(reason) do
+       when Refusal.is_refusal(reason) do
     Flash.error(ModalMeeting.refusal_message(reason))
 
     {:noreply,

@@ -6,8 +6,8 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [put_flash: 3, redirect: 2]
 
-  alias Tymeslot.Bookings.Errors
   alias Tymeslot.Bookings.Policy
+  alias Tymeslot.Bookings.Refusal
   alias Tymeslot.Meetings
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Utils.DateTimeUtils.Duration
@@ -15,7 +15,7 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
   alias TymeslotWeb.Themes.Core.MountHelpers
 
-  require Errors
+  require Refusal
 
   @doc """
   Loads and validates a meeting by UID for the given action.
@@ -145,7 +145,7 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
     do: dgettext("booking_manage", "This booking was already cancelled.")
 
   # The meeting started, ended or expired after the page loaded.
-  defp cancel_error_message(reason) when Errors.is_refusal(reason),
+  defp cancel_error_message(reason) when Refusal.is_refusal(reason),
     do: BookingErrorMessage.message(reason)
 
   defp cancel_error_message(_reason),

@@ -106,7 +106,7 @@ defmodule Tymeslot.Bookings.Reschedule do
   connected calendars could not all be read to check the new time, or
   `:failed_to_update_meeting` when persisting the new time fails for any
   other reason) or a refusal from `Tymeslot.Bookings.Policy` or
-  `Tymeslot.Bookings.Validation` (`Tymeslot.Bookings.Errors.refusal/0`).
+  `Tymeslot.Bookings.Validation` (`Tymeslot.Bookings.Refusal.t/0`).
   """
   @spec execute(String.t(), reschedule_params(), integer()) ::
           {:ok, Ecto.Schema.t()} | {:error, Errors.classified_error()}
