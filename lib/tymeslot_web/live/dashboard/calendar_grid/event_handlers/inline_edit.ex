@@ -411,9 +411,11 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.InlineEdit do
           {:error, :rate_limited, _message} = error ->
             Shared.flash_guard_error(socket, error)
 
+          # The sanitiser's reason is translated text, so tell the cases
+          # apart by the input itself rather than by the reason's wording.
           {:error, reason} when is_binary(reason) ->
             message =
-              if String.starts_with?(reason, "Input exceeds"),
+              if String.length(new_value) > max_length,
                 do: dgettext("dashboard_calendar_events", "Input too long"),
                 else: dgettext("dashboard_calendar_events", "Input contains invalid characters")
 

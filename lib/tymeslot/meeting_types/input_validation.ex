@@ -449,8 +449,12 @@ defmodule Tymeslot.MeetingTypes.InputValidation do
   defp validate_target_calendar_id(nil, _metadata), do: {:ok, nil}
   defp validate_target_calendar_id("", _metadata), do: {:ok, nil}
 
+  # The id is the provider's own (a CalDAV path, a Google or Outlook calendar
+  # id), so it is checked and never rewritten: `:strict` mode would strip
+  # `0x<hex>` runs and everything from `--` onwards, pointing bookings at a
+  # calendar that does not exist or is not the one picked.
   defp validate_target_calendar_id(id, metadata) when is_binary(id) do
-    UniversalSanitizer.sanitize_and_validate(id, allow_html: false, metadata: metadata)
+    UniversalSanitizer.sanitize_and_validate(id, mode: :plain_text, metadata: metadata)
   end
 
   defp validate_target_calendar_id(_invalid, _metadata) do

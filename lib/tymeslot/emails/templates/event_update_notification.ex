@@ -8,6 +8,7 @@ defmodule Tymeslot.Emails.Templates.EventUpdateNotification do
 
   import Swoosh.Email
 
+  alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Emails.Shared.Stack
 
   alias Tymeslot.Emails.Shared.{
@@ -55,16 +56,16 @@ defmodule Tymeslot.Emails.Templates.EventUpdateNotification do
         occurrence of a repeating event, or of this and every following
         one, whose details are then those of the occurrence edited
         (optional)
-      - `:attendee_locale`: optional locale string (default: `"en"`)
+      - `:attendee_locale`: optional locale string (default: the booking pages' fallback locale)
   """
   @spec render(String.t(), map()) :: Swoosh.Email.t()
   def render(attendee_email, details) do
-    locale = Map.get(details, :attendee_locale, "en")
+    locale = RecipientLocale.attendee_locale(details)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       meeting_details =
         details
-        |> Map.take([:all_day, :last_date])
+        |> Map.take([:all_day, :last_date, :timezone])
         |> Map.merge(%{
           date: details.date,
           start_time: details.start_time,
@@ -179,9 +180,9 @@ defmodule Tymeslot.Emails.Templates.EventUpdateNotification do
 
         change_section(dgettext("emails_booking", "What changed"), """
         <tr>
-          <th style="padding: 6px 12px 6px 0; font-size: 10px; font-weight: 700; color: #{Styles.ink_whisper()}; letter-spacing: 0.1em; text-transform: uppercase; text-align: left;">#{dgettext("emails_booking", "Field")}</th>
-          <th style="padding: 6px 12px; font-size: 10px; font-weight: 700; color: #{Styles.ink_whisper()}; letter-spacing: 0.1em; text-transform: uppercase; text-align: left;">#{dgettext("emails_booking", "Before")}</th>
-          <th style="padding: 6px 12px 6px 0; font-size: 10px; font-weight: 700; color: #{Styles.ink_whisper()}; letter-spacing: 0.1em; text-transform: uppercase; text-align: left;">#{dgettext("emails_booking", "After")}</th>
+          <th style="padding: 6px 12px 6px 0; font-size: 10px; font-weight: 700; color: #{Styles.ink_muted()}; letter-spacing: 0.1em; text-transform: uppercase; text-align: left;">#{dgettext("emails_booking", "Field")}</th>
+          <th style="padding: 6px 12px; font-size: 10px; font-weight: 700; color: #{Styles.ink_muted()}; letter-spacing: 0.1em; text-transform: uppercase; text-align: left;">#{dgettext("emails_booking", "Before")}</th>
+          <th style="padding: 6px 12px 6px 0; font-size: 10px; font-weight: 700; color: #{Styles.ink_muted()}; letter-spacing: 0.1em; text-transform: uppercase; text-align: left;">#{dgettext("emails_booking", "After")}</th>
         </tr>
         #{body_rows}
         """)

@@ -29,8 +29,16 @@ defmodule Tymeslot.Auth.PasswordResetTest do
       assert {:error, :invalid_input, _message} = PasswordReset.initiate_reset("")
     end
 
-    test "rejects malformed email with an error rather than the anti-enumeration success" do
-      assert {:error, :invalid_input, _message} = PasswordReset.initiate_reset("not-an-email")
+    test "rejects an overlong email with an error rather than the anti-enumeration success" do
+      overlong = String.duplicate("a", 250) <> "@example.com"
+      assert {:error, :invalid_input, _message} = PasswordReset.initiate_reset(overlong)
+    end
+
+    test "answers a malformed address like any other unknown one, and sends nothing" do
+      # The format rules govern new addresses only; a lookup that finds no
+      # account gets the same reply as every other address.
+      assert {:ok, :reset_initiated, _message} = PasswordReset.initiate_reset("not-an-email")
+      assert all_enqueued(worker: EmailWorker) == []
     end
 
     test "password reset returns consistent messages to prevent email enumeration" do
@@ -91,6 +99,32 @@ defmodule Tymeslot.Auth.PasswordResetTest do
 
       # Nothing else: the unknown address produced no job at all.
       assert length(all_enqueued(worker: EmailWorker)) == 2
+    end
+  end
+
+  describe "initiate_reset/1 targets the address as typed" do
+    # Strict sanitisation would strip the `0x<hex>` run, so a reset for
+    # crypto0xabc@ would mail the owner of crypto@ instead, and `--` would
+    # truncate the address to something unusable.
+    test "a 0x address resets its own account, not the stranger's it would sanitise to" do
+      owner = insert(:user, email: "crypto0xabc@example.com")
+      _stranger = insert(:user, email: "crypto@example.com")
+
+      assert {:ok, :reset_initiated, _message} =
+               PasswordReset.initiate_reset("crypto0xabc@example.com")
+
+      assert [job] = all_enqueued(worker: EmailWorker, args: %{"action" => "send_password_reset"})
+      assert job.args["user_id"] == owner.id
+    end
+
+    test "a -- address resets its own account" do
+      owner = insert(:user, email: "jean--paul@example.com")
+
+      assert {:ok, :reset_initiated, _message} =
+               PasswordReset.initiate_reset("jean--paul@example.com")
+
+      assert [job] = all_enqueued(worker: EmailWorker, args: %{"action" => "send_password_reset"})
+      assert job.args["user_id"] == owner.id
     end
   end
 
@@ -380,6 +414,39 @@ defmodule Tymeslot.Auth.PasswordResetTest do
     end
   end
 
+  describe "initiate_reset/2 per-address allowance" do
+    @reset_reply "If an account exists with this email address, password reset instructions have been sent."
+
+    test "one client spending an address's allowance never refuses another client's request" do
+      user = insert(:user, password_hash: Password.hash_password("OldPass123!"))
+
+      # Far more than the address's hourly and daily allowances, all from one
+      # client: everything past its own limit is refused.
+      results = for _i <- 1..15, do: PasswordReset.initiate_reset(user.email, ip: "192.0.2.10")
+      assert Enum.count(results, &match?({:error, :rate_limited, _message}, &1)) == 10
+
+      assert {:ok, :reset_initiated, @reset_reply} =
+               PasswordReset.initiate_reset(user.email, ip: "192.0.2.11")
+    end
+
+    test "over the address's allowance the reply is unchanged and nothing is sent" do
+      user = insert(:user, password_hash: Password.hash_password("OldPass123!"))
+
+      for n <- 1..5 do
+        assert {:ok, :reset_initiated, @reset_reply} =
+                 PasswordReset.initiate_reset(user.email, ip: "192.0.2.#{20 + n}")
+      end
+
+      assert all_enqueued(worker: EmailWorker) != []
+      Repo.delete_all(Oban.Job)
+
+      assert {:ok, :reset_initiated, @reset_reply} =
+               PasswordReset.initiate_reset(user.email, ip: "192.0.2.30")
+
+      assert all_enqueued(worker: EmailWorker) == []
+    end
+  end
+
   describe "reset_password/4 rate limiting" do
     test "refuses a client past 30 attempts a minute, before the token is looked at" do
       user = insert(:user)
@@ -474,5 +541,20 @@ defmodule Tymeslot.Auth.PasswordResetTest do
     sent_at = DateTime.add(DateTime.utc_now(:second), offset_seconds, :second)
 
     Repo.update_all(from(u in UserSchema, where: u.id == ^user.id), set: [reset_sent_at: sent_at])
+  end
+
+  describe "an account whose stored address predates the email format rules" do
+    test "can request a reset, and the reset email targets that account" do
+      address = ~s("legacy"@example.com)
+      user = insert(:user, email: address, password_hash: Password.hash_password("OldPass123!"))
+
+      assert {:ok, :reset_initiated, _message} = PasswordReset.initiate_reset(address)
+
+      assert [job] =
+               all_enqueued(worker: EmailWorker, args: %{"action" => "send_password_reset"})
+
+      assert job.args["user_id"] == user.id
+      assert Repo.get!(UserSchema, user.id).reset_token_hash == job.args["token_hash"]
+    end
   end
 end

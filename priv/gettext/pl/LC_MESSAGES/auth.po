@@ -508,6 +508,7 @@ msgstr "Do dokończenia rejestracji wymagany jest adres e-mail. Podaj adres e-ma
 msgid "Enter your email to receive a password reset link for your Tymeslot account."
 msgstr "Podaj adres e-mail, żeby otrzymać link do zresetowania hasła do konta Tymeslot."
 
+#: lib/tymeslot/auth/registration.ex
 #: lib/tymeslot_web/controllers/auth/helpers/controller_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Failed to create user account. Please try again."
@@ -740,7 +741,7 @@ msgstr "Te dane są już używane. Spróbuj z innymi."
 msgid "Too many %{operation} attempts. Please try again later."
 msgstr "Zbyt wiele prób: %{operation}. Spróbuj ponownie później."
 
-#: lib/tymeslot/security/account_lockout.ex
+#: lib/tymeslot/security/rate_limiter/auth.ex
 #, elixir-autogen, elixir-format
 msgid "Too many failed attempts. Please wait before trying again"
 msgstr "Zbyt wiele nieudanych prób. Odczekaj chwilę przed kolejną próbą"

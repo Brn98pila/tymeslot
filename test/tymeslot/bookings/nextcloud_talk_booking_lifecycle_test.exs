@@ -149,7 +149,7 @@ defmodule Tymeslot.Bookings.NextcloudTalkBookingLifecycleTest do
 
     # Cancelling deletes the conversation and forgets the room, join links and
     # all: the conversation they point at no longer exists.
-    assert {:ok, _cancelled} = Cancel.execute(booked.uid)
+    assert {:ok, _cancelled} = Cancel.execute(Repo.get_by!(MeetingSchema, uid: booked.uid))
     assert requests() == []
     assert_enqueued(worker: VideoSyncWorker, args: sync_args(booked, "delete"))
 
@@ -348,7 +348,7 @@ defmodule Tymeslot.Bookings.NextcloudTalkBookingLifecycleTest do
 
     # Cancelling sends the refused credentials nowhere, and keeps the room so
     # it can still be deleted once the integration is reconnected.
-    assert {:ok, _cancelled} = Cancel.execute(meeting.uid)
+    assert {:ok, _cancelled} = Cancel.execute(Repo.get_by!(MeetingSchema, uid: meeting.uid))
     assert %{discard: 1, failure: 0} = drain_video_rooms()
 
     assert requests() == []

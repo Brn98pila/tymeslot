@@ -233,15 +233,21 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
     end
   end
 
+  # A reconnect can reactivate an integration that was paused, which may have
+  # been the user's only calendar and so lost its place as the primary; the
+  # activation rule adopts it again.
   defp update_existing_integration(existing, token_attrs) do
-    with {:ok, updated} <- CalendarIntegrationQueries.update_credentials(existing, token_attrs) do
-      if updated.calendar_list == [] do
-        discover_and_configure_calendars(updated)
-      else
-        {:ok, updated}
-      end
+    with {:ok, updated} <- CalendarIntegrationQueries.update_credentials(existing, token_attrs),
+         {:ok, configured} <- configure_if_unlisted(updated) do
+      if configured.is_active, do: CalendarManagement.ensure_primary_on_activate(configured)
+      {:ok, configured}
     end
   end
+
+  defp configure_if_unlisted(%{calendar_list: []} = integration),
+    do: discover_and_configure_calendars(integration)
+
+  defp configure_if_unlisted(integration), do: {:ok, integration}
 
   defp create_new_outlook_integration(user_id, provider_account_id, token_attrs) do
     attrs =

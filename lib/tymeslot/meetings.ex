@@ -9,7 +9,7 @@ defmodule Tymeslot.Meetings do
 
   require Logger
 
-  alias Tymeslot.Bookings.{BookingTitle, Cancel, CancelSeat, Reschedule, RescheduleRequest}
+  alias Tymeslot.Bookings.{Cancel, CancelSeat, Reschedule, RescheduleRequest}
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
 
@@ -17,6 +17,7 @@ defmodule Tymeslot.Meetings do
     BusyPeriods,
     CalendarEventLink,
     CalendarEvents,
+    CalendarExport,
     Cancellation,
     ExternalCalendarChanges,
     Guests,
@@ -28,18 +29,16 @@ defmodule Tymeslot.Meetings do
     MeetingListQueries,
     MeetingQueries,
     MeetingSchema,
-    MeetingState,
     ParticipantSchema,
     Recipient,
     SeatLookup,
     VideoRooms
   }
 
-  alias Tymeslot.Integrations.Calendar.IcsGenerator
-  alias Tymeslot.Notifications.ContentBuilder
-
   alias Tymeslot.Pagination.CursorPage
   alias Tymeslot.Security.EncryptedString
+
+  @owner_fixable_video_refusals [:video_integration_needs_reauth, :video_integration_inactive]
 
   # The guests' RSVP tokens and the group participants' seat tokens.
   @impl Tymeslot.Security.EncryptedStorage
@@ -90,6 +89,9 @@ defmodule Tymeslot.Meetings do
   @doc "Whether `meeting` was booked with room for more than one seat."
   defdelegate group?(meeting), to: MeetingSchema
 
+  @doc "The video link the organiser joins `meeting` with, or `nil` without video."
+  defdelegate organizer_join_url(meeting), to: MeetingSchema
+
   @doc """
   `meeting` (or each of a list of meetings) with its live participants
   loaded into `:participants`, oldest booking first: the people a group
@@ -117,9 +119,10 @@ defmodule Tymeslot.Meetings do
 
   Delegates to Bookings.Cancel module.
   """
-  @spec cancel_meeting(Ecto.Schema.t() | String.t()) :: {:ok, Ecto.Schema.t()} | {:error, atom()}
-  def cancel_meeting(meeting_or_uid) do
-    Cancel.execute(meeting_or_uid)
+  @spec cancel_meeting(MeetingSchema.t()) ::
+          {:ok, MeetingSchema.t()} | {:error, atom() | String.t()}
+  def cancel_meeting(%MeetingSchema{} = meeting) do
+    Cancel.execute(meeting)
   end
 
   @doc """
@@ -198,9 +201,10 @@ defmodule Tymeslot.Meetings do
   @doc """
   Cancels a meeting and issues the resolved refund to the attendee.
 
-  Only the host who took the payment may ask for a refund; anyone else gets
-  `{:error, :not_found}` before the meeting is cancelled. Cancelling with
-  `:none` is open to whoever the caller already allows to cancel.
+  Only the meeting's organiser (`acting_user_id` must be its
+  `organizer_user_id`) may cancel through here, and a refund additionally
+  needs the payment to be theirs; anyone else gets `{:error, :not_found}`
+  before the meeting is touched.
 
   Returns `{:error, {:refund_failed, reason}}` when the meeting was cancelled
   but the refund could not be issued, so callers can tell the host to settle it
@@ -269,6 +273,17 @@ defmodule Tymeslot.Meetings do
       {:error, :calendar_event_pending} = pending ->
         pending
 
+      # A video integration switched off or waiting to be reconnected is the
+      # owner's to fix, and the meeting goes ahead without a room: expected,
+      # not a fault.
+      {:error, reason} = error when reason in @owner_fixable_video_refusals ->
+        Logger.info("Video room not added: the video integration is unavailable",
+          meeting_id: meeting_id,
+          reason: reason
+        )
+
+        error
+
       {:error, reason} = error ->
         Logger.error("Failed to add video room",
           meeting_id: meeting_id,
@@ -284,20 +299,18 @@ defmodule Tymeslot.Meetings do
   # =====================================
 
   @doc """
-  Lists upcoming meetings for a specific user with a limit.
+  Lists the organiser's upcoming live bookings, soonest first, up to `limit`.
   """
-  @spec list_upcoming_meetings_for_user(String.t(), integer()) :: [MeetingSchema.t()]
-  def list_upcoming_meetings_for_user(user_email, limit) do
-    MeetingListQueries.upcoming_meetings_for_user(user_email, limit)
-  end
+  @spec list_upcoming_meetings_for_organizer(pos_integer(), integer()) :: [MeetingSchema.t()]
+  defdelegate list_upcoming_meetings_for_organizer(organizer_user_id, limit),
+    to: MeetingListQueries,
+    as: :upcoming_meetings_for_organizer
 
   @doc """
-  Lists all upcoming meetings for a specific user.
+  Lists every upcoming meeting the organiser holds, whatever its status.
   """
-  @spec list_upcoming_meetings_for_user(String.t()) :: [MeetingSchema.t()]
-  def list_upcoming_meetings_for_user(user_email) do
-    MeetingListQueries.list_upcoming_meetings_for_user(user_email)
-  end
+  @spec list_upcoming_meetings_for_organizer(pos_integer()) :: [MeetingSchema.t()]
+  defdelegate list_upcoming_meetings_for_organizer(organizer_user_id), to: MeetingListQueries
 
   @doc """
   Lists the organiser's live bookings overlapping the `[from, to)` window,
@@ -346,6 +359,15 @@ defmodule Tymeslot.Meetings do
   end
 
   @doc """
+  The organiser's meeting with `meeting_id`, as a one-item page of dashboard
+  cards (empty when they own no meeting by that id): the dashboard view a
+  meeting's organiser links lead to
+  (`Tymeslot.Bookings.MeetingLinks.host_view_url/1`).
+  """
+  @spec list_user_meeting(integer(), term()) :: {:ok, CursorPage.t()}
+  defdelegate list_user_meeting(user_id, meeting_id), to: Listing
+
+  @doc """
   High-level function to list meetings for a user based on a filter string.
   """
   @spec list_user_meetings_by_filter(integer(), String.t(), keyword()) ::
@@ -361,25 +383,12 @@ defmodule Tymeslot.Meetings do
   defdelegate get_meeting(id), to: MeetingAccess
 
   @doc """
-  Gets a single meeting by ID for a specific user.
-
-  Verifies that the meeting belongs to the specified user
-  (either as organizer or attendee) before returning it.
-  """
-  @spec get_meeting_for_user(String.t() | integer(), String.t()) ::
-          {:ok, MeetingSchema.t()} | {:error, :not_found}
-  defdelegate get_meeting_for_user(id, user_email), to: MeetingAccess
-
-  @doc """
   Fetches a meeting by ID only if the given `organizer_user_id` owns it.
 
-  Unlike `get_meeting_for_user/2`, this never matches on the attendee side:
-  it is for actions (approving or declining a held request) that only the
-  organiser is allowed to take, where an attendee holding a Tymeslot account
-  under the booking email must not be able to act on their own request.
-
-  Use this instead of `get_meeting_for_user/2` on any organiser-only action
-  that accepts a meeting id from the client.
+  The dashboard's lookup for every action that accepts a meeting id from the
+  client. It never matches on an email address: an attendee holding an account
+  under the booking email, or whoever later verifies an address the organiser
+  gave up, must not be able to open or act on the meeting.
   """
   @spec get_meeting_for_organizer(String.t(), integer()) ::
           {:ok, MeetingSchema.t()} | {:error, :not_found}
@@ -402,59 +411,20 @@ defmodule Tymeslot.Meetings do
           {:ok, MeetingSchema.t()} | {:error, :not_found}
   defdelegate get_meeting_by_uid_for_organizer(uid, organizer_user_id), to: MeetingAccess
 
-  @doc """
-  Exports a single meeting as iCalendar (`.ics`) content, scoped to its
-  organizer via the same IDOR-safe lookup as `get_meeting_by_uid_for_organizer/2`.
-
-  Returns `{:error, :not_found}` for meetings with no live calendar event
-  expected right now — cancelled, completed, or under a pending reschedule
-  request (`MeetingState.expects_calendar_event?/1`) — so the public download
-  URL can't be used to confirm a cancelled booking ever existed, or to
-  produce an .ics for a voided time slot.
-
-  Note that nothing writes the `"completed"` status: a booking that has
-  happened is still `"confirmed"`, so a past meeting stays exportable and
-  only the other two arms of that predicate are reachable today.
-
-  Runs the meeting through `ContentBuilder.build_appointment_details/1` — the
-  same transformation the confirmation/reminder emails use for timezone
-  conversion, location, and organizer contact info — carrying over the
-  description and custom question answers so the download matches what was
-  emailed. The attendee's own video join link is preferred over the generic
-  meeting URL, and the title is rendered in the attendee's language, since
-  the attendee is exporting their own event.
-
-  A held request (`MeetingState.awaiting_approval?/1`) is exportable — it
-  occupies its slot — but must not read as a confirmed meeting to whichever
-  calendar it lands on, so it is exported with `STATUS:TENTATIVE`.
-  """
+  @doc "Exports a solo meeting's `.ics` file. See `Tymeslot.Meetings.CalendarExport.meeting/2`."
   @spec calendar_export(String.t(), integer()) :: {:ok, String.t()} | {:error, :not_found}
-  def calendar_export(uid, organizer_user_id) do
-    with {:ok, meeting} <- get_meeting_by_uid_for_organizer(uid, organizer_user_id),
-         true <- exportable?(meeting) do
-      details =
-        meeting
-        |> ContentBuilder.build_appointment_details()
-        |> Map.merge(%{
-          title: BookingTitle.localise(meeting, meeting.attendee_locale),
-          description: meeting.description,
-          custom_fields_snapshot: meeting.custom_fields_snapshot,
-          custom_field_answers: meeting.custom_field_answers,
-          meeting_url: meeting.attendee_video_url || meeting.meeting_url,
-          status: ics_export_status(meeting)
-        })
+  defdelegate calendar_export(uid, organizer_user_id), to: CalendarExport, as: :meeting
 
-      {:ok, IcsGenerator.generate_ics(details, details.attendee_locale)}
-    else
-      _not_found_or_inactive -> {:error, :not_found}
-    end
-  end
+  @doc "Exports a group-booking seat's own `.ics` file. See `Tymeslot.Meetings.CalendarExport.seat/1`."
+  @spec seat_calendar_export(String.t()) :: {:ok, String.t()} | {:error, :not_found}
+  defdelegate seat_calendar_export(token), to: CalendarExport, as: :seat
 
-  defp ics_export_status(meeting) do
-    if MeetingState.awaiting_approval?(meeting), do: "TENTATIVE", else: "CONFIRMED"
-  end
-
-  defp exportable?(meeting), do: MeetingState.expects_calendar_event?(meeting)
+  @doc """
+  Where the booker of `meeting` downloads its calendar file. See
+  `Tymeslot.Meetings.CalendarExport.for_booker/1`.
+  """
+  @spec booker_calendar(map()) :: {:seat, String.t()} | {:meeting, String.t()} | :none
+  defdelegate booker_calendar(meeting), to: CalendarExport, as: :for_booker
 
   @doc """
   Dismisses the calendar sync status banner for a meeting by recording the current timestamp.

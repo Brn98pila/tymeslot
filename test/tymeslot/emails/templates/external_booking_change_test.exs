@@ -3,6 +3,8 @@ defmodule Tymeslot.Emails.ExternalBookingChangeTest do
 
   @moduletag :emails
 
+  alias Ecto.UUID
+  alias Tymeslot.Bookings.MeetingLinks
   alias Tymeslot.Emails.EmailService
   alias Tymeslot.Emails.Templates.ExternalBookingChange
   alias Tymeslot.Meetings.MeetingSchema
@@ -37,6 +39,26 @@ defmodule Tymeslot.Emails.ExternalBookingChangeTest do
       assert email.subject =~ "Aktion erforderlich"
     end
 
+    # The stored `view_url` named a public page that never existed. The
+    # host's link is built now, to their dashboard view of the booking, and
+    # by its id: the uid is the booker's capability.
+    test "links the host to the booking in their dashboard, not the stored link" do
+      id = UUID.generate()
+      uid = UUID.generate()
+      meeting = build_meeting(%{id: id, uid: uid})
+      link = MeetingLinks.host_view_url(id)
+
+      email = ExternalBookingChange.render(meeting, "john@example.com", :deleted, "UTC")
+
+      assert link =~ "/dashboard/meetings?meeting=#{id}"
+      assert email.text_body =~ link
+      assert email.html_body =~ "/dashboard/meetings?meeting=#{id}"
+      refute email.text_body =~ uid
+      refute email.html_body =~ uid
+      refute email.text_body =~ "tymeslot.example.com/meetings/abc"
+      refute email.html_body =~ "tymeslot.example.com/meetings/abc"
+    end
+
     test "builds email for deleted discrepancy" do
       meeting = build_meeting()
 
@@ -66,6 +88,38 @@ defmodule Tymeslot.Emails.ExternalBookingChangeTest do
 
       assert email.subject =~ "rescheduled"
       assert email.text_body =~ "rescheduled"
+      assert email.text_body =~ "please update or reschedule the booking in Tymeslot"
+    end
+
+    # A group meeting cannot be rescheduled as a whole, so the email must not
+    # send the organiser to do that; it names what they can do instead.
+    test "a rescheduled group meeting points the organiser at what they can actually do" do
+      meeting = build_meeting(%{capacity: 5, attendee_name: nil, attendee_email: nil})
+
+      email =
+        ExternalBookingChange.render(meeting, "john@example.com", :modified, "Europe/London")
+
+      for body <- [email.text_body, email.html_body] do
+        refute body =~ "reschedule the booking in Tymeslot"
+        refute body =~ "the attendee receives updated details"
+        assert body =~ "move the event back in your calendar"
+        assert body =~ "send the participants a reschedule request"
+        assert body =~ "cancel the meeting there so every participant is notified"
+      end
+
+      refute email.html_body =~ "update or cancel it accordingly"
+    end
+
+    test "a rescheduled group meeting is worded in the organiser's own language" do
+      host = insert(:user, locale: "de")
+
+      meeting =
+        build_meeting(%{organizer_user_id: host.id, capacity: 5, attendee_name: nil})
+
+      email = ExternalBookingChange.render(meeting, "john@example.com", :modified, "UTC")
+
+      refute email.text_body =~ "move the event back in your calendar"
+      assert email.text_body =~ "Gruppentermin"
     end
 
     test "uses organizer_name when present" do

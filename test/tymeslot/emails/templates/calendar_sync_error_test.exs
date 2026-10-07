@@ -64,7 +64,8 @@ defmodule Tymeslot.Emails.Templates.CalendarSyncErrorTest do
 
       owner_local = DateTime.shift_zone!(meeting.start_time, "America/New_York")
 
-      assert html =~ Formatting.format_time(owner_local, "en")
+      # On the host's clock: one who never chose takes English's 12-hour one.
+      assert html =~ Formatting.format_time(owner_local, "en", "12h")
       refute html =~ Formatting.format_time(meeting.start_time, "en")
     end
 
@@ -84,6 +85,13 @@ defmodule Tymeslot.Emails.Templates.CalendarSyncErrorTest do
       html = html_body(meeting, error_reason)
 
       assert html =~ "Common causes:"
+    end
+
+    test "lays the common causes out as list lines, not escaped markup" do
+      html = html_body(insert(:meeting), :invalid_credentials)
+
+      assert html =~ ~r{<br\s*/?>• CalDAV server temporarily unavailable}
+      refute html =~ "&lt;br/&gt;"
     end
 
     test "renders each error reason into the error details section" do

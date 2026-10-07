@@ -7,6 +7,7 @@ defmodule Tymeslot.Integrations.Common.OAuth.TokenTest do
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.Tokens
   alias Tymeslot.Integrations.Common.OAuth.Token
   alias Tymeslot.Integrations.Shared.Lock
 
@@ -105,7 +106,7 @@ defmodule Tymeslot.Integrations.Common.OAuth.TokenTest do
       }
 
       # Acquire the lock from another process so our call can't get it
-      lock_key = {:token_refresh, 999_999}
+      lock_key = Tokens.refresh_lock_key(999_999)
       test_pid = self()
 
       holder =

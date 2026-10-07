@@ -37,6 +37,7 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
   alias Tymeslot.CustomFields
   alias Tymeslot.Demo
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Meetings
   alias Tymeslot.Meetings.Approval
   alias Tymeslot.Security.Honeypot
   alias Tymeslot.Security.InputProcessor
@@ -146,7 +147,7 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
     socket =
       socket
       |> assign(:submitting, false)
-      |> assign(:meeting_uid, meeting.uid)
+      |> assign_booked_identity(meeting)
       |> assign(:meeting_status, meeting.status)
       |> BookingLocation.assign_booked(meeting)
       |> assign(:name, validated_data["name"])
@@ -159,6 +160,23 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
     {:ok, socket}
   end
 
+  # A seat on a group meeting is the booker's own booking: its calendar file
+  # is the seat's, under its management token. The meeting uid of a group
+  # meeting names the shared slot, which a booker must never be handed: it
+  # opens the slot's public cancel and reschedule pages.
+  defp assign_booked_identity(socket, meeting) do
+    {meeting_uid, seat_calendar_url} =
+      case Meetings.booker_calendar(meeting) do
+        {:meeting, uid} -> {uid, nil}
+        {:seat, url} -> {nil, url}
+        :none -> {nil, nil}
+      end
+
+    socket
+    |> assign(:meeting_uid, meeting_uid)
+    |> assign(:seat_calendar_url, seat_calendar_url)
+  end
+
   # Handles booking submission errors: updates the socket with the
   # appropriate error message and state.
   @spec handle_booking_error(Phoenix.LiveView.Socket.t(), atom() | String.t()) ::
@@ -169,10 +187,18 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
       |> BookingGuards.release_submission()
       |> Flash.put_flash(:error, BookingErrorMessage.message(reason))
 
-    Logger.error("Failed to create meeting appointment", reason: LogFormat.reason(reason))
+    log_booking_error(reason)
 
     {:error, socket}
   end
+
+  # A refusal because the organiser's calendars could not all be read is the
+  # check working as meant; `CalendarCheck` has already logged its cause.
+  defp log_booking_error(:availability_unverifiable),
+    do: Logger.info("Booking refused: the organiser's availability could not be verified")
+
+  defp log_booking_error(reason),
+    do: Logger.error("Failed to create meeting appointment", reason: LogFormat.reason(reason))
 
   # Private functions
 
@@ -293,7 +319,7 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
   end
 
   # The slot was booked out from under this attendee between selecting it and
-  # submitting (server-side `FOR UPDATE NOWAIT` correctly refused the double
+  # submitting (the server-side conflict check correctly refused the double
   # booking). The domain layer signals this with the semantic `:slot_taken`
   # atom (see `Tymeslot.Bookings.Orchestrator.submit_booking/2`) rather than a
   # display string, so this routing decision never depends on copy text. Stop

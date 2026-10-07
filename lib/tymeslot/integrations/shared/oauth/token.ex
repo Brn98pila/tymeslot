@@ -12,6 +12,7 @@ defmodule Tymeslot.Integrations.Common.OAuth.Token do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.Tokens
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.Lock
 
@@ -87,18 +88,30 @@ defmodule Tymeslot.Integrations.Common.OAuth.Token do
        ) do
     integration_id = Map.get(integration, :id) || Map.get(integration, "id") || :no_id
 
+    # The new tokens are written before the lock is released: a caller
+    # queued behind this one re-reads the row as soon as it gets the lock,
+    # and must find the refreshed expiry there rather than refresh again.
     lock_result =
       Lock.with_lock(
-        {:token_refresh, integration_id},
+        Tokens.refresh_lock_key(integration_id),
         fn ->
           # Re-fetch from DB and re-validate to avoid redundant refreshes
-          # when another caller already refreshed while we waited for the lock
-          case maybe_refetch_valid_token(integration_id, refetch_fun, decrypt_fun, buffer_seconds) do
+          # when another caller already refreshed while we waited for the lock.
+          # A stale token is refreshed from the row just read, not the
+          # caller's copy: a long job's copy can predate a reconnect flag, and
+          # the attributes written after the refresh depend on that flag.
+          case maybe_refetch_valid_token(
+                 integration,
+                 refetch_fun,
+                 decrypt_fun,
+                 buffer_seconds,
+                 integration_id
+               ) do
             {:ok, _access_token} = already_valid ->
               already_valid
 
-            :stale ->
-              refresh_fun.(integration)
+            {:stale, current} ->
+              handle_refresh_result(refresh_fun.(current), current, persist?)
           end
         end,
         mode: :blocking,
@@ -106,22 +119,19 @@ defmodule Tymeslot.Integrations.Common.OAuth.Token do
       )
 
     case lock_result do
-      {:error, :lock_timeout} ->
-        {:error, :lock_timeout}
-
       {:error, :lock_manager_not_started} ->
         # Fallback: run without lock if Lock GenServer isn't running
         handle_refresh_result(refresh_fun.(integration), integration, persist?)
 
       result ->
-        handle_refresh_result(result, integration, persist?)
+        result
     end
   end
 
   defp handle_refresh_result(result, integration, persist?) do
     case result do
       {:ok, access_token} when is_binary(access_token) ->
-        # Token was already valid from refetch — no persistence needed
+        # A refresh function that hands back a bare token has nothing to persist
         {:ok, access_token}
 
       {:ok, {access_token, refresh_token, expires_at}} ->
@@ -158,20 +168,21 @@ defmodule Tymeslot.Integrations.Common.OAuth.Token do
     end
   end
 
-  defp maybe_refetch_valid_token(_integration_id, nil, _decrypt_fun, _buffer_seconds), do: :stale
+  defp maybe_refetch_valid_token(integration, nil, _decrypt_fun, _buffer_seconds, _id),
+    do: {:stale, integration}
 
-  defp maybe_refetch_valid_token(integration_id, refetch_fun, decrypt_fun, buffer_seconds) do
-    case refetch_fun.(integration_id) do
+  defp maybe_refetch_valid_token(integration, refetch_fun, decrypt_fun, buffer_seconds, id) do
+    case refetch_fun.(id) do
       %{} = fresh ->
         if valid?(fresh, buffer_seconds) do
           decrypted = decrypt_fun.(fresh)
           {:ok, Map.get(decrypted, :access_token) || Map.get(decrypted, "access_token")}
         else
-          :stale
+          {:stale, fresh}
         end
 
       _error ->
-        :stale
+        {:stale, integration}
     end
   end
 
@@ -180,11 +191,7 @@ defmodule Tymeslot.Integrations.Common.OAuth.Token do
   # rather than silently serving stale DB state on the next call.
   @spec persist_tokens(map(), String.t(), String.t(), DateTime.t()) :: :ok | {:error, term()}
   defp persist_tokens(%CalendarIntegrationSchema{} = integration, access, refresh, expires_at) do
-    attrs = %{
-      access_token: access,
-      refresh_token: refresh,
-      token_expires_at: expires_at
-    }
+    attrs = Tokens.refreshed_token_attrs(integration, access, refresh, expires_at)
 
     case CalendarIntegrationQueries.update(integration, attrs) do
       {:ok, _updated_integration} -> :ok

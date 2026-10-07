@@ -26,9 +26,14 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderTest do
                RecurrenceExpander.parse_rrule("FREQ=WEEKLY;COUNT=10")
     end
 
-    test "parses BYDAY" do
-      assert {:ok, %{freq: :weekly, by_day: [:monday, :wednesday, :friday]}} =
+    test "parses BYDAY into ISO weekdays" do
+      assert {:ok, %{freq: :weekly, by_day: [{nil, 1}, {nil, 3}, {nil, 5}]}} =
                RecurrenceExpander.parse_rrule("FREQ=WEEKLY;BYDAY=MO,WE,FR")
+    end
+
+    test "keeps BYDAY ordinals, counted from the end when negative" do
+      assert {:ok, %{freq: :monthly, by_day: [{2, 2}, {-1, 5}]}} =
+               RecurrenceExpander.parse_rrule("FREQ=MONTHLY;BYDAY=2TU,-1FR")
     end
 
     test "returns error for nil" do
@@ -276,7 +281,9 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderTest do
       assert length(occurrences) == 3
     end
 
-    test "clamps day to end of short month" do
+    # RFC 5545 §3.3.10: a repetition on a date the month does not have is
+    # skipped, not moved to the month's last day.
+    test "skips a month without the first start's day" do
       event = %{
         uid: "monthly-31",
         summary: "End of month",
@@ -285,12 +292,50 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderTest do
         recurrence_rule: "FREQ=MONTHLY;INTERVAL=1"
       }
 
-      range_start = ~U[2026-02-01 00:00:00Z]
-      range_end = ~U[2026-02-28 23:59:59Z]
+      occurrences =
+        RecurrenceExpander.expand(event, ~U[2026-01-01 00:00:00Z], ~U[2026-05-31 23:59:59Z])
 
-      occurrences = RecurrenceExpander.expand(event, range_start, range_end)
+      assert Enum.map(occurrences, & &1.start_time) == [
+               ~U[2026-01-31 10:00:00Z],
+               ~U[2026-03-31 10:00:00Z],
+               ~U[2026-05-31 10:00:00Z]
+             ]
+    end
 
-      assert [%{start_time: ~U[2026-02-28 10:00:00Z]}] = occurrences
+    test "counts only the months that have the day towards COUNT" do
+      event = %{
+        uid: "monthly-31-count",
+        summary: "End of month",
+        start_time: ~U[2026-01-31 10:00:00Z],
+        end_time: ~U[2026-01-31 11:00:00Z],
+        recurrence_rule: "FREQ=MONTHLY;COUNT=12"
+      }
+
+      starts =
+        event
+        |> RecurrenceExpander.expand(~U[2026-01-01 00:00:00Z], ~U[2027-12-31 23:59:59Z])
+        |> Enum.map(&DateTime.to_date(&1.start_time))
+
+      assert length(starts) == 12
+      assert Enum.all?(starts, &(&1.day == 31))
+      assert List.last(starts) == ~D[2027-08-31]
+    end
+
+    test "a yearly series from 29 February occurs only in leap years" do
+      event = %{
+        uid: "yearly-leap",
+        summary: "Leap day",
+        start_time: ~U[2028-02-29 10:00:00Z],
+        end_time: ~U[2028-02-29 11:00:00Z],
+        recurrence_rule: "FREQ=YEARLY;COUNT=2"
+      }
+
+      starts =
+        event
+        |> RecurrenceExpander.expand(~U[2028-01-01 00:00:00Z], ~U[2033-12-31 23:59:59Z])
+        |> Enum.map(& &1.start_time)
+
+      assert starts == [~U[2028-02-29 10:00:00Z], ~U[2032-02-29 10:00:00Z]]
     end
   end
 

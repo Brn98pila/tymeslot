@@ -23,7 +23,6 @@ defmodule Tymeslot.DataCase do
   alias Tymeslot.Infrastructure.CircuitBreaker
   alias Tymeslot.Infrastructure.VideoCircuitBreaker
   alias Tymeslot.Repo
-  alias Tymeslot.Security.AccountLockout
   alias Tymeslot.Security.RateLimiter
 
   using do
@@ -114,13 +113,8 @@ defmodule Tymeslot.DataCase do
       if Process.whereis(name), do: CircuitBreaker.reset(name)
     end)
 
-    # Clear rate limiter
+    # Clear rate limiter, including the failed-login throttle
     RateLimiter.clear_all()
-
-    # Clear the account-lockout table. It is a second VM-global ETS table,
-    # owned by AccountLockout.TableOwner rather than by Hammer, so the
-    # rate-limiter reset above does not reach it.
-    AccountLockout.clear_all()
 
     # Clear availability cache
     AvailabilityCache.clear_all()

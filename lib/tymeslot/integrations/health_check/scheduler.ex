@@ -167,20 +167,32 @@ defmodule Tymeslot.Integrations.HealthCheck.Scheduler do
     end
   end
 
+  # A host breaker starts with a server's first call and is reaped once idle,
+  # so none exists for a server with no recent traffic, as after every boot.
+  # It has recorded no failures: it is closed, not missing.
+  defp unstarted_as_closed({:error, :breaker_not_found}, host)
+       when is_binary(host) and host != "",
+       do: %{status: :closed}
+
+  defp unstarted_as_closed(status, _host), do: status
+
   defp check_circuit_breaker(type, integration, provider_atom) do
+    # Self-hosted providers (the CalDAV family and Exchange for calendars,
+    # MiroTalk for video) key their circuit breaker per host, so this must
+    # check the same breaker their calls actually trip, or a tenant whose
+    # host is down never gets skipped here.
+    base_url = Map.get(integration, :base_url)
+
     circuit_status =
       try do
         case type do
           :calendar ->
-            CalendarCircuitBreaker.status(provider_atom)
+            {breaker_provider, host} = CalendarCircuitBreaker.breaker_key(provider_atom, base_url)
+            breaker_provider |> CalendarCircuitBreaker.status(host) |> unstarted_as_closed(host)
 
           :video ->
-            # Self-hosted providers (MiroTalk) key their circuit breaker per
-            # host — see `VideoCircuitBreaker.status/2` — so this must check
-            # the same breaker `ProviderAdapter` actually trips, or a tenant
-            # whose host is down never gets skipped here.
-            host = CircuitBreakerHelpers.host_from_base_url(Map.get(integration, :base_url))
-            VideoCircuitBreaker.status(provider_atom, host)
+            host = CircuitBreakerHelpers.host_from_base_url(base_url)
+            provider_atom |> VideoCircuitBreaker.status(host) |> unstarted_as_closed(host)
         end
       rescue
         e ->

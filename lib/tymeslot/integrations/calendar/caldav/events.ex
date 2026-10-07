@@ -65,7 +65,9 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Events do
         retry_opts = Keyword.get(opts, :retry_opts, Base.default_retry_opts())
 
         report_opts =
-          Keyword.put(opts, :timeout, Keyword.get(opts, :timeout, Base.report_timeout_ms()))
+          opts
+          |> Keyword.put(:timeout, Keyword.get(opts, :timeout, Base.report_timeout_ms()))
+          |> Keyword.put(:max_response_bytes, Base.max_report_bytes())
 
         case RetryLogic.with_retry(
                fn ->
@@ -538,7 +540,9 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Events do
     # the breaker as a success.
     result =
       with_events_breaker(client, [], fn ->
-        case Http.report(url, client.username, client.password, XmlHandler.build_uid_query(uid)) do
+        case Http.report(url, client.username, client.password, XmlHandler.build_uid_query(uid),
+               max_response_bytes: Base.max_report_bytes()
+             ) do
           {:ok, %Req.Response{body: body}} -> XmlHandler.parse_calendar_query(body)
           {:error, reason} when reason in [:not_found, :gone] -> {:ok, []}
           {:error, reason} -> {:error, reason}

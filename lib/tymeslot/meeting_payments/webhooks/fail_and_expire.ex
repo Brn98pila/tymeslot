@@ -19,8 +19,9 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
   alias Tymeslot.MeetingPayments.Telemetry
+  alias Tymeslot.MeetingPayments.Webhooks.LockedPayment
+  alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
   alias Tymeslot.Meetings.MeetingQueries
-  alias Tymeslot.Repo
 
   @doc """
   Runs the fail-and-expire flow for `event`, wrapped in the webhook telemetry
@@ -32,8 +33,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
     Telemetry.span_webhook(event_type, fn -> do_handle(event, event_type, telemetry_reason) end)
   end
 
-  defp do_handle(%{"id" => event_id, "data" => %{"object" => object}}, event_type, reason) do
-    case lookup_payment(object) do
+  defp do_handle(%{"id" => event_id, "data" => %{"object" => object}} = event, event_type, reason) do
+    case PaymentLookup.find_for_session(event) do
       nil ->
         Logger.info("No booking_payment matched for Connect event",
           event_type: event_type,
@@ -55,32 +56,50 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
   defp classify(:ok), do: {:ok, :ok}
   defp classify({:error, _reason} = err), do: {err, :error}
 
-  defp lookup_payment(%{"client_reference_id" => meeting_id} = object)
-       when is_binary(meeting_id) do
-    BookingPaymentQueries.by_meeting_id(meeting_id) || lookup_by_session(object)
-  end
-
-  defp lookup_payment(object), do: lookup_by_session(object)
-
-  defp lookup_by_session(%{"id" => session_id}) when is_binary(session_id) do
-    BookingPaymentQueries.by_checkout_session(session_id)
-  end
-
-  defp lookup_by_session(_object), do: nil
-
+  # Decided from the locked rows (`LockedPayment`, then the meeting), so a
+  # completion committed since the row was resolved is seen rather than
+  # raced. Only a payment still `pending` can fail: one that has since been
+  # paid, disputed or refunded keeps its status and its meeting.
+  #
+  # A payment failed already can still have its meeting awaiting payment:
+  # a Stripe disconnect fails its pending payments and expires their
+  # meetings in separate writes, and one whose meeting write failed leaves
+  # the slot held. That meeting is expired here, with the usual side
+  # effects; a failed payment whose meeting has moved on is left alone.
   defp run(payment, event_id, reason) do
     result =
-      Repo.transaction(fn ->
-        with {:ok, _bp} <- mark_failed(payment, event_id, reason),
-             :ok <- maybe_expire_meeting(payment.meeting_id) do
-          :ok
-        else
-          {:error, rollback_reason} -> Repo.rollback(rollback_reason)
-        end
+      LockedPayment.run(payment, event_id, fn
+        %BookingPaymentSchema{status: "pending"} = locked ->
+          with {:ok, _bp} <- mark_failed(locked, event_id, reason),
+               {:ok, _outcome} <- expire_meeting(locked.meeting_id) do
+            {:ok, :expired}
+          end
+
+        %BookingPaymentSchema{status: "failed"} = locked ->
+          case expire_meeting(locked.meeting_id) do
+            {:ok, :expired} -> {:ok, :expired}
+            {:ok, :unchanged} -> {:ok, {:not_pending, "failed"}}
+            {:error, _reason} = error -> error
+          end
+
+        %BookingPaymentSchema{status: status} ->
+          {:ok, {:not_pending, status}}
       end)
 
     case result do
-      {:ok, :ok} ->
+      {:ok, :idempotent_replay} ->
+        :ok
+
+      {:ok, {:not_pending, status}} ->
+        Logger.info("Connect event ignored: booking payment is no longer pending",
+          payment_id: payment.id,
+          event_id: event_id,
+          status: status
+        )
+
+        :ok
+
+      {:ok, :expired} ->
         # An `awaiting_payment` booking holds its slot on the booking page as
         # well as at the submit, so expiring it has to release the cached
         # offer, exactly as confirming the payment does.
@@ -119,21 +138,23 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
     end
   end
 
-  defp maybe_expire_meeting(nil), do: :ok
+  defp expire_meeting(nil), do: {:ok, :unchanged}
 
-  defp maybe_expire_meeting(meeting_id) do
-    case MeetingQueries.get_meeting(meeting_id) do
+  defp expire_meeting(meeting_id) do
+    case MeetingQueries.get_meeting_for_update(meeting_id) do
       {:ok, %{status: "awaiting_payment"} = meeting} ->
-        case MeetingQueries.update_meeting(meeting, %{status: "expired"}) do
-          {:ok, _meeting} -> :ok
+        # A status write only, so a row whose other fields fail today's full
+        # validation is still expired.
+        case MeetingQueries.update_meeting_status(meeting, %{status: "expired"}) do
+          {:ok, _meeting} -> {:ok, :expired}
           {:error, _changeset} = err -> err
         end
 
       {:ok, _other} ->
-        :ok
+        {:ok, :unchanged}
 
       {:error, :not_found} ->
-        :ok
+        {:ok, :unchanged}
     end
   end
 end

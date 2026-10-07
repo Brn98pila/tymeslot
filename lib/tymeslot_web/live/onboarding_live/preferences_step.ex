@@ -9,20 +9,29 @@ defmodule TymeslotWeb.OnboardingLive.PreferencesStep do
   use Phoenix.Component
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias Tymeslot.Utils.DateTimeUtils.TimeFormat
   alias TymeslotWeb.CustomInputModeHelper
-  alias TymeslotWeb.Helpers.LocaleFormat
   alias TymeslotWeb.Live.Shared.FormValidationHelpers
   alias TymeslotWeb.OnboardingLive.StepConfig
   alias TymeslotWeb.OnboardingLive.TextHelpers
 
   @doc """
-  Renders the buffer step: a row for the time kept free before each booking,
-  and one for the time kept free after it. Both sit in one form, so the step's
-  change event carries whichever row was edited.
+  Renders the buffer step: a row for the free time a new booking needs before
+  it, and one for the free time it needs after it. Both sit in one form, so
+  every change event carries both rows' current values.
   """
   attr :buffer_before_minutes, :integer, required: true
   attr :buffer_after_minutes, :integer, required: true
+
+  attr :time_format, :string,
+    required: true,
+    doc: "the organiser's resolved clock, \"12h\" or \"24h\", for the example times"
+
   attr :form_errors, :map, required: true
+
+  attr :rejected_inputs, :map,
+    default: %{},
+    doc: "the value last typed into a field and refused, keyed by field, shown beside its error"
 
   attr :custom_input_mode, :map,
     default: %{
@@ -42,7 +51,7 @@ defmodule TymeslotWeb.OnboardingLive.PreferencesStep do
       class="onboarding-form"
     >
       <p class="onboarding-preference-example">
-        {buffer_example(@buffer_before_minutes, @buffer_after_minutes)}
+        {buffer_example(@buffer_before_minutes, @buffer_after_minutes, @time_format)}
       </p>
 
       <.buffer_row
@@ -52,6 +61,7 @@ defmodule TymeslotWeb.OnboardingLive.PreferencesStep do
         aria_label={dgettext("onboarding_wizard", "Custom buffer before, in minutes")}
         value={@buffer_before_minutes}
         form_errors={@form_errors}
+        rejected_inputs={@rejected_inputs}
         custom_input_mode={@custom_input_mode}
       />
 
@@ -62,6 +72,7 @@ defmodule TymeslotWeb.OnboardingLive.PreferencesStep do
         aria_label={dgettext("onboarding_wizard", "Custom buffer after, in minutes")}
         value={@buffer_after_minutes}
         form_errors={@form_errors}
+        rejected_inputs={@rejected_inputs}
         custom_input_mode={@custom_input_mode}
       />
     </form>
@@ -74,13 +85,17 @@ defmodule TymeslotWeb.OnboardingLive.PreferencesStep do
   attr :aria_label, :string, required: true
   attr :value, :integer, required: true
   attr :form_errors, :map, required: true
+  attr :rejected_inputs, :map, required: true
   attr :custom_input_mode, :map, required: true
 
+  # A refused value stays in the input beside its error until the field is
+  # saved, so the error always describes the value the field shows.
   defp buffer_row(assigns) do
     assigns =
       assign(assigns,
         param: Atom.to_string(assigns.field),
-        custom_mode: Map.get(assigns.custom_input_mode, assigns.field, false)
+        custom_mode: Map.get(assigns.custom_input_mode, assigns.field, false),
+        input_value: Map.get(assigns.rejected_inputs, assigns.field, assigns.value)
       )
 
     ~H"""
@@ -105,7 +120,7 @@ defmodule TymeslotWeb.OnboardingLive.PreferencesStep do
 
         <.custom_input_toggle
           field_name={@param}
-          current_value={@value}
+          current_value={@input_value}
           preset_values={CustomInputModeHelper.presets(@field)}
           constraints={StepConfig.buffer_constraints()}
           style_variant="primary"
@@ -250,7 +265,7 @@ defmodule TymeslotWeb.OnboardingLive.PreferencesStep do
   end
 
   attr :field_name, :string, required: true
-  attr :current_value, :integer, required: true
+  attr :current_value, :any, required: true, doc: "the saved value, or a refused one as typed"
   attr :preset_values, :list, required: true
   attr :constraints, :map, required: true
   attr :style_variant, :string, required: true
@@ -260,7 +275,7 @@ defmodule TymeslotWeb.OnboardingLive.PreferencesStep do
   defp custom_input_toggle(assigns) do
     ~H"""
     <%= if @custom_mode or @current_value not in @preset_values do %>
-      <div class={"btn-tag-selector btn-tag-selector-#{@style_variant}--active p-0! overflow-hidden"}>
+      <div class={"btn-tag-selector btn-tag-selector-#{@style_variant}--active p-0 overflow-hidden"}>
         <input
           type="number"
           min={@constraints.min}
@@ -298,7 +313,7 @@ defmodule TymeslotWeb.OnboardingLive.PreferencesStep do
   @example_meeting_start ~T[13:00:00]
   @example_meeting_end ~T[14:00:00]
 
-  defp buffer_example(0, 0),
+  defp buffer_example(0, 0, _time_format),
     do:
       dgettext(
         "onboarding_wizard",
@@ -307,18 +322,16 @@ defmodule TymeslotWeb.OnboardingLive.PreferencesStep do
 
   # A new booking needs its before-buffer clear after an existing meeting ends,
   # and its after-buffer clear before one starts.
-  defp buffer_example(buffer_before, buffer_after) do
-    locale = Gettext.get_locale(TymeslotWeb.Gettext)
-
+  defp buffer_example(buffer_before, buffer_after, time_format) do
     dgettext(
       "onboarding_wizard",
       "If you have a meeting from %{start_time} to %{end_time}, a new booking after it can start at %{next_start} at the earliest, and one before it must end by %{latest_end}.",
-      start_time: LocaleFormat.format_time(@example_meeting_start, locale),
-      end_time: LocaleFormat.format_time(@example_meeting_end, locale),
+      start_time: TimeFormat.format(@example_meeting_start, time_format),
+      end_time: TimeFormat.format(@example_meeting_end, time_format),
       next_start:
-        LocaleFormat.format_time(Time.add(@example_meeting_end, buffer_before * 60), locale),
+        TimeFormat.format(Time.add(@example_meeting_end, buffer_before * 60), time_format),
       latest_end:
-        LocaleFormat.format_time(Time.add(@example_meeting_start, -buffer_after * 60), locale)
+        TimeFormat.format(Time.add(@example_meeting_start, -buffer_after * 60), time_format)
     )
   end
 

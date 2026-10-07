@@ -61,9 +61,14 @@ defmodule Tymeslot.Security.RateLimiter.Calendar do
   once, and Graph drops a subscription whose endpoint keeps refusing it. The
   per-integration `check_webhook/1` bucket is what bounds one tenant's work.
   """
+  # Pushes arriving over IPv6 share this budget per /64, not per address.
   @spec check_push_endpoint(String.t()) :: :ok | {:error, :rate_limited}
   def check_push_endpoint(client_ip) do
-    Helpers.check_rate_limit("calendar_push:#{client_ip}", 1_000, :timer.minutes(1))
+    Helpers.check_rate_limit(
+      "calendar_push:#{Helpers.source_key(client_ip)}",
+      1_000,
+      :timer.minutes(1)
+    )
   end
 
   @spec check_webhook(integer() | any()) :: :ok | {:error, :rate_limited}

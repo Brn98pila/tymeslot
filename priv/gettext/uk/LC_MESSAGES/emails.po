@@ -400,7 +400,7 @@ msgstr[0] "Ви отримаєте %{count} нагадування до поча
 msgstr[1] "Ви отримаєте %{count} нагадування до початку зустрічі."
 msgstr[2] "Ви отримаєте %{count} нагадувань до початку зустрічі."
 
-#: lib/tymeslot/emails/appointment_builder.ex
+#: lib/tymeslot/emails/shared/formatting.ex
 #, elixir-autogen, elixir-format
 msgctxt "time until"
 msgid "day"
@@ -409,7 +409,7 @@ msgstr[0] "день"
 msgstr[1] "дні"
 msgstr[2] "днів"
 
-#: lib/tymeslot/emails/appointment_builder.ex
+#: lib/tymeslot/emails/shared/formatting.ex
 #, elixir-autogen, elixir-format
 msgctxt "time until"
 msgid "hour"
@@ -418,7 +418,7 @@ msgstr[0] "годину"
 msgstr[1] "години"
 msgstr[2] "годин"
 
-#: lib/tymeslot/emails/appointment_builder.ex
+#: lib/tymeslot/emails/shared/formatting.ex
 #, elixir-autogen, elixir-format
 msgctxt "time until"
 msgid "minute"
@@ -605,3 +605,8 @@ msgid_plural "Group session: you have one of %{count} spots."
 msgstr[0] "Групова зустріч: у вас одне з %{count} місць."
 msgstr[1] "Групова зустріч: у вас одне з %{count} місць."
 msgstr[2] "Групова зустріч: у вас одне з %{count} місць."
+
+#: lib/tymeslot/emails/shared/formatting.ex
+#, elixir-autogen, elixir-format
+msgid "ends %{time} on %{date}"
+msgstr "завершення: %{date}, %{time}"

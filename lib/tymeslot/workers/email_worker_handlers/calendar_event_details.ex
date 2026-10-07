@@ -27,9 +27,21 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.CalendarEventDetails do
   time is always part of that list, so a first notification never comes out
   empty. Jobs enqueued before the flag existed have no such key and diff
   exactly as they always did.
+
+  ## The organiser's clock and language
+
+  These emails go to people the organiser added to an event on their own
+  calendar, whose language and timezone are unknown. Both emails are written
+  as the organiser sees the event: every time is shown in the organiser's
+  timezone (`:timezone`), the date is that day in their timezone, and the
+  email is in the organiser's language (`:attendee_locale`, the key the
+  templates read for their recipient). The ICS attachment carries the
+  instants themselves, so calendars still place the event correctly.
   """
 
   alias Tymeslot.CalendarGrid.AllDay
+  alias Tymeslot.Emails.RecipientLocale
+  alias Tymeslot.Profiles
 
   @typedoc "One announced change: the field, its previous value (nil when unknown) and its current one."
   @type change :: {:title | :location | :description | :time, term(), term()}
@@ -44,7 +56,9 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.CalendarEventDetails do
   def invitation_details(user, args) do
     with {:ok, timing} <- invitation_timing(args) do
       {:ok,
-       Map.merge(timing, %{
+       timing
+       |> in_organiser_view(user)
+       |> Map.merge(%{
          event_title: args["event_title"],
          event_uid: args["event_uid"],
          location: args["event_location"],
@@ -131,15 +145,17 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.CalendarEventDetails do
   @spec update_details(map(), map(), [change()], map()) :: {:ok, map()} | {:error, :no_timing}
   def update_details(user, current_event, changes, args) do
     with {:ok, timing} <- event_timing(current_event) do
+      view = in_organiser_view(timing, user)
+
       {:ok,
-       Map.merge(timing, %{
+       Map.merge(view, %{
          event_title: current_event.summary,
          event_uid: current_event.uid,
          location: current_event.location,
          description: current_event.description,
          organizer_name: user.name || user.email,
          organizer_email: user.email,
-         changes: changes,
+         changes: Enum.map(changes, &change_in_zone(&1, view.timezone)),
          first_notification: first_notification?(args),
          method: parse_method(args["method"]),
          sequence: args["sequence"],
@@ -186,6 +202,47 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.CalendarEventDetails do
       last_date: nil
     }
   end
+
+  # A timed event's instants shifted into the organiser's timezone, with the
+  # date taken there, so an event at 00:30 in Berlin is not announced on the
+  # day before. An all-day event has dates only and is left as it is.
+  defp in_organiser_view(timing, user) do
+    timezone = Profiles.get_user_timezone(user.id)
+
+    timing
+    |> shift_timing(timezone)
+    |> Map.merge(%{
+      timezone: timezone,
+      attendee_locale: RecipientLocale.locale_for_user_id(user.id)
+    })
+  end
+
+  defp shift_timing(%{all_day: false, start_time: start_time, end_time: end_time} = timing, zone) do
+    start_time = in_zone(start_time, zone)
+
+    %{
+      timing
+      | start_time: start_time,
+        end_time: in_zone(end_time, zone),
+        date: DateTime.to_date(start_time)
+    }
+  end
+
+  defp shift_timing(timing, _zone), do: timing
+
+  defp change_in_zone({:time, before, current}, zone),
+    do: {:time, in_zone(before, zone), in_zone(current, zone)}
+
+  defp change_in_zone(change, _zone), do: change
+
+  defp in_zone(%DateTime{} = datetime, zone) do
+    case DateTime.shift_zone(datetime, zone) do
+      {:ok, shifted} -> shifted
+      {:error, _reason} -> datetime
+    end
+  end
+
+  defp in_zone(other, _zone), do: other
 
   defp all_day_timing(start_date, end_date) do
     %{

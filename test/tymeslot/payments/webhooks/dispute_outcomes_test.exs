@@ -3,10 +3,10 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
 
   @moduletag :payments
 
+  import Tymeslot.Test.PaymentEventCapture
   import Mox
   import Tymeslot.Factory
 
-  alias Tymeslot.Payments
   alias Tymeslot.Payments.Webhooks.DisputeHandler
 
   setup :set_mox_from_context
@@ -37,8 +37,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
       restore(:subscription_manager, original_manager)
     end)
 
-    :ok = Payments.subscribe_to_payment_events()
-    :ok
+    capture_payment_events()
   end
 
   defp restore(key, nil), do: Application.delete_env(:tymeslot, key)
@@ -70,8 +69,39 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
     %{"id" => "ch_one_time", "customer" => customer_id}
   end
 
+  defmodule FailingHandler do
+    @spec handle_payment_event(map()) :: {:error, term()}
+    def handle_payment_event(_event), do: {:error, :enqueue_failed}
+  end
+
+  # A subscription dispute the handler could not take must fail the
+  # delivery, so Stripe redelivers it rather than the dispute going
+  # unrecorded.
+  describe "process/2 — a failed hand-off" do
+    setup do
+      Application.put_env(:tymeslot, :payment_event_handler, FailingHandler)
+      stub(Tymeslot.Payments.StripeMock, :get_charge, fn _id -> {:ok, subscription_charge()} end)
+      :ok
+    end
+
+    for {type, status} <- [
+          {"charge.dispute.created", "needs_response"},
+          {"charge.dispute.updated", "under_review"},
+          {"charge.dispute.closed", "lost"}
+        ] do
+      test "#{type} returns retry_later" do
+        event = %{"id" => "evt_fail_#{unquote(status)}", "type" => unquote(type)}
+
+        # The hand-off's own failure, not the Stripe lookup's, which retries
+        # the same way.
+        assert {:error, :retry_later, "Dispute event hand-off failed"} =
+                 DisputeHandler.process(event, dispute(unquote(status)))
+      end
+    end
+  end
+
   describe "process/2 — charge.dispute.updated" do
-    test "subscription dispute is forwarded to SaaS via PubSub" do
+    test "subscription dispute is handed off to the payment-event handler" do
       d = dispute("under_review")
       event = %{"id" => "evt_upd_1", "type" => "charge.dispute.updated"}
 
@@ -88,6 +118,25 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
           stripe_dispute_id: _,
           status: "under_review"
         }
+      }
+    end
+
+    test "a forwarded dispute carries the Stripe event's creation time" do
+      event = %{
+        "id" => "evt_upd_created",
+        "created" => 1_700_000_456,
+        "type" => "charge.dispute.updated"
+      }
+
+      expect(Tymeslot.Payments.StripeMock, :get_charge, fn _charge_id ->
+        {:ok, subscription_charge()}
+      end)
+
+      assert {:ok, :dispute_updated} = DisputeHandler.process(event, dispute("under_review"))
+
+      assert_received %{
+        event: :dispute_updated,
+        data: %{event_id: "evt_upd_created", event_created: 1_700_000_456}
       }
     end
 
@@ -144,7 +193,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
   end
 
   describe "process/2 — charge.dispute.closed" do
-    test "subscription dispute close is forwarded to SaaS via PubSub" do
+    test "subscription dispute close is handed off to the payment-event handler" do
       d = dispute("won")
       event = %{"id" => "evt_close_1", "type" => "charge.dispute.closed"}
 

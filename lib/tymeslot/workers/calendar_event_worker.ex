@@ -69,10 +69,13 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
   # refusing authentication is recorded.
   @meeting_gone "Meeting not found"
   @queued_for_replay "Conflicting server-side change; queued for offline replay"
+  @no_calendar "No calendar to write the event to"
 
   @impl ExpectedJobOutcome
   def expected_outcome?(reason),
-    do: reason in [@meeting_gone, @queued_for_replay] or reason == ReauthHandling.discard_reason()
+    do:
+      reason in [@meeting_gone, @queued_for_replay, @no_calendar] or
+        reason == ReauthHandling.discard_reason()
 
   @impl Oban.Worker
   def perform(
@@ -86,7 +89,43 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
     end
   end
 
+  # Every "wait for the calendar to recover" verdict below (a timeout, an open
+  # breaker, an unresponsive server, a failed connection, a rate limit) is a
+  # snooze, and from Oban 2.24 a snooze costs no attempt, so without a bound a
+  # calendar that never recovers keeps the booking's job alive for ever and
+  # its owner is never told. Twelve runs is anything from about twenty minutes
+  # (two-minute waits on an open breaker) to two hours (ten-minute waits on an
+  # unresponsive server); past it each run fails and spends an attempt.
+  #
+  # None of those verdicts reaches the owner email `CalendarEventSync` sends
+  # for a persistent create failure, so a create that spends its last attempt
+  # this way sends it here: otherwise the booking's calendar entry is lost
+  # with only an operator alert to show for it.
+  @max_recovery_snoozes 12
+  @recovery_exhausted "Calendar server did not recover within the maximum wait"
+
   defp run(action, meeting_id, job, attempt) do
+    action
+    |> run_unbounded(meeting_id, job, attempt)
+    |> SnoozePolicy.bound(job,
+      max_snoozes: @max_recovery_snoozes,
+      reason: @recovery_exhausted
+    )
+    |> tap(&notify_if_create_abandoned(&1, action, meeting_id, job))
+  end
+
+  defp notify_if_create_abandoned(
+         {:error, @recovery_exhausted},
+         "create",
+         meeting_id,
+         %Oban.Job{attempt: attempt, max_attempts: max_attempts}
+       )
+       when attempt >= max_attempts,
+       do: CalendarEventSync.notify_create_abandoned(meeting_id, @recovery_exhausted)
+
+  defp notify_if_create_abandoned(_result, _action, _meeting_id, _job), do: :ok
+
+  defp run_unbounded(action, meeting_id, job, attempt) do
     if Application.get_env(:tymeslot, :test_mode, false) do
       # In test mode, run synchronously to avoid SQL sandbox and Mox allowance issues
       # with child processes created by Task.async
@@ -220,8 +259,7 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
         :ok
 
       {:error, error_type} ->
-        tag_for_offline_queue(job, error_type)
-        handle_error_result(error_type, job)
+        handle_failure(error_type, job)
 
       {:error, error_type, message} when is_binary(message) ->
         tag_for_offline_queue(job, error_type)
@@ -232,6 +270,23 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
 
       _unexpected ->
         handle_unexpected_result(result)
+    end
+  end
+
+  # The organiser has no calendar Tymeslot can write to (none connected, or the
+  # one the meeting named is gone). Retrying cannot change that, so the job ends
+  # here rather than failing through every attempt.
+  defp handle_failure(error_type, job) do
+    if CalendarEvents.no_calendar_error?(error_type) do
+      Logger.info("No calendar to write to, skipping calendar event job",
+        action: job.args["action"],
+        meeting_id: job.args["meeting_id"]
+      )
+
+      {:discard, @no_calendar}
+    else
+      tag_for_offline_queue(job, error_type)
+      handle_error_result(error_type, job)
     end
   end
 
@@ -383,9 +438,8 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
     # file lock, worsening the condition that's slowing it down in the
     # first place. Back off for 10 minutes so the server has a real chance
     # to recover (whatever was slowing it — backup, GC pause, lock
-    # contention from another client) before we touch it again. Oban's
-    # default max_attempts: 5 combined with this snooze gives ~50 minutes
-    # of graceful retry before the job is considered genuinely stuck.
+    # contention from another client) before we touch it again. A snooze
+    # costs no attempt, so it is `run/4`'s bound that ends the wait.
     Logger.warning(
       "CalDAV server unresponsive on write, snoozing 10 minutes to avoid worsening wedge"
     )

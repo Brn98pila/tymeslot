@@ -24,8 +24,8 @@ defmodule Tymeslot.Availability.Offer do
   capture it whole and nothing here depends on the web layer.
   """
 
-  alias Tymeslot.Availability.{Calculate, GroupSlots, Schedules, TimeSlots}
-  alias Tymeslot.Bookings.Orchestrator
+  alias Tymeslot.Availability.{Calculate, GroupSlots, Reach, Schedules, TimeSlots}
+  alias Tymeslot.Bookings.{Orchestrator, RescheduleSeat}
   alias Tymeslot.Demo
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Integrations.Calendar.Events, as: CalendarEvents
@@ -34,18 +34,18 @@ defmodule Tymeslot.Availability.Offer do
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
   alias Tymeslot.Profiles
 
-  # A day. The duration can come from a URL slug, which is visitor input, so an
-  # unbounded parse would let `/:username/99999/book` hold a multi-day slot.
-  @max_duration_minutes 1440
   @default_duration_minutes 30
 
+  # A day. The duration can come from a URL slug, which is visitor input, so an
+  # unbounded parse would let `/:username/99999/book` hold a multi-day slot.
+  defp max_duration_minutes, do: Reach.max_meeting_minutes()
+
   # How far outside the dates being rendered the booking fetch reaches. A
-  # booking ending shortly before the window can still block its first slot
-  # through the host's buffers (two hours at most on either side), and the
-  # window's own bounds are UTC while the days are the host's, so either edge
-  # can sit up to a timezone offset away. A day either side covers both;
-  # nothing further out can touch a slot inside.
-  @busy_window_padding_days 1
+  # slot starting on the last rendered date can run for up to a day and keep
+  # its buffer after it, and the window's own bounds are UTC while the days
+  # are the booker's, up to a timezone offset away; nothing further out can
+  # touch a slot inside.
+  defp busy_window_padding_days, do: Reach.utc_padding_days()
 
   @typedoc """
   What a booking page is showing, and to whom.
@@ -61,6 +61,12 @@ defmodule Tymeslot.Availability.Offer do
       `Tymeslot.Bookings.Reschedule` leaves it out of both when the move is
       submitted, but only once it is proven to be a movable meeting of this
       organiser; any other value is ignored.
+    * `:reschedule_seat_token` - the group seat a seat-move page is moving.
+      Its meeting is left out the same way, but only when the seat is that
+      meeting's last live one, which is when `Tymeslot.Bookings.RescheduleSeat`
+      cancels it with the move and leaves it out on submit; with other seats
+      on it, the meeting keeps its time and stays busy. Wins over
+      `:reschedule_uid`, as it does on submit.
     * `:demo_mode?` - whether the page is running as a demo.
     * `:debug_calendar_module` - a calendar module override, for development.
   """
@@ -69,6 +75,7 @@ defmodule Tymeslot.Availability.Offer do
           required(:user_timezone) => String.t(),
           optional(:meeting_type) => map() | nil,
           optional(:reschedule_uid) => String.t() | nil,
+          optional(:reschedule_seat_token) => String.t() | nil,
           optional(:demo_mode?) => boolean() | nil,
           optional(:debug_calendar_module) => module() | nil
         }
@@ -77,7 +84,9 @@ defmodule Tymeslot.Availability.Offer do
   The times free on `date_string` (ISO 8601) for a meeting of `duration`.
 
   Times come back as display strings, except for a group meeting type, whose
-  times are `GroupSlots.slot()` maps carrying the seats each has left.
+  times are `GroupSlots.slot()` maps carrying the seats each has left. Each
+  time is listed under the date it starts on, even when the meeting ends the
+  next day, so the date and the label together name the instant.
   `duration` is bounded as in `duration_minutes/2`. Returns `{:error, reason}`
   for a date that does not parse and when the organiser's calendar cannot be
   read.
@@ -170,12 +179,7 @@ defmodule Tymeslot.Availability.Offer do
   defp free_slots(%{profile: %{user_id: user_id} = profile} = request, date, duration) do
     moving = moving_meeting(request)
 
-    with {:ok, events} <-
-           CalendarEvents.get_calendar_events_from_context(
-             date,
-             user_id,
-             calendar_context(request)
-           ) do
+    with {:ok, events} <- booking_window_events(request, date) do
       duration_minutes = bounded_duration(duration)
       meeting_type = request[:meeting_type]
 
@@ -188,8 +192,8 @@ defmodule Tymeslot.Availability.Offer do
 
       busy = busy_periods(events, user_id, date, date, moving)
 
-      with {:ok, slots} <-
-             Calculate.available_slots(
+      with {:ok, starts} <-
+             Calculate.available_starts(
                date,
                duration_minutes,
                request.user_timezone,
@@ -198,7 +202,7 @@ defmodule Tymeslot.Availability.Offer do
                config
              ) do
         {:ok,
-         seat_aware_slots(slots, meeting_type, date, %{
+         offered_slots(starts, meeting_type, date, %{
            user_timezone: request.user_timezone,
            owner_timezone: owner_timezone(profile),
            events: busy,
@@ -265,15 +269,18 @@ defmodule Tymeslot.Availability.Offer do
     end)
   end
 
-  # Only a group type's times carry seat counts; everything else keeps the
-  # plain slot strings the rest of the booking page has always read.
-  defp seat_aware_slots(slots, %MeetingTypeSchema{} = meeting_type, date, context) do
+  # Only a group type's times carry seat counts; everything else is the plain
+  # labels the booking page has always read. Every start is listed under the
+  # date it begins on, so a bare label plus the page's date is the instant.
+  defp offered_slots(starts, %MeetingTypeSchema{} = meeting_type, date, context) do
     if MeetingTypeSchema.group?(meeting_type),
-      do: GroupSlots.enrich_day_slots(slots, meeting_type, date, context),
-      else: slots
+      do: GroupSlots.enrich_day_slots(starts, meeting_type, date, context),
+      else: labels(starts)
   end
 
-  defp seat_aware_slots(slots, _meeting_type, _date, _context), do: slots
+  defp offered_slots(starts, _meeting_type, _date, _context), do: labels(starts)
+
+  defp labels(starts), do: Enum.map(starts, &TimeSlots.format_datetime_slot/1)
 
   # The provider fetch behind this is window-shaped, not month-shaped:
   # `Events.get_calendar_events/3` ignores the date it is given and always asks
@@ -287,7 +294,12 @@ defmodule Tymeslot.Availability.Offer do
   #
   # So the events get their own entry, keyed on the user alone because that is
   # the fetch's entire input. The folded map keeps its display-range key: the
-  # fold is what actually differs between hops.
+  # fold is what actually differs between hops. A date click reads the same
+  # entry, so picking a day after the month view costs no provider round trip
+  # either. Its slots can therefore be up to the cache's lifetime old; the
+  # booking submit re-reads the calendars uncached
+  # (`Tymeslot.Bookings.CalendarCheck`), and that read is what refuses a slot
+  # taken in the meantime.
   #
   # Errors stay uncached, for the reason `get_or_compute_events/2` exists at
   # all: a timed-out calendar must be retried on the next request, not pinned
@@ -317,8 +329,8 @@ defmodule Tymeslot.Availability.Offer do
     events
     |> Meetings.merge_busy_periods(
       user_id,
-      utc_day_start(Date.add(first_date, -@busy_window_padding_days)),
-      utc_day_start(Date.add(last_date, 1 + @busy_window_padding_days))
+      utc_day_start(Date.add(first_date, -busy_window_padding_days())),
+      utc_day_start(Date.add(last_date, 1 + busy_window_padding_days()))
     )
     |> Meetings.reject_calendar_event_mirrors(moving)
   end
@@ -326,8 +338,9 @@ defmodule Tymeslot.Availability.Offer do
   defp utc_day_start(date), do: DateTime.new!(date, ~T[00:00:00], "Etc/UTC")
 
   # Nil when the host has no booking limits configured, keeping the common path
-  # free of extra queries. The meeting being moved is left out of the counts,
-  # exactly as the reschedule submit leaves it out.
+  # free of extra queries. The dates are the booker's, so the counts cover
+  # every host date a slot under them can fall on. The meeting being moved is
+  # left out of the counts, exactly as the reschedule submit leaves it out.
   defp limit_checker(
          %{profile: %{user_id: user_id} = profile} = request,
          moving_uid,
@@ -340,7 +353,8 @@ defmodule Tymeslot.Availability.Offer do
       request[:meeting_type],
       start_date,
       end_date,
-      exclude_uid: moving_uid
+      exclude_uid: moving_uid,
+      booker_timezone: request.user_timezone
     )
   end
 
@@ -355,6 +369,13 @@ defmodule Tymeslot.Availability.Offer do
   # the uid, and the events read back from their connected calendar, where the
   # meeting appears as the provider event Tymeslot wrote and is matched by
   # whichever identifier that provider family preserves.
+  #
+  # A seat move vacates its meeting only when the mover is its last seat;
+  # `RescheduleSeat.vacated_meeting/2` is the submit's own rule for that.
+  defp moving_meeting(%{reschedule_seat_token: token, profile: %{user_id: user_id}})
+       when is_binary(token) and is_integer(user_id),
+       do: RescheduleSeat.vacated_meeting(token, user_id)
+
   defp moving_meeting(%{reschedule_uid: uid, profile: %{user_id: user_id}})
        when is_binary(uid) and is_integer(user_id) do
     case Orchestrator.get_meeting_for_reschedule(uid, user_id) do
@@ -388,10 +409,10 @@ defmodule Tymeslot.Availability.Offer do
   defp owner_timezone(profile), do: profile.timezone || Profiles.get_default_timezone()
 
   defp bounded_duration(minutes) when is_integer(minutes) and minutes > 0,
-    do: min(minutes, @max_duration_minutes)
+    do: min(minutes, max_duration_minutes())
 
   defp bounded_duration(slug) when is_binary(slug),
-    do: slug |> TimeSlots.parse_duration() |> min(@max_duration_minutes)
+    do: slug |> TimeSlots.parse_duration() |> min(max_duration_minutes())
 
   defp bounded_duration(_other), do: @default_duration_minutes
 end

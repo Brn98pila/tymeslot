@@ -110,6 +110,8 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Errors do
         "The calendar server reported an error. Tymeslot will retry automatically."
       )
 
+  def describe_error(:service_unavailable), do: describe_error(:server_error)
+
   def describe_error(:server_unresponsive),
     do:
       dgettext(
@@ -169,9 +171,11 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Errors do
   A 5xx counts here even though it is retryable in general: it is retryable as
   *this* request, and the caller is expected to act on a repeated one by
   choosing a different request, not by giving up. Transport failures do not
-  count. A timeout or a refused connection is the server never answering, which
-  says nothing about which features it supports, and demoting on one would
-  abandon a working capability over a blip of packet loss.
+  count, and nor does `:service_unavailable` (a 502, 503 or 504). A timeout, a
+  refused connection or a server down for maintenance is the server not
+  answering, which says nothing about which features it supports, and demoting
+  on one would abandon a working capability over a blip of packet loss or an
+  hour of planned downtime.
   """
   @spec unsupported_request?(Base.error_reason() | term()) :: boolean()
   def unsupported_request?(:method_not_allowed), do: true

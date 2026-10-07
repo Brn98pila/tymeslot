@@ -24,6 +24,7 @@ defmodule TymeslotWeb.Dashboard.OverviewAgendaTest do
     tomorrow_noon = DateTime.new!(Date.add(Date.utc_today(), 1), ~T[12:00:00], "Etc/UTC")
 
     insert(:meeting,
+      organizer_user_id: user.id,
       organizer_email: user.email,
       start_time: tomorrow_noon,
       end_time: DateTime.add(tomorrow_noon, 3600, :second),
@@ -38,7 +39,7 @@ defmodule TymeslotWeb.Dashboard.OverviewAgendaTest do
     assert html =~ "Quarterly review"
 
     # The cockpit carries the live countdown hook for this appointment.
-    assert html =~ "agenda-countdown-"
+    assert html =~ "agenda-cockpit-countdown-"
 
     # The replaced widgets are gone.
     refute html =~ "Quick Actions"
@@ -52,6 +53,7 @@ defmodule TymeslotWeb.Dashboard.OverviewAgendaTest do
     later = DateTime.new!(tomorrow, ~T[14:00:00], "Etc/UTC")
 
     insert(:meeting,
+      organizer_user_id: user.id,
       organizer_email: user.email,
       start_time: first,
       end_time: DateTime.add(first, 3600, :second),
@@ -60,6 +62,7 @@ defmodule TymeslotWeb.Dashboard.OverviewAgendaTest do
     )
 
     insert(:meeting,
+      organizer_user_id: user.id,
       organizer_email: user.email,
       start_time: later,
       end_time: DateTime.add(later, 3600, :second),
@@ -89,6 +92,7 @@ defmodule TymeslotWeb.Dashboard.OverviewAgendaTest do
     start = DateTime.new!(tomorrow, ~T[12:00:00], "Etc/UTC")
 
     insert(:meeting,
+      organizer_user_id: user.id,
       organizer_email: user.email,
       start_time: start,
       end_time: DateTime.add(start, 45 * 60, :second),
@@ -119,7 +123,12 @@ defmodule TymeslotWeb.Dashboard.OverviewAgendaTest do
     assert modal =~ "Calendar"
     assert modal =~ "Tymeslot"
     assert modal =~ "Manage booking"
-    assert modal =~ "Join"
+
+    assert has_element?(
+             view,
+             ~s(#agenda-detail-modal a[href="https://zoom.us/j/123"][target="_blank"]),
+             "Join meeting"
+           )
   end
 
   test "dismissing the detail modal clears it", %{conn: conn, user: user} do
@@ -127,6 +136,7 @@ defmodule TymeslotWeb.Dashboard.OverviewAgendaTest do
     start = DateTime.new!(tomorrow, ~T[12:00:00], "Etc/UTC")
 
     insert(:meeting,
+      organizer_user_id: user.id,
       organizer_email: user.email,
       start_time: start,
       end_time: DateTime.add(start, 3600, :second),
@@ -156,6 +166,7 @@ defmodule TymeslotWeb.Dashboard.OverviewAgendaTest do
     start = DateTime.new!(tomorrow, ~T[12:00:00], "Etc/UTC")
 
     insert(:meeting,
+      organizer_user_id: user.id,
       organizer_email: user.email,
       start_time: start,
       end_time: DateTime.add(start, 3600, :second),
@@ -206,8 +217,21 @@ defmodule TymeslotWeb.Dashboard.OverviewAgendaTest do
     # It names the source calendar it came from …
     assert modal =~ "Work Google"
     # … and offers Join but not booking management for a synced event.
-    assert modal =~ "Join"
+    assert has_element?(
+             view,
+             ~s(#agenda-detail-modal a[href="https://meet.example.com/d"]),
+             "Join meeting"
+           )
+
     refute modal =~ "Manage booking"
+
+    # The cockpit carries the same link, which the countdown hook reveals near
+    # the start time, so it renders hidden until then.
+    assert has_element?(
+             view,
+             ~s(a[id^="agenda-cockpit-join-"].hidden[href="https://meet.example.com/d"]),
+             "Join meeting"
+           )
   end
 
   describe "per-event colour" do
@@ -240,6 +264,7 @@ defmodule TymeslotWeb.Dashboard.OverviewAgendaTest do
       early = DateTime.new!(tomorrow, ~T[09:00:00], "Etc/UTC")
 
       insert(:meeting,
+        organizer_user_id: user.id,
         organizer_email: user.email,
         start_time: early,
         end_time: DateTime.add(early, 3600, :second),

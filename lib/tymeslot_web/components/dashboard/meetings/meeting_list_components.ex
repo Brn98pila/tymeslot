@@ -5,15 +5,11 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.MeetingListComponents do
   use Phoenix.Component
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.CustomFields.AnswerRenderer
-  alias Tymeslot.Meetings
-  alias Tymeslot.Meetings.Seats
-  alias TymeslotWeb.Components.CoreComponents
-  alias TymeslotWeb.Components.Dashboard.Meetings.Helpers
-  alias TymeslotWeb.Components.Dashboard.Meetings.MeetingActions
-  alias TymeslotWeb.Components.Dashboard.Meetings.MeetingListPanels
-  alias TymeslotWeb.Components.Dashboard.Meetings.MeetingStatusBadge
-  alias TymeslotWeb.Components.Dashboard.Meetings.RemindersSection
+  alias TymeslotWeb.Components.CoreComponents.Buttons
+  alias TymeslotWeb.Components.CoreComponents.Containers
+  alias TymeslotWeb.Components.CoreComponents.Feedback
+  alias TymeslotWeb.Components.CoreComponents.Navigation
+  alias TymeslotWeb.Components.Dashboard.Meetings.MeetingCard
 
   # Filter Tabs
   attr :active, :string, required: true
@@ -23,77 +19,65 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.MeetingListComponents do
   @spec filter_tabs(map()) :: Phoenix.LiveView.Rendered.t()
   def filter_tabs(assigns) do
     ~H"""
-    <div class="flex bg-white border-2 border-tymeslot-50 rounded-[1.25rem] p-1.5 shadow-sm max-w-fit">
-      <.filter_tab_button
-        active={@active == "upcoming"}
-        filter="upcoming"
+    <Navigation.segmented_control
+      id="meetings-filter"
+      value={@active}
+      on_change="filter_meetings"
+      param="filter"
+      target={@target}
+      aria_label={dgettext("dashboard_bookings", "Show meetings")}
+    >
+      <:option
+        value="upcoming"
         label={dgettext("dashboard_bookings", "Upcoming")}
         icon="hero-clock"
-        target={@target}
       />
-      <.filter_tab_button
-        active={@active == "past"}
-        filter="past"
+      <:option
+        value="past"
         label={dgettext("dashboard_bookings", "Past")}
         icon="hero-calendar-days"
-        target={@target}
       />
-      <.filter_tab_button
-        active={@active == "cancelled"}
-        filter="cancelled"
+      <:option
+        value="cancelled"
         label={dgettext("dashboard_bookings", "Cancelled")}
         icon="hero-x-mark"
-        target={@target}
       />
       <%!-- Only shown once there is something to answer: a host who requires no
-            approvals should never see a tab that is permanently empty. --%>
-      <.filter_tab_button
+            approvals should never see an option that is permanently empty. --%>
+      <:option
         :if={@awaiting_approval_count > 0 or @active == "awaiting_approval"}
-        active={@active == "awaiting_approval"}
-        filter="awaiting_approval"
+        value="awaiting_approval"
         label={dgettext("dashboard_bookings", "Requests")}
         icon="hero-inbox-arrow-down"
-        count={@awaiting_approval_count}
-        target={@target}
+        count={if @awaiting_approval_count > 0, do: @awaiting_approval_count}
+        attention
       />
-    </div>
+    </Navigation.segmented_control>
     """
   end
 
-  attr :active, :boolean, required: true
-  attr :filter, :string, required: true
-  attr :label, :string, required: true
-  attr :icon, :string, required: true
-  attr :target, :any, required: true
-  attr :count, :integer, default: 0
+  @doc """
+  The notice above a list narrowed to one booking (`?meeting=<id>`, where a
+  host's links to a booking land), with the way back to the whole list. When
+  the link names no booking of theirs (someone else's, a deleted one, a
+  mangled link), it says so in place of the list.
+  """
+  attr :found, :boolean, required: true
 
-  defp filter_tab_button(assigns) do
+  @spec focus_notice(map()) :: Phoenix.LiveView.Rendered.t()
+  def focus_notice(assigns) do
     ~H"""
-    <button
-      phx-click="filter_meetings"
-      phx-value-filter={@filter}
-      phx-target={@target}
-      class={[
-        "flex items-center space-x-2 px-6 py-2.5 rounded-token-xl text-token-sm font-black transition-all duration-300",
-        if(@active,
-          do:
-            "bg-linear-to-br from-turquoise-600 to-cyan-600 text-white shadow-lg shadow-turquoise-500/20",
-          else: "text-tymeslot-500 hover:text-turquoise-600 hover:bg-turquoise-50"
-        )
-      ]}
-    >
-      <CoreComponents.icon name={@icon} class={if @active, do: "text-white/90", else: ""} />
-      <span>{@label}</span>
-      <span
-        :if={@count > 0}
-        class={[
-          "ml-1 inline-flex items-center justify-center min-w-[1.375rem] h-5.5 px-1.5 rounded-full text-token-xs font-black tabular-nums",
-          if(@active, do: "bg-white/25 text-white", else: "bg-amber-100 text-amber-700")
-        ]}
-      >
-        {@count}
-      </span>
-    </button>
+    <Containers.info_box variant={if @found, do: :info, else: :warning}>
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <span :if={@found}>{dgettext("dashboard_bookings", "Showing one booking.")}</span>
+        <span :if={!@found}>
+          {dgettext("dashboard_bookings", "This booking isn't available.")}
+        </span>
+        <.link patch="/dashboard/meetings" class="font-semibold underline">
+          {dgettext("dashboard_bookings", "Show all meetings")}
+        </.link>
+      </div>
+    </Containers.info_box>
     """
   end
 
@@ -113,11 +97,14 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.MeetingListComponents do
   def meetings_list(assigns) do
     ~H"""
     <div>
-      <MeetingListPanels.loading_spinner :if={@loading} />
-      <MeetingListPanels.empty_state :if={!@loading and @is_empty} filter={@filter} />
+      <Feedback.loading_card
+        :if={@loading}
+        label={dgettext("dashboard_bookings", "Loading meetings")}
+      />
+      <.no_meetings :if={!@loading and @is_empty} filter={@filter} />
       <div :if={!@loading and !@is_empty} class="space-y-4" id="meetings" phx-update="stream">
         <div :for={{dom_id, meeting} <- @meetings_stream} id={dom_id}>
-          <.meeting_card
+          <MeetingCard.meeting_card
             meeting={meeting}
             profile={@profile}
             time_format={@time_format}
@@ -127,251 +114,6 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.MeetingListComponents do
             target={@target}
           />
         </div>
-      </div>
-    </div>
-    """
-  end
-
-  # Meeting Card
-  attr :meeting, :map, required: true
-  attr :profile, :any, required: false
-  attr :time_format, :string, required: true
-  attr :cancelling_meeting, :any, required: false
-  attr :sending_reschedule, :any, required: false
-  attr :answering_request, :any, default: nil
-  attr :target, :any, required: true
-
-  @spec meeting_card(map()) :: Phoenix.LiveView.Rendered.t()
-  defp meeting_card(assigns) do
-    ~H"""
-    <div class="card-glass hover:bg-white hover:border-turquoise-100 hover:shadow-2xl hover:shadow-turquoise-500/5 group/card">
-      <.calendar_sync_banner
-        :if={
-          @meeting.calendar_sync_status in ["externally_deleted", "externally_modified"] and
-            is_nil(@meeting.calendar_sync_status_dismissed_at)
-        }
-        meeting={@meeting}
-        target={@target}
-      />
-      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-        <div class="flex-1">
-          <div class="flex items-center gap-3 flex-wrap mb-6">
-            <h4 class="text-token-2xl font-black text-tymeslot-900 tracking-tight group-hover/card:text-turquoise-700 transition-colors">
-              {meeting_title(@meeting)}
-            </h4>
-            <span
-              :if={@meeting.attendee_company}
-              class="text-token-sm font-bold text-tymeslot-400 bg-tymeslot-50 px-3 py-1 rounded-token-lg"
-            >
-              {@meeting.attendee_company}
-            </span>
-            <MeetingStatusBadge.status_badges meeting={@meeting} />
-            <span
-              :if={Helpers.group_meeting?(@meeting)}
-              class="inline-flex items-center gap-1.5 px-3 py-1 bg-turquoise-50 text-turquoise-700 text-token-xs font-black uppercase tracking-wider rounded-full border border-turquoise-100 shadow-sm"
-              data-testid="group-seats-badge"
-            >
-              <CoreComponents.icon name="hero-users" class="w-3.5 h-3.5" />
-              {seats_label(@meeting)}
-            </span>
-            <span
-              :if={@meeting.meeting_url}
-              class="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-50 text-cyan-700 text-token-xs font-black uppercase tracking-wider rounded-full border border-cyan-100 shadow-sm"
-            >
-              <CoreComponents.icon name="hero-video-camera" class="w-3.5 h-3.5" />
-              {dgettext("dashboard_bookings", "Video Call")}
-            </span>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <%!-- A group card has no attendee column beside this one, so the
-                 date takes the whole row rather than wrapping in half of it. --%>
-            <div class={[
-              "flex items-center gap-4",
-              Helpers.group_meeting?(@meeting) && "md:col-span-2"
-            ]}>
-              <div class="w-12 h-12 rounded-token-2xl bg-turquoise-50 flex items-center justify-center shadow-sm border border-turquoise-100 transition-transform group-hover/card:scale-110">
-                <CoreComponents.icon name="hero-calendar-days" class="w-6 h-6 text-turquoise-600" />
-              </div>
-              <div>
-                <p class="text-token-xs font-black text-tymeslot-400 uppercase tracking-widest mb-0.5">
-                  {dgettext("dashboard_bookings", "Date & Time")}
-                </p>
-                <p class="text-tymeslot-700 font-bold">
-                  {Helpers.format_meeting_date(
-                    @meeting,
-                    Helpers.get_meeting_timezone(@meeting, @profile)
-                  )}
-                  <span class="text-turquoise-600 ml-1 whitespace-nowrap">
-                    {Helpers.format_meeting_time(
-                      @meeting,
-                      Helpers.get_meeting_timezone(@meeting, @profile),
-                      @time_format
-                    )}
-                  </span>
-                </p>
-              </div>
-            </div>
-
-            <%!-- A group slot has no single attendee: every booker is listed
-                 in the participants panel below. --%>
-            <div
-              :if={not Helpers.group_meeting?(@meeting) and @meeting.attendee_email}
-              class="flex items-center gap-4"
-            >
-              <div class="w-12 h-12 rounded-token-2xl bg-blue-50 flex items-center justify-center shadow-sm border border-blue-100 transition-transform group-hover/card:scale-110">
-                <CoreComponents.icon name="hero-envelope" class="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <p class="text-token-xs font-black text-tymeslot-400 uppercase tracking-widest mb-0.5">
-                  {dgettext("dashboard_bookings", "Attendee Email")}
-                </p>
-                <a
-                  href={"mailto:#{@meeting.attendee_email}"}
-                  class="text-tymeslot-700 hover:text-turquoise-600 transition-colors font-bold"
-                >
-                  {@meeting.attendee_email}
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <%!-- Participants panel, group meetings only. The preload keeps to
-               live participants, except on a cancelled meeting, where it also
-               brings those who left the slot (released or moved their seat) first, marked as such. --%>
-          <div
-            :if={Helpers.participants(@meeting) != []}
-            class="mt-8 p-5 bg-tymeslot-50/50 rounded-token-2xl border-2 border-tymeslot-50"
-          >
-            <div class="flex items-center gap-4 mb-4">
-              <div class="w-8 h-8 rounded-token-lg bg-white shadow-sm flex items-center justify-center shrink-0 border border-tymeslot-100">
-                <CoreComponents.icon name="hero-users" class="w-4 h-4 text-tymeslot-400" />
-              </div>
-              <p class="text-token-xs font-black text-tymeslot-400 uppercase tracking-widest">
-                {dgettext("dashboard_bookings", "Participants")}
-              </p>
-            </div>
-            <ul class="space-y-2.5">
-              <li
-                :for={participant <- Helpers.participants(@meeting)}
-                class="flex items-center justify-between gap-3"
-              >
-                <span class="flex items-center gap-2.5 min-w-0">
-                  <span class="flex h-7 w-7 flex-none items-center justify-center rounded-token-full bg-turquoise-100 text-token-xs font-bold uppercase text-turquoise-700">
-                    {person_initial(participant)}
-                  </span>
-                  <span class="truncate text-token-sm font-medium text-tymeslot-700">
-                    {participant.name}
-                  </span>
-                  <span
-                    :if={participant.cancelled_at}
-                    class="inline-flex flex-none items-center rounded-full px-2.5 py-0.5 text-token-xs font-bold bg-tymeslot-100 text-tymeslot-500"
-                    data-testid="participant-released"
-                  >
-                    {dgettext("dashboard_bookings", "Left this slot")}
-                  </span>
-                </span>
-                <a
-                  href={"mailto:#{participant.email}"}
-                  class="truncate text-token-sm font-medium text-tymeslot-500 hover:text-turquoise-600 transition-colors"
-                >
-                  {participant.email}
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div
-            :if={guest_list(@meeting) != []}
-            class="mt-8 p-5 bg-tymeslot-50/50 rounded-token-2xl border-2 border-tymeslot-50"
-          >
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-4">
-                <div class="w-8 h-8 rounded-token-lg bg-white shadow-sm flex items-center justify-center shrink-0 border border-tymeslot-100">
-                  <CoreComponents.icon name="hero-user-group" class="w-4 h-4 text-tymeslot-400" />
-                </div>
-                <p class="text-token-xs font-black text-tymeslot-400 uppercase tracking-widest">
-                  {dgettext("dashboard_bookings", "Guests")}
-                </p>
-              </div>
-              <span class="text-token-sm font-bold text-tymeslot-500">
-                {guest_summary_label(@meeting)}
-              </span>
-            </div>
-            <ul class="space-y-2.5">
-              <li
-                :for={guest <- guest_list(@meeting)}
-                class="flex items-center justify-between gap-3"
-              >
-                <span class="flex items-center gap-2.5 min-w-0">
-                  <span class="flex h-7 w-7 flex-none items-center justify-center rounded-token-full bg-turquoise-100 text-token-xs font-bold uppercase text-turquoise-700">
-                    {person_initial(guest)}
-                  </span>
-                  <span class="truncate text-token-sm font-medium text-tymeslot-700">
-                    {guest.name || guest.email}
-                  </span>
-                </span>
-                <.guest_status_badge status={guest.status} />
-              </li>
-            </ul>
-          </div>
-
-          <div
-            :if={@meeting.attendee_message && @meeting.attendee_message != ""}
-            class="mt-8 p-5 bg-tymeslot-50/50 rounded-token-2xl border-2 border-tymeslot-50 flex gap-4 items-start"
-          >
-            <div class="w-8 h-8 rounded-token-lg bg-white shadow-sm flex items-center justify-center shrink-0 border border-tymeslot-100">
-              <CoreComponents.icon name="hero-pencil-square" class="w-4 h-4 text-tymeslot-400" />
-            </div>
-            <div class="flex-1">
-              <p class="text-token-xs font-black text-tymeslot-400 uppercase tracking-widest mb-1">
-                {dgettext("dashboard_bookings", "Meeting Notes")}
-              </p>
-              <p class="text-tymeslot-600 font-medium leading-relaxed">{@meeting.attendee_message}</p>
-            </div>
-          </div>
-
-          <% displayable_fields =
-            Enum.filter(@meeting.custom_fields_snapshot, fn field ->
-              @meeting.custom_field_answers[field["id"]]
-              |> then(&AnswerRenderer.render(field, &1))
-              |> Kernel.!=("")
-            end) %>
-          <div
-            :if={displayable_fields != []}
-            class="mt-8 p-5 bg-tymeslot-50/50 rounded-token-2xl border-2 border-tymeslot-50"
-          >
-            <div class="flex gap-4 items-start mb-4">
-              <div class="w-8 h-8 rounded-token-lg bg-white shadow-sm flex items-center justify-center shrink-0 border border-tymeslot-100">
-                <CoreComponents.icon name="hero-list-bullet" class="w-4 h-4 text-tymeslot-400" />
-              </div>
-              <p class="text-token-xs font-black text-tymeslot-400 uppercase tracking-widest mt-2">
-                {dgettext("dashboard_bookings", "Custom answers")}
-              </p>
-            </div>
-            <dl class="space-y-3">
-              <div
-                :for={field <- displayable_fields}
-                class="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-x-6 gap-y-1"
-              >
-                <dt class="text-token-sm font-semibold text-tymeslot-500">
-                  {field["label"]}
-                </dt>
-                <dd class="text-token-sm text-tymeslot-700 font-medium">
-                  {AnswerRenderer.render(field, @meeting.custom_field_answers[field["id"]])}
-                </dd>
-              </div>
-            </dl>
-          </div>
-          <RemindersSection.reminders_section meeting={@meeting} />
-        </div>
-
-        <MeetingActions.action_bar
-          meeting={@meeting}
-          target={@target}
-          answering_request={@answering_request}
-          cancelling_meeting={@cancelling_meeting}
-        />
       </div>
     </div>
     """
@@ -392,162 +134,55 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.MeetingListComponents do
   def load_more(assigns) do
     ~H"""
     <div :if={@has_more} class="mt-10 text-center">
-      <button
-        class="btn-secondary px-10 py-4"
+      <Buttons.loading_button
+        variant={:secondary}
+        size={:lg}
         phx-click="load_more"
         phx-target={@target}
-        disabled={@loading_more}
+        loading={@loading_more}
+        loading_text={dgettext("dashboard_bookings", "Loading...")}
       >
-        <span :if={@loading_more}>
-          <CoreComponents.spinner class="h-5 w-5 mr-3 inline-block" /> {dgettext(
-            "dashboard_bookings",
-            "Loading..."
-          )}
-        </span>
-        <span :if={!@loading_more}>{dgettext("dashboard_bookings", "Load more meetings")}</span>
-      </button>
+        {dgettext("dashboard_bookings", "Load more meetings")}
+      </Buttons.loading_button>
     </div>
     """
   end
 
-  attr :meeting, :map, required: true
-  attr :target, :any, required: true
+  attr :filter, :string, required: true
 
-  defp calendar_sync_banner(assigns) do
+  defp no_meetings(assigns) do
     ~H"""
-    <div class={[
-      "flex items-start justify-between gap-4 rounded-2xl px-5 py-4 mb-6 border-2",
-      if(@meeting.calendar_sync_status == "externally_deleted",
-        do: "bg-red-50 border-red-200 text-red-800",
-        else: "bg-amber-50 border-amber-200 text-amber-800"
+    <Feedback.empty_state
+      icon="hero-calendar-days"
+      size={:lg}
+      heading={:h2}
+      title={no_meetings_title(@filter)}
+      description={no_meetings_description(@filter)}
+    />
+    """
+  end
+
+  defp no_meetings_title("upcoming"), do: dgettext("dashboard_bookings", "No upcoming meetings")
+  defp no_meetings_title("past"), do: dgettext("dashboard_bookings", "No past meetings")
+  defp no_meetings_title("cancelled"), do: dgettext("dashboard_bookings", "No cancelled meetings")
+
+  defp no_meetings_title("awaiting_approval"),
+    do: dgettext("dashboard_bookings", "Nothing waiting on you")
+
+  defp no_meetings_description("upcoming"),
+    do:
+      dgettext("dashboard_bookings", "Your upcoming appointments will appear here automatically.")
+
+  defp no_meetings_description("past"),
+    do: dgettext("dashboard_bookings", "You haven't had any meetings in this period yet.")
+
+  defp no_meetings_description("cancelled"),
+    do: dgettext("dashboard_bookings", "You don't have any cancelled appointments to show.")
+
+  defp no_meetings_description("awaiting_approval"),
+    do:
+      dgettext(
+        "dashboard_bookings",
+        "Booking requests you haven't answered yet will appear here."
       )
-    ]}>
-      <p class="font-medium text-token-sm">
-        <span :if={@meeting.calendar_sync_status == "externally_deleted"}>
-          {dgettext(
-            "dashboard_bookings",
-            "This meeting's event was deleted from your external calendar."
-          )}
-        </span>
-        <span :if={@meeting.calendar_sync_status != "externally_deleted"}>
-          {dgettext(
-            "dashboard_bookings",
-            "This meeting's event was rescheduled in your external calendar."
-          )}
-        </span>
-      </p>
-      <button
-        phx-click="dismiss_calendar_sync_banner"
-        phx-value-id={@meeting.id}
-        phx-target={@target}
-        class={[
-          "shrink-0 text-token-xs font-black uppercase tracking-wider px-3 py-1.5 rounded-token-lg border transition-colors",
-          if(@meeting.calendar_sync_status == "externally_deleted",
-            do: "border-red-300 hover:bg-red-100",
-            else: "border-amber-300 hover:bg-amber-100"
-          )
-        ]}
-      >
-        {dgettext("dashboard_bookings", "Dismiss")}
-      </button>
-    </div>
-    """
-  end
-
-  # Small coloured pill reflecting a guest's RSVP status.
-  attr :status, :string, required: true
-
-  defp guest_status_badge(assigns) do
-    ~H"""
-    <span class={[
-      "inline-flex flex-none items-center gap-1 rounded-full px-2.5 py-0.5 text-token-xs font-bold",
-      guest_badge_classes(@status)
-    ]}>
-      <CoreComponents.icon name={guest_badge_icon(@status)} class="w-3.5 h-3.5" />
-      {guest_status_label(@status)}
-    </span>
-    """
-  end
-
-  defp guest_badge_classes("accepted"), do: "bg-green-50 text-green-700 border border-green-100"
-  defp guest_badge_classes("declined"), do: "bg-red-50 text-red-600 border border-red-100"
-  defp guest_badge_classes(_pending), do: "bg-amber-50 text-amber-700 border border-amber-100"
-
-  defp guest_badge_icon("accepted"), do: "hero-check-circle-mini"
-  defp guest_badge_icon("declined"), do: "hero-x-circle-mini"
-  defp guest_badge_icon(_pending), do: "hero-clock-mini"
-
-  defp guest_status_label("accepted"), do: dgettext("dashboard_bookings", "Going")
-  defp guest_status_label("declined"), do: dgettext("dashboard_bookings", "Declined")
-  defp guest_status_label(_pending), do: dgettext("dashboard_bookings", "Pending")
-
-  defp guest_list(%{guests: guests}) when is_list(guests), do: guests
-  defp guest_list(_meeting), do: []
-
-  # A cancelled group meeting holds no seats any more, so "0/3" would only
-  # say that it is cancelled. What the host wants to know is who was still
-  # booked when it was called off: the participants whose own seat was never
-  # released (the host cancelled the slot, or its calendar event was deleted).
-  # A slot cancelled because its last seat was released had nobody left.
-  defp seats_label(%{status: "cancelled"} = meeting) do
-    case Enum.count(Helpers.participants(meeting), &is_nil(&1.cancelled_at)) do
-      0 ->
-        dgettext("dashboard_bookings", "Every spot was released")
-
-      booked ->
-        dngettext(
-          "dashboard_bookings",
-          "%{count} person was booked",
-          "%{count} people were booked",
-          booked
-        )
-    end
-  end
-
-  defp seats_label(meeting) do
-    dgettext("dashboard_bookings", "%{count}/%{capacity} seats taken",
-      count: seats_taken(meeting),
-      capacity: meeting.capacity
-    )
-  end
-
-  # Seats, not headcount. A booker who brings a guest occupies two of the
-  # slot's seats, which is what the public booking page counts down and what
-  # the organiser needs to read here — a card saying "1/4" beside a slot
-  # advertising "2 seats left" is two answers to the same question.
-  defp seats_taken(meeting),
-    do: Seats.seats_taken(Helpers.participants(meeting), guest_list(meeting))
-
-  # A solo card is titled after its attendee. A group card has no single
-  # attendee, so it is named after what was booked: `title` is a required
-  # field on every meeting, snapshotted at creation, so it survives the
-  # meeting type being edited or deleted.
-  defp meeting_title(meeting) do
-    if Helpers.group_meeting?(meeting),
-      do: group_title(meeting),
-      else: solo_title(meeting)
-  end
-
-  defp solo_title(%{attendee_name: name}) when is_binary(name) and name != "", do: name
-  defp solo_title(meeting), do: group_title(meeting)
-
-  defp group_title(%{title: title}) when is_binary(title) and title != "", do: title
-  defp group_title(_meeting), do: dgettext("dashboard_bookings", "Group booking")
-
-  defp person_initial(%{name: name}) when is_binary(name) and name != "",
-    do: name |> String.first() |> String.upcase()
-
-  defp person_initial(%{email: email}) when is_binary(email) and email != "",
-    do: email |> String.first() |> String.upcase()
-
-  defp person_initial(_person), do: "?"
-
-  defp guest_summary_label(meeting) do
-    summary = Meetings.guest_rsvp_summary(guest_list(meeting))
-
-    dgettext("dashboard_bookings", "%{going} of %{total} going",
-      going: summary.accepted,
-      total: summary.total
-    )
-  end
 end

@@ -416,6 +416,7 @@ defmodule TymeslotWeb.AdminLive do
     |> assign(:users, Auth.list_users())
     |> assign(:user_count, Auth.count_users())
     |> assign(:admin_count, Auth.count_admins())
+    |> assign(:self_demote_blocked?, not Auth.remaining_signin_capable_admins?(user))
   end
 
   # Config-level errors (`:too_many_files`) come from `upload_errors/1`; a
@@ -472,6 +473,7 @@ defmodule TymeslotWeb.AdminLive do
         current_user={@current_user}
         user_count={@user_count}
         admin_count={@admin_count}
+        self_demote_blocked?={@self_demote_blocked?}
         pending_action={@pending_action}
         role_change_submitting={@role_change_submitting}
       />

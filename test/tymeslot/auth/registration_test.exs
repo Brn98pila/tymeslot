@@ -5,8 +5,10 @@ defmodule Tymeslot.Auth.RegistrationTest do
 
   import Tymeslot.Test.AdminBootstrapHelpers, only: [reopen_admin_bootstrap: 1]
 
-  alias Tymeslot.Auth.{Registration, UserSchema}
+  alias Ecto.Changeset
+  alias Tymeslot.Auth.{Registration, UserSchema, UserTokenQueries}
   alias Tymeslot.Repo
+  alias Tymeslot.Security.Token
   alias TymeslotWeb.Helpers.ClientIP
   import Tymeslot.Factory
 
@@ -109,6 +111,99 @@ defmodule Tymeslot.Auth.RegistrationTest do
 
       assert user.email == "safe@example.com"
       assert is_nil(user.name)
+    end
+  end
+
+  describe "the account is created under the address as typed" do
+    # Strict sanitisation would strip the `0x<hex>` run and everything from
+    # `--` onwards, registering the account (and mailing its verification
+    # link) under a stranger's address.
+    for address <- ["crypto0xabc@example.com", "jean--paul@example.com"] do
+      test "#{address} is stored verbatim" do
+        address = unquote(address)
+
+        params = %{
+          "email" => address,
+          "password" => "ValidPassword123!",
+          "password_confirmation" => "ValidPassword123!",
+          "terms_accepted" => "true"
+        }
+
+        assert {:ok, user, _session} =
+                 Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+
+        assert user.email == address
+        assert Repo.get!(UserSchema, user.id).email == address
+      end
+    end
+
+    test "a near-identical existing account is not mistaken for the new one" do
+      stranger = insert(:user, email: "crypto@example.com")
+
+      params = %{
+        "email" => "crypto0xabc@example.com",
+        "password" => "ValidPassword123!",
+        "password_confirmation" => "ValidPassword123!",
+        "terms_accepted" => "true"
+      }
+
+      assert {:ok, user, _session} =
+               Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+
+      refute user.id == stranger.id
+      assert user.email == "crypto0xabc@example.com"
+    end
+  end
+
+  describe "an address outside the email grammar" do
+    # Kept verbatim since sanitisation stopped rewriting addresses, so the
+    # validator is the only thing standing between a header-shaped value and
+    # the account it would be created under.
+    for address <- ["attacker<victim@example.com", "\"quoted\"@example.com"] do
+      test "#{address} is refused and no account is created" do
+        params = %{
+          "email" => unquote(address),
+          "password" => "ValidPassword123!",
+          "password_confirmation" => "ValidPassword123!",
+          "terms_accepted" => "true"
+        }
+
+        assert {:error, :input, _errors} =
+                 Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+
+        assert Repo.aggregate(UserSchema, :count) == 0
+      end
+    end
+  end
+
+  describe "an expired pending email change elsewhere" do
+    test "does not stop the address being registered" do
+      squatter = insert(:user)
+
+      {:ok, squatter} =
+        UserTokenQueries.request_email_change(
+          squatter,
+          "parked@example.com",
+          Token.generate_token()
+        )
+
+      squatter
+      |> Changeset.change(
+        email_change_sent_at: DateTime.add(DateTime.utc_now(:second), -(24 * 3600 + 60))
+      )
+      |> Repo.update!()
+
+      params = %{
+        "email" => "parked@example.com",
+        "password" => "ValidPassword123!",
+        "password_confirmation" => "ValidPassword123!",
+        "terms_accepted" => "true"
+      }
+
+      assert {:ok, user, _session} =
+               Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+
+      assert user.email == "parked@example.com"
     end
   end
 

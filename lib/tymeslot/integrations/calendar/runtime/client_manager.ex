@@ -17,6 +17,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   require Logger
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Providers.ProviderAdapter
   alias Tymeslot.Integrations.Calendar.Runtime.BookingIntegrationResolver
@@ -35,23 +36,37 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   """
   @spec clients(user_id() | nil) :: [client()]
   def clients(user_id) do
+    {clients, _unreadable_ids} = availability_sources(user_id)
+    clients
+  end
+
+  @doc """
+  The calendar clients `clients/1` returns, plus the ids of the user's active
+  integrations whose credentials no longer decrypt.
+
+  The availability check must count each of those as a calendar it could not
+  read rather than one with no events, so they are returned rather than
+  dropped.
+  """
+  @spec availability_sources(user_id() | nil) :: {[client()], [integration_id()]}
+  def availability_sources(user_id) do
     case fetch_active_integrations(user_id) do
-      {:ok, integrations} ->
-        Enum.flat_map(integrations, &create_clients_from_integration/1)
+      {:ok, integrations, unreadable} ->
+        {Enum.flat_map(integrations, &clients_for_integration/1), Enum.map(unreadable, & &1.id)}
 
       :not_found ->
         Logger.warning(
           "No calendar integrations configured. Please add calendar integrations in the dashboard."
         )
 
-        []
+        {[], []}
 
       {:error, :user_id_required} ->
         Logger.warning(
           "User ID is required for calendar operations. Please ensure user context is available."
         )
 
-        []
+        {[], []}
     end
   end
 
@@ -60,15 +75,33 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   """
   @spec clients_for_integration(map()) :: [client()]
   def clients_for_integration(integration) do
-    create_clients_from_integration(integration)
+    create_clients_from_integration(integration, fn _config -> true end)
   end
 
   @doc """
-  Gets a single configured calendar client. Uses the first configured path.
+  The clients of `clients_for_integration/1` for calendars the organiser can
+  write to.
+
+  A read-only calendar the organiser selected gets a read client so that its
+  events block time, but an event Tymeslot wrote can never be in it, so a
+  search for one leaves it out.
+  """
+  @spec writable_clients_for_integration(map()) :: [client()]
+  def writable_clients_for_integration(integration) do
+    create_clients_from_integration(integration, &write_target?/1)
+  end
+
+  @doc """
+  The client a write for `user_id` falls back to when nothing names an
+  integration: the user's booking client, or failing that the first writable
+  calendar of an integration that can take bookings and whose credentials
+  have not been refused. Never a read-only calendar or a subscribed feed,
+  which `clients/1` includes so that their events block time, but which take
+  no writes.
   """
   @spec client(user_id() | nil) :: client() | nil
   def client(user_id \\ nil) do
-    List.first(clients(user_id))
+    booking_client(user_id) || first_writable_client(user_id)
   end
 
   @doc """
@@ -196,7 +229,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   defp booking_calendar_path(_stored_id, _stored_path, integration),
     do: CalendarPathResolver.resolve(integration)
 
-  defp create_clients_from_integration(integration) do
+  defp create_clients_from_integration(integration, keep?) do
     with {:ok, provider} <- ProviderConfig.parse_known(integration.provider),
          provider_module when is_atom(provider_module) and provider_module != nil <-
            ProviderConfig.get_provider_module(provider),
@@ -205,6 +238,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
       # keeps the static type checker from flagging providers that omit it.
       # credo:disable-for-next-line Credo.Check.Refactor.Apply
       apply(provider_module, :build_client_configs, [integration])
+      |> Enum.filter(keep?)
       |> Enum.map(&create_adapter_client(provider, &1))
       |> Enum.reject(&is_nil/1)
     else
@@ -216,6 +250,16 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
         []
     end
   end
+
+  # A CalDAV config names its own collection and the integration's writable
+  # ones (`ProviderCommon.caldav_build_client_configs/1`); it is compared
+  # before `new/1`, which may rewrite the collection into the server's form.
+  # Any other provider's client reaches the whole account.
+  defp write_target?(%{calendar_path: path, writable_calendar_paths: writable})
+       when is_list(writable),
+       do: path in writable
+
+  defp write_target?(_config), do: true
 
   defp create_booking_client_from_integration(nil), do: nil
 
@@ -258,12 +302,27 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
     end
   end
 
+  # Only an integration a booking could be written to: never a subscribed
+  # feed (whose single calendar `write_target?/1` cannot tell from a writable
+  # one), nor one whose credentials were refused.
+  defp first_writable_client(user_id) do
+    case fetch_active_integrations(user_id) do
+      {:ok, integrations, _unreadable} ->
+        integrations
+        |> Enum.filter(&(BookingEligibility.bookable?(&1) and &1.needs_reauth != true))
+        |> Enum.find_value(&List.first(writable_clients_for_integration(&1)))
+
+      _none ->
+        nil
+    end
+  end
+
   defp fetch_active_integrations(nil), do: {:error, :user_id_required}
 
   defp fetch_active_integrations(user_id) do
-    case CalendarManagement.list_active_calendar_integrations(user_id) do
-      [] -> :not_found
-      integrations -> {:ok, integrations}
+    case CalendarManagement.partition_active_calendar_integrations(user_id) do
+      {[], []} -> :not_found
+      {integrations, unreadable} -> {:ok, integrations, unreadable}
     end
   end
 end

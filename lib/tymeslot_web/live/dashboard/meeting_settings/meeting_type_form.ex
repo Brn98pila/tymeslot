@@ -3,9 +3,9 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm do
   LiveComponent that renders and manages the Meeting Type form UI state.
 
   It handles local UI events (validate, icon selection, calendar destination).
-  When editing an existing meeting type, each change auto-saves via
-  `MeetingTypeForm.Autosave`; when creating a new one, the parent component
-  handles the final "Create" submit/persist event.
+  A new meeting type is created with an explicit submit on the Details tab
+  (`MeetingTypeForm.Creation`), after which the same component carries on in
+  edit mode; from then on each change auto-saves via `MeetingTypeForm.Autosave`.
   """
   use TymeslotWeb, :live_component
   use Gettext, backend: TymeslotWeb.Gettext
@@ -19,10 +19,12 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm do
 
   alias TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.{
     Autosave,
+    Creation,
     FormView,
     GroupRules,
     Init,
     ReminderHandlers,
+    SlotIntervalField,
     Validation
   }
 
@@ -32,11 +34,10 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm do
 
   # Public assigns passed from parent
   # - type: existing meeting type or nil
-  # - is_edit: whether we are editing
+  # - is_edit: whether the meeting type exists yet (set here too, on creation)
   # - video_integrations: list for selection
   # - venues: the organiser's saved venues, for in-person locations
-  # - parent_myself: phx-target for parent events (submit/cancel)
-  # - saving: parent's saving state to control the button disabled state
+  # - parent_myself: phx-target for parent events (cancel, done, visibility)
   # - current_user: used for security metadata in validation
 
   @impl Phoenix.LiveComponent
@@ -93,7 +94,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm do
   def update(assigns, socket) do
     socket =
       socket
-      |> assign(assigns)
+      |> assign(keep_created_type(assigns, socket))
       |> Init.maybe_initialize()
 
     # Custom-question and location edits arrive here as a `send_update`
@@ -116,10 +117,28 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm do
   def render(assigns), do: FormView.form(assigns)
 
   @impl Phoenix.LiveComponent
-  def handle_event("switch_tab", %{"tab" => tab}, socket)
-      when tab in ~w(details location booking questions reminders) do
+  def handle_event("switch_tab", %{"tab" => "details"}, socket) do
+    {:noreply, assign(socket, :active_tab, "details")}
+  end
+
+  # The other tabs are disabled until the meeting type exists, since nothing
+  # on them can save before then; a forged switch is ignored the same way.
+  def handle_event("switch_tab", %{"tab" => tab}, %{assigns: %{is_edit: true}} = socket)
+      when tab in ~w(location booking questions reminders) do
     {:noreply, assign(socket, :active_tab, tab)}
   end
+
+  def handle_event("switch_tab", _params, socket), do: {:noreply, socket}
+
+  @impl Phoenix.LiveComponent
+  def handle_event("create_meeting_type", params, %{assigns: %{is_edit: false}} = socket) do
+    {:noreply, Creation.run(socket, Map.get(params, "meeting_type", %{}))}
+  end
+
+  # A second submit can arrive after the first has created the type (a double
+  # click racing the round trip). The type exists now, so there is nothing
+  # left to create.
+  def handle_event("create_meeting_type", _params, socket), do: {:noreply, socket}
 
   @impl Phoenix.LiveComponent
   def handle_event("validate_meeting_type", %{"meeting_type" => params}, socket) do
@@ -457,9 +476,19 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm do
     socket
   end
 
-  # Creating still saves on submit, and a failed save already shows its own
-  # error, so neither gets a "saved" flash.
+  # A failed save already shows its own error, so it gets no "saved" flash.
   defp flash_schedule_saved(socket), do: socket
+
+  # Once this form has created its meeting type, the parent may still render
+  # once more with the props it had while the type was new (`type: nil`,
+  # `is_edit: false`) before it learns of the record. Taking those would flip
+  # the form back to create mode and offer a second create, so they are
+  # dropped while the form holds a persisted type.
+  defp keep_created_type(%{type: nil} = assigns, %{assigns: %{type: %{id: id}}})
+       when is_integer(id),
+       do: Map.drop(assigns, [:type, :is_edit])
+
+  defp keep_created_type(assigns, _socket), do: assigns
 
   # Blank means "follow the profile's default schedule", stored as nil; the
   # same goes for anything unparseable, since the chips only ever offer the
@@ -507,7 +536,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm do
 
   defp drop_interval_mode_sentinel(params), do: params
 
-  defp custom_interval_sentinel?(value), do: value == FormView.custom_interval_option()
+  defp custom_interval_sentinel?(value), do: value == SlotIntervalField.custom_interval_option()
 
   defp off_preset_interval?(value) when is_binary(value) do
     case Integer.parse(String.trim(value)) do

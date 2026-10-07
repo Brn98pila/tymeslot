@@ -13,7 +13,7 @@ defmodule Tymeslot.Slack.MessageBuilder do
   Block Kit reference: https://api.slack.com/block-kit
   """
 
-  alias Tymeslot.Utils.UrlBuilder
+  alias Tymeslot.Bookings.MeetingLinks
 
   @max_reason_length 500
 
@@ -253,9 +253,12 @@ defmodule Tymeslot.Slack.MessageBuilder do
 
     date = Calendar.strftime(start_time, "%a %d %b %Y")
     start_str = Calendar.strftime(start_time, "%H:%M")
-    end_str = Calendar.strftime(end_time, "%H:%M")
 
-    "#{date}, #{start_str}–#{end_str} (#{timezone})"
+    if DateTime.to_date(end_time) == DateTime.to_date(start_time) do
+      "#{date}, #{start_str}–#{Calendar.strftime(end_time, "%H:%M")} (#{timezone})"
+    else
+      "#{date}, #{start_str} – #{Calendar.strftime(end_time, "%a %d %b %H:%M")} (#{timezone})"
+    end
   end
 
   defp format_single_time(datetime, timezone) do
@@ -279,9 +282,9 @@ defmodule Tymeslot.Slack.MessageBuilder do
   end
 
   defp meeting_url(meeting) do
-    case Map.get(meeting, :uid) do
-      nil -> nil
-      _uid -> UrlBuilder.build_url("/dashboard/meetings")
+    case Map.get(meeting, :id) do
+      id when is_binary(id) -> MeetingLinks.host_view_url(id)
+      _none -> nil
     end
   end
 

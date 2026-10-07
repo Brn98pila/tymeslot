@@ -16,7 +16,11 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.SeatEmails do
       row, so its stamps start empty;
     * a cancellation claims each send on the job (`DeliveryClaims`), since the
       seat's stamps were spent on its confirmation;
-    * guests are stamped or claimed one by one and never fail the job.
+    * a guest's invitation (a confirmation, or the new seat of a move) is
+      stamped on the guest and never fails the job;
+    * a guest's cancellation (a cancellation, or the old seat of a move) is
+      claimed on the job like the two above, and one that fails fails the
+      job, so the retry writes only to the guests not yet told.
 
   Each seat is its own calendar entry for its participant and their guests
   (`Tymeslot.Meetings.ParticipantSchema.calendar_uid/1`): the confirmation
@@ -188,17 +192,20 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.SeatEmails do
         )
       end)
 
-    GuestNotifications.notify_seat_cancelled(
-      meeting,
-      GuestQueries.list_for_participant(participant.id),
-      details,
-      &DeliveryClaims.once(job_id, &1, &2)
-    )
+    guests_result =
+      GuestNotifications.notify_seat_cancelled(
+        meeting,
+        GuestQueries.list_for_participant(participant.id),
+        details,
+        &DeliveryClaims.once(job_id, &1, &2)
+      )
 
+    # Each guest's send is claimed on the job, like the two above, so a
+    # retry for a missed guest writes only to the guests not yet told.
     DeliveryOutcome.from_results(
       "seat cancellation",
       [meeting_id: meeting.id, participant_id: participant.id],
-      [organizer_result, attendee_result]
+      [organizer_result, attendee_result, guests_result]
     )
   end
 
@@ -233,13 +240,13 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.SeatEmails do
         )
       end)
 
-    cancel_old_guests(old_seat, job_id)
+    old_guests_result = cancel_old_guests(old_seat, job_id)
     if new_seat_live?, do: invite_guests(meeting, participant, details, email_service)
 
     DeliveryOutcome.from_results(
       "seat reschedule",
       [meeting_id: meeting.id, participant_id: participant.id],
-      [organizer_result, attendee_result]
+      [organizer_result, attendee_result, old_guests_result]
     )
   end
 

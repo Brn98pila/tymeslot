@@ -9,8 +9,6 @@ defmodule Tymeslot.Release do
   and production (`bin/tymeslot rpc 'Tymeslot.Release.promote_admin("…")'`).
   """
 
-  alias Tymeslot.AppSettings
-  alias Tymeslot.AppSettings.LockoutPolicy
   alias Tymeslot.Auth
   alias Tymeslot.Auth.{AdminRoles, AdminUserQueries, UserQueries, UserSchema}
   alias Tymeslot.Media.UploadMetadataSweep
@@ -38,8 +36,10 @@ defmodule Tymeslot.Release do
   @doc """
   Demotes the user with the given email from admin.
 
-  Refuses to demote the only remaining admin unless `force?` is true. This
-  mirrors the pre-check `mix tymeslot.demote_admin` applies before reaching
+  Refuses to demote an admin when no other admin could still sign in
+  (the guard is `AdminRoles.remaining_signin_capable_admins?/1`) unless
+  `force?` is true. This mirrors the
+  pre-check `mix tymeslot.demote_admin` applies before reaching
   this function, so the documented production path
   (`bin/tymeslot rpc 'Tymeslot.Release.demote_admin("…")'`) gets the same
   protection rather than relying solely on the dev-only Mix task. Below this
@@ -100,34 +100,14 @@ defmodule Tymeslot.Release do
     if AdminRoles.admin_ui_enabled?(), do: :ok, else: {:error, :admin_ui_disabled}
   end
 
-  defp check_last_admin(%UserSchema{id: id, is_admin: true}, false) do
-    if Auth.count_signin_capable_admins_excluding(id, usable_sso_providers()) > 0 do
-      :ok
-    else
-      {:error, :last_admin}
-    end
+  # `force?` is the only thing this adds over the shared rule: the `:cli`
+  # actor skips `AdminRoles`' own guard, so without this pre-check the
+  # documented production path would have no guard at all.
+  defp check_last_admin(%UserSchema{is_admin: true} = user, false) do
+    if AdminRoles.remaining_signin_capable_admins?(user), do: :ok, else: {:error, :last_admin}
   end
 
   defp check_last_admin(_user, _force?), do: :ok
-
-  # Which SSO identities count as a live sign-in path right now: enabled
-  # system-wide AND with credentials configured, mirroring
-  # `LockoutPolicy`'s definition of a usable auth path. Passed as data into
-  # `count_signin_capable_admins_excluding/2` rather than letting the query
-  # module read config itself.
-  @sso_settings %{
-    google: :google_auth_enabled,
-    github: :github_auth_enabled,
-    oauth: :oauth_auth_enabled
-  }
-
-  defp usable_sso_providers do
-    for {kind, key} <- @sso_settings,
-        AppSettings.get(key) == true,
-        LockoutPolicy.sso_credentials_present?(key) do
-      kind
-    end
-  end
 
   @doc """
   Lists every admin user (email + id). Useful for operators verifying the

@@ -15,8 +15,8 @@ defmodule Tymeslot.Integrations.Calendar.Shared.MultiCalendarFetch do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Calendar.CalendarEntry
-  alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Calendar.Shared.FetchAggregate
   alias Tymeslot.Integrations.Calendar.Shared.FetchAggregate.Outcome
@@ -150,7 +150,7 @@ defmodule Tymeslot.Integrations.Calendar.Shared.MultiCalendarFetch do
       missing_count: length(missing_ids)
     )
 
-    case CalendarIntegrationQueries.deselect_calendars(integration, missing_ids) do
+    case CalendarSelectionQueries.deselect_calendars(integration, missing_ids) do
       {:ok, _updated} ->
         :ok
 

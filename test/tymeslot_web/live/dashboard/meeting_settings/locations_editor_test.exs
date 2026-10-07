@@ -412,39 +412,12 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.LocationsEditorTest do
       assert has_element?(view, "[data-testid='location-row']", "Address arranged after booking")
     end
 
-    test "creating a meeting type goes through after a location it offers is deleted elsewhere",
-         %{conn: conn, user: user} do
-      berlin = insert(:venue, user: user, name: "Berlin office")
-      {:ok, view, _html} = live(conn, ~p"/dashboard/meeting-settings")
-
-      view |> element("button", "Add Meeting Type") |> render_click()
-      # The default reminder's hidden inputs cannot be re-encoded by
-      # `form/3`; see the creation test in `MeetingSettingsTest`.
-      view |> element("button[aria-label='Remove reminder']") |> render_click()
-      view |> element("[phx-click='edit_location']") |> render_click()
-
-      view
-      |> form("#location-editor-form", %{
-        "location" => %{"venue_ids" => ["", to_string(berlin.id)]}
-      })
-      |> render_submit()
-
-      _drain = :sys.get_state(view.pid)
-      {:ok, _deleted} = Venues.delete_venue(berlin)
-
-      view
-      |> form("form[phx-submit='save_meeting_type']", %{
-        "meeting_type" => %{"name" => "Site visit", "duration" => "20"}
-      })
-      |> render_submit()
-
-      assert render(view) =~ "Meeting type created"
-
-      assert [%{locations: [%{venue_ids: []}]}] =
-               user.id
-               |> MeetingTypes.get_all_meeting_types()
-               |> Enum.filter(&(&1.name == "Site visit"))
-    end
+    # There is no create-time counterpart to the two tests above. A new meeting
+    # type renders only its Details tab: the Location panel, and with it the
+    # locations section that opens this editor, exists only once the record
+    # does, so creation always posts the default in-person location, which
+    # names no venue. Deleting a venue mid-create therefore cannot reach the
+    # create; the edit-time case is what the tests above cover.
 
     test "says when no address is selected", %{user: user} = ctx do
       berlin = insert(:venue, user: user, name: "Berlin office")

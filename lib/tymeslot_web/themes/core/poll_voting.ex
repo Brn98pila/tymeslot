@@ -175,7 +175,7 @@ defmodule TymeslotWeb.Themes.Core.PollVoting do
   # --- Rate limiting ---
 
   defp with_rate_limit(socket, prefix, limit, fun) do
-    bucket = prefix <> client_ip(socket)
+    bucket = prefix <> RateLimiter.source_key(client_ip(socket))
 
     case RateLimiter.check_rate_limit(bucket, limit, @rate_window_ms) do
       :ok ->

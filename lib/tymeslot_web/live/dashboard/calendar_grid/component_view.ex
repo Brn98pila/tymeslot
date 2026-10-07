@@ -42,10 +42,13 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.ComponentView do
       phx-target={@myself}
       phx-drop-target={@uploads.ics_file.ref}
     >
+      <%!-- The full-bleed grid has no room for the page header every other
+           section carries, so its title is for screen readers only. --%>
+      <h1 class="sr-only">{dgettext("dashboard_common", "Calendar")}</h1>
       <%!-- The `.ics` import's file input lives here rather than in its modal,
             so a file dropped anywhere on the calendar uploads with the modal
-            closed; the upload then opens it. The modal's picker is a label
-            for this input. --%>
+            closed; the upload then opens it. The modal's picker button opens
+            this input. --%>
       <form id="import-ics-upload" phx-change="validate_ics_import" phx-target={@myself}>
         <.live_file_input upload={@uploads.ics_file} class="sr-only" />
       </form>
@@ -196,6 +199,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.ComponentView do
         <BookingDetailModal.booking_detail_modal
           :if={@selected_booking}
           booking={@selected_booking}
+          now={@current_time}
           user_timezone={@user_timezone}
           time_format={Helpers.time_format(assigns)}
           myself={@myself}

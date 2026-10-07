@@ -19,8 +19,9 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.IntegrationEmailsTest do
       expect(EmailServiceMock, :send_calendar_invitation, fn "bob@example.com", details ->
         assert details.event_title == "Team Sync"
         assert details.event_uid == "evt-uid-1"
-        assert details.start_time == ~U[2026-04-10 10:00:00Z]
-        assert details.end_time == ~U[2026-04-10 11:00:00Z]
+        # The same instants, stated in the organiser's timezone.
+        assert DateTime.compare(details.start_time, ~U[2026-04-10 10:00:00Z]) == :eq
+        assert DateTime.compare(details.end_time, ~U[2026-04-10 11:00:00Z]) == :eq
         assert details.duration == 60
         assert details.location == "Office"
         assert details.organizer_name == "Alice Organiser"

@@ -10,6 +10,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.QueueWiringTest do
   @moduletag :integrations
   @moduletag :unit
 
+  alias Ecto.Adapters.SQL
   alias Tymeslot.Integrations.Calendar.CalDAV.QueueWiring
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
 
@@ -113,6 +114,28 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.QueueWiringTest do
 
       {:ok, row} = ProviderCalendarEventQueries.get_by_uid(integration.id, "evolving-uid")
       assert row.sync_state == "locally_modified"
+    end
+
+    # A new local change is a new change: the run of unanswered replays the
+    # old one had built up says nothing about it, and left in place it would
+    # count the new change's first failure against the cap at once.
+    test "a new local change ends the old one's run of unanswered replays" do
+      integration = caldav_integration()
+      meeting = build_meeting(integration, "deferred-uid")
+
+      assert :ok = QueueWiring.tag(meeting, :update, event_data())
+
+      SQL.query!(
+        Repo,
+        "UPDATE provider_calendar_events SET sync_deferred_since = $1, sync_attempts = 3 " <>
+          "WHERE calendar_integration_id = $2 AND uid = $3",
+        [DateTime.add(DateTime.utc_now(), -25, :hour), integration.id, "deferred-uid"]
+      )
+
+      assert :ok = QueueWiring.tag(meeting, :update, event_data())
+
+      {:ok, row} = ProviderCalendarEventQueries.get_by_uid(integration.id, "deferred-uid")
+      assert %{sync_deferred_since: nil, sync_attempts: 0} = row
     end
 
     test "returns :ignored for non-CalDAV providers" do

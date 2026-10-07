@@ -155,6 +155,78 @@ defmodule Tymeslot.Payments.Webhooks.WebhookProcessorTest do
     end
   end
 
+  # A handler error is retried unless it is known to be permanent: marking a
+  # transient failure processed answers Stripe 200 and the event is never
+  # redelivered, so a paid checkout whose subscription write hit a database
+  # timeout would never grant Pro.
+  describe "process_event/1 retry default" do
+    defmodule TimingOutManager do
+      @spec handle_checkout_completed(map()) :: {:error, term()}
+      def handle_checkout_completed(_session), do: {:error, :database_timeout}
+    end
+
+    defmodule DisconnectedManager do
+      @spec handle_checkout_completed(map()) :: no_return()
+      def handle_checkout_completed(_session),
+        do: raise(DBConnection.ConnectionError, "connection not available")
+    end
+
+    defmodule BrokenManager do
+      @spec handle_checkout_completed(map()) :: no_return()
+      def handle_checkout_completed(_session), do: raise("a bug")
+    end
+
+    setup do
+      original = Application.get_env(:tymeslot, :subscription_manager)
+      on_exit(fn -> Application.put_env(:tymeslot, :subscription_manager, original) end)
+      :ok
+    end
+
+    defp checkout_completed_event do
+      %{
+        "id" => "evt_checkout_retry",
+        "type" => "checkout.session.completed",
+        "data" => %{"object" => %{"id" => "cs_retry", "mode" => "subscription"}}
+      }
+    end
+
+    test "retries a checkout whose subscription manager failed" do
+      Application.put_env(:tymeslot, :subscription_manager, TimingOutManager)
+
+      capture_log(fn ->
+        assert {:error, :retry_later, _message} =
+                 WebhookProcessor.process_event(checkout_completed_event())
+      end)
+    end
+
+    test "retries a handler that raised a transient exception" do
+      Application.put_env(:tymeslot, :subscription_manager, DisconnectedManager)
+
+      capture_log(fn ->
+        assert {:error, :retry_later, _message} =
+                 WebhookProcessor.process_event(checkout_completed_event())
+      end)
+    end
+
+    test "does not retry a handler that raised a bug" do
+      Application.put_env(:tymeslot, :subscription_manager, BrokenManager)
+
+      capture_log(fn ->
+        assert {:error, %{reason: :handler_exception}, nil} =
+                 WebhookProcessor.process_event(checkout_completed_event())
+      end)
+    end
+
+    test "does not retry an error the handler marks as permanent" do
+      Application.delete_env(:tymeslot, :subscription_manager)
+
+      capture_log(fn ->
+        assert {:error, :subscriptions_not_supported, _message} =
+                 WebhookProcessor.process_event(checkout_completed_event())
+      end)
+    end
+  end
+
   describe "process_event/1 type stamping" do
     # Production Stripe payloads are string-keyed end to end (see
     # SignatureVerifier.to_string/1 and Jason.decode/1 in DevelopmentMode),

@@ -158,6 +158,68 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandlerTest do
     end
   end
 
+  describe "refunds_current_subscription?/2" do
+    @current %{stripe_subscription_id: "sub_current", status: "active"}
+
+    test "a charge with no invoice paid for no subscription" do
+      refute RefundHandler.refunds_current_subscription?(
+               %{invoice_id: nil, subscription_id: nil},
+               @current
+             )
+    end
+
+    test "a charge for the current subscription refunds it" do
+      assert RefundHandler.refunds_current_subscription?(
+               %{invoice_id: "in_1", subscription_id: "sub_current"},
+               @current
+             )
+    end
+
+    test "an invoice with no recorded subscription is taken to be the current one's" do
+      assert RefundHandler.refunds_current_subscription?(
+               %{invoice_id: "in_1", subscription_id: nil},
+               @current
+             )
+    end
+
+    test "a charge for an earlier subscription does not refund the current one" do
+      refute RefundHandler.refunds_current_subscription?(
+               %{invoice_id: "in_1", subscription_id: "sub_earlier"},
+               @current
+             )
+    end
+
+    test "a subscription that has already ended is not refunded again" do
+      for status <- ~w(canceled incomplete_expired) do
+        refute RefundHandler.refunds_current_subscription?(
+                 %{invoice_id: "in_1", subscription_id: "sub_current"},
+                 %{@current | status: status}
+               )
+      end
+    end
+
+    # Only a live subscription has access a refund can end; an incomplete or
+    # paused one never had it, so the email must not claim it was revoked.
+    test "a subscription that is incomplete or paused is not refunded" do
+      for status <- ~w(incomplete paused) do
+        refute RefundHandler.refunds_current_subscription?(
+                 %{invoice_id: "in_1", subscription_id: "sub_current"},
+                 %{@current | status: status}
+               )
+      end
+    end
+
+    test "every live subscription status is refunded" do
+      for status <- ~w(active trialing past_due unpaid) do
+        assert RefundHandler.refunds_current_subscription?(
+                 %{invoice_id: "in_1", subscription_id: "sub_current"},
+                 %{@current | status: status}
+               ),
+               status
+      end
+    end
+  end
+
   describe "validate/1" do
     test "accepts valid refund object with required fields" do
       refund = %{"id" => "re_test_123"}

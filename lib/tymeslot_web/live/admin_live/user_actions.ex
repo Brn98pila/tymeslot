@@ -128,7 +128,11 @@ defmodule TymeslotWeb.AdminLive.UserActions do
     do: dgettext("dashboard_admin", "Admin UI is disabled.")
 
   defp role_change_error_message(:demote, :last_admin),
-    do: dgettext("dashboard_admin", "Cannot demote the last admin. Promote someone else first.")
+    do:
+      dgettext(
+        "dashboard_admin",
+        "Cannot demote this admin: no other admin can sign in. Make sure another admin can sign in first."
+      )
 
   defp role_change_error_message(:promote, %Ecto.Changeset{}),
     do: dgettext("dashboard_admin", "Could not promote user.")

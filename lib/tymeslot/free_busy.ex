@@ -10,7 +10,7 @@ defmodule Tymeslot.FreeBusy do
   calendar is published as busy too.
   """
 
-  alias Tymeslot.Availability.TimeOff
+  alias Tymeslot.Availability.{Events, TimeOff}
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.CalendarEventQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
@@ -92,29 +92,20 @@ defmodule Tymeslot.FreeBusy do
       integration_ids
       |> CalendarEventQueries.in_range({window_start, window_end})
       |> Enum.filter(&CalendarEvent.blocking?/1)
-      |> Enum.flat_map(&event_interval/1)
+      |> Enum.flat_map(&event_interval(&1, profile.timezone || "Etc/UTC"))
 
     event_intervals ++
       TimeOff.busy_intervals(profile.id, profile.timezone, window_start, window_end)
   end
 
-  # Timed events map directly; all-day events span midnight-to-midnight UTC.
-  defp event_interval(%CalendarEvent{
-         all_day: false,
-         start_at: %DateTime{} = s,
-         end_at: %DateTime{} = e
-       }),
-       do: [{s, e}]
-
-  defp event_interval(%CalendarEvent{
-         all_day: true,
-         start_date: %Date{} = sd,
-         end_date: %Date{} = ed
-       }) do
-    [{DateTime.new!(sd, ~T[00:00:00], "Etc/UTC"), DateTime.new!(ed, ~T[00:00:00], "Etc/UTC")}]
+  # An all-day event spans the owner's local day, as it does on the booking
+  # page. A profile with no timezone is read as UTC, as its time off is.
+  defp event_interval(%CalendarEvent{} = event, timezone) do
+    case Events.to_interval(event, timezone) do
+      {:ok, interval} -> [interval]
+      :error -> []
+    end
   end
-
-  defp event_interval(_other), do: []
 
   defp organizer_email(%ProfileSchema{user: %{email: email}})
        when is_binary(email) and email != "",

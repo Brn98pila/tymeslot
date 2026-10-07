@@ -415,6 +415,7 @@ defmodule Tymeslot.Bookings.RescheduleLocationTest do
       updated = reschedule(meeting, %{location_option_id: "loc-miro"})
 
       # Sent now, the email would have no room to link to.
+      Oban.drain_queue(queue: :emails)
       refute_received {:reschedule_emails, _details}
 
       [job] = all_enqueued(worker: VideoRoomWorker)
@@ -422,10 +423,12 @@ defmodule Tymeslot.Bookings.RescheduleLocationTest do
 
       assert :ok = perform_job(VideoRoomWorker, job.args)
 
+      Oban.drain_queue(queue: :emails)
       assert_received {:reschedule_emails, details}
       assert details.attendee_video_url =~ "https://test.mirotalk.com/join/test-room-123"
       assert details.original_start_time == meeting.start_time
       assert details.start_time == updated.start_time
+      Oban.drain_queue(queue: :emails)
       refute_received {:reschedule_emails, _details}
     end
 
@@ -453,6 +456,7 @@ defmodule Tymeslot.Bookings.RescheduleLocationTest do
           location_option_id: "loc-miro"
         })
 
+      Oban.drain_queue(queue: :emails)
       refute_received {:reschedule_emails, _details}
 
       [first_job, second_job] = Enum.sort_by(all_enqueued(worker: VideoRoomWorker), & &1.id)
@@ -461,9 +465,11 @@ defmodule Tymeslot.Bookings.RescheduleLocationTest do
       assert :ok = perform_job(VideoRoomWorker, second_job.args)
       assert :ok = perform_job(VideoRoomWorker, first_job.args)
 
+      Oban.drain_queue(queue: :emails)
       assert_received {:reschedule_emails, details}
       assert details.attendee_video_url =~ "https://test.mirotalk.com/join/test-room-123"
       assert details.start_time == later.start_time
+      Oban.drain_queue(queue: :emails)
       refute_received {:reschedule_emails, _details}
     end
 
@@ -485,6 +491,7 @@ defmodule Tymeslot.Bookings.RescheduleLocationTest do
 
       reschedule(meeting, %{location_option_id: "loc-zoom-long"})
 
+      Oban.drain_queue(queue: :emails)
       assert_received {:reschedule_emails, %{attendee_video_url: url}}
       assert url =~ "https://zoom.us/j/123456789"
     end

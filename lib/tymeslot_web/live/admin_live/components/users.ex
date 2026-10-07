@@ -15,6 +15,11 @@ defmodule TymeslotWeb.AdminLive.Components.Users do
   attr :current_user, :map, required: true
   attr :user_count, :integer, required: true
   attr :admin_count, :integer, required: true
+
+  attr :self_demote_blocked?, :boolean,
+    required: true,
+    doc: "whether no other admin could sign in if the current user demoted themselves"
+
   attr :pending_action, :any, required: true
   attr :role_change_submitting, :boolean, required: true
 
@@ -26,7 +31,7 @@ defmodule TymeslotWeb.AdminLive.Components.Users do
       <.stat_card label={dgettext("dashboard_admin", "Admins")} value={@admin_count} />
     </div>
 
-    <div class="card-glass p-0! overflow-hidden">
+    <.card padding={:none} class="overflow-hidden">
       <table class="min-w-full divide-y divide-tymeslot-100">
         <thead class="bg-tymeslot-50/60">
           <tr>
@@ -80,13 +85,13 @@ defmodule TymeslotWeb.AdminLive.Components.Users do
                 :if={is_nil(user.deletion_scheduled_at)}
                 user={user}
                 is_self={user.id == @current_user.id}
-                is_last_admin={@admin_count <= 1}
+                self_demote_blocked?={@self_demote_blocked?}
               />
             </td>
           </tr>
         </tbody>
       </table>
-    </div>
+    </.card>
 
     <ConfirmRoleChangeModal.confirm_role_change_modal
       :if={@pending_action && @pending_action.kind in [:promote, :demote]}
@@ -109,10 +114,10 @@ defmodule TymeslotWeb.AdminLive.Components.Users do
 
   defp stat_card(assigns) do
     ~H"""
-    <div class="card-glass">
+    <.card>
       <p class="text-xs font-black uppercase tracking-wider text-tymeslot-500 mb-2">{@label}</p>
       <p class="text-4xl font-black text-tymeslot-900 tracking-tight">{@value}</p>
-    </div>
+    </.card>
     """
   end
 
@@ -130,66 +135,67 @@ defmodule TymeslotWeb.AdminLive.Components.Users do
 
   attr :user, :map, required: true
   attr :is_self, :boolean, required: true
-  attr :is_last_admin, :boolean, required: true
+  attr :self_demote_blocked?, :boolean, required: true
 
   defp user_row_action(assigns) do
     ~H"""
-    <%!-- Only-admin self row: explain why demote is disabled. --%>
+    <%!-- Self row with no other admin able to sign in: explain why demote is disabled. --%>
     <div
-      :if={@user.is_admin and @is_self and @is_last_admin}
+      :if={@user.is_admin and @is_self and @self_demote_blocked?}
       class="inline-flex flex-col items-end gap-1"
       data-testid="last-admin-self-note"
     >
-      <span class="inline-flex items-center text-sm font-bold text-tymeslot-300 cursor-not-allowed select-none">
+      <.action_button variant={:danger_soft} size={:sm} disabled>
         {dgettext("dashboard_admin", "Demote")}
-      </span>
+      </.action_button>
       <span class="text-xs text-tymeslot-500 font-medium max-w-xs text-right">
         {dgettext(
           "dashboard_admin",
-          "You're the only admin. Promote someone else before demoting yourself."
+          "No other admin can sign in. Make sure another admin can sign in before demoting yourself."
         )}
       </span>
     </div>
 
-    <%!-- @admin_count is loaded per handle_params; the server guard in AdminRoles
-         is authoritative and will block the last-admin demote even if this button
-         is momentarily visible due to concurrent role changes between sessions. --%>
-    <button
-      :if={@user.is_admin and not (@is_self and @is_last_admin)}
-      type="button"
+    <%!-- @self_demote_blocked? is loaded per handle_params; the server guard in
+         AdminRoles is authoritative and will block the last-admin demote even if
+         this button is momentarily visible due to concurrent role changes. --%>
+    <.action_button
+      :if={@user.is_admin and not (@is_self and @self_demote_blocked?)}
+      variant={:danger_soft}
+      size={:sm}
       phx-click="request_demote"
       phx-value-id={@user.id}
       phx-value-email={@user.email}
       aria-label={dgettext("dashboard_admin", "Demote %{email} from admin", email: @user.email)}
-      class="inline-flex items-center text-sm font-bold text-red-600 hover:text-red-800 transition-colors"
     >
       {dgettext("dashboard_admin", "Demote")}
-    </button>
+    </.action_button>
 
-    <button
+    <.action_button
       :if={not @user.is_admin}
-      type="button"
+      variant={:secondary}
+      size={:sm}
       phx-click="request_promote"
       phx-value-id={@user.id}
       phx-value-email={@user.email}
       aria-label={dgettext("dashboard_admin", "Promote %{email} to admin", email: @user.email)}
-      class="inline-flex items-center text-sm font-bold text-turquoise-600 hover:text-turquoise-800 transition-colors"
     >
       {dgettext("dashboard_admin", "Promote")}
-    </button>
+    </.action_button>
 
     <%!-- Deleting oneself goes through account settings, with re-authentication. --%>
-    <button
+    <.action_button
       :if={not @is_self}
-      type="button"
+      variant={:danger}
+      size={:sm}
+      class="ml-2"
       phx-click="request_delete"
       phx-value-id={@user.id}
       phx-value-email={@user.email}
       aria-label={dgettext("dashboard_admin", "Delete %{email}", email: @user.email)}
-      class="ml-4 inline-flex items-center text-sm font-bold text-red-600 hover:text-red-800 transition-colors"
     >
       {dgettext("dashboard_admin", "Delete")}
-    </button>
+    </.action_button>
     """
   end
 end

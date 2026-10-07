@@ -137,9 +137,6 @@ defmodule Tymeslot.Emails.EmailService do
     to: AppointmentEmails
 
   @impl Tymeslot.Emails.EmailServiceBehaviour
-  defdelegate send_appointment_reminders(appointment_details), to: AppointmentEmails
-
-  @impl Tymeslot.Emails.EmailServiceBehaviour
   defdelegate send_appointment_reminders(appointment_details, time_until), to: AppointmentEmails
 
   @impl Tymeslot.Emails.EmailServiceBehaviour

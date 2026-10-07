@@ -2,6 +2,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
   use Tymeslot.DataCase, async: true
   @moduletag :calendar
 
+  alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.CalendarManagement
@@ -322,6 +323,55 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
       assert cal.color == "#123456"
       assert cal.raw == %{"description" => "Team calendar"}
     end
+  end
+
+  # =====================================
+  # Calendar.toggle_calendar_selection/2
+  # =====================================
+
+  # The dashboard toggles from the integration it rendered, which can be older
+  # than the row: the flip has to land on the row as it stands.
+  describe "Calendar.toggle_calendar_selection/2 from a stale copy" do
+    setup do
+      integration =
+        insert(:calendar_integration,
+          user: insert(:user),
+          provider: "caldav",
+          is_active: true,
+          calendar_list: [
+            %{"id" => "/cal/a/", "path" => "/cal/a/", "name" => "A", "selected" => true},
+            %{"id" => "/cal/b/", "path" => "/cal/b/", "name" => "B", "selected" => false},
+            %{"id" => "/cal/c/", "path" => "/cal/c/", "name" => "C", "selected" => true}
+          ]
+        )
+
+      %{stale: integration}
+    end
+
+    test "keeps a choice made elsewhere since the copy was read", %{stale: stale} do
+      # Another tab selects B as well.
+      {:ok, _elsewhere} =
+        Selection.update_calendar_selection(stale, %{
+          "selected_calendars" => ["/cal/a/", "/cal/b/", "/cal/c/"]
+        })
+
+      {:ok, updated} = Calendar.toggle_calendar_selection(stale, "/cal/a/")
+
+      assert selection(updated) == %{"/cal/a/" => false, "/cal/b/" => true, "/cal/c/" => true}
+    end
+
+    test "does not re-select a calendar deselected since the copy was read", %{stale: stale} do
+      # C vanished from the server and the sync deselected it.
+      {:ok, _elsewhere} =
+        Selection.update_calendar_selection(stale, %{"selected_calendars" => ["/cal/a/"]})
+
+      {:ok, updated} = Calendar.toggle_calendar_selection(stale, "/cal/b/")
+
+      assert selection(updated) == %{"/cal/a/" => true, "/cal/b/" => true, "/cal/c/" => false}
+    end
+
+    defp selection(integration),
+      do: Map.new(integration.calendar_list, &{&1.id, &1.selected})
   end
 
   # =====================================

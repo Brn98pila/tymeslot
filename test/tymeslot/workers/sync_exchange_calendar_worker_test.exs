@@ -410,6 +410,26 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorkerTest do
       # of its owner.
       assert %{needs_reauth: false} = Repo.reload!(integration)
     end
+
+    # A snooze costs no attempt, so without a bound a breaker that never
+    # closes keeps the job snoozing for ever.
+    test "fails once the snooze bound is reached", %{integration: integration} do
+      ReqTest.stub(:tymeslot_http, fn conn -> ReqTest.transport_error(conn, :econnrefused) end)
+
+      for _attempt <- 1..@breaker_threshold do
+        assert {:error, :network_error} = run(integration)
+      end
+
+      args = %{"calendar_integration_id" => integration.id}
+
+      assert {:snooze, _seconds} =
+               perform_job(SyncExchangeCalendarWorker, args, meta: %{"snoozed" => 10})
+
+      assert {:error, reason} =
+               perform_job(SyncExchangeCalendarWorker, args, meta: %{"snoozed" => 11})
+
+      assert reason =~ "did not recover"
+    end
   end
 
   describe "a failure between the two halves" do

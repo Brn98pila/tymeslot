@@ -209,6 +209,10 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProvider do
         HTTPClient.request_budget_ms(:delete, @create_request_options)
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
+  def create_join_url(%{meeting_url: base_url}, participant_name, _email, _role, _meeting_time)
+      when is_binary(base_url) and participant_name in [nil, ""],
+      do: {:ok, base_url}
+
   def create_join_url(room_data, participant_name, _participant_email, _role, _meeting_time) do
     base_url = room_data.meeting_url
 
@@ -504,7 +508,8 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProvider do
   # i.e. the credentials are no longer accepted server-side. The dashboard
   # surfaces this via the "Reconnect required" badge on the video row. Purely
   # additive: it does not touch token validation or the OAuthTokenManager flow.
-  defp flag_revoked_token(config) do
+  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
+  def flag_revoked_token(config) do
     NeedsReauth.flag(config,
       label: "Teams",
       event: "teams_token_revoked",

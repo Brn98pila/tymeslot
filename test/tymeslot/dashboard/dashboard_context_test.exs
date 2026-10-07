@@ -19,6 +19,7 @@ defmodule Tymeslot.Dashboard.DashboardContextTest do
   describe "get_dashboard_data_for_action/3" do
     test "builds the agenda for the :overview action", %{user: user, future_start: future_start} do
       insert(:meeting,
+        organizer_user_id: user.id,
         organizer_email: user.email,
         start_time: future_start,
         end_time: DateTime.add(future_start, 60, :minute),

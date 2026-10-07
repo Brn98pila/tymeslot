@@ -12,12 +12,13 @@ import topbar from "../../vendor/topbar.cjs"
 
 // Core utility hooks used everywhere
 import { initializeBundle } from "./bundle_utils"
-import { PageReload, VideoHoverPreview, StopClickPropagation, ModalFocusTrap } from "../ui_interaction_hooks"
+import { PageReload, VideoHoverPreview, StopClickPropagation, ModalFocusTrap, SidebarEscape } from "../ui_interaction_hooks"
 import { Flash, ConnectionStatus, AutoFocus, ScrollReset, CopyOnClick, scrollPageToTop, shouldScrollToTopOnNavigate } from "../utility_hooks"
 import { ClipboardCopy } from "../clipboard_hook"
 import { RecaptchaV3Hook } from "../hooks/recaptcha_v3_hook"
 import { EmailLogoUpload } from "../hooks/email_logo_upload"
 import { AutoUpload } from "../hooks/auto_upload"
+import { ScrollStrip } from "../hooks/scroll_strip"
 import { installAnalytics, installEventBridge, installClickTracking, AnalyticsView } from "../analytics"
 import { installImageFallback } from "../image_fallback"
 import { installClipboardCopy } from "../clipboard_copy"
@@ -48,6 +49,7 @@ const CoreHooks = {
   VideoHoverPreview,
   StopClickPropagation,
   ModalFocusTrap,
+  SidebarEscape,
 
   // Utilities
   Flash,
@@ -77,7 +79,12 @@ const CoreHooks = {
   // reaches it. Registered here for the same reason as EmailLogoUpload
   // above; the dashboard bundle still overrides this with its lazy-loaded
   // version for dashboard pages.
-  AutoUpload
+  AutoUpload,
+
+  // Every tab strip and segmented control carries it, and those render on
+  // pages without the dashboard bundle (the analytics page), so it
+  // is registered for every page. It is a few lines.
+  ScrollStrip
 }
 
 // Use /embed-live in cross-site iframes to avoid session cookie dependency
@@ -118,6 +125,14 @@ window.addEventListener("phx:navigate", ({ detail }) => {
 window.addEventListener("phx:reset-form", (e) => {
   const form = document.getElementById(e.detail.id);
   if (form) form.reset();
+});
+
+// Move focus to an element by id, for when the server replaces the control
+// that held it (`push_event(socket, "focus", %{id: ...})`). Events dispatch
+// after the patch, so the target is already in the DOM.
+window.addEventListener("phx:focus", (e) => {
+  const el = document.getElementById(e.detail.id);
+  if (el) el.focus();
 });
 
 // Inline "Saved" pulse for the admin settings autosave inputs. The flash

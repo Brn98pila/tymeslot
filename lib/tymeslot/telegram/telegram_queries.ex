@@ -126,8 +126,22 @@ defmodule Tymeslot.Telegram.TelegramQueries do
   @spec create_integration(map()) ::
           {:ok, TelegramIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
   def create_integration(attrs) do
-    %TelegramIntegrationSchema{}
-    |> TelegramIntegrationSchema.changeset(attrs)
+    attrs
+    |> TelegramIntegrationSchema.create_changeset()
+    |> IntegrationQueries.insert()
+    |> maybe_derive_status()
+  end
+
+  @doc """
+  Creates a shared-bot setup stub holding `link_token`, the one-time token of
+  the deep link that will link its chat.
+  """
+  @spec create_link_stub(map(), String.t()) ::
+          {:ok, TelegramIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
+  def create_link_stub(attrs, link_token) do
+    attrs
+    |> TelegramIntegrationSchema.create_changeset()
+    |> TelegramIntegrationSchema.link_changeset(%{link_token: link_token})
     |> IntegrationQueries.insert()
     |> maybe_derive_status()
   end
@@ -136,7 +150,20 @@ defmodule Tymeslot.Telegram.TelegramQueries do
           {:ok, TelegramIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
   def update_integration(%TelegramIntegrationSchema{} = integration, attrs) do
     integration
-    |> TelegramIntegrationSchema.changeset(attrs)
+    |> TelegramIntegrationSchema.user_changeset(attrs)
+    |> IntegrationQueries.update()
+    |> maybe_derive_status()
+  end
+
+  @doc """
+  Applies a state transition (enable/disable, failure bookkeeping) without
+  re-validating the organiser's settings.
+  """
+  @spec update_state(TelegramIntegrationSchema.t(), map()) ::
+          {:ok, TelegramIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
+  def update_state(%TelegramIntegrationSchema{} = integration, attrs) do
+    integration
+    |> TelegramIntegrationSchema.state_transition_changeset(attrs)
     |> IntegrationQueries.update()
     |> maybe_derive_status()
   end
@@ -149,7 +176,7 @@ defmodule Tymeslot.Telegram.TelegramQueries do
   @spec update_link_state(TelegramIntegrationSchema.t(), map()) ::
           {:ok, TelegramIntegrationSchema.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def update_link_state(%TelegramIntegrationSchema{} = integration, attrs) do
-    changeset = TelegramIntegrationSchema.changeset(integration, attrs)
+    changeset = TelegramIntegrationSchema.link_changeset(integration, attrs)
 
     case Repo.update(changeset, stale_error_field: :id) do
       {:error, %Ecto.Changeset{errors: [{:id, {_message, [stale: true]}} | _rest]}} ->

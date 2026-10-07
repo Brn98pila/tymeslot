@@ -2,25 +2,9 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandlerTest do
   use Tymeslot.DataCase, async: false
   @moduletag :payments
 
-  alias Ecto.Adapters.SQL.Sandbox
-  alias Phoenix.PubSub.Supervisor
-  alias Tymeslot.Payments
+  import Tymeslot.Test.PaymentEventCapture
+
   alias Tymeslot.Payments.Webhooks.SubscriptionHandler
-  alias TymeslotSaas.Payments.PaymentEventListener
-
-  setup do
-    # Ensure Tymeslot.PubSub is started
-    unless Process.whereis(Tymeslot.PubSub) do
-      Supervisor.start_link(name: Tymeslot.PubSub, adapter: Phoenix.PubSub.PG2)
-    end
-
-    # Allow the PaymentEventListener to access the database connection
-    if pid = Process.whereis(PaymentEventListener) do
-      Sandbox.allow(Tymeslot.Repo, self(), pid)
-    end
-
-    :ok
-  end
 
   describe "can_handle?/1" do
     test "returns true for supported subscription events" do
@@ -46,10 +30,8 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandlerTest do
   end
 
   describe "process/2" do
-    test "broadcasts subscription events" do
-      # Subscribe through the context, so a topic rename cannot leave the
-      # handler broadcasting where nobody listens.
-      assert :ok = Payments.subscribe_to_payment_events()
+    test "hands off subscription events" do
+      capture_payment_events()
 
       subscription = %{"id" => "sub_123", "status" => "active"}
       event = %{type: "customer.subscription.created"}
@@ -63,8 +45,31 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandlerTest do
       }
     end
 
+    # The receiver orders events by Stripe's creation time and deduplicates
+    # them by id, so both must travel with the subscription.
+    test "carries the Stripe event's id and creation time" do
+      capture_payment_events()
+
+      subscription = %{"id" => "sub_ordered", "status" => "active"}
+
+      event = %{
+        "id" => "evt_ordered",
+        "created" => 1_700_000_123,
+        "type" => "customer.subscription.updated",
+        type: "customer.subscription.updated"
+      }
+
+      assert {:ok, :event_processed} = SubscriptionHandler.process(event, subscription)
+
+      assert_receive %{
+        subscription_id: "sub_ordered",
+        event_id: "evt_ordered",
+        event_created: 1_700_000_123
+      }
+    end
+
     test "handles unknown subscription events with generic name" do
-      assert :ok = Payments.subscribe_to_payment_events()
+      capture_payment_events()
 
       subscription = %{"id" => "sub_123"}
       event = %{type: "customer.subscription.something_else"}

@@ -167,6 +167,11 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
+  # An open breaker or a rate limit is waited out with a snooze, which from
+  # Oban 2.24 costs no attempt; without a bound a provider that never
+  # recovers would keep this job snoozing for ever, with no alert.
+  @max_unavailable_snoozes 12
+
   require Logger
 
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
@@ -184,6 +189,7 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
+  alias Tymeslot.Workers.SnoozePolicy
   alias Tymeslot.Workers.SyncHealth
 
   @busy_only EventRole.busy_only()
@@ -215,7 +221,7 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
   def expected_outcome?(_reason), do: false
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"calendar_integration_id" => integration_id}}) do
+  def perform(%Oban.Job{args: %{"calendar_integration_id" => integration_id}} = job) do
     Logger.metadata(calendar_integration_id: integration_id)
 
     case CalendarIntegrationQueries.get(integration_id) do
@@ -224,6 +230,10 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
           integration
           |> sync()
           |> handle_result(integration)
+          |> SnoozePolicy.bound(job,
+            max_snoozes: @max_unavailable_snoozes,
+            reason: "Exchange server did not recover within the maximum wait"
+          )
           |> tap(&SyncHealth.record_outcome(integration, &1))
         end)
 

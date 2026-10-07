@@ -168,22 +168,53 @@ defmodule Tymeslot.Webhooks do
     end
   end
 
+  @signature_header "X-Tymeslot-Signature"
+
   @doc """
-  Builds the standard headers for a webhook request.
+  Builds the standard headers for a webhook request whose body is `body`, the
+  exact bytes that will be posted.
+
+  With a token, the request carries it in `X-Tymeslot-Token` and is signed in
+  `X-Tymeslot-Signature` (see `sign/3`), so a receiver can check that the body
+  and timestamp it got are the ones Tymeslot sent. The token header is kept
+  for receivers that only compare the token.
   """
-  @spec build_headers(map(), String.t() | nil) :: [{String.t(), String.t()}]
-  def build_headers(_payload, token) do
+  @spec build_headers(binary(), String.t() | nil) :: [{String.t(), String.t()}]
+  def build_headers(body, token) when is_binary(body) do
+    now = DateTime.utc_now()
+
     base_headers = [
       {"Content-Type", "application/json"},
       {"User-Agent", "Tymeslot-Webhooks/1.0"},
-      {"X-Tymeslot-Timestamp", DateTime.to_iso8601(DateTime.utc_now())}
+      {"X-Tymeslot-Timestamp", DateTime.to_iso8601(now)}
     ]
 
     if token do
-      [{"X-Tymeslot-Token", token} | base_headers]
+      [
+        {"X-Tymeslot-Token", token},
+        {@signature_header, sign(token, DateTime.to_unix(now), body)}
+        | base_headers
+      ]
     else
       base_headers
     end
+  end
+
+  @doc """
+  Returns the `X-Tymeslot-Signature` value for `body` sent at `timestamp`
+  (Unix seconds): `t=<timestamp>,v1=<signature>`, where the signature is the
+  lowercase hex HMAC-SHA256 of `"<timestamp>.<body>"` keyed with the webhook
+  token.
+
+  Binding the timestamp into the signed string lets a receiver reject a
+  replayed request by its age as well as a forged or altered body.
+  """
+  @spec sign(String.t(), integer(), binary()) :: String.t()
+  def sign(token, timestamp, body)
+      when is_binary(token) and is_integer(timestamp) and is_binary(body) do
+    signed = "#{timestamp}.#{body}"
+    digest = Base.encode16(:crypto.mac(:hmac, :sha256, token, signed), case: :lower)
+    "t=#{timestamp},v1=#{digest}"
   end
 
   # ============================================================================
@@ -214,17 +245,17 @@ defmodule Tymeslot.Webhooks do
   @spec test_webhook_connection(String.t(), String.t() | nil) :: :ok | {:error, String.t()}
   def test_webhook_connection(url, token \\ nil) do
     with {:ok, addresses} <- SsrfValidator.check_pinned(url) do
-      payload = PayloadBuilder.build_test_payload()
-      headers = build_headers(payload, token)
+      body = Jason.encode!(PayloadBuilder.build_test_payload())
+      headers = build_headers(body, token)
 
-      run_bounded_test_connection(url, addresses, payload, headers)
+      run_bounded_test_connection(url, addresses, body, headers)
     end
   end
 
-  defp run_bounded_test_connection(url, addresses, payload, headers) do
+  defp run_bounded_test_connection(url, addresses, body, headers) do
     task =
       Tasks.async(Tymeslot.TaskSupervisor, fn ->
-        HttpDelivery.post(url, Jason.encode!(payload), headers,
+        HttpDelivery.post(url, body, headers,
           skip_initial_check: true,
           pin_addresses: addresses
         )
@@ -377,71 +408,11 @@ defmodule Tymeslot.Webhooks do
   # ============================================================================
 
   @doc """
-  Returns all available event types.
-
-  Derived from `EventTypes.all/0` rather than restated here, so a webhook
-  cannot silently gain an event it has no way to be subscribed to — that
-  restatement is exactly how `meeting.requested`, `meeting.declined` and
-  `meeting.request_expired` went live undispatchable in the first place.
+  Returns all available event types, with their translated labels; see
+  `EventTypes.options/0`.
   """
-  @spec available_events() :: [
-          %{
-            required(:value) => String.t(),
-            required(:label) => String.t(),
-            required(:description) => String.t()
-          }
-        ]
-  def available_events do
-    Enum.map(EventTypes.all(), fn value ->
-      %{value: value, label: event_label(value), description: event_description(value)}
-    end)
-  end
-
-  defp event_label("meeting.created"), do: dgettext("dashboard_automation", "Meeting Created")
-  defp event_label("meeting.requested"), do: dgettext("dashboard_automation", "Booking Requested")
-  defp event_label("meeting.declined"), do: dgettext("dashboard_automation", "Booking Declined")
-
-  defp event_label("meeting.request_expired"),
-    do: dgettext("dashboard_automation", "Booking Request Expired")
-
-  defp event_label("meeting.cancelled"), do: dgettext("dashboard_automation", "Meeting Cancelled")
-
-  defp event_label("meeting.rescheduled"),
-    do: dgettext("dashboard_automation", "Meeting Rescheduled")
-
-  # Catch-all so a future `EventTypes` entry with no dedicated copy yet
-  # renders something readable on the automation dashboard instead of
-  # crashing `available_events/0` (and the page that calls it).
-  defp event_label(value), do: value
-
-  defp event_description("meeting.created"),
-    do: dgettext("dashboard_automation", "Triggers when a new booking is successfully created")
-
-  defp event_description("meeting.requested"),
-    do:
-      dgettext(
-        "dashboard_automation",
-        "Triggers when someone requests a booking on a meeting type that needs your approval"
-      )
-
-  defp event_description("meeting.declined"),
-    do: dgettext("dashboard_automation", "Triggers when you decline a booking request")
-
-  defp event_description("meeting.request_expired"),
-    do:
-      dgettext(
-        "dashboard_automation",
-        "Triggers when nobody answers a booking request before its deadline"
-      )
-
-  defp event_description("meeting.cancelled"),
-    do: dgettext("dashboard_automation", "Triggers when an existing booking is cancelled")
-
-  defp event_description("meeting.rescheduled"),
-    do: dgettext("dashboard_automation", "Triggers when a booking time is changed")
-
-  defp event_description(_value),
-    do: dgettext("dashboard_automation", "Triggers on this event")
+  @spec available_events() :: [EventTypes.option()]
+  defdelegate available_events, to: EventTypes, as: :options
 
   # ============================================================================
   # Private Helpers

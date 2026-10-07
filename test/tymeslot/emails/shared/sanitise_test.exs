@@ -4,6 +4,29 @@ defmodule Tymeslot.Emails.Shared.SanitiseTest do
 
   alias Tymeslot.Emails.Shared.Sanitise
 
+  describe "sanitize_multiline_for_email/1" do
+    test "returns empty string for nil" do
+      assert Sanitise.sanitize_multiline_for_email(nil) == ""
+    end
+
+    test "escapes markup and turns both newline styles into line breaks" do
+      assert Sanitise.sanitize_multiline_for_email("<b>a</b> -- b\r\nc\nd") ==
+               "&lt;b&gt;a&lt;/b&gt; -- b<br>c<br>d"
+    end
+
+    test "truncates text longer than 10,000 characters" do
+      result = Sanitise.sanitize_multiline_for_email(String.duplicate("a", 10_001))
+
+      assert result == String.duplicate("a", 9_997) <> "..."
+    end
+
+    test "keeps text of exactly 10,000 characters whole" do
+      text = String.duplicate("a", 10_000)
+
+      assert Sanitise.sanitize_multiline_for_email(text) == text
+    end
+  end
+
   describe "sanitize_for_email/1" do
     test "returns empty string for nil" do
       assert Sanitise.sanitize_for_email(nil) == ""

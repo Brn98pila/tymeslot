@@ -309,6 +309,35 @@ defmodule Tymeslot.MeetingsTest do
       assert length(page.items) == 1
     end
 
+    test "lists upcoming meetings soonest first, across pages" do
+      %{user: user} = create_user_with_profile()
+      later = insert_meeting_for_user(user, %{start_offset: 3 * 86_400})
+      soonest = insert_meeting_for_user(user, %{start_offset: 86_400})
+      middle = insert_meeting_for_user(user, %{start_offset: 2 * 86_400})
+
+      assert {:ok, page1} =
+               Meetings.list_user_meetings_by_filter(user.id, "upcoming", per_page: 2)
+
+      assert Enum.map(page1.items, & &1.id) == [soonest.id, middle.id]
+
+      assert {:ok, page2} =
+               Meetings.list_user_meetings_by_filter(user.id, "upcoming",
+                 per_page: 2,
+                 after: page1.next_cursor
+               )
+
+      assert Enum.map(page2.items, & &1.id) == [later.id]
+    end
+
+    test "lists past meetings most recent first" do
+      %{user: user} = create_user_with_profile()
+      older = insert_meeting_for_user(user, %{start_offset: -3 * 86_400})
+      recent = insert_meeting_for_user(user, %{start_offset: -86_400})
+
+      assert {:ok, page} = Meetings.list_user_meetings_by_filter(user.id, "past")
+      assert Enum.map(page.items, & &1.id) == [recent.id, older.id]
+    end
+
     test "returns error for invalid cursor" do
       %{user: user} = create_user_with_profile()
 
@@ -317,13 +346,21 @@ defmodule Tymeslot.MeetingsTest do
     end
   end
 
-  describe "list_user_meetings_cursor_page_by_id/2" do
+  describe "list_user_meeting/2" do
+    test "returns an empty page for a meeting id that is not a string" do
+      for mangled <- [%{"x" => "1"}, ["a"], nil] do
+        assert {:ok, %{items: []}} = Meetings.list_user_meeting(1, mangled)
+      end
+    end
+  end
+
+  describe "list_organizer_meetings_cursor_page/2" do
     test "returns meetings for valid user id" do
       %{user: user} = create_user_with_profile()
 
       insert_meeting_for_user(user)
 
-      assert {:ok, page} = Listing.list_user_meetings_cursor_page_by_id(user.id, [])
+      assert {:ok, page} = Listing.list_organizer_meetings_cursor_page(user.id, [])
 
       assert length(page.items) == 1
     end
@@ -331,7 +368,7 @@ defmodule Tymeslot.MeetingsTest do
     test "returns empty page for non-existent user" do
       non_existent_id = 999_999_999
 
-      assert {:ok, page} = Listing.list_user_meetings_cursor_page_by_id(non_existent_id, [])
+      assert {:ok, page} = Listing.list_organizer_meetings_cursor_page(non_existent_id, [])
 
       assert page.items == []
       assert page.has_more == false

@@ -13,6 +13,7 @@ defmodule Tymeslot.Infrastructure.CalendarCircuitBreaker do
   """
 
   alias Tymeslot.Infrastructure.{CircuitBreaker, CircuitBreakerHelpers}
+  alias Tymeslot.Integrations.Calendar.CalDAV.Provider, as: CalDAVProvider
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   require Logger
 
@@ -20,6 +21,17 @@ defmodule Tymeslot.Infrastructure.CalendarCircuitBreaker do
   @calendar_breaker_names Enum.into(@calendar_providers, %{}, fn p ->
                             {p, :"calendar_breaker_#{p}"}
                           end)
+
+  # Self-hosted providers run every call through a breaker keyed by their
+  # server's host (CalDAV events and discovery, the Exchange client); the
+  # OAuth providers share the provider-level breaker.
+  @host_keyed_providers ProviderConfig.caldav_based_providers() ++
+                          ProviderConfig.ews_providers()
+
+  # A host breaker is started for whatever provider a client carries, which
+  # includes server types detected from a URL (`:owncloud`, `:sabredav`) that
+  # are not providers of their own; see `breaker_key/2`.
+  defguardp is_host(provider, host) when is_atom(provider) and is_binary(host) and host != ""
 
   @default_config %{
     failure_threshold: 3,
@@ -140,13 +152,43 @@ defmodule Tymeslot.Infrastructure.CalendarCircuitBreaker do
   end
 
   @doc """
-  Gets the status of a provider's circuit breaker.
+  The `{provider, host}` of the breaker that `provider`'s calls to `base_url`
+  actually trip, to pass to `status/2` and `reset/2`.
 
-  Returns :closed, :open, or :half_open.
+  Self-hosted providers key it by their server's host, and by the provider
+  their client carries, which is not always the integration's: a generic
+  CalDAV client takes the server type detected from the URL
+  (`CalDAV.Provider.client_provider/1`), so a `:caldav` integration at
+  `/remote.php/dav` trips a `:nextcloud` breaker. Every other provider runs
+  through its provider-level breaker, and gets a `nil` host.
   """
-  @spec status(atom()) :: map() | {:error, atom()} | {:error, {:invalid_provider, atom()}}
-  def status(provider) when provider in @calendar_providers do
-    breaker_name = breaker_name(provider)
+  @spec breaker_key(atom(), String.t() | nil) :: {atom(), String.t() | nil}
+  def breaker_key(:caldav, base_url),
+    do:
+      {CalDAVProvider.client_provider(base_url),
+       CircuitBreakerHelpers.host_from_base_url(base_url)}
+
+  def breaker_key(provider, base_url) when provider in @host_keyed_providers,
+    do: {provider, CircuitBreakerHelpers.host_from_base_url(base_url)}
+
+  def breaker_key(provider, _base_url), do: {provider, nil}
+
+  @doc """
+  Gets the status of a provider's circuit breaker, or of the host-specific
+  breaker when `host` is given.
+
+  Self-hosted providers (the CalDAV family, Exchange) run every call through
+  a breaker keyed by their server's host (see `with_breaker/3`), so a check
+  of their health has to read that breaker: the provider-level one never
+  records their traffic. Derive the provider and host with `breaker_key/2`.
+  Returns a status map (`:closed`, `:open` or `:half_open`).
+  """
+  @spec status(atom(), String.t() | nil) ::
+          map() | {:error, atom()} | {:error, {:invalid_provider, atom()}}
+  def status(provider, host \\ nil)
+
+  def status(provider, host) when provider in @calendar_providers or is_host(provider, host) do
+    breaker_name = breaker_name(provider, host)
 
     if breaker_exists?(breaker_name) do
       CircuitBreaker.status(breaker_name)
@@ -156,29 +198,32 @@ defmodule Tymeslot.Infrastructure.CalendarCircuitBreaker do
     end
   end
 
-  def status(provider) do
+  def status(provider, _host) do
     {:error, {:invalid_provider, provider}}
   end
 
   @doc """
-  Resets a provider's circuit breaker to closed state.
+  Resets a provider's circuit breaker to closed state, or the host-specific
+  breaker when `host` is given (see `status/2`).
 
   Useful for manual recovery or testing.
   """
-  @spec reset(atom()) :: :ok | {:error, atom()}
-  def reset(provider) when provider in @calendar_providers do
-    breaker_name = breaker_name(provider)
+  @spec reset(atom(), String.t() | nil) :: :ok | {:error, atom()}
+  def reset(provider, host \\ nil)
+
+  def reset(provider, host) when provider in @calendar_providers or is_host(provider, host) do
+    breaker_name = breaker_name(provider, host)
 
     if breaker_exists?(breaker_name) do
       CircuitBreaker.reset(breaker_name)
-      Logger.info("Calendar circuit breaker reset", provider: provider)
+      Logger.info("Calendar circuit breaker reset", provider: provider, host: host)
       :ok
     else
       {:error, :breaker_not_found}
     end
   end
 
-  def reset(provider) do
+  def reset(provider, _host) do
     {:error, {:invalid_provider, provider}}
   end
 
@@ -191,23 +236,9 @@ defmodule Tymeslot.Infrastructure.CalendarCircuitBreaker do
   """
   @spec reset_for_url(atom(), String.t()) :: :ok
   def reset_for_url(provider, url) when provider in @calendar_providers and is_binary(url) do
-    case URI.parse(url) do
-      %URI{host: host} when is_binary(host) ->
-        safe_host = String.replace(host, ~r/[^a-zA-Z0-9]/, "_")
-        breaker_id = "calendar_breaker_#{provider}_#{safe_host}"
-
-        breaker_name =
-          {:via, Registry, {Tymeslot.Infrastructure.CircuitBreakerRegistry, breaker_id}}
-
-        if breaker_exists?(breaker_name) do
-          CircuitBreaker.reset(breaker_name)
-          Logger.info("Calendar host circuit breaker reset", provider: provider, host: host)
-        end
-
-        :ok
-
-      _other ->
-        :ok
+    case CircuitBreakerHelpers.host_from_base_url(url) do
+      nil -> :ok
+      host -> with {:error, :breaker_not_found} <- reset(provider, host), do: :ok
     end
   end
 
@@ -257,6 +288,11 @@ defmodule Tymeslot.Infrastructure.CalendarCircuitBreaker do
   end
 
   # Private functions
+
+  defp breaker_name(provider, host) when is_binary(host) and host != "",
+    do: CircuitBreakerHelpers.host_breaker_name("calendar_breaker", provider, host)
+
+  defp breaker_name(provider, _host), do: breaker_name(provider)
 
   defp breaker_name(provider) do
     Map.fetch!(@calendar_breaker_names, provider)

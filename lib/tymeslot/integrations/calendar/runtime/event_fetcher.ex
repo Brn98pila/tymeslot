@@ -38,9 +38,9 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.EventFetcher do
   """
   @spec list_events(user_id() | nil) :: {:ok, list(map())} | {:error, term()}
   def list_events(user_id) do
-    all_clients = ClientManager.clients(user_id)
+    {all_clients, unreadable_ids} = ClientManager.availability_sources(user_id)
 
-    if all_clients == [] do
+    if all_clients == [] and unreadable_ids == [] do
       {:ok, []}
     else
       Metrics.time_operation(
@@ -58,7 +58,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.EventFetcher do
             )
             |> unwrap_async_results()
 
-          resolve_availability_fetch(results, user_id, length(all_clients))
+          resolve_availability_fetch(results, unreadable_ids, user_id)
         end
       )
     end
@@ -88,7 +88,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.EventFetcher do
     end_datetime = to_utc_datetime(end_date, ~T[23:59:59])
 
     # Fetch events from all configured calendars
-    all_clients = ClientManager.clients(user_id)
+    {all_clients, unreadable_ids} = ClientManager.availability_sources(user_id)
 
     # Fetch events from each calendar in parallel. Unlinked and individually
     # timed out via `async_stream_nolink/on_timeout: :kill_task` rather than
@@ -122,7 +122,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.EventFetcher do
       )
       |> unwrap_async_results()
 
-    resolve_availability_fetch(results, user_id, length(all_clients))
+    resolve_availability_fetch(results, unreadable_ids, user_id)
   end
 
   # This is the availability path, so anything less than a complete picture
@@ -131,9 +131,15 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.EventFetcher do
   # a partial `{:ok, _}` is indistinguishable from a complete one. The actual
   # "an unread calendar is not an empty calendar" policy lives once in
   # `FetchAggregate`; this function only classifies raw results and logs the
-  # outcome for this call site.
-  defp resolve_availability_fetch(results, user_id, client_count) do
-    results
+  # outcome for this call site. An integration whose credentials no longer
+  # decrypt was never fetched, and counts as a calendar that could not be read.
+  defp resolve_availability_fetch(results, unreadable_ids, user_id) do
+    unreadable =
+      Enum.map(unreadable_ids, &{:error, :credentials_undecryptable, {:integration, &1}})
+
+    client_count = length(results) + length(unreadable)
+
+    (results ++ unreadable)
     |> FetchAggregate.collect(&classify_fetch_result/1, user_id: user_id)
     |> FetchAggregate.require_complete()
     |> log_and_dedupe_availability(user_id, client_count)

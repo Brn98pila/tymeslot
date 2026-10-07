@@ -147,7 +147,7 @@ defmodule Tymeslot.AuthTest do
       # per-event tallies count a verified password signup twice. The refute
       # matches this test's user id only, so a registration broadcast from a
       # concurrently running async test cannot trip it.
-      refute_receive {:user_registered, %{user: %{id: ^user_id}}}, 200
+      refute_receive {:user_registered, %{user_id: ^user_id}}, 200
     end
   end
 
@@ -155,13 +155,12 @@ defmodule Tymeslot.AuthTest do
     test "delivers a real registration broadcast to the caller" do
       assert :ok = Auth.subscribe_to_user_registrations()
 
-      user = insert(:user)
+      user = insert(:user, provider: "google")
       user_id = user.id
-      metadata = %{terms_accepted: true, ip: "203.0.113.7"}
 
-      assert :ok = Auth.broadcast_user_registered(user, metadata)
+      assert :ok = Auth.broadcast_user_registered(user)
 
-      assert_receive {:user_registered, %{user: %{id: ^user_id}, metadata: ^metadata}}
+      assert_receive {:user_registered, %{user_id: ^user_id, provider: "google"}}
     end
 
     # Subscribers outside this context must not be able to spell the topic or

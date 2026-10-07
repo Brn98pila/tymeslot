@@ -12,6 +12,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers do
   alias Tymeslot.Workers.EmailWorkerHandlers.IntegrationEmails
   alias Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails
   alias Tymeslot.Workers.EmailWorkerHandlers.PollEmails
+  alias Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails
   alias Tymeslot.Workers.EmailWorkerHandlers.SeatEmails
   alias Tymeslot.Workers.EmailWorkerHandlers.SeatJobs
 
@@ -34,6 +35,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers do
     MeetingScheduler.seat_action(:seat_confirmation) =>
       {SeatEmails, :handle_seat_confirmation_emails},
     "send_cancellation_emails" => {MeetingEmails, :handle_cancellation_emails, :with_job_id},
+    "send_reschedule_emails" => {RescheduleEmails, :handle_reschedule_emails, :with_job_id},
     MeetingScheduler.seat_action(:seat_cancellation) =>
       {SeatEmails, :handle_seat_cancellation_emails, :with_job_id},
     MeetingScheduler.seat_action(:seat_meeting_cancellation) =>
@@ -86,6 +88,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers do
     IntegrationEmails,
     MeetingEmails,
     PollEmails,
+    RescheduleEmails,
     SeatJobs
   ]
 

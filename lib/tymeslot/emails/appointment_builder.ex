@@ -6,9 +6,11 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
 
   require Logger
   alias Tymeslot.Bookings.BookingTitle
-  alias Tymeslot.CalendarGrid
+  alias Tymeslot.Bookings.MeetingLinks
+  alias Tymeslot.Emails.HostClock
   alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Emails.Shared.BookingRequestLocation
+  alias Tymeslot.Emails.Shared.Formatting
   alias Tymeslot.MeetingPayments
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.Recipient
@@ -97,7 +99,7 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
   end
 
   defp build(meeting, reminder_interval) do
-    attendee_locale = Map.get(meeting, :attendee_locale, "en")
+    attendee_locale = RecipientLocale.attendee_locale(meeting)
 
     Gettext.with_locale(TymeslotWeb.Gettext, attendee_locale, fn ->
       owner_timezone = owner_timezone(meeting)
@@ -130,9 +132,8 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
   # template. Deliberately namespaced away from the plain `:time_format` key the
   # hero and text bodies read, so an attendee-addressed branch cannot pick it up
   # by accident: only the organiser branches copy it across.
-  defp organizer_time_format(meeting, organizer_locale) do
-    CalendarGrid.get_user_time_format(Map.get(meeting, :organizer_user_id), organizer_locale)
-  end
+  defp organizer_time_format(meeting, organizer_locale),
+    do: HostClock.time_format(meeting, organizer_locale)
 
   # Look up the booking payment row attached to this meeting, if any.
   # Free bookings have no booking_payment row, so this returns nil and the
@@ -151,8 +152,8 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
 
         @default_timezone
 
-      user_id ->
-        Profiles.get_user_timezone(user_id)
+      _user_id ->
+        HostClock.timezone(meeting)
     end
   end
 
@@ -256,10 +257,12 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
   end
 
   defp url_details(meeting, organizer_profile) do
+    links = MeetingLinks.for_meeting(meeting, organizer_profile)
+
     %{
-      view_url: meeting.view_url || "#",
-      reschedule_url: meeting.reschedule_url || "#",
-      cancel_url: meeting.cancel_url || "#",
+      view_url: links.view_url || "#",
+      reschedule_url: links.reschedule_url || "#",
+      cancel_url: links.cancel_url || "#",
       # The host's public booking page, resolved at send time rather than read
       # from the meeting row. Unlike the per-meeting action URLs it is not
       # persisted, so it always reflects the host's current username.
@@ -405,26 +408,12 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
     meeting.reminder_time || meeting.default_reminder_time
   end
 
-  # Formats a reminder label using locale-aware unit words.
-  # Must be called from within a Gettext.with_locale block.
-  #
-  # These carry the "time until" context because the label is always consumed
-  # after a preposition ("in %{label}", "%{label} before the meeting"). Case
-  # languages inflect it there: Ukrainian needs the accusative "за 1 годину",
-  # where Shared.Formatting's bare duration needs the nominative "1 година".
-  # Same English words, different grammar — hence a separate msgctxt.
+  # The reminder label in the locale this payload is built in (the
+  # attendee's); see `Formatting.format_reminder_label/2`.
   defp localized_reminder_label(value, unit) do
-    value = ReminderUtils.parse_reminder_value(value)
-    unit = ReminderUtils.normalize_reminder_unit(unit)
-
-    unit_word =
-      case unit do
-        "minutes" -> dpngettext("emails", "time until", "minute", "minutes", value)
-        "hours" -> dpngettext("emails", "time until", "hour", "hours", value)
-        "days" -> dpngettext("emails", "time until", "day", "days", value)
-        _other -> dpngettext("emails", "time until", "minute", "minutes", value)
-      end
-
-    "#{value} #{unit_word}"
+    Formatting.format_reminder_label(
+      %{value: value, unit: unit},
+      Gettext.get_locale(TymeslotWeb.Gettext)
+    )
   end
 end

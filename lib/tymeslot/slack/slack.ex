@@ -16,6 +16,7 @@ defmodule Tymeslot.Slack do
   alias Tymeslot.Features
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings.SeatView
+  alias Tymeslot.Notifications.EventTypes
   alias Tymeslot.Repo
   alias Tymeslot.Slack.{API, MessageBuilder, OAuth, SlackIntegrationSchema, SlackQueries}
   alias Tymeslot.Workers.SlackWorker
@@ -448,32 +449,12 @@ defmodule Tymeslot.Slack do
   # Events & feature checks
   # ============================================================================
 
-  @spec available_events() :: [
-          %{
-            required(:value) => String.t(),
-            required(:label) => String.t(),
-            required(:description) => String.t()
-          }
-        ]
-  def available_events do
-    [
-      %{
-        value: "meeting.created",
-        label: "Meeting Created",
-        description: "Triggered when a new booking is created"
-      },
-      %{
-        value: "meeting.cancelled",
-        label: "Meeting Cancelled",
-        description: "Triggered when a booking is cancelled"
-      },
-      %{
-        value: "meeting.rescheduled",
-        label: "Meeting Rescheduled",
-        description: "Triggered when a booking time is changed"
-      }
-    ]
-  end
+  @doc """
+  The events a Slack integration can subscribe to, with their translated
+  labels; see `EventTypes.options/0`.
+  """
+  @spec available_events() :: [EventTypes.option()]
+  defdelegate available_events, to: EventTypes, as: :options
 
   @doc """
   Default event subscriptions used when a brand-new integration is created

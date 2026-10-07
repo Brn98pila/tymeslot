@@ -92,7 +92,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.CrudHandlers do
 
   defp with_telegram_write(params, mode, socket, action) do
     user_id = socket.assigns.current_user.id
-    bot_mode = if Telegram.shared_bot_mode?(), do: "shared", else: "own"
+    bot_mode = Telegram.form_bot_mode(mode, socket.assigns.telegram_form_data)
 
     AutomationHelpers.with_rate_limit(
       RateLimiter.check_webhook_write_rate_limit(user_id),

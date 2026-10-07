@@ -27,6 +27,8 @@ defmodule Tymeslot.Emails.Templates.BookingRequestOutcome do
 
   alias Tymeslot.Bookings.BookingTitle
 
+  alias Tymeslot.Emails.RecipientLocale
+
   alias Tymeslot.Emails.Shared.{
     Buttons,
     Formatting,
@@ -51,7 +53,7 @@ defmodule Tymeslot.Emails.Templates.BookingRequestOutcome do
 
   @spec render(variant(), Meeting.t()) :: Swoosh.Email.t()
   def render(variant, %Meeting{} = meeting) when variant in [:declined, :expired] do
-    locale = meeting.attendee_locale || "en"
+    locale = RecipientLocale.attendee_locale(meeting)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       # The stored title is in the organiser's language; the booker reads it in

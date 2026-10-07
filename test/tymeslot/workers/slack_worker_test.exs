@@ -5,11 +5,13 @@ defmodule Tymeslot.Workers.SlackWorkerTest do
   @moduletag :slack
 
   use Oban.Testing, repo: Tymeslot.Repo
+  import Ecto.Query, only: [where: 2]
   import Mox
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
   import Tymeslot.WorkerTestHelpers
 
+  alias Oban.Job
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Slack.{SlackDeliverySchema, SlackIntegrationSchema}
   alias Tymeslot.Workers.{SlackWorker, TelegramWorker}
@@ -507,6 +509,16 @@ defmodule Tymeslot.Workers.SlackWorkerTest do
       )
     end
 
+    # A second event of the same type (a second reschedule minutes after the
+    # first) is news of its own once the first message went out.
+    test "a later event is not swallowed by a delivery that already ran" do
+      assert :ok = SlackWorker.schedule_delivery(42, "meeting.rescheduled", "m-later")
+      complete_jobs(SlackWorker)
+      assert :ok = SlackWorker.schedule_delivery(42, "meeting.rescheduled", "m-later")
+
+      assert job_count(SlackWorker) == 2
+    end
+
     test "deduplicates equivalent jobs within the unique window" do
       assert :ok = SlackWorker.schedule_delivery(42, "meeting.created", "m1")
       assert :ok = SlackWorker.schedule_delivery(42, "meeting.created", "m1")
@@ -527,6 +539,18 @@ defmodule Tymeslot.Workers.SlackWorkerTest do
       assert [_telegram] = all_enqueued(worker: TelegramWorker)
       assert [_slack] = all_enqueued(worker: SlackWorker)
     end
+  end
+
+  # Marks every job of `worker` completed, as a delivery that already ran.
+  defp complete_jobs(worker) do
+    Repo.update_all(
+      where(Job, worker: ^inspect(worker)),
+      set: [state: "completed", completed_at: DateTime.utc_now()]
+    )
+  end
+
+  defp job_count(worker) do
+    Repo.aggregate(where(Job, worker: ^inspect(worker)), :count)
   end
 end
 

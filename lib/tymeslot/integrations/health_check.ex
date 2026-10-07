@@ -41,6 +41,7 @@ defmodule Tymeslot.Integrations.HealthCheck do
 
   require Logger
 
+  alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.CalendarManagement
@@ -48,6 +49,7 @@ defmodule Tymeslot.Integrations.HealthCheck do
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateSchema
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
+  alias Tymeslot.Repo
   alias Tymeslot.Workers.IntegrationHealthWorker
 
   alias Tymeslot.Integrations.HealthCheck.{
@@ -236,11 +238,15 @@ defmodule Tymeslot.Integrations.HealthCheck do
   """
   @spec record_sync_failure(integration_type(), map()) :: :ok
   def record_sync_failure(type, integration) do
-    old_health_state = Monitor.get_state(type, integration.id, integration.user_id)
-    new_health_state = Monitor.record_sync_failure(old_health_state)
-    transition = Monitor.detect_transition(old_health_state, new_health_state)
+    {:ok, {old_health_state, new_health_state}} =
+      Repo.transaction(fn ->
+        old_health_state = Monitor.get_state_for_update(type, integration.id, integration.user_id)
+        new_health_state = Monitor.record_sync_failure(old_health_state)
+        Monitor.put_sync_state(type, integration.id, new_health_state)
+        {old_health_state, new_health_state}
+      end)
 
-    Monitor.put_sync_state(type, integration.id, new_health_state)
+    transition = Monitor.detect_transition(old_health_state, new_health_state)
     ResponseHandler.handle_transition(type, integration, transition, new_health_state)
 
     :ok
@@ -274,11 +280,25 @@ defmodule Tymeslot.Integrations.HealthCheck do
   def handle_info(:scheduled_check, state) do
     Logger.debug("Scheduling health check jobs for all integrations")
 
-    Scheduler.schedule_all()
+    run_scheduled_sweep()
 
     timer = schedule_next_check(@check_interval)
 
     {:noreply, %{state | check_timer: timer}}
+  end
+
+  # A failed sweep must never take this process down: it is permanent under
+  # the application supervisor, so repeated crashes would exceed the restart
+  # intensity and stop the whole application. Report it and wait for the next
+  # tick instead.
+  @spec run_scheduled_sweep() :: :ok
+  defp run_scheduled_sweep do
+    Scheduler.schedule_all()
+    :ok
+  rescue
+    e ->
+      ErrorTracking.report_error(e, __STACKTRACE__, %{context: :scheduled_health_check})
+      :ok
   end
 
   # Private Functions — Orchestration Logic
@@ -341,20 +361,22 @@ defmodule Tymeslot.Integrations.HealthCheck do
   @spec update_health_state(integration_type(), integer(), map(), {:ok, any()} | {:error, any()}) ::
           :ok | {:error, any()}
   defp update_health_state(type, id, integration, check_result) do
-    # Step 1: Get current health state from DB (creates default record if absent)
-    old_health_state = Monitor.get_state(type, id, integration.user_id)
-
-    # Step 3: Use ErrorAnalysis to classify the result
-    analyzed_result = ErrorAnalysis.analyze(check_result, old_health_state)
-
-    # Step 4: Update health state (pure — does not persist)
-    new_health_state = Monitor.update_health(old_health_state, analyzed_result)
+    # Steps 1, 3, 4 and 6 under the row lock, so a sync of the same
+    # integration cannot write between this read and this write (see
+    # `Monitor.get_state_for_update/3`): read the current health state
+    # (creating a default record if absent), classify the result, fold it in,
+    # and persist.
+    {:ok, {old_health_state, new_health_state}} =
+      Repo.transaction(fn ->
+        old_health_state = Monitor.get_state_for_update(type, id, integration.user_id)
+        analyzed_result = ErrorAnalysis.analyze(check_result, old_health_state)
+        new_health_state = Monitor.update_health(old_health_state, analyzed_result)
+        Monitor.put_state(type, id, new_health_state)
+        {old_health_state, new_health_state}
+      end)
 
     # Step 5: Detect status transition
     transition = Monitor.detect_transition(old_health_state, new_health_state)
-
-    # Step 6: Persist new health state to DB
-    Monitor.put_state(type, id, new_health_state)
 
     # Steps 7-8: Fast-path immediate reauth + notification on permanent auth
     # failures (e.g. Google `invalid_grant`), which cannot recover without user

@@ -105,6 +105,23 @@ defmodule TymeslotWeb.Live.Dashboard.EmbedSettings.HelpersTest do
       assert code =~ "Schedule a meeting"
     end
 
+    # The strict sanitiser drops everything from `--` onwards and strips
+    # `0x<hex>` runs, so these once embedded "team" and the invalid "studio-".
+    for username <- ~w(team--alpha studio-0xab1) do
+      test "keeps #{username} exactly as stored in every snippet that names it" do
+        assigns = %{username: unquote(username), base_url: "https://tymeslot.com"}
+
+        assert Helpers.embed_code("inline", assigns) =~
+                 ~s(data-username="#{unquote(username)}")
+
+        assert Helpers.embed_code("popup", assigns) =~
+                 "TymeslotBooking.open('#{unquote(username)}'"
+
+        assert Helpers.embed_code("floating", assigns) =~
+                 "TymeslotBooking.initFloating('#{unquote(username)}'"
+      end
+    end
+
     test "returns empty string for unknown type" do
       assert Helpers.embed_code("unknown", %{}) == ""
     end

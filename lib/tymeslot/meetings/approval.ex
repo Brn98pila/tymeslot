@@ -234,10 +234,6 @@ defmodule Tymeslot.Meetings.Approval do
         AvailabilityCache.invalidate_for_user(confirmed.organizer_user_id)
         activate_confirmed(confirmed)
 
-        best_effort(confirmed, "notify guests", fn ->
-          GuestNotifications.notify_reapproved(confirmed)
-        end)
-
         {:ok, confirmed}
 
       {:error, :not_awaiting_approval} = error ->

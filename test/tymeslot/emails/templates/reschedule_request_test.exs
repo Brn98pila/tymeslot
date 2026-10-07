@@ -3,6 +3,7 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestTest do
   @moduletag :emails
 
   alias Tymeslot.Emails.Templates.RescheduleRequest
+  alias TymeslotWeb.Endpoint
 
   import Tymeslot.Factory
 
@@ -71,14 +72,12 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestTest do
       assert email.html_body =~ "45 minutes"
     end
 
-    test "includes reschedule URL" do
-      email_config = Application.get_env(:tymeslot, :email)
-      domain = email_config[:domain] || "tymeslot.app"
-      reschedule_url = "https://#{domain}/reschedule/token123"
-      meeting = insert(:meeting, reschedule_url: reschedule_url)
+    test "includes the current reschedule URL, not the stored copy" do
+      meeting = insert(:meeting, reschedule_url: "https://stale.example.com/reschedule/token123")
       email = RescheduleRequest.render(meeting)
 
-      assert email.html_body =~ reschedule_url
+      assert email.html_body =~ "#{Endpoint.url()}/meeting/#{meeting.uid}/reschedule"
+      refute email.html_body =~ "stale.example.com"
     end
 
     test "includes call to action button" do
@@ -86,7 +85,7 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestTest do
       email = RescheduleRequest.render(meeting)
 
       assert email.html_body =~ "Choose a New Time"
-      assert email.html_body =~ meeting.reschedule_url
+      assert email.html_body =~ "/meeting/#{meeting.uid}/reschedule"
     end
 
     test "converts time to attendee timezone" do
@@ -142,8 +141,15 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestTest do
       end
     end
 
-    test "raises FunctionClauseError when reschedule_url is nil" do
+    test "still links a booking whose stored reschedule_url is nil" do
       meeting = insert(:meeting, reschedule_url: nil)
+
+      assert RescheduleRequest.render(meeting).text_body =~
+               "/meeting/#{meeting.uid}/reschedule"
+    end
+
+    test "raises FunctionClauseError when there is no reschedule link at all" do
+      meeting = insert(:meeting, capacity: 3, reschedule_url: nil)
 
       assert_raise FunctionClauseError, fn ->
         RescheduleRequest.render(meeting)

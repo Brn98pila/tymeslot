@@ -76,6 +76,8 @@ defmodule Tymeslot.Meetings.VideoRooms do
       to the booking's calendar event and that event is not written yet, or
       was replaced while the meeting was being attached to it
     - {:error, :video_integration_inactive} if integration is disabled
+    - {:error, :video_integration_needs_reauth} if its owner has been asked
+      to reconnect the integration, so no call is made
     - {:error, :unknown_provider} if provider is unsupported
     - {:error, :incomplete_video_room} if the provider returned a room carrying
       neither a room id nor a meeting URL
@@ -288,7 +290,7 @@ defmodule Tymeslot.Meetings.VideoRooms do
   end
 
   defp should_create_video_room(meeting, user_id) do
-    case check_video_provider_type(meeting, user_id) do
+    case check_video_provider_type(meeting, user_id, true) do
       {:ok, :none} ->
         Logger.info("Video provider is 'none', skipping video room creation",
           meeting_id: meeting.id
@@ -461,6 +463,28 @@ defmodule Tymeslot.Meetings.VideoRooms do
     end
   end
 
+  # A group meeting's participant link is handed to every seat holder (it is
+  # the one `attendee_video_url` on the slot), so it must name nobody: the
+  # slot row carries no attendee to name, and a link naming one booker would
+  # let the others enter as them. It is the shared link guests get, minted
+  # through the provider's identity-free path rather than by passing a nil
+  # name to `create_join_url/5`, which providers that put the name in the URL
+  # reject.
+  defp build_join_url(
+         %MeetingSchema{capacity: capacity} = meeting,
+         meeting_context,
+         "participant"
+       )
+       when capacity > 1 do
+    case video_module().shared_join_url(meeting_context, meeting.start_time) do
+      {:ok, url} when is_binary(url) -> {:ok, url}
+      {:ok, nil} -> {:error, :shared_join_url_unavailable}
+      {:error, reason} -> {:error, reason}
+    end
+  rescue
+    error -> {:error, error}
+  end
+
   defp build_join_url(meeting, meeting_context, role) do
     {participant_name, participant_email} = get_participant_info(meeting, role)
 
@@ -538,7 +562,10 @@ defmodule Tymeslot.Meetings.VideoRooms do
     meeting_url || room_id
   end
 
-  defp check_video_provider_type(meeting, user_id) do
+  # `refuse_needs_reauth?` is set for room creation alone: an integration
+  # whose owner was told to reconnect would refuse the call anyway, so none
+  # is made. Rebuilding join links for an existing room stays as it was.
+  defp check_video_provider_type(meeting, user_id, refuse_needs_reauth? \\ false) do
     integration_result =
       case meeting.video_integration_id do
         nil -> {:error, :not_found}
@@ -548,6 +575,9 @@ defmodule Tymeslot.Meetings.VideoRooms do
     case integration_result do
       {:ok, %{is_active: false}} ->
         {:error, :video_integration_inactive}
+
+      {:ok, %{needs_reauth: true}} when refuse_needs_reauth? ->
+        {:error, :video_integration_needs_reauth}
 
       {:ok, integration} ->
         case ProviderConfig.parse(integration.provider) do

@@ -7,6 +7,13 @@ defmodule Tymeslot.Integrations.Calendar.CredentialFields do
   input and returns either the cleaned value or a `%{field => message}` error
   ready to render against that field.
 
+  Every field here is an identifier or a credential handed to the calendar
+  server, so each is sanitised in `:plain_text` mode (null bytes, Unicode
+  normalisation, trimming) and then accepted or rejected, never rewritten.
+  `:strict` mode would percent-decode the value and strip `0x<hex>` runs and
+  everything from `--` onwards, quietly turning `crypto0xabc@corp.com` into
+  `crypto@corp.com`: a different mailbox, possibly someone else's.
+
   These are shared by the two surfaces that collect the same credentials — the
   integration form and the discovery/test-connection probe — so that a rule
   tightened for one automatically holds for the other. `validate_calendar_url/1`
@@ -107,7 +114,7 @@ defmodule Tymeslot.Integrations.Calendar.CredentialFields do
   defp validate_username("", _metadata), do: {:error, %{username: username_required_message()}}
 
   defp validate_username(username, metadata) when is_binary(username) do
-    case UniversalSanitizer.sanitize_and_validate(username, allow_html: false, metadata: metadata) do
+    case UniversalSanitizer.sanitize_and_validate(username, mode: :plain_text, metadata: metadata) do
       {:ok, sanitized_username} ->
         cond do
           String.length(sanitized_username) > 255 ->
@@ -140,7 +147,7 @@ defmodule Tymeslot.Integrations.Calendar.CredentialFields do
   defp validate_mailbox("", _metadata), do: {:error, %{mailbox: mailbox_required_message()}}
 
   defp validate_mailbox(mailbox, metadata) when is_binary(mailbox) do
-    case UniversalSanitizer.sanitize_and_validate(mailbox, allow_html: false, metadata: metadata) do
+    case UniversalSanitizer.sanitize_and_validate(mailbox, mode: :plain_text, metadata: metadata) do
       {:ok, sanitized} ->
         trimmed = String.trim(sanitized)
 
@@ -226,7 +233,7 @@ defmodule Tymeslot.Integrations.Calendar.CredentialFields do
 
   defp validate_calendar_paths(calendar_paths, metadata) when is_binary(calendar_paths) do
     case UniversalSanitizer.sanitize_and_validate(calendar_paths,
-           allow_html: false,
+           mode: :plain_text,
            metadata: metadata
          ) do
       {:ok, sanitized_paths} ->

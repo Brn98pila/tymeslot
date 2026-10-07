@@ -7,7 +7,9 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.RescheduleRequestModal do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Phoenix.LiveView.JS
-  alias TymeslotWeb.Components.CoreComponents
+  alias TymeslotWeb.Components.CoreComponents.Buttons
+  alias TymeslotWeb.Components.CoreComponents.Icons
+  alias TymeslotWeb.Components.CoreComponents.Modal
   alias TymeslotWeb.Components.Dashboard.Meetings.Helpers
 
   @doc """
@@ -46,22 +48,10 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.RescheduleRequestModal do
   @spec reschedule_request_modal(map()) :: Phoenix.LiveView.Rendered.t()
   def reschedule_request_modal(assigns) do
     ~H"""
-    <CoreComponents.modal id={@id} show={@show} on_cancel={@on_cancel} size={:medium}>
+    <Modal.modal id={@id} show={@show} on_cancel={@on_cancel} size={:medium}>
       <:header>
         <div class="flex items-center gap-2">
-          <svg
-            class="w-5 h-5 text-turquoise-600"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2.5"
-              d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-            />
-          </svg>
+          <Icons.icon name="hero-arrows-right-left" class="w-5 h-5 text-turquoise-600" />
           {dgettext("dashboard_bookings", "Send Reschedule Request")}
         </div>
       </:header>
@@ -78,7 +68,7 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.RescheduleRequestModal do
             </p>
             <div class="text-tymeslot-900 font-black text-lg space-y-2">
               <div class="flex items-center gap-3">
-                <CoreComponents.icon name="hero-calendar" class="w-5 h-5 text-turquoise-600" />
+                <Icons.icon name="hero-calendar" class="w-5 h-5 text-turquoise-600" />
                 <span>{Helpers.format_meeting_date(@meeting, @timezone)} • {Helpers.format_meeting_time(
                   @meeting,
                   @timezone,
@@ -86,7 +76,7 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.RescheduleRequestModal do
                 )}</span>
               </div>
               <div class="flex items-center gap-3">
-                <CoreComponents.icon name="hero-clock" class="w-5 h-5 text-turquoise-600" />
+                <Icons.icon name="hero-clock" class="w-5 h-5 text-turquoise-600" />
                 <span>
                   {dngettext(
                     "dashboard_bookings",
@@ -106,25 +96,25 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.RescheduleRequestModal do
             </p>
             <ul class="text-turquoise-700 font-medium space-y-2">
               <li class="flex items-start gap-2">
-                <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-turquoise-400 shrink-0"></span>
+                <span class="mt-1.5 w-1.5 h-1.5 rounded-token-full bg-turquoise-400 shrink-0"></span>
                 <span>{dgettext(
                   "dashboard_bookings",
                   "The current meeting will be cancelled immediately"
                 )}</span>
               </li>
               <li class="flex items-start gap-2">
-                <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-turquoise-400 shrink-0"></span>
+                <span class="mt-1.5 w-1.5 h-1.5 rounded-token-full bg-turquoise-400 shrink-0"></span>
                 <span>{who_is_told(@meeting)}</span>
               </li>
               <li class="flex items-start gap-2">
-                <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-turquoise-400 shrink-0"></span>
+                <span class="mt-1.5 w-1.5 h-1.5 rounded-token-full bg-turquoise-400 shrink-0"></span>
                 <span>{dgettext(
                   "dashboard_bookings",
                   "They can choose a new time from your availability"
                 )}</span>
               </li>
               <li class="flex items-start gap-2">
-                <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-turquoise-400 shrink-0"></span>
+                <span class="mt-1.5 w-1.5 h-1.5 rounded-token-full bg-turquoise-400 shrink-0"></span>
                 <span>{dgettext(
                   "dashboard_bookings",
                   "You'll both receive confirmation once they select a new time"
@@ -137,20 +127,20 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.RescheduleRequestModal do
 
       <:footer>
         <div class="flex justify-end gap-3">
-          <CoreComponents.action_button variant={:secondary} phx-click={@on_cancel}>
+          <Buttons.action_button variant={:secondary} phx-click={@on_cancel}>
             {dgettext("common", "Cancel")}
-          </CoreComponents.action_button>
-          <CoreComponents.loading_button
+          </Buttons.action_button>
+          <Buttons.loading_button
             variant={:primary}
             phx-click={@on_confirm}
             loading={@sending}
             loading_text={dgettext("dashboard_bookings", "Sending...")}
           >
             {dgettext("dashboard_bookings", "Send Request")}
-          </CoreComponents.loading_button>
+          </Buttons.loading_button>
         </div>
       </:footer>
-    </CoreComponents.modal>
+    </Modal.modal>
     """
   end
 

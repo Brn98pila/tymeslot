@@ -50,7 +50,7 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettingsComponent do
      |> assign(:payments, [])
      |> assign(:outstanding_refunds, [])
      |> assign(:outstanding_refunds_summary, %{count: 0, totals: []})
-     |> assign(:stats, %{received: 0, refunded: 0, platform_fee: 0})
+     |> assign(:stats, [])
      |> assign(:pending_payments_count, 0)}
   end
 
@@ -65,9 +65,7 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettingsComponent do
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
-    <div id="payments-settings" class="space-y-10 pb-20">
-      <.section_header icon="hero-credit-card" title={dgettext("dashboard_payments", "Payments")} />
-
+    <div id="payments-settings" class="space-y-10">
       <%!--
         Outside the connect-account branch on purpose. These are obligations
         the host has already incurred, and they do not stop existing when the
@@ -131,7 +129,7 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettingsComponent do
         )}
       </p>
       <.action_button
-        variant={:danger}
+        variant={:danger_soft}
         phx-click="open_disconnect_modal"
         phx-target={@myself}
       >

@@ -22,20 +22,13 @@ defmodule Tymeslot.Security.RateLimiter do
   Returns {:allow, count} if within limits, {:deny, limit} if exceeded.
   """
   @spec check_rate(bucket_key(), pos_integer(), pos_integer()) :: rate_check_result()
-  def check_rate(bucket_key, window_ms, limit) do
-    Helpers.check_rate(bucket_key, window_ms, limit)
-  end
+  defdelegate check_rate(bucket_key, window_ms, limit), to: Helpers
 
   @doc """
   Clear rate limit data for a specific bucket key.
-
-  Test-only — bypasses Hammer's internal state management.
   """
   @spec clear_bucket(bucket_key()) :: :ok
-  def clear_bucket(bucket_key) do
-    :ets.match_delete(RateLimit, {{bucket_key, :_}, :_})
-    :ok
-  end
+  defdelegate clear_bucket(bucket_key), to: Helpers
 
   @doc """
   Clear all rate limit data.
@@ -54,16 +47,18 @@ defmodule Tymeslot.Security.RateLimiter do
   """
   @spec check_rate_limit(bucket_key(), pos_integer(), pos_integer()) ::
           :ok | {:error, :rate_limited}
-  def check_rate_limit(bucket_key, limit, window_ms) do
-    Helpers.check_rate_limit(bucket_key, limit, window_ms)
-  end
+  defdelegate check_rate_limit(bucket_key, limit, window_ms), to: Helpers
+
+  @doc "The key a per-IP bucket counts as one client: IPv4 as it is, IPv6 by its /64."
+  @spec source_key(nil | :inet.ip_address() | String.t()) :: String.t()
+  defdelegate source_key(ip), to: Helpers
 
   # Auth
 
   @doc """
-  Rate limit authentication attempts with account lockout.
+  Rate limit authentication attempts, including the failed-login throttle.
 
-  The lockout and the per-account budget are keyed on the email *and* the
+  The throttle and the per-account budget are keyed on the email *and* the
   client address, so failures from one address never lock the owner out from
   another; a wider per-email ceiling covers a run spread across many
   addresses. Returns :ok if allowed, {:error, :rate_limited, message} if
@@ -74,22 +69,30 @@ defmodule Tymeslot.Security.RateLimiter do
   def check_auth_rate_limit(email, ip), do: Auth.check_auth(email, ip)
 
   @doc """
-  Record an authentication attempt's result for lockout tracking, against the
-  same email and client address `check_auth_rate_limit/2` consults.
+  Record an authentication attempt's result for the failed-login throttle,
+  against the same email and client address `check_auth_rate_limit/2`
+  consults. Returns `{:error, :account_throttled, message}` for the failure
+  that crosses the threshold, and for every failure after it.
   """
   @spec record_auth_attempt(String.t(), String.t() | nil, boolean()) ::
-          :ok | {:error, atom(), String.t()}
+          :ok | {:error, :account_throttled, String.t()}
   def record_auth_attempt(email, ip, success), do: Auth.record_attempt(email, ip, success)
 
-  @doc """
-  Rate limit signup attempts per email and per IP with multi-window buckets.
-  """
-  @spec check_signup_rate_limit(String.t(), String.t() | :inet.ip_address() | nil) ::
+  @doc "Rate limit signup attempts per IP, with multi-window buckets."
+  @spec check_signup_ip_rate_limit(String.t() | :inet.ip_address() | nil) ::
           :ok | {:error, :rate_limited, String.t()}
-  def check_signup_rate_limit(email, ip), do: Auth.check_signup(email, ip)
+  def check_signup_ip_rate_limit(ip), do: Auth.check_signup_ip(ip)
 
   @doc """
-  Rate limit email verification/resend attempts per user and per IP.
+  Rate limit signup attempts per address, with tiers stopping at a day.
+  Charge it only once `check_signup_ip_rate_limit/1` has allowed the attempt.
+  """
+  @spec check_signup_recipient_rate_limit(String.t()) ::
+          :ok | {:error, :rate_limited, String.t()}
+  def check_signup_recipient_rate_limit(email), do: Auth.check_signup_recipient(email)
+
+  @doc """
+  Rate limit email verification/resend attempts per IP and then per user.
   """
   @spec check_verification_rate_limit(String.t(), String.t() | :inet.ip_address() | nil) ::
           :ok | {:error, :rate_limited, String.t()}
@@ -127,13 +130,22 @@ defmodule Tymeslot.Security.RateLimiter do
     do: Auth.check_social_signup_confirmation(email)
 
   @doc """
-  Rate limit password reset requests per email and per IP.
+  Rate limit password reset requests per IP. A refusal here is the only one
+  the requester is shown.
   """
-  @spec check_password_reset_rate_limit(
-          String.t(),
-          String.t() | :inet.ip_address() | nil
-        ) :: :ok | {:error, :rate_limited, String.t()}
-  def check_password_reset_rate_limit(email, ip), do: Auth.check_password_reset(email, ip)
+  @spec check_password_reset_ip_rate_limit(String.t() | :inet.ip_address() | nil) ::
+          :ok | {:error, :rate_limited, String.t()}
+  def check_password_reset_ip_rate_limit(ip), do: Auth.check_password_reset_ip(ip)
+
+  @doc """
+  Rate limit password reset emails per recipient address, with tiers stopping
+  at a day. Charge it only once `check_password_reset_ip_rate_limit/1` has
+  allowed the request.
+  """
+  @spec check_password_reset_recipient_rate_limit(String.t()) ::
+          :ok | {:error, :rate_limited, String.t()}
+  def check_password_reset_recipient_rate_limit(email),
+    do: Auth.check_password_reset_recipient(email)
 
   @doc """
   Rate limit completing emailed email-change links, per IP.

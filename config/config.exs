@@ -104,6 +104,22 @@ config :tymeslot,
   # passed to the account-deletion hook; Core stores nothing.
   collect_deletion_feedback: false,
 
+  # Additional Oban crontab entries - none by default. An external layer adds
+  # its periodic workers here; they are appended to the crontab at startup
+  # (see Tymeslot.Infrastructure.ObanCron.extend/1).
+  oban_additional_crontab: [],
+
+  # Payment-event handler - nil by default. An external layer can provide a
+  # module implementing Tymeslot.Payments.Behaviours.PaymentEventHandler to
+  # receive subscription, dispute, refund and trial events durably: an error
+  # from it makes Stripe redeliver the webhook.
+  payment_event_handler: nil,
+
+  # Registration hook - nil by default. An external layer can provide a module
+  # implementing Tymeslot.Auth.Behaviours.UserRegisteredHook, run from a
+  # retried Oban job for every completed registration.
+  user_registered_hook: nil,
+
   # Admin alerts — disabled by default. Self-hosters can enable via the
   # ADMIN_ALERTS_ENABLED env var (set true) plus a valid ADMIN_ALERT_EMAIL.
   # A downstream overlay may override admin_alerts_enabled in its own config.
@@ -200,7 +216,10 @@ config :tymeslot, :integration_health_alerting,
   # alerting: a few a day is ordinary OAuth churn, a burst in one hour is not
   reauth_flags_threshold: 10,
   # Integrations paused by one daily auto-pause run before alerting
-  auto_pause_threshold: 1
+  auto_pause_threshold: 1,
+  # Consecutive windows under the threshold before a signal counts as
+  # recovered; a shorter dip belongs to the incident. At least 1
+  recover_after: 2
 
 # Webhook configuration
 config :tymeslot, :webhook_base_url, nil
@@ -222,11 +241,27 @@ config :tymeslot, TymeslotWeb.Gettext, default_locale: "en"
 # Locale configuration (single source of truth)
 # All supported languages with their metadata for UI rendering.
 #
-# A locale listed here is a promise: the completeness tests require every gettext
-# domain and every /for profession page to be fully translated into it, and the
-# marketing pages need a `localized_slugs` entry per profession. Add a locale only
-# once its catalogues, its `priv/professions/<locale>/` files, and its URL slugs
-# are all done — see priv/gettext/TRANSLATING.md.
+# A locale listed here is a promise: it appears in the language switcher at
+# once, so every string a user can reach must already exist in it. Adding one
+# takes, in this order:
+#
+#   1. A catalogue for every domain in priv/gettext/, plus a
+#      GLOSSARY.<code>.md settling register and terminology.
+#   2. The per-locale formatting code: month and weekday names, date order and
+#      number separators in `TymeslotWeb.Helpers.LocaleFormat`, the clock in
+#      `Tymeslot.Utils.DateTimeUtils.TimeFormat`, the checkout language in
+#      `Tymeslot.MeetingPayments.CheckoutSessions.stripe_locale/1`, and the flag
+#      in `TymeslotWeb.Components.FlagHelpers`.
+#   3. Every application built on this list. It is read at compile time
+#      elsewhere too, and anything that keeps its own per-locale content
+#      (catalogues, content files, localised URL slugs, images) must cover the
+#      new code before it lands here, or that build fails.
+#   4. Only then, the entry below.
+#
+# The code is a bare language subtag ("pt", never "pt_BR"): `LocalePlug` reduces
+# every request locale to its primary subtag, so a regional code would be listed
+# in the switcher and never selected. Name the variant in `name` instead, and see
+# priv/gettext/TRANSLATING.md for the translator-facing side.
 config :tymeslot, :locales,
   supported: [
     %{code: "en", name: "English", country_code: :gbr},
@@ -235,7 +270,8 @@ config :tymeslot, :locales,
     %{code: "it", name: "Italiano", country_code: :ita},
     %{code: "uk", name: "Українська", country_code: :ukr},
     %{code: "cs", name: "Čeština", country_code: :cze},
-    %{code: "pl", name: "Polski", country_code: :pol}
+    %{code: "pl", name: "Polski", country_code: :pol},
+    %{code: "pt", name: "Português (Brasil)", country_code: :bra}
   ],
   default: "en"
 
@@ -446,13 +482,6 @@ config :tymeslot, :calendar_providers, %{
   demo: [enabled: false],
   debug: [enabled: false]
 }
-
-# Integration locking configuration
-config :tymeslot, :integration_locks,
-  default_timeout: 90_000,
-  google: 60_000,
-  outlook: 60_000,
-  teams: 120_000
 
 # Pin the Stripe API version instead of inheriting stripity_stripe's built-in
 # default, which travels with the library: upgrading the dependency would move

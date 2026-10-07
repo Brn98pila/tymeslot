@@ -11,13 +11,13 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
   alias Ecto.UUID
   alias Tymeslot.Bookings.Activation
   alias Tymeslot.Bookings.CalendarJobs
+  alias Tymeslot.Bookings.MeetingLinks
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Locales
   alias Tymeslot.Meetings.Guests
   alias Tymeslot.Meetings.Scheduling
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Repo
-  alias TymeslotWeb.Endpoint
 
   @type params :: %{
           required(:title) => String.t(),
@@ -106,7 +106,11 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
     uid = UUID.generate()
     duration = DateTime.diff(params.end_time, params.start_time, :minute)
 
-    %{
+    # A booking-time copy of the links for readers of the stored columns;
+    # links shown to anyone are built afresh by `MeetingLinks.for_meeting/1`.
+    links = MeetingLinks.build(org_username, uid)
+
+    Map.merge(links, %{
       uid: uid,
       title: params.title,
       summary: params.title,
@@ -141,11 +145,8 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
       attendee_locale:
         Locales.acceptable(params[:attendee_locale]) || Locales.booking_default_locale(),
       status: "confirmed",
-      view_url: build_meeting_url(uid, "", org_username),
-      reschedule_url: build_meeting_url(uid, "/reschedule", org_username),
-      cancel_url: build_meeting_url(uid, "/cancel", org_username),
       meeting_url: nil
-    }
+    })
   end
 
   defp run_transaction(meeting_attrs, guest_emails) do
@@ -231,16 +232,6 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
         email = profile.user.email || fallback_email()
         username = profile.username
         {name, email, username}
-    end
-  end
-
-  defp build_meeting_url(uid, path, username) do
-    base = Endpoint.url()
-
-    if username do
-      "#{base}/#{username}/meeting/#{uid}#{path}"
-    else
-      "#{base}/meeting/#{uid}#{path}"
     end
   end
 

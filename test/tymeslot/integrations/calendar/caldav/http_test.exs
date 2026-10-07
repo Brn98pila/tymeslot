@@ -459,7 +459,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.HttpTest do
 
     test "maps 5xx to :server_error" do
       ReqTest.stub(:tymeslot_http, fn conn ->
-        Conn.send_resp(conn, 503, "")
+        Conn.send_resp(conn, 500, "")
       end)
 
       assert {:error, :server_error} =
@@ -468,6 +468,21 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.HttpTest do
                  "user",
                  "pass"
                )
+    end
+
+    test "maps a server that is down (502, 503, 504) to :service_unavailable" do
+      for status <- [502, 503, 504] do
+        ReqTest.stub(:tymeslot_http, fn conn ->
+          Conn.send_resp(conn, status, "")
+        end)
+
+        assert {:error, :service_unavailable} =
+                 Http.head_event(
+                   "https://caldav.example.com/calendars/user/personal/event.ics",
+                   "user",
+                   "pass"
+                 )
+      end
     end
   end
 

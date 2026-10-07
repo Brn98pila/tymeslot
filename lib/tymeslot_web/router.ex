@@ -457,6 +457,17 @@ defmodule TymeslotWeb.Router do
     end
   end
 
+  # Booking links without a username: the form handed out while a host had
+  # none. They resolve the meeting by its uid and redirect to the host's
+  # current page. "meeting" is a reserved username, so nothing else can claim
+  # these paths.
+  scope "/meeting/:meeting_uid", TymeslotWeb do
+    pipe_through :theme_browser
+
+    get "/cancel", MeetingLinkController, :cancel
+    get "/reschedule", MeetingLinkController, :reschedule
+  end
+
   # Theme-aware payment return pages (Stripe Checkout success/cancel)
   scope "/", TymeslotWeb do
     pipe_through :theme_browser
@@ -492,13 +503,18 @@ defmodule TymeslotWeb.Router do
   end
 
   # Public per-meeting calendar download (.ics). Access is gated by the
-  # unguessable meeting UID scoped to the organiser's username (IDOR-safe).
+  # unguessable meeting UID scoped to the organiser's username (IDOR-safe),
+  # or for a group-booking seat by the seat's management token.
   # Runs through :public_feed (accepts the `ics` format) and must be declared
   # before the `/:username` catch-all so it isn't shadowed by a username route.
   scope "/", TymeslotWeb do
     pipe_through :public_feed
 
     get "/:username/meeting/:meeting_uid/calendar.ics", MeetingCalendarController, :show
+
+    # A group-booking seat's own calendar entry, under its management token
+    # (the shared slot's uid is never handed to a participant).
+    get "/seat/:token/calendar.ics", MeetingCalendarController, :seat
   end
 
   # Public poll voting page. Declared before `:username_scheduling` so the

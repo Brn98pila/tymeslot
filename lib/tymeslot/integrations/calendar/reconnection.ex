@@ -21,6 +21,7 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.Connection
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Calendar.Shared.PathUtils
   alias Tymeslot.Integrations.CalendarManagement
@@ -54,12 +55,15 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
   @spec reconnect(integration(), params(), keyword()) :: reconnect_ok() | reconnect_error()
   def reconnect(%CalendarIntegrationSchema{} = integration, params, opts \\ []) do
     default_discover = fn provider, url, username, password ->
+      # Past the host breaker: a reconnect is how a server that recovered
+      # gets used again, and the breaker its outage opened would refuse it.
       Calendar.discover_and_filter_calendars(
         provider,
         url,
         username,
         password,
-        integration.user_id
+        integration.user_id,
+        skip_breaker: true
       )
     end
 
@@ -159,8 +163,15 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
 
   defp persist_account_change(integration, attrs) do
     case CalendarManagement.update_calendar_integration(integration, attrs) do
-      {:ok, updated} -> {:ok, updated}
-      {:error, %Ecto.Changeset{} = cs} -> {:error, {:changeset, cs}}
+      # Discovery has just reached the server with these credentials, so a
+      # breaker its earlier failures opened is closed rather than left to
+      # refuse the reconnected integration until it times out.
+      {:ok, updated} ->
+        Connection.reset_host_breaker(updated)
+        {:ok, updated}
+
+      {:error, %Ecto.Changeset{} = cs} ->
+        {:error, {:changeset, cs}}
     end
   end
 

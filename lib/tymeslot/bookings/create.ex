@@ -46,7 +46,7 @@ defmodule Tymeslot.Bookings.Create do
   @type error_reason :: String.t() | atom() | {:validation_error, any()}
 
   @typedoc """
-  Result returned by `execute/3` and `execute_with_video_room/3`.
+  Result returned by `execute/3`.
 
   The domain layer classifies every failure reason into one of
   `Tymeslot.Bookings.Errors.classified_error/0` (or, for reasons that
@@ -63,11 +63,15 @@ defmodule Tymeslot.Bookings.Create do
   @doc """
   Creates a booking with fresh calendar validation.
 
-  This is the main entry point for creating bookings.
+  This is the single entry point for creating bookings. The cheap checks
+  (meeting type, payments, booking window, schedule, limits) run first, and
+  only a booking that passes them all pays for the one fresh read of the
+  host's calendars (`CalendarCheck.enforce/3`).
 
   Options:
     - :skip_calendar_check - Skip calendar availability validation
-    - :with_video_room - Create with video room integration
+    - :with_video_room - Create with video room integration (the public
+      booking page always sets it)
 
   When the booking's meeting type has `payment_required: true`, the meeting
   is persisted with status `awaiting_payment`, side effects (calendar, video,
@@ -81,40 +85,6 @@ defmodule Tymeslot.Bookings.Create do
          :ok <- validate_custom_field_answers(booking_data),
          {:ok, :validated} <- validate_booking(booking_data, opts) do
       create_meeting_and_all_side_effects_atomically(booking_data, opts)
-    else
-      {:error, reason} -> {:error, Errors.classify_error(reason)}
-    end
-  end
-
-  @doc """
-  Creates a booking with video room integration.
-
-  Includes optional calendar pre-check for better UX.
-  Same options as execute/3 plus video room is automatically enabled.
-  """
-  @spec execute_with_video_room(meeting_params(), form_data(), keyword()) :: execute_result()
-  def execute_with_video_room(meeting_params, form_data, opts \\ []) do
-    opts = Keyword.put(opts, :with_video_room, true)
-
-    with {:ok, booking_data} <- prepare_booking_data(meeting_params, form_data),
-         :ok <- validate_custom_field_answers(booking_data) do
-      booking_data = put_scheduling_config(booking_data)
-      config = scheduling_config(booking_data)
-
-      # Try calendar pre-check for better UX
-      case CalendarCheck.probe(booking_data, config, calendar_check_opts(booking_data)) do
-        :ok ->
-          # Calendar shows available, proceed normally
-          execute_internal(booking_data, form_data, opts)
-
-        {:error, :slot_unavailable} ->
-          # Fail fast for better UX
-          {:error, Errors.classify_error(:slot_unavailable)}
-
-        {:error, _reason} ->
-          # Calendar check failed, but continue with atomic booking
-          execute_internal(booking_data, form_data, opts)
-      end
     else
       {:error, reason} -> {:error, Errors.classify_error(reason)}
     end
@@ -232,6 +202,7 @@ defmodule Tymeslot.Bookings.Create do
         # Meeting type active check
         with :ok <- validate_host_accepting(user_id),
              :ok <- validate_meeting_type_active(booking_data),
+             :ok <- CreateGroup.ensure_taking_seats(booking_data),
              :ok <- validate_payments_available(booking_data, user_id) do
           config = scheduling_config(booking_data)
 
@@ -319,9 +290,10 @@ defmodule Tymeslot.Bookings.Create do
   end
 
   # The refusal policy lives in `CalendarCheck.enforce/3`, shared with the
-  # reschedule submit: a clash and an unreadable busy set both refuse (and
-  # `classify_error/1` collapses either to `:slot_taken`, returning the booker
-  # to the schedule step), while a transport failure proceeds.
+  # reschedule submit: a clash and an unreadable busy set both refuse (a clash
+  # classifies as `:slot_taken`, returning the booker to the schedule step; an
+  # unreadable busy set as `:availability_unverifiable`), while a transport
+  # failure proceeds.
   defp validate_calendar_availability(booking_data, config) do
     case CalendarCheck.enforce(booking_data, config, calendar_check_opts(booking_data)) do
       :ok -> {:ok, :validated}
@@ -339,16 +311,6 @@ defmodule Tymeslot.Bookings.Create do
   # external calendars) still refuses the booking.
   defp calendar_check_opts(booking_data) do
     [exclude: Map.get(booking_data, :join_target)]
-  end
-
-  defp execute_internal(booking_data, _form_data, opts) do
-    case validate_booking(booking_data, opts) do
-      {:ok, :validated} ->
-        create_meeting_and_all_side_effects_atomically(booking_data, opts)
-
-      {:error, reason} ->
-        {:error, Errors.classify_error(reason)}
-    end
   end
 
   defp create_meeting_and_all_side_effects_atomically(booking_data, opts) do
@@ -374,26 +336,11 @@ defmodule Tymeslot.Bookings.Create do
   end
 
   # The scheduling policy is derived from a profile lookup and a schedule
-  # lookup, and three separate checks need it: the booking window, the
-  # schedule's own slots, and the calendar conflict check. `execute_with_video_room/3`
-  # needs it ahead of `validate_booking/2` for its calendar pre-check, so it
-  # resolves eagerly here; `execute/3` has no such early need and instead lets
-  # `validate_booking/2` resolve it lazily via `scheduling_config/1`, once the
-  # meeting-type-active guard has passed, so an invalid meeting type never
-  # pays for a profile/schedule lookup it can't use.
-  defp put_scheduling_config(booking_data) do
-    Map.put_new_lazy(booking_data, :scheduling_config, fn ->
-      derive_scheduling_config(booking_data)
-    end)
-  end
-
+  # lookup. It is resolved once, in `validate_booking/2`, after the
+  # meeting-type-active guard has passed (so an invalid type never pays for a
+  # lookup it cannot use), and handed to the three checks that need it: the
+  # booking window, the schedule's own slots and the calendar conflict check.
   defp scheduling_config(booking_data) do
-    Map.get_lazy(booking_data, :scheduling_config, fn ->
-      derive_scheduling_config(booking_data)
-    end)
-  end
-
-  defp derive_scheduling_config(booking_data) do
     Policy.scheduling_config(
       Map.get(booking_data, :organizer_user_id),
       Map.get(booking_data, :meeting_type)

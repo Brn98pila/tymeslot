@@ -28,6 +28,19 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypesTest do
   end
 
   describe "format_message/2 — per-type output" do
+    test ":user_registered_hook_failed is an error naming the user and the reason" do
+      assert %{severity: :error} = AlertTypes.get(:user_registered_hook_failed)
+
+      msg =
+        AlertTypes.format_message(:user_registered_hook_failed, %{
+          user_id: 42,
+          reason_code: :database_unavailable
+        })
+
+      assert msg =~ "user 42"
+      assert msg =~ "database_unavailable"
+    end
+
     test ":unhandled_webhook includes event type and ID" do
       msg =
         AlertTypes.format_message(:unhandled_webhook, %{
@@ -102,11 +115,6 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypesTest do
         })
 
       assert message == "Calendar sync error for unknown: timeout"
-    end
-
-    test ":pubsub_broadcast_failed includes event name" do
-      msg = AlertTypes.format_message(:pubsub_broadcast_failed, %{event: :payment_successful})
-      assert msg =~ "payment_successful"
     end
 
     test ":integration_health_failure includes integration_id" do
@@ -184,6 +192,12 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypesTest do
         })
 
       assert msg == "New error: RuntimeError in Tymeslot.Bookings.create_booking/2: boom"
+    end
+
+    test ":reconciliation_incomplete names how many subscriptions could not be looked up" do
+      assert AlertTypes.format_message(:reconciliation_incomplete, %{unresolved_count: 12}) ==
+               "Payment reconciliation could not look up 12 subscriptions at Stripe, " <>
+                 "so it did not check for subscriptions missing there"
     end
 
     test ":reconciliation_discrepancies includes count" do
@@ -264,6 +278,16 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypesTest do
                  stripe_subscription_id: "sub_stalled_1",
                  days_past_due: 313
                })
+    end
+
+    test ":late_payment_refund_failed names the payment, the job and how to settle it" do
+      metadata = %{booking_payment_id: "bp_late_1", oban_job_id: 4242, reason: :stripe_down}
+      msg = AlertTypes.format_message(:late_payment_refund_failed, metadata)
+
+      assert msg =~ "bp_late_1"
+      assert msg =~ "still owed"
+      assert msg =~ "refund the booking from the host's payments settings"
+      assert msg =~ "retry Oban job 4242"
     end
 
     test ":subscription_not_in_database includes stripe subscription ID" do

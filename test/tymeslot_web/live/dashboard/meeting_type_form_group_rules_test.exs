@@ -317,6 +317,29 @@ defmodule TymeslotWeb.Dashboard.MeetingTypeFormGroupRulesTest do
       assert reload(meeting_type).max_participants == 4
     end
 
+    test "an existing group type's card says it is paused, and a one-to-one type's does not",
+         %{conn: conn, user: user} do
+      locations = at_venue(user)
+      group = insert(:meeting_type, user: user, max_participants: 4, locations: locations)
+      solo = insert(:meeting_type, user: user, locations: locations)
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/meeting-settings")
+
+      group_card = "[data-meeting-type-id='#{group.id}']"
+      solo_card = "[data-meeting-type-id='#{solo.id}']"
+
+      assert has_element?(view, "#{group_card} [data-testid='group-type-paused']", "Paused")
+
+      assert has_element?(
+               view,
+               "#{group_card} [data-testid='group-type-paused-notice']",
+               "set the participant limit to 1"
+             )
+
+      refute has_element?(view, "#{solo_card} [data-testid='group-type-paused']")
+      refute has_element?(view, "#{solo_card} [data-testid='group-type-paused-notice']")
+    end
+
     test "Core's own default leaves the section unlocked", %{conn: conn, user: user} do
       setup_config(:tymeslot,
         feature_access_checker: Tymeslot.Features.DefaultAccessChecker,
@@ -328,7 +351,14 @@ defmodule TymeslotWeb.Dashboard.MeetingTypeFormGroupRulesTest do
           )
       )
 
-      meeting_type = insert(:meeting_type, user: user, locations: at_venue(user))
+      locations = at_venue(user)
+      group = insert(:meeting_type, user: user, max_participants: 4, locations: locations)
+
+      {:ok, list_view, _html} = live(conn, ~p"/dashboard/meeting-settings")
+      assert has_element?(list_view, "[data-meeting-type-id='#{group.id}']")
+      refute has_element?(list_view, "[data-testid='group-type-paused']")
+
+      meeting_type = insert(:meeting_type, user: user, locations: locations)
       view = edit(conn, meeting_type)
 
       refute has_element?(view, "[data-testid='group-bookings-locked']")
@@ -339,31 +369,21 @@ defmodule TymeslotWeb.Dashboard.MeetingTypeFormGroupRulesTest do
   end
 
   describe "creating after a failed save" do
-    test "an error no field clears does not leave the create button disabled",
-         %{conn: conn, user: user} do
+    test "a refused create does not block the next one", %{conn: conn, user: user} do
       {:ok, view, _html} = live(conn, ~p"/dashboard/meeting-settings")
       view |> element("button", "Add Meeting Type") |> render_click()
-      view |> element("button[aria-label='Remove reminder']") |> render_click()
 
-      # A video location naming no valid integration (a stale or forged
-      # post) is refused as a `:base` error, which no field's own validation
-      # ever clears.
       view
-      |> form("form[phx-submit='save_meeting_type']", %{
-        "meeting_type" => %{"name" => "Office Hours", "duration" => "30"}
+      |> form("form[phx-submit='create_meeting_type']", %{
+        "meeting_type" => %{"name" => "", "duration" => "30"}
       })
-      |> render_submit(%{
-        "meeting_type" => %{
-          "locations" => %{"0" => %{"kind" => "video", "video_integration_ids" => ["abc"]}}
-        }
-      })
+      |> render_submit()
 
-      assert has_element?(view, "p.form-error", "Invalid location")
       refute Enum.any?(MeetingTypes.get_all_meeting_types(user.id), &(&1.name == "Office Hours"))
-      refute has_element?(view, "button[type='submit'][disabled]")
+      assert has_element?(view, "button[type='submit']:not([disabled])", "Create meeting type")
 
       view
-      |> form("form[phx-submit='save_meeting_type']", %{
+      |> form("form[phx-submit='create_meeting_type']", %{
         "meeting_type" => %{"name" => "Office Hours", "duration" => "30"}
       })
       |> render_submit()

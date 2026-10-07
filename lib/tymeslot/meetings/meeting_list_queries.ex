@@ -19,8 +19,14 @@ defmodule Tymeslot.Meetings.MeetingListQueries do
 
   # Query building helpers
 
-  defp for_user_email(query, email),
-    do: from(m in query, where: m.organizer_email == ^email or m.attendee_email == ^email)
+  # A booking belongs to the account that organises it. The organiser and
+  # attendee email columns are snapshots taken at booking time, and an address
+  # can change hands, so neither may decide whose list a booking appears in.
+  defp for_organizer(query, user_id),
+    do: from(m in query, where: m.organizer_user_id == ^user_id)
+
+  defp with_id(query, nil), do: query
+  defp with_id(query, id), do: from(m in query, where: m.id == ^id)
 
   defp with_status(query, nil), do: query
   defp with_status(query, status), do: from(m in query, where: m.status == ^status)
@@ -43,10 +49,12 @@ defmodule Tymeslot.Meetings.MeetingListQueries do
   defp apply_time_filter(query, :upcoming, now), do: upcoming(query, now)
   defp apply_time_filter(query, :past, now), do: past(query, now)
 
-  defp cursor_after(query, nil, _after_id), do: query
-  defp cursor_after(query, _after_start, nil), do: query
+  # The keyset cursor walks in the same direction as the ordering, so a page
+  # always continues from the last row of the previous one.
+  defp cursor_after(query, nil, _after_id, _order), do: query
+  defp cursor_after(query, _after_start, nil, _order), do: query
 
-  defp cursor_after(query, after_start, after_id) do
+  defp cursor_after(query, after_start, after_id, :desc) do
     from(m in query,
       where:
         m.start_time < ^after_start or
@@ -54,8 +62,19 @@ defmodule Tymeslot.Meetings.MeetingListQueries do
     )
   end
 
-  defp order_by_start_desc_id_desc(query),
+  defp cursor_after(query, after_start, after_id, :asc) do
+    from(m in query,
+      where:
+        m.start_time > ^after_start or
+          (m.start_time == ^after_start and m.id > ^after_id)
+    )
+  end
+
+  defp order_by_start_and_id(query, :desc),
     do: from(m in query, order_by: [desc: m.start_time, desc: m.id])
+
+  defp order_by_start_and_id(query, :asc),
+    do: from(m in query, order_by: [asc: m.start_time, asc: m.id])
 
   # Live (non-cancelled) participants only, oldest booking first — mirrors
   # the guests preload_order and keeps the dashboard from ever rendering a
@@ -246,17 +265,16 @@ defmodule Tymeslot.Meetings.MeetingListQueries do
   end
 
   @doc """
-  Get upcoming meetings for a specific user with limit.
-  Filters by user email as either organizer or attendee.
+  Get the organiser's upcoming live bookings, soonest first, up to `limit`.
   """
-  @spec upcoming_meetings_for_user(String.t(), non_neg_integer()) :: [Meeting.t()]
-  def upcoming_meetings_for_user(user_email, limit) do
+  @spec upcoming_meetings_for_organizer(pos_integer(), non_neg_integer()) :: [Meeting.t()]
+  def upcoming_meetings_for_organizer(organizer_user_id, limit) do
     now = DateTime.utc_now()
 
     Meeting
     |> MeetingState.where_live_booking()
     |> upcoming(now)
-    |> for_user_email(user_email)
+    |> for_organizer(organizer_user_id)
     |> order_by_start_asc()
     |> apply_limit(limit)
     |> preload(participants: ^live_participants_preload())
@@ -294,27 +312,28 @@ defmodule Tymeslot.Meetings.MeetingListQueries do
   end
 
   @doc """
-  Get upcoming meetings for a specific user with proper database filtering.
-  Replaces the N+1 pattern of loading all meetings and filtering in memory.
+  Get every upcoming meeting the organiser holds, whatever its status, soonest
+  first.
   """
-  @spec list_upcoming_meetings_for_user(String.t()) :: [Meeting.t()]
-  def list_upcoming_meetings_for_user(user_email) do
+  @spec list_upcoming_meetings_for_organizer(pos_integer()) :: [Meeting.t()]
+  def list_upcoming_meetings_for_organizer(organizer_user_id) do
     now = DateTime.utc_now()
 
     Meeting
-    |> for_user_email(user_email)
+    |> for_organizer(organizer_user_id)
     |> upcoming(now)
     |> order_by_start_asc()
     |> Repo.all()
   end
 
   @doc """
-  Cursor-based pagination for a user's meetings using keyset on start_time and id.
-  Accepts opts: :after_start (DateTime), :after_id (binary_id), :per_page, :status, :time_filter (:upcoming | :past).
+  Cursor-based pagination for the organiser's meetings using keyset on start_time and id.
+  Accepts opts: :after_start (DateTime), :after_id (binary_id), :per_page, :status, :time_filter (:upcoming | :past),
+  :id (one meeting only), :order (:desc, the default, newest first; or :asc, soonest first).
   Returns a list limited to per_page.
   """
-  @spec list_meetings_for_user_paginated_cursor(String.t(), Keyword.t()) :: [Meeting.t()]
-  def list_meetings_for_user_paginated_cursor(user_email, opts) do
+  @spec list_meetings_for_organizer_paginated_cursor(pos_integer(), Keyword.t()) :: [Meeting.t()]
+  def list_meetings_for_organizer_paginated_cursor(organizer_user_id, opts) do
     after_start = Keyword.get(opts, :after_start)
     after_id = Keyword.get(opts, :after_id)
     per_page = Keyword.get(opts, :per_page, 20)
@@ -323,16 +342,18 @@ defmodule Tymeslot.Meetings.MeetingListQueries do
     status = Keyword.get(opts, :status)
     exclude_status = Keyword.get(opts, :exclude_status)
     time_filter = Keyword.get(opts, :time_filter)
+    order = Keyword.get(opts, :order, :desc)
 
     now = DateTime.utc_now()
 
     Meeting
-    |> for_user_email(user_email)
+    |> for_organizer(organizer_user_id)
+    |> with_id(Keyword.get(opts, :id))
     |> with_status(status)
     |> without_status(exclude_status)
     |> apply_time_filter(time_filter, now)
-    |> order_by_start_desc_id_desc()
-    |> cursor_after(after_start, after_id)
+    |> order_by_start_and_id(order)
+    |> cursor_after(after_start, after_id, order)
     |> apply_limit(limit)
     |> preload(
       guests: ^live_guests_preload(),

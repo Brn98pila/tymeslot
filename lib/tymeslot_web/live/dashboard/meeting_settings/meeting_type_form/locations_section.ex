@@ -26,7 +26,6 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.LocationsSection
   alias Phoenix.LiveView
   alias Tymeslot.MeetingTypes.LocationOption
   alias Tymeslot.Venues
-  alias TymeslotWeb.Components.CoreComponents
   alias TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm
   alias TymeslotWeb.Helpers.LocationIcons
 
@@ -43,29 +42,24 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.LocationsSection
   def render(assigns) do
     ~H"""
     <section id={"locations-section-#{@form_id}"} class="space-y-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <div class="flex items-center gap-2">
-            <CoreComponents.icon name="hero-map-pin" class="w-5 h-5 text-turquoise-500" />
-            <h3 class="text-token-base font-semibold text-tymeslot-800">
-              {dgettext("dashboard_meeting_form", "Location")}
-            </h3>
-          </div>
-          <p class="text-token-sm text-tymeslot-500 mt-0.5">
-            {location_hint(@locations, @group_bookings_enabled)}
-          </p>
-        </div>
-        <CoreComponents.action_button
-          :if={can_add?(@locations, @group_bookings_enabled)}
-          type="button"
-          variant={:secondary}
-          phx-click="add_location"
-          phx-target={@myself}
-          data-testid="add-location"
-        >
-          {dgettext("dashboard_meeting_form", "Add location")}
-        </CoreComponents.action_button>
-      </div>
+      <.subsection_header
+        icon="hero-map-pin"
+        title={dgettext("dashboard_meeting_form", "Location")}
+        description={location_hint(@locations, @group_bookings_enabled)}
+      >
+        <:actions>
+          <.action_button
+            :if={can_add?(@locations, @group_bookings_enabled)}
+            type="button"
+            variant={:secondary}
+            phx-click="add_location"
+            phx-target={@myself}
+            data-testid="add-location"
+          >
+            {dgettext("dashboard_meeting_form", "Add location")}
+          </.action_button>
+        </:actions>
+      </.subsection_header>
 
       <%!-- Reuses the questions list's sortable hook: it is generic over
            `[data-id]` children and pushes the same "reorder" event, so a
@@ -79,25 +73,21 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.LocationsSection
         class="space-y-2"
       >
         <%= for {location, index} <- Enum.with_index(@locations) do %>
-          <li
-            class="card-glass flex items-center gap-3 px-4 py-3"
+          <.card
+            tag="li"
+            variant={:flat}
+            padding={:xs}
+            class="flex items-center gap-3"
             data-id={location.id}
             data-index={index}
             data-testid="location-row"
             draggable="true"
           >
             <span class="drag-handle cursor-grab active:cursor-grabbing text-tymeslot-400 shrink-0">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 8h16M4 16h16"
-                />
-              </svg>
+              <.icon name="hero-bars-2" class="w-4 h-4" />
             </span>
 
-            <CoreComponents.icon
+            <.icon
               name={LocationIcons.icon(location.kind)}
               class="w-5 h-5 text-turquoise-500 shrink-0"
             />
@@ -112,31 +102,31 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.LocationsSection
             </div>
 
             <div class="flex items-center gap-1 shrink-0">
-              <CoreComponents.action_button
+              <.action_button
                 type="button"
                 variant={:secondary}
                 phx-click="edit_location"
                 phx-value-id={location.id}
                 phx-target={@myself}
-                class="py-1! px-2! text-token-xs"
+                size={:sm}
               >
                 {dgettext("dashboard_meeting_form", "Edit")}
-              </CoreComponents.action_button>
+              </.action_button>
               <%!-- A meeting type has to be held somewhere, so the last
                     location cannot be deleted; the host edits it instead. --%>
-              <CoreComponents.action_button
+              <.action_button
                 :if={length(@locations) > 1}
                 type="button"
-                variant={:danger}
+                variant={:danger_soft}
                 phx-click="delete_location"
                 phx-value-id={location.id}
                 phx-target={@myself}
-                class="py-1! px-2! text-token-xs"
+                size={:sm}
               >
                 {dgettext("dashboard_meeting_form", "Delete")}
-              </CoreComponents.action_button>
+              </.action_button>
             </div>
-          </li>
+          </.card>
         <% end %>
       </ul>
 

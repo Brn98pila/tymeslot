@@ -191,4 +191,42 @@ defmodule Tymeslot.Meetings.MeetingSchemaTest do
       assert {"does not exist", _meta} = changeset.errors[:venue_id]
     end
   end
+
+  # Group seat booking retries on this, and the booking flow answers it as a
+  # taken slot. A real collision, so the test also pins the constraint the
+  # changeset declares.
+  describe "unique_slot_violation?/1" do
+    test "recognises a write refused by the organiser's unique slot index" do
+      user = insert(:user)
+      existing = insert(:meeting, organizer_user_id: user.id, status: "confirmed")
+
+      {:error, changeset} =
+        %Meeting{}
+        |> Meeting.changeset(
+          %{
+            @valid_base_attrs
+            | uid: UUID.generate(),
+              start_time: existing.start_time,
+              end_time: existing.end_time
+          }
+          |> Map.put(:organizer_user_id, user.id)
+          |> Map.put(:status, "confirmed")
+        )
+        |> Repo.insert()
+
+      assert Meeting.unique_slot_violation?(changeset)
+    end
+
+    test "ignores any other unique constraint" do
+      changeset =
+        %Meeting{}
+        |> Changeset.change()
+        |> Changeset.add_error(:uid, "has already been taken",
+          constraint: :unique,
+          constraint_name: "meetings_uid_index"
+        )
+
+      refute Meeting.unique_slot_violation?(changeset)
+    end
+  end
 end

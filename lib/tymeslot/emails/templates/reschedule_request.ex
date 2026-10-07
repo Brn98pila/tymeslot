@@ -5,6 +5,8 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequest do
 
   import Swoosh.Email
   alias Tymeslot.Bookings.BookingTitle
+  alias Tymeslot.Bookings.MeetingLinks
+  alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
 
   alias Tymeslot.Emails.Shared.{
@@ -26,8 +28,14 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequest do
 
   @spec render(Tymeslot.Meetings.MeetingSchema.t()) ::
           Swoosh.Email.t()
-  def render(%Meeting{reschedule_url: url} = meeting) when is_binary(url) do
-    locale = meeting.attendee_locale || "en"
+  def render(%Meeting{} = meeting) do
+    meeting
+    |> MeetingLinks.with_current_links()
+    |> render_current()
+  end
+
+  defp render_current(%Meeting{reschedule_url: url} = meeting) when is_binary(url) do
+    locale = RecipientLocale.attendee_locale(meeting)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       # The stored title is in the organiser's language; the booker reads it in

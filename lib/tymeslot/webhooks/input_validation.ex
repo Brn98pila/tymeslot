@@ -119,7 +119,8 @@ defmodule Tymeslot.Webhooks.InputValidation do
 
   defp actor_bucket(bucket_key, %{user_id: user_id}), do: "#{bucket_key}:user:#{user_id}"
 
-  defp actor_bucket(bucket_key, %{ip: ip}) when is_binary(ip), do: "#{bucket_key}:ip:#{ip}"
+  defp actor_bucket(bucket_key, %{ip: ip}) when is_binary(ip),
+    do: "#{bucket_key}:ip:#{RateLimiter.source_key(ip)}"
 
   # Still reachable: validate_webhook_form/2's `metadata` opt defaults to
   # %{}, so a caller that omits it (every current one supplies it) falls

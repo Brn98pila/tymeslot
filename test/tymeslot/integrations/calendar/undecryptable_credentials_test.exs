@@ -1,0 +1,192 @@
+defmodule Tymeslot.Integrations.Calendar.UndecryptableCredentialsTest do
+  @moduledoc """
+  One calendar integration whose stored credentials no longer decrypt (a
+  changed key, a corrupt row) must stay that integration's problem: it is
+  flagged for reconnection, and it never takes down the owner's availability,
+  their dashboard, or the background sweeps that serve every other user.
+  """
+
+  use Tymeslot.DataCase, async: false
+
+  @moduletag :calendar
+  @moduletag :integrations
+  @moduletag :integration
+
+  use Oban.Testing, repo: Tymeslot.Repo
+  import Tymeslot.Factory
+
+  alias Tymeslot.Dashboard.DashboardContext
+  alias Tymeslot.Integrations.Calendar
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.Runtime.EventFetcher
+  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Shared.ReauthHandling
+  alias Tymeslot.Security.Encryption
+  alias Tymeslot.Workers.FallbackSyncSweepWorker
+  alias Tymeslot.Workers.SyncGoogleCalendarWorker
+
+  @moduletag :capture_log
+
+  # Random bytes stand in for ciphertext whose key is genuinely gone.
+  defp insert_undecryptable(attrs) do
+    insert(
+      :calendar_integration,
+      Keyword.merge(
+        [
+          username_encrypted: :crypto.strong_rand_bytes(40),
+          password_encrypted: :crypto.strong_rand_bytes(40)
+        ],
+        attrs
+      )
+    )
+  end
+
+  # A subscribed feed is read from its cached events, so it is a calendar
+  # that reads successfully without any provider HTTP.
+  defp insert_readable_feed(user) do
+    insert(:calendar_integration,
+      user: user,
+      provider: "ics_url",
+      base_url: "https://feeds.example.com",
+      username_encrypted: nil,
+      password_encrypted: nil,
+      subscription_url_encrypted: Encryption.encrypt("https://feeds.example.com/team.ics"),
+      is_active: true
+    )
+  end
+
+  defp reload(integration), do: Repo.get!(CalendarIntegrationSchema, integration.id)
+
+  describe "the owner's active calendars" do
+    test "lists the readable ones decrypted and flags the unreadable one for reconnection" do
+      user = insert(:user)
+      healthy = insert(:calendar_integration, user: user, name: "A healthy")
+      stale = insert_undecryptable(user: user, name: "B stale")
+
+      assert [listed] = CalendarManagement.list_active_calendar_integrations(user.id)
+      assert listed.id == healthy.id
+      assert listed.password == "password123"
+
+      assert %{needs_reauth: true, sync_error: sync_error} = reload(stale)
+      assert sync_error == ReauthHandling.reauth_error_message(:credentials_undecryptable)
+      refute reload(healthy).needs_reauth
+    end
+  end
+
+  describe "availability" do
+    test "fails closed instead of crashing when a calendar cannot be read" do
+      user = insert(:user)
+      stale = insert_undecryptable(user: user)
+      today = Date.utc_today()
+
+      assert {:error, :all_calendars_unavailable} =
+               EventFetcher.get_events_for_range_fresh(user.id, today, Date.add(today, 7))
+
+      assert reload(stale).needs_reauth
+    end
+
+    test "fails closed when one calendar reads and another cannot be read" do
+      user = insert(:user)
+      insert_readable_feed(user)
+      insert_undecryptable(user: user)
+      today = Date.utc_today()
+
+      assert {:error, :some_calendars_unavailable} =
+               EventFetcher.get_events_for_range_fresh(user.id, today, Date.add(today, 7))
+    end
+  end
+
+  describe "listing every event" do
+    test "is empty for an owner with no calendars" do
+      assert {:ok, []} = EventFetcher.list_events(insert(:user).id)
+    end
+
+    test "reads a calendar that decrypts" do
+      user = insert(:user)
+      feed = insert_readable_feed(user)
+      start_at = DateTime.add(DateTime.utc_now(), 1, :day)
+
+      insert(:provider_calendar_event,
+        calendar_integration: feed,
+        provider: "ics_url",
+        provider_calendar_id: "subscription",
+        uid: "busy@example.com",
+        start_at: start_at,
+        end_at: DateTime.add(start_at, 1, :hour),
+        all_day: false
+      )
+
+      assert {:ok, [%{uid: "busy@example.com"}]} = EventFetcher.list_events(user.id)
+    end
+
+    # With only the unreadable calendar there is no client to fetch from,
+    # which must not pass for an owner with no calendars at all.
+    test "fails closed when the only calendar cannot be read" do
+      user = insert(:user)
+      insert_undecryptable(user: user)
+
+      assert {:error, :all_calendars_unavailable} = EventFetcher.list_events(user.id)
+    end
+
+    test "fails closed when one calendar reads and another cannot be read" do
+      user = insert(:user)
+      insert_readable_feed(user)
+      insert_undecryptable(user: user)
+
+      assert {:error, :some_calendars_unavailable} = EventFetcher.list_events(user.id)
+    end
+  end
+
+  describe "the dashboard" do
+    test "the calendar list still shows every integration, the unreadable one included" do
+      user = insert(:user)
+      healthy = insert(:calendar_integration, user: user, name: "A healthy")
+      stale = insert_undecryptable(user: user, name: "B stale")
+
+      assert Enum.sort([healthy.id, stale.id]) ==
+               user.id |> Calendar.list_integrations() |> Enum.map(& &1.id) |> Enum.sort()
+    end
+
+    test "the sidebar status counts the unreadable integration" do
+      user = insert(:user)
+      insert(:calendar_integration, user: user)
+      insert_undecryptable(user: user)
+
+      assert %{calendar_count: 2, has_calendar: true} =
+               DashboardContext.get_integration_status(user.id)
+    end
+  end
+
+  describe "the fallback sync sweep" do
+    test "still schedules every other user's calendar" do
+      insert_undecryptable(provider: "google")
+      healthy = insert(:calendar_integration, provider: "google")
+
+      assert :ok = perform_job(FallbackSyncSweepWorker, %{})
+
+      assert_enqueued(
+        worker: SyncGoogleCalendarWorker,
+        args: %{"calendar_integration_id" => healthy.id}
+      )
+    end
+  end
+
+  describe "reconnecting an unreadable integration" do
+    test "the lookup by account finds the row instead of raising" do
+      user = insert(:user)
+      stale = insert_undecryptable(user: user, provider: "google", provider_account_id: "acct-1")
+
+      assert {:ok, %{id: id}} =
+               CalendarIntegrationQueries.get_by_account_for_user(user.id, "google", "acct-1")
+
+      assert id == stale.id
+
+      assert {:ok, %{id: ^id}} =
+               CalendarIntegrationQueries.get_any_by_account_for_user(user.id, "google", "acct-1")
+
+      assert {:ok, %{id: ^id}} =
+               CalendarIntegrationQueries.get_by_user_and_provider(user.id, "google")
+    end
+  end
+end

@@ -34,21 +34,16 @@ defmodule TymeslotWeb.Dashboard.Availability.PolicyCard do
   @spec policy_card(map()) :: Phoenix.LiveView.Rendered.t()
   def policy_card(assigns) do
     ~H"""
-    <div class="card-glass shadow-2xl shadow-tymeslot-200/50">
-      <.section_header
-        level={2}
-        icon="hero-clock"
-        title={dgettext("dashboard_availability", "Scheduling Preferences")}
-        class="mb-4"
-      />
-
-      <p class="mb-10 text-token-sm text-tymeslot-500 font-bold">
-        {dgettext(
+    <.card
+      icon="hero-clock"
+      title={dgettext("dashboard_availability", "Scheduling Preferences")}
+      description={
+        dgettext(
           "dashboard_availability",
           "These rules apply to every meeting type booked against this schedule."
-        )}
-      </p>
-
+        )
+      }
+    >
       <div class="space-y-8">
         <.buffer_settings
           schedule={@schedule}
@@ -66,13 +61,14 @@ defmodule TymeslotWeb.Dashboard.Availability.PolicyCard do
           custom_mode={Map.get(@custom_input_mode, :min_advance_hours, false)}
         />
       </div>
-    </div>
+    </.card>
     """
   end
 
   @doc """
-  The buffer section: preparation time kept free before each booking, and
-  wrap-up time kept free after it, stacked as two settings.
+  The buffer section, stacked as two settings. Buffers pad the booking being
+  offered, not the meetings already in the calendar: a slot is offered only
+  when the before-buffer ahead of it and the after-buffer behind it are free.
   """
   attr :schedule, :map, required: true
   attr :myself, :any, required: true
@@ -162,7 +158,7 @@ defmodule TymeslotWeb.Dashboard.Availability.PolicyCard do
 
           <%!-- Custom input tag --%>
           <%= if @custom_mode or @buffer_value not in @presets do %>
-            <div class="btn-tag-selector btn-tag-selector-primary--active p-0! overflow-hidden">
+            <div class="btn-tag-selector btn-tag-selector-primary--active p-0 overflow-hidden">
               <input
                 type="number"
                 min={@range.first}
@@ -171,7 +167,7 @@ defmodule TymeslotWeb.Dashboard.Availability.PolicyCard do
                 value={@buffer_value}
                 name={@param}
                 aria-labelledby={"#{@form_id}-label"}
-                class="w-20 px-3 py-2 text-token-sm font-black bg-transparent border-0 focus:ring-0 focus:outline-hidden rounded-l-xl"
+                class="w-20 px-3 py-2 text-token-sm font-black bg-transparent border-0 focus:ring-0 focus:outline-hidden rounded-l-token-xl"
                 placeholder="0"
               />
               <span class="pr-3 py-2 text-token-sm font-black text-turquoise-700">
@@ -237,9 +233,9 @@ defmodule TymeslotWeb.Dashboard.Availability.PolicyCard do
               phx-value-_preset="true"
               phx-target={@myself}
               class={[
-                "btn-tag-selector btn-tag-selector-secondary",
+                "btn-tag-selector btn-tag-selector-primary",
                 if(@booking_days == days and not @custom_mode,
-                  do: "btn-tag-selector-secondary--active"
+                  do: "btn-tag-selector-primary--active"
                 )
               ]}
             >
@@ -249,7 +245,7 @@ defmodule TymeslotWeb.Dashboard.Availability.PolicyCard do
 
           <%!-- Custom input tag --%>
           <%= if @custom_mode or @booking_days not in @presets do %>
-            <div class="btn-tag-selector btn-tag-selector-secondary--active p-0! overflow-hidden">
+            <div class="btn-tag-selector btn-tag-selector-primary--active p-0 overflow-hidden">
               <input
                 type="number"
                 min="1"
@@ -257,10 +253,10 @@ defmodule TymeslotWeb.Dashboard.Availability.PolicyCard do
                 step="1"
                 value={@booking_days}
                 name="advance_booking_days"
-                class="w-20 px-3 py-2 text-token-sm font-black bg-transparent border-0 focus:ring-0 focus:outline-hidden rounded-l-xl"
+                class="w-20 px-3 py-2 text-token-sm font-black bg-transparent border-0 focus:ring-0 focus:outline-hidden rounded-l-token-xl"
                 placeholder="90"
               />
-              <span class="pr-3 py-2 text-token-sm font-black text-cyan-700">
+              <span class="pr-3 py-2 text-token-sm font-black text-turquoise-700">
                 {dgettext("dashboard_availability", "days")}
               </span>
             </div>
@@ -270,7 +266,7 @@ defmodule TymeslotWeb.Dashboard.Availability.PolicyCard do
               phx-click="focus_custom_input"
               phx-value-setting="advance_booking_days"
               phx-target={@myself}
-              class="btn-tag-selector btn-tag-selector-secondary"
+              class="btn-tag-selector btn-tag-selector-primary"
             >
               {dgettext("dashboard_availability", "Custom")}
             </button>
@@ -326,9 +322,9 @@ defmodule TymeslotWeb.Dashboard.Availability.PolicyCard do
               phx-value-_preset="true"
               phx-target={@myself}
               class={[
-                "btn-tag-selector btn-tag-selector-tertiary",
+                "btn-tag-selector btn-tag-selector-primary",
                 if(@notice_hours == hours and not @custom_mode,
-                  do: "btn-tag-selector-tertiary--active"
+                  do: "btn-tag-selector-primary--active"
                 )
               ]}
             >
@@ -338,7 +334,7 @@ defmodule TymeslotWeb.Dashboard.Availability.PolicyCard do
 
           <%!-- Custom input tag --%>
           <%= if @custom_mode or @notice_hours not in @presets do %>
-            <div class="btn-tag-selector btn-tag-selector-tertiary--active p-0! overflow-hidden">
+            <div class="btn-tag-selector btn-tag-selector-primary--active p-0 overflow-hidden">
               <input
                 type="number"
                 min="0"
@@ -346,10 +342,10 @@ defmodule TymeslotWeb.Dashboard.Availability.PolicyCard do
                 step="1"
                 value={@notice_hours}
                 name="min_advance_hours"
-                class="w-20 px-3 py-2 text-token-sm font-black bg-transparent border-0 focus:ring-0 focus:outline-hidden rounded-l-xl"
+                class="w-20 px-3 py-2 text-token-sm font-black bg-transparent border-0 focus:ring-0 focus:outline-hidden rounded-l-token-xl"
                 placeholder="24"
               />
-              <span class="pr-3 py-2 text-token-sm font-black text-blue-700">
+              <span class="pr-3 py-2 text-token-sm font-black text-turquoise-700">
                 {dgettext("dashboard_availability", "hours")}
               </span>
             </div>
@@ -359,7 +355,7 @@ defmodule TymeslotWeb.Dashboard.Availability.PolicyCard do
               phx-click="focus_custom_input"
               phx-value-setting="min_advance_hours"
               phx-target={@myself}
-              class="btn-tag-selector btn-tag-selector-tertiary"
+              class="btn-tag-selector btn-tag-selector-primary"
             >
               {dgettext("dashboard_availability", "Custom")}
             </button>
@@ -382,16 +378,24 @@ defmodule TymeslotWeb.Dashboard.Availability.PolicyCard do
   # tag, which is the failure we want to hear about.
 
   defp buffer_title(:buffer_before_minutes),
-    do: dgettext("dashboard_availability", "Before each meeting")
+    do: dgettext("dashboard_availability", "Before a new booking")
 
   defp buffer_title(:buffer_after_minutes),
-    do: dgettext("dashboard_availability", "After each meeting")
+    do: dgettext("dashboard_availability", "After a new booking")
 
   defp buffer_help(:buffer_before_minutes),
-    do: dgettext("dashboard_availability", "Preparation time kept free before each booking.")
+    do:
+      dgettext(
+        "dashboard_availability",
+        "A new booking can start this long after your previous meeting ends, at the earliest."
+      )
 
   defp buffer_help(:buffer_after_minutes),
-    do: dgettext("dashboard_availability", "Wrap-up time kept free after each booking.")
+    do:
+      dgettext(
+        "dashboard_availability",
+        "A new booking must end at least this long before your next meeting starts."
+      )
 
   defp buffer_label(0), do: dgettext("dashboard_availability", "No buffer")
 

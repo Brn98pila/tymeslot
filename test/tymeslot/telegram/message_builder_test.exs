@@ -13,6 +13,7 @@ defmodule Tymeslot.Telegram.MessageBuilderTest do
     start_time: ~U[2026-03-10 14:00:00Z],
     end_time: ~U[2026-03-10 14:30:00Z],
     event_type: %{name: "30-minute intro call"},
+    id: "6f1d2c3b-0a4e-4b8f-9c7d-1e2f3a4b5c6d",
     uid: "abc123",
     video_room_url: nil,
     cancellation_reason: nil
@@ -23,6 +24,27 @@ defmodule Tymeslot.Telegram.MessageBuilderTest do
   @timezone "UTC"
 
   describe "build_message/3" do
+    test "builds meeting.requested message with the deadline to respond by" do
+      meeting = Map.put(@meeting, :approval_deadline_at, ~U[2026-03-09 18:00:00Z])
+      msg = MessageBuilder.build_message("meeting.requested", meeting, @timezone)
+      assert msg =~ "<b>New Booking Request</b>"
+      assert msg =~ "John Smith"
+      assert msg =~ "Respond by Mon 09 Mar 2026, 18:00"
+    end
+
+    test "builds meeting.declined message with the host's reason" do
+      meeting = Map.put(@meeting, :decline_reason, "Fully booked <that> week")
+      msg = MessageBuilder.build_message("meeting.declined", meeting, @timezone)
+      assert msg =~ "<b>Booking Request Declined</b>"
+      assert msg =~ "Fully booked &lt;that&gt; week"
+    end
+
+    test "builds meeting.request_expired message" do
+      msg = MessageBuilder.build_message("meeting.request_expired", @meeting, @timezone)
+      assert msg =~ "<b>Booking Request Expired</b>"
+      assert msg =~ "slot was released"
+    end
+
     test "builds meeting.created message" do
       msg = MessageBuilder.build_message("meeting.created", @meeting, @timezone)
       assert msg =~ "<b>New Meeting</b>"
@@ -75,11 +97,40 @@ defmodule Tymeslot.Telegram.MessageBuilderTest do
     end
   end
 
+  # The uid is the booker's capability (the cancel and reschedule links are
+  # built from it), so the host's link names the booking by its id.
+  describe "build_message/3: the link to the booking" do
+    test "names the booking by its id, never its uid" do
+      out = MessageBuilder.build_message("meeting.created", @meeting, @timezone)
+
+      assert out =~ "/dashboard/meetings?meeting=#{@meeting.id}"
+      refute out =~ @meeting.uid
+    end
+  end
+
   describe "build_test_message/0" do
     test "returns a test message" do
       msg = MessageBuilder.build_test_message()
       assert msg =~ "Test"
       assert msg =~ "Tymeslot"
+    end
+  end
+
+  describe "build_message/3 end on a later day" do
+    test "a same-day meeting shows one date and both times" do
+      assert MessageBuilder.build_message("meeting.created", @meeting, @timezone) =~
+               "Tue 10 Mar 2026, 14:00–14:30"
+    end
+
+    test "a meeting ending the next day shows the end with its own day" do
+      meeting = %{
+        @meeting
+        | start_time: ~U[2026-03-10 23:30:00Z],
+          end_time: ~U[2026-03-11 00:30:00Z]
+      }
+
+      assert MessageBuilder.build_message("meeting.created", meeting, @timezone) =~
+               "Tue 10 Mar 2026, 23:30 – Wed 11 Mar 00:30"
     end
   end
 end

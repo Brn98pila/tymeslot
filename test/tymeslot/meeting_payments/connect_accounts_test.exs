@@ -7,6 +7,7 @@ defmodule Tymeslot.MeetingPayments.ConnectAccountsTest do
   @moduletag :database
   @moduletag :payments
 
+  import Ecto.Query, only: [from: 2]
   import Mox
   import Tymeslot.ConfigTestHelpers
 
@@ -14,6 +15,9 @@ defmodule Tymeslot.MeetingPayments.ConnectAccountsTest do
   alias Tymeslot.MeetingPayments.ConnectAccountQueries
   alias Tymeslot.MeetingPayments.ConnectAccounts
   alias Tymeslot.MeetingPayments.StripeAdapterMock
+  alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Meetings.MeetingSchema, as: Meeting
+  alias Tymeslot.Repo
   alias Tymeslot.Workers.SendConnectAccountRestricted
 
   setup :verify_on_exit!
@@ -245,6 +249,29 @@ defmodule Tymeslot.MeetingPayments.ConnectAccountsTest do
       # The payment row must still be "paid" — not "failed".
       reloaded = BookingPaymentQueries.get(payment.id)
       assert reloaded.status == "paid"
+    end
+
+    # A row that no longer passes the full meeting validation (here a solo
+    # meeting with no attendee name, as older rows can carry) must still
+    # have its slot released.
+    test "expires a pending booking's meeting whose other fields no longer pass validation" do
+      user = insert(:user)
+      {:ok, _account} = ConnectAccountQueries.insert_placeholder(user.id, "ch")
+      meeting = insert(:meeting, status: "awaiting_payment", organizer_user_id: user.id)
+
+      Repo.update_all(from(m in Meeting, where: m.id == ^meeting.id), set: [attendee_name: nil])
+
+      insert(:booking_payment,
+        host_user_id: user.id,
+        meeting: meeting,
+        stripe_checkout_session_id: "cs_LEGACY",
+        status: "pending"
+      )
+
+      stub(StripeAdapterMock, :expire_checkout_session, fn _session_id, _opts -> {:ok, %{}} end)
+
+      assert {:ok, %{cancelled_count: 1}} = ConnectAccounts.disconnect(user)
+      assert {:ok, %{status: "expired"}} = MeetingQueries.get_meeting(meeting.id)
     end
 
     # Disconnecting neither settles nor cancels a refund the host already owes;

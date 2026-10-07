@@ -35,12 +35,18 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
+  # An open breaker or a rate limit is waited out with a snooze, which from
+  # Oban 2.24 costs no attempt; without a bound a provider that never
+  # recovers would keep this job snoozing for ever, with no alert.
+  @max_unavailable_snoozes 12
+
   require Logger
 
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
+  alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.Google.CacheSweep
   alias Tymeslot.Integrations.Calendar.Google.Provider, as: GoogleProvider
   alias Tymeslot.Integrations.Calendar.InvalidEventReport
@@ -48,6 +54,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
+  alias Tymeslot.Workers.SnoozePolicy
   alias Tymeslot.Workers.SyncHealth
   alias Tymeslot.Workers.SyncRequest
 
@@ -98,6 +105,10 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
         fn ->
           integration
           |> sync_integration(args[@list_booking_calendar] == true)
+          |> SnoozePolicy.bound(job,
+            max_snoozes: @max_unavailable_snoozes,
+            reason: "Google Calendar did not recover within the maximum wait"
+          )
           |> tap(&SyncHealth.record_outcome(integration, &1))
         end
         |> InvalidEventReport.collect()
@@ -509,7 +520,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
   defp deselect_missing_calendars(_integration, []), do: :ok
 
   defp deselect_missing_calendars(integration, missing_ids) do
-    case CalendarIntegrationQueries.deselect_calendars(integration, missing_ids) do
+    case CalendarSelectionQueries.deselect_calendars(integration, missing_ids) do
       {:ok, _updated} ->
         :ok
 

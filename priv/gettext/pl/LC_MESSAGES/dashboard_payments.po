@@ -28,7 +28,6 @@ msgstr "Kwota przekracza pozostałą kwotę do zwrotu."
 msgid "Attendee"
 msgstr "Uczestnik"
 
-#: lib/tymeslot_web/live/dashboard/payments_settings/disconnect_modal.ex
 #: lib/tymeslot_web/live/dashboard/payments_settings/refund_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Cancel"
@@ -105,6 +104,7 @@ msgstr "Waluta zmieniona."
 msgid "Currency updated. Paid event-type prices have been reset."
 msgstr "Waluta zmieniona. Ceny płatnych typów spotkań zostały wyzerowane."
 
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
 #: lib/tymeslot_web/live/dashboard/payments_settings/payments_table.ex
 #, elixir-autogen, elixir-format
 msgid "Date"
@@ -221,11 +221,6 @@ msgstr "Zwrócono częściowo"
 #, elixir-autogen, elixir-format
 msgid "Payment setup is temporarily unavailable. Please try again later."
 msgstr "Konfiguracja płatności jest chwilowo niedostępna. Spróbuj ponownie później."
-
-#: lib/tymeslot_web/live/dashboard/payments_settings_component.ex
-#, elixir-autogen, elixir-format
-msgid "Payments"
-msgstr "Płatności"
 
 #: lib/tymeslot_web/live/dashboard/payments_settings/payments_table.ex
 #, elixir-autogen, elixir-format
@@ -389,11 +384,6 @@ msgstr "Zmiana waluty ustawi wszystkie płatne typy spotkań jako bezpłatne –
 
 #: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
 #, elixir-autogen, elixir-format
-msgid "Cancelled"
-msgstr "Data odwołania"
-
-#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
-#, elixir-autogen, elixir-format
 msgid "Outstanding"
 msgstr "Do zwrotu"
 
@@ -445,3 +435,33 @@ msgstr[2] "Masz jeszcze %{count} zaległych zwrotów na łączną kwotę %{total
 #, elixir-autogen, elixir-format
 msgid "Your Stripe account is not connected, so these refunds have to be issued from your Stripe dashboard. The money is still owed."
 msgstr "Konto Stripe nie jest podłączone, więc te zwroty trzeba wykonać w panelu Stripe. Te pieniądze nadal należą się uczestnikom."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Cancelled %{date}"
+msgstr "Odwołano %{date}"
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Expired"
+msgstr "Wygasła"
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Expired, paid %{date}"
+msgstr "Wygasła, opłacona %{date}"
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Expired bookings were paid for but never confirmed, for example because the payment arrived after the slot was taken. Their refund is issued automatically; if one is still listed later, refund it here or in Stripe."
+msgstr "Wygasłe rezerwacje zostały opłacone, ale nigdy nie potwierdzone, na przykład dlatego, że płatność wpłynęła po zajęciu terminu. Zwrot jest wykonywany automatycznie; jeśli któraś z nich nadal będzie tu widoczna później, zwróć środki stąd lub w Stripe."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "Declined %{date}"
+msgstr "Odrzucono %{date}"
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
+#, elixir-autogen, elixir-format
+msgid "You declined these bookings, but their automatic refund didn't go through. Refund them here or in Stripe."
+msgstr "Te rezerwacje zostały przez Ciebie odrzucone, ale ich automatyczny zwrot się nie powiódł. Zwróć środki stąd lub w Stripe."

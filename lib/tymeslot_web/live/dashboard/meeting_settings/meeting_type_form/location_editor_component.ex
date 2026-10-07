@@ -47,7 +47,6 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.LocationEditorCo
   alias Phoenix.LiveView.JS
   alias Tymeslot.MeetingTypes.GroupLocationRule
   alias Tymeslot.MeetingTypes.LocationOption
-  alias TymeslotWeb.Components.CoreComponents
   alias TymeslotWeb.Components.CoreComponents.Forms
   alias TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm
   alias TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.GroupRules
@@ -187,7 +186,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.LocationEditorCo
   def render(assigns) do
     ~H"""
     <div id={"location-editor-wrapper-#{@id}"}>
-      <CoreComponents.modal
+      <.modal
         id={"location-editor-#{@id}"}
         show
         on_cancel={JS.push("cancel", target: @myself)}
@@ -211,12 +210,12 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.LocationEditorCo
           class="space-y-4"
           novalidate
         >
-          <CoreComponents.info_box :if={@group_bookings_enabled} variant={:info}>
+          <.info_box :if={@group_bookings_enabled} variant={:info}>
             {dgettext(
               "dashboard_meeting_form",
               "Group bookings use a location fixed in advance: one video provider, one saved location, or a number for bookers to call."
             )}
-          </CoreComponents.info_box>
+          </.info_box>
 
           <p
             :for={error <- FormValidationHelpers.field_errors(@field_errors, :group)}
@@ -238,7 +237,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.LocationEditorCo
             </:description>
           </.choice_toggle>
 
-          <CoreComponents.input
+          <.input
             name="location[label]"
             value={field_value(@changeset, :label)}
             id="location_label"
@@ -254,7 +253,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.LocationEditorCo
             <:description>
               {dgettext("dashboard_meeting_form", "What the booker sees in the list of locations.")}
             </:description>
-          </CoreComponents.input>
+          </.input>
 
           <%= case field_value(@changeset, :kind) do %>
             <% "video" -> %>
@@ -273,7 +272,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.LocationEditorCo
                 myself={@myself}
               />
             <% "phone" -> %>
-              <CoreComponents.input
+              <.input
                 name="location[collect_from_guest]"
                 value={field_value(@changeset, :collect_from_guest)}
                 id="location_collect_from_guest"
@@ -286,9 +285,9 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.LocationEditorCo
                     "You call them. Leave this off to publish a number for them to call instead."
                   )}
                 </:description>
-              </CoreComponents.input>
+              </.input>
 
-              <CoreComponents.input
+              <.input
                 :if={!field_value(@changeset, :collect_from_guest)}
                 name="location[details]"
                 value={field_value(@changeset, :details)}
@@ -303,7 +302,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.LocationEditorCo
                 errors={FormValidationHelpers.field_errors(@field_errors, :details)}
               />
             <% _kind -> %>
-              <CoreComponents.input
+              <.input
                 name="location[details]"
                 value={field_value(@changeset, :details)}
                 id="location_details"
@@ -327,7 +326,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.LocationEditorCo
                     "Shown to the booker and written into the calendar invitation."
                   )}
                 </:description>
-              </CoreComponents.input>
+              </.input>
           <% end %>
 
           <%!-- Position travels with the option so a save from the editor
@@ -351,23 +350,23 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.LocationEditorCo
         />
 
         <div class="flex justify-end gap-2 pt-4">
-          <CoreComponents.action_button
+          <.action_button
             type="button"
             variant={:secondary}
             phx-click="cancel"
             phx-target={@myself}
           >
             {dgettext("dashboard_meeting_form", "Cancel")}
-          </CoreComponents.action_button>
-          <CoreComponents.action_button
+          </.action_button>
+          <.action_button
             type="submit"
             form="location-editor-form"
             variant={:primary}
           >
             {dgettext("dashboard_meeting_form", "Save location")}
-          </CoreComponents.action_button>
+          </.action_button>
         </div>
-      </CoreComponents.modal>
+      </.modal>
     </div>
     """
   end

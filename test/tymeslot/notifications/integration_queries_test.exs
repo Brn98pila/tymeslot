@@ -293,7 +293,7 @@ defmodule Tymeslot.Notifications.IntegrationQueriesTest do
       user = insert(:user)
 
       changeset =
-        TelegramIntegrationSchema.changeset(%TelegramIntegrationSchema{}, %{
+        TelegramIntegrationSchema.create_changeset(%{
           user_id: user.id,
           name: "My Channel",
           bot_mode: "own",
@@ -327,7 +327,8 @@ defmodule Tymeslot.Notifications.IntegrationQueriesTest do
     test "updates a telegram integration" do
       integration = insert(:telegram_integration)
 
-      changeset = TelegramIntegrationSchema.changeset(integration, %{name: "Renamed Telegram"})
+      changeset =
+        TelegramIntegrationSchema.user_changeset(integration, %{name: "Renamed Telegram"})
 
       assert {:ok, updated} = IntegrationQueries.update(changeset)
       assert updated.name == "Renamed Telegram"

@@ -140,6 +140,7 @@ defmodule Tymeslot.Meetings.MeetingQueriesTest do
 
   describe "safe meeting creation (prevents double booking)" do
     test "creates meeting when no conflicts exist" do
+      user = insert(:user)
       {start_time, end_time} = build_meeting_times(1, 60)
 
       attrs = %{
@@ -147,6 +148,7 @@ defmodule Tymeslot.Meetings.MeetingQueriesTest do
         title: "Safe Meeting",
         start_time: start_time,
         end_time: end_time,
+        organizer_user_id: user.id,
         organizer_name: "Test Organizer",
         organizer_email: "organizer@example.com",
         attendee_name: "Test Attendee",
@@ -158,9 +160,11 @@ defmodule Tymeslot.Meetings.MeetingQueriesTest do
     end
 
     test "prevents double booking with conflict error" do
+      user = insert(:user)
       {existing_start, existing_end} = build_meeting_times(1, 60)
 
       insert(:meeting,
+        organizer_user_id: user.id,
         start_time: existing_start,
         end_time: existing_end,
         status: "confirmed"
@@ -171,6 +175,7 @@ defmodule Tymeslot.Meetings.MeetingQueriesTest do
         title: "Conflicting Meeting",
         start_time: DateTime.add(existing_start, 30, :minute),
         end_time: DateTime.add(existing_end, 30, :minute),
+        organizer_user_id: user.id,
         organizer_name: "Test Organizer",
         organizer_email: "organizer@example.com",
         attendee_name: "Test Attendee",
@@ -180,11 +185,32 @@ defmodule Tymeslot.Meetings.MeetingQueriesTest do
       {:error, :time_conflict} =
         Scheduling.create_meeting_with_conflict_check(conflicting_attrs)
     end
+
+    test "refuses a meeting without an organiser instead of checking every organiser's" do
+      {start_time, end_time} = build_meeting_times(1, 60)
+
+      attrs = %{
+        uid: "orphan-meeting-789",
+        title: "Orphan Meeting",
+        start_time: start_time,
+        end_time: end_time,
+        organizer_name: "Test Organizer",
+        organizer_email: "organizer@example.com",
+        attendee_name: "Test Attendee",
+        attendee_email: "attendee@example.com"
+      }
+
+      assert {:error, :organizer_required} =
+               Scheduling.create_meeting_with_conflict_check(attrs)
+
+      assert {:error, :not_found} = MeetingQueries.get_meeting_by_uid("orphan-meeting-789")
+    end
   end
 
   describe "safe meeting updates (prevents conflicts)" do
     test "updates meeting when no conflicts exist" do
-      meeting = insert(:meeting)
+      user = insert(:user)
+      meeting = insert(:meeting, organizer_user_id: user.id)
       {new_start, new_end} = build_meeting_times(2, 60)
 
       attrs = %{
@@ -198,12 +224,14 @@ defmodule Tymeslot.Meetings.MeetingQueriesTest do
     end
 
     test "prevents reschedule conflicts" do
-      meeting1 = insert(:meeting)
+      user = insert(:user)
+      meeting1 = insert(:meeting, organizer_user_id: user.id)
 
       {start_time2, end_time2} = build_meeting_times(2, 60)
 
       meeting2 =
         insert(:meeting,
+          organizer_user_id: user.id,
           start_time: start_time2,
           end_time: end_time2,
           status: "confirmed"
@@ -216,6 +244,20 @@ defmodule Tymeslot.Meetings.MeetingQueriesTest do
 
       {:error, :time_conflict} =
         Scheduling.update_meeting_with_conflict_check(meeting1, conflicting_reschedule)
+    end
+
+    test "refuses to move a meeting without an organiser" do
+      meeting = insert(:meeting, organizer_user_id: nil)
+      {new_start, new_end} = build_meeting_times(2, 60)
+
+      assert {:error, :organizer_required} =
+               Scheduling.update_meeting_with_conflict_check(meeting, %{
+                 start_time: new_start,
+                 end_time: new_end
+               })
+
+      assert {:ok, %{start_time: unchanged}} = MeetingQueries.get_meeting(meeting.id)
+      assert unchanged == meeting.start_time
     end
   end
 

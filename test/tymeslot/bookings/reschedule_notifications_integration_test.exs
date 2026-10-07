@@ -34,7 +34,9 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
   alias Tymeslot.Notifications.Orchestrator
   alias Tymeslot.Repo
   alias Tymeslot.TestMocks
+  alias Tymeslot.Workers.DeliveryClaims.DeliveryClaimQueries
   alias Tymeslot.Workers.EmailWorker
+  alias Tymeslot.Workers.EmailWorkerHandlers
   alias Tymeslot.Workers.TelegramWorker
   alias Tymeslot.Workers.WebhookWorker
 
@@ -202,6 +204,110 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
     end
   end
 
+  describe "a reschedule overtaken before its notices go out" do
+    test "only the latest move is announced, with its own times", %{user: user, meeting: meeting} do
+      first_target = future_datetime(10, :day)
+      final_target = future_datetime(12, :day)
+
+      assert {:ok, _first} =
+               Reschedule.execute(meeting.uid, reschedule_params_for(first_target), %{}, user.id)
+
+      assert {:ok, final} =
+               Reschedule.execute(meeting.uid, reschedule_params_for(final_target), %{}, user.id)
+
+      assert DateTime.compare(final.start_time, final_target) == :eq
+
+      assert %{success: 1, discard: 1} = Oban.drain_queue(queue: :emails)
+
+      # One organiser and one attendee notice, not two of each.
+      emails = collect_emails()
+      assert length(emails) == 2
+      delivered = Map.new(emails, &{&1.to |> hd() |> elem(1), &1})
+
+      ics = attendee_ics(delivered, meeting)
+      refute ics.data =~ ics_stamp(first_target)
+      assert ics.data =~ ics_stamp(final_target)
+    end
+
+    test "is dropped when the booking was cancelled meanwhile", %{user: user, meeting: meeting} do
+      assert {:ok, _moved} =
+               Reschedule.execute(
+                 meeting.uid,
+                 reschedule_params_for(future_datetime(10, :day)),
+                 %{},
+                 user.id
+               )
+
+      Repo.update_all(where(MeetingSchema, id: ^meeting.id), set: [status: "cancelled"])
+
+      assert %{success: 0, discard: 1} = Oban.drain_queue(queue: :emails)
+      refute_received {:email, _email}
+    end
+
+    test "is dropped when the booking is no longer in the status the move left it in",
+         %{user: user, meeting: meeting} do
+      assert {:ok, _moved} =
+               Reschedule.execute(
+                 meeting.uid,
+                 reschedule_params_for(future_datetime(10, :day)),
+                 %{},
+                 user.id
+               )
+
+      Repo.update_all(where(MeetingSchema, id: ^meeting.id), set: [status: "awaiting_approval"])
+
+      assert %{success: 0, discard: 1} = Oban.drain_queue(queue: :emails)
+      refute_received {:email, _email}
+    end
+
+    test "is dropped when the booking awaits a new time", %{user: user, meeting: meeting} do
+      assert {:ok, _moved} =
+               Reschedule.execute(
+                 meeting.uid,
+                 reschedule_params_for(future_datetime(10, :day)),
+                 %{},
+                 user.id
+               )
+
+      Repo.update_all(where(MeetingSchema, id: ^meeting.id),
+        set: [reschedule_requested_at: DateTime.utc_now()]
+      )
+
+      assert %{success: 0, discard: 1} = Oban.drain_queue(queue: :emails)
+      refute_received {:email, _email}
+    end
+
+    test "is dropped once the meeting has started", %{user: user, meeting: meeting} do
+      assert {:ok, moved} =
+               Reschedule.execute(
+                 meeting.uid,
+                 reschedule_params_for(future_datetime(10, :day)),
+                 %{},
+                 user.id
+               )
+
+      # The job still names the time the meeting stands at; only the clock
+      # has passed it.
+      started = DateTime.add(DateTime.utc_now(), -5, :minute)
+      Repo.update_all(where(MeetingSchema, id: ^meeting.id), set: [start_time: started])
+
+      [job] = all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"})
+
+      Repo.update_all(where(Job, id: ^job.id),
+        set: [
+          args:
+            Map.merge(job.args, %{
+              "rescheduled_to" => DateTime.to_iso8601(started),
+              "status" => moved.status
+            })
+        ]
+      )
+
+      assert %{success: 0, discard: 1} = Oban.drain_queue(queue: :emails)
+      refute_received {:email, _email}
+    end
+  end
+
   describe "execute/4 re-arms a reminder that already fired" do
     test "schedules a fresh reminder for the new time, even though the previous reminder already completed",
          %{user: user, meeting: meeting} do
@@ -248,6 +354,29 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
                all_enqueued(worker: TelegramWorker)
     end
 
+    # The send now runs in the email job, not in `execute/4`, so the raise is
+    # only reached there. It must fail the job, which Oban then retries, and
+    # must not leave the participants' send claimed, or the retry would skip
+    # it. The handler is run here directly: in the worker it runs in a linked
+    # task, whose crash takes the job's process (here the test's) with it.
+    test "the email job fails for a retry, leaving nothing claimed", %{
+      user: user,
+      meeting: meeting
+    } do
+      new_params = reschedule_params_for(future_datetime(8, :day))
+
+      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
+
+      [job] = all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"})
+
+      assert_raise KeyError, fn ->
+        EmailWorkerHandlers.execute_email_action("send_reschedule_emails", job.args, job.id)
+      end
+
+      refute DeliveryClaimQueries.claimed?(job.id, "reschedule:participants")
+      refute_received {:email, _email}
+    end
+
     test "still persists the new meeting time", %{user: user, meeting: meeting} do
       target = future_datetime(9, :day)
 
@@ -267,9 +396,22 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
     )
   end
 
+  # Every email delivered so far, in delivery order.
+  defp collect_emails(acc \\ []) do
+    receive do
+      {:email, email} -> collect_emails([email | acc])
+    after
+      0 -> Enum.reverse(acc)
+    end
+  end
+
+  defp ics_stamp(%DateTime{} = utc), do: Calendar.strftime(utc, "%Y%m%dT%H%M%S")
+
   # The two emails a reschedule sends, keyed by recipient address, so a test
   # names the one it means instead of depending on delivery order.
+  # The notices go out from an email job, so the queue is run first.
   defp delivered_emails do
+    Oban.drain_queue(queue: :emails)
     assert_received {:email, first}
     assert_received {:email, second}
 

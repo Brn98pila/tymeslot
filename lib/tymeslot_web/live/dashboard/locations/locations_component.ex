@@ -193,91 +193,88 @@ defmodule TymeslotWeb.Dashboard.Locations.LocationsComponent do
   @impl Phoenix.LiveComponent
   def render(assigns) do
     ~H"""
-    <div class="space-y-6 pb-20" data-testid="locations-page">
-      <.section_header
-        icon="hero-map-pin"
-        title={dgettext("dashboard_meeting_types", "Locations")}
-        class="mb-4"
-      />
-
-      <p class="text-tymeslot-600">
-        {dgettext(
-          "dashboard_meeting_types",
-          "Save the places you meet people once, then offer them on any in-person meeting type."
-        )}
-      </p>
-
-      <%= if @venues == [] do %>
-        <div class="card-glass text-center py-8 px-4 space-y-3" data-testid="locations-empty">
-          <.icon name="hero-map-pin" class="w-12 h-12 mx-auto text-tymeslot-400" />
-          <p class="text-tymeslot-700 font-medium">
-            {dgettext("dashboard_meeting_types", "No saved locations yet")}
-          </p>
-          <p class="text-token-sm text-tymeslot-500">
-            {dgettext(
-              "dashboard_meeting_types",
-              "Add an office, a studio or any other place you meet people. In-person meeting types can then offer it to bookers."
-            )}
-          </p>
-          <div class="flex justify-center pt-2">
-            <.action_button
-              variant={:primary}
-              phx-click="new_venue"
-              phx-target={@myself}
-              data-testid="add-venue"
-            >
-              <.icon name="hero-plus" class="w-4 h-4" />
-              {dgettext("dashboard_meeting_types", "Add location")}
-            </.action_button>
-          </div>
-        </div>
-      <% else %>
-        <div class="flex justify-end">
+    <div data-testid="locations-page">
+      <.dashboard_page icon="hero-map-pin" title={dgettext("dashboard_common", "Locations")}>
+        <%!-- With no venues yet, the empty state carries the add button instead. --%>
+        <:actions :if={@venues != []}>
           <.action_button
             variant={:primary}
             phx-click="new_venue"
             phx-target={@myself}
+            icon="hero-plus"
             data-testid="add-venue"
           >
-            <.icon name="hero-plus" class="w-4 h-4" />
             {dgettext("dashboard_meeting_types", "Add location")}
           </.action_button>
-        </div>
+        </:actions>
+        <p class="text-tymeslot-600">
+          {dgettext(
+            "dashboard_meeting_types",
+            "Save the places you meet people once, then offer them on any in-person meeting type."
+          )}
+        </p>
 
-        <%!-- One column, because the sortable hook places a dragged card by
+        <%= if @venues == [] do %>
+          <.empty_state
+            icon="hero-map-pin"
+            size={:lg}
+            title={dgettext("dashboard_meeting_types", "No saved locations yet")}
+            description={
+              dgettext(
+                "dashboard_meeting_types",
+                "Add an office, a studio or any other place you meet people. In-person meeting types can then offer it to bookers."
+              )
+            }
+            data-testid="locations-empty"
+          >
+            <:action>
+              <.action_button
+                variant={:primary}
+                phx-click="new_venue"
+                phx-target={@myself}
+                icon="hero-plus"
+                data-testid="add-venue"
+              >
+                {dgettext("dashboard_meeting_types", "Add location")}
+              </.action_button>
+            </:action>
+          </.empty_state>
+        <% else %>
+          <%!-- One column, because the sortable hook places a dragged card by
              its vertical position. --%>
-        <div
-          id={"locations-list-#{@list_epoch}"}
-          phx-hook="QuestionsSortable"
-          phx-target={@myself}
-          data-target={@myself}
-          data-testid="locations-list"
-          class="flex flex-col gap-4"
-        >
-          <VenueCard.venue_card
-            :for={venue <- @venues}
-            venue={venue}
-            usage={Map.get(@usage, venue.id, 0)}
-            myself={@myself}
-          />
-        </div>
-      <% end %>
+          <div
+            id={"locations-list-#{@list_epoch}"}
+            phx-hook="QuestionsSortable"
+            phx-target={@myself}
+            data-target={@myself}
+            data-testid="locations-list"
+            class="flex flex-col gap-4"
+          >
+            <VenueCard.venue_card
+              :for={venue <- @venues}
+              venue={venue}
+              usage={Map.get(@usage, venue.id, 0)}
+              myself={@myself}
+            />
+          </div>
+        <% end %>
 
-      <VenueFormModal.venue_form_modal
-        :if={@venue_form}
-        form={@venue_form}
-        mode={if @editing_venue.id, do: :edit, else: :new}
-        myself={@myself}
-      />
+        <VenueFormModal.venue_form_modal
+          :if={@venue_form}
+          form={@venue_form}
+          mode={if @editing_venue.id, do: :edit, else: :new}
+          myself={@myself}
+        />
 
-      <DeleteVenueModal.delete_venue_modal
-        :if={@deleting_venue}
-        venue={@deleting_venue}
-        in_use={@deleting_in_use}
-        left_without={@deleting_left_without}
-        blocked_by={@deleting_blocked_by}
-        myself={@myself}
-      />
+        <DeleteVenueModal.delete_venue_modal
+          :if={@deleting_venue}
+          venue={@deleting_venue}
+          in_use={@deleting_in_use}
+          left_without={@deleting_left_without}
+          blocked_by={@deleting_blocked_by}
+          myself={@myself}
+        />
+      </.dashboard_page>
     </div>
     """
   end

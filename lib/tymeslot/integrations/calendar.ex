@@ -48,6 +48,7 @@ defmodule Tymeslot.Integrations.Calendar do
   alias Tymeslot.Integrations.Calendar.Reconnection
   alias Tymeslot.Integrations.Calendar.Runtime.CalendarPathResolver
   alias Tymeslot.Integrations.Calendar.Selection
+  alias Tymeslot.Integrations.Calendar.Shared.ProviderCommon
   alias Tymeslot.Integrations.{CalendarManagement, CalendarPrimary}
   alias Tymeslot.Integrations.Providers.Directory
   alias Tymeslot.Integrations.Shared.InputValidators
@@ -195,21 +196,7 @@ defmodule Tymeslot.Integrations.Calendar do
   @spec toggle_calendar_selection(integration(), String.t() | integer()) ::
           {:ok, integration()} | {:error, any()}
   def toggle_calendar_selection(integration, calendar_id) do
-    current_selection =
-      Enum.reduce(integration.calendar_list || [], [], fn cal, acc ->
-        is_now_selected =
-          if to_string(cal.id) == to_string(calendar_id), do: !cal.selected, else: cal.selected
-
-        if is_now_selected, do: [to_string(cal.id) | acc], else: acc
-      end)
-
-    update_calendar_selection(integration, %{"selected_calendars" => current_selection})
-  end
-
-  @spec update_calendar_selection(integration(), %{String.t() => term()}) ::
-          {:ok, integration()} | {:error, any()}
-  defp update_calendar_selection(integration, params) do
-    Selection.update_calendar_selection(integration, params)
+    Selection.toggle_calendar(integration, calendar_id)
   end
 
   @doc """
@@ -301,6 +288,16 @@ defmodule Tymeslot.Integrations.Calendar do
   """
   @spec booking_calendar_path(integration()) :: String.t() | nil
   defdelegate booking_calendar_path(integration), to: CalendarPathResolver, as: :resolve
+
+  @doc """
+  The collections of a CalDAV-family integration a write may be aimed at: its
+  selected calendars that are not read-only. See
+  `Tymeslot.Integrations.Calendar.Shared.ProviderCommon.caldav_writable_paths/1`.
+  """
+  @spec writable_calendar_paths(integration()) :: [String.t()]
+  defdelegate writable_calendar_paths(integration),
+    to: ProviderCommon,
+    as: :caldav_writable_paths
 
   # ---------------------------
   # Public API: Validation/Connection

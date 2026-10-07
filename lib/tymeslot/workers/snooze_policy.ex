@@ -69,6 +69,30 @@ defmodule Tymeslot.Workers.SnoozePolicy do
     end
   end
 
+  @doc """
+  Bounds a `perform/1` result that may be a snooze: `{:snooze, seconds}`
+  passes through while the job's executions are under `:max_snoozes`, and
+  becomes `{:error, reason}` once they reach it, so the job fails, retries on
+  Oban's ordinary backoff and in the end exhausts, alerting like any other
+  persistent failure. Any other result passes through unchanged.
+
+  For workers whose several "wait it out" verdicts (an open breaker, a rate
+  limit, an unresponsive server) each pick their own snooze length: the
+  lengths stay theirs, and the bound is applied once to the result.
+
+  Options:
+    * `:max_snoozes` (required) — the execution count at which to stop.
+    * `:reason` (required) — the error the exhausted snooze becomes.
+  """
+  @spec bound(result, Oban.Job.t(), keyword()) :: result | {:error, term()} when result: term()
+  def bound({:snooze, _seconds} = snooze, %Oban.Job{} = job, opts) do
+    if executions(job) >= Keyword.fetch!(opts, :max_snoozes),
+      do: {:error, Keyword.fetch!(opts, :reason)},
+      else: snooze
+  end
+
+  def bound(result, %Oban.Job{}, _opts), do: result
+
   defp jitter(0), do: 0
   defp jitter(max) when is_integer(max) and max > 0, do: :rand.uniform(max)
 end

@@ -4,10 +4,10 @@ defmodule Tymeslot.Emails.EmailService.CalendarEmails do
   require Logger
 
   alias Tymeslot.Emails.Delivery
+  alias Tymeslot.Emails.HostClock
   alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Emails.Shared.MjmlEmail
   alias Tymeslot.Infrastructure.AdminAlerts
-  alias Tymeslot.Profiles
 
   alias Tymeslot.Emails.Templates.{
     CalendarInvitation,
@@ -72,7 +72,7 @@ defmodule Tymeslot.Emails.EmailService.CalendarEmails do
       discrepancy: discrepancy
     )
 
-    owner_timezone = resolve_owner_timezone(meeting)
+    owner_timezone = HostClock.timezone(meeting)
 
     result =
       Delivery.deliver(
@@ -121,8 +121,4 @@ defmodule Tymeslot.Emails.EmailService.CalendarEmails do
     email = RescheduleRequest.render(meeting)
     Delivery.deliver(email)
   end
-
-  defp resolve_owner_timezone(%{organizer_user_id: nil}), do: Profiles.get_default_timezone()
-  defp resolve_owner_timezone(%{organizer_user_id: id}), do: Profiles.get_user_timezone(id)
-  defp resolve_owner_timezone(_meeting), do: Profiles.get_default_timezone()
 end

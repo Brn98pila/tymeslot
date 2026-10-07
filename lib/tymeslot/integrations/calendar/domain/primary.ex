@@ -11,6 +11,7 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Defaults
+  alias Tymeslot.Integrations.Calendar.PrimaryElection
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.CalendarManagement
@@ -26,7 +27,7 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   """
   @spec set_primary_calendar_integration(user_id(), integration_id()) ::
           {:ok, CalendarIntegrationSchema.t()}
-          | {:error, :not_found | :unauthorized | :not_bookable | Ecto.Changeset.t()}
+          | {:error, :not_found | :unauthorized | :not_bookable | :inactive | Ecto.Changeset.t()}
   def set_primary_calendar_integration(user_id, integration_id) do
     with {:ok, integration} <- validate_and_prepare_integration(user_id, integration_id),
          {:ok, _profile} <- update_profile_primary(user_id, integration_id) do
@@ -79,7 +80,7 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
       {:ok, _deleted} = success ->
         # If we deleted the primary calendar, auto-promote the next one
         if is_primary do
-          handle_primary_deletion(user_id)
+          handle_primary_deletion(user_id, integration_id)
         end
 
         success
@@ -172,6 +173,7 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
     with {:ok, integration} <-
            CalendarManagement.get_calendar_integration(integration_id, user_id),
          :ok <- verify_integration_ownership(integration, user_id),
+         :ok <- verify_active(integration),
          :ok <- verify_bookable(integration) do
       {:ok, integration}
     else
@@ -191,6 +193,12 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
       {:error, :not_bookable}
     end
   end
+
+  # A paused integration is never the calendar bookings are written to: the
+  # booking path would refuse it and fall back elsewhere, while the dashboard
+  # went on showing it as the primary.
+  defp verify_active(%CalendarIntegrationSchema{is_active: true}), do: :ok
+  defp verify_active(%CalendarIntegrationSchema{}), do: {:error, :inactive}
 
   defp update_profile_primary(user_id, integration_id) do
     ProfileQueries.set_primary_calendar_integration(user_id, integration_id)
@@ -218,27 +226,8 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
     end
   end
 
-  defp handle_primary_deletion(user_id) do
-    eligible_integrations =
-      user_id
-      |> CalendarManagement.list_calendar_integrations()
-      |> BookingEligibility.filter_bookable()
-
-    case eligible_integrations do
-      [] ->
-        # No bookable calendars left, clear the primary in the profile
-        ProfileQueries.clear_primary_calendar_integration(user_id)
-        :ok
-
-      integrations ->
-        # Promote the last available integration deterministically by insertion time
-        next_integration =
-          integrations
-          |> Enum.sort_by(& &1.inserted_at)
-          |> List.last()
-
-        set_primary_calendar_integration(user_id, next_integration.id)
-        :ok
-    end
+  defp handle_primary_deletion(user_id, deleted_id) do
+    PrimaryElection.elect_next(user_id, [deleted_id])
+    :ok
   end
 end
