@@ -158,7 +158,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
 
   # Schedules confirmation notifications for a meeting.
   defp schedule_confirmation_notifications(meeting) do
-    recipients = Recipients.determine_recipients(meeting, :confirmation)
+    recipients = Recipients.determine_recipients(meeting)
     content = ContentBuilder.build_appointment_details(meeting)
 
     with :ok <- Recipients.validate_recipients(recipients),
@@ -183,8 +183,8 @@ defmodule Tymeslot.Notifications.Orchestrator do
     # what is scheduled here.
     reminders = ReminderSchedule.configured(meeting)
 
-    recipients = Recipients.determine_recipients(meeting, :reminder)
-    content = ContentBuilder.build_reminder_details(meeting)
+    recipients = Recipients.determine_recipients(meeting)
+    content = ContentBuilder.build_appointment_details(meeting)
 
     with :ok <- Recipients.validate_recipients(recipients),
          :ok <- ContentBuilder.validate_content(content, Meetings.group?(meeting)) do
@@ -220,7 +220,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
   @spec send_cancellation_notifications(%{atom() => term()}) ::
           {:ok, atom()} | {:error, term()}
   def send_cancellation_notifications(meeting) do
-    recipients = Recipients.determine_recipients(meeting, :cancellation)
+    recipients = Recipients.determine_recipients(meeting)
 
     with :ok <- Recipients.validate_recipients(recipients) do
       worker_module = get_email_worker_module()
@@ -303,7 +303,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
   @spec send_reschedule_notifications(%{atom() => term()}, %{atom() => term()}) ::
           {:ok, atom()} | {:error, term()}
   def send_reschedule_notifications(updated_meeting, original_meeting) do
-    recipients = Recipients.determine_recipients(updated_meeting, :reschedule)
+    recipients = Recipients.determine_recipients(updated_meeting)
     content = ContentBuilder.build_reschedule_details(updated_meeting, original_meeting)
 
     with :ok <- Recipients.validate_recipients(recipients),
@@ -337,7 +337,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
   def send_reapproval_notifications(%{first_announced_at: nil}), do: {:ok, :not_a_move}
 
   def send_reapproval_notifications(meeting) do
-    recipients = Recipients.determine_recipients(meeting, :reschedule)
+    recipients = Recipients.determine_recipients(meeting)
     content = ContentBuilder.build_reapproval_details(meeting)
 
     with :ok <- Recipients.validate_recipients(recipients),
