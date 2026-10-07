@@ -92,7 +92,9 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
       test "#{type} returns retry_later" do
         event = %{"id" => "evt_fail_#{unquote(status)}", "type" => unquote(type)}
 
-        assert {:error, :retry_later, _message} =
+        # The hand-off's own failure, not the Stripe lookup's, which retries
+        # the same way.
+        assert {:error, :retry_later, "Dispute event hand-off failed"} =
                  DisputeHandler.process(event, dispute(unquote(status)))
       end
     end
