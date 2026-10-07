@@ -159,18 +159,14 @@ defmodule Tymeslot.Availability.ScheduleSlotsIntegrationTest do
     assert :ok =
              Validation.validate_booking_time(
                submitted,
-               "Etc/UTC",
                Policy.scheduling_config(user.id, evening_type)
              )
 
-    assert {:error, message} =
+    assert {:error, {:too_far_ahead, _days}} =
              Validation.validate_booking_time(
                submitted,
-               "Etc/UTC",
                Policy.scheduling_config(user.id, morning_type)
              )
-
-    assert message =~ "in advance"
   end
 
   test "booking-time policy resolves the same schedule as slot computation", %{

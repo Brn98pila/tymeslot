@@ -48,16 +48,14 @@ defmodule Tymeslot.Bookings.Create do
   Result returned by `execute/3`.
 
   The domain layer classifies every failure reason into one of
-  `Tymeslot.Bookings.Errors.classified_error/0` (or, for reasons that
-  already arrive as arbitrary changeset/validation text, passes the binary
-  through unchanged). Rendering an atom to user-facing copy is entirely the
+  `Tymeslot.Bookings.Errors.classified_error/0`. Rendering an atom to user-facing copy is entirely the
   web layer's responsibility — see
   `TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage`.
   """
   @type execute_result ::
           {:ok, map()}
           | {:ok, :payment_required, %{meeting: map(), checkout_url: String.t()}}
-          | {:error, Errors.classified_error() | String.t()}
+          | {:error, Errors.classified_error()}
 
   @doc """
   Creates a booking with fresh calendar validation.
@@ -162,8 +160,8 @@ defmodule Tymeslot.Bookings.Create do
       # check agree on whether this booking joins a live group slot.
       {:ok, Map.put(booking_data, :join_target, CreateGroup.join_target(booking_data))}
     else
-      {:error, :invalid_date_input} -> {:error, "Invalid date format"}
-      {:error, :invalid_format} -> {:error, "Invalid date format"}
+      {:error, :invalid_date_input} -> {:error, :invalid_datetime}
+      {:error, :invalid_format} -> {:error, :invalid_datetime}
       error -> error
     end
   end
@@ -200,11 +198,7 @@ defmodule Tymeslot.Bookings.Create do
 
           # Time window validation
           with :ok <-
-                 Validation.validate_booking_time(
-                   booking_data.start_datetime,
-                   booking_data.user_timezone,
-                   config
-                 ),
+                 Validation.validate_booking_time(booking_data.start_datetime, config),
                :ok <- validate_slot_on_schedule(booking_data, config),
                :ok <- validate_booking_limits(booking_data, user_id) do
             # Optional fresh calendar validation

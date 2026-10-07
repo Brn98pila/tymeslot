@@ -104,12 +104,11 @@ defmodule Tymeslot.Bookings.Reschedule do
   since been blocked over it, `:availability_unverifiable` when their
   connected calendars could not all be read to check the new time, or
   `:failed_to_update_meeting` when persisting the new time fails for any
-  other reason) or an arbitrary
-  policy/validation string from `Tymeslot.Bookings.Policy` or
-  `Tymeslot.Bookings.Validation`.
+  other reason) or a refusal from `Tymeslot.Bookings.Policy` or
+  `Tymeslot.Bookings.Validation` (`Tymeslot.Bookings.Errors.refusal/0`).
   """
   @spec execute(String.t(), reschedule_params(), integer()) ::
-          {:ok, Ecto.Schema.t()} | {:error, Errors.classified_error() | String.t()}
+          {:ok, Ecto.Schema.t()} | {:error, Errors.classified_error()}
   def execute(meeting_uid, new_params, organizer_user_id)
       when is_binary(meeting_uid) and is_integer(organizer_user_id) do
     with {:ok, original_meeting} <-

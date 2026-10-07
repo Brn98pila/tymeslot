@@ -136,12 +136,13 @@ defmodule Tymeslot.Bookings.RescheduleTest do
       freeze_clock(DateTime.add(first_at, 120))
       assert :ok = RescheduleRequest.send_reschedule_request(rebooked)
 
-      [first_job, second_job] =
+      jobs =
         all_enqueued(
           worker: EmailWorker,
           args: %{"action" => "send_reschedule_request", "meeting_id" => meeting.id}
         )
-        |> Enum.sort_by(& &1.args["requested_at"])
+
+      [first_job, second_job] = Enum.sort_by(jobs, & &1.args["requested_at"])
 
       assert first_job.args["requested_at"] == DateTime.to_iso8601(first_at)
 
@@ -372,7 +373,7 @@ defmodule Tymeslot.Bookings.RescheduleTest do
       # Update meeting to cancelled status
       {:ok, _meeting} = MeetingQueries.update_meeting(meeting, %{status: "cancelled"})
 
-      assert {:error, "Cannot reschedule a cancelled meeting"} =
+      assert {:error, {:not_reschedulable, :cancelled}} =
                Reschedule.execute(meeting.uid, new_params, meeting.organizer_user_id)
     end
 
@@ -384,7 +385,7 @@ defmodule Tymeslot.Bookings.RescheduleTest do
       # a booking that reserves nothing.
       {:ok, _meeting} = MeetingQueries.update_meeting(meeting, %{status: "expired"})
 
-      assert {:error, "Cannot reschedule an expired meeting"} =
+      assert {:error, {:not_reschedulable, :expired}} =
                Reschedule.execute(meeting.uid, new_params, meeting.organizer_user_id)
     end
 
@@ -405,7 +406,7 @@ defmodule Tymeslot.Bookings.RescheduleTest do
         user_timezone: "America/New_York"
       }
 
-      assert {:error, "Cannot reschedule a completed meeting"} =
+      assert {:error, {:not_reschedulable, :completed}} =
                Reschedule.execute(meeting.uid, new_params, user.id)
     end
 
@@ -425,7 +426,7 @@ defmodule Tymeslot.Bookings.RescheduleTest do
         user_timezone: "America/New_York"
       }
 
-      assert {:error, "Cannot reschedule a meeting that has already started"} =
+      assert {:error, {:not_reschedulable, :started}} =
                Reschedule.execute(meeting.uid, new_params, user.id)
     end
 
@@ -445,7 +446,7 @@ defmodule Tymeslot.Bookings.RescheduleTest do
         user_timezone: "America/New_York"
       }
 
-      assert {:error, "Cannot reschedule a meeting that has already occurred"} =
+      assert {:error, {:not_reschedulable, :past}} =
                Reschedule.execute(meeting.uid, new_params, user.id)
     end
   end
@@ -461,7 +462,7 @@ defmodule Tymeslot.Bookings.RescheduleTest do
         user_timezone: "America/New_York"
       }
 
-      assert {:error, "Invalid date or time format"} =
+      assert {:error, :invalid_datetime} =
                Reschedule.execute(meeting.uid, invalid_params, meeting.organizer_user_id)
     end
 
@@ -475,7 +476,7 @@ defmodule Tymeslot.Bookings.RescheduleTest do
         user_timezone: "America/New_York"
       }
 
-      assert {:error, "Invalid date or time format"} =
+      assert {:error, :invalid_datetime} =
                Reschedule.execute(meeting.uid, invalid_params, meeting.organizer_user_id)
     end
 

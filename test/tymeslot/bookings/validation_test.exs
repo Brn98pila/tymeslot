@@ -396,7 +396,7 @@ defmodule Tymeslot.Bookings.ValidationTest do
     end
 
     test "still rejects an unknown timezone" do
-      assert {:error, "Invalid date or time format"} =
+      assert {:error, :invalid_datetime} =
                Validation.parse_meeting_times("2025-06-15", "10:00", 30, "Not/AZone")
     end
   end

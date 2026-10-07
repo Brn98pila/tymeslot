@@ -6,11 +6,13 @@ defmodule Tymeslot.Bookings.Orchestrator do
   delegating business logic to appropriate domain modules.
   """
 
-  alias Tymeslot.Bookings.{Create, Errors, RescheduleSeat, Validation}
+  alias Tymeslot.Bookings.{Create, Errors, Policy, RescheduleSeat}
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.SeatView
+
+  require Errors
 
   @typedoc "Parameters for `submit_booking/2`."
   @type booking_submission_params :: %{
@@ -34,16 +36,15 @@ defmodule Tymeslot.Bookings.Orchestrator do
     * `{:error, reason}` on validation or persistence failure, where
       `reason` is either a semantic atom classified by the domain layer
       (`Tymeslot.Bookings.Errors.classified_error/0`, e.g. `:slot_taken`,
-      `:meeting_type_inactive`, `:meeting_not_found`) or an arbitrary
-      changeset/validation string. Atoms and binaries are passed through
-      unchanged — this module never manufactures display copy, that is the
-      web layer's job. Any other shape collapses to the generic
-      `:booking_failed` atom.
+      `:meeting_type_inactive`, `:meeting_not_found`, or a refusal such as
+      `{:too_soon, hours}`), passed through unchanged — this module never
+      manufactures display copy, that is the web layer's job. Any other
+      shape collapses to the generic `:booking_failed` atom.
   """
   @spec submit_booking(booking_submission_params(), keyword()) ::
           {:ok, term()}
           | {:ok, :payment_required, %{meeting: map(), checkout_url: String.t()}}
-          | {:error, Errors.classified_error() | String.t()}
+          | {:error, Errors.classified_error()}
   def submit_booking(params, opts \\ []) do
     %{
       form_data: form_data,
@@ -68,7 +69,7 @@ defmodule Tymeslot.Bookings.Orchestrator do
       {:ok, meeting} ->
         {:ok, meeting}
 
-      {:error, reason} when is_atom(reason) or is_binary(reason) ->
+      {:error, reason} when is_atom(reason) or Errors.is_refusal(reason) ->
         {:error, reason}
 
       {:error, _reason} ->
@@ -83,12 +84,12 @@ defmodule Tymeslot.Bookings.Orchestrator do
   preventing IDOR pre-fill of attendee PII from the public booking form.
   """
   @spec get_meeting_for_reschedule(String.t(), integer()) ::
-          {:ok, Ecto.Schema.t()} | {:error, Errors.classified_error() | String.t()}
+          {:ok, Ecto.Schema.t()} | {:error, Errors.classified_error()}
   def get_meeting_for_reschedule(meeting_uid, organizer_user_id)
       when is_integer(organizer_user_id) do
     with {:ok, meeting} <-
            MeetingQueries.get_meeting_by_uid_for_organizer(meeting_uid, organizer_user_id),
-         {:ok, meeting} <- Validation.validate_meeting_for_reschedule(meeting) do
+         :ok <- Policy.can_reschedule_meeting?(meeting) do
       {:ok, meeting}
     else
       {:error, :not_found} -> {:error, :meeting_not_found}

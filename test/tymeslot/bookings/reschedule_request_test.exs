@@ -190,7 +190,7 @@ defmodule Tymeslot.Bookings.RescheduleRequestTest do
       # host's page loaded it as confirmed.
       {:ok, _held} = MeetingQueries.update_meeting_status(meeting, %{status: "awaiting_approval"})
 
-      assert {:error, "Cannot request a reschedule while the booking awaits approval"} =
+      assert {:error, {:not_reschedulable, :awaiting_approval}} =
                RescheduleRequest.send_reschedule_request(meeting)
 
       {:ok, current} = MeetingQueries.get_meeting(meeting.id)
@@ -214,7 +214,7 @@ defmodule Tymeslot.Bookings.RescheduleRequestTest do
           end_time: DateTime.add(now, 3_000)
         })
 
-      assert {:error, "Cannot reschedule a meeting that has already started"} =
+      assert {:error, {:not_reschedulable, :started}} =
                RescheduleRequest.send_reschedule_request(meeting)
 
       {:ok, current} = MeetingQueries.get_meeting(meeting.id)
@@ -244,7 +244,7 @@ defmodule Tymeslot.Bookings.RescheduleRequestTest do
 
       :ok = EmailScheduler.schedule_reminder_emails(meeting.id, 30, "minutes")
 
-      assert {:error, "Cannot reschedule a meeting that has already occurred"} =
+      assert {:error, {:not_reschedulable, :past}} =
                RescheduleRequest.send_reschedule_request(meeting)
 
       {:ok, unchanged} = MeetingQueries.get_meeting(meeting.id)

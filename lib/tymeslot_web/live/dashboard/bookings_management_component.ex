@@ -158,7 +158,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
 
       {:error, :policy_blocked, reason} ->
         Cancellation.emit_error(socket.assigns.current_user.id, reason, :blocked)
-        Flash.error(reason)
+        Flash.error(ModalMeeting.refusal_message(reason))
         {:noreply, socket}
 
       {:error, :not_found, _reason} ->
@@ -213,7 +213,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
           %{user_id: socket.assigns.current_user.id, reason: inspect(reason)}
         )
 
-        Flash.error(reason)
+        Flash.error(ModalMeeting.refusal_message(reason))
         {:noreply, socket}
 
       {:error, :not_found, _reason} ->

@@ -28,7 +28,9 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   `{:error, :not_found}` when the organiser has no meeting with that uid.
   """
   @spec validate_and_load_meeting(String.t(), atom(), integer()) ::
-          {:ok, map()} | {:error, String.t() | :group_meeting | :not_found}
+          {:ok, map()}
+          | {:error,
+             Policy.cancel_refusal() | Policy.reschedule_refusal() | :group_meeting | :not_found}
   def validate_and_load_meeting(meeting_uid, action, organizer_user_id) do
     case Meetings.get_meeting_by_uid_for_organizer(meeting_uid, organizer_user_id) do
       {:ok, meeting} ->
@@ -52,7 +54,9 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   end
 
   # Validates whether the given action is permitted for the meeting.
-  @spec validate_meeting_action(map(), atom()) :: :ok | {:error, String.t() | :group_meeting}
+  @spec validate_meeting_action(map(), atom()) ::
+          :ok
+          | {:error, Policy.cancel_refusal() | Policy.reschedule_refusal() | :group_meeting}
   defp validate_meeting_action(meeting, action) when action in [:cancel, :reschedule] do
     if Meetings.group?(meeting),
       do: {:error, :group_meeting},

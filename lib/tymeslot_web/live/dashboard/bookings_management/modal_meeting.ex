@@ -10,6 +10,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagement.ModalMeeting do
 
   alias Ecto.UUID
   alias Tymeslot.Meetings
+  alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
 
   @doc """
   The host's meeting named by `params["id"]`, when `policy_fun` allows the
@@ -34,6 +35,10 @@ defmodule TymeslotWeb.Dashboard.BookingsManagement.ModalMeeting do
       {:error, reason} -> {:error, :policy_blocked, reason}
     end
   end
+
+  @doc "The copy shown to the host for a `:policy_blocked` reason from `fetch/3`."
+  @spec refusal_message(term()) :: String.t()
+  def refusal_message(reason), do: BookingErrorMessage.message(reason)
 
   defp fetch_meeting_for_organizer(id, user_id) do
     with {:ok, meeting} <- Meetings.get_meeting_for_organizer(id, user_id) do

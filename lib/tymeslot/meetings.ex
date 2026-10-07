@@ -120,7 +120,7 @@ defmodule Tymeslot.Meetings do
   Delegates to Bookings.Cancel module.
   """
   @spec cancel_meeting(MeetingSchema.t()) ::
-          {:ok, MeetingSchema.t()} | {:error, atom() | String.t()}
+          {:ok, MeetingSchema.t()} | {:error, term()}
   def cancel_meeting(%MeetingSchema{} = meeting) do
     Cancel.execute(meeting)
   end
@@ -335,7 +335,7 @@ defmodule Tymeslot.Meetings do
 
   Validates the request against policy and manages the workflow state.
   """
-  @spec send_reschedule_request(MeetingSchema.t()) :: :ok | {:error, String.t() | atom()}
+  @spec send_reschedule_request(MeetingSchema.t()) :: :ok | {:error, term()}
   def send_reschedule_request(meeting) do
     case RescheduleRequest.send_reschedule_request(meeting) do
       :ok ->

@@ -64,7 +64,8 @@ defmodule Tymeslot.Bookings.RescheduleRequest do
       iex> send_reschedule_request(%Meeting{id: 123, reschedule_requested_at: ~U[...]})
       {:error, :already_requested}
   """
-  @spec send_reschedule_request(MeetingSchema.t()) :: :ok | {:error, String.t() | atom()}
+  @spec send_reschedule_request(MeetingSchema.t()) ::
+          :ok | {:error, Policy.reschedule_refusal() | :already_requested | :not_found | term()}
   def send_reschedule_request(meeting) do
     with :ok <- check_requestable(meeting) do
       update_and_send_reschedule_request(meeting)

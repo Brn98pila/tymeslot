@@ -36,7 +36,15 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
         }
 
   @spec execute(params()) ::
-          {:ok, Tymeslot.Meetings.MeetingSchema.t()} | {:error, String.t() | :time_conflict}
+          {:ok, Tymeslot.Meetings.MeetingSchema.t()}
+          | {:error,
+             :title_required
+             | :attendee_name_required
+             | :attendee_email_required
+             | :attendee_is_organizer
+             | :end_before_start
+             | :time_conflict
+             | :meeting_creation_failed}
   def execute(params) do
     # The organiser's details are resolved once and threaded through: validation
     # needs the organiser email to reject self-booking, and the meeting attrs
@@ -56,19 +64,19 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
   defp validate(params, {_org_name, org_email, _org_username}) do
     cond do
       blank?(params[:title]) ->
-        {:error, "Title is required"}
+        {:error, :title_required}
 
       blank?(params[:attendee_name]) ->
-        {:error, "Attendee name is required"}
+        {:error, :attendee_name_required}
 
       blank?(params[:attendee_email]) ->
-        {:error, "Attendee email is required"}
+        {:error, :attendee_email_required}
 
       same_address?(params[:attendee_email], org_email) ->
-        {:error, "The guest email must differ from your own address"}
+        {:error, :attendee_is_organizer}
 
       DateTime.compare(params.end_time, params.start_time) != :gt ->
-        {:error, "End time must be after start time"}
+        {:error, :end_before_start}
 
       true ->
         :ok
@@ -218,8 +226,7 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
   # Preserve the time-conflict reason distinctly so callers can tell an occupied
   # slot apart from a generic booking failure.
   defp map_result({:error, :time_conflict}), do: {:error, :time_conflict}
-  defp map_result({:error, reason}) when is_binary(reason), do: {:error, reason}
-  defp map_result({:error, _reason}), do: {:error, "Failed to create meeting"}
+  defp map_result({:error, _reason}), do: {:error, :meeting_creation_failed}
 
   defp get_organizer_details(user_id) do
     case ProfileQueries.get_by_user_id(user_id) do

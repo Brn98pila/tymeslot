@@ -1048,11 +1048,6 @@ msgstr "Зустріч, яка вже почалася, не можна пере
 
 #: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
 #, elixir-autogen, elixir-format
-msgid "Meeting is already cancelled"
-msgstr "Зустріч вже скасовано"
-
-#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
-#, elixir-autogen, elixir-format
 msgid "Attendee email is required"
 msgstr "Потрібно вказати електронну адресу учасника"
 
@@ -1080,11 +1075,6 @@ msgstr "Час завершення має бути пізніше за час �
 #, elixir-autogen, elixir-format
 msgid "Failed to create meeting"
 msgstr "Не вдалося створити зустріч"
-
-#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
-#, elixir-autogen, elixir-format
-msgid "Failed to update meeting status"
-msgstr "Не вдалося оновити статус зустрічі"
 
 #: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
 #, elixir-autogen, elixir-format
@@ -1459,3 +1449,13 @@ msgstr "Інше місце"
 #, elixir-autogen, elixir-format
 msgid "We couldn't check the host's calendar right now. Please try again in a few minutes."
 msgstr "Зараз не вдалося перевірити календар організатора. Спробуйте ще раз за кілька хвилин."
+
+#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
+#, elixir-autogen, elixir-format
+msgid "Cannot cancel an expired meeting"
+msgstr "Протерміновану зустріч не можна скасувати"
+
+#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
+#, elixir-autogen, elixir-format
+msgid "Cannot request a reschedule while the booking awaits approval"
+msgstr "Не можна надіслати запит на перенесення, доки бронювання очікує підтвердження"

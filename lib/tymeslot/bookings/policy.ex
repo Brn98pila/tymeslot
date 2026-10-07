@@ -402,18 +402,27 @@ defmodule Tymeslot.Bookings.Policy do
     Application.get_env(:tymeslot, :email)[:from_email]
   end
 
+  @typedoc """
+  Why a meeting can no longer be changed, by its status or its time. The web
+  layer renders a refusal (`TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage`).
+  """
+  @type meeting_state ::
+          :cancelled | :completed | :expired | :awaiting_approval | :started | :past
+  @type cancel_refusal :: :already_cancelled | {:not_cancellable, meeting_state()}
+  @type reschedule_refusal :: {:not_reschedulable, meeting_state()}
+
   @doc """
   Determines if a meeting can be cancelled.
   Checks both status and time constraints.
   """
-  @spec can_cancel_meeting?(meeting_record()) :: :ok | {:error, String.t()}
+  @spec can_cancel_meeting?(meeting_record()) :: :ok | {:error, cancel_refusal()}
   def can_cancel_meeting?(meeting) do
     cond do
       meeting.status == "cancelled" ->
-        {:error, "Meeting is already cancelled"}
+        {:error, :already_cancelled}
 
       meeting.status == "completed" ->
-        {:error, "Cannot cancel a completed meeting"}
+        {:error, {:not_cancellable, :completed}}
 
       # An expired meeting (a lapsed approval request or an abandoned paid
       # checkout) has already been released: its slot was freed, the attendee
@@ -426,21 +435,21 @@ defmodule Tymeslot.Bookings.Policy do
       # email's withdraw link stays live in the invitee's inbox after the
       # deadline, so this is a reachable click, not a theoretical one.
       meeting.status == "expired" ->
-        {:error, "Cannot cancel an expired meeting"}
+        {:error, {:not_cancellable, :expired}}
 
       meeting_is_current?(meeting) ->
         Logger.info("Blocked cancellation: meeting has already started",
           meeting_uid: meeting.uid
         )
 
-        {:error, "Cannot cancel a meeting that has already started"}
+        {:error, {:not_cancellable, :started}}
 
       meeting_is_past?(meeting) ->
         Logger.info("Blocked cancellation: meeting has already occurred",
           meeting_uid: meeting.uid
         )
 
-        {:error, "Cannot cancel a meeting that has already occurred"}
+        {:error, {:not_cancellable, :past}}
 
       true ->
         :ok
@@ -451,14 +460,14 @@ defmodule Tymeslot.Bookings.Policy do
   Determines if a meeting can be rescheduled.
   Checks both status and time constraints.
   """
-  @spec can_reschedule_meeting?(meeting_record()) :: :ok | {:error, String.t()}
+  @spec can_reschedule_meeting?(meeting_record()) :: :ok | {:error, reschedule_refusal()}
   def can_reschedule_meeting?(meeting) do
     cond do
       meeting.status == "cancelled" ->
-        {:error, "Cannot reschedule a cancelled meeting"}
+        {:error, {:not_reschedulable, :cancelled}}
 
       meeting.status == "completed" ->
-        {:error, "Cannot reschedule a completed meeting"}
+        {:error, {:not_reschedulable, :completed}}
 
       # An expired meeting (a lapsed approval request or an abandoned paid
       # checkout) has already released its slot: `MeetingState`'s
@@ -466,15 +475,15 @@ defmodule Tymeslot.Bookings.Policy do
       # it. Rescheduling would move it to a new time it does not reserve, and
       # the attendee would be told about a booking anyone else can still take.
       meeting.status == "expired" ->
-        {:error, "Cannot reschedule an expired meeting"}
+        {:error, {:not_reschedulable, :expired}}
 
       meeting_is_current?(meeting) ->
         Logger.info("Blocked reschedule: meeting has already started", meeting_uid: meeting.uid)
-        {:error, "Cannot reschedule a meeting that has already started"}
+        {:error, {:not_reschedulable, :started}}
 
       meeting_is_past?(meeting) ->
         Logger.info("Blocked reschedule: meeting has already occurred", meeting_uid: meeting.uid)
-        {:error, "Cannot reschedule a meeting that has already occurred"}
+        {:error, {:not_reschedulable, :past}}
 
       true ->
         :ok
@@ -493,9 +502,9 @@ defmodule Tymeslot.Bookings.Policy do
   here would leave a request that still reads as approvable pointing at
   time that no longer holds.
   """
-  @spec can_request_reschedule?(meeting_record()) :: :ok | {:error, String.t()}
+  @spec can_request_reschedule?(meeting_record()) :: :ok | {:error, reschedule_refusal()}
   def can_request_reschedule?(%{status: "awaiting_approval"}) do
-    {:error, "Cannot request a reschedule while the booking awaits approval"}
+    {:error, {:not_reschedulable, :awaiting_approval}}
   end
 
   def can_request_reschedule?(meeting), do: can_reschedule_meeting?(meeting)

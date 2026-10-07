@@ -222,7 +222,8 @@ defmodule TymeslotWeb.SeatController do
   end
 
   defp render_error(conn, {:error, reason})
-       when reason in [:meeting_started, :meeting_past] or is_binary(reason) do
+       when reason in [:meeting_started, :meeting_past] or
+              (is_tuple(reason) and elem(reason, 0) == :not_cancellable) do
     conn
     |> put_status(:conflict)
     |> seat_page(dgettext("booking_manage", "Spot cannot be cancelled"))

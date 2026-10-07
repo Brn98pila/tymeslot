@@ -35,7 +35,7 @@ defmodule Tymeslot.Bookings.PolicyTest do
         end_time: DateTime.add(DateTime.utc_now(), 1800, :second)
       }
 
-      assert {:error, "Cannot cancel a meeting that has already started"} =
+      assert {:error, {:not_cancellable, :started}} =
                Policy.can_cancel_meeting?(current_meeting)
     end
 
@@ -49,7 +49,7 @@ defmodule Tymeslot.Bookings.PolicyTest do
         end_time: DateTime.add(DateTime.utc_now(), -3600, :second)
       }
 
-      assert {:error, "Cannot cancel a meeting that has already occurred"} =
+      assert {:error, {:not_cancellable, :past}} =
                Policy.can_cancel_meeting?(past_meeting)
     end
 
@@ -61,7 +61,7 @@ defmodule Tymeslot.Bookings.PolicyTest do
         end_time: DateTime.add(DateTime.utc_now(), 7200, :second)
       }
 
-      assert {:error, "Meeting is already cancelled"} =
+      assert {:error, :already_cancelled} =
                Policy.can_cancel_meeting?(cancelled_meeting)
     end
 
@@ -73,7 +73,7 @@ defmodule Tymeslot.Bookings.PolicyTest do
         end_time: DateTime.add(DateTime.utc_now(), -3600, :second)
       }
 
-      assert {:error, "Cannot cancel a completed meeting"} =
+      assert {:error, {:not_cancellable, :completed}} =
                Policy.can_cancel_meeting?(completed_meeting)
     end
 
@@ -103,7 +103,7 @@ defmodule Tymeslot.Bookings.PolicyTest do
         end_time: DateTime.add(DateTime.utc_now(), 7200, :second)
       }
 
-      assert {:error, "Cannot cancel an expired meeting"} =
+      assert {:error, {:not_cancellable, :expired}} =
                Policy.can_cancel_meeting?(expired_request)
     end
   end
@@ -128,7 +128,7 @@ defmodule Tymeslot.Bookings.PolicyTest do
         end_time: DateTime.add(DateTime.utc_now(), 1800, :second)
       }
 
-      assert {:error, "Cannot reschedule a meeting that has already started"} =
+      assert {:error, {:not_reschedulable, :started}} =
                Policy.can_reschedule_meeting?(current_meeting)
     end
 
@@ -140,7 +140,7 @@ defmodule Tymeslot.Bookings.PolicyTest do
         end_time: DateTime.add(DateTime.utc_now(), -3600, :second)
       }
 
-      assert {:error, "Cannot reschedule a meeting that has already occurred"} =
+      assert {:error, {:not_reschedulable, :past}} =
                Policy.can_reschedule_meeting?(past_meeting)
     end
 
@@ -152,7 +152,7 @@ defmodule Tymeslot.Bookings.PolicyTest do
         end_time: DateTime.add(DateTime.utc_now(), 7200, :second)
       }
 
-      assert {:error, "Cannot reschedule a cancelled meeting"} =
+      assert {:error, {:not_reschedulable, :cancelled}} =
                Policy.can_reschedule_meeting?(cancelled_meeting)
     end
 
@@ -164,7 +164,7 @@ defmodule Tymeslot.Bookings.PolicyTest do
         end_time: DateTime.add(DateTime.utc_now(), -3600, :second)
       }
 
-      assert {:error, "Cannot reschedule a completed meeting"} =
+      assert {:error, {:not_reschedulable, :completed}} =
                Policy.can_reschedule_meeting?(completed_meeting)
     end
 
@@ -178,7 +178,7 @@ defmodule Tymeslot.Bookings.PolicyTest do
         end_time: DateTime.add(DateTime.utc_now(), 7200, :second)
       }
 
-      assert {:error, "Cannot reschedule an expired meeting"} =
+      assert {:error, {:not_reschedulable, :expired}} =
                Policy.can_reschedule_meeting?(expired_meeting)
     end
 

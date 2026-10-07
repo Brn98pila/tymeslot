@@ -10,13 +10,25 @@ defmodule Tymeslot.Bookings.Errors do
   layer's responsibility — see
   `TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage`.
 
-  Reasons that don't yet have a semantic atom (arbitrary changeset/validation
-  text from `Tymeslot.Bookings.Policy` and `Tymeslot.Bookings.Validation`,
-  shared with the cancel flow) still arrive as plain binaries and are out of
-  scope for this vocabulary.
+  The refusals `Tymeslot.Bookings.Policy` and `Tymeslot.Bookings.Validation`
+  give for a meeting or a booking time (`refusal/0`) are already semantic, and
+  pass through unchanged.
   """
 
+  alias Tymeslot.Bookings.Policy
+  alias Tymeslot.Bookings.Validation
   alias Tymeslot.Infrastructure.ErrorTracking
+
+  @typedoc """
+  A refusal decided by the booking rules rather than a failure: the meeting
+  can no longer be cancelled or moved, or the requested time is outside what
+  the host's schedule accepts.
+  """
+  @type refusal ::
+          Policy.cancel_refusal()
+          | Policy.reschedule_refusal()
+          | Validation.booking_time_refusal()
+          | :invalid_datetime
 
   @typedoc "Semantic booking error atoms shared across the booking domain."
   @type classified_error ::
@@ -33,6 +45,7 @@ defmodule Tymeslot.Bookings.Errors do
           | :checkout_failed
           | :meeting_not_found
           | :failed_to_update_meeting
+          | refusal()
 
   # Table rather than a clause ladder: every entry is the same behaviour over
   # varying data, so the mapping is the whole content. `:availability_unverifiable`
@@ -71,6 +84,15 @@ defmodule Tymeslot.Bookings.Errors do
     host_missing: :host_not_found
   }
 
+  @refusal_atoms [:already_cancelled, :in_past, :invalid_datetime]
+  @refusal_tags [:not_cancellable, :not_reschedulable, :too_soon, :too_far_ahead]
+
+  @doc "Whether `reason` is a `refusal/0`."
+  defguard is_refusal(reason)
+           when reason in @refusal_atoms or
+                  (is_tuple(reason) and tuple_size(reason) == 2 and
+                     elem(reason, 0) in @refusal_tags)
+
   # `Tymeslot.Bookings.ScheduleCheck` is shared by `Create` and `Reschedule`,
   # so its failure reasons are classified once, here, rather than in a table
   # per caller: a reason ScheduleCheck grows in the future is then picked up
@@ -85,14 +107,15 @@ defmodule Tymeslot.Bookings.Errors do
   string, so callers can dispatch on the error's identity (e.g. bounce the
   booker back to the schedule step on `:slot_taken`) without depending on
   copy text. The web layer owns rendering these atoms to user-facing
-  messages. Reasons that already arrive as arbitrary changeset/validation
-  text pass through unchanged (`is_binary/1` clause).
+  messages. A `refusal/0` passes through unchanged.
 
   Shared by `Tymeslot.Bookings.Create` and `Tymeslot.Bookings.CreateGroup`.
   """
-  @spec classify_error(term()) :: classified_error() | String.t()
+  @spec classify_error(term()) :: classified_error()
   def classify_error(reason) when is_map_key(@error_classifications, reason),
     do: Map.fetch!(@error_classifications, reason)
+
+  def classify_error(reason) when is_refusal(reason), do: reason
 
   def classify_error({:custom_field_errors, _errors}), do: :custom_field_errors
   def classify_error({:checkout_failed, _reason}), do: :checkout_failed
@@ -100,7 +123,6 @@ defmodule Tymeslot.Bookings.Errors do
   def classify_error(reason) when is_atom(reason),
     do: classify_schedule_check_reason(reason) || :booking_failed
 
-  def classify_error(reason) when is_binary(reason), do: reason
   def classify_error(_other), do: :booking_failed
 
   # Once validation has passed, the only failures creating the meeting is
@@ -123,7 +145,7 @@ defmodule Tymeslot.Bookings.Errors do
 
   Shared by `Tymeslot.Bookings.Create` and `Tymeslot.Bookings.CreateGroup`.
   """
-  @spec classify_creation_error(term(), map()) :: classified_error() | String.t()
+  @spec classify_creation_error(term(), map()) :: classified_error()
   def classify_creation_error(reason, booking_data) do
     case classify_error(reason) do
       :booking_failed when reason not in @not_reported ->
