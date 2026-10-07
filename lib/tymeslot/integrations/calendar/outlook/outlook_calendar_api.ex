@@ -25,7 +25,6 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
     {"Content-Type", "application/json"},
     {"Prefer", "outlook.calendar-update.disableNotifications"}
   ]
-  @token_url "https://login.microsoftonline.com/common/oauth2/v2.0/token"
 
   # Graph pages a list read and links the next page as `@odata.nextLink`. At
   # 1,000 events a page this cap is far past any real calendar's window; it
@@ -366,34 +365,18 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
   def refresh_token(%CalendarIntegrationSchema{} = integration) do
     integration = CalendarIntegrationSchema.decrypt_oauth_tokens(integration)
 
-    current_scope =
-      integration.oauth_scope ||
-        "https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/User.Read offline_access openid profile"
-
-    with {:ok, client_id} <- MicrosoftConfig.fetch_client_id(),
-         {:ok, client_secret} <- MicrosoftConfig.fetch_client_secret() do
-      body = %{
-        "grant_type" => "refresh_token",
-        "refresh_token" => integration.refresh_token,
-        "client_id" => client_id,
-        "client_secret" => client_secret,
-        "scope" => current_scope
-      }
-
-      ApiResponse.token_refresh(
-        TokenEndpoint.refresh(@token_url, body,
-          fallback_refresh_token: integration.refresh_token,
-          log_context: [
-            integration_id: integration.id,
-            user_id: integration.user_id,
-            provider: :outlook
-          ]
-        )
+    ApiResponse.token_refresh(
+      TokenEndpoint.refresh_grant(
+        MicrosoftConfig,
+        integration.refresh_token,
+        integration.oauth_scope || MicrosoftConfig.scope(),
+        log_context: [
+          integration_id: integration.id,
+          user_id: integration.user_id,
+          provider: :outlook
+        ]
       )
-    else
-      {:error, reason} ->
-        {:error, :authentication_error, reason}
-    end
+    )
   end
 
   @doc """

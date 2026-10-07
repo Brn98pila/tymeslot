@@ -60,7 +60,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
     state = generate_state(user_id, integration_id)
 
     params = %{
-      client_id: ZoomConfig.client_id(),
+      client_id: ZoomConfig.client_id!(),
       redirect_uri: redirect_uri,
       response_type: "code",
       scope: zoom_scope(),

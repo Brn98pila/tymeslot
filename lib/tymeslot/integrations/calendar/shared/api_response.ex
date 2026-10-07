@@ -94,9 +94,10 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ApiResponse do
   A 400 or 401 is the provider refusing the credential, and its message keeps
   the OAuth error code so the refresh job and the health check can tell a
   revoked grant (`invalid_grant`) from other refusals. Anything else, a 200
-  that did not decode included, is transient.
+  that did not decode included, is transient, and missing client credentials
+  are an authentication error.
   """
-  @spec token_refresh({:ok, TokenEndpoint.tokens()} | {:error, TokenEndpoint.token_error()}) ::
+  @spec token_refresh({:ok, TokenEndpoint.tokens()} | {:error, TokenEndpoint.refresh_error()}) ::
           {:ok, {String.t(), String.t(), DateTime.t()}} | {:error, atom(), String.t()}
   def token_refresh(
         {:ok, %{access_token: access, refresh_token: refresh, expires_at: expires_at}}
@@ -111,6 +112,9 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ApiResponse do
 
   def token_refresh({:error, {:network_error, reason}}),
     do: {:error, :network_error, "Network error: #{inspect(reason)}"}
+
+  def token_refresh({:error, {:not_configured, message}}),
+    do: {:error, :authentication_error, message}
 
   defp default_handle({:ok, %{status: status, body: body}}, _label)
        when status in [200, 201, 204] do

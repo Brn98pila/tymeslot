@@ -22,11 +22,6 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
 
   require Logger
 
-  @teams_scope "https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/User.Read offline_access openid profile email"
-
-  @oauth_base_url "https://login.microsoftonline.com/common/oauth2/v2.0"
-  @token_url "#{@oauth_base_url}/token"
-
   @doc """
   Generates the OAuth authorization URL for Microsoft Teams.
   """
@@ -37,19 +32,19 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
     state = generate_state(user_id, integration_id)
 
     params = %{
-      client_id: MicrosoftConfig.client_id(),
+      client_id: MicrosoftConfig.client_id!(),
       redirect_uri: redirect_uri,
       response_type: "code",
-      scope: @teams_scope,
+      scope: MicrosoftConfig.scope(),
       state: state,
       response_mode: "query",
       prompt: "select_account"
     }
 
     url =
-      ProviderHelpers.build_authorization_url("#{@oauth_base_url}/authorize", params, login_hint)
+      ProviderHelpers.build_authorization_url(MicrosoftConfig.authorize_url(), params, login_hint)
 
-    Logger.info("Generated Teams OAuth URL", scope: @teams_scope)
+    Logger.info("Generated Teams OAuth URL", scope: MicrosoftConfig.scope())
     url
   end
 
@@ -108,7 +103,7 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
 
     if String.contains?(returned_scope, "Calendars.ReadWrite"),
       do: returned_scope,
-      else: @teams_scope
+      else: MicrosoftConfig.scope()
   end
 
   defp fetch_user_profile(token) do
@@ -158,21 +153,12 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
   @spec refresh_access_token(String.t(), String.t() | nil, keyword()) ::
           {:ok, map()} | {:error, String.t()}
   def refresh_access_token(refresh_token, current_scope \\ nil, opts \\ []) do
-    scope = current_scope || @teams_scope
-
-    body = %{
-      refresh_token: refresh_token,
-      client_id: MicrosoftConfig.client_id(),
-      client_secret: MicrosoftConfig.client_secret(),
-      grant_type: "refresh_token",
-      scope: scope
-    }
-
     # No second log line here: `TokenEndpoint` already logs the status and the
     # redacted body, and names the provider too.
-    case TokenEndpoint.refresh(@token_url, body,
-           fallback_refresh_token: refresh_token,
-           fallback_scope: scope,
+    case TokenEndpoint.refresh_grant(
+           MicrosoftConfig,
+           refresh_token,
+           current_scope || MicrosoftConfig.scope(),
            log_context: Keyword.merge(Keyword.get(opts, :log_context, []), provider: :teams)
          ) do
       {:ok, tokens} -> {:ok, tokens}
@@ -205,21 +191,24 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
   # Private functions
 
   defp fetch_tokens(code, redirect_uri) do
-    body = %{
-      code: code,
-      client_id: MicrosoftConfig.client_id(),
-      client_secret: MicrosoftConfig.client_secret(),
-      redirect_uri: redirect_uri,
-      grant_type: "authorization_code",
-      scope: @teams_scope
-    }
+    with {:ok, client_id} <- MicrosoftConfig.fetch_client_id(),
+         {:ok, client_secret} <- MicrosoftConfig.fetch_client_secret() do
+      body = %{
+        code: code,
+        client_id: client_id,
+        client_secret: client_secret,
+        redirect_uri: redirect_uri,
+        grant_type: "authorization_code",
+        scope: MicrosoftConfig.scope()
+      }
 
-    case TokenEndpoint.exchange_code(@token_url, body,
-           fallback_scope: @teams_scope,
-           log_context: [provider: :teams]
-         ) do
-      {:ok, tokens} -> {:ok, tokens}
-      {:error, error} -> {:error, TokenEndpoint.error_message(:exchange, error)}
+      case TokenEndpoint.exchange_code(MicrosoftConfig.token_url(), body,
+             fallback_scope: MicrosoftConfig.scope(),
+             log_context: [provider: :teams]
+           ) do
+        {:ok, tokens} -> {:ok, tokens}
+        {:error, error} -> {:error, TokenEndpoint.error_message(:exchange, error)}
+      end
     end
   end
 

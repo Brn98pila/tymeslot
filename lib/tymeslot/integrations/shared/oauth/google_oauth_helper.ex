@@ -9,18 +9,11 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Common.OAuth.{IdToken, State}
-  alias Tymeslot.Integrations.Google.Endpoints
+  alias Tymeslot.Integrations.Shared.GoogleConfig
   alias Tymeslot.Integrations.Shared.OAuth.ProviderHelpers
   alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
 
   require Logger
-
-  @default_scopes %{
-    openid: "openid",
-    email: "email",
-    calendar: "https://www.googleapis.com/auth/calendar",
-    meet: "https://www.googleapis.com/auth/meetings.space.created"
-  }
 
   @doc """
   Generates the OAuth authorization URL for Google services.
@@ -52,7 +45,7 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
     default_prompt = if integration_id, do: "select_account", else: "consent select_account"
 
     base_params = %{
-      client_id: google_client_id(),
+      client_id: GoogleConfig.client_id!(),
       redirect_uri: redirect_uri,
       response_type: "code",
       scope: scope_string,
@@ -68,7 +61,7 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
       |> Enum.into(base_params)
 
     ProviderHelpers.build_authorization_url(
-      Endpoints.authorize_url(),
+      GoogleConfig.authorize_url(),
       params,
       login_hint
     )
@@ -87,15 +80,22 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
   @spec exchange_code_for_tokens(String.t(), String.t(), String.t() | nil) ::
           {:ok, map()} | {:error, String.t()}
   def exchange_code_for_tokens(code, redirect_uri, state \\ nil) do
-    body = %{
-      code: code,
-      client_id: google_client_id(),
-      client_secret: google_client_secret(),
-      redirect_uri: redirect_uri,
-      grant_type: "authorization_code"
-    }
+    with {:ok, client_id} <- GoogleConfig.fetch_client_id(),
+         {:ok, client_secret} <- GoogleConfig.fetch_client_secret() do
+      body = %{
+        code: code,
+        client_id: client_id,
+        client_secret: client_secret,
+        redirect_uri: redirect_uri,
+        grant_type: "authorization_code"
+      }
 
-    case TokenEndpoint.exchange_code(Endpoints.token_url(), body,
+      exchange(body, state)
+    end
+  end
+
+  defp exchange(body, state) do
+    case TokenEndpoint.exchange_code(GoogleConfig.token_url(), body,
            log_context: [provider: :google]
          ) do
       {:ok, tokens} ->
@@ -140,21 +140,9 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
   @spec refresh_access_token(String.t(), String.t() | nil, keyword()) ::
           {:ok, map()} | {:error, String.t()}
   def refresh_access_token(refresh_token, current_scope \\ nil, opts \\ []) do
-    body = %{
-      refresh_token: refresh_token,
-      client_id: google_client_id(),
-      client_secret: google_client_secret(),
-      grant_type: "refresh_token"
-    }
-
-    # Add scope if provided to maintain same scope
-    body = if current_scope, do: Map.put(body, :scope, current_scope), else: body
-
     # No second log line here: `TokenEndpoint` already logs the status and the
     # redacted body, and names the provider too.
-    case TokenEndpoint.refresh(Endpoints.token_url(), body,
-           fallback_refresh_token: refresh_token,
-           fallback_scope: current_scope,
+    case TokenEndpoint.refresh_grant(GoogleConfig, refresh_token, current_scope,
            log_context: Keyword.merge(Keyword.get(opts, :log_context, []), provider: :google)
          ) do
       {:ok, tokens} -> {:ok, tokens}
@@ -185,11 +173,7 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
   Returns the secret used to sign and verify Google OAuth `state` parameters.
   """
   @spec state_secret() :: String.t()
-  def state_secret do
-    Application.get_env(:tymeslot, :google_oauth)[:state_secret] ||
-      System.get_env("GOOGLE_STATE_SECRET") ||
-      raise "Google State Secret not configured"
-  end
+  defdelegate state_secret, to: GoogleConfig
 
   # Private functions
 
@@ -229,20 +213,8 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
 
   defp build_scope_list(scopes) when is_list(scopes) do
     Enum.map(scopes, fn
-      scope when is_atom(scope) -> Map.get(@default_scopes, scope, to_string(scope))
+      scope when is_atom(scope) -> GoogleConfig.scope(scope)
       scope when is_binary(scope) -> scope
     end)
-  end
-
-  defp google_client_id do
-    Application.get_env(:tymeslot, :google_oauth)[:client_id] ||
-      System.get_env("GOOGLE_CLIENT_ID") ||
-      raise "Google Client ID not configured"
-  end
-
-  defp google_client_secret do
-    Application.get_env(:tymeslot, :google_oauth)[:client_secret] ||
-      System.get_env("GOOGLE_CLIENT_SECRET") ||
-      raise "Google Client Secret not configured"
   end
 end

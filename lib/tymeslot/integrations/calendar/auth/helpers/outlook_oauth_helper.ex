@@ -24,10 +24,6 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
   alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
   alias Tymeslot.Workers.RefreshOutlookCalendarWorker
 
-  @calendar_scope "https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/User.Read offline_access openid profile email"
-  @oauth_base_url "https://login.microsoftonline.com/common/oauth2/v2.0"
-  @token_url "#{@oauth_base_url}/token"
-
   @doc """
   Generates the OAuth authorization URL for Microsoft/Outlook Calendar.
   """
@@ -44,16 +40,16 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
       )
 
     params = %{
-      client_id: outlook_client_id(),
+      client_id: MicrosoftConfig.client_id!(),
       redirect_uri: redirect_uri,
       response_type: "code",
-      scope: @calendar_scope,
+      scope: MicrosoftConfig.scope(),
       state: state,
       response_mode: "query",
       prompt: "select_account"
     }
 
-    ProviderHelpers.build_authorization_url("#{@oauth_base_url}/authorize", params, login_hint)
+    ProviderHelpers.build_authorization_url(MicrosoftConfig.authorize_url(), params, login_hint)
   end
 
   @doc """
@@ -103,21 +99,24 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
   @impl Tymeslot.Integrations.Calendar.Auth.OAuthHelperBehaviour
   @spec exchange_code_for_tokens(String.t(), String.t()) :: {:ok, map()} | {:error, String.t()}
   def exchange_code_for_tokens(code, redirect_uri) do
-    body = %{
-      code: code,
-      client_id: outlook_client_id(),
-      client_secret: outlook_client_secret(),
-      redirect_uri: redirect_uri,
-      grant_type: "authorization_code",
-      scope: @calendar_scope
-    }
+    with {:ok, client_id} <- MicrosoftConfig.fetch_client_id(),
+         {:ok, client_secret} <- MicrosoftConfig.fetch_client_secret() do
+      body = %{
+        code: code,
+        client_id: client_id,
+        client_secret: client_secret,
+        redirect_uri: redirect_uri,
+        grant_type: "authorization_code",
+        scope: MicrosoftConfig.scope()
+      }
 
-    case TokenEndpoint.exchange_code(@token_url, body,
-           fallback_scope: @calendar_scope,
-           log_context: [provider: :outlook]
-         ) do
-      {:ok, tokens} -> {:ok, tokens}
-      {:error, error} -> {:error, TokenEndpoint.error_message(:exchange, error)}
+      case TokenEndpoint.exchange_code(MicrosoftConfig.token_url(), body,
+             fallback_scope: MicrosoftConfig.scope(),
+             log_context: [provider: :outlook]
+           ) do
+        {:ok, tokens} -> {:ok, tokens}
+        {:error, error} -> {:error, TokenEndpoint.error_message(:exchange, error)}
+      end
     end
   end
 
@@ -266,17 +265,5 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
 
   defp discover_and_configure_calendars(integration) do
     CalendarPrimary.discover_and_configure_calendars(integration)
-  end
-
-  defp outlook_client_id do
-    Application.get_env(:tymeslot, :outlook_oauth)[:client_id] ||
-      System.get_env("OUTLOOK_CLIENT_ID") ||
-      raise "Outlook Client ID not configured — set :outlook_oauth :client_id or OUTLOOK_CLIENT_ID"
-  end
-
-  defp outlook_client_secret do
-    Application.get_env(:tymeslot, :outlook_oauth)[:client_secret] ||
-      System.get_env("OUTLOOK_CLIENT_SECRET") ||
-      raise "Outlook Client Secret not configured — set :outlook_oauth :client_secret or OUTLOOK_CLIENT_SECRET"
   end
 end

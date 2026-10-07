@@ -116,6 +116,22 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.TokenRefreshTest do
                CalendarAPI.refresh_token(integration)
     end
 
+    # An integration connected before its scope was recorded refreshes with
+    # the scope a new connection requests, the one Teams requests too.
+    test "requests the connection scope when the integration recorded none", %{
+      integration: integration
+    } do
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, body, _headers, _opts ->
+        assert URI.decode_query(body)["scope"] ==
+                 "https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/User.Read offline_access openid profile email"
+
+        {:ok, %Req.Response{status: 200, body: ~s({"access_token":"at"})}}
+      end)
+
+      assert {:ok, {"at", "old_refresh_token", %DateTime{}}} =
+               CalendarAPI.refresh_token(%{integration | oauth_scope: nil})
+    end
+
     # A proxy answering 200 with an HTML page used to raise `Jason.DecodeError`
     # here, inside the refresh lock. It is a transient failure, so the refresh
     # job retries it rather than asking the owner to reconnect.

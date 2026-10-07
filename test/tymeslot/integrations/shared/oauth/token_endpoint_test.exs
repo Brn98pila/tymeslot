@@ -127,6 +127,65 @@ defmodule Tymeslot.Integrations.Shared.OAuth.TokenEndpointTest do
     end
   end
 
+  describe "refresh_grant/4" do
+    defmodule Provider do
+      @moduledoc false
+      @behaviour Tymeslot.Integrations.Shared.OAuthConfig
+
+      @impl Tymeslot.Integrations.Shared.OAuthConfig
+      def fetch_client_id, do: {:ok, "client-id"}
+      @impl Tymeslot.Integrations.Shared.OAuthConfig
+      def fetch_client_secret, do: {:ok, "client-secret"}
+      @impl Tymeslot.Integrations.Shared.OAuthConfig
+      def token_url, do: "https://oauth.example/token"
+    end
+
+    defmodule Unconfigured do
+      @moduledoc false
+      @behaviour Tymeslot.Integrations.Shared.OAuthConfig
+
+      @impl Tymeslot.Integrations.Shared.OAuthConfig
+      def fetch_client_id, do: {:error, "Example Client ID not configured"}
+      @impl Tymeslot.Integrations.Shared.OAuthConfig
+      def fetch_client_secret, do: {:ok, "client-secret"}
+      @impl Tymeslot.Integrations.Shared.OAuthConfig
+      def token_url, do: "https://oauth.example/token"
+    end
+
+    test "sends the refresh-token grant with the client credentials and the scope" do
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, @token_url, body, _headers, _opts ->
+        assert URI.decode_query(body) == %{
+                 "grant_type" => "refresh_token",
+                 "refresh_token" => "rt",
+                 "client_id" => "client-id",
+                 "client_secret" => "client-secret",
+                 "scope" => "calendar"
+               }
+
+        {:ok, %Req.Response{status: 200, body: ~s({"access_token":"at"})}}
+      end)
+
+      assert {:ok, %{access_token: "at", refresh_token: "rt", scope: "calendar"}} =
+               TokenEndpoint.refresh_grant(Provider, "rt", "calendar")
+    end
+
+    test "leaves the scope out when none is given" do
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, @token_url, body, _headers, _opts ->
+        refute Map.has_key?(URI.decode_query(body), "scope")
+        {:ok, %Req.Response{status: 200, body: ~s({"access_token":"at"})}}
+      end)
+
+      assert {:ok, %{access_token: "at"}} = TokenEndpoint.refresh_grant(Provider, "rt", nil)
+    end
+
+    test "reports missing client credentials without calling the provider" do
+      assert {:error, {:not_configured, "Example Client ID not configured"} = error} =
+               TokenEndpoint.refresh_grant(Unconfigured, "rt", nil)
+
+      assert TokenEndpoint.error_message(:refresh, error) == "Example Client ID not configured"
+    end
+  end
+
   # A proxy or captive portal answering 200 with an HTML page used to raise
   # `Jason.DecodeError` out of the Google code exchange and the Outlook
   # calendar refresh, inside the refresh lock.

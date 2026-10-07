@@ -58,6 +58,12 @@ defmodule Tymeslot.Integrations.Shared.OAuth.TokenEndpoint do
   """
   @type token_error :: {:http_error, integer(), term()} | {:network_error, term()}
 
+  @typedoc """
+  A `refresh_grant/4` failure: a failed request, or a provider whose client
+  credentials are not configured.
+  """
+  @type refresh_error :: token_error() | {:not_configured, String.t()}
+
   @type tokens :: %{
           access_token: String.t() | nil,
           refresh_token: String.t() | nil,
@@ -101,6 +107,43 @@ defmodule Tymeslot.Integrations.Shared.OAuth.TokenEndpoint do
   def refresh(token_url, params, opts \\ []), do: request(token_url, params, opts, :refresh)
 
   @doc """
+  Refreshes with the standard refresh-token grant, client credentials in the
+  body, against the provider `config` names (Google and Microsoft; Zoom
+  authenticates with basic auth and calls `refresh/3` itself).
+
+  `scope` is sent when given and reported when the response names none. A
+  refresh token the provider does not rotate is kept.
+
+  Takes `:log_context` as `refresh/3` does.
+  """
+  @spec refresh_grant(module(), String.t(), String.t() | nil, keyword()) ::
+          {:ok, tokens()} | {:error, refresh_error()}
+  def refresh_grant(config, refresh_token, scope, opts \\ []) do
+    with {:ok, client_id} <- config.fetch_client_id(),
+         {:ok, client_secret} <- config.fetch_client_secret() do
+      params =
+        Map.reject(
+          %{
+            grant_type: "refresh_token",
+            refresh_token: refresh_token,
+            client_id: client_id,
+            client_secret: client_secret,
+            scope: scope
+          },
+          fn {_key, value} -> is_nil(value) end
+        )
+
+      refresh(config.token_url(), params,
+        fallback_refresh_token: refresh_token,
+        fallback_scope: scope,
+        log_context: Keyword.get(opts, :log_context, [])
+      )
+    else
+      {:error, message} -> {:error, {:not_configured, message}}
+    end
+  end
+
+  @doc """
   Maps a token endpoint response body onto the token map, stamping
   `expires_at` from `expires_in` on `Tymeslot.Clock`.
 
@@ -129,7 +172,7 @@ defmodule Tymeslot.Integrations.Shared.OAuth.TokenEndpoint do
   string. For a 400 or 401 it carries the OAuth error code, so the permanent
   credential rules (`invalid_grant`, `invalid_client`) can recognise it.
   """
-  @spec error_message(operation(), token_error()) :: String.t()
+  @spec error_message(operation(), refresh_error()) :: String.t()
   def error_message(:exchange, {:http_error, status, body}),
     do: ErrorParser.build_message("OAuth token exchange failed", status, body)
 
@@ -138,6 +181,8 @@ defmodule Tymeslot.Integrations.Shared.OAuth.TokenEndpoint do
 
   def error_message(operation, {:network_error, reason}),
     do: "Network error during token #{operation}: #{inspect(reason)}"
+
+  def error_message(_operation, {:not_configured, message}), do: message
 
   defp request(token_url, params, opts, operation) do
     headers = Keyword.get(opts, :headers, @default_headers)

@@ -17,7 +17,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Shared.ApiResponse
   alias Tymeslot.Integrations.Calendar.Tokens
-  alias Tymeslot.Integrations.Google.Endpoints
+  alias Tymeslot.Integrations.Shared.GoogleConfig
   alias Tymeslot.Integrations.Shared.OAuth.Refresh
   alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
 
@@ -446,29 +446,15 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   def refresh_token(%CalendarIntegrationSchema{} = integration) do
     integration = CalendarIntegrationSchema.decrypt_oauth_tokens(integration)
 
-    with {:ok, client_id} <- google_client_id(),
-         {:ok, client_secret} <- google_client_secret() do
-      body = %{
-        "grant_type" => "refresh_token",
-        "refresh_token" => integration.refresh_token,
-        "client_id" => client_id,
-        "client_secret" => client_secret
-      }
-
-      ApiResponse.token_refresh(
-        TokenEndpoint.refresh(Endpoints.token_url(), body,
-          fallback_refresh_token: integration.refresh_token,
-          log_context: [
-            integration_id: integration.id,
-            user_id: integration.user_id,
-            provider: :google
-          ]
-        )
+    ApiResponse.token_refresh(
+      TokenEndpoint.refresh_grant(GoogleConfig, integration.refresh_token, nil,
+        log_context: [
+          integration_id: integration.id,
+          user_id: integration.user_id,
+          provider: :google
+        ]
       )
-    else
-      {:error, :misconfigured} ->
-        {:error, :authentication_error, "Google OAuth credentials not configured"}
-    end
+    )
   end
 
   @doc """
@@ -532,23 +518,5 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
 
   defp handle_http_response(response, path) do
     ApiResponse.handle(response, path, label: "Google Calendar", custom: &ApiStatus.classify/1)
-  end
-
-  # --- Config helpers ---
-
-  defp google_client_id do
-    case Application.get_env(:tymeslot, :google_oauth)[:client_id] ||
-           System.get_env("GOOGLE_CLIENT_ID") do
-      nil -> {:error, :misconfigured}
-      value -> {:ok, value}
-    end
-  end
-
-  defp google_client_secret do
-    case Application.get_env(:tymeslot, :google_oauth)[:client_secret] ||
-           System.get_env("GOOGLE_CLIENT_SECRET") do
-      nil -> {:error, :misconfigured}
-      value -> {:ok, value}
-    end
   end
 end
