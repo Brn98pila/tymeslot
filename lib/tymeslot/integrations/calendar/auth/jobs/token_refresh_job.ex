@@ -29,12 +29,13 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
 
   alias Tymeslot.Infrastructure.BreakerOutcome
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
+  alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Infrastructure.Logging.Redactor
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
   alias Tymeslot.Integrations.Calendar.Tokens
   alias Tymeslot.Integrations.CalendarManagement
-  alias Tymeslot.Integrations.Common.ErrorHandler
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.RetryHelpers
 
@@ -153,16 +154,9 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
     meta = Keyword.merge(job_meta, user_id: integration.user_id)
 
     result =
-      ErrorHandler.handle_with_logging(
-        fn ->
-          Tokens.refresh_oauth_token(integration,
-            buffer_seconds: @refresh_threshold_hours * 3600
-          )
-        end,
-        operation: "refresh OAuth token",
-        provider: provider,
-        log_level: :warning
-      )
+      Tokens.refresh_oauth_token(integration, buffer_seconds: @refresh_threshold_hours * 3600)
+
+    log_failure(result, integration, meta)
 
     case result do
       {:ok, _updated_integration} ->
@@ -221,12 +215,7 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
         # Respect rate limiting with custom backoff
         retry_after = RetryHelpers.parse_retry_after_from_message(reason) || 300
 
-        error_msg =
-          ErrorHandler.format_integration_error(
-            provider,
-            "token refresh",
-            "#{reason} (RATE_LIMITED)"
-          )
+        error_msg = refresh_failure_message(provider, "#{reason} (RATE_LIMITED)")
 
         persist_refresh_failure(integration, error_msg)
 
@@ -234,18 +223,33 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
 
       :retryable ->
         # Let Oban handle retry with our custom backoff
-        error_msg =
-          ErrorHandler.format_integration_error(
-            provider,
-            "token refresh",
-            "#{reason} (RETRYABLE)"
-          )
+        error_msg = refresh_failure_message(provider, "#{reason} (RETRYABLE)")
 
         persist_refresh_failure(integration, error_msg)
 
         {:error, "#{reason}"}
     end
   end
+
+  # The provider's error body never reaches here, but a reason can quote one,
+  # so it is redacted like any other provider text.
+  defp log_failure({:ok, _integration}, _integration_row, _meta), do: :ok
+
+  defp log_failure({:error, reason}, integration, meta) do
+    Logger.warning(
+      "Calendar token refresh failed",
+      Keyword.merge(meta,
+        integration_id: integration.id,
+        provider: integration.provider,
+        reason: Redactor.redact(LogFormat.reason(reason))
+      )
+    )
+  end
+
+  # The wording is part of the stored `sync_error`, which a repair migration
+  # (`ReactivateCalendarsDeactivatedByTokenRefresh`) matches on.
+  defp refresh_failure_message(provider, reason),
+    do: "#{String.capitalize(provider)} integration failed during token refresh: #{reason}"
 
   # A flagged integration's `sync_error` already carries the reason the owner
   # needs to act on (no calendar selected, deleted booking calendar, expired
