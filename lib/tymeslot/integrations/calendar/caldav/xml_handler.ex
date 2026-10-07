@@ -1,5 +1,6 @@
 defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Integrations.Calendar.CalDAV.Base, as: CalDAVBase
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.ICalParser
   alias Tymeslot.Integrations.Calendar.Utils.SafeXml
@@ -124,7 +125,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
           {:ok, [CalendarEntry.t()]} | {:error, String.t()}
   def parse_calendar_discovery(xml_body, opts \\ []) do
     # Parse with security limits
-    doc = parse_with_security(xml_body)
+    doc = parse_with_security(xml_body, CalDAVBase.max_propfind_bytes())
 
     # Use namespace-agnostic approach for better compatibility
     # Different CalDAV servers use different namespace prefixes (C: vs c: vs cal:)
@@ -195,7 +196,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
   """
   @spec parse_calendar_query(String.t()) :: {:ok, list(parsed_event())} | {:error, String.t()}
   def parse_calendar_query(xml_body) do
-    doc = parse_with_security(xml_body)
+    doc = parse_with_security(xml_body, CalDAVBase.max_report_bytes())
 
     # Use namespace-agnostic XPath throughout — CalDAV servers use many different
     # namespace prefixes (D:, d:, no prefix, C:, cal:, etc.). local-name() matching
@@ -250,7 +251,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
   """
   @spec parse_current_user_principal(String.t()) :: {:ok, String.t()} | {:error, term()}
   def parse_current_user_principal(xml_body) do
-    doc = parse_with_security(xml_body)
+    doc = parse_with_security(xml_body, CalDAVBase.max_propfind_bytes())
 
     href =
       SafeXml.xpath(
@@ -277,7 +278,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
   """
   @spec parse_calendar_home_set(String.t()) :: {:ok, String.t()} | {:error, term()}
   def parse_calendar_home_set(xml_body) do
-    doc = parse_with_security(xml_body)
+    doc = parse_with_security(xml_body, CalDAVBase.max_propfind_bytes())
 
     href =
       SafeXml.xpath(
@@ -298,11 +299,14 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
 
   # Private helper functions
 
-  defp parse_with_security(xml_string) do
-    # Validate XML size to prevent memory exhaustion
-    # 10MB limit
-    if byte_size(xml_string) > 10_000_000 do
-      raise "XML document too large"
+  defp parse_with_security(xml_string, max_bytes) do
+    # Defensive only: every body reaching these parsers was already capped in
+    # transit, a REPORT at `CalDAVBase.max_report_bytes/0` and a PROPFIND at
+    # `CalDAVBase.max_propfind_bytes/0`. One past its own budget came from a
+    # path that skipped the cap, and is refused like a malformed document
+    # rather than parsed.
+    if byte_size(xml_string) > max_bytes do
+      raise "XML parse failed: :too_large"
     end
 
     # Raised rather than returned so the rescue clause in each public parser
