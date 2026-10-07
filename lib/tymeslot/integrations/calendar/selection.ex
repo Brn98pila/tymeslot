@@ -307,11 +307,9 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
     Enum.filter(integrations, &writable_target?/1)
   end
 
-  @doc """
-  Whether `integration` can take a new event. See `writable_integrations/1`.
-  """
+  # Whether `integration` can take a new event. See `writable_integrations/1`.
   @spec writable_target?(BookingEligibility.integration()) :: boolean()
-  def writable_target?(integration) do
+  defp writable_target?(integration) do
     BookingEligibility.bookable?(integration) and has_writable_calendar?(integration)
   end
 

@@ -84,8 +84,7 @@ defmodule Tymeslot.Integrations.Calendar.Discovery do
   This is the metered/cached discovery core, used both by
   `discover_calendars_for_credentials/5` (not-yet-persisted credentials) and
   by `discover_caldav_calendar_paths/1` (the creation-flow's opportunistic
-  pre-discovery). `Tymeslot.Integrations.Calendar.Connection.validate_connection/2`
-  also calls it directly for its CalDAV branch.
+  pre-discovery).
 
   ## Parameters
   - `provider` - The provider type (any atom returned by

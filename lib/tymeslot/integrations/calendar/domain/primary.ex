@@ -172,7 +172,6 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   defp validate_and_prepare_integration(user_id, integration_id) do
     with {:ok, integration} <-
            CalendarManagement.get_calendar_integration(integration_id, user_id),
-         :ok <- verify_integration_ownership(integration, user_id),
          :ok <- verify_active(integration),
          :ok <- verify_bookable(integration) do
       {:ok, integration}
@@ -203,11 +202,6 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   defp update_profile_primary(user_id, integration_id) do
     ProfileQueries.set_primary_calendar_integration(user_id, integration_id)
   end
-
-  defp verify_integration_ownership(%CalendarIntegrationSchema{user_id: user_id}, user_id),
-    do: :ok
-
-  defp verify_integration_ownership(_integration, _different_user_id), do: {:error, :unauthorized}
 
   defp ensure_default_booking_calendar(%CalendarIntegrationSchema{} = integration) do
     if is_nil(integration.default_booking_calendar_id) do

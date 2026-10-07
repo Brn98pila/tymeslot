@@ -479,16 +479,14 @@ defmodule Tymeslot.Integrations.Calendar do
     Directory.list(type)
   end
 
-  @doc """
-  Discover calendars and update the integration with merged selection state.
-  Persists the updated calendar_list to the database.
-
-  Preserves existing selection state if discovery returns empty but integration
-  previously had calendars selected, to prevent accidental data loss.
-  """
+  # Discover calendars and update the integration with merged selection state.
+  # Persists the updated calendar_list to the database.
+  #
+  # Preserves existing selection state if discovery returns empty but integration
+  # previously had calendars selected, to prevent accidental data loss.
   @spec update_integration_with_discovery(integration()) ::
           {:ok, integration()} | {:error, term()}
-  def update_integration_with_discovery(integration) do
+  defp update_integration_with_discovery(integration) do
     Workflows.update_integration_with_discovery(integration)
   end
 
@@ -544,10 +542,9 @@ defmodule Tymeslot.Integrations.Calendar do
   # ---------------------------
 
   @doc """
-  Reconnect an existing CalDAV-family integration. Returns either
-  `{:ok, :updated, integration}` (password-only path, done) or
-  `{:ok, :needs_calendar_selection, payload}` (account change; caller must
-  prompt for calendar selection and then call `finalise_caldav_reconnect/3`).
+  Reconnect an existing CalDAV-family integration. Returns
+  `{:ok, :needs_calendar_selection, payload}` (the caller must prompt for
+  calendar selection and then call `finalise_caldav_reconnect/3`) or an error.
   See `Reconnection.reconnect_for_user/3`.
   """
   @spec reconnect_caldav_integration(user_id(), integration_id(), map()) ::
