@@ -50,6 +50,19 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorker do
 
   @max_attempts 5
 
+  # Pages one run drains before yielding the queue with a snooze. A full page
+  # that made progress is not a failure, so it neither errors nor spends an
+  # attempt; the snooze after this many pages counts towards `@max_attempts`
+  # like any other execution. 10 pages of 500 rooms, over at most 5
+  # executions, cover 25,000 rooms, against the few thousand upcoming bookings
+  # (or, for a provider whose rooms outlive their meeting, all-time rooms) a
+  # heavy integration holds.
+  @max_pages_per_run 10
+
+  # How long a run that used up its pages waits before the next: only long
+  # enough to yield the queue.
+  @next_run_snooze_seconds 5
+
   # What a booking keeps of a room that is gone: nothing.
   @cleared_room %{
     video_room_id: nil,
@@ -153,7 +166,11 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorker do
     end
   end
 
-  defp drain(integration, executions) do
+  defp drain(integration, executions), do: drain_page(integration, executions, 1, 0)
+
+  # One page of rooms. `drained` counts the rooms deleted on earlier pages of
+  # this run, for the purge's log line.
+  defp drain_page(integration, executions, page, drained) do
     limit = drain_page_limit()
 
     {meetings, event_rooms} = rooms_to_drain(integration, limit)
@@ -163,7 +180,11 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorker do
         Enum.map(event_rooms, &delete_event_room(integration, &1))
 
     failures = Enum.count(results, &(&1 in [:error, :circuit_open]))
-    total = length(results)
+    total = drained + length(results)
+    full_page? = length(meetings) == limit or length(event_rooms) == limit
+    # Failed rooms stay listed, so a full page that deleted nothing would
+    # list the same rooms again.
+    progress? = failures < length(results)
 
     cond do
       :circuit_open in results and executions < @max_attempts ->
@@ -175,17 +196,24 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorker do
         # forever the way an unconditional snooze would.
         ErrorPolicy.to_result(:circuit_open, executions, integration.provider)
 
-      length(meetings) == limit or length(event_rooms) == limit ->
-        # A full page: more rooms on this integration than one pass covers.
-        # `clear_room/1` removed every drained meeting from the result set, so
-        # retrying re-queries the next page rather than purging with the rest
-        # silently orphaned.
-        Logger.warning("Video room drain page full, more meetings likely remain",
+      full_page? and progress? and page < @max_pages_per_run ->
+        # More rooms on this integration than one page covers. `clear_room/1`
+        # removed every drained meeting from the result set, so the next query
+        # returns the next page rather than the same one.
+        drain_page(integration, executions, page + 1, total - failures)
+
+      full_page? and progress? and executions < @max_attempts ->
+        Logger.info("Video room drain continues in the next run",
           integration_id: integration.id,
-          drained_this_pass: total - failures
+          drained_this_run: total - failures
         )
 
-        {:error, :more_rooms_to_drain}
+        {:snooze, @next_run_snooze_seconds}
+
+      full_page? and progress? ->
+        # Out of runs with rooms still listed. Purge as on the last attempt
+        # rather than strand the credentials.
+        give_up(integration, total, failures, more_may_remain: true)
 
       true ->
         finish(integration, executions, total, failures)
@@ -210,18 +238,8 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorker do
 
   defp finish(integration, _executions, total, 0), do: purge(integration, total, 0)
 
-  defp finish(integration, executions, total, failures) when executions >= @max_attempts do
-    # Last attempt. Keeping the row would strand the user's OAuth credentials
-    # indefinitely for the sake of rooms the provider is refusing to delete, so
-    # the row goes and the orphans are recorded loudly instead.
-    Logger.error("Giving up on provider room cleanup, purging integration anyway",
-      integration_id: integration.id,
-      provider: integration.provider,
-      orphaned_rooms: failures
-    )
-
-    purge(integration, total, failures)
-  end
+  defp finish(integration, executions, total, failures) when executions >= @max_attempts,
+    do: give_up(integration, total, failures, more_may_remain: false)
 
   defp finish(integration, _executions, _total, failures) do
     Logger.warning("Provider room cleanup incomplete, will retry",
@@ -230,6 +248,21 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorker do
     )
 
     {:error, :room_cleanup_incomplete}
+  end
+
+  # Last attempt, or last run with rooms still listed. Keeping the row would
+  # strand the user's OAuth credentials indefinitely for the sake of rooms the
+  # provider is refusing to delete (or that one more run might reach), so the
+  # row goes and the orphans are recorded loudly instead.
+  defp give_up(integration, total, failures, more_may_remain: more_may_remain) do
+    Logger.error("Giving up on provider room cleanup, purging integration anyway",
+      integration_id: integration.id,
+      provider: integration.provider,
+      orphaned_rooms: failures,
+      more_rooms_may_remain: more_may_remain
+    )
+
+    purge(integration, total, failures)
   end
 
   # `integration` was loaded at the start of this attempt, but `drain/2` in
