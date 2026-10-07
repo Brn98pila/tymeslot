@@ -106,7 +106,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.TranscriptTest do
       for start <- [:overview, :schedule, :booking] do
         socket = %Socket{
           assigns:
-            Map.merge(chosen(), %{
+            Map.merge(chosen(%{selected_date: "2027-03-12", selected_time: "9:00 AM"}), %{
               __changed__: %{},
               journey: @journey,
               live_action: start,
@@ -117,7 +117,14 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.TranscriptTest do
 
         path = PathHandlers.build_path_with_locale(socket, "de")
 
-        assert URI.parse(path).query == "locale=de"
+        # The choices ride along; the type in the query only on the overview,
+        # whose path does not name it.
+        carried = %{"locale" => "de", "date" => "2027-03-12", "time" => "9:00 AM"}
+
+        expected =
+          if start == :overview, do: Map.put(carried, "duration", "quick-chat"), else: carried
+
+        assert URI.decode_query(URI.parse(path).query) == expected
         assert live_action(path) == start
 
         assert Transcript.entry(@journey, live_action(path), socket.assigns) ==

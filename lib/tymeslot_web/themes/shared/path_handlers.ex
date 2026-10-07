@@ -6,6 +6,7 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlers do
   use TymeslotWeb, :verified_routes
 
   alias Tymeslot.MeetingTypes
+  alias TymeslotWeb.Themes.Shared.Journey.Navigators.Reveal
 
   @doc """
   Builds a path with locale and theme query parameters.
@@ -67,7 +68,35 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlers do
     |> put_embed_params(socket)
     |> put_preview_params(socket)
     |> maybe_put_query_param("reschedule_meeting_uid", socket.assigns[:reschedule_meeting_uid])
+    |> put_choices(socket.assigns)
   end
+
+  # A page that opens its moments by itself shows the switcher on every
+  # moment, so a switch can come after the visitor has chosen. The redirect
+  # carries the choices as the deep-link parameters, and the page that comes
+  # back lands where the visitor was. The route stays the one the visit
+  # started on, which is what `entered_via_overview` is read from: a type
+  # chosen on the overview goes as `duration` on the overview route (a type
+  # the overview does not list is never taken from it), and a meeting
+  # type's own link names its type in the path. A time no longer free is
+  # dropped on arrival, as a deep link's is. The answers and the details are
+  # not carried. A paged journey's switcher shows on its first moment only,
+  # before any choice, so it carries nothing.
+  defp put_choices(params, assigns) do
+    if Reveal.journey?(assigns[:journey]) do
+      params
+      |> maybe_put_query_param("duration", overview_choice(assigns))
+      |> maybe_put_query_param("date", assigns[:selected_date])
+      |> maybe_put_query_param("time", assigns[:selected_date] && assigns[:selected_time])
+    else
+      params
+    end
+  end
+
+  defp overview_choice(%{live_action: :overview} = assigns),
+    do: MeetingTypes.normalize_duration_slug(assigns[:selected_duration])
+
+  defp overview_choice(_assigns), do: nil
 
   # `theme` rides along here and nowhere else, which is the fix for #84. It used
   # to be emitted on every locale switch from `:theme_id`, an assign the

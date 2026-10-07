@@ -26,6 +26,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.Reveal do
   alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
   alias TymeslotWeb.Themes.Shared.Journey
   alias TymeslotWeb.Themes.Shared.Journey.Moment
+  alias TymeslotWeb.Themes.Shared.Journey.Navigators.{Continuous, Transcript}
   alias TymeslotWeb.Themes.Shared.Journey.Progress
   alias TymeslotWeb.Themes.Shared.Journey.Runtime
 
@@ -43,6 +44,16 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.Reveal do
   def entry(journey, :schedule), do: Progress.moment_for(journey, :slot)
   def entry(journey, :booking), do: Progress.moment_for(journey, :attendee)
   def entry(%Journey{moments: [%Moment{key: key} | _rest]}, _live_action), do: key
+
+  @doc """
+  Whether `journey` opens its moments by itself (`Continuous` or
+  `Transcript`), so its page holds the visitor's choices on one screen.
+  """
+  @spec journey?(term()) :: boolean()
+  def journey?(%{navigator: navigator}),
+    do: navigator in [Continuous, Transcript]
+
+  def journey?(_journey), do: false
 
   @doc "The moments reached, each with its state; none while an outcome is current."
   @spec visible(Journey.t(), map()) :: [{Moment.t(), Progress.state()}]

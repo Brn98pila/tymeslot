@@ -14,6 +14,7 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
   alias TymeslotWeb.Live.Scheduling.Handlers.SlotFetchingHandlerComponent
   alias TymeslotWeb.Live.Scheduling.NextAvailable
   alias TymeslotWeb.Live.Scheduling.WeekSlots
+  alias TymeslotWeb.Themes.Shared.Journey.Navigators.Reveal
   alias TymeslotWeb.Themes.Shared.Journey.Progress
   alias TymeslotWeb.Themes.Shared.Journey.Runtime
 
@@ -183,10 +184,37 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
         ) :: {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_fetch_available_slots(socket, date, duration, timezone) do
     case SlotFetchingHandlerComponent.fetch_available_slots(socket, date, duration, timezone) do
-      {:ok, updated_socket} -> {:noreply, updated_socket}
+      {:ok, updated_socket} -> {:noreply, check_carried_time(updated_socket, date)}
       {:error, updated_socket} -> {:noreply, updated_socket}
     end
   end
+
+  # A time the URL carried (a deep link, or a language switch, which
+  # redirects with the day and time chosen) is checked once, against the
+  # first times fetched for its day. On a page that opens its moments by
+  # itself the time alone made the slot known, so the page moved on past
+  # the calendar; a time no longer free is dropped there, with what was built
+  # on it, and the page settles back on the moment collecting the slot. A
+  # paged journey keeps it: its booking step is already on screen, and the
+  # submission refuses a time that was taken.
+  defp check_carried_time(%{assigns: %{carried_time: time, selected_date: date}} = socket, date)
+       when is_binary(time) do
+    socket = assign(socket, :carried_time, nil)
+
+    if Reveal.journey?(socket.assigns[:journey]) and socket.assigns[:selected_time] == time and
+         time not in (socket.assigns[:available_slots] || []) do
+      before = socket.assigns[:current_state]
+      socket = socket |> Runtime.clear([:slot]) |> Runtime.settle()
+
+      if socket.assigns[:current_state] == before,
+        do: socket,
+        else: assign(socket, :journey_focus, socket.assigns[:current_state])
+    else
+      socket
+    end
+  end
+
+  defp check_carried_time(socket, _date), do: socket
 
   @doc """
   Handles loading slots for a specific date.
