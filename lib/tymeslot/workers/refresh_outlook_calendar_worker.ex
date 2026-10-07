@@ -14,6 +14,13 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
   baseline via `OutlookCalendarAPI.bootstrap_sync/1` and opportunistically
   registers a webhook subscription.
 
+  A link old enough to be replaced (`OutlookDeltaSync.rebootstrap_due?/2`) is
+  still followed first, then replaced by a bootstrap. The bootstrap only
+  upserts what it reads, so the removals pending on the old link would
+  otherwise never reach the cache; and a bootstrap that keeps failing (a
+  calendar past its page cap, say) would otherwise freeze the cache, since
+  every later refresh would try the bootstrap again and nothing else.
+
   Broadcasts `SyncBroadcast.broadcast_sync_complete/2` on success so the
   dashboard's progress counter clears.
 
@@ -132,8 +139,41 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
 
   defp refresh(integration, job) do
     if OutlookDeltaSync.rebootstrap_due?(integration),
-      do: bootstrap(integration, job),
+      do: delta_then_bootstrap(integration, job),
       else: delta_refresh(integration, job)
+  end
+
+  # See the moduledoc. A bootstrap that fails after the old link was followed
+  # keeps that result: the cache is as current as the old link can make it,
+  # and the next refresh tries the bootstrap again. A refused credential is
+  # the one bootstrap failure that still decides the outcome.
+  defp delta_then_bootstrap(integration, job) do
+    case OutlookDeltaSync.fetch_and_apply(integration) do
+      {:error, :unauthorized} ->
+        handle_credentials_rejected(integration)
+
+      delta_result ->
+        case run_bootstrap(reload(integration)) do
+          {:error, :unauthorized, _message} = refused ->
+            bootstrap_outcome(refused, integration, job)
+
+          failure when delta_result == :ok and failure != :ok ->
+            log_bootstrap_failure(integration, failure)
+            broadcast_complete(integration)
+            :ok
+
+          bootstrap_result ->
+            bootstrap_outcome(bootstrap_result, integration, job)
+        end
+    end
+  end
+
+  # The delta pass may have stored a new link and refreshed the token.
+  defp reload(integration) do
+    case CalendarIntegrationQueries.get(integration.id) do
+      {:ok, reloaded} -> reloaded
+      _gone_or_unreadable -> integration
+    end
   end
 
   defp delta_refresh(integration, job) do
@@ -157,7 +197,10 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
     end
   end
 
-  defp bootstrap(integration, job) do
+  defp bootstrap(integration, job),
+    do: integration |> run_bootstrap() |> bootstrap_outcome(integration, job)
+
+  defp run_bootstrap(integration) do
     case Config.outlook_calendar_api_module().bootstrap_sync(integration) do
       {:ok, updated} ->
         # Opportunistic webhook (re-)registration. Non-fatal: a seeded delta
@@ -166,17 +209,26 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
         broadcast_complete(updated)
         :ok
 
-      {:error, :unauthorized, _message} ->
-        handle_credentials_rejected(integration)
-
       error ->
-        Logger.warning("Outlook bootstrap failed during manual refresh",
-          calendar_integration_id: integration.id,
-          error: LogFormat.reason(error)
-        )
-
-        give_up_or_retry(error_class(error), job, :bootstrap_failed)
+        error
     end
+  end
+
+  defp bootstrap_outcome(:ok, _integration, _job), do: :ok
+
+  defp bootstrap_outcome({:error, :unauthorized, _message}, integration, _job),
+    do: handle_credentials_rejected(integration)
+
+  defp bootstrap_outcome(error, integration, job) do
+    log_bootstrap_failure(integration, error)
+    give_up_or_retry(error_class(error), job, :bootstrap_failed)
+  end
+
+  defp log_bootstrap_failure(integration, error) do
+    Logger.warning("Outlook bootstrap failed during manual refresh",
+      calendar_integration_id: integration.id,
+      error: LogFormat.reason(error)
+    )
   end
 
   # A transient Graph failure that has spent the whole retry ladder is not an
