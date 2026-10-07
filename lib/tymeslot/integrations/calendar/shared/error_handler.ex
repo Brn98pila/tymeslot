@@ -180,6 +180,10 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ErrorHandler do
     )
   end
 
+  def sanitize_error_message(:response_too_large, provider) do
+    ErrorMessages.specific_message(:response_too_large, provider)
+  end
+
   def sanitize_error_message(:network_error, _provider) do
     dgettext(
       "dashboard_calendar_providers",

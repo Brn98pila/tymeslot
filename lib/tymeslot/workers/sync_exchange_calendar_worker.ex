@@ -210,10 +210,11 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
   @no_mailbox "Exchange integration has no addressable mailbox"
   @server_refused "Exchange server refused the sync request"
   @server_error "Exchange server returned a server error; the next scheduled sync will retry"
+  @too_large "Exchange server returned more data than Tymeslot can process at once"
 
   @impl ExpectedJobOutcome
   def expected_outcome?(reason) when is_binary(reason) do
-    reason in [@integration_gone, @credentials_rejected, @no_mailbox, @server_error] or
+    reason in [@integration_gone, @credentials_rejected, @no_mailbox, @server_error, @too_large] or
       reason == ReauthHandling.discard_reason() or
       String.starts_with?(reason, @server_refused <> ": ")
   end
@@ -426,6 +427,15 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
     record_failure(integration, :server_error)
 
     {:discard, @server_error}
+  end
+
+  # The server answered, past the response budget, for a single item too
+  # large on its own (`ItemDiscovery` halves larger batches). Not a refusal:
+  # the same item is answered the same way until it leaves the window.
+  defp handle_result({:error, :response_too_large}, integration) do
+    record_failure(integration, :response_too_large)
+
+    {:discard, @too_large}
   end
 
   defp handle_result({:error, reason} = result, integration) do
