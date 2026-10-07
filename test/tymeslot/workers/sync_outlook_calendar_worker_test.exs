@@ -339,6 +339,13 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorkerTest do
     test "a failed cache write fails the job and counts as a failed sync" do
       integration = outlook_integration()
 
+      # Every new cache row is refused. The sandbox rolls the constraint back
+      # with the test, and this module is not async, so no other test sees it.
+      Repo.query!("""
+      ALTER TABLE provider_calendar_events
+        ADD CONSTRAINT refuse_new_rows_in_test CHECK (false) NOT VALID
+      """)
+
       expect(Tymeslot.HTTPClientMock, :request, fn :get, _url, _body, _headers, _opts ->
         {:ok,
          %{
@@ -346,8 +353,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorkerTest do
            body:
              Jason.encode!(%{
                "id" => "event-health-3",
-               # PostgreSQL refuses a NUL byte in text, so the write fails.
-               "subject" => "Stand\u0000up",
+               "subject" => "Standup",
                "start" => %{"dateTime" => "2026-09-10T09:00:00.0000000", "timeZone" => "UTC"},
                "end" => %{"dateTime" => "2026-09-10T09:15:00.0000000", "timeZone" => "UTC"}
              })

@@ -254,6 +254,38 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorkerTest do
                })
     end
 
+    # One event Graph returns with a NUL byte used to fail the batch's cache
+    # write, so the new link was never stored and every later refresh failed
+    # on the same event.
+    test "stores the new link when an event carries a NUL byte" do
+      integration =
+        outlook_integration(
+          graph_delta_link:
+            "https://graph.microsoft.com/v1.0/me/calendarView/delta?$deltatoken=old"
+        )
+
+      expect_delta_page([
+        %{
+          "id" => "nul-1",
+          "iCalUId" => "nul-uid-1",
+          "subject" => "Stand\u0000up",
+          "start" => %{"dateTime" => "2026-11-02T09:00:00.0000000", "timeZone" => "UTC"},
+          "end" => %{"dateTime" => "2026-11-02T09:15:00.0000000", "timeZone" => "UTC"}
+        }
+      ])
+
+      assert :ok =
+               perform_job(RefreshOutlookCalendarWorker, %{
+                 "calendar_integration_id" => integration.id
+               })
+
+      assert {:ok, %{summary: "Standup"}} =
+               ProviderCalendarEventQueries.get_by_uid(integration.id, "nul-uid-1")
+
+      {:ok, reloaded} = CalendarIntegrationQueries.get(integration.id)
+      assert reloaded.graph_delta_link =~ "$deltatoken=fresh"
+    end
+
     test "chains into bootstrap in the same job when the obsolete-link auto-clear fires" do
       # Existing integrations may carry a `/me/events/delta` link from the old
       # bootstrap path. DeltaSync detects and clears it; the worker must then
