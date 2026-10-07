@@ -110,9 +110,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
 
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       with {:ok, created} <-
-             make_request_with_body(:post, "/calendars/#{calendar_id}/events", token, body,
-               params: params
-             ) do
+             make_request_with_body(:post, events_path(calendar_id), token, body, params: params) do
         if conference_requested? and conference_pending?(created) do
           event_id = created["id"]
           fetch_event_once(token, calendar_id, event_id, created)
@@ -126,7 +124,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   # Issues a single GET for the event and returns the fresh response when
   # `entryPoints` are now populated, otherwise falls back to `fallback`.
   defp fetch_event_once(token, calendar_id, event_id, fallback) do
-    case make_request(:get, "/calendars/#{URI.encode(calendar_id)}/events/#{event_id}", token) do
+    case make_request(:get, event_path(calendar_id, event_id), token) do
       {:ok, refreshed} -> {:ok, refreshed}
       {:error, _type, _msg} -> {:ok, fallback}
     end
@@ -178,7 +176,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       make_request_with_body(
         :put,
-        "/calendars/#{calendar_id}/events/#{google_event_id}",
+        event_path(calendar_id, google_event_id),
         token,
         body,
         params: write_params(event_data)
@@ -216,7 +214,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
         AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
           make_request_with_body(
             :patch,
-            "/calendars/#{calendar_id}/events/#{google_event_id}",
+            event_path(calendar_id, google_event_id),
             token,
             %{"colorId" => color_id},
             params: %{"sendUpdates" => "none"}
@@ -240,7 +238,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       make_request_with_body(
         :patch,
-        "/calendars/#{URI.encode(calendar_id)}/events/#{google_event_id}",
+        event_path(calendar_id, google_event_id),
         token,
         body,
         params: %{"sendUpdates" => "none"}
@@ -265,9 +263,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
         else: %{"sendUpdates" => "none"}
 
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
-      make_request_with_body(:post, "/calendars/#{URI.encode(calendar_id)}/events", token, body,
-        params: params
-      )
+      make_request_with_body(:post, events_path(calendar_id), token, body, params: params)
     end)
   end
 
@@ -283,7 +279,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   def get_event(%CalendarIntegrationSchema{} = integration, calendar_id, event_id) do
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       google_event_id = EventMapper.uuid_to_google_event_id(event_id)
-      make_request(:get, "/calendars/#{URI.encode(calendar_id)}/events/#{google_event_id}", token)
+      make_request(:get, event_path(calendar_id, google_event_id), token)
     end)
   end
 
@@ -342,7 +338,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       google_event_id = EventMapper.uuid_to_google_event_id(event_id)
 
-      case make_request(:delete, "/calendars/#{calendar_id}/events/#{google_event_id}", token) do
+      case make_request(:delete, event_path(calendar_id, google_event_id), token) do
         {:ok, _response} -> :ok
         {:error, :gone, _message} -> :ok
         error -> error
@@ -372,7 +368,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
 
       make_request(
         :post,
-        "/calendars/#{URI.encode(calendar_id)}/events/#{google_event_id}/move",
+        event_path(calendar_id, google_event_id) <> "/move",
         token,
         %{"destination" => destination_calendar_id, "sendUpdates" => "none"}
       )
@@ -537,6 +533,13 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
       Keyword.merge([response_handler: &handle_http_response(&1, path)], opts)
     )
   end
+
+  # Calendar ids can carry reserved characters (a holiday calendar's has a
+  # `#`), so each id is encoded as a single path segment.
+  defp events_path(calendar_id), do: "/calendars/#{HTTP.segment(calendar_id)}/events"
+
+  defp event_path(calendar_id, event_id),
+    do: events_path(calendar_id) <> "/" <> HTTP.segment(event_id)
 
   # --- HTTP response handling ---
 

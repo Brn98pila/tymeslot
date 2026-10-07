@@ -29,6 +29,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
+  alias Tymeslot.Integrations.Calendar.HTTP
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI
   alias Tymeslot.Integrations.Calendar.Outlook.Provider, as: OutlookProvider
   alias Tymeslot.Integrations.Calendar.ProviderConfig
@@ -168,7 +169,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
       CalendarCircuitBreaker.call(:outlook, fn ->
         CalendarAPI.make_request_with_body(
           :patch,
-          "/subscriptions/#{URI.encode(subscription_id)}",
+          "/subscriptions/#{HTTP.segment(subscription_id)}",
           token,
           body
         )

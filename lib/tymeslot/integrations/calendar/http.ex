@@ -25,6 +25,18 @@ defmodule Tymeslot.Integrations.Calendar.HTTP do
     end
   end
 
+  @doc """
+  Percent-encodes a provider-supplied id (a calendar, event or subscription id)
+  for use as one segment of a request path.
+
+  Every character outside the unreserved set is encoded, `#`, `/` and `?`
+  among them. Google's holiday calendar ids carry a `#`
+  (`en.uk#holiday@group.v.calendar.google.com`), which interpolated as it is
+  would end the path and send the request to another calendar.
+  """
+  @spec segment(String.t()) :: String.t()
+  def segment(id) when is_binary(id), do: URI.encode(id, &URI.char_unreserved?/1)
+
   @spec request(atom() | String.t(), String.t(), String.t(), String.t(), keyword()) :: any()
   def request(method, base_url, path, token, opts \\ []) do
     case normalize_method(method) do

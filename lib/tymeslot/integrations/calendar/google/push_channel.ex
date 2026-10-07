@@ -29,6 +29,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.PushChannel do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
   alias Tymeslot.Integrations.Calendar.Google.CalendarAPI
+  alias Tymeslot.Integrations.Calendar.HTTP
   alias Tymeslot.Integrations.Calendar.Shared.AccessToken
 
   @doc """
@@ -144,7 +145,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.PushChannel do
       CalendarCircuitBreaker.call(:google, fn ->
         CalendarAPI.make_request_with_body(
           :post,
-          "/calendars/#{URI.encode(calendar_id)}/events/watch",
+          "/calendars/#{HTTP.segment(calendar_id)}/events/watch",
           token,
           body
         )

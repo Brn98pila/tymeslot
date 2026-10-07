@@ -604,4 +604,41 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPITest do
       assert {:error, :rate_limited, "retry_after:120"} = CalendarAPI.list_calendars(integration)
     end
   end
+
+  # Graph ids are base64 and can carry `/`, `+` and `=`; a raw `/` would split
+  # the id into two path segments and address another resource.
+  describe "provider ids with reserved characters" do
+    @base "https://graph.microsoft.com/v1.0"
+
+    setup do
+      integration =
+        insert(:calendar_integration,
+          provider: "outlook",
+          access_token_encrypted: Encryption.encrypt("valid_token"),
+          token_expires_at: DateTime.add(DateTime.utc_now(), 3600)
+        )
+
+      %{integration: integration}
+    end
+
+    test "get_event/3 addresses an event whose id contains `/`", %{integration: integration} do
+      expect(Tymeslot.HTTPClientMock, :request, fn :get, url, _body, _headers, _opts ->
+        assert URI.parse(url).path == "/v1.0/me/events/AAMk%2Fab%2Bcd%3D"
+        {:ok, %Req.Response{status: 200, body: Jason.encode!(%{"id" => "AAMk/ab+cd="})}}
+      end)
+
+      assert {:ok, %{"id" => "AAMk/ab+cd="}} = CalendarAPI.get_event(integration, "AAMk/ab+cd=")
+    end
+
+    test "delete_event/3 encodes both the calendar and the event id", %{
+      integration: integration
+    } do
+      expect(Tymeslot.HTTPClientMock, :request, fn :delete, url, _body, _headers, _opts ->
+        assert url == "#{@base}/me/calendars/cal%23one/events/evt%2Ftwo"
+        {:ok, %Req.Response{status: 204, body: ""}}
+      end)
+
+      assert :ok = CalendarAPI.delete_event(integration, "cal#one", "evt/two")
+    end
+  end
 end
