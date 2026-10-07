@@ -6,7 +6,9 @@ defmodule Tymeslot.Bookings.Orchestrator do
   delegating business logic to appropriate domain modules.
   """
 
-  alias Tymeslot.Bookings.{Create, Errors, Policy, RescheduleSeat}
+  @behaviour Tymeslot.Bookings.Submitter
+
+  alias Tymeslot.Bookings.{Create, Errors, Policy, RescheduleSeat, Submitter}
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema
@@ -41,6 +43,7 @@ defmodule Tymeslot.Bookings.Orchestrator do
       manufactures display copy, that is the web layer's job. Any other
       shape collapses to the generic `:booking_failed` atom.
   """
+  @impl Submitter
   @spec submit_booking(booking_submission_params(), keyword()) ::
           {:ok, term()}
           | {:ok, :payment_required, %{meeting: map(), checkout_url: String.t()}}

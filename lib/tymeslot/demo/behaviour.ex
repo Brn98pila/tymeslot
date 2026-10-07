@@ -73,7 +73,7 @@ defmodule Tymeslot.Demo.Behaviour do
               map() | nil
 
   @doc """
-  Gets the orchestrator module to use.
+  Gets the orchestrator module to use: a `Tymeslot.Bookings.Submitter`.
   """
   @callback get_orchestrator(context :: map()) :: module()
 
