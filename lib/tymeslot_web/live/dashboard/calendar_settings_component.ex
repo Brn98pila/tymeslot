@@ -174,17 +174,12 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
     end
   end
 
-  def handle_event("connect_provider", %{"provider" => "google"}, socket) do
-    case Calendar.initiate_google_oauth(socket.assigns.current_user.id) do
-      {:ok, url} -> send(self(), {:external_redirect, url})
-      {:error, msg} -> Flash.error(msg)
-    end
-
-    {:noreply, socket}
-  end
-
-  def handle_event("connect_provider", %{"provider" => "outlook"}, socket) do
-    case Calendar.initiate_outlook_oauth(socket.assigns.current_user.id) do
+  def handle_event("connect_provider", %{"provider" => provider}, socket)
+      when provider in ["google", "outlook"] do
+    case Calendar.initiate_oauth(
+           String.to_existing_atom(provider),
+           socket.assigns.current_user.id
+         ) do
       {:ok, url} -> send(self(), {:external_redirect, url})
       {:error, msg} -> Flash.error(msg)
     end

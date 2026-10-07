@@ -27,6 +27,7 @@ defmodule Tymeslot.Integrations.Calendar.Apple.Provider do
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.Providers.CaldavCommon
   alias Tymeslot.Integrations.Calendar.Shared.{ErrorHandler, ProviderCommon}
+  alias Tymeslot.Integrations.Shared.ProviderConfigHelper
   alias Tymeslot.Security.UrlValidation
 
   @default_base_url "https://caldav.icloud.com"
@@ -99,7 +100,8 @@ defmodule Tymeslot.Integrations.Calendar.Apple.Provider do
   # in sequence.
   @impl Tymeslot.Integrations.Calendar.Provider
   def validate_config(config) do
-    with :ok <- ProviderCommon.validate_required_fields(config, [:base_url, :username, :password]) do
+    with :ok <-
+           ProviderConfigHelper.validate_required_fields(config, [:base_url, :username, :password]) do
       validate_apple_url(config[:base_url])
     end
   end

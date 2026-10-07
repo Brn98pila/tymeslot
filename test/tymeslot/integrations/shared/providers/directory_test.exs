@@ -1,10 +1,10 @@
-defmodule Tymeslot.Integrations.Providers.DirectoryTest do
+defmodule Tymeslot.Integrations.Shared.Providers.DirectoryTest do
   use ExUnit.Case, async: true
   @moduletag :integrations
 
-  alias Tymeslot.Integrations.Providers.Descriptor
-  alias Tymeslot.Integrations.Providers.Directory
-  alias Tymeslot.Integrations.Providers.Families
+  alias Tymeslot.Integrations.Shared.Providers.Descriptor
+  alias Tymeslot.Integrations.Shared.Providers.Directory
+  alias Tymeslot.Integrations.Shared.Providers.Families
 
   describe "list/1" do
     test "lists calendar providers" do

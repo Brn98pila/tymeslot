@@ -101,7 +101,8 @@ defmodule Tymeslot.Meetings.CalendarEventSync do
 
   @doc """
   Updates the calendar event for the given meeting, recreating it if the
-  provider reports it no longer exists.
+  provider reports it no longer exists. Does nothing for a meeting that no
+  longer expects an event.
   """
   @spec update(term(), pos_integer()) :: :ok | {:error, term()}
   def update(meeting_id, attempt) do
@@ -109,21 +110,38 @@ defmodule Tymeslot.Meetings.CalendarEventSync do
       {:ok, meeting} ->
         ErrorTracking.put_context(user_id: meeting.organizer_user_id)
 
-        Logger.info("Updating calendar event",
-          meeting_id: meeting_id,
-          provider_identifier: calendar_event_identifier(meeting)
-        )
-
-        event_data =
-          CalendarEventBuilder.build_event_data(meeting,
-            attendees: Meetings.attendees_for_calendar(meeting)
-          )
-
-        update_or_create_calendar_event(meeting, event_data, attempt)
+        if MeetingState.expects_calendar_event?(meeting),
+          do: update_event_for_meeting(meeting, meeting_id, attempt),
+          else: skip_stale_update(meeting_id)
 
       {:error, :not_found} ->
         {:error, :meeting_not_found}
     end
+  end
+
+  # The meeting was cancelled, or its slot voided, after this update was
+  # scheduled. Its event was deleted then, and an update recreates an event
+  # it cannot find, which would put the meeting back on the calendar.
+  defp skip_stale_update(meeting_id) do
+    Logger.info("Meeting no longer expects a calendar event, skipping stale update",
+      meeting_id: meeting_id
+    )
+
+    :ok
+  end
+
+  defp update_event_for_meeting(meeting, meeting_id, attempt) do
+    Logger.info("Updating calendar event",
+      meeting_id: meeting_id,
+      provider_identifier: calendar_event_identifier(meeting)
+    )
+
+    event_data =
+      CalendarEventBuilder.build_event_data(meeting,
+        attendees: Meetings.attendees_for_calendar(meeting)
+      )
+
+    update_or_create_calendar_event(meeting, event_data, attempt)
   end
 
   @doc """

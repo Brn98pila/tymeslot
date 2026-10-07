@@ -50,8 +50,8 @@ defmodule Tymeslot.Integrations.Calendar do
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Calendar.Shared.ProviderCommon
   alias Tymeslot.Integrations.{CalendarManagement, CalendarPrimary}
-  alias Tymeslot.Integrations.Providers.Directory
   alias Tymeslot.Integrations.Shared.InputValidators
+  alias Tymeslot.Integrations.Shared.Providers.Directory
   alias Tymeslot.Security.EncryptedString
   alias Tymeslot.Workers.SyncIcsCalendarWorker
 
@@ -418,34 +418,20 @@ defmodule Tymeslot.Integrations.Calendar do
   end
 
   @doc """
-  Initiates Google Calendar OAuth flow and returns the authorization URL.
-
-  ## Options
-    - `:return_to` — relative path to redirect to after the OAuth callback
+  Starts a Google or Outlook calendar OAuth flow and returns the
+  authorisation URL. See `Tymeslot.Integrations.Calendar.OAuth.initiate/3`.
   """
-  @spec initiate_google_oauth(user_id(), keyword()) :: {:ok, String.t()} | {:error, String.t()}
-  def initiate_google_oauth(user_id, opts \\ []) when is_integer(user_id) do
-    OAuth.initiate_google_oauth(user_id, opts)
-  end
-
-  @doc """
-  Initiates Outlook Calendar OAuth flow and returns the authorization URL.
-
-  ## Options
-    - `:return_to` — relative path to redirect to after the OAuth callback
-  """
-  @spec initiate_outlook_oauth(user_id(), keyword()) :: {:ok, String.t()} | {:error, String.t()}
-  def initiate_outlook_oauth(user_id, opts \\ []) when is_integer(user_id) do
-    OAuth.initiate_outlook_oauth(user_id, opts)
-  end
+  @spec initiate_oauth(OAuth.provider(), user_id(), keyword()) ::
+          {:ok, String.t()} | {:error, String.t()}
+  defdelegate initiate_oauth(provider, user_id, opts \\ []), to: OAuth, as: :initiate
 
   @doc """
   Completes a Google or Outlook OAuth callback and connects the calendar,
   invalidating the user's cached dashboard integration status on success.
   """
-  @spec complete_oauth(OAuth.provider(), String.t(), String.t()) ::
+  @spec complete_oauth(OAuth.provider(), String.t(), String.t(), pos_integer()) ::
           {:ok, integration()} | {:error, term()}
-  defdelegate complete_oauth(provider, code, state), to: OAuth, as: :complete
+  defdelegate complete_oauth(provider, code, state, user_id), to: OAuth, as: :complete
 
   @doc """
   Initiates a Google scope upgrade for an existing integration.

@@ -11,12 +11,12 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
   alias Ecto.Adapters.SQL.Sandbox
   alias Oban.Job
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
-  alias Tymeslot.Integrations.Google.GoogleOAuthHelper
   alias Tymeslot.Integrations.HealthCheck
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries
   alias Tymeslot.Integrations.HealthCheck.Monitor
   alias Tymeslot.Integrations.HealthCheck.ResponseHandler
   alias Tymeslot.Integrations.HealthCheck.Scheduler
+  alias Tymeslot.Integrations.Shared.OAuth.GoogleOAuthHelper
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Repo
   alias Tymeslot.Workers.EmailWorker
@@ -494,7 +494,7 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
     # The health-check pipeline calls the calendar API mock directly, bypassing
     # the token-refresh HTTP path. We exercise the full wiring from raw HTTP body
     # → GoogleOAuthHelper → ResponseHandler in two explicit steps rather than
-    # routing through run_health_checks/0, which cannot reach TokenExchange.
+    # routing through run_health_checks/0, which cannot reach TokenEndpoint.
     test "invalid_grant HTTP 400 body wires through refresh helper to needs_reauth flag and email" do
       user = insert(:user)
 

@@ -34,8 +34,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI
   alias Tymeslot.Integrations.Calendar.Outlook.Provider, as: OutlookProvider
   alias Tymeslot.Integrations.Calendar.ProviderConfig
-  alias Tymeslot.Integrations.Calendar.Shared.AccessToken
   alias Tymeslot.Integrations.Calendar.Sync
+  alias Tymeslot.Integrations.Calendar.Tokens
 
   @max_delta_pages 50
 
@@ -59,7 +59,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
           | {:error, term()}
           | CalendarAPI.api_error()
   def bootstrap_sync(%CalendarIntegrationSchema{} = integration) do
-    AccessToken.with_access_token(integration, &CalendarAPI.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &CalendarAPI.refresh_token/1, fn token ->
       with {:ok, {events, delta_link}} <- fetch_initial_delta(token),
            {:ok, calendar_events} <- normalise_delta_events(events, integration),
            # Through `Sync.upsert_cache/2` for the ownership flagging it adds;
@@ -126,7 +126,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
   def unregister(%CalendarIntegrationSchema{graph_subscription_id: subscription_id} = integration)
       when is_binary(subscription_id) do
     integration
-    |> AccessToken.with_access_token(&CalendarAPI.refresh_token/1, fn token ->
+    |> Tokens.with_access_token(&CalendarAPI.refresh_token/1, fn token ->
       CalendarCircuitBreaker.call(:outlook, fn ->
         CalendarAPI.make_request(
           :delete,
@@ -177,7 +177,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
   # the ones expected turns the rest into a `CaseClauseError` that crashes it.
 
   defp do_register(integration, webhook_base_url) do
-    AccessToken.with_access_token(integration, &CalendarAPI.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &CalendarAPI.refresh_token/1, fn token ->
       case renew_stored_subscription(token, integration, webhook_base_url) do
         {:ok, subscription_attrs} ->
           persist_subscription(integration, subscription_attrs)

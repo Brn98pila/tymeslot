@@ -50,6 +50,7 @@ defmodule Tymeslot.Integrations.Calendar.Ics.Provider do
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Integrations.Calendar.Shared.ProviderCommon
+  alias Tymeslot.Integrations.Shared.ProviderConfigHelper
   alias Tymeslot.Utils.MapKeys
 
   # The feed is one calendar with no server-side identifier, so every event
@@ -96,7 +97,7 @@ defmodule Tymeslot.Integrations.Calendar.Ics.Provider do
         url |> Feed.normalise_url() |> ProviderCommon.validate_url()
 
       _other ->
-        {:error, "Missing required fields: subscription_url"}
+        ProviderConfigHelper.missing_fields_error([:subscription_url])
     end
   end
 

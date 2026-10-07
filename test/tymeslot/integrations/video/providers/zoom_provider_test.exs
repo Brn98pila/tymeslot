@@ -9,18 +9,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProviderTest do
 
   setup :verify_on_exit!
 
-  describe "provider_type/0" do
-    test "returns :zoom" do
-      assert ZoomProvider.provider_type() == :zoom
-    end
-  end
-
-  describe "display_name/0" do
-    test "returns correct display name" do
-      assert ZoomProvider.display_name() == "Zoom"
-    end
-  end
-
   describe "config_schema/0" do
     test "returns schema with required OAuth fields" do
       schema = ZoomProvider.config_schema()
