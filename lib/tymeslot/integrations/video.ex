@@ -476,11 +476,11 @@ defmodule Tymeslot.Integrations.Video do
   @doc """
   Completes a Google Meet, Teams or Zoom OAuth callback and connects the
   integration, invalidating the user's cached dashboard integration status on
-  success. See `Tymeslot.Integrations.Video.OAuthCallback.complete/3`.
+  success. See `Tymeslot.Integrations.Video.OAuthCallback.complete/4`.
   """
-  @spec complete_oauth(OAuth.provider(), String.t(), String.t()) ::
+  @spec complete_oauth(OAuth.provider(), String.t(), String.t(), pos_integer()) ::
           {:ok, VideoIntegrationSchema.t()} | {:error, term()}
-  defdelegate complete_oauth(provider, code, state), to: OAuthCallback, as: :complete
+  defdelegate complete_oauth(provider, code, state, user_id), to: OAuthCallback, as: :complete
 
   @doc """
   Creates or updates an OAuth video integration from callback token data.

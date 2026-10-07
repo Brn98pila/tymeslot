@@ -9,7 +9,7 @@ defmodule TymeslotWeb.Dashboard.VideoSettingsComponent do
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.HealthCheck
   alias Tymeslot.Integrations.HealthCheck.Monitor
-  alias Tymeslot.Integrations.Providers.Directory
+  alias Tymeslot.Integrations.Shared.Providers.Directory
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Integrations.Video.InputValidation, as: VideoInputValidation
   alias Tymeslot.Integrations.Video.ProviderConfig

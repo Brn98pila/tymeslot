@@ -13,7 +13,7 @@ defmodule Tymeslot.Integrations.Video.OAuthTokenManager do
        life left, another process already refreshed it — return that token
        without hitting the OAuth endpoint.
     4. Otherwise (token still expiring, or the integration vanished),
-       perform the actual OAuth refresh.
+       perform the actual OAuth refresh, with the credentials just read.
 
   Providers differ only in their **return shape**, captured by callbacks.
   Zoom and Teams return a bare access-token string; Google Meet returns a
@@ -30,7 +30,9 @@ defmodule Tymeslot.Integrations.Video.OAuthTokenManager do
       return shape (the full refreshed-token map) differs from its in-lock
       shape (the bare access token), so it supplies its own.
 
-  The 300-second expiry buffer is identical across providers and lives here.
+  The expiry buffer and the lock are those of
+  `Tymeslot.Integrations.Shared.OAuth.Refresh`, the refresh flow calendar
+  integrations share.
 
   ## Beyond the lock
 
@@ -56,12 +58,10 @@ defmodule Tymeslot.Integrations.Video.OAuthTokenManager do
   require Logger
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Integrations.Shared.Lock
+  alias Tymeslot.Integrations.Shared.OAuth.Refresh
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
   alias Tymeslot.Integrations.Video.VideoIntegrationSchema
-
-  @buffer_seconds 300
 
   @type config :: map()
   @type decrypted :: map()
@@ -70,7 +70,7 @@ defmodule Tymeslot.Integrations.Video.OAuthTokenManager do
   @typedoc """
   Provider-specific hooks plugged into the shared flow.
 
-    * `:provider` — lock-key atom (`:zoom`, `:teams`, `:google_meet`).
+    * `:provider` — the provider (`:zoom`, `:teams`, `:google_meet`).
     * `:refresh` — performs the OAuth refresh, persistence, and return
       shaping for the in-lock paths. Receives the original config.
     * `:already_refreshed` — builds the return value when another process
@@ -90,14 +90,11 @@ defmodule Tymeslot.Integrations.Video.OAuthTokenManager do
   Returns whether `expires_at` is further out than the refresh buffer.
 
   `nil` (no known expiry) is treated as "not valid" so a refresh is forced.
+  The rule is `Tymeslot.Integrations.Shared.OAuth.Refresh.valid?/2`, shared
+  with calendar integrations.
   """
   @spec token_still_valid?(DateTime.t() | nil) :: boolean()
-  def token_still_valid?(nil), do: false
-
-  def token_still_valid?(expires_at) do
-    buffer = DateTime.add(DateTime.utc_now(), @buffer_seconds, :second)
-    DateTime.compare(expires_at, buffer) == :gt
-  end
+  def token_still_valid?(expires_at), do: Refresh.valid?(expires_at)
 
   @doc """
   Runs the shared locked, double-checked token-refresh flow.
@@ -123,62 +120,50 @@ defmodule Tymeslot.Integrations.Video.OAuthTokenManager do
       fallback = Map.get(hooks, :fallback_refresh, hooks.refresh)
       fallback.(config)
     else
-      Lock.with_lock(
-        {hooks.provider, integration_id},
-        fn -> check_and_refresh(config, integration_id, user_id, hooks, force?) end,
-        mode: :blocking
-      )
+      Refresh.run(Refresh.lock_key(:video, integration_id), %{
+        fetch: fn -> {:ok, fetch_current(integration_id, user_id)} end,
+        valid?: &still_good?(&1, config, force?),
+        already_valid: fn {:found, fresh_integration, decrypted} ->
+          hooks.already_refreshed.(config, build_decrypted(fresh_integration, decrypted))
+        end,
+        # The provider's hook persists by itself, so there is no `:persist`.
+        refresh: &hooks.refresh.(refresh_config(&1, config))
+      })
     end
   end
 
-  defp check_and_refresh(config, integration_id, user_id, hooks, true) do
-    # Forced path: the caller proved the access token is rejected server-side,
-    # so we skip the validity short-circuit — but we still re-read the DB under
-    # the lock. If a sibling process already rotated the token (the stored access
-    # token differs from the one that triggered the 401), return the fresh token
-    # without hitting OAuth again. Otherwise refresh with the DB-fresh credentials
-    # so we never use a stale pre-rotation refresh token (Zoom rotates on every
-    # refresh call).
+  defp fetch_current(integration_id, user_id) do
     case Video.fetch_integration_for_user(integration_id, user_id) do
       {:ok, fresh_integration} ->
-        decrypted = VideoIntegrationSchema.decrypt_credentials(fresh_integration)
-        stale_access_token = Map.get(config, :access_token)
-
-        if decrypted.access_token != stale_access_token do
-          # A sibling already refreshed — hand back the fresh token without
-          # another OAuth round-trip.
-          hooks.already_refreshed.(config, build_decrypted(fresh_integration, decrypted))
-        else
-          # Token is still the rejected one; refresh using the latest credentials
-          # from the DB so we use the most recent refresh token.
-          fresh_config =
-            Map.merge(config, %{
-              access_token: decrypted.access_token,
-              refresh_token: decrypted.refresh_token
-            })
-
-          hooks.refresh.(fresh_config)
-        end
+        {:found, fresh_integration, VideoIntegrationSchema.decrypt_credentials(fresh_integration)}
 
       {:error, :not_found} ->
-        hooks.refresh.(config)
+        :missing
     end
   end
 
-  defp check_and_refresh(config, integration_id, user_id, hooks, false) do
-    case Video.fetch_integration_for_user(integration_id, user_id) do
-      {:ok, fresh_integration} ->
-        decrypted = VideoIntegrationSchema.decrypt_credentials(fresh_integration)
+  # Forced path: the caller proved the access token is rejected server-side,
+  # so the expiry cannot be trusted. Only a sibling having rotated the token
+  # already (the stored access token differs from the one that drew the 401)
+  # makes another OAuth round-trip unnecessary.
+  defp still_good?(:missing, _config, _force?), do: false
 
-        if token_still_valid?(decrypted.token_expires_at) do
-          hooks.already_refreshed.(config, build_decrypted(fresh_integration, decrypted))
-        else
-          hooks.refresh.(config)
-        end
+  defp still_good?({:found, _integration, decrypted}, config, true),
+    do: decrypted.access_token != Map.get(config, :access_token)
 
-      {:error, :not_found} ->
-        hooks.refresh.(config)
-    end
+  defp still_good?({:found, _integration, decrypted}, _config, false),
+    do: token_still_valid?(decrypted.token_expires_at)
+
+  # The refresh runs with the credentials just read under the lock, never the
+  # caller's copy: Zoom and Microsoft rotate the refresh token, so a copy taken
+  # before a sibling's refresh holds one the provider has already retired.
+  defp refresh_config(:missing, config), do: config
+
+  defp refresh_config({:found, _integration, decrypted}, config) do
+    Map.merge(config, %{
+      access_token: decrypted.access_token,
+      refresh_token: decrypted.refresh_token
+    })
   end
 
   # Surfaces the integration's `oauth_scope` alongside the decrypted

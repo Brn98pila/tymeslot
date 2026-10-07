@@ -6,7 +6,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
   to fetch calendar events for availability calculation.
   """
 
-  use Tymeslot.Integrations.Common.OAuthBase,
+  use Tymeslot.Integrations.Calendar.Providers.OAuthBase,
     provider_name: "google",
     display_name: "Google Calendar",
     base_url: "https://www.googleapis.com/calendar/v3"
@@ -21,6 +21,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
   alias Tymeslot.Integrations.Calendar.Google.SeriesExceptions
   alias Tymeslot.Integrations.Calendar.Google.SeriesPatch
   alias Tymeslot.Integrations.Calendar.Google.SeriesSplit
+  alias Tymeslot.Integrations.Calendar.Providers.OAuthProvider
   alias Tymeslot.Integrations.Calendar.Recurrence.SeriesSplit, as: RecurrenceSplit
   alias Tymeslot.Integrations.Calendar.Shared.{ErrorHandler, EventSearch, ProviderCommon}
   alias Tymeslot.Integrations.Calendar.Shared.FetchAggregate.Outcome
@@ -77,6 +78,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
 
   # Required callbacks for OAuth base
 
+  @impl OAuthProvider
   @spec validate_oauth_scope(map()) :: :ok | {:error, String.t()}
   def validate_oauth_scope(config) do
     case Map.get(config, :oauth_scope) do
@@ -102,11 +104,13 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
 
   # --- Legacy conversion (used by OAuthBase get_events / create_event / update_event) ---
 
+  @impl OAuthProvider
   @spec convert_events(list(map())) :: list(converted_event())
   def convert_events(google_events) do
     Enum.map(google_events, &convert_event/1)
   end
 
+  @impl OAuthProvider
   @spec convert_event(map()) :: converted_event()
   def convert_event(google_event) do
     %{
@@ -126,9 +130,11 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
     }
   end
 
+  @impl OAuthProvider
   @spec get_calendar_api_module() :: module()
   def get_calendar_api_module, do: api_module()
 
+  @impl OAuthProvider
   @spec call_list_events(CalendarIntegrationSchema.t(), DateTime.t(), DateTime.t()) ::
           {:ok, list(map())} | {:error, Outcome.t()} | {:error, atom(), String.t()}
   def call_list_events(integration, start_time, end_time) do
@@ -140,6 +146,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
     )
   end
 
+  @impl OAuthProvider
   @spec call_create_event(CalendarIntegrationSchema.t(), map()) ::
           {:ok, map()} | {:error, atom(), String.t()}
   def call_create_event(integration, event_attrs) do
@@ -168,6 +175,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
   an edit of the first occurrence is written as one of every occurrence. A
   refusal of the edit is answered before anything is written.
   """
+  @impl OAuthProvider
   @spec call_update_event(CalendarIntegrationSchema.t(), String.t(), map()) ::
           {:ok, map()} | {:error, atom(), String.t()} | {:error, term()}
   def call_update_event(integration, _event_id, %{occurrence: %{scope: scope} = edit} = attrs)
@@ -306,6 +314,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
       synced_at: DateTime.utc_now()
     }
 
+  @impl OAuthProvider
   @spec call_delete_event(CalendarIntegrationSchema.t(), String.t(), keyword()) ::
           {:ok, term()} | {:error, atom(), String.t()}
   def call_delete_event(integration, event_id, opts) do

@@ -19,6 +19,7 @@ defmodule Tymeslot.Integrations.Calendar.Nextcloud.Provider do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Providers.CaldavCommon
   alias Tymeslot.Integrations.Calendar.Shared.{DiscoveryService, PathUtils, ProviderCommon}
+  alias Tymeslot.Integrations.Shared.ProviderConfigHelper
 
   @impl Tymeslot.Integrations.Calendar.Provider
   def provider_type, do: :nextcloud
@@ -89,10 +90,7 @@ defmodule Tymeslot.Integrations.Calendar.Nextcloud.Provider do
 
     cond do
       !Enum.empty?(missing_fields) ->
-        {:error,
-         dgettext("dashboard_calendar_providers", "Missing required fields: %{fields}",
-           fields: Enum.join(missing_fields, ", ")
-         )}
+        ProviderConfigHelper.missing_fields_error(missing_fields)
 
       !valid_nextcloud_url?(config[:base_url]) ->
         {:error,

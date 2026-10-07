@@ -8,7 +8,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderRegistry do
 
   alias Tymeslot.Integrations.Video.ProviderConfig
 
-  use Tymeslot.Integrations.Common.ProviderRegistry,
+  use Tymeslot.Integrations.Shared.ProviderRegistry,
     provider_type_name: "video provider",
     default_provider: :mirotalk,
     providers: ProviderConfig.providers_map()

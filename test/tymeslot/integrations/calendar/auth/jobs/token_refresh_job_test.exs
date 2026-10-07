@@ -5,6 +5,8 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
 
   use Oban.Testing, repo: Tymeslot.Repo
 
+  alias Config.Reader
+  alias Oban.Cron.Expression
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.TokenRefreshJob
@@ -53,6 +55,36 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
       # Should have 2 jobs in the queue
       assert_enqueued(worker: TokenRefreshJob, args: %{"integration_id" => g_integration.id})
       assert_enqueued(worker: TokenRefreshJob, args: %{"integration_id" => o_integration.id})
+    end
+
+    # A sweep running while a token's refresh still waits or retries must not
+    # queue a second refresh of the same token.
+    test "enqueues one refresh per integration across sweeps" do
+      integration =
+        insert(:calendar_integration,
+          provider: "google",
+          token_expires_at: DateTime.add(DateTime.utc_now(:second), 1, :hour),
+          refresh_token_encrypted: Encryption.encrypt("rt"),
+          is_active: true
+        )
+
+      assert :ok = TokenRefreshJob.perform(%Oban.Job{args: %{}})
+
+      # The first refresh is still retrying an hour and more later, when the
+      # next sweep runs.
+      Repo.update_all(Oban.Job,
+        set: [
+          state: "retryable",
+          inserted_at: DateTime.add(DateTime.utc_now(), -2, :hour)
+        ]
+      )
+
+      assert :ok = TokenRefreshJob.perform(%Oban.Job{args: %{}})
+
+      refreshes =
+        Enum.filter(Repo.all(Oban.Job), &(&1.args == %{"integration_id" => integration.id}))
+
+      assert [%{state: "retryable"}] = refreshes
     end
 
     test "schedules a refresh for an integration flagged for reconnection so its refresh token doesn't lapse" do
@@ -112,6 +144,30 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
       end)
 
       assert :ok = TokenRefreshJob.perform(%Oban.Job{args: %{"integration_id" => integration.id}})
+    end
+
+    # The job refreshes ahead of expiry, within the two-hour window it was
+    # enqueued for, rather than leaving the token to the first API call.
+    test "refreshes a token that expires in about 90 minutes" do
+      integration =
+        insert(:calendar_integration,
+          user: insert(:user),
+          provider: "google",
+          token_expires_at: DateTime.add(DateTime.utc_now(:second), 90, :minute),
+          refresh_token: "rt-123"
+        )
+
+      expect(GoogleCalendarAPIMock, :refresh_token, fn _integration ->
+        {:ok, {"ahead-of-time", "rt-123", DateTime.add(DateTime.utc_now(:second), 1, :hour)}}
+      end)
+
+      assert :ok =
+               TokenRefreshJob.perform(%Oban.Job{args: %{"integration_id" => integration.id}})
+
+      updated = Repo.get!(CalendarIntegrationSchema, integration.id)
+
+      assert CalendarIntegrationSchema.decrypt_oauth_tokens(updated).access_token ==
+               "ahead-of-time"
     end
 
     test "leaves an outstanding needs_reauth flag and its sync_error intact on a successful refresh" do
@@ -245,23 +301,22 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
     end
 
     test "retries a refreshed token that failed to persist instead of flagging the owner" do
-      # `Tokens.persist_and_return/4` reports a failed write of freshly
-      # refreshed tokens as `{:error, :token_persistence_failed}`; the API
-      # error passes through `Tokens.perform_refresh/1` unchanged, so the mock
-      # stands in for it. The provider accepted the credential, so the owner
-      # has nothing to reconnect and the write is worth another attempt.
+      # The provider accepted the credential and answered new tokens, but the
+      # write failed: the owner has nothing to reconnect, and the write is
+      # worth another attempt.
       integration = insert_expired_google_integration(insert(:user))
 
       expect(GoogleCalendarAPIMock, :refresh_token, fn _integration ->
-        {:error, :token_persistence_failed}
+        {:ok, {"new-access", "new-refresh", "not a timestamp"}}
       end)
 
-      assert {:error, _reason} =
+      assert {:error, "token_persist_failed"} =
                TokenRefreshJob.perform(%Oban.Job{args: %{"integration_id" => integration.id}})
 
       updated = Repo.get!(CalendarIntegrationSchema, integration.id)
       refute updated.needs_reauth
       assert updated.sync_error =~ "RETRYABLE"
+      assert updated.access_token_encrypted == integration.access_token_encrypted
 
       refute_enqueued(worker: EmailWorker)
     end
@@ -282,6 +337,21 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
       assert {:error, _reason} =
                TokenRefreshJob.perform(%Oban.Job{args: %{"integration_id" => integration.id}})
     end
+
+    # A crash fails the job, so Oban retries and reports it, and the owner
+    # still sees on the dashboard that the refresh is failing.
+    test "records a crashed refresh for the owner and fails the job" do
+      integration = insert_expired_google_integration(insert(:user))
+
+      expect(GoogleCalendarAPIMock, :refresh_token, fn _integration -> raise "boom" end)
+
+      assert_raise RuntimeError, "boom", fn ->
+        TokenRefreshJob.perform(%Oban.Job{args: %{"integration_id" => integration.id}})
+      end
+
+      assert Repo.get!(CalendarIntegrationSchema, integration.id).sync_error ==
+               "Google integration failed during token refresh: boom (RETRYABLE)"
+    end
   end
 
   describe "backoff/1" do
@@ -301,6 +371,37 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
       assert total < 2 * 60 * 60
     end
   end
+
+  describe "schedule" do
+    # Without a crontab entry the sweep ran once per boot, and the proactive
+    # refresh with it.
+    test "the sweep is registered hourly in the runtime crontab" do
+      runtime_exs = "runtime.exs" |> config_path() |> File.read!()
+      pattern = ~r/\{\s*"([^"]+)"\s*,\s*Tymeslot\.Integrations\.Calendar\.TokenRefreshJob\s*\}/
+
+      assert [_match, schedule] = Regex.run(pattern, runtime_exs),
+             "TokenRefreshJob is not registered in the runtime.exs crontab"
+
+      assert {:ok, expression} = Expression.parse(schedule)
+      assert expression.hours == MapSet.new(0..23)
+    end
+
+    test "the sweep is registered in the dev crontab" do
+      crontab =
+        "dev.exs"
+        |> config_path()
+        |> Reader.read!(env: :dev, target: :host)
+        |> get_in([:tymeslot, Oban, :cron, :crontab])
+
+      assert Enum.any?(crontab, &match?({_schedule, TokenRefreshJob}, &1))
+    end
+  end
+
+  defp config_path(file),
+    do:
+      [__DIR__, "..", "..", "..", "..", "..", "..", "config", file]
+      |> Path.join()
+      |> Path.expand()
 
   defp insert_expired_google_integration(user) do
     insert(:calendar_integration,

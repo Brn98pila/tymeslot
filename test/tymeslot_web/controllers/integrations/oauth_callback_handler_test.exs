@@ -14,7 +14,7 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandlerTest do
 
   alias Phoenix.Flash
   alias Tymeslot.Factory
-  alias Tymeslot.Integrations.Common.OAuth.State
+  alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Security.RateLimiter
 
   @calendars "/dashboard/integrations?tab=calendars"

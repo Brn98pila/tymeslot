@@ -17,6 +17,8 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
   10. Financial records past their statutory retention period (years, counted
       from the end of the financial year; see
       `Tymeslot.MeetingPayments.DataRetention`)
+  11. Integration OAuth flows past their one-hour expiry, with the PKCE
+      verifiers they hold
 
   Ensures the database doesn't grow indefinitely by removing
   old records based on configured retention periods.
@@ -33,6 +35,7 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
   alias Tymeslot.Auth
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.HealthCheck.AvailabilityRefusalQueries
+  alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.MeetingPayments.DataRetention
   alias Tymeslot.Slack
   alias Tymeslot.Telegram
@@ -107,6 +110,8 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
 
     prune_expired_analytics_salts()
 
+    prune_expired_oauth_flows()
+
     purge_expired_financial_records()
 
     Enum.each(@retention_jobs, &run_cleanup(&1, args))
@@ -169,6 +174,13 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
   defp prune_expired_analytics_salts do
     {count, _rows} = Analytics.prune_expired_salts()
     Logger.info("Pruned expired analytics salts", deleted_count: count)
+  end
+
+  # Not a `@retention_jobs` entry: a flow carries its own expiry, an hour after
+  # it starts, and nothing is gained by keeping a spent or abandoned verifier.
+  defp prune_expired_oauth_flows do
+    {count, _rows} = PendingFlow.prune_expired()
+    Logger.info("Pruned expired integration OAuth flows", deleted_count: count)
   end
 
   # Not a `@retention_jobs` entry: the statutory period is counted in years

@@ -8,7 +8,6 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProviderTest do
   alias Tymeslot.HTTPClientMock
   alias Tymeslot.Integrations.Video.EventDetails
   alias Tymeslot.Integrations.Video.Providers.TeamsProvider
-  alias Tymeslot.Integrations.Video.RoomData
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
   alias Tymeslot.Integrations.Video.VideoIntegrationSchema
   alias Tymeslot.Repo

@@ -559,10 +559,10 @@ GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-GOOGLE_STATE_SECRET=         # Self-generated random string (required with Google OAuth)
+# GOOGLE_STATE_SECRET=       # Self-generated random string (required with Google OAuth; unset to disable)
 OUTLOOK_CLIENT_ID=           # From Azure AD App Registration (used for both Outlook & Teams)
 OUTLOOK_CLIENT_SECRET=       # From Azure AD App Registration (used for both Outlook & Teams)
-OUTLOOK_STATE_SECRET=        # Self-generated random string (required with Microsoft OAuth)
+# OUTLOOK_STATE_SECRET=      # Self-generated random string (required with Microsoft OAuth; unset to disable)
 ENABLE_GOOGLE_AUTH=false     # Enable Google login/signup
 ENABLE_GITHUB_AUTH=false     # Enable GitHub login/signup
 ```

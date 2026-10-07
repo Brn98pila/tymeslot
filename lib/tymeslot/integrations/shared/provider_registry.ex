@@ -1,4 +1,4 @@
-defmodule Tymeslot.Integrations.Common.ProviderRegistry do
+defmodule Tymeslot.Integrations.Shared.ProviderRegistry do
   @moduledoc """
   Generic provider registry implementation.
 
@@ -31,7 +31,7 @@ defmodule Tymeslot.Integrations.Common.ProviderRegistry do
   ## Example
 
       defmodule MyApp.CalendarRegistry do
-        use Tymeslot.Integrations.Common.ProviderRegistry,
+        use Tymeslot.Integrations.Shared.ProviderRegistry,
           provider_type_name: "provider",
           default_provider: :caldav,
           metadata_fields: [],

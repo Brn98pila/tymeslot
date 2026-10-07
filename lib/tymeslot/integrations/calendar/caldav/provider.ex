@@ -17,6 +17,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Provider do
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.Providers.CaldavCommon
   alias Tymeslot.Integrations.Calendar.Shared.ProviderCommon
+  alias Tymeslot.Integrations.Shared.ProviderConfigHelper
   alias Tymeslot.Utils.MapKeys
 
   @impl Tymeslot.Integrations.Calendar.Provider
@@ -67,7 +68,8 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Provider do
   # in sequence.
   @impl Tymeslot.Integrations.Calendar.Provider
   def validate_config(config) do
-    with :ok <- ProviderCommon.validate_required_fields(config, [:base_url, :username, :password]) do
+    with :ok <-
+           ProviderConfigHelper.validate_required_fields(config, [:base_url, :username, :password]) do
       ProviderCommon.validate_url(config[:base_url])
     end
   end

@@ -627,12 +627,6 @@ msgstr "Identifiants de calendrier invalides. Veuillez mettre à jour votre conn
 msgid "Invalid mailbox.org URL. Use https://dav.mailbox.org (or your custom mailbox.org-compatible CalDAV endpoint)."
 msgstr "URL mailbox.org invalide. Utilisez https://dav.mailbox.org (ou votre point de terminaison CalDAV compatible mailbox.org personnalisé)."
 
-#: lib/tymeslot/integrations/calendar/nextcloud/provider.ex
-#: lib/tymeslot/integrations/calendar/shared/provider_common.ex
-#, elixir-autogen, elixir-format
-msgid "Missing required fields: %{fields}"
-msgstr "Champs obligatoires manquants : %{fields}"
-
 #: lib/tymeslot/integrations/calendar/shared/error_handler.ex
 #, elixir-autogen, elixir-format
 msgid "Network connection failed. Please check your internet connection."
