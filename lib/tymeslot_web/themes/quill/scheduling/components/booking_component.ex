@@ -7,7 +7,6 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Meetings.Approval
-  alias Tymeslot.Utils.DateTimeUtils.Duration
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
   alias TymeslotWeb.Live.Shared.FormValidationHelpers
   alias TymeslotWeb.Themes.Shared.BookingLabels
@@ -138,7 +137,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent do
                         duration:
                           if(@meeting_type,
                             do: LocalizationHelpers.format_duration(@meeting_type.duration_minutes),
-                            else: Duration.format(@duration)
+                            else: LocalizationHelpers.format_duration(@duration)
                           ),
                         name: get_organizer_name(@organizer_profile, @username_context)
                       )}
@@ -147,7 +146,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent do
                         duration:
                           if(@meeting_type,
                             do: LocalizationHelpers.format_duration(@meeting_type.duration_minutes),
-                            else: Duration.format(@duration)
+                            else: LocalizationHelpers.format_duration(@duration)
                           )
                       )}
                     <% end %>
