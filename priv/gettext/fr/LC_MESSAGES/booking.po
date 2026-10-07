@@ -384,11 +384,6 @@ msgstr "Veuillez contacter l’organisateur"
 
 #: lib/tymeslot_web/live/scheduling/handlers/booking_submission_handler_component.ex
 #, elixir-autogen, elixir-format
-msgid "Please correct the errors below before submitting."
-msgstr "Veuillez corriger les erreurs ci-dessous avant d’envoyer."
-
-#: lib/tymeslot_web/live/scheduling/handlers/booking_submission_handler_component.ex
-#, elixir-autogen, elixir-format
 msgid "Please correct the errors below."
 msgstr "Veuillez corriger les erreurs ci-dessous."
 

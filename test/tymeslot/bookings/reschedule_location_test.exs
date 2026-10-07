@@ -128,7 +128,7 @@ defmodule Tymeslot.Bookings.RescheduleLocationTest do
       )
 
     assert {:ok, _updated} =
-             Reschedule.execute(meeting.uid, params, %{}, meeting.organizer_user_id)
+             Reschedule.execute(meeting.uid, params, meeting.organizer_user_id)
 
     # Read back, so every assertion is about what was persisted.
     Repo.get!(MeetingSchema, meeting.id)

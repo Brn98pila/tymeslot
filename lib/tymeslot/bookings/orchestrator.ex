@@ -124,31 +124,11 @@ defmodule Tymeslot.Bookings.Orchestrator do
     end
   end
 
-  defp submit_action(_seat_token, rescheduling?, uid, meeting_params, form_data, org_id) do
-    create_or_reschedule_meeting(rescheduling?, uid, meeting_params, form_data, org_id)
-  end
+  defp submit_action(_seat_token, true, uid, meeting_params, _form_data, org_id),
+    do: reschedule_meeting(uid, meeting_params, org_id)
 
-  defp create_or_reschedule_meeting(
-         true,
-         reschedule_uid,
-         meeting_params,
-         sanitized_data,
-         organizer_user_id
-       ) do
-    # Rescheduling flow
-    reschedule_meeting(reschedule_uid, meeting_params, sanitized_data, organizer_user_id)
-  end
-
-  defp create_or_reschedule_meeting(
-         false,
-         _reschedule_uid,
-         meeting_params,
-         sanitized_data,
-         _organizer_user_id
-       ) do
-    # New booking flow
-    create_meeting(meeting_params, sanitized_data)
-  end
+  defp submit_action(_seat_token, false, _uid, meeting_params, form_data, _org_id),
+    do: create_meeting(meeting_params, form_data)
 
   defp create_meeting(meeting_params, sanitized_data) do
     result =
@@ -171,11 +151,11 @@ defmodule Tymeslot.Bookings.Orchestrator do
 
   defp as_booked_seat(result, _form_data), do: result
 
-  defp reschedule_meeting(_meeting_uid, _meeting_params, _sanitized_data, nil),
+  defp reschedule_meeting(_meeting_uid, _meeting_params, nil),
     do: {:error, :meeting_not_found}
 
-  defp reschedule_meeting(meeting_uid, meeting_params, sanitized_data, organizer_user_id)
+  defp reschedule_meeting(meeting_uid, meeting_params, organizer_user_id)
        when is_integer(organizer_user_id) do
-    Meetings.reschedule_meeting(meeting_uid, meeting_params, sanitized_data, organizer_user_id)
+    Meetings.reschedule_meeting(meeting_uid, meeting_params, organizer_user_id)
   end
 end

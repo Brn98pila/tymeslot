@@ -108,9 +108,9 @@ defmodule Tymeslot.Bookings.Reschedule do
   policy/validation string from `Tymeslot.Bookings.Policy` or
   `Tymeslot.Bookings.Validation`.
   """
-  @spec execute(String.t(), reschedule_params(), any(), integer()) ::
+  @spec execute(String.t(), reschedule_params(), integer()) ::
           {:ok, Ecto.Schema.t()} | {:error, Errors.classified_error() | String.t()}
-  def execute(meeting_uid, new_params, _form_data, organizer_user_id)
+  def execute(meeting_uid, new_params, organizer_user_id)
       when is_binary(meeting_uid) and is_integer(organizer_user_id) do
     with {:ok, original_meeting} <-
            MeetingQueries.get_meeting_by_uid_for_organizer(meeting_uid, organizer_user_id),
