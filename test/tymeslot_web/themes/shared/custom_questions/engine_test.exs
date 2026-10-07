@@ -185,6 +185,14 @@ defmodule TymeslotWeb.Themes.Shared.CustomQuestions.EngineTest do
       assert Engine.confirmed?(Engine.confirm(s))
     end
 
+    test "a changed answer needs confirming again; the same answer does not" do
+      d = build_def("short_text")
+      s = [d] |> Engine.init() |> Engine.answer(d["id"], "Acme") |> Engine.confirm()
+
+      assert Engine.confirmed?(Engine.answer(s, d["id"], "Acme"))
+      refute Engine.confirmed?(Engine.answer(s, d["id"], "Initech"))
+    end
+
     test "leaves the carried answers' review to mark_reviewed/1" do
       d = build_def("short_text")
       s = Engine.prefill(Engine.init([d]), %{d["id"] => "Contract renewal"})

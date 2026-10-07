@@ -97,13 +97,16 @@ defmodule TymeslotWeb.Themes.Shared.CustomQuestions.Engine do
   @spec current_definition(t()) :: map() | nil
   def current_definition(%__MODULE__{definitions: defs, current_index: i}), do: Enum.at(defs, i)
 
+  # A changed answer is no longer the one the booker confirmed, so it needs
+  # confirming again; the same value sent twice changes nothing.
   @spec answer(t(), String.t(), any()) :: t()
   def answer(%__MODULE__{} = s, id, value) do
     %{
       s
       | answers: Map.put(s.answers, id, value),
         touched: MapSet.put(s.touched, id),
-        errors: Map.delete(s.errors, id)
+        errors: Map.delete(s.errors, id),
+        confirmed: s.confirmed and Map.get(s.answers, id) == value
     }
   end
 
