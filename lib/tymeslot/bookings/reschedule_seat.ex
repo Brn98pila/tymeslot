@@ -91,7 +91,6 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
          :ok <- ensure_live(participant),
          {:ok, old_meeting} <- MeetingQueries.get_meeting(participant.meeting_id),
          :ok <- ensure_same_organizer(old_meeting, organizer_user_id),
-         :ok <- ensure_host_active(old_meeting),
          :ok <- Policy.can_reschedule_meeting?(old_meeting) do
       meeting_type = resolve_meeting_type(old_meeting)
       config = Policy.scheduling_config(old_meeting.organizer_user_id, meeting_type)
@@ -145,12 +144,14 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
   # another organiser's page (a hand-edited URL) would be checked against
   # that organiser's schedule while landing on this one's, so it is refused
   # as if the seat did not exist there.
-  defp ensure_same_organizer(%{organizer_user_id: id}, id) when is_integer(id), do: :ok
+  defp ensure_same_organizer(%{organizer_user_id: id}, id) when is_integer(id),
+    do: ensure_host_active(id)
+
   defp ensure_same_organizer(_old_meeting, _organizer_user_id), do: {:error, :meeting_not_found}
 
   # A booking page opened before its host asked to delete their account can
   # still submit; the host's meetings are about to go, so the seat is unknown.
-  defp ensure_host_active(%{organizer_user_id: user_id}) do
+  defp ensure_host_active(user_id) do
     if Auth.deletion_pending?(user_id), do: {:error, :meeting_not_found}, else: :ok
   end
 
