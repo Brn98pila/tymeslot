@@ -65,6 +65,32 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.EventsTest do
       assert event.summary == "Integration Test Event"
     end
 
+    # The response is parsed whole, at many times its size in memory; one
+    # past the report budget is abandoned rather than downloaded and parsed.
+    test "refuses a calendar-query response past the report budget as too large" do
+      oversized = String.duplicate("x", 9 * 1024 * 1024)
+
+      ReqTest.stub(:tymeslot_http, fn conn -> Conn.send_resp(conn, 207, oversized) end)
+
+      assert {:error, :response_too_large} =
+               Events.fetch_events(
+                 @caldav_client,
+                 "/calendars/user/personal/",
+                 ~U[2026-01-01 00:00:00Z],
+                 ~U[2026-03-01 00:00:00Z],
+                 skip_breaker: true
+               )
+    end
+
+    test "refuses a UID lookup response past the report budget as too large" do
+      oversized = String.duplicate("x", 9 * 1024 * 1024)
+
+      ReqTest.stub(:tymeslot_http, fn conn -> Conn.send_resp(conn, 207, oversized) end)
+
+      assert {:error, :response_too_large} =
+               Events.find_calendar_event(@caldav_client, "/calendars/user/personal/", "uid-1")
+    end
+
     test "accepts 200 OK in addition to the CalDAV-mandated 207 Multi-Status" do
       # Some non-standard servers return 200 for REPORT
       ReqTest.stub(:tymeslot_http, fn conn ->
