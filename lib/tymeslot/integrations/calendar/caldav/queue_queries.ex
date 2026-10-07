@@ -94,14 +94,17 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.QueueQueries do
 
   Returned in ascending `updated_at` order so the oldest pending change
   is replayed first — preserves FIFO semantics across edits to the same
-  cached row.
+  cached row. At most `limit` rows, leaving out those that have already
+  failed `max_attempts` times.
   """
-  @spec list_pending(integer()) :: [ProviderCalendarEventSchema.t()]
-  def list_pending(calendar_integration_id) do
+  @spec list_pending(integer(), pos_integer(), pos_integer()) :: [ProviderCalendarEventSchema.t()]
+  def list_pending(calendar_integration_id, limit, max_attempts) do
     ProviderCalendarEventSchema
     |> where([e], e.calendar_integration_id == ^calendar_integration_id)
     |> where([e], e.sync_state != "synced")
+    |> where([e], e.sync_attempts < ^max_attempts)
     |> order_by([e], asc: e.updated_at)
+    |> limit(^limit)
     |> Repo.all()
   end
 

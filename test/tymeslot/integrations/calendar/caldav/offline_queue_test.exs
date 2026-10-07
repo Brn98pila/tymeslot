@@ -315,7 +315,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueueTest do
       assert :ok = OfflineQueue.flush(integration, @client)
 
       assert is_nil(Repo.reload(row))
-      assert QueueQueries.list_pending(integration.id) == []
+      assert QueueQueries.list_pending(integration.id, 100, 100) == []
       assert :counters.get(counter, 1) == 3
     end
 
@@ -557,7 +557,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueueTest do
 
       uids =
         integration.id
-        |> QueueQueries.list_pending()
+        |> QueueQueries.list_pending(100, 100)
         |> Enum.map(& &1.uid)
 
       assert uids == ["older", "newer"]

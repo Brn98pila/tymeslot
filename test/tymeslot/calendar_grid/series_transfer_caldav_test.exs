@@ -457,7 +457,7 @@ defmodule Tymeslot.CalendarGrid.SeriesTransferCalDAVTest do
 
       # Nothing queues the delete for a later replay, which would delete the
       # whole resource; the source's sync brings the original back instead.
-      assert QueueQueries.list_pending(source.id) == []
+      assert QueueQueries.list_pending(source.id, 100, 100) == []
       assert_enqueued(sync_job(source))
     end
 

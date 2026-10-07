@@ -23,7 +23,17 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue do
   queue with an incremented `sync_attempts` and a human-readable
   description of the failure in `sync_last_error`. The next sync cycle
   retries automatically — there is no backoff beyond the sync cadence
-  itself.
+  itself — but within bounds, so one stuck server or one change the
+  server will never accept cannot hold a sync job for long:
+
+    * a failure that says the server cannot be reached right now (a
+      timeout, a 5xx, a rate limit) ends the flush; the rows after it wait
+      for the next cycle rather than each waiting out the same timeout;
+    * at most `@rows_per_flush` rows are replayed per cycle, oldest first;
+    * a row that has failed `@max_replay_attempts` times is no longer
+      replayed. It keeps its pending state and the last failure in
+      `sync_last_error`, where the owner sees it, and is replayed again once
+      a new local change to it resets the count.
 
   A `412 Precondition Failed` response to a `locally_modified` flush
   follows the usual conflict-resolution policy (`:keep_local` for
@@ -78,13 +88,29 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue do
   # this module rather than as module attributes: a `dgettext/2` call in an
   # attribute would freeze the locale at compile time.
 
+  @rows_per_flush 50
+  @max_replay_attempts 10
+
+  # The server is not answering, or not answering properly, right now: every
+  # other row would meet the same wait, so the flush stops at the first one.
+  @unreachable_reasons [
+    :network_error,
+    :server_error,
+    :server_unresponsive,
+    :timeout,
+    :rate_limited
+  ]
+
   @spec flush(map(), CalDAVBase.client()) :: :ok
   def flush(integration, client) do
     integration.id
-    |> QueueQueries.list_pending()
-    |> Enum.each(&flush_row(&1, integration, client))
-
-    :ok
+    |> QueueQueries.list_pending(@rows_per_flush, @max_replay_attempts)
+    |> Enum.reduce_while(:ok, fn row, :ok ->
+      case flush_row(row, integration, client) do
+        :unreachable -> {:halt, :ok}
+        _replayed_or_recorded -> {:cont, :ok}
+      end
+    end)
   end
 
   # ---------------------------------------------------------------------------
@@ -388,6 +414,8 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue do
       row.uid,
       CalDAVErrors.describe_error(reason)
     )
+
+    if reason in @unreachable_reasons, do: :unreachable, else: :ok
   end
 
   defp record_skip(integration, row, reason) do
