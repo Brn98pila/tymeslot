@@ -71,7 +71,7 @@ defmodule Tymeslot.Integrations.Video do
           | {:error, :not_found}
           | {:error, :requires_reencryption, VideoIntegrationSchema.t()}
   def get_integration(user_id, id) when is_integer(user_id) and is_integer(id) do
-    VideoIntegrationQueries.get_for_user(id, user_id)
+    VideoIntegrationQueries.get_live_for_user(id, user_id)
   end
 
   @doc """
@@ -106,8 +106,21 @@ defmodule Tymeslot.Integrations.Video do
   """
   @spec fetch_integration_for_user(integer(), integer()) ::
           {:ok, VideoIntegrationSchema.t()} | {:error, :not_found}
-  def fetch_integration_for_user(id, user_id) do
-    case VideoIntegrationQueries.get_for_user(id, user_id) do
+  def fetch_integration_for_user(id, user_id),
+    do: fetch_flagging_unreadable(VideoIntegrationQueries.get_for_user(id, user_id))
+
+  @doc """
+  As `fetch_integration_for_user/2`, but a disconnected (soft-deleted)
+  integration is not found. For what the owner does, as against background
+  cleanup.
+  """
+  @spec fetch_live_integration_for_user(integer(), integer()) ::
+          {:ok, VideoIntegrationSchema.t()} | {:error, :not_found}
+  def fetch_live_integration_for_user(id, user_id),
+    do: fetch_flagging_unreadable(VideoIntegrationQueries.get_live_for_user(id, user_id))
+
+  defp fetch_flagging_unreadable(lookup) do
+    case lookup do
       {:ok, integration} ->
         {:ok, integration}
 
@@ -343,7 +356,7 @@ defmodule Tymeslot.Integrations.Video do
   # ---------------
   @spec toggle_integration(pos_integer(), pos_integer()) :: {:ok, any()} | {:error, any()}
   def toggle_integration(user_id, id) when is_integer(user_id) do
-    case VideoIntegrationQueries.get_for_user(id, user_id) do
+    case VideoIntegrationQueries.get_live_for_user(id, user_id) do
       {:ok, integration} ->
         case VideoIntegrationQueries.toggle_active(integration) do
           {:ok, %{is_active: true} = updated} = ok ->

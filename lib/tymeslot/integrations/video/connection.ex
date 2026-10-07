@@ -17,7 +17,7 @@ defmodule Tymeslot.Integrations.Video.Connection do
 
   @spec test_connection(pos_integer(), pos_integer()) :: {:ok, String.t()} | {:error, any()}
   def test_connection(user_id, id) when is_integer(user_id) and is_integer(id) do
-    case Video.fetch_integration_for_user(id, user_id) do
+    case Video.fetch_live_integration_for_user(id, user_id) do
       {:ok, integration} ->
         run_connection_test(integration)
 

@@ -51,6 +51,21 @@ defmodule Tymeslot.Integrations.Video.Update do
   # login name.
   @talk_saved_fields [:provider_account_id | @server_config_fields]
 
+  # What an owner's edit may change. Everything else on the row (its owner,
+  # provider, OAuth tokens, account key, active flag) is set by connecting,
+  # reconnecting and toggling, never by an edit, however the attrs arrived.
+  # The account key a new address implies is derived below.
+  @user_editable [
+    :name,
+    :base_url,
+    :api_key,
+    :client_id,
+    :client_secret,
+    :custom_meeting_url,
+    :settings,
+    :remove_token_authentication
+  ]
+
   @doc """
   Updates the integration `id` owned by `user_id`.
 
@@ -63,9 +78,9 @@ defmodule Tymeslot.Integrations.Video.Update do
           {:ok, VideoIntegrationSchema.t()} | {:error, any()}
   def run(user_id, id, attrs)
       when is_integer(user_id) and is_integer(id) and is_map(attrs) do
-    attrs = AttrsCasting.atomize_known_attrs(attrs)
+    attrs = attrs |> AttrsCasting.atomize_known_attrs() |> Map.take(@user_editable)
 
-    case VideoIntegrationQueries.get_for_user(id, user_id) do
+    case VideoIntegrationQueries.get_live_for_user(id, user_id) do
       {:ok, integration} ->
         attrs = effective_changes(integration, attrs)
 

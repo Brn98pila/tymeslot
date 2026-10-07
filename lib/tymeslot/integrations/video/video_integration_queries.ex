@@ -133,12 +133,25 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
           | {:error, :not_found}
           | {:error, :requires_reencryption, VideoIntegrationSchema.t()}
   def get_for_user(id, user_id) do
-    result =
-      VideoIntegrationSchema
-      |> where([v], v.id == ^id and v.user_id == ^user_id)
-      |> Repo.one()
+    VideoIntegrationSchema
+    |> where([v], v.id == ^id and v.user_id == ^user_id)
+    |> one_decrypted()
+  end
 
-    case result do
+  @doc "As `get_for_user/2`, but a disconnected (soft-deleted) integration is not found."
+  @spec get_live_for_user(integer(), integer()) ::
+          {:ok, VideoIntegrationSchema.t()}
+          | {:error, :not_found}
+          | {:error, :requires_reencryption, VideoIntegrationSchema.t()}
+  def get_live_for_user(id, user_id) do
+    VideoIntegrationSchema
+    |> where([v], v.id == ^id and v.user_id == ^user_id)
+    |> exclude_deleted()
+    |> one_decrypted()
+  end
+
+  defp one_decrypted(query) do
+    case Repo.one(query) do
       nil ->
         {:error, :not_found}
 
