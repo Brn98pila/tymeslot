@@ -47,6 +47,7 @@ defmodule Tymeslot.Infrastructure.AdminAlerts do
           | :payment_event_orphaned
           | :dunning_stalled
           | :account_deletion_billing_sync_failed
+          | :account_deletion_stalled
           | :analytics_tracking_anomaly
           | atom()
 

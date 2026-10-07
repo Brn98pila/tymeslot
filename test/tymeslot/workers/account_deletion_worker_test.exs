@@ -6,6 +6,7 @@ defmodule Tymeslot.Workers.AccountDeletionWorkerTest do
   @moduletag :auth
 
   import Ecto.Query
+  import Tymeslot.AdminAlertsCaptureHelpers
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
 
@@ -16,6 +17,19 @@ defmodule Tymeslot.Workers.AccountDeletionWorkerTest do
   alias Tymeslot.Auth.UserSchema
   alias Tymeslot.Repo
   alias Tymeslot.Workers.{AccountDeletionSweepWorker, AccountDeletionWorker}
+
+  defmodule RefusingHook do
+    @behaviour Tymeslot.Auth.Behaviours.AccountDeletionHook
+
+    @impl Tymeslot.Auth.Behaviours.AccountDeletionHook
+    def on_deletion_requested(_user_id, _feedback), do: :ok
+
+    @impl Tymeslot.Auth.Behaviours.AccountDeletionHook
+    def on_deletion_restored(_user_id), do: :ok
+
+    @impl Tymeslot.Auth.Behaviours.AccountDeletionHook
+    def on_account_deletion(_user_id), do: {:error, :billing_unreachable}
+  end
 
   setup do
     with_config(:tymeslot, :account_deletion_hook, nil)
@@ -50,6 +64,38 @@ defmodule Tymeslot.Workers.AccountDeletionWorkerTest do
 
     assert perform_job(AccountDeletionSweepWorker, %{}) == :ok
     assert_enqueued(worker: AccountDeletionWorker, args: %{"user_id" => user.id})
+  end
+
+  describe "a deletion the hook keeps refusing" do
+    setup :capture_admin_alerts
+
+    setup do
+      with_config(:tymeslot, :account_deletion_hook, RefusingHook)
+      at = DateTime.add(DateTime.utc_now(:second), -1, :second)
+      %{user: insert(:user, deletion_requested_at: at, deletion_scheduled_at: at)}
+    end
+
+    test "retries without an alert before the last attempt", %{user: user} do
+      assert perform_job(AccountDeletionWorker, %{"user_id" => user.id},
+               attempt: 4,
+               max_attempts: 5
+             ) == {:error, :billing_unreachable}
+
+      refute_received {:send_alert, _type, _payload}
+      assert Repo.get(UserSchema, user.id)
+    end
+
+    test "raises an admin alert on the last attempt", %{user: user} do
+      assert perform_job(AccountDeletionWorker, %{"user_id" => user.id},
+               attempt: 5,
+               max_attempts: 5
+             ) == {:error, :billing_unreachable}
+
+      assert_received {:send_alert, :account_deletion_stalled, payload}
+      assert payload.user_id == user.id
+      assert payload.reason_message =~ "billing_unreachable"
+      assert Repo.get(UserSchema, user.id)
+    end
   end
 
   describe "the sweep and existing jobs" do

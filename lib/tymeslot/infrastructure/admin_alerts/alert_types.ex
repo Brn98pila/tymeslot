@@ -40,6 +40,7 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     payment_event_orphaned: %{category: "Payment", severity: :error},
     dunning_stalled: %{category: "Payment", severity: :error},
     account_deletion_billing_sync_failed: %{category: "Payment", severity: :error},
+    account_deletion_stalled: %{category: "Account", severity: :error},
     analytics_tracking_anomaly: %{category: "Analytics", severity: :warning},
     recipient_email_rejected: %{category: "Email", severity: :warning}
   }
@@ -204,6 +205,13 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
   # window while it lasts, which collapses to one per repo and hour.
   def dedup_key(:database_pool_pressure, metadata) do
     "database_pool_pressure:#{Map.get(metadata, :repo)}:#{hour_bucket(metadata, :detected_at)}"
+  end
+
+  # The message carries the hook's refusal, whose text can differ between the
+  # daily runs of one stuck deletion. Key on the account instead, so each
+  # stuck account alerts once per window and a second one raises its own.
+  def dedup_key(:account_deletion_stalled, metadata) do
+    "account_deletion_stalled:#{Map.get(metadata, :user_id, "unknown")}"
   end
 
   def dedup_key(:stripe_webhook_secret_missing, metadata) do
@@ -384,6 +392,14 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
 
     "Subscription renewal for user #{user_id} could not be synced with an account deletion " <>
       "after every retry (#{detail}); check the subscription at Stripe by hand"
+  end
+
+  def format_message(:account_deletion_stalled, metadata) do
+    user_id = Map.get(metadata, :user_id, "unknown")
+    detail = Map.get(metadata, :reason_message, "unknown")
+
+    "Account deletion for user #{user_id} failed after every retry (#{detail}); the daily " <>
+      "sweep tries again, but the account stays past its deletion date until the cause is fixed"
   end
 
   # Discarded after the snooze cap because the subscription, customer or

@@ -220,6 +220,29 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypesTest do
       assert msg =~ "stripe_down"
     end
 
+    # The daily sweep re-queues a stuck deletion, so each day's final attempt
+    # raises this type again, possibly with a different refusal.
+    test ":account_deletion_stalled dedups per account, whatever the refusal" do
+      key = fn user_id, reason ->
+        AlertTypes.dedup_key(:account_deletion_stalled, %{
+          user_id: user_id,
+          reason_message: reason
+        })
+      end
+
+      assert key.(4242, "billing_unreachable") == key.(4242, "timeout")
+      refute key.(4242, "billing_unreachable") == key.(4243, "billing_unreachable")
+
+      msg =
+        AlertTypes.format_message(:account_deletion_stalled, %{
+          user_id: 4242,
+          reason_message: "billing_unreachable"
+        })
+
+      assert msg =~ "4242"
+      assert msg =~ "billing_unreachable"
+    end
+
     # The daily dunning run raises this type afresh each pass, with the day
     # count one higher. Keyed on the message, every pass looked new and the
     # admin was emailed daily about a condition nobody had resolved yet.
