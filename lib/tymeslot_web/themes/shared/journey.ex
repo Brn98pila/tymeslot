@@ -164,8 +164,8 @@ defmodule TymeslotWeb.Themes.Shared.Journey do
   @doc false
   @spec live_component?(term()) :: boolean()
   def live_component?(module) do
-    is_atom(module) and match?({:module, _}, Code.ensure_compiled(module)) and
-      function_exported?(module, :__live__, 0) and module.__live__()[:kind] == :component
+    available?(module) and function_exported?(module, :__live__, 0) and
+      module.__live__()[:kind] == :component
   end
 
   # Public, as `live_component?/1` is, so it takes any term: the struct's
@@ -173,10 +173,31 @@ defmodule TymeslotWeb.Themes.Shared.Journey do
   @doc false
   @spec navigator?(term()) :: boolean()
   def navigator?(module) do
-    is_atom(module) and match?({:module, _}, Code.ensure_compiled(module)) and
+    available?(module) and
       Enum.all?(@navigator_callbacks, fn {name, arity} ->
         function_exported?(module, name, arity)
       end)
+  end
+
+  # Compiled (waiting for a module still compiling alongside the caller) and
+  # loaded, since `function_exported?/3` never loads.
+  #
+  # The wait is the hard one (`Code.ensure_compiled!/1`). When every file of
+  # a parallel compile is waiting, the compiler first gives up the soft waits
+  # (`Code.ensure_compiled/1`) on modules no file is defining yet, which a
+  # theme's components can be: one defined second in a file whose first is
+  # still expanding. A soft wait then answers `:unavailable` for a component
+  # that compiles moments later, failing the theme's build by chance. A hard
+  # wait is given up only when nothing else is, so it fails for a module
+  # that never comes (a typo) and waits for one that does.
+  defp available?(module) do
+    is_atom(module) and
+      try do
+        Code.ensure_compiled!(module)
+        Code.ensure_loaded?(module)
+      rescue
+        ArgumentError -> false
+      end
   end
 
   defp new_or_compile_error!(opts, caller) do
