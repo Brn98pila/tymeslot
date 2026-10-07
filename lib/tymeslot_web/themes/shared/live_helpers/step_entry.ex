@@ -322,11 +322,16 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry do
   # whenever the freshly-resolved engine still needs it; forward navigation
   # from there already lands back on the attendee's. A moment that collects
   # the answers itself asks them where it is, so it stays: moving to it would
-  # enter the attendee's moment again, and again.
+  # enter the attendee's moment again, and again. That is read from the
+  # journey, not from `current_state`, which a navigator may update only
+  # after the moment has opened.
   defp maybe_route_to_questions(socket) do
+    journey = socket.assigns.journey
+    answers_moment = Progress.moment_for(journey, :answers)
+
     if needs_questions_step?(socket.assigns[:engine]) and
-         not Progress.collecting_now?(socket.assigns, :answers) do
-      Runtime.transition_to(socket, Progress.moment_for(socket.assigns.journey, :answers), %{})
+         answers_moment != Progress.moment_for(journey, :attendee) do
+      Runtime.transition_to(socket, answers_moment, %{})
     else
       socket
     end
