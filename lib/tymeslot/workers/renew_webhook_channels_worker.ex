@@ -25,8 +25,10 @@ defmodule Tymeslot.Workers.RenewWebhookChannelsWorker do
   Outlook renewals extend the stored Graph subscription in place (see
   `Tymeslot.Integrations.Calendar.Outlook.GraphSubscription.register/1`), so
   even a repeat that gets past that check creates nothing new. Google offers
-  no way to extend a push channel, so a renewal always opens a new one; if the
-  node stops after Google accepted it and before it was stored, the next run
+  no way to extend a push channel, so a renewal always opens a new one and,
+  once it is stored, stops the one it replaces (see
+  `Tymeslot.Integrations.Calendar.Google.PushChannel`). If the node stops
+  after Google accepted the new channel and before it was stored, the next run
   opens another. The unrecorded channel expires on its own, and its
   notifications are rejected because they match no stored channel id.
   """

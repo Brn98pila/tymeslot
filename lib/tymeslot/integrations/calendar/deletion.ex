@@ -5,6 +5,7 @@ defmodule Tymeslot.Integrations.Calendar.Deletion do
   """
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
+  alias Tymeslot.Integrations.Calendar.Google.PushChannel
   alias Tymeslot.Integrations.Calendar.PrimaryElection
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.MeetingTypes.MeetingTypeQueries
@@ -30,6 +31,7 @@ defmodule Tymeslot.Integrations.Calendar.Deletion do
       when is_integer(user_id) and is_integer(integration_id) do
     with {:ok, integration} <-
            CalendarManagement.get_calendar_integration(integration_id, user_id),
+         :ok <- stop_push_notifications(integration),
          {:ok, promoted_result} <- delete_and_reassign(integration) do
       case promoted_result do
         {:promoted, next_id} -> {:ok, {:deleted_promoted, next_id}}
@@ -41,6 +43,13 @@ defmodule Tymeslot.Integrations.Calendar.Deletion do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  # Before the delete, while the row still holds the tokens a refresh would
+  # write back. Best-effort: a channel left running expires on its own.
+  defp stop_push_notifications(%{provider: "google"} = integration),
+    do: PushChannel.stop_push_channel(integration)
+
+  defp stop_push_notifications(_integration), do: :ok
 
   # The promotion and the delete commit together, under the lock a toggle or
   # an automatic pause takes too, so a failed delete leaves the primary where
