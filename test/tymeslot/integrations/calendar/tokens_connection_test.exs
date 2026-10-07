@@ -31,11 +31,6 @@ defmodule Tymeslot.Integrations.Calendar.TokensConnectionTest do
   end
 
   describe "Connection.validate/3" do
-    test "fails fast on unsupported provider" do
-      assert {:error, :unsupported_provider} =
-               Connection.validate_connection(%{provider: "unknown"}, 1)
-    end
-
     test "delegates test_connection to the provider module" do
       previous = Application.get_env(:tymeslot, :calendar_providers)
 

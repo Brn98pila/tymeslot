@@ -18,7 +18,6 @@ defmodule Tymeslot.Integrations.Calendar.Events do
   alias Tymeslot.Integrations.Calendar.Google.SeriesTransfer, as: GoogleSeriesTransfer
   alias Tymeslot.Integrations.Calendar.Outlook.SeriesTransfer, as: OutlookSeriesTransfer
   alias Tymeslot.Integrations.Calendar.Providers.ProviderAdapter
-  alias Tymeslot.Integrations.Calendar.Runtime.EventFetcher
   alias Tymeslot.Integrations.Calendar.Shared.ProviderCommon
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.CalendarManagement
@@ -26,7 +25,6 @@ defmodule Tymeslot.Integrations.Calendar.Events do
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
   alias Tymeslot.Profiles.ProfileQueries
-  alias Tymeslot.Utils.ContextUtils
 
   require Logger
 
@@ -66,29 +64,13 @@ defmodule Tymeslot.Integrations.Calendar.Events do
   # ---------------------------
 
   @doc """
-  List events for a user. If user_id is nil, falls back to runtime behavior.
-  """
-  @spec list_events(user_id() | nil) :: {:ok, list()} | {:error, term()}
-  def list_events(user_id \\ nil) do
-    case user_id do
-      id when is_integer(id) and id > 0 ->
-        id |> EventFetcher.list_events() |> Alerting.track_availability(id)
-
-      nil ->
-        EventFetcher.list_events(nil)
-
-      _other ->
-        {:error, :invalid_user_id}
-    end
-  end
-
-  @doc """
   Fetch calendar events for the user's entire booking window.
 
   This ensures that all events within the advance booking period are available
   for conflict checking, not just the current month.
 
-  Falls back to list_events if profile cannot be loaded.
+  Returns `{:error, :profile_not_found}` when the organiser's profile cannot be
+  loaded: an organiser without a profile has no booking page.
   """
   @spec get_calendar_events(Date.t() | any(), user_id(), keyword()) ::
           {:ok, list()} | {:error, term()}
@@ -109,29 +91,19 @@ defmodule Tymeslot.Integrations.Calendar.Events do
   end
 
   @doc """
-  Compatibility: context-aware variant that extracts a debug calendar module and organizer profile if present.
+  Context-aware variant: fetches through the configured `:calendar_module`
+  (when set) and passes on the context's organizer profile.
   """
   @spec get_calendar_events_from_context(
           any(),
           user_id(),
-          %{
-            optional(:debug_calendar_module) => module() | nil,
-            optional(:organizer_profile) => map() | nil
-          }
-          | nil
+          %{optional(:organizer_profile) => map() | nil} | nil
         ) ::
           {:ok, list()} | {:error, term()}
   def get_calendar_events_from_context(date, organizer_user_id, context) do
-    debug_module =
-      if val = ContextUtils.get_from_context(context, :debug_calendar_module) do
-        val
-      else
-        Application.get_env(:tymeslot, :calendar_module)
-      end
-
     opts = [
-      debug_calendar_module: debug_module,
-      organizer_profile: ContextUtils.get_from_context(context, :organizer_profile)
+      debug_calendar_module: Application.get_env(:tymeslot, :calendar_module),
+      organizer_profile: context[:organizer_profile]
     ]
 
     get_calendar_events(date, organizer_user_id, opts)
@@ -543,11 +515,8 @@ defmodule Tymeslot.Integrations.Calendar.Events do
     {start_date, end_date} = calculate_booking_window_range(user_id)
 
     case ProfileQueries.get_by_user_id(user_id) do
-      {:ok, _profile} ->
-        get_events_for_range_fresh(user_id, start_date, end_date)
-
-      {:error, _reason} ->
-        list_events(user_id)
+      {:ok, _profile} -> get_events_for_range_fresh(user_id, start_date, end_date)
+      {:error, _reason} -> {:error, :profile_not_found}
     end
   end
 

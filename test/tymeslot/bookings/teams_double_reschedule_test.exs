@@ -373,7 +373,7 @@ defmodule Tymeslot.Bookings.TeamsDoubleRescheduleTest do
     }
 
     assert {:ok, updated} =
-             Reschedule.execute(meeting.uid, params, %{}, meeting.organizer_user_id)
+             Reschedule.execute(meeting.uid, params, meeting.organizer_user_id)
 
     updated
   end

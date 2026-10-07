@@ -120,10 +120,8 @@ defmodule Tymeslot.MeetingsContext.LifecycleTest do
         organizer_user_id: user.id
       }
 
-      form_data = %{"name" => meeting.attendee_name, "email" => meeting.attendee_email}
-
       assert {:ok, rescheduled} =
-               Meetings.reschedule_meeting(meeting.uid, new_params, form_data, user.id)
+               Meetings.reschedule_meeting(meeting.uid, new_params, user.id)
 
       assert DateTime.to_date(rescheduled.start_time) == new_date
       assert rescheduled.status in ["rescheduled", "confirmed"]
@@ -147,10 +145,8 @@ defmodule Tymeslot.MeetingsContext.LifecycleTest do
         organizer_user_id: user.id
       }
 
-      form_data = %{"name" => meeting.attendee_name, "email" => meeting.attendee_email}
-
       assert {:error, _reason} =
-               Meetings.reschedule_meeting(meeting.uid, new_params, form_data, user.id)
+               Meetings.reschedule_meeting(meeting.uid, new_params, user.id)
     end
   end
 end

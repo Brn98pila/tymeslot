@@ -160,10 +160,6 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProviderTest do
       assert {:ok, room} = NextcloudTalkProvider.create_meeting_room(with_event(@config))
 
       refute inspect(room.provider_data) =~ @config.client_secret
-
-      refute inspect(NextcloudTalkProvider.generate_meeting_metadata(room)) =~
-               @config.client_secret
-
       refute inspect(room) =~ @config.client_secret
     end
 
@@ -256,25 +252,21 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProviderTest do
     end
   end
 
-  describe "extract_room_id/1 and valid_meeting_url?/1" do
+  describe "extract_room_id/1" do
     test "read the token from both link forms" do
       assert NextcloudTalkProvider.extract_room_id(@server <> "/index.php/call/abc123xy") ==
                "abc123xy"
 
       assert NextcloudTalkProvider.extract_room_id(@server <> "/call/abc123xy") == "abc123xy"
-      assert NextcloudTalkProvider.valid_meeting_url?(@server <> "/call/abc123xy")
     end
 
     test "refuse a link that is not a Talk call" do
       assert NextcloudTalkProvider.extract_room_id(@server <> "/apps/files") == nil
-      refute NextcloudTalkProvider.valid_meeting_url?(@server <> "/apps/files")
-      refute NextcloudTalkProvider.valid_meeting_url?("ftp://cloud.example.com/call/abc123xy")
     end
 
     test "refuse a token outside Talk's token format" do
       assert NextcloudTalkProvider.extract_room_id(@server <> "/call/ABC123XY") == nil
       assert NextcloudTalkProvider.extract_room_id(@server <> "/call/abc") == nil
-      refute NextcloudTalkProvider.valid_meeting_url?(@server <> "/call/abc-123")
     end
   end
 

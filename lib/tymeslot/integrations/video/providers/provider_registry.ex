@@ -11,7 +11,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderRegistry do
   use Tymeslot.Integrations.Common.ProviderRegistry,
     provider_type_name: "video provider",
     default_provider: :mirotalk,
-    metadata_fields: [:capabilities],
     providers: ProviderConfig.providers_map()
 
   # This is a video-specific function that just talks to the network — no
@@ -58,25 +57,5 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderRegistry do
       # credo:disable-for-next-line Credo.Check.Refactor.Apply
       do: apply(module, :room_creation_budget_ms, []),
       else: 0
-  end
-
-  @doc """
-  Validates and normalizes a provider type.
-  Returns {:ok, provider} or {:error, reason}.
-  """
-  @spec validate_provider(atom() | String.t()) :: {:ok, atom()} | {:error, String.t()}
-  defdelegate validate_provider(provider), to: ProviderConfig
-
-  @doc """
-  Returns providers that support a specific capability.
-  """
-  @spec providers_with_capability(atom()) :: [atom()]
-  def providers_with_capability(capability) do
-    list_providers_with_metadata()
-    |> Enum.filter(fn provider_metadata ->
-      capabilities = Map.get(provider_metadata, :capabilities, %{})
-      Map.get(capabilities, capability, false)
-    end)
-    |> Enum.map(fn provider_metadata -> provider_metadata.type end)
   end
 end

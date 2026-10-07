@@ -216,31 +216,6 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
   def circuit_breaker_enabled?(provider), do: metadata(provider).circuit_breaker_enabled
 
   @doc """
-  Validates and normalizes a provider type.
-
-  Returns {:ok, provider} if valid, {:error, reason} otherwise.
-  """
-  @spec validate_provider(atom() | String.t()) :: {:ok, atom()} | {:error, String.t()}
-  def validate_provider(provider) when is_binary(provider) do
-    case Map.fetch(@provider_atoms, provider) do
-      {:ok, atom} -> validate_provider(atom)
-      :error -> {:error, format_invalid_provider_error(provider)}
-    end
-  end
-
-  def validate_provider(provider) when is_atom(provider) do
-    if valid_provider?(provider) do
-      {:ok, provider}
-    else
-      {:error, format_invalid_provider_error(provider)}
-    end
-  end
-
-  def validate_provider(provider) do
-    {:error, format_invalid_provider_error(provider)}
-  end
-
-  @doc """
   Parses a provider identifier (atom or string) to its canonical atom form.
 
   Accepts the providers in `@providers` plus the meta-value `:none`
@@ -478,10 +453,4 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
   """
   @spec known_providers() :: list(atom())
   def known_providers, do: @providers ++ @dev_only_providers
-
-  # Private helpers
-  defp format_invalid_provider_error(provider) do
-    valid_list = Enum.join(all_providers_with_dev(), ", ")
-    "Invalid provider: #{inspect(provider)}. Valid providers are: #{valid_list}"
-  end
 end

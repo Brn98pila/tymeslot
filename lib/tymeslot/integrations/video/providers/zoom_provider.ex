@@ -17,7 +17,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
   alias Tymeslot.Infrastructure.Logging.Redactor
   alias Tymeslot.Integrations.Shared.ProviderConfigHelper
   alias Tymeslot.Integrations.Video.OAuthTokenManager
-  alias Tymeslot.Integrations.Video.Providers.Capabilities
   alias Tymeslot.Integrations.Video.Providers.OAuthCredentials
   alias Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   alias Tymeslot.Integrations.Video.Providers.ZoomProvider.Payload
@@ -38,17 +37,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
   # alone did in practice. The API never redirects these requests, and one
   # that did would get a fresh budget, so redirects are refused.
   @create_request_options [receive_timeout: 45_000, request_timeout: 45_000, redirect: false]
-  @zoom_url_pattern ~r/zoom\.us\/(j|my|w)\//
-
-  @capabilities Capabilities.new!(
-                  waiting_room: true,
-                  recording: true,
-                  dial_in: true,
-                  max_participants: 100,
-                  breakout_rooms: true,
-                  screen_sharing: true,
-                  chat: true
-                )
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def create_meeting_room(config) do
@@ -193,9 +181,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
   def extract_room_id(_other), do: nil
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def valid_meeting_url?(meeting_url), do: meeting_url =~ @zoom_url_pattern
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def perform_connection_test(config) do
     case get_access_token(config) do
       {:ok, _token} ->
@@ -241,35 +226,10 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
   end
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def capabilities, do: @capabilities
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def handle_meeting_event(:meeting_ended, room_data, _additional_data) do
-    Logger.info("Zoom meeting ended", room_ref: Redactor.fingerprint(room_data.room_id))
-    :ok
-  end
-
-  def handle_meeting_event(_event, _room_data, _additional_data), do: :ok
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def generate_meeting_metadata(room_data) do
-    %{
-      provider: "zoom",
-      meeting_id: room_data.room_id,
-      join_url: room_data.meeting_url,
-      passcode: room_data.provider_data[:passcode],
-      host_url: room_data.provider_data[:start_url]
-    }
-  end
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   defdelegate build_config(integration, decrypted, opts), to: OAuthCredentials
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   defdelegate credential_spec, to: OAuthCredentials
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def url_patterns, do: ["zoom.us"]
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def update_meeting_room(room_id, config) when is_binary(room_id) do

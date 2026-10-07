@@ -109,7 +109,6 @@ defmodule Tymeslot.Availability.OvernightBookingJourneyTest do
                  duration: "60min",
                  user_timezone: "Europe/London"
                },
-               %{},
                meeting.organizer_user_id
              )
 

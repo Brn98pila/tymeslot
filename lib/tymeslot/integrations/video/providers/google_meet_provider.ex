@@ -31,7 +31,6 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProvider do
   alias Tymeslot.Integrations.Shared.ProviderConfigHelper
   alias Tymeslot.Integrations.Video.NeedsReauth
   alias Tymeslot.Integrations.Video.OAuthTokenManager
-  alias Tymeslot.Integrations.Video.Providers.Capabilities
   alias Tymeslot.Integrations.Video.Providers.OAuthCredentials
   alias Tymeslot.Integrations.Video.RoomData
 
@@ -41,16 +40,6 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProvider do
   # alone did in practice. The API never redirects these requests, and one
   # that did would get a fresh budget, so redirects are refused.
   @create_request_options [receive_timeout: 45_000, request_timeout: 45_000, redirect: false]
-
-  @capabilities Capabilities.new!(
-                  recording: true,
-                  screen_sharing: true,
-                  waiting_room: false,
-                  max_participants: 250,
-                  dial_in: true,
-                  chat: true,
-                  breakout_rooms: true
-                )
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def provider_type, do: :google_meet
@@ -82,9 +71,6 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProvider do
       :token_expires_at
     ])
   end
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def capabilities, do: @capabilities
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def create_meeting_room(config) do
@@ -223,25 +209,6 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProvider do
   def extract_room_id(_url), do: nil
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def valid_meeting_url?(url) when is_binary(url) and url != "" do
-    uri = URI.parse(url)
-
-    uri.host == "meet.google.com" and
-      is_binary(uri.path) and
-      String.length(uri.path) > 1 and
-      String.match?(uri.path, ~r|^/[a-z]{3}-[a-z]{4}-[a-z]{3}$|)
-  rescue
-    error ->
-      Logger.warning("Failed to validate Google Meet meeting URL",
-        error: Exception.message(error)
-      )
-
-      false
-  end
-
-  def valid_meeting_url?(_url), do: false
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def perform_connection_test(config) do
     Logger.info("Testing Google Meet connection")
 
@@ -257,64 +224,10 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProvider do
   end
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def handle_meeting_event(event, room_data, additional_data) do
-    Logger.info("Handling Google Meet event",
-      event: event,
-      room_ref: Redactor.fingerprint(room_data.room_id),
-      additional_data: additional_data
-    )
-
-    case event do
-      :created ->
-        :ok
-
-      :started ->
-        :ok
-
-      :ended ->
-        :ok
-
-      :cancelled ->
-        :ok
-
-      _other ->
-        Logger.warning("Unknown Google Meet event", event: event)
-        :ok
-    end
-  end
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def generate_meeting_metadata(room_data) do
-    %{
-      room_id: room_data.room_id,
-      meeting_url: room_data.meeting_url,
-      provider_name: "Google Meet",
-      provider_type: :google_meet,
-      supports_dial_in: true,
-      supports_recording: true,
-      max_participants: 250,
-      meeting_instructions:
-        "Click the link to join the Google Meet video conference. You can also dial in using the phone number provided in the meeting details.",
-      technical_requirements:
-        "Modern web browser or Google Meet mobile app. No additional software required.",
-      additional_features: [
-        "Recording available",
-        "Screen sharing",
-        "Live captions",
-        "Breakout rooms",
-        "Phone dial-in available"
-      ]
-    }
-  end
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   defdelegate build_config(integration, decrypted, opts), to: OAuthCredentials
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   defdelegate credential_spec, to: OAuthCredentials
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def url_patterns, do: ["meet.google.com"]
 
   # Private helper functions (token validation, API calls)
   defp google_oauth_helper do

@@ -3,7 +3,6 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.EventFetcher do
   Reads a user's events from their connected calendar providers.
 
   Responsibilities:
-  - List events across all calendars
   - Range fetches with request coalescing
   - Event filtering and deduplication
 
@@ -15,7 +14,6 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.EventFetcher do
   """
 
   require Logger
-  alias Tymeslot.Infrastructure.Metrics
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Calendar.CalDAV.Base
   alias Tymeslot.Integrations.Calendar.EventsRead
@@ -25,44 +23,6 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.EventFetcher do
   alias Tymeslot.Integrations.Calendar.Shared.FetchAggregate.Outcome
 
   @type user_id :: pos_integer()
-
-  @doc """
-  Lists all events from all configured calendars.
-  Fetches from all calendars in parallel for better performance.
-
-  Reachable from the availability path (`Events.get_calendar_events/3` falls
-  back here when the organiser's profile can't be loaded), so it shares
-  `fetch_events_from_providers/3`'s fail-closed policy via
-  `resolve_availability_fetch/3`: a calendar we failed to read from must
-  never be silently treated as an empty diary.
-  """
-  @spec list_events(user_id() | nil) :: {:ok, list(map())} | {:error, term()}
-  def list_events(user_id) do
-    {all_clients, unreadable_ids} = ClientManager.availability_sources(user_id)
-
-    if all_clients == [] and unreadable_ids == [] do
-      {:ok, []}
-    else
-      Metrics.time_operation(
-        :list_events,
-        %{calendar_count: length(all_clients)},
-        fn ->
-          Logger.info("Listing all calendar events from all calendars")
-          Logger.info("Fetching from calendars in parallel", calendar_count: length(all_clients))
-
-          results =
-            Tymeslot.TaskSupervisor
-            |> Tasks.async_stream_nolink(all_clients, &fetch_events_from_client/1,
-              timeout: 45_000,
-              on_timeout: :kill_task
-            )
-            |> unwrap_async_results()
-
-          resolve_availability_fetch(results, unreadable_ids, user_id)
-        end
-      )
-    end
-  end
 
   @doc """
   Gets fresh events for a date range.
@@ -200,10 +160,6 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.EventFetcher do
 
   defp fetch_events_for_client_in_range(client, start_datetime, end_datetime) do
     EventsRead.fetch_events_with_fallback(client, start_datetime, end_datetime)
-  end
-
-  defp fetch_events_from_client(client) do
-    EventsRead.fetch_events_without_range(client)
   end
 
   defp unwrap_async_results(stream) do

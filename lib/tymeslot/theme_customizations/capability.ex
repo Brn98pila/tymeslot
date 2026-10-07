@@ -24,22 +24,6 @@ defmodule Tymeslot.ThemeCustomizations.Capability do
   @type capability_defaults :: %{String.t() => String.t() | nil}
 
   @doc """
-  Gets available customization options for a theme based on its capabilities.
-  """
-  @spec get_customization_options(String.t()) :: %{
-          customization_type() => [customization_option()]
-        }
-  def get_customization_options(theme_id) do
-    case Catalog.get_by_id(theme_id) do
-      {:ok, theme} ->
-        build_options_from_capabilities(theme.features)
-
-      _other ->
-        %{}
-    end
-  end
-
-  @doc """
   Validates customization values against theme capabilities.
   """
   @spec validate_customization(String.t(), customization_attrs()) ::
@@ -83,88 +67,6 @@ defmodule Tymeslot.ThemeCustomizations.Capability do
   end
 
   # Private functions
-
-  defp build_options_from_capabilities(features) do
-    options = %{}
-
-    options =
-      if features[:supports_custom_colors],
-        do: Map.put(options, :color, color_options()),
-        else: options
-
-    options =
-      if features[:supports_video_background] || features[:supports_image_background] ||
-           features[:supports_gradient_background],
-         do: Map.put(options, :background, background_options(features)),
-         else: options
-
-    options
-  end
-
-  defp color_options do
-    Enum.map(ThemeCustomizationSchema.color_scheme_definitions(), fn {key, %{name: name}} ->
-      %{
-        type: :color,
-        key: key,
-        value: key,
-        label: name,
-        description: nil
-      }
-    end)
-  end
-
-  defp background_options(features) do
-    options = []
-
-    options =
-      if features[:supports_gradient_background],
-        do: options ++ gradient_options(),
-        else: options
-
-    options =
-      if features[:supports_image_background],
-        do:
-          options ++
-            [
-              %{
-                type: :background,
-                key: "image",
-                value: "image",
-                label: "Custom Image",
-                description: "Upload your own background image"
-              }
-            ],
-        else: options
-
-    options =
-      if features[:supports_video_background],
-        do:
-          options ++
-            [
-              %{
-                type: :background,
-                key: "video",
-                value: "video",
-                label: "Video Background",
-                description: "Use a video as background"
-              }
-            ],
-        else: options
-
-    options
-  end
-
-  defp gradient_options do
-    Enum.map(ThemeCustomizationSchema.gradient_definitions(), fn {key, %{name: name}} ->
-      %{
-        type: :background,
-        key: key,
-        value: key,
-        label: name,
-        description: nil
-      }
-    end)
-  end
 
   defp validate_against_capabilities(features, attrs) do
     errors = []

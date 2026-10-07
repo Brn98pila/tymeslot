@@ -6,6 +6,7 @@ defmodule Tymeslot.Payments.Webhooks.WebhookProcessorTest do
   import Mox
 
   alias Tymeslot.Payments.Webhooks.WebhookProcessor
+  alias Tymeslot.Test.LogCapture
 
   setup :set_mox_from_context
   setup :verify_on_exit!
@@ -16,17 +17,6 @@ defmodule Tymeslot.Payments.Webhooks.WebhookProcessorTest do
       pid = Application.get_env(:tymeslot, :admin_alerts_test_pid)
       send(pid, {:send_alert, event_type, payload})
       :ok
-    end
-  end
-
-  defmodule CrashingClock do
-    @spec utc_now() :: no_return()
-    def utc_now do
-      if pid = Application.get_env(:tymeslot, :crashing_clock_test_pid) do
-        send(pid, {:task_pid, self()})
-      end
-
-      raise "simulated recorder failure"
     end
   end
 
@@ -52,12 +42,20 @@ defmodule Tymeslot.Payments.Webhooks.WebhookProcessorTest do
           "object" => %{
             "id" => "obj_123",
             "object" => "charge",
-            "metadata" => %{"email" => "sensitive@example.com"}
+            "metadata" => %{"email" => "sensitive@example.com", "note" => "sensitive-note"}
           }
         }
       }
 
-      assert {:ok, :unhandled_event} = WebhookProcessor.process_event(event)
+      assert {:ok, :unhandled_event} =
+               LogCapture.with_capture([logger_level: :debug], fn ->
+                 WebhookProcessor.process_event(event)
+               end)
+
+      # The object's metadata carries customer details and is never logged.
+      logs = Enum.map(LogCapture.drain(), &LogCapture.dump/1)
+      assert Enum.any?(logs, &(&1 =~ "Received unhandled Stripe event"))
+      refute Enum.any?(logs, &(&1 =~ "sensitive"))
 
       assert_receive {:send_alert, :unhandled_webhook, payload}
       assert payload.event_id == "evt_999"
@@ -202,17 +200,12 @@ defmodule Tymeslot.Payments.Webhooks.WebhookProcessorTest do
     end
   end
 
-  describe "process_event/1 type stamping" do
+  describe "process_event/1 dispatch on the string type" do
     # Production Stripe payloads are string-keyed end to end (see
-    # SignatureVerifier.to_string/1 and Jason.decode/1 in DevelopmentMode),
-    # but every non-dispute/refund handler pattern-matches only the atom
-    # `:type` key. process_with_handler/3 is the sole place that stamps an
-    # atom `:type` onto the event before dispatch. This test drives
-    # process_event/1 with a fully string-keyed event, the shape handlers
-    # actually receive in production, so a regression in that stamping step
-    # is caught here instead of being silently swallowed by the rescue in
-    # process_event/1 (which would still return 200 to Stripe).
-    test "a fully string-keyed event reaches an atom-:type-matching handler" do
+    # SignatureVerifier and Jason.decode/1 in DevelopmentMode), and the
+    # processor hands the event on unchanged, so a handler that matched an
+    # atom `:type` key would never match here.
+    test "a fully string-keyed event reaches the handler for its type" do
       event = %{
         "id" => "evt_charge_succeeded",
         "type" => "charge.succeeded",
@@ -228,69 +221,6 @@ defmodule Tymeslot.Payments.Webhooks.WebhookProcessorTest do
       }
 
       assert {:ok, :charge_logged} = WebhookProcessor.process_event(event)
-    end
-  end
-
-  describe "process_event/1 runtime isolation" do
-    # Regression test for Task 94: the background recorder for unhandled Stripe
-    # events must run under Tymeslot.TaskSupervisor so that a crash inside the
-    # recorder cannot propagate to (or be silently swallowed by) the webhook
-    # handler process.
-    test "unhandled event still returns {:ok, :unhandled_event} when the async recorder crashes" do
-      original_alerts = Application.get_env(:tymeslot, :admin_alerts_impl)
-      original_clock = Application.get_env(:tymeslot, :clock)
-
-      Application.put_env(:tymeslot, :admin_alerts_impl, TestAdminAlerts)
-      Application.put_env(:tymeslot, :admin_alerts_test_pid, self())
-      Application.put_env(:tymeslot, :clock, CrashingClock)
-      Application.put_env(:tymeslot, :crashing_clock_test_pid, self())
-
-      on_exit(fn ->
-        if original_alerts do
-          Application.put_env(:tymeslot, :admin_alerts_impl, original_alerts)
-        else
-          Application.delete_env(:tymeslot, :admin_alerts_impl)
-        end
-
-        Application.delete_env(:tymeslot, :admin_alerts_test_pid)
-        Application.delete_env(:tymeslot, :crashing_clock_test_pid)
-
-        if original_clock do
-          Application.put_env(:tymeslot, :clock, original_clock)
-        else
-          Application.delete_env(:tymeslot, :clock)
-        end
-      end)
-
-      event = %{
-        "id" => "evt_rti_webhook",
-        "type" => "charge.unknown",
-        "created" => 1_700_000_000,
-        "livemode" => false,
-        "data" => %{
-          "object" => %{
-            "id" => "obj_rti",
-            "object" => "charge",
-            "metadata" => %{}
-          }
-        }
-      }
-
-      log =
-        capture_log(fn ->
-          # The outer handler must succeed even though the supervised recorder
-          # will raise in a separate process.
-          assert {:ok, :unhandled_event} = WebhookProcessor.process_event(event)
-
-          # Receive the task pid sent from inside the supervised task body, then
-          # monitor it. The :DOWN message arrives after full process termination —
-          # which is after the crash report has been emitted into the logger handler.
-          assert_receive {:task_pid, task_pid}, 500
-          ref = Process.monitor(task_pid)
-          assert_receive {:DOWN, ^ref, :process, _pid, _reason}, 500
-        end)
-
-      assert log =~ "simulated recorder failure"
     end
   end
 end

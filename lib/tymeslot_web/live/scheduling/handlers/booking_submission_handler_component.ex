@@ -269,9 +269,6 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
       {:ok, meeting} ->
         handle_booking_success(socket, meeting, sanitized_params)
 
-      {:error, errors} when is_list(errors) ->
-        handle_field_errors(socket, errors, sanitized_params)
-
       {:error, :slot_taken} ->
         handle_slot_taken(socket)
 
@@ -299,20 +296,6 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
       |> Flash.put_flash(
         :error,
         dgettext("booking", "Preview session expired. Reload the page to continue.")
-      )
-
-    {:error, socket}
-  end
-
-  defp handle_field_errors(socket, errors, sanitized_params) do
-    socket =
-      socket
-      |> assign(:form, Component.to_form(sanitized_params))
-      |> assign(:validation_errors, Enum.into(errors, %{}))
-      |> BookingGuards.release_submission()
-      |> Flash.put_flash(
-        :error,
-        dgettext("booking", "Please correct the errors below before submitting.")
       )
 
     {:error, socket}

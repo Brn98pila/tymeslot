@@ -17,7 +17,6 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Integrations.Common.OAuth.AccountMatch
-  alias Tymeslot.Integrations.Common.OAuth.ErrorParser
   alias Tymeslot.Integrations.Common.OAuth.IdToken
   alias Tymeslot.Integrations.Common.OAuth.State
   alias Tymeslot.Integrations.Common.OAuth.TokenExchange
@@ -112,47 +111,6 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
       outlook_client_secret(),
       @calendar_scope
     )
-  end
-
-  @doc """
-  Refreshes an access token using a refresh token.
-
-  Kept to satisfy `OAuthHelperBehaviour` and the mock built from it; nothing in
-  `lib/` calls it. The live Outlook calendar refresh is
-  `OutlookCalendarAPI.refresh_token/1`, which holds the integration and is
-  instrumented through `TokenFlow`.
-
-  `opts` takes a `:log_context`, forwarded to
-  `TokenExchange.refresh_access_token/3`.
-  """
-  @impl Tymeslot.Integrations.Calendar.Auth.OAuthHelperBehaviour
-  @spec refresh_access_token(String.t(), String.t() | nil, keyword()) ::
-          {:ok, map()} | {:error, String.t()}
-  def refresh_access_token(refresh_token, current_scope \\ nil, opts \\ []) do
-    body = %{
-      refresh_token: refresh_token,
-      client_id: outlook_client_id(),
-      client_secret: outlook_client_secret(),
-      grant_type: "refresh_token",
-      scope: current_scope || @calendar_scope
-    }
-
-    # No second log line here: `TokenExchange` already logs the status and the
-    # redacted body, and now names the provider too.
-    case TokenExchange.refresh_access_token(@token_url, body,
-           fallback_refresh_token: refresh_token,
-           fallback_scope: current_scope || @calendar_scope,
-           log_context: Keyword.merge(Keyword.get(opts, :log_context, []), provider: :outlook)
-         ) do
-      {:ok, tokens} ->
-        {:ok, tokens}
-
-      {:error, {:http_error, status, resp_body}} ->
-        {:error, ErrorParser.build_message("Token refresh failed", status, resp_body)}
-
-      {:error, {:network_error, reason}} ->
-        {:error, "Network error during token refresh: #{inspect(reason)}"}
-    end
   end
 
   # Private functions

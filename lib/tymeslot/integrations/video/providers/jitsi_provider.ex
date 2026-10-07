@@ -56,7 +56,6 @@ defmodule Tymeslot.Integrations.Video.Providers.JitsiProvider do
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Logging.Redactor
-  alias Tymeslot.Integrations.Video.Providers.Capabilities
   alias Tymeslot.Integrations.Video.Providers.Jitsi.Token
   alias Tymeslot.Integrations.Video.Providers.LinkRoom
   alias Tymeslot.Integrations.Video.Providers.ProviderBehaviour
@@ -75,16 +74,6 @@ defmodule Tymeslot.Integrations.Video.Providers.JitsiProvider do
   @min_secret_bytes 32
 
   @organizer_role "organizer"
-
-  @capabilities Capabilities.new!(
-                  waiting_room: false,
-                  recording: false,
-                  dial_in: false,
-                  max_participants: nil,
-                  breakout_rooms: false,
-                  screen_sharing: true,
-                  chat: true
-                )
 
   @impl ProviderBehaviour
   def create_meeting_room(config) do
@@ -142,9 +131,6 @@ defmodule Tymeslot.Integrations.Video.Providers.JitsiProvider do
   def extract_room_id(meeting_url), do: LinkRoom.slug_from_url(meeting_url)
 
   @impl ProviderBehaviour
-  def valid_meeting_url?(meeting_url), do: LinkRoom.room_url?(meeting_url)
-
-  @impl ProviderBehaviour
   def perform_connection_test(config) do
     with {:ok, base_url} <- fetch_base_url(config) do
       LinkRoom.connection_test(base_url)
@@ -184,21 +170,6 @@ defmodule Tymeslot.Integrations.Video.Providers.JitsiProvider do
            validate_credentials(present(config[:client_id]), present(config[:client_secret])) do
       require_https_for_tokens(base_url, credentials(config))
     end
-  end
-
-  @impl ProviderBehaviour
-  def capabilities, do: @capabilities
-
-  @impl ProviderBehaviour
-  def handle_meeting_event(_event, _room_data, _additional_data), do: :ok
-
-  @impl ProviderBehaviour
-  def generate_meeting_metadata(room_data) do
-    %{
-      provider: "jitsi",
-      meeting_id: room_data.room_id,
-      join_url: room_data.meeting_url
-    }
   end
 
   @impl ProviderBehaviour

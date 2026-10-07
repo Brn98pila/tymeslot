@@ -80,42 +80,6 @@ defmodule Tymeslot.Payments.Stripe do
       Application.get_env(:stripity_stripe, :api_key)
   end
 
-  # Finds the subscription item to update
-  # Can either use the subscription_item_id from opts or default to the first item
-  defp find_subscription_item(subscription, opts) do
-    items = Map.get(subscription, :items) || %{data: []}
-
-    subscription_item =
-      if item_id = Map.get(opts, :subscription_item_id) do
-        Enum.find(items.data, fn item -> item.id == item_id end)
-      else
-        List.first(items.data)
-      end
-
-    if subscription_item do
-      {:ok, subscription_item}
-    else
-      Logger.error("No subscription items found for subscription")
-      {:error, :no_subscription_items}
-    end
-  end
-
-  # Updates a subscription item with a new price
-  defp update_subscription_item(subscription_id, subscription_item, new_price_id, idempotency_key) do
-    subscription_mod().update(
-      subscription_id,
-      %{
-        items: [
-          %{
-            id: subscription_item.id,
-            price: new_price_id
-          }
-        ]
-      },
-      api_key_opts(idempotency_key)
-    )
-  end
-
   @doc false
   # Generates an idempotency key for Stripe API calls to prevent duplicate operations
   # Format: <operation>_<identifier>_<timestamp>
@@ -190,35 +154,6 @@ defmodule Tymeslot.Payments.Stripe do
         subscription_mod().update(subscription_id, params, api_key_opts(idempotency_key))
       else
         subscription_mod().cancel(subscription_id, %{}, api_key_opts(idempotency_key))
-      end
-    end)
-  end
-
-  @doc """
-  Updates a Stripe subscription to a new price.
-  """
-  @impl StripeProvider
-  @spec update_subscription(String.t(), String.t(), map()) :: stripe_result()
-  def update_subscription(subscription_id, new_price_id, opts \\ %{})
-      when is_binary(subscription_id) and is_binary(new_price_id) do
-    Logger.info("Updating Stripe subscription",
-      subscription_id: subscription_id,
-      new_price_id: new_price_id
-    )
-
-    idempotency_key =
-      generate_idempotency_key("subscription_update", "#{subscription_id}_#{new_price_id}")
-
-    RetryHelper.execute_with_retry(fn ->
-      with {:ok, subscription} <-
-             subscription_mod().retrieve(subscription_id, %{}, api_key_opts()),
-           {:ok, subscription_item} <- find_subscription_item(subscription, opts) do
-        update_subscription_item(
-          subscription_id,
-          subscription_item,
-          new_price_id,
-          idempotency_key
-        )
       end
     end)
   end

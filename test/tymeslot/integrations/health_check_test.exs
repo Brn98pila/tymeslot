@@ -14,7 +14,9 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
   alias Tymeslot.Integrations.Google.GoogleOAuthHelper
   alias Tymeslot.Integrations.HealthCheck
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries
+  alias Tymeslot.Integrations.HealthCheck.Monitor
   alias Tymeslot.Integrations.HealthCheck.ResponseHandler
+  alias Tymeslot.Integrations.HealthCheck.Scheduler
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Repo
   alias Tymeslot.Workers.EmailWorker
@@ -54,21 +56,21 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       # 1st failure
       run_health_checks()
       sync_with_server()
-      status = HealthCheck.get_health_status(:calendar, integration.id)
+      status = health_status(:calendar, integration.id)
       assert status.status == :degraded
       assert status.failures == 1
 
       # 2nd failure
       run_health_checks()
       sync_with_server()
-      status = HealthCheck.get_health_status(:calendar, integration.id)
+      status = health_status(:calendar, integration.id)
       assert status.status == :degraded
       assert status.failures == 2
 
       # 3rd failure
       run_health_checks()
       sync_with_server()
-      status = HealthCheck.get_health_status(:calendar, integration.id)
+      status = health_status(:calendar, integration.id)
       assert status.status == :unhealthy
       assert status.failures == 3
 
@@ -92,7 +94,7 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
 
       run_health_checks()
       sync_with_server()
-      assert HealthCheck.get_health_status(:calendar, integration.id).status == :degraded
+      assert health_status(:calendar, integration.id).status == :degraded
 
       # Mock success for 2 checks (recovery threshold is 2)
       expect(GoogleCalendarAPIMock, :list_primary_events, 2, fn _integration,
@@ -104,12 +106,12 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       # 1st success
       run_health_checks()
       sync_with_server()
-      assert HealthCheck.get_health_status(:calendar, integration.id).status == :degraded
+      assert health_status(:calendar, integration.id).status == :degraded
 
       # 2nd success
       run_health_checks()
       sync_with_server()
-      assert HealthCheck.get_health_status(:calendar, integration.id).status == :healthy
+      assert health_status(:calendar, integration.id).status == :healthy
     end
 
     test "treats timeout as transient and keeps healthy status" do
@@ -129,7 +131,7 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       run_health_checks()
       sync_with_server()
 
-      status = HealthCheck.get_health_status(:calendar, integration.id)
+      status = health_status(:calendar, integration.id)
       assert status.status == :healthy
       assert status.failures == 0
       assert status.last_error_class == :transient
@@ -146,7 +148,7 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       run_health_checks()
       sync_with_server()
 
-      status = HealthCheck.get_health_status(:calendar, integration.id)
+      status = health_status(:calendar, integration.id)
       assert status.status == :healthy
       assert status.failures == 0
       assert status.last_error_class == :transient
@@ -169,7 +171,7 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       # as `:transient` under the conservative classification policy. The
       # important property is that a single crash does not immediately push
       # the integration toward `:unhealthy`.
-      status = HealthCheck.get_health_status(:calendar, integration.id)
+      status = health_status(:calendar, integration.id)
       assert status.status == :healthy
       assert status.failures == 0
       assert status.last_error_class == :transient
@@ -186,7 +188,7 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       run_health_checks()
       sync_with_server()
 
-      status = HealthCheck.get_health_status(:calendar, integration.id)
+      status = health_status(:calendar, integration.id)
       assert status.status == :healthy
       assert status.failures == 0
       assert status.last_error_class == :transient
@@ -203,7 +205,7 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       run_health_checks()
       sync_with_server()
 
-      status = HealthCheck.get_health_status(:calendar, integration.id)
+      status = health_status(:calendar, integration.id)
       assert status.status == :healthy
       assert status.failures == 0
       assert status.last_error_class == :transient
@@ -224,7 +226,7 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       # classification policy we default unknown errors to `:transient` rather
       # than `:hard`. The system must remain stable and not increment failure
       # counters on input it cannot meaningfully classify.
-      status = HealthCheck.get_health_status(:calendar, integration.id)
+      status = health_status(:calendar, integration.id)
       assert status.status == :healthy
       assert status.failures == 0
       assert status.last_error_class == :transient
@@ -242,7 +244,7 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       run_health_checks()
       sync_with_server()
 
-      status = HealthCheck.get_health_status(:calendar, integration.id)
+      status = health_status(:calendar, integration.id)
       assert status.last_error_class == :hard
       assert status.consecutive_hard_failures == 1
       assert status.failures == 1
@@ -325,8 +327,8 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       run_health_checks()
       sync_with_server()
 
-      assert %{status: :healthy, successes: 2} = HealthCheck.get_health_status(:calendar, c1.id)
-      assert %{status: :healthy, successes: 2} = HealthCheck.get_health_status(:video, v1.id)
+      assert %{status: :healthy, successes: 2} = health_status(:calendar, c1.id)
+      assert %{status: :healthy, successes: 2} = health_status(:video, v1.id)
     end
   end
 
@@ -528,7 +530,13 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
 
       # Step 2: Feed the propagated reason into the response handler and confirm
       # the integration is flagged for reauth and the notification is enqueued.
-      ResponseHandler.handle_permanent_auth_failure(:calendar, integration, {:error, reason})
+      ResponseHandler.handle_check_result(
+        :calendar,
+        integration,
+        {:no_change, :healthy, :healthy},
+        Monitor.initial_state(),
+        {:error, reason}
+      )
 
       {:ok, updated} = CalendarIntegrationQueries.get(integration.id)
       assert updated.needs_reauth == true
@@ -600,7 +608,7 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
   defp run_health_checks do
     Repo.delete_all(from(j in Job, where: j.queue == "calendar_integrations"))
 
-    HealthCheck.check_all_integrations()
+    Scheduler.schedule_all(force: true)
     now = DateTime.utc_now()
 
     Repo.update_all(
@@ -609,5 +617,12 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
     )
 
     Oban.drain_queue(queue: :calendar_integrations, with_limit: 100)
+  end
+
+  defp health_status(type, integration_id) do
+    case IntegrationHealthStateQueries.get(type, integration_id) do
+      {:ok, record} -> Monitor.from_db_record(record)
+      {:error, :not_found} -> nil
+    end
   end
 end

@@ -227,10 +227,10 @@ defmodule Tymeslot.Meetings do
   The `organizer_user_id` is required. The meeting lookup is scoped to that
   owner, preventing IDOR attacks from the public booking flow.
   """
-  @spec reschedule_meeting(String.t(), Reschedule.reschedule_params(), map(), integer()) ::
+  @spec reschedule_meeting(String.t(), Reschedule.reschedule_params(), integer()) ::
           {:ok, Ecto.Schema.t()} | {:error, term()}
-  def reschedule_meeting(meeting_uid, new_params, form_data, organizer_user_id) do
-    Reschedule.execute(meeting_uid, new_params, form_data, organizer_user_id)
+  def reschedule_meeting(meeting_uid, new_params, organizer_user_id) do
+    Reschedule.execute(meeting_uid, new_params, organizer_user_id)
   end
 
   @doc """

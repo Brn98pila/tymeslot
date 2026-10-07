@@ -177,11 +177,6 @@ msgstr "rispondi a questa email"
 msgid "Having trouble with the button? Copy and paste this link into your browser:"
 msgstr "Hai problemi con il pulsante? Copia e incolla questo link nel tuo browser:"
 
-#: lib/tymeslot/emails/shared/meeting/video_section.ex
-#, elixir-autogen, elixir-format
-msgid "Meeting will start at the scheduled time"
-msgstr "La riunione inizierà all'orario previsto"
-
 #: lib/tymeslot/emails/shared/formatting.ex
 #, elixir-autogen, elixir-format
 msgid "hour"

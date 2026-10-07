@@ -26,7 +26,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   alias Tymeslot.Infrastructure.VideoCircuitBreaker
   alias Tymeslot.Integrations.Video.MeetingContext
   alias Tymeslot.Integrations.Video.ProviderConfig
-  alias Tymeslot.Integrations.Video.Providers.LinkRoom
   alias Tymeslot.Integrations.Video.Providers.ProviderRegistry
 
   @doc """
@@ -46,9 +45,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
           provider: provider_type,
           room_ref: Redactor.fingerprint(room_data.room_id)
         )
-
-        # Handle meeting created event
-        provider_module.handle_meeting_event(:created, room_data, %{})
 
         {:ok,
          %MeetingContext{
@@ -172,36 +168,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   end
 
   @doc """
-  Extracts the room id from a meeting URL, guessing which provider the link
-  belongs to.
-
-  **Best-effort only.** The provider is guessed by testing the URL against each
-  provider's `url_patterns/0` substrings in `ProviderConfig.all_providers_with_dev/0`
-  order, and the first provider to claim the link wins. Two providers whose URLs
-  share a substring therefore resolve to the earlier one, silently, and the room
-  id comes back parsed by the wrong provider's rules.
-
-  Use this only where a bare link is genuinely all there is, for instance
-  naming the service behind a URL a user has just pasted. **A caller holding an
-  integration must not use it**: it already knows the provider, so it should
-  call `extract_room_id/2` and get an answer that cannot be mis-attributed.
-  """
-  @spec extract_room_id(String.t()) :: String.t() | nil
-  def extract_room_id(meeting_url) do
-    case detect_provider_from_url(meeting_url) do
-      {:ok, provider_type} ->
-        extract_room_id(meeting_url, provider_type)
-
-      {:error, _reason} ->
-        # For kMeet, Jitsi and custom links the meeting URL is the join link,
-        # so only its scheme and host go to the log; that is also the part
-        # worth seeing when provider detection has failed.
-        Logger.warning("Could not detect provider from URL", url: LinkRoom.mask_url(meeting_url))
-        nil
-    end
-  end
-
-  @doc """
   Extracts the room id from a meeting URL using `provider_type`'s own rules.
 
   Dispatches straight to the named provider, so a URL another provider would
@@ -225,26 +191,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   end
 
   def extract_room_id(_meeting_url, _provider_type), do: nil
-
-  @doc """
-  Validates if a URL is a valid meeting URL.
-  """
-  @spec valid_meeting_url?(String.t()) :: boolean()
-  def valid_meeting_url?(meeting_url) do
-    case detect_provider_from_url(meeting_url) do
-      {:ok, provider_type} ->
-        case ProviderRegistry.get_provider(provider_type) do
-          {:ok, provider_module} ->
-            provider_module.valid_meeting_url?(meeting_url)
-
-          {:error, _reason} ->
-            false
-        end
-
-      {:error, _reason} ->
-        false
-    end
-  end
 
   @doc """
   Tests connection to a video provider.
@@ -344,62 +290,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
           error
       end
     end)
-  end
-
-  @doc """
-  Handles meeting lifecycle events.
-  """
-  @spec handle_meeting_event(MeetingContext.t(), atom(), map()) :: :ok | {:error, term()}
-  def handle_meeting_event(meeting_context, event, additional_data) do
-    %{
-      provider_type: provider_type,
-      room_data: room_data,
-      provider_module: provider_module
-    } = meeting_context
-
-    Logger.info("Handling meeting event",
-      provider: provider_type,
-      event: event,
-      room_ref: Redactor.fingerprint(room_data.room_id)
-    )
-
-    case provider_module.handle_meeting_event(event, room_data, additional_data) do
-      :ok ->
-        Logger.debug("Successfully handled meeting event",
-          provider: provider_type,
-          event: event
-        )
-
-        :ok
-
-      {:error, reason} = error ->
-        Logger.error("Failed to handle meeting event",
-          provider: provider_type,
-          event: event,
-          reason: LogFormat.reason(reason)
-        )
-
-        error
-    end
-  end
-
-  @doc """
-  Generates meeting metadata for display purposes.
-  """
-  @spec generate_meeting_metadata(MeetingContext.t()) :: map()
-  def generate_meeting_metadata(meeting_context) do
-    %{
-      provider_type: provider_type,
-      room_data: room_data,
-      provider_module: provider_module
-    } = meeting_context
-
-    base_metadata = provider_module.generate_meeting_metadata(room_data)
-
-    Map.merge(base_metadata, %{
-      provider_type: provider_type,
-      provider_name: provider_module.display_name()
-    })
   end
 
   # Private helper functions
@@ -511,30 +401,5 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   # haven't touched the provider module before. Force-load first.
   defp callback_exported?(module, fun, arity) do
     Code.ensure_loaded?(module) and function_exported?(module, fun, arity)
-  end
-
-  defp detect_provider_from_url(meeting_url) when is_binary(meeting_url) do
-    case find_matching_provider(meeting_url) do
-      {:ok, provider} -> {:ok, provider}
-      :not_found -> {:error, "Unknown provider"}
-    end
-  end
-
-  defp detect_provider_from_url(_arg), do: {:error, "Invalid URL"}
-
-  defp find_matching_provider(meeting_url) do
-    Enum.find_value(ProviderConfig.all_providers_with_dev(), :not_found, fn provider_type ->
-      with module when is_atom(module) <- ProviderConfig.get_provider_module(provider_type),
-           true <- module != nil,
-           true <- Code.ensure_loaded?(module),
-           true <- function_exported?(module, :url_patterns, 0),
-           # credo:disable-for-next-line Credo.Check.Refactor.Apply
-           patterns when patterns != [] <- apply(module, :url_patterns, []),
-           true <- Enum.any?(patterns, &String.contains?(meeting_url, &1)) do
-        {:ok, provider_type}
-      else
-        _other -> nil
-      end
-    end)
   end
 end

@@ -11,7 +11,7 @@ defmodule Tymeslot.Infrastructure.CircuitBreakerSupervisorTest do
   alias Tymeslot.Integrations.Calendar.ProviderConfig, as: CalendarProviderConfig
   alias Tymeslot.Integrations.Video.ProviderConfig, as: VideoProviderConfig
 
-  @static_breakers [:email_service_breaker, :oauth_github_breaker, :oauth_google_breaker]
+  @static_breakers [:email_service_breaker]
 
   describe "supervisor started" do
     test "supervises a breaker for every provider that has circuit breaking enabled" do
@@ -63,16 +63,6 @@ defmodule Tymeslot.Infrastructure.CircuitBreakerSupervisorTest do
     test "email service breaker is alive" do
       assert is_pid(Process.whereis(:email_service_breaker))
       assert %{status: :closed} = CircuitBreaker.status(:email_service_breaker)
-    end
-
-    test "OAuth GitHub breaker is alive" do
-      assert is_pid(Process.whereis(:oauth_github_breaker))
-      assert %{status: :closed} = CircuitBreaker.status(:oauth_github_breaker)
-    end
-
-    test "OAuth Google breaker is alive" do
-      assert is_pid(Process.whereis(:oauth_google_breaker))
-      assert %{status: :closed} = CircuitBreaker.status(:oauth_google_breaker)
     end
   end
 

@@ -131,7 +131,6 @@ config :phoenix_live_view,
 
 # Mock configuration
 config :tymeslot, :calendar_module, Tymeslot.CalendarMock
-config :tymeslot, :calendar_client_module, Tymeslot.RadicaleClientMock
 config :tymeslot, :email_service_module, Tymeslot.EmailServiceMock
 config :tymeslot, :google_calendar_api_module, GoogleCalendarAPIMock
 config :tymeslot, :outlook_calendar_api_module, OutlookCalendarAPIMock

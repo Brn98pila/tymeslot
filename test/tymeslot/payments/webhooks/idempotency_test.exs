@@ -9,12 +9,11 @@ defmodule Tymeslot.Payments.Webhooks.IdempotencyTest do
   alias Tymeslot.Webhooks.WebhookQueries
 
   setup do
-    IdempotencyCache.clear_all()
     %{event_id: "evt_idem_#{System.unique_integer([:positive])}"}
   end
 
   defp processed?(event_id),
-    do: IdempotencyCache.check_idempotency(event_id) == {:ok, :already_processed}
+    do: IdempotencyCache.reserve(event_id) == {:ok, :already_processed}
 
   defp released?(event_id) do
     # A released reservation can be taken again straight away; a held one

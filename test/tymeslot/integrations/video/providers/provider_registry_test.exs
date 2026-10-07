@@ -17,8 +17,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderRegistryTest do
     test "returns list of all registered video providers" do
       assert Enum.sort(ProviderRegistry.list_providers()) ==
                [:custom, :google_meet, :jitsi, :kmeet, :mirotalk, :nextcloud_talk, :teams, :zoom]
-
-      assert ProviderRegistry.provider_count() == 8
     end
   end
 
@@ -101,24 +99,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderRegistryTest do
     end
   end
 
-  describe "validate_provider/1" do
-    test "validates and returns atom for valid string provider" do
-      assert {:ok, :mirotalk} = ProviderRegistry.validate_provider("mirotalk")
-      assert {:ok, :google_meet} = ProviderRegistry.validate_provider("google_meet")
-      assert {:ok, :custom} = ProviderRegistry.validate_provider("custom")
-    end
-
-    test "validates and returns atom for valid atom provider" do
-      assert {:ok, :mirotalk} = ProviderRegistry.validate_provider(:mirotalk)
-      assert {:ok, :google_meet} = ProviderRegistry.validate_provider(:google_meet)
-    end
-
-    test "returns error for invalid video provider" do
-      assert {:error, message} = ProviderRegistry.validate_provider("invalid")
-      assert String.contains?(message, "Invalid")
-    end
-  end
-
   describe "test_provider_connection/2" do
     test "tests mirotalk connection with valid config" do
       config = %{
@@ -194,46 +174,11 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderRegistryTest do
                &(&1.type in zero_config or map_size(&1.config_schema) > 0)
              ) == []
     end
-
-    test "includes capabilities metadata for video providers" do
-      providers = ProviderRegistry.list_providers_with_metadata()
-
-      Enum.each(providers, fn provider ->
-        assert Map.has_key?(provider, :capabilities)
-      end)
-    end
   end
 
   describe "default_provider/0" do
     test "returns the default video provider" do
       assert ProviderRegistry.default_provider() == :mirotalk
-    end
-  end
-
-  describe "provider_supported?/1" do
-    test "returns true for supported video providers" do
-      assert ProviderRegistry.provider_supported?(:mirotalk)
-      assert ProviderRegistry.provider_supported?(:google_meet)
-      assert ProviderRegistry.provider_supported?(:custom)
-      # Teams provider may not be available in all environments
-    end
-
-    test "returns false for unsupported video providers" do
-      refute ProviderRegistry.provider_supported?(:unknown)
-      refute ProviderRegistry.provider_supported?(:invalid)
-    end
-  end
-
-  describe "providers_with_capability/1" do
-    test "filters providers by specific capability" do
-      # MiroTalk, Google Meet, Teams, Zoom, kMeet, Jitsi and Nextcloud Talk
-      # declare screen_sharing; only the custom provider does not.
-      assert Enum.sort(ProviderRegistry.providers_with_capability(:screen_sharing)) ==
-               [:google_meet, :jitsi, :kmeet, :mirotalk, :nextcloud_talk, :teams, :zoom]
-    end
-
-    test "returns empty list for non-existent capability" do
-      assert ProviderRegistry.providers_with_capability(:nonexistent_feature) == []
     end
   end
 

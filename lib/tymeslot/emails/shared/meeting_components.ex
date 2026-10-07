@@ -11,7 +11,7 @@ defmodule Tymeslot.Emails.Shared.MeetingComponents do
 
   - `Meeting.Hero` — the typographic hero block (`meeting_details_table/2`).
   - `Meeting.VideoSection` — the ticket-stub join CTA (`video_meeting_section/3`)
-    and the reminder pill (`time_alert_badge/3`).
+    and the reminder pill (`time_alert_badge/2`).
   - `Meeting.ActionsBar` — the reschedule / cancel link row
     (`meeting_actions_bar/2`).
   - `Meeting.Attendee` — the organiser-facing attendee table
@@ -37,7 +37,6 @@ defmodule Tymeslot.Emails.Shared.MeetingComponents do
   defdelegate video_meeting_section(intent, meeting_url), to: VideoSection
   defdelegate video_meeting_section(intent, meeting_url, opts), to: VideoSection
   defdelegate time_alert_badge(intent, time_text), to: VideoSection
-  defdelegate time_alert_badge(intent, time_text, opts), to: VideoSection
 
   defdelegate meeting_actions_bar(intent, actions), to: ActionsBar
 

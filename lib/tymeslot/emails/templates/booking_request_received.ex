@@ -37,6 +37,8 @@ defmodule Tymeslot.Emails.Templates.BookingRequestReceived do
     TimezoneHelper
   }
 
+  alias Tymeslot.Utils.DateTimeUtils
+
   alias Tymeslot.Emails.Shared.BookingRequestLocation
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
 
@@ -193,7 +195,7 @@ defmodule Tymeslot.Emails.Templates.BookingRequestReceived do
         dgettext("emails_booking_requests", "Previously scheduled for %{time}.",
           time:
             previous
-            |> TimezoneHelper.convert_to_timezone(meeting.attendee_timezone || "UTC")
+            |> DateTimeUtils.convert_to_timezone(meeting.attendee_timezone || "UTC")
             |> Formatting.format_datetime(locale)
         )
 
@@ -228,7 +230,7 @@ defmodule Tymeslot.Emails.Templates.BookingRequestReceived do
   defp waiting_sentence(%Meeting{} = meeting, locale) do
     deadline =
       meeting.approval_deadline_at
-      |> TimezoneHelper.convert_to_timezone(meeting.attendee_timezone || "UTC")
+      |> DateTimeUtils.convert_to_timezone(meeting.attendee_timezone || "UTC")
       |> Formatting.format_datetime(locale)
 
     dgettext("emails_booking_requests", "%{organizer} will reply by %{deadline} at the latest.",

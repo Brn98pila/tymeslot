@@ -14,20 +14,19 @@ defmodule Tymeslot.Notifications.Recipients do
          }
 
   @doc """
-  Determines the recipients for a given notification type and meeting.
+  Determines the recipients of a meeting's notifications.
 
-  Routing depends on the meeting, not the notification type: every type routes
-  the same way today, and the type is accepted for a future channel that needs
-  to route differently. A group meeting routes to the organizer only — see
-  `recipients_for/2`.
+  Routing depends on the meeting alone, so every notification type routes the
+  same way. A group meeting routes to the organizer only (see
+  `recipients_for/2`).
   """
-  @spec determine_recipients(term(), atom()) ::
+  @spec determine_recipients(term()) ::
           {:both | :organizer_only,
            %{
              required(:organizer) => participant(),
              required(:attendee) => participant()
            }}
-  def determine_recipients(meeting, _notification_type) do
+  def determine_recipients(meeting) do
     recipients_for(meeting, base_recipients(meeting))
   end
 
@@ -124,9 +123,6 @@ defmodule Tymeslot.Notifications.Recipients do
 
       {:organizer_only, %{organizer: organizer}} ->
         validate_recipient(organizer, :organizer)
-
-      {:attendee_only, %{attendee: attendee}} ->
-        validate_recipient(attendee, :attendee)
 
       _invalid_structure ->
         {:error, "Invalid recipient structure"}

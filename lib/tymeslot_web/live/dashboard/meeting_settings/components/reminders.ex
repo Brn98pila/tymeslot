@@ -181,9 +181,6 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.Components.Reminders do
   A reminder's lead time in the reader's own language: "30 minutes",
   "1 Stunde", "5 хвилин".
 
-  `ReminderUtils.format_reminder_label/2` builds the same label from English
-  words, which is right for anything machine-facing but reached the screen
-  here — a German organiser was shown "30 minutes vorher", half translated.
   The unit word is a plural form rather than a lookup, so a language that
   inflects after a number ("1 minutu", "2 minuty", "5 minut") can say it
   properly, while the sentences around it ("%{label} before", "Added %{label}

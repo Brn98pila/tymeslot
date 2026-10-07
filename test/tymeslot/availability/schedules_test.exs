@@ -343,6 +343,7 @@ defmodule Tymeslot.Availability.SchedulesTest do
           ~D[2026-09-30],
           "Europe/Berlin",
           30,
+          nil,
           nil
         )
 

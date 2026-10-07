@@ -70,7 +70,6 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Integrations.Video.NeedsReauth
-  alias Tymeslot.Integrations.Video.Providers.Capabilities
   alias Tymeslot.Integrations.Video.Providers.LinkRoom
   alias Tymeslot.Integrations.Video.Providers.NextcloudTalk.BookingConversation
   alias Tymeslot.Integrations.Video.Providers.NextcloudTalk.Client
@@ -94,16 +93,6 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider do
   @max_account_id_length 255
 
   @call_path "/index.php/call/"
-
-  @capabilities Capabilities.new!(
-                  waiting_room: true,
-                  recording: false,
-                  dial_in: false,
-                  max_participants: nil,
-                  breakout_rooms: false,
-                  screen_sharing: true,
-                  chat: true
-                )
 
   @impl ProviderBehaviour
   def create_meeting_room(%{needs_reauth: true}), do: {:error, :unauthorized}
@@ -162,10 +151,6 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider do
   def extract_room_id(_meeting_url), do: nil
 
   @impl ProviderBehaviour
-  def valid_meeting_url?(meeting_url),
-    do: LinkRoom.http_url?(meeting_url) and extract_room_id(meeting_url) != nil
-
-  @impl ProviderBehaviour
   def perform_connection_test(%{needs_reauth: true}) do
     {:error,
      {:unauthorized,
@@ -217,21 +202,6 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider do
            ) do
       validate_account_length(base_url, login)
     end
-  end
-
-  @impl ProviderBehaviour
-  def capabilities, do: @capabilities
-
-  @impl ProviderBehaviour
-  def handle_meeting_event(_event, _room_data, _additional_data), do: :ok
-
-  @impl ProviderBehaviour
-  def generate_meeting_metadata(room_data) do
-    %{
-      provider: "nextcloud_talk",
-      meeting_id: room_data.room_id,
-      join_url: room_data.meeting_url
-    }
   end
 
   @impl ProviderBehaviour

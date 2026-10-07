@@ -340,8 +340,8 @@ defmodule Tymeslot.Availability.Calculate do
   booking page, and rendering an atom to user-facing text is the web layer's
   responsibility (the same split `Tymeslot.Bookings.Errors` states).
   """
-  @spec validate_time_selection(term(), term(), term()) :: :ok | {:error, selection_error()}
-  def validate_time_selection(date, time, _slots) do
+  @spec validate_time_selection(term(), term()) :: :ok | {:error, selection_error()}
+  def validate_time_selection(date, time) do
     cond do
       date in [nil, ""] -> {:error, :date_required}
       time in [nil, ""] -> {:error, :time_required}

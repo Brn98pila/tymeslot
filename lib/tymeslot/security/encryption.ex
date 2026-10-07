@@ -195,21 +195,6 @@ defmodule Tymeslot.Security.Encryption do
   def current_version, do: keyring().current_version
 
   @doc false
-  # Internal helper: encrypt a value under the legacy (v0) key in the prefix-less
-  # format. Used by the sweep's tests and any tooling that must materialise legacy
-  # ciphertext. Never used for production writes — `encrypt/1` is the write path.
-  @spec encrypt_legacy(binary()) :: binary()
-  def encrypt_legacy(plaintext) when is_binary(plaintext) do
-    %{legacy_key: legacy_key} = keyring()
-    nonce = :crypto.strong_rand_bytes(@nonce_size)
-
-    {ciphertext, tag} =
-      :crypto.crypto_one_time_aead(:aes_256_gcm, legacy_key, nonce, plaintext, @aad, true)
-
-    nonce <> tag <> ciphertext
-  end
-
-  @doc false
   # Drops the cached keyring so the next call rebuilds it from current config.
   # Only meaningful in tests that swap `DATA_ENCRYPTION_KEY` at runtime.
   @spec reset_keyring() :: :ok

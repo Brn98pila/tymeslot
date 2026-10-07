@@ -24,17 +24,11 @@ defmodule TymeslotWeb.StripeWebhookPayloadVersionTest do
   alias Tymeslot.MeetingPayments.StripeAdapter
   alias Tymeslot.Payments.PaymentTransactionSchema
   alias Tymeslot.Payments.SubscriptionInvoiceQueries
-  alias Tymeslot.Payments.Webhooks.IdempotencyCache
   alias Tymeslot.Repo
   alias Tymeslot.StripeWebhookFixtures
 
   @platform_secret "whsec_platform_2020"
   @connect_secret "whsec_connect_2020"
-
-  setup do
-    IdempotencyCache.clear_all()
-    :ok
-  end
 
   defp post_signed(conn, path, body, signature) do
     conn

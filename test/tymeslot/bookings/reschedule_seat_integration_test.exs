@@ -332,7 +332,9 @@ defmodule Tymeslot.Bookings.RescheduleSeatIntegrationTest do
         Date.utc_today(),
         Date.add(Date.utc_today(), 41),
         "Etc/UTC",
-        30
+        30,
+        nil,
+        nil
       )
 
     AvailabilityCache.put(cache_key, {:ok, %{"seeded" => true}})

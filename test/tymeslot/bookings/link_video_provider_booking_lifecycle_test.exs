@@ -89,7 +89,7 @@ defmodule Tymeslot.Bookings.LinkVideoProviderBookingLifecycleTest do
       new_start = DateTime.add(booked.start_time, 2, :day)
 
       assert {:ok, _rescheduled} =
-               Reschedule.execute(booked.uid, reschedule_params(new_start), %{}, user.id)
+               Reschedule.execute(booked.uid, reschedule_params(new_start), user.id)
 
       assert_enqueued(worker: VideoSyncWorker, args: sync_args(booked, "update"))
       assert %{success: 1, failure: 0} = drain_video_rooms()
@@ -143,7 +143,7 @@ defmodule Tymeslot.Bookings.LinkVideoProviderBookingLifecycleTest do
       new_start = DateTime.add(booked.start_time, 2, :day)
 
       assert {:ok, _rescheduled} =
-               Reschedule.execute(booked.uid, reschedule_params(new_start), %{}, user.id)
+               Reschedule.execute(booked.uid, reschedule_params(new_start), user.id)
 
       assert %{success: 1, failure: 0} = drain_video_rooms()
 
@@ -179,7 +179,7 @@ defmodule Tymeslot.Bookings.LinkVideoProviderBookingLifecycleTest do
       new_start = DateTime.add(start_time, 7, :day)
 
       assert {:ok, rescheduled} =
-               Reschedule.execute(booked.uid, reschedule_params(new_start), %{}, user.id)
+               Reschedule.execute(booked.uid, reschedule_params(new_start), user.id)
 
       stored = Repo.reload!(booked)
       assert stored.attendee_video_url == rescheduled.attendee_video_url

@@ -24,7 +24,6 @@ defmodule Tymeslot.Mocks.Email do
     |> stub(:send_appointment_reminder_to_organizer, fn _email, _details -> send_result end)
     |> stub(:send_appointment_reminder_to_attendee, fn _email, _details -> send_result end)
     |> stub(:send_appointment_reminders, fn _details, _time -> {send_result, send_result} end)
-    |> stub(:send_appointment_cancellation, fn _email, _details -> send_result end)
     |> stub(:send_cancellation_emails, fn _details -> {send_result, send_result} end)
     |> stub(:send_calendar_sync_error, fn _meeting, _error -> send_result end)
     |> stub(:send_email_verification, fn _user, _url -> send_result end)

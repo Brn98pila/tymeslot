@@ -29,18 +29,12 @@ defmodule TymeslotWeb.Plugs.StripeWebhookPlugTest do
   import Mox
   import Tymeslot.ConfigTestHelpers
 
-  alias Tymeslot.Payments.Webhooks.IdempotencyCache
   alias Tymeslot.PaymentTestHelpers
   alias Tymeslot.Security.RateLimit
   alias Tymeslot.Security.RateLimiter
   alias TymeslotWeb.Helpers.ClientIP
 
   setup :verify_on_exit!
-
-  setup do
-    IdempotencyCache.clear_all()
-    :ok
-  end
 
   describe "rate limit" do
     setup %{conn: conn} do

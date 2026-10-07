@@ -9,49 +9,25 @@ defmodule Tymeslot.Onboarding do
 
   @manual_dashboard_setup_items ~w(theme meeting_types share)
 
-  @spec create_dev_profile() :: map()
-  defp create_dev_profile do
-    %{
-      id: 1,
-      user_id: 1,
-      username: nil,
-      full_name: nil,
-      timezone: Profiles.get_default_timezone(),
-      avatar: nil,
-      booking_theme: "1"
-    }
-  end
-
   @doc """
-  Gets or creates a profile for the given user, handling both dev and production modes.
+  Gets or creates a profile for the given user.
   """
-  @spec get_or_create_profile(integer(), boolean()) ::
-          {:ok, Ecto.Schema.t() | map()} | {:error, any()}
-  def get_or_create_profile(user_id, dev_mode \\ false) do
-    if dev_mode do
-      {:ok, create_dev_profile()}
-    else
-      Profiles.get_or_create_profile(user_id)
-    end
-  end
+  @spec get_or_create_profile(integer()) :: {:ok, Ecto.Schema.t()} | {:error, any()}
+  def get_or_create_profile(user_id), do: Profiles.get_or_create_profile(user_id)
 
   @doc """
   Completes the onboarding process for a user.
   """
-  @spec complete_onboarding(Ecto.Schema.t() | map(), boolean()) ::
+  @spec complete_onboarding(Ecto.Schema.t() | map()) ::
           {:ok, Ecto.Schema.t() | map()} | {:error, any()}
-  def complete_onboarding(user, dev_mode \\ false) do
-    if dev_mode do
-      {:ok, user}
-    else
-      case mark_onboarding_complete(user) do
-        {:ok, _updated_user} = result ->
-          :telemetry.execute([:tymeslot, :onboarding, :completed], %{count: 1}, %{})
-          result
+  def complete_onboarding(user) do
+    case mark_onboarding_complete(user) do
+      {:ok, _updated_user} = result ->
+        :telemetry.execute([:tymeslot, :onboarding, :completed], %{count: 1}, %{})
+        result
 
-        error ->
-          error
-      end
+      error ->
+        error
     end
   end
 

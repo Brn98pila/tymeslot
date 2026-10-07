@@ -32,19 +32,6 @@ defmodule Tymeslot.OnboardingTest do
     end
   end
 
-  describe "get_or_create_profile/2" do
-    test "returns dev profile in dev mode" do
-      assert {:ok, profile} = Onboarding.get_or_create_profile(1, true)
-      assert profile.id == 1
-    end
-
-    test "calls Profiles in non-dev mode" do
-      user = insert(:user)
-      assert {:ok, profile} = Onboarding.get_or_create_profile(user.id, false)
-      assert profile.user_id == user.id
-    end
-  end
-
   describe "complete_onboarding/1" do
     test "marks user onboarding as complete" do
       user = insert(:user, onboarding_completed_at: nil)
@@ -62,18 +49,7 @@ defmodule Tymeslot.OnboardingTest do
     end
   end
 
-  describe "complete_onboarding/2" do
-    test "returns user in dev mode" do
-      user = %{id: 1}
-      assert {:ok, ^user} = Onboarding.complete_onboarding(user, true)
-    end
-
-    test "calls Auth in non-dev mode" do
-      user = insert(:user, onboarding_completed_at: nil)
-      assert {:ok, updated_user} = Onboarding.complete_onboarding(user, false)
-      assert %DateTime{} = updated_user.onboarding_completed_at
-    end
-
+  describe "complete_onboarding/1 telemetry" do
     test "emits [:tymeslot, :onboarding, :completed] telemetry for a real user" do
       user = insert(:user, onboarding_completed_at: nil)
       test_pid = self()
@@ -89,27 +65,8 @@ defmodule Tymeslot.OnboardingTest do
 
       on_exit(fn -> :telemetry.detach("test-onboarding-completed") end)
 
-      assert {:ok, _updated} = Onboarding.complete_onboarding(user, false)
+      assert {:ok, _updated} = Onboarding.complete_onboarding(user)
       assert_received {:telemetry, %{count: 1}, %{}}
-    end
-
-    test "does NOT emit telemetry in dev_mode" do
-      user = %{id: 1}
-      test_pid = self()
-
-      :telemetry.attach(
-        "test-onboarding-completed-devmode",
-        [:tymeslot, :onboarding, :completed],
-        fn _event, measurements, metadata, _config ->
-          send(test_pid, {:telemetry, measurements, metadata})
-        end,
-        nil
-      )
-
-      on_exit(fn -> :telemetry.detach("test-onboarding-completed-devmode") end)
-
-      assert {:ok, _user} = Onboarding.complete_onboarding(user, true)
-      refute_received {:telemetry, _, _}
     end
   end
 

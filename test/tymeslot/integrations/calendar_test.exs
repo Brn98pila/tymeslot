@@ -127,21 +127,6 @@ defmodule Tymeslot.Integrations.CalendarTest do
     end
   end
 
-  describe "event operations" do
-    test "list_events/1 delegates to Operations" do
-      user = insert(:user)
-      insert(:calendar_integration, user: user, provider: "google", is_active: true)
-
-      expect(GoogleCalendarAPIMock, :list_primary_events, fn _int, _start, _end ->
-        {:ok, [%{"id" => "event1", "summary" => "Test Event"}]}
-      end)
-
-      assert {:ok, events} = CalendarEvents.list_events(user.id)
-      assert length(events) == 1
-      assert Enum.at(events, 0).uid == "event1"
-    end
-  end
-
   describe "selected_calendars/1" do
     test "includes selected read-only calendars, for conflict-checking visibility" do
       calendars =

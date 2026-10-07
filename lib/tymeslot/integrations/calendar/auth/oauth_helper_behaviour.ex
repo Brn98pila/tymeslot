@@ -20,7 +20,10 @@ defmodule Tymeslot.Integrations.Calendar.Auth.OAuthHelperBehaviour do
 
   # Optional because only the Google helper needs it: Outlook implements this
   # behaviour too but its authorisation URL takes no caller-supplied scopes.
-  @optional_callbacks authorization_url: 4
+  # The same goes for `refresh_access_token`, which only Google Meet's refresh
+  # calls (through the Google helper); the Outlook calendar refresh runs in
+  # `OutlookCalendarAPI.refresh_token/1`.
+  @optional_callbacks authorization_url: 4, refresh_access_token: 2, refresh_access_token: 3
   @type callback_error :: :calendar_scope_missing | String.t()
 
   @callback handle_callback(String.t(), String.t(), String.t()) ::

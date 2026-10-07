@@ -21,7 +21,7 @@ defmodule Tymeslot.Integrations.HealthCheck.ResponseHandler do
     another reason gets the unhealthy email as usual, since the reauth path
     leaves `notification_sent_at` untouched.
   - Permanent auth failures (e.g. Google `invalid_grant`) bypass the 48-hour
-    threshold via `handle_permanent_auth_failure/3`: the integration is
+    threshold via the fast-path in `handle_check_result/5`: the integration is
     flagged `needs_reauth: true`, which itself owns the notification (the
     reauth email, not the unhealthy one; see `CalendarManagement.flag_and_notify/2`
     and `Video.flag_and_notify/2`) on the false to true transition. This
@@ -163,31 +163,6 @@ defmodule Tymeslot.Integrations.HealthCheck.ResponseHandler do
   def handle_check_result(type, integration, transition, health_state, check_result) do
     integration = apply_permanent_auth_failure(type, integration, check_result)
     handle_transition(type, integration, transition, health_state)
-  end
-
-  @doc """
-  Fast-path handler for permanent OAuth auth failures (e.g. Google
-  `invalid_grant`, Outlook `invalid_client`, atomic `:unauthorized`).
-
-  When the assessor's `check_result` carries a permanent auth marker, the
-  integration is flagged `needs_reauth: true` so the dashboard reconnect
-  banner shows immediately, and flagging enqueues the reauth email on the same
-  health check rather than leaving the owner to wait 48 hours for the
-  unhealthy one.
-
-  Non-auth failures and successes are passed through untouched. Safe to call
-  on every check: Oban's 30-day uniqueness window on the email job prevents
-  duplicate sends until the user reconnects. A health check goes through
-  `handle_check_result/5`, which also runs the transition in the right order.
-  """
-  @spec handle_permanent_auth_failure(
-          integration_type(),
-          map(),
-          {:ok, any()} | {:error, any()}
-        ) :: :ok
-  def handle_permanent_auth_failure(type, integration, check_result) do
-    _integration = apply_permanent_auth_failure(type, integration, check_result)
-    :ok
   end
 
   # Private Functions

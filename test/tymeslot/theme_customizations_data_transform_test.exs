@@ -60,20 +60,6 @@ defmodule Tymeslot.ThemeCustomizationsDataTransformTest do
       assert updated.color_scheme == "purple"
     end
 
-    test "normalize_background_value/2 normalizes gradient" do
-      assert DataTransform.normalize_background_value("gradient", "gradient_1") == "gradient_1"
-      assert DataTransform.normalize_background_value(:gradient, "gradient_1") == "gradient_1"
-    end
-
-    test "normalize_background_value/2 normalizes color to lowercase" do
-      assert DataTransform.normalize_background_value("color", "#FF5500") == "#ff5500"
-    end
-
-    test "normalize_background_value/2 handles custom values" do
-      assert DataTransform.normalize_background_value("image", "custom") == "custom"
-      assert DataTransform.normalize_background_value("video", "custom") == "custom"
-    end
-
     test "convert_to_map/1 converts struct to map" do
       customization = %ThemeCustomizationSchema{
         color_scheme: "purple",

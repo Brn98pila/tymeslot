@@ -101,30 +101,6 @@ defmodule Tymeslot.ThemeCustomizations.DataTransform do
   defp apply_customization_change(acc, _key, _value), do: acc
 
   @doc """
-  Normalizes background value based on type.
-  Accepts both string ("gradient" | "color" | "image" | "video") and atom
-  (:gradient | :color | :image | :video) background types.
-  """
-  @spec normalize_background_value(background_type(), term()) :: term()
-  def normalize_background_value(type, value) do
-    type
-    |> normalize_background_type()
-    |> normalize_value_by_type(value)
-  end
-
-  defp normalize_background_type(t) when is_atom(t), do: Atom.to_string(t)
-  defp normalize_background_type(t) when is_binary(t), do: t
-  defp normalize_background_type(t), do: t
-
-  defp normalize_value_by_type("gradient", v) when is_binary(v), do: v
-  defp normalize_value_by_type("color", v) when is_binary(v), do: String.downcase(v)
-  defp normalize_value_by_type("image", "custom"), do: "custom"
-  defp normalize_value_by_type("image", v) when is_binary(v), do: v
-  defp normalize_value_by_type("video", "custom"), do: "custom"
-  defp normalize_value_by_type("video", v) when is_binary(v), do: v
-  defp normalize_value_by_type(_type, value), do: value
-
-  @doc """
   Converts a customization struct to a map for JSON serialization.
   """
   @spec convert_to_map(nil | customization_struct() | customization_map()) :: map()

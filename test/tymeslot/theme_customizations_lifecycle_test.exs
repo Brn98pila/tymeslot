@@ -4,7 +4,6 @@ defmodule Tymeslot.ThemeCustomizationsLifecycleTest do
 
   alias Tymeslot.Profiles
   alias Tymeslot.ThemeCustomizations
-  alias Tymeslot.ThemeCustomizations.ThemeCustomizationQueries
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   describe "ThemeCustomizations lifecycle" do
@@ -42,26 +41,6 @@ defmodule Tymeslot.ThemeCustomizationsLifecycleTest do
 
       assert result.customization.color_scheme == "purple"
       assert result.customization.background_value == "gradient_2"
-    end
-
-    test "get_all_by_profile_id/1 returns all customizations for a profile", %{profile: profile} do
-      {:ok, _result} =
-        ThemeCustomizations.create_theme_customization(profile.id, "1", %{
-          "color_scheme" => "purple",
-          "background_type" => "gradient",
-          "background_value" => "gradient_1"
-        })
-
-      {:ok, _result} =
-        ThemeCustomizations.create_theme_customization(profile.id, "2", %{
-          "color_scheme" => "ocean",
-          "background_type" => "video",
-          "background_value" => "preset:rhythm-default"
-        })
-
-      customizations = ThemeCustomizationQueries.get_all_by_profile_id(profile.id)
-
-      assert length(customizations) == 2
     end
 
     test "get_for_user/2 returns customization by user_id", %{user: user, profile: profile} do

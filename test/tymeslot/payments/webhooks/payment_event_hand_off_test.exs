@@ -64,7 +64,7 @@ defmodule Tymeslot.Payments.Webhooks.PaymentEventHandOffTest do
 
       assert {:ok, :event_processed} =
                SubscriptionHandler.process(
-                 %{type: "customer.subscription.updated"},
+                 %{"type" => "customer.subscription.updated"},
                  %{"id" => "sub_hand_off", "status" => "active"}
                )
 
@@ -75,18 +75,17 @@ defmodule Tymeslot.Payments.Webhooks.PaymentEventHandOffTest do
     test "a handler failure fails the delivery, so Stripe redelivers it" do
       Application.put_env(:tymeslot, :payment_event_handler, FailingHandler)
 
+      event_id = "evt_hand_off_fails_#{System.unique_integer([:positive])}"
+
       assert {:error, :retry_later} =
                Idempotency.with_idempotency(
-                 "evt_hand_off_fails",
+                 event_id,
                  "customer.subscription.updated",
-                 fn ->
-                   WebhookProcessor.process_event(
-                     subscription_updated_event("evt_hand_off_fails")
-                   )
-                 end
+                 fn -> WebhookProcessor.process_event(subscription_updated_event(event_id)) end
                )
 
-      assert IdempotencyCache.check_idempotency("evt_hand_off_fails") == {:ok, :not_processed}
+      # Released rather than settled, so Stripe's redelivery is taken up.
+      assert IdempotencyCache.reserve(event_id) == {:ok, :reserved}
     end
 
     test "a trial-ending event the handler could not take fails the delivery" do

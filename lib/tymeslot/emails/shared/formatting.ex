@@ -170,16 +170,14 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   defp zone_name(%DateTime{time_zone: zone, zone_abbr: zone}), do: ""
   defp zone_name(%DateTime{time_zone: zone}), do: " (#{zone})"
 
-  @doc """
-  Formats the inclusive range of days an all-day event covers: one date for a
-  single day, otherwise the locale's range form.
-  Example (en): "September 22, 2026", "September 22 – 24, 2026"
-  """
+  # Formats the inclusive range of days an all-day event covers: one date for a
+  # single day, otherwise the locale's range form.
+  # Example (en): "September 22, 2026", "September 22 – 24, 2026"
   @spec format_date_range(Date.Range.t(), String.t()) :: String.t()
-  def format_date_range(%Date.Range{first: first, last: first}, locale),
+  defp format_date_range(%Date.Range{first: first, last: first}, locale),
     do: format_date(first, locale)
 
-  def format_date_range(%Date.Range{first: first, last: last}, locale),
+  defp format_date_range(%Date.Range{first: first, last: last}, locale),
     do: LocaleFormat.format_date_range(first, last, locale)
 
   @doc """

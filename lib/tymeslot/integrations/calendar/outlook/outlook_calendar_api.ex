@@ -76,7 +76,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
           {:ok, [calendar_event()]} | api_error()
   def list_events(%CalendarIntegrationSchema{} = integration, calendar_id, start_time, end_time) do
     params = build_events_query_params(start_time, end_time)
-    path = "/me/calendars/#{calendar_id}/calendarView"
+    path = calendar_path(calendar_id, "/calendarView")
     list_events_for_path(integration, path, params)
   end
 
@@ -128,7 +128,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
 
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       with {:ok, response} <-
-             make_request_with_body(:post, "/me/calendars/#{calendar_id}/events", token, body,
+             make_request_with_body(:post, calendar_path(calendar_id, "/events"), token, body,
                headers: @silent_event_headers
              ) do
         {:ok, List.first(convert_to_common_format([response]))}
@@ -150,7 +150,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
 
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       with {:ok, response} <-
-             make_request_with_body(:patch, "/me/events/#{event_id}", token, body,
+             make_request_with_body(:patch, event_path(event_id), token, body,
                headers: @silent_event_headers
              ) do
         {:ok, List.first(convert_to_common_format([response]))}
@@ -174,7 +174,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
       with {:ok, response} <-
              make_request_with_body(
                :patch,
-               "/me/calendars/#{calendar_id}/events/#{event_id}",
+               calendar_path(calendar_id, "/events/#{HTTP.segment(event_id)}"),
                token,
                body,
                headers: @silent_event_headers
@@ -197,7 +197,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
   def patch_event(%CalendarIntegrationSchema{} = integration, event_id, body) do
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       with {:ok, response} <-
-             make_request_with_body(:patch, "/me/events/#{event_id}", token, body,
+             make_request_with_body(:patch, event_path(event_id), token, body,
                headers: @silent_event_headers
              ) do
         {:ok, List.first(convert_to_common_format([response]))}
@@ -216,7 +216,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
   def insert_event(%CalendarIntegrationSchema{} = integration, calendar_id, body)
       when is_binary(calendar_id) do
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
-      make_request_with_body(:post, "/me/calendars/#{calendar_id}/events", token, body,
+      make_request_with_body(:post, calendar_path(calendar_id, "/events"), token, body,
         headers: @silent_event_headers
       )
     end)
@@ -232,7 +232,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
           {:ok, String.t()} | {:error, :unknown_calendar} | api_error()
   def get_event_calendar_id(%CalendarIntegrationSchema{} = integration, event_id) do
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
-      case make_request(:get, "/me/events/#{event_id}/calendar", token, %{"$select" => "id"}) do
+      case make_request(:get, event_path(event_id, "/calendar"), token, %{"$select" => "id"}) do
         {:ok, %{"id" => id}} when is_binary(id) and id != "" -> {:ok, id}
         {:ok, _no_id} -> {:error, :unknown_calendar}
         error -> error
@@ -254,7 +254,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
           {:ok, map()} | api_error()
   def get_event(%CalendarIntegrationSchema{} = integration, event_id, opts \\ []) do
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
-      make_request(:get, "/me/events/#{event_id}", token, %{}, opts)
+      make_request(:get, event_path(event_id), token, %{}, opts)
     end)
   end
 
@@ -281,7 +281,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
     }
 
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
-      make_request(:get, "/me/events/#{master_id}", token, params, body: :stored)
+      make_request(:get, event_path(master_id), token, params, body: :stored)
     end)
   end
 
@@ -294,7 +294,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
           {:ok, [calendar_event()]} | api_error()
   def list_instances(%CalendarIntegrationSchema{} = integration, event_id, start_time, end_time) do
     params = build_events_query_params(start_time, end_time)
-    list_events_for_path(integration, "/me/events/#{event_id}/instances", params)
+    list_events_for_path(integration, event_path(event_id, "/instances"), params)
   end
 
   @doc """
@@ -315,7 +315,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
 
     with {:ok, calendars} <- list_calendars(integration) do
       Enum.reduce_while(calendars, {:ok, []}, fn %{"id" => calendar_id}, {:ok, found} ->
-        case list_events_for_path(integration, "/me/calendars/#{calendar_id}/events", params) do
+        case list_events_for_path(integration, calendar_path(calendar_id, "/events"), params) do
           {:ok, events} -> {:cont, {:ok, found ++ events}}
           error -> {:halt, error}
         end
@@ -331,7 +331,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
           :ok | api_error()
   def delete_event(%CalendarIntegrationSchema{} = integration, event_id) do
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
-      case make_request(:delete, "/me/events/#{event_id}", token, %{}) do
+      case make_request(:delete, event_path(event_id), token, %{}) do
         {:ok, _response} -> :ok
         {:error, :not_found, _msg} -> :ok
         error -> error
@@ -347,7 +347,12 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
           :ok | api_error()
   def delete_event(%CalendarIntegrationSchema{} = integration, calendar_id, event_id) do
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
-      case make_request(:delete, "/me/calendars/#{calendar_id}/events/#{event_id}", token, %{}) do
+      case make_request(
+             :delete,
+             calendar_path(calendar_id, "/events/#{HTTP.segment(event_id)}"),
+             token,
+             %{}
+           ) do
         {:ok, _response} -> :ok
         {:error, :not_found, _msg} -> :ok
         error -> error
@@ -465,7 +470,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
         "singleValueExtendedProperties($filter=id eq '#{TymeslotFingerprint.property_id()}')"
     }
 
-    make_request(:get, "/me/events/#{event_id}", token, params)
+    make_request(:get, event_path(event_id), token, params)
   end
 
   @doc """
@@ -509,6 +514,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
     HTTP.request(method, @base_url, path, token,
       params: params,
       headers: headers,
+      http_options: Keyword.get(opts, :http_options, []),
       response_handler: &handle_response(&1, path)
     )
   end
@@ -526,6 +532,11 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
       Keyword.merge([response_handler: &handle_response(&1, path)], opts)
     )
   end
+
+  # Graph ids are base64 and may carry `/`, `+` or `=`, so each is encoded as
+  # a single path segment.
+  defp calendar_path(calendar_id, rest), do: "/me/calendars/#{HTTP.segment(calendar_id)}#{rest}"
+  defp event_path(event_id, rest \\ ""), do: "/me/events/#{HTTP.segment(event_id)}#{rest}"
 
   defp read_preference(:text), do: ~s(outlook.timezone="UTC", outlook.body-content-type="text")
   defp read_preference(:stored), do: ~s(outlook.timezone="UTC")

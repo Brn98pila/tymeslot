@@ -30,12 +30,12 @@ defmodule Tymeslot.Payments.Webhooks.HandlersTest do
 
     test "process/2 logs and returns success for charge.succeeded" do
       assert {:ok, :charge_logged} =
-               ChargeHandler.process(%{type: "charge.succeeded"}, %{"id" => "ch_123"})
+               ChargeHandler.process(%{"type" => "charge.succeeded"}, %{"id" => "ch_123"})
     end
 
     test "process/2 logs and returns success for charge.failed" do
       assert {:ok, :charge_failed_logged} =
-               ChargeHandler.process(%{type: "charge.failed"}, %{"id" => "ch_123"})
+               ChargeHandler.process(%{"type" => "charge.failed"}, %{"id" => "ch_123"})
     end
   end
 
@@ -54,12 +54,12 @@ defmodule Tymeslot.Payments.Webhooks.HandlersTest do
 
     test "process/2 returns success for customer.created" do
       assert {:ok, :customer_created} =
-               CustomerHandler.process(%{type: "customer.created"}, %{"id" => "cus_123"})
+               CustomerHandler.process(%{"type" => "customer.created"}, %{"id" => "cus_123"})
     end
 
     test "process/2 returns success for customer.updated" do
       assert {:ok, :customer_updated} =
-               CustomerHandler.process(%{type: "customer.updated"}, %{"id" => "cus_123"})
+               CustomerHandler.process(%{"type" => "customer.updated"}, %{"id" => "cus_123"})
     end
   end
 
@@ -72,14 +72,16 @@ defmodule Tymeslot.Payments.Webhooks.HandlersTest do
 
     test "process/2 returns success for payment_intent.succeeded" do
       assert {:ok, :payment_intent_logged} =
-               PaymentIntentHandler.process(%{type: "payment_intent.succeeded"}, %{
+               PaymentIntentHandler.process(%{"type" => "payment_intent.succeeded"}, %{
                  "id" => "pi_123"
                })
     end
 
     test "process/2 returns success for payment_intent.created" do
       assert {:ok, :payment_intent_logged} =
-               PaymentIntentHandler.process(%{type: "payment_intent.created"}, %{"id" => "pi_123"})
+               PaymentIntentHandler.process(%{"type" => "payment_intent.created"}, %{
+                 "id" => "pi_123"
+               })
     end
   end
 
@@ -105,7 +107,7 @@ defmodule Tymeslot.Payments.Webhooks.HandlersTest do
       # webhook endpoint. Any other mode here is unexpected and must not be
       # silently treated as a processed payment.
       assert {:ok, :ignored} =
-               CheckoutSessionHandler.process(%{type: "checkout.session.completed"}, session)
+               CheckoutSessionHandler.process(%{"type" => "checkout.session.completed"}, session)
     end
 
     test "process/2 handles subscription mode" do
@@ -120,7 +122,7 @@ defmodule Tymeslot.Payments.Webhooks.HandlersTest do
       Application.put_env(:tymeslot, :subscription_manager, MockSubManager)
 
       assert {:ok, :subscription_processed} =
-               CheckoutSessionHandler.process(%{type: "checkout.session.completed"}, session)
+               CheckoutSessionHandler.process(%{"type" => "checkout.session.completed"}, session)
 
       Application.delete_env(:tymeslot, :subscription_manager)
     end
@@ -130,7 +132,7 @@ defmodule Tymeslot.Payments.Webhooks.HandlersTest do
       Application.delete_env(:tymeslot, :subscription_manager)
 
       assert {:error, :subscriptions_not_supported, _error_message} =
-               CheckoutSessionHandler.process(%{type: "checkout.session.completed"}, session)
+               CheckoutSessionHandler.process(%{"type" => "checkout.session.completed"}, session)
     end
   end
 
@@ -162,7 +164,10 @@ defmodule Tymeslot.Payments.Webhooks.HandlersTest do
       session = %{"id" => "cs_expired"}
 
       assert {:ok, :event_processed} =
-               CheckoutSessionExpiredHandler.process(%{type: "checkout.session.expired"}, session)
+               CheckoutSessionExpiredHandler.process(
+                 %{"type" => "checkout.session.expired"},
+                 session
+               )
 
       tx =
         Repo.get_by(PaymentTransactionSchema,
@@ -177,7 +182,10 @@ defmodule Tymeslot.Payments.Webhooks.HandlersTest do
       # Handler returns :event_processed even when transaction is not found
       # (process_failed_payment returns {:ok, :transaction_not_found} which is treated as success)
       assert {:ok, :event_processed} =
-               CheckoutSessionExpiredHandler.process(%{type: "checkout.session.expired"}, session)
+               CheckoutSessionExpiredHandler.process(
+                 %{"type" => "checkout.session.expired"},
+                 session
+               )
     end
   end
 end

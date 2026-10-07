@@ -9,7 +9,6 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.EventsTest do
     username: "user",
     password: "pass",
     calendar_paths: ["/calendars/user/personal/"],
-    verify_ssl: true,
     provider: :caldav
   }
 
@@ -129,7 +128,6 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.EventsTest do
           username: "user@example.com",
           password: "pass",
           calendar_paths: ["/dav/user%40example.com/Calendar/"],
-          verify_ssl: true,
           provider: :zimbra
         }
 
@@ -159,7 +157,6 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.EventsTest do
         username: "alice",
         password: "pass",
         calendar_paths: ["/alice/calendar/"],
-        verify_ssl: true,
         provider: :radicale
       }
 

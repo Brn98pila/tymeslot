@@ -299,8 +299,7 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ProviderCommon do
       password: integration.password,
       calendar_path: path,
       calendar_paths: [path],
-      writable_calendar_paths: writable_paths,
-      verify_ssl: true
+      writable_calendar_paths: writable_paths
     }
   end
 

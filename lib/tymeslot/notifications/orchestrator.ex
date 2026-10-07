@@ -158,7 +158,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
 
   # Schedules confirmation notifications for a meeting.
   defp schedule_confirmation_notifications(meeting) do
-    recipients = Recipients.determine_recipients(meeting, :confirmation)
+    recipients = Recipients.determine_recipients(meeting)
     content = ContentBuilder.build_appointment_details(meeting)
 
     with :ok <- Recipients.validate_recipients(recipients),
@@ -183,8 +183,8 @@ defmodule Tymeslot.Notifications.Orchestrator do
     # what is scheduled here.
     reminders = ReminderSchedule.configured(meeting)
 
-    recipients = Recipients.determine_recipients(meeting, :reminder)
-    content = ContentBuilder.build_reminder_details(meeting)
+    recipients = Recipients.determine_recipients(meeting)
+    content = ContentBuilder.build_appointment_details(meeting)
 
     with :ok <- Recipients.validate_recipients(recipients),
          :ok <- ContentBuilder.validate_content(content, Meetings.group?(meeting)) do
@@ -220,7 +220,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
   @spec send_cancellation_notifications(%{atom() => term()}) ::
           {:ok, atom()} | {:error, term()}
   def send_cancellation_notifications(meeting) do
-    recipients = Recipients.determine_recipients(meeting, :cancellation)
+    recipients = Recipients.determine_recipients(meeting)
 
     with :ok <- Recipients.validate_recipients(recipients) do
       worker_module = get_email_worker_module()
@@ -303,7 +303,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
   @spec send_reschedule_notifications(%{atom() => term()}, %{atom() => term()}) ::
           {:ok, atom()} | {:error, term()}
   def send_reschedule_notifications(updated_meeting, original_meeting) do
-    recipients = Recipients.determine_recipients(updated_meeting, :reschedule)
+    recipients = Recipients.determine_recipients(updated_meeting)
     content = ContentBuilder.build_reschedule_details(updated_meeting, original_meeting)
 
     with :ok <- Recipients.validate_recipients(recipients),
@@ -337,7 +337,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
   def send_reapproval_notifications(%{first_announced_at: nil}), do: {:ok, :not_a_move}
 
   def send_reapproval_notifications(meeting) do
-    recipients = Recipients.determine_recipients(meeting, :reschedule)
+    recipients = Recipients.determine_recipients(meeting)
     content = ContentBuilder.build_reapproval_details(meeting)
 
     with :ok <- Recipients.validate_recipients(recipients),
@@ -346,99 +346,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
     end
   end
 
-  @doc """
-  Schedules calendar invitation emails for a list of attendees.
-
-  Enqueues one Oban job per attendee via EmailScheduler. Logs warnings for
-  individual scheduling failures but does not abort the remaining attendees.
-  """
-  @spec schedule_calendar_invitations(pos_integer(), [String.t()], map()) :: :ok
-  def schedule_calendar_invitations(_user_id, [], _event_details), do: :ok
-
-  def schedule_calendar_invitations(user_id, attendee_emails, event_details) do
-    worker_module = get_email_worker_module()
-
-    Enum.each(attendee_emails, fn email ->
-      params = %{
-        user_id: user_id,
-        attendee_email: email,
-        event_title: event_details.title,
-        event_uid: event_details.uid,
-        event_start_at: DateTime.to_iso8601(event_details.start_at),
-        event_end_at: DateTime.to_iso8601(event_details.end_at),
-        event_location: event_details[:location],
-        event_description: event_details[:description]
-      }
-
-      case worker_module.schedule_calendar_invitation(params) do
-        :ok ->
-          :ok
-
-        {:error, reason} ->
-          Logger.warning("Failed to schedule invitation",
-            attendee_email: email,
-            reason: reason
-          )
-      end
-    end)
-  end
-
-  @doc """
-  Schedules a delayed event update notification for all attendees.
-
-  Captures the "before" snapshot of attendee-relevant fields. The Oban job
-  reads the current event state, diffs against the snapshot, and sends one
-  email per attendee if changes remain.
-  """
-  @spec schedule_event_update_notification(pos_integer(), map()) :: :ok
-  def schedule_event_update_notification(user_id, original_event) do
-    attendee_emails = extract_attendee_emails(original_event.attendees)
-
-    if attendee_emails == [] do
-      :ok
-    else
-      worker_module = get_email_worker_module()
-
-      case worker_module.schedule_event_update_notification(%{
-             user_id: user_id,
-             event_uid: original_event.uid,
-             integration_id: original_event.calendar_integration_id,
-             attendee_emails: attendee_emails,
-             before_title: original_event.summary,
-             before_location: original_event.location,
-             before_description: original_event.description,
-             before_start_at: original_event.start_at,
-             before_end_at: original_event.end_at
-           }) do
-        :ok ->
-          :ok
-
-        {:error, reason} ->
-          Logger.warning("Failed to schedule event update notification",
-            event_uid: original_event.uid,
-            reason: reason
-          )
-      end
-
-      :ok
-    end
-  end
-
   # Private functions
-
-  defp extract_attendee_emails(nil), do: []
-
-  defp extract_attendee_emails(attendees) do
-    attendees
-    |> Enum.map(&attendee_email/1)
-    |> Enum.filter(& &1)
-  end
-
-  # Attendees arrive string-keyed from provider payloads and atom-keyed from
-  # in-process callers, so both shapes are answered here once.
-  defp attendee_email(%{"email" => email}) when is_binary(email), do: email
-  defp attendee_email(%{email: email}) when is_binary(email), do: email
-  defp attendee_email(_attendee), do: nil
 
   defp schedule_confirmation_job(meeting_id) do
     get_email_worker_module().schedule_confirmation_emails(meeting_id)

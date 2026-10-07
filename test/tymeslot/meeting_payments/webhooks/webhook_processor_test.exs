@@ -18,7 +18,6 @@ defmodule Tymeslot.MeetingPayments.Webhooks.WebhookProcessorTest do
 
   setup do
     Application.put_env(:tymeslot, :stripe_connect_webhook_secret, "whsec_secret")
-    IdempotencyCache.clear_all()
 
     on_exit(fn -> Application.delete_env(:tymeslot, :stripe_connect_webhook_secret) end)
     :ok
@@ -34,7 +33,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.WebhookProcessorTest do
 
     test "verifies with the configured Connect secret" do
       expect(StripeAdapterMock, :construct_webhook_event, fn _payload, _sig, "whsec_secret" ->
-        {:ok, %{"id" => "evt_SECRET", "type" => "ping.event"}}
+        {:ok, %{"id" => unique_event_id("evt_SECRET"), "type" => "ping.event"}}
       end)
 
       assert {:ok, :processed} = WebhookProcessor.process("{}", "t=1,v1=GOOD")
@@ -64,7 +63,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.WebhookProcessorTest do
       old_created = System.os_time(:second) - 6 * 60
 
       expect(StripeAdapterMock, :construct_webhook_event, fn _payload, _sig, _secret ->
-        {:ok, %{"id" => "evt_OLD", "type" => "ping.event", "created" => old_created}}
+        {:ok,
+         %{"id" => unique_event_id("evt_OLD"), "type" => "ping.event", "created" => old_created}}
       end)
 
       assert {:ok, :processed} = WebhookProcessor.process(~s({}), "t=1,v1=GOOD")
@@ -74,7 +74,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.WebhookProcessorTest do
       now = System.os_time(:second)
 
       expect(StripeAdapterMock, :construct_webhook_event, fn _payload, _sig, _secret ->
-        {:ok, %{"id" => "evt_X", "type" => "ping.event", "created" => now}}
+        {:ok, %{"id" => unique_event_id("evt_X"), "type" => "ping.event", "created" => now}}
       end)
 
       assert {:ok, :processed} = WebhookProcessor.process(~s({}), "t=1,v1=GOOD")
@@ -98,7 +98,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.WebhookProcessorTest do
       expect(StripeAdapterMock, :construct_webhook_event, fn _payload, _sig, _secret ->
         {:ok,
          %{
-           "id" => "evt_OK",
+           "id" => unique_event_id("evt_OK"),
            "type" => "account.updated",
            "created" => now,
            "data" => %{
@@ -125,24 +125,57 @@ defmodule Tymeslot.MeetingPayments.Webhooks.WebhookProcessorTest do
       assert DateTime.to_unix(reloaded.last_account_event_at) == now
     end
 
+    test "a failed account update is retried rather than acknowledged" do
+      now = System.os_time(:second)
+      account = insert(:connect_account, charges_enabled: false, last_account_event_at: nil)
+      event_id = unique_event_id("evt_REJECTED")
+
+      expect(StripeAdapterMock, :construct_webhook_event, fn _payload, _sig, _secret ->
+        {:ok,
+         %{
+           "id" => event_id,
+           "type" => "account.updated",
+           "created" => now,
+           "data" => %{
+             "object" => %{
+               "id" => account.stripe_account_id,
+               "created" => now,
+               "charges_enabled" => "not-a-boolean"
+             }
+           }
+         }}
+      end)
+
+      assert {:error, :retry_later} = WebhookProcessor.process(~s({}), "t=1,v1=GOOD")
+      # Released, so Stripe's redelivery is taken up again.
+      assert IdempotencyCache.reserve(event_id) == {:ok, :reserved}
+      refute Repo.get!(ConnectAccountSchema, account.id).charges_enabled
+    end
+
     test "dispatches events with missing created timestamp to handlers" do
       # Per-handler logic uses an epoch-0 fallback for missing `created` so a
       # subsequent real event with a genuine timestamp is always considered
       # newer. The processor itself does not validate the field.
       expect(StripeAdapterMock, :construct_webhook_event, fn _payload, _sig, _secret ->
-        {:ok, %{"id" => "evt_NO_CREATED", "type" => "ping.event"}}
+        {:ok, %{"id" => unique_event_id("evt_NO_CREATED"), "type" => "ping.event"}}
       end)
 
       assert {:ok, :processed} = WebhookProcessor.process(~s({}), "t=1,v1=GOOD")
     end
 
     test "a handler's :invalid_event is a permanent failure, recorded so Stripe stops redelivering" do
+      event_id = unique_event_id("evt_MALFORMED")
+
       expect(StripeAdapterMock, :construct_webhook_event, fn _payload, _sig, _secret ->
-        {:ok, %{"id" => "evt_MALFORMED", "type" => "account.updated"}}
+        {:ok, %{"id" => event_id, "type" => "account.updated"}}
       end)
 
       assert {:error, :permanent} = WebhookProcessor.process(~s({}), "t=1,v1=GOOD")
-      assert IdempotencyCache.check_idempotency("evt_MALFORMED") == {:ok, :already_processed}
+      assert IdempotencyCache.reserve(event_id) == {:ok, :already_processed}
     end
   end
+
+  # The idempotency cache's in-memory tier outlives the sandbox, so every
+  # test delivers an event id no other test has used.
+  defp unique_event_id(prefix), do: "#{prefix}_#{System.unique_integer([:positive])}"
 end

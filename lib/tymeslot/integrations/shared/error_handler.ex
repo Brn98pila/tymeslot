@@ -8,34 +8,8 @@ defmodule Tymeslot.Integrations.Common.ErrorHandler do
 
   require Logger
 
-  alias Tymeslot.Infrastructure.Common.ErrorTranslator
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Logging.Redactor
-
-  @doc """
-  Normalizes error tuples to a consistent format.
-
-  Converts various error tuple formats to the standard `{:error, reason}` format.
-
-  ## Examples
-
-      iex> normalize_error({:error, :timeout, "Request timed out"})
-      {:error, "Request timed out"}
-
-      iex> normalize_error({:error, "Simple error"})
-      {:error, "Simple error"}
-
-      iex> normalize_error({:ok, "Success"})
-      {:ok, "Success"}
-  """
-  @spec normalize_error({:error, any(), any()}) :: {:error, any()}
-  @spec normalize_error({:error, any()}) :: {:error, any()}
-  @spec normalize_error({:ok, any()}) :: {:ok, any()}
-  @spec normalize_error(any()) :: any()
-  def normalize_error({:error, _type, reason}), do: {:error, reason}
-  def normalize_error({:error, reason}), do: {:error, reason}
-  def normalize_error({:ok, result}), do: {:ok, result}
-  def normalize_error(other), do: other
 
   @doc """
   Wraps a function call with standardized error handling and logging.
@@ -75,14 +49,12 @@ defmodule Tymeslot.Integrations.Common.ErrorHandler do
 
           error
 
-        {:error, _type, reason} = error ->
-          normalized_error = normalize_error(error)
-
+        {:error, _type, reason} ->
           unless reason in suppress_errors do
             log_error(log_level, operation, provider, reason)
           end
 
-          normalized_error
+          {:error, reason}
 
         other ->
           Logger.warning("Unexpected return value from integration operation",
@@ -113,53 +85,6 @@ defmodule Tymeslot.Integrations.Common.ErrorHandler do
   def format_integration_error(provider, operation, reason) do
     provider_name = String.capitalize(provider)
     "#{provider_name} integration failed during #{operation}: #{reason}"
-  end
-
-  @doc """
-  Handles integration errors with user-friendly translations.
-
-  Returns a tuple with the error atom/message and a user-friendly translation.
-  """
-  @spec handle_integration_error(any(), String.t(), %{atom() => term()}) :: {:error, any(), any()}
-  def handle_integration_error(error, provider, context \\ %{}) do
-    translated = ErrorTranslator.translate_error(error, provider, context)
-
-    # Log the technical error
-    Logger.error("Integration error",
-      provider: provider,
-      error: Redactor.redact(error),
-      category: translated.category,
-      severity: translated.severity
-    )
-
-    # Return both technical and user-friendly versions
-    {:error, error, translated}
-  end
-
-  @doc """
-  Wraps an integration operation with comprehensive error handling.
-  """
-  @spec with_error_handling(String.t(), String.t(), (-> any())) ::
-          {:ok, any()} | {:error, any(), any()} | any()
-  def with_error_handling(provider, operation, fun) when is_function(fun, 0) do
-    case fun.() do
-      {:ok, result} ->
-        {:ok, result}
-
-      {:error, reason} ->
-        handle_integration_error(reason, provider, %{operation: operation})
-
-      other ->
-        other
-    end
-  rescue
-    exception ->
-      error = Exception.message(exception)
-
-      handle_integration_error(error, provider, %{
-        operation: operation,
-        exception_type: exception.__struct__
-      })
   end
 
   # Private functions

@@ -69,30 +69,6 @@ defmodule Tymeslot.Infrastructure.CircuitBreakerSupervisor do
         {Tymeslot.Infrastructure.CircuitBreaker,
          name: @email_breaker_name, config: @email_breaker_config},
         id: @email_breaker_name
-      ),
-
-      # Circuit breaker for OAuth services
-      Supervisor.child_spec(
-        {Tymeslot.Infrastructure.CircuitBreaker,
-         name: :oauth_github_breaker,
-         config: %{
-           failure_threshold: 3,
-           time_window: :timer.minutes(2),
-           recovery_timeout: :timer.minutes(5),
-           half_open_requests: 1
-         }},
-        id: :oauth_github_breaker
-      ),
-      Supervisor.child_spec(
-        {Tymeslot.Infrastructure.CircuitBreaker,
-         name: :oauth_google_breaker,
-         config: %{
-           failure_threshold: 3,
-           time_window: :timer.minutes(2),
-           recovery_timeout: :timer.minutes(5),
-           half_open_requests: 1
-         }},
-        id: :oauth_google_breaker
       )
     ]
 

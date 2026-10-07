@@ -165,7 +165,7 @@ defmodule Tymeslot.MeetingPayments do
   @doc """
   Enqueues a background job to re-sync the Connect account from Stripe.
 
-  Safe to call on every return from the Stripe Express onboarding flow;
+  Safe to call on every return from the Stripe onboarding flow;
   the worker's uniqueness constraint deduplicates within a 60-second window.
   """
   @spec enqueue_resync_for_account(stripe_account_id :: String.t()) :: :ok

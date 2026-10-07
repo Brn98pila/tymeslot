@@ -138,7 +138,7 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
       cancel_during_calendar_fetch(meeting)
 
       assert {:error, "Cannot reschedule a cancelled meeting"} =
-               Reschedule.execute(meeting.uid, params, %{}, user.id)
+               Reschedule.execute(meeting.uid, params, user.id)
 
       refute_enqueued(
         worker: EmailWorker,
@@ -162,7 +162,7 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
       cancel_during_calendar_fetch(meeting)
 
       assert {:error, "Cannot reschedule a cancelled meeting"} =
-               Reschedule.execute(meeting.uid, params, %{}, user.id)
+               Reschedule.execute(meeting.uid, params, user.id)
 
       assert {:ok, reloaded} = MeetingQueries.get_meeting(meeting.id)
       assert reloaded.status == "cancelled"
@@ -181,7 +181,7 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
         {:ok, []}
       end)
 
-      assert {:ok, rescheduled} = Reschedule.execute(meeting.uid, params, %{}, user.id)
+      assert {:ok, rescheduled} = Reschedule.execute(meeting.uid, params, user.id)
 
       assert rescheduled.ical_sequence == 4
       assert {:ok, %{ical_sequence: 4}} = MeetingQueries.get_meeting(meeting.id)

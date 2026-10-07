@@ -17,7 +17,7 @@ defmodule Tymeslot.Payments.Webhooks.ChargeHandler do
   end
 
   @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def process(%{type: "charge.succeeded"}, charge) do
+  def process(%{"type" => "charge.succeeded"}, charge) do
     Logger.info("Processing charge.succeeded", charge_id: Map.get(charge, "id"))
 
     # For charge events, we don't process payments since the checkout.session.completed
@@ -27,7 +27,7 @@ defmodule Tymeslot.Payments.Webhooks.ChargeHandler do
   end
 
   @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def process(%{type: "charge.failed"}, charge) do
+  def process(%{"type" => "charge.failed"}, charge) do
     Logger.info("Processing charge.failed", charge_id: Map.get(charge, "id"))
 
     # For charge events, we just log the failure. The main payment flow

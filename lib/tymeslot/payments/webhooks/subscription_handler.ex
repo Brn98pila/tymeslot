@@ -31,8 +31,7 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandler do
 
   @impl Tymeslot.Payments.Behaviours.WebhookHandler
   def process(event, subscription) do
-    # WebhookProcessor stamps an atom :type on every event before dispatch.
-    event_type = Map.get(event, :type)
+    event_type = event["type"]
     subscription_id = subscription["id"]
 
     Logger.info("Processing subscription event",
@@ -46,16 +45,13 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandler do
            event: normalize_event_name(event_type),
            subscription_id: subscription_id,
            subscription_data: subscription,
-           event_id: event_field(event, :id),
-           event_created: event_field(event, :created)
+           event_id: event["id"],
+           event_created: event["created"]
          }) do
       :ok -> {:ok, :event_processed}
       {:error, _reason} -> {:error, :retry_later, "Subscription event hand-off failed"}
     end
   end
-
-  # Stripe events arrive string-keyed; the processor adds only an atom :type.
-  defp event_field(event, key), do: Map.get(event, Atom.to_string(key)) || Map.get(event, key)
 
   defp normalize_event_name("customer.subscription.created"), do: :subscription_created
   defp normalize_event_name("customer.subscription.updated"), do: :subscription_updated

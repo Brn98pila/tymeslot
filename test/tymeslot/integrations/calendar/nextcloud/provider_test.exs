@@ -112,7 +112,6 @@ defmodule Tymeslot.Integrations.Calendar.Nextcloud.ProviderTest do
       assert client.password == "testpass"
       # Nextcloud speaks CalDAV under the hood but keeps its own provider tag.
       assert client.provider == :nextcloud
-      assert client.verify_ssl == true
     end
 
     test "normalizes Nextcloud base URL to include CalDAV path" do

@@ -13,9 +13,10 @@ defmodule Tymeslot.Emails.Templates.CalendarSyncError do
     MeetingComponents,
     Styles,
     TemplateHelper,
-    Text,
-    TimezoneHelper
+    Text
   }
+
+  alias Tymeslot.Utils.DateTimeUtils
 
   alias Tymeslot.Emails.HostClock
 
@@ -40,7 +41,7 @@ defmodule Tymeslot.Emails.Templates.CalendarSyncError do
     error_details = TemplateHelper.format_error_reason(error_reason)
     locale = Gettext.get_locale(TymeslotWeb.Gettext)
     clock = HostClock.for_meeting(meeting, locale)
-    owner_start_time = TimezoneHelper.convert_to_timezone(meeting.start_time, clock.timezone)
+    owner_start_time = DateTimeUtils.convert_to_timezone(meeting.start_time, clock.timezone)
 
     {do_render_html(error_details, {owner_start_time, clock}, meeting, locale),
      do_render_text(error_details, {owner_start_time, clock}, meeting, locale)}

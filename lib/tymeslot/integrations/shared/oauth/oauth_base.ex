@@ -6,7 +6,6 @@ defmodule Tymeslot.Integrations.Common.OAuthBase do
   that are common across different OAuth-based calendar providers like Google and Outlook.
   """
 
-  alias Tymeslot.Clock
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CreatedEvent
 
@@ -63,26 +62,6 @@ defmodule Tymeslot.Integrations.Common.OAuthBase do
       :ok -> {:ok, config}
       {:error, reason} -> {:error, reason}
     end
-  end
-
-  @doc """
-  Returns the default start time for calendar queries (30 days ago).
-  """
-  @spec default_start_time() :: DateTime.t()
-  def default_start_time do
-    Clock.utc_now()
-    |> DateTime.add(-30, :day)
-    |> DateTime.truncate(:second)
-  end
-
-  @doc """
-  Returns the default end time for calendar queries (365 days from now).
-  """
-  @spec default_end_time() :: DateTime.t()
-  def default_end_time do
-    Clock.utc_now()
-    |> DateTime.add(365, :day)
-    |> DateTime.truncate(:second)
   end
 
   @doc """
@@ -253,10 +232,6 @@ defmodule Tymeslot.Integrations.Common.OAuthBase do
                   event_id :: String.t(),
                   opts :: keyword()
                 ) :: term()
-
-      # Helper functions for providers
-      defp default_start_time, do: OAuthBase.default_start_time()
-      defp default_end_time, do: OAuthBase.default_end_time()
     end
   end
 end

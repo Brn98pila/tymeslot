@@ -2,9 +2,9 @@ defmodule Tymeslot.Integrations.Video.Rooms do
   @moduledoc """
   Meeting room operations for video integrations.
 
-  Provides APIs to create meeting rooms, generate join URLs, handle lifecycle events,
-  and generate standardized metadata. Delegates provider-specific work to the
-  Providers layer via the ProviderAdapter.
+  Provides APIs to create, update and delete meeting rooms and to generate join
+  URLs. Delegates provider-specific work to the Providers layer via the
+  ProviderAdapter.
 
   Room ids never reach the logs here: for a link-based provider the id is the
   join link itself. Lines carry `room_ref`, a fingerprint of it, instead. See
@@ -301,50 +301,6 @@ defmodule Tymeslot.Integrations.Video.Rooms do
         end
       end
     )
-  end
-
-  @doc """
-  Handles meeting lifecycle events.
-  """
-  @spec handle_meeting_event(MeetingContext.t(), atom(), map()) :: :ok | {:error, any()}
-  def handle_meeting_event(meeting_context, event, additional_data) do
-    Logger.info("Handling meeting event",
-      event: event,
-      provider: meeting_context.provider_type,
-      room_ref: room_ref(meeting_context)
-    )
-
-    case ProviderAdapter.handle_meeting_event(meeting_context, event, additional_data) do
-      :ok ->
-        Logger.debug("Successfully handled meeting event",
-          event: event,
-          provider: meeting_context.provider_type
-        )
-
-        :ok
-
-      {:error, reason} = error ->
-        Logger.error("Failed to handle meeting event",
-          event: event,
-          provider: meeting_context.provider_type,
-          reason: LogFormat.reason(reason)
-        )
-
-        error
-    end
-  end
-
-  @doc """
-  Generates meeting metadata for display or emails.
-  """
-  @spec generate_meeting_metadata(MeetingContext.t()) :: map()
-  def generate_meeting_metadata(meeting_context) do
-    Logger.debug("Generating meeting metadata",
-      provider: meeting_context.provider_type,
-      room_ref: room_ref(meeting_context)
-    )
-
-    ProviderAdapter.generate_meeting_metadata(meeting_context)
   end
 
   # Private helpers

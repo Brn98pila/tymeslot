@@ -23,13 +23,13 @@ defmodule Tymeslot.Payments.Webhooks.CustomerHandler do
   end
 
   @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def process(%{type: "customer.created"}, customer) do
+  def process(%{"type" => "customer.created"}, customer) do
     Logger.info("Processing customer.created", customer_id: Map.get(customer, "id"))
     {:ok, :customer_created}
   end
 
   @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def process(%{type: "customer.updated"}, customer) do
+  def process(%{"type" => "customer.updated"}, customer) do
     Logger.info("Processing customer.updated", customer_id: Map.get(customer, "id"))
     {:ok, :customer_updated}
   end

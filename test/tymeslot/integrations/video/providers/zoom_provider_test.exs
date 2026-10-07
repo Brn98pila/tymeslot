@@ -31,20 +31,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProviderTest do
     end
   end
 
-  describe "capabilities/0" do
-    test "returns correct capabilities for Zoom" do
-      capabilities = ZoomProvider.capabilities()
-
-      assert capabilities[:waiting_room] == true
-      assert capabilities[:max_participants] == 100
-      assert capabilities[:recording] == true
-      assert capabilities[:dial_in] == true
-      assert capabilities[:breakout_rooms] == true
-      assert capabilities[:screen_sharing] == true
-      assert capabilities[:chat] == true
-    end
-  end
-
   describe "validate_config/1" do
     test "returns error when access_token is missing" do
       config = %{refresh_token: "r", token_expires_at: DateTime.utc_now()}
@@ -150,45 +136,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProviderTest do
       # meeting-context shapes happens once, upstream, in Video.Urls.
       assert ZoomProvider.extract_room_id(%{room_data: %{room_id: "abc"}}) == nil
       assert ZoomProvider.extract_room_id(%{}) == nil
-    end
-  end
-
-  describe "valid_meeting_url?/1" do
-    test "accepts zoom.us subdomains" do
-      assert ZoomProvider.valid_meeting_url?("https://zoom.us/j/123")
-      assert ZoomProvider.valid_meeting_url?("https://us02web.zoom.us/j/123")
-    end
-
-    test "rejects other providers" do
-      refute ZoomProvider.valid_meeting_url?("https://meet.google.com/abc")
-      refute ZoomProvider.valid_meeting_url?("https://teams.microsoft.com/l/meetup-join/abc")
-    end
-  end
-
-  describe "handle_meeting_event/3" do
-    test "returns :ok for meeting_ended event" do
-      assert ZoomProvider.handle_meeting_event(:meeting_ended, %{room_id: "1"}, %{}) == :ok
-    end
-
-    test "returns :ok for unknown events" do
-      assert ZoomProvider.handle_meeting_event(:unknown, %{}, %{}) == :ok
-    end
-  end
-
-  describe "generate_meeting_metadata/1" do
-    test "returns metadata with Zoom-specific keys" do
-      room_data = %{
-        room_id: "123",
-        meeting_url: "https://zoom.us/j/123",
-        provider_data: %{passcode: "p4ss", start_url: "https://zoom.us/s/123"}
-      }
-
-      metadata = ZoomProvider.generate_meeting_metadata(room_data)
-
-      assert metadata[:provider] == "zoom"
-      assert metadata[:meeting_id] == "123"
-      assert metadata[:passcode] == "p4ss"
-      assert metadata[:host_url] == "https://zoom.us/s/123"
     end
   end
 

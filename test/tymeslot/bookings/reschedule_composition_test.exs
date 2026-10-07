@@ -90,7 +90,7 @@ defmodule Tymeslot.Bookings.RescheduleCompositionTest do
     } do
       new_params = reschedule_params_for(future_datetime(5, :day))
 
-      assert {:ok, updated} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
+      assert {:ok, updated} = Reschedule.execute(meeting.uid, new_params, user.id)
 
       assert updated.id == meeting.id
       refute DateTime.compare(updated.start_time, meeting.start_time) == :eq
@@ -106,7 +106,7 @@ defmodule Tymeslot.Bookings.RescheduleCompositionTest do
     } do
       new_params = reschedule_params_for(future_datetime(5, :day))
 
-      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
+      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, user.id)
 
       assert [webhook_job] = all_enqueued(worker: WebhookWorker)
       assert webhook_job.args["event_type"] == "meeting.rescheduled"
@@ -134,7 +134,7 @@ defmodule Tymeslot.Bookings.RescheduleCompositionTest do
     } do
       new_params = reschedule_params_for(future_datetime(7, :day))
 
-      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
+      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, user.id)
 
       assert [%{args: %{"action" => "update", "meeting_id" => mid}}] =
                all_enqueued(worker: CalendarEventWorker)
@@ -169,7 +169,7 @@ defmodule Tymeslot.Bookings.RescheduleCompositionTest do
 
       new_params = reschedule_params_for(future_datetime(8, :day))
 
-      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
+      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, user.id)
 
       assert [_calendar_job] = all_enqueued(worker: CalendarEventWorker)
 
@@ -192,7 +192,7 @@ defmodule Tymeslot.Bookings.RescheduleCompositionTest do
       original_start = meeting.start_time
       new_params = reschedule_params_for(blocker_start)
 
-      assert {:error, _reason} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
+      assert {:error, _reason} = Reschedule.execute(meeting.uid, new_params, user.id)
 
       {:ok, reloaded} = MeetingQueries.get_meeting_by_uid(meeting.uid)
       assert DateTime.compare(reloaded.start_time, original_start) == :eq

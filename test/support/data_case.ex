@@ -109,9 +109,7 @@ defmodule Tymeslot.DataCase do
     Enum.each([:mirotalk, :google_meet, :teams, :zoom], &VideoCircuitBreaker.reset/1)
 
     # Reset other circuit breakers
-    Enum.each([:email_service_breaker, :oauth_github_breaker, :oauth_google_breaker], fn name ->
-      if Process.whereis(name), do: CircuitBreaker.reset(name)
-    end)
+    if Process.whereis(:email_service_breaker), do: CircuitBreaker.reset(:email_service_breaker)
 
     # Clear rate limiter, including the failed-login throttle
     RateLimiter.clear_all()

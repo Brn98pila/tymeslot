@@ -112,7 +112,6 @@ defmodule Tymeslot.Integrations.Calendar.Apple.ProviderTest do
       assert client.provider == :apple
       assert client.username == "you@icloud.com"
       assert client.calendar_paths == ["/19428228001/calendars/home/"]
-      assert client.verify_ssl == true
     end
 
     test "trims trailing slash from the base URL" do

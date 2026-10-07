@@ -153,7 +153,6 @@ defmodule Tymeslot.Bookings.TeamsBookingLinksTest do
                  duration: "30min",
                  user_timezone: "Europe/London"
                },
-               %{},
                user.id
              )
 

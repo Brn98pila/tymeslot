@@ -333,6 +333,34 @@ defmodule Tymeslot.MeetingPayments.ConnectAccountsTest do
       assert reloaded.details_submitted == true
     end
 
+    test "returns the rejected changeset and leaves the row unchanged when the update fails" do
+      user = insert(:user)
+      {:ok, account} = ConnectAccountQueries.insert_placeholder(user.id, "ch")
+
+      {:ok, _updated} =
+        ConnectAccountQueries.update(account, %{
+          stripe_account_id: "acct_REJECTED",
+          status: "active"
+        })
+
+      stripe_account = %{
+        "id" => "acct_REJECTED",
+        "charges_enabled" => "not-a-boolean",
+        "payouts_enabled" => true,
+        "details_submitted" => true,
+        "requirements" => %{"disabled_reason" => nil}
+      }
+
+      assert {:error, %Ecto.Changeset{errors: errors}} =
+               ConnectAccounts.apply_account_event(stripe_account, DateTime.utc_now(:second))
+
+      assert Keyword.has_key?(errors, :charges_enabled)
+
+      reloaded = ConnectAccountQueries.live_for_user(user.id)
+      refute reloaded.payouts_enabled
+      assert reloaded.last_account_event_at == nil
+    end
+
     test "ignores events for unknown accounts" do
       stripe_account = %{
         "id" => "acct_UNKNOWN",

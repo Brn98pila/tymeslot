@@ -7,11 +7,6 @@ defmodule Tymeslot.Demo.Behaviour do
   """
 
   @doc """
-  Gets a profile by ID (returns demo profile if applicable).
-  """
-  @callback get_profile_by_id(profile_id :: integer()) :: map() | nil
-
-  @doc """
   Gets a user by ID (returns demo user if applicable).
   """
   @callback get_user_by_id(user_id :: integer()) :: map() | nil
@@ -45,41 +40,15 @@ defmodule Tymeslot.Demo.Behaviour do
   @callback booking_window_days(profile :: map() | nil) :: pos_integer()
 
   @doc """
-  Gets a profile by username (returns demo profile if applicable).
-  """
-  @callback get_profile_by_username(username :: String.t()) :: map() | nil
-
-  @doc """
   Resolves organizer context for a username.
   """
   @callback resolve_organizer_context(username :: String.t()) ::
               {:ok, map()} | {:error, :profile_not_found}
 
   @doc """
-  Resolves organizer context (optimized version).
-  """
-  @callback resolve_organizer_context_optimized(username :: String.t()) ::
-              {:ok, map()} | {:error, :profile_not_found}
-
-  @doc """
   Gets theme customization for a profile and theme.
   """
   @callback get_theme_customization(profile_id :: integer(), theme_id :: String.t()) :: any()
-
-  @doc """
-  Lists active meeting types for a user.
-  """
-  @callback list_active_meeting_types(user_id :: integer()) :: [map()]
-
-  @doc """
-  Gets active video integration for a user.
-  """
-  @callback get_active_video_integration(user_id :: integer()) :: map() | nil
-
-  @doc """
-  Lists calendar integrations for a user.
-  """
-  @callback list_calendar_integrations(user_id :: integer()) :: [map()]
 
   @doc """
   Gets avatar URL for a profile.
@@ -121,20 +90,7 @@ defmodule Tymeslot.Demo.Behaviour do
             ) :: {:ok, [map()]} | {:error, any()}
 
   @doc """
-  Gets month availability map showing which days have actual free slots.
-  """
-  @callback get_month_availability(
-              user_id :: integer(),
-              year :: integer(),
-              month :: integer(),
-              user_timezone :: String.t(),
-              organizer_profile :: map(),
-              context :: map() | nil,
-              duration_minutes :: integer() | nil
-            ) :: {:ok, map()} | {:error, any()}
-
-  @doc """
-  Gets availability for a date range (range-based alternative to get_month_availability).
+  Gets availability for a date range.
   """
   @callback get_range_availability(
               user_id :: integer(),

@@ -7,10 +7,10 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
   Timeouts are configured in a hierarchy to ensure inner operations time out
   before outer ones, providing cleaner error propagation:
 
-      report_timeout (15s) < task_await_timeout (45s) < coalescer_call_timeout (50s)
+      report_timeout (20s) < task_await_timeout (45s) < coalescer_call_timeout (50s)
 
   With retry logic (max 1 retry, 500ms base delay):
-  - Worst case single operation: ~31s (15s + 0.5s delay + 15s retry)
+  - Worst case single operation: ~40.5s (20s + 0.5s delay + 20s retry)
   - This fits within the task_await_timeout (45s)
   - The coalescer_call_timeout (50s) provides buffer for GenServer overhead
 
