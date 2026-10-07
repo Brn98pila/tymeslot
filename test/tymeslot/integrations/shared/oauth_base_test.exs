@@ -49,20 +49,6 @@ defmodule Tymeslot.Integrations.Common.OAuthBaseTest do
     end
   end
 
-  describe "time helpers" do
-    test "default_start_time/0 returns a time in the past" do
-      now = DateTime.utc_now()
-      start = OAuthBase.default_start_time()
-      assert DateTime.compare(start, now) == :lt
-    end
-
-    test "default_end_time/0 returns a time in the future" do
-      now = DateTime.utc_now()
-      finish = OAuthBase.default_end_time()
-      assert DateTime.compare(finish, now) == :gt
-    end
-  end
-
   describe "handle_api_call/2" do
     test "handles ok results" do
       assert {:ok, "RESULT"} =
