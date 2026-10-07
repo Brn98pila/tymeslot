@@ -25,7 +25,6 @@ defmodule Tymeslot.Integrations.Calendar.Events do
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
   alias Tymeslot.Profiles.ProfileQueries
-  alias Tymeslot.Utils.ContextUtils
 
   require Logger
 
@@ -92,29 +91,19 @@ defmodule Tymeslot.Integrations.Calendar.Events do
   end
 
   @doc """
-  Compatibility: context-aware variant that extracts a debug calendar module and organizer profile if present.
+  Context-aware variant: fetches through the configured `:calendar_module`
+  (when set) and passes on the context's organizer profile.
   """
   @spec get_calendar_events_from_context(
           any(),
           user_id(),
-          %{
-            optional(:debug_calendar_module) => module() | nil,
-            optional(:organizer_profile) => map() | nil
-          }
-          | nil
+          %{optional(:organizer_profile) => map() | nil} | nil
         ) ::
           {:ok, list()} | {:error, term()}
   def get_calendar_events_from_context(date, organizer_user_id, context) do
-    debug_module =
-      if val = ContextUtils.get_from_context(context, :debug_calendar_module) do
-        val
-      else
-        Application.get_env(:tymeslot, :calendar_module)
-      end
-
     opts = [
-      debug_calendar_module: debug_module,
-      organizer_profile: ContextUtils.get_from_context(context, :organizer_profile)
+      debug_calendar_module: Application.get_env(:tymeslot, :calendar_module),
+      organizer_profile: context[:organizer_profile]
     ]
 
     get_calendar_events(date, organizer_user_id, opts)
