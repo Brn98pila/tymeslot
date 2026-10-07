@@ -83,9 +83,12 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlers do
   # in the visitor's timezone, so that goes too (`visitor_timezone`, which the
   # mount prefers to the browser's). The answers and the details are not
   # carried. A paged journey's switcher shows on its first moment only,
-  # before any choice, so it carries nothing.
+  # before any choice, so it carries nothing; nor does an outcome, whose
+  # choices are a booking already made (a switch on the confirmation would
+  # otherwise land on the details for the slot just booked).
   defp put_choices(params, assigns) do
-    if Reveal.journey?(assigns[:journey]) do
+    if Reveal.journey?(assigns[:journey]) and
+         assigns[:current_state] not in [:confirmation, :awaiting_payment] do
       params
       |> maybe_put_query_param("duration", overview_choice(assigns))
       |> maybe_put_query_param("date", assigns[:selected_date])

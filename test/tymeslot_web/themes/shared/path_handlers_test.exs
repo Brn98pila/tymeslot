@@ -207,6 +207,27 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlersTest do
       end
     end
 
+    # A switch on the confirmation must not land on the details for the
+    # slot just booked.
+    test "carries no choice from an outcome" do
+      for outcome <- [:confirmation, :awaiting_payment] do
+        socket = %Phoenix.LiveView.Socket{
+          assigns: %{
+            username_context: "johndoe",
+            live_action: :overview,
+            current_state: outcome,
+            journey: %Journey{navigator: Continuous, moments: [], outcomes: %{}},
+            selected_duration: "30min",
+            selected_date: "2027-03-12",
+            selected_time: "9:00 AM",
+            user_timezone: "America/New_York"
+          }
+        }
+
+        assert PathHandlers.build_path_with_locale(socket, "de") == "/johndoe?locale=de"
+      end
+    end
+
     test "carries no time without its day" do
       socket = %Phoenix.LiveView.Socket{
         assigns: %{
