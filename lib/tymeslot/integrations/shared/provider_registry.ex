@@ -87,18 +87,6 @@ defmodule Tymeslot.Integrations.Common.ProviderRegistry do
       end
 
       @doc """
-      Validates configuration for a specific provider type.
-
-      Delegates validation to the provider module's `validate_config/1` function.
-      """
-      def validate_provider_config(provider_type, config) do
-        case get_provider(provider_type) do
-          {:ok, module} -> module.validate_config(config)
-          {:error, _reason} = error -> error
-        end
-      end
-
-      @doc """
       Returns metadata for all providers.
 
       Standard metadata includes: type, module, display_name, config_schema.
@@ -127,20 +115,6 @@ defmodule Tymeslot.Integrations.Common.ProviderRegistry do
       """
       def default_provider do
         @default_provider
-      end
-
-      @doc """
-      Checks if a provider type is supported.
-      """
-      def provider_supported?(provider_type) do
-        Map.has_key?(@providers, provider_type)
-      end
-
-      @doc """
-      Returns the total number of registered providers.
-      """
-      def provider_count do
-        map_size(@providers)
       end
 
       # Private helper to safely get metadata from provider modules
@@ -177,11 +151,8 @@ defmodule Tymeslot.Integrations.Common.ProviderRegistry do
       defoverridable list_providers: 0,
                      get_provider: 1,
                      get_provider!: 1,
-                     validate_provider_config: 2,
                      list_providers_with_metadata: 0,
-                     default_provider: 0,
-                     provider_supported?: 1,
-                     provider_count: 0
+                     default_provider: 0
     end
   end
 end

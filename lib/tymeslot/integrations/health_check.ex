@@ -110,27 +110,6 @@ defmodule Tymeslot.Integrations.HealthCheck do
   end
 
   @doc """
-  Manually triggers a health check for all integrations.
-  Uses Scheduler to enqueue jobs for all active integrations.
-  """
-  @spec check_all_integrations() :: :ok
-  def check_all_integrations do
-    GenServer.call(__MODULE__, :check_all)
-  end
-
-  @doc """
-  Gets the current health status for a specific integration.
-  Queries the database directly; does not go through the GenServer.
-  """
-  @spec get_health_status(integration_type(), integer()) :: health_state() | nil
-  def get_health_status(type, integration_id) do
-    case IntegrationHealthStateQueries.get(type, integration_id) do
-      {:ok, record} -> Monitor.from_db_record(record)
-      {:error, :not_found} -> nil
-    end
-  end
-
-  @doc """
   Lists unhealthy health-state records for a user's active integrations.
   Queries the database directly; does not go through the GenServer.
   """
@@ -267,13 +246,6 @@ defmodule Tymeslot.Integrations.HealthCheck do
       end
 
     {:ok, %State{check_timer: timer}}
-  end
-
-  @impl GenServer
-  def handle_call(:check_all, _from, state) do
-    Logger.info("Manual health check triggered for all integrations")
-    Scheduler.schedule_all(force: true)
-    {:reply, :ok, state}
   end
 
   @impl GenServer

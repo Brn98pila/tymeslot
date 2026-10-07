@@ -60,10 +60,6 @@ defmodule Tymeslot.Integrations.Common.ProviderRegistryTest do
       assert_raise ArgumentError, fn -> TestRegistry.get_provider!(:invalid) end
     end
 
-    test "validate_provider_config/2 delegates to module" do
-      assert :ok = TestRegistry.validate_provider_config(:google, %{})
-    end
-
     test "list_providers_with_metadata/0 returns full info" do
       metadata = TestRegistry.list_providers_with_metadata()
       google = Enum.find(metadata, &(&1.type == :google))
@@ -77,15 +73,6 @@ defmodule Tymeslot.Integrations.Common.ProviderRegistryTest do
 
     test "default_provider/0 returns default" do
       assert TestRegistry.default_provider() == :google
-    end
-
-    test "provider_supported?/1 checks existence" do
-      assert TestRegistry.provider_supported?(:google)
-      refute TestRegistry.provider_supported?(:invalid)
-    end
-
-    test "provider_count/0 returns size" do
-      assert TestRegistry.provider_count() == 2
     end
   end
 end

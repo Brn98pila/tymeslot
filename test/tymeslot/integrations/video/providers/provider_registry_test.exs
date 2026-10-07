@@ -17,8 +17,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderRegistryTest do
     test "returns list of all registered video providers" do
       assert Enum.sort(ProviderRegistry.list_providers()) ==
                [:custom, :google_meet, :jitsi, :kmeet, :mirotalk, :nextcloud_talk, :teams, :zoom]
-
-      assert ProviderRegistry.provider_count() == 8
     end
   end
 
@@ -207,20 +205,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderRegistryTest do
   describe "default_provider/0" do
     test "returns the default video provider" do
       assert ProviderRegistry.default_provider() == :mirotalk
-    end
-  end
-
-  describe "provider_supported?/1" do
-    test "returns true for supported video providers" do
-      assert ProviderRegistry.provider_supported?(:mirotalk)
-      assert ProviderRegistry.provider_supported?(:google_meet)
-      assert ProviderRegistry.provider_supported?(:custom)
-      # Teams provider may not be available in all environments
-    end
-
-    test "returns false for unsupported video providers" do
-      refute ProviderRegistry.provider_supported?(:unknown)
-      refute ProviderRegistry.provider_supported?(:invalid)
     end
   end
 
