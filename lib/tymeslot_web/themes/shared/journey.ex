@@ -185,13 +185,15 @@ defmodule TymeslotWeb.Themes.Shared.Journey do
   # loaded, since `function_exported?/3` never loads.
   #
   # The wait is the hard one (`Code.ensure_compiled!/1`). When every file of
-  # a parallel compile is waiting, the compiler first gives up the soft waits
-  # (`Code.ensure_compiled/1`) on modules no file is defining yet, which a
-  # theme's components can be: one defined second in a file whose first is
-  # still expanding. A soft wait then answers `:unavailable` for a component
-  # that compiles moments later, failing the theme's build by chance. A hard
-  # wait is given up only when nothing else is, so it fails for a module
-  # that never comes (a typo) and waits for one that does.
+  # a parallel compile is waiting, the compiler gives up the soft waits
+  # (`Code.ensure_compiled/1`) first, and a component no file is defining
+  # yet (one defined second in a file whose first module is still
+  # expanding) then answered `:unavailable` though it compiled moments
+  # later. A hard wait is given up only after the soft waits, which usually
+  # unblocks the compile first; it still fails for a module that never comes
+  # (a typo). It is still given up for a module defined later in a file
+  # whose earlier modules are waiting, so define a journey's moments,
+  # outcomes and navigator one module per file.
   defp available?(module) do
     is_atom(module) and
       try do
