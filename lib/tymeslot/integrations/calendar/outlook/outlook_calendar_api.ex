@@ -514,6 +514,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
     HTTP.request(method, @base_url, path, token,
       params: params,
       headers: headers,
+      http_options: Keyword.get(opts, :http_options, []),
       response_handler: &handle_response(&1, path)
     )
   end

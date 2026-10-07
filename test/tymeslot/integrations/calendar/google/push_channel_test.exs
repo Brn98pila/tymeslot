@@ -241,8 +241,9 @@ defmodule Tymeslot.Integrations.Calendar.Google.PushChannelTest do
     test "stops its push channel", %{integration: integration, user: user} do
       test_pid = self()
 
-      expect(Tymeslot.HTTPClientMock, :request, fn :post, @stop_url, body, _headers, _opts ->
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, @stop_url, body, _headers, opts ->
         send(test_pid, {:stop_request, Jason.decode!(body)})
+        send(test_pid, {:stop_options, opts})
         {:ok, %Req.Response{status: 204, body: ""}}
       end)
 
@@ -250,6 +251,10 @@ defmodule Tymeslot.Integrations.Calendar.Google.PushChannelTest do
 
       assert_receive {:stop_request,
                       %{"id" => "old-channel-id", "resourceId" => "old-resource-id"}}
+
+      # Bounded: the disconnect click waits on this request.
+      assert_receive {:stop_options, opts}
+      assert opts[:request_timeout] == 5_000
 
       refute Repo.get(CalendarIntegrationSchema, integration.id)
     end

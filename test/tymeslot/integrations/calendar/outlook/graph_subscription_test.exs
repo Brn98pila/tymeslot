@@ -455,14 +455,19 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscriptionTest do
     } do
       test_pid = self()
 
-      expect(Tymeslot.HTTPClientMock, :request, fn :delete, url, _body, _headers, _opts ->
+      expect(Tymeslot.HTTPClientMock, :request, fn :delete, url, _body, _headers, opts ->
         send(test_pid, {:deleted, url, Repo.get(CalendarIntegrationSchema, integration.id)})
+        send(test_pid, {:delete_options, opts})
         {:ok, %Req.Response{status: 204, body: ""}}
       end)
 
       assert {:ok, _result} = disconnect(integration)
 
       assert_receive {:deleted, @subscription_url, %CalendarIntegrationSchema{}}
+
+      # Bounded: the disconnect click waits on this request.
+      assert_receive {:delete_options, opts}
+      assert opts[:request_timeout] == 5_000
       refute Repo.get(CalendarIntegrationSchema, integration.id)
     end
 

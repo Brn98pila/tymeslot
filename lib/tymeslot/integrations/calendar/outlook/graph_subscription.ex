@@ -132,7 +132,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
           :delete,
           "/subscriptions/#{HTTP.segment(subscription_id)}",
           token,
-          %{}
+          %{},
+          http_options: HTTP.push_stop_http_options()
         )
       end)
     end)

@@ -106,10 +106,13 @@ defmodule Tymeslot.Integrations.Calendar.Google.PushChannel do
 
   defp stop_channel(token, channel_id, resource_id) do
     CalendarCircuitBreaker.call(:google, fn ->
-      CalendarAPI.make_request_with_body(:post, "/channels/stop", token, %{
-        "id" => channel_id,
-        "resourceId" => resource_id
-      })
+      CalendarAPI.make_request_with_body(
+        :post,
+        "/channels/stop",
+        token,
+        %{"id" => channel_id, "resourceId" => resource_id},
+        http_options: HTTP.push_stop_http_options()
+      )
     end)
   end
 
