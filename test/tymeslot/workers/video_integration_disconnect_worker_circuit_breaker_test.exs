@@ -198,20 +198,18 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorkerCircuitBreakerTest do
       end)
 
       assert {:error, :room_cleanup_incomplete} =
-               perform_job(
-                 VideoIntegrationDisconnectWorker,
-                 %{"integration_id" => integration.id}, attempt: 1)
+               perform_job(VideoIntegrationDisconnectWorker, job_args(integration), attempt: 1)
 
       assert {:ok, _still_there} = VideoIntegrationQueries.get(integration.id)
 
       assert :ok =
-               perform_job(
-                 VideoIntegrationDisconnectWorker,
-                 %{"integration_id" => integration.id}, attempt: 5)
+               perform_job(VideoIntegrationDisconnectWorker, job_args(integration), attempt: 5)
 
       assert {:error, :not_found} = VideoIntegrationQueries.get(integration.id)
     end
   end
+
+  defp job_args(integration), do: %{"integration_id" => integration.id}
 
   defp insert_meetings(user, integration, count) do
     for n <- 1..count do
