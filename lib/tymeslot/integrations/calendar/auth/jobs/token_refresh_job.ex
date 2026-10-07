@@ -188,6 +188,11 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
 
         {:snooze, @lock_timeout_snooze_seconds}
 
+      {:error, :integration_not_found} ->
+        # Deleted after `perform/1` read it; there is nothing left to refresh,
+        # and nothing to write a failure to.
+        {:discard, @integration_gone}
+
       {:error, :requires_reencryption} ->
         # The row stopped decrypting after `perform/1` read it. Tokens has
         # already flagged it, so there is nothing left to retry.

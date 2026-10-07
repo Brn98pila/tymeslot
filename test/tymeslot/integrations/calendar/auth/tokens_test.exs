@@ -101,7 +101,7 @@ defmodule Tymeslot.Integrations.Calendar.TokensTest do
       integration = integration(token_expires_at: in_seconds(-60))
       Repo.delete!(integration)
 
-      assert {:error, :not_found} =
+      assert {:error, :integration_not_found} =
                Tokens.with_access_token(
                  integration,
                  fn _integration -> flunk("refreshed") end,

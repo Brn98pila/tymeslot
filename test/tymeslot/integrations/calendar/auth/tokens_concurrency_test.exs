@@ -151,6 +151,36 @@ defmodule Tymeslot.Integrations.Calendar.TokensConcurrencyTest do
       assert stored.access_token == "api-access"
     end
 
+    # Deleted after the job read it but before the refresh lock was free: the
+    # job must neither retry nor write a failure to a row that is gone.
+    test "a job whose integration is deleted while it waits for the lock discards",
+         %{integration: integration} do
+      test_pid = self()
+      key = Tokens.refresh_lock_key(integration.id)
+
+      holder =
+        spawn(fn ->
+          Lock.with_lock(key, fn ->
+            send(test_pid, :lock_held)
+            receive do: (:release -> :ok)
+          end)
+        end)
+
+      assert_receive :lock_held
+      watch_contention(key)
+
+      job =
+        Task.async(fn ->
+          TokenRefreshJob.perform(%Oban.Job{args: %{"integration_id" => integration.id}})
+        end)
+
+      assert_receive :contended, 2_000
+      Repo.delete!(integration)
+      send(holder, :release)
+
+      assert {:discard, "Integration not found"} = Task.await(job, 5_000)
+    end
+
     test "an API-call refresh writes its tokens before releasing the lock",
          %{integration: integration} do
       test_pid = self()
