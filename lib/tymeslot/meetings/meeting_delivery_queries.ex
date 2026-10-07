@@ -5,6 +5,10 @@ defmodule Tymeslot.Meetings.MeetingDeliveryQueries do
   per-recipient reminder bookkeeping. Each is the durable half of a
   notification's idempotency, so a retried job or a racing caller can tell
   what has already gone out.
+
+  It also answers whether a delivery is being attempted inside a
+  transaction (`in_transaction?/0`), which the integration fan-out must not
+  be.
   """
 
   import Ecto.Query, warn: false
@@ -236,4 +240,11 @@ defmodule Tymeslot.Meetings.MeetingDeliveryQueries do
       _other -> true
     end
   end
+
+  @doc """
+  Whether the calling process is inside a database transaction.
+  `Tymeslot.Bookings.Activation.after_commit/1` refuses to run in one.
+  """
+  @spec in_transaction?() :: boolean()
+  def in_transaction?, do: Repo.in_transaction?()
 end

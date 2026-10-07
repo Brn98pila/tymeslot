@@ -33,6 +33,8 @@ defmodule Tymeslot.Bookings.BestEffortFanOutTest do
   alias Tymeslot.Bookings.CreateAdHoc
   alias Tymeslot.Meetings.Approval
   alias Tymeslot.Meetings.MeetingSchema
+  alias Tymeslot.Polls.Confirm
+  alias Tymeslot.Polls.PollSchema
   alias Tymeslot.Repo
   alias Tymeslot.TestMocks
   alias Tymeslot.Workers.EmailWorker
@@ -97,6 +99,26 @@ defmodule Tymeslot.Bookings.BestEffortFanOutTest do
     end
   end
 
+  describe "a poll the host confirms" do
+    test "a Slack read the database fails does not cost the confirmation", %{user: user} do
+      %{poll: poll, slot: slot} = open_poll(user)
+      Repo.query!("ALTER TABLE slack_integrations RENAME TO slack_integrations_hidden")
+
+      assert {:ok, %MeetingSchema{} = meeting} = Confirm.confirm(poll.id, slot.id, user.id)
+
+      assert_booking_stands(meeting)
+      assert Repo.get!(PollSchema, poll.id).status == :confirmed
+    end
+
+    test "a confirmed poll sends one Slack notice", %{user: user} do
+      %{poll: poll, slot: slot} = open_poll(user)
+
+      assert {:ok, meeting} = Confirm.confirm(poll.id, slot.id, user.id)
+
+      assert [_one] = all_enqueued(worker: SlackWorker, args: %{"meeting_id" => meeting.id})
+    end
+  end
+
   describe "the fan-out runs once, and only for a booking that commits" do
     test "a committed booking sends one Slack notice", %{user: user} do
       assert {:ok, meeting} = Create.execute(build_meeting_params(user), build_form_data())
@@ -144,6 +166,31 @@ defmodule Tymeslot.Bookings.BestEffortFanOutTest do
 
       assert [_one] = all_enqueued(worker: SlackWorker, args: %{"meeting_id" => meeting.id})
     end
+  end
+
+  describe "a caller dispatching before its own commit" do
+    test "is refused" do
+      assert_raise ArgumentError, ~r/inside a transaction/, fn ->
+        Repo.transaction(fn -> Activation.after_commit([]) end)
+      end
+    end
+  end
+
+  defp open_poll(user) do
+    poll = insert(:poll, user: user, status: :open, timezone: "Etc/UTC", meeting_type_id: nil)
+    slot_start = DateTime.utc_now() |> DateTime.add(2, :day) |> DateTime.truncate(:second)
+
+    slot =
+      insert(:poll_time_slot,
+        poll: poll,
+        start_time: slot_start,
+        end_time: DateTime.add(slot_start, 1, :hour)
+      )
+
+    participant = insert(:poll_participant, poll: poll)
+    insert(:poll_vote, participant: participant, time_slot: slot, response: :yes)
+
+    %{poll: poll, slot: slot}
   end
 
   defp assert_booking_stands(meeting) do

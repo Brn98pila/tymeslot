@@ -35,17 +35,37 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
           optional(:attendee_locale) => String.t() | nil
         }
 
-  @spec execute(params()) ::
-          {:ok, Tymeslot.Meetings.MeetingSchema.t()}
-          | {:error,
-             :title_required
-             | :attendee_name_required
-             | :attendee_email_required
-             | :attendee_is_organizer
-             | :end_before_start
-             | :time_conflict
-             | :meeting_creation_failed}
+  @type error ::
+          :title_required
+          | :attendee_name_required
+          | :attendee_email_required
+          | :attendee_is_organizer
+          | :end_before_start
+          | :time_conflict
+          | :meeting_creation_failed
+
+  @spec execute(params()) :: {:ok, Tymeslot.Meetings.MeetingSchema.t()} | {:error, error()}
   def execute(params) do
+    with {:ok, meeting, pending} <- execute_deferred(params) do
+      :ok = Activation.after_commit(pending)
+      AvailabilityCache.invalidate_for_user(meeting.organizer_user_id)
+      {:ok, meeting}
+    end
+  end
+
+  @doc """
+  `execute/1` for a caller that runs it inside a transaction of its own
+  (`Tymeslot.Polls.Confirm`). The meeting, its guests and its jobs are
+  written as `execute/1` writes them, but nothing that belongs after the
+  commit runs: the integration fan-out is returned as `pending`, for the
+  caller to hand to `Tymeslot.Bookings.Activation.after_commit/1` once its
+  transaction has committed, and the host's cached availability is left for
+  the caller to invalidate then.
+  """
+  @spec execute_deferred(params()) ::
+          {:ok, Tymeslot.Meetings.MeetingSchema.t(), Tymeslot.Notifications.Events.pending()}
+          | {:error, error()}
+  def execute_deferred(params) do
     # The organiser's details are resolved once and threaded through: validation
     # needs the organiser email to reject self-booking, and the meeting attrs
     # need all three fields. Looking them up twice would risk the check and the
@@ -212,11 +232,8 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
     end
   end
 
-  defp map_result({:ok, {meeting, pending_integrations}}) do
-    :ok = Activation.after_commit(pending_integrations)
-    AvailabilityCache.invalidate_for_user(meeting.organizer_user_id)
-    {:ok, meeting}
-  end
+  defp map_result({:ok, {meeting, pending_integrations}}),
+    do: {:ok, meeting, pending_integrations}
 
   # Preserve the time-conflict reason distinctly so callers can tell an occupied
   # slot apart from a generic booking failure.

@@ -32,6 +32,7 @@ defmodule Tymeslot.Bookings.Activation do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Integrations.Video.ProviderConfig, as: VideoProviderConfig
+  alias Tymeslot.Meetings.MeetingDeliveryQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
   alias Tymeslot.Notifications.Events
   alias Tymeslot.Workers.VideoRoomWorker
@@ -129,9 +130,25 @@ defmodule Tymeslot.Bookings.Activation do
   The second half of `activate_in_transaction/2`: the integration fan-out it
   returned, run once the booking has committed. Always returns `:ok`; a
   failing channel is logged and reported, and the booking stands.
+
+  Raises when called inside a transaction. A caller that opens one around a
+  booking path (as `Tymeslot.Polls.Confirm` does around
+  `Tymeslot.Bookings.CreateAdHoc`) has to take the pending fan-out back and
+  run it after its own commit; dispatching inside would put the outer
+  transaction at the mercy of every best-effort channel. The raise makes
+  such a caller fail on its first test rather than lose a booking in
+  production.
   """
   @spec after_commit(Events.pending()) :: :ok
-  def after_commit(pending), do: Events.dispatch_deferred(pending)
+  def after_commit(pending) do
+    if MeetingDeliveryQueries.in_transaction?() do
+      raise ArgumentError,
+            "Activation.after_commit/1 called inside a transaction: return the " <>
+              "pending fan-out to the caller that opened it and dispatch after its commit"
+    end
+
+    Events.dispatch_deferred(pending)
+  end
 
   @doc """
   True when the meeting's video provider creates its room through an API, so
