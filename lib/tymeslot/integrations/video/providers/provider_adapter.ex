@@ -266,7 +266,9 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   @doc """
   Deletes a meeting room on the provider's side.
 
-  Providers without a server-side meeting object return `:ok` without action.
+  Providers without a server-side meeting object return `:ok` without action,
+  and so does a room the provider no longer has, which is what a delete wants:
+  deleting stays idempotent whichever way a provider words "not found".
   """
   @spec delete_meeting_room(atom(), String.t(), map()) :: :ok | {:error, term()}
   def delete_meeting_room(provider_type, room_id, config) do
@@ -279,12 +281,15 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
       case ProviderConfig.get_provider(provider_type) do
         {:ok, provider_module} ->
           if callback_exported?(provider_module, :delete_meeting_room, 2) do
-            with_breaker(provider_type, config, fn ->
-              # Optional callback resolved at runtime via the guard above; apply/3
-              # keeps the static type checker from flagging providers that omit it.
-              # credo:disable-for-next-line Credo.Check.Refactor.Apply
-              apply(provider_module, :delete_meeting_room, [room_id, config])
-            end)
+            result =
+              with_breaker(provider_type, config, fn ->
+                # Optional callback resolved at runtime via the guard above; apply/3
+                # keeps the static type checker from flagging providers that omit it.
+                # credo:disable-for-next-line Credo.Check.Refactor.Apply
+                apply(provider_module, :delete_meeting_room, [room_id, config])
+              end)
+
+            already_gone_is_deleted(result, provider_type, room_id)
           else
             Logger.debug("Provider does not support delete_meeting_room; treating as no-op",
               provider: provider_type
@@ -407,6 +412,19 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   # function_exported?/3 returns false for modules that haven't been loaded
   # yet, which silently turns optional callbacks into no-ops in tests that
   # haven't touched the provider module before. Force-load first.
+  # `:meeting_not_found` stays an error for an update, where it tells the
+  # caller the booking's room is gone.
+  defp already_gone_is_deleted({:error, :meeting_not_found}, provider_type, room_id) do
+    Logger.info("Meeting room already gone on the provider, treating as deleted",
+      provider: provider_type,
+      room_ref: Redactor.fingerprint(room_id)
+    )
+
+    :ok
+  end
+
+  defp already_gone_is_deleted(result, _provider_type, _room_id), do: result
+
   defp callback_exported?(module, fun, arity) do
     Code.ensure_loaded?(module) and function_exported?(module, fun, arity)
   end

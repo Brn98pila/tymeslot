@@ -357,9 +357,6 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorker do
       :ok ->
         opts[:on_deleted].()
 
-      {:error, :meeting_not_found} ->
-        opts[:on_deleted].()
-
       {:error, :circuit_open} ->
         :circuit_open
 

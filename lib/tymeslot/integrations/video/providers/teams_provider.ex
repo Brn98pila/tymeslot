@@ -129,7 +129,7 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProvider do
   @doc """
   Deletes a room's event, so a cancelled booking's Teams meeting does not
   linger in the organiser's calendar. An event already gone answers
-  `{:error, :meeting_not_found}`, which the sync treats as done.
+  `{:error, :meeting_not_found}`, which `ProviderAdapter` turns into `:ok`.
   """
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def delete_meeting_room(room_id, config) when is_binary(room_id) do
@@ -367,7 +367,7 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProvider do
   defp handle_failed_write({:error, reason}, _config), do: {:error, reason}
 
   # A room's later writes (a reschedule, a cancellation) only need to land: a
-  # 404 is the room already gone, which the sync treats as done.
+  # 404 is the room already gone, which a delete counts as done.
   defp handle_room_write({:ok, %Req.Response{status: status}}, _config) when status in 200..299,
     do: :ok
 

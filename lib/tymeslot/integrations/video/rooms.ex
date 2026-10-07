@@ -214,8 +214,8 @@ defmodule Tymeslot.Integrations.Video.Rooms do
 
   Looks up the provider for `integration_id`, dispatches to the provider's
   `delete_meeting_room/2` callback. Providers without a server-side meeting
-  object silently succeed. A "not found" response from the provider also
-  resolves to `:ok` so cancellation is idempotent.
+  object silently succeed, and so does a room the provider no longer has
+  (`ProviderAdapter.delete_meeting_room/3`), so cancellation is idempotent.
 
   ## Required opts
     - `:integration_id` — the video integration that owns the room

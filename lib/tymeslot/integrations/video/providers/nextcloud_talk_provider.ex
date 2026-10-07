@@ -131,11 +131,7 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider do
   def delete_meeting_room(_room_id, %{needs_reauth: true}), do: {:error, :unauthorized}
 
   def delete_meeting_room(room_id, config) when is_binary(room_id) do
-    case config |> credentials() |> Client.delete_room(room_id) |> tolerate_preserved(config) do
-      # Already gone, which is what a delete wants: cancelling stays idempotent.
-      {:error, :meeting_not_found} -> :ok
-      result -> result
-    end
+    config |> credentials() |> Client.delete_room(room_id) |> tolerate_preserved(config)
   end
 
   @impl ProviderBehaviour

@@ -493,9 +493,9 @@ defmodule Tymeslot.Workers.VideoSyncWorker do
   defp room_changes(%{kind: :event_room, record: room}),
     do: [start_time: room.lobby_opens_at, end_time: room.ends_at]
 
-  # The provider treats a missing remote meeting as success, so :ok and the
-  # idempotent not-found cases both arrive here as :ok. Anything else is a
-  # genuine failure worth retrying via Oban's backoff.
+  # `ProviderAdapter` treats a missing remote meeting as deleted, so a delete
+  # and the idempotent not-found case both arrive here as :ok. Anything else
+  # is a genuine failure worth retrying via Oban's backoff.
   #
   # Clearing the room id after a delete is what makes "still holding a room id"
   # mean "cleanup has not happened yet", which both
@@ -507,13 +507,15 @@ defmodule Tymeslot.Workers.VideoSyncWorker do
 
   defp handle_result(:ok, _action, _target, _executions), do: :ok
 
+  # A room gone before its update has nothing left to move. (A delete never
+  # sees this: `ProviderAdapter` counts a room already gone as deleted.)
   defp handle_result({:error, :meeting_not_found}, action, target, _executions) do
     Logger.info(
       "Provider video meeting already gone, treating as synced",
       target.log ++ [action: action]
     )
 
-    if action in @removals, do: clear_room(target), else: :ok
+    :ok
   end
 
   # The integration's OAuth grant lacks the scope this action needs. Only the
