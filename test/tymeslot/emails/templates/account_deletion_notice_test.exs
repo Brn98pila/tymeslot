@@ -14,7 +14,7 @@ defmodule Tymeslot.Emails.Templates.AccountDeletionNoticeTest do
       text = AccountDeletionNotice.render_text(@recipient, @at, "https://example.com/auth/login")
       html = AccountDeletionNotice.render(@recipient, @at, "https://example.com/auth/login")
 
-      assert text =~ "scheduled for deletion on October 16, 2026"
+      assert text =~ "scheduled for deletion on 16 October 2026"
       assert text =~ "sign in before that date and you can restore your account"
       assert text =~ "upcoming bookings will be deleted from Tymeslot"
       assert text =~ "Your guests will not be notified"
@@ -33,9 +33,9 @@ defmodule Tymeslot.Emails.Templates.AccountDeletionNoticeTest do
       text = AccountDeletionNotice.render_text(recipient, at, "https://example.com/auth/login")
       html = AccountDeletionNotice.render(recipient, at, "https://example.com/auth/login")
 
-      assert text =~ "scheduled for deletion on October 17, 2026"
-      assert html =~ "October 17, 2026"
-      refute html =~ "October 16, 2026"
+      assert text =~ "scheduled for deletion on 17 October 2026"
+      assert html =~ "17 October 2026"
+      refute html =~ "16 October 2026"
     end)
   end
 

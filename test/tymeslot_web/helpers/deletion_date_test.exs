@@ -15,6 +15,6 @@ defmodule TymeslotWeb.Helpers.DeletionDateTest do
     assert DeletionDate.format(~U[2026-10-16 10:00:00Z], user) == "16. Oktober 2026"
 
     Gettext.put_locale(TymeslotWeb.Gettext, "en")
-    assert DeletionDate.format(~U[2026-10-16 10:00:00Z], user) == "October 16, 2026"
+    assert DeletionDate.format(~U[2026-10-16 10:00:00Z], user) == "16 October 2026"
   end
 end

@@ -93,8 +93,8 @@ defmodule TymeslotWeb.AccountDeletion.FrozenAccountTest do
 
       html = conn |> log_in_user(pending) |> get(~p"/auth/restore") |> html_response(200)
 
-      assert html =~ "October 17, 2036"
-      refute html =~ "October 16, 2036"
+      assert html =~ "17 October 2036"
+      refute html =~ "16 October 2036"
     end
 
     test "restores the account and goes on to the dashboard", %{conn: conn, user: user} do

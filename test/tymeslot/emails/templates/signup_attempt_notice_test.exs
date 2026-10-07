@@ -82,7 +82,7 @@ defmodule Tymeslot.Emails.Templates.SignupAttemptNoticeTest do
           SignupAttemptNotice.render_text(user, @sign_in_url, @reset_url)
         end)
 
-      assert text =~ "scheduled for deletion on October 17, 2026"
+      assert text =~ "scheduled for deletion on 17 October 2026"
     end
 
     test "names the deletion date and both ways forward" do
@@ -99,7 +99,7 @@ defmodule Tymeslot.Emails.Templates.SignupAttemptNoticeTest do
           SignupAttemptNotice.render_text(user, @sign_in_url, @reset_url)
         end)
 
-      assert text =~ "scheduled for deletion on October 16, 2026"
+      assert text =~ "scheduled for deletion on 16 October 2026"
       assert text =~ "sign up again after that date"
       refute text =~ "which already has an account"
     end
