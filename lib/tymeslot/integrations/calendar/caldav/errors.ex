@@ -153,6 +153,9 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Errors do
   """
   @spec terminal_error?(Base.error_reason() | term()) :: boolean()
   def terminal_error?(:method_not_allowed), do: true
+  # The body outgrew its byte budget: the server answered, and a retry minutes
+  # later downloads the same oversized answer again.
+  def terminal_error?(:response_too_large), do: true
   def terminal_error?({:unexpected_status, status}) when status in 400..499, do: true
   def terminal_error?(_other), do: false
 

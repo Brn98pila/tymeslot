@@ -23,6 +23,7 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker.ErrorsTest do
   alias Tymeslot.EmailServiceMock
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.Runtime.ClientManager
+  alias Tymeslot.Integrations.HealthCheck.Monitor
   alias Tymeslot.Workers.EmailWorker
   alias Tymeslot.Workers.SyncCalDavCalendarWorker
 
@@ -353,6 +354,44 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker.ErrorsTest do
         Repo.get!(Tymeslot.Integrations.Calendar.CalendarIntegrationSchema, integration.id)
 
       assert updated.calendar_paths == [path1(), path2()]
+      assert updated.needs_reauth == false
+    end
+
+    test "discards a calendar read past the byte budget and counts it against health" do
+      integration =
+        insert(:calendar_integration,
+          provider: "caldav",
+          is_active: true,
+          caldav_sync_tier: 3,
+          calendar_paths: [path1()]
+        )
+
+      oversized = String.duplicate(" ", 8 * 1024 * 1024 + 1)
+
+      ReqTest.stub(:tymeslot_http, fn conn ->
+        conn
+        |> Conn.put_resp_header("content-type", "application/xml")
+        |> Conn.send_resp(207, oversized)
+      end)
+
+      # The server answered, and a retry downloads the same oversized answer.
+      assert {:discard, reason} =
+               perform_job(SyncCalDavCalendarWorker, %{
+                 "calendar_integration_id" => integration.id
+               })
+
+      assert reason == "CalDAV server returned more data than Tymeslot can process at once"
+      # An expected end of the job: no error report every cycle.
+      assert SyncCalDavCalendarWorker.expected_outcome?(reason)
+
+      updated =
+        Repo.get!(Tymeslot.Integrations.Calendar.CalendarIntegrationSchema, integration.id)
+
+      # The failure streak is what reaches the owner's integration badge.
+      assert Monitor.get_state(:calendar, integration.id, integration.user_id).consecutive_sync_failures ==
+               1
+
+      assert updated.calendar_paths == [path1()]
       assert updated.needs_reauth == false
     end
 
