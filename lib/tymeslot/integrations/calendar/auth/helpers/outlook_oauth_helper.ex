@@ -19,9 +19,9 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
   alias Tymeslot.Integrations.Common.OAuth.AccountMatch
   alias Tymeslot.Integrations.Common.OAuth.IdToken
   alias Tymeslot.Integrations.Common.OAuth.State
-  alias Tymeslot.Integrations.Common.OAuth.TokenExchange
   alias Tymeslot.Integrations.Shared.MicrosoftConfig
   alias Tymeslot.Integrations.Shared.OAuth.ProviderHelpers
+  alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
   alias Tymeslot.Workers.RefreshOutlookCalendarWorker
 
   @calendar_scope "https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/User.Read offline_access openid profile email"
@@ -103,14 +103,22 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
   @impl Tymeslot.Integrations.Calendar.Auth.OAuthHelperBehaviour
   @spec exchange_code_for_tokens(String.t(), String.t()) :: {:ok, map()} | {:error, String.t()}
   def exchange_code_for_tokens(code, redirect_uri) do
-    TokenExchange.exchange_code_for_tokens(
-      code,
-      redirect_uri,
-      @token_url,
-      outlook_client_id(),
-      outlook_client_secret(),
-      @calendar_scope
-    )
+    body = %{
+      code: code,
+      client_id: outlook_client_id(),
+      client_secret: outlook_client_secret(),
+      redirect_uri: redirect_uri,
+      grant_type: "authorization_code",
+      scope: @calendar_scope
+    }
+
+    case TokenEndpoint.exchange_code(@token_url, body,
+           fallback_scope: @calendar_scope,
+           log_context: [provider: :outlook]
+         ) do
+      {:ok, tokens} -> {:ok, tokens}
+      {:error, error} -> {:error, TokenEndpoint.error_message(:exchange, error)}
+    end
   end
 
   # Private functions

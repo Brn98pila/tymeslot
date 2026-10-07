@@ -97,6 +97,17 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelperTest do
       assert {:error, msg} = GoogleOAuthHelper.exchange_code_for_tokens("code", "uri")
       assert msg =~ "HTTP 400"
     end
+
+    # A proxy answering the callback's code exchange with an HTML 200 used to
+    # raise `Jason.DecodeError` and crash the callback request.
+    test "reports a 200 with a non-JSON body as an error" do
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, _body, _headers, _opts ->
+        {:ok, %{status: 200, body: "<html>Sign in to the network</html>"}}
+      end)
+
+      assert {:error, "OAuth token exchange failed: HTTP 200 (see logs for details)"} =
+               GoogleOAuthHelper.exchange_code_for_tokens("code", "uri")
+    end
   end
 
   describe "refresh_access_token/2" do

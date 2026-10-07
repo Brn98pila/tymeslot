@@ -10,7 +10,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
 
   Zoom requires HTTP Basic Auth on the token endpoint
   (`Authorization: Basic base64(client_id:client_secret)`). The shared
-  `Tymeslot.Integrations.Common.OAuth.TokenExchange` module accepts a `:headers`
+  `Tymeslot.Integrations.Shared.OAuth.TokenEndpoint` module accepts a `:headers`
   option that lets us thread that header through both the
   authorization-code exchange and the refresh-token flow without duplicating
   HTTP, JSON, retry, redaction, and logging plumbing here.
@@ -21,10 +21,9 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.Logging.Redactor
   alias Tymeslot.Infrastructure.Retry
-  alias Tymeslot.Integrations.Common.OAuth.ErrorParser
   alias Tymeslot.Integrations.Common.OAuth.State
-  alias Tymeslot.Integrations.Common.OAuth.TokenExchange
   alias Tymeslot.Integrations.Shared.OAuth.ProviderHelpers
+  alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
   alias Tymeslot.Integrations.Shared.ZoomConfig
   alias Tymeslot.Integrations.Video.OAuthTokenManager
   alias Tymeslot.Integrations.Video.Providers.ZoomProvider.Scopes
@@ -98,7 +97,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
   Refreshes an access token using the refresh token.
 
   `opts` takes a `:log_context`, forwarded to
-  `TokenExchange.refresh_access_token/3`. Callers holding the integration ids
+  `TokenEndpoint.refresh/3`. Callers holding the integration ids
   should pass them: without them a failure line names only the provider.
   """
   @impl Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperBehaviour
@@ -113,22 +112,16 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
     }
 
     with {:ok, headers} <- basic_auth_headers() do
-      # No second log line here: `TokenExchange` already logs the status and
-      # the redacted body, and now names the provider too.
-      case TokenExchange.refresh_access_token(@token_url, body,
+      # No second log line here: `TokenEndpoint` already logs the status and
+      # the redacted body, and names the provider too.
+      case TokenEndpoint.refresh(@token_url, body,
              fallback_refresh_token: refresh_token,
              fallback_scope: scope,
              headers: headers,
              log_context: Keyword.merge(Keyword.get(opts, :log_context, []), provider: :zoom)
            ) do
-        {:ok, tokens} ->
-          {:ok, tokens}
-
-        {:error, {:http_error, status, resp_body}} ->
-          {:error, ErrorParser.build_message("Token refresh failed", status, resp_body)}
-
-        {:error, {:network_error, reason}} ->
-          {:error, "Network error during token refresh: #{inspect(reason)}"}
+        {:ok, tokens} -> {:ok, tokens}
+        {:error, error} -> {:error, TokenEndpoint.error_message(:refresh, error)}
       end
     end
   end
@@ -168,20 +161,24 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
     })
   end
 
+  # Zoom takes the client credentials as basic auth, not in the body.
   defp fetch_tokens(code, redirect_uri) do
-    with {:ok, client_id} <- ZoomConfig.fetch_client_id(),
-         {:ok, client_secret} <- ZoomConfig.fetch_client_secret(),
-         {:ok, headers} <- basic_auth_headers() do
-      TokenExchange.exchange_code_for_tokens(
-        code,
-        redirect_uri,
-        @token_url,
-        client_id,
-        client_secret,
-        zoom_scope(),
-        headers: headers,
-        omit_body_credentials: true
-      )
+    body = %{
+      code: code,
+      redirect_uri: redirect_uri,
+      grant_type: "authorization_code",
+      scope: zoom_scope()
+    }
+
+    with {:ok, headers} <- basic_auth_headers() do
+      case TokenEndpoint.exchange_code(@token_url, body,
+             fallback_scope: zoom_scope(),
+             headers: headers,
+             log_context: [provider: :zoom]
+           ) do
+        {:ok, tokens} -> {:ok, tokens}
+        {:error, error} -> {:error, TokenEndpoint.error_message(:exchange, error)}
+      end
     end
   end
 

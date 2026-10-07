@@ -7,12 +7,11 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
   state management, and provides flexible scope configuration.
   """
 
-  alias Tymeslot.Clock
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Integrations.Common.OAuth.{ErrorParser, IdToken, State, TokenExchange}
+  alias Tymeslot.Integrations.Common.OAuth.{IdToken, State}
   alias Tymeslot.Integrations.Google.Endpoints
   alias Tymeslot.Integrations.Shared.OAuth.ProviderHelpers
-  alias Tymeslot.Integrations.Shared.OAuth.TokenFlow
+  alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
 
   require Logger
 
@@ -96,9 +95,11 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
       grant_type: "authorization_code"
     }
 
-    case TokenFlow.exchange_code(Endpoints.token_url(), body, log_context: [provider: :google]) do
-      {:ok, response} ->
-        tokens = build_token_map(response)
+    case TokenEndpoint.exchange_code(Endpoints.token_url(), body,
+           log_context: [provider: :google]
+         ) do
+      {:ok, tokens} ->
+        tokens = build_token_map(tokens)
 
         case validate_state(state) do
           {:ok, %{user_id: user_id} = state_data} ->
@@ -114,13 +115,10 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
             {:error, reason}
         end
 
-      # No second log line here: `TokenFlow` already logs the status and the
-      # redacted body, and names the provider too.
-      {:error, {:http_error, status, body}} ->
-        {:error, ErrorParser.build_message("OAuth token exchange failed", status, body)}
-
-      {:error, {:network_error, reason}} ->
-        {:error, "Network error during token exchange: #{inspect(reason)}"}
+      # No second log line here: `TokenEndpoint` already logs the status and
+      # the redacted body, and names the provider too.
+      {:error, error} ->
+        {:error, TokenEndpoint.error_message(:exchange, error)}
     end
   end
 
@@ -135,7 +133,7 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
   ## Parameters
     - refresh_token: The refresh token
     - current_scope: Current token scope (optional)
-    - opts: `:log_context`, forwarded to `TokenExchange.refresh_access_token/3`
+    - opts: `:log_context`, forwarded to `TokenEndpoint.refresh/3`
 
   Returns {:ok, tokens} or {:error, reason}
   """
@@ -152,21 +150,15 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
     # Add scope if provided to maintain same scope
     body = if current_scope, do: Map.put(body, :scope, current_scope), else: body
 
-    # No second log line here: `TokenExchange` already logs the status and the
-    # redacted body, and now names the provider too.
-    case TokenExchange.refresh_access_token(Endpoints.token_url(), body,
+    # No second log line here: `TokenEndpoint` already logs the status and the
+    # redacted body, and names the provider too.
+    case TokenEndpoint.refresh(Endpoints.token_url(), body,
            fallback_refresh_token: refresh_token,
            fallback_scope: current_scope,
            log_context: Keyword.merge(Keyword.get(opts, :log_context, []), provider: :google)
          ) do
-      {:ok, tokens} ->
-        {:ok, tokens}
-
-      {:error, {:http_error, status, body}} ->
-        {:error, ErrorParser.build_message("Token refresh failed", status, body)}
-
-      {:error, {:network_error, reason}} ->
-        {:error, "Network error during token refresh: #{inspect(reason)}"}
+      {:ok, tokens} -> {:ok, tokens}
+      {:error, error} -> {:error, TokenEndpoint.error_message(:refresh, error)}
     end
   end
 
@@ -201,16 +193,17 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
 
   # Private functions
 
-  defp build_token_map(response) do
-    expires_at = DateTime.add(Clock.utc_now(), response["expires_in"], :second)
-
+  # Adds the account the id_token names, so a reconnect can match the
+  # integration it belongs to. The token endpoint result itself carries the
+  # raw id_token, which nothing downstream needs.
+  defp build_token_map(tokens) do
     {provider_account_id, provider_account_email} =
-      case IdToken.decode(response["id_token"]) do
+      case IdToken.decode(tokens.id_token) do
         {:ok, claims} ->
           {claims.sub, claims.email}
 
         {:error, reason} ->
-          if response["id_token"] do
+          if tokens.id_token do
             Logger.warning(
               "Failed to decode Google id_token — account dedup falling back to legacy match",
               reason: LogFormat.reason(reason)
@@ -220,14 +213,12 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
           {nil, nil}
       end
 
-    %{
-      access_token: response["access_token"],
-      refresh_token: response["refresh_token"],
-      expires_at: expires_at,
-      scope: response["scope"],
+    tokens
+    |> Map.delete(:id_token)
+    |> Map.merge(%{
       provider_account_id: provider_account_id,
       provider_account_email: provider_account_email
-    }
+    })
   end
 
   defp build_scope_string(scopes) when is_list(scopes) do

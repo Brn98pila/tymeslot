@@ -17,12 +17,9 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Shared.AccessToken
   alias Tymeslot.Integrations.Calendar.Shared.ApiResponse
-  alias Tymeslot.Integrations.Common.OAuth.ErrorParser
   alias Tymeslot.Integrations.Common.OAuth.Token, as: OAuthToken
-  alias Tymeslot.Integrations.Common.OAuth.TokenExchange
   alias Tymeslot.Integrations.Google.Endpoints
-
-  import ErrorParser, only: [is_oauth_error_status: 1]
+  alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
 
   @base_url "https://www.googleapis.com/calendar/v3"
 
@@ -458,26 +455,16 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
         "client_secret" => client_secret
       }
 
-      case TokenExchange.refresh_access_token(Endpoints.token_url(), body,
-             fallback_refresh_token: integration.refresh_token,
-             log_context: [
-               integration_id: integration.id,
-               user_id: integration.user_id,
-               provider: :google
-             ]
-           ) do
-        {:ok, %{access_token: access_token, refresh_token: new_refresh, expires_at: expires_at}} ->
-          {:ok, {access_token, new_refresh, expires_at}}
-
-        {:error, {:http_error, status, body}} when is_oauth_error_status(status) ->
-          {:error, :unauthorized, ErrorParser.build_message("Token refresh failed", status, body)}
-
-        {:error, {:http_error, status, _body}} ->
-          {:error, :network_error, "HTTP #{status}"}
-
-        {:error, {:network_error, reason}} ->
-          {:error, :network_error, "Network error: #{inspect(reason)}"}
-      end
+      ApiResponse.token_refresh(
+        TokenEndpoint.refresh(Endpoints.token_url(), body,
+          fallback_refresh_token: integration.refresh_token,
+          log_context: [
+            integration_id: integration.id,
+            user_id: integration.user_id,
+            provider: :google
+          ]
+        )
+      )
     else
       {:error, :misconfigured} ->
         {:error, :authentication_error, "Google OAuth credentials not configured"}
