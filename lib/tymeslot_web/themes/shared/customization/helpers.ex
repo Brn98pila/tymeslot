@@ -7,6 +7,7 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
   alias Tymeslot.Demo
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Tokens
+  alias TymeslotWeb.Themes.Shared.Journey.Navigators.{Continuous, Transcript}
 
   @doc """
   Assigns `:theme_tokens` to a socket: the `%Tokens{}` the theme's spec builds
@@ -30,6 +31,10 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
   descriptor, or nil), `@has_video_background` and `@show_language_switcher`
   so each theme wrapper doesn't duplicate this logic; wrappers never read the
   tokens' media themselves.
+
+  `@show_language_switcher` is the wrapper's own choice when it passes one,
+  else true on the journey's first moment (the classic overview) and on every
+  moment of a `Continuous` or `Transcript` page.
   """
   @spec prepare_wrapper_assigns(map()) :: map()
   def prepare_wrapper_assigns(assigns) do
@@ -38,13 +43,28 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
     show_language_switcher =
       if is_boolean(assigns[:show_language_switcher]),
         do: assigns[:show_language_switcher],
-        else: assigns[:current_state] == :overview
+        else: language_switcher?(assigns[:journey], assigns[:current_state])
 
     assigns
     |> assign(:background, background)
     |> assign(:has_video_background, match?(%{kind: :video}, background))
     |> assign(:show_language_switcher, show_language_switcher)
   end
+
+  # A page that opens its moments by itself is one page, so the switcher is
+  # always on it; a paged journey shows it on its first moment (the classic
+  # overview). A page with no journey keeps the overview rule. The journey is
+  # matched as a map, not as `%Journey{}`: a struct pattern would make every
+  # wrapper that imports this module depend on the journey engine at compile
+  # time.
+  defp language_switcher?(%{navigator: navigator}, _current_state)
+       when navigator in [Continuous, Transcript],
+       do: true
+
+  defp language_switcher?(%{moments: [%{key: first} | _rest]}, current_state),
+    do: current_state == first
+
+  defp language_switcher?(_no_journey, current_state), do: current_state == :overview
 
   defp background(%Tokens{media: media}), do: media[:background]
   defp background(_no_tokens), do: nil
