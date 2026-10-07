@@ -134,6 +134,30 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
       assert :ok = TokenRefreshJob.perform(%Oban.Job{args: %{"integration_id" => integration.id}})
     end
 
+    # The job refreshes ahead of expiry, within the two-hour window it was
+    # enqueued for, rather than leaving the token to the first API call.
+    test "refreshes a token that expires in about 90 minutes" do
+      integration =
+        insert(:calendar_integration,
+          user: insert(:user),
+          provider: "google",
+          token_expires_at: DateTime.add(DateTime.utc_now(:second), 90, :minute),
+          refresh_token: "rt-123"
+        )
+
+      expect(GoogleCalendarAPIMock, :refresh_token, fn _integration ->
+        {:ok, {"ahead-of-time", "rt-123", DateTime.add(DateTime.utc_now(:second), 1, :hour)}}
+      end)
+
+      assert :ok =
+               TokenRefreshJob.perform(%Oban.Job{args: %{"integration_id" => integration.id}})
+
+      updated = Repo.get!(CalendarIntegrationSchema, integration.id)
+
+      assert CalendarIntegrationSchema.decrypt_oauth_tokens(updated).access_token ==
+               "ahead-of-time"
+    end
+
     test "leaves an outstanding needs_reauth flag and its sync_error intact on a successful refresh" do
       # The observed production loop: a sync worker flags an integration whose
       # booking calendar was deleted, the hourly token refresh writes fresh
@@ -265,23 +289,22 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
     end
 
     test "retries a refreshed token that failed to persist instead of flagging the owner" do
-      # `Tokens.persist_and_return/4` reports a failed write of freshly
-      # refreshed tokens as `{:error, :token_persistence_failed}`; the API
-      # error passes through `Tokens.perform_refresh/1` unchanged, so the mock
-      # stands in for it. The provider accepted the credential, so the owner
-      # has nothing to reconnect and the write is worth another attempt.
+      # The provider accepted the credential and answered new tokens, but the
+      # write failed: the owner has nothing to reconnect, and the write is
+      # worth another attempt.
       integration = insert_expired_google_integration(insert(:user))
 
       expect(GoogleCalendarAPIMock, :refresh_token, fn _integration ->
-        {:error, :token_persistence_failed}
+        {:ok, {"new-access", "new-refresh", "not a timestamp"}}
       end)
 
-      assert {:error, _reason} =
+      assert {:error, "token_persist_failed"} =
                TokenRefreshJob.perform(%Oban.Job{args: %{"integration_id" => integration.id}})
 
       updated = Repo.get!(CalendarIntegrationSchema, integration.id)
       refute updated.needs_reauth
       assert updated.sync_error =~ "RETRYABLE"
+      assert updated.access_token_encrypted == integration.access_token_encrypted
 
       refute_enqueued(worker: EmailWorker)
     end
