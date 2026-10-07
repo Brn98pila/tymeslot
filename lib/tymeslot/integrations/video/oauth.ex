@@ -16,7 +16,7 @@ defmodule Tymeslot.Integrations.Video.OAuth do
   rather than being forced into a shared shape.
   """
 
-  alias Tymeslot.Integrations.Google.GoogleOAuthHelper
+  alias Tymeslot.Integrations.Shared.OAuth.GoogleOAuthHelper
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.Integrations.Shared.OAuthConfig
   alias Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper

@@ -5,8 +5,8 @@ defmodule Tymeslot.OAuthFlowHelpers do
   started for the user, so the callback can consume it.
   """
 
-  alias Tymeslot.Integrations.Common.OAuth.State
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
+  alias Tymeslot.Integrations.Shared.OAuth.State
 
   @doc """
   Starts `user_id`'s `provider` flow and returns a state for it signed with

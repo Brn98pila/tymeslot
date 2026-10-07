@@ -9,8 +9,8 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
   alias Tymeslot.Integrations.Calendar.Google.OAuthHelper, as: GoogleOAuthHelper
   alias Tymeslot.Integrations.Calendar.Google.Provider, as: GoogleProvider
   alias Tymeslot.Integrations.Calendar.Outlook.OAuthHelper, as: OutlookOAuthHelper
-  alias Tymeslot.Integrations.Common.OAuth.State
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
+  alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Integrations.Shared.OAuthConfig
   alias TymeslotWeb.Endpoint
 

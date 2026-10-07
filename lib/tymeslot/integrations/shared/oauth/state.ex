@@ -1,4 +1,4 @@
-defmodule Tymeslot.Integrations.Common.OAuth.State do
+defmodule Tymeslot.Integrations.Shared.OAuth.State do
   @moduledoc """
   Shared OAuth state utilities for generating and validating state parameters.
 

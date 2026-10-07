@@ -13,11 +13,11 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Logging.Redactor
   alias Tymeslot.Infrastructure.Retry
-  alias Tymeslot.Integrations.Common.OAuth.IdToken
-  alias Tymeslot.Integrations.Common.OAuth.State
   alias Tymeslot.Integrations.Shared.MicrosoftConfig
+  alias Tymeslot.Integrations.Shared.OAuth.IdToken
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.Integrations.Shared.OAuth.ProviderHelpers
+  alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
   alias Tymeslot.Integrations.Video.OAuthTokenManager
 

@@ -6,7 +6,7 @@ defmodule Tymeslot.Integrations.Video.OAuthCallbackTest do
   import Mox
   import Tymeslot.Factory
 
-  alias Tymeslot.Integrations.Common.OAuth.State
+  alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Integrations.Video.OAuthCallback
 
   setup :verify_on_exit!

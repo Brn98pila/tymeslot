@@ -11,12 +11,12 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
   alias Ecto.Adapters.SQL.Sandbox
   alias Oban.Job
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
-  alias Tymeslot.Integrations.Google.GoogleOAuthHelper
   alias Tymeslot.Integrations.HealthCheck
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries
   alias Tymeslot.Integrations.HealthCheck.Monitor
   alias Tymeslot.Integrations.HealthCheck.ResponseHandler
   alias Tymeslot.Integrations.HealthCheck.Scheduler
+  alias Tymeslot.Integrations.Shared.OAuth.GoogleOAuthHelper
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Repo
   alias Tymeslot.Workers.EmailWorker

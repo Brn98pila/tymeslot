@@ -6,7 +6,7 @@ defmodule Tymeslot.Integrations.Calendar.OAuthTest do
   import Mox
 
   alias Tymeslot.Integrations.Calendar.OAuth
-  alias Tymeslot.Integrations.Common.OAuth.State
+  alias Tymeslot.Integrations.Shared.OAuth.State
   alias TymeslotWeb.Endpoint
 
   # Make sure mocks are verified

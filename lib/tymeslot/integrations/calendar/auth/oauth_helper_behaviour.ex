@@ -4,7 +4,7 @@ defmodule Tymeslot.Integrations.Calendar.Auth.OAuthHelperBehaviour do
   """
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
-  alias Tymeslot.Integrations.Common.OAuth.State
+  alias Tymeslot.Integrations.Shared.OAuth.State
 
   @callback authorization_url(pos_integer(), String.t()) :: String.t()
   @callback authorization_url(pos_integer(), String.t(), list(atom() | String.t()) | keyword()) ::

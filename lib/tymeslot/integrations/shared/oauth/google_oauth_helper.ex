@@ -1,4 +1,4 @@
-defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
+defmodule Tymeslot.Integrations.Shared.OAuth.GoogleOAuthHelper do
   @moduledoc """
   Shared Google OAuth helper for all Google integrations.
 
@@ -8,10 +8,11 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
   """
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Integrations.Common.OAuth.{IdToken, State}
   alias Tymeslot.Integrations.Shared.GoogleConfig
+  alias Tymeslot.Integrations.Shared.OAuth.IdToken
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.Integrations.Shared.OAuth.ProviderHelpers
+  alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
 
   require Logger

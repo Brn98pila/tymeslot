@@ -8,7 +8,7 @@ defmodule TymeslotWeb.CalendarOAuthControllerTest do
   alias Tymeslot.Infrastructure.DashboardCache
   alias Tymeslot.Integrations.Calendar.Google.OAuthHelper, as: GoogleCalendarOAuthHelper
   alias Tymeslot.Integrations.Calendar.Outlook.OAuthHelper, as: OutlookCalendarOAuthHelper
-  alias Tymeslot.Integrations.Common.OAuth.State
+  alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Security.RateLimiter
 
   import Tymeslot.AuthTestHelpers, only: [log_in_user: 2]

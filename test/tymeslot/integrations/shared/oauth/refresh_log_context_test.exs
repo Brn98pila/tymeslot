@@ -1,4 +1,4 @@
-defmodule Tymeslot.Integrations.Common.OAuth.RefreshLogContextTest do
+defmodule Tymeslot.Integrations.Shared.OAuth.RefreshLogContextTest do
   # async: false: LogCapture attaches a global `:logger` handler, and the OAuth
   # client configuration these helpers read is application-wide.
   use ExUnit.Case, async: false
@@ -7,7 +7,7 @@ defmodule Tymeslot.Integrations.Common.OAuth.RefreshLogContextTest do
 
   import Mox
 
-  alias Tymeslot.Integrations.Google.GoogleOAuthHelper
+  alias Tymeslot.Integrations.Shared.OAuth.GoogleOAuthHelper
   alias Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper
   alias Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper
   alias Tymeslot.Test.LogCapture

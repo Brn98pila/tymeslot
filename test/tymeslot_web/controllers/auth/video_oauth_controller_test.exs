@@ -6,7 +6,7 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
   alias Tymeslot.Dashboard.DashboardContext
   alias Tymeslot.Factory
   alias Tymeslot.Infrastructure.DashboardCache
-  alias Tymeslot.Integrations.Google.GoogleOAuthHelper
+  alias Tymeslot.Integrations.Shared.OAuth.GoogleOAuthHelper
   alias Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
   alias Tymeslot.Security.RateLimiter

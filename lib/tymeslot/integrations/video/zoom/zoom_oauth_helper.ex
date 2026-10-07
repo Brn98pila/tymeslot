@@ -21,9 +21,9 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.Logging.Redactor
   alias Tymeslot.Infrastructure.Retry
-  alias Tymeslot.Integrations.Common.OAuth.State
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.Integrations.Shared.OAuth.ProviderHelpers
+  alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
   alias Tymeslot.Integrations.Shared.ZoomConfig
   alias Tymeslot.Integrations.Video.OAuthTokenManager

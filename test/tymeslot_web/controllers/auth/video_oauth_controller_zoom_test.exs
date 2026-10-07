@@ -8,7 +8,7 @@ defmodule TymeslotWeb.VideoOAuthControllerZoomTest do
   alias Phoenix.Flash
   alias Tymeslot.Factory
   alias Tymeslot.Infrastructure.DashboardCache
-  alias Tymeslot.Integrations.Common.OAuth.State
+  alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
   alias Tymeslot.Integrations.Video.VideoIntegrationSchema
   alias Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper

@@ -16,7 +16,7 @@ defmodule Tymeslot.Integrations.Shared.OAuth.TokenEndpoint do
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Logging.Redactor
-  alias Tymeslot.Integrations.Common.OAuth.ErrorParser
+  alias Tymeslot.Integrations.Shared.OAuth.ErrorParser
 
   require Logger
 

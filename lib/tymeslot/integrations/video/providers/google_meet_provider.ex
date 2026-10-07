@@ -27,7 +27,7 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProvider do
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.HTTPClient
   alias Tymeslot.Infrastructure.Logging.Redactor
-  alias Tymeslot.Integrations.Google.GoogleOAuthHelper
+  alias Tymeslot.Integrations.Shared.OAuth.GoogleOAuthHelper
   alias Tymeslot.Integrations.Shared.ProviderConfigHelper
   alias Tymeslot.Integrations.Video.NeedsReauth
   alias Tymeslot.Integrations.Video.OAuthTokenManager

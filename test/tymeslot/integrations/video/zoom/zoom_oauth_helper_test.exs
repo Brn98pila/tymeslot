@@ -4,7 +4,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
 
   import Mox
 
-  alias Tymeslot.Integrations.Common.OAuth.State
+  alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper
 
   setup :verify_on_exit!

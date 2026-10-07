@@ -14,10 +14,10 @@ defmodule Tymeslot.Integrations.Video.OAuthCallback do
   require Logger
 
   alias Tymeslot.Dashboard.DashboardContext
-  alias Tymeslot.Integrations.Common.OAuth.AccountMatch
-  alias Tymeslot.Integrations.Common.OAuth.State
-  alias Tymeslot.Integrations.Google.GoogleOAuthHelper
+  alias Tymeslot.Integrations.Shared.OAuth.AccountMatch
+  alias Tymeslot.Integrations.Shared.OAuth.GoogleOAuthHelper
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
+  alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Integrations.Video.OAuth
   alias Tymeslot.Integrations.Video.ProviderConfig
   alias Tymeslot.Integrations.Video.Reconnect

@@ -14,7 +14,7 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
   alias Tymeslot.Integrations.Calendar.PrimarySelection
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.CalendarPrimary
-  alias Tymeslot.Integrations.Common.OAuth.AccountMatch
+  alias Tymeslot.Integrations.Shared.OAuth.AccountMatch
 
   @providers %{
     "google" => %{

@@ -17,8 +17,8 @@ defmodule Tymeslot.Integrations.Calendar.Google.OAuthHelper do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CallbackPersistence
   alias Tymeslot.Integrations.Calendar.Google.Provider, as: GoogleProvider
-  alias Tymeslot.Integrations.Common.OAuth.State
-  alias Tymeslot.Integrations.Google.GoogleOAuthHelper
+  alias Tymeslot.Integrations.Shared.OAuth.GoogleOAuthHelper
+  alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Meetings.MeetingListQueries
   alias Tymeslot.Workers.SyncGoogleCalendarWorker
   alias Tymeslot.Workers.VideoRoomWorker

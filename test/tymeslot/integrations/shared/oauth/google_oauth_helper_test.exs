@@ -1,9 +1,9 @@
-defmodule Tymeslot.Integrations.Google.GoogleOAuthHelperTest do
+defmodule Tymeslot.Integrations.Shared.OAuth.GoogleOAuthHelperTest do
   use Tymeslot.DataCase, async: false
   @moduletag :integrations
 
-  alias Tymeslot.Integrations.Common.OAuth.State
-  alias Tymeslot.Integrations.Google.GoogleOAuthHelper
+  alias Tymeslot.Integrations.Shared.OAuth.GoogleOAuthHelper
+  alias Tymeslot.Integrations.Shared.OAuth.State
   import Mox
 
   setup :verify_on_exit!

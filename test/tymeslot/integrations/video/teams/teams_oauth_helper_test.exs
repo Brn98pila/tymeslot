@@ -2,7 +2,7 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelperTest do
   use Tymeslot.DataCase, async: false
   @moduletag :integrations
 
-  alias Tymeslot.Integrations.Common.OAuth.State
+  alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper
   import Mox
 

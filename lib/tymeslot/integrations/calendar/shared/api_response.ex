@@ -22,7 +22,7 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ApiResponse do
 
   alias Tymeslot.Infrastructure.Logging.Redactor
   alias Tymeslot.Integrations.Calendar.HTTP
-  alias Tymeslot.Integrations.Common.OAuth.ErrorParser
+  alias Tymeslot.Integrations.Shared.OAuth.ErrorParser
   alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
 
   import ErrorParser, only: [is_oauth_error_status: 1]

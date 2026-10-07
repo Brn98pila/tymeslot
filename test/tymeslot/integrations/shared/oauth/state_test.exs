@@ -1,4 +1,4 @@
-defmodule Tymeslot.Integrations.Common.OAuth.StateTest do
+defmodule Tymeslot.Integrations.Shared.OAuth.StateTest do
   @moduledoc """
   Tests for OAuth state parameter generation and validation.
   """
@@ -6,7 +6,7 @@ defmodule Tymeslot.Integrations.Common.OAuth.StateTest do
   use ExUnit.Case, async: true
   @moduletag :integrations
 
-  alias Tymeslot.Integrations.Common.OAuth.State
+  alias Tymeslot.Integrations.Shared.OAuth.State
 
   @secret "test-secret-key"
 
