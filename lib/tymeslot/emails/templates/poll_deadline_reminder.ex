@@ -20,6 +20,7 @@ defmodule Tymeslot.Emails.Templates.PollDeadlineReminder do
     TimezoneHelper
   }
 
+  alias Tymeslot.Locales
   alias Tymeslot.Polls.{PollParticipantSchema, PollSchema}
   alias Tymeslot.Profiles
   alias Tymeslot.Profiles.ProfileSchema
@@ -32,7 +33,7 @@ defmodule Tymeslot.Emails.Templates.PollDeadlineReminder do
   @spec render(PollSchema.t(), PollParticipantSchema.t(), String.t()) :: Swoosh.Email.t()
   def render(%PollSchema{} = poll, %PollParticipantSchema{} = participant, voting_url)
       when is_binary(voting_url) do
-    locale = participant.locale || "en"
+    locale = Locales.acceptable(participant.locale) || Locales.booking_default_locale()
     host_name = host_display_name(poll)
     deadline = formatted_deadline(poll, participant, locale)
 

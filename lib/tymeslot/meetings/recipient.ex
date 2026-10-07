@@ -23,6 +23,7 @@ defmodule Tymeslot.Meetings.Recipient do
   """
 
   alias Tymeslot.Bookings.Policy
+  alias Tymeslot.Locales
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.ParticipantQueries
   alias Tymeslot.Meetings.ParticipantSchema
@@ -102,7 +103,7 @@ defmodule Tymeslot.Meetings.Recipient do
       company: participant.company,
       message: participant.message,
       timezone: participant.timezone,
-      locale: participant.locale || "en",
+      locale: Locales.acceptable(participant.locale) || Locales.booking_default_locale(),
       custom_field_answers: participant.custom_field_answers || %{},
       participant_id: participant.id,
       management_token: participant.management_token,

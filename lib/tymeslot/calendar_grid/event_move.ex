@@ -248,7 +248,8 @@ defmodule Tymeslot.CalendarGrid.EventMove do
   @doc """
   The calendar a move to `integration` writes to: `calendar_id` when the
   organiser chose one, else the integration's booking calendar. `nil` for a
-  CalDAV integration whose discovery left no collection at all.
+  CalDAV integration with no collection to write to: discovery left none at
+  all, every collection is read-only, or none is selected.
   """
   @spec destination_calendar_id(map(), String.t() | nil) :: String.t() | nil
   # The chosen calendar first, for every provider: CalDAV writes now honour
@@ -271,10 +272,11 @@ defmodule Tymeslot.CalendarGrid.EventMove do
     end
   end
 
-  # An integration whose discovery left no collection at all has nowhere to
-  # write to. Refusing before the create keeps a destination the cache row
-  # cannot name from accepting the event anyway, which would leave a copy on
-  # the destination while the organiser is told nothing moved.
+  # An integration with no collection to write to (none discovered, every
+  # one read-only, or none selected) has nowhere to put the event. Refusing
+  # before the create keeps a destination the cache row cannot name from
+  # accepting the event anyway, which would leave a copy on the destination
+  # while the organiser is told nothing moved.
   defp ensure_destination(%{provider_calendar_id: nil}), do: {:error, :no_destination_calendar}
   defp ensure_destination(_moved), do: :ok
 
