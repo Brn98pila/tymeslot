@@ -140,6 +140,17 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
     {:error, :unauthorized}
   end
 
+  # The same refusal from the token refresh `AccessToken.with_access_token/4`
+  # runs first: a revoked refresh token. Retrying cannot bring it back, so it
+  # is flagged like the fetch's own 401 rather than retried as a hard failure.
+  defp handle_fetch_result({:error, :unauthorized, _message}, integration) do
+    Logger.warning("Outlook token refresh unauthorised during delta sync",
+      calendar_integration_id: integration.id
+    )
+
+    {:error, :unauthorized}
+  end
+
   defp handle_fetch_result({:error, reason} = fetch_error, integration) do
     Logger.warning("Outlook delta fetch failed",
       calendar_integration_id: integration.id,

@@ -420,7 +420,7 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorkerTest do
         )
 
       expect(OutlookCalendarAPIMock, :refresh_token, fn _integration ->
-        {:error, :unauthorized, "Token refresh failed"}
+        {:error, :api_error, "Token refresh failed"}
       end)
 
       assert {:error, :delta_sync_failed} =
@@ -546,6 +546,25 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorkerTest do
 
       expect(Tymeslot.HTTPClientMock, :request, fn :get, _url, _body, _headers, _opts ->
         {:ok, %{status: 401, body: ~s({"error":"unauthorized"})}}
+      end)
+
+      assert {:discard, _reason} =
+               perform_job(RefreshOutlookCalendarWorker, %{
+                 "calendar_integration_id" => integration.id
+               })
+
+      assert {:ok, %{needs_reauth: true}} = CalendarIntegrationQueries.get(integration.id)
+    end
+
+    test "a refresh token Microsoft has revoked flags the integration instead of retrying" do
+      integration =
+        outlook_integration(
+          graph_delta_link: delta_link(),
+          token_expires_at: DateTime.add(DateTime.utc_now(), -60, :second)
+        )
+
+      expect(OutlookCalendarAPIMock, :refresh_token, fn _integration ->
+        {:error, :unauthorized, "invalid_grant: the refresh token has been revoked"}
       end)
 
       assert {:discard, _reason} =
