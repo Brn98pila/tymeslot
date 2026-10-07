@@ -70,7 +70,7 @@ defmodule Tymeslot.Notifications.Recipients do
         require Logger
 
         Logger.error("Missing organizer_user_id for meeting; using default timezone",
-          meeting_uid: meeting.uid
+          meeting_id: Map.get(meeting, :id)
         )
 
         Profiles.get_default_timezone()
@@ -100,7 +100,7 @@ defmodule Tymeslot.Notifications.Recipients do
 
         Logger.warning(
           "Missing attendee_timezone for meeting; using organizer timezone as emergency fallback",
-          meeting_uid: meeting.uid
+          meeting_id: Map.get(meeting, :id)
         )
 
         get_organizer_timezone(meeting)

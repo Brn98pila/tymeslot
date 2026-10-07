@@ -16,7 +16,6 @@ defmodule Tymeslot.Bookings.Policy do
   @typedoc "A meeting record with the fields required by the policy checks."
   @type meeting_record :: %{
           required(:status) => String.t(),
-          required(:uid) => String.t(),
           required(:start_time) => DateTime.t(),
           required(:end_time) => DateTime.t(),
           optional(atom()) => term()
@@ -70,14 +69,14 @@ defmodule Tymeslot.Bookings.Policy do
 
       meeting_is_current?(meeting) ->
         Logger.info("Blocked cancellation: meeting has already started",
-          meeting_uid: meeting.uid
+          meeting_id: Map.get(meeting, :id)
         )
 
         {:error, {:not_cancellable, :started}}
 
       meeting_is_past?(meeting) ->
         Logger.info("Blocked cancellation: meeting has already occurred",
-          meeting_uid: meeting.uid
+          meeting_id: Map.get(meeting, :id)
         )
 
         {:error, {:not_cancellable, :past}}
@@ -109,11 +108,17 @@ defmodule Tymeslot.Bookings.Policy do
         {:error, {:not_reschedulable, :expired}}
 
       meeting_is_current?(meeting) ->
-        Logger.info("Blocked reschedule: meeting has already started", meeting_uid: meeting.uid)
+        Logger.info("Blocked reschedule: meeting has already started",
+          meeting_id: Map.get(meeting, :id)
+        )
+
         {:error, {:not_reschedulable, :started}}
 
       meeting_is_past?(meeting) ->
-        Logger.info("Blocked reschedule: meeting has already occurred", meeting_uid: meeting.uid)
+        Logger.info("Blocked reschedule: meeting has already occurred",
+          meeting_id: Map.get(meeting, :id)
+        )
+
         {:error, {:not_reschedulable, :past}}
 
       true ->

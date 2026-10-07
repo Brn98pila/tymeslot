@@ -243,7 +243,7 @@ defmodule Tymeslot.Meetings.Scheduling do
       },
       nil,
       write_fn,
-      &log_conflict(meeting.start_time, meeting.end_time, &1, meeting.uid)
+      &log_conflict(meeting.start_time, meeting.end_time, &1, meeting.id)
     )
   rescue
     error ->
@@ -365,14 +365,14 @@ defmodule Tymeslot.Meetings.Scheduling do
     end
   end
 
-  defp log_conflict(start_time, end_time, conflicting_count, meeting_uid \\ nil) do
+  defp log_conflict(start_time, end_time, conflicting_count, meeting_id \\ nil) do
     log_attrs = [
       requested_start: start_time,
       requested_end: end_time,
       conflicting_count: conflicting_count
     ]
 
-    log_attrs = if meeting_uid, do: [{:meeting_uid, meeting_uid} | log_attrs], else: log_attrs
+    log_attrs = if meeting_id, do: [{:meeting_id, meeting_id} | log_attrs], else: log_attrs
 
     Logger.info("Meeting time conflict detected during booking attempt", log_attrs)
   end
@@ -436,7 +436,7 @@ defmodule Tymeslot.Meetings.Scheduling do
 
   defp log_update_conflict(meeting, start_time, end_time, conflicting_count) do
     Logger.warning("Meeting update blocked due to time conflict",
-      meeting_uid: meeting.uid,
+      meeting_id: meeting.id,
       original_start: meeting.start_time,
       original_end: meeting.end_time,
       requested_start: start_time,
