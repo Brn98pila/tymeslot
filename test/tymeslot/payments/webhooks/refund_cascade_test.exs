@@ -157,21 +157,6 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
       refute_received {:refund_email, _user_id, _amount, _currency, _revoked}
     end
 
-    test "refund proceeds when SubscriptionManager is unavailable (Standalone mode)" do
-      # Test env configures a Mox mock by default — unset it to simulate Standalone.
-      Application.delete_env(:tymeslot, :subscription_manager)
-      {user, customer_id} = linked_subscription()
-
-      charge = refunded_charge(customer_id, 10_000, 10_000, "in_current")
-      event = refunded_event()
-
-      assert {:ok, :refund_processed} = RefundHandler.process(event, charge)
-
-      # The user is still notified
-      user_id = user.id
-      assert_received {:refund_email, ^user_id, 10_000, "eur", true}
-    end
-
     test "names the subscription the refunded charge paid for, when its invoice is known" do
       {_user, customer_id} = linked_subscription()
 

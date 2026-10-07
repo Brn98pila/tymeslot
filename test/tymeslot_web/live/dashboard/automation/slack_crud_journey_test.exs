@@ -250,12 +250,13 @@ defmodule TymeslotWeb.Dashboard.Automation.SlackCrudJourneyTest do
         "slack" => %{
           "name" => "Every Event",
           "webhook_url" => "",
-          "webhook_channel_hint" => "#general",
-          "events" => all_events
+          "webhook_channel_hint" => "#general"
         }
       })
       |> render_submit()
 
+      # No events were submitted by hand: the form carries the boxes it
+      # rendered checked, so every one of them must have been.
       assert [updated] = Slack.list_integrations(user.id)
       assert updated.name == "Every Event"
       assert Enum.sort(updated.events) == Enum.sort(all_events)
