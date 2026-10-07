@@ -46,7 +46,13 @@ defmodule Tymeslot.Availability.Conflicts do
         ) :: [DateTime.t()]
   def filter_available_starts([], _events, _duration_minutes, _timezone, _config), do: []
 
-  def filter_available_starts([first | _] = starts, events, duration_minutes, timezone, config) do
+  def filter_available_starts(
+        [first | _rest] = starts,
+        events,
+        duration_minutes,
+        timezone,
+        config
+      ) do
     now = DateTimeUtils.now_in_timezone(timezone)
 
     # The events arrive for the host's whole booking window; only those near
