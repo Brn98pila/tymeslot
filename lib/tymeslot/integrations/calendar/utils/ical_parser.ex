@@ -143,8 +143,9 @@ defmodule Tymeslot.Integrations.Calendar.ICalParser do
         # name. `start_time`/`end_time` above are converted to UTC, which throws
         # the zone away — recurring events need it back to expand occurrences in
         # local wall-clock time across a DST transition (see
-        # `Tymeslot.Integrations.Calendar.ICalNormaliser.expand_event/3`). `nil` for UTC, floating, and
-        # DATE-valued events, none of which have a zone to restore.
+        # `Tymeslot.Integrations.Calendar.ICalNormaliser.expand_occurrences/3`).
+        # `nil` for UTC, floating, and DATE-valued events, none of which have a
+        # zone to restore.
         timezone: dtstart_timezone(dtstart),
         # A DTSTART with neither a TZID nor a `Z` is a floating wall-clock time,
         # which `start_time`/`end_time` above read as UTC. Kept so a caller that
