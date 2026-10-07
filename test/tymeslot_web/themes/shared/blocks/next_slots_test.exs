@@ -158,10 +158,35 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlotsTest do
     assert Floki.attribute(doc, "[data-testid=next-slots-next-week]", "data-intent") == ["later"]
   end
 
+  # A visitor whose week still has free times (a Saturday with weekend
+  # times) must still be able to reach the next one.
+  test "offers the next week after the last day shown, whatever the week holds" do
+    doc = render_slots()
+
+    assert slots(doc, "[data-fact=slot]") != []
+
+    assert Floki.attribute(doc, "[data-testid=next-slots-next-week]", "phx-click") == [
+             "next_week"
+           ]
+
+    [root] = Floki.find(doc, "[data-testid=next-slots]")
+    {_tag, _attrs, children} = root
+
+    classes =
+      Enum.flat_map(children, fn
+        {_tag, _attrs, _children} = child -> Floki.attribute(child, "class")
+        _text -> []
+      end)
+
+    assert List.last(classes) =~ "next-slots__next-week"
+    assert Enum.find_index(classes, &(&1 =~ "next-slots__days")) < length(classes) - 1
+  end
+
   test "marks only the control that moves the week as a period arrow" do
     doc = render_slots()
 
-    assert Floki.find(doc, "[data-intent]") == []
+    assert [{"button", _attrs, _children}] = Floki.find(doc, "[data-intent]")
+    assert Floki.attribute(doc, "[data-testid=next-slots-next-week]", "data-intent") == ["later"]
     assert Floki.attribute(doc, "[data-testid=next-slots-more]", "data-intent") == []
   end
 

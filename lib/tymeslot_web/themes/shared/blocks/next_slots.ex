@@ -12,8 +12,10 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlots do
   sending `load_week` from `phx-mounted` and `phx-connected`, as `WeekGrid`
   does. The page lands the week on the visitor's first free day
   (`NextAvailable`), so the soonest days are in it; when the week holds no
-  free time from today on, the block says so and offers the next week
-  (`next_week`, with the markup contract's `data-intent="later"`). "More times" needs no round trip: the further days are in
+  free time from today on, the block says so. Either way it offers the next
+  week after the last day shown (`next_week`, with the markup contract's
+  `data-intent="later"`), so a visitor whose week still has free times can
+  reach the next one. "More times" needs no round trip: the further days are in
   the page, `hidden`, and the control (`aria-expanded`, `aria-controls` the extra days) reveals
   them, hides itself and moves the focus to the first revealed day's heading, with client commands that survive the
   page's updates. `id` scopes those commands. Clicks go to `target`.
@@ -87,16 +89,7 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlots do
           <%= if @first == [] do %>
             <div class="next-slots__empty">
               <p>{dgettext("booking", "No times available")}</p>
-              <button
-                type="button"
-                class="next-slots__next-week"
-                data-testid="next-slots-next-week"
-                data-intent="later"
-                phx-click="next_week"
-                phx-target={@target}
-              >
-                {dgettext("booking", "Next week")}
-              </button>
+              <.next_week target={@target} />
             </div>
           <% else %>
             <div class="next-slots__days">
@@ -129,9 +122,27 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlots do
             >
               {dgettext("booking", "More times")}
             </button>
+            <.next_week target={@target} />
           <% end %>
       <% end %>
     </div>
+    """
+  end
+
+  attr :target, :any, required: true
+
+  defp next_week(assigns) do
+    ~H"""
+    <button
+      type="button"
+      class="next-slots__next-week"
+      data-testid="next-slots-next-week"
+      data-intent="later"
+      phx-click="next_week"
+      phx-target={@target}
+    >
+      {dgettext("booking", "Next week")}
+    </button>
     """
   end
 
