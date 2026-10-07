@@ -356,7 +356,9 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorkerTest do
       end)
 
       assert {:discard, reason} = run(integration)
-      assert reason =~ "more data than Tymeslot can process at once"
+      assert reason == "Exchange server returned more data than Tymeslot can process at once"
+      # An expected end of the job: no error report every cycle.
+      assert SyncExchangeCalendarWorker.expected_outcome?(reason)
 
       assert %{sync_error: message} = Repo.reload!(integration)
       assert message =~ "more data than Tymeslot can process at once"

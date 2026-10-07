@@ -380,7 +380,9 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker.ErrorsTest do
                  "calendar_integration_id" => integration.id
                })
 
-      assert reason =~ "more data than Tymeslot can process at once"
+      assert reason == "CalDAV server returned more data than Tymeslot can process at once"
+      # An expected end of the job: no error report every cycle.
+      assert SyncCalDavCalendarWorker.expected_outcome?(reason)
 
       updated =
         Repo.get!(Tymeslot.Integrations.Calendar.CalendarIntegrationSchema, integration.id)
