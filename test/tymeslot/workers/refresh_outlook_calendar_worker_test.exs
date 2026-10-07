@@ -9,6 +9,7 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorkerTest do
   import Tymeslot.Factory
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.HealthCheck.Monitor
   alias Tymeslot.Security.Encryption
@@ -230,6 +231,44 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorkerTest do
       {:ok, reloaded} = CalendarIntegrationQueries.get(integration.id)
       assert reloaded.graph_delta_link =~ "$deltatoken=fresh"
       assert is_nil(reloaded.last_full_sync_at)
+    end
+
+    test "re-bootstraps when following the old link fails" do
+      integration =
+        outlook_integration(
+          graph_delta_link:
+            "https://graph.microsoft.com/v1.0/me/calendarView/delta?$deltatoken=old",
+          last_full_sync_at: nil
+        )
+
+      :ok = subscribe_to_sync_topic(integration.user_id)
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :get, _url, _body, _headers, _opts ->
+        {:ok, %{status: 500, body: "boom"}}
+      end)
+
+      # Stores the new link as the real bootstrap does.
+      expect(OutlookCalendarAPIMock, :bootstrap_sync, fn received ->
+        now = DateTime.utc_now(:second)
+        attrs = %{graph_delta_link: "fresh-bootstrap-link", last_full_sync_at: now}
+        CalendarIntegrationWebhookQueries.update_graph_subscription(received, attrs)
+      end)
+
+      expect(OutlookCalendarAPIMock, :register_graph_subscription, fn updated ->
+        assert updated.graph_delta_link == "fresh-bootstrap-link"
+        {:ok, updated}
+      end)
+
+      assert :ok =
+               perform_job(RefreshOutlookCalendarWorker, %{
+                 "calendar_integration_id" => integration.id
+               })
+
+      assert_receive {:calendar_sync_complete, _user_id, _integration_id}
+
+      {:ok, reloaded} = CalendarIntegrationQueries.get(integration.id)
+      assert reloaded.graph_delta_link == "fresh-bootstrap-link"
+      assert %DateTime{} = reloaded.last_full_sync_at
     end
 
     test "retries when both the old link and the re-bootstrap fail" do
