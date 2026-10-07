@@ -1243,6 +1243,7 @@ msgstr "To konto Google nie ma włączonego Google Calendar. Włącz Google Cale
 msgid "Google rejected the stored credentials. Please reconnect the integration."
 msgstr "Google odrzucił zapisane dane logowania. Połącz integrację ponownie."
 
+#: lib/tymeslot/workers/refresh_outlook_calendar_worker.ex
 #: lib/tymeslot/workers/sync_outlook_calendar_worker.ex
 #, elixir-autogen, elixir-format
 msgid "Microsoft rejected the stored credentials. Please reconnect the integration."

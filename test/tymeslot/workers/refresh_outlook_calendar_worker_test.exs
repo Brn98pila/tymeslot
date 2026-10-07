@@ -10,6 +10,7 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorkerTest do
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
+  alias Tymeslot.Integrations.HealthCheck.Monitor
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Workers.RefreshOutlookCalendarWorker
 
@@ -421,6 +422,60 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorkerTest do
 
         assert {row.video_integration_id, row.video_link} == {video.id, link}
       end
+    end
+  end
+
+  # The refresh is the only full Outlook sync for an integration without
+  # webhooks, so its verdict has to reach health state like every other
+  # provider's sync, and a refused credential has to reach the owner.
+  describe "perform/1 - health state" do
+    defp delta_link, do: "https://graph.microsoft.com/v1.0/me/calendarView/delta?$deltatoken=old"
+
+    test "a completed refresh clears a reconnect flag the integration has recovered from" do
+      integration = outlook_integration(graph_delta_link: delta_link(), needs_reauth: true)
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :get, _url, _body, _headers, _opts ->
+        {:ok,
+         %{status: 200, body: Jason.encode!(%{"value" => [], "@odata.deltaLink" => delta_link()})}}
+      end)
+
+      assert :ok =
+               perform_job(RefreshOutlookCalendarWorker, %{
+                 "calendar_integration_id" => integration.id
+               })
+
+      assert {:ok, %{needs_reauth: false}} = CalendarIntegrationQueries.get(integration.id)
+    end
+
+    test "a failed refresh counts towards the failure streak" do
+      integration = outlook_integration(graph_delta_link: delta_link())
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :get, _url, _body, _headers, _opts ->
+        {:ok, %{status: 500, body: ~s({"error":"server_error"})}}
+      end)
+
+      assert {:error, _reason} =
+               perform_job(RefreshOutlookCalendarWorker, %{
+                 "calendar_integration_id" => integration.id
+               })
+
+      assert Monitor.get_state(:calendar, integration.id, integration.user_id).consecutive_sync_failures ==
+               1
+    end
+
+    test "a refused credential flags the integration for reconnection instead of retrying" do
+      integration = outlook_integration(graph_delta_link: delta_link())
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :get, _url, _body, _headers, _opts ->
+        {:ok, %{status: 401, body: ~s({"error":"unauthorized"})}}
+      end)
+
+      assert {:discard, _reason} =
+               perform_job(RefreshOutlookCalendarWorker, %{
+                 "calendar_integration_id" => integration.id
+               })
+
+      assert {:ok, %{needs_reauth: true}} = CalendarIntegrationQueries.get(integration.id)
     end
   end
 end

@@ -59,13 +59,14 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
   stored `graph_delta_link`. Returns `:ok` on success, or `{:error, class}` on
   any failure (already logged with context).
 
-  The class distinguishes a remote that is briefly unwell (`:transient` — a
+  `{:error, :unauthorized}` means Graph refused the stored credentials. Any
+  other class distinguishes a remote that is briefly unwell (`:transient` — a
   Graph 5xx, a timeout, an open circuit) from one that needs somebody to act
   (`:hard` — bad credentials, a failed local write). The caller decides what to
   do with a job that runs out of retries; only `:transient` is safe to abandon
   to the next scheduled sweep.
   """
-  @spec fetch_and_apply(map()) :: :ok | {:error, ErrorAnalysis.error_class()}
+  @spec fetch_and_apply(map()) :: :ok | {:error, ErrorAnalysis.error_class() | :unauthorized}
   def fetch_and_apply(integration) do
     delta_link = integration.graph_delta_link
 
@@ -126,6 +127,17 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
 
     CalendarIntegrationWebhookQueries.update_delta_link(integration, nil)
     {:error, :transient}
+  end
+
+  # Graph refused the stored credentials: only the owner can fix that, so it
+  # is told apart from every other hard failure and the caller flags the
+  # integration for reconnection rather than retrying.
+  defp handle_fetch_result({:error, :unauthorized}, integration) do
+    Logger.warning("Outlook delta fetch unauthorised",
+      calendar_integration_id: integration.id
+    )
+
+    {:error, :unauthorized}
   end
 
   defp handle_fetch_result({:error, reason} = fetch_error, integration) do

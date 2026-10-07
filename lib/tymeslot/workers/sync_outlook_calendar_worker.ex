@@ -215,9 +215,23 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
 
     case OutlookProvider.normalise_events([event], context) do
       {:ok, [_cal_event | _rest] = calendar_events} ->
-        Sync.persist_normalised_events(integration, calendar_events)
-        stamp_external_sync(integration)
-        :ok
+        # A cache write that failed is a cycle that did not sync: the job
+        # retries and health state counts it, rather than the sync being
+        # stamped as done over an event the cache never received.
+        case Sync.persist_normalised_events(integration, calendar_events) do
+          :ok ->
+            stamp_external_sync(integration)
+            :ok
+
+          {:error, reason} ->
+            Logger.error("Outlook event could not be written to the cache",
+              calendar_integration_id: integration.id,
+              graph_resource_id: graph_resource_id,
+              error: LogFormat.reason(reason)
+            )
+
+            {:error, :cache_write_failed}
+        end
 
       {:ok, []} ->
         Logger.warning("Outlook event could not be normalised; skipping",

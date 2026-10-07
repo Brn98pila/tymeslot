@@ -304,6 +304,36 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorkerTest do
       assert health(integration).consecutive_sync_failures == 0
     end
 
+    # An event the cache never received is not a completed sync: the job
+    # retries, and the streak counts it instead of being cleared.
+    test "a failed cache write fails the job and counts as a failed sync" do
+      integration = outlook_integration()
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :get, _url, _body, _headers, _opts ->
+        {:ok,
+         %{
+           status: 200,
+           body:
+             Jason.encode!(%{
+               "id" => "event-health-3",
+               # PostgreSQL refuses a NUL byte in text, so the write fails.
+               "subject" => "Stand\u0000up",
+               "start" => %{"dateTime" => "2026-09-10T09:00:00.0000000", "timeZone" => "UTC"},
+               "end" => %{"dateTime" => "2026-09-10T09:15:00.0000000", "timeZone" => "UTC"}
+             })
+         }}
+      end)
+
+      assert {:error, :cache_write_failed} =
+               perform_job(SyncOutlookCalendarWorker, %{
+                 "calendar_integration_id" => integration.id,
+                 "graph_resource_id" => "event-health-3"
+               })
+
+      assert health(integration).consecutive_sync_failures == 1
+      assert Repo.reload!(integration).last_external_sync_at == integration.last_external_sync_at
+    end
+
     # A 401 is discarded, and error tracking never records a discard,
     # so the streak is the only thing that reports an account Graph has stopped
     # accepting. Reporting it as a completed sync would have cleared one.

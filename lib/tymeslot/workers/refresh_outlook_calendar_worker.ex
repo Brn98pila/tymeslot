@@ -31,6 +31,8 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
       states: [:available, :scheduled, :executing, :retryable, :suspended]
     ]
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   require Logger
 
   alias Tymeslot.Infrastructure.Config
@@ -43,6 +45,7 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.HealthCheck.ErrorAnalysis
   alias Tymeslot.Integrations.Shared.ReauthHandling
+  alias Tymeslot.Workers.SyncHealth
   alias Tymeslot.Workers.SyncRequest
 
   @behaviour ExpectedJobOutcome
@@ -52,10 +55,13 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
   # that is not Outlook is a bug, and is recorded.
   @integration_gone "Integration not found"
   @transient "Outlook sync failed transiently; the next scheduled sweep will retry"
+  @credentials_rejected "Microsoft Graph rejected credentials — reauthentication required"
 
   @impl ExpectedJobOutcome
   def expected_outcome?(reason),
-    do: reason in [@integration_gone, @transient] or reason == ReauthHandling.discard_reason()
+    do:
+      reason in [@integration_gone, @transient, @credentials_rejected] or
+        reason == ReauthHandling.discard_reason()
 
   @doc """
   Enqueues a refresh of the Outlook integration `integration_id`, the one
@@ -90,7 +96,14 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
 
     case CalendarIntegrationQueries.get(integration_id) do
       {:ok, %{provider: "outlook"} = integration} ->
-        fn -> refresh(integration, job) end
+        # The verdict feeds health state like every other sync worker's: a
+        # cycle that keeps failing builds a streak, and one that succeeds
+        # clears a reconnect flag the integration has recovered from.
+        fn ->
+          integration
+          |> refresh(job)
+          |> tap(&SyncHealth.record_outcome(integration, &1))
+        end
         |> InvalidEventReport.collect()
         |> SyncRequest.rerun_if_requested(job)
 
@@ -129,6 +142,9 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
         broadcast_complete(integration)
         :ok
 
+      {:error, :unauthorized} ->
+        handle_credentials_rejected(integration)
+
       {:error, class} ->
         # DeltaSync clears the stored link on obsolete-endpoint detection (old
         # `events/delta`) or 410 expiry. Reload to see whether that happened —
@@ -149,6 +165,9 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
         Config.outlook_calendar_api_module().register_graph_subscription(updated)
         broadcast_complete(updated)
         :ok
+
+      {:error, :unauthorized, _message} ->
+        handle_credentials_rejected(integration)
 
       error ->
         Logger.warning("Outlook bootstrap failed during manual refresh",
@@ -179,6 +198,18 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
 
   defp error_class({:error, reason}), do: ErrorAnalysis.classify_error(reason)
   defp error_class(_other), do: :hard
+
+  # Retrying a refused credential cannot help; only the owner reconnecting can.
+  defp handle_credentials_rejected(integration) do
+    CalendarManagement.flag_for_reconnection(
+      integration,
+      dgettext(
+        "dashboard_calendar_providers",
+        "Microsoft rejected the stored credentials. Please reconnect the integration."
+      ),
+      @credentials_rejected
+    )
+  end
 
   defp broadcast_complete(integration) do
     SyncBroadcast.broadcast_sync_complete(integration.user_id, integration.id)
