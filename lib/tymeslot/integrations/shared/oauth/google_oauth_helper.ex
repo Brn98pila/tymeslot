@@ -15,6 +15,9 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
 
   require Logger
 
+  # Authorisation parameters a caller may set beyond the ones built here.
+  @forwarded_options [:include_granted_scopes, :hd]
+
   @doc """
   Generates the OAuth authorization URL for Google services.
 
@@ -54,10 +57,12 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelper do
       prompt: Keyword.get(options, :prompt, default_prompt)
     }
 
-    # Add any additional options
+    # Only parameters Google defines are forwarded: the options also carry
+    # Tymeslot's own (`return_to`, `scopes`), which belong in the state or the
+    # scope string, not in a URL Google logs and may reject.
     params =
       options
-      |> Keyword.drop([:access_type, :prompt, :integration_id, :login_hint])
+      |> Keyword.take(@forwarded_options)
       |> Enum.into(base_params)
 
     ProviderHelpers.build_authorization_url(

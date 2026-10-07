@@ -57,6 +57,29 @@ defmodule Tymeslot.Integrations.Google.GoogleOAuthHelperTest do
       assert url =~ "access_type=online"
       assert url =~ "prompt=none"
     end
+
+    # Tymeslot's own options belong in the state and the scope string; Google
+    # only ever sees the parameters it defines.
+    test "forwards only Google's own parameters" do
+      query =
+        GoogleOAuthHelper.authorization_url(123, "http://localhost/callback", [:calendar],
+          return_to: "/onboarding/connect_calendar",
+          scopes: [:calendar, :meet],
+          hd: "example.com",
+          include_granted_scopes: "true"
+        )
+        |> URI.parse()
+        |> Map.fetch!(:query)
+        |> URI.decode_query()
+
+      refute Map.has_key?(query, "return_to")
+      refute Map.has_key?(query, "scopes")
+      assert query["hd"] == "example.com"
+      assert query["include_granted_scopes"] == "true"
+
+      {:ok, decoded} = State.validate(query["state"], @state_secret)
+      assert decoded.return_to == "/onboarding/connect_calendar"
+    end
   end
 
   describe "exchange_code_for_tokens/2" do
