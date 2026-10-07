@@ -594,31 +594,6 @@ msgstr "Adres e-mail musi być tekstem"
 msgid "Email username is missing"
 msgstr "W adresie e-mail brakuje części przed @"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
-#, elixir-autogen, elixir-format
-msgid "Display name cannot be only numbers"
-msgstr "Nazwa wyświetlana nie może składać się wyłącznie z cyfr"
-
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
-#, elixir-autogen, elixir-format
-msgid "Display name contains excessive whitespace"
-msgstr "Nazwa wyświetlana zawiera zbędne spacje"
-
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
-#, elixir-autogen, elixir-format
-msgid "Display name contains invalid characters"
-msgstr "Nazwa wyświetlana zawiera niedozwolone znaki"
-
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
-#, elixir-autogen, elixir-format
-msgid "Display name is too long (maximum %{max_length} characters)"
-msgstr "Nazwa wyświetlana jest za długa (maksymalna liczba znaków: %{max_length})"
-
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
-#, elixir-autogen, elixir-format
-msgid "Display name must be a text value"
-msgstr "Nazwa wyświetlana musi być tekstem"
-
 #: lib/tymeslot/security/universal_sanitizer.ex
 #, elixir-autogen, elixir-format
 msgid "Input exceeds maximum length (%{max_length} characters)"
@@ -689,16 +664,19 @@ msgstr "Wiadomość musi zawierać sensowną treść"
 msgid "Name cannot be blank"
 msgstr "Imię i nazwisko nie może być puste"
 
+#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name cannot be only numbers"
 msgstr "Imię i nazwisko nie może składać się wyłącznie z cyfr"
 
+#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name contains excessive whitespace"
 msgstr "Imię i nazwisko zawiera zbędne spacje"
 
+#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name contains invalid characters"
@@ -709,6 +687,7 @@ msgstr "Imię i nazwisko zawiera niedozwolone znaki"
 msgid "Name is required"
 msgstr "Imię i nazwisko jest wymagane"
 
+#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name is too long (maximum %{max_length} characters)"
@@ -719,6 +698,7 @@ msgstr "Imię i nazwisko jest za długie (maksymalna liczba znaków: %{max_lengt
 msgid "Name is too short (minimum %{min_length} characters)"
 msgstr "Imię i nazwisko jest za krótkie (minimalna liczba znaków: %{min_length})"
 
+#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name must be a text value"

@@ -38,6 +38,8 @@ defmodule Tymeslot.Meetings do
   alias Tymeslot.Pagination.CursorPage
   alias Tymeslot.Security.EncryptedString
 
+  @owner_fixable_video_refusals [:video_integration_needs_reauth, :video_integration_inactive]
+
   # The guests' RSVP tokens and the group participants' seat tokens.
   @impl Tymeslot.Security.EncryptedStorage
   def encrypted_storage do
@@ -270,6 +272,17 @@ defmodule Tymeslot.Meetings do
       # expected first outcome, which `VideoRooms` already logs as a wait.
       {:error, :calendar_event_pending} = pending ->
         pending
+
+      # A video integration switched off or waiting to be reconnected is the
+      # owner's to fix, and the meeting goes ahead without a room: expected,
+      # not a fault.
+      {:error, reason} = error when reason in @owner_fixable_video_refusals ->
+        Logger.info("Video room not added: the video integration is unavailable",
+          meeting_id: meeting_id,
+          reason: reason
+        )
+
+        error
 
       {:error, reason} = error ->
         Logger.error("Failed to add video room",

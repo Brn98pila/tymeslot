@@ -7,6 +7,7 @@ defmodule Tymeslot.MeetingsTest do
   @moduletag :utils
   @moduletag :meetings
 
+  import ExUnit.CaptureLog
   import Mox
 
   alias Ecto.UUID
@@ -181,6 +182,37 @@ defmodule Tymeslot.MeetingsTest do
 
       assert {:error, :video_integration_inactive} =
                Meetings.add_video_room_to_meeting(meeting.id)
+    end
+
+    # Both refusals are the owner's to fix and the meeting goes ahead without
+    # a room, so neither is logged as a failure.
+    for {label, attrs, reason} <- [
+          {"switched off", [is_active: false], :video_integration_inactive},
+          {"waiting to be reconnected", [needs_reauth: true], :video_integration_needs_reauth}
+        ] do
+      test "does not log a video integration #{label} as a failure" do
+        user = insert(:user)
+        _profile = insert(:profile, user: user)
+
+        video_integration =
+          insert(:video_integration, [user: user, provider: "mirotalk"] ++ unquote(attrs))
+
+        meeting =
+          insert(:meeting,
+            organizer_user_id: user.id,
+            organizer_email: user.email,
+            video_integration_id: video_integration.id
+          )
+
+        TestMocks.setup_all_mocks()
+
+        log =
+          capture_log([level: :error], fn ->
+            assert {:error, unquote(reason)} = Meetings.add_video_room_to_meeting(meeting.id)
+          end)
+
+        refute log =~ "Failed to add video room"
+      end
     end
   end
 
