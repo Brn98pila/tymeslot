@@ -5,6 +5,7 @@ defmodule Tymeslot.Bookings.CreateTest do
   @moduletag :bookings
 
   alias __MODULE__.MockCalendar
+  alias Tymeslot.Availability.Schedules
   alias Tymeslot.Bookings.Create
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes
@@ -172,7 +173,7 @@ defmodule Tymeslot.Bookings.CreateTest do
       # Validation should detect conflict and surface the semantic :slot_taken
       # atom — the web layer, not the domain layer, renders it to display text.
       assert {:error, :slot_taken} =
-               Create.execute(meeting_params, form_data, skip_calendar_check: false)
+               Create.execute(meeting_params, form_data)
     end
 
     test "succeeds when the only overlapping event is TRANSP:TRANSPARENT", %{
@@ -190,7 +191,7 @@ defmodule Tymeslot.Bookings.CreateTest do
       set_calendar_events([transparent_event])
 
       assert {:ok, meeting} =
-               Create.execute(meeting_params, form_data, skip_calendar_check: false)
+               Create.execute(meeting_params, form_data)
 
       assert meeting.uid =~ @uuid_v4
     end
@@ -207,7 +208,7 @@ defmodule Tymeslot.Bookings.CreateTest do
       set_calendar_events([cancelled_event])
 
       assert {:ok, meeting} =
-               Create.execute(meeting_params, form_data, skip_calendar_check: false)
+               Create.execute(meeting_params, form_data)
 
       assert meeting.uid =~ @uuid_v4
     end
@@ -559,28 +560,32 @@ defmodule Tymeslot.Bookings.CreateTest do
       setup_booking_test()
     end
 
-    test "the calendar conflict check adds no schedule lookup of its own", %{
+    # Validation resolves the policy once and hands it to the booking-window,
+    # schedule and calendar conflict checks; the meeting's attributes and the
+    # conflict-checked write each resolve it once more. A check that re-derived
+    # it would make a fourth read.
+    test "the checks share one resolution of the policy", %{
+      user: user,
       meeting_params: meeting_params,
       form_data: form_data
     } do
       set_calendar_empty()
 
-      # Hours far enough apart that the second booking cannot collide with the
-      # first, buffer included.
-      skipped =
-        schedule_queries_during(meeting_params, form_data, "09:00", skip_calendar_check: true)
+      # What resolving the policy once costs, measured the same way.
+      once = schedule_queries_during(fn -> Schedules.booking_config(user.id, nil) end)
 
-      checked =
-        schedule_queries_during(meeting_params, form_data, "17:00", skip_calendar_check: false)
+      booking =
+        schedule_queries_during(fn ->
+          assert {:ok, _meeting} = Create.execute(meeting_params, form_data)
+        end)
 
-      assert skipped > 0, "expected the booking path to read the schedule at all"
+      assert once > 0, "expected resolving the policy to read the schedule at all"
 
-      assert checked == skipped,
-             "the conflict check re-derived the policy: #{checked} schedule reads with it, " <>
-               "#{skipped} without"
+      assert booking <= 3 * once,
+             "the booking re-derived the policy: #{booking} schedule reads, #{once} to resolve it"
     end
 
-    defp schedule_queries_during(meeting_params, form_data, time, opts) do
+    defp schedule_queries_during(fun) do
       parent = self()
       ref = make_ref()
       handler_id = "booking-schedule-query-spy-#{inspect(ref)}"
@@ -596,10 +601,8 @@ defmodule Tymeslot.Bookings.CreateTest do
         nil
       )
 
-      params = Map.put(meeting_params, :time, time)
-
       try do
-        assert {:ok, _meeting} = Create.execute(params, form_data, opts)
+        fun.()
       after
         :telemetry.detach(handler_id)
       end

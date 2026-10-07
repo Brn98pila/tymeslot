@@ -68,7 +68,6 @@ defmodule Tymeslot.Bookings.Create do
   host's calendars (`CalendarCheck.enforce/3`).
 
   Options:
-    - :skip_calendar_check - Skip calendar availability validation
     - :with_video_room - Create with video room integration (the public
       booking page always sets it)
 
@@ -82,7 +81,7 @@ defmodule Tymeslot.Bookings.Create do
   def execute(meeting_params, form_data, opts \\ []) do
     with {:ok, booking_data} <- prepare_booking_data(meeting_params, form_data),
          :ok <- validate_custom_field_answers(booking_data),
-         {:ok, :validated} <- validate_booking(booking_data, opts) do
+         {:ok, :validated} <- validate_booking(booking_data) do
       create_meeting_and_all_side_effects_atomically(booking_data, opts)
     else
       {:error, reason} -> {:error, Errors.classify_error(reason)}
@@ -183,7 +182,7 @@ defmodule Tymeslot.Bookings.Create do
   defp normalize_date_input(date) when is_binary(date), do: {:ok, date}
   defp normalize_date_input(_arg), do: {:error, :invalid_date_input}
 
-  defp validate_booking(booking_data, opts) do
+  defp validate_booking(booking_data) do
     # Get organizer user_id from booking data - now required
     organizer_user_id = Map.get(booking_data, :organizer_user_id)
 
@@ -203,12 +202,7 @@ defmodule Tymeslot.Bookings.Create do
                  Validation.validate_booking_time(booking_data.start_datetime, config),
                :ok <- validate_slot_on_schedule(booking_data, config),
                :ok <- validate_booking_limits(booking_data, user_id) do
-            # Optional fresh calendar validation
-            if Keyword.get(opts, :skip_calendar_check, false) do
-              {:ok, :validated}
-            else
-              validate_calendar_availability(booking_data, config)
-            end
+            validate_calendar_availability(booking_data, config)
           end
         end
     end
