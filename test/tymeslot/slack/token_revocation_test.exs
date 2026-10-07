@@ -60,6 +60,51 @@ defmodule Tymeslot.Slack.TokenRevocationTest do
       assert Slack.revoke_tokens_for_user(user.id) == :ok
     end
 
+    test "keeps the token of a workspace another account has also connected" do
+      user = insert(:user)
+      other = insert(:user)
+      insert(:slack_integration, user: user, team_id: "T-SHARED")
+      insert(:slack_integration, user: other, team_id: "T-SHARED")
+
+      insert(:slack_integration,
+        user: user,
+        team_id: "T-OWN",
+        bot_token_encrypted: Encryption.encrypt("xoxb-own")
+      )
+
+      expect(Tymeslot.HTTPClientMock, :post, 1, fn "https://slack.com/api/auth.revoke",
+                                                   _body,
+                                                   headers,
+                                                   _opts ->
+        assert {"authorization", "Bearer xoxb-own"} in headers
+        {:ok, %Req.Response{status: 200, body: %{"ok" => true}}}
+      end)
+
+      assert Slack.revoke_tokens_for_user(user.id) == :ok
+    end
+
+    test "revokes a shared workspace once the other account holds no token for it" do
+      user = insert(:user)
+      other = insert(:user)
+      insert(:slack_integration, user: user, team_id: "T-SHARED")
+
+      insert(:slack_integration,
+        user: other,
+        team_id: "T-SHARED",
+        app_mode: "webhook_url",
+        bot_token_encrypted: nil
+      )
+
+      expect(Tymeslot.HTTPClientMock, :post, 1, fn "https://slack.com/api/auth.revoke",
+                                                   _body,
+                                                   _headers,
+                                                   _opts ->
+        {:ok, %Req.Response{status: 200, body: %{"ok" => true}}}
+      end)
+
+      assert Slack.revoke_tokens_for_user(user.id) == :ok
+    end
+
     test "a failing or unreadable integration does not stop the others" do
       user = insert(:user)
       insert(:slack_integration, user: user, bot_token_encrypted: Encryption.encrypt("xoxb-a"))

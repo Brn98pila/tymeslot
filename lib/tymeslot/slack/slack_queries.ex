@@ -24,6 +24,19 @@ defmodule Tymeslot.Slack.SlackQueries do
     do: IntegrationQueries.list_for_user(SlackIntegrationSchema, user_id)
 
   @doc """
+  Whether a user other than `user_id` holds a bot token for the Slack
+  workspace `team_id`. Slack issues one bot token per workspace for the app,
+  so every account that connected the same workspace holds the same token.
+  """
+  @spec workspace_token_shared?(String.t(), integer()) :: boolean()
+  def workspace_token_shared?(team_id, user_id) when is_binary(team_id) do
+    SlackIntegrationSchema
+    |> where([s], s.team_id == ^team_id and s.user_id != ^user_id)
+    |> where([s], not is_nil(s.bot_token_encrypted))
+    |> Repo.exists?()
+  end
+
+  @doc """
   Deletes every OAuth-mode integration for the user that has not yet had its
   channel picked — covers both freshly-initialised stubs and abandoned OAuth
   installs from previous attempts. Run before inserting a new stub so the user
