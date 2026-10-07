@@ -93,7 +93,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.EventNormaliser do
         location: raw["location"],
         visibility: map_visibility(raw["visibility"]),
         transparency: map_transparency(raw["transparency"]),
-        status: map_status(raw["status"]),
+        status: raw |> effective_status() |> map_status(),
         organiser: map_organiser(raw["organizer"]),
         attendees: map_attendees(raw["attendees"]),
         reminders: map_reminders(raw["reminders"]),
@@ -118,9 +118,31 @@ defmodule Tymeslot.Integrations.Calendar.Google.EventNormaliser do
   defp map_transparency("transparent"), do: :transparent
   defp map_transparency(_other), do: :opaque
 
+  @doc """
+  The event's status as it bears on the connected account: Google's own
+  `status`, except that an invitation the account itself declined (its
+  attendee entry carries `"self" => true`) is `"declined"`, which does not
+  block time. Google reports a declined invitation as `confirmed`, since the
+  event itself still goes ahead for everyone else. Shared by the cache
+  (`normalise_events/2`) and the live availability read (`Google.Provider`).
+  """
+  @spec effective_status(map()) :: String.t() | nil
+  def effective_status(%{"status" => "cancelled"}), do: "cancelled"
+
+  def effective_status(raw) do
+    if self_declined?(raw["attendees"]), do: "declined", else: raw["status"]
+  end
+
+  defp self_declined?(attendees) when is_list(attendees) do
+    Enum.any?(attendees, &match?(%{"self" => true, "responseStatus" => "declined"}, &1))
+  end
+
+  defp self_declined?(_attendees), do: false
+
   defp map_status("confirmed"), do: :confirmed
   defp map_status("tentative"), do: :tentative
   defp map_status("cancelled"), do: :cancelled
+  defp map_status("declined"), do: :declined
   defp map_status(_other), do: :confirmed
 
   defp map_organiser(nil), do: nil

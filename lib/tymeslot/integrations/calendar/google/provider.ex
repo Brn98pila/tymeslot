@@ -120,7 +120,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
       all_day: all_day_google_event?(google_event),
       start_time: event_time(google_event, "start"),
       end_time: event_time(google_event, "end"),
-      status: google_event["status"],
+      status: EventNormaliser.effective_status(google_event),
       transparency: google_event["transparency"],
       meet_url: ConferenceData.meet_url_from_google_event(google_event)
     }

@@ -126,6 +126,50 @@ defmodule Tymeslot.Integrations.Calendar.Google.EventNormaliserTest do
       assert event.status == :cancelled
     end
 
+    # Google reports an invitation the account declined as a confirmed event;
+    # only the account's own attendee entry says it was declined.
+    test "an invitation the account itself declined does not block time" do
+      raw_events = [
+        %{
+          "iCalUID" => "declined-uid@google.com",
+          "id" => "declined-id",
+          "start" => %{"dateTime" => "2026-04-08T14:00:00Z"},
+          "end" => %{"dateTime" => "2026-04-08T15:00:00Z"},
+          "status" => "confirmed",
+          "attendees" => [
+            %{"email" => "boss@example.com", "responseStatus" => "accepted"},
+            %{"email" => "me@example.com", "self" => true, "responseStatus" => "declined"}
+          ]
+        }
+      ]
+
+      assert {:ok, [event]} = EventNormaliser.normalise_events(raw_events, @context)
+
+      assert event.status == :declined
+      refute CalendarEvent.blocking?(event)
+    end
+
+    test "another attendee declining leaves the event blocking" do
+      raw_events = [
+        %{
+          "iCalUID" => "other-declined@google.com",
+          "id" => "other-declined-id",
+          "start" => %{"dateTime" => "2026-04-08T14:00:00Z"},
+          "end" => %{"dateTime" => "2026-04-08T15:00:00Z"},
+          "status" => "confirmed",
+          "attendees" => [
+            %{"email" => "guest@example.com", "responseStatus" => "declined"},
+            %{"email" => "me@example.com", "self" => true, "responseStatus" => "accepted"}
+          ]
+        }
+      ]
+
+      assert {:ok, [event]} = EventNormaliser.normalise_events(raw_events, @context)
+
+      assert event.status == :confirmed
+      assert CalendarEvent.blocking?(event)
+    end
+
     test "normalises a transparent (free) event" do
       raw_events = [
         %{
