@@ -172,6 +172,30 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.QueueQueries do
     :ok
   end
 
+  @doc """
+  Records a replay attempt that never reached a server able to answer it.
+
+  Stamps `sync_last_attempt_at` and stores the formatted error in
+  `sync_last_error`, like `mark_sync_failed/3`, but leaves `sync_attempts`
+  alone: the count bounds how often a server may refuse a change, and an
+  outage says nothing about whether it would accept this one. Counting it
+  would strand the oldest queued change for good after a few hours of
+  downtime.
+  """
+  @spec mark_sync_deferred(integer(), String.t(), String.t()) :: :ok
+  def mark_sync_deferred(calendar_integration_id, uid, reason) when is_binary(reason) do
+    now = DateTime.utc_now(:microsecond)
+
+    ProviderCalendarEventSchema
+    |> where(
+      [e],
+      e.calendar_integration_id == ^calendar_integration_id and e.uid == ^uid
+    )
+    |> Repo.update_all(set: [sync_last_attempt_at: now, sync_last_error: reason])
+
+    :ok
+  end
+
   defp maybe_put_etag(set, nil), do: set
   defp maybe_put_etag(set, etag) when is_binary(etag), do: Keyword.put(set, :etag, etag)
 

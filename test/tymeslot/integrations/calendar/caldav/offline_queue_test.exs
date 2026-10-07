@@ -80,7 +80,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueueTest do
       assert is_nil(reloaded.sync_last_error)
     end
 
-    test "increments sync_attempts and stays queued on 502",
+    test "stays queued on 502 without counting the attempt",
          %{integration: integration} do
       row = insert_pending_row(integration, sync_state: "locally_modified")
 
@@ -92,7 +92,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueueTest do
 
       reloaded = Repo.reload!(row)
       assert reloaded.sync_state == "locally_modified"
-      assert reloaded.sync_attempts == 1
+      assert reloaded.sync_attempts == 0
 
       # `sync_last_error` is a human-readable field, not a dump of the internal
       # error term: an inspected atom such as `":server_error"` must never
@@ -332,7 +332,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueueTest do
 
       reloaded = Repo.reload!(row)
       assert reloaded.sync_state == "locally_modified"
-      assert reloaded.sync_attempts == 1
+      assert reloaded.sync_attempts == 0
 
       assert reloaded.sync_last_error ==
                "The calendar server reported an error. Tymeslot will retry automatically."

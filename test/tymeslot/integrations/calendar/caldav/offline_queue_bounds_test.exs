@@ -103,8 +103,41 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueueBoundsTest do
 
       assert_received {:put, "/cal/first.ics"}
       refute_received {:put, "/cal/second.ics"}
-      assert Repo.reload!(first).sync_attempts == 1
+      assert Repo.reload!(first).sync_attempts == 0
       assert Repo.reload!(second).sync_attempts == 0
+    end
+
+    test "an outage longer than the attempt cap does not strand a change",
+         %{integration: integration} do
+      row = insert_pending_row(integration, sync_state: "locally_modified")
+
+      count_requests(502)
+
+      for _cycle <- 1..12 do
+        assert :ok = OfflineQueue.flush(integration, @client)
+      end
+
+      reloaded = Repo.reload!(row)
+      assert reloaded.sync_attempts == 0
+
+      assert reloaded.sync_last_error ==
+               "The calendar server reported an error. Tymeslot will retry automatically."
+
+      recovered = count_requests(204)
+
+      assert :ok = OfflineQueue.flush(integration, @client)
+
+      assert :counters.get(recovered, 1) == 1
+      assert Repo.reload!(row).sync_state == "synced"
+    end
+
+    test "counts a refusal towards the cap", %{integration: integration} do
+      row = insert_pending_row(integration, sync_state: "locally_modified")
+
+      count_requests(403)
+
+      assert :ok = OfflineQueue.flush(integration, @client)
+      assert Repo.reload!(row).sync_attempts == 1
     end
 
     test "carries on past a change the server refuses", %{integration: integration} do
