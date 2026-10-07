@@ -88,13 +88,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.Transcript do
   # facts may be revisited.
   defp answered(journey, socket) do
     for {moment, :done} <- Reveal.visible(journey, socket.assigns),
-        revisitable?(moment, socket.assigns),
+        Journey.revisitable?(moment, socket.assigns),
         do: moment
-  end
-
-  defp revisitable?(moment, assigns) do
-    moment
-    |> Journey.required_facts(assigns)
-    |> Enum.all?(& &1.revisitable?(assigns))
   end
 end

@@ -89,6 +89,17 @@ defmodule TymeslotWeb.Themes.Shared.Journey do
   end
 
   @doc """
+  Whether the booker may return to `moment`: every fact it collects that this
+  booking needs may be revisited (`Fact.revisitable?/1`).
+  """
+  @spec revisitable?(Moment.t(), map()) :: boolean()
+  def revisitable?(moment, assigns) do
+    moment
+    |> required_facts(assigns)
+    |> Enum.all?(& &1.revisitable?(assigns))
+  end
+
+  @doc """
   The options of the classic journey for a `steps:` map: `Navigators.Paged`
   over `overview` (the meeting type), `schedule` (the slot), `questions` (the
   answers, shown only when the meeting type has questions) and `booking` (the

@@ -101,6 +101,21 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.RevealGuardsTest do
         assert Runtime.handle_step_event(at_times(nav), :you, :validate, %{}) == :unhandled
       end
 
+      test "takes a meeting type from its answered moment only when it may be revisited",
+           %{navigator: nav} do
+        direct = at_times(nav, %{entered_via_overview: false})
+
+        assert Runtime.handle_step_event(direct, :offer, :select_duration, "private-call") ==
+                 :unhandled
+
+        via_overview = at_times(nav, %{entered_via_overview: true})
+
+        assert {:noreply, changed} =
+                 Runtime.handle_step_event(via_overview, :offer, :select_duration, "private-call")
+
+        assert changed.assigns.selected_duration == "private-call"
+      end
+
       test "takes next and back only from the current moment", %{navigator: nav} do
         socket = at_times(nav)
 

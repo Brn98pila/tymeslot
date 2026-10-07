@@ -15,8 +15,9 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
        accepted from every visible moment, never from an outcome;
     4. an event a fact owns goes to that fact's `handle/3` when the moment
        it came from is visible (`Navigator.visible/2`) and collects the
-       fact, this booking needs the owner (`required?/1`), and every fact
-       the owner `requires/1` is known;
+       fact, this booking needs the owner (`required?/1`), every fact the
+       owner `requires/1` is known, and, when the moment is not the current
+       one, the owner may be revisited (`revisitable?/1`);
     5. anything else is `:unhandled`, which `SchedulingLive` logs and drops.
 
   A theme's own `theme:<name>` events never reach this module. With
@@ -196,7 +197,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
 
   defp ambient_event(journey, socket, moment_key, event, data) do
     case visible_moment(journey, socket.assigns, moment_key) do
-      {:ok, _moment} -> socket |> Ambient.handle(event, data) |> after_event()
+      {:ok, _moment, _state} -> socket |> Ambient.handle(event, data) |> after_event()
       :none -> :unhandled
     end
   end
@@ -240,12 +241,16 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
 
   # The fact owning `event` among those `moment_key` collects, when that
   # moment is on screen, this booking needs the owner, and every fact the
-  # owner needs is known.
+  # owner needs is known. From a moment already answered (a page showing
+  # several) the owner must also be one the booker may revisit, so a crafted
+  # event cannot change what Back and Edit refuse to reopen: the meeting type
+  # of a direct or private link.
   defp owner(journey, assigns, moment_key, event) do
-    with {:ok, moment} <- visible_moment(journey, assigns, moment_key),
+    with {:ok, moment, state} <- visible_moment(journey, assigns, moment_key),
          {:ok, fact} <- owning_fact(moment, event),
          true <- fact.required?(assigns),
-         true <- Enum.all?(fact.requires(assigns), &Journey.fact!(&1).known?(assigns)) do
+         true <- Enum.all?(fact.requires(assigns), &Journey.fact!(&1).known?(assigns)),
+         true <- state == :current or fact.revisitable?(assigns) do
       {:ok, fact}
     else
       _refused -> :none
@@ -256,7 +261,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
     visible = journey.navigator.visible(journey, assigns)
 
     case Enum.find(visible, fn {moment, _state} -> moment.key == moment_key end) do
-      {moment, _state} -> {:ok, moment}
+      {moment, state} -> {:ok, moment, state}
       nil -> :none
     end
   end
