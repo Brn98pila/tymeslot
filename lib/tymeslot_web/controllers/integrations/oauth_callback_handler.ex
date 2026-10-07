@@ -171,6 +171,13 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandler do
     Logger.warning("OAuth callback rejected", provider: config.name, reason: reason)
   end
 
+  # A callback whose flow is already spent or expired: a replayed or reloaded
+  # callback, or a connect started before a deploy that introduced the flows.
+  # Expected now and then, and the user is asked to try again.
+  defp log_failure(:flow_not_found, config) do
+    Logger.warning("OAuth callback for a spent or expired flow", provider: config.name)
+  end
+
   defp log_failure(reason, config) do
     Logger.error("OAuth callback failed", provider: config.name, reason: LogFormat.reason(reason))
   end

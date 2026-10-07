@@ -161,7 +161,8 @@ defmodule Tymeslot.Integrations.Calendar.OAuthTest do
       user = insert(:user)
       state = State.generate(user.id, "test-google-state-secret")
 
-      assert {:error, _reason} = OAuth.complete(:outlook, "code", state, user.id)
+      assert {:error, "Invalid state parameter"} =
+               OAuth.complete(:outlook, "code", state, user.id)
     end
 
     test "refuses a malformed state" do

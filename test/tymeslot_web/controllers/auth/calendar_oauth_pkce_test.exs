@@ -22,6 +22,7 @@ defmodule TymeslotWeb.CalendarOAuthPkceTest do
   alias Tymeslot.Integrations.Calendar.Outlook.OAuthHelper
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
+  alias Tymeslot.Test.LogCapture
 
   setup :verify_on_exit!
 
@@ -70,8 +71,13 @@ defmodule TymeslotWeb.CalendarOAuthPkceTest do
 
     # The same callback again: the state's flow is spent, so no second token
     # request is made (the single expectation above) and nothing is connected.
+    LogCapture.attach()
     replay = get(conn, ~p"/auth/outlook/calendar/callback", params)
     assert Flash.get(replay.assigns.flash, :error) =~ "Failed to connect Outlook Calendar"
+
+    # Expected now and then (a reloaded callback, a connect started before a
+    # deploy), so it is a warning, not an error that pages someone.
+    assert %{level: :warning} = LogCapture.await_log("OAuth callback for a spent or expired flow")
 
     assert [_one] = Repo.all(CalendarIntegrationSchema)
   end
