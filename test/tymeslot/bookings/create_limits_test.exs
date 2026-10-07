@@ -16,22 +16,16 @@ defmodule Tymeslot.Bookings.CreateLimitsTest do
   alias Tymeslot.Bookings.CreateAdHoc
   alias Tymeslot.TestMocks
 
-  # The booking reads the host's calendars before committing; these hosts have
-  # nothing in them.
+  import Tymeslot.AvailabilityTestHelpers
+
+  # Every booking reads the host's calendars before committing. Calendar busy
+  # time is not under test here (limits count Tymeslot bookings, never
+  # calendar events), so these hosts' calendars are empty.
   setup do
+    TestMocks.setup_all_mocks()
     TestMocks.stub_no_calendar_events()
     :ok
   end
-
-  import Tymeslot.AvailabilityTestHelpers
-
-  setup do
-    TestMocks.setup_all_mocks()
-    :ok
-  end
-
-  # Calendar conflict checking is not under test here (limits count Tymeslot
-  # bookings, never calendar busy time), so every execute skips it.
 
   # ≥3 days out satisfies the default 3h minimum notice with margin; well
   # inside the 90-day advance window.
