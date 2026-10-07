@@ -14,12 +14,6 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
 
   setup :verify_on_exit!
 
-  setup do
-    # Clear idempotency cache before each test
-    IdempotencyCache.clear_all()
-    :ok
-  end
-
   describe "POST /webhooks/stripe" do
     # The test environment enables development-mode verification (plain JSON
     # accepted), so the signature tests switch it off explicitly.
@@ -187,8 +181,10 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
       assert response(conn1, 503) == ""
 
       # The reservation was released, so the redelivery is processed again
-      # rather than treated as in progress or already processed.
-      assert IdempotencyCache.check_idempotency(event["id"]) == {:ok, :not_processed}
+      # rather than treated as in progress or already processed. Probing it
+      # takes the slot, so give it straight back for the redelivery.
+      assert IdempotencyCache.reserve(event["id"]) == {:ok, :reserved}
+      :ok = IdempotencyCache.release(event["id"])
 
       conn2 =
         build_conn()
@@ -249,7 +245,7 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
         |> post("/webhooks/stripe", payload)
 
       assert response(conn, 200) == ""
-      assert IdempotencyCache.check_idempotency(event["id"]) == {:ok, :already_processed}
+      assert IdempotencyCache.reserve(event["id"]) == {:ok, :already_processed}
       assert Repo.get_by(WebhookEvent, stripe_event_id: event["id"])
     end
 

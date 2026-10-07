@@ -41,33 +41,6 @@ defmodule Tymeslot.Payments.Webhooks.IdempotencyCache do
     cleanup_interval: :timer.hours(1)
 
   @doc """
-  Check if an event has already been processed.
-
-  Checks two tiers:
-  1. ETS cache (fast, 24 hours)
-  2. Database (slower, 90 days)
-
-  Returns {:ok, :not_processed} if the event hasn't been seen,
-  or {:ok, :already_processed} if it has already been processed.
-  """
-  @spec check_idempotency(String.t()) :: {:ok, :not_processed | :already_processed}
-  def check_idempotency(event_id) do
-    case CacheStore.lookup(:webhook_idempotency_cache, event_id) do
-      {:ok, _timestamp} ->
-        {:ok, :already_processed}
-
-      :miss ->
-        # Check database as fallback. Fails open on a database error, same
-        # choice as `confirm_reservation/1` below, to keep this function's
-        # contract (never returns an `:error` tuple) honest.
-        case check_database(event_id) do
-          {:ok, result} -> {:ok, result}
-          {:error, _reason} -> {:ok, :not_processed}
-        end
-    end
-  end
-
-  @doc """
   Atomically reserves an event for processing.
   Returns {:ok, :reserved} if this process should handle it,
   or {:ok, :already_processed} if another process already reserved/processed it.
@@ -149,19 +122,6 @@ defmodule Tymeslot.Payments.Webhooks.IdempotencyCache do
 
     # Also store in database for long-term deduplication
     store_in_database(event_id, event_type, payload)
-    :ok
-  end
-
-  @doc """
-  Clear all cached events and database records.
-  """
-  @spec clear_all() :: :ok
-  def clear_all do
-    # Clear ETS cache first
-    :ets.delete_all_objects(:webhook_idempotency_cache)
-
-    # Clear database
-    WebhookQueries.delete_all_webhook_events()
     :ok
   end
 

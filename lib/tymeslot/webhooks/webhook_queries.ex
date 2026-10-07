@@ -258,14 +258,6 @@ defmodule Tymeslot.Webhooks.WebhookQueries do
   # ============================================================================
 
   @doc """
-  Deletes all webhook events.
-  """
-  @spec delete_all_webhook_events() :: {non_neg_integer(), nil}
-  def delete_all_webhook_events do
-    Repo.delete_all(WebhookEventSchema)
-  end
-
-  @doc """
   Gets a webhook event by its Stripe event ID.
   """
   @spec get_webhook_event_by_stripe_id(String.t()) :: WebhookEventSchema.t() | nil
