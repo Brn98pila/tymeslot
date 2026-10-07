@@ -3,8 +3,8 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
   Centralized configuration for video providers.
 
   This module is the single source of truth for what each provider is: its
-  module, family, display name, dashboard metadata and room behaviour, all in
-  `@specs`. It also supports switching providers off via config; the switch
+  module (`@modules`), family, display name, dashboard metadata and room
+  behaviour (`@specs`). It also supports switching providers off via config; the switch
   applies only where something new starts (`parse/1`, `all_providers/0`),
   never to a provider's existing integrations (`parse_known/1`,
   `get_provider/1`).
@@ -27,10 +27,24 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
   # the atom happens to have been loaded yet.
   @provider_atoms Map.new(@providers ++ @dev_only_providers, &{Atom.to_string(&1), &1})
 
-  # Everything known about each provider, the one place to add one:
+  # Each provider's `Tymeslot.Integrations.Video.Providers.ProviderBehaviour`
+  # implementation, kept out of `@specs`: the lists below are worked out from
+  # `@specs` while this module compiles, and a module named there would make
+  # every provider a compile-time dependency of this one.
+  @modules %{
+    mirotalk: Providers.MiroTalkProvider,
+    google_meet: Providers.GoogleMeetProvider,
+    teams: Providers.TeamsProvider,
+    zoom: Providers.ZoomProvider,
+    kmeet: Providers.KmeetProvider,
+    jitsi: Providers.JitsiProvider,
+    nextcloud_talk: Providers.NextcloudTalkProvider,
+    custom: Providers.CustomProvider
+  }
+
+  # Everything known about each provider, the one place to add one (with its
+  # module above):
   #
-  #   * `module` — its `Tymeslot.Integrations.Video.Providers.ProviderBehaviour`
-  #     implementation;
   #   * `family` — how it connects, in the shared vocabulary of
   #     `Tymeslot.Integrations.Shared.Providers.Families`;
   #   * `display_name`, `icon`, `description`, `button_text`, `click_event` —
@@ -51,7 +65,6 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
   @specs %{
     mirotalk: %{
       probe_on_create: true,
-      module: Providers.MiroTalkProvider,
       family: :other,
       display_name: "MiroTalk P2P",
       rooms: [],
@@ -62,7 +75,6 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
       circuit_breaker_enabled: true
     },
     google_meet: %{
-      module: Providers.GoogleMeetProvider,
       family: :oauth,
       display_name: "Google Meet",
       rooms: [],
@@ -77,7 +89,6 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
       circuit_breaker_enabled: true
     },
     teams: %{
-      module: Providers.TeamsProvider,
       family: :oauth,
       display_name: "Microsoft Teams",
       rooms: [:held_as_calendar_event, :updated_on_reschedule],
@@ -92,7 +103,6 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
       circuit_breaker_enabled: true
     },
     zoom: %{
-      module: Providers.ZoomProvider,
       family: :oauth,
       display_name: "Zoom",
       rooms: [:updated_on_reschedule],
@@ -107,7 +117,6 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
       circuit_breaker_enabled: true
     },
     kmeet: %{
-      module: Providers.KmeetProvider,
       family: :other,
       display_name: "kMeet",
       rooms: [],
@@ -119,7 +128,6 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
       circuit_breaker_enabled: false
     },
     jitsi: %{
-      module: Providers.JitsiProvider,
       family: :other,
       display_name: "Jitsi Meet",
       rooms: [],
@@ -131,7 +139,6 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
     },
     nextcloud_talk: %{
       probe_on_create: true,
-      module: Providers.NextcloudTalkProvider,
       family: :other,
       display_name: "Nextcloud Talk",
       rooms: [:deleted_after_meeting, :updated_on_reschedule],
@@ -146,7 +153,6 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
       circuit_breaker_enabled: true
     },
     custom: %{
-      module: Providers.CustomProvider,
       family: :other,
       display_name: "Custom Video Link",
       rooms: [],
@@ -447,10 +453,7 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
   """
   @spec get_provider_module(atom()) :: module() | nil
   def get_provider_module(provider) do
-    case Map.fetch(@specs, provider) do
-      {:ok, spec} -> spec.module
-      :error -> nil
-    end
+    Map.get(@modules, provider)
   end
 
   @doc """
