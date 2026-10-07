@@ -26,7 +26,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   alias Tymeslot.Infrastructure.VideoCircuitBreaker
   alias Tymeslot.Integrations.Video.MeetingContext
   alias Tymeslot.Integrations.Video.ProviderConfig
-  alias Tymeslot.Integrations.Video.Providers.ProviderRegistry
 
   @doc """
   Creates a new meeting room using the specified provider.
@@ -35,10 +34,11 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   """
   @spec create_meeting_room(atom(), map()) :: {:ok, MeetingContext.t()} | {:error, term()}
   def create_meeting_room(provider_type, config) do
-    Metrics.time_operation(:video_create_room, %{provider: provider_type}, fn ->
+    timed(:create_room, provider_type, fn ->
+      # A failure is the caller's to log, once, with what the room was for.
       Logger.info("Creating meeting room", provider: provider_type)
 
-      with {:ok, provider_module} <- ProviderRegistry.get_provider(provider_type),
+      with {:ok, provider_module} <- ProviderConfig.get_provider(provider_type),
            :ok <- provider_module.validate_config(config),
            {:ok, room_data} <- create_room(provider_type, provider_module, config) do
         Logger.info("Successfully created meeting room",
@@ -52,18 +52,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
            room_data: room_data,
            provider_module: provider_module
          }}
-      else
-        {:error, :unknown_provider} ->
-          Logger.error("Unknown video provider", provider_type: provider_type)
-          {:error, :unknown_provider}
-
-        {:error, _reason} = error ->
-          Logger.error("Failed to create meeting room",
-            provider: provider_type,
-            reason: LogFormat.reason(error)
-          )
-
-          error
       end
     end)
   end
@@ -71,7 +59,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   @doc """
   Creates a join URL for a participant.
   """
-  @spec create_join_url(MeetingContext.t(), String.t(), String.t(), atom(), DateTime.t()) ::
+  @spec create_join_url(MeetingContext.t(), String.t(), String.t(), String.t(), DateTime.t()) ::
           {:ok, String.t()} | {:error, term()}
   def create_join_url(meeting_context, participant_name, participant_email, role, meeting_time) do
     %{
@@ -80,7 +68,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
       provider_module: provider_module
     } = meeting_context
 
-    Metrics.time_operation(:video_create_join_url, %{provider: provider_type}, fn ->
+    timed(:create_join_url, provider_type, fn ->
       # The role and room say whose link this is without copying the
       # participant's name into the log sink, where it outlives the account it
       # belongs to.
@@ -90,31 +78,22 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
         room_ref: Redactor.fingerprint(room_data.room_id)
       )
 
-      case provider_module.create_join_url(
-             room_data,
-             participant_name,
-             participant_email,
-             role,
-             meeting_time
-           ) do
-        {:ok, join_url} ->
-          Logger.debug("Successfully created join URL",
-            provider: provider_type,
-            role: role,
-            room_ref: Redactor.fingerprint(room_data.room_id)
-          )
+      # A failure is `VideoRooms`' to log, once, with the fallback it chose.
+      with {:ok, _join_url} = ok <-
+             provider_module.create_join_url(
+               room_data,
+               participant_name,
+               participant_email,
+               role,
+               meeting_time
+             ) do
+        Logger.debug("Successfully created join URL",
+          provider: provider_type,
+          role: role,
+          room_ref: Redactor.fingerprint(room_data.room_id)
+        )
 
-          {:ok, join_url}
-
-        {:error, reason} = error ->
-          Logger.error("Failed to create join URL",
-            provider: provider_type,
-            role: role,
-            room_ref: Redactor.fingerprint(room_data.room_id),
-            reason: LogFormat.reason(reason)
-          )
-
-          error
+        ok
       end
     end)
   end
@@ -178,7 +157,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   @spec extract_room_id(String.t(), atom() | String.t()) :: String.t() | nil
   def extract_room_id(meeting_url, provider_type) when is_binary(meeting_url) do
     with {:ok, type} <- ProviderConfig.parse_known(provider_type),
-         {:ok, provider_module} <- ProviderRegistry.get_provider(type) do
+         {:ok, provider_module} <- ProviderConfig.get_provider(type) do
       provider_module.extract_room_id(meeting_url)
     else
       {:error, _reason} ->
@@ -192,6 +171,15 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
 
   def extract_room_id(_meeting_url, _provider_type), do: nil
 
+  # The one place a provider's network connection test is run; every route to
+  # it goes through `Tymeslot.Integrations.Video.Connection`, which validates
+  # the config and decides whether and to whom the test is rate-limited.
+  defp run_connection_test(provider_type, config) do
+    with {:ok, module} <- ProviderConfig.get_provider(provider_type) do
+      module.perform_connection_test(config)
+    end
+  end
+
   @doc """
   Tests connection to a video provider.
 
@@ -203,7 +191,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   def test_connection(provider_type, config) do
     Logger.info("Testing connection to provider", provider: provider_type)
 
-    case ProviderRegistry.test_provider_connection(provider_type, config) do
+    case run_connection_test(provider_type, config) do
       {:ok, message} ->
         Logger.info("Connection test successful", provider: provider_type)
         {:ok, message}
@@ -225,13 +213,13 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   """
   @spec update_meeting_room(atom(), String.t(), map()) :: :ok | {:error, term()}
   def update_meeting_room(provider_type, room_id, config) do
-    Metrics.time_operation(:video_update_room, %{provider: provider_type}, fn ->
+    timed(:update_room, provider_type, fn ->
       Logger.info("Updating meeting room",
         provider: provider_type,
         room_ref: Redactor.fingerprint(room_id)
       )
 
-      case ProviderRegistry.get_provider(provider_type) do
+      case ProviderConfig.get_provider(provider_type) do
         {:ok, provider_module} ->
           if callback_exported?(provider_module, :update_meeting_room, 2) do
             with_breaker(provider_type, config, fn ->
@@ -258,25 +246,30 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   @doc """
   Deletes a meeting room on the provider's side.
 
-  Providers without a server-side meeting object return `:ok` without action.
+  Providers without a server-side meeting object return `:ok` without action,
+  and so does a room the provider no longer has, which is what a delete wants:
+  deleting stays idempotent whichever way a provider words "not found".
   """
   @spec delete_meeting_room(atom(), String.t(), map()) :: :ok | {:error, term()}
   def delete_meeting_room(provider_type, room_id, config) do
-    Metrics.time_operation(:video_delete_room, %{provider: provider_type}, fn ->
+    timed(:delete_room, provider_type, fn ->
       Logger.info("Deleting meeting room",
         provider: provider_type,
         room_ref: Redactor.fingerprint(room_id)
       )
 
-      case ProviderRegistry.get_provider(provider_type) do
+      case ProviderConfig.get_provider(provider_type) do
         {:ok, provider_module} ->
           if callback_exported?(provider_module, :delete_meeting_room, 2) do
-            with_breaker(provider_type, config, fn ->
-              # Optional callback resolved at runtime via the guard above; apply/3
-              # keeps the static type checker from flagging providers that omit it.
-              # credo:disable-for-next-line Credo.Check.Refactor.Apply
-              apply(provider_module, :delete_meeting_room, [room_id, config])
-            end)
+            result =
+              with_breaker(provider_type, config, fn ->
+                # Optional callback resolved at runtime via the guard above; apply/3
+                # keeps the static type checker from flagging providers that omit it.
+                # credo:disable-for-next-line Credo.Check.Refactor.Apply
+                apply(provider_module, :delete_meeting_room, [room_id, config])
+              end)
+
+            already_gone_is_deleted(result, provider_type, room_id)
           else
             Logger.debug("Provider does not support delete_meeting_room; treating as no-op",
               provider: provider_type
@@ -395,6 +388,26 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
 
     {:error, :unauthorized}
   end
+
+  # `:meeting_not_found` stays an error for an update, where it tells the
+  # caller the booking's room is gone.
+  defp already_gone_is_deleted({:error, :meeting_not_found}, provider_type, room_id) do
+    Logger.info("Meeting room already gone on the provider, treating as deleted",
+      provider: provider_type,
+      room_ref: Redactor.fingerprint(room_id)
+    )
+
+    :ok
+  end
+
+  defp already_gone_is_deleted(result, _provider_type, _room_id), do: result
+
+  # Each room operation's telemetry event, `[:tymeslot, :video, operation]`.
+  defp timed(operation, provider_type, fun),
+    do:
+      Metrics.time_operation(operation, %{provider: provider_type}, fun,
+        prefix: [:tymeslot, :video]
+      )
 
   # function_exported?/3 returns false for modules that haven't been loaded
   # yet, which silently turns optional callbacks into no-ops in tests that

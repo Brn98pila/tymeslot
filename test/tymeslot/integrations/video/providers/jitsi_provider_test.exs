@@ -19,8 +19,6 @@ defmodule Tymeslot.Integrations.Video.Providers.JitsiProviderTest do
 
   describe "identity" do
     test "declares its provider type, name and bucket" do
-      assert JitsiProvider.provider_type() == :jitsi
-      assert JitsiProvider.display_name() == "Jitsi Meet"
       assert JitsiProvider.connection_test_bucket() == :jitsi
     end
   end

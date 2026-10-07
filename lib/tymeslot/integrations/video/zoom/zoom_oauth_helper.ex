@@ -23,10 +23,10 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
   alias Tymeslot.Infrastructure.Retry
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.Integrations.Shared.OAuth.ProviderHelpers
+  alias Tymeslot.Integrations.Shared.OAuth.Refresh
   alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
   alias Tymeslot.Integrations.Shared.ZoomConfig
-  alias Tymeslot.Integrations.Video.OAuthTokenManager
   alias Tymeslot.Integrations.Video.Providers.ZoomProvider.Scopes
 
   require Logger
@@ -132,20 +132,13 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
   @spec validate_token(%{optional(:token_expires_at) => DateTime.t()}) ::
           {:ok, :valid | :needs_refresh} | {:error, String.t()}
   def validate_token(config) do
-    case Map.get(config, :token_expires_at) do
-      nil ->
-        {:error, "No token expiration information"}
-
-      expires_at ->
-        # The expiry buffer is a shared decision, not a per-provider one, and
-        # `OAuthTokenManager`'s moduledoc claims ownership of it. Google Meet
-        # already asks it; this used to carry its own copy of the number.
-        if OAuthTokenManager.token_still_valid?(expires_at) do
-          {:ok, :valid}
-        else
-          {:ok, :needs_refresh}
-        end
-    end
+    # The expiry buffer is shared with every OAuth integration
+    # (`Tymeslot.Integrations.Shared.OAuth.Refresh.valid?/2`). An unknown
+    # expiry means refresh: a token whose lifetime was never stored is
+    # renewed rather than trusted or refused.
+    if Refresh.valid?(Map.get(config, :token_expires_at)),
+      do: {:ok, :valid},
+      else: {:ok, :needs_refresh}
   end
 
   # Private helpers

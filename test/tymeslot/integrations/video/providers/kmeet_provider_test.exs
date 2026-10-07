@@ -12,8 +12,6 @@ defmodule Tymeslot.Integrations.Video.Providers.KmeetProviderTest do
 
   describe "identity" do
     test "declares its provider type, name and bucket" do
-      assert KmeetProvider.provider_type() == :kmeet
-      assert KmeetProvider.display_name() == "kMeet"
       assert KmeetProvider.connection_test_bucket() == :kmeet
     end
   end

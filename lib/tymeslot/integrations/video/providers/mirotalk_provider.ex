@@ -17,6 +17,7 @@ defmodule Tymeslot.Integrations.Video.Providers.MiroTalkProvider do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Logging.Redactor
   alias Tymeslot.Integrations.Shared.ProviderConfigHelper
+  alias Tymeslot.Integrations.Video.Providers.LinkRoom
   alias Tymeslot.Integrations.Video.Providers.MiroTalk.HttpHelpers
   alias Tymeslot.Integrations.Video.Providers.MiroTalk.JoinUrlBuilder
   alias Tymeslot.Integrations.Video.Providers.SsrfOptions
@@ -32,12 +33,6 @@ defmodule Tymeslot.Integrations.Video.Providers.MiroTalkProvider do
   reached or did not answer as a MiroTalk API, which points at the base URL.
   """
   @type test_failure :: {:invalid_api_key | :unreachable, String.t()}
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def provider_type, do: :mirotalk
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def display_name, do: "MiroTalk P2P"
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def connection_test_bucket, do: :mirotalk
@@ -62,6 +57,13 @@ defmodule Tymeslot.Integrations.Video.Providers.MiroTalkProvider do
       validate_base_url(Map.get(config, :base_url))
     end
   end
+
+  # The API key travels with every request, and a login name or password in
+  # the address would travel beside it as Basic auth. Checked when an address
+  # is saved only: one stored before the rule keeps getting rooms.
+  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
+  def validate_config_for_save(config),
+    do: LinkRoom.validate_server_url(Map.get(config, :base_url))
 
   @doc """
   Tests the connection to the MiroTalk API.

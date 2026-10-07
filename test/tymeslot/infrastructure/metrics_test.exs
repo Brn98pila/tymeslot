@@ -115,6 +115,31 @@ defmodule Tymeslot.Infrastructure.MetricsTest do
     end
   end
 
+  describe "time_operation/4" do
+    test "emits under the prefix it is given", %{handler_id: handler_id} do
+      parent = self()
+
+      :telemetry.attach(
+        handler_id,
+        [:tymeslot, :video, :delete_room],
+        fn event, _measurements, metadata, _config ->
+          send(parent, {:telemetry, event, metadata})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      assert :ok =
+               Metrics.time_operation(:delete_room, %{provider: :zoom}, fn -> :ok end,
+                 prefix: [:tymeslot, :video]
+               )
+
+      assert_received {:telemetry, [:tymeslot, :video, :delete_room],
+                       %{provider: :zoom, status: :success}}
+    end
+  end
+
   describe "time_operation/3 error metadata" do
     setup %{handler_id: handler_id} do
       parent = self()

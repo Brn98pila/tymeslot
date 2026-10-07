@@ -125,13 +125,9 @@ defmodule Tymeslot.Integrations.Shared.Providers.Directory do
     }
   end
 
-  defp display_name(:video, type, mod) do
-    if callback_exported?(mod, :display_name, 0) do
-      mod.display_name()
-    else
-      Tymeslot.Integrations.Video.ProviderConfig.display_name(type)
-    end
-  end
+  # Video providers' names live in their configuration table alone.
+  defp display_name(:video, type, _mod),
+    do: Tymeslot.Integrations.Video.ProviderConfig.display_name(type)
 
   defp display_name(:calendar, type, mod) do
     if callback_exported?(mod, :display_name, 0) do
@@ -157,7 +153,7 @@ defmodule Tymeslot.Integrations.Shared.Providers.Directory do
     end
   end
 
-  defp registry_for(:video), do: Tymeslot.Integrations.Video.Providers.ProviderRegistry
+  defp registry_for(:video), do: Tymeslot.Integrations.Video.ProviderConfig
   defp registry_for(:calendar), do: Tymeslot.Integrations.Calendar.Providers.ProviderRegistry
 
   defp domain_provider_config_module(:video), do: Tymeslot.Integrations.Video.ProviderConfig

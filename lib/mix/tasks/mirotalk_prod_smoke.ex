@@ -81,7 +81,7 @@ defmodule Mix.Tasks.MirotalkProdSmoke do
         meeting_context,
         @organizer_name,
         @organizer_email,
-        :organizer,
+        "organizer",
         meeting_time
       )
 
@@ -90,7 +90,7 @@ defmodule Mix.Tasks.MirotalkProdSmoke do
         meeting_context,
         @participant_name,
         @participant_email,
-        :participant,
+        "participant",
         meeting_time
       )
 

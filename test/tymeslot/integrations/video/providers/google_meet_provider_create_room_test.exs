@@ -212,7 +212,7 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProviderCreateRoomTest
         {:error, "Token refresh failed: invalid_grant"}
       end)
 
-      assert {:error, "Failed to refresh token: Token refresh failed: invalid_grant"} =
+      assert {:error, "Token refresh failed: invalid_grant"} =
                GoogleMeetProvider.precheck_create_meeting_room(config)
     end
 
@@ -227,8 +227,7 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProviderCreateRoomTest
         {:error, "Network error during token refresh: timeout"}
       end)
 
-      assert {:provider_error,
-              "Failed to refresh token: Network error during token refresh: timeout"} =
+      assert {:provider_error, "Network error during token refresh: timeout"} =
                GoogleMeetProvider.precheck_create_meeting_room(config)
     end
 
@@ -284,7 +283,8 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProviderCreateRoomTest
         user_id: user.id
       }
 
-      expect(GoogleOAuthHelperMock, :refresh_access_token, fn "refresh_token", nil, _opts ->
+      # The refresh spends the refresh token stored on the row.
+      expect(GoogleOAuthHelperMock, :refresh_access_token, fn _stored_refresh_token, nil, _opts ->
         {:error, "Network error during token refresh: timeout"}
       end)
 

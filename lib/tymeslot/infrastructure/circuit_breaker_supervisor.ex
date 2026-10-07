@@ -93,8 +93,11 @@ defmodule Tymeslot.Infrastructure.CircuitBreakerSupervisor do
     end)
   end
 
+  # Every known provider, switched off or not: a provider switched off still
+  # serves the integrations connected before the switch, and their room calls
+  # go through its breaker.
   defp build_video_breakers do
-    VideoProviderConfig.all_providers()
+    VideoProviderConfig.known_providers()
     |> Enum.filter(&VideoProviderConfig.circuit_breaker_enabled?/1)
     |> Enum.map(fn provider ->
       # provider comes from the fixed, compile-time-known provider list, so the
