@@ -10,7 +10,7 @@ defmodule Tymeslot.Security.SecurityLogger do
   1. **Logger**, always. `log_security_event/2` forwards a fixed, canonical
      allowlist of flat keys and nothing else: `event_type`, `user_id`,
      `email_masked`, `ip_address`, `user_agent`, `session_id`, `provider`,
-     `lockout_type`, `limit_type`. This is the log line an operator reads, and
+     `lockout_type`, `limit_type`, `reason`. This is the log line an operator reads, and
      the allowlist is what keeps an event builder from widening it by accident.
   2. **An external monitoring webhook**, only when the operator opts in by
      setting `config :tymeslot, :security_monitoring_enabled, true` *and*
@@ -163,7 +163,8 @@ defmodule Tymeslot.Security.SecurityLogger do
       session_id: details[:session_id],
       provider: sanitize_provider(details[:provider]),
       lockout_type: details[:lockout_type],
-      limit_type: details[:limit_type]
+      limit_type: details[:limit_type],
+      reason: details[:reason]
     }
 
     Logger.info("Security event", [event_type: event_type] ++ Map.to_list(canonical))
@@ -228,6 +229,7 @@ defmodule Tymeslot.Security.SecurityLogger do
           :ok
   def log_authentication_attempt(email, success, reason, metadata) do
     event_details = %{
+      user_id: metadata[:user_id],
       email: email,
       success: success,
       reason: reason,

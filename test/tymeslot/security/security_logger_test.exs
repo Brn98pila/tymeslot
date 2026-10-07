@@ -106,26 +106,29 @@ defmodule Tymeslot.Security.SecurityLoggerTest do
           "johndoe@example.com",
           false,
           "bad_password",
-          %{ip_address: "203.0.113.1", user_agent: "curl/8.0"}
+          %{user_id: 42, ip_address: "203.0.113.1", user_agent: "curl/8.0"}
         )
       end)
 
       assert_receive {:captured_log, %{meta: %{event_type: "authentication_failure"} = meta}}
+      assert meta.user_id == 42
+      assert meta.reason == "bad_password"
       assert meta.email_masked == "j***@example.com"
       assert meta.ip_address == "203.0.113.1"
       assert meta.user_agent == "curl/8.0"
     end
 
     test "logs the success event type and leaves absent context nil" do
-      # The third positional argument is `reason`, not metadata: it is recorded
-      # in the event details but never reaches a Logger metadata key, so the
-      # only observable difference a successful attempt makes is the event type.
+      # The third positional argument is `reason`, not metadata; a nil reason
+      # and absent request context leave their keys nil on the log line.
       capture_security_logs(fn ->
         SecurityLogger.log_authentication_attempt("x@y.com", true, nil, %{})
       end)
 
       assert_receive {:captured_log, %{meta: %{event_type: "authentication_success"} = meta}}
       assert meta.email_masked == "x***@y.com"
+      assert meta.reason == nil
+      assert meta.user_id == nil
       assert meta.ip_address == nil
       assert meta.user_agent == nil
     end
