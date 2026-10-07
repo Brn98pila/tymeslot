@@ -64,7 +64,7 @@ defmodule TymeslotWeb.Live.Themes.ScrollLocaleSwitchTest do
 
   # Drives the real switcher and follows its external redirect; returns the
   # path it redirected to and the page mounted there.
-  defp switch_language(view, conn, locale) do
+  defp switch_language(view, conn, locale, connect_params \\ %{}) do
     view |> element("button[phx-click='toggle_language_dropdown']") |> render_click()
 
     {:ok, conn} =
@@ -73,7 +73,7 @@ defmodule TymeslotWeb.Live.Themes.ScrollLocaleSwitchTest do
       |> render_click()
       |> follow_redirect(conn)
 
-    {:ok, view, _html} = live(conn)
+    {:ok, view, _html} = conn |> put_connect_params(connect_params) |> live()
     {conn.request_path, view}
   end
 
@@ -133,6 +133,32 @@ defmodule TymeslotWeb.Live.Themes.ScrollLocaleSwitchTest do
       assert assigns.selected_date == chosen.selected_date
       assert assigns.selected_time == nil
       refute has_element?(view, "#you-step")
+    end
+  end
+
+  describe "a switch after choosing a timezone" do
+    test "keeps the timezone chosen over the browser's, and the time in it", %{conn: conn} do
+      %{profile: profile} = seed_organiser(@theme_id, "scroll-locale-zone", types: @types)
+      browser = %{"timezone" => "Europe/Warsaw"}
+      {:ok, view, _html} = conn |> put_connect_params(browser) |> live(~p"/#{profile.username}")
+
+      BookingDriver.choose_meeting_type(view, "quick-chat")
+      send(view.pid, {:step_event, :when, :change_timezone, "America/New_York"})
+      Eventually.eventually(fn -> live_assigns(view).user_timezone == "America/New_York" end)
+
+      day = Date.utc_today() |> Date.add(3) |> Date.to_iso8601()
+      {^day, time} = BookingDriver.pick_first_slot(view, on: day)
+
+      {_path, view} = switch_language(view, conn, "de", browser)
+      await_moment(view, :you, "current")
+
+      assigns = live_assigns(view)
+      assert assigns.user_timezone == "America/New_York"
+
+      assert Map.take(assigns, [:selected_date, :selected_time]) == %{
+               selected_date: day,
+               selected_time: time
+             }
     end
   end
 

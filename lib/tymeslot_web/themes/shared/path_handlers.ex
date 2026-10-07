@@ -79,8 +79,10 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlers do
   # chosen on the overview goes as `duration` on the overview route (a type
   # the overview does not list is never taken from it), and a meeting
   # type's own link names its type in the path. A time no longer free is
-  # dropped on arrival, as a deep link's is. The answers and the details are
-  # not carried. A paged journey's switcher shows on its first moment only,
+  # dropped on arrival, as a deep link's is. The day and time are wall clock
+  # in the visitor's timezone, so that goes too (`visitor_timezone`, which the
+  # mount prefers to the browser's). The answers and the details are not
+  # carried. A paged journey's switcher shows on its first moment only,
   # before any choice, so it carries nothing.
   defp put_choices(params, assigns) do
     if Reveal.journey?(assigns[:journey]) do
@@ -88,6 +90,7 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlers do
       |> maybe_put_query_param("duration", overview_choice(assigns))
       |> maybe_put_query_param("date", assigns[:selected_date])
       |> maybe_put_query_param("time", assigns[:selected_date] && assigns[:selected_time])
+      |> maybe_put_query_param("visitor_timezone", assigns[:user_timezone])
     else
       params
     end

@@ -170,7 +170,8 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlersTest do
             duration: "30min",
             selected_duration: "30min",
             selected_date: "2027-03-12",
-            selected_time: "9:00 AM"
+            selected_time: "9:00 AM",
+            user_timezone: "America/New_York"
           }
         }
 
@@ -187,7 +188,8 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlersTest do
             journey: %Journey{navigator: navigator, moments: [], outcomes: %{}},
             selected_duration: "30min",
             selected_date: "2027-03-12",
-            selected_time: "9:00 AM"
+            selected_time: "9:00 AM",
+            user_timezone: "America/New_York"
           }
         }
 
@@ -199,7 +201,8 @@ defmodule TymeslotWeb.Themes.Shared.PathHandlersTest do
                  "locale" => "de",
                  "duration" => "30-minutes",
                  "date" => "2027-03-12",
-                 "time" => "9:00 AM"
+                 "time" => "9:00 AM",
+                 "visitor_timezone" => "America/New_York"
                }
       end
     end
