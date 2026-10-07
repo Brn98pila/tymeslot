@@ -14,6 +14,7 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   alias Tymeslot.Integrations.Calendar.CalendarPreferencesQueries
   alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.Discovery
+  alias Tymeslot.Integrations.Calendar.PrimaryElection
   alias Tymeslot.Integrations.Calendar.PrimarySelection
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Integrations.HealthCheck
@@ -161,11 +162,48 @@ defmodule Tymeslot.Integrations.CalendarManagement do
     |> maybe_mark_recovered()
   end
 
+  @doc """
+  Pauses an active integration: sets it inactive, never the other way round,
+  and when it was the user's primary calendar elects the next one (see
+  `Tymeslot.Integrations.Calendar.PrimaryElection`), under the same lock as
+  a user's own toggle. For the system pausing an unhealthy integration.
+
+  An integration already inactive is left alone and returned as it is.
+  """
+  @spec pause_integration(CalendarIntegrationSchema.t()) ::
+          {:ok, CalendarIntegrationSchema.t()} | {:error, any()}
+  def pause_integration(%CalendarIntegrationSchema{} = integration) do
+    Repo.transaction(fn ->
+      CalendarIntegrationWebhookQueries.lock_user_profile_and_integrations(integration.user_id)
+      primary_id = stored_primary_id(integration.user_id)
+
+      # Only ever `false`: whatever the struct says, this never activates.
+      case CalendarIntegrationQueries.update(integration, %{is_active: false}) do
+        {:ok, %{id: id, user_id: user_id} = paused} when id == primary_id ->
+          PrimaryElection.elect_next(user_id, [id])
+          paused
+
+        {:ok, paused} ->
+          paused
+
+        {:error, reason} ->
+          Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp stored_primary_id(user_id) do
+    case ProfileQueries.get_by_user_id(user_id) do
+      {:ok, %{primary_calendar_integration_id: id}} -> id
+      _no_profile -> nil
+    end
+  end
+
   defp transactional_toggle(integration) do
     Repo.transaction(fn ->
       CalendarIntegrationWebhookQueries.lock_user_profile_and_integrations(integration.user_id)
 
-      current_primary_id = get_current_primary_id(integration.user_id)
+      current_primary_id = stored_primary_id(integration.user_id)
 
       case CalendarIntegrationQueries.toggle_active(integration) do
         {:ok, updated} ->
@@ -417,16 +455,9 @@ defmodule Tymeslot.Integrations.CalendarManagement do
     end)
   end
 
-  defp get_current_primary_id(user_id) do
-    case CalendarPrimary.get_primary_calendar_integration(user_id) do
-      {:ok, primary} -> primary.id
-      _other -> nil
-    end
-  end
-
   defp maybe_rebalance_primary(%{is_active: false, id: id, user_id: uid}, current_primary_id)
        when current_primary_id == id do
-    promote_or_clear_primary(uid)
+    PrimaryElection.elect_next(uid, [id])
     :ok
   end
 
@@ -437,40 +468,37 @@ defmodule Tymeslot.Integrations.CalendarManagement do
 
   defp maybe_rebalance_primary(_updated, _current_primary_id), do: :ok
 
-  defp promote_or_clear_primary(user_id) do
-    eligible =
-      user_id
-      |> list_active_calendar_integrations()
-      |> BookingEligibility.filter_bookable()
-
-    case eligible do
-      [] ->
-        ProfileQueries.clear_primary_calendar_integration(user_id)
-
-      actives ->
-        next = actives |> Enum.sort_by(& &1.inserted_at) |> List.last()
-        if next, do: CalendarPrimary.set_primary_calendar_integration(user_id, next.id)
-    end
-  end
-
   # Activating an integration adopts it as the primary when the user has none
-  # or the one they have is inactive. A read-only integration is never adopted:
-  # it blocks time but refuses every write, so promoting it would leave the
-  # user with a primary that fails every booking. Leaving the primary as it
-  # stands is the safe answer here; the user still has a working calendar to
-  # promote, and `set_primary_calendar_integration/2` would refuse this one
-  # anyway.
+  # or the one they have is inactive or gone. A read-only integration is never
+  # adopted: it blocks time but refuses every write, so promoting it would
+  # leave the user with a primary that fails every booking. Leaving the
+  # primary as it stands is the safe answer here; the user still has a
+  # working calendar to promote, and `set_primary_calendar_integration/2`
+  # would refuse this one anyway.
+  #
+  # The decision reads the stored primary row, not a decrypted one: a primary
+  # whose credentials do not decrypt for now (a rotated key, say) is still
+  # the user's chosen calendar, and activating another must not demote it.
   defp ensure_primary_on_activate(%{id: updated_id, user_id: user_id} = updated) do
-    if BookingEligibility.bookable?(updated) do
-      case CalendarPrimary.get_primary_calendar_integration(user_id) do
-        {:ok, primary} ->
-          if primary.is_active == false do
-            CalendarPrimary.set_primary_calendar_integration(user_id, updated_id)
-          end
-
-        {:error, _reason} ->
-          CalendarPrimary.set_primary_calendar_integration(user_id, updated_id)
-      end
+    if BookingEligibility.bookable?(updated) and not active_primary?(user_id) do
+      CalendarPrimary.set_primary_calendar_integration(user_id, updated_id)
     end
   end
+
+  defp active_primary?(user_id) do
+    case stored_primary_id(user_id) do
+      nil -> false
+      id -> active_row?(CalendarIntegrationQueries.get(id), user_id)
+    end
+  end
+
+  defp active_row?({:ok, %{user_id: user_id, is_active: true}}, user_id), do: true
+
+  defp active_row?(
+         {:error, :requires_reencryption, %{user_id: user_id, is_active: true}},
+         user_id
+       ),
+       do: true
+
+  defp active_row?(_inactive_or_gone, _user_id), do: false
 end
