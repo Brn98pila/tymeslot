@@ -32,8 +32,6 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProviderTest do
 
   describe "identity" do
     test "declares its provider type, name and bucket" do
-      assert NextcloudTalkProvider.provider_type() == :nextcloud_talk
-      assert NextcloudTalkProvider.display_name() == "Nextcloud Talk"
       assert NextcloudTalkProvider.connection_test_bucket() == :nextcloud_talk
     end
   end

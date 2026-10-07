@@ -34,12 +34,6 @@ defmodule Tymeslot.Integrations.Video.Providers.MiroTalkProvider do
   @type test_failure :: {:invalid_api_key | :unreachable, String.t()}
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def provider_type, do: :mirotalk
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def display_name, do: "MiroTalk P2P"
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def connection_test_bucket, do: :mirotalk
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour

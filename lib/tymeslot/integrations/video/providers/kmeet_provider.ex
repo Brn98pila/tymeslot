@@ -45,12 +45,6 @@ defmodule Tymeslot.Integrations.Video.Providers.KmeetProvider do
   def perform_connection_test(_config), do: LinkRoom.connection_test(@host)
 
   @impl ProviderBehaviour
-  def provider_type, do: :kmeet
-
-  @impl ProviderBehaviour
-  def display_name, do: "kMeet"
-
-  @impl ProviderBehaviour
   def connection_test_bucket, do: :kmeet
 
   @impl ProviderBehaviour

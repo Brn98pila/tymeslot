@@ -138,12 +138,6 @@ defmodule Tymeslot.Integrations.Video.Providers.JitsiProvider do
   end
 
   @impl ProviderBehaviour
-  def provider_type, do: :jitsi
-
-  @impl ProviderBehaviour
-  def display_name, do: "Jitsi Meet"
-
-  @impl ProviderBehaviour
   def connection_test_bucket, do: :jitsi
 
   @impl ProviderBehaviour

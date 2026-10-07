@@ -2,9 +2,12 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
   @moduledoc """
   Centralized configuration for video providers.
 
-  This module serves as the single source of truth for provider types,
-  classifications, display names, and validation across the video integration system.
-  It supports enabling/disabling providers via config (config.exs).
+  This module is the single source of truth for what each provider is: its
+  module, family, display name, dashboard metadata and room behaviour, all in
+  `@specs`. It also supports switching providers off via config; the switch
+  applies only where something new starts (`parse/1`, `all_providers/0`),
+  never to a provider's existing integrations (`parse_known/1`,
+  `get_provider/1`).
   """
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -12,23 +15,10 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Integrations.Shared.{ProviderConfigHelper, ProviderToggle}
   alias Tymeslot.Integrations.Shared.Providers.Families
+  alias Tymeslot.Integrations.Video.Providers
 
   @providers [:mirotalk, :google_meet, :teams, :zoom, :kmeet, :jitsi, :nextcloud_talk, :custom]
   @dev_only_providers []
-
-  # The single declaration site for "how does this provider connect?", in the
-  # shared vocabulary of `Tymeslot.Integrations.Shared.Providers.Families`. Video has
-  # no CalDAV or subscription providers, so those families are simply empty
-  # here; a provider missing from this table fails the build.
-  @provider_families %{
-    oauth: [:google_meet, :teams, :zoom],
-    other: [:mirotalk, :kmeet, :jitsi, :nextcloud_talk, :custom]
-  }
-
-  # Keyed by both the atom and the string form of every provider, so the two
-  # forms of the same provider cannot get different answers out of the
-  # predicates below.
-  @family_index Families.build_index(@provider_families, @providers ++ @dev_only_providers)
 
   # Compile-time lookup from the provider's string form to its atom, covering
   # every statically known provider regardless of runtime toggles. Parsing
@@ -37,9 +27,31 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
   # the atom happens to have been loaded yet.
   @provider_atoms Map.new(@providers ++ @dev_only_providers, &{Atom.to_string(&1), &1})
 
-  # Provider metadata - single source of truth for all provider information
-  @provider_metadata %{
+  # Everything known about each provider, the one place to add one:
+  #
+  #   * `module` — its `Tymeslot.Integrations.Video.Providers.ProviderBehaviour`
+  #     implementation;
+  #   * `family` — how it connects, in the shared vocabulary of
+  #     `Tymeslot.Integrations.Shared.Providers.Families`;
+  #   * `display_name`, `icon`, `description`, `button_text`, `click_event` —
+  #     what the dashboard shows;
+  #   * `circuit_breaker_enabled` — whether its calls run behind a breaker;
+  #   * `rooms` — what its rooms are like:
+  #       - `:deleted_after_meeting`: the room persists on the organiser's own
+  #         server until something deletes it, so Tymeslot deletes it some days
+  #         after its meeting ends;
+  #       - `:held_as_calendar_event`: the room is an event of its own in the
+  #         organiser's calendar holding the meeting's title, start and end (a
+  #         Teams meeting not attached to its event), so it has to move and go
+  #         with its event, and only a record of it can find it again;
+  #       - `:updated_on_reschedule`: the room holds the meeting's time or
+  #         name on the provider's side, so a reschedule is sent to it.
+  @specs %{
     mirotalk: %{
+      module: Providers.MiroTalkProvider,
+      family: :other,
+      display_name: "MiroTalk P2P",
+      rooms: [],
       icon: "mirotalk",
       description: dgettext_noop("dashboard_video", "Self-hosted peer-to-peer video meetings"),
       button_text: "Connect MiroTalk",
@@ -47,6 +59,10 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
       circuit_breaker_enabled: true
     },
     google_meet: %{
+      module: Providers.GoogleMeetProvider,
+      family: :oauth,
+      display_name: "Google Meet",
+      rooms: [],
       icon: "google_meet",
       description:
         dgettext_noop(
@@ -58,6 +74,10 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
       circuit_breaker_enabled: true
     },
     teams: %{
+      module: Providers.TeamsProvider,
+      family: :oauth,
+      display_name: "Microsoft Teams",
+      rooms: [:held_as_calendar_event, :updated_on_reschedule],
       icon: "teams",
       description:
         dgettext_noop(
@@ -69,6 +89,10 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
       circuit_breaker_enabled: true
     },
     zoom: %{
+      module: Providers.ZoomProvider,
+      family: :oauth,
+      display_name: "Zoom",
+      rooms: [:updated_on_reschedule],
       icon: "zoom",
       description:
         dgettext_noop(
@@ -80,6 +104,10 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
       circuit_breaker_enabled: true
     },
     kmeet: %{
+      module: Providers.KmeetProvider,
+      family: :other,
+      display_name: "kMeet",
+      rooms: [],
       icon: "kmeet",
       description:
         dgettext_noop("dashboard_video", "Infomaniak's hosted video meetings, Swiss-based"),
@@ -88,6 +116,10 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
       circuit_breaker_enabled: false
     },
     jitsi: %{
+      module: Providers.JitsiProvider,
+      family: :other,
+      display_name: "Jitsi Meet",
+      rooms: [],
       icon: "jitsi",
       description: dgettext_noop("dashboard_video", "Your own Jitsi Meet server"),
       button_text: "Connect Jitsi",
@@ -95,6 +127,10 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
       circuit_breaker_enabled: false
     },
     nextcloud_talk: %{
+      module: Providers.NextcloudTalkProvider,
+      family: :other,
+      display_name: "Nextcloud Talk",
+      rooms: [:deleted_after_meeting, :updated_on_reschedule],
       icon: "nextcloud_talk",
       description:
         dgettext_noop(
@@ -106,6 +142,10 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
       circuit_breaker_enabled: true
     },
     custom: %{
+      module: Providers.CustomProvider,
+      family: :other,
+      display_name: "Custom Video Link",
+      rooms: [],
       icon: "custom",
       description:
         dgettext_noop("dashboard_video", "Any video platform with static meeting URLs"),
@@ -114,6 +154,27 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
       circuit_breaker_enabled: false
     }
   }
+
+  # How each provider connects, from its spec. Video has no CalDAV or
+  # subscription providers, so those families are simply empty here.
+  @provider_families Enum.group_by(@providers ++ @dev_only_providers, &@specs[&1].family)
+
+  # Keyed by both the atom and the string form of every provider, so the two
+  # forms of the same provider cannot get different answers out of the
+  # predicates below.
+  @family_index Families.build_index(@provider_families, @providers ++ @dev_only_providers)
+
+  @rooms_deleted_after_meeting for p <- @providers,
+                                   :deleted_after_meeting in @specs[p].rooms,
+                                   do: p
+  @rooms_held_as_calendar_events for p <- @providers,
+                                     :held_as_calendar_event in @specs[p].rooms,
+                                     do: p
+  @rooms_updated_on_reschedule for p <- @providers,
+                                   :updated_on_reschedule in @specs[p].rooms,
+                                   do: p
+
+  @metadata_fields [:icon, :description, :button_text, :click_event, :circuit_breaker_enabled]
 
   # Read provider settings from config
   defp provider_settings do
@@ -170,13 +231,20 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
           required(:circuit_breaker_enabled) => boolean()
         }
   def metadata(provider) when is_atom(provider) do
-    Map.get(@provider_metadata, provider, %{
+    case Map.fetch(@specs, provider) do
+      {:ok, spec} -> Map.take(spec, @metadata_fields)
+      :error -> unknown_metadata(provider)
+    end
+  end
+
+  defp unknown_metadata(provider) do
+    %{
       icon: Atom.to_string(provider),
       description: "",
       button_text: "Connect",
       click_event: nil,
       circuit_breaker_enabled: false
-    })
+    }
   end
 
   @doc """
@@ -304,23 +372,6 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
   @spec oauth_provider?(atom() | String.t() | any()) :: boolean()
   def oauth_provider?(provider), do: in_family?(provider, :oauth)
 
-  @display_names %{
-    mirotalk: "MiroTalk P2P",
-    google_meet: "Google Meet",
-    teams: "Microsoft Teams",
-    zoom: "Zoom",
-    kmeet: "kMeet",
-    jitsi: "Jitsi Meet",
-    nextcloud_talk: "Nextcloud Talk",
-    custom: "Custom Video Link"
-  }
-
-  # Providers whose rooms persist on the organiser's own server until something
-  # deletes them, so Tymeslot deletes each one some days after its meeting has
-  # ended. Every other provider's room either expires by itself or lives in an
-  # account the organiser manages directly.
-  @rooms_deleted_after_meeting [:nextcloud_talk]
-
   @doc """
   The providers, in their stored string form, whose rooms Tymeslot deletes
   some days after the meeting ends.
@@ -328,13 +379,6 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
   @spec rooms_deleted_after_meeting() :: [String.t()]
   def rooms_deleted_after_meeting,
     do: Enum.map(@rooms_deleted_after_meeting, &Atom.to_string/1)
-
-  # Providers whose room is an event of its own in the organiser's calendar,
-  # holding the meeting's title, start and end: a Teams meeting that is not
-  # attached to the event it belongs to. Such a room is an entry the organiser
-  # sees, so it has to move and go with its event, and its join link does not
-  # name the event, so nothing but a record of it can find it again.
-  @rooms_held_as_calendar_events [:teams]
 
   @doc """
   Whether a provider's room, when not attached to the event it belongs to, is
@@ -367,13 +411,6 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
         &Atom.to_string/1
       )
 
-  # Providers whose rooms hold the meeting's time or name on the provider's side
-  # (a Zoom meeting's start, a Talk conversation's lobby timer and name, the
-  # calendar event a Teams meeting lives on), so a reschedule has to be sent to
-  # the room. Every other provider's room is a link that stays right whatever
-  # the meeting's time.
-  @rooms_updated_on_reschedule [:zoom, :nextcloud_talk, :teams]
-
   @doc """
   Whether a provider's rooms hold the meeting's time or name, so a reschedule
   must update the room on the provider. Accepts the atom or the stored string
@@ -394,37 +431,59 @@ defmodule Tymeslot.Integrations.Video.ProviderConfig do
   Gets the display name for a provider.
   """
   @spec display_name(atom()) :: String.t()
-  def display_name(provider), do: Map.get(@display_names, provider, "Unknown Provider")
+  def display_name(provider) do
+    case Map.fetch(@specs, provider) do
+      {:ok, spec} -> spec.display_name
+      :error -> "Unknown Provider"
+    end
+  end
 
   @doc """
   Gets the provider module for a given provider type.
   """
   @spec get_provider_module(atom()) :: module() | nil
-  def get_provider_module(:mirotalk), do: Tymeslot.Integrations.Video.Providers.MiroTalkProvider
-
-  def get_provider_module(:google_meet),
-    do: Tymeslot.Integrations.Video.Providers.GoogleMeetProvider
-
-  def get_provider_module(:teams), do: Tymeslot.Integrations.Video.Providers.TeamsProvider
-  def get_provider_module(:zoom), do: Tymeslot.Integrations.Video.Providers.ZoomProvider
-  def get_provider_module(:kmeet), do: Tymeslot.Integrations.Video.Providers.KmeetProvider
-  def get_provider_module(:jitsi), do: Tymeslot.Integrations.Video.Providers.JitsiProvider
-
-  def get_provider_module(:nextcloud_talk),
-    do: Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider
-
-  def get_provider_module(:custom), do: Tymeslot.Integrations.Video.Providers.CustomProvider
-  def get_provider_module(_provider), do: nil
+  def get_provider_module(provider) do
+    case Map.fetch(@specs, provider) do
+      {:ok, spec} -> spec.module
+      :error -> nil
+    end
+  end
 
   @doc """
-  Returns a providers map suitable for the registry (type => module) for enabled providers.
+  The provider module for `provider`, whether or not the provider is enabled:
+  an integration connected before a provider was switched off keeps working
+  until it is disconnected. Only starting something new (connecting, the
+  provider picker) honours the switch.
   """
-  @spec providers_map() :: %{atom() => module()}
-  def providers_map do
-    all_providers_with_dev()
-    |> Enum.map(fn type -> {type, get_provider_module(type)} end)
-    |> Enum.reject(fn {_type, mod} -> is_nil(mod) end)
-    |> Map.new()
+  @spec get_provider(atom()) :: {:ok, module()} | {:error, String.t()}
+  def get_provider(provider) do
+    case get_provider_module(provider) do
+      nil -> {:error, "Unknown video provider type: #{provider}"}
+      module -> {:ok, module}
+    end
+  end
+
+  @doc """
+  How long room creation on `provider` can wait on the network, in
+  milliseconds: the `room_creation_budget_ms/0` it declares, or 0 for a
+  provider that builds its room without a network call.
+
+  Without a provider, or for one not known here, the largest budget any
+  provider declares.
+  """
+  @spec room_creation_budget_ms(atom() | nil) :: non_neg_integer()
+  def room_creation_budget_ms(provider \\ nil) do
+    case get_provider(provider) do
+      {:ok, module} -> declared_budget_ms(module)
+      {:error, _unknown} -> Enum.max(Enum.map(known_providers(), &room_creation_budget_ms/1))
+    end
+  end
+
+  defp declared_budget_ms(module) do
+    if Code.ensure_loaded?(module) and function_exported?(module, :room_creation_budget_ms, 0),
+      # credo:disable-for-next-line Credo.Check.Refactor.Apply
+      do: apply(module, :room_creation_budget_ms, []),
+      else: 0
   end
 
   @doc """

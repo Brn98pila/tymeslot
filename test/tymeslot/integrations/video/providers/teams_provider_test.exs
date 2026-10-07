@@ -18,18 +18,6 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProviderTest do
   @booking_start ~U[2030-03-14 09:30:00Z]
   @booking_end ~U[2030-03-14 10:15:00Z]
 
-  describe "provider_type/0" do
-    test "returns :teams" do
-      assert TeamsProvider.provider_type() == :teams
-    end
-  end
-
-  describe "display_name/0" do
-    test "returns correct display name" do
-      assert TeamsProvider.display_name() == "Microsoft Teams"
-    end
-  end
-
   describe "config_schema/0" do
     test "returns schema with required OAuth fields" do
       schema = TeamsProvider.config_schema()

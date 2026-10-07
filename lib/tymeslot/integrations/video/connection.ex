@@ -12,7 +12,6 @@ defmodule Tymeslot.Integrations.Video.Connection do
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Integrations.Video.ProviderConfig
   alias Tymeslot.Integrations.Video.Providers.ProviderAdapter
-  alias Tymeslot.Integrations.Video.Providers.ProviderRegistry
   alias Tymeslot.Integrations.Video.RoomCreationError
   alias Tymeslot.Integrations.Video.VideoIntegrationSchema
 
@@ -54,7 +53,7 @@ defmodule Tymeslot.Integrations.Video.Connection do
     scope = Keyword.get(opts, :scope, :interactive)
 
     with {:ok, provider_atom} <- ProviderConfig.parse_known(integration.provider),
-         {:ok, provider_module} <- ProviderRegistry.get_provider(provider_atom) do
+         {:ok, provider_module} <- ProviderConfig.get_provider(provider_atom) do
       decrypted = VideoIntegrationSchema.decrypt_credentials(integration)
 
       # The scope travels in the config too, so a provider can keep a check
@@ -102,7 +101,7 @@ defmodule Tymeslot.Integrations.Video.Connection do
   """
   @spec probe(atom(), map(), ConnectionProbe.actor()) :: {:ok, String.t()} | {:error, term()}
   def probe(provider_atom, config, actor) do
-    case ProviderRegistry.get_provider(provider_atom) do
+    case ProviderConfig.get_provider(provider_atom) do
       {:ok, provider_module} ->
         ConnectionProbe.probe(%ConnectionProbe.Request{
           provider_module: provider_module,

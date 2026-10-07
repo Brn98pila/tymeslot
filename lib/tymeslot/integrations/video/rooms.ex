@@ -19,7 +19,6 @@ defmodule Tymeslot.Integrations.Video.Rooms do
   alias Tymeslot.Integrations.Video.MeetingContext
   alias Tymeslot.Integrations.Video.ProviderConfig
   alias Tymeslot.Integrations.Video.Providers.ProviderAdapter
-  alias Tymeslot.Integrations.Video.Providers.ProviderRegistry
   alias Tymeslot.Integrations.Video.RoomCreationError
   alias Tymeslot.Integrations.Video.RoomData
   alias Tymeslot.Integrations.Video.VideoIntegrationSchema
@@ -107,7 +106,7 @@ defmodule Tymeslot.Integrations.Video.Rooms do
   @doc """
   How long creating a room on the integration `integration_id` of `user_id`
   can wait on the provider's network, in milliseconds (see
-  `ProviderRegistry.room_creation_budget_ms/1`).
+  `ProviderConfig.room_creation_budget_ms/1`).
 
   When the integration cannot be resolved, creation fails before any request,
   but the budget answered is still the largest any provider declares, so a
@@ -119,14 +118,14 @@ defmodule Tymeslot.Integrations.Video.Rooms do
     with {:ok, integration} <- Video.fetch_integration_for_user(integration_id, user_id),
          {:ok, provider_type} when provider_type != :none <-
            ProviderConfig.parse_known(integration.provider) do
-      ProviderRegistry.room_creation_budget_ms(provider_type)
+      ProviderConfig.room_creation_budget_ms(provider_type)
     else
-      _unresolved -> ProviderRegistry.room_creation_budget_ms()
+      _unresolved -> ProviderConfig.room_creation_budget_ms()
     end
   end
 
   def room_creation_budget_ms(_user_id, _integration_id),
-    do: ProviderRegistry.room_creation_budget_ms()
+    do: ProviderConfig.room_creation_budget_ms()
 
   @doc """
   Rebuilds the context of a room that already exists, so its join URLs can be
@@ -149,7 +148,7 @@ defmodule Tymeslot.Integrations.Video.Rooms do
   def existing_room_context(user_id, opts) do
     with {:ok, room_id} <- fetch_required_opt(opts, :room_id),
          {:ok, provider_type, config} <- get_provider_config(user_id, opts),
-         {:ok, provider_module} <- ProviderRegistry.get_provider(provider_type) do
+         {:ok, provider_module} <- ProviderConfig.get_provider(provider_type) do
       {:ok,
        %MeetingContext{
          provider_type: provider_type,

@@ -4,18 +4,6 @@ defmodule Tymeslot.Integrations.Video.Providers.CustomProviderTest do
 
   alias Tymeslot.Integrations.Video.Providers.CustomProvider
 
-  describe "provider_type/0" do
-    test "returns :custom" do
-      assert CustomProvider.provider_type() == :custom
-    end
-  end
-
-  describe "display_name/0" do
-    test "returns correct display name" do
-      assert CustomProvider.display_name() == "Custom Video Link"
-    end
-  end
-
   describe "config_schema/0" do
     test "returns schema with custom_meeting_url field" do
       schema = CustomProvider.config_schema()

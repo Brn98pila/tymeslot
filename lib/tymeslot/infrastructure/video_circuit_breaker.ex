@@ -16,9 +16,11 @@ defmodule Tymeslot.Infrastructure.VideoCircuitBreaker do
   alias Tymeslot.Integrations.Video.ProviderConfig
   require Logger
 
-  # Query providers with circuit breaker enabled from ProviderConfig
+  # Every known provider whose calls run behind a breaker, whether or not it
+  # is switched on: an integration connected before its provider was switched
+  # off still has rooms to update and delete.
   @video_providers Enum.filter(
-                     ProviderConfig.all_providers(),
+                     ProviderConfig.known_providers(),
                      &ProviderConfig.circuit_breaker_enabled?/1
                    )
   @video_breaker_names Enum.into(@video_providers, %{}, fn p ->

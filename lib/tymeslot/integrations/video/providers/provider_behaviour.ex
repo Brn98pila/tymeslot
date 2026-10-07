@@ -107,16 +107,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderBehaviour do
   @callback perform_connection_test(config :: map()) :: {:ok, String.t()} | {:error, any()}
 
   @doc """
-  Returns the provider type identifier.
-  """
-  @callback provider_type() :: atom()
-
-  @doc """
-  Returns the display name for this provider.
-  """
-  @callback display_name() :: String.t()
-
-  @doc """
   Returns the connection-test rate-limit bucket this provider draws its
   budget from. There is no default implementation: every provider must
   declare a bucket explicitly, so a new provider that omits it fails

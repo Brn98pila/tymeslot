@@ -170,12 +170,6 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider do
   end
 
   @impl ProviderBehaviour
-  def provider_type, do: :nextcloud_talk
-
-  @impl ProviderBehaviour
-  def display_name, do: "Nextcloud Talk"
-
-  @impl ProviderBehaviour
   def connection_test_bucket, do: :nextcloud_talk
 
   @impl ProviderBehaviour

@@ -175,12 +175,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
     end
   end
 
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def provider_type, do: :zoom
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def display_name, do: "Zoom"
-
   # A per-actor bucket shared across every OAuth-backed provider: the test
   # itself rides on a token that is already scarce, but without a charge
   # here it is unbounded and can burn the instance-wide OAuth quota shared

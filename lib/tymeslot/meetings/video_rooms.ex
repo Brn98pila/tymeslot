@@ -579,8 +579,10 @@ defmodule Tymeslot.Meetings.VideoRooms do
       {:ok, %{needs_reauth: true}} when refuse_needs_reauth? ->
         {:error, :video_integration_needs_reauth}
 
+      # A provider switched off in config keeps serving the integrations
+      # already connected to it; only connecting a new one is refused.
       {:ok, integration} ->
-        case ProviderConfig.parse(integration.provider) do
+        case ProviderConfig.parse_known(integration.provider) do
           {:ok, provider_type} ->
             {:ok, provider_type}
 

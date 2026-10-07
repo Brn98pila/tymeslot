@@ -26,7 +26,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   alias Tymeslot.Infrastructure.VideoCircuitBreaker
   alias Tymeslot.Integrations.Video.MeetingContext
   alias Tymeslot.Integrations.Video.ProviderConfig
-  alias Tymeslot.Integrations.Video.Providers.ProviderRegistry
 
   @doc """
   Creates a new meeting room using the specified provider.
@@ -38,7 +37,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
     Metrics.time_operation(:video_create_room, %{provider: provider_type}, fn ->
       Logger.info("Creating meeting room", provider: provider_type)
 
-      with {:ok, provider_module} <- ProviderRegistry.get_provider(provider_type),
+      with {:ok, provider_module} <- ProviderConfig.get_provider(provider_type),
            :ok <- provider_module.validate_config(config),
            {:ok, room_data} <- create_room(provider_type, provider_module, config) do
         Logger.info("Successfully created meeting room",
@@ -178,7 +177,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   @spec extract_room_id(String.t(), atom() | String.t()) :: String.t() | nil
   def extract_room_id(meeting_url, provider_type) when is_binary(meeting_url) do
     with {:ok, type} <- ProviderConfig.parse_known(provider_type),
-         {:ok, provider_module} <- ProviderRegistry.get_provider(type) do
+         {:ok, provider_module} <- ProviderConfig.get_provider(type) do
       provider_module.extract_room_id(meeting_url)
     else
       {:error, _reason} ->
@@ -192,6 +191,15 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
 
   def extract_room_id(_meeting_url, _provider_type), do: nil
 
+  # The one place a provider's network connection test is run; every route to
+  # it goes through `Tymeslot.Integrations.Video.Connection`, which validates
+  # the config and decides whether and to whom the test is rate-limited.
+  defp run_connection_test(provider_type, config) do
+    with {:ok, module} <- ProviderConfig.get_provider(provider_type) do
+      module.perform_connection_test(config)
+    end
+  end
+
   @doc """
   Tests connection to a video provider.
 
@@ -203,7 +211,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   def test_connection(provider_type, config) do
     Logger.info("Testing connection to provider", provider: provider_type)
 
-    case ProviderRegistry.test_provider_connection(provider_type, config) do
+    case run_connection_test(provider_type, config) do
       {:ok, message} ->
         Logger.info("Connection test successful", provider: provider_type)
         {:ok, message}
@@ -231,7 +239,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
         room_ref: Redactor.fingerprint(room_id)
       )
 
-      case ProviderRegistry.get_provider(provider_type) do
+      case ProviderConfig.get_provider(provider_type) do
         {:ok, provider_module} ->
           if callback_exported?(provider_module, :update_meeting_room, 2) do
             with_breaker(provider_type, config, fn ->
@@ -268,7 +276,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
         room_ref: Redactor.fingerprint(room_id)
       )
 
-      case ProviderRegistry.get_provider(provider_type) do
+      case ProviderConfig.get_provider(provider_type) do
         {:ok, provider_module} ->
           if callback_exported?(provider_module, :delete_meeting_room, 2) do
             with_breaker(provider_type, config, fn ->
