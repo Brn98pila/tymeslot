@@ -1,0 +1,114 @@
+defmodule TymeslotWeb.Themes.Shared.Blocks.DayChips do
+  @moduledoc """
+  The next days the organiser has free, as a row of chips for the slot's
+  date: "Today", "Tomorrow", then the weekday and the day of the month ("Thu
+  9"). Built from the month's availability the flow already fetches
+  (`month_availability_map`, ISO date => whether the day has a free time), so
+  it costs no request of its own: the first `count` free days from `today`.
+
+  A chip is a button for the date fact (`data-fact="date"`, `data-value` the
+  ISO date) sending `select_date`, with its full date as accessible name and
+  `aria-pressed` on the chosen day; the row is a group labelled "Select a
+  Date". While the availability has not arrived it says it is loading; when no
+  day of the loaded window is free it says so, and the theme offers its way on
+  (a month calendar, the next month). Clicks go to `target`.
+
+  Classes: `day-chips`, `__list`, `__chip` (`--selected`, `--today`),
+  `__label`, `__loading`, `__empty`. The shared structure is
+  `scheduling/shared/blocks/day-chips.css`, on tokens only; `--day-chips-gap`
+  changes the space between chips.
+  """
+
+  use Phoenix.Component
+  use Gettext, backend: TymeslotWeb.Gettext
+
+  alias TymeslotWeb.Themes.Shared.LocalizationHelpers
+
+  attr :availability, :any,
+    required: true,
+    doc: "the flow's `month_availability_map`; nil until it arrives"
+
+  attr :today, Date, required: true, doc: "the visitor's today (`@calendar_today`)"
+  attr :selected_date, :string, default: nil
+  attr :count, :integer, default: 7
+  attr :target, :any, required: true
+
+  @spec day_chips(map()) :: Phoenix.LiveView.Rendered.t()
+  def day_chips(assigns) do
+    assigns =
+      assign(assigns, :days, free_days(assigns.availability, assigns.today, assigns.count))
+
+    ~H"""
+    <div class="day-chips" data-testid="day-chips">
+      <%= cond do %>
+        <% @days != [] -> %>
+          <div class="day-chips__list" role="group" aria-label={dgettext("booking", "Select a Date")}>
+            <button
+              :for={day <- @days}
+              type="button"
+              class={[
+                "day-chips__chip",
+                @selected_date == Date.to_iso8601(day) && "day-chips__chip--selected",
+                day == @today && "day-chips__chip--today"
+              ]}
+              data-fact="date"
+              data-value={Date.to_iso8601(day)}
+              phx-click="select_date"
+              phx-value-date={Date.to_iso8601(day)}
+              phx-target={@target}
+              aria-pressed={to_string(@selected_date == Date.to_iso8601(day))}
+              aria-label={LocalizationHelpers.format_full_date_label(day)}
+            >
+              <span class="day-chips__label" aria-hidden="true">{label(day, @today)}</span>
+            </button>
+          </div>
+        <% is_nil(@availability) -> %>
+          <p class="day-chips__loading" role="status">
+            {dgettext("booking", "Loading available times...")}
+          </p>
+        <% true -> %>
+          <p class="day-chips__empty">{dgettext("booking", "No times available")}</p>
+      <% end %>
+    </div>
+    """
+  end
+
+  @doc """
+  How a visitor says `day` seen from `today`: "Today", "Tomorrow", else the
+  short weekday and the day of the month ("Thu 9").
+  """
+  @spec label(Date.t(), Date.t()) :: String.t()
+  def label(day, today) do
+    case Date.diff(day, today) do
+      0 ->
+        dgettext("booking", "Today")
+
+      1 ->
+        dgettext("booking", "Tomorrow")
+
+      _later ->
+        dgettext("booking", "%{weekday} %{day}", weekday: weekday_short(day), day: day.day)
+    end
+  end
+
+  # `weekday_headers/0` is Sunday first; `Date.day_of_week/1` is Monday 1 to
+  # Sunday 7, so Sunday's 7 wraps to index 0.
+  defp weekday_short(day),
+    do: Enum.at(LocalizationHelpers.weekday_headers(), rem(Date.day_of_week(day), 7))
+
+  defp free_days(availability, today, count) when is_map(availability) do
+    availability
+    |> Enum.filter(fn {_iso, free} -> free == true end)
+    |> Enum.flat_map(fn {iso, _free} ->
+      case Date.from_iso8601(iso) do
+        {:ok, day} -> [day]
+        {:error, _reason} -> []
+      end
+    end)
+    |> Enum.reject(&(Date.compare(&1, today) == :lt))
+    |> Enum.sort(Date)
+    |> Enum.take(count)
+  end
+
+  defp free_days(_availability, _today, _count), do: []
+end

@@ -164,6 +164,7 @@ msgid "Bookings available up to %{advance}"
 msgstr "Rezerwacja możliwa %{advance}"
 
 #: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/blocks/month_calendar.ex
 #, elixir-autogen, elixir-format
 msgid "Calendar is loading slowly"
 msgstr "Kalendarz wczytuje się wolno"
@@ -288,6 +289,7 @@ msgid "Let's Connect!"
 msgstr "Porozmawiajmy!"
 
 #: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/blocks/day_chips.ex
 #: lib/tymeslot_web/themes/shared/components/slot_list.ex
 #: lib/tymeslot_web/themes/shared/components/week_grid.ex
 #, elixir-autogen, elixir-format
@@ -465,6 +467,7 @@ msgid "Search cities, countries, or timezones..."
 msgstr "Szukaj miast, krajów lub stref czasowych…"
 
 #: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/blocks/day_chips.ex
 #, elixir-autogen, elixir-format
 msgid "Select a Date"
 msgstr "Wybierz datę"
@@ -1339,6 +1342,7 @@ msgstr "Nie udało się dokończyć ostatniej czynności. Spróbuj ponownie."
 msgid "Next week"
 msgstr "Następny tydzień"
 
+#: lib/tymeslot_web/themes/shared/blocks/day_chips.ex
 #: lib/tymeslot_web/themes/shared/components/week_grid.ex
 #, elixir-autogen, elixir-format
 msgid "No times available"
@@ -1384,3 +1388,18 @@ msgstr "Ta strona rezerwacji jest teraz niedostępna. Organizator nie podłączy
 #, elixir-autogen, elixir-format
 msgid "This scheduling page isn’t available yet. The organiser hasn’t set a username."
 msgstr "Ta strona rezerwacji nie jest jeszcze dostępna. Organizator nie ustawił nazwy użytkownika."
+
+#: lib/tymeslot_web/themes/shared/blocks/day_chips.ex
+#, elixir-autogen, elixir-format
+msgid "%{weekday} %{day}"
+msgstr "%{weekday} %{day}"
+
+#: lib/tymeslot_web/themes/shared/blocks/day_chips.ex
+#, elixir-autogen, elixir-format
+msgid "Today"
+msgstr "Dziś"
+
+#: lib/tymeslot_web/themes/shared/blocks/day_chips.ex
+#, elixir-autogen, elixir-format
+msgid "Tomorrow"
+msgstr "Jutro"
