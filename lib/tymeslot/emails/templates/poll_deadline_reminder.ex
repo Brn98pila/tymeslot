@@ -16,9 +16,10 @@ defmodule Tymeslot.Emails.Templates.PollDeadlineReminder do
     Sanitise,
     Styles,
     TemplateHelper,
-    Text,
-    TimezoneHelper
+    Text
   }
+
+  alias Tymeslot.Utils.DateTimeUtils
 
   alias Tymeslot.Locales
   alias Tymeslot.Polls.{PollParticipantSchema, PollSchema}
@@ -117,7 +118,7 @@ defmodule Tymeslot.Emails.Templates.PollDeadlineReminder do
     timezone = participant.timezone || "UTC"
 
     deadline_at
-    |> TimezoneHelper.convert_to_timezone(timezone)
+    |> DateTimeUtils.convert_to_timezone(timezone)
     |> Formatting.format_datetime(locale)
   end
 

@@ -21,9 +21,10 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
     Styles,
     TemplateHelper,
     Text,
-    TextBodyHelper,
-    TimezoneHelper
+    TextBodyHelper
   }
+
+  alias Tymeslot.Utils.DateTimeUtils
 
   alias Tymeslot.Emails.HostClock
   alias Tymeslot.Emails.RecipientLocale
@@ -48,7 +49,7 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
     locale = RecipientLocale.locale_for_user_id(meeting.organizer_user_id)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
-      owner_time = TimezoneHelper.convert_to_timezone(meeting.start_time, owner_timezone)
+      owner_time = DateTimeUtils.convert_to_timezone(meeting.start_time, owner_timezone)
       date_short = Formatting.format_date_short(owner_time, locale)
 
       meeting = %{
