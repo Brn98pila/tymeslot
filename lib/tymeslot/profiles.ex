@@ -556,11 +556,4 @@ defmodule Tymeslot.Profiles do
   @spec resolve_organizer_context(username) :: {:ok, map()} | {:error, :profile_not_found}
   def resolve_organizer_context(username),
     do: OrganizerContext.resolve_organizer_context(username)
-
-  @doc """
-  Optimized version of resolve_organizer_context.
-  """
-  @spec resolve_organizer_context_optimized(username) ::
-          {:ok, map()} | {:error, :profile_not_found}
-  def resolve_organizer_context_optimized(username), do: resolve_organizer_context(username)
 end
