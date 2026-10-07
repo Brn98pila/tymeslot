@@ -214,16 +214,6 @@ defmodule Tymeslot.Payments.Stripe do
   end
 
   @doc """
-  Returns the Stripe webhook secret from configuration or environment.
-  """
-  @impl StripeProvider
-  @spec webhook_secret() :: String.t() | nil
-  def webhook_secret do
-    Application.get_env(:stripity_stripe, :webhook_secret) ||
-      Application.get_env(:tymeslot, :stripe_webhook_secret)
-  end
-
-  @doc """
   Creates a Stripe billing portal session for subscription management.
   """
   @impl StripeProvider

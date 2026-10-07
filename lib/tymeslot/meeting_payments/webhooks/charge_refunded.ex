@@ -15,6 +15,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeRefunded do
       track the cumulative amount but never overwrite the dispute status
   """
 
+  @behaviour Tymeslot.Payments.Behaviours.WebhookHandler
+
   require Logger
 
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
@@ -22,10 +24,12 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeRefunded do
   alias Tymeslot.MeetingPayments.Telemetry
   alias Tymeslot.MeetingPayments.Webhooks.LockedPayment
   alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
+  alias Tymeslot.Payments.Behaviours.WebhookHandler
 
   @event_type "charge.refunded"
 
-  @spec handle(map()) :: :ok | {:error, term()}
+  @impl WebhookHandler
+  @spec handle(map()) :: WebhookHandler.result()
   def handle(event) do
     Telemetry.span_webhook(@event_type, fn -> do_handle(event) end)
   end
@@ -48,10 +52,10 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeRefunded do
     end
   end
 
-  defp do_handle(_other), do: {{:error, :invalid_event}, :error}
+  defp do_handle(_other), do: {{:error, :permanent, :invalid_event}, :error}
 
   defp classify(:ok), do: {:ok, :ok}
-  defp classify({:error, _reason} = err), do: {err, :error}
+  defp classify({:error, reason}), do: {{:error, :retry_later, reason}, :error}
 
   # Decided from the locked row (`LockedPayment`), so a concurrent refund
   # or dispute handler cannot have its committed amount written over.

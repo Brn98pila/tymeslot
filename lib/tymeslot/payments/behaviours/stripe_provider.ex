@@ -34,6 +34,4 @@ defmodule Tymeslot.Payments.Behaviours.StripeProvider do
 
   @callback list_subscriptions(params :: map()) ::
               {:ok, map()} | {:error, term()}
-
-  @callback webhook_secret() :: String.t() | nil
 end

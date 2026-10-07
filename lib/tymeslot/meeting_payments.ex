@@ -42,7 +42,6 @@ defmodule Tymeslot.MeetingPayments do
   alias Tymeslot.MeetingPayments.DataRetention
   alias Tymeslot.MeetingPayments.Refunds
   alias Tymeslot.MeetingPayments.StripeAdapter
-  alias Tymeslot.MeetingPayments.Webhooks.WebhookProcessor
   alias Tymeslot.MeetingPayments.Workers.ResyncConnectAccount
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.MeetingTypes.MeetingTypeQueries
@@ -477,19 +476,6 @@ defmodule Tymeslot.MeetingPayments do
   # ---------------------------------------------------------------------------
   # Webhook processing
   # ---------------------------------------------------------------------------
-
-  @doc """
-  Verifies the Stripe-Signature header and dispatches the event to the
-  appropriate handler.
-
-  Reads the Connect signing secret from configuration itself, so callers
-  never handle it; see
-  `Tymeslot.MeetingPayments.Webhooks.WebhookProcessor.process/2` for the
-  outcomes.
-  """
-  @spec process_webhook(payload :: String.t(), signature :: String.t() | nil) ::
-          WebhookProcessor.process_result()
-  defdelegate process_webhook(payload, signature), to: WebhookProcessor, as: :process
 
   # ---------------------------------------------------------------------------
   # Data retention

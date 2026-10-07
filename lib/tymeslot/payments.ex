@@ -16,8 +16,19 @@ defmodule Tymeslot.Payments do
     SubscriptionInvoices
   }
 
+  alias Tymeslot.Payments.Webhooks.Ingress
+
   @type transaction :: PaymentTransaction.t()
   @type stripe_id :: String.t()
+
+  @doc """
+  Verifies and processes one Stripe webhook delivery to `endpoint`
+  (`:platform` or `:connect`), reading that endpoint's signing secret from
+  configuration. See `Tymeslot.Payments.Webhooks.Ingress.process/3` for the
+  outcomes.
+  """
+  @spec process_webhook(Ingress.endpoint(), binary(), String.t() | nil) :: Ingress.result()
+  defdelegate process_webhook(endpoint, raw_body, signature), to: Ingress, as: :process
 
   @doc """
   Processes a failed payment.

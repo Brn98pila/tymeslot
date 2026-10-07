@@ -57,6 +57,8 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
     capture_payment_events()
   end
 
+  defp with_object(event, object), do: Map.put(event, "data", %{"object" => object})
+
   defp restore(key, nil), do: Application.delete_env(:tymeslot, key)
   defp restore(key, value), do: Application.put_env(:tymeslot, key, value)
 
@@ -91,7 +93,7 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
     %{"id" => id || "evt_#{System.unique_integer([:positive])}", "type" => "charge.refunded"}
   end
 
-  describe "process/2 — charge.refunded" do
+  describe "handle/1 — charge.refunded" do
     # Revocation has exactly one path: the payment-event handler, which gets
     # the decision in the event. The handler no longer also flips the
     # subscription through the manager, a second, local-only revocation
@@ -102,7 +104,7 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
       charge = refunded_charge(customer_id, 10_000, 10_000, "in_current")
       event = refunded_event()
 
-      assert {:ok, :refund_processed} = RefundHandler.process(event, charge)
+      assert {:ok, :refund_processed} = RefundHandler.handle(with_object(event, charge))
 
       # The payment event carries the revocation decision
       assert_received %{
@@ -128,7 +130,7 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
       charge = refunded_charge(customer_id, 5_000, 10_000)
       event = refunded_event()
 
-      assert {:ok, :refund_processed} = RefundHandler.process(event, charge)
+      assert {:ok, :refund_processed} = RefundHandler.handle(with_object(event, charge))
 
       assert_received %{
         event: :charge_refunded,
@@ -145,7 +147,7 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
       charge = refunded_charge("cus_orphan", 10_000, 10_000)
       event = refunded_event()
 
-      assert {:ok, :refund_logged} = RefundHandler.process(event, charge)
+      assert {:ok, :refund_logged} = RefundHandler.handle(with_object(event, charge))
 
       # Global event still fires for the orphan refund
       assert_received %{
@@ -168,7 +170,8 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
 
       charge = refunded_charge(customer_id, 10_000, 10_000, "in_refunded")
 
-      assert {:ok, :refund_processed} = RefundHandler.process(refunded_event(), charge)
+      assert {:ok, :refund_processed} =
+               RefundHandler.handle(with_object(refunded_event(), charge))
 
       assert_received %{
         event: :charge_refunded,
@@ -184,7 +187,8 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
 
       charge = refunded_charge(customer_id, 10_000, 10_000)
 
-      assert {:ok, :refund_processed} = RefundHandler.process(refunded_event(), charge)
+      assert {:ok, :refund_processed} =
+               RefundHandler.handle(with_object(refunded_event(), charge))
 
       user_id = user.id
       assert_received {:refund_email, ^user_id, 10_000, "eur", false}
@@ -201,7 +205,8 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
 
       charge = refunded_charge(customer_id, 10_000, 10_000, "in_earlier")
 
-      assert {:ok, :refund_processed} = RefundHandler.process(refunded_event(), charge)
+      assert {:ok, :refund_processed} =
+               RefundHandler.handle(with_object(refunded_event(), charge))
 
       user_id = user.id
       assert_received {:refund_email, ^user_id, 10_000, "eur", false}
@@ -214,18 +219,19 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
       charge = refunded_charge(customer_id, 10_000, 10_000)
       event = refunded_event()
 
-      assert {:error, :retry_later, _reason} = RefundHandler.process(event, charge)
+      assert {:error, :retry_later, {:hand_off_failed, :downstream_unavailable}} =
+               RefundHandler.handle(with_object(event, charge))
 
       refute_received {:refund_email, _user_id, _amount, _currency, _revoked}
     end
   end
 
-  describe "process/2 — charge.refund.updated" do
+  describe "handle/1 — charge.refund.updated" do
     test "acknowledges status changes without side effects" do
       refund = %{"id" => "re_123", "status" => "succeeded"}
       event = %{"id" => "evt_456", "type" => "charge.refund.updated"}
 
-      assert {:ok, :refund_status_updated} = RefundHandler.process(event, refund)
+      assert {:ok, :refund_status_updated} = RefundHandler.handle(with_object(event, refund))
 
       refute_received {:refund_email, _user_id, _amount, _currency, _revoked}
     end

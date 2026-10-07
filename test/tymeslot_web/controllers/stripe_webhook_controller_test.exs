@@ -16,7 +16,13 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
 
   describe "POST /webhooks/stripe" do
     # The test environment enables development-mode verification (plain JSON
-    # accepted), so the signature tests switch it off explicitly.
+    # accepted), so the signature tests switch it off explicitly. The ingress
+    # still needs the endpoint's signing secret to be configured.
+
+    setup do
+      with_config(:tymeslot, stripe_webhook_secret: "whsec_controller_test")
+      :ok
+    end
 
     test "returns an empty 400 when webhook signature is missing", %{conn: conn} do
       with_config(:tymeslot,
@@ -202,8 +208,6 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
         stripe_webhook_secret: nil
       )
 
-      with_config(:stripity_stripe, webhook_secret: nil)
-
       payload = ~s({"type":"checkout.session.completed", "id":"evt_no_secret"})
 
       conn =
@@ -217,13 +221,12 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
       assert response(conn, 503) == ""
     end
 
-    test "acknowledges and records an event whose handler returns an error without a message",
+    test "acknowledges and records an event whose handler returns a permanent error",
          %{conn: conn} do
-      # `TrialWillEndHandler` answers a non-integer `trial_end` with the
-      # two-element `{:error, :invalid_timestamp}`, a shape outside the
-      # processor's documented three-element error. It must still settle as a
+      # `TrialWillEndHandler` answers a non-integer `trial_end` with
+      # `{:error, :permanent, :invalid_timestamp}`. It must settle as a
       # permanent failure: 200, and the event recorded so Stripe stops
-      # redelivering it, rather than crashing with the reservation held.
+      # redelivering it, rather than leaving the reservation held.
       subscription = %{
         "id" => "sub_bad_trial_end",
         "customer" => "cus_bad_trial_end",

@@ -4,6 +4,8 @@ defmodule Tymeslot.Payments.Webhooks.IdempotencyTest do
   @moduletag :payments
   @moduletag :webhooks
 
+  import ExUnit.CaptureLog
+
   alias Tymeslot.Payments.Webhooks.Idempotency
   alias Tymeslot.Payments.Webhooks.IdempotencyCache
   alias Tymeslot.Webhooks.WebhookQueries
@@ -46,32 +48,33 @@ defmodule Tymeslot.Payments.Webhooks.IdempotencyTest do
       assert released?(id)
     end
 
-    test "a two-element retryable failure also releases the reservation", %{event_id: id} do
-      assert {:error, :retry_later} =
-               Idempotency.with_idempotency(id, "t", fn -> {:error, :retry_later} end)
-
-      assert released?(id)
-    end
-
-    test "a permanent failure of either arity is marked processed", %{event_id: id} do
+    test "a permanent failure is marked processed, so Stripe stops redelivering", %{event_id: id} do
       assert {:error, :permanent} =
-               Idempotency.with_idempotency(id, "t", fn -> {:error, :invalid_timestamp} end)
+               Idempotency.with_idempotency(id, "t", fn ->
+                 {:error, :permanent, :invalid_timestamp}
+               end)
 
       assert processed?(id)
-
-      other = id <> "_3"
-
-      assert {:error, :permanent} =
-               Idempotency.with_idempotency(other, "t", fn -> {:error, :bad, "message"} end)
-
-      assert processed?(other)
     end
 
-    test "an unexpected result shape is treated as permanent, not a crash", %{event_id: id} do
-      assert {:error, :permanent} =
-               Idempotency.with_idempotency(id, "t", fn -> {:weird, :shape, :entirely, 4} end)
+    # A shape the handler contract does not allow could hide a lost payment
+    # event, so it is retried (never acknowledged) and logged as an error.
+    for {label, result} <- [
+          {"a bare two-element error", {:error, :invalid_timestamp}},
+          {"a bare retry_later atom", {:error, :retry_later}},
+          {"an error with another atom and a message", {:error, :bad, "message"}},
+          {"an arbitrary tuple", {:weird, :shape, :entirely, 4}}
+        ] do
+      test "#{label} is retried and logged as an error", %{event_id: id} do
+        log =
+          capture_log([level: :error], fn ->
+            assert {:error, :retry_later} =
+                     Idempotency.with_idempotency(id, "t", fn -> unquote(Macro.escape(result)) end)
+          end)
 
-      assert processed?(id)
+        assert log =~ "broke its result contract"
+        assert released?(id)
+      end
     end
 
     test "a raising handler releases the reservation and re-raises", %{event_id: id} do

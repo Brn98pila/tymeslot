@@ -2,9 +2,9 @@ defmodule Tymeslot.MeetingPayments.Webhooks.WebhookRegistry do
   @moduledoc """
   Maps Stripe Connect event types to per-event handler modules. The
   registry intentionally only knows about the small set of events the
-  meeting-payments feature subscribes to — any other event from Stripe
-  is treated as unhandled (returns `nil`) and the processor logs it and
-  moves on.
+  meeting-payments feature subscribes to; any other event from Stripe
+  is unhandled (`nil`), and `Tymeslot.Payments.Webhooks.Ingress` logs it
+  and acknowledges it.
   """
 
   alias Tymeslot.MeetingPayments.Webhooks.{
@@ -33,6 +33,6 @@ defmodule Tymeslot.MeetingPayments.Webhooks.WebhookRegistry do
     "account.updated" => AccountUpdated
   }
 
-  @spec handler_for(String.t()) :: module() | nil
+  @spec handler_for(String.t()) :: module() | :ignore | nil
   def handler_for(event_type), do: Map.get(@handlers, event_type)
 end

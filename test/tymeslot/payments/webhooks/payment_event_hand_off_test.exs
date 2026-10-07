@@ -20,8 +20,6 @@ defmodule Tymeslot.Payments.Webhooks.PaymentEventHandOffTest do
     TrialWillEndHandler
   }
 
-  alias Tymeslot.Payments.Webhooks.WebhookProcessor
-
   defmodule RecordingHandler do
     @spec handle_payment_event(map()) :: :ok
     def handle_payment_event(event) do
@@ -63,10 +61,7 @@ defmodule Tymeslot.Payments.Webhooks.PaymentEventHandOffTest do
       Application.put_env(:tymeslot, :payment_event_handler, RecordingHandler)
 
       assert {:ok, :event_processed} =
-               SubscriptionHandler.process(
-                 %{"type" => "customer.subscription.updated"},
-                 %{"id" => "sub_hand_off", "status" => "active"}
-               )
+               SubscriptionHandler.handle(subscription_updated_event("evt_hand_off"))
 
       assert_received {:handed_off,
                        %{event: :subscription_updated, subscription_id: "sub_hand_off"}}
@@ -81,7 +76,7 @@ defmodule Tymeslot.Payments.Webhooks.PaymentEventHandOffTest do
                Idempotency.with_idempotency(
                  event_id,
                  "customer.subscription.updated",
-                 fn -> WebhookProcessor.process_event(subscription_updated_event(event_id)) end
+                 fn -> SubscriptionHandler.handle(subscription_updated_event(event_id)) end
                )
 
       # Released rather than settled, so Stripe's redelivery is taken up.
@@ -92,10 +87,16 @@ defmodule Tymeslot.Payments.Webhooks.PaymentEventHandOffTest do
       Application.put_env(:tymeslot, :payment_event_handler, FailingHandler)
 
       trial_end = DateTime.to_unix(DateTime.add(DateTime.utc_now(), 3, :day))
-      subscription = %{"id" => "sub_trial_fails", "trial_end" => trial_end}
-      event = %{"id" => "evt_trial_fails", "type" => "customer.subscription.trial_will_end"}
+      subscription = %{"id" => "sub_trial_fails", "customer" => "cus_1", "trial_end" => trial_end}
 
-      assert {:error, :retry_later, _message} = TrialWillEndHandler.process(event, subscription)
+      event = %{
+        "id" => "evt_trial_fails",
+        "type" => "customer.subscription.trial_will_end",
+        "data" => %{"object" => subscription}
+      }
+
+      assert {:error, :retry_later, {:hand_off_failed, :enqueue_failed}} =
+               TrialWillEndHandler.handle(event)
     end
 
     test "a dispute, refund or trial event is handed off with its Stripe event id" do

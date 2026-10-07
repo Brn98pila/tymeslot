@@ -5,39 +5,32 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandlerTest do
   import Tymeslot.Test.PaymentEventCapture
 
   alias Tymeslot.Payments.Webhooks.SubscriptionHandler
-  alias Tymeslot.Payments.Webhooks.WebhookProcessor
 
-  describe "can_handle?/1" do
-    test "returns true for supported subscription events" do
-      assert SubscriptionHandler.can_handle?("customer.subscription.created")
-      assert SubscriptionHandler.can_handle?("customer.subscription.updated")
-      assert SubscriptionHandler.can_handle?("customer.subscription.deleted")
-    end
+  defp event(type, object, extra \\ %{}),
+    do: Map.merge(%{"type" => type, "data" => %{"object" => object}}, extra)
 
-    test "returns false for unsupported events" do
-      refute SubscriptionHandler.can_handle?("customer.created")
-    end
-  end
+  describe "a malformed subscription" do
+    test "without an id is a permanent failure and hands nothing off" do
+      capture_payment_events()
 
-  describe "validate/1" do
-    test "returns :ok for valid subscription" do
-      assert SubscriptionHandler.validate(%{"id" => "sub_123"}) == :ok
-    end
+      assert {:error, :permanent, :missing_subscription_id} =
+               SubscriptionHandler.handle(event("customer.subscription.created", %{}))
 
-    test "returns error for missing or empty id" do
-      assert {:error, :missing_field, _reason} = SubscriptionHandler.validate(%{})
-      assert {:error, :missing_field, _reason} = SubscriptionHandler.validate(%{"id" => ""})
+      assert {:error, :permanent, :missing_subscription_id} =
+               SubscriptionHandler.handle(event("customer.subscription.created", %{"id" => ""}))
+
+      refute_receive %{event: _event}, 50
     end
   end
 
-  describe "process/2" do
+  describe "handle/1" do
     test "hands off subscription events" do
       capture_payment_events()
 
       subscription = %{"id" => "sub_123", "status" => "active"}
-      event = %{"type" => "customer.subscription.created"}
+      event = event("customer.subscription.created", subscription)
 
-      assert {:ok, :event_processed} = SubscriptionHandler.process(event, subscription)
+      assert {:ok, :event_processed} = SubscriptionHandler.handle(event)
 
       assert_receive %{
         event: :subscription_created,
@@ -53,13 +46,13 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandlerTest do
 
       subscription = %{"id" => "sub_ordered", "status" => "active"}
 
-      event = %{
-        "id" => "evt_ordered",
-        "created" => 1_700_000_123,
-        "type" => "customer.subscription.updated"
-      }
+      event =
+        event("customer.subscription.updated", subscription, %{
+          "id" => "evt_ordered",
+          "created" => 1_700_000_123
+        })
 
-      assert {:ok, :event_processed} = SubscriptionHandler.process(event, subscription)
+      assert {:ok, :event_processed} = SubscriptionHandler.handle(event)
 
       assert_receive %{
         subscription_id: "sub_ordered",
@@ -72,36 +65,13 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandlerTest do
       capture_payment_events()
 
       subscription = %{"id" => "sub_123"}
-      event = %{"type" => "customer.subscription.something_else"}
+      event = event("customer.subscription.something_else", subscription)
 
-      assert {:ok, :event_processed} = SubscriptionHandler.process(event, subscription)
+      assert {:ok, :event_processed} = SubscriptionHandler.handle(event)
 
       assert_receive %{
         event: :subscription_event,
         subscription_id: "sub_123"
-      }
-    end
-  end
-
-  describe "through the webhook processor" do
-    # The processor hands Stripe's string-keyed event on unchanged, so the
-    # event name must come from its "type" key.
-    test "names the hand-off after the event's type" do
-      capture_payment_events()
-
-      event = %{
-        "id" => "evt_through_processor",
-        "type" => "customer.subscription.deleted",
-        "created" => 1_700_000_000,
-        "data" => %{"object" => %{"id" => "sub_through_processor", "status" => "canceled"}}
-      }
-
-      assert {:ok, :event_processed} = WebhookProcessor.process_event(event)
-
-      assert_receive %{
-        event: :subscription_deleted,
-        subscription_id: "sub_through_processor",
-        event_id: "evt_through_processor"
       }
     end
   end
