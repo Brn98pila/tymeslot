@@ -84,7 +84,7 @@ defmodule Tymeslot.Bookings.RescheduleRequest do
       {:error, reason} ->
         Logger.warning("Reschedule request blocked by policy",
           meeting_id: meeting.id,
-          reason: reason
+          reason: LogFormat.reason(reason)
         )
 
         {:error, reason}

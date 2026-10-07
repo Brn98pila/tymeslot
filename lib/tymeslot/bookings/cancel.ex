@@ -129,7 +129,7 @@ defmodule Tymeslot.Bookings.Cancel do
   defp policy_blocked(meeting, reason) do
     Logger.warning("Meeting cancellation blocked by policy",
       meeting_id: meeting.id,
-      reason: reason
+      reason: LogFormat.reason(reason)
     )
 
     {:error, reason}

@@ -347,7 +347,11 @@ defmodule Tymeslot.Meetings do
         :ok
 
       {:error, reason} = error ->
-        Logger.warning("Reschedule request failed", meeting_id: meeting.id, reason: reason)
+        Logger.warning("Reschedule request failed",
+          meeting_id: meeting.id,
+          reason: LogFormat.reason(reason)
+        )
+
         error
     end
   end
