@@ -83,4 +83,17 @@ defmodule Tymeslot.Integrations.Shared.OAuthConfigTest do
                "Failed to setup Zoom OAuth: Something went wrong"
     end
   end
+
+  describe "check_state_secrets!/1" do
+    test "allows a state secret that is unset or set" do
+      assert :ok = OAuthConfig.check_state_secrets!(%{"GOOGLE_STATE_SECRET" => "s3cret"})
+      assert :ok = OAuthConfig.check_state_secrets!(%{})
+    end
+
+    test "stops the boot on a state secret that is set but blank" do
+      assert_raise RuntimeError, ~r/OUTLOOK_STATE_SECRET is set but blank/, fn ->
+        OAuthConfig.check_state_secrets!(%{"OUTLOOK_STATE_SECRET" => " "})
+      end
+    end
+  end
 end

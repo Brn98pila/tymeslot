@@ -127,6 +127,11 @@ if config_env() == :prod do
   # a malformed value raises in the encryption module. Once set, run the
   # re-encryption sweep (see README, "Data-at-rest encryption") to migrate
   # existing values, then the two secrets are fully independent.
+  # An integration's OAuth state secret signs the `state` its flows carry. Unset
+  # leaves the provider unconfigured, which a self-hoster without it relies on;
+  # set but blank would sign with an empty HMAC key, so it stops the boot.
+  Tymeslot.Integrations.Shared.OAuthConfig.check_state_secrets!(System.get_env())
+
   data_encryption_key = System.get_env("DATA_ENCRYPTION_KEY")
 
   if is_nil(data_encryption_key) do
