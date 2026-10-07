@@ -35,6 +35,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   @spec create_meeting_room(atom(), map()) :: {:ok, MeetingContext.t()} | {:error, term()}
   def create_meeting_room(provider_type, config) do
     timed(:create_room, provider_type, fn ->
+      # A failure is the caller's to log, once, with what the room was for.
       Logger.info("Creating meeting room", provider: provider_type)
 
       with {:ok, provider_module} <- ProviderConfig.get_provider(provider_type),
@@ -51,18 +52,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
            room_data: room_data,
            provider_module: provider_module
          }}
-      else
-        {:error, :unknown_provider} ->
-          Logger.error("Unknown video provider", provider_type: provider_type)
-          {:error, :unknown_provider}
-
-        {:error, _reason} = error ->
-          Logger.error("Failed to create meeting room",
-            provider: provider_type,
-            reason: LogFormat.reason(error)
-          )
-
-          error
       end
     end)
   end
@@ -70,7 +59,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   @doc """
   Creates a join URL for a participant.
   """
-  @spec create_join_url(MeetingContext.t(), String.t(), String.t(), atom(), DateTime.t()) ::
+  @spec create_join_url(MeetingContext.t(), String.t(), String.t(), String.t(), DateTime.t()) ::
           {:ok, String.t()} | {:error, term()}
   def create_join_url(meeting_context, participant_name, participant_email, role, meeting_time) do
     %{
@@ -89,31 +78,22 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
         room_ref: Redactor.fingerprint(room_data.room_id)
       )
 
-      case provider_module.create_join_url(
-             room_data,
-             participant_name,
-             participant_email,
-             role,
-             meeting_time
-           ) do
-        {:ok, join_url} ->
-          Logger.debug("Successfully created join URL",
-            provider: provider_type,
-            role: role,
-            room_ref: Redactor.fingerprint(room_data.room_id)
-          )
+      # A failure is `VideoRooms`' to log, once, with the fallback it chose.
+      with {:ok, _join_url} = ok <-
+             provider_module.create_join_url(
+               room_data,
+               participant_name,
+               participant_email,
+               role,
+               meeting_time
+             ) do
+        Logger.debug("Successfully created join URL",
+          provider: provider_type,
+          role: role,
+          room_ref: Redactor.fingerprint(room_data.room_id)
+        )
 
-          {:ok, join_url}
-
-        {:error, reason} = error ->
-          Logger.error("Failed to create join URL",
-            provider: provider_type,
-            role: role,
-            room_ref: Redactor.fingerprint(room_data.room_id),
-            reason: LogFormat.reason(reason)
-          )
-
-          error
+        ok
       end
     end)
   end

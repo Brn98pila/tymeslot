@@ -47,7 +47,7 @@ defmodule Tymeslot.Meetings.VideoRoomRefusalLogTest do
             assert {:error, unquote(reason)} = Meetings.add_video_room_to_meeting(meeting.id)
           end)
 
-        refute log =~ "Failed to add video room"
+        assert log == ""
       end
     end
   end

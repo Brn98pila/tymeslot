@@ -11,8 +11,6 @@ defmodule Tymeslot.Meetings do
 
   alias Tymeslot.Bookings.{Cancel, CancelSeat, Reschedule, RescheduleRequest}
 
-  alias Tymeslot.Infrastructure.Logging.LogFormat
-
   alias Tymeslot.Meetings.{
     BusyPeriods,
     CalendarEventLink,
@@ -285,12 +283,9 @@ defmodule Tymeslot.Meetings do
 
         error
 
-      {:error, reason} = error ->
-        Logger.error("Failed to add video room",
-          meeting_id: meeting_id,
-          reason: LogFormat.reason(reason)
-        )
-
+      # `Tymeslot.Workers.VideoRoomWorker` logs a failure once, with what it
+      # does about it.
+      {:error, _reason} = error ->
         error
     end
   end

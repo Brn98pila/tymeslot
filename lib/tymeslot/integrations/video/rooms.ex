@@ -6,14 +6,11 @@ defmodule Tymeslot.Integrations.Video.Rooms do
   URLs. Delegates provider-specific work to the Providers layer via the
   ProviderAdapter.
 
-  Room ids never reach the logs here: for a link-based provider the id is the
-  join link itself. Lines carry `room_ref`, a fingerprint of it, instead. See
-  `Tymeslot.Integrations.Video.Providers.ProviderAdapter` for the rule.
+  It logs and times nothing itself: `ProviderAdapter` and the providers log
+  and time each call, and the caller logs a failure once, with the booking or
+  event it was for.
   """
 
-  require Logger
-  alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Infrastructure.Logging.Redactor
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Integrations.Video.MeetingContext
   alias Tymeslot.Integrations.Video.ProviderConfig
@@ -36,30 +33,22 @@ defmodule Tymeslot.Integrations.Video.Rooms do
       it (Teams on the same Microsoft account) instead of creating an event of
       its own
   """
+  # The outcome is kept on the integration: a refusal its server will repeat
+  # for every booking is recorded for the owner, and a created room clears one.
+  # A failure is the caller's to log, once, with the booking or event it was
+  # for; `ProviderAdapter` and the provider log what happened on the wire.
   @spec create_meeting_room(pos_integer() | nil, keyword()) ::
           {:ok, MeetingContext.t()} | {:error, any()}
   def create_meeting_room(user_id, opts \\ []) do
-    Logger.info("Creating meeting room for user", user_id: user_id)
-    do_create_meeting_room(user_id, opts)
-  end
+    with {:ok, integration, provider_type, config} <- resolve_integration(user_id, opts) do
+      config =
+        config
+        |> maybe_attach_event_details(opts)
+        |> maybe_put(:calendar_event_id, Keyword.get(opts, :calendar_event_id))
 
-  # The outcome is kept on the integration: a refusal its server will repeat
-  # for every booking is recorded for the owner, and a created room clears one.
-  defp do_create_meeting_room(user_id, opts) do
-    case resolve_integration(user_id, opts) do
-      {:ok, integration, provider_type, config} ->
-        config =
-          config
-          |> maybe_attach_event_details(opts)
-          |> maybe_put(:calendar_event_id, Keyword.get(opts, :calendar_event_id))
-
-        result = create_room_with_provider(provider_type, config)
-        RoomCreationError.track(integration, result)
-        result
-
-      {:error, reason} = error ->
-        Logger.error("Failed to get provider configuration", reason: LogFormat.reason(reason))
-        error
+      result = create_room_with_provider(provider_type, config)
+      RoomCreationError.track(integration, result)
+      result
     end
   end
 
@@ -71,26 +60,8 @@ defmodule Tymeslot.Integrations.Video.Rooms do
   end
 
   defp create_room_with_provider(provider_type, config) do
-    Logger.info("Using provider for meeting room creation", provider_type: provider_type)
-
-    case ProviderAdapter.create_meeting_room(provider_type, config) do
-      {:ok, meeting_context} ->
-        updated_context = add_provider_config_to_context(meeting_context, config)
-
-        Logger.info("Successfully created meeting room",
-          provider: provider_type,
-          room_ref: room_ref(updated_context)
-        )
-
-        {:ok, updated_context}
-
-      {:error, reason} = error ->
-        Logger.error("Failed to create meeting room",
-          provider: provider_type,
-          reason: LogFormat.reason(reason)
-        )
-
-        error
+    with {:ok, meeting_context} <- ProviderAdapter.create_meeting_room(provider_type, config) do
+      {:ok, add_provider_config_to_context(meeting_context, config)}
     end
   end
 
@@ -248,52 +219,16 @@ defmodule Tymeslot.Integrations.Video.Rooms do
   @spec create_join_url(MeetingContext.t(), String.t(), String.t(), String.t(), DateTime.t()) ::
           {:ok, String.t()} | {:error, any()}
   def create_join_url(meeting_context, participant_name, participant_email, role, meeting_time) do
-    # The participant's name is personal data and says nothing a join URL
-    # failure needs: the role and the room's fingerprint identify the link
-    # just as well, and neither follows an attendee into the log sink.
-    room_ref = room_ref(meeting_context)
-
-    Logger.info("Creating join URL for participant",
-      role: role,
-      room_ref: room_ref,
-      provider: meeting_context.provider_type
+    ProviderAdapter.create_join_url(
+      meeting_context,
+      participant_name,
+      participant_email,
+      role,
+      meeting_time
     )
-
-    case ProviderAdapter.create_join_url(
-           meeting_context,
-           participant_name,
-           participant_email,
-           role,
-           meeting_time
-         ) do
-      {:ok, _url} = result ->
-        Logger.info("Successfully created join URL",
-          role: role,
-          room_ref: room_ref,
-          provider: meeting_context.provider_type
-        )
-
-        result
-
-      {:error, reason} = error ->
-        Logger.error("Failed to create join URL",
-          role: role,
-          room_ref: room_ref,
-          provider: meeting_context.provider_type,
-          reason: LogFormat.reason(reason)
-        )
-
-        error
-    end
   end
 
   # Private helpers
-  # A short fingerprint of the room id, never the id: it is the join credential
-  # for every link-based provider, and support only ever needs to tell two lines
-  # about the same room apart.
-  defp room_ref(%{room_data: %{room_id: room_id}}), do: Redactor.fingerprint(room_id)
-  defp room_ref(_meeting_context), do: Redactor.fingerprint(nil)
-
   defp get_provider_config(user_id, opts) do
     with {:ok, _integration, provider_type, config} <- resolve_integration(user_id, opts) do
       {:ok, provider_type, config}
