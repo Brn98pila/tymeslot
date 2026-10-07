@@ -36,6 +36,12 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.ItemDiscovery do
   alias Tymeslot.Integrations.Calendar.Exchange.Requests
   alias Tymeslot.Integrations.Calendar.Exchange.Soap
 
+  # `GetItem` answers with `BaseShape=Default`, which carries each item's full
+  # body, so one request for a whole window (up to the server's
+  # `FindCountLimit`, 1000 by default) could run to tens of megabytes. A
+  # hundred ids keeps every response comfortably inside the EWS byte budget.
+  @get_item_batch_size 100
+
   @typedoc """
   An item id and the change key stating which version of it was seen. The
   change key is `""` where the server stated none.
@@ -53,11 +59,14 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.ItemDiscovery do
   end
 
   @doc """
-  Fetches the given items' fields in one batched `GetItem`.
+  Fetches the given items' fields with batched `GetItem` requests, at most
+  #{@get_item_batch_size} ids to a request, answering the items in the order
+  the ids were given.
 
   An empty list is answered `{:ok, []}` without a round trip: `m:ItemIds`
   demands a child, so an empty batch would be answered with a schema fault
-  rather than an empty list.
+  rather than an empty list. A request that fails outright fails the whole
+  read; no partial window is answered.
 
   Answers the raw `t:CalendarItem` elements, which
   `Exchange.EventNormaliser.normalise_events/2` turns into `CalendarEvent`
@@ -68,9 +77,23 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.ItemDiscovery do
   def fetch_items(_config, []), do: {:ok, []}
 
   def fetch_items(config, ids) do
-    with {:ok, doc} <- Client.call(config, Requests.get_item(ids)),
-         :ok <- EventNormaliser.require_readable_batch(doc) do
-      {:ok, EventNormaliser.parse_items(doc)}
+    with {:ok, docs} <- fetch_batches(config, Enum.chunk_every(ids, @get_item_batch_size)),
+         :ok <- EventNormaliser.require_readable_batch(docs) do
+      {:ok, Enum.flat_map(docs, &EventNormaliser.parse_items/1)}
+    end
+  end
+
+  defp fetch_batches(config, batches) do
+    batches
+    |> Enum.reduce_while([], fn batch, docs ->
+      case Client.call(config, Requests.get_item(batch)) do
+        {:ok, doc} -> {:cont, [doc | docs]}
+        {:error, _reason} = error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:error, _reason} = error -> error
+      docs -> {:ok, Enum.reverse(docs)}
     end
   end
 

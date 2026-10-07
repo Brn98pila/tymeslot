@@ -1,10 +1,13 @@
 defmodule Tymeslot.Integrations.Calendar.Exchange.ItemDiscoveryTest do
-  use ExUnit.Case, async: true
+  use Tymeslot.ExchangeCase
 
   @moduletag :integrations
+  @moduletag :calendar
 
-  import Tymeslot.ExchangeCase, only: [response_envelope: 2]
+  import SweetXml, only: [sigil_x: 2]
 
+  alias Plug.Conn
+  alias Req.Test, as: ReqTest
   alias Tymeslot.ExchangeFixtures
   alias Tymeslot.Integrations.Calendar.Exchange.ItemDiscovery
   alias Tymeslot.Integrations.Calendar.Exchange.Soap
@@ -56,6 +59,87 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.ItemDiscoveryTest do
 
       assert ItemDiscovery.item_ids(doc) == {:error, :no_response_messages}
     end
+  end
+
+  describe "fetch_items/2" do
+    test "fetches a large window in batches of 100 ids, answering items in id order" do
+      answer_get_item_with(fn ids -> Enum.map(ids, &{:ok, id: &1}) end)
+      ids = for n <- 1..250, do: {"item-#{n}", "ck-#{n}"}
+
+      assert {:ok, items} = ItemDiscovery.fetch_items(config(), ids)
+
+      assert_received {:get_item, first}
+      assert_received {:get_item, second}
+      assert_received {:get_item, third}
+      refute_received {:get_item, _}
+      assert Enum.map([first, second, third], &length/1) == [100, 100, 50]
+      assert first ++ second ++ third == Enum.map(ids, &elem(&1, 0))
+
+      assert Enum.map(items, &Soap.text(&1, ~x"./t:ItemId/@Id")) == Enum.map(ids, &elem(&1, 0))
+    end
+
+    test "fails the whole read when one batch fails outright" do
+      answer_get_item_with(fn ids ->
+        if "item-150" in ids, do: :server_error, else: Enum.map(ids, &{:ok, id: &1})
+      end)
+
+      ids = for n <- 1..250, do: {"item-#{n}", "ck-#{n}"}
+
+      assert {:error, _reason} = ItemDiscovery.fetch_items(config(), ids)
+    end
+
+    test "reads a window whose one batch lost every message while the others were answered" do
+      # The all-failed refusal guards against an emptied calendar, which is a
+      # verdict on the read as a whole: items deleted mid-sync can fill one
+      # batch without the window being unreadable.
+      answer_get_item_with(fn ids ->
+        if "item-1" in ids,
+          do: Enum.map(ids, &{:ok, id: &1}),
+          else: Enum.map(ids, fn _id -> {:error, "ErrorItemNotFound"} end)
+      end)
+
+      ids = for n <- 1..150, do: {"item-#{n}", "ck-#{n}"}
+
+      assert {:ok, items} = ItemDiscovery.fetch_items(config(), ids)
+      assert length(items) == 100
+    end
+
+    test "refuses a read in which every message of every batch failed" do
+      answer_get_item_with(fn ids ->
+        Enum.map(ids, fn _id -> {:error, "ErrorAccessDenied"} end)
+      end)
+
+      ids = for n <- 1..150, do: {"item-#{n}", "ck-#{n}"}
+
+      assert ItemDiscovery.fetch_items(config(), ids) ==
+               {:error, {:response_code, "ErrorAccessDenied"}}
+    end
+  end
+
+  # Answers each `GetItem` with the messages `entries_for` builds from the ids
+  # it names (or a 500 for `:server_error`), and reports those ids to the test
+  # process in request order.
+  defp answer_get_item_with(entries_for) do
+    test_pid = self()
+
+    ReqTest.stub(:tymeslot_http, fn conn ->
+      {:ok, body, conn} = Conn.read_body(conn)
+
+      ids =
+        ~r/<t:ItemId Id="([^"]+)"/ |> Regex.scan(body, capture: :all_but_first) |> List.flatten()
+
+      send(test_pid, {:get_item, ids})
+
+      case entries_for.(ids) do
+        :server_error ->
+          Conn.resp(conn, 500, "")
+
+        entries ->
+          conn
+          |> Conn.put_resp_content_type("text/xml")
+          |> Conn.resp(200, ExchangeFixtures.get_item_batch_response(entries))
+      end
+    end)
   end
 
   # A `FindItem` response whose single message carries the given `t:ItemId`
