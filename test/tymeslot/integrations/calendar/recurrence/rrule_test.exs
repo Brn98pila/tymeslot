@@ -540,4 +540,43 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRuleTest do
       rule |> RRule.until_instant(zone) |> DateTime.shift_zone!("Etc/UTC")
     end
   end
+
+  # The expander and the recurrence editor read UNTIL in the same zone, so the
+  # last occurrence the expander makes falls on the date the editor shows.
+  # The far east (UTC+12/13) and far west (UTC-10) are where a UTC reading
+  # moves the last occurrence onto another day.
+  describe "the last occurrence falls on the editor's end date" do
+    for zone <- ["Pacific/Auckland", "Pacific/Honolulu"],
+        {form, rule} <- [
+          {"written by the editor", :built},
+          {"floating", "FREQ=DAILY;UNTIL=20260415T235959"},
+          {"a bare date", "FREQ=DAILY;UNTIL=20260415"},
+          {"the legacy end-of-day UTC stamp", "FREQ=DAILY;UNTIL=20260415T235959Z"}
+        ] do
+      @zone zone
+      @rule rule
+
+      test "#{form}, in #{zone}" do
+        rule =
+          if @rule == :built,
+            do: RRule.build(%{freq: :daily, until: ~D[2026-04-15]}, timezone: @zone),
+            else: @rule
+
+        assert %{until: ~D[2026-04-15]} = RRule.options(rule, timezone: @zone)
+
+        # Early and late in the day, where a UTC reading would cross the date.
+        for time <- [~T[00:30:00], ~T[23:30:00]] do
+          start = DateTime.new!(~D[2026-04-10], time, @zone)
+
+          last =
+            %{start_time: start, end_time: DateTime.add(start, 1800), recurrence_rule: rule}
+            |> RecurrenceExpander.expand(start, DateTime.add(start, 30, :day))
+            |> List.last()
+
+          assert last.start_time |> DateTime.shift_zone!(@zone) |> DateTime.to_date() ==
+                   ~D[2026-04-15]
+        end
+      end
+    end
+  end
 end

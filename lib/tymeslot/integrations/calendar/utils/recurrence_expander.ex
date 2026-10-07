@@ -166,12 +166,14 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
     |> Enum.map(&build_occurrence(event, &1, duration, all_day?))
   end
 
-  # The rule as it is stepped: UNTIL as an instant, and the week starting on
-  # Monday unless the rule says otherwise.
-  defp stepping(rule, _zone) do
+  # The rule as it is stepped: UNTIL read in the zone the occurrences are
+  # stepped in, the series' own (UTC for an all-day series), so the last
+  # occurrence falls on the date the recurrence editor shows, and the week
+  # starting on Monday unless the rule says otherwise.
+  defp stepping(rule, zone) do
     rule
     |> Map.from_struct()
-    |> Map.merge(%{until: RRule.until_instant(rule, "Etc/UTC"), week_start: rule.week_start || 1})
+    |> Map.merge(%{until: RRule.until_instant(rule, zone), week_start: rule.week_start || 1})
   end
 
   # The starts the rule makes within the range, in order. The rule is expanded
