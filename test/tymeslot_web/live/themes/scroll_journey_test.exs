@@ -149,4 +149,44 @@ defmodule TymeslotWeb.Live.Themes.ScrollJourneyTest do
       assert second != first
     end
   end
+
+  describe "the summary bar" do
+    test "follows the choices and links each back to the moment that took it", %{conn: conn} do
+      %{profile: profile} = seed_organiser(@theme_id, "scroll-summary")
+      {:ok, view, _html} = live(conn, ~p"/#{profile.username}")
+
+      refute has_element?(view, "[data-testid='summary-bar']")
+
+      BookingDriver.choose_meeting_type(view, "quick-chat")
+
+      assert has_element?(
+               view,
+               "#intro-step a[data-testid='summary-bar-meeting-type'][href='#offer-step']",
+               "Quick Chat"
+             )
+
+      refute has_element?(view, "[data-testid='summary-bar-slot']")
+
+      BookingDriver.pick_time(view, await_first_time(view))
+
+      assert has_element?(
+               view,
+               "#intro-step a[data-testid='summary-bar-slot'][href='#when-step']"
+             )
+    end
+  end
+
+  describe "the focus" do
+    test "moves to a moment that opens, and stays put on page load", %{conn: conn} do
+      %{profile: profile} = seed_organiser(@theme_id, "scroll-focus")
+      {:ok, view, _html} = live(conn, ~p"/#{profile.username}")
+
+      refute has_element?(view, "[phx-mounted*='focus']")
+
+      BookingDriver.choose_meeting_type(view, "quick-chat")
+
+      assert has_element?(view, "#when-heading-current[phx-mounted*='focus']")
+      refute has_element?(view, "#offer-heading-done[phx-mounted*='focus']")
+    end
+  end
 end
