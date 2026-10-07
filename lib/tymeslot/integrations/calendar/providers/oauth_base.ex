@@ -1,4 +1,4 @@
-defmodule Tymeslot.Integrations.Common.OAuthBase do
+defmodule Tymeslot.Integrations.Calendar.Providers.OAuthBase do
   @moduledoc """
   Common OAuth functionality for calendar providers.
 
@@ -118,7 +118,8 @@ defmodule Tymeslot.Integrations.Common.OAuthBase do
   Macro for creating OAuth-based calendar providers.
 
   This macro injects common OAuth functionality while allowing providers
-  to customize their specific behavior through callbacks.
+  to customize their specific behavior through the callbacks of
+  `Tymeslot.Integrations.Calendar.Providers.OAuthProvider`.
   """
   defmacro __using__(opts) do
     provider_name = Keyword.fetch!(opts, :provider_name)
@@ -127,8 +128,9 @@ defmodule Tymeslot.Integrations.Common.OAuthBase do
 
     quote do
       @behaviour Tymeslot.Integrations.Calendar.Provider
+      @behaviour Tymeslot.Integrations.Calendar.Providers.OAuthProvider
 
-      alias Tymeslot.Integrations.Common.OAuthBase
+      alias Tymeslot.Integrations.Calendar.Providers.OAuthBase
 
       @provider_name unquote(provider_name)
       @display_name unquote(display_name)
@@ -210,28 +212,6 @@ defmodule Tymeslot.Integrations.Common.OAuthBase do
       # provider-specific and must be implemented by each OAuth provider.
 
       defoverridable check_connectivity: 1, list_events: 2, list_events_representation: 0
-
-      # Provider-specific callbacks that must be implemented
-      @callback validate_oauth_scope(config :: map()) :: :ok | {:error, String.t()}
-      @callback convert_events(events :: list()) :: list()
-      @callback convert_event(event :: map()) :: map()
-      @callback get_calendar_api_module() :: module()
-      @callback call_list_events(
-                  integration :: term(),
-                  start_time :: DateTime.t(),
-                  end_time :: DateTime.t()
-                ) :: term()
-      @callback call_create_event(integration :: term(), event_attrs :: map()) :: term()
-      @callback call_update_event(
-                  integration :: term(),
-                  event_id :: String.t(),
-                  event_attrs :: map()
-                ) :: term()
-      @callback call_delete_event(
-                  integration :: term(),
-                  event_id :: String.t(),
-                  opts :: keyword()
-                ) :: term()
     end
   end
 end

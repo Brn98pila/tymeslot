@@ -1,8 +1,8 @@
-defmodule Tymeslot.Integrations.Common.OAuthBaseTest do
+defmodule Tymeslot.Integrations.Calendar.Providers.OAuthBaseTest do
   use Tymeslot.DataCase, async: true
   @moduletag :integrations
 
-  alias Tymeslot.Integrations.Common.OAuthBase
+  alias Tymeslot.Integrations.Calendar.Providers.OAuthBase
 
   describe "validate_config/2" do
     test "validates required fields" do
