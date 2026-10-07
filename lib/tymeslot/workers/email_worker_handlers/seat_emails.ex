@@ -188,17 +188,20 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.SeatEmails do
         )
       end)
 
-    GuestNotifications.notify_seat_cancelled(
-      meeting,
-      GuestQueries.list_for_participant(participant.id),
-      details,
-      &DeliveryClaims.once(job_id, &1, &2)
-    )
+    guests_result =
+      GuestNotifications.notify_seat_cancelled(
+        meeting,
+        GuestQueries.list_for_participant(participant.id),
+        details,
+        &DeliveryClaims.once(job_id, &1, &2)
+      )
 
+    # Each guest's send is claimed on the job, like the two above, so a
+    # retry for a missed guest writes only to the guests not yet told.
     DeliveryOutcome.from_results(
       "seat cancellation",
       [meeting_id: meeting.id, participant_id: participant.id],
-      [organizer_result, attendee_result]
+      [organizer_result, attendee_result, guests_result]
     )
   end
 
@@ -233,13 +236,13 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.SeatEmails do
         )
       end)
 
-    cancel_old_guests(old_seat, job_id)
+    old_guests_result = cancel_old_guests(old_seat, job_id)
     if new_seat_live?, do: invite_guests(meeting, participant, details, email_service)
 
     DeliveryOutcome.from_results(
       "seat reschedule",
       [meeting_id: meeting.id, participant_id: participant.id],
-      [organizer_result, attendee_result]
+      [organizer_result, attendee_result, old_guests_result]
     )
   end
 

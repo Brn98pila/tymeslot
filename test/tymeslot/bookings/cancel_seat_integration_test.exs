@@ -409,6 +409,53 @@ defmodule Tymeslot.Bookings.CancelSeatIntegrationTest do
     refute Map.has_key?(details, :attendee_email)
   end
 
+  # A guest missed in a mail outage is told on the retry, and only they are:
+  # every leg of the job is claimed on it.
+  test "a seat cancellation retries the guest a mail outage missed, and only them",
+       %{meeting: meeting, leaver: leaver} do
+    {:ok, guests} =
+      Guests.create_for_participant(meeting.id, leaver.id, [
+        "reached@example.com",
+        "missed@example.com"
+      ])
+
+    for guest <- guests do
+      {:ok, _guest} = GuestQueries.mark_confirmation_sent(guest, DateTime.utc_now(:second))
+    end
+
+    assert {:ok, :seat_cancelled} = CancelSeat.execute(leaver.management_token)
+
+    expect(EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _email, _details ->
+      {:ok, "sent"}
+    end)
+
+    expect(EmailServiceMock, :send_seat_update_to_organizer, 1, fn :cancelled, _email, _d ->
+      {:ok, "sent"}
+    end)
+
+    test_pid = self()
+    failed = :atomics.new(1, [])
+
+    stub(EmailServiceMock, :send_guest_cancellation, fn email, _details ->
+      send(test_pid, {:guest_send, email})
+
+      if email == "missed@example.com" and :atomics.compare_exchange(failed, 1, 0, 1) == :ok,
+        do: {:error, :smtp_down},
+        else: {:ok, "sent"}
+    end)
+
+    [job] =
+      all_enqueued(worker: EmailWorker, args: %{"action" => "send_seat_cancellation_emails"})
+
+    assert {:error, _reason} = EmailWorker.perform(%{job | attempt: job.attempt + 1})
+    assert_received {:guest_send, "reached@example.com"}
+    assert_received {:guest_send, "missed@example.com"}
+
+    assert :ok = EmailWorker.perform(%{job | attempt: job.attempt + 2})
+    assert_received {:guest_send, "missed@example.com"}
+    refute_received {:guest_send, _email}
+  end
+
   # The host cancelling the whole meeting between the seat's pre-transaction
   # read and its row lock has already told every participant the meeting is
   # off; the seat cancellation must not go on to cancel the seat and send its
