@@ -26,6 +26,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.SeatLockedEventsTest do
   @original_start_minutes 780
   @moved_start_minutes 840
 
+  # The provider write runs in a Task; allow for a busy test machine.
+  @task_timeout 5_000
+
   @locked_message "This is a group booking. Move it, cancel it or change who attends from the meeting instead."
 
   import Tymeslot.DashboardTestHelpers
@@ -319,7 +322,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.SeatLockedEventsTest do
       test_pid = self()
 
       Mox.stub(Tymeslot.CalendarMock, :update_event, fn uid, _data, _context ->
-        send(test_pid, {:provider_update, uid})
+        send(test_pid, {:provider_update, self(), uid})
         :ok
       end)
 
@@ -331,8 +334,13 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.SeatLockedEventsTest do
         |> render_hook("event_dropped", drop_params(event))
 
       assert html =~ "Group Workshop"
-      assert_receive {:provider_update, uid}
+      assert_receive {:provider_update, task_pid, uid}, @task_timeout
       assert uid == event.uid
+
+      # The Task reports the write's result to the grid before it exits, so
+      # once it is down the grid has that answer queued ahead of the render.
+      ref = Process.monitor(task_pid)
+      assert_receive {:DOWN, ^ref, :process, ^task_pid, _reason}, @task_timeout
       assert event_block(lv, event.id) =~ ~s(data-start-minutes="#{@moved_start_minutes}")
     end
   end
