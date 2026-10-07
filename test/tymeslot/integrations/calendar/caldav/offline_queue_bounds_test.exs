@@ -103,7 +103,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueueBoundsTest do
 
       assert_received {:put, "/cal/first.ics"}
       refute_received {:put, "/cal/second.ics"}
-      assert Repo.reload!(first).sync_attempts == 1
+      assert Repo.reload!(first).sync_attempts == 0
       assert Repo.reload!(second).sync_attempts == 0
     end
 
@@ -185,6 +185,40 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueueBoundsTest do
       assert :ok = OfflineQueue.flush(integration, @client)
       assert :ok = OfflineQueue.flush(integration, @client)
       assert Repo.reload!(row).sync_attempts == 2
+    end
+
+    # A 503 is a server that is down or in maintenance, which says nothing
+    # about whether it would accept the change: counted, an ordinary outage
+    # would strand the oldest queued change within hours.
+    test "a 503 leaves the change queued without counting the attempt",
+         %{integration: integration} do
+      row = insert_pending_row(integration, sync_state: "locally_modified")
+      count_requests(503)
+
+      assert :ok = OfflineQueue.flush(integration, @client)
+
+      assert %{sync_state: "locally_modified", sync_attempts: 0, sync_deferred_since: %DateTime{}} =
+               Repo.reload!(row)
+    end
+
+    # A server down for good answers 503 on every cycle; the day's grace
+    # covers it as it covers a refused connection.
+    test "a change a down server has refused for over a day counts each further failure",
+         %{integration: integration} do
+      row = insert_pending_row(integration, sync_state: "locally_modified")
+      count_requests(503)
+
+      assert :ok = OfflineQueue.flush(integration, @client)
+      assert Repo.reload!(row).sync_attempts == 0
+
+      SQL.query!(
+        Repo,
+        "UPDATE provider_calendar_events SET sync_deferred_since = $1 WHERE id = $2",
+        [DateTime.add(DateTime.utc_now(), -25, :hour), row.id]
+      )
+
+      assert :ok = OfflineQueue.flush(integration, @client)
+      assert Repo.reload!(row).sync_attempts == 1
     end
 
     test "a change unanswered for under a day does not count", %{integration: integration} do

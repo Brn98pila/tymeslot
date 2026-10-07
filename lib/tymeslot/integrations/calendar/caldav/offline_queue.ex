@@ -21,8 +21,8 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue do
   On success the row is marked `"synced"` (or the cache row is deleted
   for a successful `locally_deleted`). On failure the row stays in the
   queue with a human-readable description of the failure in
-  `sync_last_error`, and, when the server answered, an incremented
-  `sync_attempts`. The next sync cycle retries automatically — there is
+  `sync_last_error`, and, when the server answered about the change, an
+  incremented `sync_attempts`. The next sync cycle retries automatically — there is
   no backoff beyond the sync cadence itself — but within bounds, so one
   stuck server or one change the server will never accept cannot hold a
   sync job for long:
@@ -30,14 +30,15 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue do
     * a failure that says the server cannot be reached right now (a
       timeout, a 5xx, a rate limit) ends the flush; the rows after it wait
       for the next cycle rather than each waiting out the same timeout;
-    * a failure that never got an answer from the server (the network, a
-      timeout, a rate limit) does not count towards the row's attempts: an
-      outage says nothing about whether the server would accept the
-      change, and counting it would strand the oldest queued change after a
-      few hours of downtime. A 5xx does count: the server answered, and
-      some servers answer a change they cannot parse with one every time,
-      which would otherwise hold that row at the head of the queue, and
-      every later change behind it, for good;
+    * a failure that never got an answer about the change (the network, a
+      timeout, a rate limit, or a 502, 503 or 504, the shapes of a server
+      that is down or in maintenance) does not count towards the row's
+      attempts: an outage says nothing about whether the server would
+      accept the change, and counting it would strand the oldest queued
+      change after a few hours of downtime. Any other 5xx does count: the
+      server answered, and some servers answer a change they cannot parse
+      with a 500 every time, which would otherwise hold that row at the
+      head of the queue, and every later change behind it, for good;
     * a row that has gone unanswered without a break for longer than
       `@deferral_grace_hours` hours counts each further failure whatever
       its reason, since no outage lasts that long while the rest of the
@@ -112,6 +113,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue do
   @unreachable_reasons [
     :network_error,
     :server_error,
+    :service_unavailable,
     :server_unresponsive,
     :timeout,
     :rate_limited
@@ -119,7 +121,8 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue do
 
   # Of those, the ones that never got an answer about this change, so do not
   # count towards its attempts until it has gone unanswered for
-  # `@deferral_grace_hours`. A 5xx is the server answering, and counts.
+  # `@deferral_grace_hours`. A `:server_error` (a 5xx other than 502, 503
+  # and 504) is the server answering about this change, and counts.
   @unanswered_reasons @unreachable_reasons -- [:server_error]
   @deferral_grace_hours 24
 

@@ -329,7 +329,12 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.EventsTest do
                    base_delay_ms: 1,
                    max_delay_ms: 5,
                    jitter_factor: 0.0,
-                   retryable_errors: [:network_error, :timeout, :server_error]
+                   retryable_errors: [
+                     :network_error,
+                     :timeout,
+                     :server_error,
+                     :service_unavailable
+                   ]
                  ],
                  skip_breaker: true
                )
@@ -358,7 +363,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.EventsTest do
         end_time: ~U[2026-02-24 11:00:00Z]
       }
 
-      assert {:error, :server_error} =
+      assert {:error, :service_unavailable} =
                Events.update_calendar_event(
                  @caldav_client,
                  "/calendars/user/personal/",
@@ -369,7 +374,12 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.EventsTest do
                    base_delay_ms: 1,
                    max_delay_ms: 5,
                    jitter_factor: 0.0,
-                   retryable_errors: [:network_error, :timeout, :server_error]
+                   retryable_errors: [
+                     :network_error,
+                     :timeout,
+                     :server_error,
+                     :service_unavailable
+                   ]
                  ],
                  skip_breaker: true
                )

@@ -10,7 +10,8 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Discovery do
   ## Discovery Strategy
 
   1. Attempts the provider-specific guessed path (e.g., `/calendars/{user}/`).
-  2. On `:not_found`, `:forbidden`, `:method_not_allowed` or `:server_error`,
+  2. On `:not_found`, `:forbidden`, `:method_not_allowed`, `:server_error` or
+     `:service_unavailable`,
      follows the full RFC 4791 chain:
      - PROPFIND the supplied base URL, then the origin root, until one answers
        with a `current-user-principal` href
@@ -45,7 +46,13 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Discovery do
   # particular must not advance: the credentials are wrong, no URL can fix
   # that, and re-presenting a rejected login to a server that locks accounts
   # out makes the user's situation worse rather than better.
-  @wrong_url_errors [:not_found, :forbidden, :method_not_allowed, :server_error]
+  @wrong_url_errors [
+    :not_found,
+    :forbidden,
+    :method_not_allowed,
+    :server_error,
+    :service_unavailable
+  ]
 
   # SSRF guard for outbound discovery/test-connection PROPFINDs.
   #

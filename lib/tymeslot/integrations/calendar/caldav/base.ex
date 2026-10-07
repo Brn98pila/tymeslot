@@ -26,7 +26,8 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
   | `Http.put_event/5`              | ✗          | No retry (write operation) |
   | `Http.delete_event/4`           | ✗          | No retry (write operation) |
 
-  Retryable errors: `:network_error`, `:timeout`, `:server_error`
+  Retryable errors: `:network_error`, `:timeout`, `:server_error`,
+  `:service_unavailable`
 
   ## Related modules
 
@@ -60,7 +61,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
     base_delay_ms: 500,
     max_delay_ms: 2_000,
     jitter_factor: 0.1,
-    retryable_errors: [:network_error, :timeout, :server_error]
+    retryable_errors: [:network_error, :timeout, :server_error, :service_unavailable]
   ]
 
   @spec report_timeout_ms() :: non_neg_integer()
@@ -95,6 +96,9 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
           # abandoned mid-transfer.
           | :response_too_large
           | :server_error
+          # A 502, 503 or 504: the server is down rather than failing this
+          # request.
+          | :service_unavailable
           | :server_unresponsive
           | :sync_token_expired
           | :timeout

@@ -187,7 +187,8 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ErrorHandler do
     )
   end
 
-  def sanitize_error_message(:server_error, _provider) do
+  def sanitize_error_message(reason, _provider)
+      when reason in [:server_error, :service_unavailable] do
     dgettext(
       "dashboard_calendar_providers",
       "The calendar service encountered an error. Please try again later."

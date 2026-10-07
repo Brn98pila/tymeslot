@@ -110,6 +110,8 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Errors do
         "The calendar server reported an error. Tymeslot will retry automatically."
       )
 
+  def describe_error(:service_unavailable), do: describe_error(:server_error)
+
   def describe_error(:server_unresponsive),
     do:
       dgettext(
@@ -176,6 +178,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Errors do
   @spec unsupported_request?(Base.error_reason() | term()) :: boolean()
   def unsupported_request?(:method_not_allowed), do: true
   def unsupported_request?(:server_error), do: true
+  def unsupported_request?(:service_unavailable), do: true
   def unsupported_request?(:invalid_response), do: true
   def unsupported_request?({:unexpected_status, status}) when status in 400..599, do: true
   def unsupported_request?(_other), do: false

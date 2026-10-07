@@ -214,7 +214,8 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
   # permanent-failure admin alert each time about an outage no operator here
   # can fix. Discard and let the scheduled sync retry minutes later; the health
   # check is what surfaces a remote that never comes back.
-  defp handle_sync_result({:error, :server_error}, _integration) do
+  defp handle_sync_result({:error, reason}, _integration)
+       when reason in [:server_error, :service_unavailable] do
     {:discard, @server_error}
   end
 

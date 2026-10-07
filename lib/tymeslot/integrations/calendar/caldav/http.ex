@@ -44,7 +44,15 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Http do
     # sentinel elsewhere (it deletes calendar paths and local rows).
     405 => :method_not_allowed,
     408 => :timeout,
-    429 => :rate_limited
+    429 => :rate_limited,
+    # The shapes of a server that is down rather than one failing this
+    # request: a reverse proxy in front of a dead backend, or a server in
+    # maintenance mode. Kept apart from `:server_error` because the offline
+    # queue reads the difference (see `CalDAV.OfflineQueue`); every other
+    # caller treats the two alike.
+    502 => :service_unavailable,
+    503 => :service_unavailable,
+    504 => :service_unavailable
   }
 
   @doc """
