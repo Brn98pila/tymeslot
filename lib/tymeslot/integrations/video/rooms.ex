@@ -14,7 +14,6 @@ defmodule Tymeslot.Integrations.Video.Rooms do
   require Logger
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Logging.Redactor
-  alias Tymeslot.Infrastructure.Metrics
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Integrations.Video.MeetingContext
   alias Tymeslot.Integrations.Video.ProviderConfig
@@ -40,10 +39,8 @@ defmodule Tymeslot.Integrations.Video.Rooms do
   @spec create_meeting_room(pos_integer() | nil, keyword()) ::
           {:ok, MeetingContext.t()} | {:error, any()}
   def create_meeting_room(user_id, opts \\ []) do
-    Metrics.time_operation(:video_create_meeting_room, %{}, fn ->
-      Logger.info("Creating meeting room for user", user_id: user_id)
-      do_create_meeting_room(user_id, opts)
-    end)
+    Logger.info("Creating meeting room for user", user_id: user_id)
+    do_create_meeting_room(user_id, opts)
   end
 
   # The outcome is kept on the integration: a refusal its server will repeat
@@ -197,16 +194,14 @@ defmodule Tymeslot.Integrations.Video.Rooms do
   """
   @spec update_meeting_room(pos_integer() | nil, keyword()) :: :ok | {:error, any()}
   def update_meeting_room(user_id, opts) do
-    Metrics.time_operation(:video_update_meeting_room, %{}, fn ->
-      with {:ok, room_id} <- fetch_required_opt(opts, :room_id),
-           {:ok, provider_type, config} <- get_provider_config(user_id, opts) do
-        ProviderAdapter.update_meeting_room(
-          provider_type,
-          room_id,
-          merge_meeting_attrs(config, opts)
-        )
-      end
-    end)
+    with {:ok, room_id} <- fetch_required_opt(opts, :room_id),
+         {:ok, provider_type, config} <- get_provider_config(user_id, opts) do
+      ProviderAdapter.update_meeting_room(
+        provider_type,
+        room_id,
+        merge_meeting_attrs(config, opts)
+      )
+    end
   end
 
   @doc """
@@ -223,12 +218,10 @@ defmodule Tymeslot.Integrations.Video.Rooms do
   """
   @spec delete_meeting_room(pos_integer() | nil, keyword()) :: :ok | {:error, any()}
   def delete_meeting_room(user_id, opts) do
-    Metrics.time_operation(:video_delete_meeting_room, %{}, fn ->
-      with {:ok, room_id} <- fetch_required_opt(opts, :room_id),
-           {:ok, provider_type, config} <- get_provider_config(user_id, opts) do
-        ProviderAdapter.delete_meeting_room(provider_type, room_id, config)
-      end
-    end)
+    with {:ok, room_id} <- fetch_required_opt(opts, :room_id),
+         {:ok, provider_type, config} <- get_provider_config(user_id, opts) do
+      ProviderAdapter.delete_meeting_room(provider_type, room_id, config)
+    end
   end
 
   defp fetch_required_opt(opts, key) do
@@ -255,51 +248,43 @@ defmodule Tymeslot.Integrations.Video.Rooms do
   @spec create_join_url(MeetingContext.t(), String.t(), String.t(), String.t(), DateTime.t()) ::
           {:ok, String.t()} | {:error, any()}
   def create_join_url(meeting_context, participant_name, participant_email, role, meeting_time) do
-    Metrics.time_operation(
-      :video_create_join_url,
-      %{
-        provider: meeting_context.provider_type
-      },
-      fn ->
-        # The participant's name is personal data and says nothing a join URL
-        # failure needs: the role and the room's fingerprint identify the link
-        # just as well, and neither follows an attendee into the log sink.
-        room_ref = room_ref(meeting_context)
+    # The participant's name is personal data and says nothing a join URL
+    # failure needs: the role and the room's fingerprint identify the link
+    # just as well, and neither follows an attendee into the log sink.
+    room_ref = room_ref(meeting_context)
 
-        Logger.info("Creating join URL for participant",
+    Logger.info("Creating join URL for participant",
+      role: role,
+      room_ref: room_ref,
+      provider: meeting_context.provider_type
+    )
+
+    case ProviderAdapter.create_join_url(
+           meeting_context,
+           participant_name,
+           participant_email,
+           role,
+           meeting_time
+         ) do
+      {:ok, _url} = result ->
+        Logger.info("Successfully created join URL",
           role: role,
           room_ref: room_ref,
           provider: meeting_context.provider_type
         )
 
-        case ProviderAdapter.create_join_url(
-               meeting_context,
-               participant_name,
-               participant_email,
-               role,
-               meeting_time
-             ) do
-          {:ok, _url} = result ->
-            Logger.info("Successfully created join URL",
-              role: role,
-              room_ref: room_ref,
-              provider: meeting_context.provider_type
-            )
+        result
 
-            result
+      {:error, reason} = error ->
+        Logger.error("Failed to create join URL",
+          role: role,
+          room_ref: room_ref,
+          provider: meeting_context.provider_type,
+          reason: LogFormat.reason(reason)
+        )
 
-          {:error, reason} = error ->
-            Logger.error("Failed to create join URL",
-              role: role,
-              room_ref: room_ref,
-              provider: meeting_context.provider_type,
-              reason: LogFormat.reason(reason)
-            )
-
-            error
-        end
-      end
-    )
+        error
+    end
   end
 
   # Private helpers

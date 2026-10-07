@@ -34,7 +34,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   """
   @spec create_meeting_room(atom(), map()) :: {:ok, MeetingContext.t()} | {:error, term()}
   def create_meeting_room(provider_type, config) do
-    Metrics.time_operation(:video_create_room, %{provider: provider_type}, fn ->
+    timed(:create_room, provider_type, fn ->
       Logger.info("Creating meeting room", provider: provider_type)
 
       with {:ok, provider_module} <- ProviderConfig.get_provider(provider_type),
@@ -79,7 +79,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
       provider_module: provider_module
     } = meeting_context
 
-    Metrics.time_operation(:video_create_join_url, %{provider: provider_type}, fn ->
+    timed(:create_join_url, provider_type, fn ->
       # The role and room say whose link this is without copying the
       # participant's name into the log sink, where it outlives the account it
       # belongs to.
@@ -233,7 +233,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   """
   @spec update_meeting_room(atom(), String.t(), map()) :: :ok | {:error, term()}
   def update_meeting_room(provider_type, room_id, config) do
-    Metrics.time_operation(:video_update_room, %{provider: provider_type}, fn ->
+    timed(:update_room, provider_type, fn ->
       Logger.info("Updating meeting room",
         provider: provider_type,
         room_ref: Redactor.fingerprint(room_id)
@@ -272,7 +272,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   """
   @spec delete_meeting_room(atom(), String.t(), map()) :: :ok | {:error, term()}
   def delete_meeting_room(provider_type, room_id, config) do
-    Metrics.time_operation(:video_delete_room, %{provider: provider_type}, fn ->
+    timed(:delete_room, provider_type, fn ->
       Logger.info("Deleting meeting room",
         provider: provider_type,
         room_ref: Redactor.fingerprint(room_id)
@@ -424,6 +424,13 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   end
 
   defp already_gone_is_deleted(result, _provider_type, _room_id), do: result
+
+  # Each room operation's telemetry event, `[:tymeslot, :video, operation]`.
+  defp timed(operation, provider_type, fun),
+    do:
+      Metrics.time_operation(operation, %{provider: provider_type}, fun,
+        prefix: [:tymeslot, :video]
+      )
 
   defp callback_exported?(module, fun, arity) do
     Code.ensure_loaded?(module) and function_exported?(module, fun, arity)
