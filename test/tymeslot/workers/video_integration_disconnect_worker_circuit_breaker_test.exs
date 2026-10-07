@@ -20,6 +20,7 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorkerCircuitBreakerTest do
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
   alias Tymeslot.Repo
   alias Tymeslot.Security.Encryption
+  alias Tymeslot.Test.LogCapture
   alias Tymeslot.Workers.VideoIntegrationDisconnectWorker
   alias Tymeslot.ZoomOAuthHelperMock
 
@@ -202,10 +203,40 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorkerCircuitBreakerTest do
 
       assert {:ok, _still_there} = VideoIntegrationQueries.get(integration.id)
 
+      LogCapture.attach()
+
       assert :ok =
                perform_job(VideoIntegrationDisconnectWorker, job_args(integration), attempt: 5)
 
       assert {:error, :not_found} = VideoIntegrationQueries.get(integration.id)
+
+      # The page was full of refused rooms, so whatever lies past it was
+      # never tried.
+      event = LogCapture.await_log("Giving up on provider room cleanup")
+      assert LogCapture.user_metadata(event)[:more_rooms_may_remain] == true
+    end
+
+    test "purges on the last attempt while pages are still draining" do
+      %{user: user} = create_user_with_profile()
+      integration = insert_zoom_integration(user)
+      insert_meetings(user, integration, 11)
+
+      {:ok, _soft} = VideoIntegrationQueries.soft_delete(integration)
+      stub(ZoomOAuthHelperMock, :validate_token, fn _config -> {:ok, :valid} end)
+
+      expect(HTTPClientMock, :request, 10, fn :delete, _url, _body, _headers, _opts ->
+        {:ok, %Req.Response{status: 204, body: ""}}
+      end)
+
+      LogCapture.attach()
+
+      assert :ok =
+               perform_job(VideoIntegrationDisconnectWorker, job_args(integration), attempt: 5)
+
+      assert {:error, :not_found} = VideoIntegrationQueries.get(integration.id)
+
+      event = LogCapture.await_log("Giving up on provider room cleanup")
+      assert LogCapture.user_metadata(event)[:more_rooms_may_remain] == true
     end
   end
 

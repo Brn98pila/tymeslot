@@ -216,7 +216,7 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorker do
         give_up(integration, total, failures, more_may_remain: true)
 
       true ->
-        finish(integration, executions, total, failures)
+        finish(integration, executions, total, failures, full_page?)
     end
   end
 
@@ -236,12 +236,15 @@ defmodule Tymeslot.Workers.VideoIntegrationDisconnectWorker do
         @default_drain_page_limit
       )
 
-  defp finish(integration, _executions, total, 0), do: purge(integration, total, 0)
+  defp finish(integration, _executions, total, 0, _full_page?), do: purge(integration, total, 0)
 
-  defp finish(integration, executions, total, failures) when executions >= @max_attempts,
-    do: give_up(integration, total, failures, more_may_remain: false)
+  # A full page of refused deletes hides whatever lies past it: the same rooms
+  # come back first every time, so the rest were never tried.
+  defp finish(integration, executions, total, failures, full_page?)
+       when executions >= @max_attempts,
+       do: give_up(integration, total, failures, more_may_remain: full_page?)
 
-  defp finish(integration, _executions, _total, failures) do
+  defp finish(integration, _executions, _total, failures, _full_page?) do
     Logger.warning("Provider room cleanup incomplete, will retry",
       integration_id: integration.id,
       failed: failures
