@@ -12,7 +12,10 @@ defmodule TymeslotWeb.ThemeTestMatrix do
   markup contract test and `TymeslotWeb.BookingDriver`'s tests run those: a
   fixture renders the approval notice and the confirmation status, and books
   through the markup contract like any other theme. A fixture has no
-  stylesheet of its own.
+  stylesheet of its own. Besides the fixture (`"99"`) and the showcase
+  (`"97"`), the test-only themes are the journey fixtures (`"96"` Fixture
+  Scroll, `test/support/journey_fixtures/`), whose journeys are their own
+  (`journey: :custom`).
 
   `all/0` and `ids/0` are the shipped themes alone, for the suites tied to
   their own design (deep links, sort order, cancel pages, accessibility, the
@@ -101,6 +104,19 @@ defmodule TymeslotWeb.ThemeTestMatrix do
       selected_duration_selector: ".duration-card.selected [data-testid='duration-option']",
       journey: :classic,
       fixture: false
+    },
+    "96" => %{
+      id: "96",
+      key: :fixture_scroll,
+      slug: "fixture_scroll",
+      name: "Fixture Scroll",
+      wrapper_class: "journey-fixture-scroll",
+      video_background: false,
+      pins_schedule_actions: false,
+      schedule_view: :calendar,
+      selected_duration_selector: "[data-fact='meeting_type'][aria-pressed='true']",
+      journey: :custom,
+      fixture: true
     },
     "97" => %{
       id: "97",

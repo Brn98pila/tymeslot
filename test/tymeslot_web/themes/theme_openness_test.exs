@@ -7,6 +7,10 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
   own. Each test below drives one of those through the real routes; the last
   one checks that no shared code names it, so none of this works by a
   special case.
+
+  The journey fixtures (`test/support/journey_fixtures/`) compose journeys of
+  their own from the shared navigators and blocks; the same check holds that
+  no shared code names them either.
   """
   use TymeslotWeb.LiveCase, async: false
 
@@ -38,7 +42,7 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
 
   # Everything the test-only themes add that a shared module could name,
   # their ids among them as quoted literals.
-  @fixture_names ~r/FixtureTheme|fixture_emblem|EmblemPanel|:fixture\b|ShowcaseTheme|:showcase\b|#{Regex.escape(~s("99"))}|#{Regex.escape(~s("97"))}/
+  @fixture_names ~r/FixtureTheme|fixture_emblem|EmblemPanel|:fixture\b|ShowcaseTheme|:showcase\b|JourneyFixture|:fixture_(scroll|talk|express)\b|#{Regex.escape(~s("99"))}|#{Regex.escape(~s("97"))}|#{Regex.escape(~s("96"))}|#{Regex.escape(~s("95"))}|#{Regex.escape(~s("94"))}/
 
   setup :verify_on_exit!
 
@@ -354,7 +358,7 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
   describe "shared code" do
     # A source check: it reads the shared code rather than calling it.
     # credo:disable-for-next-line Jump.CredoChecks.VacuousTest
-    test "names nothing the fixture theme adds" do
+    test "names nothing the test-only themes add" do
       shared = Path.wildcard("lib/**/*.{ex,exs,heex}")
       configs = Path.wildcard("config/*.exs") -- ["config/test.exs"]
       files = ["mix.exs" | shared ++ configs]

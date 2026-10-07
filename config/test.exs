@@ -35,6 +35,15 @@ config :tymeslot, :extra_themes, [
     module: TymeslotWeb.Test.ShowcaseTheme.Theme
   },
   %{
+    id: "96",
+    key: :fixture_scroll,
+    name: "Fixture Scroll",
+    heading_style: :generic,
+    customization_spec: Tymeslot.Test.JourneyFixtureSpec,
+    status: :beta,
+    module: TymeslotWeb.Test.JourneyFixtures.Scroll.Theme
+  },
+  %{
     id: "99",
     key: :fixture,
     name: "Fixture",
