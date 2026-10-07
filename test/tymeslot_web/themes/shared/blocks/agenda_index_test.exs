@@ -33,7 +33,6 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.AgendaIndexTest do
         %{
           week_start: ~D[2027-03-08],
           week_slots: @week,
-          today: ~D[2027-03-10],
           user_timezone: "Etc/UTC",
           booking_window_days: 30,
           target: nil
@@ -49,6 +48,19 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.AgendaIndexTest do
   test "lists a row per day from today with a free time" do
     assert Floki.attribute(render_index(), ".agenda-index__row", "data-date") ==
              ["2027-03-10", "2027-03-12"]
+  end
+
+  test "takes today from the visitor's timezone, not the UTC date" do
+    # 23:30 UTC on 10 March is already 11 March in Tokyo, so the 10th is past.
+    ClockHelpers.freeze_clock(~U[2027-03-10 23:30:00Z])
+    doc = render_index(user_timezone: "Asia/Tokyo")
+
+    assert Floki.attribute(doc, ".agenda-index__row", "data-date") == ["2027-03-12"]
+
+    ClockHelpers.freeze_clock(~U[2027-03-11 23:30:00Z])
+    doc = render_index(user_timezone: "Asia/Tokyo")
+
+    assert doc |> Floki.find(".agenda-index__row") |> hd() |> Floki.text() =~ "Today"
   end
 
   test "offers each row's times as slot facts" do

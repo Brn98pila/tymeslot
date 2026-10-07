@@ -10,9 +10,8 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChipsTest do
 
   import Phoenix.LiveViewTest, only: [render_component: 2]
 
+  alias Tymeslot.Test.ClockHelpers
   alias TymeslotWeb.Themes.Shared.Blocks.DayChips
-
-  @today ~D[2027-03-10]
 
   @availability %{
     "2027-03-09" => true,
@@ -25,13 +24,14 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChipsTest do
 
   setup do
     Gettext.put_locale(TymeslotWeb.Gettext, "en")
+    ClockHelpers.freeze_clock(~U[2027-03-10 12:00:00Z])
     :ok
   end
 
   defp render_chips(overrides \\ []) do
     assigns =
       Map.merge(
-        %{availability: @availability, today: @today, count: 3, target: nil},
+        %{availability: @availability, user_timezone: "Etc/UTC", count: 3, target: nil},
         Map.new(overrides)
       )
 
@@ -52,6 +52,19 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChipsTest do
              {"2027-03-11", "Tomorrow"},
              {"2027-03-13", "Sat 13"}
            ]
+  end
+
+  test "takes today from the visitor's timezone, not the UTC date" do
+    # 23:30 UTC on 10 March is already 11 March in Tokyo.
+    ClockHelpers.freeze_clock(~U[2027-03-10 23:30:00Z])
+
+    assert chips(render_chips(user_timezone: "Asia/Tokyo")) == [
+             {"2027-03-11", "Today"},
+             {"2027-03-13", "Sat 13"},
+             {"2027-03-20", "Sat 20"}
+           ]
+
+    assert Floki.find(render_chips(user_timezone: "Asia/Tokyo"), ".day-chips__chip--today") != []
   end
 
   test "sends select_date and names each chip by its full date" do

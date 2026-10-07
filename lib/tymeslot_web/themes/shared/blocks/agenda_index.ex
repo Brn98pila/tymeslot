@@ -1,6 +1,6 @@
 defmodule TymeslotWeb.Themes.Shared.Blocks.AgendaIndex do
   @moduledoc """
-  The week as an index: one row per day from `today` with a free time, the
+  The week as an index: one row per day from today (in the visitor's `user_timezone`) with a free time, the
   date, then its times as plain text buttons, with previous and next week
   controls (`prev_week`, `next_week`, bounded as `WeekGrid`'s are by
   `CalendarNavigation`, carrying the markup contract's `data-intent="earlier"`
@@ -32,7 +32,6 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.AgendaIndex do
   attr :week_slots, :map, default: nil
   attr :loading, :boolean, default: false
   attr :error, :string, default: nil
-  attr :today, Date, required: true
   attr :selected_date, :string, default: nil
   attr :selected_time, :string, default: nil
   attr :user_timezone, :string, required: true
@@ -41,9 +40,12 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.AgendaIndex do
 
   @spec agenda_index(map()) :: Phoenix.LiveView.Rendered.t()
   def agenda_index(assigns) do
+    today = CalendarHelpers.visitor_today(assigns.user_timezone)
+
     assigns =
       assign(assigns,
-        rows: WeekSlots.free_days(assigns.week_slots, assigns.today),
+        today: today,
+        rows: WeekSlots.free_days(assigns.week_slots, today),
         state: WeekSlots.view_state(assigns.week_slots, assigns.loading, assigns.error),
         ask: is_nil(assigns.week_slots) && JS.push("load_week", target: assigns.target)
       )

@@ -11,9 +11,8 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlotsTest do
 
   import Phoenix.LiveViewTest, only: [render_component: 2]
 
+  alias Tymeslot.Test.ClockHelpers
   alias TymeslotWeb.Themes.Shared.Blocks.NextSlots
-
-  @today ~D[2027-03-10]
 
   @week %{
     "2027-03-08" => ["9:00 AM"],
@@ -26,13 +25,14 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlotsTest do
 
   setup do
     Gettext.put_locale(TymeslotWeb.Gettext, "en")
+    ClockHelpers.freeze_clock(~U[2027-03-10 12:00:00Z])
     :ok
   end
 
   defp render_slots(overrides \\ []) do
     assigns =
       Map.merge(
-        %{id: "now-slots", week_slots: @week, today: @today, days: 3, target: nil},
+        %{id: "now-slots", week_slots: @week, user_timezone: "Etc/UTC", days: 3, target: nil},
         Map.new(overrides)
       )
 
@@ -59,6 +59,24 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlotsTest do
 
     assert Floki.attribute(doc, "[data-date='2027-03-12'][data-fact=slot]", "phx-click") ==
              ["select_slot"]
+  end
+
+  test "takes today from the visitor's timezone, not the UTC date" do
+    # 23:30 UTC on 10 March is already 11 March in Tokyo, so the 10th is past.
+    ClockHelpers.freeze_clock(~U[2027-03-10 23:30:00Z])
+    doc = render_slots(user_timezone: "Asia/Tokyo", days: 5)
+
+    assert Floki.find(doc, "[data-date='2027-03-10']") == []
+
+    assert doc
+           |> Floki.find(".next-slots__day-label")
+           |> Enum.map(&(&1 |> Floki.text() |> String.trim())) ==
+             ["Tomorrow", "Sat 13", "Sun 14"]
+
+    ClockHelpers.freeze_clock(~U[2027-03-11 23:30:00Z])
+    doc = render_slots(user_timezone: "Asia/Tokyo", days: 5)
+
+    assert doc |> Floki.find(".next-slots__day-label") |> hd() |> Floki.text() == "Today"
   end
 
   test "heads each day as a visitor says it" do

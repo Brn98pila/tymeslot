@@ -1,7 +1,7 @@
 defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlots do
   @moduledoc """
   The soonest free times, for a journey that starts from time: the first
-  `days` days from `today` with a free time, each a heading ("Today",
+  `days` days from today (in the visitor's `user_timezone`) with a free time, each a heading ("Today",
   "Tomorrow", "Fri 12") and its times as large buttons, then "More times",
   which shows the rest of the week the flow has loaded. A time is one click
   for the date and the time together: a button for the slot fact
@@ -40,7 +40,11 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlots do
 
   attr :loading, :boolean, default: false
   attr :error, :string, default: nil
-  attr :today, Date, required: true, doc: "the visitor's today (`@calendar_today`)"
+
+  attr :user_timezone, :string,
+    required: true,
+    doc: "the visitor's timezone; \"Today\" is the date it is now there"
+
   attr :selected_date, :string, default: nil
   attr :selected_time, :string, default: nil
   attr :days, :integer, default: 3, doc: "how many days with free times show before More"
@@ -49,11 +53,14 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlots do
 
   @spec next_slots(map()) :: Phoenix.LiveView.Rendered.t()
   def next_slots(assigns) do
+    today = CalendarHelpers.visitor_today(assigns.user_timezone)
+
     {first, extra} =
-      assigns.week_slots |> WeekSlots.free_days(assigns.today) |> Enum.split(assigns.days)
+      assigns.week_slots |> WeekSlots.free_days(today) |> Enum.split(assigns.days)
 
     assigns =
       assign(assigns,
+        today: today,
         first: first,
         extra: extra,
         state: WeekSlots.view_state(assigns.week_slots, assigns.loading, assigns.error),

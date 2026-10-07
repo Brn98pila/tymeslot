@@ -4,7 +4,7 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChips do
   date: "Today", "Tomorrow", then the weekday and the day of the month ("Thu
   9"). Built from the month's availability the flow already fetches
   (`month_availability_map`, ISO date => whether the day has a free time), so
-  it costs no request of its own: the first `count` free days from `today`.
+  it costs no request of its own: the first `count` free days from today in the visitor's `user_timezone`.
 
   A chip is a button for the date fact (`data-fact="date"`, `data-value` the
   ISO date) sending `select_date`, with its full date as accessible name and
@@ -22,6 +22,7 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChips do
   use Phoenix.Component
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias TymeslotWeb.Live.Scheduling.CalendarHelpers
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
 
   attr :availability, :any,
@@ -32,15 +33,23 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChips do
     default: :not_loaded,
     doc: "the flow's `availability_status`: `:not_loaded`, `:loading`, `:loaded` or `:error`"
 
-  attr :today, Date, required: true, doc: "the visitor's today (`@calendar_today`)"
+  attr :user_timezone, :string,
+    required: true,
+    doc: "the visitor's timezone; \"Today\" is the date it is now there"
+
   attr :selected_date, :string, default: nil
   attr :count, :integer, default: 7
   attr :target, :any, required: true
 
   @spec day_chips(map()) :: Phoenix.LiveView.Rendered.t()
   def day_chips(assigns) do
+    today = CalendarHelpers.visitor_today(assigns.user_timezone)
+
     assigns =
-      assign(assigns, :days, free_days(assigns.availability, assigns.today, assigns.count))
+      assign(assigns,
+        today: today,
+        days: free_days(assigns.availability, today, assigns.count)
+      )
 
     ~H"""
     <div class="day-chips" data-testid="day-chips">
