@@ -182,6 +182,45 @@ defmodule Tymeslot.Bookings.RescheduleRequestTest do
       )
     end
 
+    test "a request from a copy read before the booking re-entered approval is refused" do
+      %{user: user} = create_user_with_profile()
+      meeting = insert_meeting_for_user(user, %{start_offset: 86_400, duration: 3_600})
+
+      # The attendee moved the booking into an approval-gated time after the
+      # host's page loaded it as confirmed.
+      {:ok, _held} = MeetingQueries.update_meeting_status(meeting, %{status: "awaiting_approval"})
+
+      assert {:error, "Cannot request a reschedule while the booking awaits approval"} =
+               RescheduleRequest.send_reschedule_request(meeting)
+
+      {:ok, current} = MeetingQueries.get_meeting(meeting.id)
+      assert is_nil(current.reschedule_requested_at)
+
+      refute_enqueued(
+        worker: EmailWorker,
+        args: %{"action" => "send_reschedule_request", "meeting_id" => meeting.id}
+      )
+    end
+
+    test "a request from a copy read before the meeting moved to a time already started is refused" do
+      %{user: user} = create_user_with_profile()
+      meeting = insert_meeting_for_user(user, %{start_offset: 86_400, duration: 3_600})
+
+      now = DateTime.utc_now(:second)
+
+      {:ok, _moved} =
+        MeetingQueries.update_meeting(meeting, %{
+          start_time: DateTime.add(now, -600),
+          end_time: DateTime.add(now, 3_000)
+        })
+
+      assert {:error, "Cannot reschedule a meeting that has already started"} =
+               RescheduleRequest.send_reschedule_request(meeting)
+
+      {:ok, current} = MeetingQueries.get_meeting(meeting.id)
+      assert is_nil(current.reschedule_requested_at)
+    end
+
     test "the email job names the request it announces" do
       %{user: user} = create_user_with_profile()
       meeting = insert_meeting_for_user(user, %{start_offset: 86_400, duration: 3_600})

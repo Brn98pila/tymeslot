@@ -265,7 +265,10 @@ defmodule Tymeslot.Meetings.MeetingQueries do
 
   @doc """
   Stamps `reschedule_requested_at` on a meeting, atomically, unless a
-  request is already pending or the meeting is already over.
+  request is already pending, the meeting still awaits the host's approval,
+  it has started by `requested_at`, or it is already over: the same rule
+  `Tymeslot.Bookings.Policy.can_request_reschedule?/1` applies, held by the
+  row as it stands rather than by the caller's copy.
 
   The guard is in the `WHERE` clause for the same reason as
   `transition_to_cancelled/2`: two requests for one meeting (a double click,
@@ -278,12 +281,14 @@ defmodule Tymeslot.Meetings.MeetingQueries do
           {:ok, Meeting.t()} | {:error, :not_requestable}
   def mark_reschedule_requested(meeting_id, %DateTime{} = requested_at) do
     query =
-      MeetingState.where_not_terminal(
-        from(m in Meeting,
-          where: m.id == ^meeting_id and is_nil(m.reschedule_requested_at),
-          select: m
-        )
+      from(m in Meeting,
+        where:
+          m.id == ^meeting_id and is_nil(m.reschedule_requested_at) and
+            m.start_time > ^requested_at,
+        select: m
       )
+      |> MeetingState.where_not_terminal()
+      |> MeetingState.where_not_awaiting_approval()
 
     case Repo.update_all(query,
            set: [reschedule_requested_at: requested_at, updated_at: DateTime.utc_now(:second)]
