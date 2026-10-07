@@ -339,7 +339,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
           recurrence_rule: "FREQ=MONTHLY;BYDAY=2MO;COUNT=24",
           provider_metadata: %{"uid" => "pinned-standup"},
           etag: "\"etag-1\"",
-          raw_ical: pinned_caldav_series(),
+          raw_ical: pinned_caldav_series("FREQ=MONTHLY;BYDAY=2MO;COUNT=24"),
           sync_state: "synced"
         )
 
@@ -359,6 +359,72 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
       )
 
       refute render(lv) =~ "Changes saved."
+    end
+  end
+
+  describe "a rule change to a series with parts the editor does not show" do
+    # An imported "second Monday" rule with a BYHOUR the expander does not
+    # follow: the editor shows only its frequency, interval and end.
+    @imported_rule "FREQ=MONTHLY;BYDAY=2MO;BYHOUR=9"
+
+    setup %{user: user} do
+      integration =
+        insert(:calendar_integration,
+          user: user,
+          provider: "caldav",
+          base_url: "https://caldav.example.com",
+          calendar_paths: ["/cal/"]
+        )
+
+      key = Calendar.strftime(today(), "%Y%m%dT090000")
+
+      start_at =
+        today()
+        |> DateTime.new!(~T[09:00:00], "Europe/Berlin")
+        |> DateTime.shift_zone!("Etc/UTC")
+
+      event =
+        insert(:provider_calendar_event,
+          calendar_integration: integration,
+          uid: "pinned-standup_#{key}",
+          provider: "caldav",
+          provider_calendar_id: "/cal/",
+          provider_event_id: "/cal/pinned-standup.ics",
+          summary: "Pinned standup",
+          start_at: start_at,
+          end_at: DateTime.add(start_at, 1, :hour),
+          all_day: false,
+          timezone: "Europe/Berlin",
+          recurrence_rule: @imported_rule,
+          provider_metadata: %{"uid" => "pinned-standup"},
+          etag: "\"etag-1\"",
+          raw_ical: pinned_caldav_series(@imported_rule),
+          sync_state: "synced"
+        )
+
+      %{event: event}
+    end
+
+    test "a new interval for all events keeps them", %{conn: conn, event: event} do
+      expect_puts(1)
+      {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+
+      lv
+      |> element("#calendar-grid")
+      |> render_hook("show_event", %{"event-id" => to_string(event.id)})
+
+      lv
+      |> element("#calendar-grid")
+      |> render_hook("update_event_recurrence", %{
+        "freq" => "monthly",
+        "interval" => "2",
+        "end_type" => "never"
+      })
+
+      confirm_scope(lv, "all")
+
+      assert [{_url, body, _headers}] = await_puts(1)
+      assert "RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=2MO;BYHOUR=9" in LineFolder.unfold_lines(body)
     end
   end
 
@@ -386,7 +452,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
     ) <> "\r\n"
   end
 
-  defp pinned_caldav_series do
+  defp pinned_caldav_series(rule) do
     first = Calendar.strftime(first_day(), "%Y%m%d")
 
     Enum.join(
@@ -398,7 +464,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
         "DTSTAMP:20260901T090000Z",
         first_start_line(),
         "DTEND;TZID=Europe/Berlin:#{first}T100000",
-        "RRULE:FREQ=MONTHLY;BYDAY=2MO;COUNT=24",
+        "RRULE:" <> rule,
         "SUMMARY:Pinned standup",
         "END:VEVENT",
         "END:VCALENDAR"

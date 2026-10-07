@@ -12,7 +12,8 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRule do
   `options/2`: a frequency, an `INTERVAL` ("every N"), a `BYDAY` weekday
   selection for weekly rules, and one of two mutually-exclusive end
   conditions, `COUNT` (after N occurrences) or `UNTIL` (on a date). `build/2`
-  writes that view back.
+  writes that view back, keeping the parts of the rule being edited that the
+  editor does not show (`:keep`).
 
   The canonical option map shape:
 
@@ -199,6 +200,12 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRule do
       included wherever the organiser is.
     - `:timezone` — the event's timezone, used to resolve a timed `UNTIL`.
       Defaults to `nil`, which ends the day in UTC.
+    - `:keep` — the rule being edited, or `nil`. The parts of it the editor
+      does not show are kept: `WKST` and any part `parse/1` does not follow
+      always, and, while the frequency stays the same, `BYMONTH`,
+      `BYMONTHDAY`, `BYSETPOS` and (for any frequency but weekly, whose
+      weekdays the editor shows) `BYDAY`. A rule that changes frequency drops
+      the `BY` parts it was filtered by, which belonged to the old period.
   """
   @spec build(opts(), keyword()) :: String.t()
   def build(opts, extra \\ []) do
@@ -207,6 +214,7 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRule do
 
     opts
     |> from_options(all_day, timezone)
+    |> keep_parts(Keyword.get(extra, :keep))
     |> format()
   end
 
@@ -424,6 +432,30 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRule do
   end
 
   defp options_by_day(_days), do: nil
+
+  defp keep_parts(built, kept) when is_binary(kept) do
+    case parse(kept) do
+      {:ok, %{freq: freq} = kept} when freq == built.freq ->
+        %{
+          built
+          | by_month: kept.by_month,
+            by_month_day: kept.by_month_day,
+            by_set_pos: kept.by_set_pos,
+            by_day: if(freq == :weekly, do: built.by_day, else: kept.by_day),
+            week_start: kept.week_start,
+            other: kept.other
+        }
+
+      {:ok, kept} ->
+        other = Enum.reject(kept.other, fn {name, _value} -> String.starts_with?(name, "BY") end)
+        %{built | week_start: kept.week_start, other: other}
+
+      :error ->
+        built
+    end
+  end
+
+  defp keep_parts(built, _no_rule), do: built
 
   defp format_by_day(nil), do: nil
 

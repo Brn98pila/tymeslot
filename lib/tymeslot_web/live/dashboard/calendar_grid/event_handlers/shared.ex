@@ -224,6 +224,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
       `recurrence_timezone/2`. A timed event's UNTIL is an instant, so the date
       the form supplies has to end its day in a zone rather than in UTC, or the
       series ends a day early west of UTC and a day late east of it.
+    - `:rule` — the rule being edited, if any. The parts of it the form does
+      not show (an ordinal `BYDAY`, `BYMONTHDAY`, `WKST`, ...) are kept, so
+      changing the interval of an imported "second Tuesday" rule does not
+      turn it into a plain monthly one (`RRule.build/2`'s `:keep`).
 
   Returns `{:error, :until_before_start}` when `until` precedes `:start_date`.
   """
@@ -249,7 +253,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
           start_date: Map.get(event_context, :start_date)
         ]
 
-        case RRule.retarget(RRule.build(opts, fit_opts), fit_opts) do
+        rule = RRule.build(opts, [keep: Map.get(event_context, :rule)] ++ fit_opts)
+
+        case RRule.retarget(rule, fit_opts) do
           {:ok, rule} -> rule
           {:error, :until_before_start} = error -> error
         end

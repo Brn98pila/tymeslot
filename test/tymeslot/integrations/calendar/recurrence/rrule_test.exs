@@ -541,6 +541,31 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRuleTest do
     end
   end
 
+  describe "build/2 keeping the parts of the rule being edited" do
+    test "keeps what the editor does not show while the frequency stays" do
+      assert RRule.build(%{freq: :monthly, interval: 3},
+               keep: "FREQ=MONTHLY;BYDAY=2TU;BYSETPOS=1;WKST=SU;BYHOUR=9;COUNT=5"
+             ) == "FREQ=MONTHLY;INTERVAL=3;BYDAY=2TU;BYSETPOS=1;WKST=SU;BYHOUR=9"
+    end
+
+    test "takes a weekly rule's days from the editor" do
+      assert RRule.build(%{freq: :weekly, by_day: [:tu]},
+               keep: "RRULE:FREQ=WEEKLY;BYDAY=MO,WE;X-NAME=kept"
+             ) == "FREQ=WEEKLY;BYDAY=TU;X-NAME=kept"
+    end
+
+    test "drops the old period's BY parts when the frequency changes" do
+      assert RRule.build(%{freq: :weekly, count: 4},
+               keep: "FREQ=MONTHLY;BYDAY=2TU;BYMONTHDAY=8;BYHOUR=9;WKST=SU;X-NAME=kept"
+             ) == "FREQ=WEEKLY;WKST=SU;X-NAME=kept;COUNT=4"
+    end
+
+    test "builds from the options alone without a rule to keep from" do
+      assert RRule.build(%{freq: :daily}, keep: nil) == "FREQ=DAILY"
+      assert RRule.build(%{freq: :daily}, keep: "FREQ=SOMETIMES") == "FREQ=DAILY"
+    end
+  end
+
   # The expander and the recurrence editor read UNTIL in the same zone, so the
   # last occurrence the expander makes falls on the date the editor shows.
   # The far east (UTC+12/13) and far west (UTC-10) are where a UTC reading

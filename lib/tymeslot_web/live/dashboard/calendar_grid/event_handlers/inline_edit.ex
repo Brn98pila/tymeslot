@@ -249,7 +249,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.InlineEdit do
         event_context = %{
           all_day: Map.get(event, :all_day, false),
           start_date: AllDay.start_date(event),
-          timezone: Shared.recurrence_timezone(event, socket.assigns.user_timezone)
+          timezone: Shared.recurrence_timezone(event, socket.assigns.user_timezone),
+          rule: event.recurrence_rule
         }
 
         case Shared.compose_recurrence_rule(params, event_context) do
