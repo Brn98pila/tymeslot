@@ -16,7 +16,6 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProvider do
   alias Tymeslot.Integrations.Shared.ProviderConfigHelper
   alias Tymeslot.Integrations.Video.NeedsReauth
   alias Tymeslot.Integrations.Video.OAuthTokenManager
-  alias Tymeslot.Integrations.Video.Providers.Capabilities
   alias Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   alias Tymeslot.Integrations.Video.Providers.TeamsProvider.Payload
   alias Tymeslot.Integrations.Video.RoomData
@@ -26,16 +25,6 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProvider do
 
   @behaviour ProviderBehaviour
 
-  @capabilities Capabilities.new!(
-                  waiting_room: true,
-                  recording: true,
-                  dial_in: true,
-                  max_participants: 300,
-                  breakout_rooms: true,
-                  screen_sharing: true,
-                  chat: true
-                )
-
   @graph_api_base_url "https://graph.microsoft.com/v1.0"
 
   # Room creation's requests to the provider's API. `request_timeout` caps each
@@ -44,7 +33,6 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProvider do
   # alone did in practice. The API never redirects these requests, and one
   # that did would get a fresh budget, so redirects are refused.
   @create_request_options [receive_timeout: 45_000, request_timeout: 45_000, redirect: false]
-  @teams_url_pattern ~r/teams\.microsoft\.com\/l\/meetup-join\//
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def create_meeting_room(config) do
@@ -237,11 +225,6 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProvider do
   def extract_room_id(_other), do: nil
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def valid_meeting_url?(meeting_url) do
-    meeting_url =~ @teams_url_pattern
-  end
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def perform_connection_test(config) do
     case get_access_token(config) do
       {:ok, _token} ->
@@ -293,31 +276,6 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProvider do
   end
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def capabilities, do: @capabilities
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def handle_meeting_event(:meeting_ended, room_data, _additional_data) do
-    Logger.info("Teams meeting ended", room_ref: Redactor.fingerprint(room_data.room_id))
-    :ok
-  end
-
-  def handle_meeting_event(_other_event, _room_data, _additional_data) do
-    :ok
-  end
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def generate_meeting_metadata(room_data) do
-    %{
-      provider: "teams",
-      meeting_id: room_data.room_id,
-      join_url: room_data.meeting_url,
-      passcode: room_data.provider_data[:passcode],
-      dial_in_number: room_data.provider_data[:toll_number],
-      conference_id: room_data.provider_data[:conference_id]
-    }
-  end
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def build_config(integration, decrypted, _opts) do
     %{
       access_token: decrypted.access_token,
@@ -341,9 +299,6 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProvider do
       url_fields: []
     }
   end
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def url_patterns, do: ["teams.microsoft.com"]
 
   # Private functions
 

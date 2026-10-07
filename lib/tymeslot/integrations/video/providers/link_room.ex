@@ -165,13 +165,6 @@ defmodule Tymeslot.Integrations.Video.Providers.LinkRoom do
   def http_url?(_url), do: false
 
   @doc """
-  Whether the value is an http or https URL naming a room: one with a
-  non-empty path segment for `slug_from_url/1` to return.
-  """
-  @spec room_url?(any()) :: boolean()
-  def room_url?(url), do: http_url?(url) and slug_from_url(url) != nil
-
-  @doc """
   Refuses a URL longer than the database column holding it allows.
   """
   @spec validate_length(String.t()) :: :ok | {:error, String.t()}

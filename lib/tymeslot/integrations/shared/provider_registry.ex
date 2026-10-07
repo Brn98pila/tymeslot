@@ -126,9 +126,6 @@ defmodule Tymeslot.Integrations.Common.ProviderRegistry do
           :config_schema ->
             module.config_schema()
 
-          :capabilities ->
-            if function_exported?(module, :capabilities, 0), do: module.capabilities(), else: []
-
           _other ->
             if function_exported?(module, field, 0) do
               apply(module, field, [])

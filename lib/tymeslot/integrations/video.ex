@@ -13,7 +13,6 @@ defmodule Tymeslot.Integrations.Video do
   alias Tymeslot.Integrations.Video.AttrsCasting
   alias Tymeslot.Integrations.Video.Connection
   alias Tymeslot.Integrations.Video.Disconnect
-  alias Tymeslot.Integrations.Video.Discovery
   alias Tymeslot.Integrations.Video.MeetingLinkTemplate
   alias Tymeslot.Integrations.Video.OAuth
   alias Tymeslot.Integrations.Video.OAuthCallback
@@ -396,12 +395,6 @@ defmodule Tymeslot.Integrations.Video do
   end
 
   # ---------------
-  # Provider discovery helpers
-  # ---------------
-  @spec default_provider() :: atom()
-  def default_provider, do: Discovery.default_provider()
-
-  # ---------------
   # Connection (by id, or probe_integration/2 for the background/health-check struct path)
   # ---------------
   @spec test_connection(pos_integer(), pos_integer()) :: {:ok, String.t()} | {:error, any()}
@@ -465,13 +458,9 @@ defmodule Tymeslot.Integrations.Video do
   # URL helpers
   # ---------------
   @doc """
-  Reads the room id out of a meeting context, or guesses it from a bare URL.
-
-  The URL form is a best-effort guess at which provider issued the link, so a
-  caller that holds an integration must use `extract_room_id/2` instead. See
-  `Tymeslot.Integrations.Video.Urls.extract_room_id/1`.
+  Reads the room id out of a meeting context.
   """
-  @spec extract_room_id(String.t() | map()) :: String.t() | nil
+  @spec extract_room_id(map()) :: String.t() | nil
   defdelegate extract_room_id(input), to: Urls
 
   @doc """

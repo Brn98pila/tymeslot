@@ -44,20 +44,6 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProviderTest do
     end
   end
 
-  describe "capabilities/0" do
-    test "returns correct capabilities for Teams" do
-      capabilities = TeamsProvider.capabilities()
-
-      assert capabilities[:waiting_room] == true
-      assert capabilities[:recording] == true
-      assert capabilities[:dial_in] == true
-      assert capabilities[:max_participants] == 300
-      assert capabilities[:breakout_rooms] == true
-      assert capabilities[:screen_sharing] == true
-      assert capabilities[:chat] == true
-    end
-  end
-
   describe "validate_config/1" do
     test "returns error when access_token is missing" do
       config = %{
@@ -517,44 +503,6 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProviderTest do
       # meeting-context shapes happens once, upstream, in Video.Urls.
       assert TeamsProvider.extract_room_id(%{room_data: %{room_id: "abc"}}) == nil
       assert TeamsProvider.extract_room_id(%{}) == nil
-    end
-  end
-
-  describe "valid_meeting_url?/1" do
-    test "accepts valid Teams meeting URL" do
-      url = "https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc123%40thread.v2/0"
-
-      assert TeamsProvider.valid_meeting_url?(url)
-    end
-  end
-
-  describe "handle_meeting_event/3" do
-    test "returns :ok for meeting_ended event" do
-      room_data = %{room_id: "meeting123"}
-
-      assert TeamsProvider.handle_meeting_event(:meeting_ended, room_data, %{}) == :ok
-    end
-  end
-
-  describe "generate_meeting_metadata/1" do
-    test "returns metadata with Teams-specific features" do
-      room_data = %RoomData{
-        room_id: "meeting123",
-        meeting_url: "https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc%40thread.v2/0",
-        provider_data: %{
-          passcode: "123456",
-          toll_number: "+1-555-0100",
-          conference_id: "987654321"
-        }
-      }
-
-      metadata = TeamsProvider.generate_meeting_metadata(room_data)
-
-      assert metadata[:provider] == "teams"
-      assert metadata[:meeting_id] == "meeting123"
-      assert metadata[:passcode] == "123456"
-      assert metadata[:dial_in_number] == "+1-555-0100"
-      assert metadata[:conference_id] == "987654321"
     end
   end
 

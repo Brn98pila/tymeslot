@@ -3,7 +3,7 @@ defmodule Tymeslot.Integrations.Providers.Directory do
   Single source of truth for provider metadata and utilities across domains.
 
   UI and services should query this module to list providers, access their
-  config schemas, capabilities, and OAuth support.
+  config schemas, and OAuth support.
   """
 
   alias Tymeslot.Integrations.Providers.Descriptor
@@ -118,7 +118,6 @@ defmodule Tymeslot.Integrations.Providers.Directory do
       # the two cannot disagree.
       oauth: family == :oauth,
       family: family,
-      capabilities: capabilities_for(mod),
       config_schema: schema_for(mod),
       provider_module: mod,
       registry_module: registry_for(domain),
@@ -145,14 +144,6 @@ defmodule Tymeslot.Integrations.Providers.Directory do
   defp schema_for(mod) do
     if callback_exported?(mod, :config_schema, 0) do
       mod.config_schema()
-    else
-      %{}
-    end
-  end
-
-  defp capabilities_for(mod) do
-    if callback_exported?(mod, :capabilities, 0) do
-      mod.capabilities()
     else
       %{}
     end

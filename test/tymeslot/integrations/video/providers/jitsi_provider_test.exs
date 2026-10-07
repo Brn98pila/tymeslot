@@ -78,11 +78,10 @@ defmodule Tymeslot.Integrations.Video.Providers.JitsiProviderTest do
                {:error, "A meeting ID is required to create a video room"}
     end
 
-    test "keeps the credentials out of the provider data and the metadata" do
+    test "keeps the credentials out of the provider data" do
       {:ok, room} = create_room_with_credentials("m-1")
 
       refute inspect(room.provider_data) =~ @secret
-      refute inspect(JitsiProvider.generate_meeting_metadata(room)) =~ @secret
     end
 
     test "keeps the credentials out of the inspected room data" do
@@ -416,14 +415,6 @@ defmodule Tymeslot.Integrations.Video.Providers.JitsiProviderTest do
       {:ok, room} = JitsiProvider.create_meeting_room(%{base_url: @base_url, meeting_id: "m-1"})
 
       assert JitsiProvider.extract_room_id(room.meeting_url) == room.room_id
-    end
-  end
-
-  describe "valid_meeting_url?/1" do
-    test "accepts an HTTP room URL and rejects a non-HTTP one or one with no room" do
-      assert JitsiProvider.valid_meeting_url?("https://meet.example.com/abc")
-      refute JitsiProvider.valid_meeting_url?("ftp://meet.example.com/abc")
-      refute JitsiProvider.valid_meeting_url?("https://meet.example.com/")
     end
   end
 

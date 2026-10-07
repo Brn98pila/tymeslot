@@ -68,7 +68,7 @@ defmodule Tymeslot.Integrations.Common.ProviderRegistryTest do
       assert google.capabilities == [:events]
 
       outlook = Enum.find(metadata, &(&1.type == :outlook))
-      assert outlook.capabilities == []
+      assert outlook.capabilities == nil
     end
 
     test "default_provider/0 returns default" do
