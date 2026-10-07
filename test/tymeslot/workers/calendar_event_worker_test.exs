@@ -50,6 +50,7 @@ defmodule Tymeslot.Workers.CalendarEventWorkerTest do
           ~D[2026-06-30],
           "UTC",
           30,
+          nil,
           nil
         )
 
