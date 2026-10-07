@@ -11,6 +11,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.GuestQueries
+  alias Tymeslot.Meetings.MeetingDeliveryQueries
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.MeetingState
@@ -255,7 +256,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails do
                    appointment_details.organizer_email,
                    appointment_details
                  ),
-               {:ok, _meeting} <- MeetingQueries.mark_email_sent(meeting, :organizer) do
+               {:ok, _meeting} <- MeetingDeliveryQueries.mark_email_sent(meeting, :organizer) do
             {:ok, :sent}
           else
             {:error, reason} ->
@@ -277,7 +278,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails do
                    appointment_details.attendee_email,
                    appointment_details
                  ),
-               {:ok, _meeting} <- MeetingQueries.mark_email_sent(meeting, :attendee) do
+               {:ok, _meeting} <- MeetingDeliveryQueries.mark_email_sent(meeting, :attendee) do
             {:ok, :sent}
           else
             {:error, reason} ->
@@ -521,7 +522,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails do
          attendee_success
        ) do
     if organizer_success || attendee_success do
-      case MeetingQueries.upsert_reminder_sent(meeting, %{
+      case MeetingDeliveryQueries.upsert_reminder_sent(meeting, %{
              value: reminder_value,
              unit: reminder_unit,
              organizer_sent: organizer_success,

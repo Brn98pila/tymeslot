@@ -8,7 +8,7 @@ defmodule Tymeslot.Notifications.Events do
 
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Meetings.MeetingDeliveryQueries
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.ParticipantQueries
   alias Tymeslot.Meetings.SeatView
@@ -43,7 +43,7 @@ defmodule Tymeslot.Notifications.Events do
   """
   @spec meeting_created(term()) :: {:ok, term()} | {:error, term()}
   def meeting_created(meeting) do
-    case MeetingQueries.claim_announcement(Map.get(meeting, :id)) do
+    case MeetingDeliveryQueries.claim_announcement(Map.get(meeting, :id)) do
       {:ok, :first_announcement} -> dispatch_meeting_created(meeting, :meeting_created)
       {:ok, :re_announcement} -> dispatch_meeting_created(meeting, :meeting_rescheduled)
       :already_announced -> already_announced(meeting)

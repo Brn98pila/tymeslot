@@ -238,7 +238,7 @@ defmodule Tymeslot.Bookings.Reschedule do
   # the new request look answered, a stale `approval_nudge_sent_at` would
   # suppress the nudge for a window that has not been nudged, and a stale
   # `announced_at` would leave `Events.meeting_created/1`'s once-per-meeting
-  # claim (`MeetingQueries.claim_announcement/1`) already spent — the host's
+  # claim (`Tymeslot.Meetings.MeetingDeliveryQueries.claim_announcement/1`) already spent — the host's
   # second approval would then win the DB transition but lose the fan-out,
   # so the invitee gets no reminders for the new time and the integration
   # channels never hear that it moved. Clearing it costs nothing that is
