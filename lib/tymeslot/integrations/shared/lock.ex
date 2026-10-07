@@ -8,6 +8,10 @@ defmodule Tymeslot.Integrations.Shared.Lock do
   HTTP client) keeps the lock, because handing it to the next caller while
   the first is still working is exactly the overlap the lock exists to
   prevent. Holders are monitored, so a crashed one frees its lock.
+
+  A holder that hangs without crashing therefore keeps its key for good, so
+  callers must bound their own work under the lock (`Media.ImageMetadata.strip/3`,
+  whose one global key every caller shares, is the sharpest case).
   """
 
   use GenServer
