@@ -292,6 +292,24 @@ defmodule Tymeslot.Integrations.Calendar.TokensConcurrencyTest do
       assert Repo.get!(CalendarIntegrationSchema, integration.id).sync_error ==
                "Booking calendar deleted"
     end
+
+    # A long sync job holds the struct it started with; the flag can be raised
+    # while it runs. The refresh must judge the row it re-read under the lock.
+    test "an API-call refresh from a copy older than the reconnect flag keeps its reason",
+         %{integration: integration} do
+      stale_copy = set_sync_state(integration, sync_error: "Token refresh failed")
+      set_sync_state(stale_copy, sync_error: "Booking calendar deleted", needs_reauth: true)
+
+      refresh = fn _integration ->
+        {:ok, {"api-access", "api-refresh", DateTime.add(DateTime.utc_now(), 3600)}}
+      end
+
+      assert {:ok, "api-access"} =
+               AccessToken.with_access_token(stale_copy, refresh, &{:ok, &1})
+
+      assert %{sync_error: "Booking calendar deleted", needs_reauth: true} =
+               Repo.get!(CalendarIntegrationSchema, integration.id)
+    end
   end
 
   defp set_sync_state(integration, changes) do
