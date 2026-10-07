@@ -628,12 +628,6 @@ msgstr "Neplatné přihlašovací údaje ke kalendáři. Aktualizujte prosím p
 msgid "Invalid mailbox.org URL. Use https://dav.mailbox.org (or your custom mailbox.org-compatible CalDAV endpoint)."
 msgstr "Neplatná adresa mailbox.org. Použijte https://dav.mailbox.org (nebo vlastní koncový bod CalDAV kompatibilní s mailbox.org)."
 
-#: lib/tymeslot/integrations/calendar/nextcloud/provider.ex
-#: lib/tymeslot/integrations/calendar/shared/provider_common.ex
-#, elixir-autogen, elixir-format
-msgid "Missing required fields: %{fields}"
-msgstr "Chybí povinná pole: %{fields}"
-
 #: lib/tymeslot/integrations/calendar/shared/error_handler.ex
 #, elixir-autogen, elixir-format
 msgid "Network connection failed. Please check your internet connection."

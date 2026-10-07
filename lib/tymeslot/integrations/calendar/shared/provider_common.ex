@@ -33,23 +33,6 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ProviderCommon do
   end
 
   @doc """
-  Ensures all required fields are present in the config map.
-  """
-  @spec validate_required_fields(%{atom() => term()}, list(atom())) :: :ok | {:error, String.t()}
-  def validate_required_fields(config, required_fields) do
-    missing_fields = required_fields -- Map.keys(config)
-
-    if Enum.empty?(missing_fields) do
-      :ok
-    else
-      {:error,
-       dgettext("dashboard_calendar_providers", "Missing required fields: %{fields}",
-         fields: Enum.join(missing_fields, ", ")
-       )}
-    end
-  end
-
-  @doc """
   Validates a calendar server URL for format and SSRF safety.
 
   Beyond requiring a well-formed http/https URL with a host, this rejects

@@ -8,6 +8,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.OAuthBase do
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CreatedEvent
+  alias Tymeslot.Integrations.Shared.ProviderConfigHelper
 
   require Logger
 
@@ -42,12 +43,8 @@ defmodule Tymeslot.Integrations.Calendar.Providers.OAuthBase do
   def validate_config(config, scope_validator_fn) when is_function(scope_validator_fn, 1) do
     required_fields = [:access_token, :refresh_token, :token_expires_at, :oauth_scope]
 
-    missing_fields =
-      Enum.map(Enum.reject(required_fields, &Map.has_key?(config, &1)), &to_string/1)
-
-    case missing_fields do
-      [] -> scope_validator_fn.(config)
-      fields -> {:error, "Missing required fields: #{Enum.join(fields, ", ")}"}
+    with :ok <- ProviderConfigHelper.validate_required_fields(config, required_fields) do
+      scope_validator_fn.(config)
     end
   end
 

@@ -17,6 +17,7 @@ defmodule Tymeslot.Integrations.Calendar.Zimbra.Provider do
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.Providers.CaldavCommon
   alias Tymeslot.Integrations.Calendar.Shared.{ErrorHandler, ProviderCommon}
+  alias Tymeslot.Integrations.Shared.ProviderConfigHelper
   alias Tymeslot.Security.SsrfGuard
   alias Tymeslot.Security.UrlValidation
 
@@ -87,7 +88,8 @@ defmodule Tymeslot.Integrations.Calendar.Zimbra.Provider do
   # in sequence.
   @impl Tymeslot.Integrations.Calendar.Provider
   def validate_config(config) do
-    with :ok <- ProviderCommon.validate_required_fields(config, [:base_url, :username, :password]) do
+    with :ok <-
+           ProviderConfigHelper.validate_required_fields(config, [:base_url, :username, :password]) do
       validate_zimbra_url(config[:base_url])
     end
   end
