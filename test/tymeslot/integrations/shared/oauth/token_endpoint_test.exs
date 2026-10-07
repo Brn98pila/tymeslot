@@ -98,6 +98,32 @@ defmodule Tymeslot.Integrations.Shared.OAuth.TokenEndpointTest do
       assert tokens.scope == "calendar"
     end
 
+    # Persisting "" would replace a working refresh token with nothing, and the
+    # next refresh would fail as a revoked grant.
+    test "keeps the fallback when the provider answers a blank refresh token" do
+      respond(200, ~s({"access_token":"new-at","refresh_token":""}))
+
+      assert {:ok, %{refresh_token: "old-rt"}} =
+               TokenEndpoint.refresh(@token_url, %{}, fallback_refresh_token: "old-rt")
+    end
+
+    test "reports a 200 without an access token as an error" do
+      for body <- [~s({"refresh_token":"rt"}), ~s({"access_token":""})] do
+        respond(200, body)
+        LogCapture.attach()
+
+        assert {:error, {:http_error, 200, "Token response without an access token"}} =
+                 TokenEndpoint.refresh(@token_url, %{}, log_context: [integration_id: 42])
+
+        meta =
+          LogCapture.user_metadata(
+            LogCapture.await_log("OAuth token refresh returned no access token")
+          )
+
+        assert meta[:integration_id] == 42
+      end
+    end
+
     test "takes a rotated refresh token over the fallback" do
       respond(200, ~s({"access_token":"new-at","refresh_token":"new-rt"}))
 

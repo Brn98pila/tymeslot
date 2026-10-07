@@ -27,6 +27,7 @@ defmodule Tymeslot.Integrations.Shared.OAuth.TokenEndpoint do
   @default_expires_in 3600
 
   @invalid_json "Invalid JSON response from token endpoint"
+  @no_access_token "Token response without an access token"
 
   # The keys a caller's `:log_context` may put on a failure line. Deliberately
   # narrow: enough to attribute a failure to an integration, and nothing that
@@ -40,12 +41,14 @@ defmodule Tymeslot.Integrations.Shared.OAuth.TokenEndpoint do
     exchange: %{
       http: "OAuth token exchange failed",
       network: "Network error during token exchange",
-      invalid_json: "OAuth token exchange returned invalid JSON"
+      invalid_json: "OAuth token exchange returned invalid JSON",
+      no_access_token: "OAuth token exchange returned no access token"
     },
     refresh: %{
       http: "OAuth token refresh failed",
       network: "Network error during token refresh",
-      invalid_json: "OAuth token refresh returned invalid JSON"
+      invalid_json: "OAuth token refresh returned invalid JSON",
+      no_access_token: "OAuth token refresh returned no access token"
     }
   }
 
@@ -159,11 +162,12 @@ defmodule Tymeslot.Integrations.Shared.OAuth.TokenEndpoint do
       end
 
     %{
-      access_token: response["access_token"],
-      refresh_token: response["refresh_token"] || Keyword.get(opts, :fallback_refresh_token),
+      access_token: present(response["access_token"]),
+      refresh_token:
+        present(response["refresh_token"]) || Keyword.get(opts, :fallback_refresh_token),
       id_token: response["id_token"],
       expires_at: DateTime.add(Clock.utc_now(), expires_in, :second),
-      scope: response["scope"] || Keyword.get(opts, :fallback_scope)
+      scope: present(response["scope"]) || Keyword.get(opts, :fallback_scope)
     }
   end
 
@@ -213,11 +217,14 @@ defmodule Tymeslot.Integrations.Shared.OAuth.TokenEndpoint do
     end
   end
 
+  # A 200 without an access token is no better than a refusal: persisted, it
+  # would replace a working token with nothing.
   defp decode(body, opts, log_context, messages) do
-    case decode_body(body) do
-      {:ok, response} ->
-        {:ok, normalise_tokens(response, opts)}
-
+    with {:ok, response} <- decode_body(body),
+         %{access_token: access_token} = tokens when is_binary(access_token) <-
+           normalise_tokens(response, opts) do
+      {:ok, tokens}
+    else
       :error ->
         Logger.error(
           messages.invalid_json,
@@ -225,8 +232,19 @@ defmodule Tymeslot.Integrations.Shared.OAuth.TokenEndpoint do
         )
 
         {:error, {:http_error, 200, @invalid_json}}
+
+      %{access_token: nil} ->
+        Logger.error(messages.no_access_token, log_context)
+        {:error, {:http_error, 200, @no_access_token}}
     end
   end
+
+  # A blank value is no value: a provider answering `"refresh_token": ""` has
+  # not rotated it, and the fallback must win.
+  defp present(value) when is_binary(value),
+    do: if(String.trim(value) == "", do: nil, else: value)
+
+  defp present(_value), do: nil
 
   # Nils are dropped so a caller holding only part of the context (a transient
   # config built for a connection probe, say) does not emit `integration_id: nil`.
