@@ -59,7 +59,7 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChips do
               aria-pressed={to_string(@selected_date == Date.to_iso8601(day))}
               aria-label={LocalizationHelpers.format_full_date_label(day)}
             >
-              <span class="day-chips__label" aria-hidden="true">{label(day, @today)}</span>
+              <span class="day-chips__label" aria-hidden="true">{day_label(day, @today)}</span>
             </button>
           </div>
         <% is_nil(@availability) -> %>
@@ -77,8 +77,8 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.DayChips do
   How a visitor says `day` seen from `today`: "Today", "Tomorrow", else the
   short weekday and the day of the month ("Thu 9").
   """
-  @spec label(Date.t(), Date.t()) :: String.t()
-  def label(day, today) do
+  @spec day_label(Date.t(), Date.t()) :: String.t()
+  def day_label(day, today) do
     case Date.diff(day, today) do
       0 ->
         dgettext("booking", "Today")
