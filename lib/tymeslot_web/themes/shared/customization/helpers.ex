@@ -7,7 +7,7 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
   alias Tymeslot.Demo
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Tokens
-  alias TymeslotWeb.Themes.Shared.Journey.Navigators.{Continuous, Transcript}
+  alias TymeslotWeb.Themes.Shared.Journey.Navigators.Reveal
 
   @doc """
   Assigns `:theme_tokens` to a socket: the `%Tokens{}` the theme's spec builds
@@ -59,14 +59,16 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
   # no journey keeps the overview rule. The journey is matched as a map, not
   # as `%Journey{}`: a struct pattern would make every wrapper that imports
   # this module depend on the journey engine at compile time.
-  defp language_switcher?(%{navigator: navigator}, current_state)
-       when navigator in [Continuous, Transcript],
-       do: current_state != :awaiting_payment
+  defp language_switcher?(journey, current_state) do
+    if Reveal.journey?(journey),
+      do: current_state != :awaiting_payment,
+      else: first_moment?(journey, current_state)
+  end
 
-  defp language_switcher?(%{moments: [%{key: first} | _rest]}, current_state),
+  defp first_moment?(%{moments: [%{key: first} | _rest]}, current_state),
     do: current_state == first
 
-  defp language_switcher?(_no_journey, current_state), do: current_state == :overview
+  defp first_moment?(_no_journey, current_state), do: current_state == :overview
 
   defp background(%Tokens{media: media}), do: media[:background]
   defp background(_no_tokens), do: nil
