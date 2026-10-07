@@ -78,6 +78,19 @@ defmodule Tymeslot.Workers.CalendarSnoozeBoundTest do
                )
     end
 
+    # The worker waits an open breaker out by snoozing, which costs no
+    # attempt, so every wait spent on the last attempt runs the create on
+    # that attempt again. Only the end of the wait tells the owner, or each
+    # of those waits would send another copy.
+    test "does not tell the owner while the last attempt is still waiting", %{args: args} do
+      expect(Tymeslot.EmailServiceMock, :send_calendar_sync_error, 0, fn _meeting, _reason ->
+        :ok
+      end)
+
+      assert {:snooze, _seconds} =
+               perform_job(CalendarEventWorker, args, attempt: 5, max_attempts: 5)
+    end
+
     test "does not tell the owner while attempts remain", %{args: args} do
       expect(Tymeslot.EmailServiceMock, :send_calendar_sync_error, 0, fn _meeting, _reason ->
         :ok
