@@ -6,6 +6,7 @@ defmodule Tymeslot.Integrations.Calendar.Deletion do
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
   alias Tymeslot.Integrations.Calendar.Google.PushChannel
+  alias Tymeslot.Integrations.Calendar.Outlook.GraphSubscription
   alias Tymeslot.Integrations.Calendar.PrimaryElection
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.MeetingTypes.MeetingTypeQueries
@@ -45,9 +46,13 @@ defmodule Tymeslot.Integrations.Calendar.Deletion do
   end
 
   # Before the delete, while the row still holds the tokens a refresh would
-  # write back. Best-effort: a channel left running expires on its own.
+  # write back. Best-effort: a channel or subscription left running expires
+  # on its own.
   defp stop_push_notifications(%{provider: "google"} = integration),
     do: PushChannel.stop_push_channel(integration)
+
+  defp stop_push_notifications(%{provider: "outlook"} = integration),
+    do: GraphSubscription.unregister(integration)
 
   defp stop_push_notifications(_integration), do: :ok
 
