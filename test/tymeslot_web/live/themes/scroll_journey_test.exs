@@ -72,7 +72,7 @@ defmodule TymeslotWeb.Live.Themes.ScrollJourneyTest do
 
       # Opened, not merely shown: the calendar lands on the first free day
       # and that day's times come up.
-      assert is_binary(await_first_time(view))
+      assert await_first_time(view) =~ ~r/\d/
 
       # A page that opens its moments by itself keeps the language switcher
       # past its first moment.
@@ -119,6 +119,97 @@ defmodule TymeslotWeb.Live.Themes.ScrollJourneyTest do
     end
   end
 
+  describe "the questions moment" do
+    @role %{
+      "id" => "cf-role",
+      "type" => "short_text",
+      "label" => "Role",
+      "required" => false,
+      "position" => 1
+    }
+
+    @topics %{
+      "id" => "cf-topics",
+      "type" => "multi_select",
+      "label" => "Topics",
+      "required" => true,
+      "position" => 0,
+      "options" => [
+        %{"key" => "design", "label" => "Design"},
+        %{"key" => "pricing", "label" => "Pricing"}
+      ]
+    }
+
+    defp ask_page(conn, username, questions) do
+      %{profile: profile} =
+        seed_organiser(@theme_id, username,
+          types: [[name: "Quick Chat", duration_minutes: 30, custom_fields: questions]]
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/#{profile.username}")
+      BookingDriver.choose_meeting_type(view, "quick-chat")
+      view
+    end
+
+    test "shows an optional question after a required one, and stays current until Continue",
+         %{conn: conn} do
+      view = ask_page(conn, "scroll-ask-optional", [@company, @role])
+
+      BookingDriver.answer(view, "cf-company", "Acme")
+
+      assert state(view, :ask) == "current"
+      refute has_element?(view, "#when-step")
+
+      BookingDriver.continue(view)
+
+      assert state(view, :ask) == "current"
+      assert has_element?(view, "#ask-step [data-fact='answer'][data-question='cf-role']")
+      refute has_element?(view, "#when-step")
+
+      BookingDriver.continue(view)
+
+      assert state(view, :ask) == "done"
+      assert state(view, :when) == "current"
+    end
+
+    test "keeps a multiple choice open after its first choice", %{conn: conn} do
+      view = ask_page(conn, "scroll-ask-multi", [@topics])
+
+      BookingDriver.answer(view, "cf-topics", ["design"])
+
+      assert state(view, :ask) == "current"
+      assert has_element?(view, "#ask-step [data-question='cf-topics'][data-value='pricing']")
+
+      BookingDriver.answer(view, "cf-topics", ["pricing"])
+      BookingDriver.continue(view)
+
+      assert state(view, :ask) == "done"
+
+      assert Enum.sort(live_assigns(view).engine.answers["cf-topics"]) == ["design", "pricing"]
+    end
+
+    test "keeps the focus on the question while it is answered", %{conn: conn} do
+      view = ask_page(conn, "scroll-ask-focus", [@company, @role])
+
+      assert has_element?(view, "#ask-heading-current[phx-mounted*='focus']")
+
+      BookingDriver.answer(view, "cf-company", "Acme")
+
+      assert has_element?(view, "#ask-heading-current[phx-mounted*='focus']")
+      refute has_element?(view, "#when-step")
+    end
+
+    test "once confirmed says so and offers no question", %{conn: conn} do
+      view = ask_page(conn, "scroll-ask-done", [@company])
+
+      BookingDriver.answer(view, "cf-company", "Acme")
+      BookingDriver.continue(view)
+
+      assert has_element?(view, "#ask-step [data-testid='journey-fixture-answers']")
+      refute has_element?(view, "#ask-step [data-fact='answer']")
+    end
+  end
+
   describe "the submission token" do
     test "is created when the attendee moment opens, and again when it opens again",
          %{conn: conn} do
@@ -133,7 +224,7 @@ defmodule TymeslotWeb.Live.Themes.ScrollJourneyTest do
       BookingDriver.pick_time(view, time)
       first = live_assigns(view).submission_token
 
-      assert is_binary(first)
+      assert byte_size(first) > 0
 
       # Another day forgets the time, so the attendee moment closes; a time on
       # that day opens it again.
@@ -145,7 +236,7 @@ defmodule TymeslotWeb.Live.Themes.ScrollJourneyTest do
       BookingDriver.pick_time(view, await_first_time(view))
       second = live_assigns(view).submission_token
 
-      assert is_binary(second)
+      assert byte_size(second) > 0
       assert second != first
     end
   end

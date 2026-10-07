@@ -123,12 +123,10 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.Ask do
   The journey fixtures' questions moment: the meeting type's questions one at
   a time (the shared questions engine and inputs, which carry the markup
   contract's `data-fact="answer"`), with Back and Continue while it is the
-  current moment. Once answered it offers no way on, so a page that keeps its
-  moments on screen never leaves a second one behind it: a transcript says so
-  and offers Edit; a continuous page keeps the question the visitor was on
-  usable, as it keeps every done moment, since the moment is done as soon as
-  the answers validate (the second choice of a multiple choice still to
-  click).
+  current moment. The answers are known once confirmed with Continue, so the
+  moment stays current while the visitor answers. Once answered it says so
+  and offers no control but, on a transcript, Edit: a page that keeps its
+  moments on screen must not leave a second way on behind it.
   """
   use TymeslotWeb, :live_component
 
@@ -152,20 +150,18 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.Ask do
         transcript: Markup.transcript?(assigns)
       )
 
-    # The current question is read only where it is shown.
-    assigns =
-      if assigns.answered and assigns.transcript,
-        do: assigns,
-        else: Events.assign_render_state(assigns)
+    # The current question is read only while there is one to ask.
+    assigns = if assigns.answered, do: assigns, else: Events.assign_render_state(assigns)
 
     Markup.moment_root(assigns, &body/1)
   end
 
   defp body(assigns) do
     ~H"""
-    <%= if @answered and @transcript do %>
+    <%= if @answered do %>
       <p data-testid="journey-fixture-answers">Questions answered</p>
       <button
+        :if={@transcript}
         type="button"
         phx-click="navigate_to_step"
         phx-value-step={@moment}
@@ -183,14 +179,12 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.Ask do
       </JourneyComponents.moment_heading>
       <InputRenderer.render definition={@definition} value={@value} myself={@myself} />
       <p :if={@error} class="form-field__error">{@error}</p>
-      <%= unless @answered do %>
-        <button type="button" phx-click="back_step" phx-target={@myself} data-intent="back">
-          Back
-        </button>
-        <button type="button" phx-click="next_step" phx-target={@myself} data-intent="continue">
-          Continue
-        </button>
-      <% end %>
+      <button type="button" phx-click="back_step" phx-target={@myself} data-intent="back">
+        Back
+      </button>
+      <button type="button" phx-click="next_step" phx-target={@myself} data-intent="continue">
+        Continue
+      </button>
     <% end %>
     """
   end

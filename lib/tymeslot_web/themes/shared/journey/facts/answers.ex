@@ -5,8 +5,9 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.Answers do
 
   Needed only when the meeting type has custom fields. It needs only the
   meeting type, so a journey may ask the questions before the calendar. Known
-  when the answers validate and none carried over from a rescheduled booking
-  is still waiting to be shown. The wizard moves within the fact:
+  once the booker has confirmed answers that validate (Continue past the last
+  question), or when the meeting type has no questions. The wizard moves
+  within the fact:
   `continue/1` stays on the questions until the last one validates, and
   `back/1` steps back until the first question, then leaves.
   """
@@ -28,15 +29,17 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.Answers do
   @impl Fact
   def required?(assigns), do: match?(%{custom_fields: [_ | _]}, assigns[:meeting_type])
 
-  # Answers a reschedule carried over are shown, never submitted unseen.
-  # They validate, so the validation alone would wave the booker past the
-  # one screen that displays them.
+  # Known once the booker confirms the answers with Continue on the last
+  # question: answers that merely validate would close the questions mid-way
+  # on a page that moves on by itself (an optional question still to come, a
+  # multiple choice after its first choice). Answers a reschedule carried over
+  # are shown, never submitted unseen, so they also wait for the review.
   @impl Fact
   def known?(assigns) do
     case assigns[:engine] do
       %QEngine{} = engine ->
         QEngine.skipped?(engine) or
-          (not QEngine.pending_review?(engine) and
+          (QEngine.confirmed?(engine) and not QEngine.pending_review?(engine) and
              match?({:ok, _answers}, QEngine.validate_all(engine)))
 
       _no_engine ->
@@ -80,7 +83,8 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.Answers do
         engine.current_index == last_index ->
           case QEngine.validate_all(engine) do
             {:ok, _answers} ->
-              {:done, assign(socket, :engine, QEngine.mark_reviewed(engine))}
+              engine = engine |> QEngine.mark_reviewed() |> QEngine.confirm()
+              {:done, assign(socket, :engine, engine)}
 
             {:error, _errors} ->
               {:stay, step_forward(socket, engine)}
