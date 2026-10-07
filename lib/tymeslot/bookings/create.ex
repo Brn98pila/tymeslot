@@ -13,6 +13,7 @@ defmodule Tymeslot.Bookings.Create do
     CalendarJobs,
     CreateGroup,
     Errors,
+    MeetingAttributes,
     Policy,
     ScheduleCheck,
     Validation
@@ -300,7 +301,7 @@ defmodule Tymeslot.Bookings.Create do
   end
 
   defp create_meeting_and_all_side_effects_atomically(booking_data, opts) do
-    meeting_attrs = Policy.build_meeting_attributes(BuildParams.new(booking_data))
+    meeting_attrs = MeetingAttributes.build(BuildParams.new(booking_data))
 
     cond do
       CreateGroup.applicable?(booking_data) ->

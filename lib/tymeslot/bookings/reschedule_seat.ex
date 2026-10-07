@@ -56,6 +56,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
   alias Tymeslot.Bookings.CalendarCheck
   alias Tymeslot.Bookings.CalendarJobs
   alias Tymeslot.Bookings.Cancel
+  alias Tymeslot.Bookings.MeetingAttributes
   alias Tymeslot.Bookings.Policy
   alias Tymeslot.Bookings.SeatEffects
   alias Tymeslot.Bookings.SeatRelease
@@ -333,7 +334,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
 
   # Builds the meeting-creation attrs `book_seat/3` passes to `Scheduling`
   # when no live group meeting exists at the target slot yet, routed through
-  # the same `Policy.build_meeting_attributes/1` builder `CreateGroup` uses
+  # the same `MeetingAttributes.build/1` builder `CreateGroup` uses
   # rather than a second hand-built map — so a slot created by a seat move
   # carries the same video integration, description, location, locale,
   # attachments and reminder configuration a fresh booking would give it.
@@ -358,7 +359,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
       attendee_locale: participant.locale,
       custom_field_answers: participant.custom_field_answers
     }
-    |> Policy.build_meeting_attributes()
+    |> MeetingAttributes.build()
     |> SeatEffects.slot_attrs(old_meeting.title)
   end
 
