@@ -143,6 +143,11 @@ defmodule Tymeslot.Integrations.Calendar.Google.OAuthHelperTest do
       state = %{user_id: user.id, integration_id: nil}
       expect_token_response("new-at", "new-rt", id_token: fake_id_token(account_id))
 
+      # A reactivated calendar's list is read afresh.
+      expect(GoogleCalendarAPIMock, :list_calendars, fn _integration ->
+        {:ok, [%{id: "cal1", summary: "Primary", primary: true}]}
+      end)
+
       assert {:ok, reconnected} = OAuthHelper.handle_callback("code", "http://uri", state)
       assert {reconnected.id, reconnected.is_active} == {paused.id, true}
 

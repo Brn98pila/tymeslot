@@ -139,7 +139,7 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
       fn ->
         CalendarIntegrationQueries.get_any_by_account_for_user(user_id, provider, account_id)
       end,
-      &reconnect(&1, token_attrs),
+      &reconnect(&1, token_attrs, :always),
       fn ->
         AccountMatch.create_with_race_protection(
           create_fn,
@@ -152,16 +152,26 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
     )
   end
 
-  # A reconnect can reactivate an integration that was paused, which may have
-  # been the user's only calendar and so lost its place as the primary; the
-  # activation rule adopts it again.
-  defp reconnect(existing, token_attrs) do
-    with {:ok, updated} <- CalendarIntegrationQueries.update_credentials(existing, token_attrs),
-         {:ok, configured} <- configure_if_unlisted(updated) do
+  # A reconnect proves the grant, so, as for credentials re-entered by hand,
+  # the integration's health streak is reset: a calendar reconnected after
+  # failing must not be paused again by the auto-pause sweep for failures from
+  # before it. A reconnect can also reactivate an integration that was paused,
+  # which may have been the user's only calendar and so lost its place as the
+  # primary; the activation rule adopts it again.
+  defp reconnect(existing, token_attrs, discovery \\ :if_unlisted) do
+    with {:ok, updated} <- CalendarManagement.update_calendar_integration(existing, token_attrs),
+         {:ok, configured} <- discover(updated, discovery) do
       if configured.is_active, do: CalendarManagement.ensure_primary_on_activate(configured)
       {:ok, configured}
     end
   end
+
+  # A reactivated integration has been out of use for a while, so its
+  # calendar list is read afresh; an active one only when it has none yet.
+  defp discover(integration, :always),
+    do: CalendarPrimary.discover_and_configure_calendars(integration)
+
+  defp discover(integration, :if_unlisted), do: configure_if_unlisted(integration)
 
   defp configure_if_unlisted(%{calendar_list: []} = integration),
     do: CalendarPrimary.discover_and_configure_calendars(integration)

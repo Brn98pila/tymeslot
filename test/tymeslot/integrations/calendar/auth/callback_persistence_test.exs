@@ -3,11 +3,14 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistenceTest do
 
   @moduletag :integrations
 
+  use Oban.Testing, repo: Tymeslot.Repo
+
   import Mox
   import Tymeslot.Factory
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CallbackPersistence
+  alias Tymeslot.Workers.IntegrationHealthWorker
 
   setup :verify_on_exit!
 
@@ -118,5 +121,52 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistenceTest do
 
     assert {:error, "Could not identify your Outlook account." <> _rest} =
              CallbackPersistence.upsert("outlook", user.id, nil, tokens(nil))
+  end
+
+  # A reconnect proves the grant: the health streak behind any auto-pause
+  # starts again, and a probe confirms the recovery straight away.
+  test "resets the health of the integration it reconnects" do
+    user = insert(:user)
+
+    existing =
+      insert(:calendar_integration,
+        user: user,
+        provider: "google",
+        provider_account_id: "sub-1",
+        calendar_list: listed()
+      )
+
+    assert {:ok, _reconnected} =
+             CallbackPersistence.upsert("google", user.id, nil, tokens("sub-1"))
+
+    assert_enqueued(
+      worker: IntegrationHealthWorker,
+      args: %{"type" => "calendar", "integration_id" => existing.id}
+    )
+  end
+
+  # Out of use for a while, so its calendar list is read afresh even though
+  # it still holds one.
+  test "rediscovers the calendars of an integration it reactivates" do
+    user = insert(:user)
+
+    paused =
+      insert(:calendar_integration,
+        user: user,
+        provider: "outlook",
+        provider_account_id: "oid-paused",
+        is_active: false,
+        calendar_list: listed()
+      )
+
+    expect(OutlookCalendarAPIMock, :list_calendars, fn _integration ->
+      {:ok, [%{"id" => "cal2", "name" => "Work", "isDefaultCalendar" => true}]}
+    end)
+
+    assert {:ok, %{id: id, is_active: true} = reactivated} =
+             CallbackPersistence.upsert("outlook", user.id, nil, tokens("oid-paused"))
+
+    assert id == paused.id
+    assert Enum.map(reactivated.calendar_list, & &1.id) == ["cal2"]
   end
 end
