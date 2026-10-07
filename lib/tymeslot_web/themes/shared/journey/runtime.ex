@@ -142,22 +142,27 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
 
   @doc """
   Starts the booking again, in place: the confirmation's "Schedule another
-  meeting". A booker who came through the overview returns to the journey's
-  opening moment; any other (a private or direct link, a reschedule) to the
-  moment a meeting type's own link opens on, for the same meeting type, so
-  the organiser's other types stay hidden.
+  meeting". It keeps the meeting type and forgets every fact depending on
+  it (the time, the answers, the booking just made). A booker who came
+  through the overview returns to the journey's opening moment; any other
+  (a private or direct link, a reschedule) to the moment a meeting type's
+  own link opens on, for the same meeting type, so the organiser's other
+  types stay hidden.
   """
   # The flow restarts here without navigating, so the reschedule context has
   # to be dropped explicitly or the next submit moves the meeting that was
   # just moved (see `ReschedulePin.abandon/1`). The day and time belong to
   # the booking just made: kept, the schedule step would reopen the calendar
-  # on them, with a time that is no longer free.
+  # on them, with a time that is no longer free. The answers are the last
+  # booker's, and the booking's `meeting_uid` would leave the attendee
+  # known, so the next booking's details moment would open as done.
   @spec restart(Socket.t()) :: Socket.t()
   def restart(socket) do
     journey = socket.assigns.journey
     opening = journey.navigator.entry(journey, restart_route(socket.assigns), socket.assigns)
 
     socket
+    |> clear(Progress.dependents(:meeting_type, socket.assigns) -- [:meeting_type])
     |> GuestBooking.assign_defaults()
     |> ReschedulePin.abandon()
     |> assign(selected_date: nil, selected_time: nil)

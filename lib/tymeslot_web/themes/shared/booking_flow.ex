@@ -29,7 +29,9 @@ defmodule TymeslotWeb.Themes.Shared.BookingFlow do
   render in an iframe), the handler instead instructs the browser to open
   Checkout in a new tab and we transition to the local `:awaiting_payment`
   view; the LiveView subscribes to `meeting_payment:<id>` and flips back
-  to `:confirmation` on `:paid` or `:booking` on `:expired`.
+  to `:confirmation` on `:paid`, or on `:expired` to the moment collecting
+  the attendee (`Progress.moment_for(journey, :attendee)`, the classic
+  booking step).
   """
   @spec submit_booking(Phoenix.LiveView.Socket.t(), map(), transition_fun()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}

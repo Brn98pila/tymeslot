@@ -210,6 +210,33 @@ defmodule TymeslotWeb.Live.Themes.ScrollJourneyTest do
     end
   end
 
+  describe "Book another" do
+    @tag :capture_log
+    test "keeps the meeting type and asks the rest again", %{conn: conn} do
+      %{profile: profile} =
+        seed_organiser(@theme_id, "scroll-again",
+          types: [[name: "Quick Chat", duration_minutes: 30, custom_fields: [@company]]]
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/#{profile.username}")
+
+      BookingDriver.book(view, answers: %{"cf-company" => "Acme"})
+      BookingDriver.restart(view)
+      BookingDriver.choose_meeting_type(view, "quick-chat")
+
+      assert state(view, :ask) == "current"
+      assert has_element?(view, "#ask-step form[data-fact='answer'][data-question='cf-company']")
+      refute render(view) =~ "Acme"
+
+      BookingDriver.answer(view, "cf-company", "Initech")
+      BookingDriver.continue(view)
+      BookingDriver.pick_time(view, await_first_time(view))
+
+      assert state(view, :you) == "current"
+      assert has_element?(view, "#you-heading-current[phx-mounted*='focus']")
+    end
+  end
+
   describe "the submission token" do
     test "is created when the attendee moment opens, and again when it opens again",
          %{conn: conn} do

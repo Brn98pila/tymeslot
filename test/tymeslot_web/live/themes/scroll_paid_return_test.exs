@@ -108,7 +108,8 @@ defmodule TymeslotWeb.Live.Themes.ScrollPaidReturnTest do
     assert Map.take(live_assigns(view), [:selected_date, :selected_time]) == chosen
     assert has_element?(view, "[data-testid='summary-bar-meeting-type']", "Paid Consult")
     assert has_element?(view, "[data-testid='summary-bar-slot']")
-    assert is_binary(live_assigns(view).submission_token)
+    returned = live_assigns(view).submission_token
+    assert byte_size(returned) > 0
 
     # The page carries on from the attendee moment: another day forgets the
     # time, and a time on it opens the details again, entered afresh.
@@ -116,7 +117,9 @@ defmodule TymeslotWeb.Live.Themes.ScrollPaidReturnTest do
     BookingDriver.pick_time(view, await_first_time(view))
 
     assert state(view, :you) == "current"
-    assert is_binary(live_assigns(view).submission_token)
+    renewed = live_assigns(view).submission_token
+    assert byte_size(renewed) > 0
+    assert renewed != returned
   end
 
   @tag :capture_log

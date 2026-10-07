@@ -81,7 +81,9 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.Attendee do
   @impl Fact
   def continue(socket), do: {:stay, socket}
 
-  # The attendee moment makes a fresh token each time it opens again.
+  # The attendee moment makes a fresh token each time it opens again, and
+  # forgetting the attendee forgets the booking made (`meeting_uid`).
   @impl Fact
-  def clear(socket), do: assign(socket, submission_token: nil, submission_processed: false)
+  def clear(socket),
+    do: assign(socket, submission_token: nil, submission_processed: false, meeting_uid: nil)
 end
