@@ -3,6 +3,7 @@ defmodule Tymeslot.Integrations.Calendar.Connection do
   Business logic for connection validation and provider checks.
   """
 
+  alias Tymeslot.Infrastructure.CalendarCircuitBreaker
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Discovery
@@ -12,8 +13,6 @@ defmodule Tymeslot.Integrations.Calendar.Connection do
   alias Tymeslot.Integrations.Calendar.Shared.ErrorHandler
   alias Tymeslot.Integrations.Calendar.Tokens
   alias Tymeslot.Integrations.Shared.ConnectionProbe
-
-  require Logger
 
   require Logger
 
@@ -55,8 +54,12 @@ defmodule Tymeslot.Integrations.Calendar.Connection do
     # happens at the `Discovery` funnel itself, charged to the acting user,
     # so no second charge is needed here.
     case Discovery.discover_calendars(provider_atom, client_config, actor: {:user, user_id}) do
-      {:ok, _result} -> {:ok, integration}
-      {:error, _msg} -> {:error, :network_error}
+      {:ok, _result} ->
+        reset_host_breaker(integration)
+        {:ok, integration}
+
+      {:error, _msg} ->
+        {:error, :network_error}
     end
   rescue
     error ->
@@ -116,6 +119,7 @@ defmodule Tymeslot.Integrations.Calendar.Connection do
           validate: fn -> :ok end,
           run: fn -> provider_module.perform_connection_test(config) end
         )
+        |> tap(&reset_host_breaker_on_success(&1, provider_atom, integration))
         |> present_failure(scope, provider_atom)
       else
         _other -> {:error, :unsupported_provider}
@@ -128,6 +132,36 @@ defmodule Tymeslot.Integrations.Calendar.Connection do
     )
 
     result
+  end
+
+  # A self-hosted server's calls run through a breaker keyed by its host. Once
+  # it has opened, an integration whose syncs are paused sends that server no
+  # traffic, so nothing closes it again until it times out, and a fixed
+  # server stays refused after "test connection succeeded". A test that
+  # reached the server is the evidence it is back, so the host's breaker is
+  # closed. Hosted providers (Google, Outlook) share one breaker across every
+  # account, which one account's success says nothing about, so theirs is
+  # left alone (`breaker_host/2` answers nil for them).
+  defp reset_host_breaker_on_success({:ok, _message}, _provider_atom, integration),
+    do: reset_host_breaker(integration)
+
+  defp reset_host_breaker_on_success(_failure, _provider_atom, _integration), do: :ok
+
+  @doc """
+  Closes the circuit breaker of `integration`'s self-hosted server, for a
+  caller that has just reached that server successfully (a connection test,
+  a reconnect's discovery). A no-op for hosted providers, whose breaker is
+  shared by every account; see `test_connection/2`.
+  """
+  @spec reset_host_breaker(map()) :: :ok
+  def reset_host_breaker(%{provider: provider} = integration) do
+    with {:ok, provider_atom} <- ProviderConfig.parse_known(provider),
+         host when is_binary(host) <-
+           CalendarCircuitBreaker.breaker_host(provider_atom, Map.get(integration, :base_url)) do
+      CalendarCircuitBreaker.reset(provider_atom, host)
+    end
+
+    :ok
   end
 
   # CalDAV-family `validate_config/1` and `perform_connection_test/1` callbacks read
