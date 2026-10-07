@@ -45,6 +45,12 @@ defmodule Tymeslot.Auth.UserRegisteredHookTest do
       do: raise(DBConnection.ConnectionError, "connection not available")
   end
 
+  defmodule ExitingHook do
+    @spec on_user_registered(pos_integer(), map()) :: no_return()
+    def on_user_registered(_user_id, _metadata),
+      do: exit({:timeout, {GenServer, :call, [:registration_store, :record, 5000]}})
+  end
+
   setup do
     original = Application.get_env(:tymeslot, :user_registered_hook)
     Application.put_env(:tymeslot, :registration_hook_test_pid, self())
@@ -177,6 +183,18 @@ defmodule Tymeslot.Auth.UserRegisteredHookTest do
       Application.put_env(:tymeslot, :user_registered_hook, RaisingHook)
 
       assert_raise DBConnection.ConnectionError, fn ->
+        perform_job(UserRegisteredHookWorker, %{"user_id" => 42, "metadata" => %{}}, attempt: 10)
+      end
+
+      assert_receive {:send_alert, :user_registered_hook_failed, %{user_id: 42}}
+    end
+
+    # Oban reports an exit from `perform/1` as a crash, so the job still
+    # fails and is retried; the alert is what the exit used to skip.
+    test "alerts when the hook exits on the final attempt, and still fails the job" do
+      Application.put_env(:tymeslot, :user_registered_hook, ExitingHook)
+
+      assert_raise Oban.CrashError, ~r/time out/, fn ->
         perform_job(UserRegisteredHookWorker, %{"user_id" => 42, "metadata" => %{}}, attempt: 10)
       end
 
