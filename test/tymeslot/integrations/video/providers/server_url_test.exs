@@ -2,7 +2,8 @@ defmodule Tymeslot.Integrations.Video.Providers.ServerUrlTest do
   @moduledoc """
   The address of a self-hosted video server (MiroTalk, Jitsi, Nextcloud Talk)
   is checked by one function, so the three providers refuse the same shapes
-  and differ only in when plain http is allowed.
+  and differ only in when plain http is allowed, and whether the check leaves
+  the private-address switch to the schema.
   """
 
   # Not async: the private-address switch is application config.
@@ -11,7 +12,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ServerUrlTest do
 
   import Tymeslot.ConfigTestHelpers, only: [with_config: 3]
 
-  alias Tymeslot.Integrations.Video.Providers.JitsiProvider
   alias Tymeslot.Integrations.Video.Providers.LinkRoom
 
   setup do
@@ -57,6 +57,10 @@ defmodule Tymeslot.Integrations.Video.Providers.ServerUrlTest do
       assert :ok = LinkRoom.validate_server_url("http://192.168.1.20")
     end
 
+    test "leaves the switch to a caller that asks it to" do
+      assert :ok = LinkRoom.validate_server_url("http://192.168.1.20", private: :unchecked)
+    end
+
     test "refuses plain http to a public host only when asked to" do
       assert :ok = LinkRoom.validate_server_url("http://meet.example.com")
 
@@ -68,18 +72,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ServerUrlTest do
 
       with_config(:tymeslot, :allow_private_ips_for_video, true)
       assert :ok = LinkRoom.validate_server_url("http://localhost:8443", https: :for_public)
-    end
-  end
-
-  describe "a Jitsi server with token authentication" do
-    @tokens %{client_id: "tymeslot", client_secret: "test-secret-value-at-least-32-chars-long"}
-
-    test "may run on a local server over plain http once private addresses are allowed" do
-      config = Map.put(@tokens, :base_url, "http://localhost:8443")
-      assert {:error, _private} = JitsiProvider.validate_config(config)
-
-      with_config(:tymeslot, :allow_private_ips_for_video, true)
-      assert JitsiProvider.validate_config(config) == :ok
     end
   end
 end

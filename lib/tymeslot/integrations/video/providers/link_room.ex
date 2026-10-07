@@ -112,8 +112,8 @@ defmodule Tymeslot.Integrations.Video.Providers.LinkRoom do
   @doc """
   Checks the address of a self-hosted video server (MiroTalk, Jitsi,
   Nextcloud Talk): an http or https URL with a host, of an allowed length,
-  with the shape `validate_base_url/1` asks for. A local or private address
-  is refused unless the operator allows private video addresses.
+  with the shape `validate_base_url/1` asks for, and by default not on a local
+  or private address unless the operator allows them.
 
   ## Options
 
@@ -121,6 +121,9 @@ defmodule Tymeslot.Integrations.Video.Providers.LinkRoom do
       localhost, a private network or, once private video addresses are
       allowed, an internal name stays allowed); `:never`, the default,
       accepts either.
+    * `:private` — `:switch`, the default, refuses a local or private
+      address unless the operator allows them; `:unchecked` leaves the
+      switch to a caller whose saves the schema already holds to it.
 
   Any other option (`:https_error_message`, `:invalid_message`, ...) goes to
   `Tymeslot.Security.UrlValidation.validate_http_url/2`.
@@ -133,11 +136,12 @@ defmodule Tymeslot.Integrations.Video.Providers.LinkRoom do
 
   def validate_server_url(url, opts) do
     {https, opts} = Keyword.pop(opts, :https, :never)
+    {private, opts} = Keyword.pop(opts, :private, :switch)
     private_allowed? = SsrfGuard.allow_private_for_video?()
 
     url_opts =
       [
-        block_private_ips: not private_allowed?,
+        block_private_ips: private == :switch and not private_allowed?,
         enforce_https_for_public: https == :for_public,
         internal_names_local: private_allowed?
       ] ++ opts

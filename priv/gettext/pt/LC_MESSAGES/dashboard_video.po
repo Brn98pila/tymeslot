@@ -117,6 +117,7 @@ msgstr "URL base"
 #: lib/tymeslot/integrations/video/input_validation.ex
 #: lib/tymeslot/integrations/video/providers/jitsi_provider.ex
 #: lib/tymeslot/integrations/video/providers/link_room.ex
+#: lib/tymeslot/integrations/video/providers/mirotalk_provider.ex
 #, elixir-autogen, elixir-format
 msgid "Base URL is required"
 msgstr "A URL base é obrigatória"

@@ -125,6 +125,14 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderBehaviour do
   @callback validate_config(config :: map()) :: :ok | {:error, String.t()}
 
   @doc """
+  The checks a configuration being saved (connected or edited) must pass on
+  top of `validate_config/1`. `validate_config/1` also runs on stored configs,
+  before every room and every health probe, so a rule added after rows were
+  saved belongs here, where it cannot strand them.
+  """
+  @callback validate_config_for_save(config :: map()) :: :ok | {:error, String.t()}
+
+  @doc """
   Updates an existing meeting room on the provider's side after the
   underlying booking changes (e.g. on reschedule).
 
@@ -270,5 +278,6 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderBehaviour do
                       finish_create_meeting_room: 2,
                       ensure_valid_token: 1,
                       room_creation_budget_ms: 0,
-                      flag_revoked_token: 1
+                      flag_revoked_token: 1,
+                      validate_config_for_save: 1
 end

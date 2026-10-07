@@ -189,9 +189,13 @@ defmodule Tymeslot.Integrations.Video.Providers.JitsiProvider do
   # to anyone on the path. A server on localhost or a private network stays
   # allowed, as it is for CalDAV, and so does one on an internal name once the
   # operator allows private video addresses; without credentials the bare room
-  # link carries nothing to protect.
+  # link carries nothing to protect. The private-address switch is left to the
+  # schema, which holds a saved address to it: this check also runs on the
+  # stored server before every room, and one saved while the switch was on
+  # keeps getting rooms.
   defp validate_base_url(base_url, credentials) do
     LinkRoom.validate_server_url(base_url,
+      private: :unchecked,
       https: if(credentials, do: :for_public, else: :never),
       invalid_message: invalid_url_message(),
       disallowed_protocol_error: invalid_url_message(),

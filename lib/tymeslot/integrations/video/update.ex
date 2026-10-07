@@ -35,7 +35,7 @@ defmodule Tymeslot.Integrations.Video.Update do
   alias Tymeslot.Integrations.Video.AttrsCasting
   alias Tymeslot.Integrations.Video.Connection
   alias Tymeslot.Integrations.Video.Providers.JitsiProvider
-  alias Tymeslot.Integrations.Video.Providers.LinkRoom
+  alias Tymeslot.Integrations.Video.Providers.MiroTalkProvider
   alias Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider
   alias Tymeslot.Integrations.Video.Reconnect
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
@@ -257,7 +257,7 @@ defmodule Tymeslot.Integrations.Video.Update do
   defp validate_update(%VideoIntegrationSchema{provider: "mirotalk"} = integration, attrs) do
     case Map.fetch(attrs, :base_url) do
       {:ok, base_url} when base_url != integration.base_url ->
-        LinkRoom.validate_server_url(base_url)
+        MiroTalkProvider.validate_config_for_save(%{base_url: base_url})
 
       _unchanged ->
         :ok

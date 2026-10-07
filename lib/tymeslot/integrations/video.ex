@@ -253,10 +253,17 @@ defmodule Tymeslot.Integrations.Video do
       :ok
     else
       with {:ok, module} <- ProviderConfig.get_provider(provider),
-           :ok <- module.validate_config(attrs) do
+           :ok <- module.validate_config(attrs),
+           :ok <- validate_for_save(module, attrs) do
         VideoIntegrationSchema.validate_new(attrs)
       end
     end
+  end
+
+  defp validate_for_save(module, attrs) do
+    if function_exported?(module, :validate_config_for_save, 1),
+      do: module.validate_config_for_save(attrs),
+      else: :ok
   end
 
   defp probe_on_create(provider, attrs) do
