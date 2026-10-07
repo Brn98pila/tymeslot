@@ -14,12 +14,12 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.RevealGuardsTest do
   alias Phoenix.LiveView.Socket
   alias TymeslotWeb.Themes.Shared.Journey
   alias TymeslotWeb.Themes.Shared.Journey.Moment
-  alias TymeslotWeb.Themes.Shared.Journey.Navigators.Continuous
+  alias TymeslotWeb.Themes.Shared.Journey.Navigators.{Continuous, Transcript}
   alias TymeslotWeb.Themes.Shared.Journey.Runtime
 
   @intro %{name: "Intro call", slug: "intro-call", duration_minutes: 30}
 
-  @navigators [Continuous]
+  @navigators [Continuous, Transcript]
 
   defp journey(navigator) do
     %Journey{
@@ -158,6 +158,82 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Navigators.RevealGuardsTest do
           assert restarted.assigns.journey_opened == MapSet.new([:intro, :offer, :when])
         end
       end
+    end
+  end
+
+  # A booker on the details: the slot chosen, the attendee moment open with
+  # its submission token.
+  defp at_details(assigns) do
+    at_times(
+      Transcript,
+      Map.merge(
+        %{
+          current_state: :you,
+          selected_date: "2027-01-05",
+          selected_time: "10:00",
+          submission_token: "token",
+          journey_opened: MapSet.new([:intro, :offer, :when, :you])
+        },
+        assigns
+      )
+    )
+  end
+
+  defp step(socket, step), do: Runtime.navigate_to_step(socket, %{"step" => step})
+
+  describe "Transcript's Edit" do
+    test "forgets the answered moment and every moment after it" do
+      assert {:noreply, edited} = step(at_details(%{entered_via_overview: true}), "when")
+
+      assert %{
+               current_state: :when,
+               journey_focus: :when,
+               meeting_type: @intro,
+               selected_date: "2027-01-05",
+               selected_time: nil,
+               submission_token: nil
+             } = edited.assigns
+
+      assert edited.assigns.journey_opened == MapSet.new([:intro, :offer, :when])
+    end
+
+    test "reopens the meeting type only for a booker who came through the overview" do
+      assert {:noreply, edited} = step(at_details(%{entered_via_overview: true}), "offer")
+      assert %{current_state: :offer, meeting_type: nil, selected_time: nil} = edited.assigns
+
+      direct = at_details(%{entered_via_overview: false})
+      assert step(direct, "offer") == {:noreply, direct}
+    end
+
+    test "reaches no outcome, and edits nothing while one is current" do
+      socket = at_details(%{entered_via_overview: true})
+
+      for outcome <- ["confirmation", "awaiting_payment", "you", "intro", "nope"] do
+        assert step(socket, outcome) == {:noreply, socket}
+      end
+
+      for outcome <- [:confirmation, :awaiting_payment] do
+        on_outcome = at_details(%{entered_via_overview: true, current_state: outcome})
+
+        for target <- ["offer", "when", "you"] do
+          assert step(on_outcome, target) == {:noreply, on_outcome}
+        end
+
+        assert Transcript.back(on_outcome.assigns.journey, on_outcome) == {:noreply, on_outcome}
+      end
+    end
+
+    test "Back from the start of a moment edits the last answered one" do
+      socket = at_details(%{entered_via_overview: true})
+
+      assert {:noreply, edited} = Runtime.handle_step_event(socket, :you, :back_step, nil)
+      assert %{current_state: :when, selected_time: nil, journey_focus: :when} = edited.assigns
+    end
+
+    test "Back changes nothing when no answer may be edited" do
+      socket = at_times(Transcript, %{entered_via_overview: false})
+
+      assert Runtime.handle_step_event(socket, :when, :back_step, nil) == {:noreply, socket}
     end
   end
 end
