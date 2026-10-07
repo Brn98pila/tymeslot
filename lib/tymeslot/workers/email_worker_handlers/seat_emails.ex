@@ -16,7 +16,11 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.SeatEmails do
       row, so its stamps start empty;
     * a cancellation claims each send on the job (`DeliveryClaims`), since the
       seat's stamps were spent on its confirmation;
-    * guests are stamped or claimed one by one and never fail the job.
+    * a guest's invitation (a confirmation, or the new seat of a move) is
+      stamped on the guest and never fails the job;
+    * a guest's cancellation (a cancellation, or the old seat of a move) is
+      claimed on the job like the two above, and one that fails fails the
+      job, so the retry writes only to the guests not yet told.
 
   Each seat is its own calendar entry for its participant and their guests
   (`Tymeslot.Meetings.ParticipantSchema.calendar_uid/1`): the confirmation
