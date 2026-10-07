@@ -34,7 +34,8 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
 
   `@show_language_switcher` is the wrapper's own choice when it passes one,
   else true on the journey's first moment (the classic overview) and on every
-  moment of a `Continuous` or `Transcript` page.
+  moment and outcome of a `Continuous` or `Transcript` page but the payment
+  wait.
   """
   @spec prepare_wrapper_assigns(map()) :: map()
   def prepare_wrapper_assigns(assigns) do
@@ -52,14 +53,15 @@ defmodule TymeslotWeb.Themes.Shared.Customization.Helpers do
   end
 
   # A page that opens its moments by itself is one page, so the switcher is
-  # always on it; a paged journey shows it on its first moment (the classic
-  # overview). A page with no journey keeps the overview rule. The journey is
-  # matched as a map, not as `%Journey{}`: a struct pattern would make every
-  # wrapper that imports this module depend on the journey engine at compile
-  # time.
-  defp language_switcher?(%{navigator: navigator}, _current_state)
+  # on it throughout, bar the payment wait: a locale change remounts the page
+  # on its entry route, which would drop the wait for the checkout. A paged
+  # journey shows it on its first moment (the classic overview). A page with
+  # no journey keeps the overview rule. The journey is matched as a map, not
+  # as `%Journey{}`: a struct pattern would make every wrapper that imports
+  # this module depend on the journey engine at compile time.
+  defp language_switcher?(%{navigator: navigator}, current_state)
        when navigator in [Continuous, Transcript],
-       do: true
+       do: current_state != :awaiting_payment
 
   defp language_switcher?(%{moments: [%{key: first} | _rest]}, current_state),
     do: current_state == first

@@ -154,6 +154,17 @@ defmodule TymeslotWeb.Themes.Shared.Customization.HelpersTest do
       assert switcher?(%{journey: talk, current_state: :time})
     end
 
+    # A locale change remounts the page on its entry route, which would drop
+    # the wait for a payment in progress.
+    test "hides on the payment wait of a page that opens its moments by itself" do
+      for navigator <- [Continuous, Transcript] do
+        reveal = journey(navigator, [:offer, :when, :you])
+
+        refute switcher?(%{journey: reveal, current_state: :awaiting_payment})
+        assert switcher?(%{journey: reveal, current_state: :confirmation})
+      end
+    end
+
     test "keeps the overview rule on a page without a journey" do
       assert switcher?(%{current_state: :overview})
       refute switcher?(%{current_state: :schedule})
