@@ -4,6 +4,8 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.ItemDiscoveryTest do
   @moduletag :integrations
   @moduletag :calendar
 
+  @ews_budget 8 * 1024 * 1024
+
   import SweetXml, only: [sigil_x: 2]
 
   alias Plug.Conn
@@ -104,6 +106,34 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.ItemDiscoveryTest do
       assert length(items) == 100
     end
 
+    test "halves a batch the response budget refuses until each part fits" do
+      # Bodies large enough to outgrow the budget whenever item-7 shares a
+      # request with more than eleven others.
+      answer_get_item_with(fn ids ->
+        if "item-7" in ids and length(ids) > 12,
+          do: :too_large,
+          else: Enum.map(ids, &{:ok, id: &1})
+      end)
+
+      ids = for n <- 1..150, do: {"item-#{n}", "ck-#{n}"}
+
+      assert {:ok, items} = ItemDiscovery.fetch_items(config(), ids)
+
+      assert Enum.map(received_get_items(), &length/1) == [100, 50, 25, 12, 13, 25, 50, 50]
+      assert Enum.map(items, &Soap.text(&1, ~x"./t:ItemId/@Id")) == Enum.map(ids, &elem(&1, 0))
+    end
+
+    test "fails the read when a single item is over the response budget on its own" do
+      answer_get_item_with(fn ids ->
+        if "item-7" in ids, do: :too_large, else: Enum.map(ids, &{:ok, id: &1})
+      end)
+
+      ids = for n <- 1..150, do: {"item-#{n}", "ck-#{n}"}
+
+      assert ItemDiscovery.fetch_items(config(), ids) == {:error, :response_too_large}
+      assert List.last(received_get_items()) == ["item-7"]
+    end
+
     test "refuses a read in which every message of every batch failed" do
       answer_get_item_with(fn ids ->
         Enum.map(ids, fn _id -> {:error, "ErrorAccessDenied"} end)
@@ -117,8 +147,9 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.ItemDiscoveryTest do
   end
 
   # Answers each `GetItem` with the messages `entries_for` builds from the ids
-  # it names (or a 500 for `:server_error`), and reports those ids to the test
-  # process in request order.
+  # it names (a 500 for `:server_error`, a body one byte over the EWS budget
+  # for `:too_large`), and reports those ids to the test process in request
+  # order.
   defp answer_get_item_with(entries_for) do
     test_pid = self()
 
@@ -134,12 +165,25 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.ItemDiscoveryTest do
         :server_error ->
           Conn.resp(conn, 500, "")
 
+        :too_large ->
+          conn
+          |> Conn.put_resp_content_type("text/xml")
+          |> Conn.resp(200, String.duplicate(" ", @ews_budget + 1))
+
         entries ->
           conn
           |> Conn.put_resp_content_type("text/xml")
           |> Conn.resp(200, ExchangeFixtures.get_item_batch_response(entries))
       end
     end)
+  end
+
+  defp received_get_items(acc \\ []) do
+    receive do
+      {:get_item, ids} -> received_get_items([ids | acc])
+    after
+      0 -> Enum.reverse(acc)
+    end
   end
 
   # A `FindItem` response whose single message carries the given `t:ItemId`

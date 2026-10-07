@@ -98,12 +98,14 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Client do
 
   # Every EWS response is parsed whole, so it gets a budget well under the
   # HTTP client's general default. The largest responses are batched
-  # `GetItem`s (100 items, `BaseShape=Default`, bodies included): 8 MB leaves
-  # about 80 KB an item, several times a long HTML invitation with its
-  # attendee list. The other operations ask for ids or a free/busy view and
-  # stay far below it: a `FindItem` window at the default 1000-item
-  # `FindCountLimit` is about 0.4 MB, a `SyncFolderItems` page of 512 changes
-  # about 0.25 MB.
+  # `GetItem`s (100 items, `BaseShape=Default`, bodies included): 8 MB
+  # averages about 80 KB an item, several times a long HTML invitation with
+  # its attendee list. That average is not a per-item limit: a batch over
+  # budget is halved and retried by `ItemDiscovery.fetch_items/2`, so only a
+  # single item larger than 8 MB on its own is refused. The other operations
+  # ask for ids or a free/busy view and stay far below it: a `FindItem`
+  # window at the default 1000-item `FindCountLimit` is about 0.4 MB, a
+  # `SyncFolderItems` page of 512 changes about 0.25 MB.
   @max_response_bytes 8 * 1024 * 1024
 
   @doc """

@@ -65,8 +65,10 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.ItemDiscovery do
 
   An empty list is answered `{:ok, []}` without a round trip: `m:ItemIds`
   demands a child, so an empty batch would be answered with a schema fault
-  rather than an empty list. A request that fails outright fails the whole
-  read; no partial window is answered.
+  rather than an empty list. A batch answered over the response budget is
+  split in half and retried, down to single items; any other failure, or one
+  item over budget on its own, fails the whole read. No partial window is
+  answered.
 
   Answers the raw `t:CalendarItem` elements, which
   `Exchange.EventNormaliser.normalise_events/2` turns into `CalendarEvent`
@@ -84,13 +86,40 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.ItemDiscovery do
   end
 
   defp fetch_batches(config, batches) do
-    Enum.reduce_while(batches, {:ok, []}, fn batch, {:ok, docs} ->
-      case Client.call(config, Requests.get_item(batch)) do
-        {:ok, doc} -> {:cont, {:ok, docs ++ [doc]}}
-        {:error, _reason} = error -> {:halt, error}
-      end
-    end)
+    fetched =
+      Enum.reduce_while(batches, {:ok, []}, fn batch, {:ok, acc} ->
+        case fetch_batch(config, batch) do
+          {:ok, docs} -> {:cont, {:ok, [docs | acc]}}
+          {:error, _reason} = error -> {:halt, error}
+        end
+      end)
+
+    with {:ok, acc} <- fetched, do: {:ok, acc |> Enum.reverse() |> Enum.concat()}
   end
+
+  # A batch whose bodies outgrow the response budget is halved until each half
+  # fits, so a few very large invitations cost extra round trips rather than
+  # the whole read. Only a single item that is over budget on its own still
+  # fails the read.
+  defp fetch_batch(config, [_first, _second | _rest] = ids) do
+    case Client.call(config, Requests.get_item(ids)) do
+      {:error, :response_too_large} ->
+        {left, right} = Enum.split(ids, div(length(ids), 2))
+
+        with {:ok, left_docs} <- fetch_batch(config, left),
+             {:ok, right_docs} <- fetch_batch(config, right) do
+          {:ok, left_docs ++ right_docs}
+        end
+
+      other ->
+        wrap(other)
+    end
+  end
+
+  defp fetch_batch(config, ids), do: config |> Client.call(Requests.get_item(ids)) |> wrap()
+
+  defp wrap({:ok, doc}), do: {:ok, [doc]}
+  defp wrap({:error, _reason} = error), do: error
 
   defp ids_in(message) do
     message
