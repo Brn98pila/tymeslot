@@ -119,7 +119,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueueBoundsTest do
 
       reloaded = Repo.reload!(row)
       assert reloaded.sync_attempts == 0
-      assert reloaded.sync_deferred_since != nil
+      assert %DateTime{} = reloaded.sync_deferred_since
 
       recovered = count_requests(204)
 
