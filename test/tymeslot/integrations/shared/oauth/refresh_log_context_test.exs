@@ -7,7 +7,6 @@ defmodule Tymeslot.Integrations.Common.OAuth.RefreshLogContextTest do
 
   import Mox
 
-  alias Tymeslot.Integrations.Calendar.Outlook.OAuthHelper, as: OutlookOAuthHelper
   alias Tymeslot.Integrations.Google.GoogleOAuthHelper
   alias Tymeslot.Integrations.Shared.OAuth.TokenFlow
   alias Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper
@@ -73,15 +72,6 @@ defmodule Tymeslot.Integrations.Common.OAuth.RefreshLogContextTest do
       GoogleOAuthHelper.refresh_access_token("rt", nil, log_context: @context)
 
       assert_named(:google)
-    end
-
-    test "Outlook" do
-      expect_refresh_rejection()
-      LogCapture.attach()
-
-      OutlookOAuthHelper.refresh_access_token("rt", nil, log_context: @context)
-
-      assert_named(:outlook)
     end
 
     # TokenFlow is the live Outlook calendar refresh, and used to log nothing
