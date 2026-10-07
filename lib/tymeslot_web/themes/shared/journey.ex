@@ -6,7 +6,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey do
 
   A moment (`Journey.Moment`) is a LiveComponent the theme writes, collecting
   zero or more facts, and may settle a fact it collects without asking
-  (`defaults:`, checked now and applied once the runtime opens moments).
+  (`defaults:`, applied when the runtime opens the moment).
   Outcomes are where a submit ends, not moments: the
   confirmation, and the wait for an embedded payment, `:shared` meaning
   `Shared.Components.AwaitingPayment`.
@@ -133,7 +133,8 @@ defmodule TymeslotWeb.Themes.Shared.Journey do
   `CompileError` at `caller` naming every problem: an unknown fact; a fact
   collected before one it needs (its `requires/1` given `%{}`, and the answers
   before the attendee when both are collected); a fact collected twice; the
-  meeting type, slot or attendee collected by no moment; a moment or outcome
+  meeting type, slot, answers or attendee collected by no moment (the answers
+  because any meeting type may have questions); a moment or outcome
   component that is not a loaded LiveComponent; a default for a fact the
   moment does not collect, or with a strategy its fact does not take; a
   navigator that is not one; a moment key used twice or named like an
@@ -192,6 +193,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey do
       unknown_fact_problems(collected, facts),
       twice_problems(collected),
       uncollected_problems(collected),
+      answers_problems(collected),
       order_problems(collected, facts),
       component_problems(journey),
       default_problems(journey.moments, facts)
@@ -244,6 +246,15 @@ defmodule TymeslotWeb.Themes.Shared.Journey do
     for key <- @always_collected,
         key not in keys,
         do: "no moment collects #{inspect(key)}, which every booking needs"
+  end
+
+  # Any meeting type may have questions, and only a booking can say whether
+  # this one does, so every journey needs a moment that asks them; a theme
+  # without one could not book such a type at all.
+  defp answers_problems(collected) do
+    if Enum.any?(collected, &(elem(&1, 0) == :answers)),
+      do: [],
+      else: ["no moment collects :answers, which a meeting type with questions needs"]
   end
 
   defp order_problems(collected, facts) do

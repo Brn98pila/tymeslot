@@ -104,6 +104,12 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.Answers do
     end
   end
 
+  @impl Fact
+  def clear(%{assigns: %{engine: %QEngine{definitions: definitions}}} = socket),
+    do: assign(socket, :engine, QEngine.init(definitions))
+
+  def clear(socket), do: socket
+
   defp step_forward(socket, engine) do
     case QEngine.next(engine) do
       {:ok, engine} -> assign(socket, :engine, engine)

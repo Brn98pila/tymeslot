@@ -8,7 +8,8 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.MeetingType do
   the former, as the overview's Next always has. "Back" returns to a moment
   collecting it only for a booker who came through the overview: a direct or
   private link must never show the organiser's other types. `default/2`
-  settles it without asking, on the organiser's first or shortest type.
+  settles it without asking: on the organiser's first or shortest type, or
+  (`:only`) on the one type an organiser who offers one has.
   """
 
   use TymeslotWeb.Themes.Shared.Journey.Fact
@@ -21,7 +22,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.MeetingType do
   alias TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry
   alias TymeslotWeb.Themes.Shared.ReschedulePin
 
-  @strategies [:first, :shortest]
+  @strategies [:first, :shortest, :only]
 
   @impl Fact
   def key, do: :meeting_type
@@ -91,9 +92,22 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Facts.MeetingType do
     end
   end
 
+  # A pinned reschedule's type is the meeting's own, not the visitor's
+  # choice, so there is nothing to forget.
+  @impl Fact
+  def clear(socket) do
+    if ReschedulePin.pinned?(socket),
+      do: socket,
+      else: assign(socket, selected_duration: nil, duration: nil, meeting_type: nil)
+  end
+
   defp pick([], _strategy), do: nil
   defp pick([first | _rest], :first), do: first
   defp pick(meeting_types, :shortest), do: Enum.min_by(meeting_types, & &1.duration_minutes)
+  # The organiser offers one type, so there is nothing to ask; with several
+  # the visitor chooses.
+  defp pick([only], :only), do: only
+  defp pick(_meeting_types, :only), do: nil
 
   defp selection(assigns),
     do:

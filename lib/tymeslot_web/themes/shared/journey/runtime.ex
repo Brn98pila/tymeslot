@@ -26,10 +26,14 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
   none of them, and its step indicator moves nothing.
 
   `transition_to/3` shows a moment or an outcome: it sets `:current_state`
-  and, for a moment, runs each collected fact's `enter/2` with `params` (the
-  URL's, or `%{}` for a move inside the page). The navigators and
-  `BookingFlow` move through it. `navigate_to_step/2` is the step
-  indicator's click, handed to the navigator's `go_to/3`.
+  and, for a moment, opens it (`open_moment/3`: its `defaults:`, then
+  `enter/2` of each collected fact the booking requires, with `params`, the
+  URL's or `%{}` for a move inside the page) and lets the navigator settle
+  (`settle/1`). The navigators and `BookingFlow` move through it. A fact's
+  or an ambient event settles too, and when that moves `:current_state` the
+  new current moment becomes `:journey_focus`. `clear/2` forgets facts and
+  those depending on them. `navigate_to_step/2` is the step indicator's
+  click, handed to the navigator's `go_to/3`.
   """
 
   import Phoenix.Component, only: [assign: 2, assign: 3]
@@ -38,6 +42,8 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
   alias TymeslotWeb.Themes.Shared.GuestBooking
   alias TymeslotWeb.Themes.Shared.Journey
   alias TymeslotWeb.Themes.Shared.Journey.Ambient
+  alias TymeslotWeb.Themes.Shared.Journey.Moment
+  alias TymeslotWeb.Themes.Shared.Journey.Progress
   alias TymeslotWeb.Themes.Shared.ReschedulePin
 
   @type reply :: {:noreply, Socket.t()}
@@ -67,16 +73,69 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
 
   def handle_step_event(_socket, _moment_key, _event, _data), do: :unhandled
 
-  @doc "Shows the moment or outcome `key`, running what its facts set up."
+  @doc """
+  Shows the moment or outcome `key`. A moment is opened (`open_moment/3`),
+  then the navigator settles what the booking now reaches (`settle/1`).
+  """
   @spec transition_to(Socket.t(), atom(), map()) :: Socket.t()
   def transition_to(socket, key, params) do
     socket = assign(socket, :current_state, key)
 
     case Journey.moment(socket.assigns.journey, key) do
+      %Moment{} = moment -> socket |> open_moment(moment, params) |> settle()
       nil -> socket
-      moment -> Enum.reduce(moment.collects, socket, &Journey.fact!(&1).enter(&2, params))
     end
   end
+
+  @doc """
+  Shows `moment`: applies its `defaults:` to each defaulted fact not yet
+  known (the fact's `default/2`), runs `enter/2` of each fact it collects
+  that the booking requires, with `params` (the URL parameters on arrival,
+  `%{}` inside the page), and records the moment in `:journey_opened`, so a
+  navigator showing several moments enters each once while it stays shown.
+  """
+  @spec open_moment(Socket.t(), Moment.t(), map()) :: Socket.t()
+  def open_moment(socket, %Moment{} = moment, params) do
+    facts = Journey.facts()
+
+    socket
+    |> apply_defaults(moment, facts)
+    |> enter_facts(moment, params, facts)
+    |> then(&assign(&1, :journey_opened, MapSet.put(opened(&1), moment.key)))
+  end
+
+  @doc """
+  Forgets `keys` and every fact depending on them for this booking
+  (`Progress.dependents/3`), through each fact's `clear/1`.
+  """
+  @spec clear(Socket.t(), [atom()]) :: Socket.t()
+  def clear(socket, keys) do
+    facts = Journey.facts()
+
+    keys
+    |> Enum.flat_map(&Progress.dependents(&1, socket.assigns, facts))
+    |> Enum.uniq()
+    |> Enum.reduce(socket, fn key, acc ->
+      fact = Map.fetch!(facts, key)
+
+      if Code.ensure_loaded?(fact) and function_exported?(fact, :clear, 1),
+        do: fact.clear(acc),
+        else: acc
+    end)
+  end
+
+  @doc """
+  Lets the journey's navigator reveal what the booking reaches now
+  (`Navigator.settle/2`); the socket unchanged for a navigator without one.
+  """
+  @spec settle(Socket.t()) :: Socket.t()
+  def settle(%Socket{assigns: %{journey: %Journey{navigator: navigator} = journey}} = socket) do
+    if Code.ensure_loaded?(navigator) and function_exported?(navigator, :settle, 2),
+      do: navigator.settle(journey, socket),
+      else: socket
+  end
+
+  def settle(socket), do: socket
 
   @doc """
   Starts the booking again, in place: the confirmation's "Schedule another
@@ -99,6 +158,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
     |> GuestBooking.assign_defaults()
     |> ReschedulePin.abandon()
     |> assign(selected_date: nil, selected_time: nil)
+    |> assign(:journey_opened, MapSet.new())
     |> transition_to(opening, %{})
   end
 
@@ -136,17 +196,47 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
 
   defp ambient_event(journey, socket, moment_key, event, data) do
     case visible_moment(journey, socket.assigns, moment_key) do
-      {:ok, _moment} -> Ambient.handle(socket, event, data)
+      {:ok, _moment} -> socket |> Ambient.handle(event, data) |> after_event()
       :none -> :unhandled
     end
   end
 
   defp fact_event(journey, socket, moment_key, event, data) do
     case owner(journey, socket.assigns, moment_key, event) do
-      {:ok, fact} -> fact.handle(socket, event, data)
+      {:ok, fact} -> socket |> fact.handle(event, data) |> after_event()
       :none -> :unhandled
     end
   end
+
+  defp apply_defaults(socket, %Moment{defaults: defaults}, facts) do
+    Enum.reduce(defaults || [], socket, fn {key, strategy}, acc ->
+      fact = Map.fetch!(facts, key)
+      if fact.known?(acc.assigns), do: acc, else: fact.default(acc, strategy)
+    end)
+  end
+
+  defp enter_facts(socket, %Moment{collects: collects}, params, facts) do
+    Enum.reduce(collects, socket, fn key, acc ->
+      fact = Map.fetch!(facts, key)
+      if fact.required?(acc.assigns), do: fact.enter(acc, params), else: acc
+    end)
+  end
+
+  defp opened(socket), do: socket.assigns[:journey_opened] || MapSet.new()
+
+  # A navigator that reveals moments by itself moves the focus to the moment
+  # an event made current; one that does not leaves `:current_state` alone,
+  # and so the assigns.
+  defp after_event({:noreply, socket}) do
+    before = socket.assigns[:current_state]
+    settled = settle(socket)
+
+    if settled.assigns[:current_state] == before,
+      do: {:noreply, settled},
+      else: {:noreply, assign(settled, :journey_focus, settled.assigns[:current_state])}
+  end
+
+  defp after_event(other), do: other
 
   # The fact owning `event` among those `moment_key` collects, when that
   # moment is on screen, this booking needs the owner, and every fact the
