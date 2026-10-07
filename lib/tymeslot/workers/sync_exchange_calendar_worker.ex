@@ -442,7 +442,7 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
     record_failure(integration, reason)
 
     if CalDAVErrors.terminal_error?(reason) do
-      {:discard, "#{@server_refused}: #{CalDAVErrors.describe_error(reason)}"}
+      {:discard, "#{@server_refused}: #{refusal(reason)}"}
     else
       result
     end
@@ -545,4 +545,9 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
   # own vocabulary, so it is worded by the module that owns that vocabulary
   # rather than given a second Exchange-flavoured sentence here.
   defp error_message(reason), do: CalDAVErrors.describe_error(reason)
+
+  # The discard reason is what an operator reads on the job record, so it keeps
+  # the status the owner-facing sentence in `sync_error` leaves out.
+  defp refusal({:unexpected_status, status}), do: "HTTP #{status}"
+  defp refusal(reason), do: CalDAVErrors.describe_error(reason)
 end

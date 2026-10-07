@@ -151,6 +151,39 @@ defmodule Tymeslot.Integrations.Calendar.Ics.Feed do
         "Could not reach the calendar feed. Check the URL and try again."
       )
 
+  @doc """
+  The sentence a failed subscription sync stores on the integration
+  (`sync_error`), which the integration card shows while syncs keep failing.
+
+  Every answer is a fixed msgid: the card translates the stored English by
+  looking it up as one, so text built from the reason could never be
+  translated, and an exception's own text is not written for the owner (the
+  worker logs it). That is why the status is left out here while
+  `error_message/1` names it for the connect form, which shows it at once.
+  A rescued exception and the guarded empty-feed refusal are outside the
+  fetch vocabulary, so each gets a sentence of its own.
+  """
+  @spec sync_error_message(error() | :empty_feed_with_populated_cache | Exception.t()) ::
+          String.t()
+  def sync_error_message(exception) when is_exception(exception) do
+    dgettext(
+      "dashboard_calendar_providers",
+      "Calendar subscription sync failed while saving a fetched event. Tymeslot will try again on the next sync."
+    )
+  end
+
+  def sync_error_message({:http_status, _status}),
+    do: dgettext("dashboard_calendar_providers", "The calendar feed returned an error.")
+
+  def sync_error_message(:empty_feed_with_populated_cache) do
+    dgettext(
+      "dashboard_calendar_providers",
+      "The calendar feed came back empty, but the cache still holds previously synced events. Keeping the cache in place and retrying rather than emptying your diary."
+    )
+  end
+
+  def sync_error_message(reason), do: error_message(reason)
+
   defp fetch_body(_url, _opts, redirects_left) when redirects_left < 0 do
     {:error, :too_many_redirects}
   end

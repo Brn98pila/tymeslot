@@ -919,11 +919,6 @@ msgstr "Кінцеву точку CalDAV для mailbox.org не знайден�
 msgid "mailbox.org connection successful"
 msgstr "Підключення до mailbox.org успішне"
 
-#: lib/tymeslot/integrations/calendar/caldav/errors.ex
-#, elixir-autogen, elixir-format
-msgid "The calendar server refused the request (HTTP %{status})."
-msgstr "Сервер календаря відхилив запит (HTTP %{status})."
-
 #: lib/tymeslot/integrations/calendar/caldav/offline_queue.ex
 #, elixir-autogen, elixir-format
 msgid "This change is missing the event's start or end time, so it could not be sent to the calendar server."
@@ -935,11 +930,6 @@ msgstr "У цій зміні відсутній час початку або з�
 #, elixir-autogen, elixir-format
 msgid "Calendar subscription"
 msgstr "Підписка на календар"
-
-#: lib/tymeslot/workers/sync_ics_calendar_worker.ex
-#, elixir-autogen, elixir-format
-msgid "Calendar subscription sync failed while writing a fetched event to the cache (%{type}): %{detail}"
-msgstr "Не вдалося синхронізувати підписку на календар під час запису отриманої події в кеш (%{type}): %{detail}"
 
 #: lib/tymeslot/integrations/calendar/ics/feed.ex
 #, elixir-autogen, elixir-format
@@ -1006,7 +996,7 @@ msgstr "Цей фід календаря завеликий для обробк�
 msgid "The calendar feed URL returned 404. Check that the link is complete and still published."
 msgstr "URL-адреса фіду календаря повернула 404. Перевірте, чи посилання повне та все ще опубліковане."
 
-#: lib/tymeslot/workers/sync_ics_calendar_worker.ex
+#: lib/tymeslot/integrations/calendar/ics/feed.ex
 #, elixir-autogen, elixir-format
 msgid "The calendar feed came back empty, but the cache still holds previously synced events. Keeping the cache in place and retrying rather than emptying your diary."
 msgstr "Фід календаря повернувся порожнім, але кеш досі містить раніше синхронізовані події. Кеш збережено, і спробу буде повторено, замість очищення вашого розкладу."
@@ -1282,3 +1272,23 @@ msgstr "Недійсна URL-адреса mailbox.org. Сервером має �
 #, elixir-autogen, elixir-format
 msgid "mailbox.org always uses this CalDAV server, so the address cannot be changed"
 msgstr "mailbox.org завжди використовує цей сервер CalDAV, тому адресу змінити не можна"
+
+#: lib/tymeslot/integrations/calendar/ics/feed.ex
+#, elixir-autogen, elixir-format
+msgid "Calendar subscription sync failed while saving a fetched event. Tymeslot will try again on the next sync."
+msgstr "Не вдалося синхронізувати підписку на календар: під час збереження отриманої події сталася помилка. Tymeslot повторить спробу під час наступної синхронізації."
+
+#: lib/tymeslot/integrations/calendar/ics/feed.ex
+#, elixir-autogen, elixir-format
+msgid "The calendar feed returned an error."
+msgstr "Фід календаря повернув помилку."
+
+#: lib/tymeslot/integrations/calendar/caldav/errors.ex
+#, elixir-autogen, elixir-format
+msgid "The calendar server refused the request."
+msgstr "Сервер календаря відхилив запит."
+
+#: lib/tymeslot/integrations/calendar/auth/jobs/token_refresh_job.ex
+#, elixir-autogen, elixir-format
+msgid "Tymeslot could not renew its access to this calendar. It will try again shortly."
+msgstr "Tymeslot не вдалося поновити доступ до цього календаря. Tymeslot повторить спробу найближчим часом."

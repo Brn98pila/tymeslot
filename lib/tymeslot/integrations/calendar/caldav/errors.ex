@@ -22,23 +22,28 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Errors do
   inspected atom can never leak into the product. Raw terms stay in the logs,
   which is where diagnostics belong.
 
-  String reasons (e.g. `"Unexpected status: 418"`) pass through unchanged;
-  unrecognised terms collapse to a generic sentence rather than being
-  inspected, so internal representations never reach the UI.
+  Every answer is one of a fixed set of msgids, never text built from the
+  reason: the sentence is stored on the integration (`sync_error`) in
+  English and translated where it is shown, by looking it up as a msgid, so
+  an interpolated or passed-through string could never be translated, and a
+  string reason is internal English rather than anything written for the
+  owner. String reasons and unrecognised terms therefore collapse to a
+  generic sentence rather than being shown or inspected.
 
   Kept as functions rather than a module attribute: a `dgettext/2` call in an
   attribute would freeze the locale at compile time.
   """
   @spec describe_error(Base.error_reason() | term()) :: String.t()
-  def describe_error(reason) when is_binary(reason), do: reason
+  # The XML parsers' failures are the one family of string reasons with a
+  # specific meaning for the owner.
+  def describe_error("Failed to parse " <> _response), do: describe_error(:invalid_response)
 
-  def describe_error({:unexpected_status, status}),
-    do:
-      dgettext(
-        "dashboard_calendar_providers",
-        "The calendar server refused the request (HTTP %{status}).",
-        status: status
-      )
+  def describe_error(reason) when is_binary(reason), do: unknown_error_description()
+
+  # The status stays in the logs `Http` writes; the sentence is fixed so that
+  # it can be translated where it is shown.
+  def describe_error({:unexpected_status, _status}),
+    do: dgettext("dashboard_calendar_providers", "The calendar server refused the request.")
 
   def describe_error(:unauthorized),
     do:

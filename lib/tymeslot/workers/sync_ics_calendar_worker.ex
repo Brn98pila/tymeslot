@@ -30,8 +30,6 @@ defmodule Tymeslot.Workers.SyncIcsCalendarWorker do
       states: [:available, :scheduled, :executing, :retryable, :suspended]
     ]
 
-  use Gettext, backend: TymeslotWeb.Gettext
-
   require Logger
 
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
@@ -215,32 +213,9 @@ defmodule Tymeslot.Workers.SyncIcsCalendarWorker do
       error: LogFormat.reason(reason)
     )
 
-    CalendarIntegrationQueries.mark_sync_error(integration, error_message(reason))
+    CalendarIntegrationQueries.mark_sync_error(integration, Feed.sync_error_message(reason))
 
     {:error, reason}
-  end
-
-  # A rescued exception never reaches `Feed.error_message/1` — it only knows
-  # the feed-fetch vocabulary — so it gets its own message naming the failure
-  # class instead, and the guarded empty-feed case gets one of its own too.
-  defp error_message(exception) when is_exception(exception) do
-    dgettext(
-      "dashboard_calendar_providers",
-      "Calendar subscription sync failed while writing a fetched event to the cache (%{type}): %{detail}",
-      type: inspect(exception.__struct__),
-      detail: Exception.message(exception)
-    )
-  end
-
-  defp error_message(:empty_feed_with_populated_cache) do
-    dgettext(
-      "dashboard_calendar_providers",
-      "The calendar feed came back empty, but the cache still holds previously synced events. Keeping the cache in place and retrying rather than emptying your diary."
-    )
-  end
-
-  defp error_message(reason) do
-    Feed.error_message(reason)
   end
 
   defp feed_url(%{subscription_url: url}) when is_binary(url), do: url
