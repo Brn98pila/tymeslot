@@ -32,12 +32,17 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
   """
 
   import Phoenix.Component, only: [assign: 3]
-  import Phoenix.LiveView, only: [push_patch: 2]
+  import Phoenix.LiveView, only: [push_navigate: 2, push_patch: 2, put_flash: 3]
 
+  alias Tymeslot.Bookings.Errors
+  alias Tymeslot.Bookings.Orchestrator
   alias Tymeslot.MeetingTypes
   alias Tymeslot.Scheduling.ThemeFlow
+  alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
   alias TymeslotWeb.Themes.Shared.PathHandlers
+
+  require Errors
 
   @doc """
   The meeting type a reschedule is committed to, or `nil` when this is not a
@@ -65,6 +70,32 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
         )
     end
   end
+
+  @doc """
+  Sends a page whose URL names a booking the rules no longer let be moved
+  (cancelled, completed, expired, under way or over) on to a fresh booking,
+  telling the visitor why, rather than letting them fill in a form whose
+  submit can only be refused. The manage page's reschedule link refuses the
+  same bookings at mount. A page with no reschedule uid, or one naming a
+  booking that can still move, is left as it is.
+  """
+  @spec leave_if_refused(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def leave_if_refused(
+        %{assigns: %{reschedule_meeting_uid: uid, organizer_user_id: user_id}} = socket
+      )
+      when is_binary(uid) and is_integer(user_id) do
+    case Orchestrator.get_meeting_for_reschedule(uid, user_id) do
+      {:error, reason} when Errors.is_refusal(reason) ->
+        socket
+        |> put_flash(:error, BookingErrorMessage.message(reason))
+        |> push_navigate(to: PathHandlers.restart_path(socket))
+
+      _movable_or_unknown ->
+        socket
+    end
+  end
+
+  def leave_if_refused(socket), do: socket
 
   @doc """
   Marks the page as pinned to `meeting_type`: it is the only one offered, and
