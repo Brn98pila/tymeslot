@@ -468,21 +468,29 @@ defmodule Tymeslot.Integrations.CalendarManagement do
 
   defp maybe_rebalance_primary(_updated, _current_primary_id), do: :ok
 
-  # Activating an integration adopts it as the primary when the user has none
-  # or the one they have is inactive or gone. A read-only integration is never
-  # adopted: it blocks time but refuses every write, so promoting it would
-  # leave the user with a primary that fails every booking. Leaving the
-  # primary as it stands is the safe answer here; the user still has a
-  # working calendar to promote, and `set_primary_calendar_integration/2`
-  # would refuse this one anyway.
-  #
-  # The decision reads the stored primary row, not a decrypted one: a primary
-  # whose credentials do not decrypt for now (a rotated key, say) is still
-  # the user's chosen calendar, and activating another must not demote it.
-  defp ensure_primary_on_activate(%{id: updated_id, user_id: user_id} = updated) do
+  @doc """
+  Adopts a just-activated integration as the user's primary calendar when
+  they have none, or the one they have is inactive or gone. For every path
+  that activates an integration: the toggle here, and an OAuth reconnect,
+  which reactivates an integration that was paused.
+
+  A read-only integration is never adopted: it blocks time but refuses every
+  write, so promoting it would leave the user with a primary that fails
+  every booking. Leaving the primary as it stands is the safe answer here;
+  the user still has a working calendar to promote, and
+  `set_primary_calendar_integration/2` would refuse this one anyway.
+
+  The decision reads the stored primary row, not a decrypted one: a primary
+  whose credentials do not decrypt for now (a rotated key, say) is still the
+  user's chosen calendar, and activating another must not demote it.
+  """
+  @spec ensure_primary_on_activate(CalendarIntegrationSchema.t()) :: :ok
+  def ensure_primary_on_activate(%{id: updated_id, user_id: user_id} = updated) do
     if BookingEligibility.bookable?(updated) and not active_primary?(user_id) do
       CalendarPrimary.set_primary_calendar_integration(user_id, updated_id)
     end
+
+    :ok
   end
 
   defp active_primary?(user_id) do
