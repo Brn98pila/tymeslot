@@ -41,7 +41,7 @@ defmodule Tymeslot.Notifications.GuestNotifications do
 
   require Logger
 
-  alias Tymeslot.Bookings.Policy
+  alias Tymeslot.Bookings.MeetingLinks
   alias Tymeslot.Emails.AppointmentBuilder
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.Logging.LogFormat
@@ -251,7 +251,7 @@ defmodule Tymeslot.Notifications.GuestNotifications do
   """
   @spec guest_details(map(), map()) :: map()
   def guest_details(appointment_details, guest) do
-    urls = Policy.guest_rsvp_urls(guest.rsvp_token)
+    urls = MeetingLinks.guest_rsvp_urls(guest.rsvp_token)
 
     appointment_details
     |> Map.drop(@booker_private_keys)

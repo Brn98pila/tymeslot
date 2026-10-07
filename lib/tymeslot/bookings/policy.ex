@@ -26,7 +26,6 @@ defmodule Tymeslot.Bookings.Policy do
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Timezones
   alias Tymeslot.Utils.ReminderUtils
-  alias Tymeslot.Utils.UrlBuilder
 
   require Logger
 
@@ -598,46 +597,6 @@ defmodule Tymeslot.Bookings.Policy do
         _other -> nil
       end
     end
-  end
-
-  @doc """
-  Gets the application base URL based on configuration.
-  """
-  @spec app_url() :: String.t()
-  defdelegate app_url, to: UrlBuilder, as: :base_url
-
-  @doc """
-  Builds the public accept/decline RSVP URLs for a guest's token.
-  """
-  @spec guest_rsvp_urls(String.t()) :: %{accept_url: String.t(), decline_url: String.t()}
-  def guest_rsvp_urls(token) when is_binary(token) do
-    %{
-      accept_url: app_url() <> "/guest/#{token}/accept",
-      decline_url: app_url() <> "/guest/#{token}/decline"
-    }
-  end
-
-  @doc """
-  Where a host answers a booking request from their email.
-
-  Both actions point at the same review page. The `intent` parameter only
-  preselects a choice for the host to confirm — it never acts on its own,
-  because mail security scanners and link preview crawlers fetch every URL in
-  an inbound message and would otherwise answer the request for them.
-  """
-  @spec approval_urls(String.t()) :: %{
-          review_url: String.t(),
-          approve_url: String.t(),
-          decline_url: String.t()
-        }
-  def approval_urls(token) when is_binary(token) do
-    review_url = app_url() <> "/meeting-request/#{token}"
-
-    %{
-      review_url: review_url,
-      approve_url: review_url <> "?intent=approve",
-      decline_url: review_url <> "?intent=decline"
-    }
   end
 
   defp default_locale, do: Locales.booking_default_locale()
