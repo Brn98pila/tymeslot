@@ -368,7 +368,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
         # Token may have been server-side revoked. Attempt one forced refresh
         # and retry the already-built body. If refresh fails or the retry also
         # returns 401, flag the integration for reauthentication.
-        retry_after_401(:patch, room_id, config, body)
+        retry_after_401(:patch, room_id, config, body, token)
 
       # Everything else — including the 400/4711 that means the grant lacks
       # `meeting:update:meeting` — shares the update-verb error handling used by
@@ -384,10 +384,12 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
   # the fresh token, and flag the integration for reauthentication if the retry
   # still returns 401 (server-side revocation) or the refresh itself fails. The
   # verb drives the request body and which statuses count as success.
-  defp retry_after_401(verb, room_id, config, body) do
+  defp retry_after_401(verb, room_id, config, body, refused_token) do
     # Force an actual OAuth refresh: the access token was rejected server-side,
     # so the DB validity buffer can't be trusted to short-circuit the refresh.
-    case get_access_token(config, force: true) do
+    # The refused token is the one this request sent, which may be newer than
+    # the config's if the operation refreshed at its start.
+    case get_access_token(config, refused_token: refused_token) do
       {:ok, fresh_token} ->
         url = "#{@api_base_url}/meetings/#{room_id}"
 
@@ -490,7 +492,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ZoomProvider do
         # Token may have been server-side revoked. Attempt one forced refresh
         # and retry. If refresh fails or the retry also returns 401, flag the
         # integration for reauthentication.
-        retry_after_401(:delete, room_id, config, "")
+        retry_after_401(:delete, room_id, config, "", token)
 
       # 204/200 success, 404 "already gone" (idempotent), and other errors all
       # share the delete-verb handling used by the post-401 retry path.

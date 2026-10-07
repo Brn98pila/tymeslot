@@ -300,8 +300,13 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProvider do
 
   # A refresh always asks for the Teams scope (the helper's default), not the
   # stored one, which may have come from a calendar connection and not cover
-  # Teams meetings. Teams does not rotate its refresh token, so a failed write
-  # leaves the stored credentials usable and the fresh token is used anyway.
+  # Teams meetings. Microsoft issues a new refresh token on each refresh, but
+  # the one it replaces stays valid until its own lifetime ends. So a failed
+  # write keeps a still-valid older token: the fresh access token is used, and
+  # each later call refreshes again from the stored token until that one
+  # expires and the integration asks to be reconnected. Failing the call
+  # instead, as Zoom must (it invalidates the old token at once), would turn a
+  # passing database error into a failed booking.
   defp oauth_spec do
     helper = teams_oauth_helper()
 

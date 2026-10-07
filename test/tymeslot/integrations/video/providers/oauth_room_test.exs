@@ -136,7 +136,7 @@ defmodule Tymeslot.Integrations.Video.Providers.OAuthRoomTest do
       {integration, config} = stored_integration(-60)
       refresh_returns({:error, "Token refresh failed: invalid_grant"})
 
-      assert {:error, "Token refresh failed: Token refresh failed: invalid_grant"} =
+      assert {:error, "Token refresh failed: invalid_grant"} =
                OAuthRoom.ensure_valid_token(config, spec())
 
       assert %{access_token: "stored-access"} = stored(integration)
@@ -167,26 +167,38 @@ defmodule Tymeslot.Integrations.Video.Providers.OAuthRoomTest do
     end
   end
 
-  describe "ensure_valid_token/3 forced after a 401" do
-    test "refreshes a token whose stored expiry still looks good" do
+  describe "ensure_valid_token/3 after a 401" do
+    test "refreshes a refused token whose stored expiry still looks good" do
       {_integration, config} = stored_integration(3600)
-      config = %{config | access_token: "stored-access"}
       refresh_returns({:ok, new_tokens()})
 
       assert {:ok, %{access_token: "new-access"}} =
-               OAuthRoom.ensure_valid_token(config, spec(), force: true)
+               OAuthRoom.ensure_valid_token(config, spec(), refused_token: "stored-access")
 
       assert_received {:refreshed_with, "stored-refresh", nil}
     end
 
     test "uses a token a sibling has already replaced the refused one with" do
       {_integration, config} = stored_integration(3600)
-      config = %{config | access_token: "refused-access"}
 
       assert {:ok, %{access_token: "stored-access"}} =
-               OAuthRoom.ensure_valid_token(config, spec(), force: true)
+               OAuthRoom.ensure_valid_token(config, spec(), refused_token: "older-refused-access")
 
       refute_received {:refreshed_with, _token, _scope}
+    end
+
+    # The operation refreshed at its start, so the token that drew the 401 is
+    # the stored one, not the older one its config still carries. Comparing
+    # with the config's token would hand the refused token straight back, the
+    # retry would 401 again, and the integration would be flagged for a
+    # reconnect it does not need.
+    test "refreshes when the refused token is the one the operation refreshed to" do
+      {_integration, config} = stored_integration(3600)
+      config = %{config | access_token: "older-config-access"}
+      refresh_returns({:ok, new_tokens()})
+
+      assert {:ok, %{access_token: "new-access"}} =
+               OAuthRoom.ensure_valid_token(config, spec(), refused_token: "stored-access")
     end
   end
 

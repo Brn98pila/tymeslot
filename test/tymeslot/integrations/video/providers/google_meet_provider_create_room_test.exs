@@ -212,7 +212,7 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProviderCreateRoomTest
         {:error, "Token refresh failed: invalid_grant"}
       end)
 
-      assert {:error, "Token refresh failed: Token refresh failed: invalid_grant"} =
+      assert {:error, "Token refresh failed: invalid_grant"} =
                GoogleMeetProvider.precheck_create_meeting_room(config)
     end
 
@@ -227,8 +227,7 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProviderCreateRoomTest
         {:error, "Network error during token refresh: timeout"}
       end)
 
-      assert {:provider_error,
-              "Token refresh failed: Network error during token refresh: timeout"} =
+      assert {:provider_error, "Network error during token refresh: timeout"} =
                GoogleMeetProvider.precheck_create_meeting_room(config)
     end
 

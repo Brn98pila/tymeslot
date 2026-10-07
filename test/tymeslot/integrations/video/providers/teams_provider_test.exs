@@ -514,7 +514,7 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProviderTest do
         {:error, "Token refresh failed: invalid_grant"}
       end)
 
-      assert {:error, "Token refresh failed: Token refresh failed: invalid_grant"} =
+      assert {:error, "Token refresh failed: invalid_grant"} =
                TeamsProvider.precheck_create_meeting_room(config)
     end
 
@@ -527,8 +527,7 @@ defmodule Tymeslot.Integrations.Video.Providers.TeamsProviderTest do
         {:error, "Network error during token refresh: timeout"}
       end)
 
-      assert {:provider_error,
-              "Token refresh failed: Network error during token refresh: timeout"} =
+      assert {:provider_error, "Network error during token refresh: timeout"} =
                TeamsProvider.precheck_create_meeting_room(config)
     end
 

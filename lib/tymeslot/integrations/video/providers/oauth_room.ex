@@ -104,37 +104,43 @@ defmodule Tymeslot.Integrations.Video.Providers.OAuthRoom do
 
   ## Options
 
-    * `:force` — refresh whatever the stored expiry says, still under the
-      lock. For a request the provider has just answered with a 401: the
-      token was refused server-side, so its expiry cannot be trusted, and only
-      a sibling having replaced it already makes the refresh unnecessary.
+    * `:refused_token` — the access token the provider has just answered
+      with a 401. It was refused server-side, so the stored expiry cannot be
+      trusted: the token is refreshed whatever it says, still under the lock,
+      unless a sibling has already replaced the refused token with another.
+      The comparison is with the refused token itself, not the config's: an
+      operation may have refreshed at its start, so the token that drew the
+      401 can be newer than the one it was given.
   """
   @spec ensure_valid_token(config(), spec(), keyword()) :: {:ok, config()} | {:error, term()}
   def ensure_valid_token(config, spec, opts \\ []) do
-    if Keyword.get(opts, :force, false) do
-      refresh(config, spec, true)
-    else
-      case spec.validate_token.(config) do
-        {:ok, :valid} ->
-          {:ok, config}
+    case Keyword.fetch(opts, :refused_token) do
+      {:ok, refused_token} -> refresh(config, spec, {:refused, refused_token})
+      :error -> check_then_refresh(config, spec)
+    end
+  end
 
-        {:ok, :needs_refresh} ->
-          refresh(config, spec, false)
+  defp check_then_refresh(config, spec) do
+    case spec.validate_token.(config) do
+      {:ok, :valid} ->
+        {:ok, config}
 
-        {:error, reason} ->
-          Logger.error("Video OAuth token validation failed",
-            provider: spec.label,
-            reason: LogFormat.reason(reason)
-          )
+      {:ok, :needs_refresh} ->
+        refresh(config, spec, :expiry)
 
-          {:error, "Token validation failed: #{reason}"}
-      end
+      {:error, reason} ->
+        Logger.error("Video OAuth token validation failed",
+          provider: spec.label,
+          reason: LogFormat.reason(reason)
+        )
+
+        {:error, "Token validation failed: #{reason}"}
     end
   end
 
   # A config without its integration and user is a transient one (a
   # connection probe) with no row to coordinate on or write back to.
-  defp refresh(config, spec, force?) do
+  defp refresh(config, spec, why) do
     integration_id = Map.get(config, :integration_id)
     user_id = Map.get(config, :user_id)
 
@@ -145,7 +151,7 @@ defmodule Tymeslot.Integrations.Video.Providers.OAuthRoom do
     else
       Refresh.run(Refresh.lock_key(:video, integration_id), %{
         fetch: fn -> {:ok, fetch_current(integration_id, user_id)} end,
-        valid?: &still_good?(&1, config, force?),
+        valid?: &still_good?(&1, why),
         already_valid: fn {:found, _integration, decrypted} ->
           {:ok, with_stored_tokens(config, decrypted)}
         end,
@@ -166,15 +172,15 @@ defmodule Tymeslot.Integrations.Video.Providers.OAuthRoom do
     end
   end
 
-  # Forced: the caller proved the access token is refused server-side, so its
-  # expiry cannot be trusted. Only a sibling having replaced it already (the
-  # stored token differs from the refused one) makes a refresh unnecessary.
-  defp still_good?(:missing, _config, _force?), do: false
+  # After a 401 the refused token's expiry cannot be trusted. Only a sibling
+  # having replaced it already (the stored token differs from the refused one)
+  # makes a refresh unnecessary.
+  defp still_good?(:missing, _why), do: false
 
-  defp still_good?({:found, _integration, decrypted}, config, true),
-    do: decrypted.access_token != Map.get(config, :access_token)
+  defp still_good?({:found, _integration, decrypted}, {:refused, refused_token}),
+    do: decrypted.access_token != refused_token
 
-  defp still_good?({:found, _integration, decrypted}, _config, false),
+  defp still_good?({:found, _integration, decrypted}, :expiry),
     do: Refresh.valid?(decrypted.token_expires_at)
 
   # The refresh spends the credentials just read under the lock, never the
@@ -203,7 +209,8 @@ defmodule Tymeslot.Integrations.Video.Providers.OAuthRoom do
           reason: LogFormat.reason(reason)
         )
 
-        {:error, "Token refresh failed: #{reason}"}
+        # The helper words the reason ("Token refresh failed: invalid_grant").
+        {:error, reason}
     end
   end
 
