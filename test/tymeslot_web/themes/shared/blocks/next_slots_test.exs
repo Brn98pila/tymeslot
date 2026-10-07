@@ -81,6 +81,34 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlotsTest do
     assert more =~ "#now-slots .next-slots__day--extra"
   end
 
+  test "moves the focus to the first revealed day's heading only" do
+    doc = render_slots(days: 1)
+
+    assert [more] = Floki.attribute(doc, "[data-testid=next-slots-more]", "phx-click")
+    assert [_remove, _hide, ["focus", %{"to" => target}]] = Jason.decode!(more)
+
+    assert [heading] = Floki.find(doc, target)
+    assert Floki.attribute(heading, "class") == ["next-slots__day-heading"]
+
+    assert heading |> Floki.text() |> String.trim() =~ "Fri 12"
+    assert length(Floki.find(doc, ".next-slots__day--extra .next-slots__day-heading")) == 3
+  end
+
+  test "tells assistive technology what More times controls" do
+    doc = render_slots(days: 1)
+
+    assert Floki.attribute(doc, "[data-testid=next-slots-more]", "aria-expanded") == ["false"]
+    assert [controls] = Floki.attribute(doc, "[data-testid=next-slots-more]", "aria-controls")
+
+    ids = String.split(controls, " ")
+
+    extra_ids =
+      doc |> Floki.find(".next-slots__day--extra") |> Enum.flat_map(&Floki.attribute(&1, "id"))
+
+    assert ids != []
+    assert Enum.sort(ids) == Enum.sort(extra_ids)
+  end
+
   test "has no More control when the soonest days are all there is" do
     assert Floki.find(render_slots(days: 5), "[data-testid=next-slots-more]") == []
   end

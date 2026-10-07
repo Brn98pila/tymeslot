@@ -14,8 +14,8 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlots do
   (`NextAvailable`), so the soonest days are in it; when the week holds no
   free time from today on, the block says so and offers the next week
   (`next_week`, with the markup contract's `data-intent="later"`). "More times" needs no round trip: the further days are in
-  the page, `hidden`, and the control reveals them, hides itself and moves
-  the focus to the first revealed day, with client commands that survive the
+  the page, `hidden`, and the control (`aria-expanded`, `aria-controls` the extra days) reveals
+  them, hides itself and moves the focus to the first revealed day's heading, with client commands that survive the
   page's updates. `id` scopes those commands. Clicks go to `target`.
 
   Classes: `next-slots` (`--loading`), `__days`, `__day` (`--extra`),
@@ -95,8 +95,10 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlots do
             <div class="next-slots__days">
               <.day
                 :for={day <- @first ++ @extra}
+                id={@id}
                 day={day}
                 extra={day in @extra}
+                first_extra={@extra != [] and day == hd(@extra)}
                 today={@today}
                 selected_date={@selected_date}
                 selected_time={@selected_time}
@@ -110,10 +112,12 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlots do
               type="button"
               class="next-slots__more"
               data-testid="next-slots-more"
+              aria-expanded="false"
+              aria-controls={Enum.map_join(@extra, " ", &day_id(@id, &1))}
               phx-click={
                 JS.remove_attribute("hidden", to: "##{@id} .next-slots__day--extra")
                 |> JS.hide()
-                |> JS.focus(to: "##{@id} .next-slots__day--extra .next-slots__day-heading")
+                |> JS.focus(to: "##{more_start_id(@id)}")
               }
             >
               {dgettext("booking", "More times")}
@@ -124,8 +128,10 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlots do
     """
   end
 
+  attr :id, :string, required: true
   attr :day, :map, required: true
   attr :extra, :boolean, required: true
+  attr :first_extra, :boolean, required: true
   attr :today, Date, required: true
   attr :selected_date, :string, default: nil
   attr :selected_time, :string, default: nil
@@ -136,11 +142,17 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlots do
   defp day(assigns) do
     ~H"""
     <section
+      id={day_id(@id, @day)}
       class={["next-slots__day", @extra && "next-slots__day--extra"]}
       data-date={@day.iso}
       hidden={@extra}
     >
-      <.dynamic_tag tag_name={@heading_tag} class="next-slots__day-heading" tabindex="-1">
+      <.dynamic_tag
+        tag_name={@heading_tag}
+        id={@first_extra && more_start_id(@id)}
+        class="next-slots__day-heading"
+        tabindex="-1"
+      >
         <span class="next-slots__day-label" aria-hidden="true">{DayChips.day_label(@day.date, @today)}</span>
         <span class="sr-only">{LocalizationHelpers.format_full_date_label(@day.date)}</span>
       </.dynamic_tag>
@@ -170,6 +182,11 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.NextSlots do
     </section>
     """
   end
+
+  defp day_id(id, day), do: "#{id}-day-#{day.iso}"
+
+  # The heading More times moves the focus to: the first day it reveals.
+  defp more_start_id(id), do: "#{id}-more-start"
 
   defp status_text(:error, error), do: error
   defp status_text(:loading, _error), do: dgettext("booking", "Loading available times...")
