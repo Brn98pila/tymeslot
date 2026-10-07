@@ -10,8 +10,7 @@ config :bcrypt_elixir, log_rounds: 4
 # Core tests must not enforce legal agreements.
 config :tymeslot, enforce_legal_agreements: false
 
-# Force Core to use Tymeslot.PubSub in tests
-config :tymeslot, :force_app_pubsub_in_test, true
+# Core uses Tymeslot.PubSub in tests
 config :tymeslot, :pubsub_name, Tymeslot.PubSub
 
 # Force core router for tests
