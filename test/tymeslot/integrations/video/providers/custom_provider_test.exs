@@ -3,7 +3,6 @@ defmodule Tymeslot.Integrations.Video.Providers.CustomProviderTest do
   @moduletag :integrations
 
   alias Tymeslot.Integrations.Video.Providers.CustomProvider
-  alias Tymeslot.Integrations.Video.RoomData
 
   describe "provider_type/0" do
     test "returns :custom" do
