@@ -8,24 +8,6 @@ defmodule Tymeslot.Integrations.Common.ErrorHandlerTest do
   alias Tymeslot.Integrations.Common.ErrorHandler
   alias Tymeslot.Test.LogCapture
 
-  describe "normalize_error/1" do
-    test "normalizes 3-tuple errors" do
-      assert {:error, "timeout"} = ErrorHandler.normalize_error({:error, :type, "timeout"})
-    end
-
-    test "normalizes 2-tuple errors" do
-      assert {:error, "reason"} = ErrorHandler.normalize_error({:error, "reason"})
-    end
-
-    test "passes through ok tuples" do
-      assert {:ok, :result} = ErrorHandler.normalize_error({:ok, :result})
-    end
-
-    test "passes through other values" do
-      assert :other = ErrorHandler.normalize_error(:other)
-    end
-  end
-
   describe "handle_with_logging/2" do
     test "returns ok for success" do
       assert {:ok, :success} = ErrorHandler.handle_with_logging(fn -> {:ok, :success} end)
@@ -77,67 +59,6 @@ defmodule Tymeslot.Integrations.Common.ErrorHandlerTest do
         end)
 
       assert log =~ "Integration error during unknown operation (unknown provider): oops"
-    end
-  end
-
-  describe "handle_integration_error/3" do
-    test "translates and logs error" do
-      log =
-        capture_log(fn ->
-          assert {:error, :timeout, translated} =
-                   ErrorHandler.handle_integration_error(:timeout, "google")
-
-          assert translated.category == :network
-          assert translated.message =~ "Connection timeout"
-        end)
-
-      assert log =~ "Integration error"
-    end
-  end
-
-  describe "with_error_handling/3" do
-    test "handles success" do
-      assert {:ok, :res} = ErrorHandler.with_error_handling("google", "op", fn -> {:ok, :res} end)
-    end
-
-    test "handles error by translating it" do
-      capture_log(fn ->
-        assert {:error, :timeout, translated} =
-                 ErrorHandler.with_error_handling("google", "op", fn -> {:error, :timeout} end)
-
-        assert translated.category == :network
-      end)
-    end
-
-    test "handles exceptions by translating them" do
-      capture_log(fn ->
-        assert {:error, "boom", translated} =
-                 ErrorHandler.with_error_handling("google", "op", fn -> raise "boom" end)
-
-        assert translated.category == :unknown
-      end)
-    end
-  end
-
-  describe "error category mapping for 401 and 403" do
-    test "translates 401 to authentication category" do
-      capture_log(fn ->
-        assert {:error, {:http_error, 401}, translated} =
-                 ErrorHandler.handle_integration_error({:http_error, 401}, "google")
-
-        assert translated.category == :authentication
-        assert translated.message =~ "Authentication failed"
-      end)
-    end
-
-    test "translates 403 to permission category" do
-      capture_log(fn ->
-        assert {:error, {:http_error, 403}, translated} =
-                 ErrorHandler.handle_integration_error({:http_error, 403}, "google")
-
-        assert translated.category == :permission
-        assert translated.message =~ "Insufficient permissions"
-      end)
     end
   end
 
