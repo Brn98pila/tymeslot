@@ -11,12 +11,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
   require Logger
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
-  alias Tymeslot.Integrations.Calendar.PrimarySelection
-  alias Tymeslot.Integrations.CalendarManagement
-  alias Tymeslot.Integrations.CalendarPrimary
-  alias Tymeslot.Integrations.Common.OAuth.AccountMatch
+  alias Tymeslot.Integrations.Calendar.CallbackPersistence
   alias Tymeslot.Integrations.Common.OAuth.IdToken
   alias Tymeslot.Integrations.Common.OAuth.State
   alias Tymeslot.Integrations.Shared.MicrosoftConfig
@@ -61,7 +57,13 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
   def handle_callback(code, state, redirect_uri) do
     with {:ok, %{user_id: user_id, integration_id: integration_id}} <- verify_state(state),
          {:ok, tokens} <- exchange_code_for_tokens(code, redirect_uri),
-         {:ok, integration} <- create_calendar_integration(user_id, tokens, integration_id) do
+         {:ok, integration} <-
+           CallbackPersistence.upsert(
+             "outlook",
+             user_id,
+             integration_id,
+             with_account(tokens, user_id)
+           ) do
       enqueue_initial_sync(integration)
       {:ok, integration}
     else
@@ -128,7 +130,9 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
 
   defp verify_state(_invalid), do: {:error, "Invalid state parameter"}
 
-  defp create_calendar_integration(user_id, tokens, integration_id) do
+  # The provider account the tokens belong to, from the id token's object id,
+  # so a reconnect finds the integration already connected to that account.
+  defp with_account(tokens, user_id) do
     {provider_account_id, provider_account_email} =
       case IdToken.decode(tokens[:id_token]) do
         {:ok, claims} ->
@@ -146,124 +150,9 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
           {nil, nil}
       end
 
-    token_attrs = %{
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
-      token_expires_at: tokens.expires_at,
-      oauth_scope: tokens.scope,
-      is_active: true,
+    Map.merge(tokens, %{
       provider_account_id: provider_account_id,
       provider_account_email: provider_account_email
-    }
-
-    cond do
-      # Re-authorization of specific integration
-      integration_id ->
-        case CalendarManagement.fetch_integration_for_user(integration_id, user_id) do
-          {:ok, existing} ->
-            AccountMatch.verify_account_match(existing, provider_account_id, fn ->
-              update_existing_integration(existing, token_attrs)
-            end)
-
-          {:error, :not_found} ->
-            {:error, "Integration not found"}
-        end
-
-      # New connection with known account
-      is_binary(provider_account_id) ->
-        case CalendarIntegrationQueries.get_by_account_for_user(
-               user_id,
-               "outlook",
-               provider_account_id
-             ) do
-          {:ok, existing} ->
-            update_existing_integration(existing, token_attrs)
-
-          {:error, :not_found} ->
-            create_new_outlook_integration(user_id, provider_account_id, token_attrs)
-        end
-
-      # Fallback — no account ID available
-      true ->
-        case CalendarIntegrationQueries.get_by_user_and_provider(user_id, "outlook") do
-          {:ok, _existing} ->
-            # User already has Outlook integration(s) but we can't identify which account
-            # this callback belongs to. Reject to avoid silently overwriting.
-            {:error,
-             "Could not identify your Outlook account. Please try again. If the problem persists, remove and re-add the integration."}
-
-          {:error, :not_found} ->
-            create_new_outlook_integration(user_id, nil, token_attrs)
-        end
-    end
-  end
-
-  # A reconnect can reactivate an integration that was paused, which may have
-  # been the user's only calendar and so lost its place as the primary; the
-  # activation rule adopts it again.
-  defp update_existing_integration(existing, token_attrs) do
-    with {:ok, updated} <- CalendarIntegrationQueries.update_credentials(existing, token_attrs),
-         {:ok, configured} <- configure_if_unlisted(updated) do
-      if configured.is_active, do: CalendarManagement.ensure_primary_on_activate(configured)
-      {:ok, configured}
-    end
-  end
-
-  defp configure_if_unlisted(%{calendar_list: []} = integration),
-    do: discover_and_configure_calendars(integration)
-
-  defp configure_if_unlisted(integration), do: {:ok, integration}
-
-  defp create_new_outlook_integration(user_id, provider_account_id, token_attrs) do
-    attrs =
-      Map.merge(token_attrs, %{
-        user_id: user_id,
-        name: "Outlook Calendar",
-        provider: "outlook",
-        base_url: "https://graph.microsoft.com/v1.0"
-      })
-
-    create_fn = fn -> PrimarySelection.create_with_auto_primary(attrs) end
-
-    result =
-      if is_binary(provider_account_id) do
-        reactivation_attrs = Map.put(token_attrs, :is_active, true)
-
-        AccountMatch.find_or_create_with_reactivation(
-          fn ->
-            CalendarIntegrationQueries.get_any_by_account_for_user(
-              user_id,
-              "outlook",
-              provider_account_id
-            )
-          end,
-          fn existing ->
-            update_existing_integration(existing, reactivation_attrs)
-          end,
-          fn ->
-            AccountMatch.create_with_race_protection(
-              create_fn,
-              fn ->
-                CalendarIntegrationQueries.get_by_account_for_user(
-                  user_id,
-                  "outlook",
-                  provider_account_id
-                )
-              end,
-              fn existing -> update_existing_integration(existing, token_attrs) end
-            )
-          end
-        )
-      else
-        create_fn.()
-      end
-
-    with {:ok, integration} <- result do
-      discover_and_configure_calendars(integration)
-    end
-  end
-
-  defp discover_and_configure_calendars(integration) do
-    CalendarPrimary.discover_and_configure_calendars(integration)
+    })
   end
 end

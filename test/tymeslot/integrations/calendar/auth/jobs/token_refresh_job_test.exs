@@ -371,7 +371,10 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
   end
 
   defp config_path(file),
-    do: [__DIR__, "..", "..", "..", "..", "..", "..", "config", file] |> Path.join() |> Path.expand()
+    do:
+      [__DIR__, "..", "..", "..", "..", "..", "..", "config", file]
+      |> Path.join()
+      |> Path.expand()
 
   defp insert_expired_google_integration(user) do
     insert(:calendar_integration,

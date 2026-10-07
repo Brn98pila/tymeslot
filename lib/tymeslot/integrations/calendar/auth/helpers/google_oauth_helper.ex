@@ -14,13 +14,9 @@ defmodule Tymeslot.Integrations.Calendar.Google.OAuthHelper do
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Tasks
-  alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.CallbackPersistence
   alias Tymeslot.Integrations.Calendar.Google.Provider, as: GoogleProvider
-  alias Tymeslot.Integrations.Calendar.PrimarySelection
-  alias Tymeslot.Integrations.CalendarManagement
-  alias Tymeslot.Integrations.CalendarPrimary
-  alias Tymeslot.Integrations.Common.OAuth.AccountMatch
   alias Tymeslot.Integrations.Google.GoogleOAuthHelper
   alias Tymeslot.Meetings.MeetingListQueries
   alias Tymeslot.Workers.SyncGoogleCalendarWorker
@@ -83,7 +79,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.OAuthHelper do
     with {:ok, tokens} <- GoogleOAuthHelper.exchange_code_for_tokens(code, redirect_uri, state),
          :ok <- ensure_calendar_write_scope(tokens),
          {:ok, integration} <-
-           create_or_update_calendar_integration(tokens.user_id, tokens, tokens[:integration_id]) do
+           CallbackPersistence.upsert("google", tokens.user_id, tokens[:integration_id], tokens) do
       register_push_channel_async(integration)
       enqueue_pending_video_room_retries(integration.user_id)
       {:ok, integration}
@@ -145,130 +141,6 @@ defmodule Tymeslot.Integrations.Calendar.Google.OAuthHelper do
 
   # Private functions
 
-  defp create_or_update_calendar_integration(user_id, tokens, integration_id) do
-    token_attrs = %{
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
-      token_expires_at: tokens.expires_at,
-      oauth_scope: tokens.scope,
-      provider_account_id: tokens[:provider_account_id],
-      provider_account_email: tokens[:provider_account_email]
-    }
-
-    cond do
-      # Re-authorization of specific integration
-      integration_id ->
-        case CalendarManagement.fetch_integration_for_user(integration_id, user_id) do
-          {:ok, existing} ->
-            AccountMatch.verify_account_match(existing, tokens[:provider_account_id], fn ->
-              update_existing_integration(existing, token_attrs)
-            end)
-
-          {:error, :not_found} ->
-            {:error, "Integration not found"}
-        end
-
-      # New connection with known account
-      is_binary(tokens[:provider_account_id]) ->
-        case CalendarIntegrationQueries.get_by_account_for_user(
-               user_id,
-               "google",
-               tokens[:provider_account_id]
-             ) do
-          {:ok, existing} ->
-            update_existing_integration(existing, token_attrs)
-
-          {:error, :not_found} ->
-            create_new_google_integration(user_id, tokens[:provider_account_id], token_attrs)
-        end
-
-      # Fallback — no account ID available
-      true ->
-        case CalendarIntegrationQueries.get_by_user_and_provider(user_id, "google") do
-          {:ok, _existing} ->
-            # User already has Google integration(s) but we can't identify which account
-            # this callback belongs to. Reject to avoid silently overwriting.
-            {:error,
-             "Could not identify your Google account. Please try again. If the problem persists, remove and re-add the integration."}
-
-          {:error, :not_found} ->
-            create_new_google_integration(user_id, nil, token_attrs)
-        end
-    end
-  end
-
-  defp create_new_google_integration(user_id, provider_account_id, token_attrs) do
-    attrs =
-      Map.merge(token_attrs, %{
-        user_id: user_id,
-        name: "Google Calendar",
-        provider: "google",
-        base_url: "https://www.googleapis.com/calendar/v3",
-        is_active: true
-      })
-
-    create_fn = fn -> PrimarySelection.create_with_auto_primary(attrs) end
-
-    result =
-      if is_binary(provider_account_id) do
-        reactivation_attrs = Map.put(token_attrs, :is_active, true)
-
-        AccountMatch.find_or_create_with_reactivation(
-          fn ->
-            CalendarIntegrationQueries.get_any_by_account_for_user(
-              user_id,
-              "google",
-              provider_account_id
-            )
-          end,
-          fn existing ->
-            update_existing_integration(existing, reactivation_attrs)
-          end,
-          fn ->
-            AccountMatch.create_with_race_protection(
-              create_fn,
-              fn ->
-                CalendarIntegrationQueries.get_by_account_for_user(
-                  user_id,
-                  "google",
-                  provider_account_id
-                )
-              end,
-              fn existing ->
-                CalendarIntegrationQueries.update_credentials(existing, token_attrs)
-              end
-            )
-          end
-        )
-      else
-        create_fn.()
-      end
-
-    with {:ok, integration} <- result do
-      if integration.calendar_list == [] do
-        discover_and_configure_calendars(integration)
-      else
-        {:ok, integration}
-      end
-    end
-  end
-
-  # A reconnect can reactivate an integration that was paused, which may have
-  # been the user's only calendar and so lost its place as the primary; the
-  # activation rule adopts it again.
-  defp update_existing_integration(existing, token_attrs) do
-    with {:ok, updated} <- CalendarIntegrationQueries.update_credentials(existing, token_attrs),
-         {:ok, configured} <- configure_if_unlisted(updated) do
-      if configured.is_active, do: CalendarManagement.ensure_primary_on_activate(configured)
-      {:ok, configured}
-    end
-  end
-
-  defp configure_if_unlisted(%{calendar_list: []} = integration),
-    do: discover_and_configure_calendars(integration)
-
-  defp configure_if_unlisted(integration), do: {:ok, integration}
-
   defp register_push_channel_async(integration) do
     # Always enqueue a sync job so the initial event backfill happens — this
     # path is independent of the webhook URL and works on self-hosted. The
@@ -325,9 +197,5 @@ defmodule Tymeslot.Integrations.Calendar.Google.OAuthHelper do
 
         :ok
     end
-  end
-
-  defp discover_and_configure_calendars(integration) do
-    CalendarPrimary.discover_and_configure_calendars(integration)
   end
 end
