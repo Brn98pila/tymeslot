@@ -51,9 +51,10 @@ defmodule Tymeslot.Notifications.Events do
   @typedoc """
   The integration fan-out (webhooks, Telegram, Slack) an event still owes:
   for each dispatch, the channel event, the meeting it is about, and whether
-  a group meeting fans out per seat (`:per_seat`) or once (`:once`).
+  a group meeting fans out to every live seat (`:per_seat`), once (`:once`),
+  or as one seat's booking (`{:seat, participant}`).
   """
-  @type pending :: [{atom(), term(), :per_seat | :once}]
+  @type pending :: [{atom(), term(), :per_seat | :once | {:seat, term()}}]
 
   @doc """
   `meeting_created/1` without its integration fan-out, for a caller inside a
@@ -76,8 +77,8 @@ defmodule Tymeslot.Notifications.Events do
   end
 
   @doc """
-  Runs the integration fan-out `meeting_created_deferred/1` or
-  `meeting_requested_deferred/2` returned. Never fails the caller: each
+  Runs the integration fan-out `meeting_created_deferred/1`,
+  `meeting_requested_deferred/2` or `seat_booked_deferred/3` returned. Never fails the caller: each
   channel is best-effort, and a failure is logged and reported.
   """
   @spec dispatch_deferred(pending()) :: :ok
@@ -93,6 +94,7 @@ defmodule Tymeslot.Notifications.Events do
     case fan_out do
       :per_seat -> dispatch_integrations(event, meeting)
       :once -> dispatch_channels(event, meeting)
+      {:seat, participant} -> dispatch_seat(event, meeting, participant)
     end
   rescue
     exception ->
@@ -142,13 +144,19 @@ defmodule Tymeslot.Notifications.Events do
   participant (see `Tymeslot.Meetings.SeatView`), since the shared meeting
   row has no attendee of its own.
 
+  The seat is booked inside a transaction, so, as with
+  `meeting_created_deferred/1`, the emails are scheduled now and the
+  integration fan-out is returned as `pending`, for the caller to hand to
+  `dispatch_deferred/1` once the seat has committed.
+
   Options:
     * `:defer_emails?` — the caller has scheduled video-room creation and the
       room worker will release this seat's confirmation once the join link
       exists, so scheduling it here would only send a linkless duplicate.
   """
-  @spec seat_booked(term(), term(), keyword()) :: {:ok, term()} | {:error, term()}
-  def seat_booked(meeting, participant, opts \\ []) do
+  @spec seat_booked_deferred(term(), term(), keyword()) ::
+          {{:ok, term()} | {:error, term()}, pending()}
+  def seat_booked_deferred(meeting, participant, opts \\ []) do
     result =
       if Keyword.get(opts, :defer_emails?, false) do
         {:ok, :deferred_to_video_room}
@@ -156,9 +164,7 @@ defmodule Tymeslot.Notifications.Events do
         Orchestrator.schedule_seat_confirmation(meeting, participant)
       end
 
-    dispatch_seat(:meeting_created, meeting, participant)
-
-    result
+    {result, [{:meeting_created, meeting, {:seat, participant}}]}
   end
 
   @doc """
@@ -199,9 +205,9 @@ defmodule Tymeslot.Notifications.Events do
   `meeting_created/1` event for a solo meeting, or, for a group meeting,
   releasing every live seat's own confirmation email.
 
-  A group meeting never raises `meeting_created/1` here. `seat_booked/3`
-  already fanned its webhook/Telegram/Slack integrations out per seat at
-  booking time, and reminders were already scheduled once, at whichever
+  A group meeting never raises `meeting_created/1` here.
+  `seat_booked_deferred/3` already fanned its webhook/Telegram/Slack
+  integrations out per seat at booking time, and reminders were already scheduled once, at whichever
   seat's booking created the meeting (see `Tymeslot.Bookings.SeatEffects`).
   Re-raising the full event on top of that duplicated it with a payload
   carrying no attendee at all, since a group meeting row has none of its own.

@@ -33,6 +33,7 @@ defmodule Tymeslot.Bookings.BestEffortFanOutTest do
   alias Tymeslot.Bookings.CreateAdHoc
   alias Tymeslot.Meetings.Approval
   alias Tymeslot.Meetings.MeetingSchema
+  alias Tymeslot.Meetings.ParticipantQueries
   alias Tymeslot.Polls.Confirm
   alias Tymeslot.Polls.PollSchema
   alias Tymeslot.Repo
@@ -119,6 +120,42 @@ defmodule Tymeslot.Bookings.BestEffortFanOutTest do
     end
   end
 
+  describe "a seat on a group meeting" do
+    test "a Slack read the database fails does not cost the seat", %{user: user} do
+      params = group_meeting_params(user)
+      Repo.query!("ALTER TABLE slack_integrations RENAME TO slack_integrations_hidden")
+
+      assert {:ok, %MeetingSchema{} = meeting} = Create.execute(params, build_form_data())
+
+      assert [_seat] = ParticipantQueries.list_live_for_meeting(meeting.id)
+    end
+
+    test "each seat sends one Slack notice, about its own booker", %{user: user} do
+      params = group_meeting_params(user)
+
+      assert {:ok, %{id: meeting_id}} =
+               Create.execute(params, build_form_data(%{"email" => "first@example.com"}))
+
+      assert {:ok, %{id: ^meeting_id}} =
+               Create.execute(params, build_form_data(%{"email" => "second@example.com"}))
+
+      notified =
+        [worker: SlackWorker, args: %{"meeting_id" => meeting_id}]
+        |> all_enqueued()
+        |> Enum.map(& &1.args["participant_id"])
+        |> Enum.sort()
+
+      seats =
+        meeting_id
+        |> ParticipantQueries.list_live_for_meeting()
+        |> Enum.map(& &1.id)
+        |> Enum.sort()
+
+      assert length(seats) == 2
+      assert notified == seats
+    end
+  end
+
   describe "the fan-out runs once, and only for a booking that commits" do
     test "a committed booking sends one Slack notice", %{user: user} do
       assert {:ok, meeting} = Create.execute(build_meeting_params(user), build_form_data())
@@ -191,6 +228,11 @@ defmodule Tymeslot.Bookings.BestEffortFanOutTest do
     insert(:poll_vote, participant: participant, time_slot: slot, response: :yes)
 
     %{poll: poll, slot: slot}
+  end
+
+  defp group_meeting_params(user) do
+    meeting_type = insert(:meeting_type, user: user, max_participants: 2)
+    build_meeting_params(user, %{meeting_type_id: meeting_type.id, duration: "30min"})
   end
 
   defp assert_booking_stands(meeting) do

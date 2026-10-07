@@ -255,8 +255,8 @@ defmodule Tymeslot.Bookings.CreateGroupBookingTest do
     end
 
     # The same missing-attendee `meeting.created` used to fan out a SECOND
-    # time once the room existed, on top of the one `seat_booked/4` already
-    # sent at booking time.
+    # time once the room existed, on top of the one `seat_booked_deferred/3`
+    # already sent at booking time.
     test "the room worker never re-dispatches meeting.created for a group meeting", ctx do
       {:ok, _webhook} =
         Webhooks.create_webhook(ctx.user.id, %{
