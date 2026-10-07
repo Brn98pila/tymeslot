@@ -21,20 +21,30 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue do
   On success the row is marked `"synced"` (or the cache row is deleted
   for a successful `locally_deleted`). On failure the row stays in the
   queue with a human-readable description of the failure in
-  `sync_last_error`, and, when the server answered and refused the
-  change, an incremented `sync_attempts`. The next sync cycle
-  retries automatically — there is no backoff beyond the sync cadence
-  itself — but within bounds, so one stuck server or one change the
-  server will never accept cannot hold a sync job for long:
+  `sync_last_error`, and, when the server answered, an incremented
+  `sync_attempts`. The next sync cycle retries automatically — there is
+  no backoff beyond the sync cadence itself — but within bounds, so one
+  stuck server or one change the server will never accept cannot hold a
+  sync job for long:
 
     * a failure that says the server cannot be reached right now (a
       timeout, a 5xx, a rate limit) ends the flush; the rows after it wait
-      for the next cycle rather than each waiting out the same timeout. It
-      does not count towards the row's attempts: an outage says nothing
-      about whether the server would accept the change, and counting it
-      would strand the oldest queued change after a few hours of downtime;
+      for the next cycle rather than each waiting out the same timeout;
+    * a failure that never got an answer from the server (the network, a
+      timeout, a rate limit) does not count towards the row's attempts: an
+      outage says nothing about whether the server would accept the
+      change, and counting it would strand the oldest queued change after a
+      few hours of downtime. A 5xx does count: the server answered, and
+      some servers answer a change they cannot parse with one every time,
+      which would otherwise hold that row at the head of the queue, and
+      every later change behind it, for good;
+    * a row that has gone unanswered without a break for longer than
+      `@deferral_grace_hours` hours counts each further failure whatever
+      its reason, since no outage lasts that long while the rest of the
+      sync carries on (a stale lock on one resource times out the same
+      way every time);
     * at most `@rows_per_flush` rows are replayed per cycle, oldest first;
-    * a row the server has refused `@max_replay_attempts` times is no
+    * a row that has failed `@max_replay_attempts` counted times is no
       longer replayed. It keeps its pending state and the last failure in
       `sync_last_error`, and is replayed again once a new local change to
       it resets the count. Nothing shows the owner such a row yet: the
@@ -106,6 +116,12 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue do
     :timeout,
     :rate_limited
   ]
+
+  # Of those, the ones that never got an answer about this change, so do not
+  # count towards its attempts until it has gone unanswered for
+  # `@deferral_grace_hours`. A 5xx is the server answering, and counts.
+  @unanswered_reasons @unreachable_reasons -- [:server_error]
+  @deferral_grace_hours 24
 
   @spec flush(map(), CalDAVBase.client()) :: :ok
   def flush(integration, client) do
@@ -417,12 +433,14 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue do
 
     message = CalDAVErrors.describe_error(reason)
 
-    if reason in @unreachable_reasons do
-      QueueQueries.mark_sync_deferred(integration.id, row.uid, message)
-      :unreachable
+    if reason in @unanswered_reasons do
+      count_before = DateTime.add(DateTime.utc_now(), -@deferral_grace_hours, :hour)
+      QueueQueries.mark_sync_deferred(integration.id, row.uid, message, count_before)
     else
       QueueQueries.mark_sync_failed(integration.id, row.uid, message)
     end
+
+    if reason in @unreachable_reasons, do: :unreachable, else: :ok
   end
 
   defp record_skip(integration, row, reason) do

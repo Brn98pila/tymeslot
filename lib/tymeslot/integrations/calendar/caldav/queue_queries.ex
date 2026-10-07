@@ -131,6 +131,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.QueueQueries do
           sync_attempts: 0,
           sync_last_attempt_at: now,
           sync_last_error: nil,
+          sync_deferred_since: nil,
           updated_at: now
         ],
         new_etag
@@ -151,7 +152,8 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.QueueQueries do
   Records a failed replay attempt for a pending cache row.
 
   Increments `sync_attempts`, stamps `sync_last_attempt_at`, and stores
-  the formatted error in `sync_last_error`. Does not change
+  the formatted error in `sync_last_error`. The server answered, so a run
+  of deferrals (`mark_sync_deferred/4`) is over. Does not change
   `sync_state` — the row stays in the queue and will be retried on
   the next sync cycle.
   """
@@ -166,7 +168,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.QueueQueries do
     )
     |> Repo.update_all(
       inc: [sync_attempts: 1],
-      set: [sync_last_attempt_at: now, sync_last_error: reason]
+      set: [sync_last_attempt_at: now, sync_last_error: reason, sync_deferred_since: nil]
     )
 
     :ok
@@ -175,15 +177,18 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.QueueQueries do
   @doc """
   Records a replay attempt that never reached a server able to answer it.
 
-  Stamps `sync_last_attempt_at` and stores the formatted error in
-  `sync_last_error`, like `mark_sync_failed/3`, but leaves `sync_attempts`
-  alone: the count bounds how often a server may refuse a change, and an
-  outage says nothing about whether it would accept this one. Counting it
-  would strand the oldest queued change for good after a few hours of
-  downtime.
+  Stamps `sync_last_attempt_at`, stores the formatted error in
+  `sync_last_error`, and starts `sync_deferred_since` if this is the first
+  deferral in a row. It leaves `sync_attempts` alone, since an outage says
+  nothing about whether the server would accept the change, unless the row
+  has been deferred without a break since before `count_before`: a change
+  that has gone unanswered that long is not waiting out an outage, and
+  counting it lets the cap end what would otherwise block the queue for
+  good.
   """
-  @spec mark_sync_deferred(integer(), String.t(), String.t()) :: :ok
-  def mark_sync_deferred(calendar_integration_id, uid, reason) when is_binary(reason) do
+  @spec mark_sync_deferred(integer(), String.t(), String.t(), DateTime.t()) :: :ok
+  def mark_sync_deferred(calendar_integration_id, uid, reason, %DateTime{} = count_before)
+      when is_binary(reason) do
     now = DateTime.utc_now(:microsecond)
 
     ProviderCalendarEventSchema
@@ -191,7 +196,21 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.QueueQueries do
       [e],
       e.calendar_integration_id == ^calendar_integration_id and e.uid == ^uid
     )
-    |> Repo.update_all(set: [sync_last_attempt_at: now, sync_last_error: reason])
+    |> update([e],
+      set: [
+        sync_last_attempt_at: ^now,
+        sync_last_error: ^reason,
+        sync_deferred_since: coalesce(e.sync_deferred_since, ^now),
+        sync_attempts:
+          e.sync_attempts +
+            fragment(
+              "CASE WHEN ? < ? THEN 1 ELSE 0 END",
+              e.sync_deferred_since,
+              type(^count_before, :utc_datetime_usec)
+            )
+      ]
+    )
+    |> Repo.update_all([])
 
     :ok
   end

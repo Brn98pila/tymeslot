@@ -103,7 +103,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueueBoundsTest do
 
       assert_received {:put, "/cal/first.ics"}
       refute_received {:put, "/cal/second.ics"}
-      assert Repo.reload!(first).sync_attempts == 0
+      assert Repo.reload!(first).sync_attempts == 1
       assert Repo.reload!(second).sync_attempts == 0
     end
 
@@ -111,7 +111,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueueBoundsTest do
          %{integration: integration} do
       row = insert_pending_row(integration, sync_state: "locally_modified")
 
-      count_requests(502)
+      ReqTest.stub(:tymeslot_http, &ReqTest.transport_error(&1, :econnrefused))
 
       for _cycle <- 1..12 do
         assert :ok = OfflineQueue.flush(integration, @client)
@@ -119,9 +119,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueueBoundsTest do
 
       reloaded = Repo.reload!(row)
       assert reloaded.sync_attempts == 0
-
-      assert reloaded.sync_last_error ==
-               "The calendar server reported an error. Tymeslot will retry automatically."
+      assert reloaded.sync_deferred_since != nil
 
       recovered = count_requests(204)
 
@@ -129,6 +127,98 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueueBoundsTest do
 
       assert :counters.get(recovered, 1) == 1
       assert Repo.reload!(row).sync_state == "synced"
+    end
+
+    # Some servers answer a change they cannot parse with a 500, every time.
+    # Uncounted, that row would head the queue for good, and every flush
+    # would stop at it before reaching the changes queued behind it.
+    test "a change the server always fails on stops holding up the ones behind it",
+         %{integration: integration} do
+      poison =
+        insert_pending_row(integration,
+          uid: "poison",
+          provider_event_id: "/cal/poison.ics",
+          sync_state: "locally_modified"
+        )
+
+      healthy =
+        insert_pending_row(integration,
+          uid: "healthy",
+          provider_event_id: "/cal/healthy.ics",
+          sync_state: "locally_modified"
+        )
+
+      SQL.query!(Repo, "UPDATE provider_calendar_events SET updated_at = $1 WHERE id = $2", [
+        ~U[2026-04-14 00:00:00.000000Z],
+        poison.id
+      ])
+
+      ReqTest.stub(:tymeslot_http, fn conn ->
+        case conn.request_path do
+          "/cal/poison.ics" -> Conn.send_resp(conn, 500, "")
+          "/cal/healthy.ics" -> Conn.send_resp(conn, 204, "")
+        end
+      end)
+
+      for _cycle <- 1..11 do
+        assert :ok = OfflineQueue.flush(integration, @client)
+      end
+
+      assert Repo.reload!(healthy).sync_state == "synced"
+      assert Repo.reload!(poison).sync_attempts == 10
+    end
+
+    test "a change unanswered for over a day counts each further failure",
+         %{integration: integration} do
+      row = insert_pending_row(integration, sync_state: "locally_modified")
+      ReqTest.stub(:tymeslot_http, &ReqTest.transport_error(&1, :econnrefused))
+
+      assert :ok = OfflineQueue.flush(integration, @client)
+      assert Repo.reload!(row).sync_attempts == 0
+
+      SQL.query!(
+        Repo,
+        "UPDATE provider_calendar_events SET sync_deferred_since = $1 WHERE id = $2",
+        [DateTime.add(DateTime.utc_now(), -25, :hour), row.id]
+      )
+
+      assert :ok = OfflineQueue.flush(integration, @client)
+      assert :ok = OfflineQueue.flush(integration, @client)
+      assert Repo.reload!(row).sync_attempts == 2
+    end
+
+    test "a change unanswered for under a day does not count", %{integration: integration} do
+      row = insert_pending_row(integration, sync_state: "locally_modified")
+      ReqTest.stub(:tymeslot_http, &ReqTest.transport_error(&1, :econnrefused))
+
+      SQL.query!(
+        Repo,
+        "UPDATE provider_calendar_events SET sync_deferred_since = $1 WHERE id = $2",
+        [DateTime.add(DateTime.utc_now(), -23, :hour), row.id]
+      )
+
+      assert :ok = OfflineQueue.flush(integration, @client)
+      assert Repo.reload!(row).sync_attempts == 0
+    end
+
+    # The day is counted from the first of an unbroken run of unanswered
+    # attempts: an answer from the server ends the run.
+    test "an answer from the server starts the day again", %{integration: integration} do
+      row = insert_pending_row(integration, sync_state: "locally_modified")
+
+      SQL.query!(
+        Repo,
+        "UPDATE provider_calendar_events SET sync_deferred_since = $1 WHERE id = $2",
+        [DateTime.add(DateTime.utc_now(), -25, :hour), row.id]
+      )
+
+      count_requests(403)
+      assert :ok = OfflineQueue.flush(integration, @client)
+      assert %{sync_attempts: 1, sync_deferred_since: nil} = Repo.reload!(row)
+
+      ReqTest.stub(:tymeslot_http, &ReqTest.transport_error(&1, :econnrefused))
+      assert :ok = OfflineQueue.flush(integration, @client)
+      assert %{sync_attempts: 1, sync_deferred_since: %DateTime{}} = Repo.reload!(row)
     end
 
     test "counts a refusal towards the cap", %{integration: integration} do

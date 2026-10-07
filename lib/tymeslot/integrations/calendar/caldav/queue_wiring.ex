@@ -165,6 +165,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.QueueWiring do
       sync_attempts: 0,
       sync_last_attempt_at: now,
       sync_last_error: nil,
+      sync_deferred_since: nil,
       created_by_tymeslot: true
     }
     |> Map.merge(content_attrs(event_data))
