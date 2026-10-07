@@ -30,6 +30,11 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
   ]
   @token_url "https://login.microsoftonline.com/common/oauth2/v2.0/token"
 
+  # Graph pages a list read and links the next page as `@odata.nextLink`. At
+  # 1,000 events a page this cap is far past any real calendar's window; it
+  # only stops a link that never ends.
+  @max_pages 50
+
   # Fields the event-driven sync workers need to normalise a single event.
   @event_sync_select_fields "id,subject,start,end,iCalUId,location,bodyPreview,attendees,recurrence,seriesMasterId,type,originalStart,isAllDay,showAs"
 
@@ -59,9 +64,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
     }
 
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
-      with {:ok, response} <- make_request(:get, "/me/calendars", token, params) do
-        {:ok, response["value"] || []}
-      end
+      list_all_pages("/me/calendars", token, params)
     end)
   end
 
@@ -563,10 +566,51 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
 
   defp list_events_for_path(%CalendarIntegrationSchema{} = integration, path, params) do
     AccessToken.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
-      with {:ok, response} <- make_request(:get, path, token, params) do
-        {:ok, response["value"] || []}
-      end
+      list_all_pages(path, token, params)
     end)
+  end
+
+  # Every page of a list read: `{:ok, items}` is the whole listing, never a
+  # truncated first page, since a missing page of busy events would offer
+  # bookings over real conflicts. A page that fails ends the read with its
+  # error, and so does the page cap.
+  defp list_all_pages(path, token, params) do
+    with {:ok, response} <- make_request(:get, path, token, params) do
+      follow_next_links(response, token, path, [], 1)
+    end
+  end
+
+  defp follow_next_links(response, token, path, pages, page) do
+    pages = [response["value"] || [] | pages]
+
+    case response["@odata.nextLink"] do
+      next when is_binary(next) and page >= @max_pages ->
+        {:error, :too_many_pages, "Listing #{path} exceeded #{@max_pages} pages"}
+
+      next when is_binary(next) ->
+        with {:ok, next_response} <- get_next_page(token, next) do
+          follow_next_links(next_response, token, path, pages, page + 1)
+        end
+
+      _no_more ->
+        {:ok, pages |> Enum.reverse() |> Enum.concat()}
+    end
+  end
+
+  # A next link is an absolute URL carrying the original query; the Prefer
+  # header is not part of it and is sent again, so later pages come back in
+  # UTC with plain-text bodies like the first.
+  defp get_next_page(token, url) do
+    uri = URI.parse(url)
+    path = uri.path <> if(uri.query, do: "?" <> uri.query, else: "")
+
+    HTTP.request(:get, "https://graph.microsoft.com", path, token,
+      headers: [
+        {"Content-Type", "application/json"},
+        {"Prefer", read_preference(:text)}
+      ],
+      response_handler: &handle_response/1
+    )
   end
 
   @doc """
