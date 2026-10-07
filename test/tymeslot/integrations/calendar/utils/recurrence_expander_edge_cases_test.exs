@@ -4,6 +4,7 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderEdgeCasesTest do
   @moduletag :calendar
 
   alias Tymeslot.Integrations.Calendar.ICalNormaliser
+  alias Tymeslot.Integrations.Calendar.Recurrence.RRule
   alias Tymeslot.Integrations.Calendar.RecurrenceExpander
   alias Tymeslot.Test.LogCapture
 
@@ -520,7 +521,7 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderEdgeCasesTest do
       for rule <- ["FREQ=DAILY;INTERVAL=0", "FREQ=WEEKLY;INTERVAL=-1;BYDAY=MO,WE"] do
         event = old_series(rule, ~D[2023-10-02])
 
-        assert RecurrenceExpander.parse_rrule(rule) == :error
+        assert RRule.parse(rule) == :error
         assert RecurrenceExpander.expand(event, @week_start, @week_end) == [event]
         assert RecurrenceExpander.count_before(rule, event.start_time, @week_start) == 1
       end

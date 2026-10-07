@@ -11,11 +11,10 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
   this module provides the equivalent for CalDAV providers.
   """
 
+  alias Tymeslot.Integrations.Calendar.Recurrence.RRule
   alias Tymeslot.Utils.DateTimeUtils
 
   require Logger
-
-  @weekdays %{"MO" => 1, "TU" => 2, "WE" => 3, "TH" => 4, "FR" => 5, "SA" => 6, "SU" => 7}
 
   # Safety cap: `expand/4` never returns more than this many occurrences of
   # one event, however wide the range. It counts occurrences inside the range,
@@ -30,14 +29,6 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
   # so this only binds on a series with a `COUNT` that has run for a very long
   # time.
   @max_steps 100_000
-
-  # The rule parts `expand/4` follows (RFC 5545 §3.3.10). Any other part
-  # (BYWEEKNO, BYYEARDAY, BYHOUR, ...) is ignored with a warning, so the
-  # series may then miss occurrences.
-  @supported_parts ~w(FREQ INTERVAL COUNT UNTIL BYDAY BYMONTHDAY BYMONTH BYSETPOS WKST)
-
-  # The rule parts a series split counts by (see `countable?/1`).
-  @countable_parts ~w(FREQ INTERVAL COUNT UNTIL BYDAY WKST)
 
   @doc """
   Expands a single event into its occurrences within `[range_start, range_end]`.
@@ -61,7 +52,10 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
       when is_binary(rrule) do
     exdates = Keyword.get(opts, :exdates, [])
 
-    case parse_rrule(rrule) do
+    # `RRule.parse/1` reads every part this module follows (RFC 5545
+    # §3.3.10). Any other part (BYWEEKNO, BYYEARDAY, BYHOUR, ...) is ignored
+    # with a warning, so the series may then miss occurrences.
+    case RRule.parse(rrule) do
       {:ok, rule} ->
         warn_unsupported(rule, rrule)
         generate_occurrences(event, rule, range_start, range_end, exdates, :capped)
@@ -74,9 +68,11 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
 
   def expand(event, _range_start, _range_end, _opts), do: [event]
 
-  defp warn_unsupported(%{unsupported: []}, _rrule), do: :ok
+  defp warn_unsupported(%RRule{other: []}, _rrule), do: :ok
 
-  defp warn_unsupported(%{unsupported: parts}, rrule) do
+  defp warn_unsupported(%RRule{other: other}, rrule) do
+    parts = other |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> Enum.sort()
+
     Logger.warning(
       "Recurrence rule parts #{Enum.join(parts, ", ")} are not supported and were ignored; " <>
         "the series may miss occurrences",
@@ -107,7 +103,7 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
     last = boundary |> step_datetime() |> DateTime.add(-1, :second)
     event = %{start_time: first, end_time: first, recurrence_rule: rule}
 
-    case parse_rrule(rule) do
+    case RRule.parse(rule) do
       {:ok, parsed} ->
         event |> generate_occurrences(parsed, first, last, [], :uncapped) |> length()
 
@@ -128,179 +124,22 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
   A rule repeating on several days every few weeks is countable only when
   its week start (`WKST`) makes no difference.
   """
-  @spec countable?(String.t()) :: boolean()
+  @spec countable?(String.t() | RRule.t()) :: boolean()
   def countable?(rule) when is_binary(rule) do
-    parts =
-      rule
-      |> String.replace_prefix("RRULE:", "")
-      |> String.split(";", trim: true)
-      |> Map.new(fn part ->
-        case String.split(part, "=", parts: 2) do
-          [name, value] -> {String.upcase(name), String.upcase(value)}
-          [name] -> {String.upcase(name), ""}
-        end
-      end)
-
-    days = parts |> Map.get("BYDAY", "") |> String.split(",", trim: true)
-
-    Enum.all?(Map.keys(parts), &(&1 in @countable_parts)) and
-      not Enum.any?(days, &String.match?(&1, ~r/\d/)) and
-      (Map.get(parts, "WKST", "MO") == "MO" or Map.get(parts, "INTERVAL", "1") == "1" or
-         length(days) < 2)
-  end
-
-  @doc """
-  Parses an RRULE string into a structured map.
-
-  Supported properties: FREQ, INTERVAL, UNTIL, COUNT, BYDAY (with ordinals),
-  BYMONTHDAY, BYMONTH, BYSETPOS and WKST. The names of any other parts are
-  listed under `:unsupported`. Returns `{:ok, map()}`, or `:error` for a rule
-  without a known FREQ or with an INTERVAL below 1.
-  """
-  @spec parse_rrule(String.t() | nil) :: {:ok, map()} | :error
-  def parse_rrule(nil), do: :error
-  def parse_rrule(""), do: :error
-
-  def parse_rrule(rrule) when is_binary(rrule) do
-    # Strip "RRULE:" prefix if present (some parsers include it, some don't)
-    rule_str = String.replace_prefix(rrule, "RRULE:", "")
-
-    parts =
-      rule_str
-      |> String.split(";")
-      |> Enum.reduce(%{}, fn part, acc ->
-        case String.split(part, "=", parts: 2) do
-          [key, value] -> Map.put(acc, String.upcase(key), value)
-          _other -> acc
-        end
-      end)
-
-    # RFC 5545 requires a positive INTERVAL. A rule that never moves forward
-    # (`INTERVAL=0`) or moves backwards is unreadable like any other invalid
-    # rule, so its event is shown once, as it is.
-    with {:ok, freq} <- parse_freq(parts["FREQ"]),
-         interval when interval > 0 <- parse_int(parts["INTERVAL"], 1) do
-      {:ok,
-       Map.merge(
-         %{
-           freq: freq,
-           interval: interval,
-           until: parse_until(parts["UNTIL"]),
-           count: parse_int(parts["COUNT"], nil),
-           unsupported:
-             parts |> Map.keys() |> Enum.reject(&(&1 in @supported_parts)) |> Enum.sort()
-         },
-         parse_by_parts(parts)
-       )}
-    else
-      _invalid -> :error
+    case RRule.parse(rule) do
+      {:ok, parsed} -> countable?(parsed)
+      :error -> false
     end
   end
 
-  defp parse_by_parts(parts) do
-    %{
-      by_day: parse_byday(parts["BYDAY"]),
-      by_month_day: parse_int_list(parts["BYMONTHDAY"], -31..31),
-      by_month: parse_int_list(parts["BYMONTH"], 1..12),
-      by_set_pos: parse_int_list(parts["BYSETPOS"], -366..366),
-      week_start: Map.get(@weekdays, String.upcase(parts["WKST"] || ""), 1)
-    }
+  def countable?(%RRule{other: [], by_month_day: nil, by_month: nil, by_set_pos: nil} = rule) do
+    by_day = rule.by_day || []
+
+    Enum.all?(by_day, fn {ordinal, _weekday} -> is_nil(ordinal) end) and
+      (rule.week_start in [nil, 1] or rule.interval == 1 or length(by_day) < 2)
   end
 
-  # --- Private: RRULE field parsers ---
-
-  defp parse_freq("DAILY"), do: {:ok, :daily}
-  defp parse_freq("WEEKLY"), do: {:ok, :weekly}
-  defp parse_freq("MONTHLY"), do: {:ok, :monthly}
-  defp parse_freq("YEARLY"), do: {:ok, :yearly}
-  defp parse_freq(_other), do: :error
-
-  defp parse_int(nil, default), do: default
-
-  defp parse_int(str, default) do
-    case Integer.parse(str) do
-      {n, ""} -> n
-      _other -> default
-    end
-  end
-
-  defp parse_until(nil), do: nil
-
-  defp parse_until(str) do
-    case DateTime.from_iso8601(format_ical_datetime(str)) do
-      {:ok, dt, _offset} -> dt
-      _error -> nil
-    end
-  end
-
-  # RFC 5545 UNTIL values without a trailing "Z" represent local/floating time,
-  # but we have no timezone context here. Treat bare datetimes as UTC — this is
-  # a lossy but safe default for CalDAV, where most servers emit Z-suffixed values.
-  defp format_ical_datetime(
-         <<y::binary-size(4), mo::binary-size(2), d::binary-size(2), "T", h::binary-size(2),
-           mi::binary-size(2), s::binary-size(2), _rest::binary>>
-       ) do
-    "#{y}-#{mo}-#{d}T#{h}:#{mi}:#{s}Z"
-  end
-
-  # DATE-form UNTIL (RFC 5545 §3.3.10): all-day recurrences carry a bare date.
-  # Expand it to end-of-day UTC so the final day stays inclusive — without this
-  # the bare value fails to parse, `parse_until` returns nil, and the series is
-  # silently treated as unbounded (capped only by @max_occurrences).
-  defp format_ical_datetime(<<y::binary-size(4), mo::binary-size(2), d::binary-size(2)>>) do
-    "#{y}-#{mo}-#{d}T23:59:59Z"
-  end
-
-  defp format_ical_datetime(other), do: other
-
-  # Each BYDAY entry is `{ordinal, weekday}`, with `ordinal` nil for every
-  # such weekday (`MO`) and counted from the end when negative (`-1FR`).
-  defp parse_byday(nil), do: nil
-
-  defp parse_byday(str) do
-    days =
-      str
-      |> String.split(",")
-      |> Enum.flat_map(fn day_str ->
-        case Regex.run(
-               ~r/^([+-]?\d{1,2})?([A-Z]{2})$/,
-               day_str |> String.trim() |> String.upcase()
-             ) do
-          [_match, ordinal, code] when is_map_key(@weekdays, code) ->
-            parse_ordinal_day(ordinal, Map.fetch!(@weekdays, code))
-
-          _other ->
-            []
-        end
-      end)
-
-    if days == [], do: nil, else: days
-  end
-
-  defp parse_ordinal_day("", weekday), do: [{nil, weekday}]
-
-  defp parse_ordinal_day(ordinal, weekday) do
-    case Integer.parse(ordinal) do
-      {n, ""} when n != 0 -> [{n, weekday}]
-      _invalid -> []
-    end
-  end
-
-  defp parse_int_list(nil, _valid), do: nil
-
-  defp parse_int_list(str, valid) do
-    values =
-      str
-      |> String.split(",")
-      |> Enum.flat_map(fn value ->
-        case Integer.parse(String.trim(value)) do
-          {n, ""} when n != 0 -> if n in valid, do: [n], else: []
-          _invalid -> []
-        end
-      end)
-
-    if values == [], do: nil, else: values
-  end
+  def countable?(%RRule{}), do: false
 
   # --- Private: Occurrence generation ---
 
@@ -309,10 +148,11 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
   # `@max_occurrences`. `:uncapped` (for `count_before/3`) steps every
   # occurrence from the first start, bounded only by the rule's own end and
   # `range_end`, so the count it makes is exact.
-  defp generate_occurrences(event, rule, range_start, range_end, exdates, limits) do
+  defp generate_occurrences(event, %RRule{} = parsed, range_start, range_end, exdates, limits) do
     # All-day events store Date structs; normalise to DateTime for uniform arithmetic
     all_day? = is_struct(event.start_time, Date) and not is_struct(event.start_time, DateTime)
     start_dt = step_datetime(event.start_time)
+    rule = stepping(parsed, start_dt.time_zone)
     end_dt = step_datetime(event.end_time) || DateTime.add(start_dt, 30, :minute)
     duration = DateTime.diff(end_dt, start_dt, :second)
     range_start_dt = step_datetime(range_start)
@@ -324,6 +164,14 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpander do
     |> Stream.reject(&excluded?(&1, exdates_dt))
     |> take_at_most(if limits == :capped, do: @max_occurrences)
     |> Enum.map(&build_occurrence(event, &1, duration, all_day?))
+  end
+
+  # The rule as it is stepped: UNTIL as an instant, and the week starting on
+  # Monday unless the rule says otherwise.
+  defp stepping(rule, _zone) do
+    rule
+    |> Map.from_struct()
+    |> Map.merge(%{until: RRule.until_instant(rule, "Etc/UTC"), week_start: rule.week_start || 1})
   end
 
   # The starts the rule makes within the range, in order. The rule is expanded

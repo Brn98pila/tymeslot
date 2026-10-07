@@ -33,7 +33,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
 
   @spec recurrence_editor(map()) :: Phoenix.LiveView.Rendered.t()
   def recurrence_editor(assigns) do
-    parsed = RRule.parse(assigns.recurrence_rule || "", timezone: assigns.timezone)
+    parsed = RRule.options(assigns.recurrence_rule || "", timezone: assigns.timezone)
 
     assigns =
       assigns

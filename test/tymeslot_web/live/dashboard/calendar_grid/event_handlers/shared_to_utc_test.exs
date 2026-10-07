@@ -144,7 +144,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.SharedToUtcTest do
       context = %{all_day: false, start_date: ~D[2026-06-01], timezone: "America/Los_Angeles"}
       rule = Shared.compose_recurrence_rule(@params, context)
 
-      assert %{until: ~D[2026-06-30]} = RRule.parse(rule, timezone: "America/Los_Angeles")
+      assert %{until: ~D[2026-06-30]} = RRule.options(rule, timezone: "America/Los_Angeles")
     end
   end
 

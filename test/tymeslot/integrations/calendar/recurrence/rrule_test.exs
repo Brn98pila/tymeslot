@@ -85,47 +85,47 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRuleTest do
     end
   end
 
-  describe "parse/1" do
+  describe "options/2" do
     test "parses frequency" do
-      assert %{freq: :weekly} = RRule.parse("FREQ=WEEKLY")
+      assert %{freq: :weekly} = RRule.options("FREQ=WEEKLY")
     end
 
     test "parses interval" do
-      assert %{freq: :daily, interval: 2} = RRule.parse("FREQ=DAILY;INTERVAL=2")
+      assert %{freq: :daily, interval: 2} = RRule.options("FREQ=DAILY;INTERVAL=2")
     end
 
     test "parses by_day into atoms" do
       assert %{freq: :weekly, by_day: [:mo, :we, :fr]} =
-               RRule.parse("FREQ=WEEKLY;BYDAY=MO,WE,FR")
+               RRule.options("FREQ=WEEKLY;BYDAY=MO,WE,FR")
     end
 
     test "parses count" do
-      assert %{freq: :daily, count: 10} = RRule.parse("FREQ=DAILY;COUNT=10")
+      assert %{freq: :daily, count: 10} = RRule.options("FREQ=DAILY;COUNT=10")
     end
 
     test "parses until from a date-time stamp" do
       assert %{freq: :weekly, until: ~D[2026-12-31]} =
-               RRule.parse("FREQ=WEEKLY;UNTIL=20261231T235959Z")
+               RRule.options("FREQ=WEEKLY;UNTIL=20261231T235959Z")
     end
 
     test "parses until from a bare date stamp" do
-      assert %{until: ~D[2026-12-31]} = RRule.parse("FREQ=WEEKLY;UNTIL=20261231")
+      assert %{until: ~D[2026-12-31]} = RRule.options("FREQ=WEEKLY;UNTIL=20261231")
     end
 
     test "is lenient about a leading RRULE: prefix" do
-      assert %{freq: :weekly} = RRule.parse("RRULE:FREQ=WEEKLY")
+      assert %{freq: :weekly} = RRule.options("RRULE:FREQ=WEEKLY")
     end
 
     test "ignores unknown tokens" do
-      assert %{freq: :weekly} = RRule.parse("FREQ=WEEKLY;BYSETPOS=1;WKST=MO")
+      assert %{freq: :weekly} = RRule.options("FREQ=WEEKLY;BYSETPOS=1;WKST=MO")
     end
 
     test "returns an empty map for a blank string" do
-      assert RRule.parse("") == %{}
+      assert RRule.options("") == %{}
     end
 
     test "defaults a missing interval to absent rather than 1" do
-      refute Map.has_key?(RRule.parse("FREQ=WEEKLY"), :interval)
+      refute Map.has_key?(RRule.options("FREQ=WEEKLY"), :interval)
     end
   end
 
@@ -151,14 +151,14 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRuleTest do
       assert result == "FREQ=DAILY;COUNT=5"
     end
 
-    test "all-day UNTIL round-trips through parse/1 correctly" do
+    test "all-day UNTIL round-trips through options/2 correctly" do
       rrule = RRule.build(%{freq: :weekly, until: ~D[2027-01-15]}, all_day: true)
-      parsed = RRule.parse(rrule)
+      parsed = RRule.options(rrule)
       assert parsed.until == ~D[2027-01-15]
     end
   end
 
-  describe "round-trip build ∘ parse" do
+  describe "round-trip build ∘ options" do
     for rule <- [
           %{freq: :daily},
           %{freq: :weekly, interval: 2, by_day: [:mo, :we, :fr]},
@@ -168,7 +168,7 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRuleTest do
         ] do
       test "round-trips #{inspect(rule)}" do
         rule = unquote(Macro.escape(rule))
-        rebuilt = rule |> RRule.build() |> RRule.parse() |> RRule.build()
+        rebuilt = rule |> RRule.build() |> RRule.options() |> RRule.build()
         assert rebuilt == RRule.build(rule)
       end
     end
@@ -273,24 +273,24 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRuleTest do
     end
   end
 
-  describe "parse/2 — a timed UNTIL reads back as the organiser's local date" do
+  describe "options/2 — a timed UNTIL reads back as the organiser's local date" do
     test "west of UTC" do
       assert %{until: ~D[2026-06-30]} =
-               RRule.parse("FREQ=DAILY;UNTIL=20260701T065959Z", timezone: "America/Los_Angeles")
+               RRule.options("FREQ=DAILY;UNTIL=20260701T065959Z", timezone: "America/Los_Angeles")
     end
 
     test "east of UTC" do
       assert %{until: ~D[2026-06-30]} =
-               RRule.parse("FREQ=DAILY;UNTIL=20260630T115959Z", timezone: "Pacific/Auckland")
+               RRule.options("FREQ=DAILY;UNTIL=20260630T115959Z", timezone: "Pacific/Auckland")
     end
 
     test "a bare-date UNTIL is zone-free and reads as it is written" do
       assert %{until: ~D[2026-06-30]} =
-               RRule.parse("FREQ=DAILY;UNTIL=20260630", timezone: "Pacific/Auckland")
+               RRule.options("FREQ=DAILY;UNTIL=20260630", timezone: "Pacific/Auckland")
     end
 
     test "without a timezone the UTC day is used, as before" do
-      assert %{until: ~D[2026-07-01]} = RRule.parse("FREQ=DAILY;UNTIL=20260701T065959Z")
+      assert %{until: ~D[2026-07-01]} = RRule.options("FREQ=DAILY;UNTIL=20260701T065959Z")
     end
   end
 
@@ -363,7 +363,7 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRuleTest do
     |> Enum.map(&(&1.start_time |> DateTime.shift_zone!(zone) |> DateTime.to_date()))
   end
 
-  describe "parse/2 — legacy UTC-stamped UNTIL" do
+  describe "options/2 — legacy UTC-stamped UNTIL" do
     # Rules written before UNTIL carried the event's timezone stamped the
     # organiser's local date with a literal end-of-day UTC. Read back through a
     # timezone, that instant lands on the next local day everywhere east of
@@ -378,7 +378,7 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRuleTest do
           "Etc/UTC"
         ] do
       test "reads as the date it spells in #{timezone}" do
-        parsed = RRule.parse("FREQ=DAILY;UNTIL=20261231T235959Z", timezone: unquote(timezone))
+        parsed = RRule.options("FREQ=DAILY;UNTIL=20261231T235959Z", timezone: unquote(timezone))
 
         assert parsed[:until] == ~D[2026-12-31]
       end
@@ -404,7 +404,7 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRuleTest do
           ] do
         rule = RRule.build(%{freq: :daily, until: ~D[2026-12-31]}, timezone: timezone)
 
-        assert RRule.parse(rule, timezone: timezone)[:until] == ~D[2026-12-31],
+        assert RRule.options(rule, timezone: timezone)[:until] == ~D[2026-12-31],
                "#{timezone} did not round-trip (#{rule})"
       end
     end
@@ -450,6 +450,94 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRuleTest do
 
     test "leaves a rule with no COUNT as it is" do
       assert RRule.reduce_count("FREQ=WEEKLY;UNTIL=20261231", 3) == "FREQ=WEEKLY;UNTIL=20261231"
+    end
+  end
+
+  describe "parse/1" do
+    test "reads every part the expander follows" do
+      assert {:ok,
+              %RRule{
+                freq: :monthly,
+                interval: 2,
+                count: 10,
+                by_day: [{2, 2}, {-1, 5}],
+                by_month_day: [1, -1],
+                by_month: [3, 9],
+                by_set_pos: [-1],
+                week_start: 7,
+                other: []
+              }} =
+               RRule.parse(
+                 "FREQ=MONTHLY;INTERVAL=2;COUNT=10;BYDAY=2TU,-1FR;BYMONTHDAY=1,-1;" <>
+                   "BYMONTH=3,9;BYSETPOS=-1;WKST=SU"
+               )
+    end
+
+    test "defaults INTERVAL to 1 and leaves an unstated WKST unset" do
+      assert {:ok, %RRule{interval: 1, week_start: nil}} = RRule.parse("RRULE:FREQ=DAILY")
+    end
+
+    test "keeps UNTIL as written" do
+      assert {:ok, %RRule{until: "20260411T000000"}} =
+               RRule.parse("FREQ=WEEKLY;UNTIL=20260411T000000")
+    end
+
+    test "keeps the parts it does not follow, in the order written" do
+      assert {:ok, %RRule{other: [{"BYHOUR", "9,17"}, {"BYYEARDAY", "1"}]}} =
+               RRule.parse("FREQ=YEARLY;BYHOUR=9,17;BYDAY=MO;BYYEARDAY=1")
+    end
+
+    test "refuses a rule without a known FREQ, or one that never moves forward" do
+      for rule <- ["", "BYDAY=MO", "FREQ=HOURLY", "FREQ=DAILY;INTERVAL=0"] do
+        assert RRule.parse(rule) == :error
+      end
+    end
+  end
+
+  describe "format/1" do
+    test "writes a parsed rule back with the parts it does not follow unchanged" do
+      for rule <- [
+            "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE;WKST=SU;COUNT=8",
+            "FREQ=MONTHLY;BYDAY=2TU,-1FR;BYHOUR=9;X-NAME=kept",
+            "FREQ=YEARLY;BYMONTH=11;BYMONTHDAY=2,3,4,5,6,7,8;BYDAY=TU;UNTIL=20301231T235959Z"
+          ] do
+        {:ok, parsed} = RRule.parse(rule)
+        assert {:ok, ^parsed} = parsed |> RRule.format() |> RRule.parse()
+      end
+
+      {:ok, parsed} = RRule.parse("RRULE:FREQ=MONTHLY;BYDAY=2TU;BYHOUR=9;X-NAME=kept")
+      assert RRule.format(parsed) == "FREQ=MONTHLY;BYDAY=2TU;BYHOUR=9;X-NAME=kept"
+    end
+  end
+
+  describe "until_instant/2" do
+    test "reads a UTC UNTIL as the instant it is" do
+      assert until("20260411T120000Z", "Pacific/Auckland") == ~U[2026-04-11 12:00:00Z]
+    end
+
+    test "reads a floating UNTIL as a wall clock in the series' zone" do
+      assert until("20260411T090000", "Pacific/Honolulu") == ~U[2026-04-11 19:00:00Z]
+    end
+
+    test "reads a bare date as the end of that day in the series' zone" do
+      assert until("20260411", "Pacific/Auckland") == ~U[2026-04-11 11:59:59Z]
+      assert until("20260411", "Etc/UTC") == ~U[2026-04-11 23:59:59Z]
+    end
+
+    test "reads the legacy end-of-day UTC stamp as the end of the date it spells" do
+      assert until("20260411T235959Z", "Pacific/Honolulu") == ~U[2026-04-12 09:59:59Z]
+    end
+
+    test "leaves a rule without a readable UNTIL unbounded" do
+      for rule <- ["FREQ=DAILY;UNTIL=soon", "FREQ=DAILY"] do
+        assert {:ok, parsed} = RRule.parse(rule)
+        assert RRule.until_instant(parsed, "Etc/UTC") == nil
+      end
+    end
+
+    defp until(value, zone) do
+      {:ok, rule} = RRule.parse("FREQ=DAILY;UNTIL=" <> value)
+      rule |> RRule.until_instant(zone) |> DateTime.shift_zone!("Etc/UTC")
     end
   end
 end

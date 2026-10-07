@@ -220,7 +220,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesPatch do
   # A rule that states an end is written with it; one that states none keeps
   # the master's, which moves with the series as it would without a rule.
   defp range(built, recurrence, rule, {start_date, days}, zone) do
-    parsed = RRule.parse(rule, timezone: zone)
+    parsed = RRule.options(rule, timezone: zone)
 
     case recurrence do
       %{"range" => %{} = master_range}
