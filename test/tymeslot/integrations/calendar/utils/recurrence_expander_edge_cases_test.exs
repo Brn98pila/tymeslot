@@ -608,7 +608,7 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderEdgeCasesTest do
         |> Enum.map(& &1.start_time)
         |> Enum.max(DateTime)
 
-      assert DateTime.shift_zone!(last, "Pacific/Auckland") |> DateTime.to_naive() ==
+      assert DateTime.to_naive(DateTime.shift_zone!(last, "Pacific/Auckland")) ==
                ~N[2026-04-14 07:30:00]
     end
   end
