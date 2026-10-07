@@ -63,7 +63,12 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
            # Through `Sync.upsert_cache/2` for the ownership flagging it adds;
            # see the note in `DeltaSync.apply_delta/3`.
            {:ok, _count} <- Sync.upsert_cache(integration, calendar_events) do
-        persist_subscription(integration, %{graph_delta_link: delta_link})
+        # The window the new link tracks starts now, which is what
+        # `DeltaSync.rebootstrap_due?/1` measures its age from.
+        persist_subscription(integration, %{
+          graph_delta_link: delta_link,
+          last_full_sync_at: DateTime.utc_now(:second)
+        })
       end
     end)
   end
@@ -305,7 +310,9 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
 
   # `calendarView/delta` requires `startDateTime` + `endDateTime` on the very
   # first request; the returned `$deltatoken` thereafter encodes that window,
-  # so subsequent calls (using the stored deltaLink as-is) do not repeat them.
+  # fixed at these dates, so subsequent calls (using the stored deltaLink
+  # as-is) do not repeat them. The window does not move with time: a link is
+  # replaced by a fresh bootstrap once it is old (`DeltaSync.rebootstrap_due?/1`).
   defp initial_delta_params do
     now = DateTime.utc_now()
 

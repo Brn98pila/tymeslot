@@ -118,6 +118,12 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
   defp refresh(%{graph_delta_link: nil} = integration, job), do: bootstrap(integration, job)
 
   defp refresh(integration, job) do
+    if OutlookDeltaSync.rebootstrap_due?(integration),
+      do: bootstrap(integration, job),
+      else: delta_refresh(integration, job)
+  end
+
+  defp delta_refresh(integration, job) do
     case OutlookDeltaSync.fetch_and_apply(integration) do
       :ok ->
         broadcast_complete(integration)

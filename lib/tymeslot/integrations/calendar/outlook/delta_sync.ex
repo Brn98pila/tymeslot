@@ -35,6 +35,25 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
 
   @max_delta_pages 100
 
+  # A delta link tracks the fixed window of the bootstrap that issued it, so
+  # each day it covers one day less of the future. Replacing it after a week
+  # keeps the cache reaching (nearly) the full window ahead.
+  @rebootstrap_after_seconds 7 * 24 * 60 * 60
+
+  @doc """
+  Whether the stored delta link is old enough to be replaced by a fresh
+  bootstrap. Graph fixes a delta link's window at the bootstrap that issued
+  it, so without one events further ahead than that window never reach the
+  cache. A link with no recorded bootstrap time (written before it was
+  recorded) is due at once.
+  """
+  @spec rebootstrap_due?(map(), DateTime.t()) :: boolean()
+  def rebootstrap_due?(integration, now \\ DateTime.utc_now())
+  def rebootstrap_due?(%{last_full_sync_at: nil}, _now), do: true
+
+  def rebootstrap_due?(%{last_full_sync_at: %DateTime{} = bootstrapped_at}, now),
+    do: DateTime.diff(now, bootstrapped_at) >= @rebootstrap_after_seconds
+
   @doc """
   Fetches and applies Outlook delta changes for an integration that has a
   stored `graph_delta_link`. Returns `:ok` on success, or `{:error, class}` on
@@ -54,7 +73,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
       # Older bootstraps wrote a `/me/events/delta` link whose `$deltatoken`
       # froze a ~30-day window at the moment of bootstrap and never widened.
       # Clearing the link forces the next sync to re-bootstrap via
-      # `calendarView/delta` with a rolling ±365-day window.
+      # `calendarView/delta`, whose window is fixed at ±365 days from that
+      # bootstrap and renewed by `rebootstrap_due?/2`.
       Logger.info(
         "Outlook delta link uses obsolete /events/delta endpoint; clearing for re-bootstrap",
         calendar_integration_id: integration.id

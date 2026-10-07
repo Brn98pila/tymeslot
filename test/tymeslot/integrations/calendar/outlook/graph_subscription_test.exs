@@ -102,6 +102,9 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscriptionTest do
 
       {:ok, reloaded} = CalendarIntegrationQueries.get(integration.id)
       assert reloaded.graph_delta_link =~ "deltatoken=seeded"
+
+      # The link's window starts now; its age is measured from here.
+      assert DateTime.diff(DateTime.utc_now(), reloaded.last_full_sync_at) < 60
     end
 
     test "does not send unsupported query parameters to /me/calendarView/delta",

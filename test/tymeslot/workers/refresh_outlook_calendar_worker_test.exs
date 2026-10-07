@@ -24,7 +24,9 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorkerTest do
       is_active: true,
       access_token_encrypted: Encryption.encrypt("test-access-token"),
       refresh_token_encrypted: Encryption.encrypt("test-refresh-token"),
-      token_expires_at: DateTime.add(DateTime.utc_now(), 3600, :second)
+      token_expires_at: DateTime.add(DateTime.utc_now(), 3600, :second),
+      # A delta link bootstrapped an hour ago: young enough to be used.
+      last_full_sync_at: DateTime.add(DateTime.utc_now(:second), -3600, :second)
     ]
 
     insert(:calendar_integration, Keyword.merge(defaults, attrs))
@@ -131,6 +133,46 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorkerTest do
 
       {:ok, reloaded} = CalendarIntegrationQueries.get(integration.id)
       assert reloaded.graph_delta_link =~ "$deltatoken=fresh"
+    end
+
+    # The link tracks the window of the bootstrap that issued it, fixed at
+    # those dates; a week on, it is replaced so the cache keeps reaching the
+    # full window ahead.
+    for {label, bootstrapped_at} <- [
+          {"a week old", -7 * 86_400},
+          {"of unknown age", nil}
+        ] do
+      test "re-bootstraps instead of following a delta link #{label}" do
+        bootstrapped_at =
+          case unquote(bootstrapped_at) do
+            nil -> nil
+            seconds -> DateTime.add(DateTime.utc_now(:second), seconds, :second)
+          end
+
+        integration =
+          outlook_integration(
+            graph_delta_link:
+              "https://graph.microsoft.com/v1.0/me/calendarView/delta?$deltatoken=old",
+            last_full_sync_at: bootstrapped_at
+          )
+
+        expect(OutlookCalendarAPIMock, :bootstrap_sync, fn received ->
+          assert received.id == integration.id
+          {:ok, %{received | graph_delta_link: "fresh-delta-link"}}
+        end)
+
+        expect(OutlookCalendarAPIMock, :register_graph_subscription, fn updated ->
+          {:ok, updated}
+        end)
+
+        # No delta request: the old link is not followed.
+        expect(Tymeslot.HTTPClientMock, :request, 0, fn _m, _u, _b, _h, _o -> :unused end)
+
+        assert :ok =
+                 perform_job(RefreshOutlookCalendarWorker, %{
+                   "calendar_integration_id" => integration.id
+                 })
+      end
     end
 
     test "chains into bootstrap in the same job when the obsolete-link auto-clear fires" do
