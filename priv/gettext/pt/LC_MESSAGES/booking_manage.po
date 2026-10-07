@@ -580,4 +580,4 @@ msgstr "Esta é uma sessão em grupo, então não pode ser alterada por este lin
 #: lib/tymeslot_web/themes/core/meeting_management.ex
 #, elixir-autogen, elixir-format
 msgid "This booking was already cancelled."
-msgstr ""
+msgstr "Este agendamento já foi cancelado."

@@ -439,29 +439,29 @@ msgstr "Sua conta do Stripe não está conectada, então estes reembolsos precis
 #: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
 #, elixir-autogen, elixir-format
 msgid "Cancelled %{date}"
-msgstr ""
+msgstr "Cancelado em %{date}"
 
 #: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
 #, elixir-autogen, elixir-format
 msgid "Expired"
-msgstr ""
+msgstr "Expirado"
 
 #: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
 #, elixir-autogen, elixir-format
 msgid "Expired, paid %{date}"
-msgstr ""
+msgstr "Expirado, pago em %{date}"
 
 #: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
 #, elixir-autogen, elixir-format
 msgid "Expired bookings were paid for but never confirmed, for example because the payment arrived after the slot was taken. Their refund is issued automatically; if one is still listed later, refund it here or in Stripe."
-msgstr ""
+msgstr "Agendamentos expirados foram pagos, mas nunca confirmados, por exemplo porque o pagamento chegou depois que o horário já tinha sido ocupado. O reembolso deles é feito automaticamente; se algum ainda aparecer aqui mais tarde, faça o reembolso aqui ou no Stripe."
 
 #: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
 #, elixir-autogen, elixir-format
 msgid "Declined %{date}"
-msgstr ""
+msgstr "Recusado em %{date}"
 
 #: lib/tymeslot_web/live/dashboard/payments_settings/outstanding_refunds.ex
 #, elixir-autogen, elixir-format
 msgid "You declined these bookings, but their automatic refund didn't go through. Refund them here or in Stripe."
-msgstr ""
+msgstr "Você recusou estes agendamentos, mas o reembolso automático não foi concluído. Faça o reembolso aqui ou no Stripe."

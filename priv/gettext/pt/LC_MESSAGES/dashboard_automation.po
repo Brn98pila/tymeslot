@@ -697,9 +697,9 @@ msgstr "Gerar novo token"
 #: lib/tymeslot_web/live/dashboard/automation/webhook_documentation.ex
 #, elixir-autogen, elixir-format
 msgid "For stronger protection, verify the signature. The header has the form t=TIMESTAMP,v1=SIGNATURE. Compute the HMAC-SHA256 of the timestamp, a full stop and the raw request body, keyed with your webhook token, and compare its hexadecimal form with the signature. Reject requests whose timestamp is more than five minutes old."
-msgstr ""
+msgstr "Para uma proteção maior, verifique a assinatura. O cabeçalho tem o formato t=TIMESTAMP,v1=SIGNATURE. Calcule o HMAC-SHA256 do carimbo de data/hora, de um ponto (.) e do corpo bruto da requisição, usando seu token de webhook como chave, e compare a forma hexadecimal do resultado com a assinatura. Rejeite as requisições cujo carimbo de data/hora tenha mais de cinco minutos."
 
 #: lib/tymeslot_web/live/dashboard/automation/webhook_documentation.ex
 #, elixir-autogen, elixir-format
 msgid "Request signature"
-msgstr ""
+msgstr "Assinatura da requisição"

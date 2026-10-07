@@ -639,9 +639,9 @@ msgstr "Geral"
 #: lib/tymeslot_web/live/admin_live.ex
 #, elixir-autogen, elixir-format
 msgid "Cannot demote this admin: no other admin can sign in. Make sure another admin can sign in first."
-msgstr ""
+msgstr "Não é possível rebaixar este administrador: nenhum outro administrador consegue entrar. Primeiro, garanta que outro administrador consiga entrar."
 
 #: lib/tymeslot_web/live/admin_live/components/users.ex
 #, elixir-autogen, elixir-format
 msgid "No other admin can sign in. Make sure another admin can sign in before demoting yourself."
-msgstr ""
+msgstr "Nenhum outro administrador consegue entrar. Garanta que outro administrador consiga entrar antes de remover seu acesso de administrador."
