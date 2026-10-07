@@ -412,12 +412,22 @@ defmodule Tymeslot.Integrations.Calendar.ProviderConfig do
   @spec locked_url_for(atom() | String.t()) ::
           %{url: String.t(), tooltip: String.t()} | nil
   def locked_url_for(provider) when is_atom(provider),
-    do: Map.get(@locked_url_providers, provider)
+    do: @locked_url_providers |> Map.get(provider) |> translate_tooltip()
 
   def locked_url_for(provider) when is_binary(provider),
-    do: Map.get(@locked_url_providers_by_string, provider)
+    do: @locked_url_providers_by_string |> Map.get(provider) |> translate_tooltip()
 
   def locked_url_for(_provider), do: nil
+
+  # The table holds the tooltip as its msgid, so it is translated here, in the
+  # locale of the process rendering it.
+  defp translate_tooltip(nil), do: nil
+
+  defp translate_tooltip(%{tooltip: tooltip} = locked),
+    do: %{
+      locked
+      | tooltip: Gettext.dgettext(TymeslotWeb.Gettext, "dashboard_calendar_providers", tooltip)
+    }
 
   @doc """
   Gets full metadata for a provider.

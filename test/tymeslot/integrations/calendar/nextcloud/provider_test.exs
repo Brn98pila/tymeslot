@@ -86,12 +86,19 @@ defmodule Tymeslot.Integrations.Calendar.Nextcloud.ProviderTest do
       assert :ok = Provider.validate_config(config)
     end
 
-    test "accepts standard Nextcloud URL without touching the network" do
+    test "refuses a private address, as the rest of the CalDAV family does" do
       config = %{
         base_url: "http://localhost:1",
         username: "user",
         password: "pass"
       }
+
+      assert Provider.validate_config(config) ==
+               {:error, "Private or local network addresses are not allowed"}
+    end
+
+    test "accepts an address typed without a scheme" do
+      config = %{base_url: "cloud.example.com", username: "user", password: "pass"}
 
       assert :ok = Provider.validate_config(config)
     end

@@ -456,11 +456,6 @@ msgstr "Apple-iCloud-CalDAV-Endpunkt nicht gefunden. Die Server-URL muss https:/
 msgid "Apple iCloud connection successful"
 msgstr "Verbindung zu Apple iCloud erfolgreich"
 
-#: lib/tymeslot/integrations/calendar/apple/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Apple iCloud requires HTTPS"
-msgstr "Apple iCloud erfordert HTTPS"
-
 #: lib/tymeslot/integrations/calendar/shared/error_messages.ex
 #, elixir-autogen, elixir-format
 msgid "Authentication failed for %{provider}. Please check your username and password"
@@ -621,11 +616,6 @@ msgstr "Ungültige Zimbra-URL. Erwartet wird die URL Ihres Zimbra-Servers (z. B.
 #, elixir-autogen, elixir-format
 msgid "Invalid calendar credentials. Please update your connection."
 msgstr "Ungültige Kalender-Anmeldedaten. Bitte aktualisieren Sie Ihre Verbindung."
-
-#: lib/tymeslot/integrations/calendar/mailbox_org/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Invalid mailbox.org URL. Use https://dav.mailbox.org (or your custom mailbox.org-compatible CalDAV endpoint)."
-msgstr "Ungültige mailbox.org-URL. Verwenden Sie https://dav.mailbox.org (oder Ihren eigenen mailbox.org-kompatiblen CalDAV-Endpunkt)."
 
 #: lib/tymeslot/integrations/calendar/shared/error_handler.ex
 #, elixir-autogen, elixir-format
@@ -852,11 +842,6 @@ msgstr "Unbekannter Anbieter: %{provider}"
 msgid "Unsupported provider: %{provider}"
 msgstr "Nicht unterstützter Anbieter: %{provider}"
 
-#: lib/tymeslot/integrations/calendar/zimbra/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Use HTTPS for non-local Zimbra servers"
-msgstr "Verwenden Sie HTTPS für nicht lokale Zimbra-Server"
-
 #: lib/tymeslot/integrations/calendar/credential_fields.ex
 #: lib/tymeslot/integrations/calendar/shared/provider_common.ex
 #, elixir-autogen, elixir-format
@@ -932,11 +917,6 @@ msgstr "mailbox.org-CalDAV-Endpunkt nicht gefunden. Stellen Sie sicher, dass die
 #, elixir-autogen, elixir-format
 msgid "mailbox.org connection successful"
 msgstr "Verbindung zu mailbox.org erfolgreich"
-
-#: lib/tymeslot/integrations/calendar/mailbox_org/provider.ex
-#, elixir-autogen, elixir-format
-msgid "mailbox.org requires HTTPS"
-msgstr "mailbox.org erfordert HTTPS"
 
 #: lib/tymeslot/integrations/calendar/caldav/errors.ex
 #, elixir-autogen, elixir-format
@@ -1286,3 +1266,18 @@ msgstr "Der Kalenderserver hat mehr Daten zurückgegeben, als Tymeslot auf einma
 #, elixir-autogen, elixir-format
 msgid "The calendar server at %{url} listed more items than Tymeslot can process at once. If this address points at a single calendar, enter your account's server address instead, and Tymeslot will find your calendars there."
 msgstr "Der Kalenderserver unter %{url} hat mehr Einträge aufgelistet, als Tymeslot auf einmal verarbeiten kann. Falls diese Adresse auf einen einzelnen Kalender verweist, geben Sie stattdessen die Serveradresse Ihres Kontos ein; Tymeslot findet Ihre Kalender dann dort."
+
+#: lib/tymeslot/integrations/calendar/caldav/family.ex
+#, elixir-autogen, elixir-format
+msgid "Apple iCloud always uses this CalDAV server, so the address cannot be changed"
+msgstr "Apple iCloud verwendet immer diesen CalDAV-Server, daher kann die Adresse nicht geändert werden"
+
+#: lib/tymeslot/integrations/calendar/mailbox_org/provider.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid mailbox.org URL. The server must be https://dav.mailbox.org."
+msgstr "Ungültige mailbox.org-URL. Der Server muss https://dav.mailbox.org sein."
+
+#: lib/tymeslot/integrations/calendar/caldav/family.ex
+#, elixir-autogen, elixir-format
+msgid "mailbox.org always uses this CalDAV server, so the address cannot be changed"
+msgstr "mailbox.org verwendet immer diesen CalDAV-Server, daher kann die Adresse nicht geändert werden"

@@ -20,9 +20,13 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Family do
       carries, which keys its circuit breaker. `nil` for generic CalDAV, whose
       client takes the server type detected from its URL instead.
     * `:fixed_url`: the one server address the provider has, with the
-      tooltip explaining why the field cannot be edited, or `nil` when the
-      owner enters their own.
+      tooltip explaining why the field cannot be edited (an untranslated
+      msgid), or `nil` when the owner enters their own. A fixed address is
+      enforced where a submitted configuration is validated, not only by the
+      locked form field.
   """
+
+  use Gettext, backend: TymeslotWeb.Gettext
 
   @type member :: :caldav | :radicale | :nextcloud | :zimbra | :mailbox_org | :apple | :baikal
 
@@ -44,7 +48,11 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Family do
       client_provider: :mailbox_org,
       fixed_url: %{
         url: "https://dav.mailbox.org",
-        tooltip: "mailbox.org always uses this CalDAV server — the address cannot be changed"
+        tooltip:
+          dgettext_noop(
+            "dashboard_calendar_providers",
+            "mailbox.org always uses this CalDAV server, so the address cannot be changed"
+          )
       }
     },
     apple: %{
@@ -52,7 +60,11 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Family do
       client_provider: :apple,
       fixed_url: %{
         url: "https://caldav.icloud.com",
-        tooltip: "Apple iCloud always uses this CalDAV server — the address cannot be changed"
+        tooltip:
+          dgettext_noop(
+            "dashboard_calendar_providers",
+            "Apple iCloud always uses this CalDAV server, so the address cannot be changed"
+          )
       }
     },
     baikal: %{display_name: "Baikal", client_provider: :baikal, fixed_url: nil}

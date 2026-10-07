@@ -25,7 +25,6 @@ defmodule Tymeslot.Integrations.Calendar.MailboxOrg.Provider do
   alias Tymeslot.Integrations.Calendar.Providers.CaldavCommon
   alias Tymeslot.Integrations.Calendar.Shared.{ErrorHandler, ProviderCommon}
   alias Tymeslot.Integrations.Shared.ProviderConfigHelper
-  alias Tymeslot.Security.UrlValidation
 
   @default_base_url "https://dav.mailbox.org"
 
@@ -99,7 +98,14 @@ defmodule Tymeslot.Integrations.Calendar.MailboxOrg.Provider do
   def validate_config(config) do
     with :ok <-
            ProviderConfigHelper.validate_required_fields(config, [:base_url, :username, :password]) do
-      validate_mailbox_url(config[:base_url])
+      ProviderCommon.validate_caldav_url(
+        :mailbox_org,
+        config[:base_url],
+        dgettext(
+          "dashboard_calendar_providers",
+          "Invalid mailbox.org URL. The server must be https://dav.mailbox.org."
+        )
+      )
     end
   end
 
@@ -185,21 +191,6 @@ defmodule Tymeslot.Integrations.Calendar.MailboxOrg.Provider do
   def check_connectivity(client), do: CaldavCommon.check_connectivity(client)
 
   # Private helpers
-
-  defp validate_mailbox_url(url) do
-    invalid_message =
-      dgettext(
-        "dashboard_calendar_providers",
-        "Invalid mailbox.org URL. Use https://dav.mailbox.org (or your custom mailbox.org-compatible CalDAV endpoint)."
-      )
-
-    UrlValidation.validate_http_url(url,
-      enforce_https_for_public: true,
-      https_error_message: dgettext("dashboard_calendar_providers", "mailbox.org requires HTTPS"),
-      invalid_message: invalid_message,
-      disallowed_protocol_error: invalid_message
-    )
-  end
 
   defp normalize_base_url(url) do
     url

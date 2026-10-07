@@ -18,8 +18,6 @@ defmodule Tymeslot.Integrations.Calendar.Zimbra.Provider do
   alias Tymeslot.Integrations.Calendar.Providers.CaldavCommon
   alias Tymeslot.Integrations.Calendar.Shared.{ErrorHandler, ProviderCommon}
   alias Tymeslot.Integrations.Shared.ProviderConfigHelper
-  alias Tymeslot.Security.SsrfGuard
-  alias Tymeslot.Security.UrlValidation
 
   @impl Tymeslot.Integrations.Calendar.Provider
   def provider_type, do: :zimbra
@@ -90,7 +88,14 @@ defmodule Tymeslot.Integrations.Calendar.Zimbra.Provider do
   def validate_config(config) do
     with :ok <-
            ProviderConfigHelper.validate_required_fields(config, [:base_url, :username, :password]) do
-      validate_zimbra_url(config[:base_url])
+      ProviderCommon.validate_caldav_url(
+        :zimbra,
+        config[:base_url],
+        dgettext(
+          "dashboard_calendar_providers",
+          "Invalid Zimbra URL. Should be your Zimbra server URL (e.g., https://mail.example.com) or full CalDAV URL (e.g., https://mail.example.com/dav/user@example.com)"
+        )
+      )
     end
   end
 
@@ -177,26 +182,6 @@ defmodule Tymeslot.Integrations.Calendar.Zimbra.Provider do
   def check_connectivity(client), do: CaldavCommon.check_connectivity(client)
 
   # Private helper functions
-
-  defp validate_zimbra_url(url) do
-    invalid_message =
-      dgettext(
-        "dashboard_calendar_providers",
-        "Invalid Zimbra URL. Should be your Zimbra server URL (e.g., https://mail.example.com) or full CalDAV URL (e.g., https://mail.example.com/dav/user@example.com)"
-      )
-
-    case UrlValidation.validate_http_url(url,
-           enforce_https_for_public: true,
-           internal_names_local: SsrfGuard.allow_private_for_calendar?(),
-           https_error_message:
-             dgettext("dashboard_calendar_providers", "Use HTTPS for non-local Zimbra servers"),
-           invalid_message: invalid_message,
-           disallowed_protocol_error: invalid_message
-         ) do
-      :ok -> :ok
-      {:error, message} -> {:error, message}
-    end
-  end
 
   defp normalize_base_url(url) do
     url

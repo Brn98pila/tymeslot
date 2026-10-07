@@ -5,6 +5,7 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ProviderCommon do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias Tymeslot.Integrations.Calendar.CalDAV.Family
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.ProviderConfig
@@ -78,6 +79,31 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ProviderCommon do
         )
     )
   end
+
+  @doc """
+  Validates the server URL submitted for a CalDAV-family provider.
+
+  A provider with a fixed address in `CalDAV.Family` accepts that address
+  and nothing else, so the lock holds wherever a configuration is submitted,
+  not only in the form that renders the field greyed out. Every other member
+  goes through `validate_url/2`, with `invalid_message` as its wording.
+
+  Only submitted configurations are validated: a client built for a stored
+  integration skips validation, so a row saved before an address was fixed
+  keeps syncing until it is reconnected.
+  """
+  @spec validate_caldav_url(Family.member(), term(), String.t()) :: :ok | {:error, String.t()}
+  def validate_caldav_url(member, url, invalid_message) do
+    case Family.row!(member).fixed_url do
+      nil -> validate_url(url, message: invalid_message)
+      %{url: fixed} -> if same_url?(url, fixed), do: :ok, else: {:error, invalid_message}
+    end
+  end
+
+  defp same_url?(url, fixed) when is_binary(url),
+    do: url |> String.trim() |> String.trim_trailing("/") == fixed
+
+  defp same_url?(_url, _fixed), do: false
 
   @doc """
   Helper for providers to format calendars returned from their API.

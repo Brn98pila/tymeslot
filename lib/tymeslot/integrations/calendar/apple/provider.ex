@@ -28,7 +28,6 @@ defmodule Tymeslot.Integrations.Calendar.Apple.Provider do
   alias Tymeslot.Integrations.Calendar.Providers.CaldavCommon
   alias Tymeslot.Integrations.Calendar.Shared.{ErrorHandler, ProviderCommon}
   alias Tymeslot.Integrations.Shared.ProviderConfigHelper
-  alias Tymeslot.Security.UrlValidation
 
   @default_base_url "https://caldav.icloud.com"
 
@@ -102,7 +101,14 @@ defmodule Tymeslot.Integrations.Calendar.Apple.Provider do
   def validate_config(config) do
     with :ok <-
            ProviderConfigHelper.validate_required_fields(config, [:base_url, :username, :password]) do
-      validate_apple_url(config[:base_url])
+      ProviderCommon.validate_caldav_url(
+        :apple,
+        config[:base_url],
+        dgettext(
+          "dashboard_calendar_providers",
+          "Invalid Apple iCloud URL. The server must be https://caldav.icloud.com."
+        )
+      )
     end
   end
 
@@ -188,22 +194,6 @@ defmodule Tymeslot.Integrations.Calendar.Apple.Provider do
   def check_connectivity(client), do: CaldavCommon.check_connectivity(client)
 
   # Private helpers
-
-  defp validate_apple_url(url) do
-    invalid_message =
-      dgettext(
-        "dashboard_calendar_providers",
-        "Invalid Apple iCloud URL. The server must be https://caldav.icloud.com."
-      )
-
-    UrlValidation.validate_http_url(url,
-      enforce_https_for_public: true,
-      https_error_message:
-        dgettext("dashboard_calendar_providers", "Apple iCloud requires HTTPS"),
-      invalid_message: invalid_message,
-      disallowed_protocol_error: invalid_message
-    )
-  end
 
   defp normalize_base_url(url) do
     url
