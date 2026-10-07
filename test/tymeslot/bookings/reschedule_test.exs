@@ -18,6 +18,7 @@ defmodule Tymeslot.Bookings.RescheduleTest do
   alias Tymeslot.Workers.EmailWorker
   alias Tymeslot.Workers.EmailWorkerHandlers
   import Tymeslot.AvailabilityTestHelpers
+  import Tymeslot.Test.ClockHelpers
   import Tymeslot.MeetingTestHelpers
 
   setup :verify_on_exit!
@@ -110,6 +111,48 @@ defmodule Tymeslot.Bookings.RescheduleTest do
       {:ok, reloaded} = MeetingQueries.get_meeting_by_uid(meeting.uid)
       assert reloaded.status == "confirmed"
       assert reloaded.reschedule_requested_at == nil
+    end
+
+    test "a second request after the attendee rebooked is a new email, and only it is sent" do
+      %{user: user} = create_always_bookable_profile()
+      meeting = insert_meeting_for_user(user, %{status: "confirmed"})
+      first_at = DateTime.utc_now(:second)
+
+      freeze_clock(first_at)
+      assert :ok = RescheduleRequest.send_reschedule_request(meeting)
+
+      new_params = %{
+        date: Date.to_string(Date.add(Date.utc_today(), 2)),
+        time: "2:00 PM",
+        duration: "60min",
+        user_timezone: "America/New_York"
+      }
+
+      freeze_clock(DateTime.add(first_at, 60))
+
+      assert {:ok, rebooked} =
+               Reschedule.execute(meeting.uid, new_params, meeting.organizer_user_id)
+
+      freeze_clock(DateTime.add(first_at, 120))
+      assert :ok = RescheduleRequest.send_reschedule_request(rebooked)
+
+      [first_job, second_job] =
+        all_enqueued(
+          worker: EmailWorker,
+          args: %{"action" => "send_reschedule_request", "meeting_id" => meeting.id}
+        )
+        |> Enum.sort_by(& &1.args["requested_at"])
+
+      assert first_job.args["requested_at"] == DateTime.to_iso8601(first_at)
+
+      expect(Tymeslot.EmailServiceMock, :send_reschedule_request, 1, fn _meeting ->
+        {:ok, "sent"}
+      end)
+
+      assert {:discard, "Reschedule request no longer pending"} =
+               perform_job(EmailWorker, first_job.args)
+
+      assert :ok = perform_job(EmailWorker, second_job.args)
     end
 
     test "pending meeting: reschedule request then rebook does not silently confirm it" do
