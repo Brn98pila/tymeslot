@@ -5,7 +5,6 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
   use TymeslotWeb, :live_component
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Ecto.UUID
   alias Tymeslot.Bookings.Policy
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.MeetingPayments
@@ -18,6 +17,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
   alias TymeslotWeb.Components.Dashboard.Meetings.MeetingListComponents
   alias TymeslotWeb.Dashboard.BookingsManagement.Cancellation
   alias TymeslotWeb.Dashboard.BookingsManagement.GuestActions
+  alias TymeslotWeb.Dashboard.BookingsManagement.ModalMeeting
   alias TymeslotWeb.Dashboard.BookingsManagement.Modals
 
   alias TymeslotWeb.Dashboard.BookingsManagement.RequestActions
@@ -138,7 +138,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
   end
 
   def handle_event("show_cancel_modal", %{"id" => _meeting_id} = params, socket) do
-    case fetch_meeting_for_modal(socket, params, policy_fun: &Policy.can_cancel_meeting?/1) do
+    case ModalMeeting.fetch(socket.assigns.current_user.id, params, &Policy.can_cancel_meeting?/1) do
       {:ok, meeting} ->
         user_id = socket.assigns.current_user.id
         Cancellation.emit_open(user_id, meeting.id)
@@ -189,7 +189,11 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
   end
 
   def handle_event("show_reschedule_modal", %{"id" => _id} = params, socket) do
-    case fetch_meeting_for_modal(socket, params, policy_fun: &Policy.can_reschedule_meeting?/1) do
+    case ModalMeeting.fetch(
+           socket.assigns.current_user.id,
+           params,
+           &Policy.can_reschedule_meeting?/1
+         ) do
       {:ok, meeting} ->
         :telemetry.execute(
           [:tymeslot, :dashboard, :meetings, :reschedule, :open],
@@ -588,48 +592,10 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
   defp fetch_page(focus, user_id, _filter, _per_page),
     do: Meetings.list_user_meeting(user_id, focus)
 
-  defp fetch_meeting_for_modal(socket, params, opts) do
-    policy_fun = Keyword.fetch!(opts, :policy_fun)
-    user_id = socket.assigns.current_user.id
-
-    with {:ok, validated_id} <- validate_meeting_id(params),
-         {:ok, meeting} <- fetch_meeting_for_organizer(validated_id, user_id),
-         :ok <- policy_fun.(meeting) do
-      {:ok, meeting}
-    else
-      {:error, :not_found} -> {:error, :not_found, nil}
-      {:error, reason} when is_map(reason) -> {:error, :validation_failed, reason}
-      {:error, reason} -> {:error, :policy_blocked, reason}
-    end
-  end
-
-  # A group meeting's modals and flashes speak of its participants, so they
-  # arrive with it.
-  defp fetch_meeting_for_organizer(id, user_id) do
-    with {:ok, meeting} <- Meetings.get_meeting_for_organizer(id, user_id) do
-      if Meetings.group?(meeting),
-        do: {:ok, Meetings.with_live_participants(meeting)},
-        else: {:ok, meeting}
-    end
-  end
-
   @valid_filters ["upcoming", "past", "cancelled", "awaiting_approval"]
 
   defp validate_filter(filter) when filter in @valid_filters, do: {:ok, filter}
   defp validate_filter(_filter), do: {:error, "Invalid filter option"}
-
-  defp validate_meeting_id(params) do
-    case Map.get(params, "id") do
-      id when is_binary(id) ->
-        case UUID.cast(String.trim(id)) do
-          {:ok, uuid} -> {:ok, uuid}
-          :error -> {:error, %{id: "Invalid meeting ID format"}}
-        end
-
-      _id ->
-        {:error, %{id: "Meeting ID is required"}}
-    end
-  end
 
   # Shares the emailed link's per-answer limiter (`meeting_approval:...`) but
   # under a `"dashboard:"`-prefixed identifier keyed on the host, since the
