@@ -94,6 +94,35 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorkerTest do
       # Reset to avoid polluting other tests
       CalendarCircuitBreaker.reset(:outlook)
     end
+
+    # A snooze costs no attempt, so without a bound a breaker that never
+    # closes keeps the job snoozing for ever.
+    test "fails once the snooze bound is reached" do
+      integration = outlook_integration()
+
+      for _n <- 1..6 do
+        CalendarCircuitBreaker.call(:outlook, fn -> {:provider_error, :simulated_failure} end)
+      end
+
+      on_exit(fn -> CalendarCircuitBreaker.reset(:outlook) end)
+
+      stub(Tymeslot.HTTPClientMock, :request, fn :get, _url, _body, _headers, _opts ->
+        {:ok, %{status: 200, body: ~s({"id":"event-abc-123","subject":"Test"})}}
+      end)
+
+      args = %{
+        "calendar_integration_id" => integration.id,
+        "graph_resource_id" => "event-abc-123"
+      }
+
+      assert {:snooze, 120} =
+               perform_job(SyncOutlookCalendarWorker, args, meta: %{"snoozed" => 10})
+
+      assert {:error, reason} =
+               perform_job(SyncOutlookCalendarWorker, args, meta: %{"snoozed" => 11})
+
+      assert reason =~ "did not recover"
+    end
   end
 
   describe "perform/1 - all-day events" do

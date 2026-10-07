@@ -40,6 +40,25 @@ defmodule Tymeslot.Meetings.CalendarEventSync do
   require Logger
 
   @doc """
+  Tells the owner a create was given up on after waiting out an unreachable or
+  rate-limiting calendar, which `create/2` never reports itself. Sends nothing
+  for a meeting that is gone, no longer expects an event, or has one already.
+  """
+  @spec notify_create_abandoned(term(), term()) :: :ok
+  def notify_create_abandoned(meeting_id, reason) do
+    case MeetingQueries.get_meeting(meeting_id) do
+      {:ok, meeting} ->
+        if MeetingState.expects_calendar_event?(meeting) and not calendar_mapping?(meeting),
+          do: send_calendar_error_notification(meeting, reason)
+
+        :ok
+
+      {:error, :not_found} ->
+        :ok
+    end
+  end
+
+  @doc """
   Creates a calendar event for the given meeting.
 
   If the meeting already carries a provider event mapping (or an external UID
@@ -510,8 +529,10 @@ defmodule Tymeslot.Meetings.CalendarEventSync do
 
   defp handle_create_event_error(error_type, meeting, meeting_id, attempt) do
     case error_type do
-      :rate_limited ->
-        {:error, :rate_limited}
+      # Waited out by the worker, which tells the owner itself if the wait
+      # runs out on the last attempt (`notify_create_abandoned/2`).
+      waiting when waiting in [:rate_limited, :circuit_open, :server_unresponsive] ->
+        {:error, waiting}
 
       :unauthorized ->
         {:error, :unauthorized}
