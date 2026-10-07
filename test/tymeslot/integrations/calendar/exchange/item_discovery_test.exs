@@ -1,5 +1,5 @@
 defmodule Tymeslot.Integrations.Calendar.Exchange.ItemDiscoveryTest do
-  use Tymeslot.ExchangeCase
+  use Tymeslot.ExchangeCase, async: false
 
   @moduletag :integrations
   @moduletag :calendar

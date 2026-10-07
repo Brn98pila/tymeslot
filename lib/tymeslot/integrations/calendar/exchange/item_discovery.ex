@@ -84,17 +84,12 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.ItemDiscovery do
   end
 
   defp fetch_batches(config, batches) do
-    batches
-    |> Enum.reduce_while([], fn batch, docs ->
+    Enum.reduce_while(batches, {:ok, []}, fn batch, {:ok, docs} ->
       case Client.call(config, Requests.get_item(batch)) do
-        {:ok, doc} -> {:cont, [doc | docs]}
+        {:ok, doc} -> {:cont, {:ok, docs ++ [doc]}}
         {:error, _reason} = error -> {:halt, error}
       end
     end)
-    |> case do
-      {:error, _reason} = error -> error
-      docs -> {:ok, Enum.reverse(docs)}
-    end
   end
 
   defp ids_in(message) do

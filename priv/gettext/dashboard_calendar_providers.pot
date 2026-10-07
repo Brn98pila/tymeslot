@@ -1277,6 +1277,7 @@ msgid "This change was made to one occurrence of a repeating event, and the cale
 msgstr ""
 
 #: lib/tymeslot/integrations/calendar/caldav/errors.ex
+#: lib/tymeslot/integrations/calendar/shared/error_messages.ex
 #, elixir-autogen, elixir-format
 msgid "The calendar server returned more data than Tymeslot can process at once."
 msgstr ""
