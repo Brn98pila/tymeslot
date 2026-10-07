@@ -581,8 +581,9 @@ defmodule Tymeslot.Bookings.CreateTest do
 
       assert once > 0, "expected resolving the policy to read the schedule at all"
 
-      assert booking <= 3 * once,
-             "the booking re-derived the policy: #{booking} schedule reads, #{once} to resolve it"
+      assert booking == 3 * once,
+             "expected three resolutions of the policy: #{booking} schedule reads, " <>
+               "#{once} to resolve it"
     end
 
     defp schedule_queries_during(fun) do
