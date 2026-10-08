@@ -11,7 +11,6 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
-  alias Tymeslot.Integrations.Calendar.PrimarySelection
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Integrations.Shared.OAuth.AccountMatch
@@ -119,7 +118,7 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
         base_url: base_url
       })
 
-    create_fn = fn -> PrimarySelection.create_with_auto_primary(attrs) end
+    create_fn = fn -> CalendarManagement.insert_integration(attrs) end
 
     result =
       if is_binary(account_id) do
@@ -157,12 +156,11 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
   # failing must not be paused again by the auto-pause sweep for failures from
   # before it. A reconnect can also reactivate an integration that was paused,
   # which may have been the user's only calendar and so lost its place as the
-  # primary; the activation rule adopts it again.
+  # primary; the activation rule adopts it again, under the primary lock and
+  # before discovery goes to the network.
   defp reconnect(existing, token_attrs, discovery \\ :if_unlisted) do
-    with {:ok, updated} <- CalendarManagement.update_calendar_integration(existing, token_attrs),
-         {:ok, configured} <- discover(updated, discovery) do
-      if configured.is_active, do: CalendarManagement.ensure_primary_on_activate(configured)
-      {:ok, configured}
+    with {:ok, updated} <- CalendarManagement.reconnect_integration(existing, token_attrs) do
+      discover(updated, discovery)
     end
   end
 

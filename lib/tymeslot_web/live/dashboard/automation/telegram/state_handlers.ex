@@ -48,10 +48,15 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.StateHandlers do
       id,
       :telegram_testing,
       &AutomationHelpers.get_telegram_for_user(&1, id),
-      &Telegram.test_integration/1,
+      &test_integration/1,
       {dgettext("dashboard_automation_chat", "Test message sent! Check Telegram."),
        dgettext("dashboard_automation_chat", "Integration not found")}
     )
+  end
+
+  defp test_integration(integration) do
+    with {:error, reason} <- Telegram.test_integration(integration),
+         do: {:error, Telegram.translate_error(reason)}
   end
 
   @spec handle_reenable(map(), Phoenix.LiveView.Socket.t()) ::

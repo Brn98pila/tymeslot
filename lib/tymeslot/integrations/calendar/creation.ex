@@ -17,10 +17,11 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
   alias Tymeslot.Integrations.Calendar.Shared.ErrorHandler
   alias Tymeslot.Integrations.Calendar.Shared.PathUtils
   alias Tymeslot.Integrations.CalendarManagement
-  alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Utils.SanitizeMerge
   alias Tymeslot.Workers.SyncIcsCalendarWorker
+
+  use Gettext, backend: TymeslotWeb.Gettext
 
   require Logger
 
@@ -52,14 +53,13 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
       when is_integer(user_id) and is_map(params) do
     metadata = Keyword.get(opts, :metadata, %{})
 
-    with {:ok, sanitized} <-
+    with :ok <- check_creatable_provider(params["provider"]),
+         {:ok, sanitized} <-
            CalendarInputValidation.validate_calendar_integration_form(params, metadata: metadata),
          :ok <- check_write_budget(user_id),
          validated <- SanitizeMerge.merge(params, sanitized),
          :ok <- check_no_duplicate_calendar(user_id, validated),
-         count_before <- length(CalendarManagement.list_calendar_integrations(user_id)),
          {:ok, integration} <- Calendar.create_integration(validated, user_id) do
-      ensure_primary_on_first(user_id, integration.id, count_before)
       {:ok, integration}
     else
       {:error, :duplicate_integration} ->
@@ -113,10 +113,9 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
          # rejects never leaves the machine and must not cost a token.
          :ok <- CalendarIntegrationSchema.validate_new(attrs),
          {:ok, attrs} <- probe_subscription(attrs, user_id),
-         # Deliberately no `ensure_primary_on_first/3`: a subscription can never
-         # receive a booking, so promoting one to primary would leave a user whose
-         # only calendar is a subscription with a primary that silently fails
-         # every booking write.
+         # A subscription is never made the primary: it can never receive a
+         # booking, and `PrimaryElection.adopt_if_vacant/1` refuses a read-only
+         # provider.
          {:ok, integration} <- CalendarManagement.create_calendar_integration(attrs) do
       enqueue_initial_sync(integration)
       {:ok, integration}
@@ -283,17 +282,23 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
     end
   end
 
-  @doc """
-  If this was the user's first integration, set it as primary.
-  """
-  @spec ensure_primary_on_first(user_id(), pos_integer(), non_neg_integer()) ::
-          :ok | {:error, term()}
-  def ensure_primary_on_first(user_id, new_integration_id, count_before) do
-    case count_before do
-      0 -> CalendarPrimary.set_primary_calendar_integration(user_id, new_integration_id)
-      _count -> :ok
+  # The connection form is the only way into `create_with_validation/3`, and
+  # it connects CalDAV-family servers: discovery, the connection probe and the
+  # calendar selection are all CalDAV-shaped. Any other provider arriving
+  # here (Google, Outlook, a feed, the dev-only debug provider) would be
+  # created unprobed with whatever URL and credentials came with it, as would
+  # one the operator has switched off.
+  defp check_creatable_provider(provider) do
+    with {:ok, atom} <- ProviderConfig.parse(provider),
+         true <- atom in ProviderConfig.caldav_based_providers() do
+      :ok
+    else
+      _refused -> {:error, %{generic: [unsupported_provider_message()]}}
     end
   end
+
+  defp unsupported_provider_message,
+    do: dgettext("dashboard_calendar_settings", "Unsupported provider")
 
   # ---------------------------
   # Param shaping and pre-validation (moved from facade)
@@ -488,18 +493,9 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
       end
     else
       # A CalDAV-family provider the operator has switched off fails
-      # validation, so there is nothing to probe with; creation goes ahead
-      # unprobed, as it always has, but no longer silently. `provider` is one
-      # of the fixed CalDAV-family names (the clause's guard), never
-      # arbitrary input.
-      {:error, _error} ->
-        Logger.warning(
-          "Skipped the connection probe for a calendar provider that is switched off",
-          provider: provider,
-          user_id: attrs[:user_id]
-        )
-
-        {:ok, attrs}
+      # validation, so there is nothing to probe with, and nothing that has
+      # not been probed is created.
+      {:error, _error} -> {:error, %{discovery: unsupported_provider_message()}}
     end
   end
 

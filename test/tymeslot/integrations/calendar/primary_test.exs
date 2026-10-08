@@ -3,6 +3,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
   @moduletag :integrations
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
+  alias Tymeslot.Integrations.Calendar.Deletion
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Profiles.ProfileQueries
@@ -14,14 +15,20 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
     %{user: user}
   end
 
-  defp insert_subscription(user) do
-    insert(:calendar_integration,
-      user: user,
-      provider: "ics_url",
-      base_url: "https://feeds.example.com",
-      username_encrypted: nil,
-      password_encrypted: nil,
-      subscription_url_encrypted: Encryption.encrypt("https://feeds.example.com/feed.ics")
+  defp insert_subscription(user, attrs \\ []) do
+    insert(
+      :calendar_integration,
+      Keyword.merge(
+        [
+          user: user,
+          provider: "ics_url",
+          base_url: "https://feeds.example.com",
+          username_encrypted: nil,
+          password_encrypted: nil,
+          subscription_url_encrypted: Encryption.encrypt("https://feeds.example.com/feed.ics")
+        ],
+        attrs
+      )
     )
   end
 
@@ -37,6 +44,157 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
         attrs
       )
     )
+  end
+
+  # The attrs an OAuth callback hands `insert_integration/1` once it has
+  # resolved its calendars.
+  defp caldav_attrs(user, name) do
+    %{
+      user_id: user.id,
+      name: name,
+      provider: "caldav",
+      base_url: "https://dav.example.com",
+      username: name,
+      password: "secret",
+      provider_account_id: "https://dav.example.com||#{name}",
+      calendar_paths: ["/dav/#{name}"],
+      is_active: true
+    }
+  end
+
+  defp stored_primary_id(user) do
+    {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
+    profile.primary_calendar_integration_id
+  end
+
+  describe "a new integration and the primary" do
+    test "the first bookable integration becomes the primary", %{user: user} do
+      assert {:ok, created} = CalendarManagement.insert_integration(caldav_attrs(user, "first"))
+
+      assert stored_primary_id(user) == created.id
+    end
+
+    test "a second integration leaves an active primary alone", %{user: user} do
+      {:ok, first} = CalendarManagement.insert_integration(caldav_attrs(user, "first"))
+      {:ok, _second} = CalendarManagement.insert_integration(caldav_attrs(user, "second"))
+
+      assert stored_primary_id(user) == first.id
+    end
+
+    test "replaces a primary that is paused", %{user: user} do
+      paused = insert(:calendar_integration, user: user, provider: "caldav", is_active: false)
+      {:ok, _profile} = ProfileQueries.set_primary_calendar_integration(user.id, paused.id)
+
+      {:ok, created} = CalendarManagement.insert_integration(caldav_attrs(user, "fresh"))
+
+      assert stored_primary_id(user) == created.id
+    end
+
+    test "a calendar waiting to be reconnected is not made the primary", %{user: user} do
+      flagged =
+        insert(:calendar_integration,
+          user: user,
+          provider: "caldav",
+          is_active: false,
+          needs_reauth: true
+        )
+
+      {:ok, _active} = CalendarManagement.toggle_with_primary_rebalance(flagged)
+
+      assert stored_primary_id(user) == nil
+    end
+
+    test "a subscription never becomes the primary", %{user: user} do
+      subscription = insert_subscription(user, is_active: false)
+
+      {:ok, _active} = CalendarManagement.toggle_with_primary_rebalance(subscription)
+
+      assert stored_primary_id(user) == nil
+    end
+  end
+
+  describe "switching a calendar on or off" do
+    test "flips the stored state, not the state of a copy read earlier", %{user: user} do
+      integration = insert(:calendar_integration, user: user, provider: "caldav", is_active: true)
+
+      assert {:ok, _toggled} =
+               CalendarManagement.toggle_with_primary_rebalance(%{integration | is_active: false})
+
+      refute Repo.reload!(integration).is_active
+    end
+
+    test "answers not found for a calendar deleted since it was read", %{user: user} do
+      integration = insert(:calendar_integration, user: user, provider: "caldav")
+      Repo.delete!(integration)
+
+      assert {:error, :not_found} = CalendarManagement.toggle_with_primary_rebalance(integration)
+    end
+  end
+
+  describe "reconnecting through the provider's sign-in" do
+    test "reactivates a paused calendar and makes it the primary when there is none",
+         %{user: user} do
+      paused =
+        insert(:calendar_integration,
+          user: user,
+          provider: "google",
+          provider_account_id: "acct-1",
+          is_active: false
+        )
+
+      assert {:ok, reconnected} =
+               CalendarManagement.reconnect_integration(paused, %{
+                 access_token: "fresh",
+                 is_active: true
+               })
+
+      assert reconnected.is_active
+      assert stored_primary_id(user) == paused.id
+    end
+
+    test "refuses to reactivate a calendar whose account another active one uses",
+         %{user: user} do
+      _active =
+        insert(:calendar_integration,
+          user: user,
+          provider: "google",
+          provider_account_id: "acct-1"
+        )
+
+      paused =
+        insert(:calendar_integration,
+          user: user,
+          provider: "google",
+          provider_account_id: "acct-1",
+          is_active: false
+        )
+
+      assert {:error, :duplicate_account} =
+               CalendarManagement.reconnect_integration(paused, %{
+                 access_token: "fresh",
+                 is_active: true
+               })
+
+      refute Repo.reload!(paused).is_active
+    end
+  end
+
+  describe "pausing a calendar" do
+    test "pauses the primary read before it was switched back on, and hands the role on",
+         %{user: user} do
+      other = insert(:calendar_integration, user: user, provider: "caldav")
+
+      primary =
+        insert(:calendar_integration, user: user, provider: "caldav", is_active: true)
+
+      {:ok, _profile} = ProfileQueries.set_primary_calendar_integration(user.id, primary.id)
+
+      assert {:ok, _paused} =
+               CalendarManagement.pause_integration(%{primary | is_active: false})
+
+      refute Repo.reload!(primary).is_active
+      assert stored_primary_id(user) == other.id
+    end
   end
 
   describe "an Exchange mailbox as primary" do
@@ -82,7 +240,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       assert {:ok, _result} =
                CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
 
-      assert {:ok, _result} = CalendarPrimary.delete_with_primary_handling(primary)
+      assert {:ok, _result} = Deletion.delete_with_primary_reassignment(user.id, primary.id)
 
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
       assert profile.primary_calendar_integration_id == exchange.id
@@ -227,7 +385,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       assert profile.primary_calendar_integration_id == nil
     end
 
-    test "delete_with_primary_handling promotes the writable integration over a subscription",
+    test "deleting the primary promotes the writable integration over a subscription",
          %{user: user} do
       primary =
         insert(:calendar_integration,
@@ -248,13 +406,13 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       assert {:ok, _result} =
                CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
 
-      assert {:ok, _result} = CalendarPrimary.delete_with_primary_handling(primary)
+      assert {:ok, _result} = Deletion.delete_with_primary_reassignment(user.id, primary.id)
 
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
       assert profile.primary_calendar_integration_id == fallback.id
     end
 
-    test "delete_with_primary_handling clears the primary when only a subscription remains",
+    test "deleting the primary clears the primary when only a subscription remains",
          %{user: user} do
       primary =
         insert(:calendar_integration,
@@ -268,7 +426,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       assert {:ok, _result} =
                CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
 
-      assert {:ok, _result} = CalendarPrimary.delete_with_primary_handling(primary)
+      assert {:ok, _result} = Deletion.delete_with_primary_reassignment(user.id, primary.id)
 
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
       assert profile.primary_calendar_integration_id == nil
@@ -315,7 +473,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
     assert cleared_first.default_booking_calendar_id == "old-default"
   end
 
-  test "delete_with_primary_handling promotes another integration", %{user: user} do
+  test "deleting the primary promotes another integration", %{user: user} do
     primary =
       insert(:calendar_integration,
         user: user,
@@ -332,7 +490,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
 
     assert {:ok, _result} = CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
 
-    assert {:ok, _result} = CalendarPrimary.delete_with_primary_handling(primary)
+    assert {:ok, _result} = Deletion.delete_with_primary_reassignment(user.id, primary.id)
 
     {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
     assert profile.primary_calendar_integration_id == fallback.id
@@ -445,79 +603,5 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
 
     {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
     assert profile.primary_calendar_integration_id == nil
-  end
-
-  describe "auto_select_primary_calendar/2" do
-    test "CalDAV provider: writes calendar_paths from selected calendars alongside calendar_list",
-         %{user: user} do
-      path = "/dav/user@example.org/Calendar/"
-
-      integration =
-        insert(:calendar_integration,
-          user: user,
-          provider: "caldav",
-          calendar_paths: [],
-          calendar_list: []
-        )
-
-      calendars = [
-        %{"id" => path, "path" => path, "name" => "Personal", "selected" => true}
-      ]
-
-      assert {:ok, updated} = CalendarPrimary.auto_select_primary_calendar(integration, calendars)
-
-      assert updated.calendar_paths == [path]
-      assert length(updated.calendar_list) == 1
-    end
-
-    test "OAuth (Google) provider: does NOT write calendar IDs into calendar_paths", %{
-      user: user
-    } do
-      integration =
-        insert(:calendar_integration,
-          user: user,
-          provider: "google",
-          calendar_paths: [],
-          calendar_list: []
-        )
-
-      # Atom-keyed maps as returned by GoogleProvider.format_calendar/1 —
-      # they have no :path key, only :id.
-      calendars = [
-        %{id: "primary", name: "Primary", selected: true, primary: true}
-      ]
-
-      assert {:ok, updated} = CalendarPrimary.auto_select_primary_calendar(integration, calendars)
-
-      assert updated.calendar_paths == []
-      assert length(updated.calendar_list) == 1
-    end
-
-    test "skips a read-only calendar that is both first and provider-primary, in favour of the one writable entry",
-         %{user: user} do
-      # Delegated/Workspace resource accounts can have no `primary: true`
-      # entry at all, so both the primary and selected tiers fall through
-      # to `first_id_from_list/1`. If that first entry is a read-only
-      # subscribed/shared calendar, the raw ladder would persist an
-      # unwritable `default_booking_calendar_id`; the eligibility filter
-      # must skip it in favour of the one writable calendar further down
-      # the list.
-      integration =
-        insert(:calendar_integration,
-          user: user,
-          provider: "google",
-          calendar_paths: [],
-          calendar_list: []
-        )
-
-      calendars = [
-        %{id: "holidays", name: "Holidays", selected: false, primary: false, read_only: true},
-        %{id: "writable", name: "Writable", selected: false, primary: false, read_only: false}
-      ]
-
-      assert {:ok, updated} = CalendarPrimary.auto_select_primary_calendar(integration, calendars)
-
-      assert updated.default_booking_calendar_id == "writable"
-    end
   end
 end

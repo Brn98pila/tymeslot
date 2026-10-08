@@ -32,15 +32,15 @@ defmodule Tymeslot.Workers.WebhookWorkerSecurityTest do
 
       # Insert webhook with encrypted token
       {:ok, webhook} =
-        %WebhookSchema{}
-        |> WebhookSchema.changeset(%{
-          name: "Test Webhook",
-          url: "https://example.com/webhook",
-          events: ["meeting.created"],
-          is_active: true,
-          user_id: user.id
-        })
-        |> Repo.insert()
+        Repo.insert(
+          WebhookSchema.create_changeset(%{
+            name: "Test Webhook",
+            url: "https://example.com/webhook",
+            events: ["meeting.created"],
+            is_active: true,
+            user_id: user.id
+          })
+        )
 
       # The token is generated automatically on insert
       webhook = WebhookSchema.decrypt_token(webhook)
@@ -84,15 +84,15 @@ defmodule Tymeslot.Workers.WebhookWorkerSecurityTest do
       test_pid = self()
 
       {:ok, webhook} =
-        %WebhookSchema{}
-        |> WebhookSchema.changeset(%{
-          name: "Signed Webhook",
-          url: "https://example.com/webhook",
-          events: ["meeting.created"],
-          is_active: true,
-          user_id: user.id
-        })
-        |> Repo.insert()
+        Repo.insert(
+          WebhookSchema.create_changeset(%{
+            name: "Signed Webhook",
+            url: "https://example.com/webhook",
+            events: ["meeting.created"],
+            is_active: true,
+            user_id: user.id
+          })
+        )
 
       token = WebhookSchema.decrypt_token(webhook).webhook_token
 

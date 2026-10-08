@@ -82,7 +82,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Slack.CrudHandlers do
       integration ->
         mode = socket.assigns.slack_form_mode
 
-        case SlackInputValidation.validate_form(params, mode: mode) do
+        case SlackInputValidation.validate_form(params, mode: mode, stored_name: integration.name) do
           {:ok, sanitized} ->
             case Slack.update_integration(integration, sanitized) do
               {:ok, _updated} ->
