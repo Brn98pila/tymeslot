@@ -11,53 +11,36 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
   - charge.dispute.closed: Dispute resolved (won or lost)
   """
 
-  use Tymeslot.Payments.Behaviours.WebhookHandler
+  @behaviour Tymeslot.Payments.Behaviours.WebhookHandler
 
   require Logger
 
   alias Tymeslot.Infrastructure.AdminAlerts
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Mailer
+  alias Tymeslot.Payments.Behaviours.WebhookHandler
   alias Tymeslot.Payments.{Config, PaymentQueries, PubSub}
   alias Tymeslot.Security.SecurityLogger
 
-  @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def can_handle?(event_type)
-      when event_type in [
-             "charge.dispute.created",
-             "charge.dispute.updated",
-             "charge.dispute.closed"
-           ] do
-    true
-  end
-
-  def can_handle?(_event_type), do: false
-
-  @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def process(%{"type" => "charge.dispute.created"} = event, dispute) do
-    handle_created(event, dispute)
-  end
-
-  def process(%{"type" => "charge.dispute.updated"} = event, dispute) do
-    handle_updated(event, dispute)
-  end
-
-  def process(%{"type" => "charge.dispute.closed"} = event, dispute) do
-    handle_closed(event, dispute)
-  end
-
-  @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def validate(dispute) when is_map(dispute) do
-    required_fields = ["id", "charge", "amount", "status"]
-
-    if Enum.all?(required_fields, &Map.has_key?(dispute, &1)) do
-      :ok
-    else
-      {:error, :missing_fields, "Missing required fields in dispute object"}
+  @impl WebhookHandler
+  def handle(
+        %{
+          "type" => type,
+          "data" => %{
+            "object" =>
+              %{"id" => _id, "charge" => _charge, "amount" => _amount, "status" => _status} =
+                dispute
+          }
+        } = event
+      ) do
+    case type do
+      "charge.dispute.created" -> handle_created(event, dispute)
+      "charge.dispute.updated" -> handle_updated(event, dispute)
+      "charge.dispute.closed" -> handle_closed(event, dispute)
     end
   end
 
-  def validate(_event), do: {:error, :invalid_structure, "Invalid dispute object"}
+  def handle(_event), do: {:error, :permanent, :missing_fields}
 
   # Private functions
 
@@ -69,8 +52,8 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
         Logger.info("Subscription dispute handed off", event: event_type)
         {:ok, outcome}
 
-      {:error, _reason} ->
-        {:error, :retry_later, "Dispute event hand-off failed"}
+      {:error, reason} ->
+        {:error, :retry_later, {:hand_off_failed, reason}}
     end
   end
 

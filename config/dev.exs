@@ -171,9 +171,6 @@ config :tymeslot, Oban,
 # Enable swoosh api client
 config :swoosh, :api_client, Swoosh.ApiClient.Hackney
 
-# Webhook verification enabled by default
-config :tymeslot, :skip_webhook_verification, false
-
 # Enable booking analytics in development so the feature is exercisable locally.
 config :tymeslot, :booking_analytics_enabled, true
 

@@ -13,13 +13,13 @@ defmodule Tymeslot.Workers.DataRetentionWorkerTest do
   alias Tymeslot.Auth.UserSchema
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlowSchema
+  alias Tymeslot.Payments.Webhooks.StripeEventSchema
   alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Repo
   alias Tymeslot.Slack.SlackDeliverySchema
   alias Tymeslot.Telegram.TelegramDeliverySchema
   alias Tymeslot.Telegram.TelegramIntegrationSchema
   alias Tymeslot.Webhooks.WebhookDeliverySchema
-  alias Tymeslot.Webhooks.WebhookEventSchema
   alias Tymeslot.Workers.DataRetentionWorker
 
   import Tymeslot.Test.ClockHelpers
@@ -148,11 +148,11 @@ defmodule Tymeslot.Workers.DataRetentionWorkerTest do
 
       assert :ok = perform_job(DataRetentionWorker, %{})
 
-      old_event = Repo.get(WebhookEventSchema, old_id)
+      old_event = Repo.get(StripeEventSchema, old_id)
       assert old_event, "row should still exist"
       assert is_nil(old_event.payload), "payload should be nullified"
 
-      recent_event = Repo.get(WebhookEventSchema, recent_id)
+      recent_event = Repo.get(StripeEventSchema, recent_id)
       assert recent_event.payload == payload, "recent payload should be preserved"
     end
 
@@ -168,7 +168,7 @@ defmodule Tymeslot.Workers.DataRetentionWorkerTest do
       # With 10-day retention the 15-day-old payload should be nullified
       assert :ok = perform_job(DataRetentionWorker, %{"payload_retention_days" => 10})
 
-      event = Repo.get(WebhookEventSchema, event_id)
+      event = Repo.get(StripeEventSchema, event_id)
       assert is_nil(event.payload)
     end
 
@@ -181,8 +181,8 @@ defmodule Tymeslot.Workers.DataRetentionWorkerTest do
 
       assert :ok = perform_job(DataRetentionWorker, %{})
 
-      refute Repo.get(WebhookEventSchema, old_id)
-      assert Repo.get(WebhookEventSchema, recent_id)
+      refute Repo.get(StripeEventSchema, old_id)
+      assert Repo.get(StripeEventSchema, recent_id)
     end
 
     test "respects the stripe_event_retention_days argument" do
@@ -191,7 +191,7 @@ defmodule Tymeslot.Workers.DataRetentionWorkerTest do
 
       # With 30-day retention the 45-day-old event should be removed
       assert :ok = perform_job(DataRetentionWorker, %{"stripe_event_retention_days" => 30})
-      refute Repo.get(WebhookEventSchema, event_id)
+      refute Repo.get(StripeEventSchema, event_id)
     end
 
     test "outgoing delivery cleanup and Stripe event cleanup run together in a single job" do
@@ -204,7 +204,7 @@ defmodule Tymeslot.Workers.DataRetentionWorkerTest do
       assert :ok = perform_job(DataRetentionWorker, %{})
 
       refute Repo.get(WebhookDeliverySchema, old_delivery.id)
-      refute Repo.get(WebhookEventSchema, old_event_id)
+      refute Repo.get(StripeEventSchema, old_event_id)
     end
   end
 

@@ -27,6 +27,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeClosed do
   Idempotent on `last_event_id`.
   """
 
+  @behaviour Tymeslot.Payments.Behaviours.WebhookHandler
+
   require Logger
 
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
@@ -36,10 +38,12 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeClosed do
   alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
   alias Tymeslot.MeetingPayments.Workers.RefundLatePayment
   alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Payments.Behaviours.WebhookHandler
 
   @event_type "charge.dispute.closed"
 
-  @spec handle(map()) :: :ok | {:error, term()}
+  @impl WebhookHandler
+  @spec handle(map()) :: WebhookHandler.result()
   def handle(event) do
     Telemetry.span_webhook(@event_type, fn -> do_handle(event) end)
   end
@@ -61,10 +65,10 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeClosed do
     end
   end
 
-  defp do_handle(_other), do: {{:error, :invalid_event}, :error}
+  defp do_handle(_other), do: {{:error, :permanent, :invalid_event}, :error}
 
   defp classify(:ok), do: {:ok, :ok}
-  defp classify({:error, _reason} = err), do: {err, :error}
+  defp classify({:error, reason}), do: {{:error, :retry_later, reason}, :error}
 
   # Decided from the locked row (`LockedPayment`): a `charge.refunded`
   # committed since the row was resolved must be counted, not written over.

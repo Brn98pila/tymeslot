@@ -2,37 +2,16 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandler do
   @moduledoc """
   Handler for customer.subscription.* webhook events.
   """
-  use Tymeslot.Payments.Behaviours.WebhookHandler
+  @behaviour Tymeslot.Payments.Behaviours.WebhookHandler
 
   require Logger
+  alias Tymeslot.Payments.Behaviours.WebhookHandler
   alias Tymeslot.Payments.PubSub
 
-  @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def can_handle?(event_type) do
-    event_type in [
-      "customer.subscription.created",
-      "customer.subscription.updated",
-      "customer.subscription.deleted"
-    ]
-  end
-
-  @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def validate(subscription) do
-    validate_id(subscription)
-  end
-
-  defp validate_id(subscription) do
-    case Map.get(subscription, "id") do
-      nil -> {:error, :missing_field, "Subscription ID missing"}
-      "" -> {:error, :missing_field, "Subscription ID empty"}
-      _id -> :ok
-    end
-  end
-
-  @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def process(event, subscription) do
+  @impl WebhookHandler
+  def handle(%{"data" => %{"object" => %{"id" => subscription_id} = subscription}} = event)
+      when is_binary(subscription_id) and subscription_id != "" do
     event_type = event["type"]
-    subscription_id = subscription["id"]
 
     Logger.info("Processing subscription event",
       event_type: event_type,
@@ -49,9 +28,11 @@ defmodule Tymeslot.Payments.Webhooks.SubscriptionHandler do
            event_created: event["created"]
          }) do
       :ok -> {:ok, :event_processed}
-      {:error, _reason} -> {:error, :retry_later, "Subscription event hand-off failed"}
+      {:error, reason} -> {:error, :retry_later, {:hand_off_failed, reason}}
     end
   end
+
+  def handle(_event), do: {:error, :permanent, :missing_subscription_id}
 
   defp normalize_event_name("customer.subscription.created"), do: :subscription_created
   defp normalize_event_name("customer.subscription.updated"), do: :subscription_updated

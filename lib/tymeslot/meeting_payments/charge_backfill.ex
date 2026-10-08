@@ -35,7 +35,7 @@ defmodule Tymeslot.MeetingPayments.ChargeBackfill do
     end
   end
 
-  # The mock adapter (and `construct_webhook_event`) yields string-keyed maps;
+  # The mock adapter yields string-keyed maps, as a webhook event arrives;
   # the real Stripity adapter returns an atom-keyed `%Stripe.PaymentIntent{}`
   # whose expanded `latest_charge` is a `%Stripe.Charge{}` struct. Handle both
   # so the charge id is captured regardless of adapter.

@@ -8,6 +8,7 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
   import Tymeslot.ChangesetValidators.BookingLimits, only: [validate_booking_limits: 2]
 
   alias Tymeslot.CustomFields.FieldDefinition
+  alias Tymeslot.MeetingPayments.Money
   alias Tymeslot.MeetingTypes.GroupLocationRule
   alias Tymeslot.MeetingTypes.LocationOption
   alias Tymeslot.MeetingTypes.MeetingTypeAttachment
@@ -489,7 +490,7 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
   # Asked when the host asks for payment, not every time they touch a meeting
   # type that already has one. A paid type keeps its price while Stripe is
   # disconnected, so that it resumes on reconnect (see
-  # `Tymeslot.MeetingTypes.FormMapper.build_attrs/2`); reading the stored
+  # `Tymeslot.MeetingTypes.FormMapper.build_attrs/3`); reading the stored
   # `true` with `get_field` would then fail every unrelated save with "Stripe
   # must be connected", on a field the form cannot render in that state.
   defp validate_charges_enabled(changeset, opts) do
@@ -506,14 +507,8 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
 
     validate_number(changeset, :price_cents,
       greater_than_or_equal_to: minimum,
-      message: "must be at least #{format_minimum(minimum, currency)}"
+      message: "must be at least #{Money.format(minimum, currency)}"
     )
-  end
-
-  # Mirrors the minimum hint shown beside the price input (e.g. "EUR 0.50"),
-  # so the validation error speaks in major units rather than raw cents.
-  defp format_minimum(cents, currency) do
-    "#{String.upcase(currency)} #{:erlang.float_to_binary(cents / 100, decimals: 2)}"
   end
 
   # What a group type (more than one participant per slot) cannot also be.

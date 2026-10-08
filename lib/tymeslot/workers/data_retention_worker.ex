@@ -16,7 +16,7 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
      and sign-up IP they hold
   10. Financial records past their statutory retention period (years, counted
       from the end of the financial year; see
-      `Tymeslot.MeetingPayments.DataRetention`)
+      `Tymeslot.FinancialRetention`)
   11. Integration OAuth flows past their one-hour expiry, with the PKCE
       verifiers they hold
 
@@ -33,10 +33,11 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
 
   alias Tymeslot.Analytics
   alias Tymeslot.Auth
+  alias Tymeslot.FinancialRetention
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.HealthCheck.AvailabilityRefusalQueries
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
-  alias Tymeslot.MeetingPayments.DataRetention
+  alias Tymeslot.Payments.Webhooks.StripeEventQueries
   alias Tymeslot.Slack
   alias Tymeslot.Telegram
   alias Tymeslot.Webhooks.WebhookQueries
@@ -126,7 +127,7 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
   @spec prune_incoming_webhook_events(integer()) :: {non_neg_integer(), nil}
   def prune_incoming_webhook_events(days) do
     cutoff_date = DateTime.add(DateTime.utc_now(), -days, :day)
-    WebhookQueries.delete_old_webhook_events(cutoff_date)
+    StripeEventQueries.delete_before(cutoff_date)
   end
 
   defp run_cleanup(
@@ -187,7 +188,7 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
   # from the end of a financial year, not as a rolling window of days, and it
   # is fixed by law rather than tunable per run.
   defp purge_expired_financial_records do
-    case DataRetention.purge_expired() do
+    case FinancialRetention.purge_expired() do
       {:ok, counts} ->
         Logger.info("Purged financial records past their retention period", Map.to_list(counts))
 
@@ -206,7 +207,7 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
 
     cutoff_date = DateTime.add(DateTime.utc_now(), -retention_days, :day)
 
-    case WebhookQueries.nullify_stale_payloads(cutoff_date) do
+    case StripeEventQueries.clear_payloads_before(cutoff_date) do
       {count, _nil} when count > 0 ->
         Logger.info("Nullified stale webhook payloads",
           count: count,

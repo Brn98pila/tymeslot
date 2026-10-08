@@ -27,11 +27,12 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandler do
   - charge.refund.updated: Refund status changed
   """
 
-  use Tymeslot.Payments.Behaviours.WebhookHandler
+  @behaviour Tymeslot.Payments.Behaviours.WebhookHandler
 
   require Logger
 
   alias Tymeslot.Infrastructure.AdminAlerts
+  alias Tymeslot.Payments.Behaviours.WebhookHandler
   alias Tymeslot.Payments.CustomerLookup
   alias Tymeslot.Payments.PubSub
   alias Tymeslot.Payments.SubscriptionInvoices
@@ -43,34 +44,19 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandler do
   # paused subscription has nothing to revoke.
   @live_subscription_statuses ~w(active trialing past_due unpaid)
 
-  @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def can_handle?(event_type) when event_type in ["charge.refunded", "charge.refund.updated"] do
-    true
-  end
+  @impl WebhookHandler
+  def handle(
+        %{"type" => "charge.refunded", "data" => %{"object" => %{"id" => _id} = charge}} = event
+      ),
+      do: handle_refunded(event, charge)
 
-  def can_handle?(_event_type), do: false
+  def handle(
+        %{"type" => "charge.refund.updated", "data" => %{"object" => %{"id" => _id} = refund}} =
+          event
+      ),
+      do: handle_refund_updated(event, refund)
 
-  @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def process(%{"type" => "charge.refunded"} = event, charge) do
-    handle_refunded(event, charge)
-  end
-
-  def process(%{"type" => "charge.refund.updated"} = event, refund) do
-    handle_refund_updated(event, refund)
-  end
-
-  @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def validate(refund_object) when is_map(refund_object) do
-    required_fields = ["id"]
-
-    if Enum.all?(required_fields, &Map.has_key?(refund_object, &1)) do
-      :ok
-    else
-      {:error, :missing_fields, "Missing required fields in refund object"}
-    end
-  end
-
-  def validate(_event), do: {:error, :invalid_structure, "Invalid refund object"}
+  def handle(_event), do: {:error, :permanent, :missing_fields}
 
   # Private functions
 
@@ -124,8 +110,8 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandler do
           should_revoke: should_revoke
         })
 
-      {:error, _reason} ->
-        {:error, :retry_later, "Refund event hand-off failed"}
+      {:error, reason} ->
+        {:error, :retry_later, {:hand_off_failed, reason}}
     end
   end
 

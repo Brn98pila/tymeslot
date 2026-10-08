@@ -28,6 +28,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   from the price snapshotted on the row is ignored too.
   """
 
+  @behaviour Tymeslot.Payments.Behaviours.WebhookHandler
+
   require Logger
 
   alias Tymeslot.Bookings.Activation
@@ -45,11 +47,13 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   alias Tymeslot.Meetings.Approval
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.Scheduling
+  alias Tymeslot.Payments.Behaviours.WebhookHandler
   alias Tymeslot.Repo
 
   @event_type "checkout.session.completed"
 
-  @spec handle(map()) :: :ok | {:error, term()}
+  @impl WebhookHandler
+  @spec handle(map()) :: WebhookHandler.result()
   def handle(event) do
     Telemetry.span_webhook(@event_type, fn -> do_handle(event) end)
   end
@@ -73,7 +77,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
     end
   end
 
-  defp do_handle(_other), do: {{:error, :invalid_event}, :error}
+  defp do_handle(_other), do: {{:error, :permanent, :invalid_event}, :error}
 
   # Mirrors the `%{"payment_status" => "paid"} = session` gate
   # `ReconcileAwaitingPayments.dispatch/2` applies before replaying this same
@@ -116,7 +120,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   defp charged_as_booked?(_payment, _object), do: false
 
   defp classify(:ok), do: {:ok, :ok}
-  defp classify({:error, _reason} = err), do: {err, :error}
+  defp classify({:error, reason}), do: {{:error, :retry_later, reason}, :error}
 
   # Activation (the video room, the emails) runs only for the transaction
   # that moved the rows itself. A second completion of the same payment, the

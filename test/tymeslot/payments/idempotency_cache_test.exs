@@ -2,9 +2,13 @@ defmodule Tymeslot.Payments.Webhooks.IdempotencyCacheTest do
   use Tymeslot.DataCase, async: false
   @moduletag :payments
 
+  import ExUnit.CaptureLog
+  import Tymeslot.ConfigTestHelpers
+
+  alias ErrorTracker.Error
   alias Tymeslot.Payments.Webhooks.IdempotencyCache
+  alias Tymeslot.Payments.Webhooks.StripeEventSchema, as: WebhookEvent
   alias Tymeslot.Repo
-  alias Tymeslot.Webhooks.WebhookEventSchema, as: WebhookEvent
 
   describe "mark_processed/1" do
     test "marks an event as processed" do
@@ -48,6 +52,23 @@ defmodule Tymeslot.Payments.Webhooks.IdempotencyCacheTest do
 
       record = Repo.get_by!(WebhookEvent, stripe_event_id: event_id)
       assert is_nil(record.payload)
+    end
+
+    test "an event that could not be recorded is reported, and still marked in memory" do
+      with_config(:error_tracker, enabled: true)
+      # An event without a type fails the changeset, as any write error would.
+      event_id = generate_event_id()
+
+      log = capture_log(fn -> assert :ok = IdempotencyCache.mark_processed(event_id, "") end)
+
+      assert log =~ "processed Stripe event was not recorded"
+      refute Repo.get_by(WebhookEvent, stripe_event_id: event_id)
+      assert {:ok, :already_processed} = IdempotencyCache.reserve(event_id)
+
+      assert [%Error{reason: ":stripe_event_not_recorded"} = error] =
+               Error |> Repo.all() |> Repo.preload(:occurrences)
+
+      assert [%{context: %{"event_id" => ^event_id}}] = error.occurrences
     end
   end
 

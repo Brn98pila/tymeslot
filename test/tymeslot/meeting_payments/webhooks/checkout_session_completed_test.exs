@@ -287,7 +287,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompletedTest do
       :meck.expect(Oban, :insert, fn _job -> {:error, :queue_not_available} end)
 
       try do
-        assert {:error, _reason} = CheckoutSessionCompleted.handle(event)
+        assert {:error, :retry_later, _reason} = CheckoutSessionCompleted.handle(event)
       after
         :meck.unload(Oban)
       end

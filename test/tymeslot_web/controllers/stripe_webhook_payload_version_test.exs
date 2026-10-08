@@ -9,7 +9,7 @@ defmodule TymeslotWeb.StripeWebhookPayloadVersionTest do
   newer version dropped or moved still reaches the handler that reads it.
   """
 
-  # async: false: the Stripe provider, adapter and secrets are global config.
+  # async: false: the Stripe adapter and the signing secrets are global config.
   use TymeslotWeb.ConnCase, async: false
 
   @moduletag :payments
@@ -40,8 +40,6 @@ defmodule TymeslotWeb.StripeWebhookPayloadVersionTest do
   describe "platform endpoint" do
     setup do
       with_config(:tymeslot,
-        skip_webhook_verification: false,
-        stripe_provider: Tymeslot.Payments.Stripe,
         stripe_webhook_secret: @platform_secret,
         repo: Repo,
         subscription_schema: PaymentTransactionSchema
@@ -109,17 +107,6 @@ defmodule TymeslotWeb.StripeWebhookPayloadVersionTest do
       )
 
       :ok
-    end
-
-    test "verification hands the event on exactly as Stripe sent it" do
-      body = StripeWebhookFixtures.body("charge.refunded")
-      signature = StripeWebhookFixtures.signature(body, @connect_secret)
-
-      assert {:ok, event} =
-               StripeAdapter.construct_webhook_event(body, signature, @connect_secret)
-
-      assert event == Jason.decode!(body)
-      assert event["data"]["object"]["invoice"] == "in_1SfixtureRenewal"
     end
 
     test "a dispute before the charge id is known finds the booking by its payment intent",
