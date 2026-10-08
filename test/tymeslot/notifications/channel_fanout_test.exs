@@ -192,6 +192,23 @@ defmodule Tymeslot.Notifications.ChannelFanoutTest do
                LogCapture.message_text(msg) =~ "Failed to schedule channel delivery"
              end)
     end
+
+    test "logs a channel's scheduling failure with what failed", %{meeting: meeting} do
+      LogCapture.attach()
+
+      assert :ok =
+               ChannelFanout.dispatch(:meeting_created, meeting,
+                 channels: [failing: __MODULE__.FailingChannel]
+               )
+
+      assert %{level: :warning, meta: meta} =
+               LogCapture.await_log("Failed to schedule channel delivery")
+
+      assert meta.channel == :failing
+      assert meta.integration_id == 4242
+      assert meta.event_type == "meeting.created"
+      assert meta.reason =~ "boom"
+    end
   end
 
   defmodule RaisingChannel do
@@ -200,6 +217,14 @@ defmodule Tymeslot.Notifications.ChannelFanoutTest do
 
     @impl Tymeslot.Notifications.Channel
     def schedule_for_event(_user_id, _event_type, _meeting), do: raise("scheduling failed")
+  end
+
+  defmodule FailingChannel do
+    @moduledoc false
+    @behaviour Tymeslot.Notifications.Channel
+
+    @impl Tymeslot.Notifications.Channel
+    def schedule_for_event(_user_id, _event_type, _meeting), do: [{4242, {:error, :boom}}]
   end
 
   defmodule CountsChecks do
