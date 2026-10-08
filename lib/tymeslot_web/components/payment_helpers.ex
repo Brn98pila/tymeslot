@@ -11,11 +11,13 @@ defmodule TymeslotWeb.Components.PaymentHelpers do
   @doc """
   Formats an integer cent amount with `Tymeslot.MeetingPayments.Money.format/3`.
 
-  Returns an empty string when `cents` is not an integer, so a template can
-  render a price that is not set yet without a guard.
+  Returns an empty string when `cents` is not an integer or there is no
+  currency, so a template can render a price that is not set yet without a
+  guard.
   """
-  @spec format_amount(integer() | term(), String.t()) :: String.t()
-  def format_amount(cents, currency) when is_integer(cents), do: Money.format(cents, currency)
+  @spec format_amount(integer() | term(), String.t() | nil) :: String.t()
+  def format_amount(cents, currency) when is_integer(cents) and is_binary(currency),
+    do: Money.format(cents, currency)
 
   def format_amount(_cents, _currency), do: ""
 end

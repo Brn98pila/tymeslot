@@ -14,6 +14,8 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.LifetimeStats do
 
   import TymeslotWeb.Components.PaymentHelpers, only: [format_amount: 2]
 
+  alias Tymeslot.MeetingPayments
+
   attr :stats, :list, required: true
   attr :account, :map, required: true
 
@@ -51,8 +53,16 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.LifetimeStats do
     """
   end
 
+  # Before any payment, zero is shown in the account's currency, or in the
+  # fallback when the account has none yet or one payments do not support.
   defp rows([], account),
-    do: [%{currency: account.default_currency, received: 0, refunded: 0, platform_fee: 0}]
+    do: [%{currency: zero_currency(account), received: 0, refunded: 0, platform_fee: 0}]
 
   defp rows(stats, _account), do: stats
+
+  defp zero_currency(%{default_currency: currency}) do
+    if MeetingPayments.currency_allowed?(currency),
+      do: currency,
+      else: MeetingPayments.host_currency(nil)
+  end
 end
