@@ -3,8 +3,8 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries do
   Database queries for webhook/subscription lifecycle management on calendar integrations.
 
   Covers Google push-channel and Microsoft Graph subscription look-ups,
-  expiry/silence detection, token expiry queries, delta-link persistence,
-  and the advisory lock used during webhook processing.
+  expiry/silence detection, token expiry queries and delta-link
+  persistence.
   """
 
   import Ecto.Query
