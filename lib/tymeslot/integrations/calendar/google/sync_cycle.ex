@@ -21,6 +21,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
+  alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.Google.CacheSweep
   alias Tymeslot.Integrations.Calendar.Google.Provider, as: GoogleProvider
   alias Tymeslot.Integrations.Calendar.Sync
@@ -98,7 +99,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
   # Unlike a delta, the bootstrap is a complete windowed listing of the
   # booking calendar, so it is swept like a secondary calendar's.
   defp bootstrap_integration(integration, started_at) do
-    listed = {booking_calendar_id(integration), Sync.window()}
+    listed = {Defaults.booking_calendar_id(integration), Sync.window()}
 
     case Config.google_calendar_api_module().bootstrap_sync(integration) do
       {:ok, %{events: events, next_sync_token: next_sync_token}} ->
@@ -194,7 +195,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
   # calendar is read on every run.
   defp relist_booking_calendar(integration, :calendar) do
     {start_time, end_time} = window = Sync.window()
-    calendar_id = booking_calendar_id(integration)
+    calendar_id = Defaults.booking_calendar_id(integration)
 
     case sync_one_secondary_calendar(integration, calendar_id, start_time, end_time) do
       :listed -> {:ok, [{calendar_id, window}]}
@@ -208,7 +209,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
   # alone. A series whose listing fails is not swept this run.
   defp relist_booking_calendar(integration, {:series, events}) do
     {start_time, end_time} = window = Sync.window()
-    calendar_id = booking_calendar_id(integration)
+    calendar_id = Defaults.booking_calendar_id(integration)
 
     listed =
       events
@@ -250,13 +251,8 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
     end
   end
 
-  # The calendar the booking calendar's rows are filed under, by the sync
-  # token listing and the bootstrap alike (`normalisation_context/2`), and so
-  # the one its sweep must name.
-  defp booking_calendar_id(integration), do: integration.default_booking_calendar_id || "primary"
-
   defp selected_secondary_calendar_ids(integration) do
-    primary_id = booking_calendar_id(integration)
+    primary_id = Defaults.booking_calendar_id(integration)
 
     integration.calendar_list
     |> Enum.filter(fn cal -> cal.selected == true and cal.id != primary_id end)
@@ -381,7 +377,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
   defp normalisation_context(integration, calendar_id) do
     %{
       calendar_integration_id: integration.id,
-      provider_calendar_id: calendar_id || booking_calendar_id(integration),
+      provider_calendar_id: calendar_id || Defaults.booking_calendar_id(integration),
       synced_at: DateTime.utc_now(:microsecond)
     }
   end

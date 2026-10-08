@@ -40,6 +40,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
+  alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookCalendarAPI
   alias Tymeslot.Integrations.Calendar.Outlook.Provider, as: OutlookProvider
   alias Tymeslot.Integrations.Calendar.Sync
@@ -199,7 +200,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   defp handle_event_fetched(integration, graph_resource_id, event) do
     context = %{
       calendar_integration_id: integration.id,
-      provider_calendar_id: integration.default_booking_calendar_id || "primary",
+      provider_calendar_id: Defaults.booking_calendar_id(integration),
       synced_at: DateTime.utc_now(:microsecond)
     }
 

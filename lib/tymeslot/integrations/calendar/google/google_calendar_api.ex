@@ -7,6 +7,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   @behaviour Tymeslot.Integrations.Calendar.Google.CalendarAPIBehaviour
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.EventColour
   alias Tymeslot.Integrations.Calendar.Google.ApiStatus
   alias Tymeslot.Integrations.Calendar.Google.CalendarAPIBehaviour
@@ -389,7 +390,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   end
 
   def list_events_incremental(%CalendarIntegrationSchema{} = integration) do
-    calendar_id = integration.default_booking_calendar_id || "primary"
+    calendar_id = Defaults.booking_calendar_id(integration)
     sync_token = integration.google_sync_token
 
     Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
@@ -421,7 +422,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   @spec bootstrap_sync(CalendarIntegrationSchema.t()) ::
           {:ok, %{events: [map()], next_sync_token: String.t() | nil}} | api_error()
   def bootstrap_sync(%CalendarIntegrationSchema{} = integration) do
-    calendar_id = integration.default_booking_calendar_id || "primary"
+    calendar_id = Defaults.booking_calendar_id(integration)
     {start_time, end_time} = Sync.window()
 
     base = %{

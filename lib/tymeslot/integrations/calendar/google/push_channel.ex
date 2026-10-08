@@ -28,6 +28,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.PushChannel do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
+  alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.Google.CalendarAPI
   alias Tymeslot.Integrations.Calendar.HTTP
   alias Tymeslot.Integrations.Calendar.Tokens
@@ -81,7 +82,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.PushChannel do
   # --- Private helpers ---
 
   defp do_register_push_channel(integration, webhook_base_url) do
-    calendar_id = integration.default_booking_calendar_id || "primary"
+    calendar_id = Defaults.booking_calendar_id(integration)
     channel_id = UUID.generate()
     channel_secret = Base.url_encode64(:crypto.strong_rand_bytes(32))
 

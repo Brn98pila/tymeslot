@@ -16,6 +16,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.Google.ConferenceData
   alias Tymeslot.Integrations.Calendar.Google.EventNormaliser
   alias Tymeslot.Integrations.Calendar.Google.SeriesExceptions
@@ -151,7 +152,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
           {:ok, map()} | {:error, atom(), String.t()}
   def call_create_event(integration, event_attrs) do
     calendar_id =
-      event_attrs[:calendar_id] || integration.default_booking_calendar_id || "primary"
+      event_attrs[:calendar_id] || Defaults.booking_calendar_id(integration)
 
     api_module().create_event(integration, calendar_id, event_attrs)
   end
@@ -180,7 +181,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
           {:ok, map()} | {:error, atom(), String.t()} | {:error, term()}
   def call_update_event(integration, _event_id, %{occurrence: %{scope: scope} = edit} = attrs)
       when scope in [:all, :following] do
-    calendar_id = attrs[:calendar_id] || integration.default_booking_calendar_id || "primary"
+    calendar_id = attrs[:calendar_id] || Defaults.booking_calendar_id(integration)
 
     with {:ok, master} <- api_module().get_event(integration, calendar_id, edit.master_id) do
       if scope == :all,
@@ -191,7 +192,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
 
   def call_update_event(integration, event_id, %{colour_only: true} = event_attrs) do
     calendar_id =
-      event_attrs[:calendar_id] || integration.default_booking_calendar_id || "primary"
+      event_attrs[:calendar_id] || Defaults.booking_calendar_id(integration)
 
     effective_id = event_attrs[:provider_event_id] || event_id
     api_module().patch_event_colour(integration, calendar_id, effective_id, event_attrs[:colour])
@@ -199,7 +200,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
 
   def call_update_event(integration, event_id, event_attrs) do
     calendar_id =
-      event_attrs[:calendar_id] || integration.default_booking_calendar_id || "primary"
+      event_attrs[:calendar_id] || Defaults.booking_calendar_id(integration)
 
     # Prefer the provider-native event ID when available (avoids iCalUID→ID conversion)
     effective_id = event_attrs[:provider_event_id] || event_id
@@ -323,7 +324,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
     # resource for every event on a secondary calendar, which Google answers
     # with a 404.
     calendar_id =
-      opts[:calendar_id] || integration.default_booking_calendar_id || "primary"
+      opts[:calendar_id] || Defaults.booking_calendar_id(integration)
 
     api_module().delete_event(integration, calendar_id, event_id)
   end
