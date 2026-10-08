@@ -115,7 +115,7 @@ defmodule Tymeslot.Integrations.Calendar.ProviderConfigTest do
       assert result == %{
                url: "https://dav.mailbox.org",
                tooltip:
-                 "mailbox.org always uses this CalDAV server — the address cannot be changed"
+                 "mailbox.org always uses this CalDAV server, so the address cannot be changed"
              }
     end
 

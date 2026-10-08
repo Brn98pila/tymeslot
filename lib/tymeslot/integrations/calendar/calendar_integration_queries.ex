@@ -270,7 +270,10 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
 
   @doc """
   Updates a calendar integration with credentials its owner has just supplied,
-  clearing `needs_reauth`.
+  clearing `needs_reauth` and the `sync_error` that explained it. A failure
+  after the reconnect that records no reason of its own (a refused bulk
+  deletion, or any failure of a provider whose sync workers do not write
+  one) would otherwise show the old reason on the card again.
 
   Only reconnect paths may use this: an OAuth callback, or a CalDAV credential
   form. It cannot be inferred from the changeset instead, because credentials
@@ -287,6 +290,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
     integration
     |> CalendarIntegrationSchema.changeset(attrs)
     |> Changeset.put_change(:needs_reauth, false)
+    |> Changeset.put_change(:sync_error, nil)
     |> Repo.update()
   end
 

@@ -70,7 +70,7 @@ defmodule Tymeslot.Integrations.Calendar.MailboxOrg.ProviderTest do
       assert :ok = test_basic_validation(Provider, "https://dav.mailbox.org")
     end
 
-    test "rejects HTTP for the public mailbox.org host" do
+    test "rejects HTTP for the mailbox.org address, which is fixed to HTTPS" do
       config = %{
         base_url: "http://dav.mailbox.org",
         username: "you@mailbox.org",
@@ -78,7 +78,7 @@ defmodule Tymeslot.Integrations.Calendar.MailboxOrg.ProviderTest do
       }
 
       assert {:error, message} = Provider.validate_config(config)
-      assert String.contains?(message, "HTTPS")
+      assert message == "Invalid mailbox.org URL. The server must be https://dav.mailbox.org."
     end
 
     # `validate_config/1` is structural only — it never performs network I/O
