@@ -8,7 +8,6 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Tasks
 
   alias Tymeslot.Integrations.Calendar.CalDAV.{
@@ -26,9 +25,9 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
   alias Tymeslot.Integrations.Calendar.CreatedEvent
   alias Tymeslot.Integrations.Calendar.ICalNormaliser
   alias Tymeslot.Integrations.Calendar.Shared.EventSearch
+  alias Tymeslot.Integrations.Calendar.Shared.FetchAggregate
+  alias Tymeslot.Integrations.Calendar.Shared.FetchAggregate.Outcome
   alias Tymeslot.Utils.UriUtils
-
-  require Logger
 
   @type caldav_client :: Client.t()
 
@@ -233,9 +232,12 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
 
   @doc """
   Fetch events for a given time window across all configured calendars in parallel.
+
+  Answers `{:error, %FetchAggregate.Outcome{}}` when some calendars were read
+  and at least one could not be, and the first error when none could be.
   """
   @spec get_events(caldav_client(), DateTime.t(), DateTime.t()) ::
-          {:ok, list()} | {:error, term()}
+          {:ok, list()} | {:error, Outcome.t()} | {:error, term()}
   def get_events(client, start_time, end_time) do
     paths = get_calendar_paths(client)
 
@@ -276,9 +278,16 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
     {:error, reason}
   end
 
-  # At least one path succeeded. Log any failures for visibility, then return
-  # the union of successful results. This keeps degraded multi-calendar
-  # setups working while still making errors observable in logs.
+  # At least one path succeeded. A path that could not be read has unknown
+  # busy time, not none, so any hard failure answers the per-path `Outcome`
+  # rather than the union of the readable calendars: offering slots from
+  # those alone would hide conflicts on the unreadable one. The policy is
+  # `FetchAggregate.require_complete/1`'s, applied once at the availability
+  # boundary, as for Google and Outlook (`MultiCalendarFetch`).
+  #
+  # A collection the server answers 404 or 410 for is confirmed absent, not
+  # unreadable: its owner deleted it, so it contributes no events and no
+  # failure. The sync path deselects such a calendar on its own.
   #
   # We deliberately don't expand recurrences here: the caller expands them,
   # through `ICalNormaliser` on both the sync and the live availability read
@@ -286,24 +295,28 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
   # each first-pass occurrence still carries the master RRULE and gets
   # re-expanded.
   defp handle_fetch_results(successes, errors) do
-    Enum.each(errors, fn {path, {:error, reason}} ->
-      Logger.warning("CalDAV fetch failed for one calendar path",
-        path: path,
-        reason: LogFormat.reason(reason)
-      )
-    end)
-
-    # De-duplicated on the pair that identifies a VEVENT, not on the UID alone:
-    # a recurring event's overrides share the master's UID by RFC 5545, so
-    # keying on the UID collapsed a whole series back to one event and undid
-    # the parser keeping them.
-    events =
-      successes
-      |> Enum.flat_map(fn {_path, {:ok, evs}} -> evs end)
-      |> Enum.uniq_by(&{&1.uid, &1[:recurrence_id]})
-
-    {:ok, events}
+    (successes ++ errors)
+    |> FetchAggregate.collect(&classify_path_result/1)
+    |> dedupe_outcome_events()
+    |> to_result()
   end
+
+  defp classify_path_result({_path, {:ok, events}}), do: {:ok, events}
+
+  defp classify_path_result({_path, {:error, reason}}) when reason in [:not_found, :gone],
+    do: :absent
+
+  defp classify_path_result({path, {:error, reason}}), do: {:error, path, reason}
+
+  # De-duplicated on the pair that identifies a VEVENT, not on the UID alone:
+  # a recurring event's overrides share the master's UID by RFC 5545, so
+  # keying on the UID collapsed a whole series back to one event and undid
+  # the parser keeping them.
+  defp dedupe_outcome_events(%Outcome{events: events} = outcome),
+    do: %{outcome | events: Enum.uniq_by(events, &{&1.uid, &1[:recurrence_id]})}
+
+  defp to_result(%Outcome{failed: []} = outcome), do: {:ok, outcome.events}
+  defp to_result(%Outcome{} = outcome), do: {:error, outcome}
 
   @doc """
   Create an event in the calendar the payload asks for, or in the client's own
