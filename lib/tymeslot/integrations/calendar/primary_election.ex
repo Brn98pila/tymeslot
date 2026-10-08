@@ -9,9 +9,10 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   read-only), or clears the primary when none qualifies.
 
   When an integration becomes usable (it was created, switched on, or
-  reconnected), `adopt_if_vacant/1` makes it the primary if it is bookable and
-  the user has no active primary. A paused or read-only calendar never becomes
-  the primary, since every booking written to it would fail.
+  reconnected), `adopt_if_vacant/1` makes it the primary if it is bookable,
+  not waiting to be reconnected, and the user has no active primary. A
+  paused or read-only calendar never becomes the primary, since every
+  booking written to it would fail.
 
   Both run inside `under_lock/2`, which takes
   `CalendarIntegrationQueries.lock_user_profile_and_integrations/1` before
@@ -93,7 +94,9 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   the one they have is inactive or gone. Call it inside `under_lock/2`.
 
   A read-only integration is never adopted: it blocks time but refuses every
-  write. Whether `integration` is still active is checked on the stored row
+  write. Nor is one waiting to be reconnected, which `elect_next/2` would
+  pass over too: its writes fail until its owner reconnects it, and the
+  reconnect clears the flag before adopting. Whether `integration` is still active is checked on the stored row
   by `CalendarPrimary.set_primary_calendar_integration/2`, so a struct read
   before the lock cannot adopt a calendar paused since.
 
@@ -103,7 +106,8 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   """
   @spec adopt_if_vacant(CalendarIntegrationSchema.t()) :: :adopted | :unchanged
   def adopt_if_vacant(%{id: id, user_id: user_id} = integration) do
-    with true <- BookingEligibility.bookable?(integration),
+    with false <- integration.needs_reauth,
+         true <- BookingEligibility.bookable?(integration),
          false <- active_primary?(user_id),
          {:ok, _primary} <- CalendarPrimary.set_primary_calendar_integration(user_id, id) do
       :adopted

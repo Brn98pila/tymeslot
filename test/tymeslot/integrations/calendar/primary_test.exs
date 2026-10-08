@@ -90,6 +90,20 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       assert stored_primary_id(user) == created.id
     end
 
+    test "a calendar waiting to be reconnected is not made the primary", %{user: user} do
+      flagged =
+        insert(:calendar_integration,
+          user: user,
+          provider: "caldav",
+          is_active: false,
+          needs_reauth: true
+        )
+
+      {:ok, _active} = CalendarManagement.toggle_with_primary_rebalance(flagged)
+
+      assert stored_primary_id(user) == nil
+    end
+
     test "a subscription never becomes the primary", %{user: user} do
       subscription = insert_subscription(user, is_active: false)
 
