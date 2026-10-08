@@ -39,6 +39,7 @@ defmodule Tymeslot.Timezones do
 
   defdelegate format(timezone_id), to: Formatting
   defdelegate utc_offset(timezone_id), to: Formatting
+  defdelegate utc_offset(timezone_id, at), to: Formatting
 
   @fallback "Etc/UTC"
 
