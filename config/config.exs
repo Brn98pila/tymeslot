@@ -612,8 +612,10 @@ config :tymeslot, :error_tracking_max_concurrent_reports, 10
 
 # WebVTT captions: served from /uploads as text/vtt, which a <track> needs,
 # and accepted by LiveView uploads, which refuse an extension MIME does not
-# know. MIME compiles its type table, so a change here needs
-# `mix deps.compile mime --force` in every build.
+# know. MIME compiles its type table from this; Mix recompiles `mime` by
+# itself when the setting changes. `config :mime, :types` replaces rather
+# than merges, so a later `config :mime, :types` anywhere (including a
+# config that imports this file) must list `vtt` again or drops it.
 config :mime, :types, %{"text/vtt" => ["vtt"]}
 
 # Import environment specific config
