@@ -90,27 +90,6 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   end
 
   @doc """
-  Refreshes one integration at its owner's request.
-
-  A subscription has no discoverable calendar list to refresh (discovery
-  returns the same synthetic entry every time), so refreshing one re-fetches
-  the feed instead, through the same worker the scheduled sync sweep uses; a
-  refresh already queued for it counts as success. Every other provider
-  re-runs discovery and merges the result into the selection.
-
-  This asks about the feed family specifically, not about read-only
-  providers: `ics_url` is the only read-only provider left, but the two
-  questions are different and need not stay in step. An Exchange mailbox
-  discovers real folders and has no feed to re-fetch, so it belongs on the
-  discovery path with every other credentialed provider.
-  """
-  @spec refresh_integration(pos_integer(), pos_integer()) ::
-          {:ok, :feed_sync_enqueued | :calendars_rediscovered} | {:error, refusal() | term()}
-  def refresh_integration(user_id, integration_id) do
-    with_owned(user_id, integration_id, :refresh, &refresh/1)
-  end
-
-  @doc """
   Refreshes every active integration of the user, charging the refresh
   budget once. Answers each integration's name with `:ok` or
   `{:error, reason}`, in the order they are listed; one that does not answer
@@ -153,6 +132,17 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
     end
   end
 
+  # A subscription has no discoverable calendar list to refresh (discovery
+  # returns the same synthetic entry every time), so refreshing one re-fetches
+  # the feed instead, through the same worker the scheduled sync sweep uses; a
+  # refresh already queued for it counts as success. Every other provider
+  # re-runs discovery and merges the result into the selection.
+  #
+  # This asks about the feed family specifically, not about read-only
+  # providers: `ics_url` is the only read-only provider left, but the two
+  # questions are different and need not stay in step. An Exchange mailbox
+  # discovers real folders and has no feed to re-fetch, so it belongs on the
+  # discovery path with every other credentialed provider.
   defp refresh(%{provider: provider} = integration) do
     if ProviderConfig.subscription?(provider) do
       with {:ok, _outcome} <- SyncIcsCalendarWorker.enqueue(integration.id),

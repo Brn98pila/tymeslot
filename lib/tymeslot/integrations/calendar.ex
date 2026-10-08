@@ -434,11 +434,6 @@ defmodule Tymeslot.Integrations.Calendar do
     Directory.list(type)
   end
 
-  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.refresh_integration/2`."
-  @spec refresh_integration(user_id(), integration_id()) ::
-          {:ok, :feed_sync_enqueued | :calendars_rediscovered} | {:error, term()}
-  defdelegate refresh_integration(user_id, integration_id), to: OwnerActions
-
   @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.refresh_all_integrations/1`."
   @spec refresh_all_integrations(user_id()) ::
           {:ok, [{String.t(), :ok | {:error, term()}}]} | {:error, {:rate_limited, String.t()}}

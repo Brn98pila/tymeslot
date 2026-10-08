@@ -84,10 +84,6 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActionsTest do
       assert [%{selected: true}] = Repo.reload!(integration).calendar_list
     end
 
-    test "cannot be refreshed", %{intruder: intruder, integration: integration} do
-      assert {:error, :not_found} = Calendar.refresh_integration(intruder.id, integration.id)
-    end
-
     test "cannot be deleted", %{intruder: intruder, integration: integration} do
       assert {:error, :not_found} =
                Calendar.delete_with_primary_reassignment_and_invalidate(
