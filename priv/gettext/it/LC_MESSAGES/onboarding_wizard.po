@@ -845,4 +845,4 @@ msgstr "Mostra tutti i temi"
 #: lib/tymeslot_web/live/onboarding_live/choose_theme_step.ex
 #, elixir-autogen, elixir-format
 msgid "Which of these sounds like you?"
-msgstr "Quale di queste descrizioni ti somiglia?"
+msgstr "Quale di queste descrizioni ti rispecchia?"

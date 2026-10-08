@@ -653,12 +653,12 @@ msgstr "Přizpůsobení motivu"
 #: lib/tymeslot_web/themes/quill/theme.ex
 #, elixir-autogen, elixir-format
 msgid "My clients should feel they are booking someone established. The page should look as considered as my work."
-msgstr "Moji klienti by měli cítit, že si rezervují někoho zavedeného. Stránka má působit stejně promyšleně jako moje práce."
+msgstr "Moji klienti mají mít pocit, že si rezervují někoho zavedeného. Stránka má působit stejně promyšleně jako moje práce."
 
 #: lib/tymeslot_web/themes/rhythm/theme.ex
 #, elixir-autogen, elixir-format
 msgid "When someone books me, I want them to feel the atmosphere first: motion, mood, then a time."
-msgstr "Když si mě někdo rezervuje, chci, aby nejdřív ucítil atmosféru: pohyb, náladu, a teprve pak čas."
+msgstr "Když si mě někdo rezervuje, chci, aby nejdřív ucítil atmosféru: pohyb, náladu, pak teprve termín."
 
 #: lib/tymeslot/theme_customizations/assets.ex
 #, elixir-autogen, elixir-format

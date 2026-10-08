@@ -850,4 +850,4 @@ msgstr "Показати всі теми"
 #: lib/tymeslot_web/live/onboarding_live/choose_theme_step.ex
 #, elixir-autogen, elixir-format
 msgid "Which of these sounds like you?"
-msgstr "Який із цих описів схожий на вас?"
+msgstr "Який із цих описів про вас?"
