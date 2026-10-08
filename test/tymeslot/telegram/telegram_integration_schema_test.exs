@@ -121,7 +121,7 @@ defmodule Tymeslot.Telegram.TelegramIntegrationSchemaTest do
         })
 
       refute changeset.valid?
-      assert "contains invalid events: invalid.event" in errors_on(changeset).events
+      assert "has an invalid entry" in errors_on(changeset).events
     end
 
     test "applies default values" do

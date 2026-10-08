@@ -9,8 +9,6 @@ defmodule Tymeslot.Slack.InputValidation do
   alias Tymeslot.Slack.SlackIntegrationSchema
   alias Tymeslot.Validation.Constraints
 
-  @webhook_url_regex ~r{\Ahttps://hooks\.slack\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]+\z}
-
   @doc """
   Validates a Slack integration form. The `:mode` option selects which fields
   are required:
@@ -117,7 +115,7 @@ defmodule Tymeslot.Slack.InputValidation do
   def validate_webhook_url(url, errors) when is_binary(url) do
     trimmed = String.trim(url)
 
-    if Regex.match?(@webhook_url_regex, trimmed) do
+    if SlackIntegrationSchema.webhook_url_format?(trimmed) do
       {trimmed, errors}
     else
       {nil, Map.put(errors, :webhook_url, "must look like https://hooks.slack.com/services/...")}

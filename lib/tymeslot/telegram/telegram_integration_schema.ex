@@ -112,7 +112,7 @@ defmodule Tymeslot.Telegram.TelegramIntegrationSchema do
     |> cast(attrs, [:name, :events] ++ user_link_fields(get_field(changeset, :bot_mode)))
     |> validate_required([:name])
     |> validate_length(:name, Constraints.integration_name_length_opts())
-    |> validate_events()
+    |> validate_subset(:events, @valid_events)
     |> stamp_linked_at()
     |> encrypt_token()
   end
@@ -199,22 +199,6 @@ defmodule Tymeslot.Telegram.TelegramIntegrationSchema do
 
   @spec max_failure_count() :: integer()
   def max_failure_count, do: @max_failure_count
-
-  defp validate_events(changeset) do
-    case get_change(changeset, :events) do
-      nil ->
-        changeset
-
-      events ->
-        invalid = Enum.reject(events, &(&1 in @valid_events))
-
-        if Enum.empty?(invalid) do
-          changeset
-        else
-          add_error(changeset, :events, "contains invalid events: #{Enum.join(invalid, ", ")}")
-        end
-    end
-  end
 
   # The token is virtual, so a loaded row carries nil and casting a nil over
   # it is no change at all. Clearing the token is still a change to its hash

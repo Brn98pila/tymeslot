@@ -303,4 +303,8 @@ defmodule Tymeslot.Slack.SlackIntegrationSchema do
 
   @spec valid_events() :: [String.t()]
   def valid_events, do: @valid_events
+
+  @doc "Whether `url` has the shape of a Slack Incoming Webhook URL."
+  @spec webhook_url_format?(String.t()) :: boolean()
+  def webhook_url_format?(url) when is_binary(url), do: Regex.match?(@webhook_url_regex, url)
 end
