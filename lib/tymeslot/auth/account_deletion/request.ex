@@ -21,6 +21,8 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
       session making the request (`:current_session_token`) loses its row
       like the rest but keeps its live socket, so the requesting page can
       still deliver its redirect; other open tabs are told over PubSub;
+    * the host's open paid checkouts are expired and their pending bookings
+      cancelled (best-effort; a checkout completed regardless is refunded);
     * the deletion hook hears of it, with the optional exit feedback;
     * the owner is emailed the date, or told the deletion is under way. This
       is the only place that email is queued: the deletion job never sends it.
@@ -33,7 +35,9 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
   alias Tymeslot.Auth.AccountDeletion.{Hook, Policy}
   alias Tymeslot.Auth.{RateLimit, Session, UserQueries, UserSchema, Validation}
   alias Tymeslot.Emails.EmailScheduler
+  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.PubSub
+  alias Tymeslot.MeetingPayments
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Workers.AccountDeletionWorker
@@ -163,6 +167,7 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
   defp after_commit(pending, session_hashes, feedback, opts) do
     Session.disconnect_sessions(session_hashes, leave_connected: opts[:current_session_token])
     PubSub.broadcast_account_deletion_requested(pending.id)
+    cancel_pending_checkouts(pending)
     Hook.requested(pending.id, feedback)
 
     _scheduled =
@@ -174,6 +179,27 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
         restorable: not Policy.immediate?(),
         timezone: Policy.user_timezone(pending.id)
       })
+
+    :ok
+  end
+
+  # An attendee still on a checkout page could otherwise pay for a booking
+  # the host will never hold. Best-effort: a checkout this misses is refunded
+  # when it completes, so a failure here never stands in the request's way.
+  defp cancel_pending_checkouts(pending) do
+    case MeetingPayments.cancel_pending_checkouts(pending) do
+      {:ok, _cancelled} -> :ok
+      {:error, reason} -> log_checkout_failure(pending.id, reason)
+    end
+  rescue
+    exception -> log_checkout_failure(pending.id, exception)
+  end
+
+  defp log_checkout_failure(user_id, reason) do
+    Logger.warning("Account deletion request: pending checkouts not cancelled; carrying on",
+      user_id: user_id,
+      reason: LogFormat.reason(reason)
+    )
 
     :ok
   end

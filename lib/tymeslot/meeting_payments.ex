@@ -92,6 +92,15 @@ defmodule Tymeslot.MeetingPayments do
   defdelegate disconnect(user), to: ConnectAccounts
 
   @doc """
+  Expires the host's open Stripe Checkout sessions and cancels their pending
+  bookings, leaving the Connect account in place. See
+  `Tymeslot.MeetingPayments.ConnectAccounts.cancel_pending_checkouts/1`.
+  """
+  @spec cancel_pending_checkouts(user :: %{id: integer()}) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  defdelegate cancel_pending_checkouts(user), to: ConnectAccounts
+
+  @doc """
   Fetches a Connect account by its row ID, or `nil` if not found.
   """
   @spec get_connect_account(Ecto.UUID.t()) :: account() | nil
