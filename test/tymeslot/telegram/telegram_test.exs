@@ -559,6 +559,22 @@ defmodule Tymeslot.TelegramTest do
   end
 
   defp an_hour_ago, do: DateTime.add(DateTime.utc_now(:second), -3600, :second)
+
+  describe "schedule_for_event/3" do
+    test "skips an integration at the failure threshold that is not yet marked disabled" do
+      user = insert(:user)
+      meeting = insert(:meeting, organizer_user_id: user.id)
+      live = insert(:telegram_integration, user: user, events: ["meeting.created"])
+
+      insert(:telegram_integration,
+        user: user,
+        events: ["meeting.created"],
+        failure_count: TelegramIntegrationSchema.max_failure_count()
+      )
+
+      assert [{live.id, :ok}] == Telegram.schedule_for_event(user.id, "meeting.created", meeting)
+    end
+  end
 end
 
 defmodule Tymeslot.TelegramTest.InsufficientPlanChecker do

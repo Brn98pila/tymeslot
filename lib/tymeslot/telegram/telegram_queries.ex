@@ -83,7 +83,7 @@ defmodule Tymeslot.Telegram.TelegramQueries do
   def list_active_integrations_for_event(user_id, event_type) do
     TelegramIntegrationSchema
     |> IntegrationQueries.list_active_for_event(user_id, event_type)
-    |> Enum.filter(&(not is_nil(&1.chat_id)))
+    |> Enum.filter(&TelegramIntegrationSchema.should_be_active?/1)
   end
 
   @doc """
