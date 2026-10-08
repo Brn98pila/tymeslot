@@ -15,6 +15,7 @@ defmodule Tymeslot.FreeBusy do
   alias Tymeslot.Integrations.Calendar.CalendarEventQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.FreebusyGenerator
+  alias Tymeslot.Profiles
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Profiles.ProfileSchema
 
@@ -92,10 +93,9 @@ defmodule Tymeslot.FreeBusy do
       integration_ids
       |> CalendarEventQueries.in_range({window_start, window_end})
       |> Enum.filter(&CalendarEvent.blocking?/1)
-      |> Enum.flat_map(&event_interval(&1, profile.timezone || "Etc/UTC"))
+      |> Enum.flat_map(&event_interval(&1, Profiles.timezone(profile)))
 
-    event_intervals ++
-      TimeOff.busy_intervals(profile.id, profile.timezone, window_start, window_end)
+    event_intervals ++ TimeOff.busy_intervals(profile, window_start, window_end)
   end
 
   # An all-day event spans the owner's local day, as it does on the booking

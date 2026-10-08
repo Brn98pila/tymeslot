@@ -244,9 +244,21 @@ defmodule Tymeslot.Profiles do
   def get_user_timezone(user_id) do
     case ProfileQueries.get_by_user_id(user_id) do
       {:error, :not_found} -> get_default_timezone()
-      {:ok, profile} -> profile.timezone || get_default_timezone()
+      {:ok, profile} -> timezone(profile)
     end
   end
+
+  @doc """
+  A profile's timezone, or the default for a profile that has none set.
+
+  `profiles.timezone` is nullable, so this is the one rule for reading an
+  owner's clock: the booking page, time off, the free/busy feed and booking
+  limits all go through it, and so agree on where a nil-timezone host's day
+  begins. Takes anything carrying `:timezone`, or `nil` for no profile.
+  """
+  @spec timezone(%{optional(:timezone) => timezone | nil} | nil) :: timezone
+  def timezone(%{timezone: timezone}) when is_binary(timezone), do: timezone
+  def timezone(_profile), do: get_default_timezone()
 
   @doc """
   Gets the default timezone.
@@ -393,11 +405,7 @@ defmodule Tymeslot.Profiles do
 
       {:ok, profile} ->
         %{
-          # A profile's timezone column is nullable, so fall back here as
-          # `get_user_timezone/1` does — the declared `timezone` type is
-          # non-nil, and every caller reads a usable zone rather than each
-          # remembering the fallback.
-          timezone: profile.timezone || get_default_timezone(),
+          timezone: timezone(profile),
           max_bookings_per_day: profile.max_bookings_per_day,
           max_bookings_per_week: profile.max_bookings_per_week,
           max_bookings_per_month: profile.max_bookings_per_month

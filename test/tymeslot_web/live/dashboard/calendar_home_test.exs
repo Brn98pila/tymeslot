@@ -181,10 +181,10 @@ defmodule TymeslotWeb.Dashboard.CalendarHomeTest do
       :ok
     end
 
-    test "falls back to UTC rather than rendering an empty zone", %{conn: conn} do
+    test "shows the host default zone the calendar is read in, not an empty one", %{conn: conn} do
       {:ok, _lv, html} = live(conn, ~p"/dashboard")
 
-      assert header_timezone(html) == "UTC"
+      assert header_timezone(html) == "Tallinn, Estonia"
     end
   end
 

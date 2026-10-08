@@ -7,6 +7,7 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.Helpers do
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.Guests
   alias Tymeslot.Meetings.MeetingSchema
+  alias Tymeslot.Profiles
   alias TymeslotWeb.Dashboard.DashboardFormat
 
   @doc """
@@ -74,10 +75,8 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.Helpers do
   def get_meeting_timezone(nil, _profile), do: "UTC"
   def get_meeting_timezone(_meeting, nil), do: "UTC"
 
-  def get_meeting_timezone(_meeting, profile) do
-    # Organizer's timezone for the dashboard view
-    (profile && profile.timezone) || "UTC"
-  end
+  # Organizer's timezone for the dashboard view
+  def get_meeting_timezone(_meeting, profile), do: Profiles.timezone(profile)
 
   @doc "The meeting's full date in the organiser's timezone. See `DashboardFormat.long_date/1`."
   @spec format_meeting_date(Ecto.Schema.t(), String.t()) :: String.t()

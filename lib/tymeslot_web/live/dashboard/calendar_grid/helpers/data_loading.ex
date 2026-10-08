@@ -8,6 +8,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Helpers.DataLoading do
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Meetings
+  alias Tymeslot.Profiles
   alias Tymeslot.Timezones
   alias TymeslotWeb.Dashboard.CalendarGrid.Helpers.PreferenceHelpers
 
@@ -132,7 +133,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Helpers.DataLoading do
   @spec assign_timezone(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def assign_timezone(socket) do
     assigns = socket.assigns
-    raw_tz = get_in(assigns, [:profile, Access.key(:timezone)]) || Timezones.fallback()
+    raw_tz = Profiles.timezone(assigns[:profile])
     user_id = get_in(assigns, [:current_user, Access.key(:id)])
     tz = Timezones.validate_or_utc(raw_tz, user_id: user_id)
 
