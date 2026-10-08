@@ -410,6 +410,14 @@ defmodule Tymeslot.Payments.Webhooks.IngressTest do
       refute_received {:send_alert, _type, _payload}
     end
 
+    test "the echo of a customer deleted with its account is acknowledged without an alert" do
+      customer = %{"id" => "cus_123", "object" => "customer", "deleted" => true}
+
+      assert {:ok, :processed} = deliver(:platform, event("customer.deleted", customer))
+
+      refute_received {:send_alert, _type, _payload}
+    end
+
     test "the Connect endpoint acknowledges an unregistered type without an alert" do
       capture_log(fn ->
         assert {:ok, :processed} = deliver(:connect, event("charge.succeeded", %{"id" => "ch_1"}))

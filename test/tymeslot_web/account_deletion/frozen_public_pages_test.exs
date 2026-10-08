@@ -158,7 +158,7 @@ defmodule TymeslotWeb.AccountDeletion.FrozenPublicPagesTest do
       user_timezone: "Etc/UTC"
     }
 
-    assert Reschedule.execute(meeting.uid, new_params, %{}, user.id) ==
+    assert Reschedule.execute(meeting.uid, new_params, user.id) ==
              {:error, :meeting_not_found}
 
     assert {:ok, unchanged} = MeetingQueries.get_meeting(meeting.id)
