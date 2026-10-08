@@ -23,6 +23,7 @@ defmodule Tymeslot.Security.CredentialReencryptionTest do
   alias Tymeslot.Slack.SlackIntegrationSchema
   alias Tymeslot.Telegram
   alias Tymeslot.Telegram.TelegramIntegrationSchema
+  alias Tymeslot.Test.LegacyCiphertext
   alias Tymeslot.Webhooks
   alias Tymeslot.Webhooks.WebhookSchema
 
@@ -72,7 +73,7 @@ defmodule Tymeslot.Security.CredentialReencryptionTest do
     test "migrates legacy v0 values to the current version and leaves current values untouched" do
       legacy =
         insert(:telegram_integration,
-          bot_token_encrypted: Encryption.encrypt_legacy("legacy-bot-token")
+          bot_token_encrypted: LegacyCiphertext.encrypt("legacy-bot-token")
         )
 
       current =
@@ -103,7 +104,7 @@ defmodule Tymeslot.Security.CredentialReencryptionTest do
       webhook = insert(:webhook)
 
       Repo.update_all(from(w in "webhooks", where: w.id == ^webhook.id),
-        set: [url_encrypted: Encryption.encrypt_legacy("https://hooks.example.com/legacy")]
+        set: [url_encrypted: LegacyCiphertext.encrypt("https://hooks.example.com/legacy")]
       )
 
       assert {:ok, %{tables: %{"webhooks" => %{migrated_values: 1}}}} =
@@ -123,7 +124,7 @@ defmodule Tymeslot.Security.CredentialReencryptionTest do
 
       for poll <- polls do
         Repo.query!("UPDATE polls SET token_encrypted = $1 WHERE id = $2", [
-          Encryption.encrypt_legacy(poll.token),
+          LegacyCiphertext.encrypt(poll.token),
           UUID.dump!(poll.id)
         ])
       end
@@ -137,7 +138,7 @@ defmodule Tymeslot.Security.CredentialReencryptionTest do
     end
 
     test "a second run is a no-op" do
-      insert(:telegram_integration, bot_token_encrypted: Encryption.encrypt_legacy("token"))
+      insert(:telegram_integration, bot_token_encrypted: LegacyCiphertext.encrypt("token"))
 
       assert {:ok, %{totals: %{migrated_values: first}}} = CredentialReencryption.run()
       assert first >= 1
@@ -161,22 +162,22 @@ defmodule Tymeslot.Security.CredentialReencryptionTest do
       legacy_calendar =
         insert(:calendar_integration,
           provider: "google",
-          username_encrypted: Encryption.encrypt_legacy("legacy-username"),
-          password_encrypted: Encryption.encrypt_legacy("legacy-password"),
-          access_token_encrypted: Encryption.encrypt_legacy("legacy-access-token"),
-          refresh_token_encrypted: Encryption.encrypt_legacy("legacy-refresh-token")
+          username_encrypted: LegacyCiphertext.encrypt("legacy-username"),
+          password_encrypted: LegacyCiphertext.encrypt("legacy-password"),
+          access_token_encrypted: LegacyCiphertext.encrypt("legacy-access-token"),
+          refresh_token_encrypted: LegacyCiphertext.encrypt("legacy-refresh-token")
         )
 
       legacy_video =
         insert(:video_integration,
           provider: "teams",
-          api_key_encrypted: Encryption.encrypt_legacy("legacy-api-key"),
-          access_token_encrypted: Encryption.encrypt_legacy("legacy-access-token"),
-          refresh_token_encrypted: Encryption.encrypt_legacy("legacy-refresh-token"),
-          client_id_encrypted: Encryption.encrypt_legacy("legacy-client-id"),
-          client_secret_encrypted: Encryption.encrypt_legacy("legacy-client-secret"),
-          tenant_id_encrypted: Encryption.encrypt_legacy("legacy-tenant-id"),
-          teams_user_id_encrypted: Encryption.encrypt_legacy("legacy-teams-user-id")
+          api_key_encrypted: LegacyCiphertext.encrypt("legacy-api-key"),
+          access_token_encrypted: LegacyCiphertext.encrypt("legacy-access-token"),
+          refresh_token_encrypted: LegacyCiphertext.encrypt("legacy-refresh-token"),
+          client_id_encrypted: LegacyCiphertext.encrypt("legacy-client-id"),
+          client_secret_encrypted: LegacyCiphertext.encrypt("legacy-client-secret"),
+          tenant_id_encrypted: LegacyCiphertext.encrypt("legacy-tenant-id"),
+          teams_user_id_encrypted: LegacyCiphertext.encrypt("legacy-teams-user-id")
         )
 
       assert {:ok, %{tables: tables}} = CredentialReencryption.run()
@@ -229,7 +230,10 @@ defmodule Tymeslot.Security.CredentialReencryptionTest do
   describe "covered_tables/0" do
     test "every covered context implements the EncryptedStorage behaviour" do
       for {context, _table} <- @covered_contexts do
-        assert EncryptedStorage in (context.module_info(:attributes)[:behaviour] || []),
+        behaviours =
+          context.module_info(:attributes) |> Keyword.get_values(:behaviour) |> List.flatten()
+
+        assert EncryptedStorage in behaviours,
                "expected #{inspect(context)} to implement Tymeslot.Security.EncryptedStorage"
       end
     end

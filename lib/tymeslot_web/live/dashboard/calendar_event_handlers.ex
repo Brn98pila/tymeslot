@@ -168,7 +168,9 @@ defmodule TymeslotWeb.Dashboard.CalendarEventHandlers do
       original_event: payload[:original_event]
     )
 
-    {:noreply, put_flash(socket, :error, update_failed_message(payload[:reason]))}
+    # The inline edit announces its save up front, before the write runs.
+    {:noreply,
+     socket |> clear_flash(:info) |> put_flash(:error, update_failed_message(payload[:reason]))}
   end
 
   # A refusal the domain made names its own reason; everything else is a
@@ -465,8 +467,8 @@ defmodule TymeslotWeb.Dashboard.CalendarEventHandlers do
 
   # The reason is a domain term, never copy: an atom such as `:time_conflict`
   # would otherwise reach the flash verbatim. `CreateAdHoc`'s own refusals are
-  # the binaries `BookingErrorMessage` already translates, and anything it does
-  # not recognise falls back to a generic sentence there.
+  # atoms `BookingErrorMessage` renders, and anything it does not recognise
+  # falls back to a generic sentence there.
   defp ad_hoc_failed_message(:time_conflict) do
     dgettext(
       "dashboard_calendar_events",

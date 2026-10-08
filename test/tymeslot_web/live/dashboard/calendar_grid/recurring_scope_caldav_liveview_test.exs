@@ -65,10 +65,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
     swap_env(:outlook_calendar_api_module, OutlookAPI)
 
     user = insert(:user, onboarding_completed_at: DateTime.utc_now())
-    _profile = insert(:profile, user: user, timezone: "Etc/UTC")
+    profile = insert(:profile, user: user, timezone: "Etc/UTC")
     conn = conn |> Test.init_test_session(%{}) |> fetch_session() |> log_in_user(user)
 
-    {:ok, conn: conn, user: user}
+    {:ok, conn: conn, user: user, profile: profile}
   end
 
   # The series started two weeks ago, so today's occurrence is not its first,
@@ -339,7 +339,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
           recurrence_rule: "FREQ=MONTHLY;BYDAY=2MO;COUNT=24",
           provider_metadata: %{"uid" => "pinned-standup"},
           etag: "\"etag-1\"",
-          raw_ical: pinned_caldav_series(),
+          raw_ical: pinned_caldav_series("FREQ=MONTHLY;BYDAY=2MO;COUNT=24"),
           sync_state: "synced"
         )
 
@@ -359,6 +359,156 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
       )
 
       refute render(lv) =~ "Changes saved."
+    end
+  end
+
+  describe "a rule change to a series with parts the editor does not show" do
+    # An imported "second Monday" rule with a BYHOUR the expander does not
+    # follow: the editor shows only its frequency, interval and end.
+    @imported_rule "FREQ=MONTHLY;BYDAY=2MO;BYHOUR=9"
+
+    setup %{user: user} do
+      integration =
+        insert(:calendar_integration,
+          user: user,
+          provider: "caldav",
+          base_url: "https://caldav.example.com",
+          calendar_paths: ["/cal/"]
+        )
+
+      key = Calendar.strftime(today(), "%Y%m%dT090000")
+
+      start_at =
+        today()
+        |> DateTime.new!(~T[09:00:00], "Europe/Berlin")
+        |> DateTime.shift_zone!("Etc/UTC")
+
+      event =
+        insert(:provider_calendar_event,
+          calendar_integration: integration,
+          uid: "pinned-standup_#{key}",
+          provider: "caldav",
+          provider_calendar_id: "/cal/",
+          provider_event_id: "/cal/pinned-standup.ics",
+          summary: "Pinned standup",
+          start_at: start_at,
+          end_at: DateTime.add(start_at, 1, :hour),
+          all_day: false,
+          timezone: "Europe/Berlin",
+          recurrence_rule: @imported_rule,
+          provider_metadata: %{"uid" => "pinned-standup"},
+          etag: "\"etag-1\"",
+          raw_ical: pinned_caldav_series(@imported_rule),
+          sync_state: "synced"
+        )
+
+      %{event: event}
+    end
+
+    test "a new interval for all events keeps them", %{conn: conn, event: event} do
+      expect_puts(1)
+      {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+
+      lv
+      |> element("#calendar-grid")
+      |> render_hook("show_event", %{"event-id" => to_string(event.id)})
+
+      lv
+      |> element("#calendar-grid")
+      |> render_hook("update_event_recurrence", %{
+        "freq" => "monthly",
+        "interval" => "2",
+        "end_type" => "never"
+      })
+
+      confirm_scope(lv, "all")
+
+      assert [{_url, body, _headers}] = await_puts(1)
+      assert "RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=2MO;BYHOUR=9" in LineFolder.unfold_lines(body)
+    end
+  end
+
+  describe "a repeat rule given to a one-off CalDAV event" do
+    setup %{user: user, profile: profile} do
+      profile |> Changeset.change(timezone: "Europe/Berlin") |> Repo.update!()
+
+      integration =
+        insert(:calendar_integration,
+          user: user,
+          provider: "caldav",
+          base_url: "https://caldav.example.com",
+          calendar_paths: ["/cal/"]
+        )
+
+      start_at =
+        today()
+        |> DateTime.new!(~T[09:00:00], "Europe/Berlin")
+        |> DateTime.shift_zone!("Etc/UTC")
+
+      utc = &Calendar.strftime(&1, "%Y%m%dT%H%M%SZ")
+
+      event =
+        insert(:provider_calendar_event,
+          calendar_integration: integration,
+          uid: "planning",
+          provider: "caldav",
+          provider_calendar_id: "/cal/",
+          provider_event_id: "/cal/planning.ics",
+          summary: "Planning",
+          start_at: start_at,
+          end_at: DateTime.add(start_at, 1, :hour),
+          all_day: false,
+          # Sync stores UTC for an event written with UTC times, as Tymeslot
+          # writes every one-off.
+          timezone: "Etc/UTC",
+          etag: "\"etag-1\"",
+          raw_ical:
+            Enum.join(
+              [
+                "BEGIN:VCALENDAR",
+                "VERSION:2.0",
+                "BEGIN:VEVENT",
+                "UID:planning",
+                "DTSTAMP:20260901T090000Z",
+                "DTSTART:#{utc.(start_at)}",
+                "DTEND:#{utc.(DateTime.add(start_at, 1, :hour))}",
+                "SUMMARY:Planning",
+                "END:VEVENT",
+                "END:VCALENDAR"
+              ],
+              "\r\n"
+            ) <> "\r\n",
+          sync_state: "synced"
+        )
+
+      %{event: event}
+    end
+
+    # As a series it keeps its local time across DST only if it is written in
+    # a zone: RFC 5545 expands a rule in DTSTART's zone. The event's own zone
+    # is UTC, which keeps no local time, so the organiser's is used.
+    test "writes the new series in the organiser's zone", %{conn: conn, event: event} do
+      expect_puts(1)
+      {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+
+      lv
+      |> element("#calendar-grid")
+      |> render_hook("show_event", %{"event-id" => to_string(event.id)})
+
+      lv
+      |> element("#calendar-grid")
+      |> render_hook("update_event_recurrence", %{
+        "freq" => "weekly",
+        "interval" => "1",
+        "end_type" => "never"
+      })
+
+      assert [{_url, body, _headers}] = await_puts(1)
+      lines = LineFolder.unfold_lines(body)
+
+      assert "DTSTART;TZID=Europe/Berlin:#{Calendar.strftime(today(), "%Y%m%d")}T090000" in lines
+      assert "TZID:Europe/Berlin" in lines
+      assert Enum.any?(lines, &String.starts_with?(&1, "RRULE:FREQ=WEEKLY"))
     end
   end
 
@@ -386,7 +536,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
     ) <> "\r\n"
   end
 
-  defp pinned_caldav_series do
+  defp pinned_caldav_series(rule) do
     first = Calendar.strftime(first_day(), "%Y%m%d")
 
     Enum.join(
@@ -398,7 +548,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
         "DTSTAMP:20260901T090000Z",
         first_start_line(),
         "DTEND;TZID=Europe/Berlin:#{first}T100000",
-        "RRULE:FREQ=MONTHLY;BYDAY=2MO;COUNT=24",
+        "RRULE:" <> rule,
         "SUMMARY:Pinned standup",
         "END:VEVENT",
         "END:VCALENDAR"

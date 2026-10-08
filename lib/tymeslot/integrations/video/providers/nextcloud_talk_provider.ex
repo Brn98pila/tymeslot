@@ -70,15 +70,12 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Integrations.Video.NeedsReauth
-  alias Tymeslot.Integrations.Video.Providers.Capabilities
   alias Tymeslot.Integrations.Video.Providers.LinkRoom
   alias Tymeslot.Integrations.Video.Providers.NextcloudTalk.BookingConversation
   alias Tymeslot.Integrations.Video.Providers.NextcloudTalk.Client
   alias Tymeslot.Integrations.Video.Providers.NextcloudTalk.ServerRefusals
   alias Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   alias Tymeslot.Integrations.Video.RoomData
-  alias Tymeslot.Security.SsrfGuard
-  alias Tymeslot.Security.UrlValidation
 
   require Logger
 
@@ -94,16 +91,6 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider do
   @max_account_id_length 255
 
   @call_path "/index.php/call/"
-
-  @capabilities Capabilities.new!(
-                  waiting_room: true,
-                  recording: false,
-                  dial_in: false,
-                  max_participants: nil,
-                  breakout_rooms: false,
-                  screen_sharing: true,
-                  chat: true
-                )
 
   @impl ProviderBehaviour
   def create_meeting_room(%{needs_reauth: true}), do: {:error, :unauthorized}
@@ -142,11 +129,7 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider do
   def delete_meeting_room(_room_id, %{needs_reauth: true}), do: {:error, :unauthorized}
 
   def delete_meeting_room(room_id, config) when is_binary(room_id) do
-    case config |> credentials() |> Client.delete_room(room_id) |> tolerate_preserved(config) do
-      # Already gone, which is what a delete wants: cancelling stays idempotent.
-      {:error, :meeting_not_found} -> :ok
-      result -> result
-    end
+    config |> credentials() |> Client.delete_room(room_id) |> tolerate_preserved(config)
   end
 
   @impl ProviderBehaviour
@@ -160,10 +143,6 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider do
   end
 
   def extract_room_id(_meeting_url), do: nil
-
-  @impl ProviderBehaviour
-  def valid_meeting_url?(meeting_url),
-    do: LinkRoom.http_url?(meeting_url) and extract_room_id(meeting_url) != nil
 
   @impl ProviderBehaviour
   def perform_connection_test(%{needs_reauth: true}) do
@@ -183,12 +162,6 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider do
       check_talk(capabilities, config)
     end
   end
-
-  @impl ProviderBehaviour
-  def provider_type, do: :nextcloud_talk
-
-  @impl ProviderBehaviour
-  def display_name, do: "Nextcloud Talk"
 
   @impl ProviderBehaviour
   def connection_test_bucket, do: :nextcloud_talk
@@ -217,21 +190,6 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider do
            ) do
       validate_account_length(base_url, login)
     end
-  end
-
-  @impl ProviderBehaviour
-  def capabilities, do: @capabilities
-
-  @impl ProviderBehaviour
-  def handle_meeting_event(_event, _room_data, _additional_data), do: :ok
-
-  @impl ProviderBehaviour
-  def generate_meeting_metadata(room_data) do
-    %{
-      provider: "nextcloud_talk",
-      meeting_id: room_data.room_id,
-      join_url: room_data.meeting_url
-    }
   end
 
   @impl ProviderBehaviour
@@ -562,31 +520,21 @@ defmodule Tymeslot.Integrations.Video.Providers.NextcloudTalkProvider do
 
   defp flag_rejected_credentials(_config), do: :ok
 
-  defp validate_base_url(nil),
-    do: {:error, dgettext("dashboard_video", "Base URL is required")}
-
   # Every request carries the app password over Basic auth, so a public server
   # must be reached over https; a server on localhost or a private network stays
   # allowed, as it is for CalDAV, and so does one on an internal name (a Docker
   # service name, `.lan`, `.home.arpa`) once the operator allows private video
-  # addresses. API paths are appended to the server address,
-  # so `LinkRoom.validate_base_url/1` refuses a query string or a fragment, and
-  # credentials embedded in the address, which would reach guests in the link.
+  # addresses.
   defp validate_base_url(base_url) do
-    allow_private = SsrfGuard.allow_private_for_video?()
-
     with :ok <-
-           UrlValidation.validate_http_url(base_url,
-             block_private_ips: not allow_private,
-             enforce_https_for_public: true,
-             internal_names_local: allow_private,
+           LinkRoom.validate_server_url(base_url,
+             https: :for_public,
              https_error_message:
                dgettext(
                  "dashboard_video",
                  "Use an https:// server URL. Nextcloud receives your app password with every request."
                )
-           ),
-         :ok <- LinkRoom.validate_base_url(base_url) do
+           ) do
       {:ok, base_url}
     end
   end

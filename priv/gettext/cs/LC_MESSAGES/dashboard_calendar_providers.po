@@ -457,11 +457,6 @@ msgstr "Koncový bod CalDAV služby Apple iCloud nebyl nalezen. Adresa serveru m
 msgid "Apple iCloud connection successful"
 msgstr "Připojení ke službě Apple iCloud proběhlo úspěšně"
 
-#: lib/tymeslot/integrations/calendar/apple/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Apple iCloud requires HTTPS"
-msgstr "Apple iCloud vyžaduje HTTPS"
-
 #: lib/tymeslot/integrations/calendar/shared/error_messages.ex
 #, elixir-autogen, elixir-format
 msgid "Authentication failed for %{provider}. Please check your username and password"
@@ -486,11 +481,6 @@ msgstr "Ověření se nezdařilo. iCloud vyžaduje heslo pro konkrétní aplika
 #, elixir-autogen, elixir-format
 msgid "Baikal connection successful"
 msgstr "Připojení k serveru Baikal proběhlo úspěšně"
-
-#: lib/tymeslot/integrations/calendar/baikal/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Baikal error: %{detail}"
-msgstr "Chyba serveru Baikal: %{detail}"
 
 #: lib/tymeslot/integrations/calendar/baikal/provider.ex
 #, elixir-autogen, elixir-format
@@ -623,17 +613,6 @@ msgstr "Neplatná adresa Zimbra. Zadejte adresu svého serveru Zimbra (např. ht
 msgid "Invalid calendar credentials. Please update your connection."
 msgstr "Neplatné přihlašovací údaje ke kalendáři. Aktualizujte prosím připojení."
 
-#: lib/tymeslot/integrations/calendar/mailbox_org/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Invalid mailbox.org URL. Use https://dav.mailbox.org (or your custom mailbox.org-compatible CalDAV endpoint)."
-msgstr "Neplatná adresa mailbox.org. Použijte https://dav.mailbox.org (nebo vlastní koncový bod CalDAV kompatibilní s mailbox.org)."
-
-#: lib/tymeslot/integrations/calendar/nextcloud/provider.ex
-#: lib/tymeslot/integrations/calendar/shared/provider_common.ex
-#, elixir-autogen, elixir-format
-msgid "Missing required fields: %{fields}"
-msgstr "Chybí povinná pole: %{fields}"
-
 #: lib/tymeslot/integrations/calendar/shared/error_handler.ex
 #, elixir-autogen, elixir-format
 msgid "Network connection failed. Please check your internet connection."
@@ -686,6 +665,7 @@ msgid "Please enter a valid server URL (e.g., https://cloud.example.com)"
 msgstr "Zadejte prosím platnou adresu serveru (např. https://cloud.example.com)"
 
 #: lib/tymeslot/integrations/calendar/credential_fields.ex
+#: lib/tymeslot/integrations/calendar/shared/error_messages.ex
 #: lib/tymeslot/integrations/calendar/shared/provider_common.ex
 #, elixir-autogen, elixir-format
 msgid "Private or local network addresses are not allowed"
@@ -696,11 +676,6 @@ msgstr "Privátní ani lokální síťové adresy nejsou povolené"
 #, elixir-autogen, elixir-format
 msgid "Radicale connection successful"
 msgstr "Připojení k serveru Radicale proběhlo úspěšně"
-
-#: lib/tymeslot/integrations/calendar/radicale/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Radicale error: %{detail}"
-msgstr "Chyba serveru Radicale: %{detail}"
 
 #: lib/tymeslot/integrations/calendar/radicale/provider.ex
 #, elixir-autogen, elixir-format
@@ -859,11 +834,6 @@ msgstr "Neznámý poskytovatel: %{provider}"
 msgid "Unsupported provider: %{provider}"
 msgstr "Nepodporovaný poskytovatel: %{provider}"
 
-#: lib/tymeslot/integrations/calendar/zimbra/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Use HTTPS for non-local Zimbra servers"
-msgstr "Pro servery Zimbra mimo lokální síť použijte HTTPS"
-
 #: lib/tymeslot/integrations/calendar/credential_fields.ex
 #: lib/tymeslot/integrations/calendar/shared/provider_common.ex
 #, elixir-autogen, elixir-format
@@ -940,16 +910,6 @@ msgstr "Koncový bod CalDAV služby mailbox.org nebyl nalezen. Ověřte, že adr
 msgid "mailbox.org connection successful"
 msgstr "Připojení ke službě mailbox.org proběhlo úspěšně"
 
-#: lib/tymeslot/integrations/calendar/mailbox_org/provider.ex
-#, elixir-autogen, elixir-format
-msgid "mailbox.org requires HTTPS"
-msgstr "mailbox.org vyžaduje HTTPS"
-
-#: lib/tymeslot/integrations/calendar/caldav/errors.ex
-#, elixir-autogen, elixir-format
-msgid "The calendar server refused the request (HTTP %{status})."
-msgstr "Kalendářový server požadavek odmítl (HTTP %{status})."
-
 #: lib/tymeslot/integrations/calendar/caldav/offline_queue.ex
 #, elixir-autogen, elixir-format
 msgid "This change is missing the event's start or end time, so it could not be sent to the calendar server."
@@ -961,11 +921,6 @@ msgstr "U této změny chybí začátek nebo konec události, a proto ji nebyl
 #, elixir-autogen, elixir-format
 msgid "Calendar subscription"
 msgstr "Odběr kalendáře"
-
-#: lib/tymeslot/workers/sync_ics_calendar_worker.ex
-#, elixir-autogen, elixir-format
-msgid "Calendar subscription sync failed while writing a fetched event to the cache (%{type}): %{detail}"
-msgstr "Synchronizace odběru kalendáře selhala při zápisu načtené události do mezipaměti (%{type}): %{detail}"
 
 #: lib/tymeslot/integrations/calendar/ics/feed.ex
 #, elixir-autogen, elixir-format
@@ -1032,7 +987,7 @@ msgstr "Tento kanál kalendáře je příliš velký na zpracování."
 msgid "The calendar feed URL returned 404. Check that the link is complete and still published."
 msgstr "Adresa kanálu kalendáře vrátila 404. Zkontrolujte, zda je odkaz úplný a stále publikovaný."
 
-#: lib/tymeslot/workers/sync_ics_calendar_worker.ex
+#: lib/tymeslot/integrations/calendar/ics/feed.ex
 #, elixir-autogen, elixir-format
 msgid "The calendar feed came back empty, but the cache still holds previously synced events. Keeping the cache in place and retrying rather than emptying your diary."
 msgstr "Kanál kalendáře se vrátil prázdný, ale v mezipaměti jsou stále dříve synchronizované události. Mezipaměť zůstane zachována a synchronizace se zopakuje, aby se váš diář nevyprázdnil."
@@ -1284,6 +1239,47 @@ msgid "This change was made to one occurrence of a repeating event, and the cale
 msgstr "Tato změna se týká jednoho opakování opakované události, ale kalendářový server by ji použil na všechna opakování, a proto nebyla odeslána."
 
 #: lib/tymeslot/integrations/calendar/caldav/errors.ex
+#: lib/tymeslot/integrations/calendar/shared/error_messages.ex
 #, elixir-autogen, elixir-format
 msgid "The calendar server returned more data than Tymeslot can process at once."
 msgstr "Kalendářový server vrátil více dat, než dokáže Tymeslot najednou zpracovat."
+
+#: lib/tymeslot/integrations/calendar/shared/error_messages.ex
+#, elixir-autogen, elixir-format
+msgid "The calendar server at %{url} listed more items than Tymeslot can process at once. If this address points at a single calendar, enter your account's server address instead, and Tymeslot will find your calendars there."
+msgstr "Kalendářový server na adrese %{url} vypsal více položek, než dokáže Tymeslot najednou zpracovat. Pokud tato adresa vede k jedinému kalendáři, zadejte místo ní adresu serveru svého účtu a Tymeslot na ní vaše kalendáře najde."
+
+#: lib/tymeslot/integrations/calendar/caldav/family.ex
+#, elixir-autogen, elixir-format
+msgid "Apple iCloud always uses this CalDAV server, so the address cannot be changed"
+msgstr "Apple iCloud vždy používá tento server CalDAV, takže adresu nelze změnit"
+
+#: lib/tymeslot/integrations/calendar/mailbox_org/provider.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid mailbox.org URL. The server must be https://dav.mailbox.org."
+msgstr "Neplatná adresa mailbox.org. Server musí být https://dav.mailbox.org."
+
+#: lib/tymeslot/integrations/calendar/caldav/family.ex
+#, elixir-autogen, elixir-format
+msgid "mailbox.org always uses this CalDAV server, so the address cannot be changed"
+msgstr "mailbox.org vždy používá tento server CalDAV, takže adresu nelze změnit"
+
+#: lib/tymeslot/integrations/calendar/ics/feed.ex
+#, elixir-autogen, elixir-format
+msgid "Calendar subscription sync failed while saving a fetched event. Tymeslot will try again on the next sync."
+msgstr "Synchronizace odběru kalendáře selhala při ukládání načtené události. Tymeslot to zkusí znovu při příští synchronizaci."
+
+#: lib/tymeslot/integrations/calendar/ics/feed.ex
+#, elixir-autogen, elixir-format
+msgid "The calendar feed returned an error."
+msgstr "Kanál kalendáře vrátil chybu."
+
+#: lib/tymeslot/integrations/calendar/caldav/errors.ex
+#, elixir-autogen, elixir-format
+msgid "The calendar server refused the request."
+msgstr "Kalendářový server požadavek odmítl."
+
+#: lib/tymeslot/integrations/calendar/auth/jobs/token_refresh_job.ex
+#, elixir-autogen, elixir-format
+msgid "Tymeslot could not renew its access to this calendar. It will try again shortly."
+msgstr "Službě Tymeslot se nepodařilo obnovit přístup k tomuto kalendáři. Brzy to zkusí znovu."

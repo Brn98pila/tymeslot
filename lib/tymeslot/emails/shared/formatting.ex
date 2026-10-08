@@ -18,6 +18,7 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   take a locale, gettext-backed helpers read the ambient one.**
   """
 
+  alias Tymeslot.MeetingPayments.Money
   alias Tymeslot.Utils.DateTimeUtils.TimeFormat
   alias Tymeslot.Utils.ReminderUtils
   alias TymeslotWeb.Helpers.LocaleFormat
@@ -170,16 +171,14 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   defp zone_name(%DateTime{time_zone: zone, zone_abbr: zone}), do: ""
   defp zone_name(%DateTime{time_zone: zone}), do: " (#{zone})"
 
-  @doc """
-  Formats the inclusive range of days an all-day event covers: one date for a
-  single day, otherwise the locale's range form.
-  Example (en): "September 22, 2026", "September 22 – 24, 2026"
-  """
+  # Formats the inclusive range of days an all-day event covers: one date for a
+  # single day, otherwise the locale's range form.
+  # Example (en): "September 22, 2026", "September 22 – 24, 2026"
   @spec format_date_range(Date.Range.t(), String.t()) :: String.t()
-  def format_date_range(%Date.Range{first: first, last: first}, locale),
+  defp format_date_range(%Date.Range{first: first, last: first}, locale),
     do: format_date(first, locale)
 
-  def format_date_range(%Date.Range{first: first, last: last}, locale),
+  defp format_date_range(%Date.Range{first: first, last: last}, locale),
     do: LocaleFormat.format_date_range(first, last, locale)
 
   @doc """
@@ -359,45 +358,16 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   def without_location_note(details), do: details
 
   @doc """
-  Formats currency based on cents (or raw units for zero-decimal currencies) and currency code.
-  Falls back to prefixing with the ISO code for unrecognised currencies (e.g. "XYZ 12.34").
+  Formats an amount in minor units for an email, defaulting a missing currency
+  to euros. See `Tymeslot.MeetingPayments.Money.format/3` for the symbols and
+  the unrecognised-currency fallback (e.g. "HUF 175.00").
 
-  # TODO: locale-specific thousands/decimal separators are not yet implemented —
-  #       that requires threading a locale through all call sites and is a larger refactor.
+  Locale-specific thousands and decimal separators are not implemented; that
+  needs a locale threaded through every call site.
   """
   @spec format_currency(integer(), String.t() | nil) :: String.t()
-  def format_currency(cents, currency) do
-    normalised = String.downcase(currency || "eur")
-
-    symbol =
-      case normalised do
-        "usd" -> "$"
-        "gbp" -> "£"
-        "eur" -> "€"
-        "jpy" -> "¥"
-        "krw" -> "₩"
-        "cad" -> "CA$"
-        "aud" -> "A$"
-        "chf" -> "CHF "
-        other -> String.upcase(other) <> " "
-      end
-
-    if zero_decimal_currency?(normalised) do
-      "#{symbol}#{cents}"
-    else
-      sign = if cents < 0, do: "-", else: ""
-      abs_cents = abs(cents)
-      major = div(abs_cents, 100)
-      minor = rem(abs_cents, 100)
-      formatted = "#{sign}#{major}.#{String.pad_leading(Integer.to_string(minor), 2, "0")}"
-      "#{symbol}#{formatted}"
-    end
-  end
-
-  # ISO 4217 zero-decimal currencies — amounts are already in the major unit.
-  defp zero_decimal_currency?(currency) do
-    currency in ~w(jpy krw vnd bif clp djf gnf isk kmf mga pyg rwf ugx vuv xaf xof xpf)
-  end
+  def format_currency(cents, currency),
+    do: Money.format(cents, currency || "eur")
 
   @doc """
   Truncates text to a maximum length with ellipsis.

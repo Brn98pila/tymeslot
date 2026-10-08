@@ -5,8 +5,10 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ProviderCommon do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias Tymeslot.Integrations.Calendar.CalDAV.Family
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Providers.CaldavCommon
   alias Tymeslot.Integrations.Calendar.Runtime.CalendarPathResolver
   alias Tymeslot.Integrations.Calendar.Selection
@@ -29,23 +31,6 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ProviderCommon do
     case ReauthHandling.rejection_cause(message) do
       :expired_grant -> :token_expired
       :rejected_credentials -> :unauthorized
-    end
-  end
-
-  @doc """
-  Ensures all required fields are present in the config map.
-  """
-  @spec validate_required_fields(%{atom() => term()}, list(atom())) :: :ok | {:error, String.t()}
-  def validate_required_fields(config, required_fields) do
-    missing_fields = required_fields -- Map.keys(config)
-
-    if Enum.empty?(missing_fields) do
-      :ok
-    else
-      {:error,
-       dgettext("dashboard_calendar_providers", "Missing required fields: %{fields}",
-         fields: Enum.join(missing_fields, ", ")
-       )}
     end
   end
 
@@ -94,6 +79,31 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ProviderCommon do
         )
     )
   end
+
+  @doc """
+  Validates the server URL submitted for a CalDAV-family provider.
+
+  A provider with a fixed address in `CalDAV.Family` accepts that address
+  and nothing else, so the lock holds wherever a configuration is submitted,
+  not only in the form that renders the field greyed out. Every other member
+  goes through `validate_url/2`, with `invalid_message` as its wording.
+
+  Only submitted configurations are validated: a client built for a stored
+  integration skips validation, so a row saved before an address was fixed
+  keeps syncing until it is reconnected.
+  """
+  @spec validate_caldav_url(Family.member(), term(), String.t()) :: :ok | {:error, String.t()}
+  def validate_caldav_url(member, url, invalid_message) do
+    case Family.row!(member).fixed_url do
+      nil -> validate_url(url, message: invalid_message)
+      %{url: fixed} -> if same_url?(url, fixed), do: :ok, else: {:error, invalid_message}
+    end
+  end
+
+  defp same_url?(url, fixed) when is_binary(url),
+    do: url |> String.trim() |> String.trim_trailing("/") == fixed
+
+  defp same_url?(_url, _fixed), do: false
 
   @doc """
   Helper for providers to format calendars returned from their API.
@@ -299,13 +309,12 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ProviderCommon do
       password: integration.password,
       calendar_path: path,
       calendar_paths: [path],
-      writable_calendar_paths: writable_paths,
-      verify_ssl: true
+      writable_calendar_paths: writable_paths
     }
   end
 
-  defp normalize_provider(provider) when is_atom(provider), do: provider
-
-  defp normalize_provider(provider) when is_binary(provider),
-    do: String.to_existing_atom(provider)
+  defp normalize_provider(provider) do
+    {:ok, provider} = ProviderConfig.parse_known(provider)
+    provider
+  end
 end

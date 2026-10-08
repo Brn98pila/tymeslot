@@ -24,13 +24,6 @@ defmodule Tymeslot.Payments.Behaviours.SubscriptionManager do
               opts :: keyword()
             ) :: {:ok, map()} | {:error, term()}
 
-  @callback update_subscription(
-              subscription_id :: String.t(),
-              new_stripe_price_id :: String.t(),
-              user_id :: integer(),
-              metadata :: map()
-            ) :: {:ok, map()} | {:error, term()}
-
   @doc """
   Checks if branding should be shown for a user.
   """

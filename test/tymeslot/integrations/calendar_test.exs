@@ -67,10 +67,10 @@ defmodule Tymeslot.Integrations.CalendarTest do
       insert(:profile, user: user)
       integration = insert(:calendar_integration, user: user, is_active: true)
 
-      assert {:ok, toggled} = Calendar.toggle_integration(integration.id, user.id)
+      assert {:ok, toggled} = Calendar.toggle_integration(user.id, integration.id)
       refute toggled.is_active
 
-      assert {:ok, toggled_back} = Calendar.toggle_integration(integration.id, user.id)
+      assert {:ok, toggled_back} = Calendar.toggle_integration(user.id, integration.id)
       assert toggled_back.is_active
     end
   end
@@ -124,21 +124,6 @@ defmodule Tymeslot.Integrations.CalendarTest do
                )
 
       assert event.uid == "fallback-event"
-    end
-  end
-
-  describe "event operations" do
-    test "list_events/1 delegates to Operations" do
-      user = insert(:user)
-      insert(:calendar_integration, user: user, provider: "google", is_active: true)
-
-      expect(GoogleCalendarAPIMock, :list_primary_events, fn _int, _start, _end ->
-        {:ok, [%{"id" => "event1", "summary" => "Test Event"}]}
-      end)
-
-      assert {:ok, events} = CalendarEvents.list_events(user.id)
-      assert length(events) == 1
-      assert Enum.at(events, 0).uid == "event1"
     end
   end
 
@@ -368,7 +353,7 @@ defmodule Tymeslot.Integrations.CalendarTest do
     end
 
     test "sets a durable override for a meeting", %{user: user} do
-      meeting = insert(:meeting)
+      meeting = insert(:meeting, organizer_user_id: user.id)
 
       assert {:ok, _override} = Calendar.set_event_colour(user.id, {:meeting, meeting.id}, "sage")
       assert Calendar.overrides_for(user.id) == %{{:meeting, meeting.id} => "sage"}
@@ -376,33 +361,47 @@ defmodule Tymeslot.Integrations.CalendarTest do
   end
 
   describe "set_event_colour cross-tenant safety" do
-    test "an override targeting another user's integration is scoped to the setter, never the target owner" do
+    test "an override targeting another user's integration is refused and stores nothing" do
       user_a = insert(:user)
       user_b = insert(:user)
       integ_b = insert(:calendar_integration, user: user_b)
 
-      assert {:ok, _override} =
+      assert {:error, :not_found} =
                Calendar.set_event_colour(user_a.id, {:external, integ_b.id, "uid-x"}, "blueberry")
 
+      assert Calendar.overrides_for(user_a.id) == %{}
       assert Calendar.overrides_for(user_b.id) == %{}
+      refute_enqueued(worker: ColourWriteBackWorker)
+    end
 
-      assert Calendar.overrides_for(user_a.id) ==
+    test "an override targeting another user's meeting is refused and stores nothing" do
+      user_a = insert(:user)
+      user_b = insert(:user)
+      meeting = insert(:meeting, organizer_user_id: user_b.id, organizer_email: user_b.email)
+
+      assert {:error, :not_found} =
+               Calendar.set_event_colour(user_a.id, {:meeting, meeting.id}, "sage")
+
+      assert Calendar.overrides_for(user_a.id) == %{}
+      assert Calendar.overrides_for(user_b.id) == %{}
+    end
+
+    test "clearing another user's override is refused and leaves it in place" do
+      user_a = insert(:user)
+      user_b = insert(:user)
+      integ_b = insert(:calendar_integration, user: user_b)
+
+      {:ok, _override} =
+        Calendar.set_event_colour(user_b.id, {:external, integ_b.id, "uid-x"}, "blueberry")
+
+      assert {:error, :not_found} =
+               Calendar.clear_event_colour(user_a.id, {:external, integ_b.id, "uid-x"})
+
+      assert Calendar.overrides_for(user_b.id) ==
                %{{:external, integ_b.id, "uid-x"} => "blueberry"}
     end
 
-    test "an override targeting another user's meeting is scoped to the setter, never the owner" do
-      user_a = insert(:user)
-      user_b = insert(:user)
-      meeting = insert(:meeting, organizer_email: user_b.email)
-
-      assert {:ok, _override} =
-               Calendar.set_event_colour(user_a.id, {:meeting, meeting.id}, "sage")
-
-      assert Calendar.overrides_for(user_b.id) == %{}
-      assert Calendar.overrides_for(user_a.id) == %{{:meeting, meeting.id} => "sage"}
-    end
-
-    test "write-back for a foreign integration is not authorised" do
+    test "a write-back job for a foreign integration is discarded before reading its events" do
       user_a = insert(:user)
       user_b = insert(:user)
       integ_b = insert(:calendar_integration, user: user_b, provider: "google")
@@ -413,30 +412,18 @@ defmodule Tymeslot.Integrations.CalendarTest do
         provider: "google"
       )
 
-      assert {:ok, _override} =
-               Calendar.set_event_colour(user_a.id, {:external, integ_b.id, "uid-x"}, "blueberry")
-
-      # The write-back job carries the *setter's* user_id, not the target
-      # owner's. When it runs, `Calendar.Events.update_event/3` resolves the
-      # provider client via `fetch_integration_for_user(integration_id, user_id)`,
-      # which returns `:not_found` for an integration the setter does not own
-      # (see the "returns error when belongs to another user" test above), so the
-      # foreign write-back is rejected at the real authorisation gate. That gate
-      # is bypassed here because the calendar module is mocked, so we assert the
-      # observable contract instead: the job is scoped to the setter.
-      assert_enqueued(
-        worker: ColourWriteBackWorker,
-        args: %{
-          "user_id" => user_a.id,
-          "integration_id" => integ_b.id,
-          "uid" => "uid-x",
-          "colour" => "blueberry"
-        }
-      )
+      assert {:discard, :not_owned} =
+               perform_job(ColourWriteBackWorker, %{
+                 "user_id" => user_a.id,
+                 "integration_id" => integ_b.id,
+                 "uid" => "uid-x",
+                 "colour" => "blueberry"
+               })
     end
   end
 
-  describe "refresh_integration/1" do
+  # How each kind of integration is refreshed, through "refresh all".
+  describe "refresh_all_integrations/1" do
     defp insert_subscription(user) do
       insert(:calendar_integration,
         user: user,
@@ -452,7 +439,7 @@ defmodule Tymeslot.Integrations.CalendarTest do
       user = insert(:user)
       subscription = insert_subscription(user)
 
-      assert {:ok, :feed_sync_enqueued} = Calendar.refresh_integration(subscription)
+      assert {:ok, [{_name, :ok}]} = Calendar.refresh_all_integrations(user.id)
 
       assert_enqueued(
         worker: SyncIcsCalendarWorker,
@@ -462,10 +449,10 @@ defmodule Tymeslot.Integrations.CalendarTest do
 
     test "refreshing a subscription twice queues one sync and succeeds both times" do
       user = insert(:user)
-      subscription = insert_subscription(user)
+      insert_subscription(user)
 
-      assert {:ok, :feed_sync_enqueued} = Calendar.refresh_integration(subscription)
-      assert {:ok, :feed_sync_enqueued} = Calendar.refresh_integration(subscription)
+      assert {:ok, [{_name, :ok}]} = Calendar.refresh_all_integrations(user.id)
+      assert {:ok, [{_name, :ok}]} = Calendar.refresh_all_integrations(user.id)
 
       assert [_one] = all_enqueued(worker: SyncIcsCalendarWorker)
     end
@@ -478,7 +465,7 @@ defmodule Tymeslot.Integrations.CalendarTest do
         {:ok, [%{"id" => "rediscovered", "summary" => "Rediscovered"}]}
       end)
 
-      assert {:ok, :calendars_rediscovered} = Calendar.refresh_integration(integration)
+      assert {:ok, [{_name, :ok}]} = Calendar.refresh_all_integrations(user.id)
 
       refute_enqueued(worker: SyncIcsCalendarWorker)
       {:ok, reloaded} = Calendar.get_integration(integration.id, user.id)
@@ -488,23 +475,14 @@ defmodule Tymeslot.Integrations.CalendarTest do
     test "an Exchange mailbox takes discovery, never the feed worker" do
       user = insert(:user)
 
-      exchange =
-        insert(:calendar_integration,
-          user: user,
-          provider: "exchange",
-          base_url: "https://exchange.example.com/EWS/Exchange.asmx"
-        )
+      insert(:calendar_integration,
+        user: user,
+        provider: "exchange",
+        base_url: "https://exchange.example.com/EWS/Exchange.asmx"
+      )
 
-      refute match?({:ok, :feed_sync_enqueued}, Calendar.refresh_integration(exchange))
+      assert {:ok, [_one]} = Calendar.refresh_all_integrations(user.id)
       refute_enqueued(worker: SyncIcsCalendarWorker)
-    end
-
-    test "an integration deleted since it was loaded returns the discovery path's not-found error" do
-      user = insert(:user)
-      integration = insert(:calendar_integration, user: user, provider: "google")
-      Repo.delete!(integration)
-
-      assert {:error, :not_found} = Calendar.refresh_integration(integration)
     end
   end
 end

@@ -440,3 +440,8 @@ msgstr "Посібник із налаштування"
 #, elixir-autogen, elixir-format
 msgid "Delete %{type} integration"
 msgstr "Видалити інтеграцію %{type}"
+
+#: lib/tymeslot_web/live/dashboard/integrations_hub_component.ex
+#, elixir-autogen, elixir-format
+msgid "Your Stripe account's currency is not supported. Choose another to take payments."
+msgstr "Валюта вашого облікового запису Stripe не підтримується. Виберіть іншу, щоб приймати платежі."

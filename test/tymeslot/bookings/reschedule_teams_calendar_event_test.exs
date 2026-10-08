@@ -219,7 +219,7 @@ defmodule Tymeslot.Bookings.RescheduleTeamsCalendarEventTest do
     }
 
     assert {:ok, _updated} =
-             Reschedule.execute(meeting.uid, params, %{}, meeting.organizer_user_id)
+             Reschedule.execute(meeting.uid, params, meeting.organizer_user_id)
   end
 
   # Runs every calendar job the reschedule set off, in queue order, against

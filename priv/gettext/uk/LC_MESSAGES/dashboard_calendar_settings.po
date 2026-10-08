@@ -204,6 +204,7 @@ msgstr "Ці календарі наразі ігноруються під ча�
 msgid "This calendar integration is no longer available."
 msgstr "Ця інтеграція з календарем більше недоступна."
 
+#: lib/tymeslot/integrations/calendar/creation.ex
 #: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "Unsupported provider"
@@ -238,11 +239,6 @@ msgstr "Неможливо активувати повторно - цей обл
 #, elixir-autogen, elixir-format
 msgid "booking target can no longer accept bookings"
 msgstr "цільовий календар більше не може приймати бронювання"
-
-#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
-#, elixir-autogen, elixir-format
-msgid "unknown calendar"
-msgstr "невідомий календар"
 
 #: lib/tymeslot_web/live/dashboard/calendar_settings/provider_picker.ex
 #, elixir-autogen, elixir-format

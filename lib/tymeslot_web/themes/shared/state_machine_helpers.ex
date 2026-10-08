@@ -111,8 +111,7 @@ defmodule TymeslotWeb.Themes.Shared.StateMachineHelpers do
   defp validate_step_requirements(socket, :booking) do
     Calculate.validate_time_selection(
       socket.assigns[:selected_date],
-      socket.assigns[:selected_time],
-      socket.assigns[:available_slots]
+      socket.assigns[:selected_time]
     )
   end
 

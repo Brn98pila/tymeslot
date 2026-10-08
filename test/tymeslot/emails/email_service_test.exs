@@ -93,33 +93,6 @@ defmodule Tymeslot.Emails.EmailServiceTest do
     end
   end
 
-  describe "send_appointment_cancellation/2" do
-    test "routes to the organizer variant when the address is the organizer's" do
-      details = build_appointment_details(%{organizer_email: "organizer@example.com"})
-
-      assert {:ok, _response} =
-               EmailService.send_appointment_cancellation("organizer@example.com", details)
-
-      email = next_email()
-      assert email.to == [{"John Organizer", "organizer@example.com"}]
-      # The organizer's copy names the attendee; the attendee's names the organizer.
-      assert email.subject == "Meeting Cancelled - 15 Jan with Jane Attendee"
-      assert_no_more_emails()
-    end
-
-    test "routes to the attendee variant for any other address" do
-      details = build_appointment_details(%{attendee_email: "attendee@example.com"})
-
-      assert {:ok, _response} =
-               EmailService.send_appointment_cancellation("attendee@example.com", details)
-
-      email = next_email()
-      assert email.to == [{"Jane Attendee", "attendee@example.com"}]
-      assert email.subject == "Meeting Cancelled - 15 Jan with John Organizer"
-      assert_no_more_emails()
-    end
-  end
-
   describe "send_email_verification/2" do
     test "sends the verification link to the user's address" do
       user = build_user_data(%{email: "user@example.com", name: "Test User"})

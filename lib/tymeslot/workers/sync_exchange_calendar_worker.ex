@@ -210,10 +210,11 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
   @no_mailbox "Exchange integration has no addressable mailbox"
   @server_refused "Exchange server refused the sync request"
   @server_error "Exchange server returned a server error; the next scheduled sync will retry"
+  @too_large "Exchange server returned more data than Tymeslot can process at once"
 
   @impl ExpectedJobOutcome
   def expected_outcome?(reason) when is_binary(reason) do
-    reason in [@integration_gone, @credentials_rejected, @no_mailbox, @server_error] or
+    reason in [@integration_gone, @credentials_rejected, @no_mailbox, @server_error, @too_large] or
       reason == ReauthHandling.discard_reason() or
       String.starts_with?(reason, @server_refused <> ": ")
   end
@@ -428,11 +429,20 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
     {:discard, @server_error}
   end
 
+  # The server answered, past the response budget, for a single item too
+  # large on its own (`ItemDiscovery` halves larger batches). Not a refusal:
+  # the same item is answered the same way until it leaves the window.
+  defp handle_result({:error, :response_too_large}, integration) do
+    record_failure(integration, :response_too_large)
+
+    {:discard, @too_large}
+  end
+
   defp handle_result({:error, reason} = result, integration) do
     record_failure(integration, reason)
 
     if CalDAVErrors.terminal_error?(reason) do
-      {:discard, "#{@server_refused}: #{CalDAVErrors.describe_error(reason)}"}
+      {:discard, "#{@server_refused}: #{refusal(reason)}"}
     else
       result
     end
@@ -485,7 +495,7 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
       error: LogFormat.reason(reason)
     )
 
-    CalendarIntegrationQueries.mark_sync_error(integration, error_message(reason))
+    CalendarIntegrationQueries.mark_sync_error(integration, sync_error_message(reason))
 
     :ok
   end
@@ -497,42 +507,53 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
      DateTime.add(now, ProviderConfig.sync_window_future_days(), :day)}
   end
 
+  # The msgid stored as the integration's `sync_error`, untranslated: the
+  # integration card translates it in the owner's locale. Public for the test
+  # that pins every writer to a known msgid.
+  #
   # The guarded refusal gets its own sentence per half, because the two say
   # very different things to the owner: one means the diary would have been
   # emptied, the other that the grid would have gone blank.
-  defp error_message({:empty_result_with_populated_cache, @busy_only}) do
-    dgettext(
+  @doc false
+  @spec sync_error_message(term()) :: String.t()
+  def sync_error_message({:empty_result_with_populated_cache, @busy_only}) do
+    dgettext_noop(
       "dashboard_calendar_providers",
       "Exchange reported no busy time at all, but the cache still holds some. Keeping it in place and retrying rather than treating your diary as free."
     )
   end
 
-  defp error_message({:empty_result_with_populated_cache, _role}) do
-    dgettext(
+  def sync_error_message({:empty_result_with_populated_cache, _role}) do
+    dgettext_noop(
       "dashboard_calendar_providers",
       "Exchange returned no calendar events, but the cache still holds some. Keeping them in place and retrying rather than emptying your calendar view."
     )
   end
 
-  defp error_message({:soap_fault, _message}) do
-    dgettext(
+  def sync_error_message({:soap_fault, _message}) do
+    dgettext_noop(
       "dashboard_calendar_providers",
       "The Exchange server rejected the request."
     )
   end
 
-  defp error_message(:no_response_code) do
-    dgettext(
+  def sync_error_message(:no_response_code) do
+    dgettext_noop(
       "dashboard_calendar_providers",
       "The Exchange server answered the free/busy request with nothing Tymeslot could read. Retrying rather than treating your diary as free."
     )
   end
 
-  defp error_message({:response_code, _code}), do: error_message(:no_response_code)
-  defp error_message({:free_busy_view_type, _view}), do: error_message(:no_response_code)
+  def sync_error_message({:response_code, _code}), do: sync_error_message(:no_response_code)
+  def sync_error_message({:free_busy_view_type, _view}), do: sync_error_message(:no_response_code)
 
   # Everything else is a transport failure `Exchange.Client` named in CalDAV's
   # own vocabulary, so it is worded by the module that owns that vocabulary
   # rather than given a second Exchange-flavoured sentence here.
-  defp error_message(reason), do: CalDAVErrors.describe_error(reason)
+  def sync_error_message(reason), do: CalDAVErrors.describe_error(reason)
+
+  # The discard reason is what an operator reads on the job record, so it keeps
+  # the status the owner-facing sentence in `sync_error` leaves out.
+  defp refusal({:unexpected_status, status}), do: "HTTP #{status}"
+  defp refusal(reason), do: CalDAVErrors.describe_error(reason)
 end

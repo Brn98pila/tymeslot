@@ -118,29 +118,6 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationQueriesTest do
     end
   end
 
-  describe "get_all_by_profile_id/1" do
-    test "retrieves all customizations for a profile" do
-      profile = insert(:profile)
-      customization1 = insert(:theme_customization, profile: profile, theme_id: "1")
-      customization2 = insert(:theme_customization, profile: profile, theme_id: "2")
-      _other_customization = insert(:theme_customization)
-
-      result = ThemeCustomizationQueries.get_all_by_profile_id(profile.id)
-
-      assert length(result) == 2
-      assert Enum.any?(result, fn c -> c.id == customization1.id end)
-      assert Enum.any?(result, fn c -> c.id == customization2.id end)
-    end
-
-    test "returns empty list when profile has no customizations" do
-      profile = insert(:profile)
-
-      result = ThemeCustomizationQueries.get_all_by_profile_id(profile.id)
-
-      assert result == []
-    end
-  end
-
   describe "update/2" do
     test "updates customization attributes" do
       customization =

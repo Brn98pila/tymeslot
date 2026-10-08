@@ -93,38 +93,9 @@ defmodule Tymeslot.Integrations.Calendar.EventsRead do
     end
   end
 
-  @doc """
-  Fetches events without a time range for the given client.
-  """
-  @spec fetch_events_without_range(ProviderAdapter.adapter_client()) ::
-          {:ok, list(map()), String.t()} | {:error, term(), String.t()}
-  def fetch_events_without_range(client) do
-    case ProviderAdapter.get_events(client) do
-      {:ok, events} ->
-        now = DateTime.utc_now()
-        range_start = DateTime.add(now, -30, :day)
-        range_end = DateTime.add(now, 365, :day)
-
-        normalized = normalize_events(client, events)
-        expanded = expand_recurring_events(normalized, range_start, range_end)
-
-        wrap_events_result(client, {:ok, expanded})
-
-      error ->
-        wrap_events_result(client, error, :error)
-    end
-  end
-
-  # OAuth providers (Google, Outlook) return raw string-keyed API maps. CalDAV providers
-  # already return atom-keyed maps. Apply convert_events when the provider exposes it so
-  # downstream code can always access :uid, :start_time, etc. via atom keys.
-  defp normalize_events(client, events) do
-    if function_exported?(client.provider_module, :convert_events, 1) do
-      client.provider_module.convert_events(events)
-    else
-      events
-    end
-  end
+  # Every provider maps its `list_events/2` answer into atom-keyed plain maps,
+  # so downstream code can always read :uid, :start_time, etc.
+  defp normalize_events(client, events), do: client.provider_module.convert_events(events)
 
   # Expands recurring events (those with a recurrence_rule) into individual
   # occurrences within the requested date range, through the same expansion

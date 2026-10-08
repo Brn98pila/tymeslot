@@ -48,6 +48,10 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadFallbackShapesTest do
         {:error, :forced_failure}
       end
     end
+
+    @spec convert_events([map()]) :: [map()]
+
+    def convert_events(events), do: events
   end
 
   # Mirrors Google/Outlook: `list_events/2` answers with the raw string-keyed

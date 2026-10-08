@@ -384,11 +384,6 @@ msgstr "Fale com quem organiza"
 
 #: lib/tymeslot_web/live/scheduling/handlers/booking_submission_handler_component.ex
 #, elixir-autogen, elixir-format
-msgid "Please correct the errors below before submitting."
-msgstr "Corrija os erros abaixo antes de enviar."
-
-#: lib/tymeslot_web/live/scheduling/handlers/booking_submission_handler_component.ex
-#, elixir-autogen, elixir-format
 msgid "Please correct the errors below."
 msgstr "Corrija os erros abaixo."
 
@@ -1052,11 +1047,6 @@ msgstr "Não é possível remarcar uma reunião que já começou"
 
 #: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
 #, elixir-autogen, elixir-format
-msgid "Meeting is already cancelled"
-msgstr "A reunião já está cancelada"
-
-#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
-#, elixir-autogen, elixir-format
 msgid "Attendee email is required"
 msgstr "O e-mail do participante é obrigatório"
 
@@ -1084,11 +1074,6 @@ msgstr "O horário de término precisa ser depois do de início"
 #, elixir-autogen, elixir-format
 msgid "Failed to create meeting"
 msgstr "Não foi possível criar a reunião"
-
-#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
-#, elixir-autogen, elixir-format
-msgid "Failed to update meeting status"
-msgstr "Não foi possível atualizar o status da reunião"
 
 #: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
 #, elixir-autogen, elixir-format
@@ -1457,3 +1442,13 @@ msgstr "Outro local"
 #, elixir-autogen, elixir-format
 msgid "We couldn't check the host's calendar right now. Please try again in a few minutes."
 msgstr "Não foi possível verificar o calendário do anfitrião agora. Tente novamente em alguns minutos."
+
+#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
+#, elixir-autogen, elixir-format
+msgid "Cannot cancel an expired meeting"
+msgstr "Não é possível cancelar uma reunião expirada"
+
+#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
+#, elixir-autogen, elixir-format
+msgid "Cannot request a reschedule while the booking awaits approval"
+msgstr "Não é possível pedir a remarcação enquanto o agendamento aguarda aprovação"

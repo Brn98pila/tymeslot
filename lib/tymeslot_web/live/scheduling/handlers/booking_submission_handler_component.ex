@@ -34,6 +34,7 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
   alias Phoenix.Component
   alias Phoenix.LiveView
   alias Tymeslot.Bookings.DemoOrchestrator
+  alias Tymeslot.Bookings.Errors
   alias Tymeslot.CustomFields
   alias Tymeslot.Demo
   alias Tymeslot.Infrastructure.Logging.LogFormat
@@ -179,7 +180,7 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
 
   # Handles booking submission errors: updates the socket with the
   # appropriate error message and state.
-  @spec handle_booking_error(Phoenix.LiveView.Socket.t(), atom() | String.t()) ::
+  @spec handle_booking_error(Phoenix.LiveView.Socket.t(), Errors.classified_error()) ::
           {:error, Phoenix.LiveView.Socket.t()}
   defp handle_booking_error(socket, reason) do
     socket =
@@ -269,9 +270,6 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
       {:ok, meeting} ->
         handle_booking_success(socket, meeting, sanitized_params)
 
-      {:error, errors} when is_list(errors) ->
-        handle_field_errors(socket, errors, sanitized_params)
-
       {:error, :slot_taken} ->
         handle_slot_taken(socket)
 
@@ -299,20 +297,6 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
       |> Flash.put_flash(
         :error,
         dgettext("booking", "Preview session expired. Reload the page to continue.")
-      )
-
-    {:error, socket}
-  end
-
-  defp handle_field_errors(socket, errors, sanitized_params) do
-    socket =
-      socket
-      |> assign(:form, Component.to_form(sanitized_params))
-      |> assign(:validation_errors, Enum.into(errors, %{}))
-      |> BookingGuards.release_submission()
-      |> Flash.put_flash(
-        :error,
-        dgettext("booking", "Please correct the errors below before submitting.")
       )
 
     {:error, socket}

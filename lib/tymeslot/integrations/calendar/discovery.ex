@@ -84,8 +84,7 @@ defmodule Tymeslot.Integrations.Calendar.Discovery do
   This is the metered/cached discovery core, used both by
   `discover_calendars_for_credentials/5` (not-yet-persisted credentials) and
   by `discover_caldav_calendar_paths/1` (the creation-flow's opportunistic
-  pre-discovery). `Tymeslot.Integrations.Calendar.Connection.validate_connection/2`
-  also calls it directly for its CalDAV branch.
+  pre-discovery).
 
   ## Parameters
   - `provider` - The provider type (any atom returned by
@@ -126,7 +125,7 @@ defmodule Tymeslot.Integrations.Calendar.Discovery do
   def discover_calendars(provider_atom, config, opts) do
     case Keyword.fetch(opts, :actor) do
       {:ok, actor} ->
-        cache_key = DiscoveryService.build_cache_key(provider_atom, config)
+        cache_key = DiscoveryService.build_cache_key(provider_atom, config, actor)
         force_refresh = Keyword.get(opts, :force_refresh, false)
 
         probe_and_cache(cache_key, actor, force_refresh, fn ->
@@ -374,7 +373,7 @@ defmodule Tymeslot.Integrations.Calendar.Discovery do
   # own config-building (some decrypt, Nextcloud also standardizes) out of
   # this module.
   #
-  # Cache key is the integration's id rather than username@host: every
+  # Cache key is the integration's id rather than its credentials: every
   # caller here always passes `force_refresh: true` (a "refresh calendar
   # list" always wants a fresh network fetch), so the cache is invalidated
   # before every compute and only ever coalesces truly concurrent calls for

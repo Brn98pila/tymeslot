@@ -169,7 +169,6 @@ defmodule Tymeslot.Bookings.RescheduleCalendarCheckTest do
         duration: "15min",
         user_timezone: @timezone
       },
-      %{},
       organizer_user_id
     )
   end

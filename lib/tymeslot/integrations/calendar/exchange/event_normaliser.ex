@@ -91,14 +91,21 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.EventNormaliser do
   own message disappears from the grid with only a log line to say so.
   Availability is unaffected either way: it comes from `GetUserAvailability`
   over the whole mailbox, never from these items.
+
+  Takes one response, or every response of a read that was split into several
+  requests. The verdict covers the read as a whole: one request in which every
+  message failed does not refuse a read whose other requests were answered.
   """
-  @spec require_readable_batch(Soap.document()) :: :ok | {:error, Soap.failure()}
-  def require_readable_batch(doc) do
-    case Soap.response_messages(doc, "GetItemResponseMessage") do
+  @spec require_readable_batch(Soap.document() | [Soap.document()]) ::
+          :ok | {:error, Soap.failure()}
+  def require_readable_batch(docs) when is_list(docs) do
+    case Enum.flat_map(docs, &Soap.response_messages(&1, "GetItemResponseMessage")) do
       [] -> {:error, :no_response_messages}
       messages -> classify_batch(messages, Enum.reject(messages, &Soap.succeeded?/1))
     end
   end
+
+  def require_readable_batch(doc), do: require_readable_batch([doc])
 
   defp classify_batch(_messages, []), do: :ok
 

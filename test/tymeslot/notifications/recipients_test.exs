@@ -25,44 +25,36 @@ defmodule Tymeslot.Notifications.RecipientsTest do
     struct!(meeting, attrs)
   end
 
-  describe "determine_recipients/2" do
-    test "confirmation, reminder, cancellation, and reschedule go to both" do
+  describe "determine_recipients/1" do
+    test "a one-to-one meeting goes to both organiser and attendee" do
       meeting = meeting_with_organizer()
 
-      for type <- [:confirmation, :reminder, :cancellation, :reschedule] do
-        assert {:both, %{organizer: organizer, attendee: attendee}} =
-                 Recipients.determine_recipients(meeting, type)
+      assert {:both, %{organizer: organizer, attendee: attendee}} =
+               Recipients.determine_recipients(meeting)
 
-        assert organizer.name == "Alice Organizer"
-        assert attendee.name == "Bob Attendee"
-      end
-    end
-
-    test "unknown notification type defaults to both recipients" do
-      meeting = meeting_with_organizer()
-
-      assert {:both, _recipients} = Recipients.determine_recipients(meeting, :something_new)
+      assert organizer.name == "Alice Organizer"
+      assert attendee.name == "Bob Attendee"
     end
 
     test "organiser participant uses the organiser's profile timezone" do
       meeting = meeting_with_organizer()
 
       assert {:both, %{organizer: %{timezone: "Europe/London"}}} =
-               Recipients.determine_recipients(meeting, :confirmation)
+               Recipients.determine_recipients(meeting)
     end
 
     test "attendee participant uses attendee_timezone when set" do
       meeting = meeting_with_organizer(%{attendee_timezone: "Asia/Tokyo"})
 
       assert {:both, %{attendee: %{timezone: "Asia/Tokyo"}}} =
-               Recipients.determine_recipients(meeting, :confirmation)
+               Recipients.determine_recipients(meeting)
     end
 
     test "attendee participant falls back to organiser timezone when attendee_timezone is nil" do
       meeting = meeting_with_organizer(%{attendee_timezone: nil})
 
       assert {:both, %{attendee: %{timezone: "Europe/London"}}} =
-               Recipients.determine_recipients(meeting, :confirmation)
+               Recipients.determine_recipients(meeting)
     end
   end
 
@@ -103,14 +95,14 @@ defmodule Tymeslot.Notifications.RecipientsTest do
   describe "validate_recipients/1" do
     test "accepts a complete :both pair" do
       meeting = meeting_with_organizer()
-      recipients = Recipients.determine_recipients(meeting, :confirmation)
+      recipients = Recipients.determine_recipients(meeting)
 
       assert Recipients.validate_recipients(recipients) == :ok
     end
 
     test "rejects when the organiser is missing an email" do
       meeting = meeting_with_organizer(%{organizer_email: nil})
-      recipients = Recipients.determine_recipients(meeting, :confirmation)
+      recipients = Recipients.determine_recipients(meeting)
 
       assert {:error, message} = Recipients.validate_recipients(recipients)
       assert message =~ "organizer"
@@ -119,7 +111,7 @@ defmodule Tymeslot.Notifications.RecipientsTest do
 
     test "rejects when the attendee is missing required fields" do
       meeting = meeting_with_organizer(%{attendee_name: nil})
-      recipients = Recipients.determine_recipients(meeting, :confirmation)
+      recipients = Recipients.determine_recipients(meeting)
 
       assert {:error, message} = Recipients.validate_recipients(recipients)
       assert message =~ "attendee"

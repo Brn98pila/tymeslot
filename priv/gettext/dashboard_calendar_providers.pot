@@ -456,11 +456,6 @@ msgstr ""
 msgid "Apple iCloud connection successful"
 msgstr ""
 
-#: lib/tymeslot/integrations/calendar/apple/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Apple iCloud requires HTTPS"
-msgstr ""
-
 #: lib/tymeslot/integrations/calendar/shared/error_messages.ex
 #, elixir-autogen, elixir-format
 msgid "Authentication failed for %{provider}. Please check your username and password"
@@ -484,11 +479,6 @@ msgstr ""
 #: lib/tymeslot/integrations/calendar/baikal/provider.ex
 #, elixir-autogen, elixir-format
 msgid "Baikal connection successful"
-msgstr ""
-
-#: lib/tymeslot/integrations/calendar/baikal/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Baikal error: %{detail}"
 msgstr ""
 
 #: lib/tymeslot/integrations/calendar/baikal/provider.ex
@@ -622,17 +612,6 @@ msgstr ""
 msgid "Invalid calendar credentials. Please update your connection."
 msgstr ""
 
-#: lib/tymeslot/integrations/calendar/mailbox_org/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Invalid mailbox.org URL. Use https://dav.mailbox.org (or your custom mailbox.org-compatible CalDAV endpoint)."
-msgstr ""
-
-#: lib/tymeslot/integrations/calendar/nextcloud/provider.ex
-#: lib/tymeslot/integrations/calendar/shared/provider_common.ex
-#, elixir-autogen, elixir-format
-msgid "Missing required fields: %{fields}"
-msgstr ""
-
 #: lib/tymeslot/integrations/calendar/shared/error_handler.ex
 #, elixir-autogen, elixir-format
 msgid "Network connection failed. Please check your internet connection."
@@ -685,6 +664,7 @@ msgid "Please enter a valid server URL (e.g., https://cloud.example.com)"
 msgstr ""
 
 #: lib/tymeslot/integrations/calendar/credential_fields.ex
+#: lib/tymeslot/integrations/calendar/shared/error_messages.ex
 #: lib/tymeslot/integrations/calendar/shared/provider_common.ex
 #, elixir-autogen, elixir-format
 msgid "Private or local network addresses are not allowed"
@@ -694,11 +674,6 @@ msgstr ""
 #: lib/tymeslot/integrations/calendar/radicale/provider.ex
 #, elixir-autogen, elixir-format
 msgid "Radicale connection successful"
-msgstr ""
-
-#: lib/tymeslot/integrations/calendar/radicale/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Radicale error: %{detail}"
 msgstr ""
 
 #: lib/tymeslot/integrations/calendar/radicale/provider.ex
@@ -858,11 +833,6 @@ msgstr ""
 msgid "Unsupported provider: %{provider}"
 msgstr ""
 
-#: lib/tymeslot/integrations/calendar/zimbra/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Use HTTPS for non-local Zimbra servers"
-msgstr ""
-
 #: lib/tymeslot/integrations/calendar/credential_fields.ex
 #: lib/tymeslot/integrations/calendar/shared/provider_common.ex
 #, elixir-autogen, elixir-format
@@ -939,16 +909,6 @@ msgstr ""
 msgid "mailbox.org connection successful"
 msgstr ""
 
-#: lib/tymeslot/integrations/calendar/mailbox_org/provider.ex
-#, elixir-autogen, elixir-format
-msgid "mailbox.org requires HTTPS"
-msgstr ""
-
-#: lib/tymeslot/integrations/calendar/caldav/errors.ex
-#, elixir-autogen, elixir-format
-msgid "The calendar server refused the request (HTTP %{status})."
-msgstr ""
-
 #: lib/tymeslot/integrations/calendar/caldav/offline_queue.ex
 #, elixir-autogen, elixir-format
 msgid "This change is missing the event's start or end time, so it could not be sent to the calendar server."
@@ -959,11 +919,6 @@ msgstr ""
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/ics_url_config.ex
 #, elixir-autogen, elixir-format
 msgid "Calendar subscription"
-msgstr ""
-
-#: lib/tymeslot/workers/sync_ics_calendar_worker.ex
-#, elixir-autogen, elixir-format
-msgid "Calendar subscription sync failed while writing a fetched event to the cache (%{type}): %{detail}"
 msgstr ""
 
 #: lib/tymeslot/integrations/calendar/ics/feed.ex
@@ -1031,7 +986,7 @@ msgstr ""
 msgid "The calendar feed URL returned 404. Check that the link is complete and still published."
 msgstr ""
 
-#: lib/tymeslot/workers/sync_ics_calendar_worker.ex
+#: lib/tymeslot/integrations/calendar/ics/feed.ex
 #, elixir-autogen, elixir-format
 msgid "The calendar feed came back empty, but the cache still holds previously synced events. Keeping the cache in place and retrying rather than emptying your diary."
 msgstr ""
@@ -1283,6 +1238,47 @@ msgid "This change was made to one occurrence of a repeating event, and the cale
 msgstr ""
 
 #: lib/tymeslot/integrations/calendar/caldav/errors.ex
+#: lib/tymeslot/integrations/calendar/shared/error_messages.ex
 #, elixir-autogen, elixir-format
 msgid "The calendar server returned more data than Tymeslot can process at once."
+msgstr ""
+
+#: lib/tymeslot/integrations/calendar/shared/error_messages.ex
+#, elixir-autogen, elixir-format
+msgid "The calendar server at %{url} listed more items than Tymeslot can process at once. If this address points at a single calendar, enter your account's server address instead, and Tymeslot will find your calendars there."
+msgstr ""
+
+#: lib/tymeslot/integrations/calendar/caldav/family.ex
+#, elixir-autogen, elixir-format
+msgid "Apple iCloud always uses this CalDAV server, so the address cannot be changed"
+msgstr ""
+
+#: lib/tymeslot/integrations/calendar/mailbox_org/provider.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid mailbox.org URL. The server must be https://dav.mailbox.org."
+msgstr ""
+
+#: lib/tymeslot/integrations/calendar/caldav/family.ex
+#, elixir-autogen, elixir-format
+msgid "mailbox.org always uses this CalDAV server, so the address cannot be changed"
+msgstr ""
+
+#: lib/tymeslot/integrations/calendar/ics/feed.ex
+#, elixir-autogen, elixir-format
+msgid "Calendar subscription sync failed while saving a fetched event. Tymeslot will try again on the next sync."
+msgstr ""
+
+#: lib/tymeslot/integrations/calendar/ics/feed.ex
+#, elixir-autogen, elixir-format
+msgid "The calendar feed returned an error."
+msgstr ""
+
+#: lib/tymeslot/integrations/calendar/caldav/errors.ex
+#, elixir-autogen, elixir-format
+msgid "The calendar server refused the request."
+msgstr ""
+
+#: lib/tymeslot/integrations/calendar/auth/jobs/token_refresh_job.ex
+#, elixir-autogen, elixir-format
+msgid "Tymeslot could not renew its access to this calendar. It will try again shortly."
 msgstr ""

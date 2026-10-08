@@ -238,7 +238,7 @@ defmodule TymeslotWeb.MeetingRequestLiveTest do
       # `approval_requested_at`, a fresh deadline, and above all a different
       # time from the one rendered on the host's page.
       {:ok, rerequested} =
-        Reschedule.execute(meeting.uid, reschedule_params(), %{}, user.id)
+        Reschedule.execute(meeting.uid, reschedule_params(), user.id)
 
       assert rerequested.start_time != meeting.start_time
 
@@ -270,7 +270,7 @@ defmodule TymeslotWeb.MeetingRequestLiveTest do
 
       {:ok, view, _html} = live(conn, request_path(meeting))
 
-      {:ok, rerequested} = Reschedule.execute(meeting.uid, reschedule_params(), %{}, user.id)
+      {:ok, rerequested} = Reschedule.execute(meeting.uid, reschedule_params(), user.id)
       assert rerequested.status == "awaiting_approval"
 
       # Dispatched directly, as the older DOM the host is looking at would:

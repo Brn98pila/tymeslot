@@ -26,9 +26,10 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestExpired do
     Styles,
     TemplateHelper,
     Text,
-    TextBodyHelper,
-    TimezoneHelper
+    TextBodyHelper
   }
+
+  alias Tymeslot.Utils.DateTimeUtils
 
   alias Tymeslot.Emails.Shared.BookingRequestLocation
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
@@ -41,7 +42,7 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestExpired do
   def render(%Meeting{} = meeting, locale) do
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       clock = HostClock.for_meeting(meeting, locale)
-      host_time = TimezoneHelper.convert_to_timezone(meeting.start_time, clock.timezone)
+      host_time = DateTimeUtils.convert_to_timezone(meeting.start_time, clock.timezone)
       details = meeting_details(meeting, host_time, clock)
 
       mjml_content = """

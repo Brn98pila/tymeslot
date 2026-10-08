@@ -133,12 +133,25 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
           | {:error, :not_found}
           | {:error, :requires_reencryption, VideoIntegrationSchema.t()}
   def get_for_user(id, user_id) do
-    result =
-      VideoIntegrationSchema
-      |> where([v], v.id == ^id and v.user_id == ^user_id)
-      |> Repo.one()
+    VideoIntegrationSchema
+    |> where([v], v.id == ^id and v.user_id == ^user_id)
+    |> one_decrypted()
+  end
 
-    case result do
+  @doc "As `get_for_user/2`, but a disconnected (soft-deleted) integration is not found."
+  @spec get_live_for_user(integer(), integer()) ::
+          {:ok, VideoIntegrationSchema.t()}
+          | {:error, :not_found}
+          | {:error, :requires_reencryption, VideoIntegrationSchema.t()}
+  def get_live_for_user(id, user_id) do
+    VideoIntegrationSchema
+    |> where([v], v.id == ^id and v.user_id == ^user_id)
+    |> exclude_deleted()
+    |> one_decrypted()
+  end
+
+  defp one_decrypted(query) do
+    case Repo.one(query) do
       nil ->
         {:error, :not_found}
 
@@ -388,102 +401,6 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
   end
 
   @doc """
-  Records that the provider refuses to create rooms for the integration `id`
-  with `code`, stamping the time only when the code is new, so the time stays
-  the one the refusal was first seen.
-  """
-  @spec record_room_creation_error(integer(), atom()) :: :ok
-  def record_room_creation_error(id, code) when is_integer(id) and is_atom(code) do
-    VideoIntegrationSchema
-    |> where([v], v.id == ^id)
-    |> where([v], is_nil(v.room_creation_error) or v.room_creation_error != ^code)
-    |> Repo.update_all(
-      set: [room_creation_error: code, room_creation_error_since: DateTime.utc_now(:second)]
-    )
-
-    :ok
-  end
-
-  @doc """
-  Clears the room creation error recorded for the integration `id`.
-  """
-  @spec clear_room_creation_error(integer()) :: :ok
-  def clear_room_creation_error(id) when is_integer(id) do
-    VideoIntegrationSchema
-    |> where([v], v.id == ^id and not is_nil(v.room_creation_error))
-    |> Repo.update_all(set: [room_creation_error: nil, room_creation_error_since: nil])
-
-    :ok
-  end
-
-  @doc """
-  Claims the email about room creation error `code` for the integration `id`,
-  stamping `now` as the time the owner was told: returns `true` for the caller
-  that claims it, and `false` while a claim made since `resend_after` stands.
-
-  One conditional update, so concurrent callers serialise on the row and only
-  the first one's condition still holds. `release_room_creation_error_notice/2`
-  gives a claim back when its email never went out.
-  """
-  @spec claim_room_creation_error_notice(integer(), atom(), DateTime.t(), DateTime.t()) ::
-          boolean()
-  def claim_room_creation_error_notice(id, code, now, resend_after)
-      when is_integer(id) and is_atom(code) do
-    code = Atom.to_string(code)
-
-    {count, _rows} =
-      VideoIntegrationSchema
-      |> where([v], v.id == ^id)
-      |> where(
-        [v],
-        fragment(
-          "? -> ? IS NULL OR (? ->> ?)::timestamptz < ?::timestamptz",
-          v.room_creation_error_notices,
-          type(^code, :string),
-          v.room_creation_error_notices,
-          type(^code, :string),
-          type(^DateTime.to_iso8601(resend_after), :string)
-        )
-      )
-      |> update([v],
-        set: [
-          room_creation_error_notices:
-            fragment(
-              "jsonb_set(coalesce(?, '{}'::jsonb), array[?], to_jsonb(?::text))",
-              v.room_creation_error_notices,
-              type(^code, :string),
-              type(^DateTime.to_iso8601(now), :string)
-            )
-        ]
-      )
-      |> Repo.update_all([])
-
-    count == 1
-  end
-
-  @doc """
-  Gives back the claim on the email about `code` for the integration `id`, for
-  an email that was never sent: the next refusal with that code claims it
-  again.
-  """
-  @spec release_room_creation_error_notice(integer(), atom()) :: :ok
-  def release_room_creation_error_notice(id, code) when is_integer(id) and is_atom(code) do
-    code = Atom.to_string(code)
-
-    VideoIntegrationSchema
-    |> where([v], v.id == ^id)
-    |> update([v],
-      set: [
-        room_creation_error_notices:
-          fragment("? - ?", v.room_creation_error_notices, type(^code, :string))
-      ]
-    )
-    |> Repo.update_all([])
-
-    :ok
-  end
-
-  @doc """
   Flags an integration as needing reauthentication — used when the stored
   credentials can no longer be decrypted. Also records a sync error so the
   dashboard banner stays consistent.
@@ -573,6 +490,20 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
       |> Repo.delete_all()
 
     {:ok, count}
+  end
+
+  @doc """
+  Sets the integration inactive, never the other way round: the write forces
+  `is_active` to false whatever the struct says, so a stale struct cannot turn
+  a pause into a reactivation.
+  """
+  @spec deactivate(VideoIntegrationSchema.t()) ::
+          {:ok, VideoIntegrationSchema.t()} | {:error, Changeset.t()}
+  def deactivate(%VideoIntegrationSchema{} = integration) do
+    integration
+    |> Changeset.change()
+    |> Changeset.force_change(:is_active, false)
+    |> Repo.update()
   end
 
   @doc """

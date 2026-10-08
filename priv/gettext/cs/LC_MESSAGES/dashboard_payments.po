@@ -469,3 +469,23 @@ msgstr "Odmítnuto %{date}"
 #, elixir-autogen, elixir-format
 msgid "You declined these bookings, but their automatic refund didn't go through. Refund them here or in Stripe."
 msgstr "Tyto rezervace jste odmítli, ale jejich automatické vrácení peněz se nezdařilo. Vraťte peníze zde nebo ve Stripe."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/currency_selector.ex
+#, elixir-autogen, elixir-format
+msgid "Your Stripe account's currency, %{currency}, is not supported for meeting payments. Choose one of the currencies below to take payments again."
+msgstr "Měna vašeho účtu Stripe, %{currency}, není pro platby za schůzky podporovaná. Chcete-li znovu přijímat platby, vyberte jednu z měn níže."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/status_card.ex
+#, elixir-autogen, elixir-format
+msgid "Currency not supported"
+msgstr "Nepodporovaná měna"
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/status_card.ex
+#, elixir-autogen, elixir-format
+msgid "Payments cannot be taken in your account's currency, %{currency}. Choose a supported currency below to take payments again."
+msgstr "V měně vašeho účtu, %{currency}, nelze přijímat platby. Chcete-li znovu přijímat platby, vyberte níže podporovanou měnu."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/currency_selector.ex
+#, elixir-autogen, elixir-format
+msgid "Prices can no longer be set in your Stripe account's currency, %{currency}. Bookings are still charged their current prices; choose one of the currencies below to change them."
+msgstr "V měně vašeho účtu Stripe, %{currency}, už nelze nastavovat ceny. Rezervace se stále účtují za současné ceny; chcete-li je změnit, vyberte jednu z měn níže."

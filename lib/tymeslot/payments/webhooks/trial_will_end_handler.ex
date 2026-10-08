@@ -11,25 +11,28 @@ defmodule Tymeslot.Payments.Webhooks.TrialWillEndHandler do
   - Broadcast event for real-time dashboard updates
   """
 
-  use Tymeslot.Payments.Behaviours.WebhookHandler
+  @behaviour Tymeslot.Payments.Behaviours.WebhookHandler
 
   require Logger
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Payments.Behaviours.WebhookHandler
   alias Tymeslot.Payments.Config
   alias Tymeslot.Payments.PubSub
   alias Tymeslot.Payments.Webhooks.WebhookUtils
 
-  @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def can_handle?("customer.subscription.trial_will_end"), do: true
-  def can_handle?(_event_type), do: false
-
-  @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def process(event, subscription_object) do
-    subscription_id = subscription_object["id"]
-    # customer_id = subscription_object["customer"]
-    trial_end = subscription_object["trial_end"]
-
+  @impl WebhookHandler
+  def handle(
+        %{
+          "data" => %{
+            "object" => %{
+              "id" => subscription_id,
+              "customer" => _customer,
+              "trial_end" => trial_end
+            }
+          }
+        } = event
+      ) do
     Logger.info("Trial ending soon",
       subscription_id: subscription_id,
       trial_end: trial_end
@@ -46,7 +49,7 @@ defmodule Tymeslot.Payments.Webhooks.TrialWillEndHandler do
                trial_ends_at: trial_ends_at
              }) do
           :ok -> notify_trial_ending(subscription_id)
-          {:error, _reason} -> {:error, :retry_later, "Trial event hand-off failed"}
+          {:error, reason} -> {:error, :retry_later, {:hand_off_failed, reason}}
         end
 
       _other ->
@@ -55,9 +58,11 @@ defmodule Tymeslot.Payments.Webhooks.TrialWillEndHandler do
           trial_end: LogFormat.reason(trial_end)
         )
 
-        {:error, :invalid_timestamp, "Invalid trial_end timestamp: #{inspect(trial_end)}"}
+        {:error, :permanent, :invalid_timestamp}
     end
   end
+
+  def handle(_event), do: {:error, :permanent, :missing_fields}
 
   defp notify_trial_ending(subscription_id) do
     # Find subscription in our database for local notifications
@@ -76,19 +81,6 @@ defmodule Tymeslot.Payments.Webhooks.TrialWillEndHandler do
         {:ok, :trial_ending_notified}
     end
   end
-
-  @impl Tymeslot.Payments.Behaviours.WebhookHandler
-  def validate(subscription_object) when is_map(subscription_object) do
-    required_fields = ["id", "customer", "trial_end"]
-
-    if Enum.all?(required_fields, &Map.has_key?(subscription_object, &1)) do
-      :ok
-    else
-      {:error, :missing_fields, "Missing required fields in trial_will_end object"}
-    end
-  end
-
-  def validate(_event), do: {:error, :invalid_structure, "Invalid trial_will_end object"}
 
   # Private functions
 

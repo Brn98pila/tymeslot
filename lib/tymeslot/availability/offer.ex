@@ -6,7 +6,7 @@ defmodule Tymeslot.Availability.Offer do
   date (`slots_for_date/3`), and which days in a range have any free time at
   all (`days_in_range/4`). Both build their rules from `config/4`, which rests
   on `Tymeslot.Availability.Schedules.config/2`, the same rules the booking
-  submit re-checks against (`Tymeslot.Bookings.Policy.scheduling_config/2`).
+  submit re-checks against (`Tymeslot.Bookings.Schedules.booking_config/2`).
   A time offered here is therefore a time the submit accepts.
 
   For a group meeting type the offer is seat-aware: each time carries how
@@ -68,7 +68,6 @@ defmodule Tymeslot.Availability.Offer do
       on it, the meeting keeps its time and stays busy. Wins over
       `:reschedule_uid`, as it does on submit.
     * `:demo_mode?` - whether the page is running as a demo.
-    * `:debug_calendar_module` - a calendar module override, for development.
   """
   @type request :: %{
           required(:profile) => %{required(:user_id) => integer(), optional(atom()) => any()},
@@ -76,8 +75,7 @@ defmodule Tymeslot.Availability.Offer do
           optional(:meeting_type) => map() | nil,
           optional(:reschedule_uid) => String.t() | nil,
           optional(:reschedule_seat_token) => String.t() | nil,
-          optional(:demo_mode?) => boolean() | nil,
-          optional(:debug_calendar_module) => module() | nil
+          optional(:demo_mode?) => boolean() | nil
         }
 
   @doc """
@@ -393,11 +391,9 @@ defmodule Tymeslot.Availability.Offer do
     Demo.demo_profile?(profile) || request[:demo_mode?] == true
   end
 
-  # The context map the calendar fetch reads. Its contract names these two keys
+  # The context map the calendar fetch reads. Its contract names this one key
   # only, so the demo provider's extra keys stay out of it.
-  defp calendar_context(%{profile: profile} = request) do
-    %{organizer_profile: profile, debug_calendar_module: request[:debug_calendar_module]}
-  end
+  defp calendar_context(%{profile: profile}), do: %{organizer_profile: profile}
 
   # The context map the demo provider reads.
   defp context(request) do

@@ -8,6 +8,7 @@ defmodule Tymeslot.MeetingPayments.ConnectAccountsTest do
   @moduletag :payments
 
   import Ecto.Query, only: [from: 2]
+  import ExUnit.CaptureLog
   import Mox
   import Tymeslot.ConfigTestHelpers
 
@@ -58,6 +59,22 @@ defmodule Tymeslot.MeetingPayments.ConnectAccountsTest do
       assert account.status == "active"
       assert_received {:idempotency_key, key}
       assert key == "connect_account:#{account.id}"
+    end
+
+    test "refuses an account Stripe opened in an unsupported currency, keeping the placeholder" do
+      user = insert(:user)
+
+      expect(StripeAdapterMock, :create_account, fn _params, _opts ->
+        {:ok, %{id: "acct_TEST_JPY", default_currency: "jpy"}}
+      end)
+
+      capture_log(fn ->
+        assert {:error, :unsupported_currency} = ConnectAccounts.start_onboarding(user)
+      end)
+
+      account = ConnectAccountQueries.live_for_user(user.id)
+      assert account.status == "creating"
+      assert account.default_currency == nil
     end
 
     test "uses the operator-configured default country" do
@@ -331,6 +348,34 @@ defmodule Tymeslot.MeetingPayments.ConnectAccountsTest do
       assert reloaded.charges_enabled == true
       assert reloaded.payouts_enabled == true
       assert reloaded.details_submitted == true
+    end
+
+    test "returns the rejected changeset and leaves the row unchanged when the update fails" do
+      user = insert(:user)
+      {:ok, account} = ConnectAccountQueries.insert_placeholder(user.id, "ch")
+
+      {:ok, _updated} =
+        ConnectAccountQueries.update(account, %{
+          stripe_account_id: "acct_REJECTED",
+          status: "active"
+        })
+
+      stripe_account = %{
+        "id" => "acct_REJECTED",
+        "charges_enabled" => "not-a-boolean",
+        "payouts_enabled" => true,
+        "details_submitted" => true,
+        "requirements" => %{"disabled_reason" => nil}
+      }
+
+      assert {:error, %Ecto.Changeset{errors: errors}} =
+               ConnectAccounts.apply_account_event(stripe_account, DateTime.utc_now(:second))
+
+      assert Keyword.has_key?(errors, :charges_enabled)
+
+      reloaded = ConnectAccountQueries.live_for_user(user.id)
+      refute reloaded.payouts_enabled
+      assert reloaded.last_account_event_at == nil
     end
 
     test "ignores events for unknown accounts" do

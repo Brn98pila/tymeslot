@@ -59,8 +59,7 @@ defmodule Tymeslot.Integrations.HealthCheckTestSetup do
 
   @doc """
   Blocks until the `HealthCheck` GenServer has finished processing its message
-  queue. Use after triggering `check_all_integrations/0` or draining the
-  health-check job queue.
+  queue. Use after draining the health-check job queue.
   """
   @spec sync_with_server(non_neg_integer()) :: term()
   def sync_with_server(timeout \\ 5_000) do

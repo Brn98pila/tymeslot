@@ -220,20 +220,27 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandlerTest do
     end
   end
 
-  describe "validate/1" do
-    test "accepts valid refund object with required fields" do
-      refund = %{"id" => "re_test_123"}
-      assert RefundHandler.validate(refund) == :ok
+  describe "handle/1 with a malformed event" do
+    for type <- ["charge.refunded", "charge.refund.updated"] do
+      test "#{type} without an object id is a permanent failure" do
+        for object <- [%{"amount" => 1000}, %{}, nil] do
+          event = %{"id" => "evt_bad", "type" => unquote(type), "data" => %{"object" => object}}
+          assert {:error, :permanent, :missing_fields} = RefundHandler.handle(event)
+        end
+
+        assert {:error, :permanent, :missing_fields} =
+                 RefundHandler.handle(%{"id" => "evt_bad", "type" => unquote(type)})
+      end
     end
 
-    test "rejects refund object missing id" do
-      refund = %{"amount" => 1000}
-      assert {:error, :missing_fields, _message} = RefundHandler.validate(refund)
-    end
+    test "an event type the handler does not own is a permanent failure" do
+      event = %{
+        "id" => "evt_other",
+        "type" => "charge.succeeded",
+        "data" => %{"object" => %{"id" => "ch_1"}}
+      }
 
-    test "rejects non-map input" do
-      assert {:error, :invalid_structure, _message} = RefundHandler.validate("not a map")
-      assert {:error, :invalid_structure, _message} = RefundHandler.validate(nil)
+      assert {:error, :permanent, :missing_fields} = RefundHandler.handle(event)
     end
   end
 
@@ -255,22 +262,6 @@ defmodule Tymeslot.Payments.Webhooks.RefundHandlerTest do
 
     test "defaults to eur when currency value is nil" do
       assert RefundHandler.extract_charge_currency(%{"currency" => nil}) == "eur"
-    end
-  end
-
-  describe "can_handle?/1" do
-    test "handles charge.refunded events" do
-      assert RefundHandler.can_handle?("charge.refunded") == true
-    end
-
-    test "handles charge.refund.updated events" do
-      assert RefundHandler.can_handle?("charge.refund.updated") == true
-    end
-
-    test "rejects other event types" do
-      assert RefundHandler.can_handle?("charge.succeeded") == false
-      assert RefundHandler.can_handle?("payment_intent.succeeded") == false
-      assert RefundHandler.can_handle?("customer.created") == false
     end
   end
 end

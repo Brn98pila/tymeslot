@@ -418,7 +418,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.EventDetailModal do
     case Map.get(event, :recurrence_rule) do
       rule when is_binary(rule) and rule != "" ->
         rule
-        |> RRule.parse(timezone: Shared.recurrence_timezone(event, user_timezone))
+        |> RRule.options(timezone: Shared.recurrence_timezone(event, user_timezone))
         |> RecurrenceEditor.summary()
 
       _none ->

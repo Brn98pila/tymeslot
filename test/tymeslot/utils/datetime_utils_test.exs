@@ -6,7 +6,6 @@ defmodule Tymeslot.Utils.DateTimeUtilsTest do
   use ExUnitProperties
 
   alias Tymeslot.Utils.DateTimeUtils
-  alias Tymeslot.Utils.DateTimeUtils.Display
   alias Tymeslot.Utils.DateTimeUtils.Duration
 
   describe "parse_duration/1" do
@@ -192,82 +191,6 @@ defmodule Tymeslot.Utils.DateTimeUtilsTest do
 
       assert {:error, :invalid_time_format} ==
                DateTimeUtils.parse_time_string(%{not_time: "10:00"})
-    end
-  end
-
-  describe "format_duration/1" do
-    test "formats duration string" do
-      assert Duration.format("15min") == "15 minutes"
-      assert Duration.format("30min") == "30 minutes"
-      assert Duration.format("60min") == "1 hour"
-      assert Duration.format("90min") == "1.5 hours"
-      assert Duration.format("120min") == "2 hours"
-    end
-
-    test "formats duration integer" do
-      assert Duration.format(15) == "15 minutes"
-      assert Duration.format(30) == "30 minutes"
-      assert Duration.format(60) == "1 hour"
-      assert Duration.format(90) == "1.5 hours"
-      assert Duration.format(120) == "2 hours"
-    end
-
-    test "returns unknown for invalid inputs" do
-      assert Duration.format("invalid") == "Unknown duration"
-      assert Duration.format(nil) == "Unknown duration"
-    end
-  end
-
-  describe "group_slots_by_period/1" do
-    test "sorts slots within a period chronologically, not lexicographically" do
-      # "7:30 AM" lexicographically sorts after "11:30 AM" because "7" > "1",
-      # but chronologically it must come first.
-      slots = ["11:30 AM", "7:30 AM", "9:00 AM", "8:00 AM"]
-      result = Display.group_slots_by_period(slots)
-      assert result["Morning"] == ["7:30 AM", "8:00 AM", "9:00 AM", "11:30 AM"]
-    end
-
-    test "sorts within each period independently" do
-      slots = ["3:00 PM", "1:00 PM", "8:00 PM", "6:00 PM", "10:00 AM", "7:00 AM"]
-      result = Display.group_slots_by_period(slots)
-      assert result["Morning"] == ["7:00 AM", "10:00 AM"]
-      assert result["Afternoon"] == ["1:00 PM", "3:00 PM"]
-      assert result["Evening"] == ["6:00 PM", "8:00 PM"]
-    end
-
-    test "handles 24h format times correctly" do
-      slots = ["14:00", "07:30", "09:00", "13:00"]
-      result = Display.group_slots_by_period(slots)
-      assert result["Morning"] == ["07:30", "09:00"]
-      assert result["Afternoon"] == ["13:00", "14:00"]
-    end
-
-    test "slots before 5am are grouped as Early Morning" do
-      slots = ["02:00", "03:30", "04:45"]
-      result = Display.group_slots_by_period(slots)
-      assert result["Early Morning"] == ["02:00", "03:30", "04:45"]
-      refute Map.has_key?(result, "Night")
-    end
-
-    test "slots from 21:00 onwards are grouped as Late Night" do
-      slots = ["21:00", "22:30", "23:45"]
-      result = Display.group_slots_by_period(slots)
-      assert result["Late Night"] == ["21:00", "22:30", "23:45"]
-      refute Map.has_key?(result, "Night")
-    end
-
-    test "early morning and late night slots are in separate groups" do
-      slots = ["03:00", "22:00"]
-      result = Display.group_slots_by_period(slots)
-      assert result["Early Morning"] == ["03:00"]
-      assert result["Late Night"] == ["22:00"]
-    end
-
-    test "5:00 AM boundary falls into Morning, not Early Morning" do
-      slots = ["05:00"]
-      result = Display.group_slots_by_period(slots)
-      assert result["Morning"] == ["05:00"]
-      refute Map.has_key?(result, "Early Morning")
     end
   end
 

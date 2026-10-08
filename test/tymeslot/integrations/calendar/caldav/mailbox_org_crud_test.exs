@@ -29,7 +29,6 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.MailboxOrgCrudTest do
         username: "you@mailbox.org",
         password: "pass",
         calendar_paths: [@calendar_path],
-        verify_ssl: true,
         provider: :mailbox_org
       },
       extra

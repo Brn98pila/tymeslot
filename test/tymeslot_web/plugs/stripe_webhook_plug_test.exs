@@ -29,18 +29,12 @@ defmodule TymeslotWeb.Plugs.StripeWebhookPlugTest do
   import Mox
   import Tymeslot.ConfigTestHelpers
 
-  alias Tymeslot.Payments.Webhooks.IdempotencyCache
   alias Tymeslot.PaymentTestHelpers
   alias Tymeslot.Security.RateLimit
   alias Tymeslot.Security.RateLimiter
   alias TymeslotWeb.Helpers.ClientIP
 
   setup :verify_on_exit!
-
-  setup do
-    IdempotencyCache.clear_all()
-    :ok
-  end
 
   describe "rate limit" do
     setup %{conn: conn} do
@@ -121,7 +115,6 @@ defmodule TymeslotWeb.Plugs.StripeWebhookPlugTest do
       secret = "whsec_e2e_valid"
 
       with_config(:tymeslot,
-        skip_webhook_verification: false,
         stripe_provider: Tymeslot.Payments.Stripe,
         stripe_webhook_secret: secret
       )
@@ -145,7 +138,6 @@ defmodule TymeslotWeb.Plugs.StripeWebhookPlugTest do
       secret = "whsec_e2e_invalid"
 
       with_config(:tymeslot,
-        skip_webhook_verification: false,
         stripe_provider: Tymeslot.Payments.Stripe,
         stripe_webhook_secret: secret
       )

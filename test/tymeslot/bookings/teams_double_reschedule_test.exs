@@ -373,7 +373,7 @@ defmodule Tymeslot.Bookings.TeamsDoubleRescheduleTest do
     }
 
     assert {:ok, updated} =
-             Reschedule.execute(meeting.uid, params, %{}, meeting.organizer_user_id)
+             Reschedule.execute(meeting.uid, params, meeting.organizer_user_id)
 
     updated
   end
@@ -390,9 +390,16 @@ defmodule Tymeslot.Bookings.TeamsDoubleRescheduleTest do
     perform_job(VideoRoomWorker, Enum.max_by(jobs, & &1.id).args, opts)
   end
 
+  # One job per fetch unless the caller sets a limit: a single fetch of every
+  # available job returns them in no guaranteed order, and a write run ahead
+  # of the earlier one it waits behind is snoozed, which a drain never
+  # restages.
   defp drain_calendar_queue(opts \\ []) do
-    result = Oban.drain_queue(Keyword.merge([queue: :calendar_events], opts))
-    assert %{failure: 0, discard: 0} = result
+    one_at_a_time =
+      if Keyword.has_key?(opts, :with_limit), do: [], else: [with_limit: 1, with_recursion: true]
+
+    result = Oban.drain_queue([queue: :calendar_events] ++ one_at_a_time ++ opts)
+    assert %{failure: 0, discard: 0, snoozed: 0} = result
     result
   end
 

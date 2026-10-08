@@ -142,24 +142,4 @@ defmodule Tymeslot.Utils.ReminderUtilsPropertyTest do
       end
     end
   end
-
-  describe "format_reminder_label/2" do
-    property "singular units for value 1" do
-      check all(unit <- member_of(["minutes", "hours", "days"])) do
-        label = ReminderUtils.format_reminder_label(1, unit)
-        singular = String.trim_trailing(unit, "s")
-        assert label == "1 #{singular}"
-      end
-    end
-
-    property "plural units for values > 1" do
-      check all(
-              value <- integer(2..1000),
-              unit <- member_of(["minutes", "hours", "days"])
-            ) do
-        label = ReminderUtils.format_reminder_label(value, unit)
-        assert label == "#{value} #{unit}"
-      end
-    end
-  end
 end

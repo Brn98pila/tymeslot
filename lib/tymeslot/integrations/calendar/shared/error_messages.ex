@@ -92,6 +92,7 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ErrorMessages do
   def categorize_error(:not_found), do: :config
   def categorize_error(:method_not_allowed), do: :config
   def categorize_error({:calendar_home_not_found, _url}), do: :config
+  def categorize_error({:calendar_listing_too_large, _url}), do: :config
   def categorize_error(:rate_limited), do: :rate_limit
   def categorize_error(:timeout), do: :timeout
 
@@ -158,6 +159,14 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ErrorMessages do
     )
   end
 
+  def specific_message({:calendar_listing_too_large, url}, _provider) do
+    dgettext(
+      "dashboard_calendar_providers",
+      "The calendar server at %{url} listed more items than Tymeslot can process at once. If this address points at a single calendar, enter your account's server address instead, and Tymeslot will find your calendars there.",
+      url: url
+    )
+  end
+
   # The sentence a refused TLS certificate gets, written once here. Both
   # surfaces that report a connection failure read it from this function —
   # `classify_and_format/3` on the discovery path and
@@ -168,6 +177,25 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ErrorMessages do
       "dashboard_calendar_providers",
       "The server's TLS certificate was rejected. If it is self-signed or issued by an internal certificate authority, turn off certificate verification."
     )
+  end
+
+  # A response past its byte budget is neither a network fault nor a
+  # configuration one, so no category describes it. Same wording as
+  # `CalDAV.Errors.describe_error/1`, which words it for the sync status.
+  def specific_message(:response_too_large, _provider) do
+    dgettext(
+      "dashboard_calendar_providers",
+      "The calendar server returned more data than Tymeslot can process at once."
+    )
+  end
+
+  # Discovery refuses a server address that is, or resolves to, a private
+  # one with `UrlValidation`'s own untranslated sentence. A self-hosted
+  # server on a LAN hostname meets it, and a generic "unable to connect"
+  # would send its owner looking at the URL rather than at the address it
+  # resolves to, so the refusal keeps its meaning, in the owner's locale.
+  def specific_message("Private or local network addresses are not allowed", _provider) do
+    dgettext("dashboard_calendar_providers", "Private or local network addresses are not allowed")
   end
 
   def specific_message({:error, reason}, provider), do: specific_message(reason, provider)

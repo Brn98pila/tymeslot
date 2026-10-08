@@ -12,7 +12,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsCompositionTest do
       context → Ecto-update seam that has no composition coverage today.
     * `toggle_calendar_selection` happy path — clicking a calendar pill
       flips its `selected` flag in the persisted `calendar_list`. Pins
-      the LiveComponent → `Calendar.toggle_calendar_selection/2` →
+      the LiveComponent → `Calendar.toggle_calendar_selection/3` →
       Ecto-update seam that `dashboard_integrations_test.exs` used to
       cover with handle_event-only stubs.
     * `toggle_calendar_selection` race with deletion — if the underlying

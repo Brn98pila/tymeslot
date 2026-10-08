@@ -14,12 +14,22 @@ defmodule Tymeslot.Payments do
     PaymentQueries,
     SubscriptionFlow,
     SubscriptionInvoice,
-    SubscriptionInvoices,
-    Subscriptions
+    SubscriptionInvoices
   }
+
+  alias Tymeslot.Payments.Webhooks.Ingress
 
   @type transaction :: PaymentTransaction.t()
   @type stripe_id :: String.t()
+
+  @doc """
+  Verifies and processes one Stripe webhook delivery to `endpoint`
+  (`:platform` or `:connect`), reading that endpoint's signing secret from
+  configuration. See `Tymeslot.Payments.Webhooks.Ingress.process/3` for the
+  outcomes.
+  """
+  @spec process_webhook(Ingress.endpoint(), binary(), String.t() | nil) :: Ingress.result()
+  defdelegate process_webhook(endpoint, raw_body, signature), to: Ingress, as: :process
 
   @doc """
   Processes a failed payment.
@@ -108,53 +118,6 @@ defmodule Tymeslot.Payments do
       user_id,
       email,
       urls,
-      metadata
-    )
-  end
-
-  @doc """
-  Cancels an active subscription.
-
-  ## Parameters
-    * subscription_id - The Stripe subscription ID
-    * user_id - The ID of the user canceling the subscription
-    * opts - Options for cancellation (at_period_end: true/false)
-
-  ## Returns
-    * `{:ok, subscription}` - If the subscription is canceled successfully
-    * `{:error, reason}` - If the cancellation fails
-  """
-  @spec cancel_subscription(String.t(), pos_integer(), keyword()) ::
-          {:ok, map()} | {:error, term()}
-  def cancel_subscription(subscription_id, user_id, opts \\ []) do
-    Subscriptions.cancel_subscription(subscription_id, user_id, opts)
-  end
-
-  @doc """
-  Updates a subscription to a new Stripe price.
-
-  ## Parameters
-    * subscription_id - The Stripe subscription ID
-    * new_stripe_price_id - The new Stripe price ID
-    * user_id - The ID of the user updating the subscription
-    * metadata - Additional metadata
-
-  ## Returns
-    * `{:ok, subscription}` - If the subscription is updated successfully
-    * `{:error, reason}` - If the update fails
-  """
-  @spec update_subscription(String.t(), String.t(), pos_integer(), map()) ::
-          {:ok, map()} | {:error, term()}
-  def update_subscription(
-        subscription_id,
-        new_stripe_price_id,
-        user_id,
-        metadata \\ %{}
-      ) do
-    Subscriptions.update_subscription(
-      subscription_id,
-      new_stripe_price_id,
-      user_id,
       metadata
     )
   end

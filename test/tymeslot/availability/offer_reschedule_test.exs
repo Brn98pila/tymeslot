@@ -69,7 +69,6 @@ defmodule Tymeslot.Availability.OfferRescheduleTest do
                    duration: "60min",
                    user_timezone: @timezone
                  },
-                 %{},
                  user.id
                )
 

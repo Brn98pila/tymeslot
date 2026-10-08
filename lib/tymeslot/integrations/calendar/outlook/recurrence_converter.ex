@@ -50,7 +50,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverter do
   def rrule_to_outlook("", _start_date, _timezone), do: nil
 
   def rrule_to_outlook(rrule, %Date{} = start_date, timezone) when is_binary(rrule) do
-    parsed = RRule.parse(rrule, timezone: timezone)
+    parsed = RRule.options(rrule, timezone: timezone)
 
     case Map.get(parsed, :freq) do
       nil ->

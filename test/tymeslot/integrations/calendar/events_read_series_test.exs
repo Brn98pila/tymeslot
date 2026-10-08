@@ -39,6 +39,10 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadSeriesTest do
 
     @spec list_events(any(), keyword()) :: {:ok, list(map())}
     def list_events(_client, _opts), do: ICalParser.parse(@ics)
+
+    @spec convert_events([map()]) :: [map()]
+
+    def convert_events(events), do: events
   end
 
   # The same series served only to the wide-range retry: the narrow ranged
@@ -67,6 +71,10 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadSeriesTest do
         do: ICalParser.parse(@ics),
         else: {:error, :forced_failure}
     end
+
+    @spec convert_events([map()]) :: [map()]
+
+    def convert_events(events), do: events
   end
 
   describe "CalDAV series on the live read path" do

@@ -10,7 +10,7 @@ defmodule Tymeslot.Integrations.Google.TokenRevocation do
   """
 
   alias Tymeslot.Infrastructure.Config
-  alias Tymeslot.Integrations.Google.Endpoints
+  alias Tymeslot.Integrations.Shared.GoogleConfig
 
   @timeout_ms 10_000
 
@@ -19,7 +19,7 @@ defmodule Tymeslot.Integrations.Google.TokenRevocation do
     body = URI.encode_query(%{"token" => token})
     headers = [{"content-type", "application/x-www-form-urlencoded"}]
 
-    case Config.http_client_module().post(Endpoints.revoke_url(), body, headers,
+    case Config.http_client_module().post(GoogleConfig.revoke_url(), body, headers,
            receive_timeout: @timeout_ms
          ) do
       {:ok, %{status: status}} when status in [200, 400] -> :ok

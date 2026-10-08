@@ -302,6 +302,9 @@ defmodule Tymeslot.CalendarGrid.IcsImport do
         end_time: end_time(raw.start_time, raw.end_time, zone),
         all_day: all_day,
         timezone: if(all_day, do: zone, else: zone || @utc),
+        # The zone a CalDAV calendar writes a timed series in, so it keeps
+        # the file's local time across DST (`TimeZoneComponent.series_zone/1`).
+        series_timezone: zone,
         recurrence_rule: rule,
         recurrence_exceptions: exclusions,
         transparency: transparency(raw[:transparency])

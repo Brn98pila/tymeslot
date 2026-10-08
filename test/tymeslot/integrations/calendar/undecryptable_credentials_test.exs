@@ -97,47 +97,6 @@ defmodule Tymeslot.Integrations.Calendar.UndecryptableCredentialsTest do
     end
   end
 
-  describe "listing every event" do
-    test "is empty for an owner with no calendars" do
-      assert {:ok, []} = EventFetcher.list_events(insert(:user).id)
-    end
-
-    test "reads a calendar that decrypts" do
-      user = insert(:user)
-      feed = insert_readable_feed(user)
-      start_at = DateTime.add(DateTime.utc_now(), 1, :day)
-
-      insert(:provider_calendar_event,
-        calendar_integration: feed,
-        provider: "ics_url",
-        provider_calendar_id: "subscription",
-        uid: "busy@example.com",
-        start_at: start_at,
-        end_at: DateTime.add(start_at, 1, :hour),
-        all_day: false
-      )
-
-      assert {:ok, [%{uid: "busy@example.com"}]} = EventFetcher.list_events(user.id)
-    end
-
-    # With only the unreadable calendar there is no client to fetch from,
-    # which must not pass for an owner with no calendars at all.
-    test "fails closed when the only calendar cannot be read" do
-      user = insert(:user)
-      insert_undecryptable(user: user)
-
-      assert {:error, :all_calendars_unavailable} = EventFetcher.list_events(user.id)
-    end
-
-    test "fails closed when one calendar reads and another cannot be read" do
-      user = insert(:user)
-      insert_readable_feed(user)
-      insert_undecryptable(user: user)
-
-      assert {:error, :some_calendars_unavailable} = EventFetcher.list_events(user.id)
-    end
-  end
-
   describe "the dashboard" do
     test "the calendar list still shows every integration, the unreadable one included" do
       user = insert(:user)

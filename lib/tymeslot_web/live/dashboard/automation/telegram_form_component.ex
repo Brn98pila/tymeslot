@@ -127,7 +127,7 @@ defmodule TymeslotWeb.Dashboard.Automation.TelegramFormComponent do
                   )
                 }
                 placeholder={dgettext("dashboard_automation_chat", "My Telegram Notifications")}
-                maxlength={Constraints.webhook_name_length_opts()[:max]}
+                maxlength={Constraints.integration_name_length_opts()[:max]}
                 required
                 errors={FormValidationHelpers.field_errors(@form_errors, :name)}
                 icon="hero-tag"

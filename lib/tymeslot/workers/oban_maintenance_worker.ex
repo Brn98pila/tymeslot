@@ -8,7 +8,8 @@ defmodule Tymeslot.Workers.ObanMaintenanceWorker do
   3. Provides metrics and logging for job health monitoring, and raises an
      `:oban_jobs_force_discarded` admin alert for the jobs it discards
 
-  This worker runs every 30 minutes to ensure job queue health.
+  This worker runs every 30 minutes, from the Oban crontab, to ensure job
+  queue health. It does not schedule itself.
 
   Discarding a stuck job is the last rung of the ladder in
   `Tymeslot.Infrastructure.ObanRescue`, not the first: `Oban.Lifeline` returns
@@ -53,18 +54,7 @@ defmodule Tymeslot.Workers.ObanMaintenanceWorker do
       delivery_claims_pruned: claims_pruned
     )
 
-    # Schedule next run
-    schedule_next_run()
-
     {:ok, %{stuck_cleaned: stuck_count, claims_pruned: claims_pruned}}
-  end
-
-  @spec schedule_next_run() :: {:ok, Oban.Job.t()} | {:error, term()}
-  defp schedule_next_run do
-    %{}
-    # 30 minutes
-    |> new(schedule_in: 1800)
-    |> Oban.insert()
   end
 
   # Private functions

@@ -6,7 +6,7 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubTest do
   import Tymeslot.Factory
 
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateSchema
-  alias Tymeslot.Integrations.Video.VideoIntegrationQueries
+  alias Tymeslot.Integrations.Video.RoomCreationErrorQueries
   alias Tymeslot.Repo
 
   setup :setup_dashboard_user
@@ -141,7 +141,7 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubTest do
       assert has_element?(view, "a[href='/dashboard/integrations?tab=video']", "Review")
       assert has_element?(view, "span.bg-amber-500")
 
-      VideoIntegrationQueries.clear_room_creation_error(integration.id)
+      RoomCreationErrorQueries.clear(integration.id)
 
       {:ok, cleared_view, cleared_html} = live(conn, ~p"/dashboard/integrations")
 

@@ -7,7 +7,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestReminderTest do
   import Mox
   import Tymeslot.Factory
 
-  alias Tymeslot.Bookings.Policy
+  alias Tymeslot.Bookings.MeetingLinks
   alias Tymeslot.EmailServiceMock
   alias Tymeslot.Meetings.GuestQueries
   alias Tymeslot.Meetings.Guests
@@ -70,13 +70,16 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestReminderTest do
       expect_participant_reminders()
 
       expect(EmailServiceMock, :send_guest_reminder, fn "a@example.com", details ->
-        assert details.guest_accept_url == Policy.guest_rsvp_urls(g1.rsvp_token).accept_url
-        assert details.guest_decline_url == Policy.guest_rsvp_urls(g1.rsvp_token).decline_url
+        assert details.guest_accept_url == MeetingLinks.guest_rsvp_urls(g1.rsvp_token).accept_url
+
+        assert details.guest_decline_url ==
+                 MeetingLinks.guest_rsvp_urls(g1.rsvp_token).decline_url
+
         {:ok, "sent"}
       end)
 
       expect(EmailServiceMock, :send_guest_reminder, fn "b@example.com", details ->
-        assert details.guest_accept_url == Policy.guest_rsvp_urls(g2.rsvp_token).accept_url
+        assert details.guest_accept_url == MeetingLinks.guest_rsvp_urls(g2.rsvp_token).accept_url
         {:ok, "sent"}
       end)
 

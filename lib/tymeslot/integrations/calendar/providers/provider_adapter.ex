@@ -67,8 +67,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.ProviderAdapter do
           base_url: decrypted.base_url,
           username: decrypted.username,
           password: decrypted.password,
-          calendar_paths: decrypted.calendar_paths,
-          verify_ssl: decrypted.verify_ssl
+          calendar_paths: decrypted.calendar_paths
         }
 
         case ProviderRegistry.create_client(provider_atom, config, skip_validation: true) do

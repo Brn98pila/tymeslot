@@ -3,6 +3,7 @@ defmodule Tymeslot.Integrations.Calendar.CrossProviderTest do
   @moduletag :integrations
 
   import Tymeslot.CrossProviderTestHelpers
+  alias Tymeslot.Integrations.Calendar.CalDAV.Family
   alias Tymeslot.Integrations.Calendar.Providers.ProviderRegistry
 
   @moduledoc """
@@ -39,8 +40,13 @@ defmodule Tymeslot.Integrations.Calendar.CrossProviderTest do
   @transport_error_results %{
     caldav: {:error, :timeout},
     nextcloud: {:error, :timeout},
-    radicale: {:error, "Radicale error: :timeout"}
+    radicale: {:error, "An unexpected error occurred. Please try again."}
   }
+
+  # The private-address refusal reads the same from every provider, whatever
+  # formatter words its other failures: a self-hosted server on a LAN
+  # hostname meets it, and the owner has to know it was the address.
+  @private_address_refusal "Private or local network addresses are not allowed"
 
   # Get production providers from registry (exclude debug/demo)
   defp production_providers do
@@ -197,8 +203,8 @@ defmodule Tymeslot.Integrations.Calendar.CrossProviderTest do
       end)
     end
 
-    test "all providers return consistent error format" do
-      Enum.each(@production_providers, fn provider_type ->
+    test "every CalDAV-family provider refuses a private address in the same words" do
+      Enum.each(Family.members(), fn provider_type ->
         {:ok, provider_module} = ProviderRegistry.get_provider(provider_type)
 
         invalid_config = %{
@@ -209,8 +215,8 @@ defmodule Tymeslot.Integrations.Calendar.CrossProviderTest do
           provider: provider_type
         }
 
-        assert {:error, message} = provider_module.perform_connection_test(invalid_config)
-        assert message =~ "Private or local network addresses are not allowed"
+        assert provider_module.perform_connection_test(invalid_config) ==
+                 {:error, @private_address_refusal}
       end)
     end
   end

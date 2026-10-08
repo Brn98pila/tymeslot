@@ -10,7 +10,7 @@ defmodule Tymeslot.Security.SecurityLogger do
   1. **Logger**, always. `log_security_event/2` forwards a fixed, canonical
      allowlist of flat keys and nothing else: `event_type`, `user_id`,
      `email_masked`, `ip_address`, `user_agent`, `session_id`, `provider`,
-     `lockout_type`, `limit_type`. This is the log line an operator reads, and
+     `lockout_type`, `limit_type`, `reason`. This is the log line an operator reads, and
      the allowlist is what keeps an event builder from widening it by accident.
   2. **An external monitoring webhook**, only when the operator opts in by
      setting `config :tymeslot, :security_monitoring_enabled, true` *and*
@@ -152,9 +152,12 @@ defmodule Tymeslot.Security.SecurityLogger do
   it under `:email` so it is masked first. Anything an event builder
   assembles beyond the canonical set is carried to the webhook only, under
   `:additional_data`.
+
+  The Logger line is written at `level`, `:info` unless the caller says
+  otherwise.
   """
-  @spec log_security_event(String.t(), event_metadata()) :: :ok
-  def log_security_event(event_type, details) do
+  @spec log_security_event(String.t(), event_metadata(), Logger.level()) :: :ok
+  def log_security_event(event_type, details, level \\ :info) do
     canonical = %{
       user_id: details[:user_id],
       email_masked: mask_email(details[:email]),
@@ -163,10 +166,11 @@ defmodule Tymeslot.Security.SecurityLogger do
       session_id: details[:session_id],
       provider: sanitize_provider(details[:provider]),
       lockout_type: details[:lockout_type],
-      limit_type: details[:limit_type]
+      limit_type: details[:limit_type],
+      reason: details[:reason]
     }
 
-    Logger.info("Security event", [event_type: event_type] ++ Map.to_list(canonical))
+    Logger.log(level, "Security event", [event_type: event_type] ++ Map.to_list(canonical))
 
     # Operator opt-in, off in every shipped configuration: no config file sets
     # this key. While it is false, `additional_data` has no sink at all — by
@@ -228,6 +232,7 @@ defmodule Tymeslot.Security.SecurityLogger do
           :ok
   def log_authentication_attempt(email, success, reason, metadata) do
     event_details = %{
+      user_id: metadata[:user_id],
       email: email,
       success: success,
       reason: reason,
@@ -238,8 +243,13 @@ defmodule Tymeslot.Security.SecurityLogger do
       }
     }
 
-    event_type = if success, do: "authentication_success", else: "authentication_failure"
-    log_security_event(event_type, event_details)
+    # A failed login is logged at :warning so alerting keyed on level sees it.
+    {event_type, level} =
+      if success,
+        do: {"authentication_success", :info},
+        else: {"authentication_failure", :warning}
+
+    log_security_event(event_type, event_details, level)
   end
 
   @doc """

@@ -20,28 +20,16 @@ defmodule Tymeslot.Emails.Shared.Text do
   - `:subtitle` — optional descriptive text below the title
   - `:emoji` — an emoji rendered inline as a prefix to the title
   - `:align` — `"left"`, `"center"`, `"right"` (default: `"left"`)
-  - `:icon` — optional image URL for an icon above the title
   """
   @spec title_section(String.t(), keyword()) :: String.t()
   def title_section(title, opts \\ []) do
     subtitle = Keyword.get(opts, :subtitle)
-    icon = Keyword.get(opts, :icon)
     emoji = Keyword.get(opts, :emoji)
     align = Keyword.get(opts, :align, "left")
 
     safe_title = Sanitise.sanitize_for_email(title)
     safe_subtitle = if subtitle, do: Sanitise.sanitize_for_email(subtitle)
     safe_emoji = if emoji, do: Sanitise.sanitize_for_email(emoji)
-
-    icon_block =
-      case icon && UrlValidation.validate_http_url(icon) do
-        :ok ->
-          safe_icon = Sanitise.sanitize_for_email(icon)
-          ~s(<mj-image src="#{safe_icon}" width="40px" padding="0 0 10px 0" align="#{align}" />)
-
-        _invalid_or_missing ->
-          ""
-      end
 
     title_html =
       if safe_emoji,
@@ -70,7 +58,6 @@ defmodule Tymeslot.Emails.Shared.Text do
     """
     <mj-section padding="16px 0 8px 0">
       <mj-column>
-        #{icon_block}
         <mj-text
           font-size="26px"
           font-weight="800"

@@ -302,8 +302,9 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema do
   accepts from the CalDAV path.
 
   `recurrence_rule` is deliberately dropped: occurrences were expanded before
-  they were cached, so leaving it on would have `EventsRead.expand_event/3`
-  expand every stored occurrence a second time.
+  they were cached, so leaving it on would have the read path
+  (`ICalNormaliser.expand_occurrences/3`) expand every stored occurrence a
+  second time.
   """
   @spec to_read_path_map(t()) :: map()
   def to_read_path_map(%__MODULE__{} = record) do

@@ -22,6 +22,7 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyAllDayTest do
   import Mox
   import Tymeslot.AvailabilityTestHelpers
 
+  alias Tymeslot.Availability.Schedules
   alias Tymeslot.Availability.TimeSlots
   alias Tymeslot.Bookings.{CalendarCheck, Create, Policy}
   alias Tymeslot.CalendarMock
@@ -56,7 +57,7 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyAllDayTest do
     test "the morning after an all-day event is offered and accepted", ctx do
       %{user: user, profile: profile, meeting_type: meeting_type, holiday: holiday} = ctx
       day_after = Date.add(holiday, 1)
-      config = Policy.scheduling_config(user.id, meeting_type)
+      config = Schedules.booking_config(user.id, meeting_type)
 
       # 09:00 and 10:00 in Sydney are still the holiday's date in UTC.
       for time <- ["9:00 AM", "10:00 AM"] do
@@ -70,7 +71,7 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyAllDayTest do
 
     test "the morning of an all-day event is hidden and refused", ctx do
       %{user: user, profile: profile, meeting_type: meeting_type, holiday: holiday} = ctx
-      config = Policy.scheduling_config(user.id, meeting_type)
+      config = Schedules.booking_config(user.id, meeting_type)
 
       assert offered(profile, holiday, "30min", meeting_type: meeting_type) == []
 
@@ -90,7 +91,7 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyAllDayTest do
 
     test "an all-day one hides the host's day and the submit refuses it", ctx do
       %{user: user, profile: profile, meeting_type: meeting_type, holiday: holiday} = ctx
-      config = Policy.scheduling_config(user.id, meeting_type)
+      config = Schedules.booking_config(user.id, meeting_type)
       stub_calendar([no_end_event(holiday, all_day: true)])
 
       assert offered(profile, holiday, "30min", meeting_type: meeting_type) == []
@@ -107,7 +108,7 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyAllDayTest do
 
     test "a timed one blocks thirty minutes on both paths", ctx do
       %{user: user, profile: profile, meeting_type: meeting_type, holiday: day} = ctx
-      config = Policy.scheduling_config(user.id, meeting_type)
+      config = Schedules.booking_config(user.id, meeting_type)
 
       stub_calendar([
         no_end_event(DateTime.new!(day, ~T[10:00:00], ctx.timezone), all_day: false)
@@ -140,7 +141,7 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyAllDayTest do
 
       test "a stale page cannot book #{time} on the all-day event (#{utc_day} in UTC)", ctx do
         %{user: user, meeting_type: meeting_type, holiday: holiday} = ctx
-        config = Policy.scheduling_config(user.id, meeting_type)
+        config = Schedules.booking_config(user.id, meeting_type)
 
         assert CalendarCheck.probe(slot(user, holiday, unquote(time), ctx.timezone), config) ==
                  {:error, :slot_unavailable}

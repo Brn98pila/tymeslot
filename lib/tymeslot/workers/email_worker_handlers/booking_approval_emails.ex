@@ -7,7 +7,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.BookingApprovalEmails do
 
   require Logger
 
-  alias Tymeslot.Bookings.Policy
+  alias Tymeslot.Bookings.MeetingLinks
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Infrastructure.Config
@@ -286,12 +286,12 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.BookingApprovalEmails do
   defp send_approval_request(variant, meeting, service, email_opts \\ [])
 
   defp send_approval_request(variant, meeting, service, []) do
-    urls = Policy.approval_urls(ApprovalToken.sign(meeting))
+    urls = MeetingLinks.approval_urls(ApprovalToken.sign(meeting))
     service.send_booking_approval_request(variant, meeting, urls, host_locale(meeting))
   end
 
   defp send_approval_request(variant, meeting, service, email_opts) do
-    urls = Policy.approval_urls(ApprovalToken.sign(meeting))
+    urls = MeetingLinks.approval_urls(ApprovalToken.sign(meeting))
 
     service.send_booking_approval_request(
       variant,

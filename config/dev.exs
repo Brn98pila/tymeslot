@@ -126,6 +126,9 @@ config :tymeslot, Oban,
     crontab: [
       # Run every 30 minutes
       {"*/30 * * * *", Tymeslot.Workers.ObanMaintenanceWorker},
+      # Run hourly, ten minutes past: refresh calendar OAuth tokens expiring
+      # within two hours, ahead of the first API call to need them
+      {"10 * * * *", Tymeslot.Integrations.Calendar.TokenRefreshJob},
       # Run every hour at the top of the hour
       {"0 * * * *", Tymeslot.Workers.ObanQueueMonitorWorker},
       # Run hourly, five minutes past, so the hour it evaluates is complete:
@@ -170,9 +173,6 @@ config :tymeslot, Oban,
 
 # Enable swoosh api client
 config :swoosh, :api_client, Swoosh.ApiClient.Hackney
-
-# Webhook verification enabled by default
-config :tymeslot, :skip_webhook_verification, false
 
 # Enable booking analytics in development so the feature is exercisable locally.
 config :tymeslot, :booking_analytics_enabled, true

@@ -31,6 +31,7 @@ defmodule Tymeslot.Bookings.OrchestratorCompositionTest do
 
   alias Ecto.UUID
   alias Tymeslot.Bookings.Orchestrator
+  alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Repo
   alias Tymeslot.TestMocks
@@ -93,6 +94,29 @@ defmodule Tymeslot.Bookings.OrchestratorCompositionTest do
         worker: EmailWorker,
         args: %{"action" => "send_confirmation_emails", "meeting_id" => meeting.id}
       )
+    end
+  end
+
+  describe "submit_booking/2 — a refused booking time" do
+    test "passes the refusal through as the booking rules gave it", %{
+      user: user,
+      meeting_type: meeting_type
+    } do
+      params = %{
+        form_data: %{"name" => "Attendee", "email" => "attendee@example.com", "message" => ""},
+        meeting_params: %{
+          date: Date.add(Date.utc_today(), 800),
+          time: "14:00",
+          duration: "30min",
+          user_timezone: "Europe/Berlin",
+          organizer_user_id: user.id,
+          meeting_type_id: meeting_type.id
+        }
+      }
+
+      assert {:error, {:too_far_ahead, days}} = Orchestrator.submit_booking(params)
+      assert is_integer(days)
+      assert Repo.aggregate(MeetingSchema, :count) == 0
     end
   end
 
@@ -235,7 +259,7 @@ defmodule Tymeslot.Bookings.OrchestratorCompositionTest do
     end
 
     test "returns an error when policy blocks the reschedule", %{user: user} do
-      # A cancelled meeting fails `Validation.validate_meeting_for_reschedule/1`
+      # A cancelled meeting fails `Policy.can_reschedule_meeting?/1`
       # regardless of organiser identity.
       meeting =
         insert(:meeting,
@@ -247,7 +271,19 @@ defmodule Tymeslot.Bookings.OrchestratorCompositionTest do
           end_time: DateTime.add(future_datetime(3, :day), 30, :minute)
         )
 
-      assert {:error, _reason} = Orchestrator.get_meeting_for_reschedule(meeting.uid, user.id)
+      assert {:error, {:not_reschedulable, :cancelled}} =
+               Orchestrator.get_meeting_for_reschedule(meeting.uid, user.id)
+    end
+
+    # The page that pre-fills the reschedule form and draws its grid applies
+    # the same rule the submit does, so it does not offer to move a booking
+    # the submit would then refuse.
+    test "refuses an expired booking, as the reschedule submit does", %{user: user} do
+      meeting = insert_future_meeting(user, nil)
+      {:ok, expired} = MeetingQueries.update_meeting_status(meeting, %{status: "expired"})
+
+      assert {:error, {:not_reschedulable, :expired}} =
+               Orchestrator.get_meeting_for_reschedule(expired.uid, user.id)
     end
   end
 

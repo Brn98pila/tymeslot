@@ -24,8 +24,9 @@ defmodule Tymeslot.Integrations.Calendar.ProviderConfig do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Infrastructure.Config
-  alias Tymeslot.Integrations.Providers.Families
+  alias Tymeslot.Integrations.Calendar.CalDAV.Family
   alias Tymeslot.Integrations.Shared.{ProviderConfigHelper, ProviderToggle}
+  alias Tymeslot.Integrations.Shared.Providers.Families
 
   # How far back and forward sync workers fetch events from providers.
   # Shared across all providers so the dashboard calendar shows a consistent range.
@@ -72,7 +73,7 @@ defmodule Tymeslot.Integrations.Calendar.ProviderConfig do
   # can pick, so they are filed under `:other` rather than left out.
   @provider_families %{
     oauth: [:google, :outlook],
-    caldav: [:caldav, :radicale, :nextcloud, :zimbra, :mailbox_org, :apple, :baikal],
+    caldav: Family.members(),
     ews: [:exchange],
     subscription: [:ics_url],
     other: [:demo, :debug]
@@ -100,18 +101,9 @@ defmodule Tymeslot.Integrations.Calendar.ProviderConfig do
   @provider_atoms Map.new(@providers ++ @dev_only_providers, &{Atom.to_string(&1), &1})
 
   # Providers whose CalDAV server URL is fixed and must never be edited by the
-  # user — both during initial connection and reconnection. A provider absent
+  # user, both during initial connection and reconnection. A provider absent
   # from this map allows the user to enter their own server URL.
-  @locked_url_providers %{
-    mailbox_org: %{
-      url: "https://dav.mailbox.org",
-      tooltip: "mailbox.org always uses this CalDAV server — the address cannot be changed"
-    },
-    apple: %{
-      url: "https://caldav.icloud.com",
-      tooltip: "Apple iCloud always uses this CalDAV server — the address cannot be changed"
-    }
-  }
+  @locked_url_providers Family.fixed_urls()
 
   @locked_url_providers_by_string Map.new(@locked_url_providers, fn {atom_key, value} ->
                                     {Atom.to_string(atom_key), value}
@@ -420,12 +412,22 @@ defmodule Tymeslot.Integrations.Calendar.ProviderConfig do
   @spec locked_url_for(atom() | String.t()) ::
           %{url: String.t(), tooltip: String.t()} | nil
   def locked_url_for(provider) when is_atom(provider),
-    do: Map.get(@locked_url_providers, provider)
+    do: @locked_url_providers |> Map.get(provider) |> translate_tooltip()
 
   def locked_url_for(provider) when is_binary(provider),
-    do: Map.get(@locked_url_providers_by_string, provider)
+    do: @locked_url_providers_by_string |> Map.get(provider) |> translate_tooltip()
 
   def locked_url_for(_provider), do: nil
+
+  # The table holds the tooltip as its msgid, so it is translated here, in the
+  # locale of the process rendering it.
+  defp translate_tooltip(nil), do: nil
+
+  defp translate_tooltip(%{tooltip: tooltip} = locked),
+    do: %{
+      locked
+      | tooltip: Gettext.dgettext(TymeslotWeb.Gettext, "dashboard_calendar_providers", tooltip)
+    }
 
   @doc """
   Gets full metadata for a provider.
@@ -571,13 +573,9 @@ defmodule Tymeslot.Integrations.Calendar.ProviderConfig do
   Gets the display name for a provider.
   """
   @spec display_name(atom()) :: String.t()
-  def display_name(:caldav), do: "CalDAV"
-  def display_name(:radicale), do: "Radicale"
-  def display_name(:nextcloud), do: "Nextcloud"
-  def display_name(:zimbra), do: "Zimbra"
-  def display_name(:mailbox_org), do: "mailbox.org"
-  def display_name(:apple), do: "Apple iCloud"
-  def display_name(:baikal), do: "Baikal"
+  def display_name(provider) when provider in @caldav_based_providers,
+    do: Family.display_name(provider)
+
   # The only descriptive name in this list rather than a brand, so it is the
   # only one that translates: "Nextcloud" reads the same in every locale, but
   # "Calendar subscription" is prose. Anything reaching the provider directory

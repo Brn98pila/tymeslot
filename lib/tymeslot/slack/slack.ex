@@ -7,6 +7,7 @@ defmodule Tymeslot.Slack do
   HTTP client directly.
   """
 
+  @behaviour Tymeslot.Notifications.Channel
   @behaviour Tymeslot.Security.EncryptedStorage
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -16,6 +17,7 @@ defmodule Tymeslot.Slack do
   alias Tymeslot.Features
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings.SeatView
+  alias Tymeslot.Notifications.Channel
   alias Tymeslot.Notifications.EventTypes
   alias Tymeslot.Repo
   alias Tymeslot.Slack.{API, MessageBuilder, OAuth, SlackIntegrationSchema, SlackQueries}
@@ -225,6 +227,38 @@ defmodule Tymeslot.Slack do
     end
   end
 
+  @doc """
+  Completes the OAuth flow Slack redirected back with: checks that OAuth is
+  still available (the operator may have removed the Slack app credentials
+  since the flow started), verifies the signed `state` was issued to
+  `user_id`, exchanges `code`, and stores the pending integration.
+
+  Returns tagged errors for every refusal, never raises.
+  """
+  @spec complete_oauth_callback(integer(), String.t(), String.t(), String.t()) ::
+          {:ok, SlackIntegrationSchema.t()}
+          | {:error,
+             :oauth_unavailable
+             | :invalid_state
+             | :expired_state
+             | :user_mismatch
+             | term()}
+  def complete_oauth_callback(user_id, code, state, redirect_uri) do
+    with :ok <- check_oauth_available(),
+         {:ok, state_user_id} <- OAuth.verify_state(state),
+         :ok <- state_issued_to(state_user_id, user_id),
+         {:ok, install} <- OAuth.exchange_code(code, redirect_uri) do
+      complete_oauth(user_id, install)
+    end
+  end
+
+  defp check_oauth_available do
+    if oauth_mode_available?(), do: :ok, else: {:error, :oauth_unavailable}
+  end
+
+  defp state_issued_to(user_id, user_id), do: :ok
+  defp state_issued_to(_state_user_id, _user_id), do: {:error, :user_mismatch}
+
   defp install_to_attrs(user_id, install) do
     %{
       user_id: user_id,
@@ -347,42 +381,31 @@ defmodule Tymeslot.Slack do
   # Delivery
   # ============================================================================
 
-  @spec trigger_integrations_for_event(integer(), String.t(), %{atom() => term()}) :: :ok
-  def trigger_integrations_for_event(user_id, event_type, meeting) do
+  @impl Channel
+  def schedule_for_event(user_id, event_type, meeting) do
     if slack_enabled?() do
-      case Features.check_access(user_id, :automations_allowed) do
-        :ok ->
-          user_id
-          |> SlackQueries.list_active_integrations_for_event(event_type)
-          |> Enum.each(&trigger_integration(&1, event_type, meeting))
-
-        {:error, _reason} ->
-          :ok
-      end
+      user_id
+      |> SlackQueries.list_active_integrations_for_event(event_type)
+      |> Enum.map(&{&1.id, schedule_delivery(&1, event_type, meeting)})
     else
       Logger.debug("Slack notifications disabled, skipping",
         user_id: user_id,
         event_type: event_type
       )
-    end
 
-    :ok
+      []
+    end
   end
 
-  @spec trigger_integration(SlackIntegrationSchema.t(), String.t(), %{atom() => term()}) ::
-          :ok | {:error, term()}
-  def trigger_integration(integration, event_type, meeting) do
-    if SlackIntegrationSchema.status(integration) == :active and
-         SlackIntegrationSchema.subscribed_to?(integration, event_type) do
-      SlackWorker.schedule_delivery(
-        integration.id,
-        event_type,
-        meeting.id,
-        SeatView.participant_id(meeting)
-      )
-    else
-      {:error, :integration_not_active}
-    end
+  # The list query returns only deliverable integrations subscribed to the
+  # event, so each one is scheduled as it stands.
+  defp schedule_delivery(integration, event_type, meeting) do
+    SlackWorker.schedule_delivery(
+      integration.id,
+      event_type,
+      meeting.id,
+      SeatView.participant_id(meeting)
+    )
   end
 
   # ============================================================================
@@ -423,6 +446,15 @@ defmodule Tymeslot.Slack do
     end
   end
 
+  @doc """
+  Switches the integration off because its owner's plan no longer covers
+  automations. A paused or already disabled integration is left as it is,
+  keeping the user's choice or the earlier reason.
+  """
+  @spec disable_for_revoked_plan(integer()) :: {:ok, boolean()}
+  def disable_for_revoked_plan(integration_id),
+    do: SlackQueries.disable_if_active(integration_id, "Plan no longer permits automations")
+
   @spec auto_disable(SlackIntegrationSchema.t(), String.t()) ::
           {:ok, SlackIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
   def auto_disable(%SlackIntegrationSchema{} = integration, reason) do
@@ -445,6 +477,17 @@ defmodule Tymeslot.Slack do
   @spec get_delivery_stats(integer(), keyword()) :: map()
   def get_delivery_stats(integration_id, opts) do
     SlackQueries.get_delivery_stats(integration_id, opts)
+  end
+
+  @doc """
+  Deletes OAuth installs never finished by picking a channel, once they are
+  a day old. Each holds a workspace bot token; an install still in progress
+  is younger than that, and a finished or disconnected integration is never
+  touched (see `SlackQueries.delete_stale_pending_stubs/1`).
+  """
+  @spec prune_orphaned_stubs() :: {non_neg_integer(), nil | [term()]}
+  def prune_orphaned_stubs do
+    SlackQueries.delete_stale_pending_stubs(DateTime.add(DateTime.utc_now(), -1, :day))
   end
 
   @doc """

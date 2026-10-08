@@ -28,10 +28,4 @@ defmodule Tymeslot.Mocks.StripeBehaviours do
     @moduledoc "Behaviour for Stripe Charge operations"
     @callback retrieve(String.t(), map(), list()) :: {:ok, map()} | {:error, any()}
   end
-
-  defmodule StripeWebhookBehaviour do
-    @moduledoc "Behaviour for Stripe Webhook operations"
-    @callback construct_event(binary(), String.t(), String.t(), keyword()) ::
-                {:ok, map()} | {:error, any()}
-  end
 end

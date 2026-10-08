@@ -22,13 +22,14 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
   alias Tymeslot.MeetingPayments.Webhooks.LockedPayment
   alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
   alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Payments.Behaviours.WebhookHandler
 
   @doc """
   Runs the fail-and-expire flow for `event`, wrapped in the webhook telemetry
   span. `event_type` is the Stripe event name and `telemetry_reason` the status
   atom stamped on the payment transition.
   """
-  @spec handle(map(), String.t(), atom()) :: {:ok, atom()} | {{:error, term()}, :error}
+  @spec handle(map(), String.t(), atom()) :: WebhookHandler.result()
   def handle(event, event_type, telemetry_reason) do
     Telemetry.span_webhook(event_type, fn -> do_handle(event, event_type, telemetry_reason) end)
   end
@@ -51,10 +52,10 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
     end
   end
 
-  defp do_handle(_other, _event_type, _reason), do: {{:error, :invalid_event}, :error}
+  defp do_handle(_other, _event_type, _reason), do: {{:error, :permanent, :invalid_event}, :error}
 
   defp classify(:ok), do: {:ok, :ok}
-  defp classify({:error, _reason} = err), do: {err, :error}
+  defp classify({:error, reason}), do: {{:error, :retry_later, reason}, :error}
 
   # Decided from the locked rows (`LockedPayment`, then the meeting), so a
   # completion committed since the row was resolved is seen rather than

@@ -105,28 +105,6 @@ defmodule Tymeslot.Auth.UserSchema do
     timestamps(type: :utc_datetime)
   end
 
-  @doc false
-  @spec changeset(t(), map()) :: Ecto.Changeset.t()
-  def changeset(user, attrs) do
-    user
-    |> cast(attrs, [
-      :email,
-      :password,
-      :password_confirmation,
-      :name,
-      :provider,
-      :provider_uid,
-      :provider_email,
-      :provider_meta
-    ])
-    |> validate_required([:email])
-    |> update_change(:email, &String.downcase/1)
-    |> validate_email()
-    |> validate_password()
-    |> unique_constraint(:email)
-    |> unique_constraint([:provider, :provider_uid])
-  end
-
   @doc """
   Changeset for the user's interface language preference. An empty string or
   `nil` clears the preference (fall back to browser/session detection); any

@@ -43,8 +43,8 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   alias Tymeslot.Integrations.Calendar.InvalidEventReport
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookCalendarAPI
   alias Tymeslot.Integrations.Calendar.Outlook.Provider, as: OutlookProvider
-  alias Tymeslot.Integrations.Calendar.Shared.AccessToken
   alias Tymeslot.Integrations.Calendar.Sync
+  alias Tymeslot.Integrations.Calendar.Tokens
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.RetryHelpers
@@ -113,7 +113,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
 
   defp sync_event(integration, graph_resource_id, job) do
     result =
-      AccessToken.with_access_token(integration, &OutlookCalendarAPI.refresh_token/1, fn token ->
+      Tokens.with_access_token(integration, &OutlookCalendarAPI.refresh_token/1, fn token ->
         # Check for 404 (deleted event) and 401 BEFORE the circuit breaker so
         # that deleted events and auth failures don't count as failures and
         # trip the breaker.
@@ -186,7 +186,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   end
 
   # Graph is refusing the credentials, not this one event: the 401 is caught
-  # ahead of the circuit breaker, and `AccessToken.with_access_token/4` has
+  # ahead of the circuit breaker, and `Tokens.with_access_token/4` has
   # already tried a refresh, so reaching here means the refresh failed or the
   # refreshed token was rejected too. Every other event notification for this
   # integration is about to be refused the same way, and the 15-minute sweep

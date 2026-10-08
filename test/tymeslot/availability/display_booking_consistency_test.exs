@@ -519,7 +519,7 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyTest do
 
       assert offered(profile, tomorrow, "30min", meeting_type: meeting_type) == []
 
-      assert {:error, "Booking requires at least 48 hours in advance"} =
+      assert {:error, {:too_soon, 48}} =
                book(user, meeting_type, tomorrow, "11:00 PM")
     end
 

@@ -68,7 +68,6 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.ProviderTest do
 
       assert client.username == "testuser"
       assert client.password == "testpass"
-      assert client.verify_ssl == true
       # Generic CalDAV URL should remain :caldav
       assert client.provider == :caldav
     end

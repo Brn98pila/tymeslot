@@ -10,7 +10,17 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Tasks
-  alias Tymeslot.Integrations.Calendar.CalDAV.{Base, Client, Discovery, Events, Http, UrlBuilder}
+
+  alias Tymeslot.Integrations.Calendar.CalDAV.{
+    Base,
+    Client,
+    Discovery,
+    Events,
+    Family,
+    Http,
+    UrlBuilder
+  }
+
   alias Tymeslot.Integrations.Calendar.CalDAV.Provider, as: CalDAVProvider
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CreatedEvent
@@ -49,7 +59,6 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
         password: config[:password],
         calendar_paths: calendar_paths,
         writable_calendar_paths: config[:writable_calendar_paths],
-        verify_ssl: true,
         skip_breaker: config[:skip_breaker] || false
       },
       provider: provider
@@ -60,8 +69,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
   Builds the client struct downstream Base.* functions run on.
 
   Accepts atom- or string-keyed config with `:base_url`, `:username`,
-  `:password`, `:calendar_paths`, `:writable_calendar_paths` and
-  `:verify_ssl`; takes the provider from
+  `:password`, `:calendar_paths`, and `:writable_calendar_paths`; takes the provider from
   `opts`. This is the only place a `Client` is constructed, which is what
   makes the password's inspect-time redaction hold for every CalDAV-family
   provider.
@@ -78,7 +86,6 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
       writable_calendar_paths:
         Map.get(config, :writable_calendar_paths) ||
           Map.get(config, "writable_calendar_paths") || [],
-      verify_ssl: Map.get(config, :verify_ssl, true),
       skip_breaker: Map.get(config, :skip_breaker, false),
       provider: provider
     }
@@ -90,14 +97,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
   # from the URL, as every other generic CalDAV client does, so that its
   # calls trip the host breaker a reset closes
   # (`CalendarCircuitBreaker.breaker_key/2`).
-  @provider_atoms %{
-    "radicale" => :radicale,
-    "nextcloud" => :nextcloud,
-    "zimbra" => :zimbra,
-    "mailbox_org" => :mailbox_org,
-    "apple" => :apple,
-    "baikal" => :baikal
-  }
+  @provider_atoms Family.client_providers()
 
   @doc """
   Builds a client from a stored calendar integration row.
@@ -109,8 +109,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
         base_url: integration.base_url,
         username: integration.username,
         password: integration.password,
-        calendar_paths: integration.calendar_paths,
-        verify_ssl: Map.get(integration, :verify_ssl, true)
+        calendar_paths: integration.calendar_paths
       },
       provider: client_provider(integration)
     )

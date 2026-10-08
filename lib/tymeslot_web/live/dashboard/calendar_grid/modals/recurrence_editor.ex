@@ -25,6 +25,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Integrations.Calendar.Recurrence.RRule
+  alias TymeslotWeb.Helpers.LocaleFormat
 
   attr :recurrence_rule, :string, default: nil
   attr :timezone, :string, default: nil
@@ -33,7 +34,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
 
   @spec recurrence_editor(map()) :: Phoenix.LiveView.Rendered.t()
   def recurrence_editor(assigns) do
-    parsed = RRule.parse(assigns.recurrence_rule || "", timezone: assigns.timezone)
+    parsed = RRule.options(assigns.recurrence_rule || "", timezone: assigns.timezone)
 
     assigns =
       assigns
@@ -167,6 +168,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
   @doc """
   Returns a human-readable summary of an RRULE option map, e.g.
   "Repeats weekly on Mon, Wed". Returns `nil` for a non-recurring rule.
+
+  Rendered in the process's Gettext locale, the end date included, so it
+  must be called from the LiveView process rather than from a task.
   """
   @spec summary(map()) :: String.t() | nil
   def summary(%{freq: freq} = parsed) do
@@ -244,8 +248,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
         count
       )
 
-  defp end_phrase(%{until: %Date{} = until}),
-    do: dgettext("dashboard_calendar_events", "until %{date}", date: Date.to_iso8601(until))
+  defp end_phrase(%{until: %Date{} = until}) do
+    date = LocaleFormat.format_date(until, Gettext.get_locale(TymeslotWeb.Gettext))
+    dgettext("dashboard_calendar_events", "until %{date}", date: date)
+  end
 
   defp end_phrase(_parsed), do: nil
 

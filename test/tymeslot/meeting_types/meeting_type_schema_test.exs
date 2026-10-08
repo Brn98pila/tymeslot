@@ -340,7 +340,7 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchemaTest do
         )
 
       refute changeset.valid?
-      assert "must be at least EUR 0.50" in errors_on(changeset).price_cents
+      assert "must be at least €0.50" in errors_on(changeset).price_cents
     end
 
     test "accepts price at or above currency minimum" do
@@ -421,7 +421,7 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchemaTest do
         MeetingTypeSchema.changeset(%MeetingTypeSchema{}, attrs, host_charges_enabled: true)
 
       refute changeset.valid?
-      assert "must be at least USD 0.50" in errors_on(changeset).price_cents
+      assert "must be at least $0.50" in errors_on(changeset).price_cents
     end
   end
 

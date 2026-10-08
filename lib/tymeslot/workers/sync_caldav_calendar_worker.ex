@@ -83,6 +83,7 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
   @no_calendar "CalDAV integration has no calendar selected — user action required"
   @server_error "CalDAV server returned a server error; the next scheduled sync will retry"
   @server_unreachable "CalDAV server did not respond; the next scheduled sync will retry"
+  @too_large "CalDAV server returned more data than Tymeslot can process at once"
 
   @impl ExpectedJobOutcome
   def expected_outcome?(reason),
@@ -93,7 +94,8 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
         @calendar_gone,
         @no_calendar,
         @server_error,
-        @server_unreachable
+        @server_unreachable,
+        @too_large
       ] or reason == ReauthHandling.discard_reason()
 
   @impl Oban.Worker
@@ -108,6 +110,7 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
         fn ->
           integration
           |> Sync.run(force_full_fetch?)
+          |> tap(&record_failure(integration, &1))
           |> handle_sync_result(integration)
           |> tap(&SyncHealth.record_outcome(integration, &1))
         end
@@ -234,6 +237,13 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
     {:discard, @server_unreachable}
   end
 
+  # The server answered, past the read's byte budget. Retrying downloads the
+  # same answer, and it is the size of the owner's calendar rather than a
+  # fault an operator could fix, so it is an expected end of the job. The
+  # health check surfaces the integration.
+  defp handle_sync_result({:error, :response_too_large}, _integration),
+    do: {:discard, @too_large}
+
   # A 4xx there is no talking the request out of (415, 400…, and the modelled
   # `:method_not_allowed`) is the server
   # refusing the request itself: the remaining attempts re-send the same bytes
@@ -242,9 +252,33 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
   # server's own explanation, and the health check surfaces the integration.
   defp handle_sync_result({:error, reason} = result, _integration) do
     if CalDAVErrors.terminal_error?(reason) do
-      {:discard, "CalDAV server refused the sync request: #{CalDAVErrors.describe_error(reason)}"}
+      {:discard, "CalDAV server refused the sync request: #{refusal(reason)}"}
     else
       result
     end
   end
+
+  # The failures that flag the integration for reconnection record their own
+  # reason with the flag, and the deletion breaker's refusal resolves itself
+  # without the owner. Every other failure is stored as the owner-facing
+  # sentence, which the integration card shows while the sync is unhealthy.
+  # A successful cycle clears it in `SyncHealth.record_outcome/2`.
+  @recorded_elsewhere [
+    :unauthorized,
+    :forbidden,
+    :booking_calendar_missing,
+    :no_calendar_paths,
+    :suspicious_bulk_deletion
+  ]
+
+  defp record_failure(integration, {:error, reason}) when reason not in @recorded_elsewhere do
+    CalendarIntegrationQueries.mark_sync_error(integration, CalDAVErrors.describe_error(reason))
+  end
+
+  defp record_failure(_integration, _result), do: :ok
+
+  # The discard reason is what an operator reads on the job record, so it keeps
+  # the status the owner-facing sentence leaves out.
+  defp refusal({:unexpected_status, status}), do: "HTTP #{status}"
+  defp refusal(reason), do: CalDAVErrors.describe_error(reason)
 end

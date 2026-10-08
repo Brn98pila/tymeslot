@@ -6,28 +6,6 @@ defmodule Tymeslot.Utils.ReminderUtils do
   @valid_reminder_units ["minutes", "hours", "days"]
 
   @doc """
-  Formats a reminder interval into a human-readable label.
-  """
-  @spec format_reminder_label(integer() | String.t(), String.t()) :: String.t()
-  def format_reminder_label(value, unit) do
-    value = parse_reminder_value(value)
-    unit = normalize_reminder_unit(unit)
-
-    unit_label =
-      case {value, unit} do
-        {1, "minutes"} -> "minute"
-        {1, "hours"} -> "hour"
-        {1, "days"} -> "day"
-        {_value, "minutes"} -> "minutes"
-        {_value, "hours"} -> "hours"
-        {_value, "days"} -> "days"
-        _other -> "minutes"
-      end
-
-    "#{value} #{unit_label}"
-  end
-
-  @doc """
   Normalizes a reminder map or parameters into a consistent format with atom keys.
   Strict validation: returns {:error, :invalid_reminder} if unit is invalid.
   """

@@ -30,6 +30,7 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
   alias Tymeslot.Bookings.CreateAdHoc
   alias Tymeslot.CalendarGrid.EventVideo
   alias Tymeslot.CalendarGrid.EventVideoRooms
+  alias Tymeslot.CalendarGrid.ProviderPayload
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
@@ -58,8 +59,10 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
   @doc """
   Creates a calendar event from a resolved create-form payload.
 
-  The payload carries the `:creating` form map, the organiser `:user_id`, and
-  the parsed `:start_at`/`:end_at` datetimes. On success the returned map
+  The payload carries the `:creating` form map, the organiser `:user_id`, the
+  parsed `:start_at`/`:end_at` datetimes and, optionally, the organiser's
+  `:timezone`, the zone a repeating event is written in
+  (`ProviderPayload.put_series_zone/2`). On success the returned map
   carries everything the web layer needs to cache the event, notify the grid,
   and flash the user (including `:reauth_required` when the integration's
   credentials need re-encrypting).
@@ -108,13 +111,16 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
       all_day: Map.get(creating, :all_day, false),
       start: start_at,
       end: end_at,
-      recurrence_rule: Map.get(creating, :recurrence_rule)
+      recurrence_rule: Map.get(creating, :recurrence_rule),
+      timezone: payload[:timezone]
     }
 
     video_context = provision_video_room_for_plan(plan, event_details, grid_event)
 
     event_data =
-      build_event_data(uid, creating, start_at, end_at, event_details, video_context, plan)
+      uid
+      |> build_event_data(creating, start_at, end_at, event_details, video_context, plan)
+      |> ProviderPayload.put_series_zone(payload[:timezone])
 
     result =
       CalendarEvents.create_event(

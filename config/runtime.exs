@@ -99,9 +99,7 @@ if config_env() == :prod do
   # Structured JSON logging for production containers.
   #
   # `:all_except` captures every keyword metadata field passed inline or set on
-  # the process, minus the noisy OTP internals listed below. `:domain` is kept
-  # because StructuredLogger tags log lines with `domain: :authentication`,
-  # `:database`, etc. — that key is what enables domain-faceted log queries.
+  # the process, minus the noisy OTP internals listed below.
   config :logger, :default_handler,
     formatter:
       LoggerJSON.Formatters.Basic.new(metadata: {:all_except, [:conn, :socket, :mfa, :pid, :gl]})
@@ -109,6 +107,21 @@ if config_env() == :prod do
   # Database configuration based on deployment type (define early as it's used for URL scheme)
   # "cloudron" or the legacy "main"; "docker" if DEPLOYMENT_TYPE is unset or unknown
   deployment_type = Tymeslot.Infrastructure.DeploymentType.current()
+
+  # A blank OAuth state secret counts as unset, which leaves that provider
+  # unconfigured. Documented setups ship the variables blank, so this only
+  # warns, in case a blank one was meant to hold a value.
+  case Tymeslot.Integrations.Shared.OAuthConfig.blank_state_secrets(System.get_env()) do
+    [] ->
+      :ok
+
+    names ->
+      IO.warn(
+        "#{Enum.join(names, ", ")} set but blank; the provider is treated as not " <>
+          "configured. Set a random value to enable it, or unset the variable.",
+        []
+      )
+  end
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
@@ -258,6 +271,9 @@ if config_env() == :prod do
       crontab: [
         # Run every 30 minutes for Oban maintenance
         {"*/30 * * * *", Tymeslot.Workers.ObanMaintenanceWorker},
+        # Run hourly, ten minutes past: refresh calendar OAuth tokens expiring
+        # within two hours, ahead of the first API call to need them
+        {"10 * * * *", Tymeslot.Integrations.Calendar.TokenRefreshJob},
         # Run every hour for queue health monitoring
         {"0 * * * *", Tymeslot.Workers.ObanQueueMonitorWorker},
         # Run hourly, five minutes past, so the hour it evaluates is complete:
@@ -472,7 +488,9 @@ if config_env() == :prod do
     if stripe_webhook_secret do
       config :tymeslot, :stripe_webhook_secret, stripe_webhook_secret
     else
-      Logger.warning("STRIPE_WEBHOOK_SECRET not set — webhook signature verification disabled")
+      Logger.warning(
+        "STRIPE_WEBHOOK_SECRET not set: /webhooks/stripe refuses every delivery with a 503"
+      )
     end
 
     # Stripe Connect webhook secret (separate from the platform webhook secret)

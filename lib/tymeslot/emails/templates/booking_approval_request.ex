@@ -37,6 +37,8 @@ defmodule Tymeslot.Emails.Templates.BookingApprovalRequest do
     TimezoneHelper
   }
 
+  alias Tymeslot.Utils.DateTimeUtils
+
   alias Tymeslot.Emails.Shared.BookingRequestLocation
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
 
@@ -53,7 +55,7 @@ defmodule Tymeslot.Emails.Templates.BookingApprovalRequest do
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       kind = if rescheduled?(meeting), do: :reschedule, else: :booking
       clock = HostClock.for_meeting(meeting, locale)
-      host_time = TimezoneHelper.convert_to_timezone(meeting.start_time, clock.timezone)
+      host_time = DateTimeUtils.convert_to_timezone(meeting.start_time, clock.timezone)
       attendee_time = TimezoneHelper.convert_to_attendee_timezone(meeting)
       details = meeting_details(meeting, host_time, clock)
       deadline_text = deadline_sentence(meeting, clock, locale)
@@ -161,7 +163,7 @@ defmodule Tymeslot.Emails.Templates.BookingApprovalRequest do
         dgettext("emails_booking_requests", "Previously scheduled for %{time}.",
           time:
             previous
-            |> TimezoneHelper.convert_to_timezone(clock.timezone)
+            |> DateTimeUtils.convert_to_timezone(clock.timezone)
             |> Formatting.format_datetime(locale, clock.time_format)
         )
 
@@ -261,7 +263,7 @@ defmodule Tymeslot.Emails.Templates.BookingApprovalRequest do
   defp deadline_sentence(%Meeting{} = meeting, clock, locale) do
     deadline =
       meeting.approval_deadline_at
-      |> TimezoneHelper.convert_to_timezone(clock.timezone)
+      |> DateTimeUtils.convert_to_timezone(clock.timezone)
       |> Formatting.format_datetime(locale, clock.time_format)
 
     dgettext(

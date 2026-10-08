@@ -30,6 +30,7 @@ defmodule Tymeslot.MeetingPayments do
 
   require Logger
 
+  alias Tymeslot.FinancialRetention
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
@@ -39,13 +40,12 @@ defmodule Tymeslot.MeetingPayments do
   alias Tymeslot.MeetingPayments.ConnectAccounts
   alias Tymeslot.MeetingPayments.ConnectAccountSchema
   alias Tymeslot.MeetingPayments.Currency
-  alias Tymeslot.MeetingPayments.DataRetention
   alias Tymeslot.MeetingPayments.Refunds
   alias Tymeslot.MeetingPayments.StripeAdapter
-  alias Tymeslot.MeetingPayments.Webhooks.WebhookProcessor
   alias Tymeslot.MeetingPayments.Workers.ResyncConnectAccount
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.MeetingTypes.MeetingTypeQueries
+  alias Tymeslot.Payments.Config, as: PaymentsConfig
   alias Tymeslot.Repo
 
   @type account :: ConnectAccountSchema.t()
@@ -118,16 +118,33 @@ defmodule Tymeslot.MeetingPayments do
   `requirements.past_due`, so `disabled_reason` must not be read until
   `details_submitted` is true), while `:pending_review` is a submitted account
   Stripe is still reviewing.
+
+  An account that is otherwise ready but carries a currency payments cannot
+  charge at all (`Currency.support/1` is `:unsupported`) reads as
+  `:unsupported_currency`, since it takes no payments until its host picks a
+  supported one.
   """
   @spec connect_display_state(map() | nil) ::
-          :not_connected | :incomplete | :pending_review | :ready | :restricted | :deleted
+          :not_connected
+          | :incomplete
+          | :pending_review
+          | :ready
+          | :unsupported_currency
+          | :restricted
+          | :deleted
   def connect_display_state(nil), do: :not_connected
   def connect_display_state(%{deleted_at: dt}) when is_struct(dt, DateTime), do: :deleted
   def connect_display_state(%{details_submitted: true} = account), do: submitted_state(account)
   def connect_display_state(_account), do: :incomplete
 
   defp submitted_state(%{disabled_reason: reason}) when is_binary(reason), do: :restricted
-  defp submitted_state(%{charges_enabled: true, payouts_enabled: true}), do: :ready
+
+  defp submitted_state(%{charges_enabled: true, payouts_enabled: true} = account) do
+    if Currency.support(Map.get(account, :default_currency)) == :unsupported,
+      do: :unsupported_currency,
+      else: :ready
+  end
+
   defp submitted_state(_account), do: :pending_review
 
   @doc """
@@ -139,25 +156,22 @@ defmodule Tymeslot.MeetingPayments do
   """
   @spec platform_configured?() :: boolean()
   def platform_configured? do
-    key =
-      Application.get_env(:tymeslot, :stripe_secret_key) ||
-        Application.get_env(:stripity_stripe, :api_key)
-
-    case key do
+    case PaymentsConfig.stripe_api_key() do
       nil -> false
-      "" -> false
       "sk_test_fake" -> false
       _real -> true
     end
   end
 
   @doc """
-  Returns `true` if the user's Connect account has charges enabled.
+  Returns `true` if the user's Connect account has charges enabled, in a
+  currency checkout can charge: an allowlisted one, or a legacy one counted
+  in hundredths (see `Currency.support/1`).
   """
   @spec charges_enabled_for_user?(integer()) :: boolean()
   def charges_enabled_for_user?(user_id) do
     case ConnectAccountQueries.live_for_user(user_id) do
-      %{charges_enabled: true} -> true
+      %{charges_enabled: true, default_currency: currency} -> Currency.chargeable?(currency)
       _other -> false
     end
   end
@@ -165,7 +179,7 @@ defmodule Tymeslot.MeetingPayments do
   @doc """
   Enqueues a background job to re-sync the Connect account from Stripe.
 
-  Safe to call on every return from the Stripe Express onboarding flow;
+  Safe to call on every return from the Stripe onboarding flow;
   the worker's uniqueness constraint deduplicates within a 60-second window.
   """
   @spec enqueue_resync_for_account(stripe_account_id :: String.t()) :: :ok
@@ -386,22 +400,51 @@ defmodule Tymeslot.MeetingPayments do
   @doc """
   Returns the host's pricing currency: the default currency of their live
   (non-deleted) Connect account, or the fallback currency when there is no
-  such account, the account carries no currency yet, or there is no user.
+  such account, the account carries no currency yet or one outside the
+  allowlist, or there is no user. This is the currency new prices are set
+  and checked against; `account_currency/1` is the one stored prices are
+  shown in.
 
   Checkout charges the account's currency directly and never reaches the
-  fallback, since it requires a live account with charges enabled; the
-  fallback only labels prices and minimums shown to a host who cannot
-  currently take payments.
+  fallback; the fallback only labels prices and minimums shown to a host who
+  cannot currently set them.
   """
   @spec host_currency(integer() | nil) :: String.t()
   def host_currency(nil), do: Currency.fallback()
 
   def host_currency(user_id) do
     case ConnectAccountQueries.live_for_user(user_id) do
+      %{default_currency: currency} when is_binary(currency) and currency != "" ->
+        if Currency.allowed?(currency), do: currency, else: Currency.fallback()
+
+      _no_currency ->
+        Currency.fallback()
+    end
+  end
+
+  @doc """
+  The currency the host's stored prices are in, for showing them: their live
+  Connect account's default currency, whether or not meeting payments
+  support it (see `currency_support/1`), or the fallback where
+  `host_currency/1` would use it.
+  """
+  @spec account_currency(integer() | nil) :: String.t()
+  def account_currency(nil), do: Currency.fallback()
+
+  def account_currency(user_id) do
+    case ConnectAccountQueries.live_for_user(user_id) do
       %{default_currency: currency} when is_binary(currency) and currency != "" -> currency
       _no_currency -> Currency.fallback()
     end
   end
+
+  @doc """
+  How far meeting payments support an account currency: `:supported`,
+  `:legacy` (still charged, but prices cannot be set in it), `:unsupported`
+  (no payments) or `:none`. See `Tymeslot.MeetingPayments.Currency.support/1`.
+  """
+  @spec currency_support(String.t() | nil) :: :supported | :legacy | :unsupported | :none
+  defdelegate currency_support(currency), to: Currency, as: :support
 
   @doc """
   Returns `true` if the given currency code is in the supported allowlist.
@@ -417,38 +460,53 @@ defmodule Tymeslot.MeetingPayments do
 
   @doc """
   Changes the host's default currency on their Connect account and resets all
-  paid meeting types to free.
+  paid meeting types to free, since their prices were in the old currency.
 
-  Runs atomically. Returns `{:ok, :reset}` when paid meeting types were
-  cleared, `{:ok, :no_reset}` when the account had no paid types,
-  `{:error, :pending_payments_exist}` when the host has meetings in
-  `awaiting_payment` status (the host must resolve those bookings first),
-  or `{:error, reason}` on other failures.
+  Returns `{:ok, :reset}` when paid meeting types were cleared, `{:ok,
+  :no_reset}` when the account had none, `{:ok, :unchanged}` when `currency`
+  is already the account's, `{:error, :unsupported_currency}` for a currency
+  outside the allowlist, `{:error, :pending_payments_exist}` while the host
+  has meetings awaiting payment (they must be resolved first), or
+  `{:error, reason}` on other failures.
 
-  Callers must not call this when `currency` is equal to the account's
-  current default currency — they should guard that upstream and skip
-  the call entirely.
+  The account row is locked for the whole change, as a checkout locks it to
+  read the currency and price (`CheckoutSessions`), so a booking either
+  starts its checkout first, and then counts as awaiting payment here, or
+  finds its meeting type already free.
   """
   @spec change_default_currency(account(), String.t()) ::
-          {:ok, :reset | :no_reset}
-          | {:error, :pending_payments_exist}
+          {:ok, :reset | :no_reset | :unchanged}
+          | {:error, :unsupported_currency | :pending_payments_exist}
           | {:error, term()}
-  def change_default_currency(%ConnectAccountSchema{user_id: user_id} = account, currency) do
-    if MeetingQueries.count_awaiting_payment_for_organizer(user_id) > 0 do
-      {:error, :pending_payments_exist}
-    else
+  def change_default_currency(%ConnectAccountSchema{user_id: user_id}, currency) do
+    if Currency.allowed?(currency) do
       Repo.transaction(fn ->
-        case ConnectAccountQueries.update(account, %{default_currency: currency}) do
-          {:ok, _updated} ->
-            {count, _rows} = MeetingTypeQueries.clear_payments_for_user(user_id)
-
-            if count > 0, do: :reset, else: :no_reset
-
-          {:error, reason} ->
-            Repo.rollback(reason)
+        case change_locked_currency(ConnectAccountQueries.lock_live_for_user(user_id), currency) do
+          {:ok, outcome} -> outcome
+          {:error, reason} -> Repo.rollback(reason)
         end
       end)
+    else
+      {:error, :unsupported_currency}
     end
+  end
+
+  defp change_locked_currency(nil, _currency), do: {:error, :not_found}
+
+  defp change_locked_currency(%{default_currency: currency}, currency), do: {:ok, :unchanged}
+
+  defp change_locked_currency(%ConnectAccountSchema{user_id: user_id} = account, currency) do
+    with :ok <- check_no_pending_payments(user_id),
+         {:ok, _updated} <- ConnectAccountQueries.update(account, %{default_currency: currency}) do
+      {count, _rows} = MeetingTypeQueries.clear_payments_for_user(user_id)
+      {:ok, if(count > 0, do: :reset, else: :no_reset)}
+    end
+  end
+
+  defp check_no_pending_payments(user_id) do
+    if MeetingQueries.count_awaiting_payment_for_organizer(user_id) > 0,
+      do: {:error, :pending_payments_exist},
+      else: :ok
   end
 
   # ---------------------------------------------------------------------------
@@ -478,28 +536,18 @@ defmodule Tymeslot.MeetingPayments do
   # Webhook processing
   # ---------------------------------------------------------------------------
 
-  @doc """
-  Verifies the Stripe-Signature header and dispatches the event to the
-  appropriate handler.
-
-  Reads the Connect signing secret from configuration itself, so callers
-  never handle it; see
-  `Tymeslot.MeetingPayments.Webhooks.WebhookProcessor.process/2` for the
-  outcomes.
-  """
-  @spec process_webhook(payload :: String.t(), signature :: String.t() | nil) ::
-          WebhookProcessor.process_result()
-  defdelegate process_webhook(payload, signature), to: WebhookProcessor, as: :process
-
   # ---------------------------------------------------------------------------
   # Data retention
   # ---------------------------------------------------------------------------
 
   @doc """
-  Anonymises all booking-payment and payment-transaction rows for a host and
-  soft-deletes their Connect account. Run before user deletion for GDPR
-  Art. 17(3)(b) compliance.
+  Anonymises all of a host's financial records, booking payments and
+  platform subscription records alike, and soft-deletes their Connect
+  account. Run before user deletion for GDPR Art. 17(3)(b) compliance.
+
+  The work is `Tymeslot.FinancialRetention.anonymise_host/1`, which spans
+  both payment contexts; this entry point remains for account deletion.
   """
   @spec anonymise_host(integer()) :: :ok | {:error, term()}
-  defdelegate anonymise_host(user_id), to: DataRetention
+  defdelegate anonymise_host(user_id), to: FinancialRetention
 end

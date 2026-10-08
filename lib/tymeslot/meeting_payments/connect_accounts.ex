@@ -16,6 +16,7 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.ConnectAccountQueries
   alias Tymeslot.MeetingPayments.ConnectAccountSchema
+  alias Tymeslot.MeetingPayments.Currency
   alias Tymeslot.MeetingPayments.StripeAdapter
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Repo
@@ -37,7 +38,9 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
   onboarding part-way and came back) gets a fresh onboarding link for that
   account; a new account is created only when the row has none. Returns
   `{:error, :account_creation_restricted}` when Stripe has put a temporary
-  hold on the platform creating connected accounts.
+  hold on the platform creating connected accounts, and
+  `{:error, :unsupported_currency}` when the new account's currency (its
+  country's) is not one meeting payments support.
   """
   @spec start_onboarding(user :: %{id: integer()}) ::
           {:ok, %{url: String.t(), account: account()}} | {:error, term()}
@@ -59,6 +62,7 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
 
   defp onboard(%ConnectAccountSchema{} = placeholder, country) do
     with {:ok, stripe_account} <- create_stripe_account(placeholder, country),
+         :ok <- check_currency(stripe_account, country),
          {:ok, link} <- create_account_link(stripe_account.id),
          {:ok, account} <-
            ConnectAccountQueries.update(placeholder, %{
@@ -67,6 +71,24 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
              status: "active"
            }) do
       {:ok, %{url: link.url, account: account}}
+    end
+  end
+
+  # Stripe gives a new account its country's currency. The country is the
+  # operator's MEETING_PAYMENTS_DEFAULT_COUNTRY, so a currency outside the
+  # allowlist is a configuration error no host can fix; it is logged for the
+  # operator, and the placeholder is left as it was, so onboarding can be
+  # retried once the setting is corrected.
+  defp check_currency(%{default_currency: currency}, country) do
+    if is_binary(currency) and Currency.allowed?(currency) do
+      :ok
+    else
+      Logger.error("Stripe Connect account created in an unsupported currency",
+        country: country,
+        currency: currency
+      )
+
+      {:error, :unsupported_currency}
     end
   end
 
@@ -138,7 +160,7 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
   Deliberately: `payment_required` and `price_cents` survive a disconnect so a
   host who reconnects gets their prices back instead of re-entering every one.
   The form no longer clears them by omission
-  (`Tymeslot.MeetingTypes.FormMapper.build_attrs/2`), the changeset no longer
+  (`Tymeslot.MeetingTypes.FormMapper.build_attrs/3`), the changeset no longer
   fails unrelated saves over the stored flag
   (`MeetingTypeSchema.validate_payment_fields/2`), and `Bookings.Create`
   refuses a paid booking outright while charges are off, so nothing is taken
@@ -256,7 +278,7 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
   has no envelope and stamps the current time, since it reflects Stripe's
   current truth as of the fetch.
   """
-  @spec apply_account_event(map(), DateTime.t()) :: :ok
+  @spec apply_account_event(map(), DateTime.t()) :: :ok | {:error, Ecto.Changeset.t()}
   def apply_account_event(%{"id" => stripe_account_id} = account, %DateTime{} = event_at) do
     case ConnectAccountQueries.by_stripe_account_id(stripe_account_id) do
       nil ->
@@ -269,18 +291,17 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
           now = DateTime.utc_now(:second)
           new_disabled_reason = get_in(account, ["requirements", "disabled_reason"])
 
-          {:ok, updated} =
-            ConnectAccountQueries.update(local, %{
-              charges_enabled: account["charges_enabled"],
-              payouts_enabled: account["payouts_enabled"],
-              details_submitted: account["details_submitted"],
-              disabled_reason: new_disabled_reason,
-              last_synced_at: now,
-              last_account_event_at: event_at
-            })
-
-          maybe_notify_restriction(updated, local.disabled_reason)
-          :ok
+          with {:ok, updated} <-
+                 ConnectAccountQueries.update(local, %{
+                   charges_enabled: account["charges_enabled"],
+                   payouts_enabled: account["payouts_enabled"],
+                   details_submitted: account["details_submitted"],
+                   disabled_reason: new_disabled_reason,
+                   last_synced_at: now,
+                   last_account_event_at: event_at
+                 }) do
+            maybe_notify_restriction(updated, local.disabled_reason)
+          end
         end
     end
   end
@@ -321,7 +342,7 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
 
   defp maybe_notify_restriction(_updated, _previous), do: :ok
 
-  # Stripe Express dashboard always lives at this canonical URL; we keep the
+  # The Stripe dashboard always lives at this canonical URL; we keep the
   # link generic rather than per-account because account_link sessions are
   # short-lived and would force us to call into Stripe synchronously.
   defp stripe_dashboard_url, do: "https://dashboard.stripe.com/"

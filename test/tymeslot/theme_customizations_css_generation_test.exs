@@ -4,7 +4,6 @@ defmodule Tymeslot.ThemeCustomizationsCssGenerationTest do
 
   alias Tymeslot.Profiles
   alias Tymeslot.ThemeCustomizations
-  alias Tymeslot.ThemeCustomizations.Capability
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   describe "ThemeCustomizations CSS generation" do
@@ -39,17 +38,6 @@ defmodule Tymeslot.ThemeCustomizationsCssGenerationTest do
                "background_value" => "gradient_1",
                "color_scheme" => "default"
              }
-    end
-
-    test "capability options include backgrounds and colors" do
-      options = Capability.get_customization_options("1")
-
-      assert Map.has_key?(options, :color)
-      assert Map.has_key?(options, :background)
-
-      background_keys = Enum.map(options.background, & &1.key)
-      assert "image" in background_keys
-      assert "video" in background_keys
     end
 
     test "to_map/1 converts customization to map", %{profile: profile} do

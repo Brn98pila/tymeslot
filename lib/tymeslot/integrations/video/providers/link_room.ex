@@ -21,6 +21,8 @@ defmodule Tymeslot.Integrations.Video.Providers.LinkRoom do
   alias Tymeslot.Integrations.Video.Providers.SsrfOptions
   alias Tymeslot.Integrations.Video.TemplateConfig
   alias Tymeslot.Security.SsrfBlockedError
+  alias Tymeslot.Security.SsrfGuard
+  alias Tymeslot.Security.UrlValidation
 
   # The host is user-supplied, so every hop is classified in its own right.
   # `ssrf_protect: true` hands the private-address decision to `SsrfGuard`,
@@ -108,6 +110,48 @@ defmodule Tymeslot.Integrations.Video.Providers.LinkRoom do
   end
 
   @doc """
+  Checks the address of a self-hosted video server (MiroTalk, Jitsi,
+  Nextcloud Talk): an http or https URL with a host, of an allowed length,
+  with the shape `validate_base_url/1` asks for, and by default not on a local
+  or private address unless the operator allows them.
+
+  ## Options
+
+    * `:https` — `:for_public` refuses plain http to a public host (one on
+      localhost, a private network or, once private video addresses are
+      allowed, an internal name stays allowed); `:never`, the default,
+      accepts either.
+    * `:private` — `:switch`, the default, refuses a local or private
+      address unless the operator allows them; `:unchecked` leaves the
+      switch to a caller whose saves the schema already holds to it.
+
+  Any other option (`:https_error_message`, `:invalid_message`, ...) goes to
+  `Tymeslot.Security.UrlValidation.validate_http_url/2`.
+  """
+  @spec validate_server_url(String.t() | nil, keyword()) :: :ok | {:error, String.t()}
+  def validate_server_url(url, opts \\ [])
+
+  def validate_server_url(url, _opts) when url in [nil, ""],
+    do: {:error, dgettext("dashboard_video", "Base URL is required")}
+
+  def validate_server_url(url, opts) do
+    {https, opts} = Keyword.pop(opts, :https, :never)
+    {private, opts} = Keyword.pop(opts, :private, :switch)
+    private_allowed? = SsrfGuard.allow_private_for_video?()
+
+    url_opts =
+      [
+        block_private_ips: private == :switch and not private_allowed?,
+        enforce_https_for_public: https == :for_public,
+        internal_names_local: private_allowed?
+      ] ++ opts
+
+    with :ok <- UrlValidation.validate_http_url(String.trim(url), url_opts) do
+      validate_base_url(url)
+    end
+  end
+
+  @doc """
   Refuses a base URL that cannot safely have a room path appended.
 
     * Whitespace inside the address (surrounding whitespace is ignored): it
@@ -163,13 +207,6 @@ defmodule Tymeslot.Integrations.Video.Providers.LinkRoom do
   end
 
   def http_url?(_url), do: false
-
-  @doc """
-  Whether the value is an http or https URL naming a room: one with a
-  non-empty path segment for `slug_from_url/1` to return.
-  """
-  @spec room_url?(any()) :: boolean()
-  def room_url?(url), do: http_url?(url) and slug_from_url(url) != nil
 
   @doc """
   Refuses a URL longer than the database column holding it allows.

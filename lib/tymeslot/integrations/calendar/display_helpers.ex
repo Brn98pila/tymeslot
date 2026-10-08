@@ -10,7 +10,7 @@ defmodule Tymeslot.Integrations.Calendar.DisplayHelpers do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Integrations.Calendar.CalendarEntry
-  alias Tymeslot.Integrations.Providers.Directory
+  alias Tymeslot.Integrations.Shared.Providers.Directory
 
   @doc """
   Map connection/validation error atoms to user-friendly messages.

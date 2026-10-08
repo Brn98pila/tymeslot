@@ -164,6 +164,25 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.RequestsTest do
     end
   end
 
+  describe "create_item/2" do
+    test "builds a well-formed request from pasted text carrying characters XML forbids" do
+      spec = %{
+        summary: "Planning\vcall",
+        description: "Agenda\fsee notes\x01",
+        location: "Room\x0B 4",
+        start_time: ~U[2026-09-03 09:00:00Z],
+        end_time: ~U[2026-09-03 10:00:00Z]
+      }
+
+      assert {:ok, doc} =
+               spec |> Requests.create_item(:calendar) |> Soap.envelope() |> Soap.parse()
+
+      assert Soap.xpath(doc, ~x"//t:CalendarItem/t:Subject/text()"s) == "Planningcall"
+      assert Soap.xpath(doc, ~x"//t:CalendarItem/t:Body/text()"s) == "Agendasee notes"
+      assert Soap.xpath(doc, ~x"//t:CalendarItem/t:Location/text()"s) == "Room 4"
+    end
+  end
+
   describe "get_user_availability/3" do
     test "asks one mailbox for a free/busy view over the given window" do
       xml = Requests.get_user_availability("alex@example.com", @from, @to)

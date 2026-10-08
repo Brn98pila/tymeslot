@@ -30,6 +30,7 @@ defmodule Tymeslot.MeetingPayments.Refunds do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
+  alias Tymeslot.MeetingPayments.Money
   alias Tymeslot.MeetingPayments.StripeAdapter
   alias Tymeslot.MeetingPayments.Telemetry
   alias Tymeslot.Repo
@@ -145,7 +146,7 @@ defmodule Tymeslot.MeetingPayments.Refunds do
   end
 
   def parse_refund_amount(payment, %{"refund_type" => "partial", "amount" => raw}) do
-    case parse_amount_cents(raw) do
+    case Money.parse(raw, payment.currency) do
       {:ok, cents} ->
         if cents <= refundable_remaining_cents(payment) do
           {:ok, cents}
@@ -153,8 +154,8 @@ defmodule Tymeslot.MeetingPayments.Refunds do
           {:error, :exceeds_remaining}
         end
 
-      :error ->
-        {:error, :invalid_amount}
+      {:error, :invalid_amount} = error ->
+        error
     end
   end
 
@@ -318,54 +319,4 @@ defmodule Tymeslot.MeetingPayments.Refunds do
         :ok
     end
   end
-
-  # Parses a decimal-string amount (e.g. "29.99" or "10,00") into a positive
-  # integer number of cents. Only accepts canonical INT or INT.NN forms — no
-  # scientific notation, no sub-cent precision, no non-positive values.
-  defp parse_amount_cents(amount) when is_binary(amount) do
-    cleaned = amount |> String.replace(",", ".") |> String.trim()
-
-    # Reject immediately if the string contains a scientific-notation marker.
-    if String.contains?(cleaned, ["e", "E"]) do
-      :error
-    else
-      parse_canonical(cleaned)
-    end
-  end
-
-  defp parse_amount_cents(_amount), do: :error
-
-  defp parse_canonical(str) do
-    case String.split(str, ".") do
-      [major_str] ->
-        with {:ok, major} <- parse_non_negative_integer(major_str),
-             true <- major > 0 do
-          {:ok, major * 100}
-        else
-          _error -> :error
-        end
-
-      [major_str, minor_str] when byte_size(minor_str) == 2 ->
-        with {:ok, major} <- parse_non_negative_integer(major_str),
-             {:ok, minor} <- parse_non_negative_integer(minor_str),
-             cents = major * 100 + minor,
-             true <- cents > 0 do
-          {:ok, cents}
-        else
-          _error -> :error
-        end
-
-      _other ->
-        :error
-    end
-  end
-
-  defp parse_non_negative_integer(str) when is_binary(str) and str != "" do
-    case Integer.parse(str) do
-      {n, ""} when n >= 0 -> {:ok, n}
-      _other -> :error
-    end
-  end
-
-  defp parse_non_negative_integer(_str), do: :error
 end

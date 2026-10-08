@@ -27,13 +27,15 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
   require Logger
 
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
+  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
+  alias Tymeslot.Integrations.Calendar.HTTP
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI
   alias Tymeslot.Integrations.Calendar.Outlook.Provider, as: OutlookProvider
   alias Tymeslot.Integrations.Calendar.ProviderConfig
-  alias Tymeslot.Integrations.Calendar.Shared.AccessToken
   alias Tymeslot.Integrations.Calendar.Sync
+  alias Tymeslot.Integrations.Calendar.Tokens
 
   @max_delta_pages 50
 
@@ -57,7 +59,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
           | {:error, term()}
           | CalendarAPI.api_error()
   def bootstrap_sync(%CalendarIntegrationSchema{} = integration) do
-    AccessToken.with_access_token(integration, &CalendarAPI.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &CalendarAPI.refresh_token/1, fn token ->
       with {:ok, {events, delta_link}} <- fetch_initial_delta(token),
            {:ok, calendar_events} <- normalise_delta_events(events, integration),
            # Through `Sync.upsert_cache/2` for the ownership flagging it adds;
@@ -111,6 +113,48 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
     end
   end
 
+  @doc """
+  Deletes the integration's stored Graph subscription, so that Graph stops
+  sending change notifications for it. Used when the integration is
+  disconnected.
+
+  Best-effort: always returns `:ok`. A subscription Graph no longer knows
+  (404) is already gone; any other failure is logged, and the subscription
+  then runs until it expires, within two days.
+  """
+  @spec unregister(CalendarIntegrationSchema.t()) :: :ok
+  def unregister(%CalendarIntegrationSchema{graph_subscription_id: subscription_id} = integration)
+      when is_binary(subscription_id) do
+    integration
+    |> Tokens.with_access_token(&CalendarAPI.refresh_token/1, fn token ->
+      CalendarCircuitBreaker.call(:outlook, fn ->
+        CalendarAPI.make_request(
+          :delete,
+          "/subscriptions/#{HTTP.segment(subscription_id)}",
+          token,
+          %{},
+          http_options: HTTP.push_stop_http_options()
+        )
+      end)
+    end)
+    |> unwrap_breaker_result()
+    |> log_unregister_result(integration)
+  end
+
+  def unregister(%CalendarIntegrationSchema{}), do: :ok
+
+  defp log_unregister_result({:ok, _response}, _integration), do: :ok
+  defp log_unregister_result({:error, :not_found, _message}, _integration), do: :ok
+
+  defp log_unregister_result(error, integration) do
+    Logger.warning("Failed to delete Graph subscription; it will run until it expires",
+      calendar_integration_id: integration.id,
+      error: LogFormat.reason(error)
+    )
+
+    :ok
+  end
+
   # Private helpers
 
   # Every Graph call below goes through `CalendarCircuitBreaker.call/2`, whose
@@ -133,7 +177,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
   # the ones expected turns the rest into a `CaseClauseError` that crashes it.
 
   defp do_register(integration, webhook_base_url) do
-    AccessToken.with_access_token(integration, &CalendarAPI.refresh_token/1, fn token ->
+    Tokens.with_access_token(integration, &CalendarAPI.refresh_token/1, fn token ->
       case renew_stored_subscription(token, integration, webhook_base_url) do
         {:ok, subscription_attrs} ->
           persist_subscription(integration, subscription_attrs)
@@ -168,7 +212,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
       CalendarCircuitBreaker.call(:outlook, fn ->
         CalendarAPI.make_request_with_body(
           :patch,
-          "/subscriptions/#{URI.encode(subscription_id)}",
+          "/subscriptions/#{HTTP.segment(subscription_id)}",
           token,
           body
         )

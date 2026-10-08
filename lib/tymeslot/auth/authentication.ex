@@ -8,7 +8,6 @@ defmodule Tymeslot.Auth.Authentication do
   alias Tymeslot.Auth.ErrorFormatter
   alias Tymeslot.Auth.Helpers.AccountLogging
   alias Tymeslot.Auth.{RateLimit, UserQueries, Validation, Verification}
-  alias Tymeslot.Infrastructure.StructuredLogger
   alias Tymeslot.Security.{Password, RateLimiter, SecurityLogger}
 
   @doc """
@@ -154,33 +153,16 @@ defmodule Tymeslot.Auth.Authentication do
   end
 
   defp log_auth_attempt(user, :success, opts) do
-    StructuredLogger.log_auth_event(:login_success, user.id, %{
-      email_masked: SecurityLogger.mask_email(user.email),
-      ip_address: opts[:ip],
-      user_agent: opts[:user_agent]
-    })
-
-    AccountLogging.log_operation_success("authentication", user.email, %{user_id: user.id})
-
     SecurityLogger.log_authentication_attempt(user.email, true, "success", %{
+      user_id: user.id,
       ip_address: opts[:ip],
       user_agent: opts[:user_agent]
     })
   end
 
   defp log_auth_attempt(user, reason, opts) do
-    StructuredLogger.log_auth_event(:login_failure, user.id, %{
-      email_masked: SecurityLogger.mask_email(user.email),
-      reason: reason,
-      ip_address: opts[:ip],
-      user_agent: opts[:user_agent]
-    })
-
-    AccountLogging.log_operation_failure("authentication", user.email, reason, %{
-      user_id: user.id
-    })
-
     SecurityLogger.log_authentication_attempt(user.email, false, to_string(reason), %{
+      user_id: user.id,
       ip_address: opts[:ip],
       user_agent: opts[:user_agent]
     })

@@ -50,7 +50,6 @@ defmodule Tymeslot.Integrations.Video.Providers.CustomProvider do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Integrations.Video.Providers.Capabilities
   alias Tymeslot.Integrations.Video.Providers.LinkRoom
   alias Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   alias Tymeslot.Integrations.Video.RoomData
@@ -59,16 +58,6 @@ defmodule Tymeslot.Integrations.Video.Providers.CustomProvider do
   require Logger
 
   @behaviour ProviderBehaviour
-
-  @capabilities Capabilities.new!(
-                  waiting_room: false,
-                  recording: false,
-                  dial_in: false,
-                  max_participants: nil,
-                  breakout_rooms: false,
-                  screen_sharing: false,
-                  chat: false
-                )
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def create_meeting_room(config) do
@@ -168,9 +157,6 @@ defmodule Tymeslot.Integrations.Video.Providers.CustomProvider do
   def extract_room_id(meeting_url), do: LinkRoom.room_id(meeting_url)
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def valid_meeting_url?(meeting_url), do: LinkRoom.http_url?(meeting_url)
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def perform_connection_test(config) do
     case Map.get(config, :custom_meeting_url) do
       url when url in [nil, ""] ->
@@ -187,12 +173,6 @@ defmodule Tymeslot.Integrations.Video.Providers.CustomProvider do
         end
     end
   end
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def provider_type, do: :custom
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def display_name, do: "Custom Video Link"
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def connection_test_bucket, do: :custom
@@ -238,22 +218,6 @@ defmodule Tymeslot.Integrations.Video.Providers.CustomProvider do
 
   defp custom_url_required_message,
     do: dgettext("dashboard_video", "Custom meeting URL is required")
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def capabilities, do: @capabilities
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def handle_meeting_event(_event, _room_data, _additional_data), do: :ok
-
-  @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
-  def generate_meeting_metadata(room_data) do
-    %{
-      provider: "custom",
-      meeting_id: room_data.room_id,
-      join_url: room_data.meeting_url,
-      custom_url: Map.get(room_data.provider_data, :original_url)
-    }
-  end
 
   @impl Tymeslot.Integrations.Video.Providers.ProviderBehaviour
   def build_config(integration, _decrypted, opts) do

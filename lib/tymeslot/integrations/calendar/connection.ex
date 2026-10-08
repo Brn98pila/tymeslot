@@ -4,85 +4,13 @@ defmodule Tymeslot.Integrations.Calendar.Connection do
   """
 
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
-  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
-  alias Tymeslot.Integrations.Calendar.Discovery
   alias Tymeslot.Integrations.Calendar.Exchange.ClientConfig, as: ExchangeClientConfig
   alias Tymeslot.Integrations.Calendar.Provider
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Providers.ProviderRegistry
   alias Tymeslot.Integrations.Calendar.Shared.ErrorHandler
-  alias Tymeslot.Integrations.Calendar.Tokens
   alias Tymeslot.Integrations.Shared.ConnectionProbe
-
-  require Logger
-
-  @type user_id :: pos_integer()
-
-  @caldav_provider_strings ProviderConfig.caldav_based_provider_strings()
-
-  @spec validate_connection(CalendarIntegrationSchema.t(), user_id()) ::
-          {:ok, CalendarIntegrationSchema.t()} | {:error, term()}
-  def validate_connection(%{provider: provider} = integration, user_id)
-      when provider in ["google", "outlook"] do
-    with {:ok, updated} <- Tokens.ensure_valid_token(integration, user_id),
-         {:ok, _result} <- test_connection(updated) do
-      {:ok, updated}
-    else
-      {:error, reason} when reason in [:token_refresh_failed, :token_persistence_failed] ->
-        {:error, :token_expired}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  def validate_connection(%{provider: provider} = integration, user_id)
-      when provider in @caldav_provider_strings do
-    client_config = %{
-      base_url: integration.base_url,
-      username: integration.username,
-      password: integration.password
-    }
-
-    provider_atom =
-      case ProviderConfig.parse_known(provider) do
-        {:ok, atom} -> atom
-        _other -> :unknown
-      end
-
-    # Reaches `Discovery` directly rather than through `probe/3` — metering
-    # happens at the `Discovery` funnel itself, charged to the acting user,
-    # so no second charge is needed here. Past the host breaker, which an
-    # earlier outage may have opened, and past the discovery cache: a person
-    # is checking whether the server is back, and only a request that
-    # reaches it can say so. A cached answer would report success, and close
-    # the breaker, for a server nobody has asked.
-    case Discovery.discover_calendars(provider_atom, client_config,
-           actor: {:user, user_id},
-           skip_breaker: true,
-           force_refresh: true
-         ) do
-      {:ok, _result} ->
-        reset_host_breaker(integration)
-        {:ok, integration}
-
-      {:error, _msg} ->
-        {:error, :network_error}
-    end
-  rescue
-    error ->
-      # `client_config` carries the CalDAV password; never include it here.
-      Logger.warning("CalDAV calendar discovery raised during connection validation",
-        provider: provider,
-        integration_id: integration.id,
-        error: LogFormat.reason(error)
-      )
-
-      {:error, :network_error}
-  end
-
-  def validate_connection(_integration, _user_id), do: {:error, :unsupported_provider}
 
   @doc """
   Test provider connectivity via registry.

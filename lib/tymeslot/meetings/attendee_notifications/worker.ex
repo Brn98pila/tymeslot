@@ -45,8 +45,6 @@ defmodule Tymeslot.Meetings.AttendeeNotifications.Worker do
   alias Tymeslot.Meetings.AttendeeNotifications.IcalMethod
   alias Tymeslot.Meetings.AttendeeNotifications.LastNotifiedState
   alias Tymeslot.Meetings.AttendeeNotifications.Recipients
-  alias Tymeslot.Meetings.MeetingQueries
-  alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Repo
 
   require Logger
@@ -117,8 +115,6 @@ defmodule Tymeslot.Meetings.AttendeeNotifications.Worker do
       end
     end
   end
-
-  defp load_event(id, "meeting"), do: MeetingQueries.get_meeting(id)
 
   defp load_event(id, "provider_calendar_event") when is_integer(id),
     do: fetch_provider_event(id)
@@ -244,9 +240,6 @@ defmodule Tymeslot.Meetings.AttendeeNotifications.Worker do
       {:error, changeset} -> {:error, changeset}
     end
   end
-
-  defp update_baseline(%MeetingSchema{} = meeting, state, sequence),
-    do: MeetingQueries.update_notification_baseline(meeting, state, sequence)
 
   defp update_baseline(%ProviderCalendarEventSchema{} = event, state, sequence),
     do: ProviderCalendarEventQueries.update_notification_baseline(event, state, sequence)

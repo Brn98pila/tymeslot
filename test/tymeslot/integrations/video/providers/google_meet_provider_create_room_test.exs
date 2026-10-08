@@ -13,6 +13,7 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProviderCreateRoomTest
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
   alias Tymeslot.Integrations.Video.VideoIntegrationSchema
   alias Tymeslot.Repo
+  alias Tymeslot.Security.Encryption
 
   setup :verify_on_exit!
 
@@ -116,8 +117,8 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProviderCreateRoomTest
         insert(:video_integration,
           user: user,
           provider: "google_meet",
-          access_token: "expired",
-          refresh_token: "refresh",
+          access_token_encrypted: Encryption.encrypt("expired"),
+          refresh_token_encrypted: Encryption.encrypt("refresh"),
           token_expires_at: expires_at
         )
 
@@ -211,7 +212,7 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProviderCreateRoomTest
         {:error, "Token refresh failed: invalid_grant"}
       end)
 
-      assert {:error, "Failed to refresh token: Token refresh failed: invalid_grant"} =
+      assert {:error, "Token refresh failed: invalid_grant"} =
                GoogleMeetProvider.precheck_create_meeting_room(config)
     end
 
@@ -226,8 +227,7 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProviderCreateRoomTest
         {:error, "Network error during token refresh: timeout"}
       end)
 
-      assert {:provider_error,
-              "Failed to refresh token: Network error during token refresh: timeout"} =
+      assert {:provider_error, "Network error during token refresh: timeout"} =
                GoogleMeetProvider.precheck_create_meeting_room(config)
     end
 
@@ -245,7 +245,14 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProviderCreateRoomTest
   describe "ProviderAdapter.create_meeting_room/2 with a revoked grant" do
     test "flags the integration and fails as unauthorised" do
       user = insert(:user)
-      integration = insert(:video_integration, user: user, provider: "google_meet")
+      # The refresh spends the refresh token stored on the row, not the
+      # caller's copy, so the row holds the one the provider refuses.
+      integration =
+        insert(:video_integration,
+          user: user,
+          provider: "google_meet",
+          refresh_token_encrypted: Encryption.encrypt("refresh_token")
+        )
 
       config = %{
         access_token: "expired",
@@ -276,7 +283,8 @@ defmodule Tymeslot.Integrations.Video.Providers.GoogleMeetProviderCreateRoomTest
         user_id: user.id
       }
 
-      expect(GoogleOAuthHelperMock, :refresh_access_token, fn "refresh_token", nil, _opts ->
+      # The refresh spends the refresh token stored on the row.
+      expect(GoogleOAuthHelperMock, :refresh_access_token, fn _stored_refresh_token, nil, _opts ->
         {:error, "Network error during token refresh: timeout"}
       end)
 

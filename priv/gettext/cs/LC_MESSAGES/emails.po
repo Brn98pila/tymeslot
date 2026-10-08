@@ -183,11 +183,6 @@ msgstr "Odpovězte na tento e-mail"
 msgid "Having trouble with the button? Copy and paste this link into your browser:"
 msgstr "Nefunguje tlačítko? Zkopírujte tento odkaz do prohlížeče:"
 
-#: lib/tymeslot/emails/shared/meeting/video_section.ex
-#, elixir-autogen, elixir-format
-msgid "Meeting will start at the scheduled time"
-msgstr "Schůzka začne v naplánovaný čas"
-
 #: lib/tymeslot/emails/shared/formatting.ex
 #, elixir-autogen, elixir-format
 msgid "hour"

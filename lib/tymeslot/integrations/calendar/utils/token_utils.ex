@@ -1,22 +1,7 @@
 defmodule Tymeslot.Integrations.Calendar.TokenUtils do
   @moduledoc """
-  Utility functions for managing OAuth tokens across calendar providers.
-  Handles token expiry checks and relative-time formatting.
+  Relative-time formatting for token expiry shown on the dashboard.
   """
-
-  @doc """
-  Checks if a token is expired.
-  Includes a 60-second grace period for clock skew.
-  """
-  @spec token_expired?(map() | nil) :: boolean()
-  def token_expired?(nil), do: true
-  def token_expired?(%{token_expires_at: nil}), do: false
-
-  def token_expired?(%{token_expires_at: expires_at}) do
-    # Treat as expired if it expires within the next 60 seconds
-    threshold = DateTime.add(DateTime.utc_now(), 60, :second)
-    DateTime.compare(expires_at, threshold) == :lt
-  end
 
   @doc """
   Converts a DateTime to a human-readable relative time string.

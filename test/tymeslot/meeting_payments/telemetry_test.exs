@@ -243,7 +243,8 @@ defmodule Tymeslot.MeetingPayments.TelemetryTest do
     test "emits :error processed metadata on an invalid event" do
       :telemetry_test.attach_event_handlers(self(), [PaymentsTelemetry.webhook_event() ++ [:stop]])
 
-      assert {:error, :invalid_event} = CheckoutSessionExpired.handle(%{"bogus" => true})
+      assert {:error, :permanent, :invalid_event} =
+               CheckoutSessionExpired.handle(%{"bogus" => true})
 
       assert_received {[_, _, :webhook, :received, :stop], _ref, _measurements,
                        %{event_type: "checkout.session.expired", processed: :error}}

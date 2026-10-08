@@ -363,22 +363,6 @@ defmodule Tymeslot.Emails.EmailService.AppointmentEmails do
   end
 
   @doc """
-  Sends a cancellation email. Dispatches to organizer or attendee based on the email address.
-  """
-  @spec send_appointment_cancellation(
-          String.t(),
-          Tymeslot.Emails.EmailService.appointment_details()
-        ) ::
-          {:ok, any()} | {:error, any()}
-  def send_appointment_cancellation(email, appointment_details) do
-    if email == appointment_details.organizer_email do
-      send_cancellation_email_to_organizer(email, appointment_details)
-    else
-      send_cancellation_email_to_attendee(email, appointment_details)
-    end
-  end
-
-  @doc """
   Sends a cancellation email to the attendee.
   """
   @spec send_cancellation_email_to_attendee(

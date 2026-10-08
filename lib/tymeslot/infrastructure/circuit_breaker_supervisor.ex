@@ -69,30 +69,6 @@ defmodule Tymeslot.Infrastructure.CircuitBreakerSupervisor do
         {Tymeslot.Infrastructure.CircuitBreaker,
          name: @email_breaker_name, config: @email_breaker_config},
         id: @email_breaker_name
-      ),
-
-      # Circuit breaker for OAuth services
-      Supervisor.child_spec(
-        {Tymeslot.Infrastructure.CircuitBreaker,
-         name: :oauth_github_breaker,
-         config: %{
-           failure_threshold: 3,
-           time_window: :timer.minutes(2),
-           recovery_timeout: :timer.minutes(5),
-           half_open_requests: 1
-         }},
-        id: :oauth_github_breaker
-      ),
-      Supervisor.child_spec(
-        {Tymeslot.Infrastructure.CircuitBreaker,
-         name: :oauth_google_breaker,
-         config: %{
-           failure_threshold: 3,
-           time_window: :timer.minutes(2),
-           recovery_timeout: :timer.minutes(5),
-           half_open_requests: 1
-         }},
-        id: :oauth_google_breaker
       )
     ]
 
@@ -117,8 +93,11 @@ defmodule Tymeslot.Infrastructure.CircuitBreakerSupervisor do
     end)
   end
 
+  # Every known provider, switched off or not: a provider switched off still
+  # serves the integrations connected before the switch, and their room calls
+  # go through its breaker.
   defp build_video_breakers do
-    VideoProviderConfig.all_providers()
+    VideoProviderConfig.known_providers()
     |> Enum.filter(&VideoProviderConfig.circuit_breaker_enabled?/1)
     |> Enum.map(fn provider ->
       # provider comes from the fixed, compile-time-known provider list, so the

@@ -249,7 +249,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.InlineEdit do
         event_context = %{
           all_day: Map.get(event, :all_day, false),
           start_date: AllDay.start_date(event),
-          timezone: Shared.recurrence_timezone(event, socket.assigns.user_timezone)
+          timezone: Shared.recurrence_timezone(event, socket.assigns.user_timezone),
+          rule: event.recurrence_rule
         }
 
         case Shared.compose_recurrence_rule(params, event_context) do
@@ -495,14 +496,21 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.InlineEdit do
         event: original_event,
         optimistic_event: optimistic_event,
         recurrence_rule: new_rule,
+        # The zone the editor ended the rule's UNTIL day in, which the series'
+        # writers read the end date back in.
+        until_timezone: Shared.recurrence_timezone(original_event, socket.assigns.user_timezone),
         original_event: original_event,
         following_notes: SeriesEdit.following_notes(original_event, %{recurrence_rule: new_rule})
       }
 
       {:noreply, assign(socket, :recurrence_prompt, prompt)}
     else
+      # A single event given a rule becomes a series, which a CalDAV calendar
+      # stores in the event's own zone so it keeps its local time across DST.
       socket =
-        EditWorkflow.update_event_async(socket, original_event, %{recurrence_rule: new_rule})
+        EditWorkflow.update_event_async(socket, original_event, %{recurrence_rule: new_rule},
+          timezone: Shared.recurrence_timezone(original_event, socket.assigns.user_timezone)
+        )
 
       send(self(), {:flash, {:info, dgettext("dashboard_calendar_events", "Changes saved.")}})
       {:noreply, socket}

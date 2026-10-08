@@ -83,50 +83,6 @@ defmodule Tymeslot.Notifications.ContentBuilder do
   end
 
   @doc """
-  Builds cancellation details for email notifications.
-  """
-  @spec build_cancellation_details(%{atom() => term()}) :: %{atom() => term()}
-  def build_cancellation_details(meeting) do
-    organizer_timezone = Recipients.get_organizer_timezone(meeting)
-    attendee_timezone = Recipients.get_attendee_timezone(meeting)
-
-    %{
-      # The calendar event's UID, as in `AppointmentBuilder`: never the
-      # booking's capability-bearing `uid`.
-      uid: meeting.calendar_uid,
-      title: meeting.title,
-
-      # Participant information
-      attendee_name: meeting.attendee_name,
-      attendee_email: meeting.attendee_email,
-      attendee_locale: RecipientLocale.attendee_locale(meeting),
-      attendee_timezone: attendee_timezone,
-      organizer_name: meeting.organizer_name,
-      organizer_email: meeting.organizer_email,
-      organizer_title: meeting.organizer_title,
-
-      # Meeting timing
-      date: meeting.start_time,
-      start_time: meeting.start_time,
-      end_time: meeting.end_time,
-      start_time_owner_tz: convert_to_timezone(meeting.start_time, organizer_timezone),
-      start_time_attendee_tz: convert_to_timezone(meeting.start_time, attendee_timezone),
-      duration: meeting.duration,
-
-      # Meeting details
-      location: meeting.location,
-      meeting_type: meeting.meeting_type,
-
-      # iCal sequence for cancellation attachments (bumped at render time)
-      ical_sequence: Map.get(meeting, :ical_sequence) || 0,
-
-      # Cancellation context
-      cancelled_at: meeting.cancelled_at || DateTime.utc_now(),
-      cancellation_reason: meeting.cancellation_reason
-    }
-  end
-
-  @doc """
   Builds reschedule details for email notifications.
 
   Unlike the other builders here, this payload is rendered by an email template
@@ -173,22 +129,6 @@ defmodule Tymeslot.Notifications.ContentBuilder do
     meeting
     |> AppointmentBuilder.from_meeting()
     |> Map.merge(%{is_rescheduled: true, rescheduled_at: DateTime.utc_now()})
-  end
-
-  @doc """
-  Builds reminder notification details.
-  """
-  @spec build_reminder_details(%{atom() => term()}) :: %{atom() => term()}
-  def build_reminder_details(meeting) do
-    base_details = build_appointment_details(meeting)
-
-    reminder_time =
-      Keyword.get(Application.get_env(:tymeslot, :notifications, []), :reminder_minutes, 30)
-
-    Map.merge(base_details, %{
-      is_reminder: true,
-      reminder_time: "#{reminder_time} minutes"
-    })
   end
 
   @doc """

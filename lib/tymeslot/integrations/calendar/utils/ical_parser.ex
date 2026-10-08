@@ -7,6 +7,7 @@ defmodule Tymeslot.Integrations.Calendar.ICalParser do
   require Logger
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Metrics
+  alias Tymeslot.Integrations.Calendar.ICalBuilder.LineFolder
   alias Tymeslot.Integrations.Calendar.VTimezone
   alias Tymeslot.Timezones
   alias Tymeslot.Utils.DateTimeUtils.Duration
@@ -97,7 +98,7 @@ defmodule Tymeslot.Integrations.Calendar.ICalParser do
   end
 
   defp parse_event_block(event_block, vtimezones) do
-    lines = unfold_lines(event_block)
+    lines = LineFolder.unfold_lines(event_block)
 
     # Extract properties
     uid = extract_property(lines, "UID")
@@ -143,8 +144,9 @@ defmodule Tymeslot.Integrations.Calendar.ICalParser do
         # name. `start_time`/`end_time` above are converted to UTC, which throws
         # the zone away — recurring events need it back to expand occurrences in
         # local wall-clock time across a DST transition (see
-        # `Tymeslot.Integrations.Calendar.ICalNormaliser.expand_event/3`). `nil` for UTC, floating, and
-        # DATE-valued events, none of which have a zone to restore.
+        # `Tymeslot.Integrations.Calendar.ICalNormaliser.expand_occurrences/3`).
+        # `nil` for UTC, floating, and DATE-valued events, none of which have a
+        # zone to restore.
         timezone: dtstart_timezone(dtstart),
         # A DTSTART with neither a TZID nor a `Z` is a floating wall-clock time,
         # which `start_time`/`end_time` above read as UTC. Kept so a caller that
@@ -174,25 +176,6 @@ defmodule Tymeslot.Integrations.Calendar.ICalParser do
     do: Regex.match?(~r/T\d{6}$/, String.trim(value))
 
   defp floating?(_dtstart), do: false
-
-  defp unfold_lines(content) do
-    content
-    |> String.split("\n")
-    |> Enum.reduce([], fn line, acc ->
-      # Continuation line (starts with space or tab)
-      if acc != [] and match?(<<c, _::binary>> when c in [?\s, ?\t], line) do
-        [last | rest] = acc
-        # RFC 5545 §3.1: unfold by removing the line break and exactly ONE
-        # whitespace character; any further whitespace belongs to the value
-        <<_fold, continuation::binary>> = line
-        [last <> continuation | rest]
-      else
-        # New line
-        [line | acc]
-      end
-    end)
-    |> Enum.reverse()
-  end
 
   defp extract_attendees(lines) do
     lines
@@ -343,14 +326,19 @@ defmodule Tymeslot.Integrations.Calendar.ICalParser do
     end
   end
 
-  defp decode_value(value) do
-    value
-    |> String.trim()
-    |> String.replace("\\n", "\n")
-    |> String.replace("\\,", ",")
-    |> String.replace("\\;", ";")
-    |> String.replace("\\\\", "\\")
-  end
+  # RFC 5545 §3.3.11, in one pass: each escape is read once, so the escaped
+  # backslash in `\\new` stays a backslash before "new" rather than becoming
+  # a line break, and an uppercase `\N` is a line break too.
+  defp decode_value(value), do: value |> String.trim() |> unescape_text("")
+
+  defp unescape_text(<<"\\", char, rest::binary>>, acc) when char in [?n, ?N],
+    do: unescape_text(rest, acc <> "\n")
+
+  defp unescape_text(<<"\\", char, rest::binary>>, acc) when char in [?\\, ?;, ?,],
+    do: unescape_text(rest, <<acc::binary, char>>)
+
+  defp unescape_text(<<char, rest::binary>>, acc), do: unescape_text(rest, <<acc::binary, char>>)
+  defp unescape_text(<<>>, acc), do: acc
 
   defp parse_datetime_property(nil, _vtimezones), do: nil
 

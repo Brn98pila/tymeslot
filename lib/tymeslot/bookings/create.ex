@@ -6,6 +6,7 @@ defmodule Tymeslot.Bookings.Create do
 
   alias Tymeslot.Auth
   alias Tymeslot.Availability.Offer
+  alias Tymeslot.Availability.Schedules
 
   alias Tymeslot.Bookings.{
     Activation,
@@ -14,6 +15,7 @@ defmodule Tymeslot.Bookings.Create do
     CalendarJobs,
     CreateGroup,
     Errors,
+    MeetingAttributes,
     Policy,
     ScheduleCheck,
     Validation
@@ -49,16 +51,14 @@ defmodule Tymeslot.Bookings.Create do
   Result returned by `execute/3`.
 
   The domain layer classifies every failure reason into one of
-  `Tymeslot.Bookings.Errors.classified_error/0` (or, for reasons that
-  already arrive as arbitrary changeset/validation text, passes the binary
-  through unchanged). Rendering an atom to user-facing copy is entirely the
+  `Tymeslot.Bookings.Errors.classified_error/0`. Rendering an atom to user-facing copy is entirely the
   web layer's responsibility — see
   `TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage`.
   """
   @type execute_result ::
           {:ok, map()}
           | {:ok, :payment_required, %{meeting: map(), checkout_url: String.t()}}
-          | {:error, Errors.classified_error() | String.t()}
+          | {:error, Errors.classified_error()}
 
   @doc """
   Creates a booking with fresh calendar validation.
@@ -69,7 +69,6 @@ defmodule Tymeslot.Bookings.Create do
   host's calendars (`CalendarCheck.enforce/3`).
 
   Options:
-    - :skip_calendar_check - Skip calendar availability validation
     - :with_video_room - Create with video room integration (the public
       booking page always sets it)
 
@@ -83,7 +82,7 @@ defmodule Tymeslot.Bookings.Create do
   def execute(meeting_params, form_data, opts \\ []) do
     with {:ok, booking_data} <- prepare_booking_data(meeting_params, form_data),
          :ok <- validate_custom_field_answers(booking_data),
-         {:ok, :validated} <- validate_booking(booking_data, opts) do
+         {:ok, :validated} <- validate_booking(booking_data) do
       create_meeting_and_all_side_effects_atomically(booking_data, opts)
     else
       {:error, reason} -> {:error, Errors.classify_error(reason)}
@@ -163,8 +162,8 @@ defmodule Tymeslot.Bookings.Create do
       # check agree on whether this booking joins a live group slot.
       {:ok, Map.put(booking_data, :join_target, CreateGroup.join_target(booking_data))}
     else
-      {:error, :invalid_date_input} -> {:error, "Invalid date format"}
-      {:error, :invalid_format} -> {:error, "Invalid date format"}
+      {:error, :invalid_date_input} -> {:error, :invalid_datetime}
+      {:error, :invalid_format} -> {:error, :invalid_datetime}
       error -> error
     end
   end
@@ -190,7 +189,7 @@ defmodule Tymeslot.Bookings.Create do
     if Auth.deletion_pending?(user_id), do: {:error, :host_not_found}, else: :ok
   end
 
-  defp validate_booking(booking_data, opts) do
+  defp validate_booking(booking_data) do
     # Get organizer user_id from booking data - now required
     organizer_user_id = Map.get(booking_data, :organizer_user_id)
 
@@ -208,19 +207,10 @@ defmodule Tymeslot.Bookings.Create do
 
           # Time window validation
           with :ok <-
-                 Validation.validate_booking_time(
-                   booking_data.start_datetime,
-                   booking_data.user_timezone,
-                   config
-                 ),
+                 Validation.validate_booking_time(booking_data.start_datetime, config),
                :ok <- validate_slot_on_schedule(booking_data, config),
                :ok <- validate_booking_limits(booking_data, user_id) do
-            # Optional fresh calendar validation
-            if Keyword.get(opts, :skip_calendar_check, false) do
-              {:ok, :validated}
-            else
-              validate_calendar_availability(booking_data, config)
-            end
+            validate_calendar_availability(booking_data, config)
           end
         end
     end
@@ -314,7 +304,7 @@ defmodule Tymeslot.Bookings.Create do
   end
 
   defp create_meeting_and_all_side_effects_atomically(booking_data, opts) do
-    meeting_attrs = Policy.build_meeting_attributes(BuildParams.new(booking_data))
+    meeting_attrs = MeetingAttributes.build(BuildParams.new(booking_data))
 
     cond do
       CreateGroup.applicable?(booking_data) ->
@@ -341,7 +331,7 @@ defmodule Tymeslot.Bookings.Create do
   # lookup it cannot use), and handed to the three checks that need it: the
   # booking window, the schedule's own slots and the calendar conflict check.
   defp scheduling_config(booking_data) do
-    Policy.scheduling_config(
+    Schedules.booking_config(
       Map.get(booking_data, :organizer_user_id),
       Map.get(booking_data, :meeting_type)
     )
@@ -355,11 +345,10 @@ defmodule Tymeslot.Bookings.Create do
       with {:ok, meeting} <- create_meeting(meeting_attrs),
            {:ok, _guests} <- create_guests(meeting, booking_data),
            {:ok, _result} <- schedule_calendar_job(meeting) do
-        # Post-creation side effects (emails/video) are now part of the transaction
-        # This ensures that if meeting creation fails due to a race condition (unique index),
-        # no side-effect jobs (Oban) are committed.
-        Activation.activate(meeting, opts)
-        meeting
+        # The emails, reminders and room job commit with the meeting, so a
+        # booking that loses its slot leaves none behind; the integration
+        # fan-out waits for the commit (`Activation.activate_in_transaction/2`).
+        {meeting, Activation.activate_in_transaction(meeting, opts)}
       else
         {:error, reason} ->
           Repo.rollback(reason)
@@ -395,7 +384,8 @@ defmodule Tymeslot.Bookings.Create do
     CalendarJobs.schedule_job(meeting, "create")
   end
 
-  defp map_transaction_result({:ok, meeting}, _booking_data) do
+  defp map_transaction_result({:ok, {meeting, pending_integrations}}, _booking_data) do
+    :ok = Activation.after_commit(pending_integrations)
     AvailabilityCache.invalidate_for_user(meeting.organizer_user_id)
     Telemetry.booking_created()
     {:ok, meeting}

@@ -6,7 +6,7 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandler do
   `error`, or something malformed. An account pending deletion is sent to the
   restore page before anything else. The success path checks the state belongs
   to the signed-in user, rate limits by IP, and hands the code to the owning
-  context (`Calendar.complete_oauth/3` or `Video.complete_oauth/3`), which
+  context (`Calendar.complete_oauth/4` or `Video.complete_oauth/4`), which
   connects the integration and refreshes the dashboard's cached status. The
   error path turns the provider's error into a flash.
 
@@ -161,7 +161,7 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandler do
   end
 
   defp connect(conn, code, state, {return_to, failure_path}, config) do
-    case complete(config, code, state) do
+    case complete(config, code, state, conn.assigns.current_user.id) do
       {:ok, _integration} ->
         flash_and_redirect(
           conn,
@@ -178,14 +178,21 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandler do
     end
   end
 
-  defp complete(%{domain: :calendar, provider: provider}, code, state),
-    do: Calendar.complete_oauth(provider, code, state)
+  defp complete(%{domain: :calendar, provider: provider}, code, state, user_id),
+    do: Calendar.complete_oauth(provider, code, state, user_id)
 
-  defp complete(%{domain: :video, provider: provider}, code, state),
-    do: Video.complete_oauth(provider, code, state)
+  defp complete(%{domain: :video, provider: provider}, code, state, user_id),
+    do: Video.complete_oauth(provider, code, state, user_id)
 
   defp log_failure(reason, config) when reason in @actionable_reasons do
     Logger.warning("OAuth callback rejected", provider: config.name, reason: reason)
+  end
+
+  # A callback whose flow is already spent or expired: a replayed or reloaded
+  # callback, or a connect started before a deploy that introduced the flows.
+  # Expected now and then, and the user is asked to try again.
+  defp log_failure(:flow_not_found, config) do
+    Logger.warning("OAuth callback for a spent or expired flow", provider: config.name)
   end
 
   defp log_failure(reason, config) do

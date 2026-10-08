@@ -123,7 +123,7 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
     test "renders and delivers a reschedule email to each party", %{user: user, meeting: meeting} do
       new_params = reschedule_params_for(future_datetime(5, :day))
 
-      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
+      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, user.id)
 
       delivered = delivered_emails()
 
@@ -138,7 +138,7 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
       original_start = meeting.start_time
       new_params = reschedule_params_for(future_datetime(6, :day))
 
-      assert {:ok, updated} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
+      assert {:ok, updated} = Reschedule.execute(meeting.uid, new_params, user.id)
       refute DateTime.compare(updated.start_time, original_start) == :eq
 
       delivered = delivered_emails()
@@ -151,7 +151,7 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
          %{user: user, meeting: meeting} do
       new_params = reschedule_params_for(future_datetime(10, :day))
 
-      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
+      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, user.id)
 
       attendee_email = delivered_emails()[meeting.attendee_email]
 
@@ -165,7 +165,6 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
                Reschedule.execute(
                  meeting.uid,
                  reschedule_params_for(future_datetime(10, :day)),
-                 %{},
                  user.id
                )
 
@@ -175,7 +174,6 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
                Reschedule.execute(
                  meeting.uid,
                  reschedule_params_for(future_datetime(12, :day)),
-                 %{},
                  user.id
                )
 
@@ -195,7 +193,7 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
     } do
       new_params = reschedule_params_for(future_datetime(7, :day))
 
-      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
+      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, user.id)
 
       assert [%{args: %{"event_type" => "meeting.rescheduled", "meeting_id" => meeting_id}}] =
                all_enqueued(worker: WebhookWorker)
@@ -210,10 +208,10 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
       final_target = future_datetime(12, :day)
 
       assert {:ok, _first} =
-               Reschedule.execute(meeting.uid, reschedule_params_for(first_target), %{}, user.id)
+               Reschedule.execute(meeting.uid, reschedule_params_for(first_target), user.id)
 
       assert {:ok, final} =
-               Reschedule.execute(meeting.uid, reschedule_params_for(final_target), %{}, user.id)
+               Reschedule.execute(meeting.uid, reschedule_params_for(final_target), user.id)
 
       assert DateTime.compare(final.start_time, final_target) == :eq
 
@@ -234,7 +232,6 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
                Reschedule.execute(
                  meeting.uid,
                  reschedule_params_for(future_datetime(10, :day)),
-                 %{},
                  user.id
                )
 
@@ -250,7 +247,6 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
                Reschedule.execute(
                  meeting.uid,
                  reschedule_params_for(future_datetime(10, :day)),
-                 %{},
                  user.id
                )
 
@@ -265,7 +261,6 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
                Reschedule.execute(
                  meeting.uid,
                  reschedule_params_for(future_datetime(10, :day)),
-                 %{},
                  user.id
                )
 
@@ -282,7 +277,6 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
                Reschedule.execute(
                  meeting.uid,
                  reschedule_params_for(future_datetime(10, :day)),
-                 %{},
                  user.id
                )
 
@@ -324,7 +318,7 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
         )
 
       new_params = reschedule_params_for(future_datetime(11, :day))
-      assert {:ok, updated} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
+      assert {:ok, updated} = Reschedule.execute(meeting.uid, new_params, user.id)
 
       assert [%{scheduled_at: new_scheduled_at, state: "scheduled"} = new_job] =
                all_enqueued(worker: EmailWorker, args: %{"action" => "send_reminder_emails"})
@@ -343,7 +337,7 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
     test "still dispatches the webhook and Telegram jobs", %{user: user, meeting: meeting} do
       new_params = reschedule_params_for(future_datetime(8, :day))
 
-      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
+      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, user.id)
 
       assert [%{args: %{"event_type" => "meeting.rescheduled", "meeting_id" => meeting_id}}] =
                all_enqueued(worker: WebhookWorker)
@@ -365,7 +359,7 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
     } do
       new_params = reschedule_params_for(future_datetime(8, :day))
 
-      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, %{}, user.id)
+      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, user.id)
 
       [job] = all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"})
 
@@ -381,7 +375,7 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
       target = future_datetime(9, :day)
 
       assert {:ok, updated} =
-               Reschedule.execute(meeting.uid, reschedule_params_for(target), %{}, user.id)
+               Reschedule.execute(meeting.uid, reschedule_params_for(target), user.id)
 
       refute DateTime.compare(updated.start_time, meeting.start_time) == :eq
     end

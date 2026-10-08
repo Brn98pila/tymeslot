@@ -175,6 +175,14 @@ defmodule Tymeslot.Integrations.Calendar.EventsTest do
     end
   end
 
+  describe "get_calendar_events/3" do
+    test "fails closed for an organiser whose profile cannot be loaded" do
+      user = insert(:user)
+
+      assert {:error, :profile_not_found} = Events.get_calendar_events(Date.utc_today(), user.id)
+    end
+  end
+
   describe "queueable_error?/1" do
     for {reason, expected} <- [
           unauthorized: false,

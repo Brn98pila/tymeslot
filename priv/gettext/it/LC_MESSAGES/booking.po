@@ -384,11 +384,6 @@ msgstr "Contatta l'organizzatore"
 
 #: lib/tymeslot_web/live/scheduling/handlers/booking_submission_handler_component.ex
 #, elixir-autogen, elixir-format
-msgid "Please correct the errors below before submitting."
-msgstr "Correggi gli errori riportati di seguito prima di inviare."
-
-#: lib/tymeslot_web/live/scheduling/handlers/booking_submission_handler_component.ex
-#, elixir-autogen, elixir-format
 msgid "Please correct the errors below."
 msgstr "Correggi gli errori riportati di seguito."
 
@@ -1054,11 +1049,6 @@ msgstr "Impossibile riprogrammare una riunione già iniziata"
 
 #: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
 #, elixir-autogen, elixir-format
-msgid "Meeting is already cancelled"
-msgstr "La riunione è già stata annullata"
-
-#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
-#, elixir-autogen, elixir-format
 msgid "Attendee email is required"
 msgstr "L’indirizzo email del partecipante è obbligatorio"
 
@@ -1086,11 +1076,6 @@ msgstr "L’orario di fine deve essere successivo all’orario di inizio"
 #, elixir-autogen, elixir-format
 msgid "Failed to create meeting"
 msgstr "Impossibile creare la riunione"
-
-#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
-#, elixir-autogen, elixir-format
-msgid "Failed to update meeting status"
-msgstr "Impossibile aggiornare lo stato della riunione"
 
 #: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
 #, elixir-autogen, elixir-format
@@ -1459,3 +1444,13 @@ msgstr "Altro luogo"
 #, elixir-autogen, elixir-format
 msgid "We couldn't check the host's calendar right now. Please try again in a few minutes."
 msgstr "Al momento non è stato possibile controllare il calendario dell'organizzatore. Riprova tra qualche minuto."
+
+#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
+#, elixir-autogen, elixir-format
+msgid "Cannot cancel an expired meeting"
+msgstr "Impossibile annullare una riunione scaduta"
+
+#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
+#, elixir-autogen, elixir-format
+msgid "Cannot request a reschedule while the booking awaits approval"
+msgstr "Impossibile richiedere una riprogrammazione finché la prenotazione è in attesa di conferma"

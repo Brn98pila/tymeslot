@@ -103,13 +103,10 @@ defmodule Tymeslot.Workers.ObanMaintenanceWorkerTest do
       assert result.stuck_cleaned == 0
     end
 
-    test "schedules next run after completion" do
+    test "leaves scheduling to the crontab rather than enqueuing itself" do
       assert {:ok, _result} = perform_job(ObanMaintenanceWorker, %{})
 
-      assert_enqueued(
-        worker: ObanMaintenanceWorker,
-        args: %{}
-      )
+      refute_enqueued(worker: ObanMaintenanceWorker)
     end
   end
 

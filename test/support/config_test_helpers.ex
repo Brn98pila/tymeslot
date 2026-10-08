@@ -40,7 +40,6 @@ defmodule Tymeslot.ConfigTestHelpers do
 
       test "validates webhook signature in production mode" do
         with_config(:tymeslot, [
-          skip_webhook_verification: false,
           stripe_provider: Tymeslot.Payments.Stripe,
           stripe_webhook_secret: "whsec_test_secret"
         ])
@@ -90,7 +89,6 @@ defmodule Tymeslot.ConfigTestHelpers do
 
       # Multiple config values
       with_config(:tymeslot, [
-        skip_webhook_verification: false,
         stripe_webhook_secret: "whsec_test",
         test_mode: true
       ])

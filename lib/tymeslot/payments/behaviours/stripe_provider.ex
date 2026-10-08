@@ -22,27 +22,10 @@ defmodule Tymeslot.Payments.Behaviours.StripeProvider do
   @callback delete_customer(customer_id :: String.t()) ::
               {:ok, map()} | {:error, term()}
 
-  @callback update_subscription(subscription_id :: String.t(), new_price_id :: String.t()) ::
-              {:ok, map()} | {:error, term()}
-
-  @callback update_subscription(
-              subscription_id :: String.t(),
-              new_price_id :: String.t(),
-              opts :: map()
-            ) ::
-              {:ok, map()} | {:error, term()}
-
   @callback get_subscription(subscription_id :: String.t()) ::
               {:ok, map()} | {:error, term()}
 
   @callback get_charge(charge_id :: String.t()) ::
-              {:ok, map()} | {:error, term()}
-
-  @callback construct_webhook_event(
-              payload :: binary(),
-              signature :: String.t(),
-              secret :: String.t()
-            ) ::
               {:ok, map()} | {:error, term()}
 
   @callback expire_checkout_session(session_id :: String.t()) ::
@@ -50,6 +33,4 @@ defmodule Tymeslot.Payments.Behaviours.StripeProvider do
 
   @callback list_subscriptions(params :: map()) ::
               {:ok, map()} | {:error, term()}
-
-  @callback webhook_secret() :: String.t() | nil
 end

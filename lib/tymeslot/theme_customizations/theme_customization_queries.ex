@@ -18,16 +18,6 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationQueries do
   end
 
   @doc """
-  Gets all theme customizations for a profile.
-  """
-  @spec get_all_by_profile_id(integer()) :: [ThemeCustomizationSchema.t()]
-  def get_all_by_profile_id(profile_id) do
-    ThemeCustomizationSchema
-    |> where([tc], tc.profile_id == ^profile_id)
-    |> Repo.all()
-  end
-
-  @doc """
   Creates a theme customization.
   """
   @spec create(map()) :: {:ok, ThemeCustomizationSchema.t()} | {:error, Ecto.Changeset.t()}

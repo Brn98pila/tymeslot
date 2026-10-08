@@ -372,8 +372,8 @@ defmodule Tymeslot.Emails.Shared.FormattingTest do
     end
 
     test "handles negative amounts (refunds)" do
-      assert Formatting.format_currency(-1000, "eur") == "€-10.00"
-      assert Formatting.format_currency(-500, "jpy") == "¥-500"
+      assert Formatting.format_currency(-1000, "eur") == "-€10.00"
+      assert Formatting.format_currency(-500, "jpy") == "-¥500"
     end
 
     test "falls back to upper-cased ISO code for unknown currencies" do
@@ -401,7 +401,7 @@ defmodule Tymeslot.Emails.Shared.FormattingTest do
     end
 
     test "-50 cents (partial refund display) formats with leading sign" do
-      assert Formatting.format_currency(-50, "eur") == "€-0.50"
+      assert Formatting.format_currency(-50, "eur") == "-€0.50"
     end
   end
 

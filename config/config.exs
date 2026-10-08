@@ -511,15 +511,6 @@ config :tymeslot, :payment_amount_limits,
   min_cents: 50,
   max_cents: 1_000_000_00
 
-# Payment retry configuration
-config :tymeslot, :payment_retry,
-  # Maximum number of retry attempts for transient failures
-  max_attempts: 3,
-  # Base delay between retries in milliseconds
-  base_delay_ms: 1000,
-  # Multiplier for exponential backoff (1 = linear backoff)
-  backoff_multiplier: 1
-
 # Refund handling configuration. The revocation threshold is read by Core's
 # refund webhook handler (Tymeslot.Payments.Webhooks.RefundHandler), so it stays
 # in Core even though only paid deployments exercise it.

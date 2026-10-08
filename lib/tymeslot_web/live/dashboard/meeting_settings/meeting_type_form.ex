@@ -73,12 +73,17 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm do
      |> assign(:editing_location_mode, :add)
      |> assign(:custom_questions_allowed, true)
      |> assign(:group_bookings_allowed, true)
-     |> assign(:payments_feature_enabled, false)
-     |> assign(:payments_charges_enabled, false)
-     |> assign(:payment_currency, "usd")
-     |> assign(:payment_currency_minimum_cents, 50)
-     |> assign(:payment_required, false)
-     |> assign(:payment_price, "")
+     |> assign(
+       payments_feature_enabled: false,
+       payments_charges_enabled: false,
+       payment_currency: "usd",
+       payment_currency_support: :supported,
+       payment_account_currency: "usd",
+       payment_stored_price: "",
+       payment_currency_minimum_cents: 50,
+       payment_required: false,
+       payment_price: ""
+     )
      |> assign(:allow_guests, false)
      |> assign(:requires_approval, false)
      |> assign(:approval_window_hours, nil)
@@ -360,14 +365,20 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm do
 
   @impl Phoenix.LiveComponent
   def handle_event("change_payment_price", %{"meeting_type" => %{"price_input" => price}}, socket) do
-    {:noreply,
-     socket
-     |> assign(:payment_price, price)
-     |> assign(
-       :form_errors,
-       FormValidationHelpers.delete_field_error(socket.assigns.form_errors, :price_cents)
-     )
-     |> Autosave.maybe_run()}
+    # Guard, as for the toggle: the price input is not rendered for a host
+    # who cannot set prices, so only a stale or forged event lands here.
+    if socket.assigns.payments_charges_enabled do
+      {:noreply,
+       socket
+       |> assign(:payment_price, price)
+       |> assign(
+         :form_errors,
+         FormValidationHelpers.delete_field_error(socket.assigns.form_errors, :price_cents)
+       )
+       |> Autosave.maybe_run()}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl Phoenix.LiveComponent

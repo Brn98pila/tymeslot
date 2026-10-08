@@ -28,6 +28,22 @@ defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueries do
                                       {:ok, term()} | {:error, term()})) ::
           {:ok, term()} | {:error, term()}
   def with_locked(id, fun) when is_integer(id) do
+    locked(id, &read_decrypted/1, fun)
+  end
+
+  @doc """
+  As `with_locked/2`, but hands `fun` the row as stored, whether or not its
+  credentials still decrypt: for a write that replaces them, such as a
+  reconnect, which is how an unreadable row is repaired.
+  """
+  @spec with_locked_stored(pos_integer(), (CalendarIntegrationSchema.t() ->
+                                             {:ok, term()} | {:error, term()})) ::
+          {:ok, term()} | {:error, term()}
+  def with_locked_stored(id, fun) when is_integer(id) do
+    locked(id, &read_stored/1, fun)
+  end
+
+  defp locked(id, read, fun) do
     Repo.transaction(fn ->
       Repo.one(
         from(ci in CalendarIntegrationSchema,
@@ -37,14 +53,27 @@ defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueries do
         )
       )
 
-      with {:ok, fresh} <- CalendarIntegrationQueries.get(id),
+      with {:ok, fresh} <- read.(id),
            {:ok, value} <- fun.(fresh) do
         value
       else
-        {:error, :requires_reencryption, _stale} -> Repo.rollback(:not_found)
         {:error, reason} -> Repo.rollback(reason)
       end
     end)
+  end
+
+  defp read_decrypted(id) do
+    case CalendarIntegrationQueries.get(id) do
+      {:error, :requires_reencryption, _stale} -> {:error, :not_found}
+      result -> result
+    end
+  end
+
+  defp read_stored(id) do
+    case Repo.get(CalendarIntegrationSchema, id) do
+      nil -> {:error, :not_found}
+      row -> {:ok, row}
+    end
   end
 
   @doc """

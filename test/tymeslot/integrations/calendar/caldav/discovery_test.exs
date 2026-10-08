@@ -11,7 +11,6 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.DiscoveryTest do
     username: "user",
     password: "pass",
     calendar_paths: [],
-    verify_ssl: true,
     provider: :caldav
   }
 
