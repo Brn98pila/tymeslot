@@ -9,17 +9,15 @@ defmodule Tymeslot.Webhooks do
   - Viewing delivery logs and statistics
   """
 
+  @behaviour Tymeslot.Notifications.Channel
   @behaviour Tymeslot.Security.EncryptedStorage
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  require Logger
-
   alias Tymeslot.Features
-  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Tasks
-  alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.SeatView
+  alias Tymeslot.Notifications.Channel
   alias Tymeslot.Notifications.EventTypes
   alias Tymeslot.Security.EncryptedString
 
@@ -307,12 +305,16 @@ defmodule Tymeslot.Webhooks do
   # Delivery
   # ============================================================================
 
-  @doc """
-  Triggers a webhook delivery by scheduling it via Oban.
-  """
-  @spec trigger_webhook(WebhookSchema.t(), String.t(), MeetingSchema.t()) ::
-          :ok | {:error, term()}
-  def trigger_webhook(webhook, event_type, meeting) do
+  @impl Channel
+  def schedule_for_event(user_id, event_type, meeting) do
+    user_id
+    |> WebhookQueries.list_active_webhooks_for_event(event_type)
+    |> Enum.map(&{&1.id, schedule_delivery(&1, event_type, meeting)})
+  end
+
+  # The list query does not see the failure threshold, so a webhook that has
+  # reached it but is not yet marked disabled is skipped here.
+  defp schedule_delivery(webhook, event_type, meeting) do
     if WebhookSchema.should_be_active?(webhook) and
          WebhookSchema.subscribed_to?(webhook, event_type) do
       # The snapshot pins the status and approval fields as they stand *now*, so
@@ -329,52 +331,8 @@ defmodule Tymeslot.Webhooks do
         SeatView.participant_id(meeting)
       )
     else
-      {:error, :webhook_not_active}
+      {:error, :integration_not_active}
     end
-  end
-
-  @doc """
-  Triggers all webhooks for a user and event type.
-  Checks feature access before triggering webhooks.
-  """
-  @spec trigger_webhooks_for_event(integer(), String.t(), MeetingSchema.t()) :: :ok
-  def trigger_webhooks_for_event(user_id, event_type, meeting) do
-    # Check if user has access to automation features
-    case Features.check_access(user_id, :automations_allowed) do
-      :ok ->
-        user_id
-        |> WebhookQueries.list_active_webhooks_for_event(event_type)
-        |> Enum.each(fn webhook ->
-          case trigger_webhook(webhook, event_type, meeting) do
-            :ok ->
-              Logger.debug("Scheduled webhook delivery",
-                webhook_id: webhook.id,
-                event_type: event_type
-              )
-
-            {:error, reason} ->
-              Logger.warning("Failed to schedule webhook delivery",
-                webhook_id: webhook.id,
-                event_type: event_type,
-                reason: LogFormat.reason(reason)
-              )
-          end
-        end)
-
-      {:error, :insufficient_plan} ->
-        Logger.debug("Skipping webhook delivery - user lacks Pro access",
-          user_id: user_id,
-          event_type: event_type
-        )
-
-      {:error, :feature_access_checker_failed} ->
-        Logger.warning("Feature access check failed - skipping webhook scheduling",
-          user_id: user_id,
-          event_type: event_type
-        )
-    end
-
-    :ok
   end
 
   # ============================================================================

@@ -7,6 +7,7 @@ defmodule Tymeslot.Slack do
   HTTP client directly.
   """
 
+  @behaviour Tymeslot.Notifications.Channel
   @behaviour Tymeslot.Security.EncryptedStorage
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -15,6 +16,7 @@ defmodule Tymeslot.Slack do
 
   alias Tymeslot.Features
   alias Tymeslot.Meetings.SeatView
+  alias Tymeslot.Notifications.Channel
   alias Tymeslot.Notifications.EventTypes
   alias Tymeslot.Repo
   alias Tymeslot.Slack.{API, MessageBuilder, OAuth, SlackIntegrationSchema, SlackQueries}
@@ -287,42 +289,31 @@ defmodule Tymeslot.Slack do
   # Delivery
   # ============================================================================
 
-  @spec trigger_integrations_for_event(integer(), String.t(), %{atom() => term()}) :: :ok
-  def trigger_integrations_for_event(user_id, event_type, meeting) do
+  @impl Channel
+  def schedule_for_event(user_id, event_type, meeting) do
     if slack_enabled?() do
-      case Features.check_access(user_id, :automations_allowed) do
-        :ok ->
-          user_id
-          |> SlackQueries.list_active_integrations_for_event(event_type)
-          |> Enum.each(&trigger_integration(&1, event_type, meeting))
-
-        {:error, _reason} ->
-          :ok
-      end
+      user_id
+      |> SlackQueries.list_active_integrations_for_event(event_type)
+      |> Enum.map(&{&1.id, schedule_delivery(&1, event_type, meeting)})
     else
       Logger.debug("Slack notifications disabled, skipping",
         user_id: user_id,
         event_type: event_type
       )
-    end
 
-    :ok
+      []
+    end
   end
 
-  @spec trigger_integration(SlackIntegrationSchema.t(), String.t(), %{atom() => term()}) ::
-          :ok | {:error, term()}
-  def trigger_integration(integration, event_type, meeting) do
-    if SlackIntegrationSchema.status(integration) == :active and
-         SlackIntegrationSchema.subscribed_to?(integration, event_type) do
-      SlackWorker.schedule_delivery(
-        integration.id,
-        event_type,
-        meeting.id,
-        SeatView.participant_id(meeting)
-      )
-    else
-      {:error, :integration_not_active}
-    end
+  # The list query returns only deliverable integrations subscribed to the
+  # event, so each one is scheduled as it stands.
+  defp schedule_delivery(integration, event_type, meeting) do
+    SlackWorker.schedule_delivery(
+      integration.id,
+      event_type,
+      meeting.id,
+      SeatView.participant_id(meeting)
+    )
   end
 
   # ============================================================================

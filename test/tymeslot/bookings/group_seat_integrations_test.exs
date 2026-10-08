@@ -316,7 +316,7 @@ defmodule Tymeslot.Bookings.GroupSeatIntegrationsTest do
           attendee_email: "solo@example.com"
         )
 
-      assert :ok = Webhooks.trigger_webhook(webhook, "meeting.created", meeting)
+      assert {webhook.id, :ok} in Webhooks.schedule_for_event(user.id, "meeting.created", meeting)
 
       assert [job] = jobs(WebhookWorker, "meeting.created")
 

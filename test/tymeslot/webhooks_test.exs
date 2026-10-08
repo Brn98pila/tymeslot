@@ -515,7 +515,7 @@ defmodule Tymeslot.WebhooksTest do
   # Trigger Webhook
   # ============================================================================
 
-  describe "trigger_webhook/3" do
+  describe "schedule_for_event/3" do
     test "schedules delivery for an active webhook subscribed to the event" do
       user = insert(:user)
 
@@ -528,10 +528,10 @@ defmodule Tymeslot.WebhooksTest do
 
       meeting = insert(:meeting, organizer_user: user)
 
-      # `schedule_delivery/3` answers :ok for a fresh insert and for a
-      # unique-constraint conflict alike, so the enqueued job is what proves a
-      # delivery was actually scheduled.
-      assert :ok = Webhooks.trigger_webhook(webhook, "meeting.created", meeting)
+      # A fresh insert and a unique conflict both answer :ok, so the enqueued
+      # job is what proves a delivery was actually scheduled.
+      assert [{webhook.id, :ok}] ==
+               Webhooks.schedule_for_event(user.id, "meeting.created", meeting)
 
       assert_enqueued(
         worker: WebhookWorker,
@@ -543,36 +543,34 @@ defmodule Tymeslot.WebhooksTest do
       )
     end
 
-    test "returns error for an inactive webhook" do
+    test "skips an inactive webhook" do
       user = insert(:user)
 
-      webhook =
-        insert(:webhook,
-          user: user,
-          is_active: false,
-          events: ["meeting.created"]
-        )
+      insert(:webhook,
+        user: user,
+        is_active: false,
+        events: ["meeting.created"]
+      )
 
       meeting = insert(:meeting, organizer_user: user)
 
-      assert {:error, :webhook_not_active} =
-               Webhooks.trigger_webhook(webhook, "meeting.created", meeting)
+      assert [] == Webhooks.schedule_for_event(user.id, "meeting.created", meeting)
+      assert all_enqueued(worker: WebhookWorker) == []
     end
 
-    test "returns error for an active webhook not subscribed to the event" do
+    test "skips an active webhook not subscribed to the event" do
       user = insert(:user)
 
-      webhook =
-        insert(:webhook,
-          user: user,
-          is_active: true,
-          events: ["meeting.cancelled"]
-        )
+      insert(:webhook,
+        user: user,
+        is_active: true,
+        events: ["meeting.cancelled"]
+      )
 
       meeting = insert(:meeting, organizer_user: user)
 
-      assert {:error, :webhook_not_active} =
-               Webhooks.trigger_webhook(webhook, "meeting.created", meeting)
+      assert [] == Webhooks.schedule_for_event(user.id, "meeting.created", meeting)
+      assert all_enqueued(worker: WebhookWorker) == []
     end
   end
 

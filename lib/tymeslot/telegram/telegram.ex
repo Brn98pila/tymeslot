@@ -3,6 +3,7 @@ defmodule Tymeslot.Telegram do
   Context module for Telegram integration management and delivery.
   """
 
+  @behaviour Tymeslot.Notifications.Channel
   @behaviour Tymeslot.Security.EncryptedStorage
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -11,6 +12,7 @@ defmodule Tymeslot.Telegram do
 
   alias Tymeslot.Features
   alias Tymeslot.Meetings.SeatView
+  alias Tymeslot.Notifications.Channel
   alias Tymeslot.Notifications.EventTypes
   alias Tymeslot.Repo
   alias Tymeslot.Security.SharedSecret
@@ -151,42 +153,31 @@ defmodule Tymeslot.Telegram do
   # Delivery
   # ============================================================================
 
-  @spec trigger_integrations_for_event(integer(), String.t(), %{atom() => term()}) :: :ok
-  def trigger_integrations_for_event(user_id, event_type, meeting) do
+  @impl Channel
+  def schedule_for_event(user_id, event_type, meeting) do
     if telegram_enabled?() do
-      case Features.check_access(user_id, :automations_allowed) do
-        :ok ->
-          user_id
-          |> TelegramQueries.list_active_integrations_for_event(event_type)
-          |> Enum.each(&trigger_integration(&1, event_type, meeting))
-
-        {:error, _reason} ->
-          :ok
-      end
+      user_id
+      |> TelegramQueries.list_active_integrations_for_event(event_type)
+      |> Enum.map(&{&1.id, schedule_delivery(&1, event_type, meeting)})
     else
       Logger.debug("Telegram notifications disabled, skipping",
         user_id: user_id,
         event_type: event_type
       )
-    end
 
-    :ok
+      []
+    end
   end
 
-  @spec trigger_integration(TelegramIntegrationSchema.t(), String.t(), %{atom() => term()}) ::
-          :ok | {:error, term()}
-  def trigger_integration(integration, event_type, meeting) do
-    if TelegramIntegrationSchema.should_be_active?(integration) and
-         TelegramIntegrationSchema.subscribed_to?(integration, event_type) do
-      TelegramWorker.schedule_delivery(
-        integration.id,
-        event_type,
-        meeting.id,
-        SeatView.participant_id(meeting)
-      )
-    else
-      {:error, :integration_not_active}
-    end
+  # The list query returns only deliverable integrations subscribed to the
+  # event, so each one is scheduled as it stands.
+  defp schedule_delivery(integration, event_type, meeting) do
+    TelegramWorker.schedule_delivery(
+      integration.id,
+      event_type,
+      meeting.id,
+      SeatView.participant_id(meeting)
+    )
   end
 
   # ============================================================================

@@ -12,11 +12,9 @@ defmodule Tymeslot.Notifications.Events do
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.ParticipantQueries
   alias Tymeslot.Meetings.SeatView
+  alias Tymeslot.Notifications.ChannelFanout
   alias Tymeslot.Notifications.DispatchInTransactionError
   alias Tymeslot.Notifications.Orchestrator
-  alias Tymeslot.Slack.Dispatcher, as: SlackDispatcher
-  alias Tymeslot.Telegram.Dispatcher, as: TelegramDispatcher
-  alias Tymeslot.Webhooks.Dispatcher
 
   @doc """
   Handles meeting creation event.
@@ -428,18 +426,6 @@ defmodule Tymeslot.Notifications.Events do
       {:error, {:notifications_failed, exception}}
   end
 
-  # `Dispatcher.dispatch/2` (and its Telegram/Slack counterparts) resolves an
-  # internal event atom to a wire name via `EventTypes.to_event_type/1`, which
-  # raises on an atom it doesn't recognise. These three calls sit outside the
-  # `send_notifications/3` rescue, on purpose — that rescue is scoped to the
-  # in-process email render — so each dispatch gets its own guard: a channel
-  # that can't resolve the event name is best-effort like the rest of the
-  # fan-out, not a reason to abort the remaining channels or escape into the
-  # booking caller.
-  defp dispatch_webhooks(event, meeting), do: dispatch_channel(:webhooks, event, meeting)
-  defp dispatch_telegram(event, meeting), do: dispatch_channel(:telegram, event, meeting)
-  defp dispatch_slack(event, meeting), do: dispatch_channel(:slack, event, meeting)
-
   # A meeting-level event on a group meeting reaches integrations once per
   # live seat, each as that seat's booking: the slot row has no attendee, and
   # one event for it would name nobody.
@@ -484,32 +470,11 @@ defmodule Tymeslot.Notifications.Events do
 
   # Every event, the request-lifecycle ones (`meeting.requested`,
   # `meeting.declined`, `meeting.request_expired`) included, fans out to all
-  # three channels through the guarded `dispatch_channel/3`, so a raising
-  # channel cannot abort the fan-out or escape into callers this module
-  # documents as non-failing. Each channel may subscribe to every event
-  # (`Tymeslot.Notifications.EventTypes.all/0`).
-  defp dispatch_channels(event, meeting) do
-    dispatch_webhooks(event, meeting)
-    dispatch_telegram(event, meeting)
-    dispatch_slack(event, meeting)
-  end
-
-  defp dispatch_channel(channel, event, meeting) do
-    dispatch_fun(channel).(event, meeting)
-  rescue
-    exception ->
-      ErrorTracking.report_error(exception, __STACKTRACE__, %{
-        channel: channel,
-        event: event,
-        meeting_id: Map.get(meeting, :id)
-      })
-
-      {:error, {:dispatch_failed, exception}}
-  end
-
-  defp dispatch_fun(:webhooks), do: &Dispatcher.dispatch/2
-  defp dispatch_fun(:telegram), do: &TelegramDispatcher.dispatch/2
-  defp dispatch_fun(:slack), do: &SlackDispatcher.dispatch/2
+  # three channels through `ChannelFanout.dispatch/2`, which guards each
+  # channel itself, so a raising channel cannot abort the fan-out or escape
+  # into callers this module documents as non-failing. Each channel may
+  # subscribe to every event (`Tymeslot.Notifications.EventTypes.all/0`).
+  defp dispatch_channels(event, meeting), do: ChannelFanout.dispatch(event, meeting)
 
   defp cancel_reminders_strict(meeting) do
     Orchestrator.cancel_reminder_notifications(meeting)

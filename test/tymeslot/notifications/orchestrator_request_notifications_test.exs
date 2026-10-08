@@ -19,7 +19,7 @@ defmodule Tymeslot.Notifications.OrchestratorRequestNotificationsTest do
   alias Tymeslot.Meetings.Workers.ApprovalExpiryWorker
   alias Tymeslot.Notifications.Events
   alias Tymeslot.Notifications.Orchestrator
-  alias Tymeslot.Webhooks.Dispatcher, as: WebhookDispatcher
+  alias Tymeslot.Webhooks
   alias Tymeslot.Workers.EmailWorker
 
   defp held_meeting(attrs \\ %{}) do
@@ -100,22 +100,20 @@ defmodule Tymeslot.Notifications.OrchestratorRequestNotificationsTest do
   end
 
   describe "Events request-lifecycle dispatch survives a raising channel" do
-    # These three events used to call `Webhooks.Dispatcher.dispatch/2` (and
-    # its Telegram/Slack counterparts) bare, unlike every other event, which
-    # routes through `Events.dispatch_channel/3` and its blanket rescue. A
-    # raising dispatcher (a DB blip, a failed Oban insert) would escape
-    # straight out of `Events.meeting_requested/2` and fail the caller, a
-    # reschedule sending a booking back into the approval gate, rather than
-    # just cost a notification.
+    # These three events once called the channel dispatchers bare, unlike
+    # every other event. A raising channel (a DB blip, a failed Oban insert)
+    # would escape straight out of `Events.meeting_requested/2` and fail the
+    # caller, a reschedule sending a booking back into the approval gate,
+    # rather than just cost a notification.
     setup do
-      unload_if_mocked(WebhookDispatcher)
-      :meck.new(WebhookDispatcher, [:passthrough])
+      unload_if_mocked(Webhooks)
+      :meck.new(Webhooks, [:passthrough])
 
-      :meck.expect(WebhookDispatcher, :dispatch, fn _event, _meeting ->
-        raise "simulated webhook dispatch failure"
+      :meck.expect(Webhooks, :schedule_for_event, fn _user_id, _event_type, _meeting ->
+        raise "simulated webhook scheduling failure"
       end)
 
-      on_exit(fn -> unload_if_mocked(WebhookDispatcher) end)
+      on_exit(fn -> unload_if_mocked(Webhooks) end)
 
       %{meeting: held_meeting()}
     end
