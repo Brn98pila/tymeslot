@@ -183,13 +183,31 @@ defmodule Tymeslot.Integrations.Calendar.RequestCoalescer do
                 key_context(key)
               )
 
-              # The waiters get the same: the module, never the message or the
-              # stack trace, either of which can carry what the fetch had in
-              # scope.
+              # The message is kept, once, in this server's own log, where
+              # `LogFormat.reason/1` redacts it like every other logged reason.
+              Logger.error("Calendar fetch raised",
+                key: LogFormat.reason(key),
+                exception: LogFormat.reason(e.__struct__),
+                reason: LogFormat.reason(Exception.message(e))
+              )
+
+              # The waiters get the module only, never the message or the stack
+              # trace, either of which can carry what the fetch had in scope.
               {:error, {:task_failed, e.__struct__}}
           catch
-            :exit, {:timeout, _details} -> {:error, :timeout}
-            :exit, reason -> {:error, {:task_failed, exit_kind(reason)}}
+            :exit, {:timeout, _details} ->
+              {:error, :timeout}
+
+            :exit, reason ->
+              kind = exit_kind(reason)
+
+              Logger.warning("Calendar fetch exited",
+                key: LogFormat.reason(key),
+                kind: LogFormat.reason(kind),
+                reason: LogFormat.reason(reason)
+              )
+
+              {:error, {:task_failed, kind}}
           end
 
         send(parent, {:coalescer_result, key, self(), result})
