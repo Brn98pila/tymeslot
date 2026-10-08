@@ -171,4 +171,57 @@ defmodule Tymeslot.Availability.OvernightBookingJourneyTest do
     assert "11:00 PM" in offered(host.profile, tokyo_date, 60, timezone: "Asia/Tokyo")
     assert {:ok, _meeting} = book(host, tokyo_date, "11:00 PM", 60, "Asia/Tokyo")
   end
+
+  # Meeting types run up to a whole day, so a long meeting late in the host's
+  # evening runs on past their midnight.
+  test "a long meeting that runs past the host's midnight is offered and books across it" do
+    weekday = next_bookable_weekday()
+
+    host =
+      create_bookable_profile(
+        timezone: "Europe/London",
+        days: [Date.day_of_week(weekday)],
+        hours: %{
+          is_available: true,
+          start_time: ~T[18:00:00],
+          end_time: ~T[04:00:00],
+          ends_next_day: true
+        }
+      )
+
+    # Five-hour slots on the host's grid from 18:00; the second one runs
+    # 23:00 to 04:00.
+    assert offered(host.profile, weekday, 300) == ["6:00 PM", "11:00 PM"]
+
+    assert {:ok, meeting} = book(host, weekday, "11:00 PM", 300, "Europe/London")
+
+    assert DateTime.shift_zone!(meeting.start_time, "Europe/London") ==
+             DateTime.new!(weekday, ~T[23:00:00], "Europe/London")
+
+    assert DateTime.shift_zone!(meeting.end_time, "Europe/London") ==
+             DateTime.new!(Date.add(weekday, 1), ~T[04:00:00], "Europe/London")
+  end
+
+  # Kolkata's 09:00 opening is 23:30 the evening before in New York, so the
+  # first slot of the host's day runs across the booker's midnight.
+  test "a slot that runs across the booker's midnight is offered on the date it starts and books" do
+    freeze_clock(~U[2026-11-02 12:00:00Z])
+    monday = ~D[2026-11-16]
+    sunday = Date.add(monday, -1)
+
+    host =
+      create_bookable_profile(
+        timezone: "Asia/Kolkata",
+        days: [1],
+        hours: %{is_available: true, start_time: ~T[09:00:00], end_time: ~T[17:00:00]}
+      )
+
+    # 09:00 and 10:00 in Kolkata; the second runs 23:30 to 00:30 in New York.
+    assert offered(host.profile, sunday, 60, timezone: "America/New_York") ==
+             ["10:30 PM", "11:30 PM"]
+
+    assert {:ok, meeting} = book(host, sunday, "11:30 PM", 60, "America/New_York")
+    assert meeting.start_time == ~U[2026-11-16 04:30:00Z]
+    assert meeting.end_time == ~U[2026-11-16 05:30:00Z]
+  end
 end
