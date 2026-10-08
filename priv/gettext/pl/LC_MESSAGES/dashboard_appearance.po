@@ -649,7 +649,7 @@ msgstr "Dostosowanie motywu"
 #: lib/tymeslot_web/themes/quill/theme.ex
 #, elixir-autogen, elixir-format
 msgid "My clients should feel they are booking someone established. The page should look as considered as my work."
-msgstr "Moi klienci powinni czuć, że rezerwują kogoś o ugruntowanej pozycji. Strona powinna wyglądać tak starannie jak moja praca."
+msgstr "Moi klienci powinni czuć, że umawiają się z kimś o ugruntowanej pozycji. Strona powinna wyglądać tak starannie jak moja praca."
 
 #: lib/tymeslot_web/themes/rhythm/theme.ex
 #, elixir-autogen, elixir-format
