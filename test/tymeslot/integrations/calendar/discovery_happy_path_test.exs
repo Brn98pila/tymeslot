@@ -15,9 +15,9 @@ defmodule Tymeslot.Integrations.Calendar.DiscoveryHappyPathTest do
 
   setup :verify_on_exit!
 
-  # `DiscoveryCache` is a shared, process-wide ETS table keyed on
-  # `{provider, "username@host"}`. Both tests below reuse the same
-  # "user"@"caldav.example.com" fixture, so a cached result left over from
+  # `DiscoveryCache` is a shared, process-wide ETS table keyed on the
+  # requester and a hash of the server address and credentials. Both tests
+  # below reuse the same fixture, so a cached result left over from
   # another suite run (or a prior run of this same test) would return stale
   # (or partial) `calendar_paths` instead of exercising the stubbed PROPFIND
   # response this file sets up. Clearing it here keeps this file's tests
