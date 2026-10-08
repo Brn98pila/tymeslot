@@ -227,12 +227,17 @@ defmodule Tymeslot.Validation.Constraints do
   @spec name_length_range() :: Range.t()
   def name_length_range, do: 1..100
 
-  @spec webhook_name_length_range() :: Range.t()
-  def webhook_name_length_range, do: 1..255
+  @doc """
+  The name a person gives a Slack, Telegram, webhook, calendar or video
+  integration. Names a provider supplies (a calendar collection title) are
+  held only to their column's width.
+  """
+  @spec integration_name_length_range() :: Range.t()
+  def integration_name_length_range, do: 1..100
 
-  @spec webhook_name_length_opts() :: keyword()
-  def webhook_name_length_opts do
-    range = webhook_name_length_range()
+  @spec integration_name_length_opts() :: keyword()
+  def integration_name_length_opts do
+    range = integration_name_length_range()
     [min: range.first, max: range.last]
   end
 

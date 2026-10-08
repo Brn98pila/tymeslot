@@ -89,7 +89,7 @@ defmodule Tymeslot.Webhooks.WebhookSchema do
       webhook
       |> cast(attrs, @required_fields ++ @optional_fields)
       |> validate_required(@required_fields)
-      |> validate_length(:name, Constraints.webhook_name_length_opts())
+      |> validate_length(:name, Constraints.integration_name_length_opts())
       |> validate_length(:url, min: 1, max: Constraints.url_max_length())
       |> URLValidator.validate_url(:url,
         block_private_ips: not SsrfValidator.allow_private?(),

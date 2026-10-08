@@ -111,7 +111,7 @@ defmodule Tymeslot.Telegram.TelegramIntegrationSchema do
     changeset
     |> cast(attrs, [:name, :events] ++ user_link_fields(get_field(changeset, :bot_mode)))
     |> validate_required([:name])
-    |> validate_length(:name, Constraints.webhook_name_length_opts())
+    |> validate_length(:name, Constraints.integration_name_length_opts())
     |> validate_events()
     |> stamp_linked_at()
     |> encrypt_token()

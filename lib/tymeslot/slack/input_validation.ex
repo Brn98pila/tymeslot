@@ -7,6 +7,7 @@ defmodule Tymeslot.Slack.InputValidation do
 
   alias Tymeslot.Security.UniversalSanitizer
   alias Tymeslot.Slack.SlackIntegrationSchema
+  alias Tymeslot.Validation.Constraints
 
   @webhook_url_regex ~r{\Ahttps://hooks\.slack\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]+\z}
 
@@ -73,7 +74,9 @@ defmodule Tymeslot.Slack.InputValidation do
   def validate_name("", errors, true), do: {nil, Map.put(errors, :name, "is required")}
 
   def validate_name(name, errors, _required) when is_binary(name) do
-    case UniversalSanitizer.sanitize_and_validate(name, max_length: 80) do
+    case UniversalSanitizer.sanitize_and_validate(name,
+           max_length: Constraints.integration_name_length_range().last
+         ) do
       {:ok, sanitized} ->
         if String.length(sanitized) < 1 do
           {nil, Map.put(errors, :name, "is required")}

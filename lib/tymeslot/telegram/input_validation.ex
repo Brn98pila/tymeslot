@@ -5,6 +5,7 @@ defmodule Tymeslot.Telegram.InputValidation do
 
   alias Tymeslot.Security.UniversalSanitizer
   alias Tymeslot.Telegram.TelegramIntegrationSchema
+  alias Tymeslot.Validation.Constraints
 
   @bot_token_regex ~r/^\d{8,10}:[A-Za-z0-9_-]{35,50}$/
   @chat_id_numeric_regex ~r/^-?\d+$/
@@ -89,7 +90,10 @@ defmodule Tymeslot.Telegram.InputValidation do
   def validate_name("", errors), do: {nil, Map.put(errors, :name, "is required")}
 
   def validate_name(name, errors) when is_binary(name) do
-    case UniversalSanitizer.sanitize_and_validate(name, mode: :plain_text, max_length: 255) do
+    case UniversalSanitizer.sanitize_and_validate(name,
+           mode: :plain_text,
+           max_length: Constraints.integration_name_length_range().last
+         ) do
       {:ok, sanitized} ->
         if String.length(sanitized) < 1 do
           {nil, Map.put(errors, :name, "is required")}

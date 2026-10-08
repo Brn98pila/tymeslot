@@ -14,6 +14,7 @@ defmodule Tymeslot.Slack.SlackIntegrationSchema do
   alias Tymeslot.Auth.UserSchema
   alias Tymeslot.Notifications.EventTypes
   alias Tymeslot.Security.Encryption
+  alias Tymeslot.Validation.Constraints
 
   @type status :: :pending_oauth | :active | :paused | :auto_disabled
 
@@ -119,7 +120,7 @@ defmodule Tymeslot.Slack.SlackIntegrationSchema do
     |> cast(attrs, @user_fields)
     |> validate_required([:name, :events])
     |> validate_subset(:events, @valid_events)
-    |> validate_length(:name, min: 1, max: 80)
+    |> validate_length(:name, Constraints.integration_name_length_opts())
     |> validate_by_mode()
     |> encrypt_webhook_url()
   end
@@ -148,7 +149,7 @@ defmodule Tymeslot.Slack.SlackIntegrationSchema do
     |> validate_required([:user_id, :name, :app_mode, :bot_token, :team_id, :events])
     |> validate_inclusion(:app_mode, @valid_modes)
     |> validate_subset(:events, @valid_events)
-    |> validate_length(:name, min: 1, max: 80)
+    |> validate_length(:name, Constraints.integration_name_length_opts())
     |> encrypt_bot_token()
     |> foreign_key_constraint(:user_id)
     |> unique_constraint([:user_id, :team_id],

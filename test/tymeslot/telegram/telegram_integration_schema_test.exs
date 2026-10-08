@@ -57,13 +57,13 @@ defmodule Tymeslot.Telegram.TelegramIntegrationSchemaTest do
 
       changeset =
         TelegramIntegrationSchema.create_changeset(%{
-          name: String.duplicate("a", 256),
+          name: String.duplicate("a", 101),
           user_id: user.id,
           bot_mode: "own"
         })
 
       refute changeset.valid?
-      assert "should be at most 255 character(s)" in errors_on(changeset).name
+      assert "should be at most 100 character(s)" in errors_on(changeset).name
     end
 
     test "validates bot_mode inclusion" do

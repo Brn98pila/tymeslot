@@ -80,7 +80,7 @@ defmodule Tymeslot.Webhooks.InputValidation do
     |> cast(params, [:name, :url, :events])
     |> validate_required([:name], message: "Name cannot be empty")
     |> validate_required([:url])
-    |> validate_length(:name, Constraints.webhook_name_length_opts())
+    |> validate_length(:name, Constraints.integration_name_length_opts())
     |> validate_length(:url, min: 1, max: Constraints.url_max_length())
     |> validate_url_format()
     |> validate_events_list()
