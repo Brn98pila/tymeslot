@@ -6,9 +6,9 @@
    both ways. Never add `height: 100%` chains here: they lock the body to the
    parent-supplied viewport and defeat the resize.
 
-   Every booking page carries one outermost element marked
-   [data-booker-root] (ThemeShell renders it), and themes mark their own
-   elements with hook classes:
+   Every page rendered through a theme wrapper carries one outermost element
+   marked [data-booker-root] (ThemeShell renders it), and themes mark their
+   own elements with hook classes:
      [data-booker-root]  the theme's outermost element, sized to content
      .booker-card        every card that fills the column layout
      .booker-scroll      the time-slot scroll region
