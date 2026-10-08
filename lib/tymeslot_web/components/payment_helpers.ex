@@ -1,37 +1,21 @@
 defmodule TymeslotWeb.Components.PaymentHelpers do
   @moduledoc """
-  Shared formatting helpers for payment amounts and currencies.
+  Template helper for payment amounts that may be absent.
 
   Used by `TymeslotWeb.Dashboard.PaymentsSettingsComponent` and
   `TymeslotWeb.Components.Dashboard.Meetings.CancelMeetingModal`.
   """
 
-  @doc """
-  Formats an integer cent amount with a currency symbol prefix.
+  alias Tymeslot.MeetingPayments.Money
 
-  Returns an empty string when `cents` is not an integer.
+  @doc """
+  Formats an integer cent amount with `Tymeslot.MeetingPayments.Money.format/3`.
+
+  Returns an empty string when `cents` is not an integer, so a template can
+  render a price that is not set yet without a guard.
   """
-  @spec format_amount(integer() | term(), String.t() | term()) :: String.t()
-  def format_amount(cents, currency) when is_integer(cents) do
-    amount = cents / 100
-    symbol = currency_symbol(currency)
-    "#{symbol}#{:erlang.float_to_binary(amount, decimals: 2)}"
-  end
+  @spec format_amount(integer() | term(), String.t()) :: String.t()
+  def format_amount(cents, currency) when is_integer(cents), do: Money.format(cents, currency)
 
   def format_amount(_cents, _currency), do: ""
-
-  @doc """
-  Returns the display symbol for a currency code.
-
-  Accepts a lowercase ISO 4217 currency code string. Unknown or
-  non-string values return an empty string.
-  """
-  @currency_symbols %{"eur" => "€", "usd" => "$", "gbp" => "£", "chf" => "CHF "}
-
-  @spec currency_symbol(String.t() | term()) :: String.t()
-  def currency_symbol(currency) when is_binary(currency) do
-    Map.get(@currency_symbols, currency, String.upcase(currency) <> " ")
-  end
-
-  def currency_symbol(_currency), do: ""
 end

@@ -9,6 +9,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Init do
   alias Tymeslot.Features
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.MeetingPayments
+  alias Tymeslot.MeetingPayments.Money
   alias Tymeslot.MeetingTypes
   alias Tymeslot.MeetingTypes.LocationOption
   alias Tymeslot.Profiles
@@ -121,7 +122,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Init do
       MeetingPayments.currency_minimum_cents(currency)
     )
     |> Component.assign(:payment_required, get_payment_required(type))
-    |> Component.assign(:payment_price, get_payment_price(type))
+    |> Component.assign(:payment_price, get_payment_price(type, currency))
   end
 
   defp payments_feature_enabled?(%{id: user_id}),
@@ -139,12 +140,11 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Init do
   defp get_payment_required(%{payment_required: true}), do: true
   defp get_payment_required(_type), do: false
 
-  @spec get_payment_price(Ecto.Schema.t() | nil) :: String.t()
-  defp get_payment_price(%{price_cents: cents}) when is_integer(cents) do
-    :erlang.float_to_binary(cents / 100, decimals: 2)
-  end
+  @spec get_payment_price(Ecto.Schema.t() | nil, String.t()) :: String.t()
+  defp get_payment_price(%{price_cents: cents}, currency) when is_integer(cents),
+    do: Money.to_major_string(cents, currency)
 
-  defp get_payment_price(_type), do: ""
+  defp get_payment_price(_type, _currency), do: ""
 
   # Pre-filled participant limit when the toggle is first switched on.
   @default_group_limit 10

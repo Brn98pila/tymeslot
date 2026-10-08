@@ -12,8 +12,7 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.CurrencySelector do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.MeetingPayments
-
-  import TymeslotWeb.Components.PaymentHelpers, only: [currency_symbol: 1]
+  alias Tymeslot.MeetingPayments.Money
 
   attr :account, :map, required: true
   attr :myself, :any, required: true
@@ -53,7 +52,7 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.CurrencySelector do
   # Currencies without a distinct glyph (the symbol falls back to the code)
   # show the code alone rather than duplicating it ("CHF", not "CHF CHF").
   defp currency_tag_label(code) do
-    symbol = String.trim(currency_symbol(code))
+    symbol = String.trim(Money.symbol(code))
     upper = String.upcase(code)
     if symbol == upper, do: upper, else: "#{symbol} #{upper}"
   end

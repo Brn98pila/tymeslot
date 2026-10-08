@@ -19,10 +19,9 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.PaymentsSection 
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias Tymeslot.MeetingPayments.Money
   alias TymeslotWeb.Dashboard.MeetingSettings.Helpers
   alias TymeslotWeb.Live.Shared.FormValidationHelpers
-
-  import TymeslotWeb.Components.PaymentHelpers, only: [currency_symbol: 1]
 
   attr :charges_enabled, :boolean, required: true
   attr :group_bookings_enabled, :boolean, required: true
@@ -107,13 +106,13 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.PaymentsSection 
         >
           <:leading_icon>
             <span class="text-tymeslot-400 font-bold text-token-sm tracking-tight whitespace-nowrap">
-              {currency_symbol(@currency)}
+              {Money.symbol(@currency)}
             </span>
           </:leading_icon>
         </.input>
         <p class="mt-1 text-token-sm text-tymeslot-600">
           {dgettext("dashboard_meeting_form", "Minimum %{amount}.",
-            amount: format_minimum(@currency_minimum_cents, @currency)
+            amount: Money.format(@currency_minimum_cents, @currency)
           )}
         </p>
       </div>
@@ -126,9 +125,5 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.PaymentsSection 
   end
 
   defp stored_price("", currency), do: String.upcase(currency)
-  defp stored_price(price, currency), do: "#{currency_symbol(currency)}#{price}"
-
-  defp format_minimum(cents, currency) do
-    "#{String.upcase(currency)} #{:erlang.float_to_binary(cents / 100, decimals: 2)}"
-  end
+  defp stored_price(price, currency), do: "#{Money.symbol(currency)}#{price}"
 end

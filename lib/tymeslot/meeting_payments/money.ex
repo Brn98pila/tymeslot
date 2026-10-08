@@ -121,7 +121,21 @@ defmodule Tymeslot.MeetingPayments.Money do
     sign <> symbol(code) <> digits
   end
 
-  defp symbol(code), do: Map.get_lazy(@symbols, code, fn -> String.upcase(code) <> " " end)
+  @doc """
+  The prefix `format/3` puts before an amount: the currency's symbol, or its
+  upper-case code and a space where it has none. For a currency tag beside a
+  form input.
+
+      iex> Money.symbol("gbp")
+      "£"
+      iex> Money.symbol("chf")
+      "CHF "
+  """
+  @spec symbol(currency()) :: String.t()
+  def symbol(currency) when is_binary(currency) do
+    code = String.downcase(currency)
+    Map.get_lazy(@symbols, code, fn -> String.upcase(code) <> " " end)
+  end
 
   defp major_digits(cents, 0, _trim?), do: Integer.to_string(cents)
 

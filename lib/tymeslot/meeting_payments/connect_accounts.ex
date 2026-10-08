@@ -138,7 +138,7 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
   Deliberately: `payment_required` and `price_cents` survive a disconnect so a
   host who reconnects gets their prices back instead of re-entering every one.
   The form no longer clears them by omission
-  (`Tymeslot.MeetingTypes.FormMapper.build_attrs/2`), the changeset no longer
+  (`Tymeslot.MeetingTypes.FormMapper.build_attrs/3`), the changeset no longer
   fails unrelated saves over the stored flag
   (`MeetingTypeSchema.validate_payment_fields/2`), and `Bookings.Create`
   refuses a paid booking outright while charges are off, so nothing is taken
