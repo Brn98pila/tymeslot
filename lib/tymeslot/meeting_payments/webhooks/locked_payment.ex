@@ -18,6 +18,14 @@ defmodule Tymeslot.MeetingPayments.Webhooks.LockedPayment do
   `Scheduling.reinstate_with_conflict_check/2`), then the payment row, then
   the meeting row, as in every other writer of both
   (`ConnectAccounts.disconnect/1`, `FailAndExpire`).
+
+  This lock is the one concurrency mechanism for a webhook's status change;
+  there is deliberately no compare-and-set alternative beside it. The writes
+  outside it (`ChargeBackfill` filling `stripe_charge_id`,
+  `CheckoutSessions` attaching the session and intent ids to the row it has
+  just created) touch only those Stripe ids. No transition decides on them,
+  every writer sets them to the same value Stripe assigned, and Ecto writes
+  only the fields a changeset changes, so a stale copy cannot undo a status.
   """
 
   alias Tymeslot.MeetingPayments.BookingPaymentQueries

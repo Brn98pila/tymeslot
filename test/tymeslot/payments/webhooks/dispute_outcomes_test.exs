@@ -69,6 +69,8 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
     %{"id" => "ch_one_time", "customer" => customer_id}
   end
 
+  defp with_object(event, object), do: Map.put(event, "data", %{"object" => object})
+
   defmodule FailingHandler do
     @spec handle_payment_event(map()) :: {:error, term()}
     def handle_payment_event(_event), do: {:error, :enqueue_failed}
@@ -77,7 +79,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
   # A subscription dispute the handler could not take must fail the
   # delivery, so Stripe redelivers it rather than the dispute going
   # unrecorded.
-  describe "process/2 — a failed hand-off" do
+  describe "handle/1 — a failed hand-off" do
     setup do
       Application.put_env(:tymeslot, :payment_event_handler, FailingHandler)
       stub(Tymeslot.Payments.StripeMock, :get_charge, fn _id -> {:ok, subscription_charge()} end)
@@ -94,13 +96,13 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
 
         # The hand-off's own failure, not the Stripe lookup's, which retries
         # the same way.
-        assert {:error, :retry_later, "Dispute event hand-off failed"} =
-                 DisputeHandler.process(event, dispute(unquote(status)))
+        assert {:error, :retry_later, {:hand_off_failed, :enqueue_failed}} =
+                 DisputeHandler.handle(with_object(event, dispute(unquote(status))))
       end
     end
   end
 
-  describe "process/2 — charge.dispute.updated" do
+  describe "handle/1 — charge.dispute.updated" do
     test "subscription dispute is handed off to the payment-event handler" do
       d = dispute("under_review")
       event = %{"id" => "evt_upd_1", "type" => "charge.dispute.updated"}
@@ -109,7 +111,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
         {:ok, subscription_charge()}
       end)
 
-      assert {:ok, :dispute_updated} = DisputeHandler.process(event, d)
+      assert {:ok, :dispute_updated} = DisputeHandler.handle(with_object(event, d))
 
       assert_received %{
         event: :dispute_updated,
@@ -132,7 +134,8 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
         {:ok, subscription_charge()}
       end)
 
-      assert {:ok, :dispute_updated} = DisputeHandler.process(event, dispute("under_review"))
+      assert {:ok, :dispute_updated} =
+               DisputeHandler.handle(with_object(event, dispute("under_review")))
 
       assert_received %{
         event: :dispute_updated,
@@ -156,7 +159,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
         {:ok, one_time_charge("cus_one_time")}
       end)
 
-      assert {:ok, :dispute_updated} = DisputeHandler.process(event, d)
+      assert {:ok, :dispute_updated} = DisputeHandler.handle(with_object(event, d))
 
       refute_received %{event: :dispute_updated, data: _}
     end
@@ -172,7 +175,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
         {:ok, %{"id" => "ch_sub_basil", "customer" => "cus_sub_basil"}}
       end)
 
-      assert {:ok, :dispute_updated} = DisputeHandler.process(event, d)
+      assert {:ok, :dispute_updated} = DisputeHandler.handle(with_object(event, d))
 
       assert_received %{
         event: :dispute_updated,
@@ -188,11 +191,12 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
         {:error, %{message: "down"}}
       end)
 
-      assert {:error, :retry_later, _msg} = DisputeHandler.process(event, d)
+      assert {:error, :retry_later, "Stripe API unavailable"} =
+               DisputeHandler.handle(with_object(event, d))
     end
   end
 
-  describe "process/2 — charge.dispute.closed" do
+  describe "handle/1 — charge.dispute.closed" do
     test "subscription dispute close is handed off to the payment-event handler" do
       d = dispute("won")
       event = %{"id" => "evt_close_1", "type" => "charge.dispute.closed"}
@@ -201,7 +205,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
         {:ok, subscription_charge()}
       end)
 
-      assert {:ok, :dispute_closed} = DisputeHandler.process(event, d)
+      assert {:ok, :dispute_closed} = DisputeHandler.handle(with_object(event, d))
 
       assert_received %{
         event: :dispute_closed,
@@ -230,7 +234,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
         {:ok, one_time_charge("cus_lost_dispute")}
       end)
 
-      assert {:ok, :dispute_closed} = DisputeHandler.process(event, d)
+      assert {:ok, :dispute_closed} = DisputeHandler.handle(with_object(event, d))
 
       # No subscription broadcast for one-time charges
       refute_received %{event: :dispute_closed, data: _}
@@ -252,7 +256,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
         {:ok, one_time_charge("cus_won_dispute")}
       end)
 
-      assert {:ok, :dispute_closed} = DisputeHandler.process(event, d)
+      assert {:ok, :dispute_closed} = DisputeHandler.handle(with_object(event, d))
       refute_received %{event: :dispute_closed, data: _}
     end
 
@@ -264,11 +268,12 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
         {:error, %{message: "down"}}
       end)
 
-      assert {:error, :retry_later, _msg} = DisputeHandler.process(event, d)
+      assert {:error, :retry_later, "Stripe API unavailable"} =
+               DisputeHandler.handle(with_object(event, d))
     end
   end
 
-  describe "process/2 — charge.dispute.created (unlinked charge)" do
+  describe "handle/1 — charge.dispute.created (unlinked charge)" do
     test "unknown-customer dispute is forwarded when a subscription manager is configured" do
       d = dispute("needs_response")
       event = %{"id" => "evt_orphan", "type" => "charge.dispute.created"}
@@ -280,7 +285,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
       # No payment_transaction exists for cus_orphan_dispute and the charge
       # carries no invoice/subscription reference; with a subscription manager
       # configured the dispute routes to the subscription listener.
-      assert {:ok, :subscription_dispute_forwarded} = DisputeHandler.process(event, d)
+      assert {:ok, :subscription_dispute_forwarded} = DisputeHandler.handle(with_object(event, d))
     end
 
     test "unknown-customer dispute stays on the local path in standalone mode" do
@@ -297,7 +302,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
 
       # Without a subscription manager there is nothing to forward to — the
       # handler logs the orphan dispute and alerts the admin instead.
-      assert {:ok, :dispute_logged} = DisputeHandler.process(event, d)
+      assert {:ok, :dispute_logged} = DisputeHandler.handle(with_object(event, d))
     end
   end
 end

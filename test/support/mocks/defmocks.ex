@@ -12,8 +12,7 @@ alias Tymeslot.Mocks.StripeBehaviours.{
   StripeChargeBehaviour,
   StripeCustomerBehaviour,
   StripeSessionBehaviour,
-  StripeSubscriptionBehaviour,
-  StripeWebhookBehaviour
+  StripeSubscriptionBehaviour
 }
 
 # --- Calendar ---
@@ -71,4 +70,3 @@ Mox.defmock(StripeCustomerMock, for: StripeCustomerBehaviour)
 Mox.defmock(StripeSessionMock, for: StripeSessionBehaviour)
 Mox.defmock(StripeSubscriptionMock, for: StripeSubscriptionBehaviour)
 Mox.defmock(StripeChargeMock, for: StripeChargeBehaviour)
-Mox.defmock(StripeWebhookMock, for: StripeWebhookBehaviour)

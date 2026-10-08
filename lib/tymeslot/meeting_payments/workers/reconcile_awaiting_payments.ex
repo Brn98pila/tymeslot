@@ -91,7 +91,10 @@ defmodule Tymeslot.MeetingPayments.Workers.ReconcileAwaitingPayments do
       :ok ->
         :ok
 
-      {:error, reason} ->
+      {:ok, _result} ->
+        :ok
+
+      {:error, _kind, reason} ->
         Logger.error("ReconcileAwaitingPayments handler failed",
           booking_payment_id: payment.id,
           reason: LogFormat.reason(reason)

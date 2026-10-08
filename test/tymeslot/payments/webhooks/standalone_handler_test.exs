@@ -59,6 +59,8 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
     def preload(user, _assoc), do: user
   end
 
+  defp with_object(event, object), do: Map.put(event, "data", %{"object" => object})
+
   defp setup_test_configs do
     original_repo = Application.get_env(:tymeslot, :repo)
     original_schema = Application.get_env(:tymeslot, :subscription_schema)
@@ -86,7 +88,7 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
 
       event = %{"type" => "charge.refunded", "id" => "evt_123"}
 
-      assert {:ok, :refund_logged} = RefundHandler.process(event, charge)
+      assert {:ok, :refund_logged} = RefundHandler.handle(with_object(event, charge))
     end
 
     test "accepts refund events even when refund details are missing" do
@@ -98,14 +100,14 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
 
       event = %{"type" => "charge.refunded", "id" => "evt_124"}
 
-      assert {:ok, :refund_logged} = RefundHandler.process(event, charge)
+      assert {:ok, :refund_logged} = RefundHandler.handle(with_object(event, charge))
     end
 
     test "acknowledges refund status updates" do
       refund = %{"id" => "re_123", "status" => "succeeded"}
       event = %{"type" => "charge.refund.updated", "id" => "evt_125"}
 
-      assert {:ok, :refund_status_updated} = RefundHandler.process(event, refund)
+      assert {:ok, :refund_status_updated} = RefundHandler.handle(with_object(event, refund))
     end
   end
 
@@ -125,7 +127,7 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
       }
 
       assert {:ok, :subscription_not_found} =
-               TrialWillEndHandler.process(event, event["data"]["object"])
+               TrialWillEndHandler.handle(event)
     end
 
     test "rejects trial ending events with invalid timestamps" do
@@ -140,10 +142,7 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
         }
       }
 
-      assert {:error, :invalid_timestamp, message} =
-               TrialWillEndHandler.process(event, event["data"]["object"])
-
-      assert message =~ "Invalid trial_end timestamp"
+      assert {:error, :permanent, :invalid_timestamp} = TrialWillEndHandler.handle(event)
     end
 
     test "processes trial ending events when subscription exists" do
@@ -172,7 +171,7 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
       }
 
       assert {:ok, :trial_ending_notified} =
-               TrialWillEndHandler.process(event, event["data"]["object"])
+               TrialWillEndHandler.handle(event)
     end
   end
 
@@ -197,7 +196,8 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
       end)
 
       try do
-        assert {:error, :retry_later, _reason} = DisputeHandler.process(event, dispute)
+        assert {:error, :retry_later, _reason} =
+                 DisputeHandler.handle(with_object(event, dispute))
       after
         Application.put_env(:tymeslot, :stripe_provider, original_provider)
       end
@@ -229,7 +229,7 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
 
       event = %{"type" => "charge.dispute.created"}
 
-      assert {:ok, :dispute_created} = DisputeHandler.process(event, dispute)
+      assert {:ok, :dispute_created} = DisputeHandler.handle(with_object(event, dispute))
     end
 
     test "processes disputes with invalid evidence due dates" do
@@ -259,7 +259,7 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
 
       event = %{"type" => "charge.dispute.created"}
 
-      assert {:ok, :dispute_created} = DisputeHandler.process(event, dispute)
+      assert {:ok, :dispute_created} = DisputeHandler.handle(with_object(event, dispute))
     end
   end
 end

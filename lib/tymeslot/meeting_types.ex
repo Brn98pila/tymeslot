@@ -500,9 +500,11 @@ defmodule Tymeslot.MeetingTypes do
   @spec create_meeting_type_from_form(integer(), map(), map()) ::
           {:ok, Ecto.Schema.t()} | {:error, atom() | Ecto.Changeset.t()}
   def create_meeting_type_from_form(user_id, form_params, ui_state) do
-    with {:ok, attrs} <- FormMapper.build_attrs(form_params, ui_state),
+    payment_opts = FormMapper.payment_opts(user_id)
+
+    with {:ok, attrs} <- FormMapper.build_attrs(form_params, ui_state, payment_opts[:currency]),
          :ok <- FormValidation.check(user_id, attrs) do
-      create_meeting_type(Map.put(attrs, :user_id, user_id), FormMapper.payment_opts(user_id))
+      create_meeting_type(Map.put(attrs, :user_id, user_id), payment_opts)
     end
   end
 
@@ -514,9 +516,12 @@ defmodule Tymeslot.MeetingTypes do
   def update_meeting_type_from_form(meeting_type, form_params, ui_state) do
     user_id = meeting_type.user_id
 
-    with {:ok, attrs} <- FormMapper.build_attrs(form_params, ui_state),
+    payment_opts = FormMapper.payment_opts(user_id)
+
+    with {:ok, attrs} <-
+           FormMapper.build_attrs(form_params, ui_state, payment_opts[:currency]),
          :ok <- FormValidation.check(user_id, attrs, meeting_type.max_participants || 1) do
-      update_meeting_type(meeting_type, attrs, FormMapper.payment_opts(user_id))
+      update_meeting_type(meeting_type, attrs, payment_opts)
     end
   end
 

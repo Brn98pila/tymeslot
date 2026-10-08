@@ -9,6 +9,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeCreated do
   Idempotent on `last_event_id`.
   """
 
+  @behaviour Tymeslot.Payments.Behaviours.WebhookHandler
+
   require Logger
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
@@ -17,11 +19,13 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeCreated do
   alias Tymeslot.MeetingPayments.Telemetry
   alias Tymeslot.MeetingPayments.Webhooks.LockedPayment
   alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
+  alias Tymeslot.Payments.Behaviours.WebhookHandler
   alias Tymeslot.Workers.SendChargeDisputeOpened
 
   @event_type "charge.dispute.created"
 
-  @spec handle(map()) :: :ok | {:error, term()}
+  @impl WebhookHandler
+  @spec handle(map()) :: WebhookHandler.result()
   def handle(event) do
     Telemetry.span_webhook(@event_type, fn -> do_handle(event) end)
   end
@@ -43,10 +47,10 @@ defmodule Tymeslot.MeetingPayments.Webhooks.ChargeDisputeCreated do
     end
   end
 
-  defp do_handle(_other), do: {{:error, :invalid_event}, :error}
+  defp do_handle(_other), do: {{:error, :permanent, :invalid_event}, :error}
 
   defp classify(:ok), do: {:ok, :ok}
-  defp classify({:error, _reason} = err), do: {err, :error}
+  defp classify({:error, reason}), do: {{:error, :retry_later, reason}, :error}
 
   # Written to the locked row (`LockedPayment`); the email is enqueued only
   # once the dispute status has committed, and not at all for a replay.

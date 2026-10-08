@@ -1,9 +1,13 @@
-defmodule Tymeslot.Webhooks.WebhookEventSchema do
+defmodule Tymeslot.Payments.Webhooks.StripeEventSchema do
   @moduledoc """
-  Schema for storing processed webhook events for long-term deduplication.
+  A Stripe webhook event the ingress has finished with, kept for
+  deduplication beyond `Tymeslot.Payments.Webhooks.IdempotencyCache`'s
+  in-memory tier, so a redelivery days later is still recognised. The
+  platform endpoint also keeps the event's payload for debugging, until the
+  retention job clears it.
 
-  Provides persistent storage beyond the 24-hour ETS cache to prevent
-  replay attacks and maintain audit trail of all webhook events.
+  The table keeps its historical name, `webhook_events`; the outgoing
+  webhooks users configure live in `Tymeslot.Webhooks`.
   """
   use Ecto.Schema
   import Ecto.Changeset

@@ -465,3 +465,23 @@ msgstr "Abgelehnt am %{date}"
 #, elixir-autogen, elixir-format
 msgid "You declined these bookings, but their automatic refund didn't go through. Refund them here or in Stripe."
 msgstr "Sie haben diese Buchungen abgelehnt, aber ihre automatische Rückerstattung ist nicht durchgegangen. Erstatten Sie sie hier oder in Stripe."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/currency_selector.ex
+#, elixir-autogen, elixir-format
+msgid "Your Stripe account's currency, %{currency}, is not supported for meeting payments. Choose one of the currencies below to take payments again."
+msgstr "Die Währung Ihres Stripe-Kontos, %{currency}, wird für Terminzahlungen nicht unterstützt. Wählen Sie unten eine der Währungen, um wieder Zahlungen anzunehmen."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/status_card.ex
+#, elixir-autogen, elixir-format
+msgid "Currency not supported"
+msgstr "Währung nicht unterstützt"
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/status_card.ex
+#, elixir-autogen, elixir-format
+msgid "Payments cannot be taken in your account's currency, %{currency}. Choose a supported currency below to take payments again."
+msgstr "In der Währung Ihres Kontos, %{currency}, können keine Zahlungen angenommen werden. Wählen Sie unten eine unterstützte Währung, um wieder Zahlungen anzunehmen."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/currency_selector.ex
+#, elixir-autogen, elixir-format
+msgid "Prices can no longer be set in your Stripe account's currency, %{currency}. Bookings are still charged their current prices; choose one of the currencies below to change them."
+msgstr "In der Währung Ihres Stripe-Kontos, %{currency}, lassen sich keine Preise mehr festlegen. Buchungen werden weiterhin zu den aktuellen Preisen abgerechnet; um diese zu ändern, wählen Sie unten eine der Währungen."

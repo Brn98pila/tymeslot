@@ -69,7 +69,7 @@ defmodule TymeslotWeb.Dashboard.ServiceSettingsComponent do
       |> assign(:video_integrations, data.video_integrations)
       |> assign(:venues, data.venues)
       |> assign(:calendar_integrations, data.calendar_integrations)
-      |> assign(:payment_currency, host_currency(data.meeting_types, user_id))
+      |> assign(:payment_currency, price_currency(data.meeting_types, user_id))
 
     {:ok, socket}
   end
@@ -87,15 +87,15 @@ defmodule TymeslotWeb.Dashboard.ServiceSettingsComponent do
 
   defp refresh_editing_type(socket, _meeting_types), do: socket
 
-  # The host's pricing currency, used only to format the price token on paid
-  # meeting type cards. Resolved only when at least one meeting type is
-  # actually paid: unpaid lists render no price, so they skip the query and
-  # take the unused fallback.
-  defp host_currency(meeting_types, user_id) do
+  # The currency stored prices are in (the account's, supported or not),
+  # used only to format the price token on paid meeting type cards. Resolved
+  # only when at least one meeting type is actually paid: unpaid lists render
+  # no price, so they skip the query and take the unused fallback.
+  defp price_currency(meeting_types, user_id) do
     if Enum.any?(meeting_types, & &1.payment_required) do
-      MeetingPayments.host_currency(user_id)
+      MeetingPayments.account_currency(user_id)
     else
-      MeetingPayments.host_currency(nil)
+      MeetingPayments.account_currency(nil)
     end
   end
 

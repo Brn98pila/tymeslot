@@ -1240,3 +1240,18 @@ msgid_plural "%{time} (+%{count} days)"
 msgstr[0] "%{time} (+%{count} dzień)"
 msgstr[1] "%{time} (+%{count} dni)"
 msgstr[2] "%{time} (+%{count} dni)"
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/payments_section.ex
+#, elixir-autogen, elixir-format
+msgid "Your Stripe account's currency, %{currency}, is not supported for meeting payments. Choose a supported currency on the %{payments_link} page to charge for this meeting type."
+msgstr "Waluta konta Stripe (%{currency}) nie jest obsługiwana w płatnościach za spotkania. Wybierz obsługiwaną walutę na stronie %{payments_link}, aby pobierać opłaty za ten typ spotkania."
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/payments_section.ex
+#, elixir-autogen, elixir-format
+msgid "Prices can no longer be set in your Stripe account's currency, %{currency}. Choose a supported currency on the %{payments_link} page to change what this meeting type charges."
+msgstr "W walucie konta Stripe (%{currency}) nie można już ustawiać cen. Wybierz obsługiwaną walutę na stronie %{payments_link}, aby zmienić cenę tego typu spotkania."
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/payments_section.ex
+#, elixir-autogen, elixir-format
+msgid "The current price is %{amount}. Switching to a supported currency clears it, as it clears every paid meeting type's price."
+msgstr "Obecna cena to %{amount}. Po przejściu na obsługiwaną walutę zostanie usunięta, tak jak ceny wszystkich płatnych typów spotkań."

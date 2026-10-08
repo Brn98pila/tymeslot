@@ -14,10 +14,10 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.LifetimeStatsTest do
 
   alias TymeslotWeb.Dashboard.PaymentsSettings.LifetimeStats
 
-  defp render_stats(stats) do
+  defp render_stats(stats, currency \\ "chf") do
     render_component(&LifetimeStats.lifetime_stats/1,
       stats: stats,
-      account: build(:connect_account, default_currency: "chf")
+      account: build(:connect_account, default_currency: currency)
     )
   end
 
@@ -38,5 +38,14 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.LifetimeStatsTest do
     html = render_stats([])
 
     assert html =~ "CHF 0.00"
+  end
+
+  test "shows zero in an account currency outside the allowlist too" do
+    assert render_stats([], "ron") =~ "RON 0.00"
+  end
+
+  test "shows zero in the fallback currency when the account has none" do
+    assert render_stats([], nil) =~ "€0.00"
+    assert render_stats([], "") =~ "€0.00"
   end
 end

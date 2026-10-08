@@ -232,20 +232,10 @@ config :tymeslot, :pricing,
   pro_monthly_cents: 500,
   pro_annual_cents: 5000
 
-# Skip webhook signature verification in tests
-config :tymeslot, :skip_webhook_verification, true
-
 # Health check timeouts for faster testing
 config :tymeslot, Tymeslot.Integrations.HealthCheck,
   yield_timeout: 100,
   stream_timeout: 200
-
-# Payment retries sleep between attempts, and the suite was sleeping the
-# production 1s base delay: ten tests across RetryHelperTest and StripeTest
-# waiting out real backoff for about 18 seconds of every run. Only the delay is
-# shortened; max_attempts and backoff_multiplier keep their production values,
-# so the attempt-count and backoff-shape assertions still test what they say.
-config :tymeslot, :payment_retry, base_delay_ms: 1
 
 # Wallaby E2E browser test configuration
 # otp_app + ecto_repos let Wallaby.Feature auto-checkout the sandbox and pass
