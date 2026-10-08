@@ -214,7 +214,8 @@ defmodule Tymeslot.Workers.ExpectedJobOutcomesTest do
        "Integration not found",
        "Credentials require reauthentication",
        "Credentials require reauthentication: invalid_grant",
-       "Credentials require reauthentication: invalid_grant: Token has been expired"
+       "Credentials require reauthentication: invalid_grant: Token has been expired",
+       "Another refresh held the integration's lock through every wait"
      ],
      recorded: ["Credentials require reauthentication: invalid_client"]}
   ]
