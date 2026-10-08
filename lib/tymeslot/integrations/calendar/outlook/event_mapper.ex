@@ -188,7 +188,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventMapper do
     timezone = extract_field(event_data, :timezone, "timezone")
 
     with rrule when is_binary(rrule) and rrule != "" <- rrule,
-         %Date{} = start_date <- recurrence_start_date(event_data),
+         %Date{} = start_date <- recurrence_start_date(event_data, timezone),
          recurrence when is_map(recurrence) <-
            RecurrenceConverter.rrule_to_outlook(rrule, start_date, timezone) do
       Map.put(base, "recurrence", recurrence)
@@ -197,11 +197,23 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventMapper do
     end
   end
 
-  defp recurrence_start_date(event_data) do
+  # Graph reads the range's `startDate`, and the weekday a weekly pattern
+  # falls back to, in the event's own zone: 08:00 on a Monday in Tokyo is
+  # Sunday in UTC.
+  defp recurrence_start_date(event_data, timezone) do
     case extract_field(event_data, :start_time, "start_time") do
       %Date{} = date -> date
-      %DateTime{} = dt -> DateTime.to_date(dt)
+      %DateTime{} = dt -> dt |> local_in(timezone) |> DateTime.to_date()
       _other -> nil
     end
   end
+
+  defp local_in(datetime, timezone) when is_binary(timezone) do
+    case DateTime.shift_zone(datetime, timezone) do
+      {:ok, local} -> local
+      {:error, _reason} -> datetime
+    end
+  end
+
+  defp local_in(datetime, _timezone), do: datetime
 end

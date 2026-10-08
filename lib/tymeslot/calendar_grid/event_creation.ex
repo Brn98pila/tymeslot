@@ -30,6 +30,7 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
   alias Tymeslot.Bookings.CreateAdHoc
   alias Tymeslot.CalendarGrid.EventVideo
   alias Tymeslot.CalendarGrid.EventVideoRooms
+  alias Tymeslot.CalendarGrid.ProviderPayload
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
@@ -60,7 +61,8 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
 
   The payload carries the `:creating` form map, the organiser `:user_id`, the
   parsed `:start_at`/`:end_at` datetimes and, optionally, the organiser's
-  `:timezone`, the zone a repeating event is written in on a CalDAV calendar. On success the returned map
+  `:timezone`, the zone a repeating event is written in
+  (`ProviderPayload.put_series_zone/2`). On success the returned map
   carries everything the web layer needs to cache the event, notify the grid,
   and flash the user (including `:reauth_required` when the integration's
   credentials need re-encrypting).
@@ -118,7 +120,7 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
     event_data =
       uid
       |> build_event_data(creating, start_at, end_at, event_details, video_context, plan)
-      |> put_series_timezone(payload[:timezone])
+      |> ProviderPayload.put_series_zone(payload[:timezone])
 
     result =
       CalendarEvents.create_event(
@@ -174,14 +176,6 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
   end
 
   # Private
-
-  # Read only by the CalDAV builder, which writes a timed series as wall
-  # clocks in this zone (`ICalBuilder.TimeZoneComponent.series_zone/1`); the
-  # other providers' payloads are left as they were.
-  defp put_series_timezone(event_data, zone) when is_binary(zone),
-    do: Map.put(event_data, :series_timezone, zone)
-
-  defp put_series_timezone(event_data, _zone), do: event_data
 
   defp build_event_data(uid, creating, start_at, end_at, event_details, video_context, plan) do
     description = build_description(creating[:description], video_context)

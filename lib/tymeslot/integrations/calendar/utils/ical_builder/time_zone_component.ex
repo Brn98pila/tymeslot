@@ -21,8 +21,8 @@ defmodule Tymeslot.Integrations.Calendar.ICalBuilder.TimeZoneComponent do
   Only a timed series (`series_zone/1`): a single event and an all-day series
   do not move across a DST change, so they keep the UTC and DATE forms every
   server already accepts. The zone comes from the payload's
-  `:series_timezone`, which only the CalDAV writers read, so the other
-  providers' payloads are unaffected.
+  `:series_timezone`, which only the CalDAV writers read; Google and Outlook
+  read the same zone from `:timezone`.
 
   ## The span
 
