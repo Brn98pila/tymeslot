@@ -79,48 +79,54 @@ defmodule Tymeslot.Webhooks do
     end
   end
 
-  @doc """
-  Updates a webhook.
-  """
-  @spec update_webhook(WebhookSchema.t(), map()) ::
+  # The user-facing functions below act on a webhook by its id and the
+  # acting user's id, and answer `{:error, :not_found}` for a webhook that
+  # user does not own. The delivery worker's system writes
+  # (`record_delivery_failure/2`) take the webhook it already loaded.
+
+  @doc "Updates the name, URL, events or token of one of `user_id`'s webhooks."
+  @spec update_webhook(integer(), integer(), map()) ::
           {:ok, WebhookSchema.t()}
-          | {:error, Ecto.Changeset.t() | Features.access_error()}
-  def update_webhook(webhook, attrs) do
-    with :ok <- Features.check_access(webhook.user_id, :automations_allowed) do
-      WebhookQueries.update_webhook(webhook, attrs)
-    end
+          | {:error, :not_found | Ecto.Changeset.t() | Features.access_error()}
+  def update_webhook(user_id, id, attrs) do
+    with_webhook(user_id, id, fn webhook ->
+      with :ok <- Features.check_access(user_id, :automations_allowed) do
+        WebhookQueries.update_webhook(webhook, attrs)
+      end
+    end)
+  end
+
+  @doc "Deletes one of `user_id`'s webhooks."
+  @spec delete_webhook(integer(), integer()) ::
+          {:ok, WebhookSchema.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def delete_webhook(user_id, id) do
+    with_webhook(user_id, id, &WebhookQueries.delete_webhook/1)
   end
 
   @doc """
-  Deletes a webhook.
-  """
-  @spec delete_webhook(WebhookSchema.t()) ::
-          {:ok, WebhookSchema.t()} | {:error, Ecto.Changeset.t()}
-  def delete_webhook(webhook) do
-    WebhookQueries.delete_webhook(webhook)
-  end
-
-  @doc """
-  Toggles webhook active status.
+  Pauses or resumes one of `user_id`'s webhooks.
 
   Re-enabling a webhook that was auto-disabled (i.e. `disabled_at` is set)
-  goes through `enable_webhook/1` instead of a bare flip, so the failure
-  bookkeeping (`failure_count`, `disabled_at`, `disabled_reason`) is reset
-  along with `is_active`. Otherwise a manual re-enable left the counter at
-  the auto-disable threshold, so the very next failed delivery immediately
-  disabled the webhook again.
+  resets the failure bookkeeping (`failure_count`, `disabled_at`,
+  `disabled_reason`) along with `is_active`. Otherwise a manual re-enable
+  left the counter at the auto-disable threshold, so the very next failed
+  delivery immediately disabled the webhook again.
   """
-  @spec toggle_webhook(WebhookSchema.t()) ::
+  @spec toggle_webhook(integer(), integer()) ::
           {:ok, WebhookSchema.t()}
-          | {:error, Ecto.Changeset.t() | Features.access_error()}
-  def toggle_webhook(%WebhookSchema{is_active: false, disabled_at: %DateTime{}} = webhook) do
-    enable_webhook(webhook)
-  end
+          | {:error, :not_found | Ecto.Changeset.t() | Features.access_error()}
+  def toggle_webhook(user_id, id) do
+    with_webhook(user_id, id, fn webhook ->
+      with :ok <- Features.check_access(user_id, :automations_allowed) do
+        case webhook do
+          %WebhookSchema{is_active: false, disabled_at: %DateTime{}} ->
+            WebhookQueries.enable_webhook(webhook)
 
-  def toggle_webhook(webhook) do
-    with :ok <- Features.check_access(webhook.user_id, :automations_allowed) do
-      WebhookQueries.toggle_webhook(webhook)
-    end
+          webhook ->
+            WebhookQueries.toggle_webhook(webhook)
+        end
+      end
+    end)
   end
 
   @doc """
@@ -141,29 +147,21 @@ defmodule Tymeslot.Webhooks do
     end
   end
 
-  @doc """
-  Re-enables a disabled webhook (resets failure count).
-  """
-  @spec enable_webhook(WebhookSchema.t()) ::
+  @doc "Replaces the token of one of `user_id`'s webhooks with a new one."
+  @spec regenerate_token(integer(), integer()) ::
           {:ok, WebhookSchema.t()}
-          | {:error, Ecto.Changeset.t() | Features.access_error()}
-  def enable_webhook(webhook) do
-    with :ok <- Features.check_access(webhook.user_id, :automations_allowed) do
-      WebhookQueries.enable_webhook(webhook)
-    end
+          | {:error, :not_found | Ecto.Changeset.t() | Features.access_error()}
+  def regenerate_token(user_id, id) do
+    with_webhook(user_id, id, fn webhook ->
+      with :ok <- Features.check_access(user_id, :automations_allowed) do
+        # Passing nil for webhook_token triggers generation in the changeset
+        WebhookQueries.update_webhook(webhook, %{webhook_token: nil})
+      end
+    end)
   end
 
-  @doc """
-  Regenerates the webhook token.
-  """
-  @spec regenerate_token(WebhookSchema.t()) ::
-          {:ok, WebhookSchema.t()}
-          | {:error, Ecto.Changeset.t() | Features.access_error()}
-  def regenerate_token(%WebhookSchema{} = webhook) do
-    with :ok <- Features.check_access(webhook.user_id, :automations_allowed) do
-      # Passing nil for webhook_token triggers generation in the changeset
-      WebhookQueries.update_webhook(webhook, %{webhook_token: nil})
-    end
+  defp with_webhook(user_id, id, fun) do
+    with {:ok, webhook} <- WebhookQueries.get_webhook(id, user_id), do: fun.(webhook)
   end
 
   @signature_header "X-Tymeslot-Signature"
@@ -340,25 +338,28 @@ defmodule Tymeslot.Webhooks do
   # ============================================================================
 
   @doc """
-  Lists webhook deliveries with pagination.
+  Lists the deliveries of one of `user_id`'s webhooks, newest first, with
+  pagination (`:limit`, `:offset`).
   """
-  @spec list_deliveries(integer(), keyword()) :: [WebhookDeliverySchema.t()]
-  def list_deliveries(webhook_id, opts) do
-    WebhookQueries.list_deliveries(webhook_id, opts)
+  @spec list_deliveries(integer(), integer(), keyword()) ::
+          {:ok, [WebhookDeliverySchema.t()]} | {:error, :not_found}
+  def list_deliveries(user_id, webhook_id, opts) do
+    with_webhook(user_id, webhook_id, &{:ok, WebhookQueries.list_deliveries(&1.id, opts)})
   end
 
-  @doc """
-  Gets delivery statistics for a webhook.
-  """
-  @spec get_delivery_stats(integer(), keyword()) :: %{
-          required(:total) => non_neg_integer(),
-          required(:successful) => non_neg_integer(),
-          required(:failed) => non_neg_integer(),
-          required(:success_rate) => float(),
-          required(:period_days) => non_neg_integer()
-        }
-  def get_delivery_stats(webhook_id, opts) do
-    WebhookQueries.get_delivery_stats(webhook_id, opts)
+  @doc "Delivery statistics for one of `user_id`'s webhooks (`:days`, default 7)."
+  @spec get_delivery_stats(integer(), integer(), keyword()) ::
+          {:ok,
+           %{
+             required(:total) => non_neg_integer(),
+             required(:successful) => non_neg_integer(),
+             required(:failed) => non_neg_integer(),
+             required(:success_rate) => float(),
+             required(:period_days) => non_neg_integer()
+           }}
+          | {:error, :not_found}
+  def get_delivery_stats(user_id, webhook_id, opts) do
+    with_webhook(user_id, webhook_id, &{:ok, WebhookQueries.get_delivery_stats(&1.id, opts)})
   end
 
   # ============================================================================

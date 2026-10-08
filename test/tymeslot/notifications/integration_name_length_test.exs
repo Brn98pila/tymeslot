@@ -39,8 +39,8 @@ defmodule Tymeslot.Notifications.IntegrationNameLengthTest do
     test "webhooks accept 100 characters and refuse 101" do
       webhook = insert(:webhook)
 
-      assert WebhookSchema.changeset(webhook, %{name: @longest}).valid?
-      refute WebhookSchema.changeset(webhook, %{name: @too_long}).valid?
+      assert WebhookSchema.update_changeset(webhook, %{name: @longest}).valid?
+      refute WebhookSchema.update_changeset(webhook, %{name: @too_long}).valid?
     end
   end
 

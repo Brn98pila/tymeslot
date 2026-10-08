@@ -32,8 +32,7 @@ defmodule Tymeslot.Workers.WebhookWorkerSecurityTest do
 
       # Insert webhook with encrypted token
       {:ok, webhook} =
-        %WebhookSchema{}
-        |> WebhookSchema.changeset(%{
+        WebhookSchema.create_changeset(%{
           name: "Test Webhook",
           url: "https://example.com/webhook",
           events: ["meeting.created"],
@@ -84,8 +83,7 @@ defmodule Tymeslot.Workers.WebhookWorkerSecurityTest do
       test_pid = self()
 
       {:ok, webhook} =
-        %WebhookSchema{}
-        |> WebhookSchema.changeset(%{
+        WebhookSchema.create_changeset(%{
           name: "Signed Webhook",
           url: "https://example.com/webhook",
           events: ["meeting.created"],

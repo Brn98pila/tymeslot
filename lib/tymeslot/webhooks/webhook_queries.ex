@@ -69,8 +69,8 @@ defmodule Tymeslot.Webhooks.WebhookQueries do
   """
   @spec create_webhook(map()) :: {:ok, WebhookSchema.t()} | {:error, Ecto.Changeset.t()}
   def create_webhook(attrs) do
-    %WebhookSchema{}
-    |> WebhookSchema.changeset(attrs)
+    attrs
+    |> WebhookSchema.create_changeset()
     |> Repo.insert()
   end
 
@@ -81,7 +81,13 @@ defmodule Tymeslot.Webhooks.WebhookQueries do
           {:ok, WebhookSchema.t()} | {:error, Ecto.Changeset.t()}
   def update_webhook(%WebhookSchema{} = webhook, attrs) do
     webhook
-    |> WebhookSchema.changeset(attrs)
+    |> WebhookSchema.update_changeset(attrs)
+    |> Repo.update()
+  end
+
+  defp update_state(%WebhookSchema{} = webhook, attrs) do
+    webhook
+    |> WebhookSchema.state_transition_changeset(attrs)
     |> Repo.update()
   end
 
@@ -99,9 +105,8 @@ defmodule Tymeslot.Webhooks.WebhookQueries do
   """
   @spec toggle_webhook(WebhookSchema.t()) ::
           {:ok, WebhookSchema.t()} | {:error, Ecto.Changeset.t()}
-  def toggle_webhook(%WebhookSchema{} = webhook) do
-    update_webhook(webhook, %{is_active: !webhook.is_active})
-  end
+  def toggle_webhook(%WebhookSchema{} = webhook),
+    do: IntegrationQueries.toggle_active(WebhookSchema, webhook)
 
   @doc """
   Records a successful webhook delivery.
@@ -111,7 +116,7 @@ defmodule Tymeslot.Webhooks.WebhookQueries do
   def record_success(%WebhookSchema{} = webhook, triggered_at \\ nil) do
     triggered_at = triggered_at || DateTime.utc_now()
 
-    update_webhook(webhook, %{
+    update_state(webhook, %{
       last_triggered_at: triggered_at,
       last_status: DeliveryStatus.encode_success(),
       failure_count: 0
@@ -151,7 +156,7 @@ defmodule Tymeslot.Webhooks.WebhookQueries do
   @spec disable_webhook(WebhookSchema.t(), String.t()) ::
           {:ok, WebhookSchema.t()} | {:error, Ecto.Changeset.t()}
   def disable_webhook(%WebhookSchema{} = webhook, reason) do
-    update_webhook(webhook, %{
+    update_state(webhook, %{
       is_active: false,
       disabled_at: DateTime.utc_now(),
       disabled_reason: reason
@@ -163,14 +168,8 @@ defmodule Tymeslot.Webhooks.WebhookQueries do
   """
   @spec enable_webhook(WebhookSchema.t()) ::
           {:ok, WebhookSchema.t()} | {:error, Ecto.Changeset.t()}
-  def enable_webhook(%WebhookSchema{} = webhook) do
-    update_webhook(webhook, %{
-      is_active: true,
-      disabled_at: nil,
-      disabled_reason: nil,
-      failure_count: 0
-    })
-  end
+  def enable_webhook(%WebhookSchema{} = webhook),
+    do: IntegrationQueries.enable(WebhookSchema, webhook)
 
   # ============================================================================
   # Webhook Delivery Queries
