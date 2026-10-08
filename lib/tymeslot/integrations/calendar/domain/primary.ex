@@ -10,6 +10,7 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Defaults
+  alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Profiles.ProfileQueries
 
@@ -96,7 +97,7 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
         do: %{calendar_list: calendars, default_booking_calendar_id: default_calendar_id},
         else: %{calendar_list: calendars}
 
-    CalendarManagement.update_calendar_integration(integration, attrs)
+    Selection.replace_selection(integration, attrs)
   end
 
   defp validate_and_prepare_integration(user_id, integration_id) do
