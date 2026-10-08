@@ -27,6 +27,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.SyncErrorNoticeTest do
   alias Plug.Conn
   alias Req.Test, as: ReqTest
   alias Tymeslot.ExchangeCase
+  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.HealthCheck
   alias Tymeslot.Integrations.HealthCheck.Monitor
   alias Tymeslot.Security.Encryption
@@ -107,6 +108,33 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.SyncErrorNoticeTest do
 
     stub_full_sync()
     assert :ok = run(integration)
+
+    assert notices(conn) == []
+  end
+
+  test "a reconnected calendar drops the reason it was flagged for", %{conn: conn, user: user} do
+    integration =
+      insert(:calendar_integration,
+        user: user,
+        provider: "caldav",
+        is_active: true,
+        needs_reauth: true,
+        sync_error:
+          "The calendar server rejected the stored credentials. Please reconnect the calendar."
+      )
+
+    assert {:ok, reconnected} =
+             CalendarManagement.update_calendar_integration(integration, %{
+               username: "alice",
+               password: "new-password"
+             })
+
+    # A later failure that records no reason of its own, such as a refused
+    # bulk deletion, still turns the card unhealthy.
+    HealthCheck.record_sync_failure(:calendar, reconnected)
+
+    assert HealthCheck.attention_status(reconnected, health_state(:calendar, reconnected)) ==
+             :unhealthy
 
     assert notices(conn) == []
   end
