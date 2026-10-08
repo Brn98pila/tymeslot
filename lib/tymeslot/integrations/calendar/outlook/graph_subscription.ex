@@ -33,7 +33,6 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
   alias Tymeslot.Integrations.Calendar.HTTP
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI
   alias Tymeslot.Integrations.Calendar.Outlook.Provider, as: OutlookProvider
-  alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.Tokens
 
@@ -358,17 +357,11 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
   # as-is) do not repeat them. The window does not move with time: a link is
   # replaced by a fresh bootstrap once it is old (`DeltaSync.rebootstrap_due?/1`).
   defp initial_delta_params do
-    now = DateTime.utc_now()
+    {start_time, end_time} = Sync.window()
 
     %{
-      "startDateTime" =>
-        now
-        |> DateTime.add(-ProviderConfig.sync_window_past_days() * 86_400, :second)
-        |> DateTime.to_iso8601(),
-      "endDateTime" =>
-        now
-        |> DateTime.add(ProviderConfig.sync_window_future_days() * 86_400, :second)
-        |> DateTime.to_iso8601()
+      "startDateTime" => DateTime.to_iso8601(start_time),
+      "endDateTime" => DateTime.to_iso8601(end_time)
     }
   end
 

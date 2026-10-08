@@ -14,8 +14,8 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
   alias Tymeslot.Integrations.Calendar.Google.EventMapper
   alias Tymeslot.Integrations.Calendar.Google.PushChannel
   alias Tymeslot.Integrations.Calendar.HTTP
-  alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Shared.ApiResponse
+  alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.Tokens
   alias Tymeslot.Integrations.Shared.GoogleConfig
   alias Tymeslot.Integrations.Shared.OAuth.Refresh
@@ -422,9 +422,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
           {:ok, %{events: [map()], next_sync_token: String.t() | nil}} | api_error()
   def bootstrap_sync(%CalendarIntegrationSchema{} = integration) do
     calendar_id = integration.default_booking_calendar_id || "primary"
-    now = DateTime.utc_now()
-    start_time = DateTime.add(now, -ProviderConfig.sync_window_past_days(), :day)
-    end_time = DateTime.add(now, ProviderConfig.sync_window_future_days(), :day)
+    {start_time, end_time} = Sync.window()
 
     base = %{
       "timeMin" => DateTime.to_iso8601(start_time),

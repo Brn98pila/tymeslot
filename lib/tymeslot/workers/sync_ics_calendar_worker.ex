@@ -39,7 +39,6 @@ defmodule Tymeslot.Workers.SyncIcsCalendarWorker do
   alias Tymeslot.Integrations.Calendar.Ics.Provider
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
-  alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Integrations.CalendarManagement
@@ -107,26 +106,10 @@ defmodule Tymeslot.Workers.SyncIcsCalendarWorker do
 
     {:ok, events} = Provider.normalise_events(raw_events, context)
 
-    if events == [] and cache_populated?(integration) do
-      record_failure(integration, :empty_feed_with_populated_cache)
-    else
-      write_cache(integration, events)
+    case Sync.refuse_empty_over_populated(integration, nil, events, Sync.window()) do
+      :ok -> write_cache(integration, events)
+      {:error, reason} -> record_failure(integration, reason)
     end
-  end
-
-  # A syntactically valid but empty feed is far more likely a bad read than a
-  # genuinely emptied calendar once the cache already holds events for this
-  # integration — see the moduledoc. Wiping on that signal alone is the one
-  # non-self-healing damage path in this worker, so it is refused: the cache
-  # is left as-is and the job retries.
-  defp cache_populated?(integration) do
-    now = DateTime.utc_now()
-    range_start = DateTime.add(now, -ProviderConfig.sync_window_past_days(), :day)
-    range_end = DateTime.add(now, ProviderConfig.sync_window_future_days(), :day)
-
-    [integration.id]
-    |> ProviderCalendarEventQueries.list_for_range(range_start, range_end, limit: 1)
-    |> Enum.any?()
   end
 
   defp write_cache(integration, events) do

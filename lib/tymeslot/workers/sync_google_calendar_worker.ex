@@ -190,7 +190,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
   # Unlike a delta, the bootstrap is a complete windowed listing of the
   # booking calendar, so it is swept like a secondary calendar's.
   defp bootstrap_integration(integration, started_at) do
-    listed = {booking_calendar_id(integration), CacheSweep.listing_window(DateTime.utc_now())}
+    listed = {booking_calendar_id(integration), Sync.window()}
 
     case Config.google_calendar_api_module().bootstrap_sync(integration) do
       {:ok, %{events: events, next_sync_token: next_sync_token}} ->
@@ -284,7 +284,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
   # A requested sync reads the booking calendar in full, as a secondary
   # calendar is read on every run.
   defp relist_booking_calendar(integration, :calendar) do
-    {start_time, end_time} = window = CacheSweep.listing_window(DateTime.utc_now())
+    {start_time, end_time} = window = Sync.window()
     calendar_id = booking_calendar_id(integration)
 
     case sync_one_secondary_calendar(integration, calendar_id, start_time, end_time) do
@@ -298,7 +298,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
   # Each series the delta names is listed whole, and swept of its own rows
   # alone. A series whose listing fails is not swept this run.
   defp relist_booking_calendar(integration, {:series, events}) do
-    {start_time, end_time} = window = CacheSweep.listing_window(DateTime.utc_now())
+    {start_time, end_time} = window = Sync.window()
     calendar_id = booking_calendar_id(integration)
 
     listed =
@@ -360,7 +360,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
   # on every sync — and the calendars read in full, for the sweep. The
   # accumulator is `{status, missing_ids, listed}`.
   defp sync_each_secondary_calendar(integration, calendar_ids) do
-    {start_time, end_time} = window = CacheSweep.listing_window(DateTime.utc_now())
+    {start_time, end_time} = window = Sync.window()
 
     {status, missing_ids, listed} =
       Enum.reduce_while(calendar_ids, {:ok, [], []}, fn calendar_id, {:ok, missing, listed} ->

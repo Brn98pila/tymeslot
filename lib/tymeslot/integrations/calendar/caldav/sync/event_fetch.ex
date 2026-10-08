@@ -28,14 +28,9 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Sync.EventFetch do
   alias Tymeslot.Integrations.Calendar.CalDAV.Sync.State
   alias Tymeslot.Integrations.Calendar.CalDAV.SyncReconciler
   alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
-  alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Runtime.CalendarPathResolver
+  alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Utils.UriUtils
-
-  # How far back and forward to fetch events on a full sync.
-  # Centralised in ProviderConfig so all providers use the same window.
-  @sync_window_past_days ProviderConfig.sync_window_past_days()
-  @sync_window_future_days ProviderConfig.sync_window_future_days()
 
   @typedoc """
   Outcome of a fetch. `:booking_calendar_missing` and `:unauthorized` are
@@ -98,8 +93,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Sync.EventFetch do
   @spec fetch_path(struct(), map(), String.t(), keyword()) :: result() | :not_found
   def fetch_path(integration, client, calendar_path, opts) do
     range_now = DateTime.utc_now()
-    start_time = DateTime.add(range_now, -@sync_window_past_days, :day)
-    end_time = DateTime.add(range_now, @sync_window_future_days, :day)
+    {start_time, end_time} = Sync.window(range_now)
 
     case CalDAVEvents.fetch_events(client, calendar_path, start_time, end_time) do
       {:ok, events} ->

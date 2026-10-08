@@ -14,7 +14,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorkerSweepTest do
   import Tymeslot.Factory
 
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
-  alias Tymeslot.Integrations.Calendar.ProviderConfig
+  alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Repo
   alias Tymeslot.Workers.SyncGoogleCalendarWorker
@@ -457,8 +457,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorkerSweepTest do
     test "rows straddling either edge of the listed window, all-day and timed",
          %{integration: integration} do
       now = DateTime.utc_now()
-      past_edge = DateTime.add(now, -ProviderConfig.sync_window_past_days(), :day)
-      future_edge = DateTime.add(now, ProviderConfig.sync_window_future_days(), :day)
+      {past_edge, future_edge} = Sync.window(now)
 
       # An all-day event is listed by Google against its dates in the
       # calendar's zone, which may put a day on either edge inside the

@@ -378,7 +378,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueriesTest do
     end
   end
 
-  describe "any_in_range_for_role?/4" do
+  describe "any_in_range?/4" do
     setup do
       user = insert(:user)
       integration = insert(:calendar_integration, user: user)
@@ -395,7 +395,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueriesTest do
     end
 
     test "sees the role it is asked about", %{integration: integration} do
-      assert CalendarEventQueries.any_in_range_for_role?(
+      assert CalendarEventQueries.any_in_range?(
                integration.id,
                "busy_only",
                ~U[2026-06-01 00:00:00Z],
@@ -404,7 +404,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueriesTest do
     end
 
     test "does not let one role's rows answer for another's", %{integration: integration} do
-      refute CalendarEventQueries.any_in_range_for_role?(
+      refute CalendarEventQueries.any_in_range?(
                integration.id,
                "display_only",
                ~U[2026-06-01 00:00:00Z],
@@ -413,9 +413,25 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueriesTest do
     end
 
     test "is bounded by the window", %{integration: integration} do
-      refute CalendarEventQueries.any_in_range_for_role?(
+      refute CalendarEventQueries.any_in_range?(
                integration.id,
                "busy_only",
+               ~U[2026-07-01 00:00:00Z],
+               ~U[2026-07-31 23:59:59Z]
+             )
+    end
+
+    test "sees every role when asked about none", %{integration: integration} do
+      assert CalendarEventQueries.any_in_range?(
+               integration.id,
+               nil,
+               ~U[2026-06-01 00:00:00Z],
+               ~U[2026-06-30 23:59:59Z]
+             )
+
+      refute CalendarEventQueries.any_in_range?(
+               integration.id,
+               nil,
                ~U[2026-07-01 00:00:00Z],
                ~U[2026-07-31 23:59:59Z]
              )

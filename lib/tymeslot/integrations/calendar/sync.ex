@@ -13,6 +13,10 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
 
   Cache writes happen in the sync workers themselves. This module only runs
   when a linked Tymeslot meeting is found.
+
+  It also holds the two rules every provider's sync shares: the window a
+  sync reads (`window/1`), and the refusal to let an empty read wipe a
+  populated cache (`refuse_empty_over_populated/4`).
   """
 
   require Logger
@@ -29,6 +33,11 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Meetings
 
+  # How far back and forward a sync reads, for every provider alike, so the
+  # dashboard calendar shows one range whichever calendar an event is on.
+  @window_past_days 365
+  @window_future_days 365
+
   @typep integration_id :: integer()
   @typep signal :: :deleted | :modified
 
@@ -41,6 +50,44 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
           optional(:provider_event_id) => String.t() | nil,
           optional(:uid) => String.t() | nil
         }
+
+  @doc """
+  The window a sync reads, around `now`: `window_past_days/0` back and as
+  many days forward.
+  """
+  @spec window(DateTime.t()) :: {DateTime.t(), DateTime.t()}
+  def window(now \\ DateTime.utc_now()),
+    do:
+      {DateTime.add(now, -@window_past_days, :day), DateTime.add(now, @window_future_days, :day)}
+
+  @doc "How many days back a sync reads; older rows are no longer refreshed."
+  @spec window_past_days() :: pos_integer()
+  def window_past_days, do: @window_past_days
+
+  @doc """
+  Refuses to replace a populated cache with an empty read.
+
+  A sync that reads a whole window replaces the rows it holds for it. An
+  empty answer from a server that answered with events before is far more
+  likely a bad read (a feed served empty mid-deploy, a mailbox briefly
+  unreadable) than a calendar emptied for real, and wiping on that signal
+  alone is damage the next sync cannot see to undo. So an empty `events`
+  is refused while the integration still holds rows overlapping
+  `{range_start, range_end}`: of `role`, or of any role when `role` is nil.
+  The cache is left as it is and the cycle fails, to be retried.
+  """
+  @spec refuse_empty_over_populated(
+          CalendarIntegrationSchema.t(),
+          String.t() | nil,
+          [CalendarEvent.t()],
+          {DateTime.t(), DateTime.t()}
+        ) :: :ok | {:error, :empty_feed_with_populated_cache}
+  def refuse_empty_over_populated(integration, role, events, {range_start, range_end}) do
+    if events == [] and
+         CalendarEventQueries.any_in_range?(integration.id, role, range_start, range_end),
+       do: {:error, :empty_feed_with_populated_cache},
+       else: :ok
+  end
 
   @doc """
   Persists a batch of normalised calendar events to the local cache and

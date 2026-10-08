@@ -146,19 +146,23 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueries do
   end
 
   @doc """
-  Says whether the integration already holds a row of `role` overlapping the
-  window.
+  Says whether the integration already holds a row overlapping the window:
+  a row of `role`, or of any role when `role` is nil.
 
-  The role-scoped input to a sync worker's empty-response guard: a run that
-  read no busy intervals must be judged against the busy rows it is about to
+  The input to a sync's empty-response guard. Scoped to a role, a run that
+  read no busy intervals is judged against the busy rows it is about to
   replace, not against the item rows it is not touching.
   """
-  @spec any_in_range_for_role?(integer(), String.t(), DateTime.t(), DateTime.t()) :: boolean()
-  def any_in_range_for_role?(calendar_integration_id, role, range_start, range_end)
-      when role in @roles do
+  @spec any_in_range?(integer(), String.t() | nil, DateTime.t(), DateTime.t()) :: boolean()
+  def any_in_range?(calendar_integration_id, role, range_start, range_end)
+      when is_nil(role) or role in @roles do
     ProviderCalendarEventSchema
-    |> where([e], e.calendar_integration_id == ^calendar_integration_id and e.role == ^role)
+    |> where([e], e.calendar_integration_id == ^calendar_integration_id)
+    |> where_role(role)
     |> ProviderCalendarEventQueries.where_overlapping_range(range_start, range_end)
     |> Repo.exists?()
   end
+
+  defp where_role(query, nil), do: query
+  defp where_role(query, role), do: where(query, [e], e.role == ^role)
 end

@@ -177,13 +177,11 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalDAV.Errors, as: CalDAVErrors
-  alias Tymeslot.Integrations.Calendar.CalendarEventQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.EventRole
   alias Tymeslot.Integrations.Calendar.Exchange.IntervalNormaliser
   alias Tymeslot.Integrations.Calendar.Exchange.ItemCache
   alias Tymeslot.Integrations.Calendar.Exchange.Provider
-  alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Integrations.CalendarManagement
@@ -230,7 +228,7 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
   # The order is the design, not an accident: availability first, and its
   # failure stops the run before either half of the cache is touched.
   defp sync(integration) do
-    {from, to} = window()
+    {from, to} = Sync.window()
 
     with {:ok, busy_uids} <- refresh_busy_intervals(integration, from, to),
          {:ok, item_uids, item_read} <- refresh_items(integration, from, to) do
@@ -321,22 +319,18 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
 
   # --- Writing ---
 
+  # Guarded per role. Asking whether the integration holds *any* rows would
+  # have a populated grid half veto an honestly empty availability half, and
+  # vice versa.
   defp write(integration, role, events, from, to) do
-    if events == [] and populated?(integration, role, from, to) do
-      {:error, {:empty_result_with_populated_cache, role}}
+    with {:guard, :ok} <-
+           {:guard, Sync.refuse_empty_over_populated(integration, role, events, {from, to})},
+         {:ok, _count} <- Sync.full_refresh_for_role(integration, role, events) do
+      {:ok, Enum.map(events, & &1.uid)}
     else
-      case Sync.full_refresh_for_role(integration, role, events) do
-        {:ok, _count} -> {:ok, Enum.map(events, & &1.uid)}
-        {:error, reason} -> {:error, reason}
-      end
+      {:guard, {:error, reason}} -> {:error, {reason, role}}
+      {:error, reason} -> {:error, reason}
     end
-  end
-
-  # Scoped to the role being replaced. Asking whether the integration holds
-  # *any* rows would have a populated grid half veto an honestly empty
-  # availability half, and vice versa.
-  defp populated?(integration, role, from, to) do
-    CalendarEventQueries.any_in_range_for_role?(integration.id, role, from, to)
   end
 
   # --- Outcomes ---
@@ -477,13 +471,6 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
     :ok
   end
 
-  defp window do
-    now = DateTime.utc_now()
-
-    {DateTime.add(now, -ProviderConfig.sync_window_past_days(), :day),
-     DateTime.add(now, ProviderConfig.sync_window_future_days(), :day)}
-  end
-
   # The msgid stored as the integration's `sync_error`, untranslated: the
   # integration card translates it in the owner's locale. Public for the test
   # that pins every writer to a known msgid.
@@ -493,14 +480,14 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
   # emptied, the other that the grid would have gone blank.
   @doc false
   @spec sync_error_message(term()) :: String.t()
-  def sync_error_message({:empty_result_with_populated_cache, @busy_only}) do
+  def sync_error_message({:empty_feed_with_populated_cache, @busy_only}) do
     dgettext_noop(
       "dashboard_calendar_providers",
       "Exchange reported no busy time at all, but the cache still holds some. Keeping it in place and retrying rather than treating your diary as free."
     )
   end
 
-  def sync_error_message({:empty_result_with_populated_cache, _role}) do
+  def sync_error_message({:empty_feed_with_populated_cache, _role}) do
     dgettext_noop(
       "dashboard_calendar_providers",
       "Exchange returned no calendar events, but the cache still holds some. Keeping them in place and retrying rather than emptying your calendar view."
