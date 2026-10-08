@@ -217,6 +217,8 @@ defmodule Tymeslot.Notifications.IntegrationQueriesTest do
         delivery.(owner, response_status: 200, error_message: nil)
         delivery.(owner, response_status: 200, error_message: nil)
         delivery.(owner, response_status: 500, error_message: "boom")
+        # A transport failure: no response at all, only an error.
+        delivery.(owner, response_status: nil, error_message: "timeout")
         delivery.(other, response_status: 200, error_message: nil)
 
         delivery.(owner,
@@ -234,10 +236,10 @@ defmodule Tymeslot.Notifications.IntegrationQueriesTest do
           )
 
         assert stats == %{
-                 total: 3,
+                 total: 4,
                  successful: 2,
-                 failed: 1,
-                 success_rate: 66.7,
+                 failed: 2,
+                 success_rate: 50.0,
                  period_days: 7
                }
       end
