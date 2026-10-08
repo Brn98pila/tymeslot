@@ -201,6 +201,80 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
     end
   end
 
+  describe "two video fields on one theme" do
+    # The fixture theme ("99") offers two videos of its own
+    # (`FixtureThemeSpec.Clips`), as a theme with a host video beside its
+    # background does: each upload is queued and reported under its field.
+    test "each upload is marked pending and queued under its own field", %{profile: profile} do
+      stub(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
+
+      assert {:ok, _intro} =
+               ThemeCustomizations.attach_asset(
+                 profile.id,
+                 "99",
+                 :fixture_intro_clip_path,
+                 temp_file("intro.mp4", @mp4)
+               )
+
+      assert {:ok, customization} =
+               ThemeCustomizations.attach_asset(
+                 profile.id,
+                 "99",
+                 :fixture_outro_clip_path,
+                 temp_file("outro.mp4", @mp4)
+               )
+
+      assert customization.video_processing_status == %{
+               "fixture_intro_clip_path" => "pending",
+               "fixture_outro_clip_path" => "pending"
+             }
+
+      assert [_intro_job, _outro_job] = all_enqueued(worker: VideoTranscoder)
+
+      for field <- ["fixture_intro_clip_path", "fixture_outro_clip_path"] do
+        assert_enqueued(
+          worker: VideoTranscoder,
+          args: %{
+            theme_customization_id: customization.id,
+            field: field,
+            video_path: customization.settings[field]
+          }
+        )
+      end
+    end
+
+    test "one clip finishing leaves the other clip's state as it is", %{profile: profile} do
+      stub(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
+      stub(Tymeslot.Media.TranscoderMock, :transcode, fn _source, _output, _opts -> :ok end)
+
+      {:ok, _intro} =
+        ThemeCustomizations.attach_asset(
+          profile.id,
+          "99",
+          :fixture_intro_clip_path,
+          temp_file("intro.mp4", @mp4)
+        )
+
+      {:ok, customization} =
+        ThemeCustomizations.attach_asset(
+          profile.id,
+          "99",
+          :fixture_outro_clip_path,
+          temp_file("outro.mp4", @mp4)
+        )
+
+      assert :ok =
+               perform_job(VideoTranscoder, %{
+                 "theme_customization_id" => customization.id,
+                 "field" => "fixture_intro_clip_path",
+                 "video_path" => customization.settings["fixture_intro_clip_path"]
+               })
+
+      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "99").video_processing_status ==
+               %{"fixture_intro_clip_path" => "completed", "fixture_outro_clip_path" => "pending"}
+    end
+  end
+
   describe "a save that is refused" do
     # The save of an upload's own changes can no longer be refused by the
     # spec (`Specs.settings/2` reads a stale row with the stale group's

@@ -33,6 +33,7 @@ defmodule TymeslotWeb.Test.FixtureTheme.Theme do
     page_shell: &Pages.page_shell/1,
     voice: TymeslotWeb.Test.FixtureTheme.Voice,
     option_panels: %{
-      Tymeslot.Test.FixtureThemeSpec.Emblem => TymeslotWeb.Test.FixtureTheme.EmblemPanel
+      Tymeslot.Test.FixtureThemeSpec.Emblem => TymeslotWeb.Test.FixtureTheme.EmblemPanel,
+      Tymeslot.Test.FixtureThemeSpec.Clips => TymeslotWeb.Test.FixtureTheme.ClipsPanel
     }
 end

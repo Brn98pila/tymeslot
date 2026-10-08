@@ -42,7 +42,7 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
 
   # Everything the test-only themes add that a shared module could name,
   # their ids among them as quoted literals.
-  @fixture_names ~r/FixtureTheme|fixture_emblem|EmblemPanel|:fixture\b|ShowcaseTheme|:showcase\b|JourneyFixture|:fixture_(scroll|talk|express)\b|#{Regex.escape(~s("99"))}|#{Regex.escape(~s("97"))}|#{Regex.escape(~s("96"))}|#{Regex.escape(~s("95"))}|#{Regex.escape(~s("94"))}/
+  @fixture_names ~r/FixtureTheme|fixture_emblem|EmblemPanel|ClipsPanel|fixture_intro_clip|fixture_outro_clip|:fixture\b|ShowcaseTheme|:showcase\b|JourneyFixture|:fixture_(scroll|talk|express)\b|#{Regex.escape(~s("99"))}|#{Regex.escape(~s("97"))}|#{Regex.escape(~s("96"))}|#{Regex.escape(~s("95"))}|#{Regex.escape(~s("94"))}/
 
   setup :verify_on_exit!
 
@@ -178,6 +178,19 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
       assert has_element?(view, "[data-testid='fixture-emblem-panel']")
       assert html =~ "Colour Palette"
       refute html =~ "Background Design"
+    end
+
+    # A theme's second group of its own gets its panel too, with an upload
+    # declared for each of its videos.
+    test "gets an upload form per clip in the second group's panel", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/dashboard/theme/customize/#{@theme_id}")
+
+      for field <- ~w(fixture_intro_clip_path fixture_outro_clip_path) do
+        assert has_element?(
+                 view,
+                 "[data-testid='fixture-clips-panel'] #fixture-clip-upload-#{field} input[type='file']"
+               )
+      end
     end
 
     test "saves through its panel", %{conn: conn, profile: profile} do
