@@ -330,7 +330,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
   end
 
   # =====================================
-  # Calendar.toggle_calendar_selection/2
+  # Calendar.toggle_calendar_selection/3
   # =====================================
 
   # A reconnect writes the selection its owner just made, from the
@@ -388,7 +388,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
 
   # The dashboard toggles from the integration it rendered, which can be older
   # than the row: the flip has to land on the row as it stands.
-  describe "Calendar.toggle_calendar_selection/2 from a stale copy" do
+  describe "Calendar.toggle_calendar_selection/3 from a stale copy" do
     setup do
       integration =
         insert(:calendar_integration,
@@ -412,7 +412,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
           "selected_calendars" => ["/cal/a/", "/cal/b/", "/cal/c/"]
         })
 
-      {:ok, updated} = Calendar.toggle_calendar_selection(stale, "/cal/a/")
+      {:ok, updated} = Calendar.toggle_calendar_selection(stale.user_id, stale.id, "/cal/a/")
 
       assert selection(updated) == %{"/cal/a/" => false, "/cal/b/" => true, "/cal/c/" => true}
     end
@@ -422,7 +422,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
       {:ok, _elsewhere} =
         Selection.update_calendar_selection(stale, %{"selected_calendars" => ["/cal/a/"]})
 
-      {:ok, updated} = Calendar.toggle_calendar_selection(stale, "/cal/b/")
+      {:ok, updated} = Calendar.toggle_calendar_selection(stale.user_id, stale.id, "/cal/b/")
 
       assert selection(updated) == %{"/cal/a/" => true, "/cal/b/" => true, "/cal/c/" => false}
     end

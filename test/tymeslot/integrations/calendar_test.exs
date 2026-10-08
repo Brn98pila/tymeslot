@@ -67,10 +67,10 @@ defmodule Tymeslot.Integrations.CalendarTest do
       insert(:profile, user: user)
       integration = insert(:calendar_integration, user: user, is_active: true)
 
-      assert {:ok, toggled} = Calendar.toggle_integration(integration.id, user.id)
+      assert {:ok, toggled} = Calendar.toggle_integration(user.id, integration.id)
       refute toggled.is_active
 
-      assert {:ok, toggled_back} = Calendar.toggle_integration(integration.id, user.id)
+      assert {:ok, toggled_back} = Calendar.toggle_integration(user.id, integration.id)
       assert toggled_back.is_active
     end
   end
@@ -421,7 +421,7 @@ defmodule Tymeslot.Integrations.CalendarTest do
     end
   end
 
-  describe "refresh_integration/1" do
+  describe "refresh_integration/2" do
     defp insert_subscription(user) do
       insert(:calendar_integration,
         user: user,
@@ -437,7 +437,7 @@ defmodule Tymeslot.Integrations.CalendarTest do
       user = insert(:user)
       subscription = insert_subscription(user)
 
-      assert {:ok, :feed_sync_enqueued} = Calendar.refresh_integration(subscription)
+      assert {:ok, :feed_sync_enqueued} = Calendar.refresh_integration(user.id, subscription.id)
 
       assert_enqueued(
         worker: SyncIcsCalendarWorker,
@@ -449,8 +449,8 @@ defmodule Tymeslot.Integrations.CalendarTest do
       user = insert(:user)
       subscription = insert_subscription(user)
 
-      assert {:ok, :feed_sync_enqueued} = Calendar.refresh_integration(subscription)
-      assert {:ok, :feed_sync_enqueued} = Calendar.refresh_integration(subscription)
+      assert {:ok, :feed_sync_enqueued} = Calendar.refresh_integration(user.id, subscription.id)
+      assert {:ok, :feed_sync_enqueued} = Calendar.refresh_integration(user.id, subscription.id)
 
       assert [_one] = all_enqueued(worker: SyncIcsCalendarWorker)
     end
@@ -463,7 +463,8 @@ defmodule Tymeslot.Integrations.CalendarTest do
         {:ok, [%{"id" => "rediscovered", "summary" => "Rediscovered"}]}
       end)
 
-      assert {:ok, :calendars_rediscovered} = Calendar.refresh_integration(integration)
+      assert {:ok, :calendars_rediscovered} =
+               Calendar.refresh_integration(user.id, integration.id)
 
       refute_enqueued(worker: SyncIcsCalendarWorker)
       {:ok, reloaded} = Calendar.get_integration(integration.id, user.id)
@@ -480,16 +481,20 @@ defmodule Tymeslot.Integrations.CalendarTest do
           base_url: "https://exchange.example.com/EWS/Exchange.asmx"
         )
 
-      refute match?({:ok, :feed_sync_enqueued}, Calendar.refresh_integration(exchange))
+      refute match?(
+               {:ok, :feed_sync_enqueued},
+               Calendar.refresh_integration(user.id, exchange.id)
+             )
+
       refute_enqueued(worker: SyncIcsCalendarWorker)
     end
 
-    test "an integration deleted since it was loaded returns the discovery path's not-found error" do
+    test "an integration deleted since it was loaded is not found" do
       user = insert(:user)
       integration = insert(:calendar_integration, user: user, provider: "google")
       Repo.delete!(integration)
 
-      assert {:error, :not_found} = Calendar.refresh_integration(integration)
+      assert {:error, :not_found} = Calendar.refresh_integration(user.id, integration.id)
     end
   end
 end

@@ -239,11 +239,6 @@ msgstr "Неможливо активувати повторно - цей обл
 msgid "booking target can no longer accept bookings"
 msgstr "цільовий календар більше не може приймати бронювання"
 
-#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
-#, elixir-autogen, elixir-format
-msgid "unknown calendar"
-msgstr "невідомий календар"
-
 #: lib/tymeslot_web/live/dashboard/calendar_settings/provider_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Calendar subscriptions"

@@ -194,7 +194,7 @@ defmodule TymeslotWeb.Integration.OutlookCalendarIntegrationTest do
       assert hd(integrations).provider == "outlook"
 
       # Toggle integration
-      {:ok, toggled} = Calendar.toggle_integration(integration.id, user.id)
+      {:ok, toggled} = Calendar.toggle_integration(user.id, integration.id)
       assert toggled.is_active == false
 
       # Delete integration
@@ -220,8 +220,7 @@ defmodule TymeslotWeb.Integration.OutlookCalendarIntegrationTest do
         })
 
       # Other user cannot toggle
-      result = Calendar.toggle_integration(integration.id, other_user.id)
-      assert {:error, _error_reason} = result
+      assert {:error, :not_found} = Calendar.toggle_integration(other_user.id, integration.id)
     end
   end
 

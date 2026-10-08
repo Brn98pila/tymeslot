@@ -235,11 +235,6 @@ msgstr "Nie można ponownie aktywować – inna aktywna integracja już korzysta
 msgid "booking target can no longer accept bookings"
 msgstr "wybrany kalendarz nie może już przyjmować rezerwacji"
 
-#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
-#, elixir-autogen, elixir-format
-msgid "unknown calendar"
-msgstr "nieznany kalendarz"
-
 #: lib/tymeslot_web/live/dashboard/calendar_settings/provider_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Calendar subscriptions"

@@ -238,11 +238,6 @@ msgstr "Impossible de réactiver : une autre intégration active utilise déjà 
 msgid "booking target can no longer accept bookings"
 msgstr "le calendrier de réservation n’accepte plus de réservations"
 
-#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
-#, elixir-autogen, elixir-format
-msgid "unknown calendar"
-msgstr "calendrier inconnu"
-
 #: lib/tymeslot_web/live/dashboard/calendar_settings/provider_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Calendar subscriptions"

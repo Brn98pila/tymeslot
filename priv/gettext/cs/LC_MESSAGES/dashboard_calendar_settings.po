@@ -239,11 +239,6 @@ msgstr "Nelze znovu aktivovat – tento účet už používá jiná aktivní int
 msgid "booking target can no longer accept bookings"
 msgstr "cílový kalendář pro rezervace už rezervace nepřijímá"
 
-#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
-#, elixir-autogen, elixir-format
-msgid "unknown calendar"
-msgstr "neznámý kalendář"
-
 #: lib/tymeslot_web/live/dashboard/calendar_settings/provider_picker.ex
 #, elixir-autogen, elixir-format
 msgid "Calendar subscriptions"

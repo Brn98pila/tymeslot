@@ -1,0 +1,194 @@
+defmodule Tymeslot.Integrations.Calendar.OwnerActions do
+  @moduledoc """
+  The changes an organiser makes to one of their own connected calendars from
+  the dashboard: switching it on or off, renaming it, recolouring it, ticking
+  its calendars, refreshing it, and deleting it.
+
+  Every function takes the acting user's id and the integration's id. It
+  charges the user's budget first, then loads the integration scoped to that
+  user, so an id forged in the browser reaches `{:error, :not_found}` rather
+  than another organiser's calendar, and no caller can skip the budget. A
+  refused budget is `{:error, {:rate_limited, message}}`, the message ready to
+  show, as for creating a calendar.
+
+  The budgets are the existing ones: the shared integration write budget for
+  changes to what is synced and booked, the looser appearance budget for name
+  and colour, and the refresh budget for a refresh.
+  """
+
+  alias Tymeslot.Dashboard.DashboardContext
+  alias Tymeslot.Infrastructure.Tasks
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.Deletion
+  alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
+  alias Tymeslot.Integrations.Calendar.ProviderConfig
+  alias Tymeslot.Integrations.Calendar.Selection
+  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Shared.InputValidators
+  alias Tymeslot.Security.RateLimiter
+  alias Tymeslot.Workers.SyncIcsCalendarWorker
+
+  @type refusal :: {:rate_limited, String.t()} | :not_found
+  @type integration :: CalendarIntegrationSchema.t()
+
+  # One refresh-all reaches every active calendar's provider, so the fan-out
+  # is bounded, and a provider that hangs is cut off rather than holding the
+  # rest of the answer.
+  @refresh_concurrency 5
+  @refresh_timeout_ms 30_000
+
+  @doc """
+  Switches an integration on or off, handing the primary calendar on when
+  needed (see `CalendarManagement.toggle_with_primary_rebalance/1`).
+  """
+  @spec toggle_integration(pos_integer(), pos_integer()) ::
+          {:ok, integration()} | {:error, refusal() | :duplicate_account | term()}
+  def toggle_integration(user_id, integration_id) do
+    with_owned(
+      user_id,
+      integration_id,
+      :write,
+      &CalendarManagement.toggle_with_primary_rebalance/1
+    )
+  end
+
+  @doc """
+  Renames an integration to a name a person typed.
+
+  Sanitises and length-checks it exactly as the connection form does, so a
+  rename cannot store a name that could not have been created. The
+  `{:error, %{name: message}}` shape is the validator's, and carries a message
+  already translated for display.
+  """
+  @spec rename_integration(pos_integer(), pos_integer(), term(), map()) ::
+          {:ok, integration()} | {:error, refusal() | Ecto.Changeset.t() | %{name: String.t()}}
+  def rename_integration(user_id, integration_id, name, metadata) do
+    with_owned(user_id, integration_id, :appearance, fn integration ->
+      with {:ok, sanitised} <- InputValidators.validate_integration_name(name, metadata) do
+        CalendarManagement.update_calendar_integration(integration, %{name: sanitised})
+      end
+    end)
+  end
+
+  @doc """
+  Sets the colour an integration's events are painted in, or clears it with
+  `nil`. Nothing but the colour can be written this way.
+  """
+  @spec set_integration_colour(pos_integer(), pos_integer(), String.t() | nil) ::
+          {:ok, integration()} | {:error, refusal() | Ecto.Changeset.t()}
+  def set_integration_colour(user_id, integration_id, colour) do
+    with_owned(user_id, integration_id, :appearance, fn integration ->
+      CalendarManagement.update_calendar_integration(integration, %{colour: colour})
+    end)
+  end
+
+  @doc "Ticks or unticks one of an integration's calendars."
+  @spec toggle_calendar_selection(pos_integer(), pos_integer(), String.t() | integer()) ::
+          {:ok, integration()} | {:error, refusal() | term()}
+  def toggle_calendar_selection(user_id, integration_id, calendar_id) do
+    with_owned(user_id, integration_id, :write, &Selection.toggle_calendar(&1, calendar_id))
+  end
+
+  @doc """
+  Refreshes one integration at its owner's request.
+
+  A subscription has no discoverable calendar list to refresh (discovery
+  returns the same synthetic entry every time), so refreshing one re-fetches
+  the feed instead, through the same worker the scheduled sync sweep uses; a
+  refresh already queued for it counts as success. Every other provider
+  re-runs discovery and merges the result into the selection.
+
+  This asks about the feed family specifically, not about read-only
+  providers: `ics_url` is the only read-only provider left, but the two
+  questions are different and need not stay in step. An Exchange mailbox
+  discovers real folders and has no feed to re-fetch, so it belongs on the
+  discovery path with every other credentialed provider.
+  """
+  @spec refresh_integration(pos_integer(), pos_integer()) ::
+          {:ok, :feed_sync_enqueued | :calendars_rediscovered} | {:error, refusal() | term()}
+  def refresh_integration(user_id, integration_id) do
+    with_owned(user_id, integration_id, :refresh, &refresh/1)
+  end
+
+  @doc """
+  Refreshes every active integration of the user, charging the refresh
+  budget once. Answers each integration's name with `:ok` or
+  `{:error, reason}`, in the order they are listed; one that does not answer
+  in time is `{:error, :timeout}`.
+  """
+  @spec refresh_all_integrations(pos_integer()) ::
+          {:ok, [{String.t(), :ok | {:error, term()}}]} | {:error, {:rate_limited, String.t()}}
+  def refresh_all_integrations(user_id) do
+    with :ok <- charge(:refresh, user_id) do
+      active =
+        user_id |> CalendarManagement.list_calendar_integrations() |> Enum.filter(& &1.is_active)
+
+      results =
+        Tymeslot.TaskSupervisor
+        |> Tasks.async_stream_nolink(active, &refresh/1,
+          max_concurrency: @refresh_concurrency,
+          timeout: @refresh_timeout_ms,
+          on_timeout: :kill_task
+        )
+        |> Enum.zip_with(active, fn result, integration ->
+          {integration.name, refresh_outcome(result)}
+        end)
+
+      {:ok, results}
+    end
+  end
+
+  @doc """
+  Deletes an integration, handing the primary calendar on when it was the
+  primary (see `Tymeslot.Integrations.Calendar.Deletion`), and refreshes the
+  dashboard's integration status.
+  """
+  @spec delete_integration(pos_integer(), pos_integer()) ::
+          {:ok, term()} | {:error, {:rate_limited, String.t()} | :not_found | term()}
+  def delete_integration(user_id, integration_id) do
+    with :ok <- charge(:write, user_id),
+         {:ok, result} <- Deletion.delete_with_primary_reassignment(user_id, integration_id) do
+      DashboardContext.invalidate_integration_status(user_id)
+      {:ok, result}
+    end
+  end
+
+  defp refresh(%{provider: provider} = integration) do
+    if ProviderConfig.subscription?(provider) do
+      with {:ok, _outcome} <- SyncIcsCalendarWorker.enqueue(integration.id),
+           do: {:ok, :feed_sync_enqueued}
+    else
+      with {:ok, _updated} <- Workflows.update_integration_with_discovery(integration),
+           do: {:ok, :calendars_rediscovered}
+    end
+  end
+
+  defp refresh_outcome({:ok, {:ok, _done}}), do: :ok
+  defp refresh_outcome({:ok, {:error, reason}}), do: {:error, reason}
+  defp refresh_outcome({:exit, :timeout}), do: {:error, :timeout}
+  defp refresh_outcome({:exit, reason}), do: {:error, {:exit, reason}}
+
+  defp with_owned(user_id, integration_id, bucket, fun) do
+    with :ok <- charge(bucket, user_id),
+         {:ok, integration} <-
+           CalendarManagement.get_calendar_integration(integration_id, user_id) do
+      fun.(integration)
+    end
+  end
+
+  defp charge(bucket, user_id) do
+    case check(bucket, user_id) do
+      :ok -> :ok
+      {:error, :rate_limited, message} -> {:error, {:rate_limited, message}}
+      # Not a user any row could belong to.
+      {:error, :invalid_user_id} -> {:error, :not_found}
+    end
+  end
+
+  defp check(:write, user_id), do: RateLimiter.check_integration_write_rate_limit(user_id)
+
+  defp check(:appearance, user_id),
+    do: RateLimiter.check_integration_appearance_rate_limit(user_id)
+
+  defp check(:refresh, user_id), do: RateLimiter.check_calendar_refresh_rate_limit(user_id)
+end
