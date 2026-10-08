@@ -5,7 +5,9 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.CurrencySelector do
   Stateless function component rendered by `PaymentsSettingsComponent`. Renders
   one auto-save tag per allowlisted currency; clicking a tag dispatches
   `change_currency` back to the parent component (`@myself`), which owns the
-  persistence. Owns the tag-label formatting (symbol + code).
+  persistence. Owns the tag-label formatting (symbol + code), and warns when
+  the account carries a currency outside the allowlist (an account opened
+  before it was enforced), which takes no payments until one is chosen.
   """
 
   use TymeslotWeb, :html
@@ -19,10 +21,24 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.CurrencySelector do
 
   @spec currency_selector(map()) :: Phoenix.LiveView.Rendered.t()
   def currency_selector(assigns) do
-    assigns = assign(assigns, :currencies, MeetingPayments.currency_allowlist())
+    currencies = MeetingPayments.currency_allowlist()
+    current = assigns.account.default_currency
+
+    assigns =
+      assign(assigns,
+        currencies: currencies,
+        unsupported: if(is_binary(current) and current not in currencies, do: current)
+      )
 
     ~H"""
     <.detail_card title={dgettext("dashboard_payments", "Default currency")}>
+      <.info_box :if={@unsupported} variant={:warning} class="mb-4">
+        {dgettext(
+          "dashboard_payments",
+          "Your Stripe account's currency, %{currency}, is not supported for meeting payments. Choose one of the currencies below to take payments again.",
+          currency: String.upcase(@unsupported)
+        )}
+      </.info_box>
       <p class="text-token-sm text-tymeslot-700 mb-4">
         {dgettext(
           "dashboard_payments",

@@ -22,6 +22,7 @@ defmodule Tymeslot.MeetingPayments.CheckoutSessions do
     ApplicationFee,
     BookingPaymentQueries,
     ConnectAccountQueries,
+    Currency,
     StripeAdapter
   }
 
@@ -166,10 +167,17 @@ defmodule Tymeslot.MeetingPayments.CheckoutSessions do
     end
   end
 
+  # An account in a currency outside the allowlist (opened before it was
+  # enforced) takes no payments until its host picks a supported one.
   defp lock_connect_account(user_id) do
     case ConnectAccountQueries.lock_live_for_user(user_id) do
-      %{charges_enabled: true} = account -> {:ok, account}
-      _account_or_nil -> {:error, :payments_unavailable}
+      %{charges_enabled: true, default_currency: currency} = account ->
+        if Currency.allowed?(currency),
+          do: {:ok, account},
+          else: {:error, :payments_unavailable}
+
+      _account_or_nil ->
+        {:error, :payments_unavailable}
     end
   end
 

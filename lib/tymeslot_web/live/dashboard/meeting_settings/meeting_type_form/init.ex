@@ -118,6 +118,10 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Init do
     |> Component.assign(:payments_charges_enabled, charges_enabled?)
     |> Component.assign(:payment_currency, currency)
     |> Component.assign(
+      :payment_unsupported_currency,
+      current_user |> user_id() |> MeetingPayments.unsupported_account_currency()
+    )
+    |> Component.assign(
       :payment_currency_minimum_cents,
       MeetingPayments.currency_minimum_cents(currency)
     )

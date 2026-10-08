@@ -147,12 +147,13 @@ defmodule Tymeslot.MeetingPayments do
   end
 
   @doc """
-  Returns `true` if the user's Connect account has charges enabled.
+  Returns `true` if the user's Connect account has charges enabled, in a
+  currency meeting payments support.
   """
   @spec charges_enabled_for_user?(integer()) :: boolean()
   def charges_enabled_for_user?(user_id) do
     case ConnectAccountQueries.live_for_user(user_id) do
-      %{charges_enabled: true} -> true
+      %{charges_enabled: true, default_currency: currency} -> Currency.allowed?(currency)
       _other -> false
     end
   end
@@ -381,7 +382,8 @@ defmodule Tymeslot.MeetingPayments do
   @doc """
   Returns the host's pricing currency: the default currency of their live
   (non-deleted) Connect account, or the fallback currency when there is no
-  such account, the account carries no currency yet, or there is no user.
+  such account, the account carries no currency yet or one meeting payments
+  do not support (see `unsupported_account_currency/1`), or there is no user.
 
   Checkout charges the account's currency directly and never reaches the
   fallback, since it requires a live account with charges enabled; the
@@ -393,8 +395,33 @@ defmodule Tymeslot.MeetingPayments do
 
   def host_currency(user_id) do
     case ConnectAccountQueries.live_for_user(user_id) do
-      %{default_currency: currency} when is_binary(currency) and currency != "" -> currency
-      _no_currency -> Currency.fallback()
+      %{default_currency: currency} when is_binary(currency) and currency != "" ->
+        if Currency.allowed?(currency), do: currency, else: Currency.fallback()
+
+      _no_currency ->
+        Currency.fallback()
+    end
+  end
+
+  @doc """
+  The currency of the host's live Connect account when meeting payments do
+  not support it, or `nil`.
+
+  An account opened before the allowlist was enforced can carry such a
+  currency. Its host can take no payments (`charges_enabled_for_user?/1` is
+  `false`) until they choose a supported currency, which
+  `change_default_currency/2` allows.
+  """
+  @spec unsupported_account_currency(integer() | nil) :: String.t() | nil
+  def unsupported_account_currency(nil), do: nil
+
+  def unsupported_account_currency(user_id) do
+    case ConnectAccountQueries.live_for_user(user_id) do
+      %{default_currency: currency} when is_binary(currency) and currency != "" ->
+        if Currency.allowed?(currency), do: nil, else: currency
+
+      _no_currency ->
+        nil
     end
   end
 

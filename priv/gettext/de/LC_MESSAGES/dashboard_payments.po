@@ -465,3 +465,8 @@ msgstr "Abgelehnt am %{date}"
 #, elixir-autogen, elixir-format
 msgid "You declined these bookings, but their automatic refund didn't go through. Refund them here or in Stripe."
 msgstr "Sie haben diese Buchungen abgelehnt, aber ihre automatische Rückerstattung ist nicht durchgegangen. Erstatten Sie sie hier oder in Stripe."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/currency_selector.ex
+#, elixir-autogen, elixir-format
+msgid "Your Stripe account's currency, %{currency}, is not supported for meeting payments. Choose one of the currencies below to take payments again."
+msgstr "Die Währung Ihres Stripe-Kontos, %{currency}, wird für Terminzahlungen nicht unterstützt. Wählen Sie unten eine der Währungen, um wieder Zahlungen anzunehmen."

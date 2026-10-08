@@ -465,3 +465,8 @@ msgstr "Odrzucono %{date}"
 #, elixir-autogen, elixir-format
 msgid "You declined these bookings, but their automatic refund didn't go through. Refund them here or in Stripe."
 msgstr "Te rezerwacje zostały przez Ciebie odrzucone, ale ich automatyczny zwrot się nie powiódł. Zwróć środki stąd lub w Stripe."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/currency_selector.ex
+#, elixir-autogen, elixir-format
+msgid "Your Stripe account's currency, %{currency}, is not supported for meeting payments. Choose one of the currencies below to take payments again."
+msgstr "Waluta konta Stripe (%{currency}) nie jest obsługiwana w płatnościach za spotkania. Wybierz jedną z poniższych walut, aby znów przyjmować płatności."

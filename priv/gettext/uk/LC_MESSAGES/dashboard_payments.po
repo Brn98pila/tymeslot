@@ -469,3 +469,8 @@ msgstr "Відхилено %{date}"
 #, elixir-autogen, elixir-format
 msgid "You declined these bookings, but their automatic refund didn't go through. Refund them here or in Stripe."
 msgstr "Ви відхилили ці бронювання, але автоматичне повернення коштів за них не вдалося. Поверніть кошти тут або в Stripe."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/currency_selector.ex
+#, elixir-autogen, elixir-format
+msgid "Your Stripe account's currency, %{currency}, is not supported for meeting payments. Choose one of the currencies below to take payments again."
+msgstr "Валюта вашого облікового запису Stripe (%{currency}) не підтримується для оплати зустрічей. Виберіть одну з валют нижче, щоб знову приймати платежі."

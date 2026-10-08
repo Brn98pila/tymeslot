@@ -76,6 +76,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm do
      |> assign(:payments_feature_enabled, false)
      |> assign(:payments_charges_enabled, false)
      |> assign(:payment_currency, "usd")
+     |> assign(:payment_unsupported_currency, nil)
      |> assign(:payment_currency_minimum_cents, 50)
      |> assign(:payment_required, false)
      |> assign(:payment_price, "")

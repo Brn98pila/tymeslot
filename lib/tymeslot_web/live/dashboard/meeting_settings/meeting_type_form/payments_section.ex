@@ -28,6 +28,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.PaymentsSection 
   attr :payment_required, :boolean, required: true
   attr :payment_price, :string, required: true
   attr :currency, :string, required: true
+  attr :unsupported_currency, :string, default: nil
   attr :currency_minimum_cents, :integer, required: true
   attr :form_errors, :map, required: true
   attr :myself, :any, required: true
@@ -50,20 +51,26 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.PaymentsSection 
         target={@myself}
       >
         <:disabled_reason>
-          <%= if @charges_enabled do %>
-            {dgettext("dashboard_meeting_form", "Turn off group bookings to require payment.")}
-          <% else %>
-            {raw(
-              dgettext(
-                "dashboard_meeting_form",
-                "Connect Stripe on the %{payments_link} page to charge for this meeting type.",
-                payments_link:
-                  ~s(<a href=") <>
-                    ~p"/dashboard/integrations?tab=payments" <>
-                    ~s(" data-phx-link="redirect" data-phx-link-state="push" class="underline text-turquoise-600">) <>
-                    dgettext("dashboard_meeting_form", "Payments") <> ~s(</a>)
-              )
-            )}
+          <%= cond do %>
+            <% @charges_enabled -> %>
+              {dgettext("dashboard_meeting_form", "Turn off group bookings to require payment.")}
+            <% @unsupported_currency -> %>
+              {raw(
+                dgettext(
+                  "dashboard_meeting_form",
+                  "Your Stripe account's currency, %{currency}, is not supported for meeting payments. Choose a supported currency on the %{payments_link} page to charge for this meeting type.",
+                  currency: String.upcase(@unsupported_currency),
+                  payments_link: payments_link()
+                )
+              )}
+            <% true -> %>
+              {raw(
+                dgettext(
+                  "dashboard_meeting_form",
+                  "Connect Stripe on the %{payments_link} page to charge for this meeting type.",
+                  payments_link: payments_link()
+                )
+              )}
           <% end %>
         </:disabled_reason>
       </.setting_row>
@@ -126,4 +133,11 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.PaymentsSection 
 
   defp stored_price("", currency), do: String.upcase(currency)
   defp stored_price(price, currency), do: "#{Money.symbol(currency)}#{price}"
+
+  defp payments_link do
+    ~s(<a href=") <>
+      ~p"/dashboard/integrations?tab=payments" <>
+      ~s(" data-phx-link="redirect" data-phx-link-state="push" class="underline text-turquoise-600">) <>
+      dgettext("dashboard_meeting_form", "Payments") <> ~s(</a>)
+  end
 end

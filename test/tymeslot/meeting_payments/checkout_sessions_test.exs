@@ -8,6 +8,7 @@ defmodule Tymeslot.MeetingPayments.CheckoutSessionsTest do
 
   import Mox
 
+  alias Ecto.Changeset
   alias Tymeslot.MeetingPayments
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.CheckoutSessions
@@ -157,6 +158,29 @@ defmodule Tymeslot.MeetingPayments.CheckoutSessionsTest do
         )
 
       assert {:error, :payment_not_required} =
+               CheckoutSessions.create_session_for_booking(meeting)
+
+      refute BookingPaymentQueries.by_meeting_id(meeting.id)
+    end
+
+    test "refuses a host whose account is in a currency outside the allowlist",
+         %{user: user, meeting_type: mt} do
+      # An account opened before the allowlist was enforced; the changeset
+      # would refuse the currency now, so it is written directly.
+      user.id
+      |> ConnectAccountQueries.live_for_user()
+      |> Changeset.change(default_currency: "ron")
+      |> Repo.update!()
+
+      meeting =
+        insert(:meeting,
+          organizer_user_id: user.id,
+          meeting_type_ref: mt,
+          attendee_email: "alice@example.com",
+          status: "awaiting_payment"
+        )
+
+      assert {:error, :payments_unavailable} =
                CheckoutSessions.create_session_for_booking(meeting)
 
       refute BookingPaymentQueries.by_meeting_id(meeting.id)

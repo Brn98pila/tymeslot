@@ -1244,3 +1244,8 @@ msgid_plural "%{time} (+%{count} days)"
 msgstr[0] "%{time} (+%{count} den)"
 msgstr[1] "%{time} (+%{count} dny)"
 msgstr[2] "%{time} (+%{count} dní)"
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/payments_section.ex
+#, elixir-autogen, elixir-format
+msgid "Your Stripe account's currency, %{currency}, is not supported for meeting payments. Choose a supported currency on the %{payments_link} page to charge for this meeting type."
+msgstr "Měna vašeho účtu Stripe, %{currency}, není pro platby za schůzky podporovaná. Chcete-li za tento typ schůzky účtovat platbu, vyberte podporovanou měnu na stránce %{payments_link}."
