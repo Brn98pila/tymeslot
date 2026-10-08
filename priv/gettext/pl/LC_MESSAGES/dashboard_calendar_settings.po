@@ -200,6 +200,7 @@ msgstr "Te kalendarze są obecnie pomijane przy sprawdzaniu konfliktów."
 msgid "This calendar integration is no longer available."
 msgstr "Ta integracja kalendarza nie jest już dostępna."
 
+#: lib/tymeslot/integrations/calendar/creation.ex
 #: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "Unsupported provider"
