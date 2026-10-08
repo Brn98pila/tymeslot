@@ -25,7 +25,7 @@ defmodule Tymeslot.Integrations.Video.AccountCleanup do
   @spec run(pos_integer()) :: :ok
   def run(user_id) do
     user_id
-    |> VideoIntegrationQueries.list_all_for_user()
+    |> VideoIntegrationQueries.list_all_for_user_including_disconnected()
     |> Enum.each(&clean_up_independently/1)
   end
 
