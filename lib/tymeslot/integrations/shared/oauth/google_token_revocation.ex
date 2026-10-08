@@ -1,4 +1,4 @@
-defmodule Tymeslot.Integrations.Google.TokenRevocation do
+defmodule Tymeslot.Integrations.Shared.OAuth.GoogleTokenRevocation do
   @moduledoc """
   Revokes a Google OAuth grant, as used when an account is deleted.
 

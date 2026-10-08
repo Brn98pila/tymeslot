@@ -17,7 +17,7 @@ defmodule Tymeslot.Integrations.Video.AccountCleanup do
   require Logger
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Integrations.Google.TokenRevocation
+  alias Tymeslot.Integrations.Shared.OAuth.GoogleTokenRevocation
   alias Tymeslot.Integrations.Video.AccessToken
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
   alias Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper
@@ -39,7 +39,7 @@ defmodule Tymeslot.Integrations.Video.AccountCleanup do
 
   defp clean_up(%{provider: "google_meet"} = integration) do
     (integration.refresh_token || integration.access_token)
-    |> TokenRevocation.revoke()
+    |> GoogleTokenRevocation.revoke()
     |> log_outcome(integration)
   end
 

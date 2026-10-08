@@ -26,8 +26,8 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanup do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Google.CalendarAPI, as: GoogleAPI
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookAPI
-  alias Tymeslot.Integrations.Calendar.Shared.AccessToken
-  alias Tymeslot.Integrations.Google.TokenRevocation
+  alias Tymeslot.Integrations.Calendar.Tokens
+  alias Tymeslot.Integrations.Shared.OAuth.GoogleTokenRevocation
 
   @spec run(pos_integer()) :: :ok
   def run(user_id) do
@@ -66,7 +66,7 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanup do
     body = %{"id" => channel_id, "resourceId" => resource_id}
 
     integration
-    |> AccessToken.with_access_token(&GoogleAPI.refresh_token/1, fn token ->
+    |> Tokens.with_access_token(&GoogleAPI.refresh_token/1, fn token ->
       GoogleAPI.make_request_with_body(:post, "/channels/stop", token, body)
     end)
     |> gone_counts_as_done()
@@ -79,7 +79,7 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanup do
     path = "/subscriptions/#{URI.encode(subscription_id)}"
 
     integration
-    |> AccessToken.with_access_token(&OutlookAPI.refresh_token/1, fn token ->
+    |> Tokens.with_access_token(&OutlookAPI.refresh_token/1, fn token ->
       OutlookAPI.make_request(:delete, path, token, %{})
     end)
     |> gone_counts_as_done()
@@ -88,7 +88,7 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanup do
   defp delete_graph_subscription(_integration), do: :skipped
 
   defp revoke_grant(integration),
-    do: TokenRevocation.revoke(integration.refresh_token || integration.access_token)
+    do: GoogleTokenRevocation.revoke(integration.refresh_token || integration.access_token)
 
   # A channel or subscription the provider no longer has is already stopped.
   defp gone_counts_as_done({:ok, _body}), do: :ok
