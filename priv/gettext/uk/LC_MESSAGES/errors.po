@@ -613,11 +613,6 @@ msgstr "Назва інтеграції має містити не більше 
 
 #: lib/tymeslot/security/field_validators/integration_name_validator.ex
 #, elixir-autogen, elixir-format
-msgid "Integration name must be at least 2 characters"
-msgstr "Назва інтеграції має містити щонайменше 2 символи"
-
-#: lib/tymeslot/security/field_validators/integration_name_validator.ex
-#, elixir-autogen, elixir-format
 msgid "Integration name must be text"
 msgstr "Назва інтеграції має бути текстом"
 

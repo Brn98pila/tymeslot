@@ -14,6 +14,7 @@ defmodule Tymeslot.Workers.WebhookWorkerTest do
   alias Ecto.UUID
   alias Oban.Job
   alias Tymeslot.Meetings.Guests
+  alias Tymeslot.Test.ProcessAccessChecker
   alias Tymeslot.Webhooks.WebhookDeliverySchema
   alias Tymeslot.Webhooks.WebhookSchema
   alias Tymeslot.Workers.WebhookWorker
@@ -367,6 +368,28 @@ defmodule Tymeslot.Workers.WebhookWorkerTest do
                  "event_type" => "meeting.created",
                  "meeting_id" => meeting.id
                })
+
+      # Unlike the chat channels, the webhook itself is kept as it was.
+      assert Repo.get!(WebhookSchema, webhook.id).is_active
+    end
+
+    test "discards the job when automations are switched off for the instance" do
+      meeting = insert(:meeting)
+      webhook = insert(:webhook)
+
+      with_config(:tymeslot, :feature_access_checker, ProcessAccessChecker)
+      ProcessAccessChecker.answer({:error, :feature_disabled})
+
+      expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts -> :unused end)
+
+      assert {:discard, "Automations are switched off"} =
+               perform_job(WebhookWorker, %{
+                 "webhook_id" => webhook.id,
+                 "event_type" => "meeting.created",
+                 "meeting_id" => meeting.id
+               })
+
+      assert Repo.get!(WebhookSchema, webhook.id).is_active
     end
   end
 

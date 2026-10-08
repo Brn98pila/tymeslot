@@ -17,6 +17,7 @@ defmodule Tymeslot.Workers.DataRetentionWorkerTest do
   alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Repo
   alias Tymeslot.Slack.SlackDeliverySchema
+  alias Tymeslot.Slack.SlackIntegrationSchema
   alias Tymeslot.Telegram.TelegramDeliverySchema
   alias Tymeslot.Telegram.TelegramIntegrationSchema
   alias Tymeslot.Webhooks.WebhookDeliverySchema
@@ -272,6 +273,63 @@ defmodule Tymeslot.Workers.DataRetentionWorkerTest do
 
       assert Repo.get_by(PendingFlowSchema, nonce: expired) == nil
       assert Repo.get_by(PendingFlowSchema, nonce: live)
+    end
+  end
+
+  describe "perform/1 - unfinished Slack OAuth installs" do
+    # An install whose channel was never picked, as the OAuth callback leaves
+    # it: written once, never updated.
+    defp slack_stub(user, age_seconds) do
+      at = DateTime.add(DateTime.utc_now(), -age_seconds, :second)
+
+      insert(:slack_integration,
+        user: user,
+        channel_id: nil,
+        channel_name: nil,
+        inserted_at: at,
+        updated_at: at
+      )
+    end
+
+    test "removes an install left unfinished for more than a day" do
+      stale = slack_stub(insert(:user), 25 * 3600)
+
+      assert :ok = perform_job(DataRetentionWorker, %{})
+
+      refute Repo.get(SlackIntegrationSchema, stale.id)
+    end
+
+    test "keeps an install started less than a day ago" do
+      fresh = slack_stub(insert(:user), 23 * 3600)
+
+      assert :ok = perform_job(DataRetentionWorker, %{})
+
+      assert Repo.get(SlackIntegrationSchema, fresh.id)
+    end
+
+    test "keeps a finished integration however old it is" do
+      at = DateTime.add(DateTime.utc_now(), -30, :day)
+      active = insert(:slack_integration, inserted_at: at, updated_at: at)
+
+      assert :ok = perform_job(DataRetentionWorker, %{})
+
+      assert Repo.get(SlackIntegrationSchema, active.id)
+    end
+
+    test "keeps a finished integration the user disconnected back to pending" do
+      at = DateTime.add(DateTime.utc_now(), -30, :day)
+
+      disconnected =
+        insert(:slack_integration,
+          channel_id: nil,
+          channel_name: nil,
+          inserted_at: at,
+          updated_at: DateTime.add(at, 3600, :second)
+        )
+
+      assert :ok = perform_job(DataRetentionWorker, %{})
+
+      assert Repo.get(SlackIntegrationSchema, disconnected.id)
     end
   end
 

@@ -1,13 +1,15 @@
 defmodule Tymeslot.Security.FieldValidators.IntegrationNameValidator do
   @moduledoc """
-  Validator for integration names used in calendar/video integrations.
-  Matches existing behavior and error messages in processors.
+  Validator for the names people give their calendar and video integrations,
+  held to `Constraints.integration_name_length_range/0` like every other
+  integration name.
   """
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  @min_length 2
-  @max_length 100
+  alias Tymeslot.Validation.Constraints
+
+  @max_length Constraints.integration_name_length_range().last
 
   @spec validate(any(), keyword()) :: :ok | {:error, String.t()}
   def validate(name, opts \\ [])
@@ -34,8 +36,8 @@ defmodule Tymeslot.Security.FieldValidators.IntegrationNameValidator do
       trimmed_length > @max_length ->
         {:error, dgettext("errors", "Integration name must be 100 characters or less")}
 
-      trimmed_length < @min_length ->
-        {:error, dgettext("errors", "Integration name must be at least 2 characters")}
+      trimmed_length == 0 ->
+        {:error, dgettext("errors", "Integration name is required")}
 
       true ->
         :ok
