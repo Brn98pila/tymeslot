@@ -645,3 +645,13 @@ msgstr "Kolor jednolity"
 #, elixir-autogen, elixir-format
 msgid "Theme Customisation"
 msgstr "Dostosowanie motywu"
+
+#: lib/tymeslot_web/themes/quill/theme.ex
+#, elixir-autogen, elixir-format
+msgid "My clients should feel they are booking someone established. The page should look as considered as my work."
+msgstr "Moi klienci powinni czuć, że rezerwują kogoś o ugruntowanej pozycji. Strona ma wyglądać tak starannie jak moja praca."
+
+#: lib/tymeslot_web/themes/rhythm/theme.ex
+#, elixir-autogen, elixir-format
+msgid "When someone books me, I want them to feel the atmosphere first: motion, mood, then a time."
+msgstr "Kiedy ktoś mnie rezerwuje, chcę, żeby najpierw poczuł atmosferę: ruch, nastrój, a potem termin."

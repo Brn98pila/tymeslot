@@ -12,5 +12,19 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Talk.Theme do
     live_view: TymeslotWeb.Test.JourneyFixtures.Talk.Live,
     preview_image: "/images/ui/theme-previews/quill-theme-preview.webp",
     description: dgettext_noop("dashboard_appearance", "Test fixture theme."),
+    story:
+      dgettext_noop(
+        "dashboard_appearance",
+        "Booking me should feel like a short conversation, one question at a time."
+      ),
+    axes: [
+      flow: :conversation,
+      entry: :meeting_type_first,
+      spatial: :chat_column,
+      time_view: :day_chips,
+      conversion: :none,
+      voice: :warm,
+      surface: :soft_bubbles
+    ],
     page_shell: &Pages.page_shell/1
 end

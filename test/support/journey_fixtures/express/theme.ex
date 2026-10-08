@@ -11,5 +11,19 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Express.Theme do
     live_view: TymeslotWeb.Test.JourneyFixtures.Express.Live,
     preview_image: "/images/ui/theme-previews/quill-theme-preview.webp",
     description: dgettext_noop("dashboard_appearance", "Test fixture theme."),
+    story:
+      dgettext_noop(
+        "dashboard_appearance",
+        "My visitors want the next free time, in two taps."
+      ),
+    axes: [
+      flow: :time_first,
+      entry: :time_first,
+      spatial: :mobile_first_stack,
+      time_view: :next_slots,
+      conversion: :none,
+      voice: :brisk,
+      surface: :utilitarian
+    ],
     page_shell: &Pages.page_shell/1
 end

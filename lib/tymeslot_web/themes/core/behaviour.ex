@@ -25,6 +25,18 @@ defmodule TymeslotWeb.Themes.Core.Behaviour do
   @callback metadata() :: %{preview_image: String.t(), description: String.t()}
 
   @doc """
+  The theme's story: its persona's one-sentence first-person line, translated
+  into the current Gettext locale (the `:story` option).
+  """
+  @callback story() :: String.t()
+
+  @doc """
+  The theme's value on each of the seven design axes, in the canonical order
+  of `TymeslotWeb.Themes.Core.Axes.names/0` (the `:axes` option).
+  """
+  @callback axes() :: keyword()
+
+  @doc """
   Renders a meeting management page: `:reschedule`, `:cancel` or
   `:cancel_confirmed`. Any other action raises. The generated default draws
   either the theme's conventional module or, with `:page_shell`,
