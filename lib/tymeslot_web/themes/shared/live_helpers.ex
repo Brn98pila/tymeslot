@@ -36,6 +36,7 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers do
   alias TymeslotWeb.Themes.Shared.GuestBooking
   alias TymeslotWeb.Themes.Shared.PathHandlers
   alias TymeslotWeb.Themes.Shared.ReschedulePin
+  alias TymeslotWeb.Themes.Shared.SchedulingInit
   alias TymeslotWeb.Themes.Shared.SeatMoveLink
 
   @doc """
@@ -73,6 +74,9 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers do
 
     # Apply theme customization after organizer is resolved
     socket = maybe_assign_customization(socket)
+
+    # Falls back to the organiser's own week start, so it needs them resolved
+    socket = SchedulingInit.assign_week_start(socket)
 
     # Verify an owner-preview token now that the organiser (and so the page
     # owner's user id) is resolved. Gates simulate-vs-persist downstream.

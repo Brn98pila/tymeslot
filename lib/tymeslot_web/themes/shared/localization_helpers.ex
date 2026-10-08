@@ -313,6 +313,28 @@ defmodule TymeslotWeb.Themes.Shared.LocalizationHelpers do
   end
 
   @doc """
+  The month grid's column headings, abbreviated and translated, starting on
+  `week_start`.
+  """
+  @spec weekday_headings(:monday | :sunday) :: [String.t()]
+  def weekday_headings(week_start) do
+    headings = [
+      dgettext("booking", "Mon"),
+      dgettext("booking", "Tue"),
+      dgettext("booking", "Wed"),
+      dgettext("booking", "Thu"),
+      dgettext("booking", "Fri"),
+      dgettext("booking", "Sat"),
+      dgettext("booking", "Sun")
+    ]
+
+    case week_start do
+      :monday -> headings
+      :sunday -> [List.last(headings) | Enum.drop(headings, -1)]
+    end
+  end
+
+  @doc """
   Gets short weekday name translated.
   """
   @spec day_name_short(integer()) :: String.t()

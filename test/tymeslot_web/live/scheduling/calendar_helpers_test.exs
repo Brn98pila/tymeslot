@@ -110,7 +110,13 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpersTest do
       week = CalendarHelpers.get_week_days(week_start, profile, nil, "Etc/UTC")
 
       grid =
-        Calculate.get_calendar_days("Etc/UTC", today.year, today.month, month_config(schedule))
+        Calculate.get_calendar_days(
+          "Etc/UTC",
+          today.year,
+          today.month,
+          :sunday,
+          month_config(schedule)
+        )
 
       today_string = Date.to_string(today)
       week_today = Enum.find(week, &(&1.date == today_string))
@@ -144,19 +150,19 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpersTest do
 
   describe "display_range/2" do
     test "returns range covering 42-day calendar grid" do
-      {start_date, end_date} = Calculate.display_range(2027, 6)
+      {start_date, end_date} = Calculate.display_range(2027, 6, :sunday)
       assert Date.diff(end_date, start_date) + 1 == 42
     end
 
     test "start date is a Sunday" do
-      {start_date, _end_date} = Calculate.display_range(2027, 6)
+      {start_date, _end_date} = Calculate.display_range(2027, 6, :sunday)
       # Date.day_of_week returns 7 for Sunday
       assert Date.day_of_week(start_date) == 7
     end
 
     test "matches Calculate.get_calendar_days range exactly" do
-      {start_date, end_date} = Calculate.display_range(2027, 3)
-      calendar_days = Calculate.get_calendar_days("Etc/UTC", 2027, 3, %{})
+      {start_date, end_date} = Calculate.display_range(2027, 3, :sunday)
+      calendar_days = Calculate.get_calendar_days("Etc/UTC", 2027, 3, :sunday, %{})
       assert Date.to_string(start_date) == List.first(calendar_days).date
       assert Date.to_string(end_date) == List.last(calendar_days).date
     end
@@ -200,7 +206,7 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpersTest do
     test "keeps full weeks, all current-month days, and no all-next-month tail" do
       profile = insert(:profile)
       insert(:availability_schedule, profile: profile, is_default: true, advance_booking_days: 90)
-      days = CalendarHelpers.get_calendar_days("Etc/UTC", 2025, 6, profile, nil)
+      days = CalendarHelpers.get_calendar_days("Etc/UTC", 2025, 6, :sunday, profile, nil)
 
       # Whole weeks only, and the last rendered week still has a real June day.
       assert rem(length(days), 7) == 0
@@ -221,7 +227,7 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpersTest do
       # August 2026 is the shape: a 31-day month whose 1st is a Saturday. The
       # fetch is Sunday-anchored and the strip is Monday-anchored, so the week
       # of the 31st runs one day past the block. Next occurrence 2027-05.
-      {_start_date, end_date} = Calculate.display_range(2026, 8)
+      {_start_date, end_date} = Calculate.display_range(2026, 8, :sunday)
       week_start = Date.beginning_of_week(~D[2026-08-31], :monday)
 
       assert end_date == ~D[2026-09-05]

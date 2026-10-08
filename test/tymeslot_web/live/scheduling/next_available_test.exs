@@ -573,6 +573,7 @@ defmodule TymeslotWeb.Live.Scheduling.NextAvailableTest do
         month_availability_map: availability_map,
         current_year: today.year,
         current_month: today.month,
+        week_start: :monday,
         current_week_start: Date.beginning_of_week(today, :monday),
         user_timezone: "Etc/UTC",
         booking_window_days: Keyword.get(overrides, :advance_booking_days, 90),

@@ -243,7 +243,7 @@ msgstr "Wieczór"
 msgid "FRI"
 msgstr "PT"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Fri"
 msgstr "Pt"
@@ -315,7 +315,7 @@ msgstr "Nowy termin ustalony!"
 msgid "Meeting with"
 msgstr "Organizator"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Mon"
 msgstr "Pn"
@@ -445,7 +445,7 @@ msgstr "SO"
 msgid "SUN"
 msgstr "ND"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Sat"
 msgstr "So"
@@ -515,7 +515,7 @@ msgstr "Usługa działa wolno"
 msgid "Successfully Rescheduled!"
 msgstr "Termin zmieniony!"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Sun"
 msgstr "Nd"
@@ -557,7 +557,7 @@ msgstr "Ten dzień jest w całości zarezerwowany"
 msgid "This site is protected by reCAPTCHA and the Google %{privacy_link} and %{terms_link} apply."
 msgstr "Ta strona jest chroniona przez reCAPTCHA. Obowiązują %{privacy_link} i %{terms_link} Google."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Thu"
 msgstr "Cz"
@@ -577,7 +577,7 @@ msgstr "Godzina"
 msgid "Timezone"
 msgstr "Strefa czasowa"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Tue"
 msgstr "Wt"
@@ -613,7 +613,7 @@ msgstr "ŚR"
 msgid "We opened Stripe Checkout in a new browser tab. Once your payment is confirmed, this page updates automatically."
 msgstr "Stripe Checkout otworzył się w nowej karcie przeglądarki. Gdy płatność zostanie potwierdzona, ta strona zaktualizuje się automatycznie."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Wed"
 msgstr "Śr"

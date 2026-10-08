@@ -103,12 +103,19 @@ defmodule Tymeslot.Demo do
           duration_minutes
         )
 
-  @spec get_calendar_days(String.t(), integer(), integer(), map(), map() | atom() | nil) ::
-          [map()]
+  @spec get_calendar_days(
+          String.t(),
+          integer(),
+          integer(),
+          :monday | :sunday,
+          map(),
+          map() | atom() | nil
+        ) :: [map()]
   def get_calendar_days(
         user_timezone,
         year,
         month,
+        week_start,
         organizer_profile,
         availability_map
       ),
@@ -117,6 +124,7 @@ defmodule Tymeslot.Demo do
           user_timezone,
           year,
           month,
+          week_start,
           organizer_profile,
           availability_map
         )

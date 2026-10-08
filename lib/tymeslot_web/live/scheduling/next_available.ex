@@ -206,7 +206,7 @@ defmodule TymeslotWeb.Live.Scheduling.NextAvailable do
         socket
         |> assign(:current_year, date.year)
         |> assign(:current_month, date.month)
-        |> assign(:current_week_start, Date.beginning_of_week(date, :monday))
+        |> assign(:current_week_start, Date.beginning_of_week(date, socket.assigns.week_start))
 
       _invalid ->
         socket
@@ -240,7 +240,7 @@ defmodule TymeslotWeb.Live.Scheduling.NextAvailable do
           |> assign(:current_month, month)
           |> assign(
             :current_week_start,
-            Date.beginning_of_week(Date.new!(year, month, 1), :monday)
+            Date.beginning_of_week(Date.new!(year, month, 1), socket.assigns.week_start)
           )
           |> assign(:month_availability_map, nil)
           |> assign(:availability_status, :not_loaded)
