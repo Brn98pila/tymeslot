@@ -286,7 +286,7 @@ defmodule Tymeslot.Integrations.Calendar.CreationTest do
     test "reports a missing name against the name field", %{user: user} do
       params = %{
         "name" => "",
-        "provider" => "invalid"
+        "provider" => "caldav"
       }
 
       # The field the error is keyed under is the whole point: the form renders

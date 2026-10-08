@@ -21,6 +21,8 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
   alias Tymeslot.Utils.SanitizeMerge
   alias Tymeslot.Workers.SyncIcsCalendarWorker
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   require Logger
 
   @type user_id :: pos_integer()
@@ -51,7 +53,8 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
       when is_integer(user_id) and is_map(params) do
     metadata = Keyword.get(opts, :metadata, %{})
 
-    with {:ok, sanitized} <-
+    with :ok <- check_creatable_provider(params["provider"]),
+         {:ok, sanitized} <-
            CalendarInputValidation.validate_calendar_integration_form(params, metadata: metadata),
          :ok <- check_write_budget(user_id),
          validated <- SanitizeMerge.merge(params, sanitized),
@@ -279,6 +282,24 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
     end
   end
 
+  # The connection form is the only way into `create_with_validation/3`, and
+  # it connects CalDAV-family servers: discovery, the connection probe and the
+  # calendar selection are all CalDAV-shaped. Any other provider arriving
+  # here (Google, Outlook, a feed, the dev-only debug provider) would be
+  # created unprobed with whatever URL and credentials came with it, as would
+  # one the operator has switched off.
+  defp check_creatable_provider(provider) do
+    with {:ok, atom} <- ProviderConfig.parse(provider),
+         true <- atom in ProviderConfig.caldav_based_providers() do
+      :ok
+    else
+      _refused -> {:error, %{generic: [unsupported_provider_message()]}}
+    end
+  end
+
+  defp unsupported_provider_message,
+    do: dgettext("dashboard_calendar_settings", "Unsupported provider")
+
   # ---------------------------
   # Param shaping and pre-validation (moved from facade)
   # ---------------------------
@@ -472,18 +493,9 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
       end
     else
       # A CalDAV-family provider the operator has switched off fails
-      # validation, so there is nothing to probe with; creation goes ahead
-      # unprobed, as it always has, but no longer silently. `provider` is one
-      # of the fixed CalDAV-family names (the clause's guard), never
-      # arbitrary input.
-      {:error, _error} ->
-        Logger.warning(
-          "Skipped the connection probe for a calendar provider that is switched off",
-          provider: provider,
-          user_id: attrs[:user_id]
-        )
-
-        {:ok, attrs}
+      # validation, so there is nothing to probe with, and nothing that has
+      # not been probed is created.
+      {:error, _error} -> {:error, %{discovery: unsupported_provider_message()}}
     end
   end
 
