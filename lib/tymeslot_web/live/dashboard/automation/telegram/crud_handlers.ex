@@ -119,7 +119,9 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.CrudHandlers do
 
       {:error, reason} ->
         Flash.error(
-          dgettext("dashboard_automation_chat", "Test failed: %{reason}", reason: reason)
+          dgettext("dashboard_automation_chat", "Test failed: %{reason}",
+            reason: Telegram.translate_error(reason)
+          )
         )
 
         {:noreply, socket}
