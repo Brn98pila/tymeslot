@@ -288,7 +288,9 @@ defmodule Tymeslot.Workers.WebhookWorker do
   `participant_id` names the seat of a group meeting the event is about (see
   `Tymeslot.Meetings.SeatView`); the delivery then describes that seat's
   booking. Each seat is its own delivery, so it is part of the uniqueness
-  key; a solo meeting passes `nil` and keeps the key it always had.
+  key; a solo meeting passes `nil`, which is stored and keyed as well, so a
+  seat's delivery and the meeting's own are never taken for duplicates (see
+  `Tymeslot.Workers.MeetingNotificationJob.schedule/5`).
   """
   @spec schedule_delivery(integer(), String.t(), binary(), map() | nil, binary() | nil) ::
           :ok | {:error, term()}

@@ -323,7 +323,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
                ] ->
             {:noreply, AutomationHelpers.handle_feature_access_error(socket, reason)}
 
-          # `save_fn` is `Webhooks.create_webhook/2` or `update_webhook/2`,
+          # `save_fn` is `Webhooks.create_webhook/2` or `update_webhook/3`,
           # whose specs only promise a changeset or one of the access-error
           # atoms above — but a case with no catch-all turns any drift from
           # that contract into a `CaseClauseError` instead of a flash.
