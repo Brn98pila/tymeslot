@@ -16,6 +16,7 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.You do
 
   alias Tymeslot.Meetings.Approval
   alias Tymeslot.Profiles
+  alias Tymeslot.Themes.Catalog
   alias TymeslotWeb.Test.JourneyFixtures.Markup
   alias TymeslotWeb.Themes.Shared.BookingLabels
   alias TymeslotWeb.Themes.Shared.BookingLocation
@@ -136,8 +137,20 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Moments.You do
       stage={:before}
     />
     <button type="submit" form="booking-form" data-intent="submit" data-testid="submit-booking">
-      {BookingLabels.submit_label(assigns[:is_rescheduling] || false, @meeting_type, "Book")}
+      {BookingLabels.submit_label(
+        assigns[:is_rescheduling] || false,
+        @meeting_type,
+        "Book",
+        theme_key(@theme_id)
+      )}
     </button>
     """
+  end
+
+  # The moment is shared by the journey fixtures, so each page speaks for the
+  # theme it is rendering.
+  defp theme_key(theme_id) do
+    {:ok, key} = Catalog.id_to_key(theme_id)
+    key
   end
 end

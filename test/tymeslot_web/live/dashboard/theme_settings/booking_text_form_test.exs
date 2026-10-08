@@ -73,6 +73,24 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BookingTextFormTest do
       assert saved.booking_instruction == "Pick an option below."
     end
 
+    test "seeds the current theme's own voice where it has one", %{
+      conn: conn,
+      profile: profile
+    } do
+      # The fixture theme's voice words the heading and nothing else.
+      profile |> change(%{booking_theme: "99"}) |> Repo.update!()
+      {:ok, view, html} = live(conn, ~p"/dashboard/theme")
+
+      assert html =~ ~s(placeholder="Book a time")
+
+      toggle(view)
+
+      saved = Repo.reload!(profile)
+      assert saved.booking_heading == "Book a time"
+      assert saved.booking_greeting == "Hi! I'm Sarah."
+      assert saved.booking_instruction == "Pick an option below."
+    end
+
     test "switching off resets the wording to the built-in defaults", %{
       conn: conn,
       profile: profile

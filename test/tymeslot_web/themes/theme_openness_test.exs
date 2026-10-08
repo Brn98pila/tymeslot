@@ -93,6 +93,23 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
     end
   end
 
+  describe "a theme's voice" do
+    test "words the shared heading on the fixture's own booking page", %{conn: conn} do
+      %{view: view} = booking_page(conn, "fixture-voice")
+
+      assert has_element?(view, "[data-testid='fixture-voice-heading']", "Book a time")
+    end
+
+    test "leaves a theme with no voice, on the same steps, in the shared words",
+         %{conn: conn} do
+      # The showcase theme ("97") renders the fixture's steps and names no voice.
+      %{profile: profile} = seed_booking_account("97", "showcase-voice", "UTC")
+      {:ok, view, _html} = live(conn, ~p"/#{profile.username}")
+
+      assert has_element?(view, "[data-testid='fixture-voice-heading']", "Let's Connect!")
+    end
+  end
+
   describe "the theme's own event" do
     test "reaches its handle_theme_event/3 from a step template", %{conn: conn} do
       %{view: view} = booking_page(conn, "fixture-ping")
