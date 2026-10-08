@@ -29,6 +29,8 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
 
   require Logger
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   alias Tymeslot.Infrastructure.BreakerOutcome
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
@@ -197,14 +199,14 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
         {:discard, ReauthHandling.discard_reason()}
 
       {:error, {type, msg}} ->
-        handle_refresh_error(integration, "#{type}: #{msg}", provider)
+        handle_refresh_error(integration, "#{type}: #{msg}")
 
       {:error, reason} ->
-        handle_refresh_error(integration, reason, provider)
+        handle_refresh_error(integration, reason)
     end
   end
 
-  defp handle_refresh_error(integration, reason, provider) do
+  defp handle_refresh_error(integration, reason) do
     case categorize_error(reason) do
       :permanent ->
         # Only the owner can fix this, so ask them to reconnect rather than
@@ -227,17 +229,13 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
         # Respect rate limiting with custom backoff
         retry_after = RetryHelpers.parse_retry_after_from_message(reason) || 300
 
-        error_msg = refresh_failure_message(provider, "#{reason} (RATE_LIMITED)")
-
-        persist_refresh_failure(integration, error_msg)
+        persist_refresh_failure(integration, refresh_failure_message())
 
         {:snooze, retry_after}
 
       :retryable ->
         # Let Oban handle retry with our custom backoff
-        error_msg = refresh_failure_message(provider, "#{reason} (RETRYABLE)")
-
-        persist_refresh_failure(integration, error_msg)
+        persist_refresh_failure(integration, refresh_failure_message())
 
         {:error, "#{reason}"}
     end
@@ -264,21 +262,24 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
     Tokens.refresh_oauth_token(integration, buffer_seconds: @refresh_threshold_hours * 3600)
   rescue
     exception ->
-      message =
-        refresh_failure_message(
-          integration.provider,
-          "#{Exception.message(exception)} (RETRYABLE)"
-        )
-
-      persist_refresh_failure(integration, message)
+      persist_refresh_failure(integration, refresh_failure_message())
       reraise exception, __STACKTRACE__
   end
 
-  # The wording the dashboard shows in `sync_error`. The repair migration
-  # `ReactivateCalendarsDeactivatedByTokenRefresh` matched its `(PERMANENT)`
-  # form; it has run, so nothing reads the text back any more.
-  defp refresh_failure_message(provider, reason),
-    do: "#{String.capitalize(provider)} integration failed during token refresh: #{reason}"
+  # The wording the dashboard shows in `sync_error`. A fixed msgid, left
+  # untranslated for the card to translate in the owner's locale, because the
+  # integration card translates the stored English by looking it up as one: the
+  # refresh reason (an OAuth error code or an exception's text) is for the log
+  # line `log_failure/3` writes, not for the owner, and a sentence built from it
+  # could never be translated. The repair migration
+  # `ReactivateCalendarsDeactivatedByTokenRefresh` matched the earlier wording;
+  # it has run, so nothing reads the text back any more.
+  defp refresh_failure_message do
+    dgettext_noop(
+      "dashboard_calendar_providers",
+      "Tymeslot could not renew its access to this calendar. It will try again shortly."
+    )
+  end
 
   # A flagged integration's `sync_error` already carries the reason the owner
   # needs to act on (no calendar selected, deleted booking calendar, expired

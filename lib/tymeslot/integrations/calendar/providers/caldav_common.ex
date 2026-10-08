@@ -10,7 +10,17 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Tasks
-  alias Tymeslot.Integrations.Calendar.CalDAV.{Base, Client, Discovery, Events, Http, UrlBuilder}
+
+  alias Tymeslot.Integrations.Calendar.CalDAV.{
+    Base,
+    Client,
+    Discovery,
+    Events,
+    Family,
+    Http,
+    UrlBuilder
+  }
+
   alias Tymeslot.Integrations.Calendar.CalDAV.Provider, as: CalDAVProvider
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CreatedEvent
@@ -87,14 +97,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
   # from the URL, as every other generic CalDAV client does, so that its
   # calls trip the host breaker a reset closes
   # (`CalendarCircuitBreaker.breaker_key/2`).
-  @provider_atoms %{
-    "radicale" => :radicale,
-    "nextcloud" => :nextcloud,
-    "zimbra" => :zimbra,
-    "mailbox_org" => :mailbox_org,
-    "apple" => :apple,
-    "baikal" => :baikal
-  }
+  @provider_atoms Family.client_providers()
 
   @doc """
   Builds a client from a stored calendar integration row.
