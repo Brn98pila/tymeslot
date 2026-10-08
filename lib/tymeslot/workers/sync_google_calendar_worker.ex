@@ -49,13 +49,11 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
   alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.Google.CacheSweep
   alias Tymeslot.Integrations.Calendar.Google.Provider, as: GoogleProvider
-  alias Tymeslot.Integrations.Calendar.InvalidEventReport
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
-  alias Tymeslot.Workers.SnoozePolicy
-  alias Tymeslot.Workers.SyncHealth
+  alias Tymeslot.Workers.CalendarSyncJob
   alias Tymeslot.Workers.SyncRequest
 
   # The job arg asking a run to read the booking calendar in full.
@@ -97,33 +95,13 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
         reason == ReauthHandling.discard_reason()
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"calendar_integration_id" => integration_id} = args} = job) do
-    Logger.metadata(calendar_integration_id: integration_id)
-
-    case CalendarIntegrationQueries.get(integration_id) do
-      {:ok, integration} ->
-        fn ->
-          integration
-          |> sync_integration(args[@list_booking_calendar] == true)
-          |> SnoozePolicy.bound(job,
-            max_snoozes: @max_unavailable_snoozes,
-            reason: "Google Calendar did not recover within the maximum wait"
-          )
-          |> tap(&SyncHealth.record_outcome(integration, &1))
-        end
-        |> InvalidEventReport.collect()
-        |> SyncRequest.rerun_if_requested(job)
-
-      {:error, :not_found} ->
-        Logger.warning("Calendar integration not found, discarding sync job",
-          calendar_integration_id: integration_id
-        )
-
-        {:discard, @integration_gone}
-
-      {:error, :requires_reencryption, integration} ->
-        CalendarManagement.handle_reauth_required(integration)
-    end
+  def perform(%Oban.Job{args: args} = job) do
+    CalendarSyncJob.run(
+      job,
+      &sync_integration(&1, args[@list_booking_calendar] == true),
+      max_snoozes: @max_unavailable_snoozes,
+      exhausted_reason: "Google Calendar did not recover within the maximum wait"
+    )
   end
 
   # ---------------------------------------------------------------------------

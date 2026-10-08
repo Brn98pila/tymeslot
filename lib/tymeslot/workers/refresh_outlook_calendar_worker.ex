@@ -46,13 +46,12 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
-  alias Tymeslot.Integrations.Calendar.InvalidEventReport
   alias Tymeslot.Integrations.Calendar.Outlook.DeltaSync, as: OutlookDeltaSync
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.HealthCheck.ErrorAnalysis
   alias Tymeslot.Integrations.Shared.ReauthHandling
-  alias Tymeslot.Workers.SyncHealth
+  alias Tymeslot.Workers.CalendarSyncJob
   alias Tymeslot.Workers.SyncRequest
 
   @behaviour ExpectedJobOutcome
@@ -98,42 +97,8 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
   end
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"calendar_integration_id" => integration_id}} = job) do
-    Logger.metadata(calendar_integration_id: integration_id)
-
-    case CalendarIntegrationQueries.get(integration_id) do
-      {:ok, %{provider: "outlook"} = integration} ->
-        # The verdict feeds health state like every other sync worker's: a
-        # cycle that keeps failing builds a streak, and one that succeeds
-        # clears a reconnect flag the integration has recovered from.
-        fn ->
-          integration
-          |> refresh(job)
-          |> tap(&SyncHealth.record_outcome(integration, &1))
-        end
-        |> InvalidEventReport.collect()
-        |> SyncRequest.rerun_if_requested(job)
-
-      {:ok, %{provider: provider}} ->
-        Logger.warning(
-          "RefreshOutlookCalendarWorker called for non-Outlook integration; discarding",
-          calendar_integration_id: integration_id,
-          provider: provider
-        )
-
-        {:discard, "Integration is not Outlook"}
-
-      {:error, :not_found} ->
-        Logger.warning("Calendar integration not found; discarding Outlook refresh",
-          calendar_integration_id: integration_id
-        )
-
-        {:discard, @integration_gone}
-
-      {:error, :requires_reencryption, integration} ->
-        CalendarManagement.handle_reauth_required(integration)
-    end
-  end
+  def perform(%Oban.Job{} = job),
+    do: CalendarSyncJob.run(job, &refresh(&1, job), provider: "outlook")
 
   defp refresh(%{graph_delta_link: nil} = integration, job), do: bootstrap(integration, job)
 

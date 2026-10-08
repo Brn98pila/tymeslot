@@ -183,14 +183,12 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
   alias Tymeslot.Integrations.Calendar.Exchange.IntervalNormaliser
   alias Tymeslot.Integrations.Calendar.Exchange.ItemCache
   alias Tymeslot.Integrations.Calendar.Exchange.Provider
-  alias Tymeslot.Integrations.Calendar.InvalidEventReport
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
-  alias Tymeslot.Workers.SnoozePolicy
-  alias Tymeslot.Workers.SyncHealth
+  alias Tymeslot.Workers.CalendarSyncJob
 
   @busy_only EventRole.busy_only()
   @display_only EventRole.display_only()
@@ -222,32 +220,11 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
   def expected_outcome?(_reason), do: false
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"calendar_integration_id" => integration_id}} = job) do
-    Logger.metadata(calendar_integration_id: integration_id)
-
-    case CalendarIntegrationQueries.get(integration_id) do
-      {:ok, integration} ->
-        InvalidEventReport.collect(fn ->
-          integration
-          |> sync()
-          |> handle_result(integration)
-          |> SnoozePolicy.bound(job,
-            max_snoozes: @max_unavailable_snoozes,
-            reason: "Exchange server did not recover within the maximum wait"
-          )
-          |> tap(&SyncHealth.record_outcome(integration, &1))
-        end)
-
-      {:error, :not_found} ->
-        Logger.warning("Exchange integration not found, discarding sync job",
-          calendar_integration_id: integration_id
-        )
-
-        {:discard, @integration_gone}
-
-      {:error, :requires_reencryption, integration} ->
-        CalendarManagement.handle_reauth_required(integration)
-    end
+  def perform(%Oban.Job{} = job) do
+    CalendarSyncJob.run(job, &(&1 |> sync() |> handle_result(&1)),
+      max_snoozes: @max_unavailable_snoozes,
+      exhausted_reason: "Exchange server did not recover within the maximum wait"
+    )
   end
 
   # The order is the design, not an accident: availability first, and its

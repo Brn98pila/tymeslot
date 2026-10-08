@@ -37,7 +37,6 @@ defmodule Tymeslot.Workers.SyncIcsCalendarWorker do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.Ics.Feed
   alias Tymeslot.Integrations.Calendar.Ics.Provider
-  alias Tymeslot.Integrations.Calendar.InvalidEventReport
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Integrations.Calendar.ProviderConfig
@@ -45,7 +44,7 @@ defmodule Tymeslot.Workers.SyncIcsCalendarWorker do
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
-  alias Tymeslot.Workers.SyncHealth
+  alias Tymeslot.Workers.CalendarSyncJob
 
   @calendar_id "subscription"
 
@@ -77,26 +76,7 @@ defmodule Tymeslot.Workers.SyncIcsCalendarWorker do
     do: reason in [@integration_gone] or reason == ReauthHandling.discard_reason()
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"calendar_integration_id" => integration_id}}) do
-    case CalendarIntegrationQueries.get(integration_id) do
-      {:ok, integration} ->
-        InvalidEventReport.collect(fn ->
-          integration
-          |> sync()
-          |> tap(&SyncHealth.record_outcome(integration, &1))
-        end)
-
-      {:error, :not_found} ->
-        Logger.warning("Calendar subscription not found, discarding sync job",
-          calendar_integration_id: integration_id
-        )
-
-        {:discard, @integration_gone}
-
-      {:error, :requires_reencryption, integration} ->
-        CalendarManagement.handle_reauth_required(integration)
-    end
-  end
+  def perform(%Oban.Job{} = job), do: CalendarSyncJob.run(job, &sync/1)
 
   defp sync(integration) do
     case Provider.fetch_feed(feed_url(integration)) do

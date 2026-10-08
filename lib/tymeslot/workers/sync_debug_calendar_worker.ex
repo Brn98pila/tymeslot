@@ -25,6 +25,8 @@ defmodule Tymeslot.Workers.SyncDebugCalendarWorker do
   alias Tymeslot.Integrations.Calendar.DebugCalendarProvider
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
+  alias Tymeslot.Integrations.Shared.ReauthHandling
+  alias Tymeslot.Workers.CalendarSyncJob
 
   # Window synced into the cache: a week back, two months forward.
   @past_days 7
@@ -32,30 +34,16 @@ defmodule Tymeslot.Workers.SyncDebugCalendarWorker do
 
   @behaviour ExpectedJobOutcome
 
-  # The integration was removed after the sync was queued. Credentials that
-  # no longer decrypt are recorded.
+  # The integration was removed after the sync was queued, or only its owner
+  # can fix it by reconnecting.
   @integration_gone "Integration not found"
 
   @impl ExpectedJobOutcome
-  def expected_outcome?(reason), do: reason == @integration_gone
+  def expected_outcome?(reason),
+    do: reason == @integration_gone or reason == ReauthHandling.discard_reason()
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"calendar_integration_id" => integration_id}}) do
-    case CalendarIntegrationQueries.get(integration_id) do
-      {:ok, integration} ->
-        sync(integration)
-
-      {:error, :not_found} ->
-        Logger.warning("Debug integration not found, discarding sync job",
-          calendar_integration_id: integration_id
-        )
-
-        {:discard, @integration_gone}
-
-      {:error, :requires_reencryption, _integration} ->
-        {:discard, "Integration requires re-encryption"}
-    end
-  end
+  def perform(%Oban.Job{} = job), do: CalendarSyncJob.run(job, &sync/1)
 
   defp sync(integration) do
     case DebugCalendarProvider.build_client_configs(integration) do
