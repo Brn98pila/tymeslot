@@ -574,6 +574,20 @@ defmodule Tymeslot.WebhooksTest do
     end
   end
 
+  describe "sign/3" do
+    # A receiver's view: the value pinned here was computed outside this
+    # codebase (Python's hmac module), so the test fails if the scheme drifts
+    # from what the automation page tells receivers to verify.
+    test "matches a reference HMAC-SHA256 over \"<t>.<body>\"" do
+      assert Webhooks.sign(
+               "tymeslot-test-token",
+               1_700_000_000,
+               ~s({"event":"meeting.created"})
+             ) ==
+               "t=1700000000,v1=ce33857700463c5c674b315c3d5cbdce01e8aecff5e18f64172e56dcc4c4465a"
+    end
+  end
+
   describe "build_headers/2" do
     test "includes content type and user agent" do
       headers = Webhooks.build_headers("{}", nil)
