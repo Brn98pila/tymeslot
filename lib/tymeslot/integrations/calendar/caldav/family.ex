@@ -9,8 +9,9 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Family do
   client built from a stored row. Adding a member is one row here, and a
   member missing from a registry cannot happen.
 
-  The table depends on nothing, so the modules deriving from it at compile
-  time take on no further compile-time dependencies through it.
+  The table depends on nothing but the Gettext backend (for marking its
+  tooltips), so the modules deriving from it at compile time take on no
+  other compile-time dependency through it.
 
   Columns:
 
