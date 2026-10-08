@@ -41,4 +41,9 @@ defmodule Tymeslot.Payments.Behaviours.SubscriptionManager do
   """
   @callback get_subscription_by_subscription_id(stripe_subscription_id :: String.t()) ::
               map() | nil
+
+  # Optional so a manager written before these lookups existed keeps working:
+  # Core then finds no subscription record, as with no manager at all.
+  @optional_callbacks get_subscription_by_customer_id: 1,
+                      get_subscription_by_subscription_id: 1
 end

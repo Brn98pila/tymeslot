@@ -47,9 +47,10 @@ defmodule Tymeslot.Payments.CustomerLookup do
   Gets the subscription recorded for a Stripe customer, from the configured
   subscription manager (`c:Tymeslot.Payments.Behaviours.SubscriptionManager.get_subscription_by_customer_id/1`).
 
-  Returns `nil` when no subscription is found, or when no subscription
-  manager is configured (Core standalone, which tracks subscriptions on
-  `payment_transactions` instead).
+  Returns `nil` when no subscription is found, when no subscription manager
+  is configured (Core standalone, which tracks subscriptions on
+  `payment_transactions` instead), or when the manager does not implement
+  this optional callback.
   """
   @spec get_subscription_by_customer_id(String.t() | nil) :: map() | nil
   def get_subscription_by_customer_id(nil), do: nil
@@ -68,11 +69,14 @@ defmodule Tymeslot.Payments.CustomerLookup do
       when is_binary(stripe_subscription_id),
       do: from_manager(:get_subscription_by_subscription_id, stripe_subscription_id)
 
+  # The lookups are optional callbacks: a manager without them answers as no
+  # manager at all.
   defp from_manager(lookup, id) do
-    case Config.subscription_manager() do
-      nil -> nil
-      manager -> apply(manager, lookup, [id])
-    end
+    manager = Config.subscription_manager()
+
+    if manager && Code.ensure_loaded?(manager) && function_exported?(manager, lookup, 1),
+      do: apply(manager, lookup, [id]),
+      else: nil
   end
 
   @doc """

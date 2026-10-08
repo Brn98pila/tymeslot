@@ -11,6 +11,12 @@ defmodule Tymeslot.Payments.CustomerLookupTest do
 
   setup :verify_on_exit!
 
+  # A subscription manager written before the lookup callbacks existed.
+  defmodule ManagerWithoutLookups do
+    @spec should_show_branding?(integer()) :: boolean()
+    def should_show_branding?(_user_id), do: true
+  end
+
   # Core standalone: no subscription manager, so every lookup below the
   # metadata goes to `payment_transactions`. The describe blocks that consult
   # a manager configure the mock themselves.
@@ -50,6 +56,13 @@ defmodule Tymeslot.Payments.CustomerLookupTest do
     end
 
     test "answer nil without a subscription manager, as Core standalone" do
+      assert CustomerLookup.get_subscription_by_customer_id("cus_test") == nil
+      assert CustomerLookup.get_subscription_by_subscription_id("sub_test") == nil
+    end
+
+    test "answer nil from a manager that does not implement them" do
+      Application.put_env(:tymeslot, :subscription_manager, ManagerWithoutLookups)
+
       assert CustomerLookup.get_subscription_by_customer_id("cus_test") == nil
       assert CustomerLookup.get_subscription_by_subscription_id("sub_test") == nil
     end
