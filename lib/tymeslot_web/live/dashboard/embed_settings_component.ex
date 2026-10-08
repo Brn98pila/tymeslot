@@ -308,7 +308,7 @@ defmodule TymeslotWeb.Live.Dashboard.EmbedSettingsComponent do
   defp perform_domain_update(socket, domains_payload, success_message) do
     user_id = socket.assigns.current_user.id
 
-    case RateLimiter.check_embed_domain_update_rate_limit(user_id) do
+    case RateLimiter.check(:embed_domain_update, user_id) do
       :ok ->
         case Profiles.update_allowed_embed_domains(socket.assigns.profile, domains_payload) do
           {:ok, updated_profile} ->

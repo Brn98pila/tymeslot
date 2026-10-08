@@ -47,7 +47,7 @@ defmodule Tymeslot.Auth.OAuth.SignupConfirmation do
   """
   @spec request(provider(), map(), map(), String.t() | nil) :: :sent | :rate_limited
   def request(provider, oauth_data, profile_params, ip) do
-    case RateLimiter.check_verification_ip_rate_limit(ip) do
+    case RateLimiter.check(:verification_ip, ip) do
       :ok ->
         send_link(provider, oauth_data, profile_params)
         :sent
@@ -60,7 +60,7 @@ defmodule Tymeslot.Auth.OAuth.SignupConfirmation do
   defp send_link(provider, oauth_data, profile_params) do
     email = oauth_data.email
 
-    with :ok <- RateLimiter.check_social_signup_confirmation_rate_limit(email),
+    with :ok <- RateLimiter.check(:social_signup_confirmation, email),
          {:ok, _status} <-
            EmailScheduler.schedule_social_signup_confirmation(%{
              email: email,

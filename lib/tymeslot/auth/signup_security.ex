@@ -89,7 +89,7 @@ defmodule Tymeslot.Auth.SignupSecurity do
     email = user_params["email"]
 
     if is_binary(email) and email != "" do
-      RateLimit.check(RateLimiter.check_signup_ip_rate_limit(metadata[:ip]),
+      RateLimit.check(RateLimiter.check(:signup_ip, metadata[:ip]),
         event: "signup",
         identifier: email,
         ip: metadata[:ip],

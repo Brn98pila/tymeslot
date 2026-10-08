@@ -177,7 +177,7 @@ defmodule TymeslotWeb.Dashboard.Automation.TelegramCompositionTest do
       # next create attempt trips the limiter before reaching the
       # Telegram API.
       Enum.each(1..30, fn _i ->
-        :ok = RateLimiter.check_webhook_write_rate_limit(user.id)
+        :ok = RateLimiter.check(:webhook_write, user.id)
       end)
 
       # Seed a call to the mock so an accidental Telegram API hit

@@ -21,7 +21,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Slack.CrudHandlers do
     user_id = socket.assigns.current_user.id
 
     AutomationHelpers.with_rate_limit(
-      RateLimiter.check_webhook_write_rate_limit(user_id),
+      RateLimiter.check(:webhook_write, user_id),
       socket,
       fn ->
         case SlackInputValidation.validate_form(params, mode: :webhook_url) do

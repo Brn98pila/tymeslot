@@ -99,7 +99,7 @@ defmodule Tymeslot.Auth.Registration do
   # Caps the sign-ups one address can see. Anyone can spend it by typing the
   # address, so a refusal is audited here and answered by the caller.
   defp recipient_allowance(email, opts) do
-    RateLimit.check(RateLimiter.check_signup_recipient_rate_limit(email),
+    RateLimit.check(RateLimiter.check(:signup_email, email),
       event: "signup",
       identifier: email,
       ip: opts[:ip],
@@ -116,7 +116,7 @@ defmodule Tymeslot.Auth.Registration do
     case via(opts) do
       :signup_form ->
         _discarded = Password.hash_password(validated_params["password"])
-        _allowance = RateLimiter.check_verification_ip_rate_limit(opts[:ip])
+        _allowance = RateLimiter.check(:verification_ip, opts[:ip])
         {:existing_account, success_message()}
 
       :provisioning ->
@@ -160,7 +160,7 @@ defmodule Tymeslot.Auth.Registration do
   # Spends the address's verification allowance as a real sign-up's email
   # does, so the resend budget left afterwards matches too.
   defp answer_honeypot(ip) do
-    _allowance = RateLimiter.check_verification_ip_rate_limit(ip)
+    _allowance = RateLimiter.check(:verification_ip, ip)
     {:honeypot, success_message()}
   end
 
@@ -280,7 +280,7 @@ defmodule Tymeslot.Auth.Registration do
     # The source's allowance first: a source over its own limit must spend
     # nothing of the owner's notice budget, or it could exhaust that budget
     # and silence the notice for the genuine attempts that follow.
-    case RateLimiter.check_verification_ip_rate_limit(ip) do
+    case RateLimiter.check(:verification_ip, ip) do
       :ok ->
         notify_owner_of_attempt(existing)
         :sent
@@ -295,7 +295,7 @@ defmodule Tymeslot.Auth.Registration do
   defp notify_owner_of_attempt(existing) do
     with :ok <-
            RateLimit.check(
-             RateLimiter.check_signup_attempt_notice_rate_limit(existing.id),
+             RateLimiter.check(:signup_attempt_notice, existing.id),
              event: "signup_attempt_notice",
              identifier: existing.id
            ),

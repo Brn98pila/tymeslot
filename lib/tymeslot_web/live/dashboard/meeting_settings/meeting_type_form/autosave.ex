@@ -55,7 +55,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Autosave do
   def maybe_run(socket), do: socket
 
   defp run(socket) do
-    case RateLimiter.check_meeting_type_autosave_rate_limit(socket.assigns.current_user.id) do
+    case RateLimiter.check(:meeting_type_autosave, socket.assigns.current_user.id) do
       :ok ->
         socket.assigns
         |> Submission.build_params()

@@ -52,7 +52,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Helpers do
       # Interactive validation gets its own, looser bucket (see the comment
       # above `WebhookInputValidation.validate_webhook_form/2`) so rapid
       # blurs/toggles cannot spend the budget the save itself needs.
-      validate_opts = [metadata: metadata, bucket: "webhook_form_validate", limit: 180]
+      validate_opts = [metadata: metadata, bucket: :webhook_form_validate]
 
       case WebhookInputValidation.validate_webhook_form(updated_values, validate_opts) do
         {:ok, _sanitized} ->
@@ -305,7 +305,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Helpers do
   def do_rate_limited_test(socket, id, testing_key, get_fn, test_fn, {success_msg, not_found_msg}) do
     user_id = socket.assigns.current_user.id
 
-    case RateLimiter.check_webhook_test_rate_limit(user_id) do
+    case RateLimiter.check(:webhook_test, user_id) do
       {:error, :rate_limited, message} ->
         Flash.error(message)
         {:noreply, socket}

@@ -41,8 +41,8 @@ defmodule TymeslotWeb.Dashboard.ProfileSettings.UsernameFormComponent do
   def handle_event("check_username_availability", %{"username" => username}, socket) do
     user_id = socket.assigns.current_user.id
 
-    case RateLimiter.check_username_check_rate_limit("user:#{user_id}") do
-      {:error, :rate_limited} ->
+    case RateLimiter.check(:username_check, "user:#{user_id}") do
+      {:error, :rate_limited, _message} ->
         {:noreply, socket}
 
       :ok ->

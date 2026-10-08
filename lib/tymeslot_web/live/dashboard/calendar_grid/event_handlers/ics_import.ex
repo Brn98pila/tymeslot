@@ -142,7 +142,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.IcsImport do
 
     with :ok <- EditWorkflow.assert_owns_integration(socket, state.integration_id),
          false <- CalendarGrid.ics_import_running?(user_id),
-         :ok <- RateLimiter.check_calendar_ics_import_rate_limit(user_id) do
+         :ok <- RateLimiter.check(:calendar_ics_import, user_id) do
       send(
         self(),
         {:execute_ics_import,

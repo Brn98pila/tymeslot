@@ -65,7 +65,7 @@ defmodule TymeslotWeb.SlackOAuthController do
     redirect_uri = callback_url()
     current_user_id = conn.assigns.current_user.id
 
-    with :ok <- RateLimiter.check_oauth_callback_rate_limit(ClientIP.get(conn)),
+    with :ok <- RateLimiter.check(:oauth_callback, ClientIP.get(conn)),
          {:ok, state_user_id} <- OAuth.verify_state(state),
          :ok <- verify_state_matches_current_user(state_user_id, current_user_id),
          {:ok, install} <- OAuth.exchange_code(code, redirect_uri),

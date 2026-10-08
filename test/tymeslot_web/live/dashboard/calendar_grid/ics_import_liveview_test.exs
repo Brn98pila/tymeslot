@@ -237,7 +237,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.IcsImportLiveviewTest do
       expect(Tymeslot.CalendarMock, :create_event, 0, fn _data, _context -> :unreachable end)
 
       Enum.find(
-        Stream.repeatedly(fn -> RateLimiter.check_calendar_ics_import_rate_limit(user.id) end),
+        Stream.repeatedly(fn -> RateLimiter.check(:calendar_ics_import, user.id) end),
         &match?({:error, :rate_limited, _message}, &1)
       )
 

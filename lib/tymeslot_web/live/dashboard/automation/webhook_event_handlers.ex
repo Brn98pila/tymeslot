@@ -86,7 +86,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
     user_id = socket.assigns.current_user.id
 
     AutomationHelpers.with_rate_limit(
-      RateLimiter.check_webhook_write_rate_limit(user_id),
+      RateLimiter.check(:webhook_write, user_id),
       socket,
       fn ->
         do_webhook_write(params, socket, &Webhooks.create_webhook(user_id, &1), "created")
@@ -118,7 +118,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
         user_id = socket.assigns.current_user.id
 
         AutomationHelpers.with_rate_limit(
-          RateLimiter.check_webhook_write_rate_limit(user_id),
+          RateLimiter.check(:webhook_write, user_id),
           socket,
           fn ->
             do_webhook_write(params, socket, &Webhooks.update_webhook(webhook, &1), "updated")
@@ -273,7 +273,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
   def handle_regenerate_token(_params, socket) do
     user_id = socket.assigns.current_user.id
 
-    case RateLimiter.check_webhook_token_regen_rate_limit(user_id) do
+    case RateLimiter.check(:webhook_token_regen, user_id) do
       {:error, :rate_limited, message} ->
         Flash.error(message)
         {:noreply, socket}

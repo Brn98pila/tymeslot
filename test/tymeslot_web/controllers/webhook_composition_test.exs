@@ -168,7 +168,7 @@ defmodule TymeslotWeb.WebhookCompositionTest do
 
       # Confirm the bucket is genuinely exhausted before the HTTP call.
       assert {:error, :rate_limited} =
-               RateLimiter.check_calendar_webhook_rate_limit(integration.id)
+               RateLimiter.check(:calendar_webhook, integration.id)
 
       payload = %{
         "value" => [

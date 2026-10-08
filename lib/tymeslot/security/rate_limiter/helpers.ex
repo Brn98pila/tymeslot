@@ -58,15 +58,6 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
     :ok
   end
 
-  @spec check_rate_limit(bucket_key(), pos_integer(), pos_integer()) ::
-          :ok | {:error, :rate_limited}
-  def check_rate_limit(bucket_key, limit, window_ms) do
-    case check_rate(bucket_key, window_ms, limit) do
-      {:allow, _count} -> :ok
-      {:deny, _retry_after} -> {:error, :rate_limited}
-    end
-  end
-
   @doc """
   Charges one token and, on a refusal, logs it and builds the copy the person
   reads.
@@ -92,9 +83,33 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
         ) ::
           :ok | {:error, :rate_limited, String.t()}
   def check_with_logging(bucket_key, limit, window_ms, operation, identifier, action \\ nil) do
+    check_window(bucket_key, limit, window_ms,
+      operation: operation,
+      identifier: identifier,
+      action: action
+    )
+  end
+
+  @doc """
+  `check_with_logging/6` with its labels as options, and one more: `log:
+  false` refuses without the log line, for the flood caps on
+  machine-to-machine endpoints, where a line per refused request would turn a
+  flood into a log flood.
+  """
+  @spec check_window(bucket_key(), pos_integer(), pos_integer(), keyword()) ::
+          :ok | {:error, :rate_limited, String.t()}
+  def check_window(bucket_key, limit, window_ms, opts)
+      when is_integer(limit) and limit > 0 and is_integer(window_ms) and window_ms > 0 do
+    operation = Keyword.fetch!(opts, :operation)
+    action = Keyword.get(opts, :action) || "#{operation} actions"
+    log? = Keyword.get(opts, :log, true)
+
     case check_rate(bucket_key, window_ms, limit) do
       {:allow, _count} ->
         :ok
+
+      {:deny, retry_after_ms} when not log? ->
+        {:error, :rate_limited, refusal_message(limit, window_ms, retry_after_ms, action)}
 
       {:deny, retry_after_ms} ->
         # Neither the identifier nor the bucket key reaches the log line raw:
@@ -102,9 +117,9 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
         # rejection under attack would otherwise write it twice per request,
         # on the one path that fires at volume. `operation` already names the
         # bucket, so the bucket key adds nothing but the identifier.
-        refuse(limit, window_ms, retry_after_ms, action || "#{operation} actions",
+        refuse(limit, window_ms, retry_after_ms, action,
           operation: operation,
-          identifier_masked: mask_identifier(identifier)
+          identifier_masked: mask_identifier(opts[:identifier])
         )
     end
   end
@@ -204,6 +219,12 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
     )
 
     {:error, :invalid_user_id}
+  end
+
+  @spec invalid_id(String.t(), any()) :: {:error, :invalid_id}
+  def invalid_id(operation, id) do
+    Logger.error("Invalid id for rate limit", operation: operation, id: LogFormat.reason(id))
+    {:error, :invalid_id}
   end
 
   @doc """

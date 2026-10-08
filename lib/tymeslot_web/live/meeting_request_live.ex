@@ -157,7 +157,7 @@ defmodule TymeslotWeb.MeetingRequestLive do
   defp answer(socket, nil, _action, _success_state), do: socket
 
   defp answer(socket, meeting, action, success_state) do
-    case RateLimiter.check_meeting_approval_rate_limit(ClientIP.get(socket)) do
+    case RateLimiter.check(:meeting_approval, ClientIP.get(socket)) do
       :ok ->
         apply_answer(socket, meeting, action, success_state)
 

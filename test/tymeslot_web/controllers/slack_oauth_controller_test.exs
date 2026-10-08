@@ -188,7 +188,7 @@ defmodule TymeslotWeb.SlackOAuthControllerTest do
       conn = %{conn | remote_ip: {203, 0, 113, 77}}
 
       for _attempt <- 1..20 do
-        assert :ok = RateLimiter.check_oauth_callback_rate_limit("203.0.113.77")
+        assert :ok = RateLimiter.check(:oauth_callback, "203.0.113.77")
       end
 
       # No HTTP expectation is set: an exchange with Slack would fail Mox.

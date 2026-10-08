@@ -352,12 +352,12 @@ defmodule Tymeslot.Profiles do
   def update_username(%ProfileSchema{} = profile, username, user_id) do
     with :ok <- UsernameValidator.validate(username, reserved_words: ReservedPaths.list()),
          :ok <-
-           RateLimiter.check_username_change_rate_limit("user:" <> Integer.to_string(user_id)),
+           RateLimiter.check(:username_change, "user:" <> Integer.to_string(user_id)),
          {:ok, updated_profile} <- ProfileQueries.update_username(profile, username) do
       Publication.maybe_publish(updated_profile.user_id)
       {:ok, updated_profile}
     else
-      {:error, :rate_limited} ->
+      {:error, :rate_limited, _message} ->
         {:error,
          dgettext(
            "dashboard_profile",

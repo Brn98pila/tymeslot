@@ -168,7 +168,7 @@ defmodule Tymeslot.Auth.EmailChange do
   @spec verify_email_change(String.t(), keyword()) ::
           {:ok, Ecto.Schema.t(), String.t()} | error()
   def verify_email_change(token, opts \\ []) when is_binary(token) do
-    limit = RateLimiter.check_email_change_verify_rate_limit(opts[:ip])
+    limit = RateLimiter.check(:email_change_verify, opts[:ip])
     context = [event: "email_change_verify", ip: opts[:ip], user_agent: opts[:user_agent]]
 
     case RateLimit.check(limit, context) do

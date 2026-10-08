@@ -34,30 +34,30 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
       ip = unique_ip("booking-ip")
 
       for _i <- 1..10 do
-        assert {:allow, _count} = RateLimiter.check_booking_submission_limit(ip)
+        assert :ok = RateLimiter.check(:booking_submit, ip)
       end
 
-      assert {:deny, _retry} = RateLimiter.check_booking_submission_limit(ip)
+      assert {:error, :rate_limited, _message} = RateLimiter.check(:booking_submit, ip)
     end
 
     test "check_webhook_rate_limit/1 allows 100 per 10 minutes then denies" do
       ip = unique_ip("webhook-ip")
 
       for _i <- 1..100 do
-        assert :ok = RateLimiter.check_webhook_rate_limit(ip)
+        assert :ok = RateLimiter.check(:webhook, ip)
       end
 
-      assert {:error, :rate_limited} = RateLimiter.check_webhook_rate_limit(ip)
+      assert {:error, :rate_limited, _message} = RateLimiter.check(:webhook, ip)
     end
 
     test "check_meeting_cancel_rate_limit/1 allows 10 per 10 minutes then denies with a message" do
       ip = unique_ip("cancel-ip")
 
       for _i <- 1..10 do
-        assert :ok = RateLimiter.check_meeting_cancel_rate_limit(ip)
+        assert :ok = RateLimiter.check(:meeting_cancel, ip)
       end
 
-      assert {:error, :rate_limited, message} = RateLimiter.check_meeting_cancel_rate_limit(ip)
+      assert {:error, :rate_limited, message} = RateLimiter.check(:meeting_cancel, ip)
       assert message =~ "meeting cancellation"
     end
 
@@ -65,10 +65,10 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
       ip = unique_ip("keep-ip")
 
       for _i <- 1..10 do
-        assert :ok = RateLimiter.check_meeting_keep_rate_limit(ip)
+        assert :ok = RateLimiter.check(:meeting_keep, ip)
       end
 
-      assert {:error, :rate_limited, message} = RateLimiter.check_meeting_keep_rate_limit(ip)
+      assert {:error, :rate_limited, message} = RateLimiter.check(:meeting_keep, ip)
       assert message =~ "meeting keep"
     end
   end
@@ -77,11 +77,11 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
     test "exhausting the booking bucket does not affect the webhook bucket" do
       ip = unique_ip("cross-booking-webhook")
 
-      for _i <- 1..10, do: RateLimiter.check_booking_submission_limit(ip)
-      assert {:deny, _retry} = RateLimiter.check_booking_submission_limit(ip)
+      for _i <- 1..10, do: RateLimiter.check(:booking_submit, ip)
+      assert {:error, :rate_limited, _message} = RateLimiter.check(:booking_submit, ip)
 
       # Webhook bucket shares the IP but has its own key namespace.
-      assert :ok = RateLimiter.check_webhook_rate_limit(ip)
+      assert :ok = RateLimiter.check(:webhook, ip)
     end
 
     test "exhausting auth for one email does not block signup for another" do
@@ -95,20 +95,20 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
       assert {:error, :rate_limited, _msg} = RateLimiter.check_auth_rate_limit(email_a, ip_a)
 
       # A fresh email signing up from a different IP is unaffected.
-      assert :ok = RateLimiter.check_signup_ip_rate_limit(ip_b)
-      assert :ok = RateLimiter.check_signup_recipient_rate_limit(email_b)
+      assert :ok = RateLimiter.check(:signup_ip, ip_b)
+      assert :ok = RateLimiter.check(:signup_email, email_b)
     end
 
     test "exhausting password-reset for one IP does not block OAuth initiation from the same IP" do
       ip = unique_ip("shared-ip")
 
       # Burn through the short password-reset window (5/hour).
-      for _i <- 1..5, do: RateLimiter.check_password_reset_ip_rate_limit(ip)
+      for _i <- 1..5, do: RateLimiter.check(:password_reset_ip, ip)
 
-      assert {:error, :rate_limited, _msg} = RateLimiter.check_password_reset_ip_rate_limit(ip)
+      assert {:error, :rate_limited, _msg} = RateLimiter.check(:password_reset_ip, ip)
 
       # OAuth initiation has its own bucket and is still allowed.
-      assert :ok = RateLimiter.check_oauth_initiation_rate_limit(ip)
+      assert :ok = RateLimiter.check(:oauth_initiation, ip)
     end
   end
 
@@ -124,7 +124,7 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
 
       # Pre-burn 9 of the 10-per-window booking bucket so the next
       # hit is the one that flips the bucket over the limit.
-      for _i <- 1..9, do: RateLimiter.check_booking_submission_limit(ip)
+      for _i <- 1..9, do: RateLimiter.check(:booking_submit, ip)
 
       # Two concurrent calls race for the last slot. Because the sliding-window
       # backend is non-atomic, both callers may insert before either reads the
@@ -132,17 +132,17 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
       # guarantee: no more than one caller bypasses the limit.
       tasks = [
         Task.Supervisor.async(Tymeslot.TaskSupervisor, fn ->
-          RateLimiter.check_booking_submission_limit(ip)
+          RateLimiter.check(:booking_submit, ip)
         end),
         Task.Supervisor.async(Tymeslot.TaskSupervisor, fn ->
-          RateLimiter.check_booking_submission_limit(ip)
+          RateLimiter.check(:booking_submit, ip)
         end)
       ]
 
       results = Task.await_many(tasks, 5_000)
 
-      allows = Enum.count(results, &match?({:allow, _count}, &1))
-      denies = Enum.count(results, &match?({:deny, _retry}, &1))
+      allows = Enum.count(results, &match?(:ok, &1))
+      denies = Enum.count(results, &match?({:error, :rate_limited, _message}, &1))
 
       assert allows <= 1,
              "Expected at most one :allow at the boundary (no double-bypass), got #{allows}. Results: #{inspect(results)}"
@@ -155,20 +155,20 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
       ip = unique_ip("concurrent-full")
 
       # Fill the bucket completely first.
-      for _i <- 1..10, do: RateLimiter.check_booking_submission_limit(ip)
+      for _i <- 1..10, do: RateLimiter.check(:booking_submit, ip)
 
       # With the bucket already exhausted, any number of concurrent
       # racers must all see `:deny` — no silent bypass under load.
       tasks =
         Enum.map(1..5, fn _i ->
           Task.Supervisor.async(Tymeslot.TaskSupervisor, fn ->
-            RateLimiter.check_booking_submission_limit(ip)
+            RateLimiter.check(:booking_submit, ip)
           end)
         end)
 
       results = Task.await_many(tasks, 5_000)
 
-      assert Enum.all?(results, &match?({:deny, _retry}, &1)),
+      assert Enum.all?(results, &match?({:error, :rate_limited, _message}, &1)),
              "Expected all concurrent calls to deny once the bucket is exhausted, got #{inspect(results)}"
     end
   end
@@ -177,33 +177,33 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
     test "clearing the underlying bucket key re-allows requests" do
       ip = unique_ip("clear-cancel")
 
-      for _i <- 1..10, do: RateLimiter.check_meeting_cancel_rate_limit(ip)
-      assert {:error, :rate_limited, _msg} = RateLimiter.check_meeting_cancel_rate_limit(ip)
+      for _i <- 1..10, do: RateLimiter.check(:meeting_cancel, ip)
+      assert {:error, :rate_limited, _msg} = RateLimiter.check(:meeting_cancel, ip)
 
       # clear_bucket/1 is the test-only escape hatch — in production the
       # bucket expires naturally as the sliding window advances. Clearing
       # here simulates the post-window state without waiting 10 minutes.
       :ok = RateLimiter.clear_bucket("meeting_cancel:#{ip}")
 
-      assert :ok = RateLimiter.check_meeting_cancel_rate_limit(ip)
+      assert :ok = RateLimiter.check(:meeting_cancel, ip)
     end
 
     test "clear_all/0 resets every bucket in one call" do
       ip_cancel = unique_ip("global-clear-cancel")
       ip_keep = unique_ip("global-clear-keep")
 
-      for _i <- 1..10, do: RateLimiter.check_meeting_cancel_rate_limit(ip_cancel)
-      for _i <- 1..10, do: RateLimiter.check_meeting_keep_rate_limit(ip_keep)
+      for _i <- 1..10, do: RateLimiter.check(:meeting_cancel, ip_cancel)
+      for _i <- 1..10, do: RateLimiter.check(:meeting_keep, ip_keep)
 
       assert {:error, :rate_limited, _msg} =
-               RateLimiter.check_meeting_cancel_rate_limit(ip_cancel)
+               RateLimiter.check(:meeting_cancel, ip_cancel)
 
-      assert {:error, :rate_limited, _msg} = RateLimiter.check_meeting_keep_rate_limit(ip_keep)
+      assert {:error, :rate_limited, _msg} = RateLimiter.check(:meeting_keep, ip_keep)
 
       :ok = RateLimiter.clear_all()
 
-      assert :ok = RateLimiter.check_meeting_cancel_rate_limit(ip_cancel)
-      assert :ok = RateLimiter.check_meeting_keep_rate_limit(ip_keep)
+      assert :ok = RateLimiter.check(:meeting_cancel, ip_cancel)
+      assert :ok = RateLimiter.check(:meeting_keep, ip_keep)
     end
   end
 
