@@ -1,20 +1,36 @@
 defmodule Tymeslot.CalendarGrid.EventEditQueueForRetryTest do
   @moduledoc """
-  A grid edit the grid's write queue could not finish is saved for a later
-  sync (`Tymeslot.CalendarGrid.WriteHandOver`), from the same payload a
-  direct write sends. A one-off given a repeat rule keeps the zone its
-  series is written in, as the direct write does.
+  A grid edit that could not reach a CalDAV server is queued for the next
+  sync, unless it leaves the event part of a series. The queue never
+  replays a series member's change, so a one-off given a rule would sit
+  there unsent while the grid called it saved; it is refused instead, on
+  the direct write and on the hand-over of the grid's write queue
+  (`Tymeslot.CalendarGrid.WriteHandOver`).
   """
 
-  use Tymeslot.DataCase, async: true
+  use Tymeslot.DataCase, async: false
 
   @moduletag :calendar
   @moduletag :integration
 
+  import Mox
+
   alias Tymeslot.CalendarGrid.EventEdit
+  alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
 
-  test "a one-off given a rule is queued in the organiser's zone" do
+  setup :verify_on_exit!
+
+  setup do
+    previous_module = Application.get_env(:tymeslot, :calendar_module)
+    Application.put_env(:tymeslot, :calendar_module, Operations)
+
+    on_exit(fn ->
+      if previous_module,
+        do: Application.put_env(:tymeslot, :calendar_module, previous_module),
+        else: Application.delete_env(:tymeslot, :calendar_module)
+    end)
+
     user = insert(:user)
 
     integration =
@@ -40,16 +56,55 @@ defmodule Tymeslot.CalendarGrid.EventEditQueueForRetryTest do
         sync_state: "synced"
       )
 
-    event = ProviderCalendarEventSchema.to_calendar_event(row)
+    %{user: user, row: row, event: ProviderCalendarEventSchema.to_calendar_event(row)}
+  end
 
-    assert {:ok, _updated} =
-             EventEdit.queue_for_retry(user.id, event, %{recurrence_rule: "FREQ=WEEKLY"},
-               timezone: "Europe/Berlin"
-             )
+  defp assert_untouched(row) do
+    stored = Repo.reload!(row)
+    assert stored.sync_state == "synced"
+    assert stored.recurrence_rule == nil
+  end
 
-    queued = Repo.reload!(row)
-    assert queued.sync_state == "locally_modified"
-    assert queued.recurrence_rule == "FREQ=WEEKLY"
-    assert queued.timezone == "Europe/Berlin"
+  defp server_unavailable do
+    stub(Tymeslot.HTTPClientMock, :put, fn _url, _body, _headers, _opts ->
+      {:ok, %Req.Response{status: 503, body: "", headers: %{}}}
+    end)
+  end
+
+  describe "a one-off given a rule" do
+    test "is not queued when the server cannot be reached", %{
+      user: user,
+      row: row,
+      event: event
+    } do
+      server_unavailable()
+
+      assert {:error, %{retry: :not_queued}} =
+               EventEdit.update_event(user.id, event, %{recurrence_rule: "FREQ=WEEKLY"},
+                 timezone: "Europe/Berlin"
+               )
+
+      assert_untouched(row)
+    end
+
+    test "is not queued from the grid's write queue", %{user: user, row: row, event: event} do
+      assert {:error, :not_queued} =
+               EventEdit.queue_for_retry(user.id, event, %{recurrence_rule: "FREQ=WEEKLY"},
+                 timezone: "Europe/Berlin"
+               )
+
+      assert_untouched(row)
+    end
+  end
+
+  describe "an edit that leaves a one-off a one-off" do
+    test "is queued when the server cannot be reached", %{user: user, row: row, event: event} do
+      server_unavailable()
+
+      assert {:error, %{retry: :queued}} =
+               EventEdit.update_event(user.id, event, %{summary: "Planning, moved"})
+
+      assert Repo.reload!(row).sync_state == "locally_modified"
+    end
   end
 end

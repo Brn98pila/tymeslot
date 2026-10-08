@@ -82,6 +82,7 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
   alias Tymeslot.Integrations.Calendar.ProviderCalendarResourceQueries
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Recurrence.RRule
+  alias Tymeslot.Integrations.Calendar.Recurrence.Series
 
   require Logger
 
@@ -121,6 +122,9 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
       instant (RFC 5545 §3.3.10), so refitting one has to end the organiser's
       chosen day in their own zone; without it the day ends in UTC and the
       series gains or loses its last occurrence.
+    * `:until_timezone` - the zone a new rule's `UNTIL` ended its day in, in
+      which the Google and Outlook series writers read the end date back
+      (see `Tymeslot.CalendarGrid.SeriesEdit`).
 
   Returns `{:ok, updated_event}`, or `{:error, %{reason: reason, retry:
   :queued | :not_queued}}` where `:queued` means the edit is saved locally
@@ -170,7 +174,8 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
 
   Answers `{:ok, updated_event}` once it is queued, or `{:error,
   :not_queued}` for an event whose integration has no offline queue, a
-  member of a series (never queued), or a change that cannot be applied.
+  member of a series or an event the change makes one (never queued), or a
+  change that cannot be applied.
   """
   @spec queue_for_retry(pos_integer(), map(), changes(), keyword()) ::
           {:ok, map()} | {:error, :not_queued}
@@ -181,11 +186,7 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
     with :single <- Occurrence.series_family(stored || event),
          {:ok, updated} <- apply_changes(event, changes, opts),
          {:ok, payload} <- ProviderPayload.from_event(updated),
-         payload =
-           payload
-           |> ProviderPayload.put_series_zone(Keyword.get(opts, :timezone))
-           |> put_stored_document(stored)
-           |> scope_attendees(event, changes),
+         payload = payload |> put_stored_document(stored) |> scope_attendees(event, changes),
          :queued <- queue_retry(:queue_recoverable, user_id, updated, payload, :not_written) do
       {:ok, updated}
     else
@@ -399,10 +400,15 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
 
   defp queue_retry(:never_queue, _user_id, _event, _payload, _reason), do: :not_queued
 
+  # An edit that leaves the event part of a series, a one-off given a rule
+  # among them, is not queued: the offline queue never replays a series
+  # member's change (it would rewrite every occurrence), so it would sit
+  # there unsent while the grid called it saved.
   defp queue_retry(:queue_recoverable, user_id, event, payload, reason) do
     target = %{uid: event.uid, calendar_integration_id: event.calendar_integration_id}
 
-    with true <- CalendarEvents.queueable_error?(reason),
+    with false <- Series.member?(event),
+         true <- CalendarEvents.queueable_error?(reason),
          :ok <- CalendarEvents.queue_for_offline_retry(target, :update, payload) do
       # The queue tag writes the edit's own fields, so this is no longer
       # repairing what the tag blanked. It stays for the other half of the
