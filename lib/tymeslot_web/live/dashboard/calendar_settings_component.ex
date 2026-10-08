@@ -135,17 +135,11 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
   end
 
   def handle_event("toggle_integration", %{"id" => id}, socket) do
-    user_id = socket.assigns.current_user.id
-
-    with {:ok, int_id} <- parse_int(id),
-         {:ok, _result} <- Calendar.toggle_integration(user_id, int_id) do
-      Flash.info(dgettext("dashboard_calendar_settings", "Calendar status updated"))
-      send(self(), {:integration_updated, :calendar})
-      {:noreply, load_integrations(socket)}
-    else
-      {:error, {:rate_limited, message}} ->
-        Flash.error(message)
-        {:noreply, socket}
+    with_owned_integration(socket, id, &Calendar.toggle_integration/2, fn
+      {:ok, _result} ->
+        Flash.info(dgettext("dashboard_calendar_settings", "Calendar status updated"))
+        send(self(), {:integration_updated, :calendar})
+        {:noreply, load_integrations(socket)}
 
       {:error, :duplicate_account} ->
         Flash.error(
@@ -165,11 +159,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
         )
 
         {:noreply, socket}
-
-      :error ->
-        Flash.error(dgettext("dashboard_calendar_settings", "Invalid calendar ID"))
-        {:noreply, socket}
-    end
+    end)
   end
 
   def handle_event("connect_provider", %{"provider" => provider}, socket)
