@@ -133,10 +133,45 @@ defmodule Tymeslot.CalendarGrid.ProviderSeriesTimeZoneWriteTest do
 
     body = create(user, integration, nil, tokyo_start, "Asia/Tokyo", "FREQ=WEEKLY")
 
-    assert body["start"] == %{"dateTime" => "2026-10-05T08:00:00", "timeZone" => "Asia/Tokyo"}
-    assert body["end"] == %{"dateTime" => "2026-10-05T08:30:00", "timeZone" => "Asia/Tokyo"}
+    assert body["start"] == %{
+             "dateTime" => "2026-10-05T08:00:00",
+             "timeZone" => "Tokyo Standard Time"
+           }
+
+    assert body["end"] == %{
+             "dateTime" => "2026-10-05T08:30:00",
+             "timeZone" => "Tokyo Standard Time"
+           }
+
     assert body["recurrence"]["range"]["startDate"] == "2026-10-05"
     assert body["recurrence"]["pattern"]["daysOfWeek"] == ["monday"]
+  end
+
+  # Graph does not list Europe/Madrid among the IANA names it accepts. The
+  # series goes out under a Windows zone with Madrid's offsets and changes.
+  test "an Outlook series in a zone Graph does not list names a Windows zone", %{user: user} do
+    integration = insert_integration(user, "outlook")
+
+    capture_create(%{
+      "id" => "oseries02",
+      "iCalUId" => "oseries02-ical",
+      "subject" => "Weekly sync",
+      "start" => %{
+        "dateTime" => "2026-10-05T09:00:00.0000000",
+        "timeZone" => "Romance Standard Time"
+      },
+      "end" => %{
+        "dateTime" => "2026-10-05T09:30:00.0000000",
+        "timeZone" => "Romance Standard Time"
+      }
+    })
+
+    body = create(user, integration, nil, @berlin_start, "Europe/Madrid", "FREQ=WEEKLY")
+
+    assert body["start"] == %{
+             "dateTime" => "2026-10-05T09:00:00",
+             "timeZone" => "Central Europe Standard Time"
+           }
   end
 
   test "a one-off keeps the UTC form on Google", %{user: user} do

@@ -9,6 +9,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventMapper do
   alias Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverter
   alias Tymeslot.Integrations.Calendar.Outlook.TymeslotFingerprint
   alias Tymeslot.Integrations.Calendar.Reminder
+  alias Tymeslot.Timezones.WindowsZones
 
   @doc """
   Converts Tymeslot event data into the Microsoft Graph event format.
@@ -128,14 +129,29 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventMapper do
         }
 
       _other ->
-        EventTimeFormatter.format_with_timezone(
-          datetime,
-          timezone,
+        datetime
+        |> EventTimeFormatter.format_with_timezone(timezone,
           include_when_missing?: true,
           include_timezone_on_error?: true
         )
+        |> series_zone_name(event_data)
     end
   end
+
+  # Graph accepts every Windows zone name but only some IANA ones, so a
+  # series, which Graph expands in the zone it is given, is written with the
+  # Windows zone that keeps its offsets. The wall clock stays the IANA zone's.
+  defp series_zone_name(%{"timeZone" => zone} = value, event_data) when is_binary(zone) do
+    case extract_field(event_data, :recurrence_rule, "recurrence_rule") do
+      rule when is_binary(rule) and rule != "" ->
+        %{value | "timeZone" => WindowsZones.from_iana(zone)}
+
+      _one_off ->
+        value
+    end
+  end
+
+  defp series_zone_name(value, _event_data), do: value
 
   defp map_show_as(event_data) do
     transparency = extract_field(event_data, :transparency, "transparency")

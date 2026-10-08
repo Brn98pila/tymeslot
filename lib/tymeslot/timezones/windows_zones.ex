@@ -168,4 +168,92 @@ defmodule Tymeslot.Timezones.WindowsZones do
   end
 
   def to_iana(_other), do: nil
+
+  @iana_to_windows Map.new(@windows_to_iana, fn {windows, iana} -> {iana, windows} end)
+
+  # How far ahead, and how often, a zone's offsets are compared with a
+  # Windows zone's. A week is shorter than the gap between any zone's two
+  # offset changes.
+  @match_span_days 2 * 365
+  @match_step_days 7
+
+  @doc """
+  The Windows zone name Microsoft Graph should be given for `zone`, an IANA
+  zone name, or `"UTC"` when none keeps its offsets.
+
+  Graph accepts every Windows zone name but only some IANA ones, and does
+  not list, among others, `Europe/Madrid`, `Europe/Dublin` or
+  `America/Toronto`. A zone that is some Windows zone's default IANA zone
+  maps to that Windows zone. Any other maps to the first Windows zone whose
+  default IANA zone keeps the same UTC offsets over the next two years,
+  changing them at the same instants, which is the zone Graph then expands
+  the event in. A Windows zone name is returned as given.
+  """
+  @spec from_iana(String.t()) :: String.t()
+  def from_iana(zone) when is_binary(zone) do
+    cond do
+      Map.has_key?(@windows_to_iana, zone) -> zone
+      windows = Map.get(@iana_to_windows, zone) -> windows
+      true -> same_offsets(zone) || "UTC"
+    end
+  end
+
+  defp same_offsets(zone) do
+    now = DateTime.utc_now()
+    weekly = Enum.map(0..@match_span_days//@match_step_days, &DateTime.add(now, &1, :day))
+
+    case offsets(zone, weekly) do
+      [] ->
+        nil
+
+      weekly_offsets ->
+        # Each change of `zone`, from the last second before it to the first
+        # second after, so a zone changing at another hour does not match.
+        samples = weekly ++ changes(zone, Enum.zip(weekly, weekly_offsets))
+        wanted = offsets(zone, samples)
+
+        @windows_to_iana
+        |> Enum.sort()
+        |> Enum.find_value(fn {windows, iana} ->
+          if offsets(iana, weekly) == weekly_offsets and offsets(iana, samples) == wanted,
+            do: windows
+        end)
+    end
+  end
+
+  defp changes(zone, weekly) do
+    weekly
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.flat_map(fn
+      [{_earlier, same}, {_later, same}] -> []
+      [{earlier, from}, {later, _to}] -> first_after(zone, from, earlier, later)
+    end)
+  end
+
+  # The last second still at `from` and the first one past it, in
+  # `(earlier, later]`.
+  defp first_after(zone, from, earlier, later) do
+    if DateTime.diff(later, earlier) <= 1 do
+      [earlier, later]
+    else
+      middle = DateTime.add(earlier, div(DateTime.diff(later, earlier), 2), :second)
+
+      if offsets(zone, [middle]) == [from],
+        do: first_after(zone, from, middle, later),
+        else: first_after(zone, from, earlier, middle)
+    end
+  end
+
+  # The total UTC offset of `zone` at each instant, or `[]` for a zone the
+  # time zone database does not know.
+  defp offsets(zone, instants) do
+    instants
+    |> Enum.reduce_while([], fn instant, acc ->
+      case DateTime.shift_zone(instant, zone) do
+        {:ok, local} -> {:cont, [local.utc_offset + local.std_offset | acc]}
+        {:error, _reason} -> {:halt, []}
+      end
+    end)
+    |> Enum.reverse()
+  end
 end
