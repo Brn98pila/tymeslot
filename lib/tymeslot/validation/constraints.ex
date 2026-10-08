@@ -241,6 +241,25 @@ defmodule Tymeslot.Validation.Constraints do
     [min: range.first, max: range.last]
   end
 
+  @doc """
+  The longest name a form may submit for an integration whose stored name is
+  `stored_name` (nil on create). A name submitted unchanged is not held to a
+  limit it predates, so an integration whose name is longer than the range
+  can still be edited in every other field; a changed name is.
+  """
+  @spec integration_name_max_length(String.t() | nil, String.t() | nil) :: pos_integer()
+  def integration_name_max_length(submitted, stored_name)
+      when is_binary(submitted) and is_binary(stored_name) do
+    limit = integration_name_length_range().last
+
+    if String.trim(submitted) == stored_name,
+      do: max(limit, String.length(stored_name)),
+      else: limit
+  end
+
+  def integration_name_max_length(_submitted, _stored_name),
+    do: integration_name_length_range().last
+
   @spec url_max_length() :: pos_integer()
   def url_max_length, do: 2048
 

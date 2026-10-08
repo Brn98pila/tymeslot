@@ -75,5 +75,49 @@ defmodule Tymeslot.Notifications.IntegrationNameLengthTest do
                  "events" => ["meeting.created"]
                })
     end
+
+    test "an over-long name already stored passes unchanged, and only unchanged" do
+      stored = String.duplicate("s", 120)
+
+      slack = %{
+        "name" => stored,
+        "events" => ["meeting.cancelled"],
+        "webhook_url" => "https://hooks.slack.com/services/T1/B2/abc123"
+      }
+
+      assert {:ok, %{name: ^stored}} =
+               SlackInput.validate_form(slack, mode: :webhook_url, stored_name: stored)
+
+      assert {:error, %{name: _message}} =
+               SlackInput.validate_form(%{slack | "name" => stored <> "x"},
+                 mode: :webhook_url,
+                 stored_name: stored
+               )
+
+      telegram = %{"name" => stored, "events" => ["meeting.cancelled"]}
+
+      assert {:ok, %{name: ^stored}} =
+               TelegramInput.validate_form(telegram, bot_mode: "shared", stored_name: stored)
+
+      assert {:error, %{name: _message}} =
+               TelegramInput.validate_form(%{telegram | "name" => stored <> "x"},
+                 bot_mode: "shared",
+                 stored_name: stored
+               )
+
+      webhook = %{
+        "name" => stored,
+        "url" => "https://example.com/hook",
+        "events" => ["meeting.cancelled"]
+      }
+
+      assert {:ok, %{name: ^stored}} =
+               WebhookInput.validate_webhook_form(webhook, stored_name: stored)
+
+      assert {:error, %{name: _message}} =
+               WebhookInput.validate_webhook_form(%{webhook | "name" => stored <> "x"},
+                 stored_name: stored
+               )
+    end
   end
 end

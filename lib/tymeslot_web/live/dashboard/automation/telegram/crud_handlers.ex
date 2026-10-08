@@ -98,7 +98,11 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.CrudHandlers do
       RateLimiter.check_webhook_write_rate_limit(user_id),
       socket,
       fn ->
-        case TelegramInputValidation.validate_form(params, bot_mode: bot_mode, mode: mode) do
+        case TelegramInputValidation.validate_form(params,
+               bot_mode: bot_mode,
+               mode: mode,
+               stored_name: AutomationHelpers.stored_name(socket.assigns.telegram_form_data)
+             ) do
           {:ok, sanitized} -> action.(bot_mode, sanitized)
           {:error, errors} -> {:noreply, assign(socket, :telegram_form_errors, errors)}
         end

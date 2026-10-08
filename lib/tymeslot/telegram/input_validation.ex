@@ -24,7 +24,7 @@ defmodule Tymeslot.Telegram.InputValidation do
     mode = Keyword.get(opts, :mode, :create)
     errors = %{}
 
-    {name, errors} = validate_name(params["name"], errors)
+    {name, errors} = validate_name(params["name"], errors, Keyword.get(opts, :stored_name))
     {events, errors} = validate_events(params["events"], errors)
 
     {bot_token, chat_id, errors} =
@@ -85,14 +85,19 @@ defmodule Tymeslot.Telegram.InputValidation do
     end
   end
 
-  @spec validate_name(String.t() | nil, map()) :: {String.t() | nil, map()}
-  def validate_name(nil, errors), do: {nil, Map.put(errors, :name, "is required")}
-  def validate_name("", errors), do: {nil, Map.put(errors, :name, "is required")}
+  @doc """
+  Validates the name. `stored_name` is the integration's current name on
+  edit (see `Constraints.integration_name_max_length/2`).
+  """
+  @spec validate_name(String.t() | nil, map(), String.t() | nil) :: {String.t() | nil, map()}
+  def validate_name(name, errors, stored_name \\ nil)
+  def validate_name(nil, errors, _stored_name), do: {nil, Map.put(errors, :name, "is required")}
+  def validate_name("", errors, _stored_name), do: {nil, Map.put(errors, :name, "is required")}
 
-  def validate_name(name, errors) when is_binary(name) do
+  def validate_name(name, errors, stored_name) when is_binary(name) do
     case UniversalSanitizer.sanitize_and_validate(name,
            mode: :plain_text,
-           max_length: Constraints.integration_name_length_range().last
+           max_length: Constraints.integration_name_max_length(name, stored_name)
          ) do
       {:ok, sanitized} ->
         if String.length(sanitized) < 1 do

@@ -44,7 +44,8 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
           socket.assigns.form_errors,
           field,
           value,
-          metadata
+          metadata,
+          AutomationHelpers.stored_name(socket.assigns.webhook_form_data)
         )
       end
 
@@ -71,7 +72,8 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
         socket.assigns.form_errors,
         "events",
         Map.get(form_values, "events"),
-        metadata
+        metadata,
+        AutomationHelpers.stored_name(socket.assigns.webhook_form_data)
       )
 
     {:noreply,
@@ -297,7 +299,10 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
   defp do_webhook_write(params, socket, save_fn, verb) do
     metadata = AutomationHelpers.get_security_metadata(socket)
 
-    case WebhookInputValidation.validate_webhook_form(params, metadata: metadata) do
+    case WebhookInputValidation.validate_webhook_form(params,
+           metadata: metadata,
+           stored_name: AutomationHelpers.stored_name(socket.assigns.webhook_form_data)
+         ) do
       {:ok, sanitized} ->
         case save_fn.(sanitized) do
           {:ok, _webhook} ->

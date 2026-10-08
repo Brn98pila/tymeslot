@@ -12,7 +12,9 @@ defmodule TymeslotWeb.Dashboard.Automation.AutomationIntegrationTest do
   alias Tymeslot.ConfigTestHelpers
   alias Tymeslot.Notifications.ChannelFanout
   alias Tymeslot.Onboarding.OnboardingQueries
+  alias Tymeslot.Repo
   alias Tymeslot.Webhooks
+  alias Tymeslot.Webhooks.WebhookSchema
   alias Tymeslot.Workers.WebhookWorker
 
   setup %{conn: conn} do
@@ -317,6 +319,40 @@ defmodule TymeslotWeb.Dashboard.Automation.AutomationIntegrationTest do
       |> render_click()
 
       assert render(view) =~ "Test failed"
+    end
+  end
+
+  describe "Editing a webhook whose stored name predates the length limit" do
+    test "saves a change to its events alone", %{conn: conn, user: user} do
+      stored = String.duplicate("w", 150)
+
+      webhook =
+        insert(:webhook,
+          user: user,
+          name: stored,
+          url: "https://example.com/webhook",
+          events: ["meeting.created"]
+        )
+
+      {:ok, view, _html} = live(conn, "/dashboard/automation")
+
+      view |> element("button[title='Edit Webhook']") |> render_click()
+
+      view
+      |> form("#webhook-form", %{
+        "webhook" => %{
+          "name" => stored,
+          "url" => "https://example.com/webhook",
+          "events" => ["meeting.created", "meeting.cancelled"]
+        }
+      })
+      |> render_submit()
+
+      assert render(view) =~ "Webhook updated successfully"
+
+      saved = Repo.get!(WebhookSchema, webhook.id)
+      assert saved.name == stored
+      assert "meeting.cancelled" in saved.events
     end
   end
 
