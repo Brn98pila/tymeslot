@@ -55,6 +55,7 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.CalendarSyncJob
+  alias Tymeslot.Workers.SyncRequest
 
   @busy_only EventRole.busy_only()
 
@@ -83,6 +84,16 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
   end
 
   def expected_outcome?(_reason), do: false
+
+  @doc """
+  Enqueues a sync of the Exchange integration `integration_id`. A sync
+  already waiting runs in its place; one already running runs again once it
+  finishes, since it may have read the mailbox before the request (see
+  `Tymeslot.Workers.SyncRequest`).
+  """
+  @spec enqueue(pos_integer()) :: {:ok, Oban.Job.t()} | {:error, term()}
+  def enqueue(integration_id),
+    do: SyncRequest.insert(__MODULE__, %{"calendar_integration_id" => integration_id})
 
   @impl Oban.Worker
   def perform(%Oban.Job{} = job) do

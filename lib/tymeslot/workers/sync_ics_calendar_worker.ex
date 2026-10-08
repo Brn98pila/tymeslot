@@ -29,23 +29,17 @@ defmodule Tymeslot.Workers.SyncIcsCalendarWorker do
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.CalendarSyncJob
+  alias Tymeslot.Workers.SyncRequest
 
   @doc """
-  Enqueues a feed refresh for the subscription `integration_id`.
-
-  The worker's uniqueness window collapses repeat requests, so a refresh
-  already queued or running for the same integration answers
-  `{:ok, :already_scheduled}` rather than adding a second fetch of the feed.
-  Either `:ok` outcome means a refresh is on its way.
+  Enqueues a feed refresh for the subscription `integration_id`. A refresh
+  already waiting runs in its place; one already running runs again once it
+  finishes, since it may have fetched the feed before the request (see
+  `Tymeslot.Workers.SyncRequest`).
   """
-  @spec enqueue(pos_integer()) :: {:ok, :enqueued | :already_scheduled} | {:error, term()}
-  def enqueue(integration_id) do
-    case %{"calendar_integration_id" => integration_id} |> new() |> Oban.insert() do
-      {:ok, %Oban.Job{conflict?: true}} -> {:ok, :already_scheduled}
-      {:ok, %Oban.Job{}} -> {:ok, :enqueued}
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  @spec enqueue(pos_integer()) :: {:ok, Oban.Job.t()} | {:error, term()}
+  def enqueue(integration_id),
+    do: SyncRequest.insert(__MODULE__, %{"calendar_integration_id" => integration_id})
 
   @behaviour ExpectedJobOutcome
 

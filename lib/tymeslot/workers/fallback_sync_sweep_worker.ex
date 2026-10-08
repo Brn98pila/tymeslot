@@ -3,31 +3,14 @@ defmodule Tymeslot.Workers.FallbackSyncSweepWorker do
   Oban worker that performs a sweep of all active calendar integrations every
   15 minutes as a fallback mechanism for missed or delayed webhook notifications.
 
-  The sweep itself does no provider I/O — it only fans out per-integration
-  jobs:
+  The sweep itself does no provider I/O: it only fans out a sync job per
+  integration that `Tymeslot.Integrations.Calendar.SyncSchedule` says is due,
+  with the worker its provider syncs with. Google and Outlook are due on
+  every sweep, the net for a missed webhook; CalDAV-family integrations by
+  their sync tier; subscriptions and Exchange every 30 minutes.
 
-  - **Google** — enqueues a `SyncGoogleCalendarWorker` job per integration.
-  - **Outlook** — enqueues a `RefreshOutlookCalendarWorker` job per
-    integration, which delta-syncs from the stored `graph_delta_link` or
-    bootstraps a fresh delta baseline (and opportunistically registers a
-    Graph webhook subscription) when no link is stored yet.
-  - **CalDAV / Radicale / Nextcloud / Zimbra** — enqueues a `SyncCalDavCalendarWorker`
-    job at a frequency determined by the integration's sync tier:
-    - Tier 1 (sync-token delta): every 15 minutes
-    - Tier 2 (CTag check): every 30 minutes
-    - Tier 3 (full fetch): every hour
-    - Undetected (nil): every 15 minutes (detect tier ASAP)
-  - **Calendar subscriptions (`ics_url`)** — enqueues a `SyncIcsCalendarWorker`
-    job every 30 minutes. There is no tier to detect: a published feed offers
-    no delta mechanism, so every run is a full fetch, and the publisher
-    regenerates the file on its own schedule anyway. Polling harder would cost
-    a third party bandwidth for data that has not changed.
-  - **Exchange (`exchange`)** — enqueues a `SyncExchangeCalendarWorker` job
-    every 30 minutes. EWS offers a delta mechanism (`SyncFolderItems`) that
-    this phase does not use, so each run re-reads the whole window through
-    both of the provider's reads. This branch is what makes Exchange sync at
-    all on a schedule: manual refresh goes through `CalendarGrid` and would
-    keep working without it, so its absence shows up only as staleness.
+  CalDAV integrations also get a forced full fetch once a day, to recover
+  events their tier's delta reads missed.
 
   Jobs are enqueued in batches of 50, each batch scheduled one second after
   the previous via `scheduled_at`, to avoid thundering-herd load on provider
@@ -46,32 +29,12 @@ defmodule Tymeslot.Workers.FallbackSyncSweepWorker do
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.ProviderConfig
+  alias Tymeslot.Integrations.Calendar.SyncSchedule
   alias Tymeslot.Integrations.HealthCheck.SyncGating
-  alias Tymeslot.Workers.RefreshOutlookCalendarWorker
   alias Tymeslot.Workers.SyncCalDavCalendarWorker
-  alias Tymeslot.Workers.SyncExchangeCalendarWorker
-  alias Tymeslot.Workers.SyncGoogleCalendarWorker
-  alias Tymeslot.Workers.SyncIcsCalendarWorker
 
   @batch_size 50
   @batch_stagger_seconds 1
-
-  # Sync interval per CalDAV tier (in seconds).
-  # Tier 1 and 2 are lightweight; Tier 3 does a full fetch every time.
-  @caldav_tier_intervals %{
-    1 => 900,
-    2 => 1_800,
-    3 => 3_600
-  }
-  @caldav_default_interval 900
-
-  # Subscribed feeds have no tier: every run is a full fetch of a file the
-  # publisher regenerates on its own schedule.
-  @subscription_interval 1_800
-
-  # Exchange has no tier either: this phase reads the whole window every run,
-  # twice over (free/busy for availability, items for the grid).
-  @exchange_interval 1_800
 
   # Forced full fetch: every 24 hours to recover events missed by Tier 1/2
   # delta-based optimisations. Was 12 hours before the reconcile transaction
@@ -86,13 +49,12 @@ defmodule Tymeslot.Workers.FallbackSyncSweepWorker do
 
   @impl Oban.Worker
   def perform(%Oban.Job{}) do
+    now = DateTime.utc_now()
     paused_ids = SyncGating.paused_integration_ids(:calendar)
     by_provider = drop_paused_integrations(collect_integrations_by_provider(), paused_ids)
 
-    google_count = enqueue_batched(Map.get(by_provider, "google", []), SyncGoogleCalendarWorker)
-
-    outlook_count =
-      enqueue_batched(Map.get(by_provider, "outlook", []), RefreshOutlookCalendarWorker)
+    google_count = enqueue_due(Map.get(by_provider, "google", []), now)
+    outlook_count = enqueue_due(Map.get(by_provider, "outlook", []), now)
 
     caldav_providers = Enum.map(ProviderConfig.caldav_based_providers(), &Atom.to_string/1)
     caldav_integrations = Enum.flat_map(caldav_providers, &Map.get(by_provider, &1, []))
@@ -107,12 +69,19 @@ defmodule Tymeslot.Workers.FallbackSyncSweepWorker do
     {forced_full_count, forced_full_conflicts} =
       enqueue_caldav_forced_full_fetches(caldav_integrations)
 
-    due_integrations = Enum.filter(caldav_integrations, &caldav_due?/1)
-    caldav_count = enqueue_batched(due_integrations, SyncCalDavCalendarWorker)
-    caldav_skipped = length(caldav_integrations) - length(due_integrations)
+    due_caldav = Enum.filter(caldav_integrations, &SyncSchedule.due?(&1, now))
+    caldav_count = enqueue_batched(due_caldav, now)
+    caldav_skipped = length(caldav_integrations) - length(due_caldav)
 
-    subscription_count = enqueue_due_subscriptions(by_provider)
-    exchange_count = enqueue_due_exchange(by_provider)
+    subscription_count =
+      ProviderConfig.subscription_provider_strings()
+      |> Enum.flat_map(&Map.get(by_provider, &1, []))
+      |> enqueue_due(now)
+
+    exchange_count =
+      ProviderConfig.ews_provider_strings()
+      |> Enum.flat_map(&Map.get(by_provider, &1, []))
+      |> enqueue_due(now)
 
     Logger.info("FallbackSyncSweep complete",
       google_scheduled: google_count,
@@ -184,11 +153,18 @@ defmodule Tymeslot.Workers.FallbackSyncSweepWorker do
     end)
   end
 
-  defp enqueue_batched(integrations, worker_module) do
-    now = DateTime.utc_now()
+  # The integrations of `integrations` whose sync `SyncSchedule` says is due
+  # at `now`, each enqueued with the worker its provider syncs with.
+  defp enqueue_due(integrations, now) do
+    integrations
+    |> Enum.filter(&SyncSchedule.due?(&1, now))
+    |> enqueue_batched(now)
+  end
 
+  defp enqueue_batched(integrations, now) do
     {scheduled, _conflicts} =
       process_in_batches(integrations, fn integration, batch_index ->
+        {:ok, %{worker: worker_module}} = SyncSchedule.schedule(integration)
         args = %{"calendar_integration_id" => integration.id}
 
         # Stagger each batch by scheduled_at offset instead of sleeping
@@ -220,56 +196,6 @@ defmodule Tymeslot.Workers.FallbackSyncSweepWorker do
       end)
 
     scheduled
-  end
-
-  # ---------------------------------------------------------------------------
-  # Subscribed feed scheduling
-  # ---------------------------------------------------------------------------
-
-  defp enqueue_due_subscriptions(by_provider) do
-    ProviderConfig.subscription_provider_strings()
-    |> Enum.flat_map(&Map.get(by_provider, &1, []))
-    |> Enum.filter(&subscription_due?/1)
-    |> enqueue_batched(SyncIcsCalendarWorker)
-  end
-
-  defp subscription_due?(%{last_external_sync_at: nil}), do: true
-
-  defp subscription_due?(integration) do
-    cutoff = DateTime.add(DateTime.utc_now(), -@subscription_interval, :second)
-    DateTime.before?(integration.last_external_sync_at, cutoff)
-  end
-
-  # ---------------------------------------------------------------------------
-  # Exchange scheduling
-  # ---------------------------------------------------------------------------
-
-  defp enqueue_due_exchange(by_provider) do
-    ProviderConfig.ews_provider_strings()
-    |> Enum.flat_map(&Map.get(by_provider, &1, []))
-    |> Enum.filter(&exchange_due?/1)
-    |> enqueue_batched(SyncExchangeCalendarWorker)
-  end
-
-  defp exchange_due?(%{last_external_sync_at: nil}), do: true
-
-  defp exchange_due?(integration) do
-    cutoff = DateTime.add(DateTime.utc_now(), -@exchange_interval, :second)
-    DateTime.before?(integration.last_external_sync_at, cutoff)
-  end
-
-  # ---------------------------------------------------------------------------
-  # CalDAV tier-aware scheduling
-  # ---------------------------------------------------------------------------
-
-  defp caldav_due?(%{last_external_sync_at: nil}), do: true
-
-  defp caldav_due?(integration) do
-    interval =
-      Map.get(@caldav_tier_intervals, integration.caldav_sync_tier, @caldav_default_interval)
-
-    cutoff = DateTime.add(DateTime.utc_now(), -interval, :second)
-    DateTime.before?(integration.last_external_sync_at, cutoff)
   end
 
   # ---------------------------------------------------------------------------

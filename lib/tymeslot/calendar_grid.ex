@@ -30,6 +30,7 @@ defmodule Tymeslot.CalendarGrid do
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Integrations.Calendar.Reminder
+  alias Tymeslot.Integrations.Calendar.SyncSchedule
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Video.ProviderConfig, as: VideoProviderConfig
   alias Tymeslot.Utils.DateTimeUtils.TimeFormat
@@ -269,7 +270,7 @@ defmodule Tymeslot.CalendarGrid do
 
         if summary.created > 0 do
           AvailabilityCache.invalidate_for_user(user_id)
-          Freshness.request_sync(target.integration)
+          SyncSchedule.request_sync(target.integration)
         end
 
         {:ok, summary}

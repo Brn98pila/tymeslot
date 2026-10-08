@@ -15,7 +15,14 @@ defmodule Tymeslot.Workers.SyncDebugCalendarWorker do
   `:test`, so a sync in production is a no-op.
   """
 
-  use Oban.Worker, queue: :calendar_integrations, max_attempts: 1
+  use Oban.Worker,
+    queue: :calendar_integrations,
+    max_attempts: 1,
+    unique: [
+      period: 300,
+      keys: [:calendar_integration_id],
+      states: [:available, :scheduled, :executing, :retryable, :suspended]
+    ]
 
   require Logger
 
@@ -27,6 +34,7 @@ defmodule Tymeslot.Workers.SyncDebugCalendarWorker do
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.CalendarSyncJob
+  alias Tymeslot.Workers.SyncRequest
 
   # Window synced into the cache: a week back, two months forward.
   @past_days 7
@@ -41,6 +49,14 @@ defmodule Tymeslot.Workers.SyncDebugCalendarWorker do
   @impl ExpectedJobOutcome
   def expected_outcome?(reason),
     do: reason == @integration_gone or reason == ReauthHandling.discard_reason()
+
+  @doc """
+  Enqueues a sync of the debug integration `integration_id`, folded into
+  one already waiting and rerun after one already running.
+  """
+  @spec enqueue(pos_integer()) :: {:ok, Oban.Job.t()} | {:error, term()}
+  def enqueue(integration_id),
+    do: SyncRequest.insert(__MODULE__, %{"calendar_integration_id" => integration_id})
 
   @impl Oban.Worker
   def perform(%Oban.Job{} = job), do: CalendarSyncJob.run(job, &sync/1)
