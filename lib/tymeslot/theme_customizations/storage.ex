@@ -12,7 +12,7 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
 
   @type file_upload :: %{required(:path) => Path.t(), required(:filename) => String.t()}
 
-  @kind_directories %{image: "images", video: "videos"}
+  @kind_directories %{image: "images", video: "videos", captions: "captions"}
 
   # A stored name's limit, prefix included; the sanitiser truncates to it.
   @max_name_bytes 255
@@ -36,7 +36,7 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
 
   @doc """
   Returns the directory where theme assets are stored for a profile/theme/type.
-  Type is one of "images" | "videos".
+  Type is one of "images" | "videos" | "captions".
   """
   @spec get_theme_upload_directory(integer(), String.t(), String.t()) :: String.t()
   def get_theme_upload_directory(profile_id, theme_id, type) do
@@ -82,9 +82,10 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
   end
 
   @doc """
-  Stores an uploaded image or video for a profile's theme and returns its path
-  relative to the upload root: `themes/<profile>/<theme>/images/<name>` for an
-  image, `.../videos/<name>` for a video.
+  Stores an uploaded image, video or captions file for a profile's theme and
+  returns its path relative to the upload root:
+  `themes/<profile>/<theme>/images/<name>` for an image, `.../videos/<name>`
+  for a video and `.../captions/<name>` for captions.
 
   The content is checked against `kind` by its bytes, never by the client's
   content type. Every stored file gets a name of its own, a random prefix
@@ -95,7 +96,7 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
   @spec store_asset(Spec.asset_kind(), integer(), String.t(), file_upload()) ::
           {:ok, String.t()} | {:error, term()}
   def store_asset(kind, profile_id, theme_id, %{path: temp_path, filename: filename})
-      when kind in [:image, :video] do
+      when kind in [:image, :video, :captions] do
     if valid_content?(kind, temp_path) do
       directory = Map.fetch!(@kind_directories, kind)
       dest_dir = get_theme_upload_directory(profile_id, theme_id, directory)
@@ -122,9 +123,11 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
 
   defp valid_content?(:image, path), do: MediaValidator.valid_image_file?(path)
   defp valid_content?(:video, path), do: MediaValidator.valid_video_file?(path)
+  defp valid_content?(:captions, path), do: MediaValidator.valid_captions_file?(path)
 
   defp invalid_format(:image), do: :invalid_image_format
   defp invalid_format(:video), do: :invalid_video_format
+  defp invalid_format(:captions), do: :invalid_captions_format
 
   # The prefix goes in front of the basename: `store_file_atomically/4`
   # sanitises the name with `Path.basename/1`, which would drop a prefix put in

@@ -610,5 +610,11 @@ config :tymeslot, :error_tracking_occurrences_max, 1_000
 config :tymeslot, :error_tracking_throttle, max_per_window: 10, window_seconds: 60
 config :tymeslot, :error_tracking_max_concurrent_reports, 10
 
+# WebVTT captions: served from /uploads as text/vtt, which a <track> needs,
+# and accepted by LiveView uploads, which refuse an extension MIME does not
+# know. MIME compiles its type table, so a change here needs
+# `mix deps.compile mime --force` in every build.
+config :mime, :types, %{"text/vtt" => ["vtt"]}
+
 # Import environment specific config
 import_config "#{config_env()}.exs"

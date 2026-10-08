@@ -275,6 +275,67 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
     end
   end
 
+  describe "captions" do
+    @vtt "WEBVTT\n\n00:00.000 --> 00:02.000\nHello\n"
+
+    test "stores a WebVTT file under captions/ and saves it on its field", %{profile: profile} do
+      assert {:ok, customization} =
+               ThemeCustomizations.attach_asset(
+                 profile.id,
+                 "99",
+                 :fixture_intro_captions_path,
+                 temp_file("intro.vtt", @vtt)
+               )
+
+      path = customization.settings["fixture_intro_captions_path"]
+      assert path =~ ~r"^themes/#{profile.id}/99/captions/[0-9a-f]{12}-intro\.vtt$"
+      assert File.read!(Storage.build_theme_file_path(path)) == @vtt
+
+      # Captions are served as they are: nothing is transcoded or tracked.
+      refute_enqueued(worker: VideoTranscoder)
+      assert customization.video_processing_status == %{}
+    end
+
+    test "refuses a file that is not WebVTT, saving nothing", %{profile: profile} do
+      assert {:error, "Invalid captions file. Please upload a WebVTT (.vtt) file."} =
+               ThemeCustomizations.attach_asset(
+                 profile.id,
+                 "99",
+                 :fixture_intro_captions_path,
+                 temp_file("intro.vtt", "1\n00:00:01,000 --> 00:00:02,000\nHello\n")
+               )
+
+      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "99") == nil
+      assert uploaded_files(profile, "99") == []
+    end
+
+    test "a replacement deletes the file it replaces", %{profile: profile} do
+      {:ok, first} =
+        ThemeCustomizations.attach_asset(
+          profile.id,
+          "99",
+          :fixture_intro_captions_path,
+          temp_file("intro.vtt", @vtt)
+        )
+
+      {:ok, second} =
+        ThemeCustomizations.attach_asset(
+          profile.id,
+          "99",
+          :fixture_intro_captions_path,
+          temp_file("intro.vtt", @vtt)
+        )
+
+      first_path = first.settings["fixture_intro_captions_path"]
+      refute first_path == second.settings["fixture_intro_captions_path"]
+      refute File.exists?(Storage.build_theme_file_path(first_path))
+
+      assert File.exists?(
+               Storage.build_theme_file_path(second.settings["fixture_intro_captions_path"])
+             )
+    end
+  end
+
   describe "a save that is refused" do
     # The save of an upload's own changes can no longer be refused by the
     # spec (`Specs.settings/2` reads a stale row with the stale group's

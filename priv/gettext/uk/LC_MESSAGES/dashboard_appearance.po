@@ -659,3 +659,8 @@ msgstr "Мої клієнти мають відчувати, що бронюют
 #, elixir-autogen, elixir-format
 msgid "When someone books me, I want them to feel the atmosphere first: motion, mood, then a time."
 msgstr "Коли хтось мене бронює, я хочу, щоб спершу людина відчула атмосферу: рух, настрій, а потім час."
+
+#: lib/tymeslot/theme_customizations/assets.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid captions file. Please upload a WebVTT (.vtt) file."
+msgstr "Недійсний файл субтитрів. Завантажте файл WebVTT (.vtt)."

@@ -659,3 +659,8 @@ msgstr "Mes clients doivent sentir qu’ils réservent quelqu’un d’établi. 
 #, elixir-autogen, elixir-format
 msgid "When someone books me, I want them to feel the atmosphere first: motion, mood, then a time."
 msgstr "Quand quelqu’un me réserve, je veux qu’il ressente d’abord l’atmosphère : le mouvement, l’ambiance, puis un créneau."
+
+#: lib/tymeslot/theme_customizations/assets.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid captions file. Please upload a WebVTT (.vtt) file."
+msgstr "Fichier de sous-titres non valide. Veuillez téléverser un fichier WebVTT (.vtt)."

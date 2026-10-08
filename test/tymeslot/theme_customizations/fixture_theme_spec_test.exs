@@ -47,11 +47,12 @@ defmodule Tymeslot.Test.FixtureThemeSpecTest do
       assert Keyword.has_key?(changeset.errors, :fixture_emblem_shape)
     end
 
-    test "the generated asset fields are the emblem's image and the two clips" do
+    test "the generated asset fields are the emblem's image, the two clips and the captions" do
       assert FixtureThemeSpec.asset_fields() == [
                fixture_emblem_path: :image,
                fixture_intro_clip_path: :video,
-               fixture_outro_clip_path: :video
+               fixture_outro_clip_path: :video,
+               fixture_intro_captions_path: :captions
              ]
     end
 

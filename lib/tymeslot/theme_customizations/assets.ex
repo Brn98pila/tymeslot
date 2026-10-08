@@ -47,8 +47,10 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
     end
   end
 
-  defp attach(:image, profile_id, theme_id, {group, field}, upload) do
-    with {:ok, path} <- store(:image, profile_id, theme_id, upload) do
+  # Images and captions are served as stored; only a video is transcoded.
+  defp attach(kind, profile_id, theme_id, {group, field}, upload)
+       when kind in [:image, :captions] do
+    with {:ok, path} <- store(kind, profile_id, theme_id, upload) do
       save(profile_id, theme_id, path, Specs.upload_changes(group, field, path))
     end
   end
@@ -80,6 +82,13 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
          dgettext(
            "dashboard_appearance",
            "Invalid video format. Please upload a valid video file."
+         )}
+
+      {:error, :invalid_captions_format} ->
+        {:error,
+         dgettext(
+           "dashboard_appearance",
+           "Invalid captions file. Please upload a WebVTT (.vtt) file."
          )}
 
       {:error, _reason} ->

@@ -1,25 +1,24 @@
 defmodule TymeslotWeb.Test.FixtureTheme.ClipsPanel do
   @moduledoc """
   The fixture theme's dashboard panel for its `Clips` group: one upload form
-  per clip, each sending `upload_asset` with its field, as the emblem's
-  upload does. It keeps no UI state, so the `Panel` defaults stand.
+  per clip and one for the intro's captions, each sending `upload_asset` with
+  its field, as the emblem's upload does. It keeps no UI state, so the
+  `Panel` defaults stand.
   """
   use Phoenix.Component
   use TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panel
 
   alias TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Panel
 
-  @fields [:fixture_intro_clip_path, :fixture_outro_clip_path]
+  @clip_fields [:fixture_intro_clip_path, :fixture_outro_clip_path, :fixture_intro_captions_path]
 
   @impl Panel
   def render(assigns) do
-    assigns = assign(assigns, :fields, Enum.filter(@fields, &upload?(assigns, &1)))
-
     ~H"""
     <div data-testid="fixture-clips-panel">
       <p>Clips</p>
       <form
-        :for={field <- @fields}
+        :for={field <- declared(@uploads)}
         id={"fixture-clip-upload-#{field}"}
         phx-change="upload_asset"
         phx-submit="upload_asset"
@@ -34,5 +33,6 @@ defmodule TymeslotWeb.Test.FixtureTheme.ClipsPanel do
     """
   end
 
-  defp upload?(assigns, field), do: Map.has_key?(assigns[:uploads] || %{}, field)
+  # The fields the dashboard declared an upload for.
+  defp declared(uploads), do: Enum.filter(@clip_fields, &Map.has_key?(uploads || %{}, &1))
 end

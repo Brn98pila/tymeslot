@@ -42,7 +42,7 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
 
   # Everything the test-only themes add that a shared module could name,
   # their ids among them as quoted literals.
-  @fixture_names ~r/FixtureTheme|fixture_emblem|EmblemPanel|ClipsPanel|fixture_intro_clip|fixture_outro_clip|:fixture\b|ShowcaseTheme|:showcase\b|JourneyFixture|:fixture_(scroll|talk|express)\b|#{Regex.escape(~s("99"))}|#{Regex.escape(~s("97"))}|#{Regex.escape(~s("96"))}|#{Regex.escape(~s("95"))}|#{Regex.escape(~s("94"))}/
+  @fixture_names ~r/FixtureTheme|fixture_emblem|EmblemPanel|ClipsPanel|fixture_intro_clip|fixture_outro_clip|fixture_intro_captions|:fixture\b|ShowcaseTheme|:showcase\b|JourneyFixture|:fixture_(scroll|talk|express)\b|#{Regex.escape(~s("99"))}|#{Regex.escape(~s("97"))}|#{Regex.escape(~s("96"))}|#{Regex.escape(~s("95"))}|#{Regex.escape(~s("94"))}/
 
   setup :verify_on_exit!
 
@@ -185,7 +185,7 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
     test "gets an upload form per clip in the second group's panel", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/dashboard/theme/customize/#{@theme_id}")
 
-      for field <- ~w(fixture_intro_clip_path fixture_outro_clip_path) do
+      for field <- ~w(fixture_intro_clip_path fixture_outro_clip_path fixture_intro_captions_path) do
         assert has_element?(
                  view,
                  "[data-testid='fixture-clips-panel'] #fixture-clip-upload-#{field} input[type='file']"
@@ -319,6 +319,36 @@ defmodule TymeslotWeb.Themes.ThemeOpennessTest do
       saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, @theme_id)
       assert saved.settings["fixture_emblem_path"] =~ ~r{^themes/#{profile.id}/99/images/}
       refute Map.has_key?(saved.settings, "background_type")
+    end
+
+    # LiveView accepts only an extension MIME knows, so a `.vtt` upload
+    # reaching the save proves the type is registered.
+    test "uploads captions through the theme's own panel in the dashboard", %{conn: conn} do
+      {:ok, ctx} = setup_dashboard_user_with_theme(%{conn: conn}, @theme_id)
+      %{conn: conn, profile: profile} = Map.new(ctx)
+      {:ok, view, _html} = live(conn, ~p"/dashboard/theme/customize/#{@theme_id}")
+
+      captions = %{
+        last_modified: System.system_time(:millisecond),
+        name: "intro.vtt",
+        content: "WEBVTT\n\n00:00.000 --> 00:02.000\nHello\n",
+        type: "text/vtt"
+      }
+
+      view
+      |> file_input(
+        "#fixture-clip-upload-fixture_intro_captions_path",
+        :fixture_intro_captions_path,
+        [captions]
+      )
+      |> render_upload("intro.vtt")
+
+      assert_push_event(view, "upload-complete", %{})
+
+      saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, @theme_id)
+
+      assert saved.settings["fixture_intro_captions_path"] =~
+               ~r{^themes/#{profile.id}/99/captions/}
     end
 
     # `render_upload/2` consumes through the progress callback (above). To reach
