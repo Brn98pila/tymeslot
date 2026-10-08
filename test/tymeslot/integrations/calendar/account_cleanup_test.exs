@@ -157,6 +157,30 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanupTest do
     assert AccountCleanup.run(user.id) == :ok
   end
 
+  test "a Google calendar with no token is left without a revoke call or a warning" do
+    user = insert(:user)
+
+    oauth_calendar(user, %{
+      provider: "google",
+      access_token_encrypted: nil,
+      refresh_token_encrypted: nil
+    })
+
+    test_pid = self()
+
+    stub(Tymeslot.HTTPClientMock, :post, fn url, _body, _headers, _opts ->
+      send(test_pid, {:unexpected_call, url})
+      {:ok, %Req.Response{status: 200, body: ""}}
+    end)
+
+    LogCapture.attach(level: :warning)
+
+    assert AccountCleanup.run(user.id) == :ok
+
+    refute_received {:unexpected_call, _url}
+    refute_received {:captured_log, %{meta: %{step: :revoke_grant}}}
+  end
+
   test "makes no call for a CalDAV calendar" do
     user = insert(:user)
     insert(:calendar_integration, user: user, provider: "caldav")

@@ -69,8 +69,13 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanup do
     kind, reason -> log_outcome({:error, {kind, reason}}, integration, name)
   end
 
-  defp revoke_grant(integration),
-    do: GoogleTokenRevocation.revoke(integration.refresh_token || integration.access_token)
+  defp revoke_grant(integration) do
+    case integration.refresh_token || integration.access_token do
+      # A row with no token holds no grant to revoke.
+      token when token in [nil, ""] -> :ok
+      token -> GoogleTokenRevocation.revoke(token)
+    end
+  end
 
   defp log_outcome(:ok, _integration, _step), do: :ok
 
