@@ -65,10 +65,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
     swap_env(:outlook_calendar_api_module, OutlookAPI)
 
     user = insert(:user, onboarding_completed_at: DateTime.utc_now())
-    _profile = insert(:profile, user: user, timezone: "Etc/UTC")
+    profile = insert(:profile, user: user, timezone: "Etc/UTC")
     conn = conn |> Test.init_test_session(%{}) |> fetch_session() |> log_in_user(user)
 
-    {:ok, conn: conn, user: user}
+    {:ok, conn: conn, user: user, profile: profile}
   end
 
   # The series started two weeks ago, so today's occurrence is not its first,
@@ -429,7 +429,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
   end
 
   describe "a repeat rule given to a one-off CalDAV event" do
-    setup %{user: user} do
+    setup %{user: user, profile: profile} do
+      profile |> Changeset.change(timezone: "Europe/Berlin") |> Repo.update!()
+
       integration =
         insert(:calendar_integration,
           user: user,
@@ -456,7 +458,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
           start_at: start_at,
           end_at: DateTime.add(start_at, 1, :hour),
           all_day: false,
-          timezone: "Europe/Berlin",
+          # Sync stores UTC for an event written with UTC times, as Tymeslot
+          # writes every one-off.
+          timezone: "Etc/UTC",
           etag: "\"etag-1\"",
           raw_ical:
             Enum.join(
@@ -481,8 +485,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
     end
 
     # As a series it keeps its local time across DST only if it is written in
-    # its zone: RFC 5545 expands a rule in DTSTART's zone.
-    test "writes the new series in the event's own zone", %{conn: conn, event: event} do
+    # a zone: RFC 5545 expands a rule in DTSTART's zone. The event's own zone
+    # is UTC, which keeps no local time, so the organiser's is used.
+    test "writes the new series in the organiser's zone", %{conn: conn, event: event} do
       expect_puts(1)
       {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
 

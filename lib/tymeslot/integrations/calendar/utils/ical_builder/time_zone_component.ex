@@ -63,13 +63,21 @@ defmodule Tymeslot.Integrations.Calendar.ICalBuilder.TimeZoneComponent do
   def series_zone(
         %{series_timezone: zone, recurrence_rule: rule, start_time: %DateTime{} = start} = event
       )
-      when is_binary(zone) and zone not in @utc_zones and is_binary(rule) and rule != "" do
-    if Map.get(event, :all_day) != true and
+      when is_binary(zone) and is_binary(rule) and rule != "" do
+    if Map.get(event, :all_day) != true and not utc_zone?(zone) and
          match?({:ok, _local}, DateTime.shift_zone(start, zone)),
        do: zone
   end
 
   def series_zone(_event), do: nil
+
+  @doc """
+  Whether `zone` is one of the names for UTC. An event synced from a
+  document written in UTC carries such a zone, which says nothing about the
+  local time its series was meant to keep.
+  """
+  @spec utc_zone?(String.t()) :: boolean()
+  def utc_zone?(zone), do: zone in @utc_zones
 
   @doc """
   The `VTIMEZONE` lines for `event`'s series in `zone`, over the span the

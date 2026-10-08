@@ -162,6 +162,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.SharedToUtcTest do
       assert Shared.recurrence_timezone(%{}, "Europe/Tallinn") == "Europe/Tallinn"
     end
 
+    # Sync stores UTC for any event written with UTC times, which says how it
+    # was written rather than which local time it keeps.
+    test "an event carrying UTC falls back to the organiser's" do
+      for zone <- ["Etc/UTC", "UTC", "GMT"] do
+        assert Shared.recurrence_timezone(%{timezone: zone}, "Europe/Tallinn") == "Europe/Tallinn"
+      end
+    end
+
     test "no event at all falls back to the organiser's" do
       assert Shared.recurrence_timezone(nil, "Europe/Tallinn") == "Europe/Tallinn"
     end
