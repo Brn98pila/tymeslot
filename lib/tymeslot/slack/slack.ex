@@ -15,12 +15,20 @@ defmodule Tymeslot.Slack do
   require Logger
 
   alias Tymeslot.Features
-  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings.SeatView
   alias Tymeslot.Notifications.Channel
   alias Tymeslot.Notifications.EventTypes
   alias Tymeslot.Repo
-  alias Tymeslot.Slack.{API, MessageBuilder, OAuth, SlackIntegrationSchema, SlackQueries}
+
+  alias Tymeslot.Slack.{
+    AccountCleanup,
+    API,
+    MessageBuilder,
+    OAuth,
+    SlackIntegrationSchema,
+    SlackQueries
+  }
+
   alias Tymeslot.Workers.SlackWorker
 
   @impl Tymeslot.Security.EncryptedStorage
@@ -44,64 +52,12 @@ defmodule Tymeslot.Slack do
     SlackQueries.get_integration(id, user_id)
   end
 
-  # ============================================================================
-  # Account deletion
-  # ============================================================================
-
   @doc """
   Revokes the bot token of every Slack workspace the user connected, for an
-  account being deleted. Webhook-only integrations hold no token and are
-  skipped. Best-effort and independent per integration: one that cannot be
-  read or revoked is logged and the rest are still handled.
-
-  Slack issues one bot token per workspace for the app, so a workspace that
-  another account has also connected keeps its token: revoking it would cut
-  that account's integration off too. Only the last account to leave a
-  workspace revokes it; the deleted account's copy goes with its rows.
+  account being deleted (see `Tymeslot.Slack.AccountCleanup`).
   """
   @spec revoke_tokens_for_user(integer()) :: :ok
-  def revoke_tokens_for_user(user_id) do
-    user_id
-    |> SlackQueries.list_integrations()
-    |> Enum.reject(&workspace_shared?/1)
-    |> Enum.each(&revoke_token/1)
-  end
-
-  defp workspace_shared?(%SlackIntegrationSchema{team_id: team_id, user_id: user_id})
-       when is_binary(team_id),
-       do: SlackQueries.workspace_token_shared?(team_id, user_id)
-
-  defp workspace_shared?(_no_workspace), do: false
-
-  defp revoke_token(%SlackIntegrationSchema{} = integration) do
-    with {:ok, token} <- resolve_bot_token(integration),
-         {:error, reason} <- API.revoke_token(token) do
-      log_revocation_failure(integration, reason)
-    end
-
-    :ok
-  rescue
-    exception ->
-      log_revocation_failure(integration, exception,
-        exception: inspect(exception.__struct__),
-        stacktrace: LogFormat.stacktrace(__STACKTRACE__)
-      )
-  catch
-    kind, reason -> log_revocation_failure(integration, {kind, reason})
-  end
-
-  defp log_revocation_failure(integration, reason, extra \\ []) do
-    Logger.warning(
-      "Account deletion: Slack token revocation failed; carrying on",
-      [
-        integration_id: integration.id,
-        user_id: integration.user_id,
-        reason: LogFormat.reason(reason)
-      ] ++ extra
-    )
-
-    :ok
-  end
+  defdelegate revoke_tokens_for_user(user_id), to: AccountCleanup, as: :run
 
   @spec create_integration(integer(), map()) ::
           {:ok, SlackIntegrationSchema.t()}
