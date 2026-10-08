@@ -353,7 +353,7 @@ defmodule Tymeslot.Integrations.CalendarTest do
     end
 
     test "sets a durable override for a meeting", %{user: user} do
-      meeting = insert(:meeting)
+      meeting = insert(:meeting, organizer_user_id: user.id)
 
       assert {:ok, _override} = Calendar.set_event_colour(user.id, {:meeting, meeting.id}, "sage")
       assert Calendar.overrides_for(user.id) == %{{:meeting, meeting.id} => "sage"}
@@ -361,33 +361,47 @@ defmodule Tymeslot.Integrations.CalendarTest do
   end
 
   describe "set_event_colour cross-tenant safety" do
-    test "an override targeting another user's integration is scoped to the setter, never the target owner" do
+    test "an override targeting another user's integration is refused and stores nothing" do
       user_a = insert(:user)
       user_b = insert(:user)
       integ_b = insert(:calendar_integration, user: user_b)
 
-      assert {:ok, _override} =
+      assert {:error, :not_found} =
                Calendar.set_event_colour(user_a.id, {:external, integ_b.id, "uid-x"}, "blueberry")
 
+      assert Calendar.overrides_for(user_a.id) == %{}
       assert Calendar.overrides_for(user_b.id) == %{}
+      refute_enqueued(worker: ColourWriteBackWorker)
+    end
 
-      assert Calendar.overrides_for(user_a.id) ==
+    test "an override targeting another user's meeting is refused and stores nothing" do
+      user_a = insert(:user)
+      user_b = insert(:user)
+      meeting = insert(:meeting, organizer_user_id: user_b.id, organizer_email: user_b.email)
+
+      assert {:error, :not_found} =
+               Calendar.set_event_colour(user_a.id, {:meeting, meeting.id}, "sage")
+
+      assert Calendar.overrides_for(user_a.id) == %{}
+      assert Calendar.overrides_for(user_b.id) == %{}
+    end
+
+    test "clearing another user's override is refused and leaves it in place" do
+      user_a = insert(:user)
+      user_b = insert(:user)
+      integ_b = insert(:calendar_integration, user: user_b)
+
+      {:ok, _override} =
+        Calendar.set_event_colour(user_b.id, {:external, integ_b.id, "uid-x"}, "blueberry")
+
+      assert {:error, :not_found} =
+               Calendar.clear_event_colour(user_a.id, {:external, integ_b.id, "uid-x"})
+
+      assert Calendar.overrides_for(user_b.id) ==
                %{{:external, integ_b.id, "uid-x"} => "blueberry"}
     end
 
-    test "an override targeting another user's meeting is scoped to the setter, never the owner" do
-      user_a = insert(:user)
-      user_b = insert(:user)
-      meeting = insert(:meeting, organizer_email: user_b.email)
-
-      assert {:ok, _override} =
-               Calendar.set_event_colour(user_a.id, {:meeting, meeting.id}, "sage")
-
-      assert Calendar.overrides_for(user_b.id) == %{}
-      assert Calendar.overrides_for(user_a.id) == %{{:meeting, meeting.id} => "sage"}
-    end
-
-    test "write-back for a foreign integration is not authorised" do
+    test "a write-back job for a foreign integration is discarded before reading its events" do
       user_a = insert(:user)
       user_b = insert(:user)
       integ_b = insert(:calendar_integration, user: user_b, provider: "google")
@@ -398,26 +412,13 @@ defmodule Tymeslot.Integrations.CalendarTest do
         provider: "google"
       )
 
-      assert {:ok, _override} =
-               Calendar.set_event_colour(user_a.id, {:external, integ_b.id, "uid-x"}, "blueberry")
-
-      # The write-back job carries the *setter's* user_id, not the target
-      # owner's. When it runs, `Calendar.Events.update_event/3` resolves the
-      # provider client via `fetch_integration_for_user(integration_id, user_id)`,
-      # which returns `:not_found` for an integration the setter does not own
-      # (see the "returns error when belongs to another user" test above), so the
-      # foreign write-back is rejected at the real authorisation gate. That gate
-      # is bypassed here because the calendar module is mocked, so we assert the
-      # observable contract instead: the job is scoped to the setter.
-      assert_enqueued(
-        worker: ColourWriteBackWorker,
-        args: %{
-          "user_id" => user_a.id,
-          "integration_id" => integ_b.id,
-          "uid" => "uid-x",
-          "colour" => "blueberry"
-        }
-      )
+      assert {:discard, :not_owned} =
+               perform_job(ColourWriteBackWorker, %{
+                 "user_id" => user_a.id,
+                 "integration_id" => integ_b.id,
+                 "uid" => "uid-x",
+                 "colour" => "blueberry"
+               })
     end
   end
 
