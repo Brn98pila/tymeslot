@@ -4,7 +4,7 @@ defmodule Tymeslot.Auth.AccountDeletion do
 
   Runs the external-cleanup hook (e.g. SaaS subscription cancellation) before
   any DB change and, once that succeeds, runs the cross-domain
-  anonymise-then-delete transaction spanning `Auth` and `MeetingPayments`,
+  anonymise-then-delete transaction spanning `Auth` and the payment records,
   then removes the files the deleted rows pointed at.
   """
 
@@ -12,9 +12,9 @@ defmodule Tymeslot.Auth.AccountDeletion do
 
   alias Tymeslot.Auth.AccountDeletion.Hook
   alias Tymeslot.Auth.{Session, UserQueries, UserSchema, UserSessionQueries}
+  alias Tymeslot.FinancialRetention
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Jobs
-  alias Tymeslot.MeetingPayments
   alias Tymeslot.Profiles
   alias Tymeslot.Repo
   alias Tymeslot.ThemeCustomizations
@@ -27,7 +27,7 @@ defmodule Tymeslot.Auth.AccountDeletion do
   intact. We never destroy a user while external state that keeps costing
   them money (an active subscription) could not be cancelled.
 
-  On success, runs `Tymeslot.MeetingPayments.anonymise_host/1` before the
+  On success, runs `Tymeslot.FinancialRetention.anonymise_host/1` before the
   delete so booking-payment and payment-transaction rows are scrubbed and
   marked retained. The ordering is what guarantees survival: anonymisation
   nils the host reference on each row (`booking_payments.host_user_id` is a
@@ -85,7 +85,7 @@ defmodule Tymeslot.Auth.AccountDeletion do
     Repo.transaction(fn ->
       with :ok <- confirm_due_for_deletion(user.id, Keyword.get(opts, :only_if_pending, false)),
            session_hashes = UserSessionQueries.list_user_session_token_hashes(user.id),
-           :ok <- MeetingPayments.anonymise_host(user.id),
+           :ok <- FinancialRetention.anonymise_host(user.id),
            {:ok, deleted} <- UserQueries.delete_user_row(user) do
         clear_pending_jobs(user.id, Keyword.get(opts, :meeting_ids))
         {deleted, session_hashes}
