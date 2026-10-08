@@ -444,6 +444,20 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   end
 
   @doc """
+  Sets the integration inactive, never the other way round: the write forces
+  `is_active` to false whatever the struct says, so a stale struct cannot turn
+  a pause into a no-op or a reactivation.
+  """
+  @spec deactivate(CalendarIntegrationSchema.t()) ::
+          {:ok, CalendarIntegrationSchema.t()} | {:error, Changeset.t()}
+  def deactivate(%CalendarIntegrationSchema{} = integration) do
+    integration
+    |> Changeset.change()
+    |> Changeset.force_change(:is_active, false)
+    |> Repo.update()
+  end
+
+  @doc """
   Toggles the active status of an integration.
 
   When reactivating, checks that no other active integration exists for the same

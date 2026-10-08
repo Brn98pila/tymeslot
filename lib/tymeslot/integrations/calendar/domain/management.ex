@@ -184,7 +184,7 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   `Tymeslot.Integrations.Calendar.PrimaryElection`), under the same lock as
   a user's own toggle. For the system pausing an unhealthy integration.
 
-  An integration already inactive is left alone and returned as it is.
+  An integration already inactive stays inactive.
   """
   @spec pause_integration(CalendarIntegrationSchema.t()) ::
           {:ok, CalendarIntegrationSchema.t()} | {:error, any()}
@@ -193,7 +193,7 @@ defmodule Tymeslot.Integrations.CalendarManagement do
       primary_id = PrimaryElection.stored_primary_id(integration.user_id)
 
       # Only ever `false`: whatever the struct says, this never activates.
-      case CalendarIntegrationQueries.update(integration, %{is_active: false}) do
+      case CalendarIntegrationQueries.deactivate(integration) do
         {:ok, %{id: id, user_id: user_id} = paused} when id == primary_id ->
           PrimaryElection.elect_next(user_id, [id])
           paused

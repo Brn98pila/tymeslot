@@ -93,6 +93,24 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
     end
   end
 
+  describe "pausing a calendar" do
+    test "pauses the primary read before it was switched back on, and hands the role on",
+         %{user: user} do
+      other = insert(:calendar_integration, user: user, provider: "caldav")
+
+      primary =
+        insert(:calendar_integration, user: user, provider: "caldav", is_active: true)
+
+      {:ok, _profile} = ProfileQueries.set_primary_calendar_integration(user.id, primary.id)
+
+      assert {:ok, _paused} =
+               CalendarManagement.pause_integration(%{primary | is_active: false})
+
+      refute Repo.reload!(primary).is_active
+      assert stored_primary_id(user) == other.id
+    end
+  end
+
   describe "an Exchange mailbox as primary" do
     # This block pinned the opposite until the EWS write path landed: an
     # Exchange mailbox was read-only, so it was refused as a primary and
