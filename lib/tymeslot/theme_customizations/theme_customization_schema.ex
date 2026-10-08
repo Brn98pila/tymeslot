@@ -4,9 +4,11 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchema do
 
   The options a theme offers live in `settings`, a string-keyed map whose keys
   are the ones the theme's customisation spec declares
-  (`Tymeslot.ThemeCustomizations.Specs.setting_types/1`). `video_processing`
-  stays a column of its own: the transcoding worker writes it directly, outside
-  the spec.
+  (`Tymeslot.ThemeCustomizations.Specs.setting_types/1`). The video
+  processing state is a column of its own, outside the spec, written by the
+  upload and the transcoding worker: `video_processing_status`, keyed by asset
+  field name. `video_processing` is the state's previous, single-video column,
+  still written until the writers move to the map.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -23,6 +25,7 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchema do
           theme_id: String.t() | nil,
           settings: Spec.settings() | nil,
           video_processing: String.t() | nil,
+          video_processing_status: %{optional(String.t()) => String.t()},
           profile: ProfileSchema.t() | Ecto.Association.NotLoaded.t() | nil,
           inserted_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
@@ -34,6 +37,7 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchema do
     field(:theme_id, :string)
     field(:settings, :map, default: %{})
     field(:video_processing, :string)
+    field(:video_processing_status, :map, default: %{})
 
     belongs_to(:profile, ProfileSchema, foreign_key: :profile_id)
 
