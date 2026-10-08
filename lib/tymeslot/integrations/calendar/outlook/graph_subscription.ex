@@ -32,19 +32,12 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
   alias Tymeslot.Integrations.Calendar.HTTP
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI
+  alias Tymeslot.Integrations.Calendar.Outlook.Paging
   alias Tymeslot.Integrations.Calendar.Outlook.Provider, as: OutlookProvider
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.Tokens
 
-  @max_delta_pages 50
-
   @delta_path "/me/calendarView/delta"
-
-  # Microsoft Graph rejects these query parameters on the `calendarView/delta`
-  # change-tracking resource with HTTP 400 `ErrorInvalidUrlQuery`. They must
-  # never appear on either the initial request or on any follow-up URL
-  # (`@odata.nextLink`, `@odata.deltaLink`) that we reuse.
-  @unsupported_delta_params ~w($orderby $filter $select $expand $search)
 
   @doc """
   Fetches the initial `events/delta` snapshot, normalises and persists the
@@ -161,7 +154,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
   #
   #   * `{:ok, result}` — a success. The breaker passes `{:ok, _}` returns
   #     through untouched and wraps any other non-error shape in `{:ok, _}`, so
-  #     `fetch_delta_page/5`'s 3-tuple success arrives as
+  #     `Paging.delta_all/2`'s 3-tuple success arrives as
   #     `{:ok, {:ok, events, link}}`.
   #   * `{:error, type, message}` — a `CalendarAPI` error (an HTTP error status
   #     or a transport failure), passed through unwrapped. Older breaker
@@ -169,8 +162,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
   #     `unwrap_breaker_result/1` folds that form into this one.
   #   * `{:error, :circuit_open}` — the breaker refused the call.
   #   * `{:error, reason}` — any other failure: `:breaker_not_found`, an
-  #     exception the breaker rescued (`{:error, %RuntimeError{}}`), or a plain
-  #     2-tuple error from the wrapped function (`:pagination_limit_exceeded`).
+  #     exception the breaker rescued (`{:error, %RuntimeError{}}`).
   #
   # Every error shape must fall through to the caller as it is: matching only
   # the ones expected turns the rest into a `CaseClauseError` that crashes it.
@@ -304,7 +296,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
   defp fetch_initial_delta(token) do
     result =
       CalendarCircuitBreaker.call(:outlook, fn ->
-        fetch_delta_page(token, @delta_path, initial_delta_params(), [])
+        Paging.delta_all(token, {:start, @delta_path, initial_delta_params()})
       end)
 
     case unwrap_breaker_result(result) do
@@ -313,41 +305,6 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
 
       error ->
         error
-    end
-  end
-
-  defp fetch_delta_page(token, path, params, accumulated, page \\ 1) do
-    if page > @max_delta_pages do
-      Logger.warning("Outlook delta pagination limit reached", pages: page)
-      {:error, :pagination_limit_exceeded}
-    else
-      with {:ok, response} <- CalendarAPI.make_request(:get, path, token, params) do
-        events = accumulated ++ (response["value"] || [])
-
-        cond do
-          delta_link = response["@odata.deltaLink"] ->
-            {:ok, events, delta_link}
-
-          next_link = response["@odata.nextLink"] ->
-            next_uri = URI.parse(next_link)
-
-            next_params =
-              (next_uri.query || "")
-              |> URI.decode_query()
-              |> drop_unsupported_delta_params()
-
-            fetch_delta_page(
-              token,
-              strip_api_version_prefix(next_uri.path),
-              next_params,
-              events,
-              page + 1
-            )
-
-          true ->
-            {:ok, events, nil}
-        end
-      end
     end
   end
 
@@ -364,20 +321,6 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
       "endDateTime" => DateTime.to_iso8601(end_time)
     }
   end
-
-  defp drop_unsupported_delta_params(params) do
-    Map.reject(params, fn {key, _value} ->
-      String.downcase(to_string(key)) in @unsupported_delta_params
-    end)
-  end
-
-  # `@odata.nextLink` comes back as an absolute URL whose path starts with the
-  # Graph API version segment (`/v1.0` or `/beta`). `CalendarAPI.make_request/4`
-  # already prepends the full base URL including the version, so we must strip
-  # it from the path to avoid hitting `/v1.0/v1.0/...`.
-  defp strip_api_version_prefix("/v1.0/" <> rest), do: "/" <> rest
-  defp strip_api_version_prefix("/beta/" <> rest), do: "/" <> rest
-  defp strip_api_version_prefix(path), do: path
 
   defp parse_iso8601_datetime(nil), do: nil
 

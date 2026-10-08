@@ -212,9 +212,9 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscriptionTest do
 
     test "returns an error tuple when Graph paginates past the page limit",
          %{integration: integration} do
-      # Every page carries a nextLink and never a deltaLink, so pagination runs
-      # into @max_delta_pages. `fetch_delta_page/5` reports that as a plain
-      # 2-tuple, which the breaker passes straight through.
+      # Every page carries a nextLink and never a deltaLink, so the read runs
+      # into `Outlook.Paging`'s page cap, the same answer every Graph read
+      # gives past it.
       on_exit(fn -> CalendarCircuitBreaker.reset(:outlook) end)
 
       stub(Tymeslot.HTTPClientMock, :request, fn :get, _url, _body, _headers, _opts ->
@@ -230,7 +230,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscriptionTest do
          }}
       end)
 
-      assert {:error, :pagination_limit_exceeded} = GraphSubscription.bootstrap_sync(integration)
+      assert {:error, :too_many_pages, _message} = GraphSubscription.bootstrap_sync(integration)
     end
 
     test "does not require :webhook_base_url to be configured",

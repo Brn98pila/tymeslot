@@ -13,6 +13,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
   alias Tymeslot.Integrations.Calendar.Outlook.EventMapper
   alias Tymeslot.Integrations.Calendar.Outlook.GraphStatus
   alias Tymeslot.Integrations.Calendar.Outlook.GraphSubscription
+  alias Tymeslot.Integrations.Calendar.Outlook.Paging
   alias Tymeslot.Integrations.Calendar.Outlook.TymeslotFingerprint
   alias Tymeslot.Integrations.Calendar.Shared.ApiResponse
   alias Tymeslot.Integrations.Calendar.Tokens
@@ -25,11 +26,6 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
     {"Content-Type", "application/json"},
     {"Prefer", "outlook.calendar-update.disableNotifications"}
   ]
-
-  # Graph pages a list read and links the next page as `@odata.nextLink`. At
-  # 1,000 events a page this cap is far past any real calendar's window; it
-  # only stops a link that never ends.
-  @max_pages 50
 
   # Fields the event-driven sync workers need to normalise a single event.
   # `originalStartTimeZone` is the event's own zone: with `Prefer:
@@ -62,7 +58,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
     }
 
     Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
-      list_all_pages("/me/calendars", token, params)
+      Paging.list_all(token, "/me/calendars", params)
     end)
   end
 
@@ -441,32 +437,6 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
     make_request(:get, event_path(event_id), token, params)
   end
 
-  @doc """
-  Fetches one page of a Graph delta query.
-
-  `url` is the full delta or next link exactly as returned by Graph
-  (delta links are absolute URLs, not paths). Returns the decoded page map
-  (`"value"`, `"@odata.nextLink"`, `"@odata.deltaLink"`), or
-  `{:error, :delta_link_expired, message}` when Graph reports 410 Gone and
-  the stored link must be re-bootstrapped.
-  """
-  @spec get_delta_page(String.t(), String.t()) ::
-          {:ok, map()} | api_error() | {:error, :delta_link_expired, String.t()}
-  def get_delta_page(token, url) do
-    uri = URI.parse(url)
-    path = uri.path <> if(uri.query, do: "?" <> uri.query, else: "")
-
-    headers = [
-      {"Content-Type", "application/json"},
-      {"Prefer", "outlook.timezone=\"UTC\""}
-    ]
-
-    HTTP.request(:get, "https://graph.microsoft.com", path, token,
-      headers: headers,
-      response_handler: &handle_delta_response/1
-    )
-  end
-
   # HTTP plumbing — used internally and by GraphSubscription
 
   # Reads ask for UTC, and for bodies as plain text unless `body: :stored`.
@@ -515,19 +485,6 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
     ApiResponse.handle(response, path, label: "Outlook Calendar", custom: &GraphStatus.classify/1)
   end
 
-  defp handle_response(response) do
-    ApiResponse.handle(response, label: "Outlook Calendar", custom: &GraphStatus.classify/1)
-  end
-
-  # Delta queries share the standard response handling but additionally map
-  # 410 Gone — Graph's signal that the delta token is no longer valid and the
-  # caller must re-bootstrap.
-  defp handle_delta_response({:ok, %{status: 410}}) do
-    {:error, :delta_link_expired, "Delta link expired"}
-  end
-
-  defp handle_delta_response(response), do: handle_response(response)
-
   # Query helpers
 
   defp build_events_query_params(start_time, end_time) do
@@ -545,51 +502,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
 
   defp list_events_for_path(%CalendarIntegrationSchema{} = integration, path, params) do
     Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
-      list_all_pages(path, token, params)
+      Paging.list_all(token, path, params)
     end)
-  end
-
-  # Every page of a list read: `{:ok, items}` is the whole listing, never a
-  # truncated first page, since a missing page of busy events would offer
-  # bookings over real conflicts. A page that fails ends the read with its
-  # error, and so does the page cap.
-  defp list_all_pages(path, token, params) do
-    with {:ok, response} <- make_request(:get, path, token, params) do
-      follow_next_links(response, token, path, [], 1)
-    end
-  end
-
-  defp follow_next_links(response, token, path, pages, page) do
-    pages = [response["value"] || [] | pages]
-
-    case response["@odata.nextLink"] do
-      next when is_binary(next) and page >= @max_pages ->
-        {:error, :too_many_pages, "Listing #{path} exceeded #{@max_pages} pages"}
-
-      next when is_binary(next) ->
-        with {:ok, next_response} <- get_next_page(token, next) do
-          follow_next_links(next_response, token, path, pages, page + 1)
-        end
-
-      _no_more ->
-        {:ok, pages |> Enum.reverse() |> Enum.concat()}
-    end
-  end
-
-  # A next link is an absolute URL carrying the original query; the Prefer
-  # header is not part of it and is sent again, so later pages come back in
-  # UTC with plain-text bodies like the first.
-  defp get_next_page(token, url) do
-    uri = URI.parse(url)
-    path = uri.path <> if(uri.query, do: "?" <> uri.query, else: "")
-
-    HTTP.request(:get, "https://graph.microsoft.com", path, token,
-      headers: [
-        {"Content-Type", "application/json"},
-        {"Prefer", read_preference(:text)}
-      ],
-      response_handler: &handle_response/1
-    )
   end
 
   @doc """

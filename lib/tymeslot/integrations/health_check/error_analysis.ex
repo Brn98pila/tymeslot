@@ -87,6 +87,11 @@ defmodule Tymeslot.Integrations.HealthCheck.ErrorAnalysis do
       when reason in [:unauthorized, :invalid_credentials, :token_expired],
       do: :hard
 
+  # A read past Graph's or Google's page cap meets the same calendar, and the
+  # same cap, on every retry: waiting does not shorten it.
+  def classify_error(:too_many_pages), do: :hard
+  def classify_error({:too_many_pages, _message}), do: :hard
+
   def classify_error({:exception, message}) when is_binary(message),
     do: classify_error(message)
 
