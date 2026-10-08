@@ -4,11 +4,13 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchema do
 
   The options a theme offers live in `settings`, a string-keyed map whose keys
   are the ones the theme's customisation spec declares
-  (`Tymeslot.ThemeCustomizations.Specs.setting_types/1`). The video
-  processing state is a column of its own, outside the spec, written by the
-  upload and the transcoding worker: `video_processing_status`, keyed by asset
-  field name. `video_processing` is the state's previous, single-video column,
-  still written until the writers move to the map.
+  (`Tymeslot.ThemeCustomizations.Specs.setting_types/1`).
+  `video_processing_status` is a column of its own, outside the spec and
+  outside this changeset: the processing state of each uploaded video, keyed
+  by its asset field (`%{"background_video_path" => "completed"}`), written in
+  place by `ThemeCustomizationQueries.update_video_processing_status/3`. The
+  table's older `video_processing` column is no longer read; a later release
+  drops it.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -24,19 +26,15 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchema do
           profile_id: integer() | nil,
           theme_id: String.t() | nil,
           settings: Spec.settings() | nil,
-          video_processing: String.t() | nil,
           video_processing_status: %{optional(String.t()) => String.t()},
           profile: ProfileSchema.t() | Ecto.Association.NotLoaded.t() | nil,
           inserted_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
         }
 
-  @valid_video_processing_states ~w[pending completed failed]
-
   schema "theme_customizations" do
     field(:theme_id, :string)
     field(:settings, :map, default: %{})
-    field(:video_processing, :string)
     field(:video_processing_status, :map, default: %{})
 
     belongs_to(:profile, ProfileSchema, foreign_key: :profile_id)
@@ -53,9 +51,8 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchema do
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(theme_customization, attrs) do
     theme_customization
-    |> cast(attrs, [:profile_id, :theme_id, :video_processing])
+    |> cast(attrs, [:profile_id, :theme_id])
     |> validate_required([:profile_id, :theme_id])
-    |> validate_inclusion(:video_processing, @valid_video_processing_states)
     |> apply_theme_spec(attrs)
     |> foreign_key_constraint(:profile_id)
     |> unique_constraint([:profile_id, :theme_id])

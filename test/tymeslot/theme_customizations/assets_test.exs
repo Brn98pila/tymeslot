@@ -129,7 +129,7 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
 
       assert customization.settings["background_type"] == "video"
       assert customization.settings["background_value"] == "custom"
-      assert customization.video_processing == "pending"
+      assert customization.video_processing_status == %{"background_video_path" => "pending"}
 
       assert File.exists?(
                Storage.build_theme_file_path(customization.settings["background_video_path"])
@@ -139,6 +139,7 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
         worker: VideoTranscoder,
         args: %{
           theme_customization_id: customization.id,
+          field: "background_video_path",
           video_path: customization.settings["background_video_path"]
         }
       )
