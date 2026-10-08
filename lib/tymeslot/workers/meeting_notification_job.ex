@@ -35,28 +35,30 @@ defmodule Tymeslot.Workers.MeetingNotificationJob do
           | {:error, :feature_access_checker_failed}
 
   @doc """
-  Inserts a `worker` job for `args` (string keys, as stored), adding
-  `participant_id` when the event is about one seat of a group meeting.
+  Inserts a `worker` job for `args` (string keys, as stored) about one
+  meeting event, as `schedule/5` is called by each channel worker:
 
-  `unique_keys` names the args that identify one delivery; `participant_id`
-  joins them when present, since each seat is its own delivery. A conflict
-  with a delivery still waiting to run answers `:ok`, like a fresh insert.
+    * `participant_id` names the seat of a group meeting the event is about,
+      or is `nil` for a solo meeting. It is always written into the args and
+      always part of the uniqueness key, so a seat's delivery and the
+      meeting's own can never be taken for duplicates of each other.
+    * `unique_keys` names the other args that identify one delivery.
+    * `opts`: `:queue` (required) and `:priority` (default 2).
 
-  Options: `:queue` (required) and `:priority` (default 2).
+  A conflict with a delivery still waiting to run answers `:ok`, like a
+  fresh insert; Oban reports both as `{:ok, job}`.
   """
   @spec schedule(module(), map(), binary() | nil, [atom()], keyword()) :: :ok | {:error, term()}
   def schedule(worker, args, participant_id, unique_keys, opts) do
-    {args, keys} = put_participant(args, unique_keys, participant_id)
-
     job =
-      worker.new(args,
+      worker.new(Map.put(args, "participant_id", participant_id),
         queue: Keyword.fetch!(opts, :queue),
         priority: Keyword.get(opts, :priority, 2),
         unique: [
           period: :infinity,
           states: @pending_states,
           fields: @unique_fields,
-          keys: keys
+          keys: unique_keys ++ [:participant_id]
         ]
       )
 
@@ -65,11 +67,6 @@ defmodule Tymeslot.Workers.MeetingNotificationJob do
       {:error, reason} -> {:error, reason}
     end
   end
-
-  defp put_participant(args, keys, nil), do: {args, keys}
-
-  defp put_participant(args, keys, participant_id),
-    do: {Map.put(args, "participant_id", participant_id), keys ++ [:participant_id]}
 
   @doc """
   Loads the meeting a delivery describes. A seat's delivery (`participant_id`

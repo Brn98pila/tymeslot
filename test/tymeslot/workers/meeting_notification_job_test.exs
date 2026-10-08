@@ -50,6 +50,17 @@ defmodule Tymeslot.Workers.MeetingNotificationJobTest do
              |> Enum.sort() == Enum.sort([seat_a, seat_b])
     end
 
+    test "a delivery for one seat does not absorb the meeting's own delivery" do
+      seat = UUID.generate()
+
+      assert :ok = SlackWorker.schedule_delivery(7, "meeting.cancelled", "m-1", seat)
+      assert :ok = SlackWorker.schedule_delivery(7, "meeting.cancelled", "m-1")
+
+      assert all_enqueued(worker: SlackWorker)
+             |> Enum.map(& &1.args["participant_id"])
+             |> Enum.sort() == Enum.sort([seat, nil])
+    end
+
     test "a webhook duplicate with a different snapshot is its own delivery" do
       assert :ok = WebhookWorker.schedule_delivery(7, "meeting.rescheduled", "m-1", %{"a" => 1})
       assert :ok = WebhookWorker.schedule_delivery(7, "meeting.rescheduled", "m-1", %{"a" => 1})
