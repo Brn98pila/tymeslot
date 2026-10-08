@@ -168,7 +168,9 @@ defmodule TymeslotWeb.Dashboard.CalendarEventHandlers do
       original_event: payload[:original_event]
     )
 
-    {:noreply, put_flash(socket, :error, update_failed_message(payload[:reason]))}
+    # The inline edit announces its save up front, before the write runs.
+    {:noreply,
+     socket |> clear_flash(:info) |> put_flash(:error, update_failed_message(payload[:reason]))}
   end
 
   # A refusal the domain made names its own reason; everything else is a

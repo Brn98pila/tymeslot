@@ -90,6 +90,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.OneOffRuleUnsentLiveViewTest do
       timeout: 5_000
     )
 
+    # The save the inline edit announced up front is withdrawn with the error.
+    refute render(lv) =~ "Changes saved."
+
     stored = Repo.reload!(event)
     assert stored.sync_state == "synced"
     assert stored.recurrence_rule == nil
