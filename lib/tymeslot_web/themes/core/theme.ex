@@ -27,7 +27,10 @@ defmodule TymeslotWeb.Themes.Core.Theme do
       `TymeslotWeb.OnboardingLive.PreviewParts`;
     * `option_panels/0`, returning `:option_panels` (default `%{}`): the
       dashboard panels for the theme's own option groups,
-      `%{group_module => panel_module}`.
+      `%{group_module => panel_module}`;
+    * `voice/0`, returning `:voice` (default `nil`): the module implementing
+      `TymeslotWeb.Themes.Shared.Voice` that words the shared booking lines
+      for this theme; without one the theme keeps the shared wording.
 
   Every render callback is overridable; an override carries
   `@impl TymeslotWeb.Themes.Core.Behaviour` like any other callback. A
@@ -48,6 +51,7 @@ defmodule TymeslotWeb.Themes.Core.Theme do
     {description, domain} = translatable!(Keyword.fetch!(opts, :description))
     renders = renders(Keyword.get(opts, :page_shell), __CALLER__.module)
     option_panels = Keyword.get(opts, :option_panels, Macro.escape(%{}))
+    voice = Keyword.get(opts, :voice)
 
     quote do
       @behaviour TymeslotWeb.Themes.Core.Behaviour
@@ -73,6 +77,9 @@ defmodule TymeslotWeb.Themes.Core.Theme do
 
       @impl TymeslotWeb.Themes.Core.Behaviour
       def option_panels, do: unquote(option_panels)
+
+      @impl TymeslotWeb.Themes.Core.Behaviour
+      def voice, do: unquote(voice)
 
       defoverridable render_meeting_action: 2,
                      render_poll_action: 1,

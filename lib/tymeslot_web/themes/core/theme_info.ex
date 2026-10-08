@@ -100,6 +100,18 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfo do
     end
   end
 
+  @doc """
+  The voice of a theme (its `voice/0`), or `nil` for a theme without one and
+  for an id no theme has.
+  """
+  @spec get_voice(term()) :: module() | nil
+  def get_voice(id) do
+    case get_theme_module(id) do
+      nil -> nil
+      module -> module.voice()
+    end
+  end
+
   defp describe(theme) do
     theme
     |> Map.take([:id, :key, :name, :status])

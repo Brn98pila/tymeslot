@@ -73,5 +73,12 @@ defmodule TymeslotWeb.Themes.Core.Behaviour do
   """
   @callback option_panels() :: %{optional(module()) => module()}
 
+  @doc """
+  The module implementing `TymeslotWeb.Themes.Shared.Voice` that words the
+  shared booking lines for this theme, or `nil` for the shared wording (the
+  `:voice` option of `use TymeslotWeb.Themes.Core.Theme`).
+  """
+  @callback voice() :: module() | nil
+
   @optional_callbacks onboarding_preview: 1
 end

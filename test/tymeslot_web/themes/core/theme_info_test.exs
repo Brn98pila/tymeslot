@@ -5,6 +5,7 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfoTest do
   @moduletag :unit
 
   alias Tymeslot.Themes.Catalog
+  alias TymeslotWeb.Test.FixtureTheme.Voice, as: FixtureVoice
   alias TymeslotWeb.Themes.Core.ThemeInfo
   alias TymeslotWeb.Themes.Rhythm.Theme, as: Rhythm
 
@@ -26,6 +27,14 @@ defmodule TymeslotWeb.Themes.Core.ThemeInfoTest do
 
     test "is nil for an unknown id" do
       assert ThemeInfo.get_live_view_module("no-such-theme") == nil
+    end
+  end
+
+  describe "get_voice/1" do
+    test "is the voice the theme names, or nil" do
+      assert ThemeInfo.get_voice("99") == FixtureVoice
+      assert ThemeInfo.get_voice("1") == nil
+      assert ThemeInfo.get_voice("no-such-theme") == nil
     end
   end
 

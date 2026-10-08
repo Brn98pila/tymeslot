@@ -79,6 +79,8 @@ defmodule TymeslotWeb.Themes.Core.ThemeTest do
   @moduletag :themes
   @moduletag :unit
 
+  alias TymeslotWeb.Test.FixtureTheme.Theme, as: RegisteredFixture
+  alias TymeslotWeb.Test.FixtureTheme.Voice, as: FixtureVoice
   alias TymeslotWeb.Themes.Core.ThemeTest.Fixture.Theme, as: Fixture
   alias TymeslotWeb.Themes.Core.ThemeTest.Overriding.Theme, as: Overriding
 
@@ -145,6 +147,14 @@ defmodule TymeslotWeb.Themes.Core.ThemeTest do
              TymeslotWeb.Themes.Core.ThemeTest.Overriding.Group =>
                TymeslotWeb.Themes.Core.ThemeTest.Overriding.Panel
            }
+  end
+
+  test "voice/0 defaults to none" do
+    assert Fixture.voice() == nil
+  end
+
+  test "voice/0 returns the :voice option" do
+    assert RegisteredFixture.voice() == FixtureVoice
   end
 
   # The macro under test runs inside Code.compile_string/1, where the check
