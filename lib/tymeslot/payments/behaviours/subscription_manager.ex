@@ -28,4 +28,17 @@ defmodule Tymeslot.Payments.Behaviours.SubscriptionManager do
   Checks if branding should be shown for a user.
   """
   @callback should_show_branding?(user_id :: integer()) :: boolean()
+
+  @doc """
+  The subscription recorded for a Stripe customer, or `nil`. Core reads only
+  `user_id` from it, and hands it to the trial-ending email template.
+  """
+  @callback get_subscription_by_customer_id(stripe_customer_id :: String.t()) :: map() | nil
+
+  @doc """
+  The subscription recorded for a Stripe subscription id, or `nil`; as
+  `c:get_subscription_by_customer_id/1`.
+  """
+  @callback get_subscription_by_subscription_id(stripe_subscription_id :: String.t()) ::
+              map() | nil
 end
