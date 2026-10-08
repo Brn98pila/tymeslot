@@ -25,16 +25,28 @@ defmodule Tymeslot.Timezones.WindowsZonesTest do
       end
     end
 
-    # CLDR spells these the old way (`Asia/Calcutta`, `Asia/Saigon`).
+    # CLDR spells these the old way, `Asia/Saigon` and `America/Louisville`.
+    # Offsets alone would name `Altai Standard Time`, the first Windows zone
+    # at UTC+7, for Ho Chi Minh City.
     test "names CLDR's Windows zone for a zone CLDR knows by its old name" do
-      assert WindowsZones.from_iana("Asia/Kolkata", @start) == "India Standard Time"
       assert WindowsZones.from_iana("Asia/Ho_Chi_Minh", @start) == "SE Asia Standard Time"
+
+      assert WindowsZones.from_iana("America/Kentucky/Louisville", @start) ==
+               "Eastern Standard Time"
     end
 
-    # America/Montreal is a link CLDR does not list. Cuba keeps its offsets
-    # week by week but changes them at another hour, so it is not a match.
-    test "names a Windows zone changing its offsets at the same instants for a zone CLDR lacks" do
+    # Links CLDR does not list, to zones it does (`Europe/Istanbul`,
+    # `America/Toronto`). Offsets alone would name `Arab Standard Time`, the
+    # first Windows zone at UTC+3, for Istanbul.
+    test "names CLDR's Windows zone for a link to a zone CLDR knows" do
+      assert WindowsZones.from_iana("Asia/Istanbul", @start) == "Turkey Standard Time"
       assert WindowsZones.from_iana("America/Montreal", @start) == "Eastern Standard Time"
+    end
+
+    # Coyhaique left Chile's daylight saving in 2025 and CLDR 47 does not name
+    # it: the first Windows zone keeping UTC-3 all year answers.
+    test "names a Windows zone keeping the same offsets for a zone CLDR lacks" do
+      assert WindowsZones.from_iana("America/Coyhaique", @start) == "Argentina Standard Time"
     end
 
     test "returns a Windows zone name as given" do

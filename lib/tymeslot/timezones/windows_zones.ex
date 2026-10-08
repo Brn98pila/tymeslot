@@ -15,8 +15,6 @@ defmodule Tymeslot.Timezones.WindowsZones do
   all 140 Windows zones documented by Microsoft as of 2026.
   """
 
-  alias Tymeslot.Timezones.Data
-
   @windows_to_iana %{
     "AUS Central Standard Time" => "Australia/Darwin",
     "AUS Eastern Standard Time" => "Australia/Sydney",
@@ -173,21 +171,45 @@ defmodule Tymeslot.Timezones.WindowsZones do
 
   def to_iana(_other), do: nil
 
-  @iana_to_windows Map.new(@windows_to_iana, fn {windows, iana} -> {iana, windows} end)
+  # The time zone database's links, from each old or alias name to the zone
+  # it names (`America/Montreal` to `America/Toronto`), read from the newest
+  # release kept in `priv/tz`.
+  @tz_dir Path.join([__DIR__, "../../../priv/tz/tzdata*"]) |> Path.wildcard() |> Enum.max()
+  @tz_link_files Enum.map(~w(backward etcetera), &Path.join(@tz_dir, &1))
+  for file <- @tz_link_files, do: @external_resource(file)
+
+  @tz_links @tz_link_files
+            |> Enum.flat_map(&Regex.scan(~r/^Link\s+(\S+)\s+(\S+)/m, File.read!(&1)))
+            |> Map.new(fn [_line, target, link] -> {link, target} end)
+
+  if map_size(@tz_links) < 200,
+    do: raise("read only #{map_size(@tz_links)} links from #{@tz_dir}; has its format changed?")
 
   # CLDR's own mapping, every territory's IANA zones included, as published
-  # in `windowsZones.xml` (kept verbatim in `priv/cldr/`). It names zones as
-  # CLDR does, which for a few renamed zones is the old name (`Asia/Calcutta`),
-  # so the table above, which uses the current names, is read after it.
+  # in `windowsZones.xml` (kept verbatim in `priv/cldr/`). CLDR names a few
+  # renamed zones the old way (`Asia/Calcutta`), so each is also kept under
+  # the zone its name links to; a name CLDR lists itself takes precedence.
   @cldr_path Path.join([__DIR__, "../../../priv/cldr/windowsZones.xml"])
   @external_resource @cldr_path
 
-  @cldr_iana_to_windows ~r/<mapZone other="([^"]+)" territory="[^"]+" type="([^"]+)"\/>/
-                        |> Regex.scan(File.read!(@cldr_path), capture: :all_but_first)
-                        |> Enum.flat_map(fn [windows, zones] ->
-                          Enum.map(String.split(zones), &{&1, windows})
-                        end)
-                        |> Map.new()
+  @cldr_entries ~r/<mapZone other="([^"]+)" territory="[^"]+" type="([^"]+)"\/>/
+                |> Regex.scan(File.read!(@cldr_path), capture: :all_but_first)
+                |> Enum.flat_map(fn [windows, zones] ->
+                  Enum.map(String.split(zones), &{&1, windows})
+                end)
+
+  if length(@cldr_entries) < 400,
+    do:
+      raise(
+        "read only #{length(@cldr_entries)} zones from #{@cldr_path}; has its format changed?"
+      )
+
+  @cldr_iana_to_windows Map.merge(
+                          Map.new(@cldr_entries, fn {zone, windows} ->
+                            {Map.get(@tz_links, zone, zone), windows}
+                          end),
+                          Map.new(@cldr_entries)
+                        )
 
   # How far, and how often, a zone's offsets are compared with a Windows
   # zone's, from the start of the year an event starts in. A week is shorter
@@ -203,9 +225,11 @@ defmodule Tymeslot.Timezones.WindowsZones do
   Graph accepts every Windows zone name but only some IANA ones, and does
   not list, among others, `Europe/Madrid`, `Europe/Dublin` or
   `America/Toronto`. The answer is CLDR's (`Europe/Madrid` is
-  `Romance Standard Time`), under the zone's current name or the old one
-  CLDR may still use. A zone CLDR does not name maps to the first Windows zone whose default IANA zone keeps the
-  same UTC offsets for two years from the start of `anchor`'s year, changing
+  `Romance Standard Time`), found under the zone's name, under the old name
+  CLDR may still use for it, or, for a link such as `America/Montreal`,
+  under the zone it links to. A zone CLDR does not name at all maps to the
+  first Windows zone whose default IANA zone keeps the same UTC offsets for
+  two years from the start of `anchor`'s year, changing
   them at the same instants, which is the zone Graph then expands the event
   in; that search is remembered per zone and year. A Windows zone name is
   returned as given.
@@ -215,7 +239,7 @@ defmodule Tymeslot.Timezones.WindowsZones do
     cond do
       Map.has_key?(@windows_to_iana, zone) -> zone
       windows = Map.get(@cldr_iana_to_windows, zone) -> windows
-      windows = Map.get(@iana_to_windows, zone) -> windows
+      windows = Map.get(@cldr_iana_to_windows, Map.get(@tz_links, zone)) -> windows
       true -> remembered_match(zone, anchor.year)
     end
   end
@@ -229,8 +253,7 @@ defmodule Tymeslot.Timezones.WindowsZones do
     case :persistent_term.get(key, :unset) do
       :unset ->
         windows =
-          cldr_under_old_name(zone) ||
-            same_offsets(zone, DateTime.new!(Date.new!(year, 1, 1), ~T[00:00:00])) || "UTC"
+          same_offsets(zone, DateTime.new!(Date.new!(year, 1, 1), ~T[00:00:00])) || "UTC"
 
         :persistent_term.put(key, windows)
         windows
@@ -238,14 +261,6 @@ defmodule Tymeslot.Timezones.WindowsZones do
       windows ->
         windows
     end
-  end
-
-  # CLDR still spells a few renamed zones the old way (`Asia/Saigon` for
-  # `Asia/Ho_Chi_Minh`); `Data.normalize/1` knows the renames.
-  defp cldr_under_old_name(zone) do
-    Enum.find_value(@cldr_iana_to_windows, fn {cldr_name, windows} ->
-      if cldr_name != zone and Data.normalize(cldr_name) == zone, do: windows
-    end)
   end
 
   defp same_offsets(zone, from) do
