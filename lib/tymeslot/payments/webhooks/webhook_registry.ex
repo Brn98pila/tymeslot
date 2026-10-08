@@ -17,27 +17,32 @@ defmodule Tymeslot.Payments.Webhooks.WebhookRegistry do
     TrialWillEndHandler
   }
 
-  @handlers %{
-    "checkout.session.completed" => CheckoutSessionHandler,
-    "checkout.session.expired" => CheckoutSessionExpiredHandler,
-    "customer.subscription.created" => SubscriptionHandler,
-    "customer.subscription.updated" => SubscriptionHandler,
-    "customer.subscription.deleted" => SubscriptionHandler,
-    "customer.subscription.trial_will_end" => TrialWillEndHandler,
-    "invoice.created" => InvoiceHandler,
-    "invoice.finalized" => InvoiceHandler,
-    "invoice.paid" => InvoiceHandler,
-    "invoice.payment_succeeded" => InvoiceHandler,
-    "invoice.payment_failed" => InvoiceHandler,
-    "invoice.upcoming" => InvoiceHandler,
-    "invoice.voided" => InvoiceHandler,
-    "invoice.marked_uncollectible" => InvoiceHandler,
-    "charge.refunded" => RefundHandler,
-    "charge.refund.updated" => RefundHandler,
-    "charge.dispute.created" => DisputeHandler,
-    "charge.dispute.updated" => DisputeHandler,
-    "charge.dispute.closed" => DisputeHandler
-  }
+  # A function rather than a module attribute: an attribute is evaluated at
+  # compile time, which would make this module a compile-time dependant of
+  # every handler.
+  defp handlers do
+    %{
+      "checkout.session.completed" => CheckoutSessionHandler,
+      "checkout.session.expired" => CheckoutSessionExpiredHandler,
+      "customer.subscription.created" => SubscriptionHandler,
+      "customer.subscription.updated" => SubscriptionHandler,
+      "customer.subscription.deleted" => SubscriptionHandler,
+      "customer.subscription.trial_will_end" => TrialWillEndHandler,
+      "invoice.created" => InvoiceHandler,
+      "invoice.finalized" => InvoiceHandler,
+      "invoice.paid" => InvoiceHandler,
+      "invoice.payment_succeeded" => InvoiceHandler,
+      "invoice.payment_failed" => InvoiceHandler,
+      "invoice.upcoming" => InvoiceHandler,
+      "invoice.voided" => InvoiceHandler,
+      "invoice.marked_uncollectible" => InvoiceHandler,
+      "charge.refunded" => RefundHandler,
+      "charge.refund.updated" => RefundHandler,
+      "charge.dispute.created" => DisputeHandler,
+      "charge.dispute.updated" => DisputeHandler,
+      "charge.dispute.closed" => DisputeHandler
+    }
+  end
 
   # Received but acted on elsewhere or not at all. The payment itself is
   # recorded from checkout.session.completed and the invoice events, so the
@@ -59,12 +64,16 @@ defmodule Tymeslot.Payments.Webhooks.WebhookRegistry do
     application_fee.refunded
   )
 
-  @registry Map.merge(Map.new(@ignored, &{&1, :ignore}), @handlers)
-
   @doc """
   The handler for `event_type`, `:ignore` for a deliberately ignored type,
   or `nil` for an unexpected one.
   """
   @spec handler_for(String.t()) :: module() | :ignore | nil
-  def handler_for(event_type), do: Map.get(@registry, event_type)
+  def handler_for(event_type) do
+    case Map.fetch(handlers(), event_type) do
+      {:ok, handler} -> handler
+      :error when event_type in @ignored -> :ignore
+      :error -> nil
+    end
+  end
 end
