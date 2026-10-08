@@ -4,13 +4,12 @@ defmodule Tymeslot.Integrations.Calendar.Deletion do
   calendar invariant (promote another or clear primary).
   """
 
-  alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.Google.PushChannel
   alias Tymeslot.Integrations.Calendar.Outlook.GraphSubscription
   alias Tymeslot.Integrations.Calendar.PrimaryElection
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.MeetingTypes.MeetingTypeQueries
-  alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Repo
 
   @type user_id :: pos_integer()
@@ -61,12 +60,11 @@ defmodule Tymeslot.Integrations.Calendar.Deletion do
   # it was and a concurrent change cannot elect from a list this one is
   # changing.
   defp delete_and_reassign(integration) do
-    Repo.transaction(fn ->
-      CalendarIntegrationWebhookQueries.lock_user_profile_and_integrations(integration.user_id)
+    PrimaryElection.under_lock(integration.user_id, fn ->
       promoted_result = maybe_handle_primary(integration)
       MeetingTypeQueries.clear_calendar_references(integration.id)
 
-      case CalendarManagement.delete_calendar_integration(integration) do
+      case CalendarIntegrationQueries.delete(integration) do
         {:ok, _result} -> promoted_result
         {:error, reason} -> Repo.rollback(reason)
       end
@@ -76,8 +74,8 @@ defmodule Tymeslot.Integrations.Calendar.Deletion do
   # Decided on the stored primary id rather than a decrypted row, so an
   # unreadable primary that is deleted still hands the role on.
   defp maybe_handle_primary(%{id: id, user_id: user_id}) do
-    case ProfileQueries.get_by_user_id(user_id) do
-      {:ok, %{primary_calendar_integration_id: ^id}} -> PrimaryElection.elect_next(user_id, [id])
+    case PrimaryElection.stored_primary_id(user_id) do
+      ^id -> PrimaryElection.elect_next(user_id, [id])
       _not_primary -> :unchanged
     end
   end

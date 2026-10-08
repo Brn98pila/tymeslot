@@ -3,6 +3,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
   @moduletag :integrations
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
+  alias Tymeslot.Integrations.Calendar.Deletion
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Profiles.ProfileQueries
@@ -37,6 +38,59 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
         attrs
       )
     )
+  end
+
+  # The attrs an OAuth callback hands `insert_integration/1` once it has
+  # resolved its calendars.
+  defp caldav_attrs(user, name) do
+    %{
+      user_id: user.id,
+      name: name,
+      provider: "caldav",
+      base_url: "https://dav.example.com",
+      username: name,
+      password: "secret",
+      provider_account_id: "https://dav.example.com||#{name}",
+      calendar_paths: ["/dav/#{name}"],
+      is_active: true
+    }
+  end
+
+  defp stored_primary_id(user) do
+    {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
+    profile.primary_calendar_integration_id
+  end
+
+  describe "a new integration and the primary" do
+    test "the first bookable integration becomes the primary", %{user: user} do
+      assert {:ok, created} = CalendarManagement.insert_integration(caldav_attrs(user, "first"))
+
+      assert stored_primary_id(user) == created.id
+    end
+
+    test "a second integration leaves an active primary alone", %{user: user} do
+      {:ok, first} = CalendarManagement.insert_integration(caldav_attrs(user, "first"))
+      {:ok, _second} = CalendarManagement.insert_integration(caldav_attrs(user, "second"))
+
+      assert stored_primary_id(user) == first.id
+    end
+
+    test "replaces a primary that is paused", %{user: user} do
+      paused = insert(:calendar_integration, user: user, provider: "caldav", is_active: false)
+      {:ok, _profile} = ProfileQueries.set_primary_calendar_integration(user.id, paused.id)
+
+      {:ok, created} = CalendarManagement.insert_integration(caldav_attrs(user, "fresh"))
+
+      assert stored_primary_id(user) == created.id
+    end
+
+    test "a subscription never becomes the primary", %{user: user} do
+      subscription = insert_subscription(user)
+
+      :ok = CalendarManagement.ensure_primary_on_activate(subscription)
+
+      assert stored_primary_id(user) == nil
+    end
   end
 
   describe "an Exchange mailbox as primary" do
@@ -82,7 +136,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       assert {:ok, _result} =
                CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
 
-      assert {:ok, _result} = CalendarPrimary.delete_with_primary_handling(primary)
+      assert {:ok, _result} = Deletion.delete_with_primary_reassignment(user.id, primary.id)
 
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
       assert profile.primary_calendar_integration_id == exchange.id
@@ -227,7 +281,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       assert profile.primary_calendar_integration_id == nil
     end
 
-    test "delete_with_primary_handling promotes the writable integration over a subscription",
+    test "deleting the primary promotes the writable integration over a subscription",
          %{user: user} do
       primary =
         insert(:calendar_integration,
@@ -248,13 +302,13 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       assert {:ok, _result} =
                CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
 
-      assert {:ok, _result} = CalendarPrimary.delete_with_primary_handling(primary)
+      assert {:ok, _result} = Deletion.delete_with_primary_reassignment(user.id, primary.id)
 
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
       assert profile.primary_calendar_integration_id == fallback.id
     end
 
-    test "delete_with_primary_handling clears the primary when only a subscription remains",
+    test "deleting the primary clears the primary when only a subscription remains",
          %{user: user} do
       primary =
         insert(:calendar_integration,
@@ -268,7 +322,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       assert {:ok, _result} =
                CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
 
-      assert {:ok, _result} = CalendarPrimary.delete_with_primary_handling(primary)
+      assert {:ok, _result} = Deletion.delete_with_primary_reassignment(user.id, primary.id)
 
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
       assert profile.primary_calendar_integration_id == nil
@@ -315,7 +369,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
     assert cleared_first.default_booking_calendar_id == "old-default"
   end
 
-  test "delete_with_primary_handling promotes another integration", %{user: user} do
+  test "deleting the primary promotes another integration", %{user: user} do
     primary =
       insert(:calendar_integration,
         user: user,
@@ -332,7 +386,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
 
     assert {:ok, _result} = CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
 
-    assert {:ok, _result} = CalendarPrimary.delete_with_primary_handling(primary)
+    assert {:ok, _result} = Deletion.delete_with_primary_reassignment(user.id, primary.id)
 
     {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
     assert profile.primary_calendar_integration_id == fallback.id

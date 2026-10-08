@@ -17,7 +17,6 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
   alias Tymeslot.Integrations.Calendar.Shared.ErrorHandler
   alias Tymeslot.Integrations.Calendar.Shared.PathUtils
   alias Tymeslot.Integrations.CalendarManagement
-  alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Utils.SanitizeMerge
   alias Tymeslot.Workers.SyncIcsCalendarWorker
@@ -57,9 +56,7 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
          :ok <- check_write_budget(user_id),
          validated <- SanitizeMerge.merge(params, sanitized),
          :ok <- check_no_duplicate_calendar(user_id, validated),
-         count_before <- length(CalendarManagement.list_calendar_integrations(user_id)),
          {:ok, integration} <- Calendar.create_integration(validated, user_id) do
-      ensure_primary_on_first(user_id, integration.id, count_before)
       {:ok, integration}
     else
       {:error, :duplicate_integration} ->
@@ -113,10 +110,9 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
          # rejects never leaves the machine and must not cost a token.
          :ok <- CalendarIntegrationSchema.validate_new(attrs),
          {:ok, attrs} <- probe_subscription(attrs, user_id),
-         # Deliberately no `ensure_primary_on_first/3`: a subscription can never
-         # receive a booking, so promoting one to primary would leave a user whose
-         # only calendar is a subscription with a primary that silently fails
-         # every booking write.
+         # A subscription is never made the primary: it can never receive a
+         # booking, and `PrimaryElection.adopt_if_vacant/1` refuses a read-only
+         # provider.
          {:ok, integration} <- CalendarManagement.create_calendar_integration(attrs) do
       enqueue_initial_sync(integration)
       {:ok, integration}
@@ -280,18 +276,6 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
       end
     else
       :ok
-    end
-  end
-
-  @doc """
-  If this was the user's first integration, set it as primary.
-  """
-  @spec ensure_primary_on_first(user_id(), pos_integer(), non_neg_integer()) ::
-          :ok | {:error, term()}
-  def ensure_primary_on_first(user_id, new_integration_id, count_before) do
-    case count_before do
-      0 -> CalendarPrimary.set_primary_calendar_integration(user_id, new_integration_id)
-      _count -> :ok
     end
   end
 

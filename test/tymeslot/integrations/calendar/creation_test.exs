@@ -7,7 +7,6 @@ defmodule Tymeslot.Integrations.Calendar.CreationTest do
   import Tymeslot.Factory
   alias Tymeslot.Integrations.Calendar.Creation
   alias Tymeslot.Integrations.CalendarManagement
-  alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Profiles.ProfileQueries
 
   setup :verify_on_exit!
@@ -225,55 +224,6 @@ defmodule Tymeslot.Integrations.Calendar.CreationTest do
 
       # Should skip validation for unknown provider
       assert {:ok, ^attrs} = Creation.prevalidate_config(attrs)
-    end
-  end
-
-  describe "ensure_primary_on_first/3" do
-    setup do
-      user = insert(:user)
-      # The primary calendar is recorded on the profile; without one the
-      # promotion below is a silent no-op.
-      insert(:profile, user: user)
-
-      %{user: user}
-    end
-
-    test "sets first integration as primary", %{user: user} do
-      integration = insert(:calendar_integration, user: user)
-
-      # Simulate this being the first integration (count_before = 0)
-      assert {:ok, primary} = Creation.ensure_primary_on_first(user.id, integration.id, 0)
-      assert primary.id == integration.id
-
-      assert {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
-      assert profile.primary_calendar_integration_id == integration.id
-    end
-
-    test "does not set primary if not first integration", %{user: user} do
-      # Create first integration and set as primary
-      integration1 = insert(:calendar_integration, user: user)
-
-      CalendarPrimary.set_primary_calendar_integration(
-        user.id,
-        integration1.id
-      )
-
-      # Create second integration
-      integration2 = insert(:calendar_integration, user: user)
-
-      # Simulate this being the second integration (count_before = 1)
-      assert :ok = Creation.ensure_primary_on_first(user.id, integration2.id, 1)
-
-      # Primary should still be the first integration
-      assert {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
-      assert profile.primary_calendar_integration_id == integration1.id
-    end
-
-    test "returns ok when count is greater than zero" do
-      user = insert(:user)
-      integration = insert(:calendar_integration, user: user)
-
-      assert :ok = Creation.ensure_primary_on_first(user.id, integration.id, 5)
     end
   end
 

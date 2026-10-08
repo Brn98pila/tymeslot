@@ -133,7 +133,7 @@ defmodule Tymeslot.Integrations.Calendar.DiscoveryHappyPathTest do
       # integration must end up persisted with `calendar_paths` populated.
       # Any break between `Discovery.maybe_discover_calendars/1` and the
       # persisted record (e.g. `cast/3` silently dropping the field,
-      # `PrimarySelection.create_with_auto_primary/1` ignoring injected
+      # `CalendarManagement.insert_integration/1` ignoring injected
       # paths) would not be caught by per-helper unit tests.
       stub(Tymeslot.HTTPClientMock, :request, fn _method, _url, _body, _headers, _opts ->
         {:ok, %Req.Response{status: 207, body: @propfind_calendar_response}}

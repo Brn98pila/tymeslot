@@ -8,10 +8,8 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
 
   alias Tymeslot.Integrations.Calendar, as: CalendarContext
   alias Tymeslot.Integrations.Calendar.BookingEligibility
-  alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Defaults
-  alias Tymeslot.Integrations.Calendar.PrimaryElection
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.CalendarManagement
@@ -55,38 +53,6 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
 
       {:error, _reason} ->
         {:error, :not_found}
-    end
-  end
-
-  @doc """
-  Deletes a calendar integration with primary calendar handling.
-  If deleting the primary calendar, automatically promotes another one.
-  """
-  @spec delete_with_primary_handling(CalendarIntegrationSchema.t()) ::
-          {:ok, CalendarIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
-  def delete_with_primary_handling(integration) do
-    user_id = integration.user_id
-    integration_id = integration.id
-
-    # Check if this is the primary integration
-    is_primary =
-      case ProfileQueries.get_by_user_id(user_id) do
-        {:ok, profile} -> profile.primary_calendar_integration_id == integration_id
-        _error -> false
-      end
-
-    # Delete the integration
-    case CalendarIntegrationQueries.delete(integration) do
-      {:ok, _deleted} = success ->
-        # If we deleted the primary calendar, auto-promote the next one
-        if is_primary do
-          handle_primary_deletion(user_id, integration_id)
-        end
-
-        success
-
-      error ->
-        error
     end
   end
 
@@ -218,10 +184,5 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
     else
       integration
     end
-  end
-
-  defp handle_primary_deletion(user_id, deleted_id) do
-    PrimaryElection.elect_next(user_id, [deleted_id])
-    :ok
   end
 end

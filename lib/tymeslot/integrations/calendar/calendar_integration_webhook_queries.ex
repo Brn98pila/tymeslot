@@ -12,7 +12,6 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries do
   alias Ecto.Changeset
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Meetings.MeetingSchema
-  alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Repo
 
   # ---------------------------------------------------------------------------
@@ -272,36 +271,6 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries do
     integration
     |> Changeset.change(%{field => DateTime.utc_now(:second)})
     |> Repo.update()
-  end
-
-  # ---------------------------------------------------------------------------
-  # Advisory locking
-  # ---------------------------------------------------------------------------
-
-  @doc """
-  Locks the user's profile row and all calendar integration rows for that user.
-  Used to coordinate primary rebalance operations without race conditions.
-  """
-  @spec lock_user_profile_and_integrations(integer()) :: :ok
-  def lock_user_profile_and_integrations(user_id) do
-    _locked_profile =
-      Repo.one(
-        from(p in ProfileSchema,
-          where: p.user_id == ^user_id,
-          lock: "FOR UPDATE"
-        )
-      )
-
-    _locked_integration_ids =
-      Repo.all(
-        from(ci in CalendarIntegrationSchema,
-          where: ci.user_id == ^user_id,
-          select: ci.id,
-          lock: "FOR UPDATE"
-        )
-      )
-
-    :ok
   end
 
   # ---------------------------------------------------------------------------

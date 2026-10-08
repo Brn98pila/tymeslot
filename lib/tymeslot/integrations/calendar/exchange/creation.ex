@@ -59,14 +59,6 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Creation do
       when is_integer(user_id) and is_map(params) do
     metadata = Keyword.get(opts, :metadata, %{})
 
-    # Deliberately no `Creation.ensure_primary_on_first/3`, for the reason the
-    # subscription path omits it too: it promotes the user's first integration
-    # unconditionally, through `CalendarPrimary` directly rather than through
-    # `PrimarySelection.maybe_set_as_primary/1`, so its guards never run. An
-    # Exchange mailbox can now receive a booking, but only into a folder the
-    # account may write to, and `FindFolder` never says which those are (see
-    # the moduledoc). Promoting one unasked would pick that folder for the
-    # user, so the choice stays theirs to make explicitly.
     with {:ok, sanitized} <-
            CalendarInputValidation.validate_exchange_form(params, metadata: metadata),
          :ok <- Creation.check_write_budget(user_id),

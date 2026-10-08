@@ -8,14 +8,8 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   alias Ecto.Changeset
   alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Repo
-
-  # Postgres advisory-lock class id for the first-integration primary-election
-  # race (see `acquire_primary_lock/1`). Advisory-lock class ids share a single
-  # namespace across the whole database connection; other allocations are
-  # `MeetingConflictQueries.@organizer_schedule_lock_class` (715_001) and the bare
-  # `2` in `ProviderCalendarEventQueries`.
-  @primary_lock_class 1
 
   @doc """
   Gets all active calendar integrations for a user, credentials left encrypted.
@@ -552,25 +546,30 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   def owned_by?(_id, _user_id), do: false
 
   @doc """
-  Counts calendar integrations for a user.
-  """
-  @spec count_for_user(integer()) :: non_neg_integer()
-  def count_for_user(user_id) do
-    CalendarIntegrationSchema
-    |> where([c], c.user_id == ^user_id)
-    |> select([c], count(c.id))
-    |> Repo.one() || 0
-  end
+  Locks the user's profile row, then every calendar integration row of theirs,
+  for the rest of the transaction. Every change that can move the user's
+  primary calendar takes it first (create, toggle, pause, delete, reconnect),
+  so those changes run one at a time per user and always lock in the same
+  order. A user without a profile has no primary to move, so locking nothing
+  there is harmless.
 
-  @doc """
-  Acquires a transaction-scoped Postgres advisory lock keyed on the given
-  user, so two concurrent first-integration inserts can't both observe
-  `count_for_user/1 == 1`. Must be called from inside a `Repo.transaction/1`;
-  the lock releases automatically at commit or rollback.
+  Must be called from inside a `Repo.transaction/1`.
   """
-  @spec acquire_primary_lock(integer()) :: :ok
-  def acquire_primary_lock(user_id) do
-    Repo.query!("SELECT pg_advisory_xact_lock($1, $2)", [@primary_lock_class, user_id])
+  @spec lock_user_profile_and_integrations(integer()) :: :ok
+  def lock_user_profile_and_integrations(user_id) do
+    _locked_profile =
+      Repo.one(from(p in ProfileSchema, where: p.user_id == ^user_id, lock: "FOR UPDATE"))
+
+    _locked_integration_ids =
+      Repo.all(
+        from(ci in CalendarIntegrationSchema,
+          where: ci.user_id == ^user_id,
+          order_by: ci.id,
+          select: ci.id,
+          lock: "FOR UPDATE"
+        )
+      )
+
     :ok
   end
 

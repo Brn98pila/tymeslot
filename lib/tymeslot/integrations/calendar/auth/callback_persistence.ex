@@ -11,7 +11,6 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
-  alias Tymeslot.Integrations.Calendar.PrimarySelection
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Integrations.Shared.OAuth.AccountMatch
@@ -119,7 +118,7 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
         base_url: base_url
       })
 
-    create_fn = fn -> PrimarySelection.create_with_auto_primary(attrs) end
+    create_fn = fn -> CalendarManagement.insert_integration(attrs) end
 
     result =
       if is_binary(account_id) do
