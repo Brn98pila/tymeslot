@@ -23,6 +23,7 @@ defmodule Tymeslot.MeetingPayments.PendingDeletionCheckoutTest do
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
+  alias Tymeslot.Workers.AccountDeletionCheckoutsWorker
   alias Tymeslot.Workers.CalendarEventWorker
   alias Tymeslot.Workers.SendBookingPaymentRefunded
 
@@ -89,33 +90,65 @@ defmodule Tymeslot.MeetingPayments.PendingDeletionCheckoutTest do
     end)
   end
 
-  test "requesting deletion expires the host's open checkout and cancels its booking" do
+  defp request_deletion(host) do
+    assert {:ok, pending} =
+             Auth.request_account_deletion(host, %{"current_password" => @password}, @opts)
+
+    pending
+  end
+
+  defp assert_cancelled(meeting, payment) do
+    assert Repo.reload!(payment).status == "failed"
+    assert {:ok, %{status: "expired"}} = MeetingQueries.get_meeting(meeting.id)
+  end
+
+  test "requesting deletion queues the expiry of the host's open checkouts" do
     host = insert(:user)
     {meeting, payment} = open_checkout(host, "REQ_EXPIRE")
+
+    request_deletion(host)
+    assert_enqueued(worker: AccountDeletionCheckoutsWorker, args: %{user_id: host.id})
+    assert Repo.reload!(payment).status == "pending"
 
     expect(StripeAdapterMock, :expire_checkout_session, fn "cs_REQ_EXPIRE", _opts ->
       {:ok, %{"id" => "cs_REQ_EXPIRE", "status" => "expired"}}
     end)
 
-    assert {:ok, _pending} =
-             Auth.request_account_deletion(host, %{"current_password" => @password}, @opts)
-
-    assert Repo.reload!(payment).status == "failed"
-    assert {:ok, %{status: "expired"}} = MeetingQueries.get_meeting(meeting.id)
+    assert %{success: 1} = Oban.drain_queue(queue: :payments)
+    assert_cancelled(meeting, payment)
   end
 
-  test "a request still goes through when the checkout cannot be expired" do
+  test "every booking is cancelled even when expiring one checkout raises" do
     host = insert(:user)
-    {_meeting, _payment} = open_checkout(host, "REQ_FAILS")
+    {raising_meeting, raising_payment} = open_checkout(host, "REQ_RAISES")
+    {other_meeting, other_payment} = open_checkout(host, "REQ_OTHER")
 
-    expect(StripeAdapterMock, :expire_checkout_session, fn _session, _opts ->
-      raise "Stripe is down"
+    request_deletion(host)
+
+    stub(StripeAdapterMock, :expire_checkout_session, fn
+      "cs_REQ_RAISES", _opts -> raise "Stripe is down"
+      session, _opts -> {:ok, %{"id" => session, "status" => "expired"}}
     end)
 
-    assert {:ok, pending} =
-             Auth.request_account_deletion(host, %{"current_password" => @password}, @opts)
+    assert %{success: 1} = Oban.drain_queue(queue: :payments)
+    assert_cancelled(raising_meeting, raising_payment)
+    assert_cancelled(other_meeting, other_payment)
+  end
 
-    assert %DateTime{} = pending.deletion_scheduled_at
+  test "a host who restored the account keeps their checkouts" do
+    host = insert(:user)
+    {meeting, payment} = open_checkout(host, "RESTORED")
+
+    pending = request_deletion(host)
+    assert {:ok, _restored} = Auth.restore_account(pending)
+
+    # Mox fails on any call to the adapter that is not expected.
+    assert %{success: 1} = Oban.drain_queue(queue: :payments)
+    assert Repo.reload!(payment).status == "pending"
+
+    assert :ok = CheckoutSessionCompleted.handle(completed("RESTORED", meeting))
+    assert {:ok, %{status: "confirmed"}} = MeetingQueries.get_meeting(meeting.id)
+    refute_enqueued(worker: RefundLatePayment)
   end
 
   # The guest is mid-payment when the host asks to leave, so Stripe will not
@@ -124,12 +157,13 @@ defmodule Tymeslot.MeetingPayments.PendingDeletionCheckoutTest do
     host = insert(:user)
     {meeting, payment} = open_checkout(host, "JOURNEY")
 
+    request_deletion(host)
+
     expect(StripeAdapterMock, :expire_checkout_session, fn "cs_JOURNEY", _opts ->
       {:error, :session_in_payment}
     end)
 
-    assert {:ok, _pending} =
-             Auth.request_account_deletion(host, %{"current_password" => @password}, @opts)
+    assert %{success: 1} = Oban.drain_queue(queue: :payments)
 
     expect_full_refund(payment, "JOURNEY")
 
@@ -145,6 +179,44 @@ defmodule Tymeslot.MeetingPayments.PendingDeletionCheckoutTest do
     assert_enqueued(worker: SendBookingPaymentRefunded, args: %{booking_payment_id: payment.id})
     refute_enqueued(worker: CalendarEventWorker)
     assert {:ok, %{status: "expired"}} = MeetingQueries.get_meeting(meeting.id)
+  end
+
+  # With no grace period the account, and its meetings, are gone before the
+  # attendee's payment lands; the payment row survives with no meeting.
+  test "a checkout that completes after the account was deleted is refunded in full once" do
+    with_config(:tymeslot, :account_deletion_grace_days, 0)
+    host = insert(:user)
+    {meeting, payment} = open_checkout(host, "GONE")
+
+    stub(StripeAdapterMock, :expire_checkout_session, fn _session, _opts ->
+      {:error, :session_in_payment}
+    end)
+
+    request_deletion(host)
+    Oban.drain_queue(queue: :default, with_scheduled: true)
+    assert {:error, :not_found} = Auth.get_user(host.id)
+    assert Repo.reload!(payment).meeting_id == nil
+
+    expect_full_refund(payment, "GONE")
+
+    assert :ok = CheckoutSessionCompleted.handle(completed("GONE", meeting))
+    # Stripe's redelivery and the reconciler's replay schedule nothing more.
+    assert :ok = CheckoutSessionCompleted.handle(completed("GONE", meeting))
+
+    assert :ok =
+             CheckoutSessionCompleted.handle(%{
+               completed("GONE", meeting)
+               | "id" => "reconcile:cs_GONE"
+             })
+
+    assert [_one] =
+             all_enqueued(worker: RefundLatePayment, args: %{booking_payment_id: payment.id})
+
+    Oban.drain_queue(queue: :payments)
+
+    refunded = Repo.reload!(payment)
+    assert refunded.status == "refunded"
+    assert refunded.refunded_amount_cents == payment.amount_cents
   end
 
   test "a completed checkout still awaiting payment is refused for a host pending deletion" do
@@ -163,7 +235,16 @@ defmodule Tymeslot.MeetingPayments.PendingDeletionCheckoutTest do
     recorded = Repo.reload!(payment)
     assert recorded.status == "paid"
     assert {:ok, %{status: "expired"}} = MeetingQueries.get_meeting(meeting.id)
-    assert_enqueued(worker: RefundLatePayment, args: %{booking_payment_id: payment.id})
     refute_enqueued(worker: CalendarEventWorker)
+
+    # The reconciler replays the completion under its own event id.
+    assert :ok =
+             CheckoutSessionCompleted.handle(%{
+               completed("AWAITING", meeting)
+               | "id" => "reconcile:cs_AWAITING"
+             })
+
+    assert [_one] =
+             all_enqueued(worker: RefundLatePayment, args: %{booking_payment_id: payment.id})
   end
 end

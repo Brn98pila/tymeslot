@@ -24,7 +24,8 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
 
   A host whose account is pending deletion takes no booking: a checkout
   completed for one leaves the meeting expired and its payment refunded in
-  full by the same job.
+  full by the same job. So is a payment whose meeting no longer exists,
+  because its host's account has been deleted since the checkout opened.
 
   The booking is resolved through `PaymentLookup.find_for_session/1`, which
   ignores events from any connected account other than the one the booking
@@ -191,6 +192,16 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
     :ok
   end
 
+  defp after_refusal(paid, nil, event_id, object) do
+    Logger.warning(
+      "checkout.session.completed: booking no longer exists, refund scheduled",
+      payment_id: paid.id,
+      event_id: event_id
+    )
+
+    backfill_charge_id(paid, object)
+  end
+
   defp after_refusal(paid, meeting, event_id, object) do
     Logger.warning(
       "checkout.session.completed: host account pending deletion, booking refused and refund scheduled",
@@ -271,6 +282,9 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   # locked next, so the transition is decided from both rows as committed.
   # `slot` says whether the organiser's schedule lock is held with the
   # meeting's slot counted free, which a recovery needs.
+  defp run_in_transaction(%{meeting_id: nil} = payment, event_id, object, _slot),
+    do: refund_orphaned(payment, event_id, object)
+
   defp run_in_transaction(payment, event_id, object, slot) do
     with {:ok, meeting} <- lock_meeting(payment.meeting_id),
          {:proceed, transition} <- check_transition(meeting, payment),
@@ -310,6 +324,20 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
       {:ok, {:refused, paid, expired}}
     end
   end
+
+  # The meeting is gone: its host's account was deleted (the meetings go
+  # with it and the payment row keeps no meeting), so there is no booking to
+  # confirm. A payment still awaiting its money is recorded paid and refunded
+  # in full like a refused one; one already recorded is a replay of this.
+  defp refund_orphaned(%{status: status} = payment, event_id, object)
+       when status in ["pending", "failed"] do
+    with {:ok, paid} <- mark_paid(payment, event_id, object),
+         {:ok, _job} <- Oban.insert(RefundLatePayment.new_for(paid.id)) do
+      {:ok, {:refused, paid, nil}}
+    end
+  end
+
+  defp refund_orphaned(_payment, _event_id, _object), do: {:ok, :no_op}
 
   defp expire(%{status: "expired"} = meeting), do: {:ok, meeting}
   defp expire(meeting), do: MeetingQueries.update_meeting_status(meeting, %{status: "expired"})
