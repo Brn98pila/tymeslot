@@ -78,7 +78,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.Provider do
 
   # --- Legacy conversion (used by OAuthBase get_events / create_event / update_event) ---
 
-  @impl OAuthProvider
+  @impl Tymeslot.Integrations.Calendar.Provider
   @spec convert_events(list(map())) :: list(converted_event())
   def convert_events(raw_events) do
     raw_events

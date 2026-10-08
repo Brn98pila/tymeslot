@@ -6,7 +6,6 @@ defmodule Tymeslot.Integrations.Calendar.Providers.OAuthProvider do
   """
 
   @callback validate_oauth_scope(config :: map()) :: :ok | {:error, String.t()}
-  @callback convert_events(events :: list()) :: list()
   @callback convert_event(event :: map()) :: map()
   @callback get_calendar_api_module() :: module()
   @callback call_list_events(

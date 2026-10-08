@@ -47,6 +47,10 @@ defmodule Tymeslot.Availability.RecurringCalendarEventOfferTest do
          }
        ]}
     end
+
+    @spec convert_events([map()]) :: [map()]
+
+    def convert_events(events), do: events
   end
 
   # A CalDAV server's answer for a `TZID=Europe/Berlin` weekly series, run
@@ -81,6 +85,10 @@ defmodule Tymeslot.Availability.RecurringCalendarEventOfferTest do
     end
 
     defp basic(date), do: Date.to_iso8601(date, :basic)
+
+    @spec convert_events([map()]) :: [map()]
+
+    def convert_events(events), do: events
   end
 
   describe "a recurring calendar event that began years ago" do

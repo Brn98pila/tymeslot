@@ -93,16 +93,9 @@ defmodule Tymeslot.Integrations.Calendar.EventsRead do
     end
   end
 
-  # OAuth providers (Google, Outlook) return raw string-keyed API maps. CalDAV providers
-  # already return atom-keyed maps. Apply convert_events when the provider exposes it so
-  # downstream code can always access :uid, :start_time, etc. via atom keys.
-  defp normalize_events(client, events) do
-    if function_exported?(client.provider_module, :convert_events, 1) do
-      client.provider_module.convert_events(events)
-    else
-      events
-    end
-  end
+  # Every provider maps its `list_events/2` answer into atom-keyed plain maps,
+  # so downstream code can always read :uid, :start_time, etc.
+  defp normalize_events(client, events), do: client.provider_module.convert_events(events)
 
   # Expands recurring events (those with a recurrence_rule) into individual
   # occurrences within the requested date range, through the same expansion

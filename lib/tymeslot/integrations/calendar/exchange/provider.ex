@@ -346,6 +346,9 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Provider do
   @impl Tymeslot.Integrations.Calendar.Provider
   def list_events_representation, do: :normalised
 
+  @impl Tymeslot.Integrations.Calendar.Provider
+  def convert_events(events), do: events
+
   @doc """
   Lists the raw calendar items falling in the requested range.
 

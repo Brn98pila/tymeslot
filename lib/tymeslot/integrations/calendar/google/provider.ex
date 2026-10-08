@@ -104,7 +104,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
 
   # --- Legacy conversion (used by OAuthBase get_events / create_event / update_event) ---
 
-  @impl OAuthProvider
+  @impl Tymeslot.Integrations.Calendar.Provider
   @spec convert_events(list(map())) :: list(converted_event())
   def convert_events(google_events) do
     Enum.map(google_events, &convert_event/1)
