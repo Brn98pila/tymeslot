@@ -40,7 +40,7 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
       assert {:error, :rate_limited, _message} = RateLimiter.check(:booking_submit, ip)
     end
 
-    test "check_webhook_rate_limit/1 allows 100 per 10 minutes then denies" do
+    test "check(:webhook, _) allows 100 per 10 minutes then denies" do
       ip = unique_ip("webhook-ip")
 
       for _i <- 1..100 do
@@ -50,7 +50,7 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
       assert {:error, :rate_limited, _message} = RateLimiter.check(:webhook, ip)
     end
 
-    test "check_meeting_cancel_rate_limit/1 allows 10 per 10 minutes then denies with a message" do
+    test "check(:meeting_cancel, _) allows 10 per 10 minutes then denies with a message" do
       ip = unique_ip("cancel-ip")
 
       for _i <- 1..10 do
@@ -61,7 +61,7 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
       assert message =~ "meeting cancellation"
     end
 
-    test "check_meeting_keep_rate_limit/1 allows 10 per 10 minutes then denies with a message" do
+    test "check(:meeting_keep, _) allows 10 per 10 minutes then denies with a message" do
       ip = unique_ip("keep-ip")
 
       for _i <- 1..10 do

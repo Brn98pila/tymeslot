@@ -13,10 +13,10 @@ defmodule Tymeslot.Security.RateLimiterDashboardIntegrationsTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_webhook_write_rate_limit/1 — 30 per 30 minutes
+  # check(:webhook_write, _) — 30 per 30 minutes
   # ---------------------------------------------------------------------------
 
-  describe "check_webhook_write_rate_limit/1" do
+  describe "check(:webhook_write, _)" do
     test "blocks requests exceeding the limit" do
       user_id = 11_002
 
@@ -69,10 +69,10 @@ defmodule Tymeslot.Security.RateLimiterDashboardIntegrationsTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_webhook_test_rate_limit/1 — 30 per 5 minutes
+  # check(:webhook_test, _) — 30 per 5 minutes
   # ---------------------------------------------------------------------------
 
-  describe "check_webhook_test_rate_limit/1" do
+  describe "check(:webhook_test, _)" do
     test "blocks requests exceeding the limit" do
       user_id = 11_102
 
@@ -102,10 +102,10 @@ defmodule Tymeslot.Security.RateLimiterDashboardIntegrationsTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_webhook_token_regen_rate_limit/1 — 10 per hour
+  # check(:webhook_token_regen, _) — 10 per hour
   # ---------------------------------------------------------------------------
 
-  describe "check_webhook_token_regen_rate_limit/1" do
+  describe "check(:webhook_token_regen, _)" do
     test "blocks requests exceeding the limit" do
       user_id = 11_202
 

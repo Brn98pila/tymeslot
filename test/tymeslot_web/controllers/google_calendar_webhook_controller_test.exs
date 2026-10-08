@@ -151,7 +151,7 @@ defmodule TymeslotWeb.GoogleCalendarWebhookControllerTest do
       end
 
       # Verify it's actually exhausted
-      assert {:error, :rate_limited} =
+      assert {:error, :rate_limited, _message} =
                RateLimiter.check(:calendar_webhook, integration.id)
 
       conn =

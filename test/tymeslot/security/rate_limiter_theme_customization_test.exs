@@ -12,7 +12,7 @@ defmodule Tymeslot.Security.RateLimiterThemeCustomizationTest do
     :ok
   end
 
-  describe "check_theme_customization_rate_limit/1" do
+  describe "check(:theme_customization, _)" do
     test "allows requests within rate limit" do
       user_id = 12_345
 

@@ -19,7 +19,7 @@ defmodule Tymeslot.Security.RateLimiterMeetingApprovalTest do
 
   alias Tymeslot.Security.RateLimiter
 
-  describe "check_meeting_approval_rate_limit/1" do
+  describe "check(:meeting_approval, _)" do
     test "allows 20 answers per 10 minutes then denies with a message" do
       ip = unique_ip("approval-ip")
 

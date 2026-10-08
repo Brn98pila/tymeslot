@@ -85,8 +85,12 @@ defmodule TymeslotWeb.OAuthControllerTest do
     test "handles rate limited initiation", %{conn: conn} do
       Application.put_env(:tymeslot, :social_auth, github_enabled: true)
 
-      :meck.expect(RateLimiter, :check_oauth_initiation_rate_limit, fn _ip ->
-        {:error, :rate_limited, "Too many attempts"}
+      :meck.expect(RateLimiter, :check, fn
+        :oauth_initiation, _ip ->
+          {:error, :rate_limited, "Too many attempts"}
+
+        name, key ->
+          :meck.passthrough([name, key])
       end)
 
       conn = get(conn, ~p"/auth/github")
@@ -261,8 +265,12 @@ defmodule TymeslotWeb.OAuthControllerTest do
     end
 
     test "handles rate limited callback", %{conn: conn} do
-      :meck.expect(RateLimiter, :check_oauth_callback_rate_limit, fn _ip ->
-        {:error, :rate_limited, "Too many attempts"}
+      :meck.expect(RateLimiter, :check, fn
+        :oauth_callback, _ip ->
+          {:error, :rate_limited, "Too many attempts"}
+
+        name, key ->
+          :meck.passthrough([name, key])
       end)
 
       conn = get(conn, ~p"/auth/github/callback", %{"code" => "code", "state" => "state"})
@@ -338,8 +346,12 @@ defmodule TymeslotWeb.OAuthControllerTest do
 
     test "rejects a callback for an unknown provider before the rate limit or callback handler",
          %{conn: conn} do
-      :meck.expect(RateLimiter, :check_oauth_callback_rate_limit, fn _ip ->
-        flunk("an unknown provider must be rejected before rate limiting")
+      :meck.expect(RateLimiter, :check, fn
+        :oauth_callback, _ip ->
+          flunk("an unknown provider must be rejected before rate limiting")
+
+        name, key ->
+          :meck.passthrough([name, key])
       end)
 
       conn =

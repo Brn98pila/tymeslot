@@ -11,10 +11,10 @@ defmodule Tymeslot.Security.RateLimiterCalendarEventEditTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_calendar_event_edit_rate_limit/1 — 30 per 5 minutes
+  # check(:calendar_event_edit, _) — 30 per 5 minutes
   # ---------------------------------------------------------------------------
 
-  describe "check_calendar_event_edit_rate_limit/1" do
+  describe "check(:calendar_event_edit, _)" do
     test "allows edits under the limit" do
       assert :ok = RateLimiter.check(:calendar_event_edit, 99_001)
     end
@@ -39,10 +39,10 @@ defmodule Tymeslot.Security.RateLimiterCalendarEventEditTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_calendar_webhook_rate_limit/1 — rejects non-positive integration ids
+  # check(:calendar_webhook, _) — rejects non-positive integration ids
   # ---------------------------------------------------------------------------
 
-  describe "check_calendar_webhook_rate_limit/1" do
+  describe "check(:calendar_webhook, _)" do
     test "allows valid integration id" do
       assert :ok = RateLimiter.check(:calendar_webhook, 42_001)
     end

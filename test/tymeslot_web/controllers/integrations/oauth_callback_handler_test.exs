@@ -110,8 +110,12 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandlerTest do
         conn = log_in_user(conn, user)
         :meck.expect(State, :validate, fn _state, _secret -> {:ok, %{user_id: user.id}} end)
 
-        :meck.expect(RateLimiter, :check_oauth_callback_rate_limit, fn _ip ->
-          {:error, :rate_limited, "limited"}
+        :meck.expect(RateLimiter, :check, fn
+          :oauth_callback, _ip ->
+            {:error, :rate_limited, "limited"}
+
+          name, key ->
+            :meck.passthrough([name, key])
         end)
 
         conn = get(conn, unquote(path), %{"code" => "code", "state" => "state"})

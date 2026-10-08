@@ -13,10 +13,10 @@ defmodule Tymeslot.Security.RateLimiterDashboardActionsTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_meeting_type_write_rate_limit/1 — 60 per 30 minutes
+  # check(:meeting_type_write, _) — 60 per 30 minutes
   # ---------------------------------------------------------------------------
 
-  describe "check_meeting_type_write_rate_limit/1" do
+  describe "check(:meeting_type_write, _)" do
     test "blocks requests exceeding the limit" do
       user_id = 11_502
 
@@ -59,10 +59,10 @@ defmodule Tymeslot.Security.RateLimiterDashboardActionsTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_meeting_type_autosave_rate_limit/1 — 600 per 30 minutes
+  # check(:meeting_type_autosave, _) — 600 per 30 minutes
   # ---------------------------------------------------------------------------
 
-  describe "check_meeting_type_autosave_rate_limit/1" do
+  describe "check(:meeting_type_autosave, _)" do
     test "is far more permissive than the manual write limit" do
       user_id = 11_551
 
@@ -99,10 +99,10 @@ defmodule Tymeslot.Security.RateLimiterDashboardActionsTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_avatar_upload_rate_limit/1 — 20 per hour
+  # check(:avatar_upload, _) — 20 per hour
   # ---------------------------------------------------------------------------
 
-  describe "check_avatar_upload_rate_limit/1" do
+  describe "check(:avatar_upload, _)" do
     test "blocks requests exceeding the limit" do
       user_id = 11_602
 
@@ -145,10 +145,10 @@ defmodule Tymeslot.Security.RateLimiterDashboardActionsTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_embed_domain_update_rate_limit/1 — 10 per hour
+  # check(:embed_domain_update, _) — 10 per hour
   # ---------------------------------------------------------------------------
 
-  describe "check_embed_domain_update_rate_limit/1" do
+  describe "check(:embed_domain_update, _)" do
     test "blocks requests exceeding the limit" do
       user_id = 11_652
 
@@ -190,10 +190,10 @@ defmodule Tymeslot.Security.RateLimiterDashboardActionsTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_dashboard_cancel_rate_limit/1 — 20 per 10 minutes
+  # check(:dashboard_cancel, _) — 20 per 10 minutes
   # ---------------------------------------------------------------------------
 
-  describe "check_dashboard_cancel_rate_limit/1" do
+  describe "check(:dashboard_cancel, _)" do
     test "blocks requests exceeding the limit" do
       user_id = 11_702
 
@@ -244,10 +244,10 @@ defmodule Tymeslot.Security.RateLimiterDashboardActionsTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_dashboard_add_guests_rate_limit/1 — 20 per 10 minutes
+  # check(:dashboard_add_guests, _) — 20 per 10 minutes
   # ---------------------------------------------------------------------------
 
-  describe "check_dashboard_add_guests_rate_limit/1" do
+  describe "check(:dashboard_add_guests, _)" do
     test "blocks requests exceeding the limit, per user" do
       user_id = 11_870
       other_user_id = 11_871
@@ -265,10 +265,10 @@ defmodule Tymeslot.Security.RateLimiterDashboardActionsTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_dashboard_quick_add_meeting_rate_limit/1 — 20 per 10 minutes
+  # check(:dashboard_quick_add_meeting, _) — 20 per 10 minutes
   # ---------------------------------------------------------------------------
 
-  describe "check_dashboard_quick_add_meeting_rate_limit/1" do
+  describe "check(:dashboard_quick_add_meeting, _)" do
     test "blocks requests exceeding the limit" do
       user_id = 11_880
 
@@ -308,10 +308,10 @@ defmodule Tymeslot.Security.RateLimiterDashboardActionsTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_dashboard_reschedule_rate_limit/1 — 20 per 10 minutes
+  # check(:dashboard_reschedule, _) — 20 per 10 minutes
   # ---------------------------------------------------------------------------
 
-  describe "check_dashboard_reschedule_rate_limit/1" do
+  describe "check(:dashboard_reschedule, _)" do
     test "blocks requests exceeding the limit" do
       user_id = 11_802
 

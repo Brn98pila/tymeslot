@@ -11,10 +11,10 @@ defmodule Tymeslot.Security.RateLimiterCalendarEventMoveTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_calendar_event_move_rate_limit/1 — tiered: 3/1m, 5/5m, 15/1h, 30/1d
+  # check(:calendar_event_move, _) — tiered: 3/1m, 5/5m, 15/1h, 30/1d
   # ---------------------------------------------------------------------------
 
-  describe "check_calendar_event_move_rate_limit/1" do
+  describe "check(:calendar_event_move, _)" do
     test "allows moves under the burst limit" do
       user_id = 99_001
 

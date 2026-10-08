@@ -160,14 +160,14 @@ defmodule TymeslotWeb.WebhookCompositionTest do
         )
 
       # Exhaust the per-integration Hammer bucket (61 hits > the 60-per-60s
-      # limit) to guarantee the sliding-window check returns {:error,
-      # :rate_limited} for this integration id regardless of timing jitter.
+      # limit) to guarantee the sliding-window check refuses this
+      # integration id regardless of timing jitter.
       for _i <- 1..61 do
         RateLimit.hit("calendar_webhook:#{integration.id}", 60_000, 60)
       end
 
       # Confirm the bucket is genuinely exhausted before the HTTP call.
-      assert {:error, :rate_limited} =
+      assert {:error, :rate_limited, _message} =
                RateLimiter.check(:calendar_webhook, integration.id)
 
       payload = %{
