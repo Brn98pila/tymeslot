@@ -65,10 +65,16 @@ defmodule Tymeslot.Webhooks.WebhookSchema do
   # published by the dispatchers while remaining unselectable here.
   @valid_events EventTypes.all()
 
-  @required_fields [:name, :url, :user_id]
-  @optional_fields [
-    :webhook_token,
-    :events,
+  # Changesets are split by who writes the row:
+  #
+  #   * `create_changeset/1` takes the owner, set by the context, and then
+  #     the organiser's own fields.
+  #   * `update_changeset/2` carries only what the organiser edits: the name,
+  #     the URL, the events, and the token (blank regenerates it).
+  #   * `state_transition_changeset/2` carries the delivery bookkeeping,
+  #     written by the context and the delivery worker.
+  @user_fields [:name, :url, :events, :webhook_token]
+  @state_fields [
     :is_active,
     :last_triggered_at,
     :last_status,
@@ -77,33 +83,49 @@ defmodule Tymeslot.Webhooks.WebhookSchema do
     :disabled_reason
   ]
 
-  @doc false
-  @spec changeset(t(), map()) :: Ecto.Changeset.t()
-  def changeset(webhook, attrs) do
-    # Ensure attrs is a map
-    attrs = attrs || %{}
+  @doc "Changeset for a new webhook. `user_id` is set by the context, never taken from the form."
+  @spec create_changeset(map()) :: Ecto.Changeset.t()
+  def create_changeset(attrs) do
+    %__MODULE__{}
+    |> cast(attrs, [:user_id])
+    |> validate_required([:user_id])
+    |> foreign_key_constraint(:user_id)
+    |> update_changeset(attrs)
+  end
 
+  @doc """
+  Changeset for the organiser's own edits. The owner and the delivery
+  bookkeeping are never changed here.
+  """
+  @spec update_changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
+  def update_changeset(webhook, attrs) do
     # If webhook_token is explicitly set to nil in attrs, ensure it stays nil after cast
     # so generate_token can detect it.
-    changeset =
-      webhook
-      |> cast(attrs, @required_fields ++ @optional_fields)
-      |> validate_required(@required_fields)
-      |> validate_length(:name, Constraints.webhook_name_length_opts())
-      |> validate_length(:url, min: 1, max: Constraints.url_max_length())
-      |> URLValidator.validate_url(:url,
-        block_private_ips: not SsrfValidator.allow_private?(),
-        enforce_https: not SsrfValidator.allow_private?()
-      )
-      |> validate_events()
-      |> foreign_key_constraint(:user_id)
+    attrs = attrs || %{}
 
-    changeset
+    webhook
+    |> cast(attrs, @user_fields)
+    |> validate_required([:name, :url])
+    |> validate_length(:name, Constraints.integration_name_length_opts())
+    |> validate_length(:url, min: 1, max: Constraints.url_max_length())
+    |> URLValidator.validate_url(:url,
+      block_private_ips: not SsrfValidator.allow_private?(),
+      enforce_https: not SsrfValidator.allow_private?()
+    )
+    |> validate_events()
     |> maybe_seed_webhook_token(attrs)
     |> generate_token()
     |> encrypt_token()
     |> LegacyPlainColumn.clear_on_change(url: :legacy_url)
   end
+
+  @doc """
+  Changeset for the delivery bookkeeping: active state, failure count,
+  disable reason and the last delivery's outcome. No validation, so a row in
+  any state can be switched off or re-enabled.
+  """
+  @spec state_transition_changeset(t(), map()) :: Ecto.Changeset.t()
+  def state_transition_changeset(webhook, attrs), do: cast(webhook, attrs, @state_fields)
 
   defp maybe_seed_webhook_token(changeset, attrs) do
     if blank_token_supplied?(attrs) do

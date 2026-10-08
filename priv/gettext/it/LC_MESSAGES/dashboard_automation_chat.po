@@ -838,3 +838,28 @@ msgstr "Errore Slack: %{error}"
 #, elixir-autogen, elixir-format
 msgid "Delete %{name}"
 msgstr "Elimina %{name}"
+
+#: lib/tymeslot/telegram/telegram.ex
+#, elixir-autogen, elixir-format
+msgid "Could not reach Telegram"
+msgstr "Impossibile contattare Telegram"
+
+#: lib/tymeslot/telegram/telegram.ex
+#, elixir-autogen, elixir-format
+msgid "No chat is linked to this integration yet"
+msgstr "A questa integrazione non è ancora collegata nessuna chat"
+
+#: lib/tymeslot/telegram/telegram.ex
+#, elixir-autogen, elixir-format
+msgid "Telegram refused the message (%{status}): %{description}"
+msgstr "Telegram ha rifiutato il messaggio (%{status}): %{description}"
+
+#: lib/tymeslot/telegram/telegram.ex
+#, elixir-autogen, elixir-format
+msgid "The bot token is missing"
+msgstr "Manca il token del bot"
+
+#: lib/tymeslot/telegram/telegram.ex
+#, elixir-autogen, elixir-format
+msgid "The shared Telegram bot is not configured"
+msgstr "Il bot Telegram condiviso non è configurato"

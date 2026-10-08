@@ -136,7 +136,8 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.FormHandlers do
       else
         case TelegramInputValidation.validate_form(form_values,
                bot_mode: bot_mode,
-               mode: mode
+               mode: mode,
+               stored_name: AutomationHelpers.stored_name(socket.assigns.telegram_form_data)
              ) do
           {:ok, _validated} ->
             FormValidationHelpers.delete_field_error(

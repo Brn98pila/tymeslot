@@ -118,7 +118,7 @@ defmodule TymeslotWeb.Dashboard.Automation.TelegramCompositionTest do
       |> render_submit()
 
       html = render(view)
-      assert html =~ "Test failed"
+      assert html =~ "Test failed: Could not reach Telegram"
       refute html =~ "Telegram integration created"
       assert Telegram.list_integrations(user.id) == []
     end
