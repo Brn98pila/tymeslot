@@ -3,6 +3,7 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
   @moduletag :payments
 
   alias Ecto.Adapters.SQL.Sandbox
+  alias Tymeslot.Payments.SubscriptionManagerMock
   alias Tymeslot.Payments.Webhooks.DisputeHandler
   alias Tymeslot.Payments.Webhooks.RefundHandler
   alias Tymeslot.Payments.Webhooks.TrialWillEndHandler
@@ -17,7 +18,11 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
   setup do
     # Ensure we are in standalone-like config for these tests
     original_repo = Application.get_env(:tymeslot, :repo)
+    original_manager = Application.get_env(:tymeslot, :subscription_manager)
     Application.put_env(:tymeslot, :repo, Repo)
+    # Standalone: no subscription manager at all, so subscription lookups
+    # answer nil and the handlers take their standalone paths.
+    Application.put_env(:tymeslot, :subscription_manager, nil)
 
     # Checkout Repo for database access
     :ok = Sandbox.checkout(Repo)
@@ -25,6 +30,7 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
 
     on_exit(fn ->
       Application.put_env(:tymeslot, :repo, original_repo)
+      Application.put_env(:tymeslot, :subscription_manager, original_manager)
     end)
 
     :ok
@@ -59,20 +65,28 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
     def preload(user, _assoc), do: user
   end
 
+  # A subscription manager that records a subscription for user 123 under any
+  # id. The module setup restores the standalone (nil) manager afterwards.
+  defp stub_recorded_subscription do
+    Application.put_env(:tymeslot, :subscription_manager, SubscriptionManagerMock)
+    subscription = %TestSubscriptionSchema{user_id: 123}
+    stub(SubscriptionManagerMock, :get_subscription_by_customer_id, fn _id -> subscription end)
+
+    stub(SubscriptionManagerMock, :get_subscription_by_subscription_id, fn _id -> subscription end)
+  end
+
   defp with_object(event, object), do: Map.put(event, "data", %{"object" => object})
 
   defp setup_test_configs do
     original_repo = Application.get_env(:tymeslot, :repo)
-    original_schema = Application.get_env(:tymeslot, :subscription_schema)
     original_provider = Application.get_env(:tymeslot, :stripe_provider)
 
     Application.put_env(:tymeslot, :repo, TestRepo)
-    Application.put_env(:tymeslot, :subscription_schema, TestSubscriptionSchema)
     Application.put_env(:tymeslot, :stripe_provider, Tymeslot.Payments.StripeMock)
+    stub_recorded_subscription()
 
     on_exit(fn ->
       Application.put_env(:tymeslot, :repo, original_repo)
-      Application.put_env(:tymeslot, :subscription_schema, original_schema)
       Application.put_env(:tymeslot, :stripe_provider, original_provider)
     end)
   end
@@ -147,14 +161,12 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
 
     test "processes trial ending events when subscription exists" do
       original_repo = Application.get_env(:tymeslot, :repo)
-      original_schema = Application.get_env(:tymeslot, :subscription_schema)
 
       Application.put_env(:tymeslot, :repo, TestRepo)
-      Application.put_env(:tymeslot, :subscription_schema, TestSubscriptionSchema)
+      stub_recorded_subscription()
 
       on_exit(fn ->
         Application.put_env(:tymeslot, :repo, original_repo)
-        Application.put_env(:tymeslot, :subscription_schema, original_schema)
       end)
 
       trial_end = DateTime.add(DateTime.utc_now(), 2, :day)

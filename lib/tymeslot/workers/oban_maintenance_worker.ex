@@ -30,8 +30,11 @@ defmodule Tymeslot.Workers.ObanMaintenanceWorker do
     queue: :maintenance,
     priority: 3,
     max_attempts: 3,
-    # Prevent overlapping runs (30 minutes)
-    unique: [period: 1800]
+    # One run per crontab slot (every 30 minutes). Uniqueness counts from
+    # the previous job's insertion, so a period equal to the interval would
+    # swallow the next slot's job whenever the cron plugin inserts it a
+    # moment early; a little under the interval cannot.
+    unique: [period: 1740]
 
   require Logger
 

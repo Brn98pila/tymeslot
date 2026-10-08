@@ -17,7 +17,7 @@ defmodule Tymeslot.Payments.Webhooks.TrialWillEndHandler do
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Payments.Behaviours.WebhookHandler
-  alias Tymeslot.Payments.Config
+  alias Tymeslot.Payments.CustomerLookup
   alias Tymeslot.Payments.PubSub
   alias Tymeslot.Payments.Webhooks.WebhookUtils
 
@@ -66,7 +66,7 @@ defmodule Tymeslot.Payments.Webhooks.TrialWillEndHandler do
 
   defp notify_trial_ending(subscription_id) do
     # Find subscription in our database for local notifications
-    case find_subscription(subscription_id) do
+    case CustomerLookup.get_subscription_by_subscription_id(subscription_id) do
       nil ->
         Logger.warning("Trial ending - subscription not found",
           subscription_id: subscription_id
@@ -83,17 +83,6 @@ defmodule Tymeslot.Payments.Webhooks.TrialWillEndHandler do
   end
 
   # Private functions
-
-  defp find_subscription(stripe_subscription_id) do
-    repo = Config.repo()
-    subscription_schema = Config.subscription_schema()
-
-    if subscription_schema && Code.ensure_loaded?(subscription_schema) do
-      repo.get_by(subscription_schema, stripe_subscription_id: stripe_subscription_id)
-    else
-      nil
-    end
-  end
 
   defp send_trial_ending_email(subscription) do
     WebhookUtils.deliver_user_email(

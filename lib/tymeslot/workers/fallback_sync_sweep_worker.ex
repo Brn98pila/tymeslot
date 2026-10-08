@@ -37,7 +37,10 @@ defmodule Tymeslot.Workers.FallbackSyncSweepWorker do
   use Oban.Worker,
     queue: :calendar_integrations,
     max_attempts: 1,
-    unique: [period: 900]
+    # Just under the 15-minute crontab interval: uniqueness counts from the
+    # previous job's insertion, so a full 900 would swallow the next slot's
+    # job whenever the cron plugin inserts it a moment early.
+    unique: [period: 840]
 
   require Logger
 

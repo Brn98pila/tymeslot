@@ -267,54 +267,9 @@ if config_env() == :prod do
     # warns at boot when this drifts out of the safe band.
     lifeline: [rescue_after: {6, :hours}],
     pruner: [max_age: {7, :days}],
-    cron: [
-      crontab: [
-        # Run every 30 minutes for Oban maintenance
-        {"*/30 * * * *", Tymeslot.Workers.ObanMaintenanceWorker},
-        # Run hourly, ten minutes past: refresh calendar OAuth tokens expiring
-        # within two hours, ahead of the first API call to need them
-        {"10 * * * *", Tymeslot.Integrations.Calendar.TokenRefreshJob},
-        # Run every hour for queue health monitoring
-        {"0 * * * *", Tymeslot.Workers.ObanQueueMonitorWorker},
-        # Run hourly, five minutes past, so the hour it evaluates is complete:
-        # aggregate calendar integration health alerting
-        {"5 * * * *", Tymeslot.Workers.IntegrationHealthAlertWorker},
-        # Run daily at 02:45 UTC for video room recovery scan
-        {"45 2 * * *", Tymeslot.Workers.VideoRoomRecoveryScanWorker},
-        # Run daily at 03:45 UTC to re-attempt provider deletion for cancelled
-        # meetings whose video room was never cleaned up
-        {"45 3 * * *", Tymeslot.Workers.OrphanedVideoRoomScanWorker},
-        # Run daily at 04:15 UTC to delete video rooms that outlived their meeting
-        {"15 4 * * *", Tymeslot.Workers.ExpiredVideoRoomCleanupWorker},
-        # Run daily at 03:15 UTC
-        {"15 3 * * *", Tymeslot.Workers.ExpiredSessionCleanupWorker},
-        # Run daily at 02:00 UTC to renew expiring webhook channels
-        {"0 2 * * *", Tymeslot.Workers.RenewWebhookChannelsWorker},
-        # Run every 15 min; CalDAV tier-aware filtering decides which integrations sync
-        {"*/15 * * * *", Tymeslot.Workers.FallbackSyncSweepWorker},
-        # Run daily at 04:00 UTC for cross-domain data retention pruning
-        {"0 4 * * *", Tymeslot.Workers.DataRetentionWorker, args: %{retention_days: 60}},
-        # Run every 6 hours to detect silent/dead webhook channels
-        {"0 */6 * * *", Tymeslot.Workers.DeadChannelAlertWorker},
-        # Run daily at 03:30 UTC to prune old/inactive calendar event cache
-        {"30 3 * * *", Tymeslot.Workers.CalendarCachePruneWorker},
-        # Run daily at 05:30 UTC to flag Zoom grants missing a scope Tymeslot needs
-        {"30 5 * * *", Tymeslot.Workers.ZoomScopeAuditWorker},
-        # Run daily at 05:00 UTC to auto-pause integrations stuck unhealthy past the configured cutoff
-        {"0 5 * * *", Tymeslot.Workers.IntegrationAutoPauseWorker},
-        # Run every 15 min to reconcile awaiting_payment meetings whose webhook never arrived
-        {"*/15 * * * *", Tymeslot.MeetingPayments.Workers.ReconcileAwaitingPayments},
-        # Run daily at 04:30 UTC to cross-check booking analytics against bookings
-        {"30 4 * * *", Tymeslot.Workers.AnalyticsReconciliationWorker},
-        # Run every 15 min to release approval requests whose deadline passed
-        # and whose per-meeting expiry job never fired
-        {"*/15 * * * *", Tymeslot.Meetings.Workers.ApprovalSweepWorker},
-        # Run daily at 03:05 UTC to resolve quiet errors and prune old ones
-        {"5 3 * * *", Tymeslot.Workers.ErrorTrackerMaintenanceWorker},
-        # Run daily at 07:00 UTC to email the digest of info-severity admin alerts
-        {"0 7 * * *", Tymeslot.Workers.AdminAlertDigestWorker}
-      ]
-    ]
+    # The crontab itself is `:oban_crontab` in config.exs, shared with dev;
+    # `Tymeslot.Infrastructure.ObanCron.extend/1` fills it in at startup.
+    cron: []
 
   # Disable the Zoom update scope where the Marketplace app behind this
   # deployment is not configured for `meeting:update:meeting`. Requesting it
