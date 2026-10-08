@@ -244,6 +244,7 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers do
     |> pin_reschedule_meeting_type()
     |> handle_confirmation_params(params)
     |> SeatMoveLink.leave_if_spent(seat_token)
+    |> ReschedulePin.leave_if_refused()
   end
 
   defp assign_rescheduling(socket, params) do

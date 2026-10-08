@@ -288,4 +288,38 @@ defmodule TymeslotWeb.Live.Scheduling.RescheduleEntryTest do
       refute has_element?(view, "[data-testid='next-step'][disabled]")
     end
   end
+
+  describe "a booking the rules no longer let move" do
+    @tag :capture_log
+    test "is refused on arrival, in the visitor's language", %{
+      conn: conn,
+      profile: profile,
+      meeting: meeting
+    } do
+      {:ok, _expired} = meeting |> Changeset.change(%{status: "expired"}) |> Repo.update()
+      conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9")
+
+      assert {:error, {_redirect, %{to: to, flash: flash}}} =
+               live(
+                 conn,
+                 "/#{profile.username}?timezone=UTC&reschedule_meeting_uid=#{meeting.uid}"
+               )
+
+      assert to == "/#{profile.username}?timezone=UTC"
+      assert flash["error"] == "Ein abgelaufener Termin kann nicht verschoben werden"
+    end
+
+    @tag :capture_log
+    test "a booking that can still move is not refused", %{
+      conn: conn,
+      profile: profile,
+      meeting: meeting
+    } do
+      assert {:ok, _view, _html} =
+               live(
+                 conn,
+                 "/#{profile.username}?timezone=UTC&reschedule_meeting_uid=#{meeting.uid}"
+               )
+    end
+  end
 end

@@ -115,9 +115,8 @@ defmodule Tymeslot.Polls do
   @spec update_details(Ecto.UUID.t(), integer(), map()) ::
           {:ok, PollSchema.t()} | {:error, :not_found | :not_open | Ecto.Changeset.t()}
   def update_details(id, user_id, attrs) do
-    with_poll(id, user_id, fn
-      %{status: :open} = poll -> do_update_details(poll, attrs)
-      _poll -> {:error, :not_open}
+    with_open_poll_locked(id, user_id, fn poll ->
+      PollQueries.update(PollSchema.details_changeset(poll, attrs))
     end)
   end
 
@@ -125,9 +124,11 @@ defmodule Tymeslot.Polls do
   @spec cancel_poll(Ecto.UUID.t(), integer()) ::
           {:ok, PollSchema.t()} | {:error, :not_found | :not_open | Ecto.Changeset.t()}
   def cancel_poll(id, user_id) do
-    with_poll(id, user_id, fn
-      %{status: :open} = poll -> do_cancel(poll)
-      _poll -> {:error, :not_open}
+    with_open_poll_locked(id, user_id, fn poll ->
+      with {:ok, cancelled} <- PollQueries.update(PollSchema.cancel_changeset(poll)) do
+        :ok = PollScheduler.cancel_deadline_jobs(cancelled.id)
+        {:ok, cancelled}
+      end
     end)
   end
 
@@ -281,26 +282,28 @@ defmodule Tymeslot.Polls do
 
   # --- Lifecycle helpers ---
 
-  defp do_cancel(poll) do
-    case PollQueries.update(PollSchema.cancel_changeset(poll)) do
-      {:ok, cancelled} ->
-        :ok = PollScheduler.cancel_deadline_jobs(cancelled.id)
-        broadcast_update(cancelled.id)
-        {:ok, cancelled}
+  # A lifecycle write on an open poll (cancel, a details edit) reads the poll
+  # under the row lock confirmation takes (`Tymeslot.Polls.Confirm`), so a
+  # poll confirmed after the caller loaded its page is seen as confirmed here
+  # and refused, rather than written over. `fun` gets the locked open poll and
+  # returns `{:ok, poll}` or `{:error, reason}`; subscribers are told once the
+  # write has committed.
+  defp with_open_poll_locked(id, user_id, fun) do
+    result =
+      Repo.transaction(fn ->
+        with %PollSchema{status: :open} = poll <- PollQueries.lock_for_user(id, user_id),
+             {:ok, updated} <- fun.(poll) do
+          updated
+        else
+          nil -> Repo.rollback(:not_found)
+          %PollSchema{} -> Repo.rollback(:not_open)
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end)
 
-      {:error, changeset} ->
-        {:error, changeset}
-    end
-  end
-
-  defp do_update_details(poll, attrs) do
-    case PollQueries.update(PollSchema.details_changeset(poll, attrs)) do
-      {:ok, updated} ->
-        broadcast_update(updated.id)
-        {:ok, updated}
-
-      {:error, changeset} ->
-        {:error, changeset}
+    with {:ok, updated} <- result do
+      broadcast_update(updated.id)
+      {:ok, updated}
     end
   end
 

@@ -206,7 +206,7 @@ defmodule Tymeslot.MeetingsTest do
           end_time: DateTime.add(DateTime.utc_now(), -1800)
         )
 
-      assert {:error, "Cannot reschedule a meeting that has already occurred"} =
+      assert {:error, {:not_reschedulable, :past}} =
                Meetings.send_reschedule_request(meeting)
     end
 
@@ -218,7 +218,7 @@ defmodule Tymeslot.MeetingsTest do
           approval_deadline_at: DateTime.add(DateTime.utc_now(:second), 12, :hour)
         )
 
-      assert {:error, "Cannot request a reschedule while the booking awaits approval"} =
+      assert {:error, {:not_reschedulable, :awaiting_approval}} =
                Meetings.send_reschedule_request(meeting)
 
       # The slot must stay live: no reschedule_requested_at was stamped, so

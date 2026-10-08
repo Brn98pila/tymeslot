@@ -465,8 +465,8 @@ defmodule TymeslotWeb.Dashboard.CalendarEventHandlers do
 
   # The reason is a domain term, never copy: an atom such as `:time_conflict`
   # would otherwise reach the flash verbatim. `CreateAdHoc`'s own refusals are
-  # the binaries `BookingErrorMessage` already translates, and anything it does
-  # not recognise falls back to a generic sentence there.
+  # atoms `BookingErrorMessage` renders, and anything it does not recognise
+  # falls back to a generic sentence there.
   defp ad_hoc_failed_message(:time_conflict) do
     dgettext(
       "dashboard_calendar_events",

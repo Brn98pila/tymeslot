@@ -1,8 +1,9 @@
 defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage do
   @moduledoc """
-  Renders `Tymeslot.Bookings.Errors.classified_error/0` atoms (and legacy
-  Policy/Validation binary strings) into user-facing flash copy — display
-  copy is a presentation-layer concern, not baked into the domain contract.
+  Renders `Tymeslot.Bookings.Errors.classified_error/0` reasons, the
+  `Tymeslot.Bookings.Policy` and `Tymeslot.Bookings.Validation` refusals
+  among them, into user-facing flash copy — display copy is a
+  presentation-layer concern, not baked into the domain contract.
   """
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -10,10 +11,10 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage do
   @doc """
   Renders a booking error reason to user-facing flash text.
 
-  Unknown atoms and unmapped binaries fall back to a generic message
-  rather than leaking internals.
+  Unknown reasons fall back to a generic message rather than leaking
+  internals.
   """
-  @spec message(atom() | String.t()) :: String.t()
+  @spec message(term()) :: String.t()
   def message(:slot_taken) do
     dgettext(
       "booking",
@@ -134,99 +135,60 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage do
     dgettext("booking", "Please select a date and time")
   end
 
-  # Legacy string errors shared with the cancel/reschedule/create-ad-hoc flow
-  # (`Policy.can_reschedule_meeting?/1`, `Validation`, `CreateAdHoc`), which
-  # still return binaries directly — atomizing those is a future pass, out of
-  # scope here. Translated via a fixed mapping (exact strings, plus a couple
-  # of regexes for the messages `Validation` builds with an interpolated
-  # day/hour count) rather than passed through, so a binary the mapping
-  # doesn't recognise falls back to the generic message instead of leaking
-  # internal English text onto the public booking page.
-  def message(reason) when is_binary(reason) do
-    legacy_message(reason) ||
-      dgettext("booking", "Failed to create appointment. Please try again.")
-  end
+  # Refusals from the booking rules (`Policy`, `Validation`, `CreateAdHoc`).
+  def message({:not_cancellable, :completed}),
+    do: dgettext("booking", "Cannot cancel a completed meeting")
+
+  def message({:not_cancellable, :expired}),
+    do: dgettext("booking", "Cannot cancel an expired meeting")
+
+  def message({:not_cancellable, :started}),
+    do: dgettext("booking", "Cannot cancel a meeting that has already started")
+
+  def message({:not_cancellable, :past}),
+    do: dgettext("booking", "Cannot cancel a meeting that has already occurred")
+
+  def message({:not_reschedulable, :cancelled}),
+    do: dgettext("booking", "Cannot reschedule a cancelled meeting")
+
+  def message({:not_reschedulable, :completed}),
+    do: dgettext("booking", "Cannot reschedule a completed meeting")
+
+  def message({:not_reschedulable, :expired}),
+    do: dgettext("booking", "Cannot reschedule an expired meeting")
+
+  def message({:not_reschedulable, :started}),
+    do: dgettext("booking", "Cannot reschedule a meeting that has already started")
+
+  def message({:not_reschedulable, :past}),
+    do: dgettext("booking", "Cannot reschedule a meeting that has already occurred")
+
+  def message({:not_reschedulable, :awaiting_approval}),
+    do: dgettext("booking", "Cannot request a reschedule while the booking awaits approval")
+
+  # Reuses the msgid `localization_helpers.ex` already defines (and every
+  # locale already translates) for the same problem.
+  def message(:invalid_datetime), do: dgettext("booking", "Invalid date/time")
+
+  def message(:in_past), do: dgettext("booking", "Booking time must be in the future")
+
+  def message({:too_soon, hours}),
+    do: dgettext("booking", "Booking requires at least %{hours} hours in advance", hours: hours)
+
+  def message({:too_far_ahead, days}),
+    do: dgettext("booking", "You cannot book more than %{days} days in advance", days: days)
+
+  def message(:title_required), do: dgettext("booking", "Title is required")
+  def message(:attendee_name_required), do: dgettext("booking", "Attendee name is required")
+  def message(:attendee_email_required), do: dgettext("booking", "Attendee email is required")
+
+  def message(:attendee_is_organizer),
+    do: dgettext("booking", "The guest email must differ from your own address")
+
+  def message(:end_before_start), do: dgettext("booking", "End time must be after start time")
+  def message(:meeting_creation_failed), do: dgettext("booking", "Failed to create meeting")
 
   def message(_other) do
     dgettext("booking", "Failed to create appointment. Please try again.")
-  end
-
-  @notice_hours_regex ~r/^Booking requires at least (\d+) hours (?:in advance|advance notice)$/
-  @window_days_regex ~r/^(?:Cannot book more than|Booking cannot be more than) (\d+) days in advance$/
-
-  @spec legacy_message(String.t()) :: String.t() | nil
-  # Both variants reuse the msgid `localization_helpers.ex` already defines
-  # (and every locale already translates) for the same underlying problem,
-  # rather than adding two new near-duplicate, untranslated strings.
-  defp legacy_message("Invalid date or time format"),
-    do: dgettext("booking", "Invalid date/time")
-
-  defp legacy_message("Invalid date format"),
-    do: dgettext("booking", "Invalid date/time")
-
-  defp legacy_message("Meeting is already cancelled"),
-    do: dgettext("booking", "Meeting is already cancelled")
-
-  defp legacy_message("Cannot cancel a completed meeting"),
-    do: dgettext("booking", "Cannot cancel a completed meeting")
-
-  defp legacy_message("Cannot cancel a meeting that has already started"),
-    do: dgettext("booking", "Cannot cancel a meeting that has already started")
-
-  defp legacy_message("Cannot cancel a meeting that has already occurred"),
-    do: dgettext("booking", "Cannot cancel a meeting that has already occurred")
-
-  defp legacy_message("Cannot reschedule a cancelled meeting"),
-    do: dgettext("booking", "Cannot reschedule a cancelled meeting")
-
-  defp legacy_message("Cannot reschedule a completed meeting"),
-    do: dgettext("booking", "Cannot reschedule a completed meeting")
-
-  defp legacy_message("Cannot reschedule a meeting that has already started"),
-    do: dgettext("booking", "Cannot reschedule a meeting that has already started")
-
-  defp legacy_message("Cannot reschedule a meeting that has already occurred"),
-    do: dgettext("booking", "Cannot reschedule a meeting that has already occurred")
-
-  defp legacy_message("Cannot reschedule an expired meeting"),
-    do: dgettext("booking", "Cannot reschedule an expired meeting")
-
-  defp legacy_message("Booking time must be in the future"),
-    do: dgettext("booking", "Booking time must be in the future")
-
-  defp legacy_message("Attendee email is required"),
-    do: dgettext("booking", "Attendee email is required")
-
-  defp legacy_message("Attendee name is required"),
-    do: dgettext("booking", "Attendee name is required")
-
-  defp legacy_message("End time must be after start time"),
-    do: dgettext("booking", "End time must be after start time")
-
-  defp legacy_message("Failed to create meeting"),
-    do: dgettext("booking", "Failed to create meeting")
-
-  defp legacy_message("Failed to update meeting status"),
-    do: dgettext("booking", "Failed to update meeting status")
-
-  defp legacy_message("The guest email must differ from your own address"),
-    do: dgettext("booking", "The guest email must differ from your own address")
-
-  defp legacy_message("Title is required"),
-    do: dgettext("booking", "Title is required")
-
-  defp legacy_message(reason) do
-    cond do
-      match = Regex.run(@notice_hours_regex, reason) ->
-        [_full, hours] = match
-        dgettext("booking", "Booking requires at least %{hours} hours in advance", hours: hours)
-
-      match = Regex.run(@window_days_regex, reason) ->
-        [_full, days] = match
-        dgettext("booking", "You cannot book more than %{days} days in advance", days: days)
-
-      true ->
-        nil
-    end
   end
 end

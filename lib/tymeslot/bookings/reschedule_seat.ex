@@ -52,10 +52,12 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
 
   require Logger
 
+  alias Tymeslot.Availability.Schedules
   alias Tymeslot.Bookings.BuildParams
   alias Tymeslot.Bookings.CalendarCheck
   alias Tymeslot.Bookings.CalendarJobs
   alias Tymeslot.Bookings.Cancel
+  alias Tymeslot.Bookings.MeetingAttributes
   alias Tymeslot.Bookings.Policy
   alias Tymeslot.Bookings.SeatEffects
   alias Tymeslot.Bookings.SeatRelease
@@ -92,7 +94,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
          :ok <- ensure_same_organizer(old_meeting, organizer_user_id),
          :ok <- Policy.can_reschedule_meeting?(old_meeting) do
       meeting_type = resolve_meeting_type(old_meeting)
-      config = Policy.scheduling_config(old_meeting.organizer_user_id, meeting_type)
+      config = Schedules.booking_config(old_meeting.organizer_user_id, meeting_type)
       guest_emails = guest_emails(participant)
 
       with :ok <- ensure_group_type(meeting_type),
@@ -333,7 +335,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
 
   # Builds the meeting-creation attrs `book_seat/3` passes to `Scheduling`
   # when no live group meeting exists at the target slot yet, routed through
-  # the same `Policy.build_meeting_attributes/1` builder `CreateGroup` uses
+  # the same `MeetingAttributes.build/1` builder `CreateGroup` uses
   # rather than a second hand-built map — so a slot created by a seat move
   # carries the same video integration, description, location, locale,
   # attachments and reminder configuration a fresh booking would give it.
@@ -358,7 +360,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
       attendee_locale: participant.locale,
       custom_field_answers: participant.custom_field_answers
     }
-    |> Policy.build_meeting_attributes()
+    |> MeetingAttributes.build()
     |> SeatEffects.slot_attrs(old_meeting.title)
   end
 
