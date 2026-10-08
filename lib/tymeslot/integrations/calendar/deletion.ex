@@ -61,14 +61,23 @@ defmodule Tymeslot.Integrations.Calendar.Deletion do
   # changing.
   defp delete_and_reassign(integration) do
     PrimaryElection.under_lock(integration.user_id, fn ->
-      promoted_result = maybe_handle_primary(integration)
-      MeetingTypeQueries.clear_calendar_references(integration.id)
-
-      case CalendarIntegrationQueries.delete(integration) do
-        {:ok, _result} -> promoted_result
-        {:error, reason} -> Repo.rollback(reason)
+      # A concurrent delete may have removed the row while this one waited on
+      # the lock; deleting the struct read before it would raise.
+      case CalendarIntegrationQueries.reload(integration) do
+        nil -> Repo.rollback(:not_found)
+        stored -> delete_stored(stored)
       end
     end)
+  end
+
+  defp delete_stored(integration) do
+    promoted_result = maybe_handle_primary(integration)
+    MeetingTypeQueries.clear_calendar_references(integration.id)
+
+    case CalendarIntegrationQueries.delete(integration) do
+      {:ok, _result} -> promoted_result
+      {:error, reason} -> Repo.rollback(reason)
+    end
   end
 
   # Decided on the stored primary id rather than a decrypted row, so an

@@ -77,6 +77,23 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElectionRaceTest do
            end) == new_id
   end
 
+  test "two deletes of the same calendar: one deletes it, the other finds it gone", ctx do
+    results =
+      race([
+        fn hold ->
+          RaceConductor.arm(hold, RaceConductor.lock_of("calendar_integrations"))
+          Deletion.delete_with_primary_reassignment(ctx.user.id, ctx.primary.id)
+        end,
+        fn hold ->
+          RaceConductor.arm(hold, RaceConductor.lock_of("calendar_integrations"))
+          Deletion.delete_with_primary_reassignment(ctx.user.id, ctx.primary.id)
+        end
+      ])
+
+    assert Enum.count(results, &match?({:ok, _deleted}, &1)) == 1
+    assert Enum.count(results, &(&1 == {:error, :not_found})) == 1
+  end
+
   defp plain_read_of_integrations?(meta) do
     meta[:source] == "calendar_integrations" and String.starts_with?(meta[:query], "SELECT") and
       not (meta[:query] =~ "FOR UPDATE")

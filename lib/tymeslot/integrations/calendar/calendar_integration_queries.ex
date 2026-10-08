@@ -444,6 +444,14 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   end
 
   @doc """
+  The integration's row as it stands now, credentials left encrypted, or nil
+  once it is gone. For a change decided under a lock, which must act on the
+  stored state rather than on a struct read before the lock was taken.
+  """
+  @spec reload(CalendarIntegrationSchema.t()) :: CalendarIntegrationSchema.t() | nil
+  def reload(%CalendarIntegrationSchema{id: id}), do: Repo.get(CalendarIntegrationSchema, id)
+
+  @doc """
   Sets the integration inactive, never the other way round: the write forces
   `is_active` to false whatever the struct says, so a stale struct cannot turn
   a pause into a no-op or a reactivation.

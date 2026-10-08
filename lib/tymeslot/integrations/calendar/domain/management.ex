@@ -193,7 +193,7 @@ defmodule Tymeslot.Integrations.CalendarManagement do
       primary_id = PrimaryElection.stored_primary_id(integration.user_id)
 
       # Only ever `false`: whatever the struct says, this never activates.
-      case CalendarIntegrationQueries.deactivate(integration) do
+      case deactivate_stored(integration) do
         {:ok, %{id: id, user_id: user_id} = paused} when id == primary_id ->
           PrimaryElection.elect_next(user_id, [id])
           paused
@@ -211,7 +211,7 @@ defmodule Tymeslot.Integrations.CalendarManagement do
     PrimaryElection.under_lock(integration.user_id, fn ->
       current_primary_id = PrimaryElection.stored_primary_id(integration.user_id)
 
-      case CalendarIntegrationQueries.toggle_active(integration) do
+      case toggle_stored(integration) do
         {:ok, updated} ->
           maybe_rebalance_primary(updated, current_primary_id)
           updated
@@ -220,6 +220,22 @@ defmodule Tymeslot.Integrations.CalendarManagement do
           Repo.rollback(reason)
       end
     end)
+  end
+
+  # Under the lock, the struct handed in may be older than the row: toggled
+  # since, or deleted. Both act on the row as it stands.
+  defp toggle_stored(integration) do
+    case CalendarIntegrationQueries.reload(integration) do
+      nil -> {:error, :not_found}
+      stored -> CalendarIntegrationQueries.toggle_active(stored)
+    end
+  end
+
+  defp deactivate_stored(integration) do
+    case CalendarIntegrationQueries.reload(integration) do
+      nil -> {:error, :not_found}
+      stored -> CalendarIntegrationQueries.deactivate(stored)
+    end
   end
 
   # Marking recovery is deliberately outside the transaction above: it enqueues

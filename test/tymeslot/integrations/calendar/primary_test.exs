@@ -93,6 +93,24 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
     end
   end
 
+  describe "switching a calendar on or off" do
+    test "flips the stored state, not the state of a copy read earlier", %{user: user} do
+      integration = insert(:calendar_integration, user: user, provider: "caldav", is_active: true)
+
+      assert {:ok, _toggled} =
+               CalendarManagement.toggle_with_primary_rebalance(%{integration | is_active: false})
+
+      refute Repo.reload!(integration).is_active
+    end
+
+    test "answers not found for a calendar deleted since it was read", %{user: user} do
+      integration = insert(:calendar_integration, user: user, provider: "caldav")
+      Repo.delete!(integration)
+
+      assert {:error, :not_found} = CalendarManagement.toggle_with_primary_rebalance(integration)
+    end
+  end
+
   describe "pausing a calendar" do
     test "pauses the primary read before it was switched back on, and hands the role on",
          %{user: user} do
