@@ -3,13 +3,16 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
 
   @moduletag :payments
 
+  import Mox
   import Tymeslot.Test.PaymentEventCapture
   import Tymeslot.Factory
 
   alias Swoosh.Email
   alias Tymeslot.Payments.PaymentTransactionSchema
   alias Tymeslot.Payments.SubscriptionInvoiceQueries
+  alias Tymeslot.Payments.SubscriptionManagerMock
   alias Tymeslot.Payments.Webhooks.RefundHandler
+  alias Tymeslot.Repo
 
   defmodule FailingHandler do
     @spec handle_payment_event(map()) :: {:error, term()}
@@ -31,7 +34,6 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
   end
 
   setup do
-    original_schema = Application.get_env(:tymeslot, :subscription_schema)
     original_manager = Application.get_env(:tymeslot, :subscription_manager)
     original_repo = Application.get_env(:tymeslot, :repo)
     original_template = Application.get_env(:tymeslot, :refund_processed_template)
@@ -45,16 +47,28 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
     # this test live in Tymeslot.Repo (where the factory inserts), so point both
     # the payments config and the email-delivery helper at Tymeslot.Repo.
     Application.put_env(:tymeslot, :repo, Tymeslot.Repo)
-    Application.put_env(:tymeslot, :subscription_schema, PaymentTransactionSchema)
+    Application.put_env(:tymeslot, :subscription_manager, SubscriptionManagerMock)
+    stub_lookups_over_transactions()
 
     on_exit(fn ->
-      restore(:subscription_schema, original_schema)
       restore(:subscription_manager, original_manager)
       restore(:repo, original_repo)
       restore(:payment_event_handler, original_handler)
     end)
 
     capture_payment_events()
+  end
+
+  # Payment transactions stand in for the subscription records a subscription
+  # manager keeps: they carry the same user, customer and subscription ids.
+  defp stub_lookups_over_transactions do
+    stub(SubscriptionManagerMock, :get_subscription_by_customer_id, fn id ->
+      Repo.get_by(PaymentTransactionSchema, stripe_customer_id: id)
+    end)
+
+    stub(SubscriptionManagerMock, :get_subscription_by_subscription_id, fn id ->
+      Repo.get_by(PaymentTransactionSchema, subscription_id: id)
+    end)
   end
 
   defp with_object(event, object), do: Map.put(event, "data", %{"object" => object})

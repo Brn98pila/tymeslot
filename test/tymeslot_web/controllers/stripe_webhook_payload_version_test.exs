@@ -21,14 +21,29 @@ defmodule TymeslotWeb.StripeWebhookPayloadVersionTest do
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
 
+  import Mox
+
   alias Tymeslot.MeetingPayments.StripeAdapter
   alias Tymeslot.Payments.PaymentTransactionSchema
   alias Tymeslot.Payments.SubscriptionInvoiceQueries
+  alias Tymeslot.Payments.SubscriptionManagerMock
   alias Tymeslot.Repo
   alias Tymeslot.StripeWebhookFixtures
 
   @platform_secret "whsec_platform_2020"
   @connect_secret "whsec_connect_2020"
+
+  # Payment transactions stand in for the subscription records a subscription
+  # manager keeps: they carry the same user, customer and subscription ids.
+  defp stub_lookups_over_transactions do
+    stub(SubscriptionManagerMock, :get_subscription_by_customer_id, fn id ->
+      Repo.get_by(PaymentTransactionSchema, stripe_customer_id: id)
+    end)
+
+    stub(SubscriptionManagerMock, :get_subscription_by_subscription_id, fn id ->
+      Repo.get_by(PaymentTransactionSchema, subscription_id: id)
+    end)
+  end
 
   defp post_signed(conn, path, body, signature) do
     conn
@@ -42,8 +57,10 @@ defmodule TymeslotWeb.StripeWebhookPayloadVersionTest do
       with_config(:tymeslot,
         stripe_webhook_secret: @platform_secret,
         repo: Repo,
-        subscription_schema: PaymentTransactionSchema
+        subscription_manager: SubscriptionManagerMock
       )
+
+      stub_lookups_over_transactions()
 
       capture_payment_events()
     end

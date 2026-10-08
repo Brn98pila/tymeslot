@@ -17,9 +17,10 @@ defmodule Tymeslot.Infrastructure.ObanCron do
   list, a `{module, opts}` tuple, a bare module, or `false` to disable the
   service outright. Only the first two can carry a crontab of ours.
 
-  It also appends the `:oban_additional_crontab` entries a wrapper
-  application schedules (`extend/1`, or `extend/2` with the entries given
-  explicitly).
+  It also builds the crontab: the environment's Oban configuration only
+  switches the cron service on, and `extend/1` fills in Core's own entries
+  (`:oban_crontab`, one definition shared by dev and production) followed by
+  the `:oban_additional_crontab` entries a wrapper application schedules.
   """
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
@@ -34,9 +35,10 @@ defmodule Tymeslot.Infrastructure.ObanCron do
   ]
 
   @doc """
-  Returns `oban_config` with the `:oban_additional_crontab` entries appended
-  to its crontab: the extension point through which a wrapper application
-  schedules its own periodic workers, mirroring `:oban_additional_queues`.
+  Returns `oban_config` with Core's crontab (`base_crontab/0`) and then the
+  `:oban_additional_crontab` entries appended to its crontab: the latter is
+  the extension point through which a wrapper application schedules its own
+  periodic workers, mirroring `:oban_additional_queues`.
 
   Scheduling them here rather than from each worker re-inserting its own next
   run means a run that crashes cannot end the schedule, and runs stay on the
@@ -47,8 +49,20 @@ defmodule Tymeslot.Infrastructure.ObanCron do
   Raises `ArgumentError` when the additional crontab is not a list.
   """
   @spec extend(keyword()) :: keyword()
-  def extend(oban_config),
-    do: extend(oban_config, Application.get_env(:tymeslot, :oban_additional_crontab, []))
+  def extend(oban_config) do
+    additional = Application.get_env(:tymeslot, :oban_additional_crontab, [])
+
+    extend(
+      oban_config,
+      if(is_list(additional), do: base_crontab() ++ additional, else: additional)
+    )
+  end
+
+  @doc """
+  Core's own crontab, the `:oban_crontab` entries in `config/config.exs`.
+  """
+  @spec base_crontab() :: list()
+  def base_crontab, do: Application.get_env(:tymeslot, :oban_crontab, [])
 
   @doc false
   @spec extend(keyword(), term()) :: keyword()
