@@ -189,7 +189,8 @@ defmodule Tymeslot.Workers.ExpectedJobOutcomesTest do
        "CalDAV booking calendar not found — user action required",
        "CalDAV integration has no calendar selected — user action required",
        "CalDAV server returned a server error; the next scheduled sync will retry",
-       "CalDAV server did not respond; the next scheduled sync will retry"
+       "CalDAV server did not respond; the next scheduled sync will retry",
+       "CalDAV server returned more data than Tymeslot can process at once"
      ],
      recorded: ["CalDAV deletion circuit breaker refused a suspicious bulk deletion"]},
     {Workers.SyncExchangeCalendarWorker,
@@ -199,7 +200,8 @@ defmodule Tymeslot.Workers.ExpectedJobOutcomesTest do
        "Exchange server rejected credentials — reauthentication required",
        "Exchange integration has no addressable mailbox",
        "Exchange server returned a server error; the next scheduled sync will retry",
-       "Exchange server refused the sync request: forbidden"
+       "Exchange server refused the sync request: forbidden",
+       "Exchange server returned more data than Tymeslot can process at once"
      ],
      recorded: []},
     {Workers.SyncDebugCalendarWorker,

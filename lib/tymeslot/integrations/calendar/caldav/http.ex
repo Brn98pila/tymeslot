@@ -110,6 +110,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Http do
       authed_request("PROPFIND", url, username, password, extra_headers, fn headers ->
         Config.http_client_module().request(:propfind, url, body, headers,
           receive_timeout: timeout,
+          max_response_bytes: CalDAVBase.max_propfind_bytes(),
           ssrf_protect: true
         )
       end)

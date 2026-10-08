@@ -343,6 +343,30 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorkerTest do
       assert message =~ "Tymeslot will retry automatically"
     end
 
+    test "discards a response past the EWS byte budget, tells the owner and keeps the cache", %{
+      integration: integration
+    } do
+      stub_full_sync()
+      assert :ok = run(integration)
+
+      oversized = String.duplicate(" ", 8 * 1024 * 1024 + 1)
+
+      ReqTest.stub(:tymeslot_http, fn conn ->
+        conn |> Conn.put_resp_content_type("text/xml") |> Conn.resp(200, oversized)
+      end)
+
+      assert {:discard, reason} = run(integration)
+      assert reason == "Exchange server returned more data than Tymeslot can process at once"
+      # An expected end of the job: no error report every cycle.
+      assert SyncExchangeCalendarWorker.expected_outcome?(reason)
+
+      assert %{sync_error: message} = Repo.reload!(integration)
+      assert message =~ "more data than Tymeslot can process at once"
+
+      assert [_busy] = availability_events(integration)
+      assert [_item] = grid_rows(integration)
+    end
+
     test "records a retryable failure without touching the cache", %{integration: integration} do
       stub_full_sync()
       assert :ok = run(integration)

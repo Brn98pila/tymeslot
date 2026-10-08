@@ -83,6 +83,7 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
   @no_calendar "CalDAV integration has no calendar selected — user action required"
   @server_error "CalDAV server returned a server error; the next scheduled sync will retry"
   @server_unreachable "CalDAV server did not respond; the next scheduled sync will retry"
+  @too_large "CalDAV server returned more data than Tymeslot can process at once"
 
   @impl ExpectedJobOutcome
   def expected_outcome?(reason),
@@ -93,7 +94,8 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
         @calendar_gone,
         @no_calendar,
         @server_error,
-        @server_unreachable
+        @server_unreachable,
+        @too_large
       ] or reason == ReauthHandling.discard_reason()
 
   @impl Oban.Worker
@@ -233,6 +235,13 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
        when reason in [:timeout, :server_unresponsive, :network_error] do
     {:discard, @server_unreachable}
   end
+
+  # The server answered, past the read's byte budget. Retrying downloads the
+  # same answer, and it is the size of the owner's calendar rather than a
+  # fault an operator could fix, so it is an expected end of the job. The
+  # health check surfaces the integration.
+  defp handle_sync_result({:error, :response_too_large}, _integration),
+    do: {:discard, @too_large}
 
   # A 4xx there is no talking the request out of (415, 400…, and the modelled
   # `:method_not_allowed`) is the server
