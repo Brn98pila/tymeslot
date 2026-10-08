@@ -60,7 +60,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.OAuthHelper do
   """
   @impl Tymeslot.Integrations.Calendar.Auth.OAuthHelperBehaviour
   @spec handle_callback(String.t(), String.t(), State.validated()) ::
-          {:ok, CalendarIntegrationSchema.t()} | {:error, String.t()}
+          {:ok, CalendarIntegrationSchema.t()}
+          | {:error, Tymeslot.Integrations.Calendar.Auth.OAuthHelperBehaviour.callback_error()}
   def handle_callback(
         code,
         redirect_uri,

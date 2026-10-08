@@ -162,7 +162,7 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
   end
 
   defp persist_account_change(integration, attrs) do
-    case CalendarManagement.update_calendar_integration(integration, attrs) do
+    case Selection.replace_selection(integration, attrs) do
       # Discovery has just reached the server with these credentials, so a
       # breaker its earlier failures opened is closed rather than left to
       # refuse the reconnected integration until it times out.
@@ -172,6 +172,9 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
 
       {:error, %Ecto.Changeset{} = cs} ->
         {:error, {:changeset, cs}}
+
+      {:error, :not_found} ->
+        {:error, :not_found}
     end
   end
 
