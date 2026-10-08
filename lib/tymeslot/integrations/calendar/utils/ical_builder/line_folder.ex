@@ -65,8 +65,13 @@ defmodule Tymeslot.Integrations.Calendar.ICalBuilder.LineFolder do
 
   defp retreat_to_boundary(_binary, 0), do: 0
 
+  # A split at `pos` is clean when the byte there starts a character, so the
+  # byte to test is the first one the next line would get, not the last one
+  # this line keeps.
+  defp retreat_to_boundary(binary, pos) when pos >= byte_size(binary), do: pos
+
   defp retreat_to_boundary(binary, pos) do
-    byte = :binary.at(binary, pos - 1)
+    byte = :binary.at(binary, pos)
     if continuation_byte?(byte), do: retreat_to_boundary(binary, pos - 1), else: pos
   end
 

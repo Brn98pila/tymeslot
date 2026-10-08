@@ -168,6 +168,25 @@ defmodule Tymeslot.Integrations.Calendar.IcsGeneratorEscapingTest do
       # Content still present (folding is transparent to the value)
       assert ics_content =~ "Ünïcödé answer:"
     end
+
+    # Joined back up, a torn character reads fine, so each physical line is
+    # checked on its own: a strict parser decodes it before unfolding.
+    test "keeps every folded line of an invitation valid UTF-8" do
+      ics_content =
+        IcsGenerator.generate_ics(%{
+          title: "Unicode Folding",
+          description: String.duplicate("ü", 40),
+          start_time: ~U[2026-01-15 14:00:00Z],
+          end_time: ~U[2026-01-15 15:00:00Z],
+          uid: "unicode-fold-456",
+          organizer_email: "host@example.com"
+        })
+
+      lines = String.split(ics_content, "\r\n")
+
+      assert Enum.any?(lines, &String.starts_with?(&1, " ü"))
+      assert Enum.reject(lines, &String.valid?/1) == []
+    end
   end
 
   describe "line endings" do
