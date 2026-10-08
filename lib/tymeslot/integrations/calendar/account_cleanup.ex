@@ -15,8 +15,8 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanup do
   Every step is best-effort: a failure is logged and the next step runs. Each
   integration is independent: credentials are decrypted per integration, and
   a raise or exit while cleaning one (an undecryptable row, a database error,
-  a lock timeout) is logged without stopping the others. Must run before the account row is deleted, which cascades the
-  credentials away.
+  a lock timeout) is logged without stopping the others. Must run before the
+  account row is deleted, which cascades the credentials away.
   """
 
   require Logger
@@ -24,9 +24,8 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanup do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
-  alias Tymeslot.Integrations.Calendar.Google.CalendarAPI, as: GoogleAPI
-  alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookAPI
-  alias Tymeslot.Integrations.Calendar.Tokens
+  alias Tymeslot.Integrations.Calendar.Google.PushChannel
+  alias Tymeslot.Integrations.Calendar.Outlook.GraphSubscription
   alias Tymeslot.Integrations.Shared.OAuth.GoogleTokenRevocation
 
   @spec run(pos_integer()) :: :ok
@@ -46,56 +45,34 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanup do
     kind, reason -> log_outcome({:error, {kind, reason}}, integration, :clean_up)
   end
 
+  # Stopping the channel and deleting the subscription always answer `:ok`
+  # and log their own failures; each step is still isolated, so a raise in
+  # one does not skip the next.
   defp clean_up(%CalendarIntegrationSchema{provider: "google"} = integration) do
-    integration |> stop_push_channel() |> log_outcome(integration, :stop_push_channel)
-    integration |> revoke_grant() |> log_outcome(integration, :revoke_grant)
+    step(integration, :stop_push_channel, fn -> PushChannel.stop_push_channel(integration) end)
+    step(integration, :revoke_grant, fn -> revoke_grant(integration) end)
   end
 
-  defp clean_up(%CalendarIntegrationSchema{provider: "outlook"} = integration) do
-    integration
-    |> delete_graph_subscription()
-    |> log_outcome(integration, :delete_graph_subscription)
-  end
+  defp clean_up(%CalendarIntegrationSchema{provider: "outlook"} = integration),
+    do:
+      step(integration, :delete_graph_subscription, fn ->
+        GraphSubscription.unregister(integration)
+      end)
 
   defp clean_up(_integration), do: :ok
 
-  defp stop_push_channel(
-         %{google_channel_id: channel_id, google_channel_resource_id: resource_id} = integration
-       )
-       when is_binary(channel_id) and is_binary(resource_id) do
-    body = %{"id" => channel_id, "resourceId" => resource_id}
-
-    integration
-    |> Tokens.with_access_token(&GoogleAPI.refresh_token/1, fn token ->
-      GoogleAPI.make_request_with_body(:post, "/channels/stop", token, body)
-    end)
-    |> gone_counts_as_done()
+  defp step(integration, name, fun) do
+    fun.() |> log_outcome(integration, name)
+  rescue
+    exception -> log_outcome({:error, exception}, integration, name)
+  catch
+    kind, reason -> log_outcome({:error, {kind, reason}}, integration, name)
   end
-
-  defp stop_push_channel(_integration), do: :skipped
-
-  defp delete_graph_subscription(%{graph_subscription_id: subscription_id} = integration)
-       when is_binary(subscription_id) do
-    path = "/subscriptions/#{URI.encode(subscription_id)}"
-
-    integration
-    |> Tokens.with_access_token(&OutlookAPI.refresh_token/1, fn token ->
-      OutlookAPI.make_request(:delete, path, token, %{})
-    end)
-    |> gone_counts_as_done()
-  end
-
-  defp delete_graph_subscription(_integration), do: :skipped
 
   defp revoke_grant(integration),
     do: GoogleTokenRevocation.revoke(integration.refresh_token || integration.access_token)
 
-  # A channel or subscription the provider no longer has is already stopped.
-  defp gone_counts_as_done({:ok, _body}), do: :ok
-  defp gone_counts_as_done({:error, kind, _message}) when kind in [:not_found, :gone], do: :ok
-  defp gone_counts_as_done(other), do: other
-
-  defp log_outcome(outcome, _integration, _step) when outcome in [:ok, :skipped], do: :ok
+  defp log_outcome(:ok, _integration, _step), do: :ok
 
   defp log_outcome(failure, integration, step) do
     Logger.warning("Account deletion: calendar cleanup step failed; carrying on",
