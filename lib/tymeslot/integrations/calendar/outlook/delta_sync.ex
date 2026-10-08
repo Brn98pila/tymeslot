@@ -21,6 +21,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
+  alias Tymeslot.Integrations.Calendar.Outlook.FeedCalendar
   alias Tymeslot.Integrations.Calendar.Outlook.Paging
   alias Tymeslot.Integrations.Calendar.Outlook.Provider, as: OutlookProvider
   alias Tymeslot.Integrations.Calendar.Sync
@@ -168,7 +169,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
 
   defp apply_delta(integration, events, new_delta_link) do
     {removed, changed} = Enum.split_with(events, &Map.has_key?(&1, "@removed"))
-    calendar_events = build_calendar_events(changed, integration.id)
+    calendar_events = build_calendar_events(changed, integration)
     removed_uids = process_removed(removed, integration)
 
     # Writes through `Sync.upsert_cache/2` rather than straight to the queries
@@ -178,6 +179,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
     # this the delta sweep cached every one of them as server-owned.
     with {:ok, _count} <- Sync.upsert_cache(integration, calendar_events),
          :ok <- persist_delta_link(integration, new_delta_link) do
+      FeedCalendar.relabel(integration, Enum.map(calendar_events, & &1.uid))
       uids = Enum.map(calendar_events, & &1.uid) ++ removed_uids
       SyncBroadcast.broadcast_cache_update(integration.user_id, uids)
       :ok
@@ -216,14 +218,10 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
     end
   end
 
-  defp build_calendar_events(events, calendar_integration_id) do
+  defp build_calendar_events(events, integration) do
     context = %{
-      calendar_integration_id: calendar_integration_id,
-      # Microsoft Graph /me/events/delta returns events from the user's primary
-      # calendar. The provider_calendar_events.provider_calendar_id column is NOT
-      # NULL with 'primary' as the documented default; passing nil causes a
-      # Postgres constraint violation.
-      provider_calendar_id: "primary",
+      calendar_integration_id: integration.id,
+      provider_calendar_id: FeedCalendar.id(integration),
       synced_at: DateTime.utc_now(:microsecond)
     }
 

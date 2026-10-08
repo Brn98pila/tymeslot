@@ -32,6 +32,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
   alias Tymeslot.Integrations.Calendar.HTTP
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI
+  alias Tymeslot.Integrations.Calendar.Outlook.FeedCalendar
   alias Tymeslot.Integrations.Calendar.Outlook.Paging
   alias Tymeslot.Integrations.Calendar.Outlook.Provider, as: OutlookProvider
   alias Tymeslot.Integrations.Calendar.Sync
@@ -57,6 +58,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
            # Through `Sync.upsert_cache/2` for the ownership flagging it adds;
            # see the note in `DeltaSync.apply_delta/3`.
            {:ok, _count} <- Sync.upsert_cache(integration, calendar_events) do
+        FeedCalendar.relabel(integration, Enum.map(calendar_events, & &1.uid))
+
         # The window the new link tracks starts now, which is what
         # `DeltaSync.rebootstrap_due?/1` measures its age from.
         persist_subscription(integration, %{
@@ -258,7 +261,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
   defp normalise_delta_events(events, %CalendarIntegrationSchema{} = integration) do
     context = %{
       calendar_integration_id: integration.id,
-      provider_calendar_id: integration.default_booking_calendar_id || "primary",
+      provider_calendar_id: FeedCalendar.id(integration),
       synced_at: DateTime.utc_now(:microsecond)
     }
 
