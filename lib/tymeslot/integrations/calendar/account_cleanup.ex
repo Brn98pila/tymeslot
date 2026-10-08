@@ -62,7 +62,7 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanup do
   defp clean_up(_integration), do: :ok
 
   defp step(integration, name, fun) do
-    fun.() |> log_outcome(integration, name)
+    log_outcome(fun.(), integration, name)
   rescue
     exception -> log_outcome({:error, exception}, integration, name)
   catch
