@@ -1043,11 +1043,6 @@ msgstr "Nie można zmienić terminu spotkania, które już się rozpoczęło"
 
 #: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
 #, elixir-autogen, elixir-format
-msgid "Meeting is already cancelled"
-msgstr "Spotkanie jest już odwołane"
-
-#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
-#, elixir-autogen, elixir-format
 msgid "Attendee email is required"
 msgstr "Adres e-mail uczestnika jest wymagany"
 
@@ -1075,11 +1070,6 @@ msgstr "Godzina zakończenia musi być późniejsza niż godzina rozpoczęcia"
 #, elixir-autogen, elixir-format
 msgid "Failed to create meeting"
 msgstr "Nie udało się utworzyć spotkania"
-
-#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
-#, elixir-autogen, elixir-format
-msgid "Failed to update meeting status"
-msgstr "Nie udało się zaktualizować statusu spotkania"
 
 #: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
 #, elixir-autogen, elixir-format
@@ -1454,3 +1444,13 @@ msgstr "Inne miejsce"
 #, elixir-autogen, elixir-format
 msgid "We couldn't check the host's calendar right now. Please try again in a few minutes."
 msgstr "Nie udało się teraz sprawdzić kalendarza organizatora. Spróbuj ponownie za kilka minut."
+
+#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
+#, elixir-autogen, elixir-format
+msgid "Cannot cancel an expired meeting"
+msgstr "Nie można odwołać spotkania, którego rezerwacja wygasła"
+
+#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
+#, elixir-autogen, elixir-format
+msgid "Cannot request a reschedule while the booking awaits approval"
+msgstr "Nie można poprosić o zmianę terminu, dopóki rezerwacja czeka na zatwierdzenie"

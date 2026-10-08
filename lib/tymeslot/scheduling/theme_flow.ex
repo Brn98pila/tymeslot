@@ -212,8 +212,8 @@ defmodule Tymeslot.Scheduling.ThemeFlow do
       {:ok, meeting} ->
         carry_over_answers(
           definitions,
-          meeting.custom_fields_snapshot || [],
-          meeting.custom_field_answers || %{}
+          meeting.custom_fields_snapshot,
+          meeting.custom_field_answers
         )
 
       _error ->

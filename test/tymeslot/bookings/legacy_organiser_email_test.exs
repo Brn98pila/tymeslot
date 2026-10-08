@@ -17,12 +17,18 @@ defmodule Tymeslot.Bookings.LegacyOrganiserEmailTest do
   alias Tymeslot.Repo
   alias Tymeslot.TestMocks
 
+  # The booking reads the host's calendars before committing; these hosts have
+  # nothing in them.
+  setup do
+    TestMocks.stub_no_calendar_events()
+    :ok
+  end
+
   import Tymeslot.AvailabilityTestHelpers
 
   @legacy_address ~s("legacy"@example.com)
 
   # Calendar conflicts are not under test here.
-  @opts [skip_calendar_check: true]
 
   setup do
     TestMocks.setup_all_mocks()
@@ -46,7 +52,7 @@ defmodule Tymeslot.Bookings.LegacyOrganiserEmailTest do
 
   test "a visitor's booking succeeds under the host's stored address", %{user: user} do
     assert {:ok, meeting} =
-             Create.execute(booking_params(user), form_data("attendee@test.com"), @opts)
+             Create.execute(booking_params(user), form_data("attendee@test.com"))
 
     assert Repo.get!(MeetingSchema, meeting.id).organizer_email == @legacy_address
   end
@@ -73,7 +79,7 @@ defmodule Tymeslot.Bookings.LegacyOrganiserEmailTest do
 
   test "an attendee address outside the format rules is still refused", %{user: user} do
     assert {:error, _reason} =
-             Create.execute(booking_params(user), form_data(~s("guest"@example.com)), @opts)
+             Create.execute(booking_params(user), form_data(~s("guest"@example.com)))
 
     assert Repo.all(MeetingSchema) == []
   end

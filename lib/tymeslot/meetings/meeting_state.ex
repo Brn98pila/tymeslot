@@ -203,6 +203,12 @@ defmodule Tymeslot.Meetings.MeetingState do
     where(query, [m], m.status == @awaiting_approval)
   end
 
+  @doc "Query-side negation of `awaiting_approval?/1`."
+  @spec where_not_awaiting_approval(Ecto.Queryable.t()) :: Ecto.Query.t()
+  def where_not_awaiting_approval(query) do
+    where(query, [m], m.status != @awaiting_approval)
+  end
+
   @doc """
   Composes onto `query` the contract "this is a live, confirmed booking a
   user should see as upcoming": `status == "confirmed"` and no pending

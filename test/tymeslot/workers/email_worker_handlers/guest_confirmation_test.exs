@@ -5,7 +5,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestConfirmationTest do
 
   import Mox
   import Tymeslot.Factory
-  alias Tymeslot.Bookings.Policy
+  alias Tymeslot.Bookings.MeetingLinks
   alias Tymeslot.EmailServiceMock
   alias Tymeslot.Meetings.GuestQueries
   alias Tymeslot.Meetings.Guests
@@ -33,14 +33,14 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestConfirmationTest do
 
       # Expect exactly one send per guest, each with correct accept/decline URLs.
       expect(EmailServiceMock, :send_guest_confirmation, fn "a@example.com", details ->
-        expected_urls = Policy.guest_rsvp_urls(g1.rsvp_token)
+        expected_urls = MeetingLinks.guest_rsvp_urls(g1.rsvp_token)
         assert details.guest_accept_url == expected_urls.accept_url
         assert details.guest_decline_url == expected_urls.decline_url
         {:ok, "sent"}
       end)
 
       expect(EmailServiceMock, :send_guest_confirmation, fn "b@example.com", details ->
-        expected_urls = Policy.guest_rsvp_urls(g2.rsvp_token)
+        expected_urls = MeetingLinks.guest_rsvp_urls(g2.rsvp_token)
         assert details.guest_accept_url == expected_urls.accept_url
         assert details.guest_decline_url == expected_urls.decline_url
         {:ok, "sent"}

@@ -25,9 +25,9 @@ defmodule Tymeslot.Meetings.SeatLookup do
   @typedoc """
   Why a live seat can no longer be given up online: its meeting is under way
   (`:meeting_started`) or over (`:meeting_past`). Any other refusal from
-  `Tymeslot.Bookings.Policy` passes through as its message.
+  `Tymeslot.Bookings.Policy` passes through as it stands.
   """
-  @type refusal :: :meeting_started | :meeting_past | String.t()
+  @type refusal :: :meeting_started | :meeting_past | Policy.cancel_refusal()
 
   @spec fetch_live_seat(String.t()) :: {:ok, seat()} | {:error, dead_end()}
   def fetch_live_seat(token) when is_binary(token) do
@@ -73,21 +73,18 @@ defmodule Tymeslot.Meetings.SeatLookup do
   end
 
   # Whether `meeting` still lets a participant give up their seat, with the
-  # policy's refusals for a meeting that has started or ended named as atoms.
+  # policy's refusals for a meeting that has started or ended named for the
+  # seat pages.
   defp cancellable(meeting) do
     case Policy.can_cancel_meeting?(meeting) do
       :ok -> :ok
-      {:error, message} -> {:error, refusal(meeting, message)}
+      {:error, reason} -> {:error, refusal(reason)}
     end
   end
 
-  defp refusal(meeting, message) do
-    cond do
-      Policy.meeting_is_current?(meeting) -> :meeting_started
-      meeting.status == "completed" or Policy.meeting_is_past?(meeting) -> :meeting_past
-      true -> message
-    end
-  end
+  defp refusal({:not_cancellable, :started}), do: :meeting_started
+  defp refusal({:not_cancellable, state}) when state in [:completed, :past], do: :meeting_past
+  defp refusal(reason), do: reason
 
   defp live_seat(participant, meeting) do
     cond do

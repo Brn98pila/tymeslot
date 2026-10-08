@@ -147,7 +147,7 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
     case meeting.organizer_user_id do
       nil ->
         Logger.error("Missing organizer_user_id for meeting, using default timezone",
-          meeting_uid: meeting.uid
+          meeting_id: meeting.id
         )
 
         @default_timezone
@@ -170,7 +170,7 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
       nil ->
         Logger.warning(
           "Missing attendee_timezone for meeting, using organizer timezone as emergency fallback",
-          meeting_uid: meeting.uid
+          meeting_id: meeting.id
         )
 
         owner_timezone
