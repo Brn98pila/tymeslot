@@ -30,6 +30,7 @@ defmodule Tymeslot.MeetingPayments do
 
   require Logger
 
+  alias Tymeslot.FinancialRetention
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
@@ -39,7 +40,6 @@ defmodule Tymeslot.MeetingPayments do
   alias Tymeslot.MeetingPayments.ConnectAccounts
   alias Tymeslot.MeetingPayments.ConnectAccountSchema
   alias Tymeslot.MeetingPayments.Currency
-  alias Tymeslot.MeetingPayments.DataRetention
   alias Tymeslot.MeetingPayments.Refunds
   alias Tymeslot.MeetingPayments.StripeAdapter
   alias Tymeslot.MeetingPayments.Workers.ResyncConnectAccount
@@ -493,10 +493,13 @@ defmodule Tymeslot.MeetingPayments do
   # ---------------------------------------------------------------------------
 
   @doc """
-  Anonymises all booking-payment and payment-transaction rows for a host and
-  soft-deletes their Connect account. Run before user deletion for GDPR
-  Art. 17(3)(b) compliance.
+  Anonymises all of a host's financial records, booking payments and
+  platform subscription records alike, and soft-deletes their Connect
+  account. Run before user deletion for GDPR Art. 17(3)(b) compliance.
+
+  The work is `Tymeslot.FinancialRetention.anonymise_host/1`, which spans
+  both payment contexts; this entry point remains for account deletion.
   """
   @spec anonymise_host(integer()) :: :ok | {:error, term()}
-  defdelegate anonymise_host(user_id), to: DataRetention
+  defdelegate anonymise_host(user_id), to: FinancialRetention
 end

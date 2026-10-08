@@ -1,11 +1,11 @@
-defmodule Tymeslot.MeetingPayments.DataRetentionTest do
+defmodule Tymeslot.FinancialRetentionTest do
   use Tymeslot.DataCase, async: true
 
   @moduletag :database
   @moduletag :payments
 
+  alias Tymeslot.FinancialRetention
   alias Tymeslot.MeetingPayments.ConnectAccountQueries
-  alias Tymeslot.MeetingPayments.DataRetention
   alias Tymeslot.Payments.PaymentTransactionSchema
   alias Tymeslot.Payments.SubscriptionInvoiceQueries
   alias Tymeslot.Payments.SubscriptionInvoiceSchema
@@ -40,7 +40,7 @@ defmodule Tymeslot.MeetingPayments.DataRetentionTest do
           host_name: "Host Person"
         )
 
-      assert :ok = DataRetention.anonymise_host(user.id)
+      assert :ok = FinancialRetention.anonymise_host(user.id)
 
       bp = Repo.reload(bp)
       # host snapshot retained
@@ -78,7 +78,7 @@ defmodule Tymeslot.MeetingPayments.DataRetentionTest do
           host_name: nil
         )
 
-      assert :ok = DataRetention.anonymise_host(user.id)
+      assert :ok = FinancialRetention.anonymise_host(user.id)
 
       pt = Repo.reload(pt)
       assert pt.user_id == nil
@@ -99,7 +99,7 @@ defmodule Tymeslot.MeetingPayments.DataRetentionTest do
           host_name: "Original Name"
         )
 
-      assert :ok = DataRetention.anonymise_host(user.id)
+      assert :ok = FinancialRetention.anonymise_host(user.id)
 
       pt = Repo.reload(pt)
       assert pt.host_email == "original@example.com"
@@ -113,7 +113,7 @@ defmodule Tymeslot.MeetingPayments.DataRetentionTest do
       bp = insert(:booking_payment, host_user_id: user.id)
       pt = insert(:payment_transaction, user: user)
 
-      assert :ok = DataRetention.anonymise_host(user.id)
+      assert :ok = FinancialRetention.anonymise_host(user.id)
 
       first_bp = Repo.reload(bp)
       first_pt = Repo.reload(pt)
@@ -121,7 +121,7 @@ defmodule Tymeslot.MeetingPayments.DataRetentionTest do
       assert %DateTime{} = first_stamp_pt = first_pt.host_deleted_at
 
       # Running again must not touch already-anonymised rows.
-      assert :ok = DataRetention.anonymise_host(user.id)
+      assert :ok = FinancialRetention.anonymise_host(user.id)
 
       assert Repo.reload(bp).host_deleted_at == first_stamp_bp
       assert Repo.reload(pt).host_deleted_at == first_stamp_pt
@@ -129,7 +129,7 @@ defmodule Tymeslot.MeetingPayments.DataRetentionTest do
 
     test "is a no-op when the user has no payment-related rows" do
       user = insert(:user)
-      assert :ok = DataRetention.anonymise_host(user.id)
+      assert :ok = FinancialRetention.anonymise_host(user.id)
     end
 
     test "nilifies user_id, stamps host_deleted_at, and retains the VAT document surface on captured invoices" do
@@ -144,7 +144,7 @@ defmodule Tymeslot.MeetingPayments.DataRetentionTest do
           invoice_pdf_url: "https://pay.stripe.com/invoice/anonymise/pdf"
         })
 
-      assert :ok = DataRetention.anonymise_host(user.id)
+      assert :ok = FinancialRetention.anonymise_host(user.id)
 
       reloaded = Repo.get!(SubscriptionInvoiceSchema, invoice.id)
 
@@ -161,20 +161,20 @@ defmodule Tymeslot.MeetingPayments.DataRetentionTest do
 
   describe "retention_cutoff/3" do
     test "is the start of the calendar year that began ten years ago, by default" do
-      assert DataRetention.retention_cutoff(~D[2036-12-31]) == ~U[2026-01-01 00:00:00Z]
-      assert DataRetention.retention_cutoff(~D[2037-01-01]) == ~U[2027-01-01 00:00:00Z]
-      assert DataRetention.retention_cutoff(~D[2037-12-31]) == ~U[2027-01-01 00:00:00Z]
+      assert FinancialRetention.retention_cutoff(~D[2036-12-31]) == ~U[2026-01-01 00:00:00Z]
+      assert FinancialRetention.retention_cutoff(~D[2037-01-01]) == ~U[2027-01-01 00:00:00Z]
+      assert FinancialRetention.retention_cutoff(~D[2037-12-31]) == ~U[2027-01-01 00:00:00Z]
     end
 
     test "follows a financial year that starts mid-year" do
       # An April-to-March year, kept seven years: the year ending 31 March
       # 2027 closes seven years later on 31 March 2034.
-      assert DataRetention.retention_cutoff(~D[2034-03-31], 7, 4) == ~U[2026-04-01 00:00:00Z]
-      assert DataRetention.retention_cutoff(~D[2034-04-01], 7, 4) == ~U[2027-04-01 00:00:00Z]
+      assert FinancialRetention.retention_cutoff(~D[2034-03-31], 7, 4) == ~U[2026-04-01 00:00:00Z]
+      assert FinancialRetention.retention_cutoff(~D[2034-04-01], 7, 4) == ~U[2027-04-01 00:00:00Z]
     end
 
     test "handles a leap day" do
-      assert DataRetention.retention_cutoff(~D[2036-02-29]) == ~U[2026-01-01 00:00:00Z]
+      assert FinancialRetention.retention_cutoff(~D[2036-02-29]) == ~U[2026-01-01 00:00:00Z]
     end
   end
 
@@ -184,7 +184,7 @@ defmodule Tymeslot.MeetingPayments.DataRetentionTest do
       current = retained_booking_payment(paid_at: @start_of_2027)
 
       assert {:ok, %{booking_payments_deleted: 1}} =
-               DataRetention.purge_expired(@first_day_purged)
+               FinancialRetention.purge_expired(@first_day_purged)
 
       refute Repo.reload(expired)
       assert Repo.reload(current)
@@ -194,12 +194,14 @@ defmodule Tymeslot.MeetingPayments.DataRetentionTest do
       january = retained_booking_payment(paid_at: ~U[2026-01-03 10:00:00Z])
       december = retained_booking_payment(paid_at: ~U[2026-12-30 10:00:00Z])
 
-      assert {:ok, %{booking_payments_deleted: 0}} = DataRetention.purge_expired(@last_day_kept)
+      assert {:ok, %{booking_payments_deleted: 0}} =
+               FinancialRetention.purge_expired(@last_day_kept)
+
       assert Repo.reload(january)
       assert Repo.reload(december)
 
       assert {:ok, %{booking_payments_deleted: 2}} =
-               DataRetention.purge_expired(@first_day_purged)
+               FinancialRetention.purge_expired(@first_day_purged)
 
       refute Repo.reload(january)
       refute Repo.reload(december)
@@ -208,7 +210,7 @@ defmodule Tymeslot.MeetingPayments.DataRetentionTest do
     test "dates a never-paid booking payment by when it was created" do
       unpaid = retained_booking_payment(paid_at: nil, inserted_at: @end_of_2026)
 
-      assert {:ok, _counts} = DataRetention.purge_expired(@first_day_purged)
+      assert {:ok, _counts} = FinancialRetention.purge_expired(@first_day_purged)
 
       refute Repo.reload(unpaid)
     end
@@ -218,7 +220,7 @@ defmodule Tymeslot.MeetingPayments.DataRetentionTest do
       current = retained_transaction(@start_of_2027)
 
       assert {:ok, %{payment_transactions_deleted: 1}} =
-               DataRetention.purge_expired(@first_day_purged)
+               FinancialRetention.purge_expired(@first_day_purged)
 
       refute Repo.get(PaymentTransactionSchema, expired.id)
       assert Repo.get(PaymentTransactionSchema, current.id)
@@ -230,7 +232,7 @@ defmodule Tymeslot.MeetingPayments.DataRetentionTest do
       undated = retained_invoice(issued_at: nil, inserted_at: @end_of_2026)
 
       assert {:ok, %{subscription_invoices_deleted: 2}} =
-               DataRetention.purge_expired(@first_day_purged)
+               FinancialRetention.purge_expired(@first_day_purged)
 
       refute Repo.get(SubscriptionInvoiceSchema, expired.id)
       refute Repo.get(SubscriptionInvoiceSchema, undated.id)
@@ -252,7 +254,7 @@ defmodule Tymeslot.MeetingPayments.DataRetentionTest do
       current = insert(:paid_booking_payment, host_user_id: user.id, paid_at: @start_of_2027)
 
       assert {:ok, %{booking_payment_attendees_scrubbed: 1, booking_payments_deleted: 0}} =
-               DataRetention.purge_expired(@first_day_purged)
+               FinancialRetention.purge_expired(@first_day_purged)
 
       scrubbed = Repo.reload(expired)
       assert is_nil(scrubbed.attendee_email)
@@ -279,7 +281,7 @@ defmodule Tymeslot.MeetingPayments.DataRetentionTest do
         })
 
       assert {:ok, %{payment_transactions_deleted: 0, subscription_invoices_deleted: 0}} =
-               DataRetention.purge_expired(@first_day_purged)
+               FinancialRetention.purge_expired(@first_day_purged)
 
       assert Repo.get(PaymentTransactionSchema, transaction.id)
       assert Repo.get(SubscriptionInvoiceSchema, invoice.id)
