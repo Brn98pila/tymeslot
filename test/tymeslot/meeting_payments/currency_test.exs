@@ -25,7 +25,7 @@ defmodule Tymeslot.MeetingPayments.CurrencyTest do
     assert 17_500 = Currency.minimum_cents("huf")
   end
 
-  test "minimum_cents falls back to 50 for unknown" do
-    assert 50 = Currency.minimum_cents("xxx")
+  test "minimum_cents refuses a currency outside the allowlist rather than guessing" do
+    assert_raise FunctionClauseError, fn -> Currency.minimum_cents("jpy") end
   end
 end

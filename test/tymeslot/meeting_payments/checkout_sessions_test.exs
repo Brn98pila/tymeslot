@@ -8,6 +8,7 @@ defmodule Tymeslot.MeetingPayments.CheckoutSessionsTest do
 
   import Mox
 
+  alias Tymeslot.MeetingPayments
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.CheckoutSessions
   alias Tymeslot.MeetingPayments.ConnectAccountQueries
@@ -137,6 +138,28 @@ defmodule Tymeslot.MeetingPayments.CheckoutSessionsTest do
 
       assert {:error, :payments_unavailable} =
                CheckoutSessions.create_session_for_booking(meeting)
+    end
+
+    test "refuses a meeting type that is no longer paid, such as after a currency change",
+         %{user: user, meeting_type: mt} do
+      {:ok, :reset} =
+        MeetingPayments.change_default_currency(
+          ConnectAccountQueries.live_for_user(user.id),
+          "gbp"
+        )
+
+      meeting =
+        insert(:meeting,
+          organizer_user_id: user.id,
+          meeting_type_ref: mt,
+          attendee_email: "alice@example.com",
+          status: "awaiting_payment"
+        )
+
+      assert {:error, :payment_not_required} =
+               CheckoutSessions.create_session_for_booking(meeting)
+
+      refute BookingPaymentQueries.by_meeting_id(meeting.id)
     end
 
     test "omits application_fee_amount from payment_intent_data when fee is zero",

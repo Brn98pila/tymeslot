@@ -412,38 +412,53 @@ defmodule Tymeslot.MeetingPayments do
 
   @doc """
   Changes the host's default currency on their Connect account and resets all
-  paid meeting types to free.
+  paid meeting types to free, since their prices were in the old currency.
 
-  Runs atomically. Returns `{:ok, :reset}` when paid meeting types were
-  cleared, `{:ok, :no_reset}` when the account had no paid types,
-  `{:error, :pending_payments_exist}` when the host has meetings in
-  `awaiting_payment` status (the host must resolve those bookings first),
-  or `{:error, reason}` on other failures.
+  Returns `{:ok, :reset}` when paid meeting types were cleared, `{:ok,
+  :no_reset}` when the account had none, `{:ok, :unchanged}` when `currency`
+  is already the account's, `{:error, :unsupported_currency}` for a currency
+  outside the allowlist, `{:error, :pending_payments_exist}` while the host
+  has meetings awaiting payment (they must be resolved first), or
+  `{:error, reason}` on other failures.
 
-  Callers must not call this when `currency` is equal to the account's
-  current default currency — they should guard that upstream and skip
-  the call entirely.
+  The account row is locked for the whole change, as a checkout locks it to
+  read the currency and price (`CheckoutSessions`), so a booking either
+  starts its checkout first, and then counts as awaiting payment here, or
+  finds its meeting type already free.
   """
   @spec change_default_currency(account(), String.t()) ::
-          {:ok, :reset | :no_reset}
-          | {:error, :pending_payments_exist}
+          {:ok, :reset | :no_reset | :unchanged}
+          | {:error, :unsupported_currency | :pending_payments_exist}
           | {:error, term()}
-  def change_default_currency(%ConnectAccountSchema{user_id: user_id} = account, currency) do
-    if MeetingQueries.count_awaiting_payment_for_organizer(user_id) > 0 do
-      {:error, :pending_payments_exist}
-    else
+  def change_default_currency(%ConnectAccountSchema{user_id: user_id}, currency) do
+    if Currency.allowed?(currency) do
       Repo.transaction(fn ->
-        case ConnectAccountQueries.update(account, %{default_currency: currency}) do
-          {:ok, _updated} ->
-            {count, _rows} = MeetingTypeQueries.clear_payments_for_user(user_id)
-
-            if count > 0, do: :reset, else: :no_reset
-
-          {:error, reason} ->
-            Repo.rollback(reason)
+        case change_locked_currency(ConnectAccountQueries.lock_live_for_user(user_id), currency) do
+          {:ok, outcome} -> outcome
+          {:error, reason} -> Repo.rollback(reason)
         end
       end)
+    else
+      {:error, :unsupported_currency}
     end
+  end
+
+  defp change_locked_currency(nil, _currency), do: {:error, :not_found}
+
+  defp change_locked_currency(%{default_currency: currency}, currency), do: {:ok, :unchanged}
+
+  defp change_locked_currency(%ConnectAccountSchema{user_id: user_id} = account, currency) do
+    with :ok <- check_no_pending_payments(user_id),
+         {:ok, _updated} <- ConnectAccountQueries.update(account, %{default_currency: currency}) do
+      {count, _rows} = MeetingTypeQueries.clear_payments_for_user(user_id)
+      {:ok, if(count > 0, do: :reset, else: :no_reset)}
+    end
+  end
+
+  defp check_no_pending_payments(user_id) do
+    if MeetingQueries.count_awaiting_payment_for_organizer(user_id) > 0,
+      do: {:error, :pending_payments_exist},
+      else: :ok
   end
 
   # ---------------------------------------------------------------------------

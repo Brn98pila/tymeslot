@@ -34,6 +34,14 @@ defmodule Tymeslot.MeetingPayments.Currency do
   @spec allowed?(String.t()) :: boolean()
   def allowed?(currency), do: Map.has_key?(@minima, currency)
 
+  @doc """
+  The smallest amount Stripe charges in `currency`, in minor units.
+
+  Only defined for an allowlisted currency: a host's currency is validated
+  where it is stored, so an unknown code here is a bug, and raises rather
+  than answering with a minimum that belongs to another currency.
+  """
   @spec minimum_cents(String.t()) :: pos_integer()
-  def minimum_cents(currency), do: Map.get(@minima, currency, 50)
+  def minimum_cents(currency) when is_map_key(@minima, currency),
+    do: Map.fetch!(@minima, currency)
 end

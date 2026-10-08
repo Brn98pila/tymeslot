@@ -466,18 +466,6 @@ defmodule Tymeslot.MeetingTypes.FormProcessingTest do
                )
     end
 
-    test "reads the price in the host's currency, whole units for a zero-decimal one" do
-      user = insert(:user)
-      insert(:connect_account, user: user, charges_enabled: true, default_currency: "jpy")
-
-      assert {:error, :invalid_price} =
-               MeetingTypes.create_meeting_type_from_form(
-                 user.id,
-                 paid_form_params(%{"price" => "1500.50"}),
-                 personal_ui_state()
-               )
-    end
-
     test "ignores any submitted price when payment is not required" do
       user = insert(:user)
 

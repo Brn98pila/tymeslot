@@ -16,6 +16,7 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.ConnectAccountQueries
   alias Tymeslot.MeetingPayments.ConnectAccountSchema
+  alias Tymeslot.MeetingPayments.Currency
   alias Tymeslot.MeetingPayments.StripeAdapter
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Repo
@@ -37,7 +38,9 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
   onboarding part-way and came back) gets a fresh onboarding link for that
   account; a new account is created only when the row has none. Returns
   `{:error, :account_creation_restricted}` when Stripe has put a temporary
-  hold on the platform creating connected accounts.
+  hold on the platform creating connected accounts, and
+  `{:error, :unsupported_currency}` when the new account's currency (its
+  country's) is not one meeting payments support.
   """
   @spec start_onboarding(user :: %{id: integer()}) ::
           {:ok, %{url: String.t(), account: account()}} | {:error, term()}
@@ -59,6 +62,7 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
 
   defp onboard(%ConnectAccountSchema{} = placeholder, country) do
     with {:ok, stripe_account} <- create_stripe_account(placeholder, country),
+         :ok <- check_currency(stripe_account, country),
          {:ok, link} <- create_account_link(stripe_account.id),
          {:ok, account} <-
            ConnectAccountQueries.update(placeholder, %{
@@ -67,6 +71,24 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
              status: "active"
            }) do
       {:ok, %{url: link.url, account: account}}
+    end
+  end
+
+  # Stripe gives a new account its country's currency. The country is the
+  # operator's MEETING_PAYMENTS_DEFAULT_COUNTRY, so a currency outside the
+  # allowlist is a configuration error no host can fix; it is logged for the
+  # operator, and the placeholder is left as it was, so onboarding can be
+  # retried once the setting is corrected.
+  defp check_currency(%{default_currency: currency}, country) do
+    if is_binary(currency) and Currency.allowed?(currency) do
+      :ok
+    else
+      Logger.error("Stripe Connect account created in an unsupported currency",
+        country: country,
+        currency: currency
+      )
+
+      {:error, :unsupported_currency}
     end
   end
 
