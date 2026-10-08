@@ -265,25 +265,25 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
   defp expire_stripe_sessions(pending, account) do
     stripe_account_id = account && account.stripe_account_id
 
-    Enum.each(pending, fn payment ->
-      session_id = payment.stripe_checkout_session_id
+    Enum.each(pending, &expire_stripe_session(&1.stripe_checkout_session_id, stripe_account_id))
+  end
 
-      result =
-        StripeAdapter.expire_checkout_session(session_id,
-          connect_account: stripe_account_id
-        )
+  # Isolated per session: one that raises is logged like one that fails, so
+  # the rest are still expired and every booking is still cancelled locally.
+  defp expire_stripe_session(session_id, stripe_account_id) do
+    case StripeAdapter.expire_checkout_session(session_id, connect_account: stripe_account_id) do
+      {:ok, _session} -> :ok
+      {:error, reason} -> log_expire_failure(session_id, reason)
+    end
+  rescue
+    exception -> log_expire_failure(session_id, exception)
+  end
 
-      case result do
-        {:ok, _session} ->
-          :ok
-
-        {:error, reason} ->
-          Logger.warning("Failed to expire Stripe checkout session",
-            session_id: session_id,
-            reason: LogFormat.reason(reason)
-          )
-      end
-    end)
+  defp log_expire_failure(session_id, reason) do
+    Logger.warning("Failed to expire Stripe checkout session",
+      session_id: session_id,
+      reason: LogFormat.reason(reason)
+    )
   end
 
   @doc """
