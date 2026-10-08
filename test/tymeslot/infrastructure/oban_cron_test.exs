@@ -20,6 +20,27 @@ defmodule Tymeslot.Infrastructure.ObanCronTest do
   defp config_file(file),
     do: [__DIR__, "..", "..", "..", "config", file] |> Path.join() |> Path.expand()
 
+  defp completed_counting_period(worker) do
+    unique = Keyword.get(worker.__opts__(), :unique) || []
+    states = Keyword.get(unique, :states, :all)
+
+    counts_completed? =
+      states in [:all, :successful] or (is_list(states) and :completed in states)
+
+    case Keyword.get(unique, :period) do
+      period when is_integer(period) and counts_completed? -> period
+      _infinite_or_ignored -> nil
+    end
+  end
+
+  # Seconds between two consecutive runs, from a fixed starting point.
+  defp schedule_interval(schedule) do
+    {:ok, expression} = Expression.parse(schedule)
+    first = Expression.next_at(expression, ~U[2026-01-05 00:00:30Z])
+    second = Expression.next_at(expression, DateTime.add(first, 60))
+    DateTime.diff(second, first)
+  end
+
   defp cron_config(crontab), do: [repo: Tymeslot.Repo, cron: [crontab: crontab]]
 
   defp all_workers do
@@ -63,6 +84,23 @@ defmodule Tymeslot.Infrastructure.ObanCronTest do
                ObanCron.base_crontab() ++ Application.get_env(:tymeslot, :oban_additional_crontab)
 
       assert ObanCron.missing_workers(config) == []
+    end
+
+    # Uniqueness counts from the previous job's insertion, and a completed job
+    # still counts unless the worker narrows its states. A period as long as
+    # the schedule's interval swallows a slot's job whenever the cron plugin
+    # inserts it a moment early, so every period must fall short of it.
+    test "no worker's unique period swallows its own next scheduled run" do
+      offenders =
+        for entry <- ObanCron.base_crontab(),
+            {schedule, worker} = {elem(entry, 0), elem(entry, 1)},
+            period = completed_counting_period(worker),
+            period != nil,
+            interval = schedule_interval(schedule),
+            period >= interval,
+            do: {worker, period, interval}
+
+      assert offenders == []
     end
 
     test "carries the entries byte for byte, args included" do
