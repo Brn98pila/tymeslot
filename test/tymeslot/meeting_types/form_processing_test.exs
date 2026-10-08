@@ -466,6 +466,27 @@ defmodule Tymeslot.MeetingTypes.FormProcessingTest do
                )
     end
 
+    test "reads a decimal comma, and rejects a thousands separator" do
+      user = insert(:user)
+      insert(:connect_account, user: user, charges_enabled: true, default_currency: "eur")
+
+      assert {:ok, meeting_type} =
+               MeetingTypes.create_meeting_type_from_form(
+                 user.id,
+                 paid_form_params(%{"price" => "10,50"}),
+                 personal_ui_state()
+               )
+
+      assert meeting_type.price_cents == 1050
+
+      assert {:error, :invalid_price} =
+               MeetingTypes.create_meeting_type_from_form(
+                 user.id,
+                 paid_form_params(%{"name" => "Thousand", "price" => "1,000"}),
+                 personal_ui_state()
+               )
+    end
+
     test "ignores any submitted price when payment is not required" do
       user = insert(:user)
 
