@@ -483,11 +483,6 @@ msgstr "Connessione a Baikal riuscita"
 
 #: lib/tymeslot/integrations/calendar/baikal/provider.ex
 #, elixir-autogen, elixir-format
-msgid "Baikal error: %{detail}"
-msgstr "Errore Baikal: %{detail}"
-
-#: lib/tymeslot/integrations/calendar/baikal/provider.ex
-#, elixir-autogen, elixir-format
 msgid "Baikal server not found. Confirm the URL includes /dav.php (e.g., https://baikal.example.com/dav.php)."
 msgstr "Server Baikal non trovato. Verifica che l'URL includa /dav.php (es. https://baikal.example.com/dav.php)."
 
@@ -679,11 +674,6 @@ msgstr "Gli indirizzi di rete privati o locali non sono consentiti"
 #, elixir-autogen, elixir-format
 msgid "Radicale connection successful"
 msgstr "Connessione a Radicale riuscita"
-
-#: lib/tymeslot/integrations/calendar/radicale/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Radicale error: %{detail}"
-msgstr "Errore Radicale: %{detail}"
 
 #: lib/tymeslot/integrations/calendar/radicale/provider.ex
 #, elixir-autogen, elixir-format

@@ -21,8 +21,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FamilyProvider do
   into the caller's locale; the using module declares
   `use Gettext, backend: TymeslotWeb.Gettext` for them, ahead of this `use`.
 
-  A failed connection test is worded by `ErrorHandler.sanitize_error_message/2`
-  unless the using module defines its own private `format_error/1`.
+  A failed connection test is worded by `ErrorHandler.sanitize_error_message/2`.
 
   Nextcloud and generic CalDAV add behaviour of their own (login flow, server
   detection) and stay hand-written.
@@ -149,8 +148,6 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FamilyProvider do
       defdelegate check_connectivity(client), to: CaldavCommon
 
       defp format_error(error), do: ErrorHandler.sanitize_error_message(error, unquote(member))
-
-      defoverridable format_error: 1
     end
   end
 end

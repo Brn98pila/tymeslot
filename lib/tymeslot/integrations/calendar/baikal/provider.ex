@@ -28,10 +28,4 @@ defmodule Tymeslot.Integrations.Calendar.Baikal.Provider do
         "dashboard_calendar_providers",
         "Baikal server not found. Confirm the URL includes /dav.php (e.g., https://baikal.example.com/dav.php)."
       )
-
-  defp format_error({:error, message}) when is_binary(message), do: message
-
-  defp format_error(error),
-    do:
-      dgettext("dashboard_calendar_providers", "Baikal error: %{detail}", detail: inspect(error))
 end

@@ -39,7 +39,17 @@ defmodule Tymeslot.Integrations.Calendar.CrossProviderTest do
   @transport_error_results %{
     caldav: {:error, :timeout},
     nextcloud: {:error, :timeout},
-    radicale: {:error, "Radicale error: :timeout"}
+    radicale: {:error, "An unexpected error occurred. Please try again."}
+  }
+
+  # The private-address refusal, as each provider's connection test words it.
+  # Radicale words every failure through `ErrorHandler.sanitize_error_message/2`,
+  # which reads the refusal as a connection failure; the connect form never
+  # gets this far, since `validate_config/1` refuses the address first.
+  @private_address_results %{
+    caldav: "Private or local network addresses are not allowed",
+    nextcloud: "Private or local network addresses are not allowed",
+    radicale: "Unable to connect to the calendar service. Please check the URL and try again."
   }
 
   # Get production providers from registry (exclude debug/demo)
@@ -209,8 +219,8 @@ defmodule Tymeslot.Integrations.Calendar.CrossProviderTest do
           provider: provider_type
         }
 
-        assert {:error, message} = provider_module.perform_connection_test(invalid_config)
-        assert message =~ "Private or local network addresses are not allowed"
+        assert provider_module.perform_connection_test(invalid_config) ==
+                 {:error, @private_address_results[provider_type]}
       end)
     end
   end

@@ -25,12 +25,4 @@ defmodule Tymeslot.Integrations.Calendar.Radicale.Provider do
         "dashboard_calendar_providers",
         "Radicale server not found. Check your server URL and port if needed."
       )
-
-  defp format_error({:error, message}) when is_binary(message), do: message
-
-  defp format_error(error),
-    do:
-      dgettext("dashboard_calendar_providers", "Radicale error: %{detail}",
-        detail: inspect(error)
-      )
 end
