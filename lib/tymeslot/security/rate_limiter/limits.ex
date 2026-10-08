@@ -22,7 +22,9 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
     - `:key`: a string the caller has already built (an id, a hash, an actor).
   - Either `:limit` and `:window_ms` for one window, or `:tiers`, a list of
     `{label, limit, window_ms}` ordered shortest window first, each charged as
-    `"<bucket>:<label>"`.
+    `"<bucket>:<label>"`. No window runs past a day: Hammer keeps its counters
+    in node-local ETS, which every deploy clears, so a longer one promised a
+    policy nobody enforced while holding one row per hit for its whole span.
   - `:operation`: the English bucket name the log line carries.
   - `:action`: optional, the localised plural the refusal says out loud
     ("the limit of 5 signup attempts"), stored as a msgid.
@@ -43,13 +45,10 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
   @type t :: keyword()
 
   # Per-source tiers for the account emails: a source can only spend its own
-  # budget, so these may run long.
+  # budget, so these run as long as the table allows.
   @source_email_tiers [
     {"1h", 5, @hour},
-    {"1d", 10, @day},
-    {"1w", 20, 7 * @day},
-    {"1mo", 25, 30 * @day},
-    {"1y", 50, 365 * @day}
+    {"1d", 10, @day}
   ]
 
   # Per-recipient tiers: anyone who can type an address or reach an account
@@ -67,19 +66,12 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
     {"1d", 10, @day}
   ]
 
-  @signup_source_tiers @signup_tiers ++
-                         [
-                           {"1w", 12, 7 * @day},
-                           {"1mo", 15, 30 * @day},
-                           {"1y", 20, 365 * @day}
-                         ]
-
   @limits %{
     # Auth
     signup_ip: [
       prefix: "signup:ip",
       scope: :source,
-      tiers: @signup_source_tiers,
+      tiers: @signup_tiers,
       operation: "signup",
       action: dgettext_noop("errors", "signup attempts")
     ],
@@ -195,7 +187,7 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
     booking_recipient: [
       prefix: "booking_recipient",
       scope: :email,
-      tiers: [{"1h", 5, @hour}, {"1d", 20, @day}, {"1w", 50, 7 * @day}],
+      tiers: [{"1h", 5, @hour}, {"1d", 20, @day}],
       operation: "booking",
       action: dgettext_noop("errors", "bookings")
     ],

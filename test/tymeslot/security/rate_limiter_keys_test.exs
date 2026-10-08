@@ -23,15 +23,7 @@ defmodule Tymeslot.Security.RateLimiterKeysTest do
   # name => {key passed to `check/2`, the bucket keys it must charge}
   @expected %{
     signup_ip:
-      {@ip,
-       [
-         "signup:ip:203.0.113.9:10m",
-         "signup:ip:203.0.113.9:1h",
-         "signup:ip:203.0.113.9:1d",
-         "signup:ip:203.0.113.9:1w",
-         "signup:ip:203.0.113.9:1mo",
-         "signup:ip:203.0.113.9:1y"
-       ]},
+      {@ip, ["signup:ip:203.0.113.9:10m", "signup:ip:203.0.113.9:1h", "signup:ip:203.0.113.9:1d"]},
     signup_email:
       {@email,
        [
@@ -40,14 +32,7 @@ defmodule Tymeslot.Security.RateLimiterKeysTest do
          "signup:email:ada@example.com:1d"
        ]},
     verification_ip:
-      {@ip,
-       [
-         "email_verification:ip:203.0.113.9:1h",
-         "email_verification:ip:203.0.113.9:1d",
-         "email_verification:ip:203.0.113.9:1w",
-         "email_verification:ip:203.0.113.9:1mo",
-         "email_verification:ip:203.0.113.9:1y"
-       ]},
+      {@ip, ["email_verification:ip:203.0.113.9:1h", "email_verification:ip:203.0.113.9:1d"]},
     verification_user: {42, ["email_verification:user:42:1h", "email_verification:user:42:1d"]},
     signup_attempt_notice:
       {42, ["signup_attempt_notice:user:42:1h", "signup_attempt_notice:user:42:1d"]},
@@ -58,14 +43,7 @@ defmodule Tymeslot.Security.RateLimiterKeysTest do
          "social_signup_confirmation:email:ada@example.com:1d"
        ]},
     password_reset_ip:
-      {@ip,
-       [
-         "password_reset:ip:203.0.113.9:1h",
-         "password_reset:ip:203.0.113.9:1d",
-         "password_reset:ip:203.0.113.9:1w",
-         "password_reset:ip:203.0.113.9:1mo",
-         "password_reset:ip:203.0.113.9:1y"
-       ]},
+      {@ip, ["password_reset:ip:203.0.113.9:1h", "password_reset:ip:203.0.113.9:1d"]},
     password_reset_email:
       {@email,
        ["password_reset:email:ada@example.com:1h", "password_reset:email:ada@example.com:1d"]},
@@ -77,12 +55,7 @@ defmodule Tymeslot.Security.RateLimiterKeysTest do
     oauth_completion: {@ip, ["oauth_completion:203.0.113.9"]},
     booking_submit: {@ipv6, ["booking_submit:2001:db8:1:2::/64"]},
     booking_recipient:
-      {@email,
-       [
-         "booking_recipient:ada@example.com:1h",
-         "booking_recipient:ada@example.com:1d",
-         "booking_recipient:ada@example.com:1w"
-       ]},
+      {@email, ["booking_recipient:ada@example.com:1h", "booking_recipient:ada@example.com:1d"]},
     meeting_cancel: {@ip, ["meeting_cancel:203.0.113.9"]},
     meeting_keep: {@ip, ["meeting_keep:203.0.113.9"]},
     meeting_approval: {@ip, ["meeting_approval:203.0.113.9"]},
