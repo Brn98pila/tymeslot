@@ -75,6 +75,54 @@ defmodule Tymeslot.Payments.StripeTest do
     end
   end
 
+  describe "delete_customer/1" do
+    test "deletes the customer at Stripe" do
+      expect(StripeCustomerMock, :delete, fn "cus_123", opts ->
+        assert opts[:api_key] == "sk_test_fake"
+        {:ok, %{id: "cus_123", deleted: true}}
+      end)
+
+      assert {:ok, %{deleted: true}} = Stripe.delete_customer("cus_123")
+    end
+  end
+
+  describe "cancel_subscription/2" do
+    test "uses a caller-supplied idempotency key" do
+      expect(StripeSubscriptionMock, :update, fn "sub_123", params, opts ->
+        assert params == %{cancel_at_period_end: true}
+        assert opts[:idempotency_key] == "my-key"
+        {:ok, %{id: "sub_123", cancel_at_period_end: true}}
+      end)
+
+      assert {:ok, _sub} =
+               Stripe.cancel_subscription("sub_123",
+                 at_period_end: true,
+                 idempotency_key: "my-key"
+               )
+    end
+
+    test "defaults to a key scoped to the operation, subscription and day" do
+      expect(StripeSubscriptionMock, :update, fn "sub_123", _params, opts ->
+        assert opts[:idempotency_key] =~ ~r/^subscription_cancel_at_period_end_/
+        {:ok, %{id: "sub_123"}}
+      end)
+
+      assert {:ok, _sub} = Stripe.cancel_subscription("sub_123", at_period_end: true)
+    end
+  end
+
+  describe "resume_subscription/1" do
+    test "turns cancel-at-period-end back off" do
+      expect(StripeSubscriptionMock, :update, fn "sub_123", params, opts ->
+        assert params == %{cancel_at_period_end: false}
+        assert opts[:api_key] == "sk_test_fake"
+        {:ok, %{id: "sub_123", cancel_at_period_end: false}}
+      end)
+
+      assert {:ok, %{cancel_at_period_end: false}} = Stripe.resume_subscription("sub_123")
+    end
+  end
+
   describe "error handling" do
     test "returns error when API key is missing" do
       Application.delete_env(:tymeslot, :stripe_secret_key)

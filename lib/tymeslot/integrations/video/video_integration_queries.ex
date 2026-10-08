@@ -62,6 +62,20 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
   end
 
   @doc """
+  Every video integration of a user, disconnected (soft-deleted) ones
+  included: a disconnected row keeps its grant until its room cleanup has
+  drained, so deleting the account must still revoke it.
+  """
+  @spec list_all_for_user_including_disconnected(integer()) :: [VideoIntegrationSchema.t()]
+  def list_all_for_user_including_disconnected(user_id) do
+    VideoIntegrationSchema
+    |> where([v], v.user_id == ^user_id)
+    |> order_by([v], asc: v.id)
+    |> Repo.all()
+    |> Enum.map(&VideoIntegrationSchema.decrypt_credentials/1)
+  end
+
+  @doc """
   Gets all video integrations for a user (including inactive).
   """
   @spec list_all_for_user(integer()) :: [VideoIntegrationSchema.t()]

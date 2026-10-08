@@ -30,10 +30,12 @@ defmodule Tymeslot.Profiles.ProfileQueries do
   """
   @spec get_by_freebusy_token(String.t()) :: {:ok, ProfileSchema.t()} | {:error, :not_found}
   def get_by_freebusy_token(token) when is_binary(token) and token != "" do
-    case Repo.get_by(ProfileSchema, freebusy_token_hash: Token.hash_token(token)) do
-      nil -> {:error, :not_found}
-      profile -> {:ok, Repo.preload(profile, :user)}
-    end
+    hash = Token.hash_token(token)
+
+    from(p in ProfileSchema, where: p.freebusy_token_hash == ^hash, preload: [:user])
+    |> owner_not_pending_deletion()
+    |> Repo.one()
+    |> found()
   end
 
   def get_by_freebusy_token(_other), do: {:error, :not_found}
@@ -127,13 +129,16 @@ defmodule Tymeslot.Profiles.ProfileQueries do
   decision, so this lookup and `get_by_username_with_user/1` deliberately do
   not fold case; `username_available?/1` does, because it answers a different
   question.
+
+  A host whose account is pending deletion is not found: their public pages
+  answer as if they did not exist.
   """
   @spec get_by_username(String.t()) :: {:ok, ProfileSchema.t()} | {:error, :not_found}
   def get_by_username(username) when is_binary(username) do
-    case Repo.get_by(ProfileSchema, username: username) do
-      nil -> {:error, :not_found}
-      profile -> {:ok, profile}
-    end
+    from(p in ProfileSchema, where: p.username == ^username)
+    |> owner_not_pending_deletion()
+    |> Repo.one()
+    |> found()
   end
 
   @doc """
@@ -239,16 +244,10 @@ defmodule Tymeslot.Profiles.ProfileQueries do
   @spec get_by_username_with_user(String.t()) ::
           {:ok, ProfileSchema.t()} | {:error, :not_found}
   def get_by_username_with_user(username) when is_binary(username) do
-    query =
-      from(p in ProfileSchema,
-        where: p.username == ^username,
-        preload: [:user]
-      )
-
-    case Repo.one(query) do
-      nil -> {:error, :not_found}
-      profile -> {:ok, profile}
-    end
+    from(p in ProfileSchema, where: p.username == ^username, preload: [:user])
+    |> owner_not_pending_deletion()
+    |> Repo.one()
+    |> found()
   end
 
   @doc """
@@ -281,4 +280,13 @@ defmodule Tymeslot.Profiles.ProfileQueries do
         error
     end
   end
+
+  # A host whose account waits to be deleted is frozen: every public lookup
+  # by username or feed token answers as if the profile did not exist.
+  defp owner_not_pending_deletion(query) do
+    from(p in query, join: u in assoc(p, :user), where: is_nil(u.deletion_scheduled_at))
+  end
+
+  defp found(nil), do: {:error, :not_found}
+  defp found(profile), do: {:ok, profile}
 end

@@ -201,6 +201,59 @@ defmodule Tymeslot.Emails.EmailScheduler.AuthScheduler do
     end
   end
 
+  @doc """
+  Schedules the notice sent when an account is scheduled for deletion. The
+  job carries the recipient itself (address, name, locale), never the user
+  id: with no grace period the account is gone before the email is sent, and
+  the deletion clears every pending job that names the user id.
+  """
+  @spec schedule_account_deletion_notice(%{
+          email: String.t(),
+          name: String.t() | nil,
+          locale: String.t() | nil,
+          scheduled_at: DateTime.t(),
+          restorable: boolean(),
+          timezone: String.t() | nil
+        }) :: {:ok, :scheduled | :duplicate} | {:error, String.t()}
+  def schedule_account_deletion_notice(details) do
+    result =
+      %{
+        "action" => "send_account_deletion_notice",
+        "email" => details.email,
+        "name" => details.name,
+        "locale" => details.locale,
+        "scheduled_at" => DateTime.to_iso8601(details.scheduled_at),
+        "restorable" => details.restorable,
+        "timezone" => details[:timezone]
+      }
+      |> EmailWorker.new(
+        queue: :emails,
+        priority: 0,
+        unique: [
+          period: 120,
+          fields: [:args, :queue],
+          keys: [:action, :email],
+          states: [:scheduled, :available]
+        ]
+      )
+      |> Oban.insert()
+
+    case result do
+      {:ok, %Oban.Job{conflict?: true}} ->
+        {:ok, :duplicate}
+
+      {:ok, _job} ->
+        {:ok, :scheduled}
+
+      {:error, reason} ->
+        Logger.error("Failed to schedule account deletion notice",
+          error: Helpers.format_insert_error(reason)
+        )
+
+        {:error, "Failed to schedule job"}
+    end
+  end
+
   # Notices that carry no token: the job needs only the recipient, and the links
   # in them lead to public pages, so the worker builds them at send time. A
   # second request inside the window coalesces with the first rather than

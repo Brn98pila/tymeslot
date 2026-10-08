@@ -141,6 +141,37 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmails do
     end
   end
 
+  @spec handle_account_deletion_notice(%{String.t() => term()}) ::
+          :ok | {:error, term()} | {:discard, String.t()}
+  def handle_account_deletion_notice(%{"email" => email, "scheduled_at" => scheduled_at} = args) do
+    recipient = %{
+      email: email,
+      name: args["name"],
+      locale: args["locale"],
+      timezone: args["timezone"],
+      id: nil
+    }
+
+    restore_url = if args["restorable"] == true, do: sign_in_url()
+
+    case DateTime.from_iso8601(scheduled_at) do
+      {:ok, at, _offset} -> deliver_account_deletion_notice(recipient, at, restore_url)
+      {:error, _reason} -> {:discard, "Unreadable account deletion date"}
+    end
+  end
+
+  defp deliver_account_deletion_notice(recipient, at, restore_url) do
+    case Config.email_service_module().send_account_deletion_notice(recipient, at, restore_url) do
+      {:ok, _result} ->
+        Logger.info("Queued account deletion notice sent")
+        :ok
+
+      {:error, reason} ->
+        Logger.error("Failed to send account deletion notice", error: LogFormat.reason(reason))
+        DeliveryOutcome.from_error(reason, "Failed to send account deletion notice")
+    end
+  end
+
   defp sign_in_url, do: UrlBuilder.build_url("/auth/login")
 
   defp notice_outcome({:ok, _result}, user, label) do

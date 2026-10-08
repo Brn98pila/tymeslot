@@ -5,12 +5,16 @@ defmodule Tymeslot.Emails.Templates.SignupAttemptNotice do
 
   The sign-up form answers a registered address exactly as it answers a new
   one, so this email is where the owner, if it was them, learns that they
-  already have an account and how to get back into it.
+  already have an account and how to get back into it. For an account pending
+  deletion the explanation names the deletion date instead.
   """
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias Tymeslot.Auth.AccountDeletion.Policy
+
   alias Tymeslot.Emails.Shared.{
     Buttons,
+    Formatting,
     Greeting,
     Sanitise,
     SignInProvider,
@@ -62,6 +66,19 @@ defmodule Tymeslot.Emails.Templates.SignupAttemptNotice do
     #{reset_text(user, reset_url)}
     #{dgettext("emails_account", "If it wasn't you, you can ignore this email. No new account was created and nothing about your account has changed.")}
     """
+  end
+
+  # The address belongs to an account waiting to be deleted: the owner can
+  # still restore it, or sign up afresh once it is gone.
+  defp explanation(%{deletion_scheduled_at: %DateTime{} = at} = user) do
+    dgettext(
+      "emails_account",
+      "Someone just tried to create a new Tymeslot account with this email address. It belongs to an account that is scheduled for deletion on %{date}. If it was you, sign in before then to restore that account, or sign up again after that date.",
+      date:
+        at
+        |> Policy.user_local_date(user.id)
+        |> Formatting.format_date(Gettext.get_locale(TymeslotWeb.Gettext))
+    )
   end
 
   # An account that signs in through a provider has no password to reset, so

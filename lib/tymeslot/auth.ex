@@ -7,6 +7,8 @@ defmodule Tymeslot.Auth do
   It encapsulates the business logic and provides a clean interface for the web layer.
   """
 
+  alias Tymeslot.Auth.AccountDeletion.{Operator, Policy, Request, Restore, Runner}
+
   alias Tymeslot.Auth.{
     AccountDeletion,
     AdminRoles,
@@ -462,6 +464,85 @@ defmodule Tymeslot.Auth do
   end
 
   @doc """
+  Whether an account is pending deletion. Takes the user (no query) or a user
+  id (one query; an unknown id is not pending).
+  """
+  @spec deletion_pending?(UserSchema.t() | integer()) :: boolean()
+  def deletion_pending?(%UserSchema{deletion_scheduled_at: nil}), do: false
+  def deletion_pending?(%UserSchema{}), do: true
+
+  def deletion_pending?(user_id) when is_integer(user_id),
+    do: UserQueries.deletion_pending?(user_id)
+
+  @doc """
+  Of `ids`, those that still belong to an account. User ids are never
+  reused, so a missing id is a deleted account.
+  """
+  @spec existing_user_ids([integer()]) :: [integer()]
+  defdelegate existing_user_ids(ids), to: UserQueries, as: :existing_ids
+
+  @doc "Days between a deletion request and the deletion (0: straight away)."
+  @spec account_deletion_grace_days() :: non_neg_integer()
+  defdelegate account_deletion_grace_days(), to: Policy, as: :grace_days
+
+  @doc "When an account asked to be deleted at `now` will be deleted."
+  @spec account_deletion_due_at(DateTime.t()) :: DateTime.t()
+  defdelegate account_deletion_due_at(now), to: Policy, as: :scheduled_at
+
+  @doc "The date of `at` as the user's own calendar day (profile timezone, else UTC)."
+  @spec deletion_local_date(DateTime.t(), UserSchema.t()) :: Date.t()
+  def deletion_local_date(at, %UserSchema{id: user_id}), do: Policy.user_local_date(at, user_id)
+
+  @doc "Whether the deletion dialog asks why the user is leaving."
+  @spec collect_deletion_feedback?() :: boolean()
+  defdelegate collect_deletion_feedback?(), to: Policy, as: :collect_feedback?
+
+  @doc "The reasons the deletion dialog offers, as stored values."
+  @spec deletion_feedback_reasons() :: [String.t()]
+  defdelegate deletion_feedback_reasons(), to: Policy, as: :feedback_reasons
+
+  @doc "Whether `user` confirms a deletion with its password or its email address."
+  @spec deletion_confirmation_method(UserSchema.t()) :: :password | :email
+  defdelegate deletion_confirmation_method(user), to: Policy, as: :confirmation_method
+
+  @doc """
+  Schedules the deletion of `user`'s own account. See
+  `Tymeslot.Auth.AccountDeletion.Request`. `opts` must carry `:ip`; it may
+  carry `:user_agent` and `:current_session_token`.
+  """
+  @spec request_account_deletion(UserSchema.t(), map(), keyword()) ::
+          {:ok, UserSchema.t()} | Request.error()
+  def request_account_deletion(user, params, opts),
+    do: Request.request(user, params, request_opts!(opts))
+
+  @doc "Whether `user`'s pending deletion can still be cancelled at `now`."
+  @spec account_restorable?(UserSchema.t(), DateTime.t()) :: boolean()
+  defdelegate account_restorable?(user, now), to: Restore, as: :restorable?
+
+  @doc """
+  Cancels the pending deletion of `user`'s account, while its grace period
+  lasts; `{:error, :deletion_in_progress}` once the account is due.
+  """
+  @spec restore_account(UserSchema.t()) ::
+          {:ok, UserSchema.t()} | {:error, :not_pending | :deletion_in_progress | term()}
+  defdelegate restore_account(user), to: Restore, as: :restore
+
+  @doc """
+  Subscribes the caller to events about one account; currently only
+  `{:account_deletion_requested, user_id}`.
+  """
+  @spec subscribe_to_account(pos_integer()) :: :ok | {:error, term()}
+  defdelegate subscribe_to_account(user_id), to: PubSub
+
+  @doc """
+  Deletes another account now, bypassing the grace period, for the admin
+  users tab or a release shell. See `Tymeslot.Auth.AccountDeletion.Operator`.
+  """
+  @spec delete_account_now(Operator.actor(), pos_integer(), keyword()) ::
+          {:ok, UserSchema.t()} | {:error, Operator.error()}
+  defdelegate delete_account_now(actor, user_id, opts \\ []), to: Operator, as: :delete_now
+
+  @doc """
   Deletes a user account.
 
   Runs the configured account-deletion hook (e.g. SaaS subscription
@@ -481,6 +562,17 @@ defmodule Tymeslot.Auth do
   """
   @spec purge_unverified_accounts(integer()) :: {non_neg_integer(), nil}
   defdelegate purge_unverified_accounts(days), to: AccountDeletion
+
+  @doc """
+  Deletes one account if it is pending and due. See
+  `Tymeslot.Auth.AccountDeletion.Runner.run/1` for the outcomes.
+  """
+  @spec run_scheduled_deletion(integer()) :: Runner.outcome()
+  defdelegate run_scheduled_deletion(user_id), to: Runner, as: :run
+
+  @doc "Queues a deletion job for every overdue account; returns how many."
+  @spec enqueue_overdue_account_deletions() :: non_neg_integer()
+  defdelegate enqueue_overdue_account_deletions(), to: Runner, as: :enqueue_overdue
 
   @doc """
   Lists all users in the system, ordered by id ascending.
