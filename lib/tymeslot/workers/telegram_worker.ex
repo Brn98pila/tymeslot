@@ -100,26 +100,7 @@ defmodule Tymeslot.Workers.TelegramWorker do
         handle_result(integration, event_type, meeting_id, message, job, result)
       end)
     else
-      {:error, :not_found} ->
-        {:discard, @gone}
-
-      {:error, :disabled} ->
-        {:discard, @disabled}
-
-      {:revoked, _reason} ->
-        handle_revoked_access(integration_id)
-
-      {:discard, :feature_disabled} ->
-        {:discard, @feature_disabled}
-
-      {:error, :feature_access_checker_failed} = error ->
-        error
-
-      {:error, :no_shared_token} ->
-        {:discard, "Shared bot token not configured"}
-
-      {:error, :no_token} ->
-        {:discard, @token_missing}
+      refusal -> refuse(refusal, integration_id)
     end
   end
 
@@ -132,6 +113,18 @@ defmodule Tymeslot.Workers.TelegramWorker do
 
     {:discard, "Missing required parameters"}
   end
+
+  # Why a job did not reach the API, as Oban's answer for it.
+  defp refuse({:error, :not_found}, _integration_id), do: {:discard, @gone}
+  defp refuse({:error, :disabled}, _integration_id), do: {:discard, @disabled}
+  defp refuse({:revoked, _reason}, integration_id), do: handle_revoked_access(integration_id)
+  defp refuse({:discard, :feature_disabled}, _integration_id), do: {:discard, @feature_disabled}
+  defp refuse({:error, :feature_access_checker_failed} = error, _integration_id), do: error
+
+  defp refuse({:error, :no_shared_token}, _integration_id),
+    do: {:discard, "Shared bot token not configured"}
+
+  defp refuse({:error, :no_token}, _integration_id), do: {:discard, @token_missing}
 
   @doc """
   Schedules a message for a meeting event.

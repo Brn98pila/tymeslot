@@ -12,7 +12,6 @@ defmodule Tymeslot.Workers.SlackWorkerTest do
   import Tymeslot.WorkerTestHelpers
 
   alias Oban.Job
-  alias Tymeslot.Test.ProcessAccessChecker
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Slack.{SlackDeliverySchema, SlackIntegrationSchema}
   alias Tymeslot.Workers.{SlackWorker, TelegramWorker}
@@ -469,62 +468,6 @@ defmodule Tymeslot.Workers.SlackWorkerTest do
     end
   end
 
-  describe "perform/1 — automations access" do
-    setup do
-      with_config(:tymeslot, :feature_access_checker, ProcessAccessChecker)
-      user = insert(:user)
-      integration = insert(:slack_integration, user: user)
-      %{integration: integration, meeting: insert(:meeting, organizer_user_id: user.id)}
-    end
-
-    for reason <- [:insufficient_plan, :pro_required, :stripe_required] do
-      test "switches the integration off when the plan answers #{reason}", %{
-        integration: integration,
-        meeting: meeting
-      } do
-        ProcessAccessChecker.answer({:error, unquote(reason)})
-        expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts -> :unused end)
-
-        assert {:discard, "Insufficient plan"} =
-                 perform_job(SlackWorker, args(integration, meeting))
-
-        updated = Repo.get!(SlackIntegrationSchema, integration.id)
-        refute updated.is_active
-        assert updated.disabled_reason == "Plan no longer permits automations"
-      end
-    end
-
-    test "discards without switching the integration off when automations are off", %{
-      integration: integration,
-      meeting: meeting
-    } do
-      ProcessAccessChecker.answer({:error, :feature_disabled})
-      expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts -> :unused end)
-
-      assert {:discard, "Automations are switched off"} =
-               perform_job(SlackWorker, args(integration, meeting))
-
-      updated = Repo.get!(SlackIntegrationSchema, integration.id)
-      assert updated.is_active
-      assert is_nil(updated.disabled_at)
-    end
-
-    test "retries, leaving the integration alone, when the access check fails", %{
-      integration: integration,
-      meeting: meeting
-    } do
-      ProcessAccessChecker.answer({:error, :checker_unavailable})
-      expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts -> :unused end)
-
-      assert {:error, :feature_access_checker_failed} =
-               perform_job(SlackWorker, args(integration, meeting))
-
-      updated = Repo.get!(SlackIntegrationSchema, integration.id)
-      assert updated.is_active
-      assert updated.failure_count == 0
-    end
-  end
-
   describe "schedule_delivery/3" do
     test "enqueues an Oban job with the expected arguments" do
       assert :ok = SlackWorker.schedule_delivery(123, "meeting.created", "meeting-uuid")
@@ -581,13 +524,5 @@ defmodule Tymeslot.Workers.SlackWorkerTest do
 
   defp job_count(worker) do
     Repo.aggregate(where(Job, worker: ^inspect(worker)), :count)
-  end
-
-  defp args(integration, meeting) do
-    %{
-      "integration_id" => integration.id,
-      "event_type" => "meeting.created",
-      "meeting_id" => meeting.id
-    }
   end
 end

@@ -48,19 +48,19 @@ defmodule Tymeslot.Workers.MeetingNotificationJob do
   def schedule(worker, args, participant_id, unique_keys, opts) do
     {args, keys} = put_participant(args, unique_keys, participant_id)
 
-    args
-    |> worker.new(
-      queue: Keyword.fetch!(opts, :queue),
-      priority: Keyword.get(opts, :priority, 2),
-      unique: [
-        period: :infinity,
-        states: @pending_states,
-        fields: @unique_fields,
-        keys: keys
-      ]
-    )
-    |> Oban.insert()
-    |> case do
+    job =
+      worker.new(args,
+        queue: Keyword.fetch!(opts, :queue),
+        priority: Keyword.get(opts, :priority, 2),
+        unique: [
+          period: :infinity,
+          states: @pending_states,
+          fields: @unique_fields,
+          keys: keys
+        ]
+      )
+
+    case Oban.insert(job) do
       {:ok, %Oban.Job{}} -> :ok
       {:error, reason} -> {:error, reason}
     end

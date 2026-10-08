@@ -9,9 +9,9 @@ defmodule Tymeslot.Notifications.ChannelFanoutTest do
   import Tymeslot.Factory
 
   alias Tymeslot.Notifications.ChannelFanout
+  alias Tymeslot.Test.{LogCapture, ProcessAccessChecker}
   alias Tymeslot.Webhooks
   alias Tymeslot.Webhooks.WebhookSchema
-  alias Tymeslot.Test.LogCapture
   alias Tymeslot.Workers.{SlackWorker, TelegramWorker, WebhookWorker}
 
   # Every channel, with the factory that subscribes an integration of it and
@@ -91,7 +91,8 @@ defmodule Tymeslot.Notifications.ChannelFanoutTest do
 
     test "schedules nothing on any channel when automations are not on the plan",
          %{meeting: meeting} do
-      with_config(:tymeslot, :feature_access_checker, __MODULE__.DeniesAccess)
+      with_config(:tymeslot, :feature_access_checker, ProcessAccessChecker)
+      ProcessAccessChecker.answer({:error, :insufficient_plan})
 
       assert {:error, :insufficient_plan} = ChannelFanout.dispatch(:meeting_created, meeting)
 
@@ -99,7 +100,8 @@ defmodule Tymeslot.Notifications.ChannelFanoutTest do
     end
 
     test "schedules nothing when the access check itself fails", %{meeting: meeting} do
-      with_config(:tymeslot, :feature_access_checker, __MODULE__.CheckerFails)
+      with_config(:tymeslot, :feature_access_checker, ProcessAccessChecker)
+      ProcessAccessChecker.answer({:error, :checker_unavailable})
 
       assert {:error, :feature_access_checker_failed} =
                ChannelFanout.dispatch(:meeting_created, meeting)
@@ -205,18 +207,9 @@ defmodule Tymeslot.Notifications.ChannelFanoutTest do
     _error -> :ok
   end
 
-  defmodule DeniesAccess do
-    @moduledoc false
-    def check_access(_user_id, _feature), do: {:error, :insufficient_plan}
-  end
-
-  defmodule CheckerFails do
-    @moduledoc false
-    def check_access(_user_id, _feature), do: raise("checker down")
-  end
-
   defmodule CountsChecks do
     @moduledoc false
+    @spec check_access(integer(), atom()) :: :ok
     def check_access(_user_id, :automations_allowed) do
       Process.put(:access_checks, Process.get(:access_checks, 0) + 1)
       :ok

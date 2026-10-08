@@ -7,6 +7,7 @@ defmodule Tymeslot.Workers.MeetingNotificationJobTest do
   use Oban.Testing, repo: Tymeslot.Repo
   import Ecto.Query, only: [where: 2]
 
+  alias Ecto.UUID
   alias Oban.Job
   alias Tymeslot.Workers.{SlackWorker, TelegramWorker, WebhookWorker}
 
@@ -37,8 +38,8 @@ defmodule Tymeslot.Workers.MeetingNotificationJobTest do
     end
 
     test "each seat of a group meeting is its own delivery" do
-      seat_a = Ecto.UUID.generate()
-      seat_b = Ecto.UUID.generate()
+      seat_a = UUID.generate()
+      seat_b = UUID.generate()
 
       assert :ok = SlackWorker.schedule_delivery(7, "meeting.created", "m-1", seat_a)
       assert :ok = SlackWorker.schedule_delivery(7, "meeting.created", "m-1", seat_b)
