@@ -146,11 +146,15 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
       assert :ok = RateLimiter.check_signup_recipient_rate_limit(email)
       assert :ok = RateLimiter.check_password_reset_recipient_rate_limit(email)
       assert :ok = RateLimiter.check_verification_rate_limit(user_id, "203.0.113.66")
+      assert :ok = RateLimiter.check_signup_attempt_notice_rate_limit(user_id)
+      assert :ok = RateLimiter.check_social_signup_confirmation_rate_limit(email)
 
       for bucket <- [
             "signup:email:#{email}",
             "password_reset:email:#{email}",
-            "email_verification:user:#{user_id}"
+            "email_verification:user:#{user_id}",
+            "signup_attempt_notice:user:#{user_id}",
+            "social_signup_confirmation:email:#{email}"
           ] do
         windows = windows_ms(bucket)
         assert windows != [], "no tier recorded for #{bucket}"

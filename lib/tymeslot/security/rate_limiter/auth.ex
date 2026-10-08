@@ -206,13 +206,14 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
 
   # Caps the note sent to an account's owner when someone tries to sign up
   # with their address, so the sign-up form cannot be used to flood a mailbox.
-  # Its own bucket, at the verification budget, so that an attempt against an
-  # unverified account never spends that account's own resend allowance.
+  # Its own bucket, at the per-account verification budget, so that an attempt
+  # against an unverified account never spends that account's own resend
+  # allowance.
   @spec check_signup_attempt_notice(term()) :: :ok | {:error, :rate_limited, String.t()}
   def check_signup_attempt_notice(user_id) do
     Helpers.check_multi_bucket_limits([
-      {"signup_attempt_notice:user:#{user_id}", @verification_limits, "signup attempt notice",
-       verification_action()}
+      {"signup_attempt_notice:user:#{user_id}", @verification_user_limits,
+       "signup attempt notice", verification_action()}
     ])
   end
 
@@ -221,7 +222,7 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
   @spec check_social_signup_confirmation(String.t()) :: :ok | {:error, :rate_limited, String.t()}
   def check_social_signup_confirmation(email) do
     Helpers.check_multi_bucket_limits([
-      {"social_signup_confirmation:email:#{normalise_email(email)}", @verification_limits,
+      {"social_signup_confirmation:email:#{normalise_email(email)}", @verification_user_limits,
        "social signup confirmation", verification_action()}
     ])
   end

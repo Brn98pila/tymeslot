@@ -265,10 +265,10 @@ defmodule Tymeslot.Auth.Registration do
   Handles a sign-up for an address that already has an account, on any
   sign-up form, so the visitor's reply can match a new account's.
 
-  Sends the owner the sign-up attempt notice (capped per recipient) and spends
-  the requesting address's verification allowance, as a new account's
-  verification email would; the result says whether that allowance let the
-  "email" through, `:sent` or `:rate_limited`, so a caller that reports
+  Spends the requesting address's verification allowance, as a new account's
+  verification email would, and within it sends the owner the sign-up attempt
+  notice (capped per recipient). The result says whether that allowance let
+  the "email" through, `:sent` or `:rate_limited`, so a caller that reports
   delivery can report it the same way it would for a new account.
   """
   @spec answer_taken_address(UserSchema.t(), String.t() | nil) :: :sent | :rate_limited
@@ -277,11 +277,16 @@ defmodule Tymeslot.Auth.Registration do
       user_id: existing.id
     })
 
-    notify_owner_of_attempt(existing)
-
+    # The source's allowance first: a source over its own limit must spend
+    # nothing of the owner's notice budget, or it could exhaust that budget
+    # and silence the notice for the genuine attempts that follow.
     case RateLimiter.check_verification_ip_rate_limit(ip) do
-      :ok -> :sent
-      {:error, :rate_limited, _message} -> :rate_limited
+      :ok ->
+        notify_owner_of_attempt(existing)
+        :sent
+
+      {:error, :rate_limited, _message} ->
+        :rate_limited
     end
   end
 

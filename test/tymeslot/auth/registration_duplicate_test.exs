@@ -117,6 +117,22 @@ defmodule Tymeslot.Auth.RegistrationDuplicateTest do
     assert [] = notices()
   end
 
+  test "a source over its own limit spends nothing of the owner's notice budget" do
+    owner = insert(:user)
+    attacker_ip = "203.0.113.171"
+
+    for _i <- 1..5, do: RateLimiter.check_verification_ip_rate_limit(attacker_ip)
+
+    for _i <- 1..6 do
+      assert :rate_limited = Registration.answer_taken_address(owner, attacker_ip)
+    end
+
+    assert [] = notices()
+
+    assert :sent = Registration.answer_taken_address(owner, "203.0.113.172")
+    assert [_notice] = notices()
+  end
+
   test "a concurrent sign-up that wins the unique index is answered as a duplicate" do
     original = Application.get_env(:tymeslot, :user_queries_module)
     Application.put_env(:tymeslot, :user_queries_module, RacingUserQueries)
