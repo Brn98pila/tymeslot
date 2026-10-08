@@ -40,7 +40,6 @@ defmodule TymeslotWeb.StripeWebhookPayloadVersionTest do
   describe "platform endpoint" do
     setup do
       with_config(:tymeslot,
-        skip_webhook_verification: false,
         stripe_provider: Tymeslot.Payments.Stripe,
         stripe_webhook_secret: @platform_secret,
         repo: Repo,

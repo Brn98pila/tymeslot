@@ -41,7 +41,6 @@ defmodule Tymeslot.Payments.Webhooks.Ingress do
   alias Tymeslot.MeetingPayments.Webhooks.WebhookRegistry, as: ConnectRegistry
   alias Tymeslot.Payments.Config
   alias Tymeslot.Payments.Webhooks.Idempotency
-  alias Tymeslot.Payments.Webhooks.Security.DevelopmentMode
   alias Tymeslot.Payments.Webhooks.WebhookRegistry, as: PlatformRegistry
 
   @type endpoint :: :platform | :connect
@@ -128,15 +127,8 @@ defmodule Tymeslot.Payments.Webhooks.Ingress do
     end
   end
 
-  defp construct_event(:platform, raw_body, signature, secret) do
-    case DevelopmentMode.verify_if_allowed(raw_body) do
-      {:error, :not_allowed} ->
-        Config.stripe_provider().construct_webhook_event(raw_body, signature, secret)
-
-      result ->
-        result
-    end
-  end
+  defp construct_event(:platform, raw_body, signature, secret),
+    do: Config.stripe_provider().construct_webhook_event(raw_body, signature, secret)
 
   defp construct_event(:connect, raw_body, signature, secret),
     do: StripeAdapter.construct_webhook_event(raw_body, signature, secret)

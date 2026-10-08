@@ -12,21 +12,33 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
   alias Tymeslot.Repo
   alias Tymeslot.Webhooks.WebhookEventSchema, as: WebhookEvent
 
+  @secret "whsec_controller_test"
+
   setup :verify_on_exit!
 
-  describe "POST /webhooks/stripe" do
-    # The test environment enables development-mode verification (plain JSON
-    # accepted), so the signature tests switch it off explicitly. The ingress
-    # still needs the endpoint's signing secret to be configured.
+  defp deliver(conn, payload) do
+    conn
+    |> put_req_header("content-type", "application/json")
+    |> put_req_header(
+      "stripe-signature",
+      PaymentTestHelpers.generate_stripe_signature(payload, @secret)
+    )
+    |> assign(:raw_body, payload)
+    |> post("/webhooks/stripe", payload)
+  end
 
+  describe "POST /webhooks/stripe" do
     setup do
-      with_config(:tymeslot, stripe_webhook_secret: "whsec_controller_test")
+      with_config(:tymeslot,
+        stripe_provider: Tymeslot.Payments.Stripe,
+        stripe_webhook_secret: @secret
+      )
+
       :ok
     end
 
     test "returns an empty 400 when webhook signature is missing", %{conn: conn} do
       with_config(:tymeslot,
-        skip_webhook_verification: false,
         stripe_provider: Tymeslot.Payments.Stripe,
         stripe_webhook_secret: "whsec_test"
       )
@@ -44,7 +56,6 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
 
     test "returns an empty 400 when webhook signature is invalid", %{conn: conn} do
       with_config(:tymeslot,
-        skip_webhook_verification: false,
         stripe_provider: Tymeslot.Payments.Stripe,
         stripe_webhook_secret: "whsec_test"
       )
@@ -68,7 +79,6 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
       secret = "whsec_test"
 
       with_config(:tymeslot,
-        skip_webhook_verification: false,
         stripe_provider: Tymeslot.Payments.Stripe,
         stripe_webhook_secret: secret
       )
@@ -94,12 +104,8 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
 
       payload = Jason.encode!(event)
 
-      # In development mode (no webhook secret), signature verification is skipped
       conn =
-        conn
-        |> put_req_header("content-type", "application/json")
-        |> assign(:raw_body, payload)
-        |> post("/webhooks/stripe", payload)
+        deliver(conn, payload)
 
       # Should return 200 OK (controller returns empty string, not JSON)
       assert response(conn, 200) == ""
@@ -114,19 +120,13 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
 
       # Process first time
       conn1 =
-        build_conn()
-        |> put_req_header("content-type", "application/json")
-        |> assign(:raw_body, payload)
-        |> post("/webhooks/stripe", payload)
+        deliver(build_conn(), payload)
 
       assert response(conn1, 200) == ""
 
       # Process second time - should be rejected as duplicate (halted in plug)
       conn2 =
-        build_conn()
-        |> put_req_header("content-type", "application/json")
-        |> assign(:raw_body, payload)
-        |> post("/webhooks/stripe", payload)
+        deliver(build_conn(), payload)
 
       # The duplicate is answered with a byte-identical `200 ""`, so the response
       # alone cannot tell the two deliveries apart; the single `webhook_events`
@@ -152,10 +152,7 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
       payload = Jason.encode!(event)
 
       conn =
-        conn
-        |> put_req_header("content-type", "application/json")
-        |> assign(:raw_body, payload)
-        |> post("/webhooks/stripe", payload)
+        deliver(conn, payload)
 
       assert response(conn, 200) == ""
     end
@@ -178,10 +175,7 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
       payload = Jason.encode!(event)
 
       conn1 =
-        build_conn()
-        |> put_req_header("content-type", "application/json")
-        |> assign(:raw_body, payload)
-        |> post("/webhooks/stripe", payload)
+        deliver(build_conn(), payload)
 
       # Empty body: the retry message is internal and only logged.
       assert response(conn1, 503) == ""
@@ -193,17 +187,13 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
       :ok = IdempotencyCache.release(event["id"])
 
       conn2 =
-        build_conn()
-        |> put_req_header("content-type", "application/json")
-        |> assign(:raw_body, payload)
-        |> post("/webhooks/stripe", payload)
+        deliver(build_conn(), payload)
 
       assert response(conn2, 503) == ""
     end
 
     test "returns an empty 503 when the webhook secret is not configured", %{conn: conn} do
       with_config(:tymeslot,
-        skip_webhook_verification: false,
         stripe_provider: Tymeslot.Payments.Stripe,
         stripe_webhook_secret: nil
       )
@@ -242,10 +232,7 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
       payload = Jason.encode!(event)
 
       conn =
-        conn
-        |> put_req_header("content-type", "application/json")
-        |> assign(:raw_body, payload)
-        |> post("/webhooks/stripe", payload)
+        deliver(conn, payload)
 
       assert response(conn, 200) == ""
       assert IdempotencyCache.reserve(event["id"]) == {:ok, :already_processed}
@@ -259,10 +246,7 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
 
       payload = Jason.encode!(event)
 
-      conn
-      |> put_req_header("content-type", "application/json")
-      |> assign(:raw_body, payload)
-      |> post("/webhooks/stripe", payload)
+      deliver(conn, payload)
 
       record = Repo.get_by!(WebhookEvent, stripe_event_id: event_id)
       assert record.payload["type"] == "checkout.session.completed"
@@ -287,10 +271,7 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
       payload = Jason.encode!(event)
 
       conn =
-        conn
-        |> put_req_header("content-type", "application/json")
-        |> assign(:raw_body, payload)
-        |> post("/webhooks/stripe", payload)
+        deliver(conn, payload)
 
       # A handler that can't process the event must not crash the controller;
       # Stripe gets a plain 200 so it stops retrying an event that will never
@@ -301,10 +282,7 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
       # so a genuine Stripe retry of the same event is also acknowledged
       # immediately instead of receiving a 503.
       conn2 =
-        build_conn()
-        |> put_req_header("content-type", "application/json")
-        |> assign(:raw_body, payload)
-        |> post("/webhooks/stripe", payload)
+        deliver(build_conn(), payload)
 
       assert response(conn2, 200) == ""
 
@@ -326,10 +304,7 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
       # We can't easily assert on the Task.start or Logger output without more complex setup,
       # but we can ensure the request completes successfully.
       conn =
-        conn
-        |> put_req_header("content-type", "application/json")
-        |> assign(:raw_body, payload)
-        |> post("/webhooks/stripe", payload)
+        deliver(conn, payload)
 
       # Should return 200 OK even for unknown events (controller returns empty string, not JSON)
       assert response(conn, 200) == ""

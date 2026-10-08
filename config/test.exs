@@ -232,9 +232,6 @@ config :tymeslot, :pricing,
   pro_monthly_cents: 500,
   pro_annual_cents: 5000
 
-# Skip webhook signature verification in tests
-config :tymeslot, :skip_webhook_verification, true
-
 # Health check timeouts for faster testing
 config :tymeslot, Tymeslot.Integrations.HealthCheck,
   yield_timeout: 100,

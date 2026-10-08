@@ -5,9 +5,6 @@ defmodule Tymeslot.Payments.PaymentModulesTest do
 
   import Tymeslot.Test.PaymentEventCapture
   alias Tymeslot.Payments.{ErrorHandler, PubSub}
-  alias Tymeslot.Payments.Errors.WebhookError.ProcessingError
-  alias Tymeslot.Payments.Errors.WebhookError.SignatureError
-  alias Tymeslot.Payments.Errors.WebhookError.ValidationError
   alias Tymeslot.Test.LogCapture
 
   describe "ErrorHandler" do
@@ -62,26 +59,6 @@ defmodule Tymeslot.Payments.PaymentModulesTest do
                })
 
       assert_received %{event: :charge_succeeded, data: %{charge_id: "ch_123", user_id: 42}}
-    end
-  end
-
-  describe "WebhookError" do
-    test "SignatureError can be created" do
-      error = %SignatureError{message: "test", reason: :invalid}
-      assert error.message == "test"
-      assert SignatureError.message(error) == "test"
-    end
-
-    test "ValidationError can be created" do
-      error = %ValidationError{message: "test", reason: :invalid}
-      assert error.message == "test"
-      assert ValidationError.message(error) == "test"
-    end
-
-    test "ProcessingError can be created" do
-      error = %ProcessingError{message: "test", reason: :failed}
-      assert error.message == "test"
-      assert ProcessingError.message(error) == "test"
     end
   end
 end

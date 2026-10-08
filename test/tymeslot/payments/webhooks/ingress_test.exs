@@ -55,7 +55,6 @@ defmodule Tymeslot.Payments.Webhooks.IngressTest do
     with_config(:tymeslot,
       stripe_webhook_secret: @platform_secret,
       stripe_connect_webhook_secret: @connect_secret,
-      skip_webhook_verification: false,
       subscription_manager: RecordingManager,
       admin_alerts_impl: TestAdminAlerts,
       ingress_test_pid: self()
