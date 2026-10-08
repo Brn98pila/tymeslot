@@ -524,7 +524,7 @@ defmodule Tymeslot.Auth do
   @doc """
   Demotes the user identified by `user_id` from admin.
 
-  See `Tymeslot.Auth.AdminRoles.demote/2` for the full contract.
+  See `Tymeslot.Auth.AdminRoles.demote/3` for the full contract.
   """
   defdelegate demote_admin(actor, user_id), to: AdminRoles, as: :demote
 end

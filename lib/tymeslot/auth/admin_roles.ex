@@ -15,9 +15,10 @@ defmodule Tymeslot.Auth.AdminRoles do
 
   Self-demotion is allowed for admin actors as long as at least one
   other admin who can actually sign in remains; the `:last_admin` guard is
-  what prevents stranding the install. The `:cli` actor additionally skips the last-admin guard, providing
-  an operator escape hatch when the UI cannot be used (e.g. to recover a
-  stranded install where every admin has been demoted).
+  what prevents stranding the install. The guard applies to `:cli` too, but
+  `:cli` alone may pass `force: true` to skip it, providing an operator
+  escape hatch when the UI cannot be used (e.g. to remove a compromised sole
+  admin before promoting a replacement).
   """
 
   require Logger
@@ -47,7 +48,7 @@ defmodule Tymeslot.Auth.AdminRoles do
   def promote(actor, target_user_id) do
     with :ok <- ensure_admin_ui_enabled() do
       Repo.transaction(fn ->
-        # Locked as in demote/2, so the actor cannot be demoted between the
+        # Locked as in demote/3, so the actor cannot be demoted between the
         # authorisation check and the promotion it allows.
         AdminUserQueries.lock_admins()
         authorise!(actor)
@@ -80,11 +81,15 @@ defmodule Tymeslot.Auth.AdminRoles do
   one other admin who can sign in will remain afterwards. The `:last_admin`
   guard below prevents stranding the install.
 
-  Guard (skipped when actor is `:cli`):
+  Guard (skipped only for the `:cli` actor with `force: true`):
     * Returns `{:error, :last_admin}` when no other admin could sign in once
       the target is demoted: verified with a password, or linked to an SSO
       provider that is enabled and configured (checked inside a locked
       transaction to prevent races).
+
+  Options:
+    * `:force` - when `true` and the actor is `:cli`, skips the last-admin
+      guard. Ignored for any other actor.
 
   Returns:
     * `{:ok, %UserSchema{}}` on success
@@ -94,22 +99,25 @@ defmodule Tymeslot.Auth.AdminRoles do
     * `{:error, :last_admin}` if the target is the only admin who can sign in
     * `{:error, changeset}` if the database update fails
   """
-  @spec demote(term(), pos_integer()) ::
+  @spec demote(term(), pos_integer(), keyword()) ::
           {:ok, UserSchema.t()}
           | {:error,
              :not_found | :forbidden | :last_admin | :admin_ui_disabled | Ecto.Changeset.t()}
-  def demote(actor, target_user_id) do
+  def demote(actor, target_user_id, opts \\ []) do
+    force? = actor == :cli and Keyword.get(opts, :force, false) == true
+
     with :ok <- ensure_admin_ui_enabled() do
-      Repo.transaction(fn -> demote_in_transaction(actor, target_user_id) end)
+      Repo.transaction(fn -> demote_in_transaction(actor, target_user_id, force?) end)
     end
   end
 
   @doc """
   Whether at least one admin other than `target` can currently sign in.
 
-  Shared by the last-admin guard here and the CLI pre-check in
-  `Tymeslot.Release.demote_admin/2`. Inside `demote/2` it runs under the admin
-  row lock, so concurrent demotions cannot both pass it.
+  The last-admin guard in `demote/3` calls it under the admin row lock, so
+  concurrent demotions cannot both pass it. The admin UI also calls it,
+  unlocked, to decide whether to offer self-demotion; that answer is advisory,
+  and `demote/3` decides.
   """
   @spec remaining_signin_capable_admins?(UserSchema.t()) :: boolean()
   def remaining_signin_capable_admins?(%UserSchema{id: target_id}) do
@@ -121,7 +129,7 @@ defmodule Tymeslot.Auth.AdminRoles do
 
   # --- Private helpers ---
 
-  defp demote_in_transaction(actor, target_user_id) do
+  defp demote_in_transaction(actor, target_user_id, force?) do
     # Lock all admin rows before counting so that concurrent demotions
     # see a consistent view and cannot race past the last-admin guard.
     AdminUserQueries.lock_admins()
@@ -132,12 +140,12 @@ defmodule Tymeslot.Auth.AdminRoles do
         Repo.rollback(:not_found)
 
       {:ok, target} ->
-        apply_demotion(actor, target)
+        apply_demotion(actor, target, force?)
     end
   end
 
-  defp apply_demotion(actor, target) do
-    case check_last_admin(actor, target) do
+  defp apply_demotion(actor, target, force?) do
+    case check_last_admin(target, force?) do
       {:error, :last_admin} ->
         Repo.rollback(:last_admin)
 
@@ -189,16 +197,16 @@ defmodule Tymeslot.Auth.AdminRoles do
 
   defp authorise!(_actor), do: Repo.rollback(:forbidden)
 
-  # CLI actor: skips the last-admin guard — it is the operator escape hatch.
-  defp check_last_admin(:cli, _target), do: :ok
+  # A forced CLI demotion skips the guard: it is the operator escape hatch.
+  defp check_last_admin(_target, true = _force?), do: :ok
 
-  # Target is already not an admin — no risk of stranding the install.
-  defp check_last_admin(_actor, %UserSchema{is_admin: false}), do: :ok
+  # Target is already not an admin, so there is no risk of stranding the install.
+  defp check_last_admin(%UserSchema{is_admin: false}, _force?), do: :ok
 
   # Counts the admins who could still sign in once the target is demoted,
   # rather than bare `is_admin` rows: an admin who is unverified, or whose only
   # identity is with a disabled SSO provider, cannot reach the admin UI.
-  defp check_last_admin(_actor, %UserSchema{is_admin: true} = target) do
+  defp check_last_admin(%UserSchema{is_admin: true} = target, _force?) do
     if remaining_signin_capable_admins?(target), do: :ok, else: {:error, :last_admin}
   end
 

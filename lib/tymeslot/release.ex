@@ -35,17 +35,14 @@ defmodule Tymeslot.Release do
   @doc """
   Demotes the user with the given email from admin.
 
-  Refuses to demote an admin when no other admin could still sign in
-  (the guard is `AdminRoles.remaining_signin_capable_admins?/1`) unless
-  `force?` is true. This mirrors the
-  pre-check `mix tymeslot.demote_admin` applies before reaching
-  this function, so the documented production path
-  (`bin/tymeslot rpc 'Tymeslot.Release.demote_admin("…")'`) gets the same
-  protection rather than relying solely on the dev-only Mix task. Below this
-  guard, the `:cli` actor still skips `AdminRoles.demote/2`'s own last-admin
-  check by design — that remains the operator escape hatch for recovering an
-  already-stranded install; `force?` is this function's equivalent for
-  callers going through it directly.
+  Refuses to demote an admin when no other admin could still sign in, unless
+  `force?` is true. The check is `AdminRoles.demote/3`'s own last-admin guard,
+  made under the admin row lock, so two operators demoting the last two
+  admins at once cannot both succeed. `force?` is the operator escape hatch,
+  for instance to remove a compromised sole admin before promoting a
+  replacement. `mix tymeslot.demote_admin` and the documented production
+  path (`bin/tymeslot rpc 'Tymeslot.Release.demote_admin("…")'`) both come
+  through here.
   """
   @spec demote_admin(String.t(), boolean()) ::
           {:ok, UserSchema.t()}
@@ -54,28 +51,17 @@ defmodule Tymeslot.Release do
     ensure_started()
 
     with :ok <- ensure_admin_ui_enabled(),
-         {:ok, user} <- UserQueries.get_user_by_email(email),
-         :ok <- check_last_admin(user, force?) do
-      AdminRoles.demote(:cli, user.id)
+         {:ok, user} <- UserQueries.get_user_by_email(email) do
+      AdminRoles.demote(:cli, user.id, force: force?)
     end
   end
 
-  # Checked here too (rather than relying solely on `AdminRoles.demote/2`'s
-  # own check) so it runs before the last-admin guard below, keeping the
-  # error precedence promote_admin/1 and the pre-fix demote_admin/1 already
-  # had: a disabled admin UI is reported as such even for a sole admin.
+  # Checked here too (rather than relying solely on `AdminRoles.demote/3`'s
+  # own check) so a disabled admin UI is reported before an unknown email,
+  # the same precedence promote_admin/1 has.
   defp ensure_admin_ui_enabled do
     if AdminRoles.admin_ui_enabled?(), do: :ok, else: {:error, :admin_ui_disabled}
   end
-
-  # `force?` is the only thing this adds over the shared rule: the `:cli`
-  # actor skips `AdminRoles`' own guard, so without this pre-check the
-  # documented production path would have no guard at all.
-  defp check_last_admin(%UserSchema{is_admin: true} = user, false) do
-    if AdminRoles.remaining_signin_capable_admins?(user), do: :ok, else: {:error, :last_admin}
-  end
-
-  defp check_last_admin(_user, _force?), do: :ok
 
   @doc """
   Lists every admin user (email + id). Useful for operators verifying the
