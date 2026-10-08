@@ -63,6 +63,46 @@ defmodule Tymeslot.Workers.ChatWorkerAccessTest do
         end
       end
 
+      test "leaves a paused integration paused when the plan is revoked", %{
+        user: user,
+        meeting: meeting
+      } do
+        paused = insert(unquote(factory), user: user, is_active: false)
+        ProcessAccessChecker.answer({:error, :insufficient_plan})
+
+        assert {:discard, "Insufficient plan"} =
+                 perform_job(unquote(worker), args(paused, meeting))
+
+        updated = Repo.get!(unquote(schema), paused.id)
+        refute updated.is_active
+        assert is_nil(updated.disabled_at)
+        assert is_nil(updated.disabled_reason)
+      end
+
+      test "keeps the reason an integration was already disabled for", %{
+        user: user,
+        meeting: meeting
+      } do
+        disabled_at = DateTime.add(DateTime.utc_now(:second), -3600, :second)
+
+        disabled =
+          insert(unquote(factory),
+            user: user,
+            is_active: false,
+            disabled_at: disabled_at,
+            disabled_reason: "bot_blocked"
+          )
+
+        ProcessAccessChecker.answer({:error, :insufficient_plan})
+
+        assert {:discard, "Insufficient plan"} =
+                 perform_job(unquote(worker), args(disabled, meeting))
+
+        updated = Repo.get!(unquote(schema), disabled.id)
+        assert updated.disabled_reason == "bot_blocked"
+        assert DateTime.compare(updated.disabled_at, disabled_at) == :eq
+      end
+
       test "discards without switching the integration off when automations are off", %{
         integration: integration,
         meeting: meeting

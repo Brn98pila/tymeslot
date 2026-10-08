@@ -140,23 +140,7 @@ defmodule Tymeslot.Workers.SlackWorker do
   end
 
   defp handle_revoked_access(integration_id) do
-    case SlackQueries.get_integration(integration_id) do
-      {:ok, integration} ->
-        case Slack.auto_disable(integration, "Plan no longer permits automations") do
-          {:ok, _integration} ->
-            :ok
-
-          {:error, reason} ->
-            Logger.warning("Failed to auto-disable Slack integration after plan revocation",
-              integration_id: integration_id,
-              reason: LogFormat.reason(reason)
-            )
-        end
-
-      {:error, _reason} ->
-        :ok
-    end
-
+    {:ok, _disabled?} = Slack.disable_for_revoked_plan(integration_id)
     {:discard, @insufficient_plan}
   end
 

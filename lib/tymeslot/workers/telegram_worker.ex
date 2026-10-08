@@ -158,11 +158,7 @@ defmodule Tymeslot.Workers.TelegramWorker do
   # Matches Slack: an integration whose owner lost automations is switched
   # off, visibly, instead of discarding every event it would have sent.
   defp handle_revoked_access(integration_id) do
-    case TelegramQueries.get_integration(integration_id) do
-      {:ok, integration} -> auto_disable(integration, "Plan no longer permits automations")
-      {:error, _reason} -> :ok
-    end
-
+    {:ok, _disabled?} = Telegram.disable_for_revoked_plan(integration_id)
     {:discard, @insufficient_plan}
   end
 

@@ -320,6 +320,15 @@ defmodule Tymeslot.Telegram do
     end
   end
 
+  @doc """
+  Switches the integration off because its owner's plan no longer covers
+  automations. A paused or already disabled integration is left as it is,
+  keeping the user's choice or the earlier reason.
+  """
+  @spec disable_for_revoked_plan(integer()) :: {:ok, boolean()}
+  def disable_for_revoked_plan(integration_id),
+    do: TelegramQueries.disable_if_active(integration_id, "Plan no longer permits automations")
+
   @spec auto_disable(TelegramIntegrationSchema.t(), String.t()) ::
           {:ok, TelegramIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
   def auto_disable(%TelegramIntegrationSchema{} = integration, reason) do
