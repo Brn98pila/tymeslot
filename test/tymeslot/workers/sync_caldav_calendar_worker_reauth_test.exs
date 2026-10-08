@@ -171,7 +171,9 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorkerReauthTest do
         insert(:calendar_integration,
           provider: "caldav",
           is_active: true,
-          needs_reauth: true
+          needs_reauth: true,
+          sync_error:
+            "The calendar server rejected the stored credentials. Please reconnect the calendar."
         )
 
       %{integration: integration}
@@ -185,6 +187,7 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorkerReauthTest do
         })
 
       refute reconnected.needs_reauth
+      assert reconnected.sync_error == nil
     end
 
     test "update/2 leaves the flag intact even when it writes credentials", %{

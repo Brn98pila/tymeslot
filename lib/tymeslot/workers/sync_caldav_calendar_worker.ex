@@ -110,6 +110,7 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
         fn ->
           integration
           |> Sync.run(force_full_fetch?)
+          |> tap(&record_failure(integration, &1))
           |> handle_sync_result(integration)
           |> tap(&SyncHealth.record_outcome(integration, &1))
         end
@@ -251,9 +252,33 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
   # server's own explanation, and the health check surfaces the integration.
   defp handle_sync_result({:error, reason} = result, _integration) do
     if CalDAVErrors.terminal_error?(reason) do
-      {:discard, "CalDAV server refused the sync request: #{CalDAVErrors.describe_error(reason)}"}
+      {:discard, "CalDAV server refused the sync request: #{refusal(reason)}"}
     else
       result
     end
   end
+
+  # The failures that flag the integration for reconnection record their own
+  # reason with the flag, and the deletion breaker's refusal resolves itself
+  # without the owner. Every other failure is stored as the owner-facing
+  # sentence, which the integration card shows while the sync is unhealthy.
+  # A successful cycle clears it in `SyncHealth.record_outcome/2`.
+  @recorded_elsewhere [
+    :unauthorized,
+    :forbidden,
+    :booking_calendar_missing,
+    :no_calendar_paths,
+    :suspicious_bulk_deletion
+  ]
+
+  defp record_failure(integration, {:error, reason}) when reason not in @recorded_elsewhere do
+    CalendarIntegrationQueries.mark_sync_error(integration, CalDAVErrors.describe_error(reason))
+  end
+
+  defp record_failure(_integration, _result), do: :ok
+
+  # The discard reason is what an operator reads on the job record, so it keeps
+  # the status the owner-facing sentence leaves out.
+  defp refusal({:unexpected_status, status}), do: "HTTP #{status}"
+  defp refusal(reason), do: CalDAVErrors.describe_error(reason)
 end

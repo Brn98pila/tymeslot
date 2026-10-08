@@ -456,11 +456,6 @@ msgstr "Endpoint CalDAV di Apple iCloud non trovato. L'URL del server deve esser
 msgid "Apple iCloud connection successful"
 msgstr "Connessione ad Apple iCloud riuscita"
 
-#: lib/tymeslot/integrations/calendar/apple/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Apple iCloud requires HTTPS"
-msgstr "Apple iCloud richiede HTTPS"
-
 #: lib/tymeslot/integrations/calendar/shared/error_messages.ex
 #, elixir-autogen, elixir-format
 msgid "Authentication failed for %{provider}. Please check your username and password"
@@ -485,11 +480,6 @@ msgstr "Autenticazione non riuscita. iCloud richiede una password specifica per 
 #, elixir-autogen, elixir-format
 msgid "Baikal connection successful"
 msgstr "Connessione a Baikal riuscita"
-
-#: lib/tymeslot/integrations/calendar/baikal/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Baikal error: %{detail}"
-msgstr "Errore Baikal: %{detail}"
 
 #: lib/tymeslot/integrations/calendar/baikal/provider.ex
 #, elixir-autogen, elixir-format
@@ -622,11 +612,6 @@ msgstr "URL Zimbra non valido. Deve essere l'URL del tuo server Zimbra (es. http
 msgid "Invalid calendar credentials. Please update your connection."
 msgstr "Credenziali del calendario non valide. Aggiorna la connessione."
 
-#: lib/tymeslot/integrations/calendar/mailbox_org/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Invalid mailbox.org URL. Use https://dav.mailbox.org (or your custom mailbox.org-compatible CalDAV endpoint)."
-msgstr "URL mailbox.org non valido. Usa https://dav.mailbox.org (oppure il tuo endpoint CalDAV compatibile con mailbox.org)."
-
 #: lib/tymeslot/integrations/calendar/shared/error_handler.ex
 #, elixir-autogen, elixir-format
 msgid "Network connection failed. Please check your internet connection."
@@ -679,6 +664,7 @@ msgid "Please enter a valid server URL (e.g., https://cloud.example.com)"
 msgstr "Inserisci un URL del server valido (es. https://cloud.example.com)"
 
 #: lib/tymeslot/integrations/calendar/credential_fields.ex
+#: lib/tymeslot/integrations/calendar/shared/error_messages.ex
 #: lib/tymeslot/integrations/calendar/shared/provider_common.ex
 #, elixir-autogen, elixir-format
 msgid "Private or local network addresses are not allowed"
@@ -689,11 +675,6 @@ msgstr "Gli indirizzi di rete privati o locali non sono consentiti"
 #, elixir-autogen, elixir-format
 msgid "Radicale connection successful"
 msgstr "Connessione a Radicale riuscita"
-
-#: lib/tymeslot/integrations/calendar/radicale/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Radicale error: %{detail}"
-msgstr "Errore Radicale: %{detail}"
 
 #: lib/tymeslot/integrations/calendar/radicale/provider.ex
 #, elixir-autogen, elixir-format
@@ -852,11 +833,6 @@ msgstr "Provider sconosciuto: %{provider}"
 msgid "Unsupported provider: %{provider}"
 msgstr "Provider non supportato: %{provider}"
 
-#: lib/tymeslot/integrations/calendar/zimbra/provider.ex
-#, elixir-autogen, elixir-format
-msgid "Use HTTPS for non-local Zimbra servers"
-msgstr "Usa HTTPS per i server Zimbra non locali"
-
 #: lib/tymeslot/integrations/calendar/credential_fields.ex
 #: lib/tymeslot/integrations/calendar/shared/provider_common.ex
 #, elixir-autogen, elixir-format
@@ -933,16 +909,6 @@ msgstr "Endpoint CalDAV di mailbox.org non trovato. Verifica che l'URL del serve
 msgid "mailbox.org connection successful"
 msgstr "Connessione a mailbox.org riuscita"
 
-#: lib/tymeslot/integrations/calendar/mailbox_org/provider.ex
-#, elixir-autogen, elixir-format
-msgid "mailbox.org requires HTTPS"
-msgstr "mailbox.org richiede HTTPS"
-
-#: lib/tymeslot/integrations/calendar/caldav/errors.ex
-#, elixir-autogen, elixir-format
-msgid "The calendar server refused the request (HTTP %{status})."
-msgstr "Il server di calendario ha rifiutato la richiesta (HTTP %{status})."
-
 #: lib/tymeslot/integrations/calendar/caldav/offline_queue.ex
 #, elixir-autogen, elixir-format
 msgid "This change is missing the event's start or end time, so it could not be sent to the calendar server."
@@ -954,11 +920,6 @@ msgstr "A questa modifica manca l’ora di inizio o di fine dell’evento, quind
 #, elixir-autogen, elixir-format
 msgid "Calendar subscription"
 msgstr "Abbonamento a un calendario"
-
-#: lib/tymeslot/workers/sync_ics_calendar_worker.ex
-#, elixir-autogen, elixir-format
-msgid "Calendar subscription sync failed while writing a fetched event to the cache (%{type}): %{detail}"
-msgstr "La sincronizzazione dell’abbonamento al calendario non è riuscita durante la scrittura di un evento recuperato nella cache (%{type}): %{detail}"
 
 #: lib/tymeslot/integrations/calendar/ics/feed.ex
 #, elixir-autogen, elixir-format
@@ -1025,7 +986,7 @@ msgstr "Questo feed di calendario è troppo grande per essere elaborato."
 msgid "The calendar feed URL returned 404. Check that the link is complete and still published."
 msgstr "L’URL del feed di calendario ha restituito 404. Controlla che il link sia completo e ancora pubblicato."
 
-#: lib/tymeslot/workers/sync_ics_calendar_worker.ex
+#: lib/tymeslot/integrations/calendar/ics/feed.ex
 #, elixir-autogen, elixir-format
 msgid "The calendar feed came back empty, but the cache still holds previously synced events. Keeping the cache in place and retrying rather than emptying your diary."
 msgstr "Il feed del calendario è risultato vuoto, ma la cache contiene ancora eventi sincronizzati in precedenza. La cache viene mantenuta e il tentativo verrà ripetuto invece di svuotare la tua agenda."
@@ -1286,3 +1247,38 @@ msgstr "Il server di calendario ha restituito più dati di quanti Tymeslot possa
 #, elixir-autogen, elixir-format
 msgid "The calendar server at %{url} listed more items than Tymeslot can process at once. If this address points at a single calendar, enter your account's server address instead, and Tymeslot will find your calendars there."
 msgstr "Il server di calendario all’indirizzo %{url} ha elencato più elementi di quanti Tymeslot possa elaborare in una volta. Se questo indirizzo punta a un singolo calendario, inserisci invece l’indirizzo del server del tuo account e Tymeslot troverà lì i tuoi calendari."
+
+#: lib/tymeslot/integrations/calendar/caldav/family.ex
+#, elixir-autogen, elixir-format
+msgid "Apple iCloud always uses this CalDAV server, so the address cannot be changed"
+msgstr "Apple iCloud usa sempre questo server CalDAV, quindi l'indirizzo non può essere modificato"
+
+#: lib/tymeslot/integrations/calendar/mailbox_org/provider.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid mailbox.org URL. The server must be https://dav.mailbox.org."
+msgstr "URL di mailbox.org non valido. Il server deve essere https://dav.mailbox.org."
+
+#: lib/tymeslot/integrations/calendar/caldav/family.ex
+#, elixir-autogen, elixir-format
+msgid "mailbox.org always uses this CalDAV server, so the address cannot be changed"
+msgstr "mailbox.org usa sempre questo server CalDAV, quindi l'indirizzo non può essere modificato"
+
+#: lib/tymeslot/integrations/calendar/ics/feed.ex
+#, elixir-autogen, elixir-format
+msgid "Calendar subscription sync failed while saving a fetched event. Tymeslot will try again on the next sync."
+msgstr "La sincronizzazione dell'abbonamento al calendario non è riuscita durante il salvataggio di un evento scaricato. Tymeslot riproverà alla prossima sincronizzazione."
+
+#: lib/tymeslot/integrations/calendar/ics/feed.ex
+#, elixir-autogen, elixir-format
+msgid "The calendar feed returned an error."
+msgstr "Il feed del calendario ha restituito un errore."
+
+#: lib/tymeslot/integrations/calendar/caldav/errors.ex
+#, elixir-autogen, elixir-format
+msgid "The calendar server refused the request."
+msgstr "Il server di calendario ha rifiutato la richiesta."
+
+#: lib/tymeslot/integrations/calendar/auth/jobs/token_refresh_job.ex
+#, elixir-autogen, elixir-format
+msgid "Tymeslot could not renew its access to this calendar. It will try again shortly."
+msgstr "Tymeslot non è riuscito a rinnovare l'accesso a questo calendario. Riproverà a breve."

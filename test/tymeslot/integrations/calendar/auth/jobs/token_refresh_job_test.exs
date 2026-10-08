@@ -13,6 +13,7 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Repo
   alias Tymeslot.Security.Encryption
+  alias Tymeslot.Test.KnownMsgid
   alias Tymeslot.Workers.EmailWorker
   import Tymeslot.Factory
   import Mox
@@ -295,7 +296,10 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
 
       updated = Repo.get!(CalendarIntegrationSchema, integration.id)
       refute updated.needs_reauth
-      assert updated.sync_error =~ "RETRYABLE"
+      # Retried rather than flagged: the job fails, and the owner sees only that
+      # the refresh is failing, not the provider's refusal.
+      assert updated.sync_error ==
+               "Tymeslot could not renew its access to this calendar. It will try again shortly."
 
       refute_enqueued(worker: EmailWorker)
     end
@@ -315,7 +319,11 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
 
       updated = Repo.get!(CalendarIntegrationSchema, integration.id)
       refute updated.needs_reauth
-      assert updated.sync_error =~ "RETRYABLE"
+      # Retried rather than flagged: the job fails, and the owner sees only that
+      # the refresh is failing, not the provider's refusal.
+      assert updated.sync_error ==
+               "Tymeslot could not renew its access to this calendar. It will try again shortly."
+
       assert updated.access_token_encrypted == integration.access_token_encrypted
 
       refute_enqueued(worker: EmailWorker)
@@ -349,8 +357,13 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJobTest do
         TokenRefreshJob.perform(%Oban.Job{args: %{"integration_id" => integration.id}})
       end
 
-      assert Repo.get!(CalendarIntegrationSchema, integration.id).sync_error ==
-               "Google integration failed during token refresh: boom (RETRYABLE)"
+      stored = Repo.get!(CalendarIntegrationSchema, integration.id).sync_error
+
+      # A fixed sentence the card can translate, never the exception's text.
+      assert stored ==
+               "Tymeslot could not renew its access to this calendar. It will try again shortly."
+
+      assert KnownMsgid.known?(stored)
     end
   end
 
