@@ -37,6 +37,24 @@ defmodule Tymeslot.Slack.SlackQueries do
     |> Repo.delete_all()
   end
 
+  @doc """
+  Deletes OAuth installs never finished by picking a channel and created
+  before `cutoff`, across all users.
+
+  "Never finished" is a row written once and never since: picking a channel
+  writes it, and so does disconnecting a finished integration back to
+  pending (`disconnect/1`), so a user's disconnected integration is kept.
+  """
+  @spec delete_stale_pending_stubs(DateTime.t()) :: {non_neg_integer(), nil | [term()]}
+  def delete_stale_pending_stubs(cutoff) do
+    SlackIntegrationSchema
+    |> where([i], i.app_mode == "oauth")
+    |> where([i], is_nil(i.channel_id))
+    |> where([i], i.updated_at == i.inserted_at)
+    |> where([i], i.inserted_at < ^cutoff)
+    |> Repo.delete_all()
+  end
+
   @doc "See `IntegrationQueries.disable_if_active/3`."
   @spec disable_if_active(integer(), String.t()) :: {:ok, boolean()}
   def disable_if_active(id, reason),
