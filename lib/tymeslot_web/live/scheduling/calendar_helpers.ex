@@ -344,7 +344,7 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
   #
   # `owner_timezone` falls back to `Profiles.get_default_timezone()` for a
   # profile with none set, as `Tymeslot.Availability.Offer` and
-  # `Tymeslot.Bookings.Policy.scheduling_config/2` do, so a nil profile
+  # `Tymeslot.Bookings.Schedules.booking_config/2` do, so a nil profile
   # timezone resolves to the same zone everywhere.
   @spec availability_config(map() | nil, map(), map() | nil) :: %{
           required(:schedule_id) => integer() | nil,

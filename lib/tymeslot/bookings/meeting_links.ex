@@ -18,6 +18,10 @@ defmodule Tymeslot.Bookings.MeetingLinks do
   changes their username or the deployment moves domain, so nothing that
   shows a link to anyone reads it.
 
+  Also here: the links a booking's other emails carry, the guest's RSVP
+  links (`guest_rsvp_urls/1`) and the host's request-review links
+  (`approval_urls/1`).
+
   A host without a username gets the uid-only form (`/meeting/:uid/cancel`),
   which the router resolves to the host's current page once they have one.
   """
@@ -161,5 +165,39 @@ defmodule Tymeslot.Bookings.MeetingLinks do
       {:ok, profile} -> profile.username
       {:error, :not_found} -> nil
     end
+  end
+
+  @doc """
+  Builds the public accept/decline RSVP URLs for a guest's token.
+  """
+  @spec guest_rsvp_urls(String.t()) :: %{accept_url: String.t(), decline_url: String.t()}
+  def guest_rsvp_urls(token) when is_binary(token) do
+    %{
+      accept_url: UrlBuilder.base_url() <> "/guest/#{token}/accept",
+      decline_url: UrlBuilder.base_url() <> "/guest/#{token}/decline"
+    }
+  end
+
+  @doc """
+  Where a host answers a booking request from their email.
+
+  Both actions point at the same review page. The `intent` parameter only
+  preselects a choice for the host to confirm — it never acts on its own,
+  because mail security scanners and link preview crawlers fetch every URL in
+  an inbound message and would otherwise answer the request for them.
+  """
+  @spec approval_urls(String.t()) :: %{
+          review_url: String.t(),
+          approve_url: String.t(),
+          decline_url: String.t()
+        }
+  def approval_urls(token) when is_binary(token) do
+    review_url = UrlBuilder.base_url() <> "/meeting-request/#{token}"
+
+    %{
+      review_url: review_url,
+      approve_url: review_url <> "?intent=approve",
+      decline_url: review_url <> "?intent=decline"
+    }
   end
 end

@@ -22,11 +22,19 @@ defmodule Tymeslot.Bookings.CreateGroupBookingTest do
   alias Tymeslot.Meetings.SeatBroadcast
   alias Tymeslot.MeetingTypes
   alias Tymeslot.Repo
+  alias Tymeslot.TestMocks
   alias Tymeslot.Webhooks
   alias Tymeslot.Workers.CalendarEventWorker
   alias Tymeslot.Workers.EmailWorker
   alias Tymeslot.Workers.VideoRoomWorker
   alias Tymeslot.Workers.WebhookWorker
+
+  # The booking reads the host's calendars before committing; these hosts have
+  # nothing in them.
+  setup do
+    TestMocks.stub_no_calendar_events()
+    :ok
+  end
 
   setup :verify_on_exit!
 
@@ -69,8 +77,7 @@ defmodule Tymeslot.Bookings.CreateGroupBookingTest do
   defp execute(ctx, email, extra_params \\ %{}) do
     Create.execute(
       Map.merge(ctx.meeting_params, extra_params),
-      form_data(email),
-      skip_calendar_check: true
+      form_data(email)
     )
   end
 
@@ -248,8 +255,8 @@ defmodule Tymeslot.Bookings.CreateGroupBookingTest do
     end
 
     # The same missing-attendee `meeting.created` used to fan out a SECOND
-    # time once the room existed, on top of the one `seat_booked/4` already
-    # sent at booking time.
+    # time once the room existed, on top of the one `seat_booked_deferred/3`
+    # already sent at booking time.
     test "the room worker never re-dispatches meeting.created for a group meeting", ctx do
       {:ok, _webhook} =
         Webhooks.create_webhook(ctx.user.id, %{
@@ -288,7 +295,6 @@ defmodule Tymeslot.Bookings.CreateGroupBookingTest do
 
       assert {:ok, meeting} =
                Create.execute(ctx.meeting_params, form_data("zoom@example.com"),
-                 skip_calendar_check: true,
                  with_video_room: true
                )
 

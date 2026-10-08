@@ -11,7 +11,7 @@ defmodule Tymeslot.Meetings.Scheduling do
   require Logger
 
   alias Ecto.Changeset
-  alias Tymeslot.Bookings.Policy
+  alias Tymeslot.Availability.Schedules
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Meetings.BookingLimits
   alias Tymeslot.Meetings.BookingLimits.Checker
@@ -243,7 +243,7 @@ defmodule Tymeslot.Meetings.Scheduling do
       },
       nil,
       write_fn,
-      &log_conflict(meeting.start_time, meeting.end_time, &1, meeting.uid)
+      &log_conflict(meeting.start_time, meeting.end_time, &1, meeting.id)
     )
   rescue
     error ->
@@ -339,7 +339,7 @@ defmodule Tymeslot.Meetings.Scheduling do
     meeting_type = fetch_meeting_type(meeting_type_id, organizer_user_id)
 
     %{buffer_before_minutes: buffer_before, buffer_after_minutes: buffer_after} =
-      Policy.scheduling_config(organizer_user_id, meeting_type)
+      Schedules.booking_config(organizer_user_id, meeting_type)
 
     {buffer_before, buffer_after}
   end
@@ -365,14 +365,14 @@ defmodule Tymeslot.Meetings.Scheduling do
     end
   end
 
-  defp log_conflict(start_time, end_time, conflicting_count, meeting_uid \\ nil) do
+  defp log_conflict(start_time, end_time, conflicting_count, meeting_id \\ nil) do
     log_attrs = [
       requested_start: start_time,
       requested_end: end_time,
       conflicting_count: conflicting_count
     ]
 
-    log_attrs = if meeting_uid, do: [{:meeting_uid, meeting_uid} | log_attrs], else: log_attrs
+    log_attrs = if meeting_id, do: [{:meeting_id, meeting_id} | log_attrs], else: log_attrs
 
     Logger.info("Meeting time conflict detected during booking attempt", log_attrs)
   end
@@ -436,7 +436,7 @@ defmodule Tymeslot.Meetings.Scheduling do
 
   defp log_update_conflict(meeting, start_time, end_time, conflicting_count) do
     Logger.warning("Meeting update blocked due to time conflict",
-      meeting_uid: meeting.uid,
+      meeting_id: meeting.id,
       original_start: meeting.start_time,
       original_end: meeting.end_time,
       requested_start: start_time,

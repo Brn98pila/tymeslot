@@ -16,6 +16,7 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
   alias Tymeslot.Profiles
   alias Tymeslot.Scheduling.LinkAccessPolicy
   alias Tymeslot.Timezones
+  alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
   alias TymeslotWeb.Themes.Core.{Context, MeetingManagement, PollVoting, Registry}
   alias TymeslotWeb.Themes.Shared.Customization.Helpers, as: ThemeCustomizationHelpers
@@ -149,7 +150,7 @@ defmodule TymeslotWeb.Themes.Core.MountHelpers do
       {:error, reason} ->
         {:ok,
          socket
-         |> LiveView.put_flash(:error, reason)
+         |> LiveView.put_flash(:error, BookingErrorMessage.message(reason))
          |> LiveView.redirect(to: ~p"/")}
     end
   end

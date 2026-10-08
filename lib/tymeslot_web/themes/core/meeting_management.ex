@@ -7,11 +7,15 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   import Phoenix.LiveView, only: [put_flash: 3, redirect: 2]
 
   alias Tymeslot.Bookings.Policy
+  alias Tymeslot.Bookings.Refusal
   alias Tymeslot.Meetings
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Utils.DateTimeUtils.Duration
   alias TymeslotWeb.Helpers.ClientIP
+  alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
   alias TymeslotWeb.Themes.Core.MountHelpers
+
+  require Refusal
 
   @doc """
   Loads and validates a meeting by UID for the given action.
@@ -28,7 +32,9 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   `{:error, :not_found}` when the organiser has no meeting with that uid.
   """
   @spec validate_and_load_meeting(String.t(), atom(), integer()) ::
-          {:ok, map()} | {:error, String.t() | :group_meeting | :not_found}
+          {:ok, map()}
+          | {:error,
+             Policy.cancel_refusal() | Policy.reschedule_refusal() | :group_meeting | :not_found}
   def validate_and_load_meeting(meeting_uid, action, organizer_user_id) do
     case Meetings.get_meeting_by_uid_for_organizer(meeting_uid, organizer_user_id) do
       {:ok, meeting} ->
@@ -52,7 +58,9 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   end
 
   # Validates whether the given action is permitted for the meeting.
-  @spec validate_meeting_action(map(), atom()) :: :ok | {:error, String.t() | :group_meeting}
+  @spec validate_meeting_action(map(), atom()) ::
+          :ok
+          | {:error, Policy.cancel_refusal() | Policy.reschedule_refusal() | :group_meeting}
   defp validate_meeting_action(meeting, action) when action in [:cancel, :reschedule] do
     if Meetings.group?(meeting),
       do: {:error, :group_meeting},
@@ -135,6 +143,10 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   # host, or this attendee in another tab) cancelled it since.
   defp cancel_error_message(:already_cancelled),
     do: dgettext("booking_manage", "This booking was already cancelled.")
+
+  # The meeting started, ended or expired after the page loaded.
+  defp cancel_error_message(reason) when Refusal.is_refusal(reason),
+    do: BookingErrorMessage.message(reason)
 
   defp cancel_error_message(_reason),
     do: dgettext("booking_manage", "The meeting could not be cancelled. Please try again.")

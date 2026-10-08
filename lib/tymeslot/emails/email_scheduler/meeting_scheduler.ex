@@ -547,16 +547,39 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   end
 
   @doc """
-  Schedules a reschedule request email to be sent to the attendee.
+  Schedules the reschedule request email for a meeting.
+
+  `requested_at` is the meeting's `reschedule_requested_at`, and names the
+  request: unique on it, so a re-run for the same request queues nothing,
+  while a later request for the same meeting is a new email. The job carries
+  it as ISO 8601.
   """
-  @spec schedule_reschedule_request(term()) :: :ok | {:error, term()}
-  def schedule_reschedule_request(meeting_id) do
+  @spec schedule_reschedule_request(term(), DateTime.t()) :: :ok | {:error, term()}
+  def schedule_reschedule_request(meeting_id, %DateTime{} = requested_at) do
     job_params = %{
       "action" => "send_reschedule_request",
-      "meeting_id" => meeting_id
+      "meeting_id" => meeting_id,
+      "requested_at" => DateTime.to_iso8601(requested_at)
     }
 
-    case Oban.insert(EmailWorker.new(job_params, queue: :emails, priority: 1)) do
+    job =
+      EmailWorker.new(job_params,
+        queue: :emails,
+        priority: 1,
+        # The window matches the per-seat jobs this one dispatches to, for the
+        # same reason (see `schedule_seat_email/5`).
+        unique: [
+          period: 3600,
+          fields: [:args, :queue],
+          keys: [:action, :meeting_id, :requested_at]
+        ]
+      )
+
+    case Oban.insert(job) do
+      {:ok, %{conflict?: true}} ->
+        Logger.info("Reschedule request email job already queued", meeting_id: meeting_id)
+        :ok
+
       {:ok, _job} ->
         Logger.info("Reschedule request email job queued", meeting_id: meeting_id)
         :ok

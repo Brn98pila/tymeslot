@@ -137,7 +137,7 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
 
       cancel_during_calendar_fetch(meeting)
 
-      assert {:error, "Cannot reschedule a cancelled meeting"} =
+      assert {:error, {:not_reschedulable, :cancelled}} =
                Reschedule.execute(meeting.uid, params, user.id)
 
       refute_enqueued(
@@ -161,7 +161,7 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
 
       cancel_during_calendar_fetch(meeting)
 
-      assert {:error, "Cannot reschedule a cancelled meeting"} =
+      assert {:error, {:not_reschedulable, :cancelled}} =
                Reschedule.execute(meeting.uid, params, user.id)
 
       assert {:ok, reloaded} = MeetingQueries.get_meeting(meeting.id)

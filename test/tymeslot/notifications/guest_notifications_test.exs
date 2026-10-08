@@ -7,7 +7,7 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
   import Mox
   import Tymeslot.Factory
 
-  alias Tymeslot.Bookings.Policy
+  alias Tymeslot.Bookings.MeetingLinks
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.EmailServiceMock
   alias Tymeslot.Meetings.Approval
@@ -66,7 +66,7 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
 
       expected =
         for guest <- [accepted, declined],
-            do: {guest.email, Policy.guest_rsvp_urls(guest.rsvp_token).accept_url}
+            do: {guest.email, MeetingLinks.guest_rsvp_urls(guest.rsvp_token).accept_url}
 
       assert Enum.sort(sent) == Enum.sort(expected)
 

@@ -11,6 +11,7 @@ defmodule Tymeslot.Polls.Confirm do
   """
 
   alias Tymeslot.Availability.TimeOff
+  alias Tymeslot.Bookings.Activation
   alias Tymeslot.Bookings.CreateAdHoc
   alias Tymeslot.Emails.EmailScheduler.PollScheduler
   alias Tymeslot.Infrastructure.AvailabilityCache
@@ -51,10 +52,12 @@ defmodule Tymeslot.Polls.Confirm do
           {:ok, Tymeslot.Meetings.MeetingSchema.t()} | {:error, reason()}
   def confirm(poll_id, slot_id, user_id) do
     case Repo.transaction(fn -> claim_and_mint(poll_id, slot_id, user_id) end) do
-      {:ok, meeting} ->
-        # Both effects belong after the commit: the cache must not be rebuilt
+      {:ok, {meeting, pending}} ->
+        # All three belong after the commit: the integration fan-out must not
+        # be able to roll the confirmation back, the cache must not be rebuilt
         # from a meeting that is still uncommitted, and subscribers must not be
         # told about a confirmation that could still roll back.
+        :ok = Activation.after_commit(pending)
         AvailabilityCache.invalidate_for_user(user_id)
         Polls.broadcast_update(poll_id)
         {:ok, meeting}
@@ -75,11 +78,11 @@ defmodule Tymeslot.Polls.Confirm do
          {:ok, slot} <- resolve_slot(poll, slot_id),
          :ok <- ensure_outside_time_off(poll, slot),
          {:ok, primary} <- resolve_primary(poll, slot),
-         {:ok, meeting} <- create_meeting(poll, slot, primary),
+         {:ok, meeting, pending} <- create_meeting(poll, slot, primary),
          {:ok, _poll} <-
            PollQueries.update(PollSchema.confirm_changeset(poll, confirm_attrs(meeting))) do
       PollScheduler.cancel_deadline_jobs(poll.id)
-      meeting
+      {meeting, pending}
     else
       # Nothing here may query: a failing booking has already rolled back the
       # transaction at its own level, which leaves the connection able to do
@@ -188,7 +191,7 @@ defmodule Tymeslot.Polls.Confirm do
       # their note to them once the meeting is set.
       organizer_note: organizer_note(poll.description)
     }
-    |> CreateAdHoc.execute()
+    |> CreateAdHoc.execute_deferred()
     |> map_booking_result()
   end
 
@@ -200,7 +203,7 @@ defmodule Tymeslot.Polls.Confirm do
 
   defp organizer_note(nil), do: nil
 
-  defp map_booking_result({:ok, meeting}), do: {:ok, meeting}
+  defp map_booking_result({:ok, meeting, pending}), do: {:ok, meeting, pending}
   defp map_booking_result({:error, :time_conflict}), do: {:error, :slot_taken}
   defp map_booking_result({:error, reason}), do: {:error, reason}
 end
