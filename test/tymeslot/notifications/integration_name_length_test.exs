@@ -52,7 +52,7 @@ defmodule Tymeslot.Notifications.IntegrationNameLengthTest do
         "webhook_url" => "https://hooks.slack.com/services/T1/B2/abc123"
       }
 
-      assert {:error, %{name: _}} = SlackInput.validate_form(params, mode: :webhook_url)
+      assert {:error, %{name: _message}} = SlackInput.validate_form(params, mode: :webhook_url)
 
       assert {:ok, %{name: @longest}} =
                SlackInput.validate_form(%{params | "name" => @longest}, mode: :webhook_url)
@@ -61,14 +61,14 @@ defmodule Tymeslot.Notifications.IntegrationNameLengthTest do
     test "Telegram refuses a 101-character name" do
       params = %{"name" => @too_long, "events" => ["meeting.created"]}
 
-      assert {:error, %{name: _}} = TelegramInput.validate_form(params, bot_mode: "shared")
+      assert {:error, %{name: _message}} = TelegramInput.validate_form(params, bot_mode: "shared")
 
       assert {:ok, %{name: @longest}} =
                TelegramInput.validate_form(%{params | "name" => @longest}, bot_mode: "shared")
     end
 
     test "webhooks refuse a 101-character name" do
-      assert {:error, %{name: _}} =
+      assert {:error, %{name: _message}} =
                WebhookInput.validate_webhook_form(%{
                  "name" => @too_long,
                  "url" => "https://example.com/hook",

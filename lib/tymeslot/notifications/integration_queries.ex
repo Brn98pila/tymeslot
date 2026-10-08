@@ -27,6 +27,7 @@ defmodule Tymeslot.Notifications.IntegrationQueries do
 
   import Ecto.Query, warn: false
 
+  alias Ecto.Type
   alias Tymeslot.Infrastructure.BatchDeleteQueries
   alias Tymeslot.Repo
 
@@ -170,7 +171,7 @@ defmodule Tymeslot.Notifications.IntegrationQueries do
   @spec disable_if_active(module(), integer(), String.t()) :: {:ok, boolean()}
   def disable_if_active(schema, id, reason) do
     {:ok, disabled_at} =
-      Ecto.Type.cast(schema.__schema__(:type, :disabled_at), DateTime.utc_now())
+      Type.cast(schema.__schema__(:type, :disabled_at), DateTime.utc_now())
 
     {count, _rows} =
       schema

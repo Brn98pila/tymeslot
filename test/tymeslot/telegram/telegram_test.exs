@@ -4,12 +4,15 @@ defmodule Tymeslot.TelegramTest do
   @moduletag :telegram
   @moduletag :integration
 
+  import Mox
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
 
   alias Tymeslot.Telegram
   alias Tymeslot.Telegram.TelegramIntegrationSchema
   alias Tymeslot.Telegram.TelegramQueries
+
+  setup :verify_on_exit!
 
   setup do
     setup_config(:tymeslot,
@@ -586,7 +589,7 @@ defmodule Tymeslot.TelegramTest do
     end
 
     test "answers Telegram's own description of a refusal" do
-      Mox.expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
+      expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
         {:ok, %{status: 400, body: ~s({"ok":false,"description":"Bad Request: chat not found"})}}
       end)
 
@@ -597,7 +600,7 @@ defmodule Tymeslot.TelegramTest do
     end
 
     test "answers a transport error when Telegram cannot be reached" do
-      Mox.expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
+      expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
         {:error, %{reason: :timeout}}
       end)
 

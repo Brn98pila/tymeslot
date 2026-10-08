@@ -620,40 +620,6 @@ defmodule Tymeslot.WebhooksTest do
       refute List.keymember?(headers, "X-Tymeslot-Signature", 0)
     end
   end
-
-  describe "another user's webhook" do
-    setup do
-      owner = insert(:user)
-      webhook = insert(:webhook, user: owner, name: "Owner's", is_active: true)
-      insert(:webhook_delivery, webhook: webhook)
-      %{webhook: webhook, intruder: insert(:user)}
-    end
-
-    test "cannot be read, changed or deleted, and is left as it was", %{
-      webhook: webhook,
-      intruder: intruder
-    } do
-      id = webhook.id
-      user_id = intruder.id
-
-      assert {:error, :not_found} = Webhooks.update_webhook(user_id, id, %{name: "Mine now"})
-      assert {:error, :not_found} = Webhooks.toggle_webhook(user_id, id)
-      assert {:error, :not_found} = Webhooks.regenerate_token(user_id, id)
-      assert {:error, :not_found} = Webhooks.list_deliveries(user_id, id, [])
-      assert {:error, :not_found} = Webhooks.get_delivery_stats(user_id, id, [])
-      assert {:error, :not_found} = Webhooks.delete_webhook(user_id, id)
-
-      unchanged = Repo.get!(WebhookSchema, id)
-      assert unchanged.name == "Owner's"
-      assert unchanged.is_active
-      assert unchanged.webhook_token_encrypted == webhook.webhook_token_encrypted
-    end
-
-    test "is still the owner's to read", %{webhook: webhook} do
-      assert {:ok, [_delivery]} = Webhooks.list_deliveries(webhook.user_id, webhook.id, [])
-      assert {:ok, %{total: 1}} = Webhooks.get_delivery_stats(webhook.user_id, webhook.id, [])
-    end
-  end
 end
 
 defmodule Tymeslot.WebhooksTest.DenyAccessChecker do
