@@ -285,9 +285,11 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
   # `FetchAggregate.require_complete/1`'s, applied once at the availability
   # boundary, as for Google and Outlook (`MultiCalendarFetch`).
   #
-  # A collection the server answers 404 or 410 for is confirmed absent, not
+  # A collection the server answers 404 for is confirmed absent, not
   # unreadable: its owner deleted it, so it contributes no events and no
-  # failure. The sync path deselects such a calendar on its own.
+  # failure. The sync path deselects such a calendar on its own. Any other
+  # refusal, a 410 included (the REPORT has no meaning of its own for one,
+  # so it arrives as `{:unexpected_status, 410}`), fails closed.
   #
   # We deliberately don't expand recurrences here: the caller expands them,
   # through `ICalNormaliser` on both the sync and the live availability read
@@ -303,8 +305,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
 
   defp classify_path_result({_path, {:ok, events}}), do: {:ok, events}
 
-  defp classify_path_result({_path, {:error, reason}}) when reason in [:not_found, :gone],
-    do: :absent
+  defp classify_path_result({_path, {:error, :not_found}}), do: :absent
 
   defp classify_path_result({path, {:error, reason}}), do: {:error, path, reason}
 

@@ -21,6 +21,7 @@ defmodule Tymeslot.Integrations.Calendar.Ics.SyncCycle do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.EventRole
   alias Tymeslot.Integrations.Calendar.Ics.Provider
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
@@ -54,7 +55,10 @@ defmodule Tymeslot.Integrations.Calendar.Ics.SyncCycle do
 
     {:ok, events} = Provider.normalise_events(raw_events, context)
 
-    case Sync.refuse_empty_over_populated(integration, nil, events, Sync.window()) do
+    # Every row a feed writes is `both`: a feed has no busy-only read and,
+    # being read-only, no locally deleted rows, so the guard counts exactly
+    # the rows this refresh would replace.
+    case Sync.refuse_empty_over_populated(integration, EventRole.both(), events, Sync.window()) do
       :ok -> write_cache(integration, events)
       {:error, _reason} = error -> error
     end

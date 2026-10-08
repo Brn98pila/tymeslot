@@ -91,7 +91,7 @@ defmodule Tymeslot.Integrations.Calendar.SyncSchedule do
         }
 
   @doc "The schedule of `integration`'s provider."
-  @spec schedule(CalendarIntegrationSchema.t()) ::
+  @spec schedule(CalendarIntegrationSchema.t() | %{provider: String.t()}) ::
           {:ok, schedule()} | {:error, :unsupported_provider}
   def schedule(%{provider: provider} = integration) do
     cond do
@@ -102,7 +102,7 @@ defmodule Tymeslot.Integrations.Calendar.SyncSchedule do
         tier =
           Map.get(
             @caldav_tiers,
-            integration.caldav_sync_tier,
+            Map.get(integration, :caldav_sync_tier),
             @caldav_tiers[@caldav_undetected_tier]
           )
 
@@ -120,7 +120,7 @@ defmodule Tymeslot.Integrations.Calendar.SyncSchedule do
   believe something is missing, and a delta sync is exactly what would miss
   it. A Google request reads the booking calendar in full too.
   """
-  @spec request_sync(CalendarIntegrationSchema.t()) ::
+  @spec request_sync(CalendarIntegrationSchema.t() | %{provider: String.t(), id: pos_integer()}) ::
           {:ok, Oban.Job.t()} | {:error, :unsupported_provider | term()}
   def request_sync(integration) do
     with {:ok, %{worker: worker}} <- schedule(integration) do

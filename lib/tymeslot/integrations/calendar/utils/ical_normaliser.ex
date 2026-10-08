@@ -21,13 +21,8 @@ defmodule Tymeslot.Integrations.Calendar.ICalNormaliser do
   alias Tymeslot.Integrations.Calendar.EventColour
   alias Tymeslot.Integrations.Calendar.InvalidEventReport
   alias Tymeslot.Integrations.Calendar.RecurrenceExpander
+  alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Utils.MapKeys
-
-  # How far either side of now recurring events are expanded. Matches the
-  # sync window every provider fetches, so a stored occurrence never falls
-  # outside the range the calendar grid and availability checks read back.
-  @expansion_past_days 365
-  @expansion_future_days 365
 
   @doc """
   Expands and normalises `raw_events` into `CalendarEvent` structs.
@@ -38,9 +33,10 @@ defmodule Tymeslot.Integrations.Calendar.ICalNormaliser do
   """
   @spec normalise_events([map()], map(), atom()) :: {:ok, [CalendarEvent.t()]}
   def normalise_events(raw_events, context, provider) do
-    now = DateTime.utc_now()
-    range_start = DateTime.add(now, -@expansion_past_days, :day)
-    range_end = DateTime.add(now, @expansion_future_days, :day)
+    # Recurring events are expanded over the sync window every provider
+    # reads, so a stored occurrence never falls outside the range the
+    # calendar grid and availability checks read back.
+    {range_start, range_end} = Sync.window()
 
     events =
       raw_events
