@@ -45,8 +45,11 @@ defmodule Tymeslot.Integrations.Calendar.ICalBuilder.TimeZoneComponent do
 
   # Offset changes are found by stepping through the span this far apart and
   # narrowing down to the second on a change. Zones change their offset at
-  # most a few times a year, never twice within twelve hours.
-  @step_seconds 12 * 3600
+  # most a few times a year, never twice within a week, so a change and its
+  # reversal never fall between two steps. Each step costs a zone lookup, and
+  # past the years the time zone database precomputes a lookup is slow: a
+  # ten-year series stepped every twelve hours took a quarter of a second.
+  @step_seconds 7 * 86_400
 
   # How far back to look for the change that brought in the observance in
   # force when the span begins.
@@ -148,7 +151,8 @@ defmodule Tymeslot.Integrations.Calendar.ICalBuilder.TimeZoneComponent do
   defp transitions(zone, from, to) do
     from
     |> Stream.iterate(&DateTime.add(&1, @step_seconds, :second))
-    |> Stream.take_while(&(not DateTime.after?(&1, to)))
+    |> Stream.take_while(&DateTime.before?(&1, to))
+    |> Stream.concat([to])
     |> Stream.map(&{&1, period(&1, zone)})
     |> Stream.chunk_every(2, 1, :discard)
     |> Enum.flat_map(fn [{earlier, before}, {later, after_}] ->

@@ -18,6 +18,10 @@ defmodule Tymeslot.Integrations.Calendar.ICalBuilder.TimeZoneComponentTest do
   # Monday 5 October 2026, 09:00 in Berlin (CEST, UTC+2).
   @start ~U[2026-10-05 07:00:00Z]
 
+  # Monday 5 October 2026, 09:00 in Sydney; its clocks next go forward on
+  # Sunday 5 October 2036.
+  @sydney_spring ~U[2026-10-04 22:00:00Z]
+
   defp series(overrides \\ %{}) do
     Map.merge(
       %{
@@ -86,6 +90,22 @@ defmodule Tymeslot.Integrations.Calendar.ICalBuilder.TimeZoneComponentTest do
 
       assert "TZOFFSETTO:+1030" in lines
       assert "TZOFFSETTO:+1100" in lines
+    end
+
+    # Ten years from a start on the day Sydney's clocks go forward: the last
+    # change falls after the scan's last weekly step, inside its final stretch.
+    test "writes every change of a ten-year span, up to its last day" do
+      for {zone, last_change} <- [
+            {"Australia/Sydney", "DTSTART:20361005T020000"},
+            {"Australia/Lord_Howe", "DTSTART:20361005T020000"},
+            {"Europe/Berlin", "DTSTART:20360330T020000"}
+          ] do
+        lines =
+          TimeZoneComponent.lines(zone, @sydney_spring, DateTime.shift(@sydney_spring, year: 10))
+
+        assert Enum.count(lines, &(&1 in ["BEGIN:STANDARD", "BEGIN:DAYLIGHT"])) == 21
+        assert List.last(Enum.filter(lines, &String.starts_with?(&1, "DTSTART:"))) == last_change
+      end
     end
 
     test "has nothing to write for a zone the database does not know" do
