@@ -230,7 +230,10 @@ defmodule Tymeslot.Security.CredentialReencryptionTest do
   describe "covered_tables/0" do
     test "every covered context implements the EncryptedStorage behaviour" do
       for {context, _table} <- @covered_contexts do
-        assert EncryptedStorage in (context.module_info(:attributes)[:behaviour] || []),
+        behaviours =
+          context.module_info(:attributes) |> Keyword.get_values(:behaviour) |> List.flatten()
+
+        assert EncryptedStorage in behaviours,
                "expected #{inspect(context)} to implement Tymeslot.Security.EncryptedStorage"
       end
     end
