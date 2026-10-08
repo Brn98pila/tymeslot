@@ -13,6 +13,7 @@ defmodule Tymeslot.Workers.TelegramWorkerTest do
   import Tymeslot.WorkerTestHelpers
 
   alias Oban.Job
+  alias Tymeslot.Test.ProcessAccessChecker
   alias Tymeslot.Telegram.TelegramDeliverySchema
   alias Tymeslot.Telegram.TelegramIntegrationSchema
   alias Tymeslot.Workers.TelegramWorker
@@ -148,22 +149,49 @@ defmodule Tymeslot.Workers.TelegramWorkerTest do
       %{user: user, meeting: meeting}
     end
 
-    test "records failure on 5xx error", %{user: user, meeting: meeting} do
-      integration = insert(:telegram_integration, user: user)
+    test "counts a 5xx against the integration on the final attempt", %{
+      user: user,
+      meeting: meeting
+    } do
+      integration = insert(:telegram_integration, user: user, failure_count: 2)
 
       expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
         {:ok, %{status: 500, body: "Internal Server Error"}}
       end)
 
       assert {:error, {:http_error, 500}} =
-               perform_job(TelegramWorker, %{
-                 "integration_id" => integration.id,
-                 "event_type" => "meeting.created",
-                 "meeting_id" => meeting.id
-               })
+               perform_job(
+                 TelegramWorker,
+                 %{
+                   "integration_id" => integration.id,
+                   "event_type" => "meeting.created",
+                   "meeting_id" => meeting.id
+                 },
+                 attempt: 5
+               )
 
-      updated = Repo.get(TelegramIntegrationSchema, integration.id)
-      assert updated.failure_count == 1
+      assert Repo.get(TelegramIntegrationSchema, integration.id).failure_count == 3
+    end
+
+    test "does not count a 5xx on an attempt Oban will retry", %{user: user, meeting: meeting} do
+      integration = insert(:telegram_integration, user: user, failure_count: 2)
+
+      expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
+        {:ok, %{status: 500, body: "Internal Server Error"}}
+      end)
+
+      assert {:error, {:http_error, 500}} =
+               perform_job(
+                 TelegramWorker,
+                 %{
+                   "integration_id" => integration.id,
+                   "event_type" => "meeting.created",
+                   "meeting_id" => meeting.id
+                 },
+                 attempt: 4
+               )
+
+      assert Repo.get(TelegramIntegrationSchema, integration.id).failure_count == 2
     end
 
     test "auto-disables on 401 unauthorized", %{user: user, meeting: meeting} do
@@ -459,33 +487,50 @@ defmodule Tymeslot.Workers.TelegramWorkerTest do
       assert updated.failure_count == 1
     end
 
-    test "records the failure once, not again on an execution that follows a snooze", %{
+    # Runs one job through Oban's own engine rather than a hand-built
+    # `%Oban.Job{}`: whether a snooze spends an attempt is the engine's
+    # behaviour, so the test takes it from the engine. With two attempts the
+    # second is final; a 429 on it snoozes, and the failure that follows the
+    # snooze is still on the final attempt and is counted exactly once.
+    test "a snooze on the final attempt does not spend it or count a failure", %{
       user: user,
       meeting: meeting
     } do
       integration = insert(:telegram_integration, user: user, failure_count: 0)
 
-      expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
-        {:ok, %{status: 500, body: "Error"}}
-      end)
+      %{
+        "integration_id" => integration.id,
+        "event_type" => "meeting.created",
+        "meeting_id" => meeting.id
+      }
+      |> TelegramWorker.new(max_attempts: 2)
+      |> Oban.insert!()
 
-      # A job that snoozed past a 429 comes back with `attempt` rolled back
-      # from Oban 2.24 on, so `attempt == 1` is true again on the execution
-      # after it. The failure budget feeding auto-disable is meant to count
-      # this job once, so the second execution must not record a second one.
-      assert {:error, {:http_error, 500}} =
-               perform_job(
-                 TelegramWorker,
-                 %{
-                   "integration_id" => integration.id,
-                   "event_type" => "meeting.created",
-                   "meeting_id" => meeting.id
-                 },
-                 attempt: 1,
-                 meta: %{"snoozed" => 1}
-               )
+      reply = fn status, body ->
+        expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
+          {:ok, %{status: status, body: body}}
+        end)
+      end
 
-      assert Repo.get(TelegramIntegrationSchema, integration.id).failure_count == 0
+      rate_limited = ~s({"ok":false,"parameters":{"retry_after":10}})
+
+      # Attempt 1 of 2 fails and is retried: not counted.
+      reply.(500, "Error")
+      assert %{failure: 1} = Oban.drain_queue(queue: :telegram_messages)
+      assert failure_count(integration) == 0
+
+      # Attempt 2 of 2 is rate limited and snoozes.
+      reply.(429, rate_limited)
+      assert %{snoozed: 1} = Oban.drain_queue(queue: :telegram_messages, with_scheduled: true)
+      assert %Job{state: "scheduled", attempt: 1} = only_job(TelegramWorker)
+      assert failure_count(integration) == 0
+
+      # It comes back as attempt 2 again, still the final one, and its
+      # failure is counted once.
+      reply.(500, "Error")
+      assert %{discard: 1} = Oban.drain_queue(queue: :telegram_messages, with_scheduled: true)
+      assert %Job{attempt: 2} = only_job(TelegramWorker)
+      assert failure_count(integration) == 1
     end
 
     test "auto-disables after 10 consecutive failures", %{user: user, meeting: meeting} do
@@ -496,36 +541,21 @@ defmodule Tymeslot.Workers.TelegramWorkerTest do
       end)
 
       assert {:error, {:http_error, 500}} =
-               perform_job(TelegramWorker, %{
-                 "integration_id" => integration.id,
-                 "event_type" => "meeting.created",
-                 "meeting_id" => meeting.id
-               })
+               perform_job(
+                 TelegramWorker,
+                 %{
+                   "integration_id" => integration.id,
+                   "event_type" => "meeting.created",
+                   "meeting_id" => meeting.id
+                 },
+                 attempt: 5
+               )
 
       updated = Repo.get(TelegramIntegrationSchema, integration.id)
       assert updated.failure_count == 10
       refute updated.is_active
       assert updated.disabled_at
       assert updated.disabled_reason == "too_many_failures"
-    end
-
-    test "records failure on retry attempts (not just attempt 1)", %{user: user, meeting: meeting} do
-      integration = insert(:telegram_integration, user: user, failure_count: 2)
-
-      expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
-        {:ok, %{status: 500, body: "Internal Server Error"}}
-      end)
-
-      # Simulate this being attempt 3 of 5
-      assert {:error, {:http_error, 500}} =
-               perform_job(TelegramWorker, %{
-                 "integration_id" => integration.id,
-                 "event_type" => "meeting.created",
-                 "meeting_id" => meeting.id
-               })
-
-      updated = Repo.get(TelegramIntegrationSchema, integration.id)
-      assert updated.failure_count == 3
     end
 
     test "handles connection timeout", %{user: user, meeting: meeting} do
@@ -563,28 +593,61 @@ defmodule Tymeslot.Workers.TelegramWorkerTest do
       refute Map.has_key?(job.args, "token")
       refute Map.has_key?(job.args, "encrypted_token")
     end
+  end
 
-    test "discards job when feature access is revoked" do
+  describe "perform/1 — automations access" do
+    setup do
+      with_config(:tymeslot, :feature_access_checker, ProcessAccessChecker)
       user = insert(:user)
       integration = insert(:telegram_integration, user: user)
-      meeting = insert(:meeting, organizer_user_id: user.id)
+      %{integration: integration, meeting: insert(:meeting, organizer_user_id: user.id)}
+    end
 
-      with_config(
-        :tymeslot,
-        :feature_access_checker,
-        Tymeslot.Workers.TelegramWorkerTest.DenyAccessChecker
-      )
+    for reason <- [:insufficient_plan, :pro_required, :stripe_required] do
+      test "switches the integration off when the plan answers #{reason}", %{
+        integration: integration,
+        meeting: meeting
+      } do
+        ProcessAccessChecker.answer({:error, unquote(reason)})
+        expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts -> :unused end)
 
-      expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts ->
-        flunk("HTTP client should not be called when access is revoked")
-      end)
+        assert {:discard, "Insufficient plan"} =
+                 perform_job(TelegramWorker, args(integration, meeting))
 
-      assert {:discard, "Insufficient plan"} =
-               perform_job(TelegramWorker, %{
-                 "integration_id" => integration.id,
-                 "event_type" => "meeting.created",
-                 "meeting_id" => meeting.id
-               })
+        updated = Repo.get!(TelegramIntegrationSchema, integration.id)
+        refute updated.is_active
+        assert updated.disabled_reason == "Plan no longer permits automations"
+      end
+    end
+
+    test "discards without switching the integration off when automations are off", %{
+      integration: integration,
+      meeting: meeting
+    } do
+      ProcessAccessChecker.answer({:error, :feature_disabled})
+      expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts -> :unused end)
+
+      assert {:discard, "Automations are switched off"} =
+               perform_job(TelegramWorker, args(integration, meeting))
+
+      updated = Repo.get!(TelegramIntegrationSchema, integration.id)
+      assert updated.is_active
+      assert is_nil(updated.disabled_at)
+    end
+
+    test "retries, leaving the integration alone, when the access check fails", %{
+      integration: integration,
+      meeting: meeting
+    } do
+      ProcessAccessChecker.answer({:error, :checker_unavailable})
+      expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts -> :unused end)
+
+      assert {:error, :feature_access_checker_failed} =
+               perform_job(TelegramWorker, args(integration, meeting))
+
+      updated = Repo.get!(TelegramIntegrationSchema, integration.id)
+      assert updated.is_active
+      assert updated.failure_count == 0
     end
   end
 
@@ -621,14 +684,22 @@ defmodule Tymeslot.Workers.TelegramWorkerTest do
     )
   end
 
+  defp only_job(worker) do
+    Repo.one!(where(Job, worker: ^inspect(worker)))
+  end
+
+  defp failure_count(integration),
+    do: Repo.get!(TelegramIntegrationSchema, integration.id).failure_count
+
   defp job_count(worker) do
     Repo.aggregate(where(Job, worker: ^inspect(worker)), :count)
   end
-end
 
-defmodule Tymeslot.Workers.TelegramWorkerTest.DenyAccessChecker do
-  @moduledoc false
-
-  @spec check_access(any(), atom()) :: {:error, :insufficient_plan}
-  def check_access(_user_id, _feature), do: {:error, :insufficient_plan}
+  defp args(integration, meeting) do
+    %{
+      "integration_id" => integration.id,
+      "event_type" => "meeting.created",
+      "meeting_id" => meeting.id
+    }
+  end
 end
