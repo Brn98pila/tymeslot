@@ -63,6 +63,34 @@ defmodule Tymeslot.Integrations.Calendar.Shared.MultiCalendarFetchDeselectTest d
     assert Enum.find(refreshed.calendar_list, &(&1.id == "work")).selected == true
   end
 
+  test "still answers when the integration is removed before the de-selection is written" do
+    integration =
+      insert(:calendar_integration,
+        provider: "outlook",
+        calendar_list: [
+          %{"id" => "work", "selected" => true, "name" => "Work"},
+          %{"id" => "deleted@example.com", "selected" => true, "name" => "Deleted"}
+        ]
+      )
+
+    # The owner disconnects the integration while an availability read that
+    # started from it is still on the network.
+    Repo.delete!(integration)
+
+    start_time = DateTime.utc_now()
+    end_time = DateTime.add(start_time, 3600, :second)
+
+    assert {:ok, events} =
+             MultiCalendarFetch.list_events_with_selection(
+               integration,
+               start_time,
+               end_time,
+               NotFoundAPI
+             )
+
+    assert Enum.map(events, & &1["id"]) == ["work-1"]
+  end
+
   test "de-selects the calendar even when it was the only selected one" do
     integration =
       insert(:calendar_integration,
