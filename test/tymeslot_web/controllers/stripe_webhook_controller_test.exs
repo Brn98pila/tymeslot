@@ -29,19 +29,13 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
 
   describe "POST /webhooks/stripe" do
     setup do
-      with_config(:tymeslot,
-        stripe_provider: Tymeslot.Payments.Stripe,
-        stripe_webhook_secret: @secret
-      )
+      with_config(:tymeslot, stripe_webhook_secret: @secret)
 
       :ok
     end
 
     test "returns an empty 400 when webhook signature is missing", %{conn: conn} do
-      with_config(:tymeslot,
-        stripe_provider: Tymeslot.Payments.Stripe,
-        stripe_webhook_secret: "whsec_test"
-      )
+      with_config(:tymeslot, stripe_webhook_secret: "whsec_test")
 
       payload = ~s({"type":"checkout.session.completed", "id":"evt_123"})
 
@@ -55,10 +49,7 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
     end
 
     test "returns an empty 400 when webhook signature is invalid", %{conn: conn} do
-      with_config(:tymeslot,
-        stripe_provider: Tymeslot.Payments.Stripe,
-        stripe_webhook_secret: "whsec_test"
-      )
+      with_config(:tymeslot, stripe_webhook_secret: "whsec_test")
 
       payload = ~s({"type":"checkout.session.completed", "id":"evt_123"})
 
@@ -78,10 +69,7 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
     } do
       secret = "whsec_test"
 
-      with_config(:tymeslot,
-        stripe_provider: Tymeslot.Payments.Stripe,
-        stripe_webhook_secret: secret
-      )
+      with_config(:tymeslot, stripe_webhook_secret: secret)
 
       payload = ~s({"type":"checkout.session.completed", "id":"evt_123"})
       different_payload = ~s({"type":"checkout.session.completed", "id":"evt_456"})
@@ -193,10 +181,7 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
     end
 
     test "returns an empty 503 when the webhook secret is not configured", %{conn: conn} do
-      with_config(:tymeslot,
-        stripe_provider: Tymeslot.Payments.Stripe,
-        stripe_webhook_secret: nil
-      )
+      with_config(:tymeslot, stripe_webhook_secret: nil)
 
       payload = ~s({"type":"checkout.session.completed", "id":"evt_no_secret"})
 

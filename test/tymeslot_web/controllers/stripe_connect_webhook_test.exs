@@ -4,17 +4,16 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
   @moduletag :payments
   @moduletag :controllers
 
-  import Mox
   import Tymeslot.Factory
 
-  alias Tymeslot.MeetingPayments.StripeAdapterMock
   alias Tymeslot.Payments.Webhooks.IdempotencyCache
+  alias Tymeslot.PaymentTestHelpers
   alias Tymeslot.Webhooks.WebhookQueries
 
-  setup :verify_on_exit!
+  @secret "whsec_test_connect"
 
   setup do
-    Application.put_env(:tymeslot, :stripe_connect_webhook_secret, "whsec_test_connect")
+    Application.put_env(:tymeslot, :stripe_connect_webhook_secret, @secret)
 
     on_exit(fn ->
       Application.delete_env(:tymeslot, :stripe_connect_webhook_secret)
@@ -23,7 +22,9 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
     :ok
   end
 
-  defp post_connect(conn, payload, signature \\ "t=1,v1=GOOD") do
+  defp post_connect(conn, payload, signature \\ nil) do
+    signature = signature || PaymentTestHelpers.generate_stripe_signature(payload, @secret)
+
     conn
     |> put_req_header("content-type", "application/json")
     |> put_req_header("stripe-signature", signature)
@@ -31,18 +32,8 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
     |> post("/webhooks/stripe/connect", payload)
   end
 
-  defp verified(event) do
-    expect(StripeAdapterMock, :construct_webhook_event, fn _payload, _sig, "whsec_test_connect" ->
-      {:ok, event}
-    end)
-  end
-
   describe "POST /webhooks/stripe/connect" do
     test "returns an empty 400 when signature verification fails", %{conn: conn} do
-      expect(StripeAdapterMock, :construct_webhook_event, fn _payload, _sig, _secret ->
-        {:error, "Invalid signature"}
-      end)
-
       payload = ~s({"id":"evt_BAD","type":"account.updated"})
 
       assert conn |> post_connect(payload, "t=1,v1=BAD") |> response(400) == ""
@@ -53,9 +44,7 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
       # `account.updated` without a `data.object` is rejected by its handler
       # as `:invalid_event`, which no retry can fix.
       event_id = unique_event_id("evt_MALFORMED")
-      verified(%{"id" => event_id, "type" => "account.updated"})
-
-      payload = ~s({"id":"#{event_id}","type":"account.updated"})
+      payload = Jason.encode!(%{"id" => event_id, "type" => "account.updated"})
 
       assert conn |> post_connect(payload) |> response(200) == ""
       assert IdempotencyCache.reserve(event_id) == {:ok, :already_processed}
@@ -66,14 +55,13 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
       now = System.os_time(:second)
       event_id = unique_event_id("evt_OK")
 
-      verified(%{
-        "id" => event_id,
-        "type" => "account.updated",
-        "created" => now,
-        "data" => %{"object" => %{"id" => "acct_UNKNOWN", "created" => now}}
-      })
-
-      payload = ~s({"id":"#{event_id}","type":"account.updated","created":#{now}})
+      payload =
+        Jason.encode!(%{
+          "id" => event_id,
+          "type" => "account.updated",
+          "created" => now,
+          "data" => %{"object" => %{"id" => "acct_UNKNOWN", "created" => now}}
+        })
 
       assert conn |> post_connect(payload) |> response(200) == ""
 
@@ -87,20 +75,19 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
       account = insert(:connect_account, charges_enabled: false, last_account_event_at: nil)
       event_id = unique_event_id("evt_REJECTED")
 
-      verified(%{
-        "id" => event_id,
-        "type" => "account.updated",
-        "created" => now,
-        "data" => %{
-          "object" => %{
-            "id" => account.stripe_account_id,
-            "created" => now,
-            "charges_enabled" => "not-a-boolean"
+      payload =
+        Jason.encode!(%{
+          "id" => event_id,
+          "type" => "account.updated",
+          "created" => now,
+          "data" => %{
+            "object" => %{
+              "id" => account.stripe_account_id,
+              "created" => now,
+              "charges_enabled" => "not-a-boolean"
+            }
           }
-        }
-      })
-
-      payload = ~s({"id":"#{event_id}","type":"account.updated","created":#{now}})
+        })
 
       assert conn |> post_connect(payload) |> response(503) == ""
       refute WebhookQueries.get_webhook_event_by_stripe_id(event_id)
@@ -109,9 +96,7 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
     test "returns 200 when event type has no registered handler (silently ignored)",
          %{conn: conn} do
       event_id = unique_event_id("evt_PING")
-      verified(%{"id" => event_id, "type" => "ping.event"})
-
-      payload = ~s({"id":"#{event_id}","type":"ping.event"})
+      payload = Jason.encode!(%{"id" => event_id, "type" => "ping.event"})
 
       assert conn |> post_connect(payload) |> response(200) == ""
     end
@@ -128,12 +113,8 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
         "data" => %{"object" => %{"id" => "acct_UNKNOWN", "created" => now}}
       }
 
-      # Signature verification now runs before deduplication, so both
-      # deliveries are verified; the replay must stop there.
-      expect(StripeAdapterMock, :construct_webhook_event, 2, fn _payload, _sig, _secret ->
-        {:ok, event}
-      end)
-
+      # Signature verification runs before deduplication, so both deliveries
+      # are verified; the replay must stop there.
       payload = Jason.encode!(event)
 
       assert conn |> post_connect(payload) |> response(200) == ""
@@ -144,11 +125,14 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
          %{conn: conn} do
       now = System.os_time(:second)
       event_id = unique_event_id("evt_REDELIVERY")
-      payload = ~s({"id":"#{event_id}","type":"account.updated","created":#{now}})
 
-      expect(StripeAdapterMock, :construct_webhook_event, fn _payload, _sig, _secret ->
-        {:error, "Invalid signature"}
-      end)
+      payload =
+        Jason.encode!(%{
+          "id" => event_id,
+          "type" => "account.updated",
+          "created" => now,
+          "data" => %{"object" => %{"id" => "acct_UNKNOWN", "created" => now}}
+        })
 
       assert conn |> post_connect(payload, "t=1,v1=BAD") |> response(400) == ""
 
@@ -156,13 +140,6 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
       # slot, or Stripe's genuine delivery would be swallowed as a duplicate
       # and never recorded as processed below.
       refute WebhookQueries.get_webhook_event_by_stripe_id(event_id)
-
-      verified(%{
-        "id" => event_id,
-        "type" => "account.updated",
-        "created" => now,
-        "data" => %{"object" => %{"id" => "acct_UNKNOWN", "created" => now}}
-      })
 
       assert build_conn() |> post_connect(payload) |> response(200) == ""
       assert IdempotencyCache.reserve(event_id) == {:ok, :already_processed}

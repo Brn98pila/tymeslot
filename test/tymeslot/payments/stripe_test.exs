@@ -19,14 +19,12 @@ defmodule Tymeslot.Payments.StripeTest do
     Application.put_env(:tymeslot, :stripe_customer_mod, StripeCustomerMock)
     Application.put_env(:tymeslot, :stripe_session_mod, StripeSessionMock)
     Application.put_env(:tymeslot, :stripe_subscription_mod, StripeSubscriptionMock)
-    Application.put_env(:tymeslot, :stripe_webhook_mod, StripeWebhookMock)
     Application.put_env(:tymeslot, :stripe_secret_key, "sk_test_fake")
 
     on_exit(fn ->
       Application.delete_env(:tymeslot, :stripe_customer_mod)
       Application.delete_env(:tymeslot, :stripe_session_mod)
       Application.delete_env(:tymeslot, :stripe_subscription_mod)
-      Application.delete_env(:tymeslot, :stripe_webhook_mod)
       Application.delete_env(:tymeslot, :stripe_secret_key)
     end)
 

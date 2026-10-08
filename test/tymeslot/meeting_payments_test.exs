@@ -50,6 +50,13 @@ defmodule Tymeslot.MeetingPaymentsTest do
 
       assert MeetingPayments.platform_configured?()
     end
+
+    test "a blank :tymeslot, :stripe_secret_key falls through to :stripity_stripe, :api_key" do
+      with_config(:tymeslot, :stripe_secret_key, "")
+      with_config(:stripity_stripe, :api_key, "sk_test_51Hxxxxxxxxxxxxxxxxxxxxxx")
+
+      assert MeetingPayments.platform_configured?()
+    end
   end
 
   describe "host_currency/1" do

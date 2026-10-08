@@ -7,12 +7,10 @@ defmodule Tymeslot.Payments.Webhooks.IngressTest do
   @moduletag :webhooks
 
   import ExUnit.CaptureLog
-  import Mox
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
 
   alias ErrorTracker.Error
-  alias Stripe.Webhook
   alias Tymeslot.MeetingPayments.ConnectAccountSchema
   alias Tymeslot.Payments.Webhooks.IdempotencyCache
   alias Tymeslot.Payments.Webhooks.Ingress
@@ -21,9 +19,6 @@ defmodule Tymeslot.Payments.Webhooks.IngressTest do
 
   @platform_secret "whsec_ingress_platform"
   @connect_secret "whsec_ingress_connect"
-
-  setup :set_mox_from_context
-  setup :verify_on_exit!
 
   defmodule RecordingManager do
     @spec handle_checkout_completed(map()) :: {:ok, map()}
@@ -60,19 +55,8 @@ defmodule Tymeslot.Payments.Webhooks.IngressTest do
       ingress_test_pid: self()
     )
 
-    stub(Tymeslot.Payments.StripeMock, :construct_webhook_event, &construct_event/3)
-
-    stub(
-      Tymeslot.MeetingPayments.StripeAdapterMock,
-      :construct_webhook_event,
-      &construct_event/3
-    )
-
     :ok
   end
-
-  defp construct_event(body, signature, secret),
-    do: Webhook.construct_event(body, signature, secret, response_as: :map)
 
   defp deliver(endpoint, event, secret \\ nil) do
     body = Jason.encode!(event)
@@ -128,25 +112,14 @@ defmodule Tymeslot.Payments.Webhooks.IngressTest do
       refute_received {:checkout_completed, _session}
     end
 
-    # Stripe hands back a struct; handlers index the event with string keys, so
-    # the ingress must flatten it rather than pass it on.
-    test "a verified Stripe struct reaches the handler as a plain string-keyed map" do
-      stub(Tymeslot.Payments.StripeMock, :construct_webhook_event, fn _body, _sig, _secret ->
-        {:ok,
-         %Stripe.Event{
-           id: "evt_struct",
-           type: "checkout.session.completed",
-           data: %{object: %{id: "cs_struct", mode: "subscription"}}
-         }}
-      end)
+    test "a correctly signed body that is not a JSON object is an invalid payload" do
+      for body <- ["not json", ~s(["evt_in_a_list"])] do
+        signature = PaymentTestHelpers.generate_stripe_signature(body, @platform_secret)
 
-      assert {:ok, :processed} =
-               Ingress.process(:platform, "{}", "t=1,v1=signature")
-
-      assert_received {:checkout_completed, session}
-      assert session["id"] == "cs_struct"
-      assert session["mode"] == "subscription"
-      assert Enum.all?(Map.keys(session), &is_binary/1)
+        capture_log(fn ->
+          assert {:error, :invalid_payload} = Ingress.process(:platform, body, signature)
+        end)
+      end
     end
 
     test "a verified event without an id is an invalid payload" do

@@ -45,6 +45,7 @@ defmodule Tymeslot.MeetingPayments do
   alias Tymeslot.MeetingPayments.Workers.ResyncConnectAccount
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.MeetingTypes.MeetingTypeQueries
+  alias Tymeslot.Payments.Config, as: PaymentsConfig
   alias Tymeslot.Repo
 
   @type account :: ConnectAccountSchema.t()
@@ -138,13 +139,8 @@ defmodule Tymeslot.MeetingPayments do
   """
   @spec platform_configured?() :: boolean()
   def platform_configured? do
-    key =
-      Application.get_env(:tymeslot, :stripe_secret_key) ||
-        Application.get_env(:stripity_stripe, :api_key)
-
-    case key do
+    case PaymentsConfig.stripe_api_key() do
       nil -> false
-      "" -> false
       "sk_test_fake" -> false
       _real -> true
     end

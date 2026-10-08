@@ -34,12 +34,11 @@ defmodule Tymeslot.Payments.Webhooks.Ingress do
 
   require Logger
 
+  alias Stripe.Webhook
   alias Tymeslot.Infrastructure.AdminAlerts
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.MeetingPayments.StripeAdapter
   alias Tymeslot.MeetingPayments.Webhooks.WebhookRegistry, as: ConnectRegistry
-  alias Tymeslot.Payments.Config
   alias Tymeslot.Payments.Webhooks.Idempotency
   alias Tymeslot.Payments.Webhooks.WebhookRegistry, as: PlatformRegistry
 
@@ -70,8 +69,8 @@ defmodule Tymeslot.Payments.Webhooks.Ingress do
   `signature` is the `Stripe-Signature` header, or `nil` when absent.
   Returns an `t:Idempotency.result/0` for a verified event, otherwise
   `{:error, :not_configured}` (the endpoint has no signing secret),
-  `{:error, :invalid_signature}` or `{:error, :invalid_payload}` (a verified
-  event without an id).
+  `{:error, :invalid_signature}` or `{:error, :invalid_payload}` (a correctly
+  signed body that is not a JSON object, or an event without an id).
   """
   @spec process(endpoint(), binary(), String.t() | nil) :: result()
   def process(endpoint, raw_body, signature)
@@ -112,26 +111,31 @@ defmodule Tymeslot.Payments.Webhooks.Ingress do
     end
   end
 
+  # The event is decoded as Stripe sent it (`response_as: :map`) rather than
+  # cast into the library's structs: an endpoint renders events at the API
+  # version it was created with, not the one the library pins, and the
+  # structs drop every field their own version lacks. A correctly signed
+  # body that is not a JSON object is an invalid payload: the library
+  # decodes only after the signature checks out, and raises if it cannot.
   defp verify(endpoint, raw_body, signature, secret) do
-    case construct_event(endpoint, raw_body, signature || "", secret) do
-      {:ok, event} ->
-        {:ok, StripeAdapter.normalise(event)}
-
-      {:error, reason} ->
-        Logger.warning("Stripe webhook rejected",
-          endpoint: endpoint,
-          reason: LogFormat.reason(reason)
-        )
-
-        {:error, :invalid_signature}
+    case Webhook.construct_event(raw_body, signature || "", secret, response_as: :map) do
+      {:ok, event} when is_map(event) -> {:ok, event}
+      {:ok, _not_an_object} -> reject(endpoint, :not_an_object, :invalid_payload)
+      {:error, reason} -> reject(endpoint, reason, :invalid_signature)
     end
+  rescue
+    exception in [Jason.DecodeError] ->
+      reject(endpoint, exception.__struct__, :invalid_payload)
   end
 
-  defp construct_event(:platform, raw_body, signature, secret),
-    do: Config.stripe_provider().construct_webhook_event(raw_body, signature, secret)
+  defp reject(endpoint, reason, result) do
+    Logger.warning("Stripe webhook rejected",
+      endpoint: endpoint,
+      reason: LogFormat.reason(reason)
+    )
 
-  defp construct_event(:connect, raw_body, signature, secret),
-    do: StripeAdapter.construct_webhook_event(raw_body, signature, secret)
+    {:error, result}
+  end
 
   defp identify(_endpoint, %{"id" => id} = event) when is_binary(id) and id != "",
     do: {:ok, id, Map.get(event, "type")}

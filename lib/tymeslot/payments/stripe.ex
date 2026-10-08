@@ -8,9 +8,10 @@ defmodule Tymeslot.Payments.Stripe do
   require Logger
 
   alias Ecto.UUID
-  alias Stripe.{BillingPortal, Checkout.Session, Customer, Subscription, Webhook}
+  alias Stripe.{BillingPortal, Checkout.Session, Customer, Subscription}
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Payments.Behaviours.StripeProvider
+  alias Tymeslot.Payments.Config
   alias Tymeslot.Payments.RetryHelper
   alias Tymeslot.Security.SecurityLogger
 
@@ -22,8 +23,6 @@ defmodule Tymeslot.Payments.Stripe do
 
   defp subscription_mod,
     do: Application.get_env(:tymeslot, :stripe_subscription_mod, Subscription)
-
-  defp webhook_mod, do: Application.get_env(:tymeslot, :stripe_webhook_mod, Webhook)
 
   defp charge_mod, do: Application.get_env(:tymeslot, :stripe_charge_mod, Stripe.Charge)
 
@@ -60,7 +59,7 @@ defmodule Tymeslot.Payments.Stripe do
   # Private functions
 
   defp api_key_opts(idempotency_key \\ nil) do
-    case stripe_api_key() do
+    case Config.stripe_api_key() do
       nil ->
         throw({:error, :missing_api_key})
 
@@ -73,11 +72,6 @@ defmodule Tymeslot.Payments.Stripe do
           base_opts
         end
     end
-  end
-
-  defp stripe_api_key do
-    Application.get_env(:tymeslot, :stripe_secret_key) ||
-      Application.get_env(:stripity_stripe, :api_key)
   end
 
   @doc false
@@ -182,22 +176,6 @@ defmodule Tymeslot.Payments.Stripe do
     RetryHelper.execute_with_retry(fn ->
       charge_mod().retrieve(charge_id, %{}, api_key_opts())
     end)
-  end
-
-  @doc """
-  Constructs and verifies a webhook event from Stripe.
-  This is primarily used by the webhook signature verifier.
-
-  The event comes back as the string-keyed map Stripe sent. An endpoint
-  renders events at the API version it was created with, not the one this
-  library pins, and casting the payload into the library's structs would
-  silently drop every field their own version lacks.
-  """
-  @impl StripeProvider
-  @spec construct_webhook_event(binary(), String.t(), String.t()) :: stripe_result()
-  def construct_webhook_event(payload, signature, secret)
-      when is_binary(payload) and is_binary(signature) and is_binary(secret) do
-    webhook_mod().construct_event(payload, signature, secret, response_as: :map)
   end
 
   @doc """

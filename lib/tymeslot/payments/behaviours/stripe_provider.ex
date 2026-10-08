@@ -22,13 +22,6 @@ defmodule Tymeslot.Payments.Behaviours.StripeProvider do
   @callback get_charge(charge_id :: String.t()) ::
               {:ok, map()} | {:error, term()}
 
-  @callback construct_webhook_event(
-              payload :: binary(),
-              signature :: String.t(),
-              secret :: String.t()
-            ) ::
-              {:ok, map()} | {:error, term()}
-
   @callback expire_checkout_session(session_id :: String.t()) ::
               {:ok, map()} | {:error, term()}
 
