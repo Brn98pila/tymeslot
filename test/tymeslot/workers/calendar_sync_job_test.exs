@@ -56,7 +56,7 @@ defmodule Tymeslot.Workers.CalendarSyncJobTest do
 
   test "discards a job whose integration is gone, without running the cycle" do
     assert {:discard, "Integration not found"} =
-             CalendarSyncJob.run(job(-1), fn _ -> flunk("cycle ran") end)
+             CalendarSyncJob.run(job(-1), fn _integration -> flunk("cycle ran") end)
   end
 
   test "flags an integration whose credentials no longer decrypt, without running the cycle" do
@@ -69,7 +69,7 @@ defmodule Tymeslot.Workers.CalendarSyncJobTest do
       )
 
     assert {:discard, reason} =
-             CalendarSyncJob.run(job(integration.id), fn _ -> flunk("cycle ran") end)
+             CalendarSyncJob.run(job(integration.id), fn _integration -> flunk("cycle ran") end)
 
     assert reason == ReauthHandling.discard_reason()
 
@@ -81,7 +81,7 @@ defmodule Tymeslot.Workers.CalendarSyncJobTest do
     integration = insert(:calendar_integration, provider: "google")
 
     assert {:discard, "Integration is not outlook"} =
-             CalendarSyncJob.run(job(integration.id), fn _ -> flunk("cycle ran") end,
+             CalendarSyncJob.run(job(integration.id), fn _integration -> flunk("cycle ran") end,
                provider: "outlook"
              )
 
@@ -125,10 +125,12 @@ defmodule Tymeslot.Workers.CalendarSyncJobTest do
   test "a failed cycle counts towards the streak and a completed one clears it" do
     integration = insert(:calendar_integration, provider: "caldav")
 
-    assert {:error, :boom} = CalendarSyncJob.run(job(integration.id), fn _ -> {:error, :boom} end)
+    assert {:error, :boom} =
+             CalendarSyncJob.run(job(integration.id), fn _integration -> {:error, :boom} end)
+
     assert failures(integration) == 1
 
-    assert :ok = CalendarSyncJob.run(job(integration.id), fn _ -> :ok end)
+    assert :ok = CalendarSyncJob.run(job(integration.id), fn _integration -> :ok end)
     assert failures(integration) == 0
   end
 end
