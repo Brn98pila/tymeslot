@@ -177,18 +177,25 @@ defmodule Tymeslot.Payments.Webhooks.Ingress do
   # Recorded by module alone: a handler's exception message can quote the
   # Stripe object it was processing, customer details included. The event's
   # type and id go into the context, and every attempt at the same event
-  # raises from the same site, so redeliveries group as one error.
+  # fails at the same site, so redeliveries group as one error. An exit (a
+  # GenServer call timing out, say) or a throw is retried the same way.
   defp run_handler(handler, event) do
     handler.handle(event)
   rescue
-    exception ->
-      ErrorTracking.report_error({:raised, exception.__struct__}, __STACKTRACE__, %{
-        handler: inspect(handler),
-        event_type: event["type"],
-        event_id: event["id"]
-      })
+    exception -> handler_failed({:raised, exception.__struct__}, __STACKTRACE__, handler, event)
+  catch
+    :exit, _reason -> handler_failed(:exited, __STACKTRACE__, handler, event)
+    :throw, _value -> handler_failed(:threw, __STACKTRACE__, handler, event)
+  end
 
-      {:error, :retry_later, {:raised, exception.__struct__}}
+  defp handler_failed(reason, stacktrace, handler, event) do
+    ErrorTracking.report_error(reason, stacktrace, %{
+      handler: inspect(handler),
+      event_type: event["type"],
+      event_id: event["id"]
+    })
+
+    {:error, :retry_later, reason}
   end
 
   defp unhandled(%{alert_unhandled?: true}, event) do

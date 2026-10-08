@@ -50,39 +50,6 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
     end
   end
 
-  describe "routing a delivered invoice event" do
-    # The registry, not the handler, decides which events reach it: an event
-    # type missing there is answered as unhandled and its document never lands.
-    for {event_type, status} <- [
-          {"invoice.voided", :void},
-          {"invoice.marked_uncollectible", :uncollectible}
-        ] do
-      test "#{event_type} updates the captured invoice's status" do
-        invoice_id = "in_#{unquote(status)}"
-
-        assert {:ok, :invoice_finalized} =
-                 process(%{"type" => "invoice.finalized"}, %{
-                   "id" => invoice_id,
-                   "status" => "open"
-                 })
-
-        # The registry, not the handler, decides which events reach it.
-        assert InvoiceHandler == WebhookRegistry.handler_for(unquote(event_type))
-
-        assert {:ok, _result} =
-                 InvoiceHandler.handle(%{
-                   "id" => "evt_#{unquote(status)}",
-                   "type" => unquote(event_type),
-                   "data" => %{
-                     "object" => %{"id" => invoice_id, "status" => unquote(to_string(status))}
-                   }
-                 })
-
-        assert invoice_for(invoice_id).status == unquote(status)
-      end
-    end
-  end
-
   describe "handle/1" do
     test "handles invoice.payment_succeeded" do
       user = insert(:user)

@@ -12,6 +12,7 @@ defmodule Tymeslot.Payments.Webhooks.IngressTest do
 
   alias ErrorTracker.Error
   alias Tymeslot.MeetingPayments.ConnectAccountSchema
+  alias Tymeslot.Payments.SubscriptionInvoiceSchema
   alias Tymeslot.Payments.Webhooks.IdempotencyCache
   alias Tymeslot.Payments.Webhooks.Ingress
   alias Tymeslot.Payments.Webhooks.StripeEventQueries
@@ -36,6 +37,17 @@ defmodule Tymeslot.Payments.Webhooks.IngressTest do
   defmodule BrokenManager do
     @spec handle_checkout_completed(map()) :: no_return()
     def handle_checkout_completed(_session), do: raise("a bug for cus_secret")
+  end
+
+  defmodule ExitingManager do
+    @spec handle_checkout_completed(map()) :: no_return()
+    def handle_checkout_completed(_session),
+      do: exit({:timeout, {GenServer, :call, [:cus_secret]}})
+  end
+
+  defmodule ThrowingManager do
+    @spec handle_checkout_completed(map()) :: no_return()
+    def handle_checkout_completed(_session), do: throw(:cus_secret)
   end
 
   defmodule TestAdminAlerts do
@@ -187,6 +199,33 @@ defmodule Tymeslot.Payments.Webhooks.IngressTest do
       assert context["event_type"] == "checkout.session.completed"
     end
 
+    test "a handler that exits or throws is retried and recorded, and the redelivery runs" do
+      with_config(:error_tracker, enabled: true)
+
+      for {manager, reason} <- [{ExitingManager, ":exited"}, {ThrowingManager, ":threw"}] do
+        with_config(:tymeslot, subscription_manager: manager)
+        event = checkout_completed()
+
+        capture_log(fn -> assert {:error, :retry_later} = deliver(:platform, event) end)
+
+        # Recorded under the event, by kind of failure, without the value it
+        # carried (an exit or throw value can quote the Stripe object).
+        assert [occurrence] =
+                 Error
+                 |> Repo.all()
+                 |> Repo.preload(:occurrences)
+                 |> Enum.flat_map(& &1.occurrences)
+                 |> Enum.filter(&(&1.context["event_id"] == event["id"]))
+
+        assert occurrence.context["error.reason"] == reason
+        refute inspect(occurrence) =~ "cus_secret"
+
+        with_config(:tymeslot, subscription_manager: RecordingManager)
+        assert {:ok, :processed} = deliver(:platform, event)
+        assert_received {:checkout_completed, _session}
+      end
+    end
+
     test "the platform endpoint keeps the processed event's payload; Connect does not" do
       platform = event("invoice.upcoming", %{"object" => "invoice"})
       connect = event("charge.succeeded", %{"id" => "ch_connect"}, %{"account" => "acct_1"})
@@ -303,6 +342,39 @@ defmodule Tymeslot.Payments.Webhooks.IngressTest do
 
       capture_log(fn -> assert {:error, :permanent} = deliver(:connect, event) end)
       assert IdempotencyCache.reserve(event["id"]) == {:ok, :already_processed}
+    end
+  end
+
+  describe "invoice events" do
+    # The registry, not the handler, decides which events reach it: a type
+    # missing there is answered as unhandled and the invoice never updates.
+    for {event_type, status} <- [
+          {"invoice.voided", :void},
+          {"invoice.marked_uncollectible", :uncollectible}
+        ] do
+      test "a delivered #{event_type} updates the captured invoice's status" do
+        invoice_id = "in_ingress_#{unquote(status)}"
+
+        assert {:ok, :processed} =
+                 deliver(
+                   :platform,
+                   event("invoice.finalized", %{"id" => invoice_id, "status" => "open"})
+                 )
+
+        assert {:ok, :processed} =
+                 deliver(
+                   :platform,
+                   event(unquote(event_type), %{
+                     "id" => invoice_id,
+                     "status" => unquote(to_string(status))
+                   })
+                 )
+
+        assert Repo.get_by!(SubscriptionInvoiceSchema, stripe_invoice_id: invoice_id).status ==
+                 unquote(status)
+
+        refute_received {:send_alert, :unhandled_webhook, _payload}
+      end
     end
   end
 
