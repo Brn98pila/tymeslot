@@ -11,7 +11,6 @@ defmodule Tymeslot.Webhooks.WebhookQueries do
   alias Tymeslot.Webhooks.{
     DeliveryStatus,
     WebhookDeliverySchema,
-    WebhookEventSchema,
     WebhookSchema
   }
 
@@ -252,55 +251,4 @@ defmodule Tymeslot.Webhooks.WebhookQueries do
   end
 
   def cleanup_old_deliveries(_days), do: {0, nil}
-
-  # ============================================================================
-  # Webhook Event Queries (incoming Stripe events)
-  # ============================================================================
-
-  @doc """
-  Gets a webhook event by its Stripe event ID.
-  """
-  @spec get_webhook_event_by_stripe_id(String.t()) :: WebhookEventSchema.t() | nil
-  def get_webhook_event_by_stripe_id(stripe_event_id) do
-    Repo.get_by(WebhookEventSchema, stripe_event_id: stripe_event_id)
-  end
-
-  @doc """
-  Inserts a webhook event record, doing nothing on conflict with existing stripe_event_id.
-  """
-  @spec upsert_webhook_event(map()) ::
-          {:ok, WebhookEventSchema.t()} | {:error, Ecto.Changeset.t()}
-  def upsert_webhook_event(attrs) do
-    %WebhookEventSchema{}
-    |> WebhookEventSchema.changeset(attrs)
-    |> Repo.insert(on_conflict: :nothing, conflict_target: :stripe_event_id)
-  end
-
-  @doc """
-  Nullifies payloads on webhook events older than the given cutoff date.
-
-  Returns `{count, nil}` where count is the number of rows updated.
-  """
-  @spec nullify_stale_payloads(DateTime.t()) :: {non_neg_integer(), nil}
-  def nullify_stale_payloads(%DateTime{} = cutoff_date) do
-    query =
-      from(w in WebhookEventSchema,
-        where: w.inserted_at < ^cutoff_date and not is_nil(w.payload)
-      )
-
-    Repo.update_all(query, set: [payload: nil])
-  end
-
-  @doc """
-  Deletes webhook events older than the given cutoff date.
-
-  Deletes in bounded batches (see `BatchDeleteQueries`) so a large backlog
-  can't blow past the database timeout in a single transaction.
-
-  Returns `{count, nil}` where count is the number of rows deleted.
-  """
-  @spec delete_old_webhook_events(DateTime.t()) :: {non_neg_integer(), nil}
-  def delete_old_webhook_events(%DateTime{} = cutoff_date) do
-    BatchDeleteQueries.delete_older_than(WebhookEventSchema, :inserted_at, cutoff_date)
-  end
 end

@@ -8,7 +8,7 @@ defmodule Tymeslot.Payments.Webhooks.IdempotencyTest do
 
   alias Tymeslot.Payments.Webhooks.Idempotency
   alias Tymeslot.Payments.Webhooks.IdempotencyCache
-  alias Tymeslot.Webhooks.WebhookQueries
+  alias Tymeslot.Payments.Webhooks.StripeEventQueries
 
   setup do
     %{event_id: "evt_idem_#{System.unique_integer([:positive])}"}
@@ -33,7 +33,7 @@ defmodule Tymeslot.Payments.Webhooks.IdempotencyTest do
                )
 
       assert processed?(id)
-      assert WebhookQueries.get_webhook_event_by_stripe_id(id).payload == payload
+      assert StripeEventQueries.get_by_stripe_id(id).payload == payload
     end
 
     test "a bare :ok counts as success", %{event_id: id} do

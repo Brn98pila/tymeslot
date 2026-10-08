@@ -37,6 +37,7 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
   alias Tymeslot.Integrations.HealthCheck.AvailabilityRefusalQueries
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.MeetingPayments.DataRetention
+  alias Tymeslot.Payments.Webhooks.StripeEventQueries
   alias Tymeslot.Slack
   alias Tymeslot.Telegram
   alias Tymeslot.Webhooks.WebhookQueries
@@ -126,7 +127,7 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
   @spec prune_incoming_webhook_events(integer()) :: {non_neg_integer(), nil}
   def prune_incoming_webhook_events(days) do
     cutoff_date = DateTime.add(DateTime.utc_now(), -days, :day)
-    WebhookQueries.delete_old_webhook_events(cutoff_date)
+    StripeEventQueries.delete_before(cutoff_date)
   end
 
   defp run_cleanup(
@@ -206,7 +207,7 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
 
     cutoff_date = DateTime.add(DateTime.utc_now(), -retention_days, :day)
 
-    case WebhookQueries.nullify_stale_payloads(cutoff_date) do
+    case StripeEventQueries.clear_payloads_before(cutoff_date) do
       {count, _nil} when count > 0 ->
         Logger.info("Nullified stale webhook payloads",
           count: count,

@@ -14,8 +14,8 @@ defmodule Tymeslot.Payments.Webhooks.IngressTest do
   alias Tymeslot.MeetingPayments.ConnectAccountSchema
   alias Tymeslot.Payments.Webhooks.IdempotencyCache
   alias Tymeslot.Payments.Webhooks.Ingress
+  alias Tymeslot.Payments.Webhooks.StripeEventQueries
   alias Tymeslot.PaymentTestHelpers
-  alias Tymeslot.Webhooks.WebhookQueries
 
   @platform_secret "whsec_ingress_platform"
   @connect_secret "whsec_ingress_connect"
@@ -196,10 +196,10 @@ defmodule Tymeslot.Payments.Webhooks.IngressTest do
       capture_log(fn -> assert {:ok, :processed} = deliver(:connect, connect) end)
 
       assert %{payload: %{"id" => id}} =
-               WebhookQueries.get_webhook_event_by_stripe_id(platform["id"])
+               StripeEventQueries.get_by_stripe_id(platform["id"])
 
       assert id == platform["id"]
-      assert %{payload: nil} = WebhookQueries.get_webhook_event_by_stripe_id(connect["id"])
+      assert %{payload: nil} = StripeEventQueries.get_by_stripe_id(connect["id"])
     end
   end
 

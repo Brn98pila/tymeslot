@@ -7,8 +7,8 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
   import Tymeslot.Factory
 
   alias Tymeslot.Payments.Webhooks.IdempotencyCache
+  alias Tymeslot.Payments.Webhooks.StripeEventQueries
   alias Tymeslot.PaymentTestHelpers
-  alias Tymeslot.Webhooks.WebhookQueries
 
   @secret "whsec_test_connect"
 
@@ -65,7 +65,7 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
 
       assert conn |> post_connect(payload) |> response(200) == ""
 
-      assert WebhookQueries.get_webhook_event_by_stripe_id(event_id).event_type ==
+      assert StripeEventQueries.get_by_stripe_id(event_id).event_type ==
                "account.updated"
     end
 
@@ -90,7 +90,7 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
         })
 
       assert conn |> post_connect(payload) |> response(503) == ""
-      refute WebhookQueries.get_webhook_event_by_stripe_id(event_id)
+      refute StripeEventQueries.get_by_stripe_id(event_id)
     end
 
     test "returns 200 when event type has no registered handler (silently ignored)",
@@ -139,7 +139,7 @@ defmodule TymeslotWeb.StripeConnectWebhookTest do
       # A forged payload carrying a guessed event id must not claim the dedup
       # slot, or Stripe's genuine delivery would be swallowed as a duplicate
       # and never recorded as processed below.
-      refute WebhookQueries.get_webhook_event_by_stripe_id(event_id)
+      refute StripeEventQueries.get_by_stripe_id(event_id)
 
       assert build_conn() |> post_connect(payload) |> response(200) == ""
       assert IdempotencyCache.reserve(event_id) == {:ok, :already_processed}

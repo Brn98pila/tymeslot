@@ -1,10 +1,10 @@
-defmodule Tymeslot.Webhooks.WebhookEventSchemaTest do
+defmodule Tymeslot.Payments.Webhooks.StripeEventSchemaTest do
   use Tymeslot.DataCase, async: true
 
   @moduletag :schema
   @moduletag :payments
 
-  alias Tymeslot.Webhooks.WebhookEventSchema
+  alias Tymeslot.Payments.Webhooks.StripeEventSchema
 
   @valid_attrs %{
     stripe_event_id: "evt_abc123",
@@ -14,12 +14,12 @@ defmodule Tymeslot.Webhooks.WebhookEventSchemaTest do
 
   describe "changeset/2" do
     test "valid with required fields" do
-      changeset = WebhookEventSchema.changeset(%WebhookEventSchema{}, @valid_attrs)
+      changeset = StripeEventSchema.changeset(%StripeEventSchema{}, @valid_attrs)
       assert changeset.valid?
     end
 
     test "invalid without required fields" do
-      changeset = WebhookEventSchema.changeset(%WebhookEventSchema{}, %{})
+      changeset = StripeEventSchema.changeset(%StripeEventSchema{}, %{})
       refute changeset.valid?
 
       assert %{
@@ -31,19 +31,19 @@ defmodule Tymeslot.Webhooks.WebhookEventSchemaTest do
 
     test "accepts optional payload" do
       attrs = Map.put(@valid_attrs, :payload, %{"data" => %{"object" => %{"id" => "sub_123"}}})
-      changeset = WebhookEventSchema.changeset(%WebhookEventSchema{}, attrs)
+      changeset = StripeEventSchema.changeset(%StripeEventSchema{}, attrs)
       assert changeset.valid?
     end
 
     test "unique constraint on stripe_event_id" do
       {:ok, _existing} =
-        %WebhookEventSchema{}
-        |> WebhookEventSchema.changeset(@valid_attrs)
+        %StripeEventSchema{}
+        |> StripeEventSchema.changeset(@valid_attrs)
         |> Repo.insert()
 
       {:error, changeset} =
-        %WebhookEventSchema{}
-        |> WebhookEventSchema.changeset(@valid_attrs)
+        %StripeEventSchema{}
+        |> StripeEventSchema.changeset(@valid_attrs)
         |> Repo.insert()
 
       assert "has already been taken" in errors_on(changeset).stripe_event_id

@@ -8,9 +8,9 @@ defmodule TymeslotWeb.StripeWebhookControllerTest do
   import Tymeslot.ConfigTestHelpers
 
   alias Tymeslot.Payments.Webhooks.IdempotencyCache
+  alias Tymeslot.Payments.Webhooks.StripeEventSchema, as: WebhookEvent
   alias Tymeslot.PaymentTestHelpers
   alias Tymeslot.Repo
-  alias Tymeslot.Webhooks.WebhookEventSchema, as: WebhookEvent
 
   @secret "whsec_controller_test"
 
