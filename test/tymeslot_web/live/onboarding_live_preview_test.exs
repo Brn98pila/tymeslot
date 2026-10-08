@@ -295,6 +295,47 @@ defmodule TymeslotWeb.OnboardingLivePreviewTest do
     end
   end
 
+  describe "theme stories" do
+    test "the theme step opens with the stories and switches to every theme's look and back",
+         %{conn: conn} do
+      {:ok, view, _html, _user} = setup_onboarding_with_calendar(conn)
+      view = goto_choose_theme(view)
+
+      assert render(view) =~ "Which of these sounds like you?"
+      assert has_element?(view, "[data-testid='theme-story'][phx-value-theme='2']")
+
+      html = view |> element("button[phx-click='show_all_themes']") |> render_click()
+
+      refute html =~ "Which of these sounds like you?"
+      refute has_element?(view, "[data-testid='theme-story']")
+      assert has_element?(view, "button[phx-value-theme='2']")
+
+      html = view |> element("button[phx-click='show_theme_stories']") |> render_click()
+
+      assert html =~ "Which of these sounds like you?"
+    end
+
+    test "choosing a story saves its theme and reshapes the preview", %{conn: conn} do
+      {:ok, view, _html, user} = setup_onboarding_with_calendar(conn)
+      view = goto_choose_theme(view)
+
+      html =
+        view
+        |> element("[data-testid='theme-story'][phx-value-theme='2']")
+        |> render_click()
+
+      {:ok, profile} = Profiles.get_or_create_profile(user.id)
+      assert profile.booking_theme == "2"
+      # Rhythm's preview has no month grid (see "preview reshapes to the chosen theme").
+      refute html =~ "grid-cols-7"
+
+      assert has_element?(
+               view,
+               "[data-testid='theme-story'][phx-value-theme='2'][aria-pressed='true']"
+             )
+    end
+  end
+
   describe "avatar upload" do
     test "renders the upload control on the profile step", %{conn: conn} do
       {:ok, view, _html, _user} = setup_onboarding(conn)

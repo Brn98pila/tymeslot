@@ -71,6 +71,7 @@ defmodule TymeslotWeb.OnboardingLive.Initializer do
     |> Component.assign(:caldav_discovering, false)
     |> Component.assign(:booking_url, build_booking_url(profile))
     |> Component.assign(:theme_options, ThemeInfo.theme_options())
+    |> Component.assign(:theme_picker, :stories)
     |> Component.assign(:theme_customization, customization)
     |> Component.assign(:onboarding_choices, onboarding_choices)
     |> allow_upload(:avatar,

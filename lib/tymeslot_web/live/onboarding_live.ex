@@ -128,6 +128,7 @@ defmodule TymeslotWeb.OnboardingLive do
             theme_options={@theme_options}
             theme_customization={@theme_customization}
             choices={@onboarding_choices}
+            picker={@theme_picker}
           />
         <% :connect_calendar -> %>
           <ConnectCalendarStep.connect_calendar_step
@@ -235,6 +236,14 @@ defmodule TymeslotWeb.OnboardingLive do
 
   def handle_event("select_onboarding_choice", %{"choice" => value}, socket) do
     ThemeHandlers.handle_select_choice(value, socket)
+  end
+
+  def handle_event("show_all_themes", _params, socket) do
+    ThemeHandlers.handle_theme_picker(:all, socket)
+  end
+
+  def handle_event("show_theme_stories", _params, socket) do
+    ThemeHandlers.handle_theme_picker(:stories, socket)
   end
 
   def handle_event("preview_booking_page", _params, socket) do
