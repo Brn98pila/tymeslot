@@ -10,7 +10,6 @@ defmodule Tymeslot.Telegram.TelegramQueries do
 
   import Ecto.Query, warn: false
 
-  alias Tymeslot.Infrastructure.BatchDeleteQueries
   alias Tymeslot.Notifications.IntegrationQueries
   alias Tymeslot.Repo
   alias Tymeslot.Security.Token
@@ -229,46 +228,33 @@ defmodule Tymeslot.Telegram.TelegramQueries do
   # ============================================================================
 
   @spec list_deliveries(integer(), keyword()) :: [TelegramDeliverySchema.t()]
-  def list_deliveries(integration_id, opts) do
-    limit = Keyword.get(opts, :limit, 50)
+  def list_deliveries(integration_id, opts),
+    do:
+      IntegrationQueries.list_deliveries(
+        TelegramDeliverySchema,
+        :integration_id,
+        integration_id,
+        opts
+      )
 
-    TelegramDeliverySchema
-    |> where([d], d.integration_id == ^integration_id)
-    |> order_by([d], desc: d.inserted_at)
-    |> limit(^limit)
-    |> Repo.all()
-  end
-
-  @spec create_delivery(map()) ::
-          {:ok, TelegramDeliverySchema.t()} | {:error, Ecto.Changeset.t()}
-  def create_delivery(attrs) do
-    %TelegramDeliverySchema{}
-    |> TelegramDeliverySchema.changeset(attrs)
-    |> Repo.insert()
-  end
+  @spec create_delivery(map()) :: {:ok, TelegramDeliverySchema.t()} | {:error, Ecto.Changeset.t()}
+  def create_delivery(attrs),
+    do: IntegrationQueries.create_delivery(TelegramDeliverySchema, attrs)
 
   @spec get_delivery_stats(integer(), keyword()) :: map()
-  def get_delivery_stats(integration_id, opts) do
-    days_ago = Keyword.get(opts, :days, 7)
-    IntegrationQueries.delivery_stats(TelegramDeliverySchema, integration_id, days_ago)
+  def get_delivery_stats(integration_id, opts \\ []) do
+    IntegrationQueries.delivery_stats(
+      TelegramDeliverySchema,
+      :integration_id,
+      integration_id,
+      Keyword.get(opts, :days, 7)
+    )
   end
 
-  @doc """
-  Deletes Telegram delivery log rows older than `days`. One row is written per
-  attempt, so this table grows unbounded without pruning. Deletes in bounded
-  batches (see `BatchDeleteQueries`) so a large backlog can't blow past the
-  database timeout in a single transaction. A zero, negative, or non-integer
-  retention is treated as a no-op so a misconfigured value can never wipe the
-  whole table.
-  """
+  @doc "Deletes Telegram delivery log rows older than `days`; see `IntegrationQueries.cleanup_old_deliveries/2`."
   @spec cleanup_old_deliveries(integer()) :: {non_neg_integer(), nil}
-  def cleanup_old_deliveries(days) when is_integer(days) and days > 0 do
-    cutoff = DateTime.add(DateTime.utc_now(), -days, :day)
-
-    BatchDeleteQueries.delete_older_than(TelegramDeliverySchema, :inserted_at, cutoff)
-  end
-
-  def cleanup_old_deliveries(_days), do: {0, nil}
+  def cleanup_old_deliveries(days),
+    do: IntegrationQueries.cleanup_old_deliveries(TelegramDeliverySchema, days)
 
   defp excluding_expired_stubs, do: dynamic(not (^expired_stub(stub_cutoff())))
 

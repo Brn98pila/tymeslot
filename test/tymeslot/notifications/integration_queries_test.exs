@@ -198,70 +198,108 @@ defmodule Tymeslot.Notifications.IntegrationQueriesTest do
     end
   end
 
-  describe "delivery_stats/3" do
-    test "aggregates slack delivery rows over the period" do
-      integration = insert(:slack_integration)
+  # The delivery-log functions, against every channel's delivery table and
+  # the foreign key naming its integration.
+  for {provider, owner_factory, delivery_factory, owner_key, schema, foreign_key} <- [
+        {:slack, :slack_integration, :slack_delivery, :integration,
+         Tymeslot.Slack.SlackDeliverySchema, :integration_id},
+        {:telegram, :telegram_integration, :telegram_delivery, :integration,
+         Tymeslot.Telegram.TelegramDeliverySchema, :integration_id},
+        {:webhooks, :webhook, :webhook_delivery, :webhook,
+         Tymeslot.Webhooks.WebhookDeliverySchema, :webhook_id}
+      ] do
+    describe "delivery_stats/4 (#{provider})" do
+      test "aggregates the integration's delivery rows over the period in one query" do
+        owner = insert(unquote(owner_factory))
+        other = insert(unquote(owner_factory))
+        delivery = &insert(unquote(delivery_factory), [{unquote(owner_key), &1} | &2])
 
-      insert(:slack_delivery, integration: integration, response_status: 200)
-      insert(:slack_delivery, integration: integration, response_status: 200)
+        delivery.(owner, response_status: 200, error_message: nil)
+        delivery.(owner, response_status: 200, error_message: nil)
+        delivery.(owner, response_status: 500, error_message: "boom")
+        delivery.(other, response_status: 200, error_message: nil)
 
-      insert(:slack_delivery,
-        integration: integration,
-        response_status: 500,
-        error_message: "boom"
-      )
-
-      stats =
-        IntegrationQueries.delivery_stats(
-          Tymeslot.Slack.SlackDeliverySchema,
-          integration.id,
-          7
+        delivery.(owner,
+          response_status: 200,
+          error_message: nil,
+          inserted_at: DateTime.add(DateTime.utc_now(), -8, :day)
         )
 
-      assert stats.total == 3
-      assert stats.successful == 2
-      assert stats.failed == 1
-      assert stats.success_rate == 66.7
-      assert stats.period_days == 7
+        stats =
+          IntegrationQueries.delivery_stats(
+            unquote(schema),
+            unquote(foreign_key),
+            owner.id,
+            7
+          )
+
+        assert stats == %{
+                 total: 3,
+                 successful: 2,
+                 failed: 1,
+                 success_rate: 66.7,
+                 period_days: 7
+               }
+      end
+
+      test "answers a zero success rate when there are no deliveries" do
+        owner = insert(unquote(owner_factory))
+
+        assert %{total: 0, success_rate: 0.0} =
+                 IntegrationQueries.delivery_stats(
+                   unquote(schema),
+                   unquote(foreign_key),
+                   owner.id,
+                   7
+                 )
+      end
     end
 
-    test "aggregates telegram delivery rows over the period" do
-      integration = insert(:telegram_integration)
+    describe "list_deliveries/4 (#{provider})" do
+      test "pages the integration's deliveries, newest first" do
+        owner = insert(unquote(owner_factory))
+        now = DateTime.utc_now()
 
-      insert(:telegram_delivery, integration: integration, response_status: 200)
+        [newest, middle, oldest] =
+          for minutes <- [1, 2, 3] do
+            insert(unquote(delivery_factory), [
+              {unquote(owner_key), owner},
+              inserted_at: DateTime.add(now, -minutes, :minute)
+            ])
+          end
 
-      insert(:telegram_delivery,
-        integration: integration,
-        response_status: 400,
-        error_message: "bad request"
-      )
+        insert(unquote(delivery_factory), [{unquote(owner_key), insert(unquote(owner_factory))}])
 
-      stats =
-        IntegrationQueries.delivery_stats(
-          Tymeslot.Telegram.TelegramDeliverySchema,
-          integration.id,
-          7
-        )
+        page = fn opts ->
+          unquote(schema)
+          |> IntegrationQueries.list_deliveries(unquote(foreign_key), owner.id, opts)
+          |> Enum.map(& &1.id)
+        end
 
-      assert stats.total == 2
-      assert stats.successful == 1
-      assert stats.failed == 1
-      assert stats.success_rate == 50.0
-      assert stats.period_days == 7
+        assert page.([]) == [newest.id, middle.id, oldest.id]
+        assert page.(limit: 1, offset: 1) == [middle.id]
+      end
     end
 
-    test "returns zero success rate when there are no deliveries" do
-      integration = insert(:slack_integration)
+    describe "cleanup_old_deliveries/2 (#{provider})" do
+      test "deletes only rows older than the retention, and nothing for a bad value" do
+        owner = insert(unquote(owner_factory))
 
-      stats =
-        IntegrationQueries.delivery_stats(
-          Tymeslot.Slack.SlackDeliverySchema,
-          integration.id,
-          7
-        )
+        old =
+          insert(unquote(delivery_factory), [
+            {unquote(owner_key), owner},
+            inserted_at: DateTime.add(DateTime.utc_now(), -31, :day)
+          ])
 
-      assert stats.total == 0
-      assert stats.success_rate == 0.0
+        recent = insert(unquote(delivery_factory), [{unquote(owner_key), owner}])
+
+        assert {0, nil} = IntegrationQueries.cleanup_old_deliveries(unquote(schema), 0)
+        assert Repo.get(unquote(schema), old.id)
+
+        assert {1, nil} = IntegrationQueries.cleanup_old_deliveries(unquote(schema), 30)
+        refute Repo.get(unquote(schema), old.id)
+        assert Repo.get(unquote(schema), recent.id)
+      end
     end
   end
 
