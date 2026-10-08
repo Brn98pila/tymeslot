@@ -10,11 +10,15 @@ defmodule Tymeslot.Infrastructure.ObanCronTest do
   import ExUnit.CaptureLog
 
   alias Config.Reader
+  alias Oban.Cron.Expression
   alias Tymeslot.Infrastructure.ObanCron
   alias Tymeslot.Workers.AdminAlertDigestWorker
   alias Tymeslot.Workers.ErrorTrackerMaintenanceWorker
   alias Tymeslot.Workers.ObanMaintenanceWorker
   alias Tymeslot.Workers.ObanQueueMonitorWorker
+
+  defp config_file(file),
+    do: [__DIR__, "..", "..", "..", "config", file] |> Path.join() |> Path.expand()
 
   defp cron_config(crontab), do: [repo: Tymeslot.Repo, cron: [crontab: crontab]]
 
@@ -25,6 +29,47 @@ defmodule Tymeslot.Infrastructure.ObanCronTest do
       {"5 3 * * *", ErrorTrackerMaintenanceWorker},
       {"0 7 * * *", AdminAlertDigestWorker}
     ]
+  end
+
+  # One crontab for dev and production: each environment only switches the
+  # cron service on, and the entries are filled in from `:oban_crontab`, so
+  # the two cannot drift apart again.
+  describe "the shared crontab" do
+    test "dev and runtime config switch cron on and leave the entries to it" do
+      dev = Reader.read!(config_file("dev.exs"), env: :dev, target: :host)
+      assert get_in(dev, [:tymeslot, Oban, :cron]) == []
+
+      # runtime.exs reads the deployment's environment and cannot be
+      # evaluated here; its Oban block must not carry a crontab of its own.
+      runtime = File.read!(config_file("runtime.exs"))
+      assert runtime =~ ~r/^\s*cron: \[\]$/m
+      refute runtime =~ ~r/^\s*\{\s*"[^"]+"\s*,\s*Tymeslot\./m
+    end
+
+    test "every entry names a loadable worker with a schedule Oban can parse" do
+      assert ObanCron.base_crontab() != []
+
+      for entry <- ObanCron.base_crontab() do
+        {schedule, worker} = {elem(entry, 0), elem(entry, 1)}
+        assert {:ok, _expression} = Expression.parse(schedule), inspect(entry)
+        assert Code.ensure_loaded?(worker), inspect(entry)
+      end
+    end
+
+    test "extend/1 fills the crontab in, Core's entries first" do
+      config = ObanCron.extend(repo: Tymeslot.Repo, cron: [])
+
+      assert config[:cron][:crontab] ==
+               ObanCron.base_crontab() ++ Application.get_env(:tymeslot, :oban_additional_crontab)
+
+      assert ObanCron.missing_workers(config) == []
+    end
+
+    test "carries the entries byte for byte, args included" do
+      assert {"0 4 * * *", Tymeslot.Workers.DataRetentionWorker, args: %{retention_days: 60}} in ObanCron.base_crontab()
+
+      assert {"15 3 * * *", Tymeslot.Workers.ExpiredSessionCleanupWorker} in ObanCron.base_crontab()
+    end
   end
 
   # The extension point a wrapper application schedules its own periodic
@@ -119,7 +164,8 @@ defmodule Tymeslot.Infrastructure.ObanCronTest do
   # rename lands, and this module is where that rename gets missed. Reading the
   # real config back and validating it is what stops the two drifting apart in
   # silence. `runtime.exs` cannot be read this way (it wants the production
-  # environment), but all three config files carry the same shape.
+  # environment), but it switches cron on with the same shape as dev, and the
+  # entries come from the one shared crontab either way.
   describe "the project's own configuration" do
     test "schedules every critical worker in a shape this module can read" do
       config =
@@ -128,6 +174,7 @@ defmodule Tymeslot.Infrastructure.ObanCronTest do
         |> Path.expand()
         |> Reader.read!(env: :dev, target: :host)
         |> get_in([:tymeslot, Oban])
+        |> ObanCron.extend()
 
       assert ObanCron.missing_workers(config) == []
     end
