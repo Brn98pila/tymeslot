@@ -160,6 +160,29 @@ defmodule Tymeslot.Meetings.MeetingCalendarQueries do
   end
 
   @doc """
+  Moves a meeting's end to `end_time`, with its duration, while its start is
+  still `start_time`. A meeting rescheduled in the meantime keeps its new
+  times: the end was read against the old ones.
+
+  Returns `{:ok, meeting}`, or `{:error, :not_found}` if no row matched.
+  """
+  @spec update_end_time(Meeting.t(), DateTime.t()) :: {:ok, Meeting.t()} | {:error, :not_found}
+  def update_end_time(%Meeting{id: id, start_time: start_time}, %DateTime{} = end_time) do
+    {count, _rows} =
+      Meeting
+      |> where([m], m.id == ^id and m.start_time == ^start_time)
+      |> Repo.update_all(
+        set: [
+          end_time: end_time,
+          duration: DateTime.diff(end_time, start_time, :minute),
+          updated_at: DateTime.utc_now(:second)
+        ]
+      )
+
+    if count > 0, do: MeetingQueries.get_meeting(id), else: {:error, :not_found}
+  end
+
+  @doc """
   Atomically updates `calendar_sync_status` only when the current value differs.
 
   Returns `{:ok, meeting}` if the row was updated, `{:ok, :already_set}` if the

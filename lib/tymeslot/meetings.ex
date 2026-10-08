@@ -478,6 +478,14 @@ defmodule Tymeslot.Meetings do
     as: :apply_change_to_meeting
 
   @doc """
+  Moves a meeting's end to the one the host gave its provider event, when the
+  host lengthened or shortened it without moving its start.
+  """
+  defdelegate apply_external_end_change(meeting, end_time),
+    to: ExternalCalendarChanges,
+    as: :apply_end_change
+
+  @doc """
   Clears an `"externally_modified"` flag on a meeting whose provider event
   agrees with it again.
 
