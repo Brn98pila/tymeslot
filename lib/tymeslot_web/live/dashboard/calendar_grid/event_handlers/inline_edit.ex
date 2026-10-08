@@ -496,6 +496,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.InlineEdit do
         event: original_event,
         optimistic_event: optimistic_event,
         recurrence_rule: new_rule,
+        # The zone the editor ended the rule's UNTIL day in, which the series'
+        # writers read the end date back in.
+        until_timezone: Shared.recurrence_timezone(original_event, socket.assigns.user_timezone),
         original_event: original_event,
         following_notes: SeriesEdit.following_notes(original_event, %{recurrence_rule: new_rule})
       }

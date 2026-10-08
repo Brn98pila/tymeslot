@@ -4,10 +4,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurrenceEndUtcSeriesLiveViewTest 
   editor, by an organiser west of UTC. Every series Tymeslot wrote before
   it wrote them in a zone is such a series, on CalDAV and Outlook alike.
 
-  The writers read the end back as a date in the series' own zone, so the
-  editor must end the day there too. Ended in the organiser's zone instead,
-  31 December in Los Angeles is 1 January in UTC, and the series silently
-  gained an occurrence on the 1st.
+  The editor ends the chosen day in a zone, and the writers read the end
+  date back in that same zone. Read in another, 31 December in Los Angeles
+  is 1 January in UTC, and the series silently gained an occurrence on the
+  1st; a Berlin series on a row reading UTC lost a day the other way.
 
   Only the HTTP client is mocked: the `:calendar_module` seam and the
   provider API modules point back at the runtime modules.
@@ -24,10 +24,13 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurrenceEndUtcSeriesLiveViewTest 
   import Tymeslot.AuthTestHelpers
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
   alias Plug.Test
+  alias Tymeslot.Integrations.Calendar.Google.CalendarAPI, as: GoogleAPI
   alias Tymeslot.Integrations.Calendar.ICalBuilder.LineFolder
   alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookAPI
+  alias Tymeslot.Repo
   alias Tymeslot.Security.Encryption
 
   setup :set_mox_global
@@ -49,13 +52,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurrenceEndUtcSeriesLiveViewTest 
 
   setup %{conn: conn} do
     swap_env(:calendar_module, Operations)
+    swap_env(:google_calendar_api_module, GoogleAPI)
     swap_env(:outlook_calendar_api_module, OutlookAPI)
 
     user = insert(:user, onboarding_completed_at: DateTime.utc_now())
-    _profile = insert(:profile, user: user, timezone: "America/Los_Angeles")
+    profile = insert(:profile, user: user, timezone: "America/Los_Angeles")
     conn = conn |> Test.init_test_session(%{}) |> fetch_session() |> log_in_user(user)
 
-    {:ok, conn: conn, user: user}
+    {:ok, conn: conn, user: user, profile: profile}
   end
 
   # The series started two weeks ago and repeats weekly at 18:00 UTC, which
@@ -159,58 +163,123 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurrenceEndUtcSeriesLiveViewTest 
            )
   end
 
-  test "an Outlook series ends on the chosen day", %{conn: conn, user: user} do
-    integration =
-      insert(:calendar_integration,
-        user: user,
-        provider: "outlook",
-        access_token_encrypted: Encryption.encrypt("valid_token"),
-        refresh_token_encrypted: Encryption.encrypt("refresh_token"),
-        token_expires_at: DateTime.add(DateTime.utc_now(), 3600),
-        oauth_scope: "https://graph.microsoft.com/Calendars.ReadWrite"
+  defp oauth_integration(user, provider, scope) do
+    insert(:calendar_integration,
+      user: user,
+      provider: provider,
+      access_token_encrypted: Encryption.encrypt("valid_token"),
+      refresh_token_encrypted: Encryption.encrypt("refresh_token"),
+      token_expires_at: DateTime.add(DateTime.utc_now(), 3600),
+      oauth_scope: scope
+    )
+  end
+
+  # A Google or Outlook row is one occurrence the sync expanded: it names its
+  # master and carries no rule.
+  defp provider_occurrence(integration, attrs) do
+    utc_row(
+      integration,
+      Map.merge(
+        %{
+          provider: integration.provider,
+          provider_calendar_id: "team-calendar",
+          provider_event_id: "occurrence-1",
+          recurring_event_id: "master-1",
+          recurrence_rule: nil
+        },
+        attrs
       )
+    )
+  end
 
-    event =
-      utc_row(integration, %{
-        provider: "outlook",
-        uid: "weekly-occurrence-today",
-        provider_calendar_id: "team-calendar",
-        provider_event_id: "occurrence-1",
-        recurring_event_id: "master-1",
-        provider_metadata: %{"type" => "occurrence"}
-      })
+  # Answers every request with `master` and sends back the body of the PATCH.
+  defp serve_master(master) do
+    test_pid = self()
 
+    stub(Tymeslot.HTTPClientMock, :request, fn method, _url, body, _headers, _opts ->
+      if method == :patch, do: send(test_pid, {:patch, Jason.decode!(body)})
+      {:ok, %Req.Response{status: 200, body: Jason.encode!(master)}}
+    end)
+  end
+
+  defp outlook_master(start_wall, zone_label) do
     first = Date.to_iso8601(first_day())
     weekday = today() |> Calendar.strftime("%A") |> String.downcase()
 
-    master = %{
+    %{
       "id" => "master-1",
       "type" => "seriesMaster",
       "subject" => "Weekly sync",
       "isAllDay" => false,
-      "start" => %{"dateTime" => "#{first}T18:00:00.0000000", "timeZone" => "UTC"},
-      "end" => %{"dateTime" => "#{first}T19:00:00.0000000", "timeZone" => "UTC"},
-      "originalStartTimeZone" => "UTC",
+      "start" => %{"dateTime" => "#{first}T#{start_wall}.0000000", "timeZone" => "UTC"},
+      "end" => %{"dateTime" => "#{first}T#{start_wall}.0000000", "timeZone" => "UTC"},
+      "originalStartTimeZone" => zone_label,
       "recurrence" => %{
         "pattern" => %{"type" => "weekly", "interval" => 1, "daysOfWeek" => [weekday]},
         "range" => %{"type" => "noEnd", "startDate" => first}
       }
     }
+  end
 
-    test_pid = self()
+  defp assert_outlook_end_date(date) do
+    assert_receive {:patch, body}, @task_timeout
+    assert %{"recurrence" => %{"range" => %{"type" => "endDate", "endDate" => end_date}}} = body
+    assert end_date == Date.to_iso8601(date)
+  end
 
-    stub(Tymeslot.HTTPClientMock, :request, fn method, _url, body, _headers, _opts ->
-      if method == :patch, do: send(test_pid, {:patch, body})
-      {:ok, %Req.Response{status: 200, body: Jason.encode!(master)}}
-    end)
+  test "a Google series ends on the chosen day in UTC", %{conn: conn, user: user} do
+    integration = oauth_integration(user, "google", "https://www.googleapis.com/auth/calendar")
+    event = provider_occurrence(integration, %{uid: "weekly_today"})
+    first = Date.to_iso8601(first_day())
+
+    serve_master(%{
+      "id" => "master-1",
+      "iCalUID" => "weekly@google.com",
+      "summary" => "Weekly sync",
+      "start" => %{"dateTime" => "#{first}T18:00:00Z", "timeZone" => "Etc/UTC"},
+      "end" => %{"dateTime" => "#{first}T19:00:00Z", "timeZone" => "Etc/UTC"},
+      "recurrence" => ["RRULE:FREQ=WEEKLY"]
+    })
 
     end_series_on(conn, event, end_day())
 
     assert_receive {:patch, body}, @task_timeout
 
-    assert %{"recurrence" => %{"range" => %{"type" => "endDate", "endDate" => end_date}}} =
-             Jason.decode!(body)
+    assert body["recurrence"] == [
+             "RRULE:FREQ=WEEKLY;UNTIL=#{Calendar.strftime(end_day(), "%Y%m%d")}T235959Z"
+           ]
+  end
 
-    assert end_date == Date.to_iso8601(end_day())
+  test "an Outlook series ends on the chosen day", %{conn: conn, user: user} do
+    integration =
+      oauth_integration(user, "outlook", "https://graph.microsoft.com/Calendars.ReadWrite")
+
+    event = provider_occurrence(integration, %{uid: "weekly-occurrence-today"})
+    serve_master(outlook_master("18:00:00", "UTC"))
+
+    end_series_on(conn, event, end_day())
+
+    assert_outlook_end_date(end_day())
+  end
+
+  # A row refreshed by a change notification reads UTC whatever the series'
+  # zone, while the master Graph returns names Berlin: the end date is read
+  # in the zone the editor ended the day in, not the master's.
+  test "an Outlook series whose row reads UTC ends on the chosen day in Berlin", %{
+    conn: conn,
+    user: user,
+    profile: profile
+  } do
+    profile |> Changeset.change(timezone: "Europe/Berlin") |> Repo.update!()
+
+    integration =
+      oauth_integration(user, "outlook", "https://graph.microsoft.com/Calendars.ReadWrite")
+
+    event = provider_occurrence(integration, %{uid: "weekly-occurrence-today"})
+    serve_master(outlook_master("18:00:00", "W. Europe Standard Time"))
+
+    end_series_on(conn, event, end_day())
+
+    assert_outlook_end_date(end_day())
   end
 end

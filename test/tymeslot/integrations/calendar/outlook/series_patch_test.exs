@@ -252,5 +252,17 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesPatchTest do
                "startDate" => "2026-06-01"
              }
     end
+
+    # The editor ended 7 December in Los Angeles, 08:00 on the 8th in Berlin.
+    # Read in the master's zone the series would run a day longer.
+    test "reads a stated end date in the zone the edit names" do
+      edit =
+        %{recurrence_rule: "FREQ=DAILY;UNTIL=20261208T075959Z"}
+        |> edit()
+        |> Map.put(:until_timezone, "America/Los_Angeles")
+
+      assert {:ok, %{"recurrence" => %{"range" => range}}} = SeriesPatch.build(@master, edit)
+      assert range["endDate"] == "2026-12-07"
+    end
   end
 end

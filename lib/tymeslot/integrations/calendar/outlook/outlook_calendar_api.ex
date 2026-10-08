@@ -32,7 +32,9 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
   @max_pages 50
 
   # Fields the event-driven sync workers need to normalise a single event.
-  @event_sync_select_fields "id,subject,start,end,iCalUId,location,bodyPreview,attendees,recurrence,seriesMasterId,type,originalStart,isAllDay,showAs"
+  # `originalStartTimeZone` is the event's own zone: with `Prefer:
+  # outlook.timezone="UTC"` every `start.timeZone` reads UTC.
+  @event_sync_select_fields "id,subject,start,end,iCalUId,location,bodyPreview,attendees,recurrence,seriesMasterId,type,originalStart,originalStartTimeZone,isAllDay,showAs"
 
   @type calendar_event :: %{
           id: String.t(),

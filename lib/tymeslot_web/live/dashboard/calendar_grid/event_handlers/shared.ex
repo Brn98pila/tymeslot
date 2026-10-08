@@ -8,6 +8,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
   alias Tymeslot.Integrations.Calendar.EventColour
   alias Tymeslot.Integrations.Calendar.ICalBuilder.TimeZoneComponent
   alias Tymeslot.Integrations.Calendar.Recurrence.RRule
+  alias Tymeslot.Integrations.Calendar.Recurrence.Series
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.Guests
   alias Tymeslot.Security.RateLimiter
@@ -217,7 +218,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
     end
   end
 
-  defp one_off?(event), do: Map.get(event, :recurrence_rule) in [nil, ""]
+  # A Google or Outlook occurrence carries no rule, only the master it
+  # belongs to.
+  defp one_off?(event), do: not Series.member?(event)
 
   @doc """
   Composes a canonical RRULE string from the recurrence editor's raw form
