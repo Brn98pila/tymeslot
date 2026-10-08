@@ -72,12 +72,12 @@ defmodule Tymeslot.Security.SecurityLogger do
 
   ## Parameters
   - `field` - The form/input field that matched (atom or string — e.g. `:name`, `:email`, `:message`)
-  - `check` - Which detection rule fired (string — e.g. `"sql_injection"`, `"path_traversal"`, `"dangerous_protocol"`)
+  - `check` - Which detection rule fired (string — e.g. `"path_traversal"`, `"dangerous_protocol"`)
   - `metadata` - Additional context (map)
 
   ## Examples
 
-      SecurityLogger.log_blocked_input(:email, "sql_injection", %{ip: "192.168.1.1"})
+      SecurityLogger.log_blocked_input(:url, "path_traversal", %{ip: "192.168.1.1"})
       SecurityLogger.log_blocked_input(:message, "dangerous_protocol", %{user_id: 123})
 
   The `field` is the specific form field whose value tripped the detection,

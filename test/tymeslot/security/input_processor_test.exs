@@ -249,7 +249,7 @@ defmodule Tymeslot.Security.InputProcessorTest do
     test "other fields in the same form are still sanitised strictly" do
       assert {:ok, %{"email" => "jean--paul@example.com", "name" => "Jean"}} =
                InputProcessor.validate_form(
-                 %{"email" => "jean--paul@example.com", "name" => "Jean--x"},
+                 %{"email" => "jean--paul@example.com", "name" => "<b>Jean</b>"},
                  [{"email", :email}, {"name", :name}],
                  universal_opts: [log_events: false]
                )

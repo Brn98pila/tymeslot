@@ -389,11 +389,11 @@ defmodule Tymeslot.Integrations.Calendar.CreationTest do
       # `:metadata` is request provenance for the security log, not a
       # rate-limiting key — the only place it shows up is the entry
       # `SecurityLogger.log_blocked_input/3` writes when a field is sanitised.
-      # The name below trips the SQL-injection check, which is what makes
+      # The name below trips the path-traversal check, which is what makes
       # that entry appear and the IP observable. (Not the username: a login is
       # a credential, checked but never rewritten, so it is never sanitised.)
       params = %{
-        "name" => "Test' OR 1=1 --",
+        "name" => "Test ../../etc",
         "provider" => "caldav",
         "url" => "https://example.com",
         "username" => "admin",
