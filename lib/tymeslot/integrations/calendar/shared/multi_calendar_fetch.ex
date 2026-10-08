@@ -155,11 +155,19 @@ defmodule Tymeslot.Integrations.Calendar.Shared.MultiCalendarFetch do
         :ok
 
       # The integration can be gone (or no longer readable) by the time the
-      # read ends; the events read from it are still answered.
-      {:error, reason} ->
+      # read ends, a race with nothing left to fix; the events read from it
+      # are still answered.
+      {:error, :not_found} ->
+        Logger.info("Integration gone before missing calendars could be de-selected",
+          calendar_integration_id: integration.id
+        )
+
+        :ok
+
+      {:error, %Ecto.Changeset{errors: errors}} ->
         Logger.error("Failed to de-select missing calendars",
           calendar_integration_id: integration.id,
-          error: LogFormat.reason(error_detail(reason))
+          error: LogFormat.reason(errors)
         )
 
         :ok
@@ -167,7 +175,4 @@ defmodule Tymeslot.Integrations.Calendar.Shared.MultiCalendarFetch do
   end
 
   defp do_deselect(_integration, _missing_ids), do: :ok
-
-  defp error_detail(%Ecto.Changeset{errors: errors}), do: errors
-  defp error_detail(reason), do: reason
 end
