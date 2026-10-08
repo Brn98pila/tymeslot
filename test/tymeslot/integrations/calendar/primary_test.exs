@@ -15,14 +15,20 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
     %{user: user}
   end
 
-  defp insert_subscription(user) do
-    insert(:calendar_integration,
-      user: user,
-      provider: "ics_url",
-      base_url: "https://feeds.example.com",
-      username_encrypted: nil,
-      password_encrypted: nil,
-      subscription_url_encrypted: Encryption.encrypt("https://feeds.example.com/feed.ics")
+  defp insert_subscription(user, attrs \\ []) do
+    insert(
+      :calendar_integration,
+      Keyword.merge(
+        [
+          user: user,
+          provider: "ics_url",
+          base_url: "https://feeds.example.com",
+          username_encrypted: nil,
+          password_encrypted: nil,
+          subscription_url_encrypted: Encryption.encrypt("https://feeds.example.com/feed.ics")
+        ],
+        attrs
+      )
     )
   end
 
@@ -85,9 +91,9 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
     end
 
     test "a subscription never becomes the primary", %{user: user} do
-      subscription = insert_subscription(user)
+      subscription = insert_subscription(user, is_active: false)
 
-      :ok = CalendarManagement.ensure_primary_on_activate(subscription)
+      {:ok, _active} = CalendarManagement.toggle_with_primary_rebalance(subscription)
 
       assert stored_primary_id(user) == nil
     end
@@ -108,6 +114,54 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       Repo.delete!(integration)
 
       assert {:error, :not_found} = CalendarManagement.toggle_with_primary_rebalance(integration)
+    end
+  end
+
+  describe "reconnecting through the provider's sign-in" do
+    test "reactivates a paused calendar and makes it the primary when there is none",
+         %{user: user} do
+      paused =
+        insert(:calendar_integration,
+          user: user,
+          provider: "google",
+          provider_account_id: "acct-1",
+          is_active: false
+        )
+
+      assert {:ok, reconnected} =
+               CalendarManagement.reconnect_integration(paused, %{
+                 access_token: "fresh",
+                 is_active: true
+               })
+
+      assert reconnected.is_active
+      assert stored_primary_id(user) == paused.id
+    end
+
+    test "refuses to reactivate a calendar whose account another active one uses",
+         %{user: user} do
+      _active =
+        insert(:calendar_integration,
+          user: user,
+          provider: "google",
+          provider_account_id: "acct-1"
+        )
+
+      paused =
+        insert(:calendar_integration,
+          user: user,
+          provider: "google",
+          provider_account_id: "acct-1",
+          is_active: false
+        )
+
+      assert {:error, :duplicate_account} =
+               CalendarManagement.reconnect_integration(paused, %{
+                 access_token: "fresh",
+                 is_active: true
+               })
+
+      refute Repo.reload!(paused).is_active
     end
   end
 

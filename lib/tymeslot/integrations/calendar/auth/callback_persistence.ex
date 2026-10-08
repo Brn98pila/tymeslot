@@ -156,12 +156,11 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
   # failing must not be paused again by the auto-pause sweep for failures from
   # before it. A reconnect can also reactivate an integration that was paused,
   # which may have been the user's only calendar and so lost its place as the
-  # primary; the activation rule adopts it again.
+  # primary; the activation rule adopts it again, under the primary lock and
+  # before discovery goes to the network.
   defp reconnect(existing, token_attrs, discovery \\ :if_unlisted) do
-    with {:ok, updated} <- CalendarManagement.update_calendar_integration(existing, token_attrs),
-         {:ok, configured} <- discover(updated, discovery) do
-      if configured.is_active, do: CalendarManagement.ensure_primary_on_activate(configured)
-      {:ok, configured}
+    with {:ok, updated} <- CalendarManagement.reconnect_integration(existing, token_attrs) do
+      discover(updated, discovery)
     end
   end
 

@@ -481,18 +481,45 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   defp maybe_rebalance_primary(_updated, _current_primary_id), do: :ok
 
   @doc """
-  Adopts a just-activated integration as the user's primary calendar when
-  they have none, or the one they have is inactive or gone, under the primary
-  lock. For a path that activates an integration outside a toggle: an OAuth
-  reconnect, which reactivates an integration that was paused. Call it after
-  any provider round trip, never around one, so the lock is not held across
-  HTTP. See `PrimaryElection.adopt_if_vacant/1` for the rule.
-  """
-  @spec ensure_primary_on_activate(CalendarIntegrationSchema.t()) :: :ok
-  def ensure_primary_on_activate(%{user_id: user_id} = integration) do
-    {:ok, _outcome} =
-      PrimaryElection.under_lock(user_id, fn -> PrimaryElection.adopt_if_vacant(integration) end)
+  Writes the tokens an OAuth reconnect has just proved and activates the
+  integration, then adopts it as the user's primary calendar when they have
+  no active one, all under the primary lock, so every activation is decided
+  there (see `Tymeslot.Integrations.Calendar.PrimaryElection`).
 
-    :ok
+  Acts on the row as it stands. Reactivating a paused row is refused with
+  `{:error, :duplicate_account}` when another active integration already uses
+  the same account, as switching it back on would be. Call it after the
+  provider round trip, never around one, so the lock is not held across HTTP.
+  """
+  @spec reconnect_integration(CalendarIntegrationSchema.t(), integration_attrs()) ::
+          {:ok, CalendarIntegrationSchema.t()}
+          | {:error, :not_found | :duplicate_account | Ecto.Changeset.t()}
+  def reconnect_integration(%CalendarIntegrationSchema{} = integration, attrs) do
+    PrimaryElection.under_lock(integration.user_id, fn ->
+      with {:ok, stored} <- stored_for_reconnect(integration),
+           :ok <- reactivation_allowed(stored, attrs),
+           {:ok, updated} <- update_calendar_integration(stored, attrs) do
+        if updated.is_active, do: PrimaryElection.adopt_if_vacant(updated)
+        updated
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
   end
+
+  # Decrypted when it can be, so the reconnected struct still carries any
+  # credential the provider did not send again; as stored when it cannot,
+  # since a reconnect is how an unreadable integration is repaired.
+  defp stored_for_reconnect(%{id: id}) do
+    case CalendarIntegrationQueries.get(id) do
+      {:ok, integration} -> {:ok, integration}
+      {:error, :requires_reencryption, stored} -> {:ok, stored}
+      {:error, :not_found} -> {:error, :not_found}
+    end
+  end
+
+  defp reactivation_allowed(%{is_active: false} = stored, %{is_active: true}),
+    do: CalendarIntegrationQueries.check_reactivation_conflict(stored)
+
+  defp reactivation_allowed(_stored, _attrs), do: :ok
 end

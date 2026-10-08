@@ -497,7 +497,9 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   # whose account id is the empty string falls under the account index, because
   # `''` is not NULL. Waving both through returned `:ok` for exactly the rows
   # that contend, with no concurrency involved at all.
-  defp check_reactivation_conflict(%{provider_account_id: nil} = integration) do
+  @spec check_reactivation_conflict(CalendarIntegrationSchema.t()) ::
+          :ok | {:error, :duplicate_account}
+  def check_reactivation_conflict(%{provider_account_id: nil} = integration) do
     if active_null_account_exists?(integration.user_id, integration.provider) do
       {:error, :duplicate_account}
     else
@@ -505,7 +507,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
     end
   end
 
-  defp check_reactivation_conflict(integration) do
+  def check_reactivation_conflict(integration) do
     if active_account_exists?(
          integration.user_id,
          integration.provider,
