@@ -1,7 +1,9 @@
 defmodule TymeslotWeb.Test.JourneyFixtures.Wrapper do
   @moduledoc """
-  The journey fixtures' wrappers: the shared `ThemeShell` with no background,
-  one function per fixture so each passes its own theme id and wrapper class.
+  The journey fixtures' wrappers: the shared `ThemeShell` with no background
+  and no page grid, the chrome, the moments and the theme extensions straight
+  inside the booker root; one function per fixture so each passes its own
+  theme id and wrapper class.
   """
   use Phoenix.Component
 
@@ -43,21 +45,21 @@ defmodule TymeslotWeb.Test.JourneyFixtures.Wrapper do
       |> assign(theme_id: theme_id, wrapper_class: class)
 
     ~H"""
-    <ThemeShell.theme_shell
-      class={@wrapper_class}
-      grid_class="journey-fixture-grid"
-      language_class="journey-fixture-language"
-      theme_id={@theme_id}
-      theme_tokens={@theme_tokens}
-      locale={@locale}
-      language_dropdown_open={@language_dropdown_open}
-      show_language_switcher={@show_language_switcher}
-      owner_preview={@owner_preview}
-      organizer_user_id={@organizer_user_id}
-      should_show_branding={@should_show_branding}
-      {Map.take(assigns, [:demo_mode])}
-    >
+    <ThemeShell.theme_shell class={@wrapper_class} locale={@locale} theme_tokens={@theme_tokens}>
+      <ThemeShell.chrome
+        language_class="journey-fixture-language"
+        locale={@locale}
+        language_dropdown_open={@language_dropdown_open}
+        show_language_switcher={@show_language_switcher}
+        owner_preview={@owner_preview}
+      />
       {render_slot(@inner_block)}
+      <ThemeShell.extensions
+        theme_id={@theme_id}
+        organizer_user_id={@organizer_user_id}
+        should_show_branding={@should_show_branding}
+        {Map.take(assigns, [:demo_mode])}
+      />
     </ThemeShell.theme_shell>
     """
   end
