@@ -68,17 +68,12 @@ defmodule TymeslotWeb.Themes.Shared.VoiceTest do
     # A line that used a binding its key does not provide would raise only
     # on the page, in the one locale and the one state that reaches it.
     test "answer every key, given its bindings, with a line or nil" do
-      voices =
-        ThemeTestMatrix.registered_ids()
-        |> Enum.map(&ThemeInfo.get_voice/1)
-        |> Enum.reject(&is_nil/1)
-
+      voices = registered_voices()
       assert voices != []
 
       answers =
         for voice <- voices, key <- Voice.keys() do
-          bindings = Map.new(Voice.bindings(key), &{&1, "Sam"})
-          {voice, key, voice.text(key, bindings)}
+          {voice, key, voice.text(key, bindings_for(key))}
         end
 
       assert Enum.reject(answers, fn {_voice, _key, text} ->
@@ -87,7 +82,23 @@ defmodule TymeslotWeb.Themes.Shared.VoiceTest do
     end
 
     test "each words at least one line, so naming one is never a no-op" do
-      assert Enum.any?(Voice.keys(), &(FixtureVoice.text(&1, %{name: "Sam"}) != nil))
+      voices = registered_voices()
+      assert voices != []
+
+      silent =
+        Enum.reject(voices, fn voice ->
+          Enum.any?(Voice.keys(), &(voice.text(&1, bindings_for(&1)) != nil))
+        end)
+
+      assert silent == []
     end
   end
+
+  defp registered_voices do
+    ThemeTestMatrix.registered_ids()
+    |> Enum.map(&ThemeInfo.get_voice/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp bindings_for(key), do: Map.new(Voice.bindings(key), &{&1, "Sam"})
 end

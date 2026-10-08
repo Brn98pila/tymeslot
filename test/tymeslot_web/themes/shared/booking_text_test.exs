@@ -180,8 +180,9 @@ defmodule TymeslotWeb.Themes.Shared.BookingTextTest do
   end
 
   describe "a theme's voice" do
-    # The fixture theme's voice words the heading; the showcase theme has no
-    # voice. Both are test-only themes with the :generic heading style.
+    # The fixture theme's voice words the heading, greeting and instruction;
+    # the showcase theme has no voice. Both are test-only themes with the
+    # :generic heading style.
     test "words the default heading of the theme that has it" do
       assert BookingText.default_heading(:fixture, "Sam") == "Book a time"
       assert BookingText.default_heading(:showcase, "Sam") == "Let's Connect!"
@@ -194,11 +195,24 @@ defmodule TymeslotWeb.Themes.Shared.BookingTextTest do
                "Mine"
     end
 
-    test "leaves the lines it does not word to the shared wording" do
-      assert BookingText.default_greeting("Sam", :fixture) == "Hi! I'm Sam."
-      assert BookingText.default_instruction(:fixture) == "Pick an option below."
-      assert BookingText.greeting(build(:profile), "Sam", :fixture) == "Hi! I'm Sam."
-      assert BookingText.instruction(build(:profile), :fixture) == "Pick an option below."
+    test "words the default greeting and instruction of the theme that has it" do
+      assert BookingText.default_greeting("Sam", :fixture) == "Hello, Sam here."
+      assert BookingText.default_instruction(:fixture) == "Choose a meeting to start."
+      assert BookingText.default_greeting("Sam", :showcase) == "Hi! I'm Sam."
+      assert BookingText.default_instruction(:showcase) == "Pick an option below."
+    end
+
+    test "reaches the greeting and instruction only while the organiser has no wording of their own" do
+      assert BookingText.greeting(build(:profile), "Sam", :fixture) == "Hello, Sam here."
+      assert BookingText.instruction(build(:profile), :fixture) == "Choose a meeting to start."
+
+      own = customized(booking_greeting: "Hey", booking_instruction: "Pick one")
+      assert BookingText.greeting(own, "Sam", :fixture) == "Hey"
+      assert BookingText.instruction(own, :fixture) == "Pick one"
+    end
+
+    test "still drops the greeting when there is no name to introduce" do
+      assert BookingText.default_greeting(nil, :fixture) == nil
     end
   end
 

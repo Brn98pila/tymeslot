@@ -3,7 +3,7 @@ defmodule TymeslotWeb.Test.FixtureTheme.Theme do
   A test-only booking theme, registered by `config/test.exs` through
   `:extra_themes`. It is shaped unlike Quill and Rhythm on purpose (a light
   palette with no presets, no background, an option group, a dashboard panel
-  and an event of its own) and a voice of its own for three shared booking
+  and an event of its own) and a voice of its own for five shared booking
   lines, and has no stylesheet; `theme_openness_test.exs` uses it to prove a
   new theme attaches without editing shared code. It
   borrows Quill's preview image, since the contract test wants one that
