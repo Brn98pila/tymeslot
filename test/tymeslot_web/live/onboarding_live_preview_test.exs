@@ -334,6 +334,51 @@ defmodule TymeslotWeb.OnboardingLivePreviewTest do
                "[data-testid='theme-story'][phx-value-theme='2'][aria-pressed='true']"
              )
     end
+
+    test "a thumbnail picked from every theme's look saves its theme and stays shown across steps",
+         %{conn: conn} do
+      {:ok, view, _html, user} = setup_onboarding_with_calendar(conn)
+      view = goto_choose_theme(view)
+
+      view |> element("button[phx-click='show_all_themes']") |> render_click()
+      view |> element("[data-testid='theme-thumbnail'][phx-value-theme='2']") |> render_click()
+
+      {:ok, profile} = Profiles.get_or_create_profile(user.id)
+      assert profile.booking_theme == "2"
+
+      view |> element("button[phx-click='next_step']") |> render_click()
+      refute has_element?(view, "[data-testid='theme-thumbnail']")
+
+      view |> element("button[phx-click='previous_step']") |> render_click()
+
+      assert has_element?(
+               view,
+               "[data-testid='theme-thumbnail'][phx-value-theme='2'][aria-pressed='true']"
+             )
+
+      refute has_element?(view, "[data-testid='theme-story']")
+    end
+
+    test "each picker groups its buttons under the question it asks", %{conn: conn} do
+      {:ok, view, _html, _user} = setup_onboarding_with_calendar(conn)
+      view = goto_choose_theme(view)
+
+      assert has_element?(view, "#theme-story-question", "Which of these sounds like you?")
+
+      assert has_element?(
+               view,
+               "[role='group'][aria-labelledby='theme-story-question'] [data-testid='theme-story']"
+             )
+
+      view |> element("button[phx-click='show_all_themes']") |> render_click()
+
+      assert has_element?(view, "#theme-look-question", "Pick the look and feel")
+
+      assert has_element?(
+               view,
+               "[role='group'][aria-labelledby='theme-look-question'] [data-testid='theme-thumbnail']"
+             )
+    end
   end
 
   describe "avatar upload" do

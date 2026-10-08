@@ -68,10 +68,10 @@ defmodule TymeslotWeb.OnboardingLive.ChooseThemeStep do
            recognise, not a screenshot --%>
       <div :if={@picker == :stories} class="onboarding-form-group">
         <label class="label">{dgettext("onboarding_wizard", "Your booking theme")}</label>
-        <p class="onboarding-form-helper">
+        <p id="theme-story-question" class="onboarding-form-helper">
           {dgettext("onboarding_wizard", "Which of these sounds like you?")}
         </p>
-        <div class="flex flex-col gap-3">
+        <div role="group" aria-labelledby="theme-story-question" class="flex flex-col gap-3">
           <button
             :for={story <- @stories}
             type="button"
@@ -111,15 +111,16 @@ defmodule TymeslotWeb.OnboardingLive.ChooseThemeStep do
       <%!-- Booking theme, by look: every theme's thumbnail --%>
       <div :if={@picker == :all} class="onboarding-form-group">
         <label class="label">{dgettext("onboarding_wizard", "Your booking theme")}</label>
-        <p class="onboarding-form-helper">
+        <p id="theme-look-question" class="onboarding-form-helper">
           {dgettext("onboarding_wizard", "Pick the look and feel invitees see on your booking page.")}
         </p>
-        <div class="grid grid-cols-2 gap-3">
+        <div role="group" aria-labelledby="theme-look-question" class="grid grid-cols-2 gap-3">
           <button
             :for={{name, id} <- @theme_options}
             type="button"
             phx-click="select_theme"
             phx-value-theme={id}
+            data-testid="theme-thumbnail"
             aria-pressed={to_string(theme_selected?(@profile, id))}
             class={[
               "p-3 rounded-token-xl border-2 flex flex-col gap-2 transition-colors",
