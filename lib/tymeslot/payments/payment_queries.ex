@@ -93,7 +93,7 @@ defmodule Tymeslot.Payments.PaymentQueries do
   regardless of subscription.
 
   Used by `Payments.CustomerLookup.find_user_id/1` as the last-resort step
-  when no `subscription_schema` is configured (Core standalone) to
+  when no subscription manager is configured (Core standalone) to
   attribute an invoice to a user via a Stripe customer id. Restricted to
   `completed` rows: a `pending` or `failed` transaction was never charged,
   so it is not a reliable ownership signal.

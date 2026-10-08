@@ -122,54 +122,10 @@ config :tymeslot, Oban,
   # Matches production: a shorter window here would exercise a rescue the
   # deployed system never performs. See `Tymeslot.Infrastructure.ObanRescue`.
   lifeline: [rescue_after: {6, :hours}],
-  cron: [
-    crontab: [
-      # Run every 30 minutes
-      {"*/30 * * * *", Tymeslot.Workers.ObanMaintenanceWorker},
-      # Run hourly, ten minutes past: refresh calendar OAuth tokens expiring
-      # within two hours, ahead of the first API call to need them
-      {"10 * * * *", Tymeslot.Integrations.Calendar.TokenRefreshJob},
-      # Run every hour at the top of the hour
-      {"0 * * * *", Tymeslot.Workers.ObanQueueMonitorWorker},
-      # Run hourly, five minutes past, so the hour it evaluates is complete:
-      # aggregate calendar integration health alerting
-      {"5 * * * *", Tymeslot.Workers.IntegrationHealthAlertWorker},
-      # Run daily at 02:45 UTC
-      {"45 2 * * *", Tymeslot.Workers.VideoRoomRecoveryScanWorker},
-      # Run daily at 03:45 UTC to clean up cancelled meetings' orphaned rooms
-      {"45 3 * * *", Tymeslot.Workers.OrphanedVideoRoomScanWorker},
-      # Run daily at 04:15 UTC to delete video rooms that outlived their meeting
-      {"15 4 * * *", Tymeslot.Workers.ExpiredVideoRoomCleanupWorker},
-      # Run daily at 02:00 UTC to renew expiring webhook channels
-      {"0 2 * * *", Tymeslot.Workers.RenewWebhookChannelsWorker},
-      # Run daily at 04:00 UTC
-      {"0 4 * * *", Tymeslot.Workers.DataRetentionWorker, args: %{retention_days: 60}},
-      # Run every 6 hours to detect silent/dead webhook channels
-      {"0 */6 * * *", Tymeslot.Workers.DeadChannelAlertWorker},
-      # Run every 15 min; CalDAV tier-aware filtering decides which integrations sync
-      {"*/15 * * * *", Tymeslot.Workers.FallbackSyncSweepWorker},
-      # Run daily at 03:30 UTC to prune old/inactive calendar event cache
-      {"30 3 * * *", Tymeslot.Workers.CalendarCachePruneWorker},
-      # Run daily at 05:30 UTC to flag Zoom grants missing a scope Tymeslot needs
-      {"30 5 * * *", Tymeslot.Workers.ZoomScopeAuditWorker},
-      # Run daily at 05:00 UTC to auto-pause integrations stuck unhealthy past the configured cutoff
-      {"0 5 * * *", Tymeslot.Workers.IntegrationAutoPauseWorker},
-      # Run every 15 min to reconcile awaiting_payment meetings whose webhook never arrived
-      {"*/15 * * * *", Tymeslot.MeetingPayments.Workers.ReconcileAwaitingPayments},
-      # Run daily at 04:30 UTC to cross-check booking analytics against bookings
-      {"30 4 * * *", Tymeslot.Workers.AnalyticsReconciliationWorker},
-      # Run every 15 min to release approval requests whose deadline passed
-      # and whose per-meeting expiry job never fired
-      {"*/15 * * * *", Tymeslot.Meetings.Workers.ApprovalSweepWorker},
-      # Run daily at 03:05 UTC to resolve quiet errors and prune old ones
-      {"5 3 * * *", Tymeslot.Workers.ErrorTrackerMaintenanceWorker},
-      # Run daily at 07:00 UTC to email the digest of info-severity admin alerts
-      {"0 7 * * *", Tymeslot.Workers.AdminAlertDigestWorker},
-      # Run daily at 04:20 UTC to queue any account deletion that is overdue
-      # because its own job was lost or gave up
-      {"20 4 * * *", Tymeslot.Workers.AccountDeletionSweepWorker}
-    ]
-  ]
+  # The crontab itself is `:oban_crontab` in config.exs, shared with
+  # production; `Tymeslot.Infrastructure.ObanCron.extend/1` fills it in at
+  # startup.
+  cron: []
 
 # Enable swoosh api client
 config :swoosh, :api_client, Swoosh.ApiClient.Hackney
