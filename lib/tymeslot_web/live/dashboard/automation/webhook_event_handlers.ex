@@ -6,7 +6,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  import Phoenix.Component, only: [assign: 3]
+  import Phoenix.Component, only: [assign: 2, assign: 3]
 
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Webhooks
@@ -224,20 +224,16 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
   @spec handle_show_deliveries(map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_show_deliveries(%{"id" => id}, socket) do
-    case AutomationHelpers.get_webhook_for_user(socket, id) do
-      {:ok, webhook} ->
-        user_id = socket.assigns.current_user.id
-        {:ok, deliveries} = Webhooks.list_deliveries(user_id, webhook.id, limit: 50)
-        {:ok, stats} = Webhooks.get_delivery_stats(user_id, webhook.id, days: 7)
+    user_id = socket.assigns.current_user.id
 
+    case Webhooks.delivery_log(user_id, AutomationHelpers.parse_id(id), limit: 50, days: 7) do
+      {:ok, %{webhook: webhook, deliveries: deliveries, stats: stats}} ->
         {:noreply,
          socket
          |> ModalHook.show_modal(:deliveries)
-         |> assign(:selected_webhook, webhook)
-         |> assign(:deliveries, deliveries)
-         |> assign(:delivery_stats, stats)}
+         |> assign(selected_webhook: webhook, deliveries: deliveries, delivery_stats: stats)}
 
-      {:error, _reason} ->
+      {:error, :not_found} ->
         Flash.error(dgettext("dashboard_automation", "Webhook not found"))
         {:noreply, socket}
     end

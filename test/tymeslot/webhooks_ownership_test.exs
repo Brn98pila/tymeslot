@@ -32,8 +32,7 @@ defmodule Tymeslot.WebhooksOwnershipTest do
       assert {:error, :not_found} = Webhooks.update_webhook(user_id, id, %{name: "Mine now"})
       assert {:error, :not_found} = Webhooks.toggle_webhook(user_id, id)
       assert {:error, :not_found} = Webhooks.regenerate_token(user_id, id)
-      assert {:error, :not_found} = Webhooks.list_deliveries(user_id, id, [])
-      assert {:error, :not_found} = Webhooks.get_delivery_stats(user_id, id, [])
+      assert {:error, :not_found} = Webhooks.delivery_log(user_id, id)
       assert {:error, :not_found} = Webhooks.delete_webhook(user_id, id)
 
       unchanged = Repo.get!(WebhookSchema, id)
@@ -43,8 +42,10 @@ defmodule Tymeslot.WebhooksOwnershipTest do
     end
 
     test "is still the owner's to read", %{webhook: webhook} do
-      assert {:ok, [_delivery]} = Webhooks.list_deliveries(webhook.user_id, webhook.id, [])
-      assert {:ok, %{total: 1}} = Webhooks.get_delivery_stats(webhook.user_id, webhook.id, [])
+      assert {:ok, %{webhook: %{id: id}, deliveries: [_delivery], stats: %{total: 1}}} =
+               Webhooks.delivery_log(webhook.user_id, webhook.id)
+
+      assert id == webhook.id
     end
   end
 end

@@ -346,6 +346,24 @@ defmodule TymeslotWeb.Dashboard.Automation.AutomationIntegrationTest do
       assert html =~ "Success"
       assert html =~ "Failed"
     end
+
+    test "answers a webhook deleted from another tab with a message, not a crash", %{
+      conn: conn,
+      user: user,
+      webhook: webhook
+    } do
+      {:ok, view, _html} = live(conn, "/dashboard/automation")
+
+      # Another tab deletes it after this one rendered the list.
+      {:ok, _deleted} = Webhooks.delete_webhook(user.id, webhook.id)
+
+      view
+      |> element("button[title='View Delivery Logs']")
+      |> render_click()
+
+      assert render(view) =~ "Webhook not found"
+      assert Process.alive?(view.pid)
+    end
   end
 
   describe "Server-side feature gating" do

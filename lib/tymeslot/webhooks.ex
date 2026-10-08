@@ -338,28 +338,37 @@ defmodule Tymeslot.Webhooks do
   # ============================================================================
 
   @doc """
-  Lists the deliveries of one of `user_id`'s webhooks, newest first, with
-  pagination (`:limit`, `:offset`).
-  """
-  @spec list_deliveries(integer(), integer(), keyword()) ::
-          {:ok, [WebhookDeliverySchema.t()]} | {:error, :not_found}
-  def list_deliveries(user_id, webhook_id, opts) do
-    with_webhook(user_id, webhook_id, &{:ok, WebhookQueries.list_deliveries(&1.id, opts)})
-  end
+  One of `user_id`'s webhooks with its delivery log: the latest deliveries,
+  newest first, and the delivery statistics, from a single lookup of the
+  webhook.
 
-  @doc "Delivery statistics for one of `user_id`'s webhooks (`:days`, default 7)."
-  @spec get_delivery_stats(integer(), integer(), keyword()) ::
+  Options: `:limit` (deliveries, default 50), `:offset` (default 0) and
+  `:days` (the statistics period, default 7).
+  """
+  @spec delivery_log(integer(), integer(), keyword()) ::
           {:ok,
            %{
-             required(:total) => non_neg_integer(),
-             required(:successful) => non_neg_integer(),
-             required(:failed) => non_neg_integer(),
-             required(:success_rate) => float(),
-             required(:period_days) => non_neg_integer()
+             webhook: WebhookSchema.t(),
+             deliveries: [WebhookDeliverySchema.t()],
+             stats: %{
+               required(:total) => non_neg_integer(),
+               required(:successful) => non_neg_integer(),
+               required(:failed) => non_neg_integer(),
+               required(:success_rate) => float(),
+               required(:period_days) => non_neg_integer()
+             }
            }}
           | {:error, :not_found}
-  def get_delivery_stats(user_id, webhook_id, opts) do
-    with_webhook(user_id, webhook_id, &{:ok, WebhookQueries.get_delivery_stats(&1.id, opts)})
+  def delivery_log(user_id, webhook_id, opts \\ []) do
+    with_webhook(user_id, webhook_id, fn webhook ->
+      {:ok,
+       %{
+         webhook: WebhookSchema.decrypt_token(webhook),
+         deliveries:
+           WebhookQueries.list_deliveries(webhook.id, Keyword.take(opts, [:limit, :offset])),
+         stats: WebhookQueries.get_delivery_stats(webhook.id, Keyword.take(opts, [:days]))
+       }}
+    end)
   end
 
   # ============================================================================
