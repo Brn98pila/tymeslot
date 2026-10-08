@@ -20,6 +20,10 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Shared.ConnectionLabels 
   # comes back unchanged.
   @reason_domains ~w[dashboard_calendar_providers dashboard_integrations dashboard_video]
 
+  @doc "The gettext domains a stored reason is looked up in, as a msgid."
+  @spec reason_domains() :: [String.t()]
+  def reason_domains, do: @reason_domains
+
   @doc """
   The reason an integration awaiting reconnection was flagged, for the card's
   `notice`, or `nil` when it is not flagged or no reason was recorded.

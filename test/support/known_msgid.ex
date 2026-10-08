@@ -13,18 +13,17 @@ defmodule Tymeslot.Test.KnownMsgid do
 
   alias Expo.Message.Singular
   alias Expo.PO
-
-  # The domains `ConnectionLabels` looks a stored reason up in.
-  @reason_domains ~w[dashboard_calendar_providers dashboard_integrations dashboard_video]
+  alias TymeslotWeb.Components.Dashboard.Integrations.Shared.ConnectionLabels
 
   @spec known?(String.t()) :: boolean()
   def known?(string) when is_binary(string), do: MapSet.member?(msgids(), string)
 
   defp msgids do
-    for domain <- @reason_domains,
-        %Singular{msgid: msgid} <-
-          PO.parse_file!("priv/gettext/#{domain}.pot").messages,
+    for domain <- ConnectionLabels.reason_domains(),
+        %Singular{msgid: msgid} <- PO.parse_file!(template(domain)).messages,
         into: MapSet.new(),
         do: IO.iodata_to_binary(msgid)
   end
+
+  defp template(domain), do: Application.app_dir(:tymeslot, "priv/gettext/#{domain}.pot")
 end

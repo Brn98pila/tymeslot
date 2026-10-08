@@ -30,8 +30,9 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Errors do
   owner. String reasons and unrecognised terms therefore collapse to a
   generic sentence rather than being shown or inspected.
 
-  Kept as functions rather than a module attribute: a `dgettext/2` call in an
-  attribute would freeze the locale at compile time.
+  The answer is the untranslated msgid (`dgettext_noop/2`), whatever the
+  locale of the process asking: translating here would store the locale of
+  the job that failed, not the owner's.
   """
   @spec describe_error(Base.error_reason() | term()) :: String.t()
   # The XML parsers' failures are the one family of string reasons with a
@@ -43,74 +44,74 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Errors do
   # The status stays in the logs `Http` writes; the sentence is fixed so that
   # it can be translated where it is shown.
   def describe_error({:unexpected_status, _status}),
-    do: dgettext("dashboard_calendar_providers", "The calendar server refused the request.")
+    do: dgettext_noop("dashboard_calendar_providers", "The calendar server refused the request.")
 
   def describe_error(:unauthorized),
     do:
-      dgettext(
+      dgettext_noop(
         "dashboard_calendar_providers",
         "The calendar server rejected the stored credentials. Please reconnect the calendar."
       )
 
   def describe_error(:forbidden),
     do:
-      dgettext(
+      dgettext_noop(
         "dashboard_calendar_providers",
         "The calendar server refused access to this calendar."
       )
 
   def describe_error(:not_found),
     do:
-      dgettext(
+      dgettext_noop(
         "dashboard_calendar_providers",
         "The event no longer exists on the calendar server."
       )
 
   def describe_error(:method_not_allowed),
     do:
-      dgettext(
+      dgettext_noop(
         "dashboard_calendar_providers",
         "The calendar server answered this address but does not accept calendar requests there. Please check the server URL."
       )
 
   def describe_error(:precondition_failed),
     do:
-      dgettext(
+      dgettext_noop(
         "dashboard_calendar_providers",
         "The event changed on the calendar server since Tymeslot last synced it."
       )
 
   def describe_error(:rate_limited),
     do:
-      dgettext(
+      dgettext_noop(
         "dashboard_calendar_providers",
         "The calendar server is rate-limiting Tymeslot. Tymeslot will retry automatically."
       )
 
   def describe_error(:network_error),
     do:
-      dgettext(
+      dgettext_noop(
         "dashboard_calendar_providers",
         "Tymeslot could not reach the calendar server. Tymeslot will retry automatically."
       )
 
   def describe_error(:invalid_response),
     do:
-      dgettext(
+      dgettext_noop(
         "dashboard_calendar_providers",
         "The calendar server returned a response Tymeslot could not understand."
       )
 
   def describe_error(:response_too_large),
     do:
-      dgettext(
+      dgettext_noop(
         "dashboard_calendar_providers",
         "The calendar server returned more data than Tymeslot can process at once."
       )
 
   def describe_error(:server_error),
     do:
-      dgettext(
+      dgettext_noop(
         "dashboard_calendar_providers",
         "The calendar server reported an error. Tymeslot will retry automatically."
       )
@@ -119,14 +120,14 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Errors do
 
   def describe_error(:server_unresponsive),
     do:
-      dgettext(
+      dgettext_noop(
         "dashboard_calendar_providers",
         "The calendar server did not respond. Tymeslot will retry automatically."
       )
 
   def describe_error(:timeout),
     do:
-      dgettext(
+      dgettext_noop(
         "dashboard_calendar_providers",
         "The calendar server took too long to respond. Tymeslot will retry automatically."
       )
@@ -134,7 +135,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Errors do
   def describe_error(_other), do: unknown_error_description()
 
   defp unknown_error_description do
-    dgettext(
+    dgettext_noop(
       "dashboard_calendar_providers",
       "Tymeslot could not complete the request against the calendar server."
     )

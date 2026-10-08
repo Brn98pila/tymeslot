@@ -69,6 +69,16 @@ defmodule Tymeslot.Integrations.Calendar.SyncErrorMessagesTest do
     end
   end
 
+  # A job running in another locale still stores the English msgid, which
+  # the card then translates into the owner's locale.
+  test "the stored sentence does not depend on the writing process's locale" do
+    Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+      assert_msgid(CalDAVErrors.describe_error(:timeout))
+      assert_msgid(Feed.sync_error_message(:not_found))
+      assert_msgid(Feed.sync_error_message({:http_status, 503}))
+    end)
+  end
+
   defp assert_msgid(stored) do
     assert KnownMsgid.known?(stored), "not a msgid the card can translate: #{inspect(stored)}"
   end

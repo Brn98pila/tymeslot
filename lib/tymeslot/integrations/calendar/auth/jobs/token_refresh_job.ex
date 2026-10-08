@@ -266,7 +266,8 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
       reraise exception, __STACKTRACE__
   end
 
-  # The wording the dashboard shows in `sync_error`. A fixed msgid, because the
+  # The wording the dashboard shows in `sync_error`. A fixed msgid, left
+  # untranslated for the card to translate in the owner's locale, because the
   # integration card translates the stored English by looking it up as one: the
   # refresh reason (an OAuth error code or an exception's text) is for the log
   # line `log_failure/3` writes, not for the owner, and a sentence built from it
@@ -274,7 +275,7 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
   # `ReactivateCalendarsDeactivatedByTokenRefresh` matched the earlier wording;
   # it has run, so nothing reads the text back any more.
   defp refresh_failure_message do
-    dgettext(
+    dgettext_noop(
       "dashboard_calendar_providers",
       "Tymeslot could not renew its access to this calendar. It will try again shortly."
     )
