@@ -148,7 +148,7 @@ defmodule Tymeslot.CalendarGrid.ProviderSeriesTimeZoneWriteTest do
   end
 
   # Graph does not list Europe/Madrid among the IANA names it accepts. The
-  # series goes out under a Windows zone with Madrid's offsets and changes.
+  # series goes out under the Windows zone CLDR maps Madrid to.
   test "an Outlook series in a zone Graph does not list names a Windows zone", %{user: user} do
     integration = insert_integration(user, "outlook")
 
@@ -170,7 +170,7 @@ defmodule Tymeslot.CalendarGrid.ProviderSeriesTimeZoneWriteTest do
 
     assert body["start"] == %{
              "dateTime" => "2026-10-05T09:00:00",
-             "timeZone" => "Central Europe Standard Time"
+             "timeZone" => "Romance Standard Time"
            }
   end
 

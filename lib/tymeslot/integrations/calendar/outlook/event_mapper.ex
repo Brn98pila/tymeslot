@@ -144,7 +144,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventMapper do
   defp series_zone_name(%{"timeZone" => zone} = value, event_data) when is_binary(zone) do
     case extract_field(event_data, :recurrence_rule, "recurrence_rule") do
       rule when is_binary(rule) and rule != "" ->
-        %{value | "timeZone" => WindowsZones.from_iana(zone)}
+        %{value | "timeZone" => WindowsZones.from_iana(zone, series_start(event_data))}
 
       _one_off ->
         value
@@ -152,6 +152,13 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventMapper do
   end
 
   defp series_zone_name(value, _event_data), do: value
+
+  defp series_start(event_data) do
+    case extract_field(event_data, :start_time, "start_time") do
+      %DateTime{} = start -> start
+      _other -> DateTime.utc_now()
+    end
+  end
 
   defp map_show_as(event_data) do
     transparency = extract_field(event_data, :transparency, "transparency")

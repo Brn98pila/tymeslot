@@ -1,6 +1,8 @@
 defmodule Tymeslot.Timezones.WindowsZones do
   @moduledoc """
-  Static mapping from Windows timezone names to IANA timezone IDs.
+  Static mapping between Windows timezone names and IANA timezone IDs: from
+  Windows to IANA for what Microsoft Graph returns (`to_iana/1`), and from
+  IANA to Windows for what it is sent (`from_iana/2`).
 
   Microsoft Graph's Outlook calendar API returns `timeZone` / `originalStartTimeZone`
   values as either IANA names (when callers set `Prefer: outlook.timezone="UTC"`)
@@ -12,6 +14,8 @@ defmodule Tymeslot.Timezones.WindowsZones do
   (territory `"001"` — the default IANA zone for each Windows zone). It covers
   all 140 Windows zones documented by Microsoft as of 2026.
   """
+
+  alias Tymeslot.Timezones.Data
 
   @windows_to_iana %{
     "AUS Central Standard Time" => "Australia/Darwin",
@@ -171,36 +175,81 @@ defmodule Tymeslot.Timezones.WindowsZones do
 
   @iana_to_windows Map.new(@windows_to_iana, fn {windows, iana} -> {iana, windows} end)
 
-  # How far ahead, and how often, a zone's offsets are compared with a
-  # Windows zone's. A week is shorter than the gap between any zone's two
-  # offset changes.
+  # CLDR's own mapping, every territory's IANA zones included, as published
+  # in `windowsZones.xml` (kept verbatim in `priv/cldr/`). It names zones as
+  # CLDR does, which for a few renamed zones is the old name (`Asia/Calcutta`),
+  # so the table above, which uses the current names, is read after it.
+  @cldr_path Path.join([__DIR__, "../../../priv/cldr/windowsZones.xml"])
+  @external_resource @cldr_path
+
+  @cldr_iana_to_windows ~r/<mapZone other="([^"]+)" territory="[^"]+" type="([^"]+)"\/>/
+                        |> Regex.scan(File.read!(@cldr_path), capture: :all_but_first)
+                        |> Enum.flat_map(fn [windows, zones] ->
+                          Enum.map(String.split(zones), &{&1, windows})
+                        end)
+                        |> Map.new()
+
+  # How far, and how often, a zone's offsets are compared with a Windows
+  # zone's, from the start of the year an event starts in. A week is shorter
+  # than the gap between any zone's two offset changes.
   @match_span_days 2 * 365
   @match_step_days 7
 
   @doc """
   The Windows zone name Microsoft Graph should be given for `zone`, an IANA
-  zone name, or `"UTC"` when none keeps its offsets.
+  zone name, for an event starting at `anchor`; `"UTC"` when none keeps its
+  offsets.
 
   Graph accepts every Windows zone name but only some IANA ones, and does
   not list, among others, `Europe/Madrid`, `Europe/Dublin` or
-  `America/Toronto`. A zone that is some Windows zone's default IANA zone
-  maps to that Windows zone. Any other maps to the first Windows zone whose
-  default IANA zone keeps the same UTC offsets over the next two years,
-  changing them at the same instants, which is the zone Graph then expands
-  the event in. A Windows zone name is returned as given.
+  `America/Toronto`. The answer is CLDR's (`Europe/Madrid` is
+  `Romance Standard Time`), under the zone's current name or the old one
+  CLDR may still use. A zone CLDR does not name maps to the first Windows zone whose default IANA zone keeps the
+  same UTC offsets for two years from the start of `anchor`'s year, changing
+  them at the same instants, which is the zone Graph then expands the event
+  in; that search is remembered per zone and year. A Windows zone name is
+  returned as given.
   """
-  @spec from_iana(String.t()) :: String.t()
-  def from_iana(zone) when is_binary(zone) do
+  @spec from_iana(String.t(), DateTime.t()) :: String.t()
+  def from_iana(zone, anchor \\ DateTime.utc_now()) when is_binary(zone) do
     cond do
       Map.has_key?(@windows_to_iana, zone) -> zone
+      windows = Map.get(@cldr_iana_to_windows, zone) -> windows
       windows = Map.get(@iana_to_windows, zone) -> windows
-      true -> same_offsets(zone) || "UTC"
+      true -> remembered_match(zone, anchor.year)
     end
   end
 
-  defp same_offsets(zone) do
-    now = DateTime.utc_now()
-    weekly = Enum.map(0..@match_span_days//@match_step_days, &DateTime.add(now, &1, :day))
+  # A zone's match depends only on the time zone database, which a running
+  # node does not change, so it is kept for the node's life. Zones and years
+  # are few, and a `:persistent_term` write happens once for each.
+  defp remembered_match(zone, year) do
+    key = {__MODULE__, zone, year}
+
+    case :persistent_term.get(key, :unset) do
+      :unset ->
+        windows =
+          cldr_under_old_name(zone) ||
+            same_offsets(zone, DateTime.new!(Date.new!(year, 1, 1), ~T[00:00:00])) || "UTC"
+
+        :persistent_term.put(key, windows)
+        windows
+
+      windows ->
+        windows
+    end
+  end
+
+  # CLDR still spells a few renamed zones the old way (`Asia/Saigon` for
+  # `Asia/Ho_Chi_Minh`); `Data.normalize/1` knows the renames.
+  defp cldr_under_old_name(zone) do
+    Enum.find_value(@cldr_iana_to_windows, fn {cldr_name, windows} ->
+      if cldr_name != zone and Data.normalize(cldr_name) == zone, do: windows
+    end)
+  end
+
+  defp same_offsets(zone, from) do
+    weekly = Enum.map(0..@match_span_days//@match_step_days, &DateTime.add(from, &1, :day))
 
     case offsets(zone, weekly) do
       [] ->
