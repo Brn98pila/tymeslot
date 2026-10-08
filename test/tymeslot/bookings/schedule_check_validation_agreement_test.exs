@@ -19,7 +19,7 @@ defmodule Tymeslot.Bookings.ScheduleCheckValidationAgreementTest do
 
   alias Tymeslot.Availability.Calculate
   alias Tymeslot.Availability.Schedules
-  alias Tymeslot.Bookings.{Policy, ScheduleCheck, Validation}
+  alias Tymeslot.Bookings.{ScheduleCheck, Validation}
   alias Tymeslot.Test.ClockHelpers
 
   import Tymeslot.AvailabilityTestHelpers

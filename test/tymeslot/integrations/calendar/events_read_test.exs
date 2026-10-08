@@ -29,6 +29,10 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadTest do
          }
        ]}
     end
+
+    @spec convert_events([map()]) :: [map()]
+
+    def convert_events(events), do: events
   end
 
   # Simulates a provider that fails on narrow range queries but succeeds on wide-range
@@ -62,11 +66,19 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadTest do
         {:error, :forced_failure}
       end
     end
+
+    @spec convert_events([map()]) :: [map()]
+
+    def convert_events(events), do: events
   end
 
   defmodule ErroringProvider do
     @spec list_events(any(), keyword()) :: {:error, :fail}
     def list_events(_client, _opts), do: {:error, :fail}
+
+    @spec convert_events([map()]) :: [map()]
+
+    def convert_events(events), do: events
   end
 
   # Simulates a Google/Outlook provider whose own multi-calendar fetch
@@ -92,6 +104,10 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadTest do
 
     @spec calls() :: non_neg_integer()
     def calls, do: Process.get(:degraded_aggregate_provider_calls, 0)
+
+    @spec convert_events([map()]) :: [map()]
+
+    def convert_events(events), do: events
   end
 
   # Simulates a Google/Outlook provider whose own multi-calendar fetch
@@ -111,6 +127,10 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadTest do
          failed: [%{source: "cal-broken", reason: :timeout}]
        }}
     end
+
+    @spec convert_events([map()]) :: [map()]
+
+    def convert_events(events), do: events
   end
 
   # Simulates the edge case where every selected calendar was confirmed
@@ -140,6 +160,10 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadTest do
         {:error, %Outcome{events: [], attempted: 1, succeeded: 0, failed: []}}
       end
     end
+
+    @spec convert_events([map()]) :: [map()]
+
+    def convert_events(events), do: events
   end
 
   # Simulates a provider that fails on narrow range queries but succeeds on wide-range
@@ -180,6 +204,10 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadTest do
         {:error, :trigger_fallback}
       end
     end
+
+    @spec convert_events([map()]) :: [map()]
+
+    def convert_events(events), do: events
   end
 
   # Simulates a provider that fails on narrow range queries but succeeds on wide-range
@@ -236,6 +264,10 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadTest do
         {:error, :fallback}
       end
     end
+
+    @spec convert_events([map()]) :: [map()]
+
+    def convert_events(events), do: events
   end
 
   describe "fetch_events_with_fallback/3" do
@@ -424,6 +456,10 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadTest do
          }
        ]}
     end
+
+    @spec convert_events([map()]) :: [map()]
+
+    def convert_events(events), do: events
   end
 
   # Provider returning a recurring event with an EXDATE that should be excluded.
@@ -442,6 +478,10 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadTest do
          }
        ]}
     end
+
+    @spec convert_events([map()]) :: [map()]
+
+    def convert_events(events), do: events
   end
 
   describe "recurring event expansion in fetch_events_with_fallback/3" do

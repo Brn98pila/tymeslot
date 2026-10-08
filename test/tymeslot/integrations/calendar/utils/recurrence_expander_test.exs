@@ -5,63 +5,6 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderTest do
 
   alias Tymeslot.Integrations.Calendar.RecurrenceExpander
 
-  describe "parse_rrule/1" do
-    test "parses FREQ and INTERVAL" do
-      assert {:ok, %{freq: :weekly, interval: 1}} =
-               RecurrenceExpander.parse_rrule("FREQ=WEEKLY;INTERVAL=1")
-    end
-
-    test "defaults INTERVAL to 1 when omitted" do
-      assert {:ok, %{freq: :daily, interval: 1}} =
-               RecurrenceExpander.parse_rrule("FREQ=DAILY")
-    end
-
-    test "parses UNTIL as DateTime" do
-      assert {:ok, %{freq: :weekly, until: %DateTime{}}} =
-               RecurrenceExpander.parse_rrule("FREQ=WEEKLY;UNTIL=20261231T235959Z")
-    end
-
-    test "parses COUNT" do
-      assert {:ok, %{freq: :weekly, count: 10}} =
-               RecurrenceExpander.parse_rrule("FREQ=WEEKLY;COUNT=10")
-    end
-
-    test "parses BYDAY into ISO weekdays" do
-      assert {:ok, %{freq: :weekly, by_day: [{nil, 1}, {nil, 3}, {nil, 5}]}} =
-               RecurrenceExpander.parse_rrule("FREQ=WEEKLY;BYDAY=MO,WE,FR")
-    end
-
-    test "keeps BYDAY ordinals, counted from the end when negative" do
-      assert {:ok, %{freq: :monthly, by_day: [{2, 2}, {-1, 5}]}} =
-               RecurrenceExpander.parse_rrule("FREQ=MONTHLY;BYDAY=2TU,-1FR")
-    end
-
-    test "returns error for nil" do
-      assert :error = RecurrenceExpander.parse_rrule(nil)
-    end
-
-    test "returns error for empty string" do
-      assert :error = RecurrenceExpander.parse_rrule("")
-    end
-
-    test "parses UNTIL without trailing Z as UTC" do
-      assert {:ok, %{until: %DateTime{} = until}} =
-               RecurrenceExpander.parse_rrule("FREQ=WEEKLY;UNTIL=20260411T000000")
-
-      assert until == ~U[2026-04-11 00:00:00Z]
-    end
-
-    test "parses DATE-form UNTIL (all-day series) as end-of-day UTC" do
-      # RFC 5545 §3.3.10: all-day recurrences carry a bare-date UNTIL. It must
-      # still parse (as inclusive end-of-day) — a nil here would treat the
-      # series as unbounded.
-      assert {:ok, %{until: %DateTime{} = until}} =
-               RecurrenceExpander.parse_rrule("FREQ=DAILY;UNTIL=20260411")
-
-      assert until == ~U[2026-04-11 23:59:59Z]
-    end
-  end
-
   describe "expand/4 with weekly recurrence" do
     test "expands weekly event into occurrences within range" do
       event = %{

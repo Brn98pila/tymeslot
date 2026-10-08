@@ -73,7 +73,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditorTest do
       html = render_component(&RecurrenceEditor.recurrence_editor/1, assigns)
 
       assert html =~ ~s(name="until" value="2026-06-30")
-      assert html =~ "Repeats daily until 2026-06-30"
+      assert html =~ "Repeats daily until 30 June 2026"
     end
 
     test "an all-day UNTIL is zone-free and shown as it is written" do
@@ -100,9 +100,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditorTest do
       assert RecurrenceEditor.summary(parsed) == "Repeats every 2 days for 5 occurrences"
     end
 
-    test "summarises an until date" do
+    test "summarises an until date, written out as the locale writes dates" do
       parsed = %{freq: :weekly, until: ~D[2026-12-31]}
-      assert RecurrenceEditor.summary(parsed) == "Repeats weekly until 2026-12-31"
+      assert RecurrenceEditor.summary(parsed) == "Repeats weekly until 31 December 2026"
+
+      Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+        assert RecurrenceEditor.summary(parsed) ==
+                 "Wiederholt sich wöchentlich bis 31. Dezember 2026"
+      end)
     end
 
     test "returns nil for a non-recurring rule" do

@@ -262,6 +262,9 @@ defmodule Tymeslot.Integrations.Calendar.Nextcloud.Provider do
   def list_events_representation, do: :raw
 
   @impl Tymeslot.Integrations.Calendar.Provider
+  def convert_events(events), do: events
+
+  @impl Tymeslot.Integrations.Calendar.Provider
   defdelegate create_event(client, event_data), to: CalDAVProvider
 
   @impl Tymeslot.Integrations.Calendar.Provider

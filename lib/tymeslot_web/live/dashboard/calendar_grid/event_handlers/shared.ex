@@ -6,7 +6,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
   import Phoenix.Component, only: [assign: 3]
 
   alias Tymeslot.Integrations.Calendar.EventColour
+  alias Tymeslot.Integrations.Calendar.ICalBuilder.TimeZoneComponent
   alias Tymeslot.Integrations.Calendar.Recurrence.RRule
+  alias Tymeslot.Integrations.Calendar.Recurrence.Series
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.Guests
   alias Tymeslot.Security.RateLimiter
@@ -181,8 +183,16 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
   defp parse_reminder_method(_other), do: :error
 
   @doc """
-  The timezone a recurring event's UNTIL date ends its day in: the event's own,
-  falling back to the organiser's profile zone for an event that carries none.
+  The timezone a recurring event's UNTIL date ends its day in, and a one-off
+  given a rule is written in: the event's own, falling back to the organiser's
+  profile zone for an event that carries none.
+
+  A one-off carrying UTC falls back too. Sync stores UTC for every event
+  written with UTC times, which is how Tymeslot writes its one-offs, so that
+  zone records how the event was written, not the local time a series made
+  from it should keep. A series carrying UTC keeps it: its writers read an
+  UNTIL back as a date in the series' own zone, so ending the day anywhere
+  else moves the end by a day.
 
   A series belongs to the calendar it sits on, not to whoever is looking at it,
   so reading the organiser's zone for both is only right while they agree. An
@@ -200,10 +210,17 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
 
   def recurrence_timezone(event, user_timezone) do
     case Map.get(event, :timezone) do
-      zone when is_binary(zone) and zone != "" -> zone
-      _none -> user_timezone
+      zone when is_binary(zone) and zone != "" ->
+        if one_off?(event) and TimeZoneComponent.utc_zone?(zone), do: user_timezone, else: zone
+
+      _none ->
+        user_timezone
     end
   end
+
+  # A Google or Outlook occurrence carries no rule, only the master it
+  # belongs to.
+  defp one_off?(event), do: not Series.member?(event)
 
   @doc """
   Composes a canonical RRULE string from the recurrence editor's raw form
@@ -224,6 +241,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
       `recurrence_timezone/2`. A timed event's UNTIL is an instant, so the date
       the form supplies has to end its day in a zone rather than in UTC, or the
       series ends a day early west of UTC and a day late east of it.
+    - `:rule` — the rule being edited, if any. The parts of it the form does
+      not show (an ordinal `BYDAY`, `BYMONTHDAY`, `WKST`, ...) are kept, so
+      changing the interval of an imported "second Tuesday" rule does not
+      turn it into a plain monthly one (`RRule.build/2`'s `:keep`).
 
   Returns `{:error, :until_before_start}` when `until` precedes `:start_date`.
   """
@@ -249,7 +270,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
           start_date: Map.get(event_context, :start_date)
         ]
 
-        case RRule.retarget(RRule.build(opts, fit_opts), fit_opts) do
+        rule = RRule.build(opts, [keep: Map.get(event_context, :rule)] ++ fit_opts)
+
+        case RRule.retarget(rule, fit_opts) do
           {:ok, rule} -> rule
           {:error, :until_before_start} = error -> error
         end

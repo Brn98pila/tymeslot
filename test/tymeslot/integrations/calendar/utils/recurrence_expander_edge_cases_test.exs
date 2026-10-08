@@ -4,6 +4,8 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderEdgeCasesTest do
   @moduletag :calendar
 
   alias Tymeslot.Integrations.Calendar.ICalNormaliser
+  alias Tymeslot.Integrations.Calendar.ICalParser
+  alias Tymeslot.Integrations.Calendar.Recurrence.RRule
   alias Tymeslot.Integrations.Calendar.RecurrenceExpander
   alias Tymeslot.Test.LogCapture
 
@@ -520,7 +522,7 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderEdgeCasesTest do
       for rule <- ["FREQ=DAILY;INTERVAL=0", "FREQ=WEEKLY;INTERVAL=-1;BYDAY=MO,WE"] do
         event = old_series(rule, ~D[2023-10-02])
 
-        assert RecurrenceExpander.parse_rrule(rule) == :error
+        assert RRule.parse(rule) == :error
         assert RecurrenceExpander.expand(event, @week_start, @week_end) == [event]
         assert RecurrenceExpander.count_before(rule, event.start_time, @week_start) == 1
       end
@@ -576,6 +578,38 @@ defmodule Tymeslot.Integrations.Calendar.RecurrenceExpanderEdgeCasesTest do
       # 09:00 CEST is 07:00 UTC.
       assert ~U[2026-10-07 07:00:00Z] in starts
       assert length(starts) == 5
+    end
+  end
+
+  describe "a CalDAV series whose UNTIL is a floating wall clock" do
+    # An Auckland (UTC+12) daily series at 07:30 whose UNTIL is midnight at
+    # the start of 15 April, written without a zone: read in the series' zone
+    # its last occurrence is 14 April. Read in UTC the bound would be noon on
+    # 15 April in Auckland, and 15 April's 07:30 would be offered as busy too.
+    test "ends on the series' own last day, through the parser and the normaliser" do
+      {:ok, raw_events} =
+        ICalParser.parse("""
+        BEGIN:VCALENDAR
+        VERSION:2.0
+        PRODID:-//Test//EN
+        BEGIN:VEVENT
+        UID:auckland-daily
+        DTSTART;TZID=Pacific/Auckland:20260410T073000
+        DTEND;TZID=Pacific/Auckland:20260410T080000
+        RRULE:FREQ=DAILY;UNTIL=20260415T000000
+        SUMMARY:Daily check-in
+        END:VEVENT
+        END:VCALENDAR
+        """)
+
+      last =
+        raw_events
+        |> ICalNormaliser.expand_occurrences(~U[2026-04-01 00:00:00Z], ~U[2026-04-30 00:00:00Z])
+        |> Enum.map(& &1.start_time)
+        |> Enum.max(DateTime)
+
+      assert DateTime.to_naive(DateTime.shift_zone!(last, "Pacific/Auckland")) ==
+               ~N[2026-04-14 07:30:00]
     end
   end
 end

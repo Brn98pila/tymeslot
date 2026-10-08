@@ -9,6 +9,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventMapper do
   alias Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverter
   alias Tymeslot.Integrations.Calendar.Outlook.TymeslotFingerprint
   alias Tymeslot.Integrations.Calendar.Reminder
+  alias Tymeslot.Timezones.WindowsZones
 
   @doc """
   Converts Tymeslot event data into the Microsoft Graph event format.
@@ -128,12 +129,34 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventMapper do
         }
 
       _other ->
-        EventTimeFormatter.format_with_timezone(
-          datetime,
-          timezone,
+        datetime
+        |> EventTimeFormatter.format_with_timezone(timezone,
           include_when_missing?: true,
           include_timezone_on_error?: true
         )
+        |> series_zone_name(event_data)
+    end
+  end
+
+  # Graph accepts every Windows zone name but only some IANA ones, so a
+  # series, which Graph expands in the zone it is given, is written with the
+  # Windows zone that keeps its offsets. The wall clock stays the IANA zone's.
+  defp series_zone_name(%{"timeZone" => zone} = value, event_data) when is_binary(zone) do
+    case extract_field(event_data, :recurrence_rule, "recurrence_rule") do
+      rule when is_binary(rule) and rule != "" ->
+        %{value | "timeZone" => WindowsZones.from_iana(zone, series_start(event_data))}
+
+      _one_off ->
+        value
+    end
+  end
+
+  defp series_zone_name(value, _event_data), do: value
+
+  defp series_start(event_data) do
+    case extract_field(event_data, :start_time, "start_time") do
+      %DateTime{} = start -> start
+      _other -> DateTime.utc_now()
     end
   end
 
@@ -188,7 +211,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventMapper do
     timezone = extract_field(event_data, :timezone, "timezone")
 
     with rrule when is_binary(rrule) and rrule != "" <- rrule,
-         %Date{} = start_date <- recurrence_start_date(event_data),
+         %Date{} = start_date <- recurrence_start_date(event_data, timezone),
          recurrence when is_map(recurrence) <-
            RecurrenceConverter.rrule_to_outlook(rrule, start_date, timezone) do
       Map.put(base, "recurrence", recurrence)
@@ -197,11 +220,23 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventMapper do
     end
   end
 
-  defp recurrence_start_date(event_data) do
+  # Graph reads the range's `startDate`, and the weekday a weekly pattern
+  # falls back to, in the event's own zone: 08:00 on a Monday in Tokyo is
+  # Sunday in UTC.
+  defp recurrence_start_date(event_data, timezone) do
     case extract_field(event_data, :start_time, "start_time") do
       %Date{} = date -> date
-      %DateTime{} = dt -> DateTime.to_date(dt)
+      %DateTime{} = dt -> dt |> local_in(timezone) |> DateTime.to_date()
       _other -> nil
     end
   end
+
+  defp local_in(datetime, timezone) when is_binary(timezone) do
+    case DateTime.shift_zone(datetime, timezone) do
+      {:ok, local} -> local
+      {:error, _reason} -> datetime
+    end
+  end
+
+  defp local_in(datetime, _timezone), do: datetime
 end

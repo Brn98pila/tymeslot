@@ -56,6 +56,23 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomTimesTest do
                EventVideoRoomTimes.for_event(timed("RRULE:FREQ=WEEKLY;BYDAY=MO,WE;COUNT=3"))
     end
 
+    # A Honolulu (UTC-10) series at 22:00 local whose floating UNTIL is the
+    # last evening's start: that occurrence starts at 08:00 UTC on 1 November.
+    # UNTIL is read in the series' zone, as the expander reads it, so the
+    # bound is that start plus the hour and a day's margin; read in UTC it
+    # would sit ten hours earlier.
+    test "a series' UNTIL is read in the event's own zone" do
+      event = %{
+        all_day: false,
+        start_at: ~U[2026-10-06 08:00:00Z],
+        end_at: ~U[2026-10-06 09:00:00Z],
+        timezone: "Pacific/Honolulu",
+        recurrence_rule: "FREQ=DAILY;UNTIL=20261031T220000"
+      }
+
+      assert {:series, _lobby, ~U[2026-11-02 09:00:00Z]} = EventVideoRoomTimes.for_event(event)
+    end
+
     test "a series with no end is never treated as over" do
       assert {:series, _lobby, nil} = EventVideoRoomTimes.for_event(timed("FREQ=WEEKLY;BYDAY=MO"))
     end

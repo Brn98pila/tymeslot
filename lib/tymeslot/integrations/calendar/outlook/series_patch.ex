@@ -74,7 +74,14 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesPatch do
   def build(master, %{changes: changes} = edit) do
     with {:ok, timing, zone} <- master_timing(master),
          {:ok, move} <- SeriesMove.move(edit, timing, elem(zone, 0)),
-         {:ok, recurrence} <- recurrence(master, move, changes, timing, elem(zone, 0)) do
+         {:ok, recurrence} <-
+           recurrence(
+             master,
+             move,
+             changes,
+             timing,
+             {elem(zone, 0), until_zone(edit, elem(zone, 0))}
+           ) do
       body =
         changes
         |> fields()
@@ -194,12 +201,16 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesPatch do
 
   # --- Recurrence ---
 
-  defp recurrence(master, move, changes, {start, _finish}, zone) do
+  # Read only for a new rule's end date: its UNTIL ends the day the organiser
+  # chose in the zone the edit names, which can differ from the master's.
+  defp until_zone(edit, zone), do: Map.get(edit, :until_timezone) || zone
+
+  defp recurrence(master, move, changes, {start, _finish}, {zone, until_zone}) do
     start_date = date_of(if move == :unmoved, do: start, else: move.start)
     days = if move == :unmoved, do: 0, else: move.days
 
     case Map.fetch(changes, :recurrence_rule) do
-      {:ok, rule} -> with_rule(master["recurrence"], rule, start_date, days, zone)
+      {:ok, rule} -> with_rule(master["recurrence"], rule, start_date, days, until_zone)
       :error -> follow(master["recurrence"], move, start_date, zone)
     end
   end
@@ -220,7 +231,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesPatch do
   # A rule that states an end is written with it; one that states none keeps
   # the master's, which moves with the series as it would without a rule.
   defp range(built, recurrence, rule, {start_date, days}, zone) do
-    parsed = RRule.parse(rule, timezone: zone)
+    parsed = RRule.options(rule, timezone: zone)
 
     case recurrence do
       %{"range" => %{} = master_range}

@@ -32,11 +32,13 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeLiveViewTest do
   import Tymeslot.Factory
   import Tymeslot.TestHelpers.Eventually
 
+  alias Ecto.Changeset
   alias Plug.Test
   alias Tymeslot.Integrations.Calendar.Google.CalendarAPI, as: GoogleAPI
   alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookAPI
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
+  alias Tymeslot.Repo
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Workers.SyncGoogleCalendarWorker
 
@@ -63,10 +65,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeLiveViewTest do
     swap_env(:outlook_calendar_api_module, OutlookAPI)
 
     user = insert(:user, onboarding_completed_at: DateTime.utc_now())
-    _profile = insert(:profile, user: user, timezone: "Etc/UTC")
+    profile = insert(:profile, user: user, timezone: "Etc/UTC")
     conn = conn |> Test.init_test_session(%{}) |> fetch_session() |> log_in_user(user)
 
-    {:ok, conn: conn, user: user}
+    {:ok, conn: conn, user: user, profile: profile}
   end
 
   # The series started two weeks ago, so today's occurrence is not its first,
@@ -245,6 +247,59 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeLiveViewTest do
     test "a change of rule warns under this and following", %{conn: conn, event: event} do
       lv = change_rule(conn, event)
       assert has_element?(lv, "#recurrence-following-notes")
+    end
+  end
+
+  describe "a repeat rule given to a one-off Google event" do
+    setup %{user: user, profile: profile} do
+      profile |> Changeset.change(timezone: "Europe/Berlin") |> Repo.update!()
+
+      integration =
+        oauth_integration(user, "google", "https://www.googleapis.com/auth/calendar")
+
+      start_at =
+        today() |> DateTime.new!(~T[09:00:00], "Europe/Berlin") |> DateTime.shift_zone!("Etc/UTC")
+
+      # As the sync caches a one-off Tymeslot wrote in UTC.
+      event =
+        oauth_occurrence(integration, %{
+          provider: "google",
+          uid: "planning@google.com",
+          provider_event_id: "planning1",
+          start_at: start_at,
+          end_at: DateTime.add(start_at, 1, :hour)
+        })
+
+      serve(%{"id" => "planning1", "iCalUID" => "planning@google.com"})
+      %{event: event}
+    end
+
+    # Google refuses a recurring event whose start names no zone, and expands
+    # the rule in the zone it names.
+    test "writes the new series in the organiser's zone", %{conn: conn, event: event} do
+      {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+
+      lv
+      |> element("#calendar-grid")
+      |> render_hook("show_event", %{"event-id" => to_string(event.id)})
+
+      lv
+      |> element("#calendar-grid")
+      |> render_hook("update_event_recurrence", %{
+        "freq" => "weekly",
+        "interval" => "1",
+        "end_type" => "never"
+      })
+
+      assert [{:put, url, body}] = await_requests(1)
+      assert url =~ "/events/planning1"
+
+      body = Jason.decode!(body)
+
+      assert %{"dateTime" => wall_clock, "timeZone" => "Europe/Berlin"} = body["start"]
+      assert String.starts_with?(wall_clock, "#{Date.to_iso8601(today())}T09:00:00")
+
+      assert [_rule] = body["recurrence"]
     end
   end
 

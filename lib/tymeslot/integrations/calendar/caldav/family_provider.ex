@@ -142,6 +142,9 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FamilyProvider do
       def list_events_representation, do: :raw
 
       @impl Provider
+      def convert_events(events), do: events
+
+      @impl Provider
       defdelegate normalise_events(raw_events, context), to: EventProcessor
 
       @impl Provider

@@ -217,7 +217,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.CreateExecution do
              user_id: socket.assigns.current_user.id,
              all_day: all_day,
              start_at: start_at,
-             end_at: end_at
+             end_at: end_at,
+             timezone: socket.assigns.user_timezone
            }}
         )
 

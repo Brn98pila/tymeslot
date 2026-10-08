@@ -77,7 +77,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.EventRecurrence do
       socket,
       prompt.event,
       %{recurrence_rule: prompt.recurrence_rule},
-      recurrence_scope: scope
+      recurrence_scope: scope,
+      until_timezone: Map.get(prompt, :until_timezone)
     )
   end
 
