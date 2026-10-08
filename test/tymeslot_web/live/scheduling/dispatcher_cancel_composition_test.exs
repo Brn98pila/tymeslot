@@ -80,7 +80,7 @@ defmodule TymeslotWeb.Live.Scheduling.DispatcherCancelCompositionTest do
     assert {:error, {:redirect, %{to: "/", flash: flash}}} =
              live(conn, "/#{profile.username}/meeting/#{meeting.uid}/cancel")
 
-    assert flash["error"] =~ "already cancelled"
+    assert flash["error"] == "This booking has already been cancelled or moved."
   end
 
   @tag :capture_log

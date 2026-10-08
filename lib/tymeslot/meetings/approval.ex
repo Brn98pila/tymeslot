@@ -45,7 +45,7 @@ defmodule Tymeslot.Meetings.Approval do
       cancellation pipeline, which exists for a meeting the attendee actually
       got to have and offers the host no such choice here — unless the request
       already *was* such a meeting before it re-entered the gate (see
-      `refund_unapproved_request/1`). What distinguishes a decline from every
+      `Tymeslot.Meetings.ApprovalRefunds.refund_unapproved_request/1`). What distinguishes a decline from every
       other cancelled meeting is `approval_declined_at`, which only this path
       stamps; ask `declined?/1` rather than reading it directly.
 
@@ -83,12 +83,13 @@ defmodule Tymeslot.Meetings.Approval do
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.MeetingPayments
   alias Tymeslot.Meetings
+  alias Tymeslot.Meetings.ApprovalRefunds
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
   alias Tymeslot.Meetings.MeetingState
   alias Tymeslot.MeetingTypes.MeetingTypeSchema, as: MeetingType
+  alias Tymeslot.Notifications.DispatchInTransactionError
   alias Tymeslot.Notifications.Events
   alias Tymeslot.Notifications.GuestNotifications
   alias Tymeslot.Notifications.Orchestrator
@@ -373,7 +374,7 @@ defmodule Tymeslot.Meetings.Approval do
       best_effort(released, "release video room", fn -> release_video_room(released) end)
 
       best_effort(released, "refund unapproved request", fn ->
-        refund_unapproved_request(released)
+        ApprovalRefunds.refund_unapproved_request(released)
       end)
     end)
   end
@@ -468,7 +469,9 @@ defmodule Tymeslot.Meetings.Approval do
 
     best_effort(meeting, "release video room", fn -> release_video_room(meeting) end)
 
-    best_effort(meeting, "refund unapproved request", fn -> refund_unapproved_request(meeting) end)
+    best_effort(meeting, "refund unapproved request", fn ->
+      ApprovalRefunds.refund_unapproved_request(meeting)
+    end)
 
     best_effort(meeting, "announce release", fn -> announce_release(meeting, status) end)
     best_effort(meeting, "notify guests", fn -> GuestNotifications.notify_released(meeting) end)
@@ -505,102 +508,16 @@ defmodule Tymeslot.Meetings.Approval do
   end
 
   @doc """
-  Refunds in full a held request that ended without becoming a meeting —
-  unless it was one already.
-
-  A booking that was paid for but never approved gave the attendee nothing,
-  so the full remaining balance goes back automatically: there is no
-  confirmed meeting to weigh against a partial refund, and so no host-facing
-  choice to offer (contrast `Meetings.Cancellation`, which cancels a meeting
-  the attendee did get to have and lets the host choose none, partial, or
-  full). That contrast breaks for a request that re-entered the gate: a
-  reschedule of an already-`"confirmed"`, paid meeting resets it to
-  `"awaiting_approval"` (`Bookings.Reschedule.reenters_gate?/1`), and if that
-  re-request is then declined or expires, there genuinely *is* a confirmed
-  meeting to weigh against a partial refund — the one the attendee already
-  had, activated, and were told about. Auto-refunding it in full would make
-  that choice for the host silently, so this checks `first_announced_at` and
-  skips the automatic refund when it is set, leaving the payment refundable
-  from the dashboard's payments screen instead. A payment row that was never
-  actually paid is quietly skipped, since it has nothing to refund.
-
-  It has to be `first_announced_at` and not `announced_at`: the re-gating
-  reschedule clears `announced_at` on purpose, so that the host's second
-  approval can claim the announcement fan-out for the new time
-  (`Bookings.Reschedule`), and reading the claim here would therefore find it
-  empty on exactly the meetings this rule is about.
-
-  Public because this rule applies to every way a held request stops being
-  held, not only the two this module resolves itself (`decline/2`,
-  `expire/1`, via `after_release/1`): `withdraw/2` reaches it too, for an
-  invitee's own withdrawal and for an externally-deleted hold. A failed
-  refund is logged and never fails the caller's transition, which is already
-  committed.
-  """
-  @spec refund_unapproved_request(Meeting.t()) :: :ok
-  def refund_unapproved_request(meeting) do
-    case MeetingPayments.payment_for_meeting(meeting.id) do
-      %{paid_at: %DateTime{}} = payment -> refund_or_defer(payment, meeting)
-      _unpaid_or_missing -> :ok
-    end
-  end
-
-  @doc """
   Whether releasing this request refunds its payment automatically.
 
   False only for a request that was a confirmed meeting before a reschedule
-  sent it back through the gate (see `refund_unapproved_request/1`). The
+  sent it back through the gate (see `ApprovalRefunds.refund_unapproved_request/1`). The
   attendee return page asks this too, so what it promises cannot drift from
   what the release does.
   """
   @spec refunds_on_release?(Meeting.t() | map()) :: boolean()
   def refunds_on_release?(%{first_announced_at: %DateTime{}}), do: false
   def refunds_on_release?(_meeting), do: true
-
-  defp refund_or_defer(payment, meeting) do
-    if refunds_on_release?(meeting) do
-      refund_remaining(payment, meeting)
-    else
-      Logger.info(
-        "Skipping automatic refund: request was a confirmed meeting before re-entering the approval gate",
-        meeting_id: meeting.id,
-        payment_id: payment.id
-      )
-
-      :ok
-    end
-  end
-
-  defp refund_remaining(payment, meeting) do
-    case MeetingPayments.refundable_remaining_cents(payment) do
-      0 ->
-        :ok
-
-      remaining_cents ->
-        issue_release_refund(payment, remaining_cents, meeting)
-    end
-  end
-
-  defp issue_release_refund(payment, remaining_cents, meeting) do
-    case MeetingPayments.issue_refund(payment, remaining_cents) do
-      {:ok, _refunded} ->
-        :ok
-
-      {:error, reason} ->
-        # A failed refund must not undo the already-committed release (see
-        # module docs on ordering). The approval window can run up to 336
-        # hours, so an expired request can plausibly fall outside Stripe's own
-        # refund window; that, and any other Stripe-side failure, ends up
-        # here rather than crashing the caller. The attendee has paid for a
-        # booking that will not happen, so it is recorded for the operator
-        # to refund by hand; a new error raises an admin alert.
-        ErrorTracking.report_error(reason, nil, %{
-          meeting_id: meeting.id,
-          payment_id: payment.id,
-          amount_cents: remaining_cents
-        })
-    end
-  end
 
   defp started?(%Meeting{start_time: nil}, _now), do: false
 
@@ -629,9 +546,14 @@ defmodule Tymeslot.Meetings.Approval do
   # succeeded, and each of these is independently retried or logged by its
   # own module on an ordinary `{:error, _}`. This only guards against the
   # unexpected raise; `{:error, _}` returns are each module's own job to log.
+  # A fan-out dispatched inside a transaction is not one: it is a caller
+  # wired up wrong, and is let through to fail loudly.
   defp best_effort(meeting, step, fun) do
     fun.()
   rescue
+    exception in DispatchInTransactionError ->
+      reraise exception, __STACKTRACE__
+
     exception ->
       ErrorTracking.report_error(exception, __STACKTRACE__, %{step: step, meeting_id: meeting.id})
   end

@@ -10,6 +10,7 @@ defmodule Tymeslot.Meetings do
   require Logger
 
   alias Tymeslot.Bookings.{Cancel, CancelSeat, Reschedule, RescheduleRequest}
+  alias Tymeslot.Infrastructure.Logging.LogFormat
 
   alias Tymeslot.Meetings.{
     BusyPeriods,
@@ -119,7 +120,7 @@ defmodule Tymeslot.Meetings do
   Delegates to Bookings.Cancel module.
   """
   @spec cancel_meeting(MeetingSchema.t()) ::
-          {:ok, MeetingSchema.t()} | {:error, atom() | String.t()}
+          {:ok, MeetingSchema.t()} | {:error, term()}
   def cancel_meeting(%MeetingSchema{} = meeting) do
     Cancel.execute(meeting)
   end
@@ -347,7 +348,7 @@ defmodule Tymeslot.Meetings do
 
   Validates the request against policy and manages the workflow state.
   """
-  @spec send_reschedule_request(MeetingSchema.t()) :: :ok | {:error, String.t() | atom()}
+  @spec send_reschedule_request(MeetingSchema.t()) :: :ok | {:error, term()}
   def send_reschedule_request(meeting) do
     case RescheduleRequest.send_reschedule_request(meeting) do
       :ok ->
@@ -359,7 +360,11 @@ defmodule Tymeslot.Meetings do
         :ok
 
       {:error, reason} = error ->
-        Logger.warning("Reschedule request failed", meeting_id: meeting.id, reason: reason)
+        Logger.warning("Reschedule request failed",
+          meeting_id: meeting.id,
+          reason: LogFormat.reason(reason)
+        )
+
         error
     end
   end

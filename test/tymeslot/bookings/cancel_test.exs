@@ -65,7 +65,7 @@ defmodule Tymeslot.Bookings.CancelTest do
           duration: 3_600
         })
 
-      assert {:error, "Cannot cancel a completed meeting"} =
+      assert {:error, {:not_cancellable, :completed}} =
                Cancel.execute(Repo.get_by!(MeetingSchema, uid: meeting.uid))
     end
 
@@ -78,7 +78,7 @@ defmodule Tymeslot.Bookings.CancelTest do
           duration: 7_200
         })
 
-      assert {:error, "Cannot cancel a meeting that has already started"} =
+      assert {:error, {:not_cancellable, :started}} =
                Cancel.execute(Repo.get_by!(MeetingSchema, uid: meeting.uid))
     end
 
@@ -91,7 +91,7 @@ defmodule Tymeslot.Bookings.CancelTest do
           duration: 3_600
         })
 
-      assert {:error, "Cannot cancel a meeting that has already occurred"} =
+      assert {:error, {:not_cancellable, :past}} =
                Cancel.execute(Repo.get_by!(MeetingSchema, uid: meeting.uid))
     end
 
@@ -115,7 +115,7 @@ defmodule Tymeslot.Bookings.CancelTest do
           cancelled_at: DateTime.utc_now(:second)
         })
 
-      assert {:error, "Cannot cancel an expired meeting"} =
+      assert {:error, {:not_cancellable, :expired}} =
                Cancel.execute(Repo.get_by!(MeetingSchema, uid: expired.uid))
 
       {:ok, stored} = MeetingQueries.get_meeting_by_uid(expired.uid)

@@ -104,11 +104,9 @@ defmodule Tymeslot.Notifications.OrchestratorRequestNotificationsTest do
     # its Telegram/Slack counterparts) bare, unlike every other event, which
     # routes through `Events.dispatch_channel/3` and its blanket rescue. A
     # raising dispatcher (a DB blip, a failed Oban insert) would escape
-    # straight out of `Events.meeting_requested/1` — and, worse,
-    # `Bookings.Create.run_meeting_transaction/3` calls it from inside an
-    # open `Repo.transaction/1` for gated bookings, so the raise would fail
-    # the invitee's booking outright rather than just costing a
-    # notification.
+    # straight out of `Events.meeting_requested/2` and fail the caller, a
+    # reschedule sending a booking back into the approval gate, rather than
+    # just cost a notification.
     setup do
       unload_if_mocked(WebhookDispatcher)
       :meck.new(WebhookDispatcher, [:passthrough])

@@ -45,7 +45,7 @@ defmodule Tymeslot.Bookings.SeatEffects do
   ]
 
   @doc """
-  Turns a full `Tymeslot.Bookings.Policy.build_meeting_attributes/1` map into
+  Turns a full `Tymeslot.Bookings.MeetingAttributes.build/1` map into
   a group meeting's shared-slot attrs: strips the fields that belong on the
   booker's `meeting_participants` row instead, and names the slot `title`
   rather than the booker-addressed title the builder produces (a group slot

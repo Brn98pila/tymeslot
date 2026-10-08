@@ -22,11 +22,11 @@ defmodule Tymeslot.Meetings.Recipient do
   It is a view, not a row, and is never written back.
   """
 
-  alias Tymeslot.Bookings.Policy
   alias Tymeslot.Locales
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.ParticipantQueries
   alias Tymeslot.Meetings.ParticipantSchema
+  alias Tymeslot.Utils.UrlBuilder
 
   @enforce_keys [:kind, :email]
   defstruct [
@@ -161,7 +161,7 @@ defmodule Tymeslot.Meetings.Recipient do
     }
   end
 
-  defp seat_url(token, action), do: Policy.app_url() <> "/seat/#{token}/#{action}"
+  defp seat_url(token, action), do: UrlBuilder.base_url() <> "/seat/#{token}/#{action}"
 
   defp attendee_recipients(%MeetingSchema{attendee_email: email}) when email in [nil, ""], do: []
 

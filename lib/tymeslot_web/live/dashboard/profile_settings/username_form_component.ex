@@ -6,13 +6,13 @@ defmodule TymeslotWeb.Dashboard.ProfileSettings.UsernameFormComponent do
   use TymeslotWeb, :live_component
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Bookings.Policy
   alias Tymeslot.Polls
   alias Tymeslot.Profiles
   alias Tymeslot.Security.FieldValidators.UsernameValidator
   alias Tymeslot.Security.InputProcessor
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Utils.ChangesetUtils
+  alias Tymeslot.Utils.UrlBuilder
   alias Tymeslot.Validation.Constraints
   alias TymeslotWeb.Dashboard.ProfileSettings.UsernameChangeModal
   alias TymeslotWeb.Live.Shared.FormValidationHelpers
@@ -198,7 +198,7 @@ defmodule TymeslotWeb.Dashboard.ProfileSettings.UsernameFormComponent do
   defp username_error(:taken),
     do: dgettext("dashboard_profile", "This username is already taken")
 
-  defp display_url, do: String.replace(Policy.app_url(), ~r/^https?:\/\//, "")
+  defp display_url, do: String.replace(UrlBuilder.base_url(), ~r/^https?:\/\//, "")
 
   @impl Phoenix.LiveComponent
   def render(assigns) do
@@ -279,7 +279,7 @@ defmodule TymeslotWeb.Dashboard.ProfileSettings.UsernameFormComponent do
                 <.icon name="hero-check" class="w-4 h-4 text-green-500" />
                 {dgettext("dashboard_profile", "Live at:")}
                 <a
-                  href={"#{Policy.app_url()}/#{@profile.username}"}
+                  href={"#{UrlBuilder.base_url()}/#{@profile.username}"}
                   target="_blank"
                   class="text-turquoise-600 hover:text-turquoise-700 underline decoration-2 decoration-turquoise-100 underline-offset-4 transition-colors"
                 >

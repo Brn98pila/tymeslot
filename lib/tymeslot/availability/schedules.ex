@@ -17,6 +17,7 @@ defmodule Tymeslot.Availability.Schedules do
   alias Tymeslot.Availability.AvailabilityScheduleSchema
   alias Tymeslot.Availability.WeeklyAvailabilityQueries
   alias Tymeslot.Infrastructure.AvailabilityCache
+  alias Tymeslot.Profiles
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Repo
   alias Tymeslot.Validation.Constraints
@@ -309,6 +310,45 @@ defmodule Tymeslot.Availability.Schedules do
       max_advance_booking_days: policy(schedule, :advance_booking_days),
       slot_interval_minutes: slot_interval_minutes(meeting_type)
     }
+  end
+
+  @typedoc "`config/0` for a booking, with the organiser's timezone."
+  @type booking_config :: %{
+          required(:schedule_id) => integer() | nil,
+          required(:buffer_before_minutes) => non_neg_integer(),
+          required(:buffer_after_minutes) => non_neg_integer(),
+          required(:min_advance_hours) => non_neg_integer(),
+          required(:max_advance_booking_days) => pos_integer(),
+          required(:slot_interval_minutes) => pos_integer() | nil,
+          required(:owner_timezone) => String.t()
+        }
+
+  @doc """
+  Scheduling policy for a booking: buffers, minimum notice, advance window and
+  the organiser's timezone.
+
+  The policy comes from the schedule the meeting type is booked against, so
+  server-side validation applies exactly the rules the offered slots were
+  computed from. A nil meeting type resolves the organiser's default schedule.
+  """
+  @spec booking_config(integer() | nil, map() | nil) :: booking_config()
+  def booking_config(nil, _meeting_type) do
+    nil
+    |> config(nil)
+    |> Map.put(:owner_timezone, Profiles.get_default_timezone())
+  end
+
+  def booking_config(organizer_user_id, meeting_type) do
+    # `Profiles.get_profile_settings/1` already resolves a profile with no
+    # timezone to `Profiles.get_default_timezone()`, the same fallback the
+    # booking page applies, so a nil profile timezone resolves to one zone on
+    # both sides.
+    settings = Profiles.get_profile_settings(organizer_user_id)
+
+    (meeting_type || %{user_id: organizer_user_id})
+    |> resolve_for_meeting_type()
+    |> config(meeting_type)
+    |> Map.put(:owner_timezone, settings.timezone)
   end
 
   @doc """

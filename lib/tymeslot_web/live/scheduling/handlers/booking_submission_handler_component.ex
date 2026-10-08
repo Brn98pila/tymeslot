@@ -34,6 +34,7 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
   alias Phoenix.Component
   alias Phoenix.LiveView
   alias Tymeslot.Bookings.DemoOrchestrator
+  alias Tymeslot.Bookings.Errors
   alias Tymeslot.CustomFields
   alias Tymeslot.Demo
   alias Tymeslot.Infrastructure.Logging.LogFormat
@@ -179,7 +180,7 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
 
   # Handles booking submission errors: updates the socket with the
   # appropriate error message and state.
-  @spec handle_booking_error(Phoenix.LiveView.Socket.t(), atom() | String.t()) ::
+  @spec handle_booking_error(Phoenix.LiveView.Socket.t(), Errors.classified_error()) ::
           {:error, Phoenix.LiveView.Socket.t()}
   defp handle_booking_error(socket, reason) do
     socket =

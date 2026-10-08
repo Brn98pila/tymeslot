@@ -35,9 +35,37 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
           optional(:attendee_locale) => String.t() | nil
         }
 
-  @spec execute(params()) ::
-          {:ok, Tymeslot.Meetings.MeetingSchema.t()} | {:error, String.t() | :time_conflict}
+  @type error ::
+          :title_required
+          | :attendee_name_required
+          | :attendee_email_required
+          | :attendee_is_organizer
+          | :end_before_start
+          | :time_conflict
+          | :meeting_creation_failed
+
+  @spec execute(params()) :: {:ok, Tymeslot.Meetings.MeetingSchema.t()} | {:error, error()}
   def execute(params) do
+    with {:ok, meeting, pending} <- execute_deferred(params) do
+      :ok = Activation.after_commit(pending)
+      AvailabilityCache.invalidate_for_user(meeting.organizer_user_id)
+      {:ok, meeting}
+    end
+  end
+
+  @doc """
+  `execute/1` for a caller that runs it inside a transaction of its own
+  (`Tymeslot.Polls.Confirm`). The meeting, its guests and its jobs are
+  written as `execute/1` writes them, but nothing that belongs after the
+  commit runs: the integration fan-out is returned as `pending`, for the
+  caller to hand to `Tymeslot.Bookings.Activation.after_commit/1` once its
+  transaction has committed, and the host's cached availability is left for
+  the caller to invalidate then.
+  """
+  @spec execute_deferred(params()) ::
+          {:ok, Tymeslot.Meetings.MeetingSchema.t(), Tymeslot.Notifications.Events.pending()}
+          | {:error, error()}
+  def execute_deferred(params) do
     # The organiser's details are resolved once and threaded through: validation
     # needs the organiser email to reject self-booking, and the meeting attrs
     # need all three fields. Looking them up twice would risk the check and the
@@ -56,19 +84,19 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
   defp validate(params, {_org_name, org_email, _org_username}) do
     cond do
       blank?(params[:title]) ->
-        {:error, "Title is required"}
+        {:error, :title_required}
 
       blank?(params[:attendee_name]) ->
-        {:error, "Attendee name is required"}
+        {:error, :attendee_name_required}
 
       blank?(params[:attendee_email]) ->
-        {:error, "Attendee email is required"}
+        {:error, :attendee_email_required}
 
       same_address?(params[:attendee_email], org_email) ->
-        {:error, "The guest email must differ from your own address"}
+        {:error, :attendee_is_organizer}
 
       DateTime.compare(params.end_time, params.start_time) != :gt ->
-        {:error, "End time must be after start time"}
+        {:error, :end_before_start}
 
       true ->
         :ok
@@ -160,8 +188,25 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
         with {:ok, meeting} <- create_meeting(meeting_attrs),
              {:ok, _guests} <- Guests.create_for_meeting(meeting.id, guest_emails, :organizer),
              {:ok, _job} <- schedule_calendar_job(meeting) do
-          handle_side_effects(meeting)
-          meeting
+          # The video-room-then-emails-then-webhooks sequence itself lives in
+          # `Bookings.Activation`, shared with every other confirmed-booking path so
+          # the ordering (room before emails, so the join link is in the
+          # confirmation) cannot drift between call sites. `with_video_room: true`
+          # matches this flow's own semantics: the organiser picked the video
+          # integration explicitly, so its presence alone decides whether a room is
+          # created, the same as a paid checkout confirming a booking.
+          # `Activation` is the whole of it. A second, generic calendar invitation used
+          # to go out beside the confirmation, leaving the guest with two emails for
+          # one booking: the confirmation in their language, carrying the ICS file, the
+          # accept/decline links and the video link, and a bare "You're Invited" with
+          # none of those. It was not initialising anything either, whatever the
+          # comment here claimed — `AttendeeNotifications.event_created/2` only sends,
+          # and `last_notified_state` is written after a dispatch by the debounce
+          # worker, never on create. The baseline stays empty here exactly as it does
+          # for every other booking path, which `LastNotifiedState.to_event/2` is built
+          # to handle: the people on the event are the people this path already
+          # invited.
+          {meeting, Activation.activate_in_transaction(meeting, with_video_room: true)}
         else
           {:error, reason} -> Repo.rollback(reason)
         end
@@ -187,39 +232,13 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
     end
   end
 
-  # The video-room-then-emails-then-webhooks sequence itself lives in
-  # `Bookings.Activation`, shared with every other confirmed-booking path so
-  # the ordering (room before emails, so the join link is in the
-  # confirmation) cannot drift between call sites. `with_video_room: true`
-  # matches this flow's own semantics: the organiser picked the video
-  # integration explicitly, so its presence alone decides whether a room is
-  # created, the same as a paid checkout confirming a booking.
-  # `Activation` is the whole of it. A second, generic calendar invitation used
-  # to go out beside the confirmation, leaving the guest with two emails for
-  # one booking: the confirmation in their language, carrying the ICS file, the
-  # accept/decline links and the video link, and a bare "You're Invited" with
-  # none of those. It was not initialising anything either, whatever the
-  # comment here claimed — `AttendeeNotifications.event_created/2` only sends,
-  # and `last_notified_state` is written after a dispatch by the debounce
-  # worker, never on create. The baseline stays empty here exactly as it does
-  # for every other booking path, which `LastNotifiedState.to_event/2` is built
-  # to handle: the people on the event are the people this path already
-  # invited.
-  defp handle_side_effects(meeting) do
-    Activation.activate(meeting, with_video_room: true)
-    :ok
-  end
-
-  defp map_result({:ok, meeting}) do
-    AvailabilityCache.invalidate_for_user(meeting.organizer_user_id)
-    {:ok, meeting}
-  end
+  defp map_result({:ok, {meeting, pending_integrations}}),
+    do: {:ok, meeting, pending_integrations}
 
   # Preserve the time-conflict reason distinctly so callers can tell an occupied
   # slot apart from a generic booking failure.
   defp map_result({:error, :time_conflict}), do: {:error, :time_conflict}
-  defp map_result({:error, reason}) when is_binary(reason), do: {:error, reason}
-  defp map_result({:error, _reason}), do: {:error, "Failed to create meeting"}
+  defp map_result({:error, _reason}), do: {:error, :meeting_creation_failed}
 
   defp get_organizer_details(user_id) do
     case ProfileQueries.get_by_user_id(user_id) do

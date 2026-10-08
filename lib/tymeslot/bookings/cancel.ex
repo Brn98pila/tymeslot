@@ -44,7 +44,7 @@ defmodule Tymeslot.Bookings.Cancel do
   Accepts the same `opts` as `validate_cancellation/2`; see there for
   `:caller`.
   """
-  @spec execute(Meeting.t(), keyword()) :: {:ok, Meeting.t()} | {:error, atom() | String.t()}
+  @spec execute(Meeting.t(), keyword()) :: {:ok, Meeting.t()} | {:error, term()}
   def execute(meeting, opts \\ [])
 
   def execute(%Meeting{status: "cancelled"} = meeting, _opts) do
@@ -129,7 +129,7 @@ defmodule Tymeslot.Bookings.Cancel do
   defp policy_blocked(meeting, reason) do
     Logger.warning("Meeting cancellation blocked by policy",
       meeting_id: meeting.id,
-      reason: reason
+      reason: LogFormat.reason(reason)
     )
 
     {:error, reason}
@@ -179,7 +179,7 @@ defmodule Tymeslot.Bookings.Cancel do
   means the meeting was cancelled by some other path first, as for
   `execute/2`.
   """
-  @spec execute_external(Meeting.t()) :: {:ok, Meeting.t()} | {:error, atom() | String.t()}
+  @spec execute_external(Meeting.t()) :: {:ok, Meeting.t()} | {:error, term()}
   def execute_external(%Meeting{} = meeting) do
     if MeetingState.expects_calendar_event?(meeting) do
       auto_cancel_external(meeting)
@@ -205,7 +205,8 @@ defmodule Tymeslot.Bookings.Cancel do
 
   Returns :ok or {:error, reason}
   """
-  @spec validate_cancellation(Meeting.t(), keyword()) :: :ok | {:error, atom() | String.t()}
+  @spec validate_cancellation(Meeting.t(), keyword()) ::
+          :ok | {:error, Policy.cancel_refusal() | :group_meeting_not_cancellable}
   def validate_cancellation(meeting, opts \\ []) do
     with :ok <- Policy.can_cancel_meeting?(meeting) do
       refuse_group_meeting(meeting, opts)

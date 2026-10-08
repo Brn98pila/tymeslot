@@ -20,9 +20,12 @@ defmodule Tymeslot.Bookings.DemoOrchestrator do
   matches the type actually being previewed.
   """
 
+  @behaviour Tymeslot.Bookings.Submitter
+
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Ecto.UUID
+  alias Tymeslot.Bookings.Submitter
   alias Tymeslot.Bookings.Validation
   alias Tymeslot.Clock
   alias Tymeslot.Demo
@@ -50,6 +53,7 @@ defmodule Tymeslot.Bookings.DemoOrchestrator do
 
   Returns a mock meeting struct that looks real but isn't persisted.
   """
+  @impl Submitter
   @spec submit_booking(booking_submission_params(), keyword()) ::
           {:ok, meeting()} | {:error, term()}
   def submit_booking(params, opts \\ []) do

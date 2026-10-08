@@ -1047,11 +1047,6 @@ msgstr ""
 
 #: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
 #, elixir-autogen, elixir-format
-msgid "Meeting is already cancelled"
-msgstr ""
-
-#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
-#, elixir-autogen, elixir-format
 msgid "Attendee email is required"
 msgstr ""
 
@@ -1078,11 +1073,6 @@ msgstr ""
 #: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
 #, elixir-autogen, elixir-format
 msgid "Failed to create meeting"
-msgstr ""
-
-#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
-#, elixir-autogen, elixir-format
-msgid "Failed to update meeting status"
 msgstr ""
 
 #: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
@@ -1451,4 +1441,14 @@ msgstr ""
 #: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
 #, elixir-autogen, elixir-format
 msgid "We couldn't check the host's calendar right now. Please try again in a few minutes."
+msgstr ""
+
+#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
+#, elixir-autogen, elixir-format
+msgid "Cannot cancel an expired meeting"
+msgstr ""
+
+#: lib/tymeslot_web/live/scheduling/handlers/booking_error_message.ex
+#, elixir-autogen, elixir-format
+msgid "Cannot request a reschedule while the booking awaits approval"
 msgstr ""

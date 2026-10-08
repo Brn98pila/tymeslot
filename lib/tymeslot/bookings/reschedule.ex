@@ -38,6 +38,7 @@ defmodule Tymeslot.Bookings.Reschedule do
     Validation
   }
 
+  alias Tymeslot.Availability.Schedules
   alias Tymeslot.Clock
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Logging.LogFormat
@@ -104,12 +105,11 @@ defmodule Tymeslot.Bookings.Reschedule do
   since been blocked over it, `:availability_unverifiable` when their
   connected calendars could not all be read to check the new time, or
   `:failed_to_update_meeting` when persisting the new time fails for any
-  other reason) or an arbitrary
-  policy/validation string from `Tymeslot.Bookings.Policy` or
-  `Tymeslot.Bookings.Validation`.
+  other reason) or a refusal from `Tymeslot.Bookings.Policy` or
+  `Tymeslot.Bookings.Validation` (`Tymeslot.Bookings.Refusal.t/0`).
   """
   @spec execute(String.t(), reschedule_params(), integer()) ::
-          {:ok, Ecto.Schema.t()} | {:error, Errors.classified_error() | String.t()}
+          {:ok, Ecto.Schema.t()} | {:error, Errors.classified_error()}
   def execute(meeting_uid, new_params, organizer_user_id)
       when is_binary(meeting_uid) and is_integer(organizer_user_id) do
     with {:ok, original_meeting} <-
@@ -121,7 +121,7 @@ defmodule Tymeslot.Bookings.Reschedule do
              organizer_user_id,
              original_meeting.duration
            ),
-         config <- Policy.scheduling_config(original_meeting.organizer_user_id, meeting_type),
+         config <- Schedules.booking_config(original_meeting.organizer_user_id, meeting_type),
          {:ok, new_times} <-
            Validation.prepare_new_times(new_params, original_meeting, meeting_type, config),
          :ok <- verify_calendar_free(original_meeting, new_times, config),
@@ -238,7 +238,7 @@ defmodule Tymeslot.Bookings.Reschedule do
   # the new request look answered, a stale `approval_nudge_sent_at` would
   # suppress the nudge for a window that has not been nudged, and a stale
   # `announced_at` would leave `Events.meeting_created/1`'s once-per-meeting
-  # claim (`MeetingQueries.claim_announcement/1`) already spent — the host's
+  # claim (`Tymeslot.Meetings.MeetingDeliveryQueries.claim_announcement/1`) already spent — the host's
   # second approval would then win the DB transition but lose the fan-out,
   # so the invitee gets no reminders for the new time and the integration
   # channels never hear that it moved. Clearing it costs nothing that is

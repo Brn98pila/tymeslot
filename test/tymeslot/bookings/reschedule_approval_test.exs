@@ -443,7 +443,7 @@ defmodule Tymeslot.Bookings.RescheduleApprovalTest do
       # refuses the reschedule before the gate is consulted at all, which is
       # a stronger guarantee than leaving the status untouched: there is no
       # new time for the invitee to be told about either.
-      assert {:error, "Cannot reschedule an expired meeting"} =
+      assert {:error, {:not_reschedulable, :expired}} =
                Reschedule.execute(meeting.uid, params, meeting.organizer_user_id)
 
       refute_enqueued(worker: ApprovalExpiryWorker)
