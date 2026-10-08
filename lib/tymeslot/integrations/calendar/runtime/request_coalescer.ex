@@ -183,10 +183,13 @@ defmodule Tymeslot.Integrations.Calendar.RequestCoalescer do
                 key_context(key)
               )
 
-              {:error, {:task_failed, Exception.format(:error, e, __STACKTRACE__)}}
+              # The waiters get the same: the module, never the message or the
+              # stack trace, either of which can carry what the fetch had in
+              # scope.
+              {:error, {:task_failed, e.__struct__}}
           catch
             :exit, {:timeout, _details} -> {:error, :timeout}
-            :exit, reason -> {:error, {:task_failed, reason}}
+            :exit, reason -> {:error, {:task_failed, exit_kind(reason)}}
           end
 
         send(parent, {:coalescer_result, key, self(), result})
@@ -200,4 +203,11 @@ defmodule Tymeslot.Integrations.Calendar.RequestCoalescer do
     do: %{user_id: user_id}
 
   defp key_context(_key), do: %{}
+
+  # An exit reason can carry an exception, with its message and stack trace,
+  # or the arguments of the call that exited; only its kind is passed on.
+  defp exit_kind({%{__exception__: true, __struct__: module}, _stacktrace}), do: module
+  defp exit_kind(reason) when is_atom(reason), do: reason
+  defp exit_kind({reason, _details}) when is_atom(reason), do: reason
+  defp exit_kind(_reason), do: :exit
 end

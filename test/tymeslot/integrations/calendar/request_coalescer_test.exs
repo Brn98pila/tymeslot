@@ -180,4 +180,44 @@ defmodule Tymeslot.Integrations.Calendar.RequestCoalescerTest do
 
     assert seen == %{correlation_id: "abc12345", tracker: "abc12345"}
   end
+
+  describe "a fetch that fails" do
+    # Stands in for a credential the fetch had in scope.
+    @secret "password=hunter2"
+
+    defp refute_leaks(reason) do
+      rendered = inspect(reason, limit: :infinity, printable_limit: :infinity)
+
+      refute rendered =~ "hunter2"
+      refute rendered =~ ".ex:"
+      refute rendered =~ "stacktrace"
+    end
+
+    test "tells a waiter on a raising call the exception's kind and nothing else" do
+      assert {:error, {:task_failed, RuntimeError} = reason} =
+               RequestCoalescer.coalesce(9_101, ~D[2024-04-01], ~D[2024-04-07], fn ->
+                 raise @secret
+               end)
+
+      refute_leaks(reason)
+    end
+
+    test "tells a waiter on an exiting call the exit's kind and nothing else" do
+      assert {:error, {:task_failed, :shutdown} = reason} =
+               RequestCoalescer.coalesce(9_102, ~D[2024-04-01], ~D[2024-04-07], fn ->
+                 exit({:shutdown, @secret})
+               end)
+
+      refute_leaks(reason)
+    end
+
+    test "tells a waiter on a call that exited with an exception only its kind" do
+      assert {:error, {:task_failed, ArgumentError} = reason} =
+               RequestCoalescer.coalesce(9_103, ~D[2024-04-01], ~D[2024-04-07], fn ->
+                 exit({%ArgumentError{message: @secret}, [{__MODULE__, :fetch, 0, []}]})
+               end)
+
+      refute_leaks(reason)
+    end
+  end
 end
