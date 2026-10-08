@@ -1,19 +1,8 @@
 defmodule Tymeslot.Workers.SyncIcsCalendarWorker do
   @moduledoc """
   Oban worker that refreshes a subscribed calendar feed into the local event
-  cache.
-
-  A published feed has no delta mechanism: no sync token, no CTag, no
-  per-event ETags worth trusting. Every run therefore fetches the whole file
-  and replaces the integration's cached events in one transaction
-  (`ProviderCalendarEventQueries.full_refresh_for_integration/2`), which is
-  also what makes deletions visible — an event that has vanished from the
-  feed simply isn't in the replacement set.
-
-  This is the only place the feed URL is fetched. The provider's own read
-  path serves this cache, so the freshness of every availability check is
-  bounded by how often this worker runs rather than by the publisher's
-  response time. See `Tymeslot.Integrations.Calendar.Ics.Provider` for why.
+  cache (`Tymeslot.Integrations.Calendar.Ics.SyncCycle`) and turns the
+  outcome into the job's verdict.
 
   A 401 or 403 means the feed URL has been revoked or rotated, which no
   amount of retrying will fix: the integration is flagged `needs_reauth` and
@@ -36,16 +25,10 @@ defmodule Tymeslot.Workers.SyncIcsCalendarWorker do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.Ics.Feed
-  alias Tymeslot.Integrations.Calendar.Ics.Provider
-  alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
-  alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
-  alias Tymeslot.Integrations.Calendar.Sync
-  alias Tymeslot.Integrations.Calendar.SyncBroadcast
+  alias Tymeslot.Integrations.Calendar.Ics.SyncCycle
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.CalendarSyncJob
-
-  @calendar_id "subscription"
 
   @doc """
   Enqueues a feed refresh for the subscription `integration_id`.
@@ -78,9 +61,9 @@ defmodule Tymeslot.Workers.SyncIcsCalendarWorker do
   def perform(%Oban.Job{} = job), do: CalendarSyncJob.run(job, &sync/1)
 
   defp sync(integration) do
-    case Provider.fetch_feed(feed_url(integration)) do
-      {:ok, raw_events} ->
-        refresh_cache(integration, raw_events)
+    case SyncCycle.run(integration) do
+      :ok ->
+        :ok
 
       {:error, :unauthorised} ->
         CalendarManagement.handle_reauth_required(integration, cause: :rejected_subscription_url)
@@ -94,75 +77,6 @@ defmodule Tymeslot.Workers.SyncIcsCalendarWorker do
 
       {:error, reason} ->
         record_failure(integration, reason)
-    end
-  end
-
-  defp refresh_cache(integration, raw_events) do
-    context = %{
-      calendar_integration_id: integration.id,
-      provider_calendar_id: @calendar_id,
-      synced_at: DateTime.utc_now()
-    }
-
-    {:ok, events} = Provider.normalise_events(raw_events, context)
-
-    case Sync.refuse_empty_over_populated(integration, nil, events, Sync.window()) do
-      :ok -> write_cache(integration, events)
-      {:error, reason} -> record_failure(integration, reason)
-    end
-  end
-
-  defp write_cache(integration, events) do
-    attrs = Enum.map(events, &ProviderCalendarEventSchema.from_calendar_event/1)
-
-    case ProviderCalendarEventQueries.full_refresh_for_integration(integration.id, attrs) do
-      {:ok, count} ->
-        # Deliberately not `Sync.post_commit_reconciliation/2`: that also
-        # rewrites linked meetings whose times moved externally, which a
-        # read-only mirror of someone else's calendar has no business doing.
-        # The cache invalidation and grid broadcast are still wanted.
-        Sync.invalidate_cache_for_user(integration)
-        SyncBroadcast.broadcast_cache_update(integration.user_id, Enum.map(events, & &1.uid))
-
-        mark_synced(integration, count)
-        SyncBroadcast.broadcast_sync_complete(integration.user_id, integration.id)
-        :ok
-
-      {:error, reason} ->
-        record_failure(integration, reason)
-    end
-  rescue
-    error -> record_failure(integration, error)
-  end
-
-  # A feed refresh is always a full one, so `last_full_sync_at` moves with the
-  # per-cycle marker rather than lagging behind it. Clearing `sync_error` and
-  # `needs_reauth` belongs to every provider's successful cycle alike, so
-  # `SyncHealth.record_outcome/2` owns that at the job boundary.
-  defp mark_synced(integration, count) do
-    now = DateTime.utc_now(:second)
-
-    attrs = %{
-      last_external_sync_at: now,
-      last_full_sync_at: now
-    }
-
-    case CalendarIntegrationQueries.update_sync_state(integration, attrs) do
-      {:ok, _updated} ->
-        Logger.info("Calendar subscription refreshed",
-          calendar_integration_id: integration.id,
-          event_count: count
-        )
-
-        :ok
-
-      {:error, changeset} ->
-        Logger.warning("Failed to persist calendar subscription sync state",
-          calendar_integration_id: integration.id,
-          error: LogFormat.reason(changeset)
-        )
-
-        :ok
     end
   end
 
@@ -180,7 +94,4 @@ defmodule Tymeslot.Workers.SyncIcsCalendarWorker do
 
     {:error, reason}
   end
-
-  defp feed_url(%{subscription_url: url}) when is_binary(url), do: url
-  defp feed_url(_integration), do: nil
 end
