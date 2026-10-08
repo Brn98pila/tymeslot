@@ -9,6 +9,7 @@ defmodule Tymeslot.Notifications.ChannelFanoutTest do
   import Tymeslot.Factory
 
   alias Tymeslot.Notifications.ChannelFanout
+  alias Tymeslot.Slack
   alias Tymeslot.Test.{LogCapture, ProcessAccessChecker}
   alias Tymeslot.Webhooks
   alias Tymeslot.Webhooks.WebhookSchema
@@ -130,26 +131,18 @@ defmodule Tymeslot.Notifications.ChannelFanoutTest do
     end
   end
 
-  describe "dispatch/2 with a raising channel" do
-    setup %{user: user} do
-      for {factory, _worker, _key} <- @channels do
-        insert(factory, user: user, events: ["meeting.created"])
-      end
+  describe "dispatch/3 with a raising channel" do
+    test "still reaches the channels after it, and does not raise", %{
+      user: user,
+      meeting: meeting
+    } do
+      insert(:slack_integration, user: user, events: ["meeting.created"])
 
-      :meck.new(Webhooks, [:passthrough])
+      assert :ok =
+               ChannelFanout.dispatch(:meeting_created, meeting,
+                 channels: [broken: __MODULE__.RaisingChannel, slack: Slack]
+               )
 
-      :meck.expect(Webhooks, :schedule_for_event, fn _user_id, _event_type, _meeting ->
-        raise "simulated webhook scheduling failure"
-      end)
-
-      on_exit(fn -> unload_if_mocked(Webhooks) end)
-    end
-
-    test "still reaches the channels after it, and does not raise", %{meeting: meeting} do
-      assert :ok = ChannelFanout.dispatch(:meeting_created, meeting)
-
-      assert all_enqueued(worker: WebhookWorker) == []
-      assert [_job] = all_enqueued(worker: TelegramWorker)
       assert [_job] = all_enqueued(worker: SlackWorker)
     end
   end
@@ -176,7 +169,7 @@ defmodule Tymeslot.Notifications.ChannelFanoutTest do
     end
   end
 
-  describe "dispatch/2 logging" do
+  describe "dispatch/3 logging" do
     test "does not log a routine skip as a scheduling failure",
          %{user: user, meeting: meeting} do
       # A webhook at the failure threshold but not yet marked disabled is
@@ -201,10 +194,12 @@ defmodule Tymeslot.Notifications.ChannelFanoutTest do
     end
   end
 
-  defp unload_if_mocked(module) do
-    :meck.unload(module)
-  rescue
-    _error -> :ok
+  defmodule RaisingChannel do
+    @moduledoc false
+    @behaviour Tymeslot.Notifications.Channel
+
+    @impl Tymeslot.Notifications.Channel
+    def schedule_for_event(_user_id, _event_type, _meeting), do: raise("scheduling failed")
   end
 
   defmodule CountsChecks do

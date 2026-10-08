@@ -27,10 +27,18 @@ defmodule Tymeslot.Notifications.ChannelFanout do
   @doc """
   Schedules `event` (an internal event atom or its wire name) about
   `meeting` on every channel the organiser has subscribed to it.
+
+  Options:
+
+    * `:channels` — the `{name, context}` pairs to fan out to, each context
+      implementing `Tymeslot.Notifications.Channel`. Defaults to webhooks,
+      Telegram and Slack, in that order.
   """
-  @spec dispatch(atom() | String.t(), MeetingSchema.t() | term()) ::
+  @spec dispatch(atom() | String.t(), MeetingSchema.t() | term(), keyword()) ::
           :ok | {:error, :no_organizer | :not_a_meeting | term()}
-  def dispatch(event, %MeetingSchema{organizer_user_id: nil} = meeting) do
+  def dispatch(event, meeting, opts \\ [])
+
+  def dispatch(event, %MeetingSchema{organizer_user_id: nil} = meeting, _opts) do
     Logger.warning("Cannot dispatch channel notifications: meeting has no organizer_user_id",
       meeting_id: meeting.id,
       event: event
@@ -39,10 +47,12 @@ defmodule Tymeslot.Notifications.ChannelFanout do
     {:error, :no_organizer}
   end
 
-  def dispatch(event, %MeetingSchema{organizer_user_id: user_id} = meeting) do
+  def dispatch(event, %MeetingSchema{organizer_user_id: user_id} = meeting, opts) do
     with {:ok, event_type} <- wire_name(event, meeting),
          :ok <- check_access(user_id, event_type) do
-      Enum.each(@channels, fn {channel, context} ->
+      opts
+      |> Keyword.get(:channels, @channels)
+      |> Enum.each(fn {channel, context} ->
         dispatch_channel(channel, context, user_id, event_type, meeting)
       end)
     end
@@ -50,7 +60,7 @@ defmodule Tymeslot.Notifications.ChannelFanout do
 
   # The `Events` entry points take any term; something other than a meeting
   # row reaching the fan-out is reported, not raised into the caller.
-  def dispatch(event, _meeting) do
+  def dispatch(event, _meeting, _opts) do
     Logger.error("Cannot dispatch channel notifications for a non-meeting", event: event)
     {:error, :not_a_meeting}
   end
