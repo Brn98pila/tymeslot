@@ -12,7 +12,6 @@ defmodule Tymeslot.Payments.Stripe do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Payments.Behaviours.StripeProvider
   alias Tymeslot.Payments.Config
-  alias Tymeslot.Payments.RetryHelper
   alias Tymeslot.Security.SecurityLogger
 
   @type stripe_result :: {:ok, map()} | {:error, any()}
@@ -51,26 +50,22 @@ defmodule Tymeslot.Payments.Stripe do
 
     idempotency_key = generate_idempotency_key("customer_create", email)
 
-    RetryHelper.execute_with_retry(fn ->
-      customer_mod().create(customer_params, api_key_opts(idempotency_key))
-    end)
+    with {:ok, opts} <- api_key_opts(idempotency_key),
+         do: customer_mod().create(customer_params, opts)
   end
 
   # Private functions
 
+  # Each call is made once: a failure goes back to the caller, whose own
+  # retry (Stripe redelivering a webhook, Oban rerunning a job, a person
+  # trying again) decides whether it is worth another attempt.
   defp api_key_opts(idempotency_key \\ nil) do
     case Config.stripe_api_key() do
       nil ->
-        throw({:error, :missing_api_key})
+        {:error, :missing_api_key}
 
       key ->
-        base_opts = [api_key: key]
-
-        if idempotency_key do
-          Keyword.put(base_opts, :idempotency_key, idempotency_key)
-        else
-          base_opts
-        end
+        {:ok, Enum.reject([api_key: key, idempotency_key: idempotency_key], &is_nil(elem(&1, 1)))}
     end
   end
 
@@ -98,9 +93,7 @@ defmodule Tymeslot.Payments.Stripe do
   def expire_checkout_session(session_id) when is_binary(session_id) do
     Logger.info("Expiring Stripe checkout session", session_id: session_id)
 
-    RetryHelper.execute_with_retry(fn ->
-      session_mod().expire(session_id, %{}, api_key_opts())
-    end)
+    with {:ok, opts} <- api_key_opts(), do: session_mod().expire(session_id, %{}, opts)
   end
 
   @doc """
@@ -118,9 +111,7 @@ defmodule Tymeslot.Payments.Stripe do
 
     idempotency_key = generate_idempotency_key("subscription_checkout", request_id)
 
-    RetryHelper.execute_with_retry(fn ->
-      session_mod().create(params, api_key_opts(idempotency_key))
-    end)
+    with {:ok, opts} <- api_key_opts(idempotency_key), do: session_mod().create(params, opts)
   end
 
   @doc """
@@ -143,13 +134,11 @@ defmodule Tymeslot.Payments.Stripe do
     operation = if at_period_end, do: "cancel_at_period_end", else: "cancel_now"
     idempotency_key = generate_idempotency_key("subscription_#{operation}", subscription_id)
 
-    RetryHelper.execute_with_retry(fn ->
-      if at_period_end do
-        subscription_mod().update(subscription_id, params, api_key_opts(idempotency_key))
-      else
-        subscription_mod().cancel(subscription_id, %{}, api_key_opts(idempotency_key))
-      end
-    end)
+    with {:ok, opts} <- api_key_opts(idempotency_key) do
+      if at_period_end,
+        do: subscription_mod().update(subscription_id, params, opts),
+        else: subscription_mod().cancel(subscription_id, %{}, opts)
+    end
   end
 
   @doc """
@@ -160,9 +149,8 @@ defmodule Tymeslot.Payments.Stripe do
   def get_subscription(subscription_id) when is_binary(subscription_id) do
     Logger.info("Retrieving Stripe subscription", subscription_id: subscription_id)
 
-    RetryHelper.execute_with_retry(fn ->
-      subscription_mod().retrieve(subscription_id, %{}, api_key_opts())
-    end)
+    with {:ok, opts} <- api_key_opts(),
+         do: subscription_mod().retrieve(subscription_id, %{}, opts)
   end
 
   @doc """
@@ -173,9 +161,7 @@ defmodule Tymeslot.Payments.Stripe do
   def get_charge(charge_id) when is_binary(charge_id) do
     Logger.info("Retrieving Stripe charge", charge_id: charge_id)
 
-    RetryHelper.execute_with_retry(fn ->
-      charge_mod().retrieve(charge_id, %{}, api_key_opts())
-    end)
+    with {:ok, opts} <- api_key_opts(), do: charge_mod().retrieve(charge_id, %{}, opts)
   end
 
   @doc """
@@ -186,9 +172,7 @@ defmodule Tymeslot.Payments.Stripe do
   def list_subscriptions(params) when is_map(params) do
     Logger.info("Listing Stripe subscriptions", params: LogFormat.reason(params))
 
-    RetryHelper.execute_with_retry(fn ->
-      subscription_mod().list(params, api_key_opts())
-    end)
+    with {:ok, opts} <- api_key_opts(), do: subscription_mod().list(params, opts)
   end
 
   @doc """
@@ -200,11 +184,7 @@ defmodule Tymeslot.Payments.Stripe do
       when is_binary(customer_id) and is_binary(return_url) do
     Logger.info("Creating Stripe billing portal session", customer_id: customer_id)
 
-    RetryHelper.execute_with_retry(fn ->
-      BillingPortal.Session.create(
-        %{customer: customer_id, return_url: return_url},
-        api_key_opts()
-      )
-    end)
+    with {:ok, opts} <- api_key_opts(),
+         do: BillingPortal.Session.create(%{customer: customer_id, return_url: return_url}, opts)
   end
 end

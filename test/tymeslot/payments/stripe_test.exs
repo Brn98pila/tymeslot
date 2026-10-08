@@ -44,29 +44,12 @@ defmodule Tymeslot.Payments.StripeTest do
       assert {:ok, %{id: "cus_123"}} = Stripe.create_customer(email)
     end
 
-    test "retries on network errors" do
-      email = "test@example.com"
-
-      # First attempt fails with network error, second succeeds
+    test "makes one attempt and hands a network error back to the caller" do
       expect(StripeCustomerMock, :create, 1, fn _params, _opts ->
         {:error, %{__struct__: Stripe.Error, source: :network, message: "Network timeout"}}
       end)
 
-      expect(StripeCustomerMock, :create, 1, fn _params, _opts ->
-        {:ok, %{id: "cus_123"}}
-      end)
-
-      assert {:ok, %{id: "cus_123"}} = Stripe.create_customer(email)
-    end
-
-    test "fails after max retries" do
-      email = "test@example.com"
-
-      expect(StripeCustomerMock, :create, 3, fn _params, _opts ->
-        {:error, %{__struct__: Stripe.Error, source: :network, message: "Network timeout"}}
-      end)
-
-      assert {:error, %{source: :network}} = Stripe.create_customer(email)
+      assert {:error, %{source: :network}} = Stripe.create_customer("test@example.com")
     end
   end
 
@@ -84,7 +67,7 @@ defmodule Tymeslot.Payments.StripeTest do
     test "returns error when session cannot be expired" do
       session_id = "cs_live_abc123"
 
-      expect(StripeSessionMock, :expire, 3, fn ^session_id, %{}, _opts ->
+      expect(StripeSessionMock, :expire, 1, fn ^session_id, %{}, _opts ->
         {:error, %{__struct__: Stripe.Error, source: :network, message: "Network timeout"}}
       end)
 
