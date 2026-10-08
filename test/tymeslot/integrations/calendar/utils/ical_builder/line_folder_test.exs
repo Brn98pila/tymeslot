@@ -39,4 +39,15 @@ defmodule Tymeslot.Integrations.Calendar.ICalBuilder.LineFolderTest do
     assert line |> LineFolder.fold_lines() |> physical_lines() |> Enum.map(&byte_size/1) ==
              [75, 75, 64]
   end
+
+  # Continuation bytes with no character start among them, as a value that is
+  # not valid UTF-8 carries: there is no boundary to retreat to.
+  test "folds bytes with no character boundary at the limit instead of looping" do
+    line = :binary.copy(<<0x80>>, 200)
+
+    task = Task.async(fn -> LineFolder.fold_lines(line) end)
+    folded = Task.await(task, 1_000)
+
+    assert folded |> String.split("\r\n") |> Enum.map(&byte_size/1) == [75, 75, 52]
+  end
 end

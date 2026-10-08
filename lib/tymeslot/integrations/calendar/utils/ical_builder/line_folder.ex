@@ -58,9 +58,15 @@ defmodule Tymeslot.Integrations.Calendar.ICalBuilder.LineFolder do
     {chunk, rest}
   end
 
+  # A line with no character boundary within reach (bytes that are not valid
+  # UTF-8) is split at the limit, since a split at 0 would never advance.
   defp safe_utf8_split(binary, pos) do
     pos = min(pos, byte_size(binary))
-    retreat_to_boundary(binary, pos)
+
+    case retreat_to_boundary(binary, pos) do
+      0 -> pos
+      boundary -> boundary
+    end
   end
 
   defp retreat_to_boundary(_binary, 0), do: 0
