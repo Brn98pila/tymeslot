@@ -1244,3 +1244,13 @@ msgid_plural "%{time} (+%{count} days)"
 msgstr[0] "%{time} (+%{count} день)"
 msgstr[1] "%{time} (+%{count} дні)"
 msgstr[2] "%{time} (+%{count} днів)"
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/components/booking_limit_fields.ex
+#, elixir-autogen, elixir-format
+msgid "Weeks start on Monday, as set in Calendar Settings."
+msgstr "Тижні починаються з понеділка, як указано в «Налаштуваннях календаря»."
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/components/booking_limit_fields.ex
+#, elixir-autogen, elixir-format
+msgid "Weeks start on Sunday, as set in Calendar Settings."
+msgstr "Тижні починаються з неділі, як указано в «Налаштуваннях календаря»."

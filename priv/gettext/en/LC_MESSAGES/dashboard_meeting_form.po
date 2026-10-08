@@ -1236,3 +1236,13 @@ msgid "%{time} (+%{count} day)"
 msgid_plural "%{time} (+%{count} days)"
 msgstr[0] ""
 msgstr[1] ""
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/components/booking_limit_fields.ex
+#, elixir-autogen, elixir-format
+msgid "Weeks start on Monday, as set in Calendar Settings."
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/components/booking_limit_fields.ex
+#, elixir-autogen, elixir-format
+msgid "Weeks start on Sunday, as set in Calendar Settings."
+msgstr ""
