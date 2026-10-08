@@ -10,8 +10,6 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Defaults
-  alias Tymeslot.Integrations.Calendar.ProviderConfig
-  alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Profiles.ProfileQueries
 
@@ -57,64 +55,9 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   end
 
   @doc """
-  Auto-selects the primary calendar after discovery for all providers.
-  For OAuth providers, looks for a calendar marked as primary.
-  For CalDAV/Radicale, selects the first available calendar.
-  """
-  @spec auto_select_primary_calendar(CalendarIntegrationSchema.t(), [map()]) ::
-          {:ok, CalendarIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
-  def auto_select_primary_calendar(integration, calendars) do
-    oauth? =
-      case ProviderConfig.parse_known(integration.provider) do
-        {:ok, provider_atom} -> ProviderConfig.oauth_provider?(provider_atom)
-        {:error, :unknown} -> false
-      end
-
-    # Restrict the ladder to calendars eligible for booking (not read-only)
-    # so the id persisted here is never one `Defaults.resolve_default_calendar_id/1`
-    # — the read path — would then refuse to honour.
-    eligible = Defaults.eligible_for_booking(calendars)
-
-    # Find the default booking calendar
-    default_calendar_id =
-      if oauth? do
-        # For OAuth, prefer provider primary, then selected, then first
-        Defaults.primary_id(eligible) || Defaults.selected_id(eligible) ||
-          Defaults.first_id_from_list(eligible)
-      else
-        # For CalDAV/Radicale, prefer selected, else first
-        Defaults.selected_id(eligible) || Defaults.first_id_from_list(eligible)
-      end
-
-    # Update with calendar list and default booking calendar if found.
-    # For CalDAV-family providers, `calendar_list_attrs/1` keeps `calendar_paths`
-    # in sync with the selection — required so the CalDAV worker only fetches
-    # calendars the user has activated.
-    # For OAuth providers (Google, Outlook), the discovery maps are atom-keyed
-    # and carry no `:path` key, so passing them through `calendar_list_attrs/1`
-    # would write provider IDs (e.g. "primary") into `calendar_paths` — a field
-    # that must stay empty for OAuth integrations. Only write `calendar_list`
-    # for those providers.
-    attrs =
-      if oauth? do
-        %{calendar_list: calendars}
-      else
-        Selection.calendar_list_attrs(calendars)
-      end
-
-    attrs =
-      if default_calendar_id do
-        Map.put(attrs, :default_booking_calendar_id, default_calendar_id)
-      else
-        attrs
-      end
-
-    CalendarManagement.update_calendar_integration(integration, attrs)
-  end
-
-  @doc """
-  Discovers calendars for an integration and auto-selects the primary.
-  Falls back to returning the integration unchanged if discovery fails.
+  Discovers the calendars of an integration just connected through OAuth
+  (Google, Outlook) and picks its default booking calendar. Falls back to
+  returning the integration unchanged if discovery fails.
   """
   @spec discover_and_configure_calendars(CalendarIntegrationSchema.t()) ::
           {:ok, CalendarIntegrationSchema.t()}
@@ -134,6 +77,27 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   end
 
   # Private helpers
+
+  # Stores the discovered list and picks the default booking calendar: the
+  # provider's primary, else a selected one, else the first. Only calendars
+  # a booking can be written to are considered, so the id stored here is
+  # never one `Defaults.resolve_default_calendar_id/1` would refuse. Only an
+  # OAuth connection reaches this, and its discovered entries carry no path,
+  # so `calendar_paths` is left alone: it must stay empty for those providers.
+  defp auto_select_primary_calendar(integration, calendars) do
+    eligible = Defaults.eligible_for_booking(calendars)
+
+    default_calendar_id =
+      Defaults.primary_id(eligible) || Defaults.selected_id(eligible) ||
+        Defaults.first_id_from_list(eligible)
+
+    attrs =
+      if default_calendar_id,
+        do: %{calendar_list: calendars, default_booking_calendar_id: default_calendar_id},
+        else: %{calendar_list: calendars}
+
+    CalendarManagement.update_calendar_integration(integration, attrs)
+  end
 
   defp validate_and_prepare_integration(user_id, integration_id) do
     with {:ok, integration} <-
