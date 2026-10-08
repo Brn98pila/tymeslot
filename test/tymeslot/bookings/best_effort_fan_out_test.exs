@@ -34,6 +34,8 @@ defmodule Tymeslot.Bookings.BestEffortFanOutTest do
   alias Tymeslot.Meetings.Approval
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.ParticipantQueries
+  alias Tymeslot.Notifications.DispatchInTransactionError
+  alias Tymeslot.Notifications.Events
   alias Tymeslot.Polls.Confirm
   alias Tymeslot.Polls.PollSchema
   alias Tymeslot.Repo
@@ -205,10 +207,35 @@ defmodule Tymeslot.Bookings.BestEffortFanOutTest do
     end
   end
 
+  # Every dispatch goes through `Events.dispatch_deferred/1`, which refuses
+  # to run before the caller's commit.
   describe "a caller dispatching before its own commit" do
-    test "is refused" do
-      assert_raise ArgumentError, ~r/inside a transaction/, fn ->
+    test "is refused through the booking path" do
+      assert_raise DispatchInTransactionError, fn ->
         Repo.transaction(fn -> Activation.after_commit([]) end)
+      end
+    end
+
+    test "is refused through a whole event", %{user: user} do
+      meeting = insert_meeting_for_user(user, %{status: "confirmed"})
+
+      assert_raise DispatchInTransactionError, fn ->
+        Repo.transaction(fn -> Events.meeting_created(meeting) end)
+      end
+    end
+
+    # Approval guards each step after the commit against an unexpected raise;
+    # this one it lets through.
+    test "is refused through an approval", %{user: user} do
+      held =
+        insert_meeting_for_user(user, %{
+          status: "awaiting_approval",
+          approval_requested_at: DateTime.utc_now(:second),
+          approval_deadline_at: DateTime.add(DateTime.utc_now(:second), 1, :day)
+        })
+
+      assert_raise DispatchInTransactionError, fn ->
+        Repo.transaction(fn -> Approval.approve(held) end)
       end
     end
   end

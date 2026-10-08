@@ -243,7 +243,7 @@ defmodule Tymeslot.Meetings.MeetingDeliveryQueries do
 
   @doc """
   Whether the calling process is inside a database transaction.
-  `Tymeslot.Bookings.Activation.after_commit/1` refuses to run in one.
+  `Tymeslot.Notifications.Events.dispatch_deferred/1` refuses to run in one.
   """
   @spec in_transaction?() :: boolean()
   def in_transaction?, do: Repo.in_transaction?()

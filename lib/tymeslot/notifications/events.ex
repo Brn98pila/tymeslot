@@ -12,6 +12,7 @@ defmodule Tymeslot.Notifications.Events do
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.ParticipantQueries
   alias Tymeslot.Meetings.SeatView
+  alias Tymeslot.Notifications.DispatchInTransactionError
   alias Tymeslot.Notifications.Orchestrator
   alias Tymeslot.Slack.Dispatcher, as: SlackDispatcher
   alias Tymeslot.Telegram.Dispatcher, as: TelegramDispatcher
@@ -78,11 +79,20 @@ defmodule Tymeslot.Notifications.Events do
 
   @doc """
   Runs the integration fan-out `meeting_created_deferred/1`,
-  `meeting_requested_deferred/2` or `seat_booked_deferred/3` returned. Never fails the caller: each
-  channel is best-effort, and a failure is logged and reported.
+  `meeting_requested_deferred/2` or `seat_booked_deferred/3` returned. Never
+  fails the caller: each channel is best-effort, and a failure is logged and
+  reported.
+
+  Raises `Tymeslot.Notifications.DispatchInTransactionError` when called
+  inside a transaction, so a caller that dispatches before its commit, here
+  or through `meeting_created/1`, `meeting_requested/2` or
+  `Tymeslot.Bookings.Activation.after_commit/1`, fails on its first test
+  rather than lose a booking in production.
   """
   @spec dispatch_deferred(pending()) :: :ok
   def dispatch_deferred(pending) when is_list(pending) do
+    if MeetingDeliveryQueries.in_transaction?(), do: raise(DispatchInTransactionError)
+
     Enum.each(pending, fn {event, meeting, fan_out} ->
       dispatch_deferred_event(event, meeting, fan_out)
     end)
@@ -207,8 +217,9 @@ defmodule Tymeslot.Notifications.Events do
 
   A group meeting never raises `meeting_created/1` here.
   `seat_booked_deferred/3` already fanned its webhook/Telegram/Slack
-  integrations out per seat at booking time, and reminders were already scheduled once, at whichever
-  seat's booking created the meeting (see `Tymeslot.Bookings.SeatEffects`).
+  integrations out per seat at booking time, and reminders were already
+  scheduled once, at whichever seat's booking created the meeting (see
+  `Tymeslot.Bookings.SeatEffects`).
   Re-raising the full event on top of that duplicated it with a payload
   carrying no attendee at all, since a group meeting row has none of its own.
 

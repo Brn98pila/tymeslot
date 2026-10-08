@@ -89,6 +89,7 @@ defmodule Tymeslot.Meetings.Approval do
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
   alias Tymeslot.Meetings.MeetingState
   alias Tymeslot.MeetingTypes.MeetingTypeSchema, as: MeetingType
+  alias Tymeslot.Notifications.DispatchInTransactionError
   alias Tymeslot.Notifications.Events
   alias Tymeslot.Notifications.GuestNotifications
   alias Tymeslot.Notifications.Orchestrator
@@ -545,9 +546,14 @@ defmodule Tymeslot.Meetings.Approval do
   # succeeded, and each of these is independently retried or logged by its
   # own module on an ordinary `{:error, _}`. This only guards against the
   # unexpected raise; `{:error, _}` returns are each module's own job to log.
+  # A fan-out dispatched inside a transaction is not one: it is a caller
+  # wired up wrong, and is let through to fail loudly.
   defp best_effort(meeting, step, fun) do
     fun.()
   rescue
+    exception in DispatchInTransactionError ->
+      reraise exception, __STACKTRACE__
+
     exception ->
       ErrorTracking.report_error(exception, __STACKTRACE__, %{step: step, meeting_id: meeting.id})
   end
