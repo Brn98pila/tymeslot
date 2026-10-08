@@ -57,14 +57,4 @@ defmodule Tymeslot.Payments.Config do
   def subscription_manager do
     Application.get_env(:tymeslot, :subscription_manager)
   end
-
-  @doc """
-  Get subscription schema (if configured).
-
-  Returns `nil` if no subscription schema is configured (Core standalone mode).
-  """
-  @spec subscription_schema() :: module() | nil
-  def subscription_schema do
-    Application.get_env(:tymeslot, :subscription_schema)
-  end
 end

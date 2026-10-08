@@ -36,7 +36,10 @@ defmodule Tymeslot.Workers.RenewWebhookChannelsWorker do
   use Oban.Worker,
     queue: :calendar_integrations,
     max_attempts: 3,
-    unique: [period: 86_400]
+    # Just under the daily crontab interval: uniqueness counts from the
+    # previous job's insertion, so a full day would swallow the next day's
+    # job whenever the cron plugin inserts it a moment early.
+    unique: [period: 85_800]
 
   use Gettext, backend: TymeslotWeb.Gettext
 

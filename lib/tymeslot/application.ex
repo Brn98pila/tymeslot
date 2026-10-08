@@ -272,7 +272,8 @@ defmodule Tymeslot.Application do
     if Application.get_env(:tymeslot, :environment) != :test do
       oban_config = Application.get_env(:tymeslot, Oban, [])
 
-      ObanCron.warn_on_missing_workers(oban_config)
+      # Checked as Oban will run it, with the crontab filled in.
+      oban_config |> ObanCron.extend() |> ObanCron.warn_on_missing_workers()
       ObanRescue.warn_on_unsafe_lifeline(oban_config)
     end
 

@@ -6,7 +6,14 @@ defmodule Tymeslot.Payments.Webhooks.InvoiceHandlerTest do
   alias Tymeslot.Payments.SubscriptionInvoices
   alias Tymeslot.Payments.SubscriptionInvoiceSchema
   alias Tymeslot.Payments.Webhooks.{InvoiceHandler, WebhookRegistry}
+  alias Tymeslot.TestMocks
   import Tymeslot.Factory
+
+  # No subscription manager records these subscriptions: owners resolve from
+  # payment transactions, as in Core standalone.
+  setup do
+    TestMocks.setup_subscription_mocks()
+  end
 
   defp invoice_for(stripe_invoice_id),
     do: Repo.get_by(SubscriptionInvoiceSchema, stripe_invoice_id: stripe_invoice_id)
