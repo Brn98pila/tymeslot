@@ -181,7 +181,11 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
     with :single <- Occurrence.series_family(stored || event),
          {:ok, updated} <- apply_changes(event, changes, opts),
          {:ok, payload} <- ProviderPayload.from_event(updated),
-         payload = payload |> put_stored_document(stored) |> scope_attendees(event, changes),
+         payload =
+           payload
+           |> ProviderPayload.put_series_zone(Keyword.get(opts, :timezone))
+           |> put_stored_document(stored)
+           |> scope_attendees(event, changes),
          :queued <- queue_retry(:queue_recoverable, user_id, updated, payload, :not_written) do
       {:ok, updated}
     else
