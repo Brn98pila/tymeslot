@@ -22,6 +22,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
 
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Profiles.ProfileQueries
@@ -100,8 +101,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   whose credentials do not decrypt for now (a rotated key, say) is still the
   user's chosen calendar, and another becoming usable must not demote it.
   """
-  @spec adopt_if_vacant(%{id: pos_integer(), user_id: pos_integer(), provider: term()}) ::
-          :adopted | :unchanged
+  @spec adopt_if_vacant(CalendarIntegrationSchema.t()) :: :adopted | :unchanged
   def adopt_if_vacant(%{id: id, user_id: user_id} = integration) do
     with true <- BookingEligibility.bookable?(integration),
          false <- active_primary?(user_id),
