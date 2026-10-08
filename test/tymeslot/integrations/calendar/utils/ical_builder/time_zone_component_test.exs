@@ -108,6 +108,23 @@ defmodule Tymeslot.Integrations.Calendar.ICalBuilder.TimeZoneComponentTest do
       end
     end
 
+    # The database gives Dublin a negative saving in winter rather than a
+    # positive one in summer; clients still expect summer as DAYLIGHT.
+    test "writes summer time as daylight in a zone with a negative saving" do
+      lines =
+        TimeZoneComponent.lines(
+          "Europe/Dublin",
+          ~U[2026-01-05 08:00:00Z],
+          ~U[2027-01-05 08:00:00Z]
+        )
+
+      assert Enum.filter(lines, &(&1 in ["BEGIN:STANDARD", "BEGIN:DAYLIGHT"])) ==
+               ["BEGIN:STANDARD", "BEGIN:DAYLIGHT", "BEGIN:STANDARD"]
+
+      assert Enum.filter(lines, &String.starts_with?(&1, "TZNAME:")) ==
+               ["TZNAME:GMT", "TZNAME:IST", "TZNAME:GMT"]
+    end
+
     test "has nothing to write for a zone the database does not know" do
       assert TimeZoneComponent.lines("Nowhere/Zone", @start, DateTime.add(@start, 1, :day)) ==
                nil

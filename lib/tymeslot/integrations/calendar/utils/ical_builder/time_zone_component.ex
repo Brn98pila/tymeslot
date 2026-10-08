@@ -133,7 +133,7 @@ defmodule Tymeslot.Integrations.Calendar.ICalBuilder.TimeZoneComponent do
   end
 
   defp subcomponent(%{wall: wall, from: from, to: to}) do
-    kind = if to.std_offset == 0, do: "STANDARD", else: "DAYLIGHT"
+    kind = if daylight?(from, to), do: "DAYLIGHT", else: "STANDARD"
 
     [
       "BEGIN:#{kind}",
@@ -144,6 +144,13 @@ defmodule Tymeslot.Integrations.Calendar.ICalBuilder.TimeZoneComponent do
       "END:#{kind}"
     ]
   end
+
+  # Summer time is the period the database adds a saving to, except in a
+  # zone that marks its winter period with a negative saving instead
+  # (Europe/Dublin), where it is the period after a negative one.
+  defp daylight?(_from, %{std_offset: std_offset}) when std_offset > 0, do: true
+  defp daylight?(%{std_offset: from_std}, %{std_offset: 0}) when from_std < 0, do: true
+  defp daylight?(_from, _to), do: false
 
   # Every offset change in `[from, to]`, in order, each with the instant it
   # happens, the wall clock it happens at in the offset before it (the form
