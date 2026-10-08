@@ -103,6 +103,19 @@ defmodule Tymeslot.Workers.VideoTranscoderTest do
 
       assert statuses(customization) == %{@field => "failed"}
     end
+
+    # A customisation deleted while its video waited has nowhere to record
+    # the state: the job still ends as it would, without crashing.
+    test "cancels as usual when the customisation was deleted meanwhile" do
+      customization = insert_theme_customization()
+      Repo.delete!(customization)
+      expect(Tymeslot.Media.TranscoderMock, :available?, fn -> false end)
+
+      assert {:cancel, "ffmpeg not available"} =
+               perform_job(VideoTranscoder, args(customization, "uploads/test-video.mp4"))
+
+      assert Repo.get(ThemeCustomizationSchema, customization.id) == nil
+    end
   end
 
   describe "perform/1 - transcoding failure" do
