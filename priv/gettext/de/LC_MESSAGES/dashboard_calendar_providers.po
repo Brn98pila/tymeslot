@@ -664,6 +664,7 @@ msgid "Please enter a valid server URL (e.g., https://cloud.example.com)"
 msgstr "Bitte geben Sie eine gültige Server-URL ein (z. B. https://cloud.example.com)"
 
 #: lib/tymeslot/integrations/calendar/credential_fields.ex
+#: lib/tymeslot/integrations/calendar/shared/error_messages.ex
 #: lib/tymeslot/integrations/calendar/shared/provider_common.ex
 #, elixir-autogen, elixir-format
 msgid "Private or local network addresses are not allowed"

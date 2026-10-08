@@ -3,6 +3,7 @@ defmodule Tymeslot.Integrations.Calendar.CrossProviderTest do
   @moduletag :integrations
 
   import Tymeslot.CrossProviderTestHelpers
+  alias Tymeslot.Integrations.Calendar.CalDAV.Family
   alias Tymeslot.Integrations.Calendar.Providers.ProviderRegistry
 
   @moduledoc """
@@ -42,15 +43,10 @@ defmodule Tymeslot.Integrations.Calendar.CrossProviderTest do
     radicale: {:error, "An unexpected error occurred. Please try again."}
   }
 
-  # The private-address refusal, as each provider's connection test words it.
-  # Radicale words every failure through `ErrorHandler.sanitize_error_message/2`,
-  # which reads the refusal as a connection failure; the connect form never
-  # gets this far, since `validate_config/1` refuses the address first.
-  @private_address_results %{
-    caldav: "Private or local network addresses are not allowed",
-    nextcloud: "Private or local network addresses are not allowed",
-    radicale: "Unable to connect to the calendar service. Please check the URL and try again."
-  }
+  # The private-address refusal reads the same from every provider, whatever
+  # formatter words its other failures: a self-hosted server on a LAN
+  # hostname meets it, and the owner has to know it was the address.
+  @private_address_refusal "Private or local network addresses are not allowed"
 
   # Get production providers from registry (exclude debug/demo)
   defp production_providers do
@@ -207,8 +203,8 @@ defmodule Tymeslot.Integrations.Calendar.CrossProviderTest do
       end)
     end
 
-    test "all providers return consistent error format" do
-      Enum.each(@production_providers, fn provider_type ->
+    test "every CalDAV-family provider refuses a private address in the same words" do
+      Enum.each(Family.members(), fn provider_type ->
         {:ok, provider_module} = ProviderRegistry.get_provider(provider_type)
 
         invalid_config = %{
@@ -220,7 +216,7 @@ defmodule Tymeslot.Integrations.Calendar.CrossProviderTest do
         }
 
         assert provider_module.perform_connection_test(invalid_config) ==
-                 {:error, @private_address_results[provider_type]}
+                 {:error, @private_address_refusal}
       end)
     end
   end

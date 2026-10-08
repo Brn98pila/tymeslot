@@ -178,7 +178,7 @@ defmodule Tymeslot.Integrations.Calendar.Zimbra.ProviderTest do
   end
 
   describe "test_connection/2" do
-    test "returns a sanitised error message when the server cannot be reached" do
+    test "says a refused server address is a private one" do
       integration = %{
         base_url: "http://localhost:1",
         username: "invalid@example.com",
@@ -187,13 +187,12 @@ defmodule Tymeslot.Integrations.Calendar.Zimbra.ProviderTest do
         provider: :zimbra
       }
 
-      # The loopback URL never reaches a socket — `CalDAV.Discovery` refuses it
-      # up front — but Zimbra rewrites every failure into the same generic
-      # sentence, so neither the guard's wording nor a transport reason leaks
-      # to the user.
+      # The loopback URL never reaches a socket: `CalDAV.Discovery` refuses it
+      # up front. Zimbra rewrites its other failures into generic sentences,
+      # but this refusal keeps its meaning, so the owner looks at the address
+      # rather than at the URL's spelling.
       assert Provider.perform_connection_test(integration) ==
-               {:error,
-                "Unable to connect to the calendar service. Please check the URL and try again."}
+               {:error, "Private or local network addresses are not allowed"}
     end
 
     test "is pure I/O — takes only the integration, no caller options" do
