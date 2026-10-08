@@ -256,7 +256,7 @@ defmodule Tymeslot.Profiles do
   limits all go through it, and so agree on where a nil-timezone host's day
   begins. Takes anything carrying `:timezone`, or `nil` for no profile.
   """
-  @spec timezone(%{optional(:timezone) => timezone | nil} | nil) :: timezone
+  @spec timezone(map() | nil) :: timezone
   def timezone(%{timezone: timezone}) when is_binary(timezone), do: timezone
   def timezone(_profile), do: get_default_timezone()
 
