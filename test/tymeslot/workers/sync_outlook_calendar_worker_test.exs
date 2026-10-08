@@ -167,6 +167,51 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorkerTest do
     end
   end
 
+  describe "perform/1 - the event's zone" do
+    # The fetch asks Graph for UTC timing, so `start.timeZone` reads UTC for
+    # every event; Graph returns the zone the event was created in only when
+    # it is selected, as the stub does.
+    test "caches the zone the event was created in, not the UTC its timing is read in" do
+      integration = outlook_integration()
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :get, url, _body, _headers, opts ->
+        selected = inspect({url, opts}) =~ "originalStartTimeZone"
+
+        graph_event =
+          Map.merge(
+            %{
+              "id" => "outlook-berlin-1",
+              "iCalUId" => "berlin-uid@outlook.com",
+              "subject" => "Weekly sync",
+              "isAllDay" => false,
+              "start" => %{"dateTime" => "2026-04-10T07:00:00.0000000", "timeZone" => "UTC"},
+              "end" => %{"dateTime" => "2026-04-10T08:00:00.0000000", "timeZone" => "UTC"},
+              "showAs" => "busy",
+              "attendees" => [],
+              "type" => "singleInstance"
+            },
+            if(selected, do: %{"originalStartTimeZone" => "W. Europe Standard Time"}, else: %{})
+          )
+
+        {:ok, %{status: 200, body: Jason.encode!(graph_event)}}
+      end)
+
+      assert :ok =
+               perform_job(SyncOutlookCalendarWorker, %{
+                 "calendar_integration_id" => integration.id,
+                 "graph_resource_id" => "outlook-berlin-1"
+               })
+
+      cached =
+        Repo.get_by(
+          Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema,
+          provider_event_id: "outlook-berlin-1"
+        )
+
+      assert cached.timezone == "Europe/Berlin"
+    end
+  end
+
   describe "perform/1 - nil default_booking_calendar_id" do
     test "caches event with provider_calendar_id 'primary' when default_booking_calendar_id is nil" do
       integration = outlook_integration(default_booking_calendar_id: nil)
