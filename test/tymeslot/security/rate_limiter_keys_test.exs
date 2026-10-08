@@ -159,22 +159,6 @@ defmodule Tymeslot.Security.RateLimiterKeysTest do
              ])
   end
 
-  test "the named wrappers charge the same buckets as check/2" do
-    charged =
-      charged(fn ->
-        RateLimiter.check_integration_write_rate_limit(42)
-        RateLimiter.check_integration_appearance_rate_limit(42)
-        RateLimiter.check_calendar_refresh_rate_limit(42)
-      end)
-
-    assert charged ==
-             Enum.sort([
-               "integration_write:42",
-               "integration_appearance:42",
-               "calendar_refresh:42"
-             ])
-  end
-
   defp charged(fun) do
     fun.()
 

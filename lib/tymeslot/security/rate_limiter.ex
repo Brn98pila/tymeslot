@@ -202,21 +202,4 @@ defmodule Tymeslot.Security.RateLimiter do
         ) :: result() | {:error, :unattributable}
   def check_connection_test_rate_limit(bucket, scope, action \\ :connection_test),
     do: Integrations.check_connection_test(bucket, scope, action)
-
-  # Named wrappers kept for callers on a branch in flight, which calls them as
-  # they are; they go once its callers move to `check/2`.
-
-  @doc "`check(:integration_write, user_id)`."
-  @spec check_integration_write_rate_limit(term()) :: result() | {:error, :invalid_user_id}
-  def check_integration_write_rate_limit(user_id), do: check(:integration_write, user_id)
-
-  @doc "`check(:integration_appearance, user_id)`."
-  @spec check_integration_appearance_rate_limit(term()) ::
-          result() | {:error, :invalid_user_id}
-  def check_integration_appearance_rate_limit(user_id),
-    do: check(:integration_appearance, user_id)
-
-  @doc "`check(:calendar_refresh, user_id)`."
-  @spec check_calendar_refresh_rate_limit(term()) :: result() | {:error, :invalid_user_id}
-  def check_calendar_refresh_rate_limit(user_id), do: check(:calendar_refresh, user_id)
 end

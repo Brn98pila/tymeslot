@@ -70,7 +70,7 @@ defmodule CredoChecks.RateLimiterBoundaryTest do
   end
 
   describe "allowed functions" do
-    test "check_integration_write_rate_limit is not flagged (out of scope)" do
+    test "other rate limits are not flagged (out of scope)" do
       """
       defmodule TymeslotWeb.Dashboard.VideoSettingsComponent do
         alias Tymeslot.Security.RateLimiter

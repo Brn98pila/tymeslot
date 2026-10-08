@@ -148,10 +148,10 @@ defmodule Tymeslot.Security.RateLimiterDashboardIntegrationsTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_calendar_refresh_rate_limit/1 — 10 per 10 minutes
+  # check(:calendar_refresh, user_id) — 10 per 10 minutes
   # ---------------------------------------------------------------------------
 
-  describe "check_calendar_refresh_rate_limit/1" do
+  describe "check(:calendar_refresh, user_id)" do
     test "blocks requests exceeding the limit" do
       user_id = 11_302
 
@@ -194,10 +194,10 @@ defmodule Tymeslot.Security.RateLimiterDashboardIntegrationsTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_integration_write_rate_limit/1 — 30 per 30 minutes
+  # check(:integration_write, user_id) — 30 per 30 minutes
   # ---------------------------------------------------------------------------
 
-  describe "check_integration_write_rate_limit/1" do
+  describe "check(:integration_write, user_id)" do
     test "blocks requests exceeding the limit" do
       user_id = 11_402
 
@@ -235,10 +235,10 @@ defmodule Tymeslot.Security.RateLimiterDashboardIntegrationsTest do
   end
 
   # ---------------------------------------------------------------------------
-  # check_integration_appearance_rate_limit/1 — 150 per 30 minutes
+  # check(:integration_appearance, user_id) — 150 per 30 minutes
   # ---------------------------------------------------------------------------
 
-  describe "check_integration_appearance_rate_limit/1" do
+  describe "check(:integration_appearance, user_id)" do
     test "blocks requests exceeding the limit" do
       user_id = 11_422
 

@@ -25,7 +25,7 @@ defmodule TymeslotWeb.OutlookCalendarWebhookController do
 
   Both endpoints share the calendar push bucket per source address, sized so
   that provider traffic never reaches it (see
-  `Tymeslot.Security.RateLimiter.Calendar.check_push_endpoint/1`). A source
+  `:calendar_push` in `Tymeslot.Security.RateLimiter.Limits`). A source
   that floods them gets 429, which Graph retries.
   """
 

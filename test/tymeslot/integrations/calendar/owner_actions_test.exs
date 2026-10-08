@@ -36,7 +36,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActionsTest do
   end
 
   defp exhaust_write_budget(user_id) do
-    fn -> RateLimiter.check_integration_write_rate_limit(user_id) end
+    fn -> RateLimiter.check(:integration_write, user_id) end
     |> Stream.repeatedly()
     |> Enum.find(&match?({:error, :rate_limited, _message}, &1))
   end
@@ -127,7 +127,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActionsTest do
       {:ok, _toggled} = Calendar.toggle_integration(user.id, integration.id)
 
       writes_left =
-        fn -> RateLimiter.check_integration_write_rate_limit(user.id) end
+        fn -> RateLimiter.check(:integration_write, user.id) end
         |> Stream.repeatedly()
         |> Enum.take_while(&(&1 == :ok))
         |> length()
@@ -153,7 +153,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActionsTest do
       user = insert(:user)
       insert_subscription(user)
 
-      fn -> RateLimiter.check_calendar_refresh_rate_limit(user.id) end
+      fn -> RateLimiter.check(:calendar_refresh, user.id) end
       |> Stream.repeatedly()
       |> Enum.find(&match?({:error, :rate_limited, _message}, &1))
 

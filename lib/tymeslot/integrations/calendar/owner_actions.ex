@@ -31,6 +31,13 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   @type refusal :: {:rate_limited, String.t()} | :not_found
   @type integration :: CalendarIntegrationSchema.t()
 
+  # The rate limit each kind of owner action is charged to.
+  @limits %{
+    write: :integration_write,
+    appearance: :integration_appearance,
+    refresh: :calendar_refresh
+  }
+
   # One refresh-all reaches every active calendar's provider, so the fan-out
   # is bounded, and a provider that hangs is cut off rather than holding the
   # rest of the answer.
@@ -167,18 +174,11 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   end
 
   defp charge(bucket, user_id) do
-    case check(bucket, user_id) do
+    case RateLimiter.check(Map.fetch!(@limits, bucket), user_id) do
       :ok -> :ok
       {:error, :rate_limited, message} -> {:error, {:rate_limited, message}}
       # Not a user any row could belong to.
       {:error, :invalid_user_id} -> {:error, :not_found}
     end
   end
-
-  defp check(:write, user_id), do: RateLimiter.check_integration_write_rate_limit(user_id)
-
-  defp check(:appearance, user_id),
-    do: RateLimiter.check_integration_appearance_rate_limit(user_id)
-
-  defp check(:refresh, user_id), do: RateLimiter.check_calendar_refresh_rate_limit(user_id)
 end
