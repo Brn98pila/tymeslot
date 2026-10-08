@@ -63,9 +63,11 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FamilyUrlValidationTest do
   end
 
   defp verdict(member, url) do
-    module = ProviderConfig.get_provider_module(member)
+    config = %{base_url: url, username: "user", password: "pass"}
 
-    case module.validate_config(%{base_url: url, username: "user", password: "pass"}) do
+    module = ProviderConfig.get_provider_module(member) || flunk("no module for #{member}")
+
+    case module.validate_config(config) do
       :ok -> :ok
       {:error, message} -> message
     end
