@@ -596,11 +596,6 @@ msgstr "Il nome dell'integrazione deve avere al massimo 100 caratteri"
 
 #: lib/tymeslot/security/field_validators/integration_name_validator.ex
 #, elixir-autogen, elixir-format
-msgid "Integration name must be at least 2 characters"
-msgstr "Il nome dell'integrazione deve avere almeno 2 caratteri"
-
-#: lib/tymeslot/security/field_validators/integration_name_validator.ex
-#, elixir-autogen, elixir-format
 msgid "Integration name must be text"
 msgstr "Il nome dell'integrazione deve essere un testo"
 

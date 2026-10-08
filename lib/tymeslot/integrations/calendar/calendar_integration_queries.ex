@@ -8,14 +8,8 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   alias Ecto.Changeset
   alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Repo
-
-  # Postgres advisory-lock class id for the first-integration primary-election
-  # race (see `acquire_primary_lock/1`). Advisory-lock class ids share a single
-  # namespace across the whole database connection; other allocations are
-  # `MeetingConflictQueries.@organizer_schedule_lock_class` (715_001) and the bare
-  # `2` in `ProviderCalendarEventQueries`.
-  @primary_lock_class 1
 
   @doc """
   Gets all active calendar integrations for a user, credentials left encrypted.
@@ -450,6 +444,28 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   end
 
   @doc """
+  The integration's row as it stands now, credentials left encrypted, or nil
+  once it is gone. For a change decided under a lock, which must act on the
+  stored state rather than on a struct read before the lock was taken.
+  """
+  @spec reload(CalendarIntegrationSchema.t()) :: CalendarIntegrationSchema.t() | nil
+  def reload(%CalendarIntegrationSchema{id: id}), do: Repo.get(CalendarIntegrationSchema, id)
+
+  @doc """
+  Sets the integration inactive, never the other way round: the write forces
+  `is_active` to false whatever the struct says, so a stale struct cannot turn
+  a pause into a no-op or a reactivation.
+  """
+  @spec deactivate(CalendarIntegrationSchema.t()) ::
+          {:ok, CalendarIntegrationSchema.t()} | {:error, Changeset.t()}
+  def deactivate(%CalendarIntegrationSchema{} = integration) do
+    integration
+    |> Changeset.change()
+    |> Changeset.force_change(:is_active, false)
+    |> Repo.update()
+  end
+
+  @doc """
   Toggles the active status of an integration.
 
   When reactivating, checks that no other active integration exists for the same
@@ -481,7 +497,9 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   # whose account id is the empty string falls under the account index, because
   # `''` is not NULL. Waving both through returned `:ok` for exactly the rows
   # that contend, with no concurrency involved at all.
-  defp check_reactivation_conflict(%{provider_account_id: nil} = integration) do
+  @spec check_reactivation_conflict(CalendarIntegrationSchema.t()) ::
+          :ok | {:error, :duplicate_account}
+  def check_reactivation_conflict(%{provider_account_id: nil} = integration) do
     if active_null_account_exists?(integration.user_id, integration.provider) do
       {:error, :duplicate_account}
     else
@@ -489,7 +507,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
     end
   end
 
-  defp check_reactivation_conflict(integration) do
+  def check_reactivation_conflict(integration) do
     if active_account_exists?(
          integration.user_id,
          integration.provider,
@@ -552,25 +570,30 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   def owned_by?(_id, _user_id), do: false
 
   @doc """
-  Counts calendar integrations for a user.
-  """
-  @spec count_for_user(integer()) :: non_neg_integer()
-  def count_for_user(user_id) do
-    CalendarIntegrationSchema
-    |> where([c], c.user_id == ^user_id)
-    |> select([c], count(c.id))
-    |> Repo.one() || 0
-  end
+  Locks the user's profile row, then every calendar integration row of theirs,
+  for the rest of the transaction. Every change that can move the user's
+  primary calendar takes it first (create, toggle, pause, delete, reconnect),
+  so those changes run one at a time per user and always lock in the same
+  order. A user without a profile has no primary to move, so locking nothing
+  there is harmless.
 
-  @doc """
-  Acquires a transaction-scoped Postgres advisory lock keyed on the given
-  user, so two concurrent first-integration inserts can't both observe
-  `count_for_user/1 == 1`. Must be called from inside a `Repo.transaction/1`;
-  the lock releases automatically at commit or rollback.
+  Must be called from inside a `Repo.transaction/1`.
   """
-  @spec acquire_primary_lock(integer()) :: :ok
-  def acquire_primary_lock(user_id) do
-    Repo.query!("SELECT pg_advisory_xact_lock($1, $2)", [@primary_lock_class, user_id])
+  @spec lock_user_profile_and_integrations(integer()) :: :ok
+  def lock_user_profile_and_integrations(user_id) do
+    _locked_profile =
+      Repo.one(from(p in ProfileSchema, where: p.user_id == ^user_id, lock: "FOR UPDATE"))
+
+    _locked_integration_ids =
+      Repo.all(
+        from(ci in CalendarIntegrationSchema,
+          where: ci.user_id == ^user_id,
+          order_by: ci.id,
+          select: ci.id,
+          lock: "FOR UPDATE"
+        )
+      )
+
     :ok
   end
 

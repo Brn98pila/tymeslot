@@ -22,7 +22,7 @@ defmodule TymeslotWeb.Dashboard.Automation.SlackCrudJourneyTest do
       real Slack OAuth round trip and belongs with the `:oauth_integration`
       tagged tests, which are excluded by default.
     * Message formatting and delivery — `Tymeslot.Slack.MessageBuilder` and
-      `Slack.Dispatcher` own that, and both are covered.
+      `Notifications.ChannelFanout` own that, and both are covered.
   """
 
   use TymeslotWeb.ConnCase, async: false

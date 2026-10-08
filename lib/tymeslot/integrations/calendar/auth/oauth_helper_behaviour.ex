@@ -25,7 +25,7 @@ defmodule Tymeslot.Integrations.Calendar.Auth.OAuthHelperBehaviour do
   # calls (through the Google helper); the Outlook calendar refresh runs in
   # `OutlookCalendarAPI.refresh_token/1`.
   @optional_callbacks authorization_url: 4, refresh_access_token: 2, refresh_access_token: 3
-  @type callback_error :: :calendar_scope_missing | String.t()
+  @type callback_error :: :calendar_scope_missing | :duplicate_account | :not_found | String.t()
 
   # The code, the redirect URI, and the callback's state, already verified as
   # issued to the user completing it, with its flow's `:code_verifier`.

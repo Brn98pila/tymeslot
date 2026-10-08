@@ -7,8 +7,7 @@ defmodule Tymeslot.Slack.InputValidation do
 
   alias Tymeslot.Security.UniversalSanitizer
   alias Tymeslot.Slack.SlackIntegrationSchema
-
-  @webhook_url_regex ~r{\Ahttps://hooks\.slack\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]+\z}
+  alias Tymeslot.Validation.Constraints
 
   @doc """
   Validates a Slack integration form. The `:mode` option selects which fields
@@ -27,7 +26,9 @@ defmodule Tymeslot.Slack.InputValidation do
     mode = Keyword.get(opts, :mode, :webhook_url)
     errors = %{}
 
-    {name, errors} = validate_name(params["name"], errors, name_required?(mode))
+    {name, errors} =
+      validate_name(params["name"], errors, name_required?(mode), Keyword.get(opts, :stored_name))
+
     {events, errors} = validate_events(params["events"], errors)
 
     {extra, errors} =
@@ -66,14 +67,26 @@ defmodule Tymeslot.Slack.InputValidation do
   defp webhook_url_validator(:webhook_url_existing), do: &validate_webhook_url_optional/2
   defp webhook_url_validator(_mode), do: &validate_webhook_url/2
 
-  @spec validate_name(String.t() | nil, map(), boolean()) :: {String.t() | nil, map()}
-  def validate_name(nil, errors, false), do: {nil, errors}
-  def validate_name("", errors, false), do: {nil, errors}
-  def validate_name(nil, errors, true), do: {nil, Map.put(errors, :name, "is required")}
-  def validate_name("", errors, true), do: {nil, Map.put(errors, :name, "is required")}
+  @doc """
+  Validates the name. `stored_name` is the integration's current name on
+  edit (see `Constraints.integration_name_max_length/2`).
+  """
+  @spec validate_name(String.t() | nil, map(), boolean(), String.t() | nil) ::
+          {String.t() | nil, map()}
+  def validate_name(name, errors, required, stored_name \\ nil)
+  def validate_name(nil, errors, false, _stored_name), do: {nil, errors}
+  def validate_name("", errors, false, _stored_name), do: {nil, errors}
 
-  def validate_name(name, errors, _required) when is_binary(name) do
-    case UniversalSanitizer.sanitize_and_validate(name, max_length: 80) do
+  def validate_name(nil, errors, true, _stored_name),
+    do: {nil, Map.put(errors, :name, "is required")}
+
+  def validate_name("", errors, true, _stored_name),
+    do: {nil, Map.put(errors, :name, "is required")}
+
+  def validate_name(name, errors, _required, stored_name) when is_binary(name) do
+    case UniversalSanitizer.sanitize_and_validate(name,
+           max_length: Constraints.integration_name_max_length(name, stored_name)
+         ) do
       {:ok, sanitized} ->
         if String.length(sanitized) < 1 do
           {nil, Map.put(errors, :name, "is required")}
@@ -114,7 +127,7 @@ defmodule Tymeslot.Slack.InputValidation do
   def validate_webhook_url(url, errors) when is_binary(url) do
     trimmed = String.trim(url)
 
-    if Regex.match?(@webhook_url_regex, trimmed) do
+    if SlackIntegrationSchema.webhook_url_format?(trimmed) do
       {trimmed, errors}
     else
       {nil, Map.put(errors, :webhook_url, "must look like https://hooks.slack.com/services/...")}

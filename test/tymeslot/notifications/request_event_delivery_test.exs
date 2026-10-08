@@ -8,8 +8,8 @@ defmodule Tymeslot.Notifications.RequestEventDeliveryTest do
   Telegram/Slack dispatch wiring without raising; what was missing is proof
   that a webhook actually subscribed to one of them receives a job, and that
   a gated booking's `meeting.created` fires on approval rather than on
-  submission — mirroring the coverage `test/tymeslot/webhooks/dispatcher_test.exs`
-  already has for the three pre-existing event types.
+  submission, mirroring the coverage `channel_fanout_test.exs` has for the
+  other event types.
   """
 
   use Tymeslot.DataCase, async: false
@@ -23,7 +23,7 @@ defmodule Tymeslot.Notifications.RequestEventDeliveryTest do
 
   alias Tymeslot.Bookings.Activation
   alias Tymeslot.Meetings.Approval
-  alias Tymeslot.Webhooks.Dispatcher
+  alias Tymeslot.Notifications.ChannelFanout
   alias Tymeslot.Workers.WebhookWorker
 
   defp held_meeting(attrs \\ %{}) do
@@ -40,13 +40,13 @@ defmodule Tymeslot.Notifications.RequestEventDeliveryTest do
     %{meeting: insert(:meeting, Map.merge(defaults, attrs)), user: user}
   end
 
-  describe "Dispatcher.dispatch/2 — the three request-lifecycle event types" do
+  describe "ChannelFanout.dispatch/2 — the three request-lifecycle event types" do
     test "enqueues a job for a webhook subscribed to meeting.requested" do
       user = insert(:user)
       meeting = insert(:meeting, organizer_user: user)
       insert(:webhook, user: user, events: ["meeting.requested"])
 
-      assert :ok = Dispatcher.dispatch(:meeting_requested, meeting)
+      assert :ok = ChannelFanout.dispatch(:meeting_requested, meeting)
 
       assert [job] = all_enqueued(worker: WebhookWorker)
       assert job.args["event_type"] == "meeting.requested"
@@ -58,7 +58,7 @@ defmodule Tymeslot.Notifications.RequestEventDeliveryTest do
       meeting = insert(:meeting, organizer_user: user)
       insert(:webhook, user: user, events: ["meeting.declined"])
 
-      assert :ok = Dispatcher.dispatch(:meeting_declined, meeting)
+      assert :ok = ChannelFanout.dispatch(:meeting_declined, meeting)
 
       assert [job] = all_enqueued(worker: WebhookWorker)
       assert job.args["event_type"] == "meeting.declined"
@@ -70,7 +70,7 @@ defmodule Tymeslot.Notifications.RequestEventDeliveryTest do
       meeting = insert(:meeting, organizer_user: user)
       insert(:webhook, user: user, events: ["meeting.request_expired"])
 
-      assert :ok = Dispatcher.dispatch(:meeting_request_expired, meeting)
+      assert :ok = ChannelFanout.dispatch(:meeting_request_expired, meeting)
 
       assert [job] = all_enqueued(worker: WebhookWorker)
       assert job.args["event_type"] == "meeting.request_expired"
@@ -82,9 +82,9 @@ defmodule Tymeslot.Notifications.RequestEventDeliveryTest do
       meeting = insert(:meeting, organizer_user: user)
       insert(:webhook, user: user, events: ["meeting.created"])
 
-      assert :ok = Dispatcher.dispatch(:meeting_requested, meeting)
-      assert :ok = Dispatcher.dispatch(:meeting_declined, meeting)
-      assert :ok = Dispatcher.dispatch(:meeting_request_expired, meeting)
+      assert :ok = ChannelFanout.dispatch(:meeting_requested, meeting)
+      assert :ok = ChannelFanout.dispatch(:meeting_declined, meeting)
+      assert :ok = ChannelFanout.dispatch(:meeting_request_expired, meeting)
 
       assert all_enqueued(worker: WebhookWorker) == []
     end

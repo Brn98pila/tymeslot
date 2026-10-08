@@ -208,7 +208,9 @@ defmodule Tymeslot.WebhooksTest do
           events: ["meeting.created"]
         })
 
-      assert {:ok, updated} = Webhooks.update_webhook(webhook, %{name: "Updated"})
+      assert {:ok, updated} =
+               Webhooks.update_webhook(webhook.user_id, webhook.id, %{name: "Updated"})
+
       assert updated.name == "Updated"
       assert updated.url == "https://example.com/hook"
     end
@@ -224,7 +226,9 @@ defmodule Tymeslot.WebhooksTest do
         })
 
       assert {:ok, updated} =
-               Webhooks.update_webhook(webhook, %{url: "https://example.com/new"})
+               Webhooks.update_webhook(webhook.user_id, webhook.id, %{
+                 url: "https://example.com/new"
+               })
 
       assert updated.url == "https://example.com/new"
     end
@@ -240,7 +244,7 @@ defmodule Tymeslot.WebhooksTest do
         })
 
       assert {:ok, updated} =
-               Webhooks.update_webhook(webhook, %{
+               Webhooks.update_webhook(webhook.user_id, webhook.id, %{
                  events: ["meeting.created", "meeting.cancelled"]
                })
 
@@ -258,7 +262,7 @@ defmodule Tymeslot.WebhooksTest do
         })
 
       assert {:error, changeset} =
-               Webhooks.update_webhook(webhook, %{events: ["not.real"]})
+               Webhooks.update_webhook(webhook.user_id, webhook.id, %{events: ["not.real"]})
 
       assert %{events: [_msg | _rest]} = errors_on(changeset)
     end
@@ -276,7 +280,7 @@ defmodule Tymeslot.WebhooksTest do
         })
 
       assert webhook.is_active == true
-      assert {:ok, toggled} = Webhooks.toggle_webhook(webhook)
+      assert {:ok, toggled} = Webhooks.toggle_webhook(webhook.user_id, webhook.id)
       assert toggled.is_active == false
     end
 
@@ -290,10 +294,10 @@ defmodule Tymeslot.WebhooksTest do
           events: ["meeting.created"]
         })
 
-      {:ok, inactive} = Webhooks.toggle_webhook(webhook)
+      {:ok, inactive} = Webhooks.toggle_webhook(webhook.user_id, webhook.id)
       assert inactive.is_active == false
 
-      {:ok, active_again} = Webhooks.toggle_webhook(inactive)
+      {:ok, active_again} = Webhooks.toggle_webhook(inactive.user_id, inactive.id)
       assert active_again.is_active == true
     end
 
@@ -322,7 +326,7 @@ defmodule Tymeslot.WebhooksTest do
       assert disabled.disabled_at
       assert disabled.disabled_reason
 
-      assert {:ok, reenabled} = Webhooks.toggle_webhook(disabled)
+      assert {:ok, reenabled} = Webhooks.toggle_webhook(disabled.user_id, disabled.id)
       assert reenabled.is_active == true
       assert reenabled.disabled_at == nil
       assert reenabled.disabled_reason == nil
@@ -341,7 +345,7 @@ defmodule Tymeslot.WebhooksTest do
           events: ["meeting.created"]
         })
 
-      assert {:ok, _webhook} = Webhooks.delete_webhook(webhook)
+      assert {:ok, _webhook} = Webhooks.delete_webhook(webhook.user_id, webhook.id)
       assert {:error, :not_found} = Webhooks.get_webhook(webhook.id, user.id)
     end
   end
@@ -363,7 +367,7 @@ defmodule Tymeslot.WebhooksTest do
 
       original_encrypted = webhook.webhook_token_encrypted
 
-      assert {:ok, regenerated} = Webhooks.regenerate_token(webhook)
+      assert {:ok, regenerated} = Webhooks.regenerate_token(webhook.user_id, webhook.id)
       assert regenerated.webhook_token_encrypted != original_encrypted
     end
   end
@@ -441,7 +445,7 @@ defmodule Tymeslot.WebhooksTest do
   # Enable Webhook
   # ============================================================================
 
-  describe "enable_webhook/1" do
+  describe "toggle_webhook/2 on an auto-disabled webhook" do
     test "re-enables a disabled webhook and resets failure fields" do
       user = insert(:user)
 
@@ -454,7 +458,7 @@ defmodule Tymeslot.WebhooksTest do
           disabled_reason: "Too many failures"
         )
 
-      assert {:ok, enabled} = Webhooks.enable_webhook(webhook)
+      assert {:ok, enabled} = Webhooks.toggle_webhook(webhook.user_id, webhook.id)
       assert enabled.is_active == true
       assert enabled.failure_count == 0
       assert enabled.disabled_at == nil
@@ -477,7 +481,7 @@ defmodule Tymeslot.WebhooksTest do
           disabled_reason: "Too many failures"
         )
 
-      assert {:error, :insufficient_plan} = Webhooks.enable_webhook(webhook)
+      assert {:error, :insufficient_plan} = Webhooks.toggle_webhook(webhook.user_id, webhook.id)
     end
   end
 
@@ -515,7 +519,7 @@ defmodule Tymeslot.WebhooksTest do
   # Trigger Webhook
   # ============================================================================
 
-  describe "trigger_webhook/3" do
+  describe "schedule_for_event/3" do
     test "schedules delivery for an active webhook subscribed to the event" do
       user = insert(:user)
 
@@ -528,10 +532,10 @@ defmodule Tymeslot.WebhooksTest do
 
       meeting = insert(:meeting, organizer_user: user)
 
-      # `schedule_delivery/3` answers :ok for a fresh insert and for a
-      # unique-constraint conflict alike, so the enqueued job is what proves a
-      # delivery was actually scheduled.
-      assert :ok = Webhooks.trigger_webhook(webhook, "meeting.created", meeting)
+      # A fresh insert and a unique conflict both answer :ok, so the enqueued
+      # job is what proves a delivery was actually scheduled.
+      assert [{webhook.id, :ok}] ==
+               Webhooks.schedule_for_event(user.id, "meeting.created", meeting)
 
       assert_enqueued(
         worker: WebhookWorker,
@@ -543,36 +547,48 @@ defmodule Tymeslot.WebhooksTest do
       )
     end
 
-    test "returns error for an inactive webhook" do
+    test "skips an inactive webhook" do
       user = insert(:user)
 
-      webhook =
-        insert(:webhook,
-          user: user,
-          is_active: false,
-          events: ["meeting.created"]
-        )
+      insert(:webhook,
+        user: user,
+        is_active: false,
+        events: ["meeting.created"]
+      )
 
       meeting = insert(:meeting, organizer_user: user)
 
-      assert {:error, :webhook_not_active} =
-               Webhooks.trigger_webhook(webhook, "meeting.created", meeting)
+      assert [] == Webhooks.schedule_for_event(user.id, "meeting.created", meeting)
+      assert all_enqueued(worker: WebhookWorker) == []
     end
 
-    test "returns error for an active webhook not subscribed to the event" do
+    test "skips an active webhook not subscribed to the event" do
       user = insert(:user)
 
-      webhook =
-        insert(:webhook,
-          user: user,
-          is_active: true,
-          events: ["meeting.cancelled"]
-        )
+      insert(:webhook,
+        user: user,
+        is_active: true,
+        events: ["meeting.cancelled"]
+      )
 
       meeting = insert(:meeting, organizer_user: user)
 
-      assert {:error, :webhook_not_active} =
-               Webhooks.trigger_webhook(webhook, "meeting.created", meeting)
+      assert [] == Webhooks.schedule_for_event(user.id, "meeting.created", meeting)
+      assert all_enqueued(worker: WebhookWorker) == []
+    end
+  end
+
+  describe "sign/3" do
+    # A receiver's view: the value pinned here was computed outside this
+    # codebase (Python's hmac module), so the test fails if the scheme drifts
+    # from what the automation page tells receivers to verify.
+    test "matches a reference HMAC-SHA256 over \"<t>.<body>\"" do
+      assert Webhooks.sign(
+               "tymeslot-test-token",
+               1_700_000_000,
+               ~s({"event":"meeting.created"})
+             ) ==
+               "t=1700000000,v1=ce33857700463c5c674b315c3d5cbdce01e8aecff5e18f64172e56dcc4c4465a"
     end
   end
 

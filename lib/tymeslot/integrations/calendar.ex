@@ -28,8 +28,8 @@ defmodule Tymeslot.Integrations.Calendar do
 
   @behaviour Tymeslot.Security.EncryptedStorage
 
-  alias Tymeslot.Dashboard.DashboardContext
   alias Tymeslot.Integrations.Calendar.CalendarEntry
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.ColourOverrideQueries
   alias Tymeslot.Integrations.Calendar.ColourResolver
@@ -37,23 +37,22 @@ defmodule Tymeslot.Integrations.Calendar do
   alias Tymeslot.Integrations.Calendar.Connection
   alias Tymeslot.Integrations.Calendar.Creation
   alias Tymeslot.Integrations.Calendar.Defaults
-  alias Tymeslot.Integrations.Calendar.Deletion
   alias Tymeslot.Integrations.Calendar.Discovery
   alias Tymeslot.Integrations.Calendar.Exchange.Creation, as: ExchangeCreation
   alias Tymeslot.Integrations.Calendar.Exchange.FreeBusy
   alias Tymeslot.Integrations.Calendar.Nextcloud.Login, as: NextcloudLogin
   alias Tymeslot.Integrations.Calendar.OAuth
   alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
+  alias Tymeslot.Integrations.Calendar.OwnerActions
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Reconnection
   alias Tymeslot.Integrations.Calendar.Runtime.CalendarPathResolver
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Calendar.Shared.ProviderCommon
   alias Tymeslot.Integrations.{CalendarManagement, CalendarPrimary}
-  alias Tymeslot.Integrations.Shared.InputValidators
   alias Tymeslot.Integrations.Shared.Providers.Directory
+  alias Tymeslot.Meetings
   alias Tymeslot.Security.EncryptedString
-  alias Tymeslot.Workers.SyncIcsCalendarWorker
 
   @type user_id :: pos_integer()
   @type integration_id :: pos_integer()
@@ -143,39 +142,19 @@ defmodule Tymeslot.Integrations.Calendar do
     end
   end
 
-  @doc "Updates an existing calendar integration."
-  @spec update_integration(integration(), %{optional(atom()) => term()}) ::
-          {:ok, integration()} | {:error, Ecto.Changeset.t()}
-  def update_integration(integration, attrs) do
-    CalendarManagement.update_calendar_integration(integration, attrs)
-  end
+  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.rename_integration/4`."
+  @spec rename_integration(user_id(), integration_id(), term(), map()) ::
+          {:ok, integration()} | {:error, term()}
+  defdelegate rename_integration(user_id, integration_id, name, metadata), to: OwnerActions
 
-  @doc """
-  Renames an integration to a name a person typed.
+  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.set_integration_colour/3`."
+  @spec set_integration_colour(user_id(), integration_id(), String.t() | nil) ::
+          {:ok, integration()} | {:error, term()}
+  defdelegate set_integration_colour(user_id, integration_id, colour), to: OwnerActions
 
-  Sanitises and length-checks it exactly as the connection form does, rather
-  than trusting the caller, so a rename cannot store a name that could not have
-  been created. The `{:error, %{name: message}}` shape is the validator's, and
-  carries a message already translated for display.
-  """
-  @spec rename_integration(integration(), term(), map()) ::
-          {:ok, integration()} | {:error, Ecto.Changeset.t() | %{name: String.t()}}
-  def rename_integration(integration, name, metadata) do
-    with {:ok, sanitised} <- InputValidators.validate_integration_name(name, metadata) do
-      CalendarManagement.update_calendar_integration(integration, %{name: sanitised})
-    end
-  end
-
-  @doc """
-  Toggles active status of an integration by ID for a user.
-  Ensures primary reassignment is handled atomically.
-  """
-  @spec toggle_integration(integration_id(), user_id()) :: {:ok, integration()} | {:error, any()}
-  def toggle_integration(id, user_id) do
-    with {:ok, integration} <- CalendarManagement.get_calendar_integration(id, user_id) do
-      CalendarManagement.toggle_with_primary_rebalance(integration)
-    end
-  end
+  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.toggle_integration/2`."
+  @spec toggle_integration(user_id(), integration_id()) :: {:ok, integration()} | {:error, any()}
+  defdelegate toggle_integration(user_id, integration_id), to: OwnerActions
 
   # ---------------------------
   # Public API: Discovery/Selection
@@ -190,14 +169,10 @@ defmodule Tymeslot.Integrations.Calendar do
     Discovery.discover_calendars_for_integration(integration)
   end
 
-  @doc """
-  Toggles a single calendar's selection state within an integration.
-  """
-  @spec toggle_calendar_selection(integration(), String.t() | integer()) ::
+  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.toggle_calendar_selection/3`."
+  @spec toggle_calendar_selection(user_id(), integration_id(), String.t() | integer()) ::
           {:ok, integration()} | {:error, any()}
-  def toggle_calendar_selection(integration, calendar_id) do
-    Selection.toggle_calendar(integration, calendar_id)
-  end
+  defdelegate toggle_calendar_selection(user_id, integration_id, calendar_id), to: OwnerActions
 
   @doc """
   Returns the entries from an integration's `calendar_list` whose `selected`
@@ -390,18 +365,12 @@ defmodule Tymeslot.Integrations.Calendar do
     Selection.prepare_selected_params(selected_paths, discovered)
   end
 
-  @doc """
-  Delete integration and invalidate dashboard cache for the user.
-  Wraps delete_with_primary_reassignment/2 and triggers downstream invalidation.
-  """
+  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.delete_integration/2`."
   @spec delete_with_primary_reassignment_and_invalidate(user_id(), integration_id()) ::
           {:ok, any()} | {:error, any()}
-  def delete_with_primary_reassignment_and_invalidate(user_id, id) do
-    with {:ok, result} <- Deletion.delete_with_primary_reassignment(user_id, id) do
-      DashboardContext.invalidate_integration_status(user_id)
-      {:ok, result}
-    end
-  end
+  defdelegate delete_with_primary_reassignment_and_invalidate(user_id, integration_id),
+    to: OwnerActions,
+    as: :delete_integration
 
   # ---------------------------
   # Public API: OAuth helpers
@@ -465,43 +434,10 @@ defmodule Tymeslot.Integrations.Calendar do
     Directory.list(type)
   end
 
-  # Discover calendars and update the integration with merged selection state.
-  # Persists the updated calendar_list to the database.
-  #
-  # Preserves existing selection state if discovery returns empty but integration
-  # previously had calendars selected, to prevent accidental data loss.
-  @spec update_integration_with_discovery(integration()) ::
-          {:ok, integration()} | {:error, term()}
-  defp update_integration_with_discovery(integration) do
-    Workflows.update_integration_with_discovery(integration)
-  end
-
-  @doc """
-  Refreshes an integration at the user's request.
-
-  A subscription has no discoverable calendar list to refresh (discovery
-  returns the same synthetic entry every time), so refreshing one re-fetches
-  the feed instead, through the same worker the scheduled sync sweep uses; a
-  refresh already queued for it counts as success. Every other provider
-  re-runs discovery via `update_integration_with_discovery/1`.
-
-  This asks about the feed family specifically, not about read-only
-  providers: `ics_url` is the only read-only provider left, but the two
-  questions are different and need not stay in step. An Exchange mailbox
-  discovers real folders and has no feed to re-fetch, so it belongs on the
-  discovery path with every other credentialed provider.
-  """
-  @spec refresh_integration(integration()) ::
-          {:ok, :feed_sync_enqueued | :calendars_rediscovered} | {:error, term()}
-  def refresh_integration(%{provider: provider} = integration) do
-    if ProviderConfig.subscription?(provider) do
-      with {:ok, _outcome} <- SyncIcsCalendarWorker.enqueue(integration.id),
-           do: {:ok, :feed_sync_enqueued}
-    else
-      with {:ok, _updated} <- update_integration_with_discovery(integration),
-           do: {:ok, :calendars_rediscovered}
-    end
-  end
+  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.refresh_all_integrations/1`."
+  @spec refresh_all_integrations(user_id()) ::
+          {:ok, [{String.t(), :ok | {:error, term()}}]} | {:error, {:rate_limited, String.t()}}
+  defdelegate refresh_all_integrations(user_id), to: OwnerActions
 
   @doc """
   Discovers calendars for raw credentials and filters them for valid paths.
@@ -568,11 +504,17 @@ defmodule Tymeslot.Integrations.Calendar do
   persisted override.
   """
   @spec set_event_colour(user_id(), colour_target(), String.t()) ::
-          {:ok, term()} | {:error, Ecto.Changeset.t()}
-  def set_event_colour(user_id, {:meeting, meeting_id}, colour),
+          {:ok, term()} | {:error, :not_found | Ecto.Changeset.t()}
+  def set_event_colour(user_id, target, colour) do
+    with :ok <- verify_colour_target(user_id, target) do
+      put_event_colour(user_id, target, colour)
+    end
+  end
+
+  defp put_event_colour(user_id, {:meeting, meeting_id}, colour),
     do: ColourOverrideQueries.set_meeting(user_id, meeting_id, colour)
 
-  def set_event_colour(user_id, {:external, integration_id, uid}, colour) do
+  defp put_event_colour(user_id, {:external, integration_id, uid}, colour) do
     with {:ok, override} <-
            ColourOverrideQueries.set_external(user_id, integration_id, uid, colour) do
       ColourWriteBack.enqueue(user_id, integration_id, uid, colour)
@@ -584,14 +526,31 @@ defmodule Tymeslot.Integrations.Calendar do
   Clears a per-event colour override for `user_id` on `target`. For external
   events the host calendar is left untouched; the next sync reconciles.
   """
-  @spec clear_event_colour(user_id(), colour_target()) :: :ok
-  def clear_event_colour(user_id, {:meeting, meeting_id}),
+  @spec clear_event_colour(user_id(), colour_target()) :: :ok | {:error, :not_found}
+  def clear_event_colour(user_id, target) do
+    with :ok <- verify_colour_target(user_id, target) do
+      remove_event_colour(user_id, target)
+    end
+  end
+
+  defp remove_event_colour(user_id, {:meeting, meeting_id}),
     do: ColourOverrideQueries.clear_meeting(user_id, meeting_id)
 
-  def clear_event_colour(user_id, {:external, integration_id, uid}) do
-    # Clearing drops the override only; the host calendar is left untouched and
-    # the next sync reconciles — so no write-back is enqueued here.
-    ColourOverrideQueries.clear_external(user_id, integration_id, uid)
+  # Clearing drops the override only; the host calendar is left untouched and
+  # the next sync reconciles — so no write-back is enqueued here.
+  defp remove_event_colour(user_id, {:external, integration_id, uid}),
+    do: ColourOverrideQueries.clear_external(user_id, integration_id, uid)
+
+  # The target arrives from the browser, so the meeting or integration it
+  # names must be the user's own; one that is not is not found.
+  defp verify_colour_target(user_id, {:meeting, meeting_id}) do
+    with {:ok, _meeting} <- Meetings.get_meeting_for_organizer(meeting_id, user_id), do: :ok
+  end
+
+  defp verify_colour_target(user_id, {:external, integration_id, _uid}) do
+    if CalendarIntegrationQueries.owned_by?(integration_id, user_id),
+      do: :ok,
+      else: {:error, :not_found}
   end
 
   @doc """

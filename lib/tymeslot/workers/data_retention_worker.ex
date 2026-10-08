@@ -19,6 +19,8 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
       `Tymeslot.FinancialRetention`)
   11. Integration OAuth flows past their one-hour expiry, with the PKCE
       verifiers they hold
+  12. Slack OAuth installs never finished by picking a channel, a day after
+      they were started, with the workspace bot token they hold
 
   Ensures the database doesn't grow indefinitely by removing
   old records based on configured retention periods.
@@ -109,6 +111,8 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
 
     prune_orphaned_telegram_stubs()
 
+    prune_orphaned_slack_stubs()
+
     prune_expired_analytics_salts()
 
     prune_expired_oauth_flows()
@@ -167,6 +171,13 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
       {0, _rows} ->
         Logger.debug("No abandoned Telegram setup stubs to prune")
     end
+  end
+
+  # Not a `@retention_jobs` entry: an unfinished install has a fixed one-day
+  # window, not a configurable retention.
+  defp prune_orphaned_slack_stubs do
+    {count, _rows} = Slack.prune_orphaned_stubs()
+    Logger.info("Pruned unfinished Slack OAuth installs", deleted_count: count)
   end
 
   # Deliberately not a `@retention_jobs` entry either: a salt's lifetime is its

@@ -143,6 +143,29 @@ defmodule TymeslotWeb.SlackOAuthControllerTest do
     end
   end
 
+  describe "GET /api/slack/oauth/callback — OAuth switched off mid-flow" do
+    test "flashes a message instead of 500ing, and exchanges nothing", %{conn: conn} do
+      user = insert(:user)
+      state = sign_state(user.id)
+
+      # The operator removed the Slack app credentials after the user left
+      # for Slack's authorize page.
+      with_config(:tymeslot, :slack_client_id, nil)
+      expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts -> :unused end)
+
+      conn =
+        conn
+        |> log_in_user(user)
+        |> get(~p"/api/slack/oauth/callback?code=abc123&state=#{state}")
+
+      assert redirected_to(conn, 302) == "/dashboard/automation"
+
+      assert Flash.get(conn.assigns.flash, :error) =~ "Slack app install is not available"
+
+      assert Repo.all(SlackIntegrationSchema) == []
+    end
+  end
+
   describe "GET /api/slack/oauth/callback — error param" do
     test "shows a cancellation flash and redirects to dashboard", %{conn: conn} do
       user = insert(:user)

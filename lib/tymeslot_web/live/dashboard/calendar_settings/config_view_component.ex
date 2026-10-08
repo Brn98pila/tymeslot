@@ -200,7 +200,11 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ConfigViewComponent do
     )
   end
 
-  defp create_integration(_provider, user_id, params, full_params, socket) do
+  # The provider sent is the normalised one, never the raw form value, so the
+  # context decides on a provider this form actually offers.
+  defp create_integration(provider, user_id, params, full_params, socket) do
+    params = Map.put(params, "provider", Atom.to_string(provider))
+
     processed_params =
       case Map.get(full_params, "selected_calendars") do
         calendars when is_list(calendars) ->

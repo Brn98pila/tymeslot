@@ -45,7 +45,8 @@ defmodule Tymeslot.Security.LegacyPlainColumnTest do
     end
 
     test "editing it empties the plain copy", %{webhook: webhook} do
-      {:ok, updated} = Webhooks.update_webhook(webhook, %{url: "https://example.com/new"})
+      {:ok, updated} =
+        Webhooks.update_webhook(webhook.user_id, webhook.id, %{url: "https://example.com/new"})
 
       assert updated.url == "https://example.com/new"
       assert plain("webhooks", webhook.id, "url") == nil
@@ -53,7 +54,10 @@ defmodule Tymeslot.Security.LegacyPlainColumnTest do
 
     test "an edit that leaves the URL alone keeps the plain copy", %{webhook: webhook} do
       {:ok, _updated} =
-        Webhooks.update_webhook(webhook, %{name: "Renamed", url: "https://example.com/old"})
+        Webhooks.update_webhook(webhook.user_id, webhook.id, %{
+          name: "Renamed",
+          url: "https://example.com/old"
+        })
 
       assert plain("webhooks", webhook.id, "url") == "https://example.com/old"
     end

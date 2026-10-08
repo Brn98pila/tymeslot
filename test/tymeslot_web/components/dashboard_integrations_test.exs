@@ -391,46 +391,32 @@ defmodule TymeslotWeb.Components.DashboardIntegrationsTest do
   end
 
   describe "refresh_all_calendars" do
-    test "sets is_refreshing flag and handles empty active integrations" do
-      socket =
-        %Phoenix.LiveView.Socket{
-          assigns: %{
-            __changed__: %{},
-            integrations: [],
-            is_refreshing: false,
-            current_user: %{id: 1}
-          }
+    defp refresh_socket do
+      %Phoenix.LiveView.Socket{
+        assigns: %{
+          id: "test",
+          __changed__: %{},
+          integrations: [],
+          is_refreshing: false,
+          current_user: %{id: 1}
         }
-
-      {:noreply, updated_socket} =
-        CalendarSettingsComponent.handle_event("refresh_all_calendars", %{}, socket)
-
-      assert updated_socket.assigns.is_refreshing == false
+      }
     end
 
-    test "filters only active integrations for refresh" do
-      socket =
-        %Phoenix.LiveView.Socket{
-          assigns: %{
-            id: "test",
-            __changed__: %{},
-            integrations: [
-              %{id: 1, is_active: true, calendar_list: []},
-              %{id: 2, is_active: false, calendar_list: []},
-              %{id: 3, is_active: true, calendar_list: []}
-            ],
-            is_refreshing: false,
-            current_user: %{id: 1}
-          }
-        }
-
-      # This test verifies the filtering logic - actual refresh calls would require
-      # database setup, but we can verify the event handler structure
+    test "sets the refreshing flag while the refresh runs" do
       {:noreply, updated_socket} =
-        CalendarSettingsComponent.handle_event("refresh_all_calendars", %{}, socket)
+        CalendarSettingsComponent.handle_event("refresh_all_calendars", %{}, refresh_socket())
 
-      # Refresh starts asynchronously; flag should be set while work runs
       assert updated_socket.assigns.is_refreshing == true
+    end
+
+    test "clears the flag quietly when there was no active calendar to refresh" do
+      socket = %{refresh_socket() | assigns: %{refresh_socket().assigns | is_refreshing: true}}
+
+      {:noreply, updated_socket} =
+        CalendarSettingsComponent.handle_async(:refresh_calendars, {:ok, {:ok, []}}, socket)
+
+      assert updated_socket.assigns.is_refreshing == false
     end
   end
 
