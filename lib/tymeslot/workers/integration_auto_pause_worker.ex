@@ -64,6 +64,7 @@ defmodule Tymeslot.Workers.IntegrationAutoPauseWorker do
   alias Tymeslot.Integrations.HealthCheck.HealthStatus
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateSchema
+  alias Tymeslot.Integrations.Video
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
 
   @default_cutoff_days 14
@@ -212,7 +213,7 @@ defmodule Tymeslot.Workers.IntegrationAutoPauseWorker do
   end
 
   defp deactivate(:video, integration) do
-    VideoIntegrationQueries.toggle_active(integration)
+    Video.pause_integration(integration)
   end
 
   defp schedule_email(type, integration, user_id, cutoff_days) do

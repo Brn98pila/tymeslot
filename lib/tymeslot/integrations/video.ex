@@ -361,6 +361,17 @@ defmodule Tymeslot.Integrations.Video do
   # ---------------
   # Toggle active
   # ---------------
+  @doc """
+  Pauses an integration: sets it inactive, never the other way round. For
+  the system pausing an unhealthy integration; the owner's own switch is
+  `toggle_integration/2`.
+  """
+  @spec pause_integration(VideoIntegrationSchema.t()) ::
+          {:ok, VideoIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
+  def pause_integration(%VideoIntegrationSchema{} = integration) do
+    VideoIntegrationQueries.deactivate(integration)
+  end
+
   @spec toggle_integration(pos_integer(), pos_integer()) :: {:ok, any()} | {:error, any()}
   def toggle_integration(user_id, id) when is_integer(user_id) do
     case VideoIntegrationQueries.get_live_for_user(id, user_id) do
