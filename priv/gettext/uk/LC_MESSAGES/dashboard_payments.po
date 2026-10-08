@@ -474,3 +474,18 @@ msgstr "Ви відхилили ці бронювання, але автомат
 #, elixir-autogen, elixir-format
 msgid "Your Stripe account's currency, %{currency}, is not supported for meeting payments. Choose one of the currencies below to take payments again."
 msgstr "Валюта вашого облікового запису Stripe (%{currency}) не підтримується для оплати зустрічей. Виберіть одну з валют нижче, щоб знову приймати платежі."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/status_card.ex
+#, elixir-autogen, elixir-format
+msgid "Currency not supported"
+msgstr "Валюта не підтримується"
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/status_card.ex
+#, elixir-autogen, elixir-format
+msgid "Payments cannot be taken in your account's currency, %{currency}. Choose a supported currency below to take payments again."
+msgstr "У валюті вашого облікового запису (%{currency}) не можна приймати платежі. Виберіть підтримувану валюту нижче, щоб знову приймати платежі."
+
+#: lib/tymeslot_web/live/dashboard/payments_settings/currency_selector.ex
+#, elixir-autogen, elixir-format
+msgid "Prices can no longer be set in your Stripe account's currency, %{currency}. Bookings are still charged their current prices; choose one of the currencies below to change them."
+msgstr "У валюті вашого облікового запису Stripe (%{currency}) більше не можна встановлювати ціни. За бронювання й надалі стягується плата за поточними цінами; щоб їх змінити, виберіть одну з валют нижче."

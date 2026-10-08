@@ -6,9 +6,12 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.PaymentsSection 
   decided by the parent `MeetingTypeForm` (feature flag + Stripe charges
   enabled); this component only reflects the `charges_enabled` flag it is
   given — disabling the toggle and showing a connect-Stripe hint when the
-  host cannot yet accept charges. A type that is already paid keeps its price
-  in that state, so the stored amount is stated in words where the price input
-  cannot be rendered. Payments and group bookings are mutually exclusive:
+  host cannot yet accept charges. A host whose Stripe account carries a
+  currency outside the allowlist cannot set prices either, whether or not
+  checkout still charges it (`Tymeslot.MeetingPayments.currency_support/1`),
+  and is told why. A type that is already paid keeps its price in those
+  states, so the stored amount is stated in words, in the account's currency,
+  where the price input cannot be rendered. Payments and group bookings are mutually exclusive:
   while group bookings is enabled the toggle renders disabled with a hint.
 
   The toggle and price input dispatch `toggle_payment_required` and
@@ -19,6 +22,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.PaymentsSection 
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias Phoenix.HTML
   alias Tymeslot.MeetingPayments.Money
   alias TymeslotWeb.Dashboard.MeetingSettings.Helpers
   alias TymeslotWeb.Live.Shared.FormValidationHelpers
@@ -28,7 +32,9 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.PaymentsSection 
   attr :payment_required, :boolean, required: true
   attr :payment_price, :string, required: true
   attr :currency, :string, required: true
-  attr :unsupported_currency, :string, default: nil
+  attr :currency_support, :atom, default: :supported
+  attr :account_currency, :string, required: true
+  attr :stored_price, :string, required: true
   attr :currency_minimum_cents, :integer, required: true
   attr :form_errors, :map, required: true
   attr :myself, :any, required: true
@@ -54,12 +60,21 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.PaymentsSection 
           <%= cond do %>
             <% @charges_enabled -> %>
               {dgettext("dashboard_meeting_form", "Turn off group bookings to require payment.")}
-            <% @unsupported_currency -> %>
+            <% @currency_support == :legacy -> %>
+              {raw(
+                dgettext(
+                  "dashboard_meeting_form",
+                  "Prices can no longer be set in your Stripe account's currency, %{currency}. Choose a supported currency on the %{payments_link} page to change what this meeting type charges.",
+                  currency: escaped_code(@account_currency),
+                  payments_link: payments_link()
+                )
+              )}
+            <% @currency_support == :unsupported -> %>
               {raw(
                 dgettext(
                   "dashboard_meeting_form",
                   "Your Stripe account's currency, %{currency}, is not supported for meeting payments. Choose a supported currency on the %{payments_link} page to charge for this meeting type.",
-                  currency: String.upcase(@unsupported_currency),
+                  currency: escaped_code(@account_currency),
                   payments_link: payments_link()
                 )
               )}
@@ -75,19 +90,15 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.PaymentsSection 
         </:disabled_reason>
       </.setting_row>
 
-      <%!-- The price is kept while the host cannot take charges, so it resumes
-            when they reconnect rather than being cleared behind their back.
-            The price input is hidden in that state, so without this the host
-            has no way to see what is still stored. --%>
+      <%!-- The price is kept while the host cannot set it, so it resumes when
+            they reconnect rather than being cleared behind their back. The
+            price input is hidden in that state, so without this the host has
+            no way to see what is still stored. --%>
       <p
         :if={not @charges_enabled and @payment_required}
         class="text-token-sm text-tymeslot-600"
       >
-        {dgettext(
-          "dashboard_meeting_form",
-          "The price of %{amount} is kept and applies again once Stripe is connected.",
-          amount: stored_price(@payment_price, @currency)
-        )}
+        {stored_price_note(@currency_support, @stored_price)}
       </p>
 
       <div :if={@charges_enabled and @payment_required} class="max-w-xs">
@@ -131,8 +142,26 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.PaymentsSection 
     """
   end
 
-  defp stored_price("", currency), do: String.upcase(currency)
-  defp stored_price(price, currency), do: "#{Money.symbol(currency)}#{price}"
+  defp stored_price_note(support, amount) when support in [:legacy, :unsupported] do
+    dgettext(
+      "dashboard_meeting_form",
+      "The current price is %{amount}. Switching to a supported currency clears it, as it clears every paid meeting type's price.",
+      amount: amount
+    )
+  end
+
+  defp stored_price_note(_support, amount) do
+    dgettext(
+      "dashboard_meeting_form",
+      "The price of %{amount} is kept and applies again once Stripe is connected.",
+      amount: amount
+    )
+  end
+
+  # The code is spliced into markup that `raw/1` renders unescaped.
+  defp escaped_code(currency) do
+    currency |> String.upcase() |> HTML.html_escape() |> HTML.safe_to_string()
+  end
 
   defp payments_link do
     ~s(<a href=") <>

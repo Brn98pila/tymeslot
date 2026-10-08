@@ -1241,3 +1241,13 @@ msgstr[1] ""
 #, elixir-autogen, elixir-format
 msgid "Your Stripe account's currency, %{currency}, is not supported for meeting payments. Choose a supported currency on the %{payments_link} page to charge for this meeting type."
 msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/payments_section.ex
+#, elixir-autogen, elixir-format
+msgid "Prices can no longer be set in your Stripe account's currency, %{currency}. Choose a supported currency on the %{payments_link} page to change what this meeting type charges."
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/payments_section.ex
+#, elixir-autogen, elixir-format
+msgid "The current price is %{amount}. Switching to a supported currency clears it, as it clears every paid meeting type's price."
+msgstr ""

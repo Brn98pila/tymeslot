@@ -168,11 +168,14 @@ defmodule Tymeslot.MeetingPayments.CheckoutSessions do
   end
 
   # An account in a currency outside the allowlist (opened before it was
-  # enforced) takes no payments until its host picks a supported one.
+  # enforced) is still charged when that currency counts in hundredths, as
+  # the stored price does; Stripe enforces its own minimum when the session
+  # is created. Any other takes no payments until its host picks a supported
+  # currency (`Currency.support/1`).
   defp lock_connect_account(user_id) do
     case ConnectAccountQueries.lock_live_for_user(user_id) do
       %{charges_enabled: true, default_currency: currency} = account ->
-        if Currency.allowed?(currency),
+        if Currency.chargeable?(currency),
           do: {:ok, account},
           else: {:error, :payments_unavailable}
 

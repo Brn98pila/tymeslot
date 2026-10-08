@@ -1,10 +1,13 @@
 defmodule TymeslotWeb.Dashboard.UnsupportedCurrencyJourneyTest do
   @moduledoc """
   A host whose Connect account was opened before the currency allowlist was
-  enforced, in a currency it does not hold (here Romanian lei). They can
-  still edit and save meeting types; payments are off, and both the editor
-  and the payments page say why; choosing a supported currency turns
-  payments back on.
+  enforced, in a currency it does not hold.
+
+  Romanian lei count in hundredths, as stored prices do, so bookings are
+  still charged; the host keeps editing meeting types, but sets no price
+  until they choose a supported currency, and both the editor and the
+  payments page say so. Yen do not, so that host takes no payments at all,
+  and the payments page says that instead of "ready".
   """
 
   use TymeslotWeb.LiveCase, async: false
@@ -20,67 +23,108 @@ defmodule TymeslotWeb.Dashboard.UnsupportedCurrencyJourneyTest do
 
   alias Tymeslot.MeetingTypes
 
-  @notice "is not supported for meeting payments"
+  @locked "Prices can no longer be set in your Stripe account&#39;s currency, RON"
+  @switch_clears "Switching to a supported currency clears it"
 
   setup :setup_dashboard_user
 
-  setup %{user: user} do
+  setup do
     with_config(:tymeslot,
       feature_access_checker: Tymeslot.Features.DefaultAccessChecker,
       meeting_payments_enabled: true
     )
 
-    # Inserted directly: the changeset would refuse the currency now.
+    :ok
+  end
+
+  # Inserted directly: the changeset would refuse the currency now.
+  defp legacy_account(user, currency) do
     insert(:connect_account,
       user: user,
-      stripe_account_id: "acct_legacy_ron",
-      default_currency: "ron",
+      stripe_account_id: "acct_legacy_#{currency}",
+      default_currency: currency,
       charges_enabled: true,
       payouts_enabled: true,
       details_submitted: true
     )
-
-    :ok
   end
 
-  test "the host keeps editing meeting types, is told why payments are off, and can fix it",
+  test "a two-decimal legacy host keeps their prices, cannot change them, and is told how to",
        %{conn: conn, user: user} do
-    meeting_type = insert(:meeting_type, user: user, name: "Intro call")
+    legacy_account(user, "ron")
 
-    # The editor opens, with the payment toggle disabled and the reason.
-    view = open_editor(conn, meeting_type)
+    paid =
+      insert(:meeting_type,
+        user: user,
+        name: "Paid call",
+        payment_required: true,
+        price_cents: 15_000
+      )
 
-    assert has_element?(view, "#meeting-type-form-tabs-panel-booking", @notice)
-    assert render(view) =~ "RON"
-    assert render(view) =~ ~r/<input[^>]*type="checkbox"[^>]*disabled/
+    # The card shows the price in lei, not in the fallback currency.
+    {:ok, settings, _html} = live(conn, ~p"/dashboard/meeting-settings")
+    assert render(settings) =~ "RON 150.00"
+    refute render(settings) =~ "€150.00"
 
-    # A free meeting type still saves.
+    # The editor shows the stored price, the toggle locked, and why.
+    view = open_editor(conn, paid)
+
+    assert has_element?(view, "input#payment-required-toggle[disabled]")
+    refute has_element?(view, "input[name='meeting_type[price_input]']")
+    assert render(view) =~ @locked
+    assert render(view) =~ "The current price is RON 150.00. #{@switch_clears}"
+
+    # Saving another field keeps the paid price as it was.
     view
     |> element("input[name='meeting_type[name]']")
-    |> render_change(%{"meeting_type" => %{"name" => "Intro call, renamed"}})
+    |> render_change(%{"meeting_type" => %{"name" => "Paid call, renamed"}})
 
-    assert MeetingTypes.get_meeting_type(meeting_type.id, user.id).name == "Intro call, renamed"
+    saved = MeetingTypes.get_meeting_type(paid.id, user.id)
+    assert saved.name == "Paid call, renamed"
+    assert {saved.payment_required, saved.price_cents} == {true, 15_000}
 
-    # The payments page says the same, above the currency picker.
+    # The payments page: still ready to charge, with the editing warning.
     {:ok, payments, _html} = live(conn, ~p"/dashboard/integrations?tab=payments")
-    assert render(payments) =~ @notice
+    assert render(payments) =~ "Connected and ready"
+    assert render(payments) =~ "Bookings are still charged their current prices"
 
     payments
     |> element("button[phx-click=change_currency][phx-value-currency=eur]")
     |> render_click()
 
-    refute render(payments) =~ @notice
+    refute render(payments) =~ "Bookings are still charged their current prices"
 
-    # With a supported currency, the editor offers payments again.
-    view = open_editor(conn, meeting_type)
+    # In a supported currency the old price is gone and a new one can be set.
+    assert MeetingTypes.get_meeting_type(paid.id, user.id).price_cents == nil
 
-    refute render(view) =~ @notice
+    view = open_editor(conn, paid)
+
+    refute render(view) =~ @locked
+    refute has_element?(view, "input#payment-required-toggle[disabled]")
 
     view
-    |> element("input[phx-click='toggle_payment_required']")
+    |> element("input#payment-required-toggle")
     |> render_click()
 
     assert render(view) =~ "Price (EUR)"
+  end
+
+  test "a zero-decimal legacy host is shown as unable to take payments",
+       %{conn: conn, user: user} do
+    legacy_account(user, "jpy")
+    free = insert(:meeting_type, user: user, name: "Intro call")
+
+    {:ok, payments, _html} = live(conn, ~p"/dashboard/integrations?tab=payments")
+    html = render(payments)
+
+    assert html =~ "Currency not supported"
+    assert html =~ "Payments cannot be taken in your account&#39;s currency, JPY."
+    refute html =~ "Connected and ready"
+
+    view = open_editor(conn, free)
+
+    assert has_element?(view, "input#payment-required-toggle[disabled]")
+    assert render(view) =~ "JPY, is not supported for meeting payments"
   end
 
   defp open_editor(conn, meeting_type) do

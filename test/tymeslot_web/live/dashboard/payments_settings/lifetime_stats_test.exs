@@ -40,8 +40,12 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.LifetimeStatsTest do
     assert html =~ "CHF 0.00"
   end
 
-  test "shows zero in the fallback currency when the account has none, or an unsupported one" do
+  test "shows zero in an account currency outside the allowlist too" do
+    assert render_stats([], "ron") =~ "RON 0.00"
+  end
+
+  test "shows zero in the fallback currency when the account has none" do
     assert render_stats([], nil) =~ "€0.00"
-    assert render_stats([], "ron") =~ "€0.00"
+    assert render_stats([], "") =~ "€0.00"
   end
 end

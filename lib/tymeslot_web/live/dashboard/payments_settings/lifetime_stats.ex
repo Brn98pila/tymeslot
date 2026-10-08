@@ -53,16 +53,15 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.LifetimeStats do
     """
   end
 
-  # Before any payment, zero is shown in the account's currency, or in the
-  # fallback when the account has none yet or one payments do not support.
+  # Before any payment, zero is shown in the account's currency, supported or
+  # not, or in the fallback when the account has none yet.
   defp rows([], account),
     do: [%{currency: zero_currency(account), received: 0, refunded: 0, platform_fee: 0}]
 
   defp rows(stats, _account), do: stats
 
-  defp zero_currency(%{default_currency: currency}) do
-    if MeetingPayments.currency_allowed?(currency),
-      do: currency,
-      else: MeetingPayments.host_currency(nil)
-  end
+  defp zero_currency(%{default_currency: currency}) when is_binary(currency) and currency != "",
+    do: currency
+
+  defp zero_currency(_account), do: MeetingPayments.host_currency(nil)
 end

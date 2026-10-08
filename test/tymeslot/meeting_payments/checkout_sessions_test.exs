@@ -163,13 +163,15 @@ defmodule Tymeslot.MeetingPayments.CheckoutSessionsTest do
       refute BookingPaymentQueries.by_meeting_id(meeting.id)
     end
 
-    test "refuses a host whose account is in a currency outside the allowlist",
+    test "refuses a host whose account currency would charge the stored price at the wrong scale",
          %{user: user, meeting_type: mt} do
-      # An account opened before the allowlist was enforced; the changeset
-      # would refuse the currency now, so it is written directly.
+      # An account opened before the allowlist was enforced, in a currency
+      # counted in whole units; the changeset would refuse it now, so it is
+      # written directly. A legacy currency counted in hundredths is charged
+      # (see the booker journey in `LegacyCurrencyPaidBookingTest`).
       user.id
       |> ConnectAccountQueries.live_for_user()
-      |> Changeset.change(default_currency: "ron")
+      |> Changeset.change(default_currency: "jpy")
       |> Repo.update!()
 
       meeting =

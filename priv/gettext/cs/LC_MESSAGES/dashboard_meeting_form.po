@@ -1249,3 +1249,13 @@ msgstr[2] "%{time} (+%{count} dní)"
 #, elixir-autogen, elixir-format
 msgid "Your Stripe account's currency, %{currency}, is not supported for meeting payments. Choose a supported currency on the %{payments_link} page to charge for this meeting type."
 msgstr "Měna vašeho účtu Stripe, %{currency}, není pro platby za schůzky podporovaná. Chcete-li za tento typ schůzky účtovat platbu, vyberte podporovanou měnu na stránce %{payments_link}."
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/payments_section.ex
+#, elixir-autogen, elixir-format
+msgid "Prices can no longer be set in your Stripe account's currency, %{currency}. Choose a supported currency on the %{payments_link} page to change what this meeting type charges."
+msgstr "V měně vašeho účtu Stripe, %{currency}, už nelze nastavovat ceny. Chcete-li změnit cenu tohoto typu schůzky, vyberte podporovanou měnu na stránce %{payments_link}."
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/payments_section.ex
+#, elixir-autogen, elixir-format
+msgid "The current price is %{amount}. Switching to a supported currency clears it, as it clears every paid meeting type's price."
+msgstr "Současná cena je %{amount}. Přechodem na podporovanou měnu se smaže, stejně jako ceny všech placených typů schůzek."

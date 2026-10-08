@@ -201,6 +201,19 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
       }
     ]
 
+  defp payment_attention(:unsupported_currency),
+    do: [
+      %{
+        tab: :payments,
+        severity: :warning,
+        message:
+          dgettext(
+            "dashboard_integrations",
+            "Your Stripe account's currency is not supported. Choose another to take payments."
+          )
+      }
+    ]
+
   defp payment_attention(:pending_review),
     do: [
       %{
