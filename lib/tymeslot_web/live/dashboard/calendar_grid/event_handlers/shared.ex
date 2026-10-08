@@ -184,10 +184,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
   @doc """
   The timezone a recurring event's UNTIL date ends its day in, and a one-off
   given a rule is written in: the event's own, falling back to the organiser's
-  profile zone for an event that carries none or carries UTC. Sync stores UTC
-  for every event written with UTC times, which is how Tymeslot writes its
-  one-offs, so that zone records how the event was written, not the local
-  time its series should keep.
+  profile zone for an event that carries none.
+
+  A one-off carrying UTC falls back too. Sync stores UTC for every event
+  written with UTC times, which is how Tymeslot writes its one-offs, so that
+  zone records how the event was written, not the local time a series made
+  from it should keep. A series carrying UTC keeps it: its writers read an
+  UNTIL back as a date in the series' own zone, so ending the day anywhere
+  else moves the end by a day.
 
   A series belongs to the calendar it sits on, not to whoever is looking at it,
   so reading the organiser's zone for both is only right while they agree. An
@@ -205,13 +209,15 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
 
   def recurrence_timezone(event, user_timezone) do
     case Map.get(event, :timezone) do
-      zone when is_binary(zone) and zone != "" -> unless_utc(zone, user_timezone)
-      _none -> user_timezone
+      zone when is_binary(zone) and zone != "" ->
+        if one_off?(event) and TimeZoneComponent.utc_zone?(zone), do: user_timezone, else: zone
+
+      _none ->
+        user_timezone
     end
   end
 
-  defp unless_utc(zone, user_timezone),
-    do: if(TimeZoneComponent.utc_zone?(zone), do: user_timezone, else: zone)
+  defp one_off?(event), do: Map.get(event, :recurrence_rule) in [nil, ""]
 
   @doc """
   Composes a canonical RRULE string from the recurrence editor's raw form
