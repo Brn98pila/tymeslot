@@ -601,11 +601,6 @@ msgstr ""
 
 #: lib/tymeslot/security/field_validators/integration_name_validator.ex
 #, elixir-autogen, elixir-format
-msgid "Integration name must be at least 2 characters"
-msgstr ""
-
-#: lib/tymeslot/security/field_validators/integration_name_validator.ex
-#, elixir-autogen, elixir-format
 msgid "Integration name must be text"
 msgstr ""
 

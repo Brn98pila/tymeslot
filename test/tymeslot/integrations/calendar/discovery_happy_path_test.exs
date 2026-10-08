@@ -15,9 +15,9 @@ defmodule Tymeslot.Integrations.Calendar.DiscoveryHappyPathTest do
 
   setup :verify_on_exit!
 
-  # `DiscoveryCache` is a shared, process-wide ETS table keyed on
-  # `{provider, "username@host"}`. Both tests below reuse the same
-  # "user"@"caldav.example.com" fixture, so a cached result left over from
+  # `DiscoveryCache` is a shared, process-wide ETS table keyed on the
+  # requester and a hash of the server address and credentials. Both tests
+  # below reuse the same fixture, so a cached result left over from
   # another suite run (or a prior run of this same test) would return stale
   # (or partial) `calendar_paths` instead of exercising the stubbed PROPFIND
   # response this file sets up. Clearing it here keeps this file's tests
@@ -133,7 +133,7 @@ defmodule Tymeslot.Integrations.Calendar.DiscoveryHappyPathTest do
       # integration must end up persisted with `calendar_paths` populated.
       # Any break between `Discovery.maybe_discover_calendars/1` and the
       # persisted record (e.g. `cast/3` silently dropping the field,
-      # `PrimarySelection.create_with_auto_primary/1` ignoring injected
+      # `CalendarManagement.insert_integration/1` ignoring injected
       # paths) would not be caught by per-helper unit tests.
       stub(Tymeslot.HTTPClientMock, :request, fn _method, _url, _body, _headers, _opts ->
         {:ok, %Req.Response{status: 207, body: @propfind_calendar_response}}

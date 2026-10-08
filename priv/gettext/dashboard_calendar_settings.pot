@@ -203,6 +203,7 @@ msgstr ""
 msgid "This calendar integration is no longer available."
 msgstr ""
 
+#: lib/tymeslot/integrations/calendar/creation.ex
 #: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "Unsupported provider"
@@ -236,11 +237,6 @@ msgstr ""
 #: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
 #, elixir-autogen, elixir-format
 msgid "booking target can no longer accept bookings"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
-#, elixir-autogen, elixir-format
-msgid "unknown calendar"
 msgstr ""
 
 #: lib/tymeslot_web/live/dashboard/calendar_settings/provider_picker.ex

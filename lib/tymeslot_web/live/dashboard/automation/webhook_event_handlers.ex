@@ -6,7 +6,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  import Phoenix.Component, only: [assign: 3]
+  import Phoenix.Component, only: [assign: 2, assign: 3]
 
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Webhooks
@@ -44,7 +44,8 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
           socket.assigns.form_errors,
           field,
           value,
-          metadata
+          metadata,
+          AutomationHelpers.stored_name(socket.assigns.webhook_form_data)
         )
       end
 
@@ -71,7 +72,8 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
         socket.assigns.form_errors,
         "events",
         Map.get(form_values, "events"),
-        metadata
+        metadata,
+        AutomationHelpers.stored_name(socket.assigns.webhook_form_data)
       )
 
     {:noreply,
@@ -121,7 +123,12 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
           RateLimiter.check_webhook_write_rate_limit(user_id),
           socket,
           fn ->
-            do_webhook_write(params, socket, &Webhooks.update_webhook(webhook, &1), "updated")
+            do_webhook_write(
+              params,
+              socket,
+              &Webhooks.update_webhook(user_id, webhook.id, &1),
+              "updated"
+            )
           end
         )
     end
@@ -153,25 +160,22 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
         {:noreply, socket}
 
       id ->
-        case AutomationHelpers.get_webhook_for_user(socket, id) do
-          {:ok, webhook} ->
-            case Webhooks.delete_webhook(webhook) do
-              {:ok, _result} ->
-                Flash.info(dgettext("dashboard_automation", "Webhook deleted successfully"))
+        case Webhooks.delete_webhook(socket.assigns.current_user.id, id) do
+          {:ok, _result} ->
+            Flash.info(dgettext("dashboard_automation", "Webhook deleted successfully"))
 
-                {:noreply,
-                 socket
-                 |> ModalHook.hide_modal(:delete)
-                 |> assign(:webhook_to_delete, nil)
-                 |> AutomationHelpers.load_webhooks()}
+            {:noreply,
+             socket
+             |> ModalHook.hide_modal(:delete)
+             |> assign(:webhook_to_delete, nil)
+             |> AutomationHelpers.load_webhooks()}
 
-              {:error, _reason} ->
-                Flash.error(dgettext("dashboard_automation", "Failed to delete webhook"))
-                {:noreply, socket}
-            end
+          {:error, :not_found} ->
+            Flash.error(dgettext("dashboard_automation", "Webhook not found"))
+            {:noreply, socket}
 
           {:error, _reason} ->
-            Flash.error(dgettext("dashboard_automation", "Webhook not found"))
+            Flash.error(dgettext("dashboard_automation", "Failed to delete webhook"))
             {:noreply, socket}
         end
     end
@@ -180,30 +184,27 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
   @spec handle_toggle(map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_toggle(%{"id" => id}, socket) do
-    case AutomationHelpers.get_webhook_for_user(socket, id) do
-      {:ok, webhook} ->
-        case Webhooks.toggle_webhook(webhook) do
-          {:ok, _result} ->
-            Flash.info(dgettext("dashboard_automation", "Webhook status updated"))
-            {:noreply, AutomationHelpers.load_webhooks(socket)}
+    case Webhooks.toggle_webhook(socket.assigns.current_user.id, AutomationHelpers.parse_id(id)) do
+      {:ok, _result} ->
+        Flash.info(dgettext("dashboard_automation", "Webhook status updated"))
+        {:noreply, AutomationHelpers.load_webhooks(socket)}
 
-          {:error, reason}
-          when reason in [
-                 :insufficient_plan,
-                 :feature_disabled,
-                 :pro_required,
-                 :stripe_required,
-                 :feature_access_checker_failed
-               ] ->
-            {:noreply, AutomationHelpers.handle_feature_access_error(socket, reason)}
+      {:error, :not_found} ->
+        Flash.error(dgettext("dashboard_automation", "Webhook not found"))
+        {:noreply, socket}
 
-          {:error, _reason} ->
-            Flash.error(dgettext("dashboard_automation", "Failed to update webhook status"))
-            {:noreply, socket}
-        end
+      {:error, reason}
+      when reason in [
+             :insufficient_plan,
+             :feature_disabled,
+             :pro_required,
+             :stripe_required,
+             :feature_access_checker_failed
+           ] ->
+        {:noreply, AutomationHelpers.handle_feature_access_error(socket, reason)}
 
       {:error, _reason} ->
-        Flash.error(dgettext("dashboard_automation", "Webhook not found"))
+        Flash.error(dgettext("dashboard_automation", "Failed to update webhook status"))
         {:noreply, socket}
     end
   end
@@ -225,19 +226,16 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
   @spec handle_show_deliveries(map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_show_deliveries(%{"id" => id}, socket) do
-    case AutomationHelpers.get_webhook_for_user(socket, id) do
-      {:ok, webhook} ->
-        deliveries = Webhooks.list_deliveries(webhook.id, limit: 50)
-        stats = Webhooks.get_delivery_stats(webhook.id, days: 7)
+    user_id = socket.assigns.current_user.id
 
+    case Webhooks.delivery_log(user_id, AutomationHelpers.parse_id(id), limit: 50, days: 7) do
+      {:ok, %{webhook: webhook, deliveries: deliveries, stats: stats}} ->
         {:noreply,
          socket
          |> ModalHook.show_modal(:deliveries)
-         |> assign(:selected_webhook, webhook)
-         |> assign(:deliveries, deliveries)
-         |> assign(:delivery_stats, stats)}
+         |> assign(selected_webhook: webhook, deliveries: deliveries, delivery_stats: stats)}
 
-      {:error, _reason} ->
+      {:error, :not_found} ->
         Flash.error(dgettext("dashboard_automation", "Webhook not found"))
         {:noreply, socket}
     end
@@ -301,7 +299,10 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
   defp do_webhook_write(params, socket, save_fn, verb) do
     metadata = AutomationHelpers.get_security_metadata(socket)
 
-    case WebhookInputValidation.validate_webhook_form(params, metadata: metadata) do
+    case WebhookInputValidation.validate_webhook_form(params,
+           metadata: metadata,
+           stored_name: AutomationHelpers.stored_name(socket.assigns.webhook_form_data)
+         ) do
       {:ok, sanitized} ->
         case save_fn.(sanitized) do
           {:ok, _webhook} ->
@@ -323,7 +324,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
                ] ->
             {:noreply, AutomationHelpers.handle_feature_access_error(socket, reason)}
 
-          # `save_fn` is `Webhooks.create_webhook/2` or `update_webhook/2`,
+          # `save_fn` is `Webhooks.create_webhook/2` or `update_webhook/3`,
           # whose specs only promise a changeset or one of the access-error
           # atoms above — but a case with no catch-all turns any drift from
           # that contract into a `CaseClauseError` instead of a flash.
@@ -362,7 +363,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
         {:noreply, socket}
 
       webhook ->
-        case Webhooks.regenerate_token(webhook) do
+        case Webhooks.regenerate_token(socket.assigns.current_user.id, webhook.id) do
           {:ok, updated_webhook} ->
             Flash.info(dgettext("dashboard_automation", "Security token regenerated"))
 

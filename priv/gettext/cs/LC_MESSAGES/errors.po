@@ -620,11 +620,6 @@ msgstr "Název integrace smí mít nejvýše 100 znaků"
 
 #: lib/tymeslot/security/field_validators/integration_name_validator.ex
 #, elixir-autogen, elixir-format
-msgid "Integration name must be at least 2 characters"
-msgstr "Název integrace musí mít alespoň 2 znaky"
-
-#: lib/tymeslot/security/field_validators/integration_name_validator.ex
-#, elixir-autogen, elixir-format
 msgid "Integration name must be text"
 msgstr "Název integrace musí být text"
 

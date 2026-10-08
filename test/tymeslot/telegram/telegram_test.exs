@@ -4,12 +4,15 @@ defmodule Tymeslot.TelegramTest do
   @moduletag :telegram
   @moduletag :integration
 
+  import Mox
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
 
   alias Tymeslot.Telegram
   alias Tymeslot.Telegram.TelegramIntegrationSchema
   alias Tymeslot.Telegram.TelegramQueries
+
+  setup :verify_on_exit!
 
   setup do
     setup_config(:tymeslot,
@@ -559,6 +562,69 @@ defmodule Tymeslot.TelegramTest do
   end
 
   defp an_hour_ago, do: DateTime.add(DateTime.utc_now(:second), -3600, :second)
+
+  describe "schedule_for_event/3" do
+    test "skips an integration at the failure threshold that is not yet marked disabled" do
+      user = insert(:user)
+      meeting = insert(:meeting, organizer_user_id: user.id)
+      live = insert(:telegram_integration, user: user, events: ["meeting.created"])
+
+      insert(:telegram_integration,
+        user: user,
+        events: ["meeting.created"],
+        failure_count: TelegramIntegrationSchema.max_failure_count()
+      )
+
+      assert [{live.id, :ok}] == Telegram.schedule_for_event(user.id, "meeting.created", meeting)
+    end
+  end
+
+  describe "test_integration/1" do
+    test "answers :no_chat for an integration not linked to a chat yet" do
+      assert {:error, :no_chat} =
+               Telegram.test_integration(%TelegramIntegrationSchema{
+                 bot_mode: "own",
+                 chat_id: nil
+               })
+    end
+
+    test "answers Telegram's own description of a refusal" do
+      expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
+        {:ok, %{status: 400, body: ~s({"ok":false,"description":"Bad Request: chat not found"})}}
+      end)
+
+      integration = insert(:telegram_integration)
+
+      assert {:error, {:api_error, 400, "Bad Request: chat not found"}} =
+               Telegram.test_integration(integration)
+    end
+
+    test "answers a transport error when Telegram cannot be reached" do
+      expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
+        {:error, %{reason: :timeout}}
+      end)
+
+      assert {:error, {:transport_error, _reason}} =
+               Telegram.test_integration(insert(:telegram_integration))
+    end
+  end
+
+  describe "translate_error/1" do
+    test "renders each test failure in the organiser's language" do
+      Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+        for reason <- [:no_chat, :no_token, :no_shared_token, {:transport_error, "timeout"}] do
+          message = Telegram.translate_error(reason)
+
+          assert Gettext.with_locale(TymeslotWeb.Gettext, "en", fn ->
+                   Telegram.translate_error(reason)
+                 end) != message
+        end
+      end)
+
+      assert Telegram.translate_error({:api_error, 403, "Forbidden: bot was blocked by the user"}) ==
+               "Telegram refused the message (403): Forbidden: bot was blocked by the user"
+    end
+  end
 end
 
 defmodule Tymeslot.TelegramTest.InsufficientPlanChecker do

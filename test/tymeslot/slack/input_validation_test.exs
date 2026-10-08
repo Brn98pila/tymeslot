@@ -37,8 +37,8 @@ defmodule Tymeslot.Slack.InputValidationTest do
       assert errors == %{}
     end
 
-    test "rejects names over the 80-character maximum" do
-      long_name = String.duplicate("a", 81)
+    test "rejects names over the 100-character maximum" do
+      long_name = String.duplicate("a", 101)
       {nil, errors} = InputValidation.validate_name(long_name, %{}, true)
       assert Map.has_key?(errors, :name)
     end

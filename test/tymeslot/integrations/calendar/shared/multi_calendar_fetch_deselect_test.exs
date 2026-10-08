@@ -17,6 +17,7 @@ defmodule Tymeslot.Integrations.Calendar.Shared.MultiCalendarFetchDeselectTest d
   alias Tymeslot.Integrations.Calendar.Google.CalendarAPI, as: GoogleCalendarAPI
   alias Tymeslot.Integrations.Calendar.Shared.MultiCalendarFetch
   alias Tymeslot.Security.Encryption
+  alias Tymeslot.Test.LogCapture
 
   setup :verify_on_exit!
 
@@ -61,6 +62,39 @@ defmodule Tymeslot.Integrations.Calendar.Shared.MultiCalendarFetchDeselectTest d
              false
 
     assert Enum.find(refreshed.calendar_list, &(&1.id == "work")).selected == true
+  end
+
+  test "still answers when the integration is removed before the de-selection is written" do
+    integration =
+      insert(:calendar_integration,
+        provider: "outlook",
+        calendar_list: [
+          %{"id" => "work", "selected" => true, "name" => "Work"},
+          %{"id" => "deleted@example.com", "selected" => true, "name" => "Deleted"}
+        ]
+      )
+
+    # The owner disconnects the integration while an availability read that
+    # started from it is still on the network.
+    Repo.delete!(integration)
+    LogCapture.attach(logger_level: :info)
+
+    start_time = DateTime.utc_now()
+    end_time = DateTime.add(start_time, 3600, :second)
+
+    assert {:ok, events} =
+             MultiCalendarFetch.list_events_with_selection(
+               integration,
+               start_time,
+               end_time,
+               NotFoundAPI
+             )
+
+    assert Enum.map(events, & &1["id"]) == ["work-1"]
+
+    # A race with nothing left to fix, so not reported as an error.
+    event = LogCapture.await_log("Integration gone before missing calendars")
+    assert event.level == :info
   end
 
   test "de-selects the calendar even when it was the only selected one" do

@@ -7,19 +7,14 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   """
 
   alias Tymeslot.Emails.EmailScheduler.IntegrationScheduler
-  alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
-  alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
   alias Tymeslot.Integrations.Calendar.CalendarPreferencesQueries
   alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.Discovery
   alias Tymeslot.Integrations.Calendar.PrimaryElection
-  alias Tymeslot.Integrations.Calendar.PrimarySelection
-  alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Integrations.HealthCheck
   alias Tymeslot.Integrations.Shared.ReauthHandling
-  alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Repo
   require Logger
 
@@ -134,8 +129,7 @@ defmodule Tymeslot.Integrations.CalendarManagement do
           | {:error, Ecto.Changeset.t() | %{discovery: String.t()}}
   def create_calendar_integration(attrs) do
     with {:ok, discovered_attrs} <- Discovery.maybe_discover_calendars(attrs),
-         {:ok, integration} <-
-           PrimarySelection.create_with_auto_primary(discovered_attrs),
+         {:ok, integration} <- insert_integration(discovered_attrs),
          {:ok, final_integration} <- ensure_default_booking_calendar(integration) do
       :telemetry.execute([:tymeslot, :calendar, :connected], %{count: 1}, %{
         provider: final_integration.provider
@@ -145,6 +139,28 @@ defmodule Tymeslot.Integrations.CalendarManagement do
     else
       other -> other
     end
+  end
+
+  @doc """
+  Inserts an integration and, when it is bookable and its user has no active
+  primary calendar, makes it the primary, both under the primary lock (see
+  `Tymeslot.Integrations.Calendar.PrimaryElection`). For every path that
+  creates an integration, including an OAuth callback, which has already
+  resolved its calendars.
+  """
+  @spec insert_integration(%{required(:user_id) => user_id(), optional(atom()) => term()}) ::
+          {:ok, CalendarIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
+  def insert_integration(%{user_id: user_id} = attrs) do
+    PrimaryElection.under_lock(user_id, fn ->
+      case CalendarIntegrationQueries.create(attrs) do
+        {:ok, integration} ->
+          PrimaryElection.adopt_if_vacant(integration)
+          integration
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
   end
 
   @doc """
@@ -168,17 +184,16 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   `Tymeslot.Integrations.Calendar.PrimaryElection`), under the same lock as
   a user's own toggle. For the system pausing an unhealthy integration.
 
-  An integration already inactive is left alone and returned as it is.
+  An integration already inactive stays inactive.
   """
   @spec pause_integration(CalendarIntegrationSchema.t()) ::
           {:ok, CalendarIntegrationSchema.t()} | {:error, any()}
   def pause_integration(%CalendarIntegrationSchema{} = integration) do
-    Repo.transaction(fn ->
-      CalendarIntegrationWebhookQueries.lock_user_profile_and_integrations(integration.user_id)
-      primary_id = stored_primary_id(integration.user_id)
+    PrimaryElection.under_lock(integration.user_id, fn ->
+      primary_id = PrimaryElection.stored_primary_id(integration.user_id)
 
       # Only ever `false`: whatever the struct says, this never activates.
-      case CalendarIntegrationQueries.update(integration, %{is_active: false}) do
+      case deactivate_stored(integration) do
         {:ok, %{id: id, user_id: user_id} = paused} when id == primary_id ->
           PrimaryElection.elect_next(user_id, [id])
           paused
@@ -192,20 +207,11 @@ defmodule Tymeslot.Integrations.CalendarManagement do
     end)
   end
 
-  defp stored_primary_id(user_id) do
-    case ProfileQueries.get_by_user_id(user_id) do
-      {:ok, %{primary_calendar_integration_id: id}} -> id
-      _no_profile -> nil
-    end
-  end
-
   defp transactional_toggle(integration) do
-    Repo.transaction(fn ->
-      CalendarIntegrationWebhookQueries.lock_user_profile_and_integrations(integration.user_id)
+    PrimaryElection.under_lock(integration.user_id, fn ->
+      current_primary_id = PrimaryElection.stored_primary_id(integration.user_id)
 
-      current_primary_id = stored_primary_id(integration.user_id)
-
-      case CalendarIntegrationQueries.toggle_active(integration) do
+      case toggle_stored(integration) do
         {:ok, updated} ->
           maybe_rebalance_primary(updated, current_primary_id)
           updated
@@ -214,6 +220,22 @@ defmodule Tymeslot.Integrations.CalendarManagement do
           Repo.rollback(reason)
       end
     end)
+  end
+
+  # Under the lock, the struct handed in may be older than the row: toggled
+  # since, or deleted. Both act on the row as it stands.
+  defp toggle_stored(integration) do
+    case CalendarIntegrationQueries.reload(integration) do
+      nil -> {:error, :not_found}
+      stored -> CalendarIntegrationQueries.toggle_active(stored)
+    end
+  end
+
+  defp deactivate_stored(integration) do
+    case CalendarIntegrationQueries.reload(integration) do
+      nil -> {:error, :not_found}
+      stored -> CalendarIntegrationQueries.deactivate(stored)
+    end
   end
 
   # Marking recovery is deliberately outside the transaction above: it enqueues
@@ -249,16 +271,6 @@ defmodule Tymeslot.Integrations.CalendarManagement do
       HealthCheck.mark_user_recovered(:calendar, updated.id)
       ok
     end
-  end
-
-  @doc """
-  Deletes a calendar integration.
-  Handles primary calendar reassignment if needed.
-  """
-  @spec delete_calendar_integration(CalendarIntegrationSchema.t()) ::
-          {:ok, CalendarIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
-  def delete_calendar_integration(integration) do
-    CalendarPrimary.delete_with_primary_handling(integration)
   end
 
   @doc """
@@ -462,51 +474,52 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   end
 
   defp maybe_rebalance_primary(%{is_active: true} = updated, _current_primary_id) do
-    ensure_primary_on_activate(updated)
+    PrimaryElection.adopt_if_vacant(updated)
     :ok
   end
 
   defp maybe_rebalance_primary(_updated, _current_primary_id), do: :ok
 
   @doc """
-  Adopts a just-activated integration as the user's primary calendar when
-  they have none, or the one they have is inactive or gone. For every path
-  that activates an integration: the toggle here, and an OAuth reconnect,
-  which reactivates an integration that was paused.
+  Writes the tokens an OAuth reconnect has just proved and activates the
+  integration, then adopts it as the user's primary calendar when they have
+  no active one, all under the primary lock, so every activation is decided
+  there (see `Tymeslot.Integrations.Calendar.PrimaryElection`).
 
-  A read-only integration is never adopted: it blocks time but refuses every
-  write, so promoting it would leave the user with a primary that fails
-  every booking. Leaving the primary as it stands is the safe answer here;
-  the user still has a working calendar to promote, and
-  `set_primary_calendar_integration/2` would refuse this one anyway.
-
-  The decision reads the stored primary row, not a decrypted one: a primary
-  whose credentials do not decrypt for now (a rotated key, say) is still the
-  user's chosen calendar, and activating another must not demote it.
+  Acts on the row as it stands. Reactivating a paused row is refused with
+  `{:error, :duplicate_account}` when another active integration already uses
+  the same account, as switching it back on would be. Call it after the
+  provider round trip, never around one, so the lock is not held across HTTP.
   """
-  @spec ensure_primary_on_activate(CalendarIntegrationSchema.t()) :: :ok
-  def ensure_primary_on_activate(%{id: updated_id, user_id: user_id} = updated) do
-    if BookingEligibility.bookable?(updated) and not active_primary?(user_id) do
-      CalendarPrimary.set_primary_calendar_integration(user_id, updated_id)
-    end
-
-    :ok
+  @spec reconnect_integration(CalendarIntegrationSchema.t(), integration_attrs()) ::
+          {:ok, CalendarIntegrationSchema.t()}
+          | {:error, :not_found | :duplicate_account | Ecto.Changeset.t()}
+  def reconnect_integration(%CalendarIntegrationSchema{} = integration, attrs) do
+    PrimaryElection.under_lock(integration.user_id, fn ->
+      with {:ok, stored} <- stored_for_reconnect(integration),
+           :ok <- reactivation_allowed(stored, attrs),
+           {:ok, updated} <- update_calendar_integration(stored, attrs) do
+        if updated.is_active, do: PrimaryElection.adopt_if_vacant(updated)
+        updated
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
   end
 
-  defp active_primary?(user_id) do
-    case stored_primary_id(user_id) do
-      nil -> false
-      id -> active_row?(CalendarIntegrationQueries.get(id), user_id)
+  # Decrypted when it can be, so the reconnected struct still carries any
+  # credential the provider did not send again; as stored when it cannot,
+  # since a reconnect is how an unreadable integration is repaired.
+  defp stored_for_reconnect(%{id: id}) do
+    case CalendarIntegrationQueries.get(id) do
+      {:ok, integration} -> {:ok, integration}
+      {:error, :requires_reencryption, stored} -> {:ok, stored}
+      {:error, :not_found} -> {:error, :not_found}
     end
   end
 
-  defp active_row?({:ok, %{user_id: user_id, is_active: true}}, user_id), do: true
+  defp reactivation_allowed(%{is_active: false} = stored, %{is_active: true}),
+    do: CalendarIntegrationQueries.check_reactivation_conflict(stored)
 
-  defp active_row?(
-         {:error, :requires_reencryption, %{user_id: user_id, is_active: true}},
-         user_id
-       ),
-       do: true
-
-  defp active_row?(_inactive_or_gone, _user_id), do: false
+  defp reactivation_allowed(_stored, _attrs), do: :ok
 end

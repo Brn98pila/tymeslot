@@ -2,8 +2,12 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
   use Tymeslot.DataCase, async: true
   @moduletag :calendar
 
+  import Ecto.Query, only: [from: 2]
+
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.CalendarEntry
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Utils.SanitizeMerge
@@ -326,12 +330,65 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
   end
 
   # =====================================
-  # Calendar.toggle_calendar_selection/2
+  # Calendar.toggle_calendar_selection/3
   # =====================================
+
+  # A reconnect writes the selection its owner just made, from the
+  # integration it read before discovery went to the network.
+  describe "Selection.replace_selection/2 from a stale copy" do
+    setup do
+      integration =
+        insert(:calendar_integration,
+          user: insert(:user),
+          provider: "caldav",
+          calendar_list: [
+            %{"id" => "/cal/a/", "path" => "/cal/a/", "name" => "A", "selected" => true},
+            %{"id" => "/cal/b/", "path" => "/cal/b/", "name" => "B", "selected" => false}
+          ]
+        )
+
+      %{stale: integration}
+    end
+
+    test "writes the owner's selection even where the copy already matched it", %{stale: stale} do
+      # A discovery merge selects B while the owner is choosing A alone.
+      {:ok, _elsewhere} =
+        Selection.update_calendar_selection(stale, %{
+          "selected_calendars" => ["/cal/a/", "/cal/b/"]
+        })
+
+      {:ok, updated} =
+        Selection.replace_selection(stale, Selection.calendar_list_attrs(stale.calendar_list))
+
+      stored = Repo.reload!(stale)
+      assert updated.calendar_paths == ["/cal/a/"]
+      assert stored.calendar_paths == ["/cal/a/"]
+
+      assert Map.new(stored.calendar_list, &{&1.id, &1.selected}) == %{
+               "/cal/a/" => true,
+               "/cal/b/" => false
+             }
+    end
+
+    test "writes to an integration whose credentials no longer decrypt", %{stale: stale} do
+      Repo.update_all(
+        from(ci in CalendarIntegrationSchema,
+          where: ci.id == ^stale.id
+        ),
+        set: [password_encrypted: :crypto.strong_rand_bytes(40)]
+      )
+
+      assert {:ok, _updated} =
+               Selection.replace_selection(stale, %{username: "alice", password: "fresh"})
+
+      assert {:ok, %{username: "alice", password: "fresh"}} =
+               CalendarIntegrationQueries.get(stale.id)
+    end
+  end
 
   # The dashboard toggles from the integration it rendered, which can be older
   # than the row: the flip has to land on the row as it stands.
-  describe "Calendar.toggle_calendar_selection/2 from a stale copy" do
+  describe "Calendar.toggle_calendar_selection/3 from a stale copy" do
     setup do
       integration =
         insert(:calendar_integration,
@@ -355,7 +412,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
           "selected_calendars" => ["/cal/a/", "/cal/b/", "/cal/c/"]
         })
 
-      {:ok, updated} = Calendar.toggle_calendar_selection(stale, "/cal/a/")
+      {:ok, updated} = Calendar.toggle_calendar_selection(stale.user_id, stale.id, "/cal/a/")
 
       assert selection(updated) == %{"/cal/a/" => false, "/cal/b/" => true, "/cal/c/" => true}
     end
@@ -365,7 +422,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
       {:ok, _elsewhere} =
         Selection.update_calendar_selection(stale, %{"selected_calendars" => ["/cal/a/"]})
 
-      {:ok, updated} = Calendar.toggle_calendar_selection(stale, "/cal/b/")
+      {:ok, updated} = Calendar.toggle_calendar_selection(stale.user_id, stale.id, "/cal/b/")
 
       assert selection(updated) == %{"/cal/a/" => true, "/cal/b/" => true, "/cal/c/" => false}
     end

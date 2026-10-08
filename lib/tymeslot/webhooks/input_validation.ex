@@ -52,7 +52,7 @@ defmodule Tymeslot.Webhooks.InputValidation do
       :ok ->
         with {:ok, sanitized_params} <- sanitize_text_fields(params, metadata) do
           sanitized_params
-          |> perform_webhook_validation()
+          |> perform_webhook_validation(Keyword.get(opts, :stored_name))
           |> handle_webhook_validation_result()
         end
 
@@ -75,12 +75,17 @@ defmodule Tymeslot.Webhooks.InputValidation do
     {:error, translate_errors(changeset)}
   end
 
-  defp perform_webhook_validation(params) do
+  defp perform_webhook_validation(params, stored_name) do
+    name_range = Constraints.integration_name_length_range()
+
     %__MODULE__{}
     |> cast(params, [:name, :url, :events])
     |> validate_required([:name], message: "Name cannot be empty")
     |> validate_required([:url])
-    |> validate_length(:name, Constraints.webhook_name_length_opts())
+    |> validate_length(:name,
+      min: name_range.first,
+      max: Constraints.integration_name_max_length(params["name"], stored_name)
+    )
     |> validate_length(:url, min: 1, max: Constraints.url_max_length())
     |> validate_url_format()
     |> validate_events_list()

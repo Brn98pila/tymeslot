@@ -321,10 +321,10 @@ defmodule Tymeslot.SlackTest do
     end
   end
 
-  # `trigger_integrations_for_event/3` enqueues SlackWorker jobs. End-to-end
-  # coverage of the enqueue path lives in `slack/dispatcher_test.exs` (Task 2.6)
-  # and the worker test (Task 2.5) — keeping the context test focused on inputs
-  # the context owns directly.
+  # `schedule_for_event/3` enqueues SlackWorker jobs. End-to-end coverage of
+  # the enqueue path lives in `notifications/channel_fanout_test.exs` and the
+  # worker test, keeping the context test focused on inputs the context owns
+  # directly.
 
   describe "slack_enabled?/0 and oauth_mode_available?/0" do
     test "slack_enabled?/0 reflects config" do

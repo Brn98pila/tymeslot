@@ -3,6 +3,7 @@ defmodule Tymeslot.Telegram do
   Context module for Telegram integration management and delivery.
   """
 
+  @behaviour Tymeslot.Notifications.Channel
   @behaviour Tymeslot.Security.EncryptedStorage
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -11,6 +12,7 @@ defmodule Tymeslot.Telegram do
 
   alias Tymeslot.Features
   alias Tymeslot.Meetings.SeatView
+  alias Tymeslot.Notifications.Channel
   alias Tymeslot.Notifications.EventTypes
   alias Tymeslot.Repo
   alias Tymeslot.Security.SharedSecret
@@ -132,9 +134,20 @@ defmodule Tymeslot.Telegram do
   # Testing
   # ============================================================================
 
-  @spec test_integration(TelegramIntegrationSchema.t()) :: :ok | {:error, String.t()}
-  def test_integration(%TelegramIntegrationSchema{chat_id: nil}),
-    do: {:error, "No chat ID configured"}
+  @typedoc "Why a test message did not go through; see `translate_error/1`."
+  @type test_error ::
+          :no_chat
+          | :no_token
+          | :no_shared_token
+          | {:api_error, non_neg_integer(), String.t()}
+          | {:transport_error, String.t()}
+
+  @doc """
+  Sends a test message to the integration's chat. A failure is a reason,
+  not text; `translate_error/1` renders it for the organiser.
+  """
+  @spec test_integration(TelegramIntegrationSchema.t()) :: :ok | {:error, test_error()}
+  def test_integration(%TelegramIntegrationSchema{chat_id: nil}), do: {:error, :no_chat}
 
   def test_integration(%TelegramIntegrationSchema{} = integration) do
     case resolve_bot_token(integration) do
@@ -143,7 +156,7 @@ defmodule Tymeslot.Telegram do
         send_telegram_message(token, integration.chat_id, message)
 
       {:error, reason} ->
-        {:error, to_string(reason)}
+        {:error, reason}
     end
   end
 
@@ -151,42 +164,31 @@ defmodule Tymeslot.Telegram do
   # Delivery
   # ============================================================================
 
-  @spec trigger_integrations_for_event(integer(), String.t(), %{atom() => term()}) :: :ok
-  def trigger_integrations_for_event(user_id, event_type, meeting) do
+  @impl Channel
+  def schedule_for_event(user_id, event_type, meeting) do
     if telegram_enabled?() do
-      case Features.check_access(user_id, :automations_allowed) do
-        :ok ->
-          user_id
-          |> TelegramQueries.list_active_integrations_for_event(event_type)
-          |> Enum.each(&trigger_integration(&1, event_type, meeting))
-
-        {:error, _reason} ->
-          :ok
-      end
+      user_id
+      |> TelegramQueries.list_active_integrations_for_event(event_type)
+      |> Enum.map(&{&1.id, schedule_delivery(&1, event_type, meeting)})
     else
       Logger.debug("Telegram notifications disabled, skipping",
         user_id: user_id,
         event_type: event_type
       )
-    end
 
-    :ok
+      []
+    end
   end
 
-  @spec trigger_integration(TelegramIntegrationSchema.t(), String.t(), %{atom() => term()}) ::
-          :ok | {:error, term()}
-  def trigger_integration(integration, event_type, meeting) do
-    if TelegramIntegrationSchema.should_be_active?(integration) and
-         TelegramIntegrationSchema.subscribed_to?(integration, event_type) do
-      TelegramWorker.schedule_delivery(
-        integration.id,
-        event_type,
-        meeting.id,
-        SeatView.participant_id(meeting)
-      )
-    else
-      {:error, :integration_not_active}
-    end
+  # The list query returns only deliverable integrations subscribed to the
+  # event, so each one is scheduled as it stands.
+  defp schedule_delivery(integration, event_type, meeting) do
+    TelegramWorker.schedule_delivery(
+      integration.id,
+      event_type,
+      meeting.id,
+      SeatView.participant_id(meeting)
+    )
   end
 
   # ============================================================================
@@ -328,6 +330,15 @@ defmodule Tymeslot.Telegram do
       end
     end
   end
+
+  @doc """
+  Switches the integration off because its owner's plan no longer covers
+  automations. A paused or already disabled integration is left as it is,
+  keeping the user's choice or the earlier reason.
+  """
+  @spec disable_for_revoked_plan(integer()) :: {:ok, boolean()}
+  def disable_for_revoked_plan(integration_id),
+    do: TelegramQueries.disable_if_active(integration_id, "Plan no longer permits automations")
 
   @spec auto_disable(TelegramIntegrationSchema.t(), String.t()) ::
           {:ok, TelegramIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
@@ -476,12 +487,44 @@ defmodule Tymeslot.Telegram do
         :ok
 
       {:ok, status, body} ->
-        {:error, "Telegram API returned #{status}: #{truncate(body, 200)}"}
+        {:error, {:api_error, status, api_description(body)}}
 
       {:error, reason} ->
-        {:error, "Connection failed: #{reason}"}
+        {:error, {:transport_error, reason}}
     end
   end
+
+  # Telegram explains a refusal in the body's `description`; anything else
+  # is shown cut short rather than in full.
+  defp api_description(body) do
+    case Jason.decode(body) do
+      {:ok, %{"description" => description}} when is_binary(description) -> description
+      _other -> truncate(body, 200)
+    end
+  end
+
+  @doc "Renders a `test_integration/1` failure for the organiser, in their language."
+  @spec translate_error(test_error()) :: String.t()
+  def translate_error(:no_chat),
+    do: dgettext("dashboard_automation_chat", "No chat is linked to this integration yet")
+
+  def translate_error(:no_token),
+    do: dgettext("dashboard_automation_chat", "The bot token is missing")
+
+  def translate_error(:no_shared_token),
+    do: dgettext("dashboard_automation_chat", "The shared Telegram bot is not configured")
+
+  def translate_error({:api_error, status, description}) do
+    dgettext(
+      "dashboard_automation_chat",
+      "Telegram refused the message (%{status}): %{description}",
+      status: status,
+      description: description
+    )
+  end
+
+  def translate_error({:transport_error, _reason}),
+    do: dgettext("dashboard_automation_chat", "Could not reach Telegram")
 
   defp truncate(text, max) when is_binary(text) do
     if String.length(text) > max do
