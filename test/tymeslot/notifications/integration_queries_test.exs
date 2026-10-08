@@ -275,7 +275,7 @@ defmodule Tymeslot.Notifications.IntegrationQueriesTest do
       user = insert(:user)
 
       changeset =
-        SlackIntegrationSchema.changeset(%SlackIntegrationSchema{}, %{
+        SlackIntegrationSchema.create_changeset(%{
           user_id: user.id,
           name: "My Workspace",
           app_mode: "oauth",
@@ -308,7 +308,7 @@ defmodule Tymeslot.Notifications.IntegrationQueriesTest do
 
     test "returns {:error, changeset} when invalid" do
       invalid =
-        SlackIntegrationSchema.changeset(%SlackIntegrationSchema{}, %{name: nil})
+        SlackIntegrationSchema.create_changeset(%{name: nil})
 
       assert {:error, %Ecto.Changeset{}} = IntegrationQueries.insert(invalid)
     end
@@ -318,7 +318,7 @@ defmodule Tymeslot.Notifications.IntegrationQueriesTest do
     test "updates a slack integration" do
       integration = insert(:slack_integration)
 
-      changeset = SlackIntegrationSchema.changeset(integration, %{name: "Renamed Slack"})
+      changeset = SlackIntegrationSchema.user_changeset(integration, %{name: "Renamed Slack"})
 
       assert {:ok, updated} = IntegrationQueries.update(changeset)
       assert updated.name == "Renamed Slack"

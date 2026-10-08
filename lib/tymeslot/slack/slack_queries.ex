@@ -59,8 +59,8 @@ defmodule Tymeslot.Slack.SlackQueries do
   @spec create_integration(map()) ::
           {:ok, SlackIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
   def create_integration(attrs) do
-    %SlackIntegrationSchema{}
-    |> SlackIntegrationSchema.changeset(attrs)
+    attrs
+    |> SlackIntegrationSchema.create_changeset()
     |> IntegrationQueries.insert()
   end
 
@@ -76,7 +76,7 @@ defmodule Tymeslot.Slack.SlackQueries do
           {:ok, SlackIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
   def update_integration(%SlackIntegrationSchema{} = integration, attrs) do
     integration
-    |> SlackIntegrationSchema.changeset(attrs)
+    |> SlackIntegrationSchema.user_changeset(attrs)
     |> IntegrationQueries.update()
   end
 
