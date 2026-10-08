@@ -12,6 +12,7 @@ defmodule Tymeslot.Workers.SlackWorkerTest do
   import Tymeslot.WorkerTestHelpers
 
   alias Oban.Job
+  alias Tymeslot.Test.ProcessAccessChecker
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Slack.{SlackDeliverySchema, SlackIntegrationSchema}
   alias Tymeslot.Workers.{SlackWorker, TelegramWorker}
@@ -466,32 +467,61 @@ defmodule Tymeslot.Workers.SlackWorkerTest do
       refute Map.has_key?(job.args, "token")
       refute Map.has_key?(job.args, "encrypted_token")
     end
+  end
 
-    test "discards and auto-disables when feature access is revoked" do
+  describe "perform/1 — automations access" do
+    setup do
+      with_config(:tymeslot, :feature_access_checker, ProcessAccessChecker)
       user = insert(:user)
       integration = insert(:slack_integration, user: user)
-      meeting = insert(:meeting, organizer_user_id: user.id)
+      %{integration: integration, meeting: insert(:meeting, organizer_user_id: user.id)}
+    end
 
-      with_config(
-        :tymeslot,
-        :feature_access_checker,
-        Tymeslot.Workers.SlackWorkerTest.DenyAccessChecker
-      )
+    for reason <- [:insufficient_plan, :pro_required, :stripe_required] do
+      test "switches the integration off when the plan answers #{reason}", %{
+        integration: integration,
+        meeting: meeting
+      } do
+        ProcessAccessChecker.answer({:error, unquote(reason)})
+        expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts -> :unused end)
 
-      expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts ->
-        flunk("HTTP client must not be called when access is revoked")
-      end)
+        assert {:discard, "Insufficient plan"} =
+                 perform_job(SlackWorker, args(integration, meeting))
 
-      assert {:discard, "Insufficient plan"} =
-               perform_job(SlackWorker, %{
-                 "integration_id" => integration.id,
-                 "event_type" => "meeting.created",
-                 "meeting_id" => meeting.id
-               })
+        updated = Repo.get!(SlackIntegrationSchema, integration.id)
+        refute updated.is_active
+        assert updated.disabled_reason == "Plan no longer permits automations"
+      end
+    end
 
-      updated = Repo.get(SlackIntegrationSchema, integration.id)
-      refute updated.is_active
-      assert updated.disabled_reason =~ "Plan no longer permits"
+    test "discards without switching the integration off when automations are off", %{
+      integration: integration,
+      meeting: meeting
+    } do
+      ProcessAccessChecker.answer({:error, :feature_disabled})
+      expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts -> :unused end)
+
+      assert {:discard, "Automations are switched off"} =
+               perform_job(SlackWorker, args(integration, meeting))
+
+      updated = Repo.get!(SlackIntegrationSchema, integration.id)
+      assert updated.is_active
+      assert is_nil(updated.disabled_at)
+    end
+
+    test "retries, leaving the integration alone, when the access check fails", %{
+      integration: integration,
+      meeting: meeting
+    } do
+      ProcessAccessChecker.answer({:error, :checker_unavailable})
+      expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts -> :unused end)
+
+      assert {:error, :feature_access_checker_failed} =
+               perform_job(SlackWorker, args(integration, meeting))
+
+      updated = Repo.get!(SlackIntegrationSchema, integration.id)
+      assert updated.is_active
+      assert updated.failure_count == 0
     end
   end
 
@@ -552,11 +582,12 @@ defmodule Tymeslot.Workers.SlackWorkerTest do
   defp job_count(worker) do
     Repo.aggregate(where(Job, worker: ^inspect(worker)), :count)
   end
-end
 
-defmodule Tymeslot.Workers.SlackWorkerTest.DenyAccessChecker do
-  @moduledoc false
-
-  @spec check_access(any(), atom()) :: {:error, :insufficient_plan}
-  def check_access(_user_id, _feature), do: {:error, :insufficient_plan}
+  defp args(integration, meeting) do
+    %{
+      "integration_id" => integration.id,
+      "event_type" => "meeting.created",
+      "meeting_id" => meeting.id
+    }
+  end
 end

@@ -36,7 +36,6 @@ defmodule Tymeslot.Workers.WebhookWorker do
 
   require Logger
 
-  alias Tymeslot.Features
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
@@ -45,6 +44,7 @@ defmodule Tymeslot.Workers.WebhookWorker do
   alias Tymeslot.Meetings.SeatView
   alias Tymeslot.Webhooks
   alias Tymeslot.Workers.DeliveryClaims
+  alias Tymeslot.Workers.MeetingNotificationJob
 
   alias Tymeslot.Webhooks.{
     HttpDelivery,
@@ -129,10 +129,11 @@ defmodule Tymeslot.Workers.WebhookWorker do
   @gone "Webhook or meeting not found"
   @disabled "Webhook is disabled"
   @insufficient_plan "Insufficient plan"
+  @feature_disabled "Automations are switched off"
 
   @impl ExpectedJobOutcome
   def expected_outcome?(reason) when is_binary(reason) do
-    reason in [@gone, @disabled, @insufficient_plan] or
+    reason in [@gone, @disabled, @insufficient_plan, @feature_disabled] or
       String.starts_with?(reason, @http_status_prefix <> "4")
   end
 
@@ -152,11 +153,9 @@ defmodule Tymeslot.Workers.WebhookWorker do
       ) do
     Logger.metadata(job_id: job.id, attempt: attempt)
 
-    feature = :automations_allowed
-
     with {:ok, webhook} <- WebhookQueries.get_webhook(webhook_id),
          :ok = ErrorTracking.put_context(user_id: webhook.user_id),
-         :ok <- check_feature_access(webhook.user_id, webhook_id, event_type, feature),
+         :ok <- feature_gate(webhook.user_id, webhook_id, event_type),
          {:ok, meeting} <- fetch_meeting(meeting_id, args["participant_id"], args["snapshot"]),
          :ok <- deliver_once(webhook, event_type, meeting, job) do
       :ok
@@ -300,55 +299,25 @@ defmodule Tymeslot.Workers.WebhookWorker do
         snapshot \\ nil,
         participant_id \\ nil
       ) do
-    result =
-      %{
-        "webhook_id" => webhook_id,
-        "event_type" => event_type,
-        "meeting_id" => meeting_id
-      }
-      |> maybe_put_snapshot(snapshot)
-      |> maybe_put_participant(participant_id)
-      |> new(
-        queue: :webhooks,
-        priority: 2,
-        unique: [
-          # 5 minute uniqueness window
-          period: 300,
-          # Only a waiting delivery with the same (replayed) snapshot absorbs
-          # a duplicate: one that ran must not swallow a later event.
-          states: [:available, :scheduled, :retryable],
-          fields: [:args],
-          keys: unique_keys(participant_id)
-        ]
+    args =
+      maybe_put_snapshot(
+        %{
+          "webhook_id" => webhook_id,
+          "event_type" => event_type,
+          "meeting_id" => meeting_id
+        },
+        snapshot
       )
-      |> Oban.insert()
 
-    case result do
-      {:ok, %Oban.Job{conflict?: true}} ->
-        Logger.debug("Webhook delivery job already exists",
-          webhook_id: webhook_id,
-          event_type: event_type
-        )
-
-        :ok
-
-      {:ok, _job} ->
-        Logger.debug("Webhook delivery job scheduled",
-          webhook_id: webhook_id,
-          event_type: event_type
-        )
-
-        :ok
-
-      {:error, reason} ->
-        Logger.error("Failed to schedule webhook delivery",
-          webhook_id: webhook_id,
-          event_type: event_type,
-          reason: reason
-        )
-
-        {:error, reason}
-    end
+    # The snapshot is part of the key: it is what the delivery replays, so a
+    # waiting job only absorbs a duplicate that would post the same payload.
+    MeetingNotificationJob.schedule(
+      __MODULE__,
+      args,
+      participant_id,
+      [:webhook_id, :event_type, :meeting_id, :snapshot],
+      queue: :webhooks
+    )
   end
 
   # Seconds to wait after each failed attempt: 30s, 2m, 10m, 30m, 1h, 3h,
@@ -364,16 +333,6 @@ defmodule Tymeslot.Workers.WebhookWorker do
   end
 
   # Private functions
-
-  defp unique_keys(nil), do: [:webhook_id, :event_type, :meeting_id, :snapshot]
-
-  defp unique_keys(_participant_id),
-    do: [:webhook_id, :event_type, :meeting_id, :participant_id, :snapshot]
-
-  defp maybe_put_participant(args, nil), do: args
-
-  defp maybe_put_participant(args, participant_id),
-    do: Map.put(args, "participant_id", participant_id)
 
   defp maybe_put_snapshot(args, nil), do: args
 
@@ -489,27 +448,33 @@ defmodule Tymeslot.Workers.WebhookWorker do
     end
   end
 
-  @spec check_feature_access(integer(), integer(), String.t(), atom()) ::
-          :ok | {:error, :insufficient_plan | :feature_access_checker_failed}
-  defp check_feature_access(user_id, webhook_id, event_type, feature) do
-    case Features.check_access(user_id, feature) do
+  # Unlike the chat channels, a webhook is not switched off when the plan no
+  # longer covers automations: the job is discarded and the webhook kept.
+  defp feature_gate(user_id, webhook_id, event_type) do
+    case MeetingNotificationJob.feature_gate(user_id) do
       :ok ->
         :ok
 
-      {:error, :insufficient_plan} = error ->
+      {:revoked, _reason} ->
         Logger.info("Feature access denied for webhook delivery",
           webhook_id: webhook_id,
-          event_type: event_type,
-          feature: feature
+          event_type: event_type
         )
 
-        error
+        {:error, :insufficient_plan}
+
+      {:discard, :feature_disabled} ->
+        Logger.info("Automations are switched off, discarding webhook delivery",
+          webhook_id: webhook_id,
+          event_type: event_type
+        )
+
+        {:discard, @feature_disabled}
 
       {:error, :feature_access_checker_failed} = error ->
         Logger.warning("Feature access check failed for webhook delivery",
           webhook_id: webhook_id,
-          event_type: event_type,
-          feature: feature
+          event_type: event_type
         )
 
         error
