@@ -20,7 +20,7 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyAsymmetricBuffersTest d
   alias Ecto.Changeset
   alias Tymeslot.Availability.Schedules
   alias Tymeslot.Availability.TimeSlots
-  alias Tymeslot.Bookings.{CalendarCheck, Create, Policy}
+  alias Tymeslot.Bookings.{CalendarCheck, Create}
   alias Tymeslot.CalendarMock
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.TestMocks
