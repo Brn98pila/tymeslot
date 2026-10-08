@@ -85,6 +85,18 @@ defmodule Tymeslot.GettextCompletenessCase do
       |> Enum.map(&Path.basename(&1, ".pot"))
       |> Enum.sort()
 
+    # A listed domain with no template would exempt nothing and check nothing,
+    # so a typo or a removed domain fails the build rather than passing quietly.
+    case Enum.reject(empty_domains, &(&1 in domains)) do
+      [] ->
+        :ok
+
+      unknown ->
+        raise ArgumentError,
+              ":empty_domains names #{inspect(unknown)}, which has no .pot template " <>
+                "in #{gettext_path}"
+    end
+
     msgid_consistency_tests =
       for domain <- domains do
         quote do
