@@ -217,4 +217,31 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
 
     %{resp_body: resp_body}
   end
+
+  describe "revoke_token/1" do
+    test "a 400 saying the token is invalid counts as revoked" do
+      expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
+        {:ok,
+         %Req.Response{status: 400, body: %{"reason" => "Invalid token.", "status" => "failed"}}}
+      end)
+
+      assert ZoomOAuthHelper.revoke_token("gone") == :ok
+    end
+
+    test "a 400 for another reason stays a failure" do
+      expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
+        {:ok, %Req.Response{status: 400, body: %{"reason" => "Invalid client secret."}}}
+      end)
+
+      assert ZoomOAuthHelper.revoke_token("tok") == {:error, {:http_error, 400}}
+    end
+
+    test "a 400 with an unreadable body stays a failure" do
+      expect(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
+        {:ok, %Req.Response{status: 400, body: "<html>"}}
+      end)
+
+      assert ZoomOAuthHelper.revoke_token("tok") == {:error, {:http_error, 400}}
+    end
+  end
 end

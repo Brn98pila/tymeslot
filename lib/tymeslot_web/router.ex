@@ -187,6 +187,11 @@ defmodule TymeslotWeb.Router do
     get "/guest/:token/:response", GuestRsvpController, :confirm
     post "/guest/:token/:response", GuestRsvpController, :submit
 
+    # The one page an account pending deletion can reach while signed in.
+    # It has to come before "/auth/:provider", which would otherwise take it.
+    get "/auth/restore", AccountRestoreController, :show
+    post "/auth/restore", AccountRestoreController, :restore
+
     # Public group-booking seat management from the tokenised email link.
     # Same two-step pattern as guest RSVP: GET confirms, POST mutates.
     # The reschedule link redirects into the public booking picker.

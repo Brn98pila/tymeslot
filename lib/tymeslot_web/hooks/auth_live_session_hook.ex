@@ -3,7 +3,9 @@ defmodule TymeslotWeb.Hooks.AuthLiveSessionHook do
   LiveView `on_mount` hooks that resolve the signed-in user.
 
     * `:ensure_authenticated` assigns `:current_user` and halts with a redirect
-      to the login page when nobody is signed in.
+      to the login page when nobody is signed in, or to `/auth/restore` when
+      the account is pending deletion. Once connected it leaves for the login
+      page if the account's deletion is requested from another tab.
     * `:fetch_current_user` assigns `:current_user`, `nil` when nobody is
       signed in.
     * `{:redirect_if_authenticated, actions: actions, events: events}` sends a
@@ -28,10 +30,12 @@ defmodule TymeslotWeb.Hooks.AuthLiveSessionHook do
   """
 
   use Gettext, backend: TymeslotWeb.Gettext
+  use TymeslotWeb, :verified_routes
 
   import Phoenix.LiveView
   import Phoenix.Component
 
+  alias Tymeslot.Auth
   alias Tymeslot.Infrastructure.Config
   alias TymeslotWeb.UserAuth
 
@@ -52,8 +56,10 @@ defmodule TymeslotWeb.Hooks.AuthLiveSessionHook do
          |> put_flash(:error, unauthenticated_message(session))
          |> redirect(to: login_path())}
 
-      _user ->
-        {:cont, socket}
+      user ->
+        if Auth.deletion_pending?(user),
+          do: {:halt, redirect(socket, to: ~p"/auth/restore")},
+          else: {:cont, watch_account(socket, user)}
     end
   end
 
@@ -93,6 +99,25 @@ defmodule TymeslotWeb.Hooks.AuthLiveSessionHook do
              do: {:halt, send_signed_in_user_on(socket)},
              else: {:cont, socket}
          end)}
+    end
+  end
+
+  # A deletion requested from another tab of this browser ends this session
+  # too. This tab hears of it here and leaves for the login page instead of
+  # going on showing the account's data until it next reconnects.
+  defp watch_account(socket, user) do
+    if connected?(socket) do
+      _subscribed = Auth.subscribe_to_account(user.id)
+
+      attach_hook(socket, :account_deletion_requested, :handle_info, fn
+        {:account_deletion_requested, _user_id}, socket ->
+          {:halt, redirect(socket, to: login_path())}
+
+        _message, socket ->
+          {:cont, socket}
+      end)
+    else
+      socket
     end
   end
 

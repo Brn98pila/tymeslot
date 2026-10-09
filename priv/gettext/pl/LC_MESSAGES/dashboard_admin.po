@@ -39,7 +39,7 @@ msgstr "Akcje"
 msgid "Admin"
 msgstr "Administrator"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Admin UI is disabled."
 msgstr "Panel administracyjny jest wyłączony."
@@ -85,6 +85,7 @@ msgstr "Minimalny wynik przy rezerwacji"
 msgid "Booking slug"
 msgstr "Adres rezerwacji"
 
+#: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
 #: lib/tymeslot_web/live/admin_live/components/confirm_role_change_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Cancel"
@@ -95,12 +96,12 @@ msgstr "Anuluj"
 msgid "Changes here take effect immediately and override the matching environment variables and application configuration (e.g. REGISTRATION_ENABLED, PASSWORD_AUTH_ENABLED) for this install."
 msgstr "Zmiany wprowadzone tutaj działają natychmiast i nadpisują odpowiadające im zmienne środowiskowe oraz konfigurację aplikacji (np. REGISTRATION_ENABLED, PASSWORD_AUTH_ENABLED) w tej instalacji."
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Could not demote user."
 msgstr "Nie udało się odebrać uprawnień użytkownikowi."
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Could not promote user."
 msgstr "Nie udało się nadać uprawnień użytkownikowi."
@@ -194,12 +195,12 @@ msgstr "Logowanie przez GitHub"
 msgid "Google login"
 msgstr "Logowanie przez Google"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Invalid request."
 msgstr "Nieprawidłowe żądanie."
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Invalid user id."
 msgstr "Nieprawidłowy identyfikator użytkownika."
@@ -301,17 +302,17 @@ msgstr "Łącznie użytkowników"
 msgid "User"
 msgstr "Użytkownik"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "User demoted from admin."
 msgstr "Odebrano użytkownikowi uprawnienia administratora."
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "User not found."
 msgstr "Nie znaleziono użytkownika."
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "User promoted to admin."
 msgstr "Nadano użytkownikowi uprawnienia administratora."
@@ -321,7 +322,7 @@ msgstr "Nadano użytkownikowi uprawnienia administratora."
 msgid "Users"
 msgstr "Użytkownicy"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "You have been demoted from admin."
 msgstr "Odebrano ci uprawnienia administratora."
@@ -431,7 +432,7 @@ msgstr "Odebrać uprawnienia administratora użytkownikowi %{email}?"
 msgid "Promote %{email} to admin?"
 msgstr "Nadać uprawnienia administratora użytkownikowi %{email}?"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #: lib/tymeslot_web/plugs/require_admin.ex
 #, elixir-autogen, elixir-format
 msgid "Admin access required."
@@ -632,12 +633,67 @@ msgstr "Język, na który przechodzą panel, strony konta i e-maile dotyczące k
 msgid "General"
 msgstr "Ogólne"
 
-#: lib/tymeslot_web/live/admin_live.ex
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
+#, elixir-autogen, elixir-format
+msgid "Could not delete user."
+msgstr "Nie udało się usunąć użytkownika."
+
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Cannot demote this admin: no other admin can sign in. Make sure another admin can sign in first."
 msgstr "Nie można odebrać uprawnień temu administratorowi: żaden inny administrator nie może się zalogować. Najpierw upewnij się, że inny administrator może się zalogować."
 
 #: lib/tymeslot_web/live/admin_live/components/users.ex
 #, elixir-autogen, elixir-format
+msgid "Delete"
+msgstr "Usuń"
+
+#: lib/tymeslot_web/live/admin_live/components/users.ex
+#, elixir-autogen, elixir-format
+msgid "Delete %{email}"
+msgstr "Usuń konto %{email}"
+
+#: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Delete %{email} and all their data now?"
+msgstr "Usunąć teraz konto %{email} i wszystkie jego dane?"
+
+#: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Delete user"
+msgstr "Usuń użytkownika"
+
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
+#, elixir-autogen, elixir-format
+msgid "Deleting %{email}. The account leaves this list once the deletion has run."
+msgstr "Usuwanie konta %{email}. Konto zniknie z tej listy po zakończeniu usuwania."
+
+#: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Deleting..."
+msgstr "Usuwanie…"
+
+#: lib/tymeslot_web/live/admin_live/components/confirm_delete_user_modal.ex
+#, elixir-autogen, elixir-format
+msgid "This cannot be undone. Their bookings are deleted and their guests are not notified; existing calendar events and video links stay as they are."
+msgstr "Tej operacji nie można cofnąć. Rezerwacje tej osoby zostaną usunięte, a jej goście nie zostaną powiadomieni; istniejące wydarzenia w kalendarzu i linki do spotkań wideo pozostaną bez zmian."
+
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
+#, elixir-autogen, elixir-format
+msgid "You cannot delete your own account here. Use your account settings instead."
+msgstr "Nie możesz tutaj usunąć własnego konta. Skorzystaj z ustawień konta."
+
+#: lib/tymeslot_web/live/admin_live/components/users.ex
+#, elixir-autogen, elixir-format
+msgid "Deletion pending"
+msgstr "Oczekuje na usunięcie"
+
+#: lib/tymeslot_web/live/admin_live/components/users.ex
+#, elixir-autogen, elixir-format
 msgid "No other admin can sign in. Make sure another admin can sign in before demoting yourself."
 msgstr "Żaden inny administrator nie może się zalogować. Zanim odbierzesz sobie uprawnienia, upewnij się, że inny administrator może się zalogować."
+
+#: lib/tymeslot_web/live/admin_live/user_actions.ex
+#, elixir-autogen, elixir-format
+msgid "Cannot delete this admin: no other admin can sign in. Make sure another admin can sign in first."
+msgstr "Nie można usunąć tego administratora: żaden inny administrator nie może się zalogować. Najpierw upewnij się, że inny administrator może się zalogować."

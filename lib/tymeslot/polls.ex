@@ -77,7 +77,12 @@ defmodule Tymeslot.Polls do
     |> Enum.map(&elem(&1, 0))
   end
 
-  @doc "Fetches a poll by its public token, in any status, for the voting page."
+  @doc """
+  Fetches a poll by its public token, in any status, for the voting page.
+
+  Returns `{:error, :not_found}` while the poll's host is pending account
+  deletion, like every other public page of that host.
+  """
   @spec get_poll_for_voting(String.t()) :: {:ok, PollSchema.t()} | {:error, :not_found}
   def get_poll_for_voting(token) do
     case PollQueries.get_by_token(token) do

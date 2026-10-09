@@ -45,6 +45,10 @@ defmodule Tymeslot.Integrations.Shared.GoogleConfig do
   @spec userinfo_url() :: String.t()
   def userinfo_url, do: "https://www.googleapis.com/oauth2/v1/userinfo"
 
+  @doc "The endpoint that revokes a grant, given either of its tokens."
+  @spec revoke_url() :: String.t()
+  def revoke_url, do: "https://oauth2.googleapis.com/revoke"
+
   @doc """
   The scope string for a named scope; a string is taken as a scope already.
   """

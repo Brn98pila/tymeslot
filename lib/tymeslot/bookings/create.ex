@@ -4,6 +4,7 @@ defmodule Tymeslot.Bookings.Create do
   Combines validation, policy enforcement, and side effects.
   """
 
+  alias Tymeslot.Auth
   alias Tymeslot.Availability.Offer
   alias Tymeslot.Availability.Schedules
 
@@ -182,6 +183,12 @@ defmodule Tymeslot.Bookings.Create do
   defp normalize_date_input(date) when is_binary(date), do: {:ok, date}
   defp normalize_date_input(_arg), do: {:error, :invalid_date_input}
 
+  # A host whose account waits to be deleted takes no new bookings, even from
+  # a booking page that was already open when the deletion was requested.
+  defp validate_host_accepting(user_id) do
+    if Auth.deletion_pending?(user_id), do: {:error, :host_not_found}, else: :ok
+  end
+
   defp validate_booking(booking_data) do
     # Get organizer user_id from booking data - now required
     organizer_user_id = Map.get(booking_data, :organizer_user_id)
@@ -192,7 +199,8 @@ defmodule Tymeslot.Bookings.Create do
 
       user_id ->
         # Meeting type active check
-        with :ok <- validate_meeting_type_active(booking_data),
+        with :ok <- validate_host_accepting(user_id),
+             :ok <- validate_meeting_type_active(booking_data),
              :ok <- CreateGroup.ensure_taking_seats(booking_data),
              :ok <- validate_payments_available(booking_data, user_id) do
           config = scheduling_config(booking_data)

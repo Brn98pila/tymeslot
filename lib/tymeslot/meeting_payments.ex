@@ -30,7 +30,6 @@ defmodule Tymeslot.MeetingPayments do
 
   require Logger
 
-  alias Tymeslot.FinancialRetention
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
@@ -91,6 +90,15 @@ defmodule Tymeslot.MeetingPayments do
   @spec disconnect(user :: %{id: integer()}) ::
           {:ok, disconnect_result()} | {:error, term()}
   defdelegate disconnect(user), to: ConnectAccounts
+
+  @doc """
+  Expires the host's open Stripe Checkout sessions and cancels their pending
+  bookings, leaving the Connect account in place. See
+  `Tymeslot.MeetingPayments.ConnectAccounts.cancel_pending_checkouts/1`.
+  """
+  @spec cancel_pending_checkouts(user :: %{id: integer()}) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  defdelegate cancel_pending_checkouts(user), to: ConnectAccounts
 
   @doc """
   Fetches a Connect account by its row ID, or `nil` if not found.
@@ -531,23 +539,4 @@ defmodule Tymeslot.MeetingPayments do
       {:error, reason} -> {:error, reason}
     end
   end
-
-  # ---------------------------------------------------------------------------
-  # Webhook processing
-  # ---------------------------------------------------------------------------
-
-  # ---------------------------------------------------------------------------
-  # Data retention
-  # ---------------------------------------------------------------------------
-
-  @doc """
-  Anonymises all of a host's financial records, booking payments and
-  platform subscription records alike, and soft-deletes their Connect
-  account. Run before user deletion for GDPR Art. 17(3)(b) compliance.
-
-  The work is `Tymeslot.FinancialRetention.anonymise_host/1`, which spans
-  both payment contexts; this entry point remains for account deletion.
-  """
-  @spec anonymise_host(integer()) :: :ok | {:error, term()}
-  defdelegate anonymise_host(user_id), to: FinancialRetention
 end
