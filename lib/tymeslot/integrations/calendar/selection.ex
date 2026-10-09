@@ -322,22 +322,27 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   load-bearing: Google and Outlook read the account's primary calendar when
   no calendar is selected. An integration with no calendar list predates
   selection and is returned unchanged, everything it has blocking as before.
+
+  An Exchange mailbox is returned unchanged too: its busy time is cached
+  mailbox-wide rather than per folder, and blocks whatever folders the owner
+  selected.
   """
   @spec availability_view(map()) :: map() | nil
-  def availability_view(%{calendar_list: list} = integration) when list in [nil, []],
-    do: integration
-
   def availability_view(%{calendar_list: list} = integration) do
-    case blocking_calendars(list) do
-      [] ->
-        nil
-
-      blocking ->
-        Map.merge(integration, %{
-          calendar_list: blocking,
-          calendar_paths: derive_selected_paths(blocking)
-        })
+    cond do
+      list in [nil, []] -> integration
+      ProviderConfig.ews?(Map.get(integration, :provider)) -> integration
+      true -> narrow_to_blocking(integration, blocking_calendars(list))
     end
+  end
+
+  defp narrow_to_blocking(_integration, []), do: nil
+
+  defp narrow_to_blocking(integration, blocking) do
+    Map.merge(integration, %{
+      calendar_list: blocking,
+      calendar_paths: derive_selected_paths(blocking)
+    })
   end
 
   @doc """

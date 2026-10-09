@@ -95,6 +95,43 @@ defmodule Tymeslot.Integrations.Calendar.UndecryptableCredentialsTest do
       assert {:error, :some_calendars_unavailable} =
                EventFetcher.get_events_for_range_fresh(user.id, today, Date.add(today, 7))
     end
+
+    test "does not fail when the unreadable integration's calendars all show only" do
+      # Its calendar list is stored unencrypted, so the choice is still known.
+      user = insert(:user)
+      insert_readable_feed(user)
+
+      stale =
+        insert_undecryptable(
+          user: user,
+          calendar_list: [%{id: "/cal/a/", selected: true, blocks_availability: false}]
+        )
+
+      today = Date.utc_today()
+
+      assert {:ok, _events} =
+               EventFetcher.get_events_for_range_fresh(user.id, today, Date.add(today, 7))
+
+      assert reload(stale).needs_reauth
+    end
+
+    test "fails closed when the unreadable integration has a blocking calendar" do
+      user = insert(:user)
+      insert_readable_feed(user)
+
+      insert_undecryptable(
+        user: user,
+        calendar_list: [
+          %{id: "/cal/a/", selected: true, blocks_availability: false},
+          %{id: "/cal/b/", selected: true}
+        ]
+      )
+
+      today = Date.utc_today()
+
+      assert {:error, :some_calendars_unavailable} =
+               EventFetcher.get_events_for_range_fresh(user.id, today, Date.add(today, 7))
+    end
   end
 
   describe "the dashboard" do
