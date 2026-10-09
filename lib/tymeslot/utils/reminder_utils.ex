@@ -101,6 +101,24 @@ defmodule Tymeslot.Utils.ReminderUtils do
   def validate_reminder_value(_value), do: {:error, :invalid_value}
 
   @doc """
+  Reads a reminder written as a label, as meetings booked before reminders
+  were stored as value and unit carry it ("30 minutes", "1 hour", "2 days").
+  `:error` for anything else.
+  """
+  @spec parse_label(String.t() | nil) :: {:ok, %{value: pos_integer(), unit: String.t()}} | :error
+  def parse_label(label) when is_binary(label) do
+    with [_whole, value, unit] <- Regex.run(~r/^\s*(\d+)\s*(minutes?|hours?|days?)\s*$/i, label),
+         {:ok, reminder} <-
+           normalize_reminder(%{value: value, unit: normalize_reminder_unit(unit)}) do
+      {:ok, reminder}
+    else
+      _unreadable -> :error
+    end
+  end
+
+  def parse_label(_label), do: :error
+
+  @doc """
   Normalizes a reminder unit.
   Lenient: handles strings containing units (e.g., "30 minutes").
   """

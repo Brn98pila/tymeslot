@@ -317,31 +317,15 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
     }
   end
 
+  # A meeting booked before reminders were stored as value and unit carries
+  # a label instead. One that reads as an interval is localised like any
+  # other, for both recipients; free text the app no longer writes is kept.
   defp handle_normalized_reminders([], meeting) do
-    case legacy_reminder_label(meeting) do
-      nil ->
-        %{
-          reminder_time: nil,
-          default_reminder_time: nil,
-          time_until: nil,
-          time_until_friendly: nil,
-          reminders_enabled: false,
-          reminders_summary:
-            dgettext("emails", "No reminder emails are scheduled for this appointment.")
-        }
+    label = legacy_reminder_label(meeting)
 
-      legacy_label ->
-        %{
-          reminder_time: legacy_label,
-          default_reminder_time: legacy_label,
-          time_until: legacy_label,
-          time_until_friendly: dgettext("emails", "in %{label}", label: legacy_label),
-          reminders_enabled: true,
-          reminders_summary:
-            dgettext("emails", "I'll send you a reminder %{label} before our appointment.",
-              label: legacy_label
-            )
-        }
+    case ReminderUtils.parse_label(label) do
+      {:ok, reminder} -> handle_normalized_reminders([reminder], meeting)
+      :error -> legacy_reminder_details(label)
     end
   end
 
@@ -394,6 +378,34 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
   # layer (`Formatting.format_location/1`) substitutes the localised "TBD".
   # Legacy meetings persisted the English placeholder before that change —
   # treat it as nil here so they also render translated.
+  defp legacy_reminder_details(label) do
+    case label do
+      nil ->
+        %{
+          reminder_time: nil,
+          default_reminder_time: nil,
+          time_until: nil,
+          time_until_friendly: nil,
+          reminders_enabled: false,
+          reminders_summary:
+            dgettext("emails", "No reminder emails are scheduled for this appointment.")
+        }
+
+      legacy_label ->
+        %{
+          reminder_time: legacy_label,
+          default_reminder_time: legacy_label,
+          time_until: legacy_label,
+          time_until_friendly: dgettext("emails", "in %{label}", label: legacy_label),
+          reminders_enabled: true,
+          reminders_summary:
+            dgettext("emails", "I'll send you a reminder %{label} before our appointment.",
+              label: legacy_label
+            )
+        }
+    end
+  end
+
   defp format_location(meeting) do
     cond do
       meeting.meeting_url -> "Video Call"
