@@ -72,9 +72,6 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.Helpers do
 
   # Timezone + formatting helpers
   @spec get_meeting_timezone(Ecto.Schema.t() | nil, Ecto.Schema.t() | nil) :: String.t()
-  def get_meeting_timezone(nil, _profile), do: "UTC"
-  def get_meeting_timezone(_meeting, nil), do: "UTC"
-
   # Organizer's timezone for the dashboard view
   def get_meeting_timezone(_meeting, profile), do: Profiles.timezone(profile)
 

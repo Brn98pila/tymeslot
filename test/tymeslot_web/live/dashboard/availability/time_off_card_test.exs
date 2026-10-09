@@ -586,6 +586,36 @@ defmodule TymeslotWeb.Dashboard.Availability.TimeOffCardTest do
     end
   end
 
+  describe "a host who never set a timezone" do
+    # Their hours and time off are read on the default zone (Tallinn, UTC+3 in
+    # July). 00:30 on 5 July in Tallinn is 21:30 UTC on the 4th.
+    setup %{profile: profile} do
+      profile |> Ecto.Changeset.change(timezone: nil) |> Repo.update!()
+      :ok
+    end
+
+    test "sees a booking inside the time off on the clock it is read on", %{
+      conn: conn,
+      user: user
+    } do
+      booking(user, ~U[2027-07-04 21:30:00Z], "Night call")
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/availability")
+      view |> element("[data-testid='add-time-off']") |> render_click()
+
+      html =
+        view
+        |> form("#time-off-form-modal-form", %{
+          "starts_on" => "2027-07-05",
+          "ends_on" => "2027-07-06"
+        })
+        |> render_change()
+
+      assert html =~ "Night call"
+      assert html =~ ~r/Monday 5 July, 12:30 AM\s*<\/span><span class="font-medium">Night call/
+    end
+  end
+
   describe "removing" do
     test "deletes the period after confirmation", %{conn: conn, profile: profile} do
       period = insert(:time_off_period, profile: profile, label: "Portugal")

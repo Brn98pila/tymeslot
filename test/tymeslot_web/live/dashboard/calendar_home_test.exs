@@ -186,6 +186,26 @@ defmodule TymeslotWeb.Dashboard.CalendarHomeTest do
 
       assert header_timezone(html) == "Tallinn, Estonia"
     end
+
+    test "puts the agenda on the same clock as the header", %{conn: conn, user: user} do
+      integration = insert(:calendar_integration, user: user, is_active: true)
+      start_at = DateTime.add(DateTime.utc_now(:second), 3600, :second)
+
+      insert(:provider_calendar_event,
+        calendar_integration: integration,
+        summary: "Dentist",
+        start_at: start_at,
+        end_at: DateTime.add(start_at, 1800, :second),
+        all_day: false
+      )
+
+      tallinn =
+        start_at |> DateTime.shift_zone!("Europe/Tallinn") |> Calendar.strftime("%-I:%M %p")
+
+      {:ok, _lv, html} = live(conn, ~p"/dashboard")
+
+      assert strip_html(html) =~ ~r/Dentist\s*<span[^>]*>\s*· \w+ · #{tallinn}/
+    end
   end
 
   describe "setup checklist on the calendar" do
