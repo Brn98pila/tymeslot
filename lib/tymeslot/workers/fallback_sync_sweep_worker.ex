@@ -15,10 +15,10 @@ defmodule Tymeslot.Workers.FallbackSyncSweepWorker do
   Integrations are read 50 at a time, a page by id per query and no
   transaction around the walk: each page is decided and enqueued before the
   next is read, so the sweep holds one page in memory however many
-  integrations there are, and each job is visible as soon as it is inserted. Each batch's jobs are
-  scheduled one second after the previous batch's via `scheduled_at`, to
-  avoid thundering-herd load on provider APIs and the database without
-  blocking the queue slot.
+  integrations there are, and each job is visible as soon as it is
+  inserted. Each page's jobs are scheduled one second after the previous
+  page's via `scheduled_at`, to avoid thundering-herd load on provider APIs
+  and the database without blocking the queue slot.
   """
 
   use Oban.Worker,
