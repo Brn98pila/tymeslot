@@ -78,6 +78,22 @@ defmodule Tymeslot.Meetings.CalendarEventSyncTest do
       assert {:error, :rate_limited} = CalendarEventSync.create(meeting.id, 1)
     end
 
+    # A rate limit that names its wait is waited out by the worker's snooze,
+    # which keeps the attempt where it was; it is not a persistent failure.
+    test "sends no owner notification for a rate limit on the final attempt" do
+      meeting = insert(:meeting)
+
+      expect(Tymeslot.CalendarMock, :create_event, fn _data, _ctx ->
+        {:error, {:rate_limited, 30}}
+      end)
+
+      expect(Tymeslot.EmailServiceMock, :send_calendar_sync_error, 0, fn _meeting, _reason ->
+        :ok
+      end)
+
+      assert {:error, {:rate_limited, 30}} = CalendarEventSync.create(meeting.id, 5)
+    end
+
     test "sends an owner notification on the final attempt for a persistent failure" do
       meeting = insert(:meeting)
 
