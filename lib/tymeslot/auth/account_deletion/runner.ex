@@ -9,7 +9,7 @@ defmodule Tymeslot.Auth.AccountDeletion.Runner do
        admin left who can sign in (another was demoted or deleted during the
        grace period), nothing is deleted. The due date moves a day on, so the
        owner can still restore the account, operators get the
-       `:account_deletion_stalled` alert, and the job snoozes until then. A
+       `:account_deletion_held_last_admin` alert, and the job snoozes until then. A
        release-shell deletion forced past the rule (`force: true`) skips this;
     1. third-party cleanup (`ExternalCleanup`), while its credentials exist;
     2. the meeting ids, read before the cascade removes the meetings;
@@ -116,7 +116,7 @@ defmodule Tymeslot.Auth.AccountDeletion.Runner do
     )
 
     _reported =
-      AdminAlerts.report(:account_deletion_stalled,
+      AdminAlerts.report(:account_deletion_held_last_admin,
         summary: "Account deletion held: the account is the last admin who can sign in",
         reason: :last_admin,
         context: %{user_id: user.id, held_until: until}

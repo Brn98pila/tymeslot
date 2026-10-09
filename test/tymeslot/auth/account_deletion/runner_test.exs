@@ -14,7 +14,7 @@ defmodule Tymeslot.Auth.AccountDeletion.RunnerTest do
   alias Tymeslot.Auth
   alias Tymeslot.Auth.AccountDeletion
   alias Tymeslot.Auth.AccountDeletion.Runner
-  alias Tymeslot.Auth.UserSchema
+  alias Tymeslot.Auth.{UserQueries, UserSchema}
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Repo
   alias Tymeslot.Workers.{AccountDeletionWorker, EmailWorker, WebhookWorker}
@@ -218,8 +218,9 @@ defmodule Tymeslot.Auth.AccountDeletion.RunnerTest do
       assert DateTime.compare(held.deletion_scheduled_at, DateTime.utc_now()) == :gt
       assert held.deletion_requested_at == admin.deletion_requested_at
 
-      assert_received {:send_alert, :account_deletion_stalled, payload}
+      assert_received {:send_alert, :account_deletion_held_last_admin, payload}
       assert payload.user_id == admin.id
+      refute_received {:send_alert, :account_deletion_stalled, _payload}
 
       assert {:ok, restored} = Auth.restore_account(held)
       refute restored.deletion_scheduled_at
@@ -245,6 +246,22 @@ defmodule Tymeslot.Auth.AccountDeletion.RunnerTest do
 
       assert Runner.run(admin.id) == {:ok, :deleted}
       refute Repo.get(UserSchema, admin.id)
+    end
+
+    test "is neither held nor deleted when the hold cannot be written", %{admin: admin} do
+      :meck.new(UserQueries, [:passthrough])
+      on_exit(fn -> :meck.unload() end)
+
+      :meck.expect(UserQueries, :mark_deletion_scheduled, fn user, _requested_at, _until ->
+        {:error, Changeset.add_error(Changeset.change(user), :deletion_scheduled_at, "invalid")}
+      end)
+
+      assert {:error, %Changeset{}} = Runner.run(admin.id)
+
+      # Rolled back: still there, still due at its old date, and no alert.
+      kept = Repo.get!(UserSchema, admin.id)
+      assert kept.deletion_scheduled_at == admin.deletion_scheduled_at
+      refute_received {:send_alert, _type, _payload}
     end
 
     test "is deleted when the release shell forces it", %{admin: admin} do
