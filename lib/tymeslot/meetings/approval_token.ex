@@ -37,6 +37,7 @@ defmodule Tymeslot.Meetings.ApprovalToken do
   """
 
   alias Phoenix.Token
+  alias Tymeslot.Auth
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
   alias Tymeslot.SignedToken
@@ -73,6 +74,10 @@ defmodule Tymeslot.Meetings.ApprovalToken do
   meeting's current one, so a token from a previous request cannot answer a
   new one issued after a re-entry into the approval gate.
 
+  Refuses with `{:error, :not_found}` while the organiser's account is pending
+  deletion: the link answers as if the request did not exist, both when the
+  page loads and when an answer is re-verified.
+
   Says nothing about whether the request is still answerable; that is the
   caller's next question and `Tymeslot.Meetings.Approval` is where it is
   settled.
@@ -88,10 +93,10 @@ defmodule Tymeslot.Meetings.ApprovalToken do
        when is_binary(meeting_id) and is_integer(organizer_user_id) do
     case MeetingQueries.get_meeting(meeting_id) do
       {:ok, %{organizer_user_id: ^organizer_user_id} = meeting} ->
-        if same_request?(meeting.approval_requested_at, requested_at) do
-          {:ok, meeting}
-        else
-          {:error, :stale}
+        cond do
+          Auth.deletion_pending?(organizer_user_id) -> {:error, :not_found}
+          same_request?(meeting.approval_requested_at, requested_at) -> {:ok, meeting}
+          true -> {:error, :stale}
         end
 
       {:ok, _meeting} ->

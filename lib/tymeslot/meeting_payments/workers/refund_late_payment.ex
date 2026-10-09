@@ -1,7 +1,8 @@
 defmodule Tymeslot.MeetingPayments.Workers.RefundLatePayment do
   @moduledoc """
   Refunds, in full, a payment that completed after its booking had expired
-  and its slot had been given to someone else.
+  and its slot had been given to someone else, or for a host whose account
+  is pending deletion.
 
   `CheckoutSessionCompleted` records such a payment as paid, leaves the
   meeting expired and inserts this job in the same transaction, so the

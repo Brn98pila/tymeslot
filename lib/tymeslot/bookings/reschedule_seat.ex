@@ -52,6 +52,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
 
   require Logger
 
+  alias Tymeslot.Auth
   alias Tymeslot.Availability.Schedules
   alias Tymeslot.Bookings.BuildParams
   alias Tymeslot.Bookings.CalendarCheck
@@ -145,8 +146,16 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
   # another organiser's page (a hand-edited URL) would be checked against
   # that organiser's schedule while landing on this one's, so it is refused
   # as if the seat did not exist there.
-  defp ensure_same_organizer(%{organizer_user_id: id}, id) when is_integer(id), do: :ok
+  defp ensure_same_organizer(%{organizer_user_id: id}, id) when is_integer(id),
+    do: ensure_host_active(id)
+
   defp ensure_same_organizer(_old_meeting, _organizer_user_id), do: {:error, :meeting_not_found}
+
+  # A booking page opened before its host asked to delete their account can
+  # still submit; the host's meetings are about to go, so the seat is unknown.
+  defp ensure_host_active(user_id) do
+    if Auth.deletion_pending?(user_id), do: {:error, :meeting_not_found}, else: :ok
+  end
 
   defp guest_emails(participant) do
     participant.id

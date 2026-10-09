@@ -336,6 +336,12 @@ defmodule Tymeslot.Meetings do
     to: MeetingListQueries,
     as: :list_for_organizer_in_range
 
+  @doc "Every meeting id `user_id` organises, past and future."
+  @spec list_meeting_ids_for_organizer(pos_integer()) :: [Ecto.UUID.t()]
+  defdelegate list_meeting_ids_for_organizer(user_id),
+    to: MeetingListQueries,
+    as: :list_ids_for_organizer
+
   @doc """
   How many booking requests this organiser has not yet answered; drives the
   dashboard's Requests tab badge.

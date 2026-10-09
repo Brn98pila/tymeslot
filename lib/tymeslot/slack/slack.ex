@@ -19,7 +19,16 @@ defmodule Tymeslot.Slack do
   alias Tymeslot.Notifications.Channel
   alias Tymeslot.Notifications.EventTypes
   alias Tymeslot.Repo
-  alias Tymeslot.Slack.{API, MessageBuilder, OAuth, SlackIntegrationSchema, SlackQueries}
+
+  alias Tymeslot.Slack.{
+    AccountCleanup,
+    API,
+    MessageBuilder,
+    OAuth,
+    SlackIntegrationSchema,
+    SlackQueries
+  }
+
   alias Tymeslot.Workers.SlackWorker
 
   @impl Tymeslot.Security.EncryptedStorage
@@ -42,6 +51,13 @@ defmodule Tymeslot.Slack do
   def get_integration(id, user_id) do
     SlackQueries.get_integration(id, user_id)
   end
+
+  @doc """
+  Revokes the bot token of every Slack workspace the user connected, for an
+  account being deleted (see `Tymeslot.Slack.AccountCleanup`).
+  """
+  @spec revoke_tokens_for_user(integer()) :: :ok
+  defdelegate revoke_tokens_for_user(user_id), to: AccountCleanup, as: :run
 
   @spec create_integration(integer(), map()) ::
           {:ok, SlackIntegrationSchema.t()}

@@ -12,6 +12,7 @@ defmodule Tymeslot.Emails.EmailService.AuthEmails do
   alias Tymeslot.Emails.Shared.MjmlEmail
 
   alias Tymeslot.Emails.Templates.{
+    AccountDeletionNotice,
     EmailVerification,
     NoPasswordToReset,
     PasswordReset,
@@ -97,6 +98,32 @@ defmodule Tymeslot.Emails.EmailService.AuthEmails do
        SignupAttemptNotice.render_text(user, sign_in_url, reset_url)}
     end)
   end
+
+  @doc """
+  Tells an account's owner that the deletion they asked for is scheduled
+  (`sign_in_url` given, so they can still restore it) or done (`nil`). The
+  account may be gone by the time this is sent, so `recipient` is a plain map
+  (address, name, locale), not the user.
+  """
+  @spec send_account_deletion_notice(
+          Tymeslot.Emails.EmailService.user_map(),
+          DateTime.t(),
+          String.t() | nil
+        ) :: {:ok, any()} | {:error, any()}
+  def send_account_deletion_notice(recipient, scheduled_at, sign_in_url) do
+    Logger.info("Sending account deletion notice")
+
+    deliver_to(recipient, fn ->
+      {deletion_subject(sign_in_url),
+       AccountDeletionNotice.render(recipient, scheduled_at, sign_in_url),
+       AccountDeletionNotice.render_text(recipient, scheduled_at, sign_in_url)}
+    end)
+  end
+
+  defp deletion_subject(nil), do: dgettext("emails", "Your Tymeslot account has been deleted")
+
+  defp deletion_subject(_url),
+    do: dgettext("emails", "Your Tymeslot account is scheduled for deletion")
 
   @doc """
   Sends the link that finishes a social sign-up with a typed address. There

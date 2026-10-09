@@ -940,3 +940,38 @@ msgstr "A senha é longa demais"
 #, elixir-autogen, elixir-format
 msgid "An account with this email address already exists. Sign in with your password or with the service you originally signed up with. If you have forgotten your password, you can reset it from the sign-in page."
 msgstr "Já existe uma conta com este endereço de e-mail. Entre com sua senha ou com o serviço que você usou para criar a conta. Se você esqueceu a senha, pode redefini-la na página de login."
+
+#: lib/tymeslot_web/controllers/auth/account_restore_html.ex
+#, elixir-autogen, elixir-format
+msgid "Restore my account"
+msgstr "Restaurar minha conta"
+
+#: lib/tymeslot_web/controllers/auth/account_restore_html.ex
+#, elixir-autogen, elixir-format
+msgid "Sign out"
+msgstr "Sair"
+
+#: lib/tymeslot_web/controllers/auth/account_restore_controller.ex
+#, elixir-autogen, elixir-format
+msgid "Welcome back. Your account has been restored and will not be deleted."
+msgstr "Que bom ter você de volta. Sua conta foi restaurada e não será excluída."
+
+#: lib/tymeslot_web/controllers/auth/account_restore_controller.ex
+#, elixir-autogen, elixir-format
+msgid "Your account could not be restored. Please try again."
+msgstr "Não foi possível restaurar sua conta. Tente novamente."
+
+#: lib/tymeslot_web/controllers/auth/account_restore_html.ex
+#, elixir-autogen, elixir-format
+msgid "Your account is being deleted"
+msgstr "Sua conta está sendo excluída"
+
+#: lib/tymeslot_web/controllers/auth/account_restore_html.ex
+#, elixir-autogen, elixir-format
+msgid "Your account is being deleted and can no longer be restored."
+msgstr "Sua conta está sendo excluída e não pode mais ser restaurada."
+
+#: lib/tymeslot_web/controllers/auth/account_restore_html.ex
+#, elixir-autogen, elixir-format
+msgid "Your account is in the process of being deleted (scheduled for %{date}). If you want to keep it, restore it here."
+msgstr "Sua conta está em processo de exclusão (agendada para %{date}). Se quiser mantê-la, restaure-a aqui."

@@ -11,6 +11,7 @@ defmodule Tymeslot.Payments do
   alias Tymeslot.Payments.{
     CustomerLookup,
     DatabaseOperations,
+    PaymentQueries,
     SubscriptionFlow,
     SubscriptionInvoice,
     SubscriptionInvoices
@@ -143,4 +144,12 @@ defmodule Tymeslot.Payments do
                 metadata
               ),
               to: DatabaseOperations
+
+  @doc """
+  Lists every distinct Stripe customer id recorded on the user's payment
+  transactions, including customers created by checkouts that were never
+  completed.
+  """
+  @spec stripe_customer_ids_for_user(integer()) :: [String.t()]
+  defdelegate stripe_customer_ids_for_user(user_id), to: PaymentQueries
 end

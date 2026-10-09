@@ -116,6 +116,10 @@ defmodule Tymeslot.Payments.Stripe do
 
   @doc """
   Cancels a Stripe subscription.
+
+  The idempotency key defaults to one scoped to the operation, subscription and
+  day. A caller whose repeated cancels on the same day are each meant to reach
+  Stripe passes its own `:idempotency_key`.
   """
   @impl StripeProvider
   @spec cancel_subscription(String.t(), keyword()) :: stripe_result()
@@ -132,13 +136,45 @@ defmodule Tymeslot.Payments.Stripe do
       end
 
     operation = if at_period_end, do: "cancel_at_period_end", else: "cancel_now"
-    idempotency_key = generate_idempotency_key("subscription_#{operation}", subscription_id)
+
+    idempotency_key =
+      Keyword.get_lazy(opts, :idempotency_key, fn ->
+        generate_idempotency_key("subscription_#{operation}", subscription_id)
+      end)
 
     with {:ok, opts} <- api_key_opts(idempotency_key) do
       if at_period_end,
         do: subscription_mod().update(subscription_id, params, opts),
         else: subscription_mod().cancel(subscription_id, %{}, opts)
     end
+  end
+
+  @doc """
+  Undoes a cancel-at-period-end, so the subscription renews again.
+
+  Sent without an idempotency key: setting the flag to false is idempotent by
+  itself, and a day-scoped key would make a second resume on the same day
+  replay the first response without reaching Stripe.
+  """
+  @impl StripeProvider
+  @spec resume_subscription(String.t()) :: stripe_result()
+  def resume_subscription(subscription_id) when is_binary(subscription_id) do
+    Logger.info("Resuming Stripe subscription", subscription_id: subscription_id)
+
+    with {:ok, opts} <- api_key_opts(),
+         do: subscription_mod().update(subscription_id, %{cancel_at_period_end: false}, opts)
+  end
+
+  @doc """
+  Deletes a Stripe customer. Stripe keeps the customer's invoices and charges
+  for its own records; the customer object and its stored details go.
+  """
+  @impl StripeProvider
+  @spec delete_customer(String.t()) :: stripe_result()
+  def delete_customer(customer_id) when is_binary(customer_id) do
+    Logger.info("Deleting Stripe customer", customer_id: customer_id)
+
+    with {:ok, opts} <- api_key_opts(), do: customer_mod().delete(customer_id, opts)
   end
 
   @doc """
