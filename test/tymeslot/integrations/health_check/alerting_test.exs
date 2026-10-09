@@ -153,7 +153,7 @@ defmodule Tymeslot.Integrations.HealthCheck.AlertingTest do
       [integration] = flag_integrations(user, 1, at(hour, 0))
 
       freeze_clock(at(hour, 1))
-      {:ok, reflagged} = CalendarIntegrationQueries.mark_needs_reauth(integration, "again")
+      {:ok, reflagged, false} = CalendarIntegrationQueries.flag_needs_reauth(integration, "again")
 
       assert reflagged.reauth_flagged_at == integration.reauth_flagged_at
     end
@@ -461,10 +461,10 @@ defmodule Tymeslot.Integrations.HealthCheck.AlertingTest do
 
     integrations =
       for _n <- 1..count do
-        {:ok, flagged} =
+        {:ok, flagged, true} =
           :calendar_integration
           |> insert(user: user)
-          |> CalendarIntegrationQueries.mark_needs_reauth("Token revoked")
+          |> CalendarIntegrationQueries.flag_needs_reauth("Token revoked")
 
         flagged
       end

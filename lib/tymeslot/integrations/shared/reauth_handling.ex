@@ -12,21 +12,22 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandling do
 
   Two distinct return shapes are available depending on context:
 
-  - `flag/2` — returns `:ok | {:error, changeset}`. Suitable for non-Oban
+  - `flag/3` — returns `:ok | {:error, :not_found}`. Suitable for non-Oban
     callers (fetch helpers, token refreshers) that just want the side-effect
     and a simple success/failure signal.
 
   - Oban workers that need `{:discard, _} | {:error, _}` build that shape
-    themselves on top of `flag/2`, typically via the
+    themselves on top of `flag/3`, typically via the
     `CalendarManagement.handle_reauth_required/2` or
     `Video.handle_reauth_required/2` wrappers.
   """
 
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias Tymeslot.Emails.EmailScheduler.IntegrationScheduler
   alias Tymeslot.Infrastructure.BreakerOutcome
   alias Tymeslot.Infrastructure.ErrorTracking
-  alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Integrations.Shared.IntegrationTypes
 
   require Logger
 
@@ -141,58 +142,66 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandling do
   def rejection_cause(_reason), do: :rejected_credentials
 
   @doc """
-  Flags an integration for reauthentication.
+  Flags an integration of `kind` for reauthentication with the diagnosis of
+  `cause` (a `t:cause/0`, `:credentials_undecryptable` by default), through
+  `flag_and_notify/3`.
 
-  Options (keyword list):
-
-  - `:mark_needs_reauth` — a `(integration, message) -> {:ok, _} | {:error, changeset}`
-    function that persists the flag. **Required.**
-  - `:cause` — a `t:cause/0` selecting the diagnosis logged and persisted.
-    Defaults to `:credentials_undecryptable`.
-  - `:provider_label` — a function extracting the provider string from the
-    integration, e.g. `& &1.provider`. Defaults to `& &1.provider`.
-  - `:log_prefix` — a short label used in log messages, e.g. `"Calendar"` or
-    `"Video"`. Defaults to `"Integration"`.
-
-  Logs a warning, calls `mark_needs_reauth`, then:
-
-  - Returns `:ok` on `{:ok, _}`.
-  - Logs an error and returns `{:error, changeset}` on `{:error, changeset}`.
+  Returns `{:error, :not_found}` when the integration's row is gone.
   """
-  @spec flag(struct(), keyword()) :: :ok | {:error, Ecto.Changeset.t()}
-  def flag(integration, opts) do
-    mark_needs_reauth = Keyword.fetch!(opts, :mark_needs_reauth)
-    provider_label_fun = Keyword.get(opts, :provider_label, & &1.provider)
-    log_prefix = Keyword.get(opts, :log_prefix, "Integration")
-    cause_key = cause_key(Keyword.get(opts, :cause, @default_cause))
-    cause = fetch_cause(cause_key)
-
-    provider = provider_label_fun.(integration)
+  @spec flag(IntegrationTypes.kind(), struct(), cause()) :: :ok | {:error, :not_found}
+  def flag(kind, integration, cause \\ @default_cause) do
+    cause_key = cause_key(cause)
+    %{log: log, message: message} = fetch_cause(cause_key)
+    label = IntegrationTypes.label(kind)
 
     if cause_key == :credentials_undecryptable,
-      do: report_undecryptable(integration, provider, log_prefix)
+      do: report_undecryptable(integration, label)
 
-    Logger.warning(
-      cause.log,
-      integration_type: log_prefix,
-      provider: provider,
+    Logger.warning(log,
+      integration_type: label,
+      provider: integration.provider,
       integration_id: integration.id,
       user_id: integration.user_id
     )
 
-    case mark_needs_reauth.(integration, cause.message) do
-      {:ok, _integration} ->
-        :ok
+    with {:ok, _updated} <- flag_and_notify(kind, integration, message), do: :ok
+  end
 
-      {:error, changeset} ->
-        Logger.error(
-          "Failed to persist needs_reauth flag",
-          provider: provider,
-          integration_id: integration.id,
-          errors: LogFormat.reason(changeset.errors)
+  @doc """
+  Marks an integration of `kind` `needs_reauth` with `message` (an untranslated
+  msgid, see `t:cause/0`) as its sync error, and emails the owner when this
+  is a new flag.
+
+  Only a false to true transition is news: re-flagging an integration the
+  owner has already been told about would email them again about a problem
+  they are already looking at. The transition is decided by the row, so of
+  two flaggers holding the same stale struct only one sends the email. The
+  badge alone reaches only owners who open the dashboard, so flagging and
+  notifying are one step and cannot come apart.
+  """
+  @spec flag_and_notify(IntegrationTypes.kind(), struct(), String.t()) ::
+          {:ok, struct()} | {:error, :not_found}
+  def flag_and_notify(kind, integration, message) do
+    case IntegrationTypes.queries(kind).flag_needs_reauth(integration, message) do
+      {:ok, updated, true} ->
+        IntegrationScheduler.schedule_integration_reauth_notification(
+          %{id: updated.user_id},
+          updated,
+          kind
         )
 
-        {:error, changeset}
+        {:ok, updated}
+
+      {:ok, updated, false} ->
+        {:ok, updated}
+
+      {:error, :not_found} ->
+        Logger.warning("Integration to flag for reauth no longer exists",
+          integration_type: IntegrationTypes.label(kind),
+          integration_id: integration.id
+        )
+
+        {:error, :not_found}
     end
   end
 
@@ -207,10 +216,10 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandling do
   # only a reconnect recovers that integration, so the failure is recorded
   # here instead. One call site and one reason, so however many
   # integrations are affected it is one error, and one new-error alert.
-  defp report_undecryptable(integration, provider, log_prefix) do
+  defp report_undecryptable(integration, label) do
     ErrorTracking.report_error(:credentials_undecryptable, nil, %{
-      integration_type: log_prefix,
-      provider: provider,
+      integration_type: label,
+      provider: integration.provider,
       integration_id: integration.id,
       user_id: integration.user_id
     })

@@ -23,10 +23,9 @@ defmodule Tymeslot.Integrations.HealthCheck.ResponseHandler do
   - Permanent auth failures (e.g. Google `invalid_grant`) bypass the 48-hour
     threshold via the fast-path in `handle_check_result/5`: the integration is
     flagged `needs_reauth: true`, which itself owns the notification (the
-    reauth email, not the unhealthy one; see `CalendarManagement.flag_and_notify/2`
-    and `Video.flag_and_notify/2`) on the false to true transition. This
-    fast-path sends nothing itself. Oban's 30-day uniqueness window prevents
-    duplicate reauth emails while the user has not reconnected.
+    reauth email, not the unhealthy one; see `ReauthHandling.flag_and_notify/3`)
+    on the false to true transition, which the row decides. This fast-path
+    sends nothing itself.
 
   ## Atomicity Notes
 
@@ -45,11 +44,9 @@ defmodule Tymeslot.Integrations.HealthCheck.ResponseHandler do
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Infrastructure.BreakerOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries
   alias Tymeslot.Integrations.HealthCheck.Monitor
   alias Tymeslot.Integrations.Shared.ReauthHandling
-  alias Tymeslot.Integrations.Video
 
   @type integration_type :: :calendar | :video
 
@@ -168,8 +165,7 @@ defmodule Tymeslot.Integrations.HealthCheck.ResponseHandler do
   # Private Functions
 
   # Returns the integration as the rest of the check should see it: flagged
-  # when the flag was written, untouched otherwise (including when the write
-  # failed, since nothing was flagged and no reauth email went out).
+  # when the flag was written, untouched when its row has gone.
   defp apply_permanent_auth_failure(type, integration, {:error, reason}) do
     if BreakerOutcome.permanent_credential_error?(reason) do
       Logger.warning("Permanent auth failure detected, flagging for reauth",
@@ -179,19 +175,9 @@ defmodule Tymeslot.Integrations.HealthCheck.ResponseHandler do
         reason: LogFormat.reason(reason)
       )
 
-      case flag_for_reauth(type, integration, ReauthHandling.rejection_cause(reason)) do
-        :ok ->
-          %{integration | needs_reauth: true}
-
-        {:error, _reason} ->
-          Logger.error(
-            "Failed to set needs_reauth flag, so no reauth email is sent until a flag write succeeds",
-            type: type,
-            integration_id: integration.id,
-            provider: integration.provider
-          )
-
-          integration
+      case ReauthHandling.flag(type, integration, ReauthHandling.rejection_cause(reason)) do
+        :ok -> %{integration | needs_reauth: true}
+        {:error, :not_found} -> integration
       end
     else
       integration
@@ -199,25 +185,6 @@ defmodule Tymeslot.Integrations.HealthCheck.ResponseHandler do
   end
 
   defp apply_permanent_auth_failure(_type, integration, _check_result), do: integration
-
-  # Re-uses the worker entry points on each domain. Their return values are
-  # Oban-shaped (`{:discard, _} | {:error, _}`). We normalise to `:ok | {:error, _}`
-  # so callers can gate subsequent actions on a successful DB write:
-  # `{:discard, _}` means the flag was written (the integration is irrecoverably
-  # broken and no retry is needed), which is a success from this module's perspective.
-  defp flag_for_reauth(:video, integration, cause) do
-    case Video.handle_reauth_required(integration, cause: cause) do
-      {:discard, _msg} -> :ok
-      {:error, _reason} = err -> err
-    end
-  end
-
-  defp flag_for_reauth(:calendar, integration, cause) do
-    case CalendarManagement.handle_reauth_required(integration, cause: cause) do
-      {:discard, _msg} -> :ok
-      {:error, _reason} = err -> err
-    end
-  end
 
   defp clear_notification_state(type, integration_id) do
     IntegrationHealthStateQueries.update_fields(type, integration_id,

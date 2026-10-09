@@ -43,12 +43,9 @@ defmodule Tymeslot.Integrations.HealthCheck do
 
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateSchema
-  alias Tymeslot.Integrations.Video
-  alias Tymeslot.Integrations.Video.VideoIntegrationQueries
+  alias Tymeslot.Integrations.Shared.IntegrationTypes
   alias Tymeslot.Repo
   alias Tymeslot.Workers.IntegrationHealthWorker
 
@@ -277,13 +274,7 @@ defmodule Tymeslot.Integrations.HealthCheck do
 
   @spec orchestrate_health_check(integration_type(), integer()) :: :ok | {:error, any()}
   defp orchestrate_health_check(type, id) do
-    integration_result =
-      case type do
-        :calendar -> CalendarIntegrationQueries.get(id)
-        :video -> VideoIntegrationQueries.get(id)
-      end
-
-    case integration_result do
+    case IntegrationTypes.queries(type).get(id) do
       {:ok, %{is_active: false}} ->
         Logger.debug("Skipping health check for deactivated integration",
           type: type,
@@ -318,11 +309,7 @@ defmodule Tymeslot.Integrations.HealthCheck do
         :ok
 
       {:error, :requires_reencryption, integration} ->
-        case type do
-          :calendar -> CalendarManagement.handle_reauth_required(integration)
-          :video -> Video.handle_reauth_required(integration)
-        end
-
+        IntegrationTypes.domain(type).handle_reauth_required(integration)
         :ok
     end
   end

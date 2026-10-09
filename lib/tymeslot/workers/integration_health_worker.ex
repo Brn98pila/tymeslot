@@ -20,6 +20,7 @@ defmodule Tymeslot.Workers.IntegrationHealthWorker do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.HealthCheck
+  alias Tymeslot.Integrations.Shared.IntegrationTypes
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"type" => type_str, "integration_id" => integration_id}} = job)
@@ -29,12 +30,9 @@ defmodule Tymeslot.Workers.IntegrationHealthWorker do
       job_id: job.id
     )
 
-    case parse_type(type_str) do
-      nil ->
-        {:discard, "Invalid integration type"}
-
-      type ->
-        run_with_timeout(type, integration_id, job.id)
+    case IntegrationTypes.parse(type_str) do
+      {:ok, type} -> run_with_timeout(type, integration_id, job.id)
+      :error -> {:discard, "Invalid integration type"}
     end
   end
 
@@ -75,10 +73,6 @@ defmodule Tymeslot.Workers.IntegrationHealthWorker do
         :ok
     end
   end
-
-  defp parse_type("calendar"), do: :calendar
-  defp parse_type("video"), do: :video
-  defp parse_type(_type), do: nil
 
   defp health_check_module do
     Application.get_env(:tymeslot, :health_check_module, HealthCheck)

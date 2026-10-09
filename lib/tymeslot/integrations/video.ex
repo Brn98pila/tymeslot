@@ -5,7 +5,6 @@ defmodule Tymeslot.Integrations.Video do
   Exposes a cohesive API used by web components without any LiveView/socket coupling.
   """
 
-  alias Tymeslot.Emails.EmailScheduler.IntegrationScheduler
   alias Tymeslot.Integrations.HealthCheck
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Integrations.Video.AccessToken
@@ -83,16 +82,16 @@ defmodule Tymeslot.Integrations.Video do
   when the integration needs reconnecting for a different reason, so the message
   recorded on `sync_error` describes what actually failed.
 
-  Returns an Oban return value: `{:discard, _}` on success (retrying won't
-  recover the credentials), or `{:error, _}` if the flag couldn't be persisted —
-  which causes Oban to retry the job and take another shot at recording the flag.
+  Returns `{:discard, _}`, an Oban return value: retrying won't recover the
+  credentials, and an integration whose row is gone has nothing to retry. A
+  database failure while flagging raises, so Oban retries the job and takes
+  another shot at recording the flag.
   """
-  @spec handle_reauth_required(VideoIntegrationSchema.t(), keyword()) ::
-          {:discard, String.t()} | {:error, String.t()}
+  @spec handle_reauth_required(VideoIntegrationSchema.t(), keyword()) :: {:discard, String.t()}
   def handle_reauth_required(%VideoIntegrationSchema{} = integration, opts \\ []) do
     case flag_for_reauth(integration, opts) do
       :ok -> {:discard, ReauthHandling.discard_reason()}
-      {:error, _changeset} -> {:error, "Failed to flag integration for reauth"}
+      {:error, :not_found} -> {:discard, "Integration no longer exists"}
     end
   end
 
@@ -133,49 +132,12 @@ defmodule Tymeslot.Integrations.Video do
     end
   end
 
-  # Shared helper: delegates to ReauthHandling.flag/2 with video-specific opts.
-  # `mark_needs_reauth` is wired to `flag_and_notify/2` rather than the bare
-  # DB write, so that every path ending in "the owner has to reconnect", this
-  # one included and not just the provider-level 401 handling in
-  # the providers (`NeedsReauth`), sends the reauth email on the false to true
-  # transition. Keeping this symmetrical with `CalendarManagement` is
-  # deliberate: the two used to disagree on which paths notified.
   defp flag_for_reauth(integration, opts \\ []) do
     ReauthHandling.flag(
+      :video,
       integration,
-      Keyword.merge(
-        [mark_needs_reauth: &flag_and_notify/2, log_prefix: "Video"],
-        opts
-      )
+      Keyword.get(opts, :cause, :credentials_undecryptable)
     )
-  end
-
-  @doc """
-  Marks a video integration `needs_reauth` and emails the owner on the
-  false → true transition. Shared by `flag_for_reauth/2` and by
-  the providers' 401 handling (`NeedsReauth`), so the two paths cannot
-  drift on whether reconnecting is announced.
-
-  Re-flagging an integration already awaiting reconnection is not news: the
-  owner has already been told, and the scheduler's uniqueness window is a
-  backstop for that, not the place to decide it.
-  """
-  @spec flag_and_notify(VideoIntegrationSchema.t(), String.t()) ::
-          {:ok, VideoIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
-  def flag_and_notify(%{needs_reauth: true} = integration, message),
-    do: VideoIntegrationQueries.mark_needs_reauth(integration, message)
-
-  def flag_and_notify(integration, message) do
-    with {:ok, updated} = result <-
-           VideoIntegrationQueries.mark_needs_reauth(integration, message) do
-      IntegrationScheduler.schedule_integration_reauth_notification(
-        %{id: updated.user_id},
-        updated,
-        :video
-      )
-
-      result
-    end
   end
 
   # ---------------

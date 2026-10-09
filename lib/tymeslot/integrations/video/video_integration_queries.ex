@@ -415,19 +415,30 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
   end
 
   @doc """
-  Flags an integration as needing reauthentication — used when the stored
-  credentials can no longer be decrypted. Also records a sync error so the
-  dashboard banner stays consistent.
+  Flags an integration as needing reauthentication and records `message` as
+  its sync error, so the dashboard banner stays consistent.
+
+  Whether this is a new flag is decided by the row, not by `integration`,
+  which may be stale: of two concurrent flaggers, exactly one sees
+  `newly_flagged?` true. `{:error, :not_found}` when the row is gone.
   """
-  @spec mark_needs_reauth(VideoIntegrationSchema.t(), String.t()) ::
-          {:ok, VideoIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
-  def mark_needs_reauth(%VideoIntegrationSchema{} = integration, error_message) do
-    integration
-    |> Changeset.change(%{
-      needs_reauth: true,
-      sync_error: error_message
-    })
-    |> Repo.update()
+  @spec flag_needs_reauth(VideoIntegrationSchema.t(), String.t()) ::
+          {:ok, VideoIntegrationSchema.t(), newly_flagged? :: boolean()}
+          | {:error, :not_found}
+  def flag_needs_reauth(%VideoIntegrationSchema{id: id} = integration, message) do
+    row = where(VideoIntegrationSchema, id: ^id)
+    flag = [needs_reauth: true, sync_error: message, updated_at: DateTime.utc_now(:second)]
+
+    case Repo.update_all(where(row, needs_reauth: false), set: flag) do
+      {1, _} ->
+        {:ok, struct(integration, flag), true}
+
+      {0, _} ->
+        case Repo.update_all(row, set: flag) do
+          {1, _} -> {:ok, struct(integration, flag), false}
+          {0, _} -> {:error, :not_found}
+        end
+    end
   end
 
   @doc """

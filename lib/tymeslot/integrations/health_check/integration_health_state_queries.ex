@@ -10,10 +10,9 @@ defmodule Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries do
   import Ecto.Query
 
   alias Tymeslot.Clock
-  alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.HealthCheck.HealthStatus
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateSchema
-  alias Tymeslot.Integrations.Video.VideoIntegrationSchema
+  alias Tymeslot.Integrations.Shared.IntegrationTypes
 
   alias Tymeslot.Repo
 
@@ -193,10 +192,12 @@ defmodule Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries do
   """
   @spec delete_orphaned() :: {non_neg_integer(), nil}
   def delete_orphaned do
-    calendar_deleted = delete_orphaned_by_type("calendar", CalendarIntegrationSchema)
-    video_deleted = delete_orphaned_by_type("video", VideoIntegrationSchema)
+    deleted =
+      IntegrationTypes.kinds()
+      |> Enum.map(&delete_orphaned_by_type/1)
+      |> Enum.sum_by(&elem(&1, 0))
 
-    {elem(calendar_deleted, 0) + elem(video_deleted, 0), nil}
+    {deleted, nil}
   end
 
   @doc """
@@ -211,24 +212,22 @@ defmodule Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries do
   """
   @spec list_unhealthy_for_user(integer()) :: [IntegrationHealthStateSchema.t()]
   def list_unhealthy_for_user(user_id) do
-    calendar_ids =
-      from(c in CalendarIntegrationSchema,
-        where: c.user_id == ^user_id and c.is_active == true,
-        select: c.id
-      )
+    of_active_integration =
+      Enum.reduce(IntegrationTypes.kinds(), dynamic(false), fn kind, acc ->
+        active_ids = where(active_integration_ids_subquery(kind), user_id: ^user_id)
 
-    video_ids =
-      from(v in VideoIntegrationSchema,
-        where: v.user_id == ^user_id and v.is_active == true,
-        select: v.id
-      )
+        dynamic(
+          [s],
+          ^acc or
+            (s.integration_type == ^IntegrationTypes.db_value(kind) and
+               s.integration_id in subquery(active_ids))
+        )
+      end)
 
     Repo.all(
       from(s in IntegrationHealthStateSchema,
         where: s.user_id == ^user_id and s.status == ^HealthStatus.to_db_value(:unhealthy),
-        where:
-          (s.integration_type == "calendar" and s.integration_id in subquery(calendar_ids)) or
-            (s.integration_type == "video" and s.integration_id in subquery(video_ids))
+        where: ^of_active_integration
       )
     )
   end
@@ -253,8 +252,9 @@ defmodule Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries do
           [IntegrationHealthStateSchema.t()]
   def list_pausable(type, %DateTime{} = calendar_cutoff, hard_failure_count)
       when is_integer(hard_failure_count) and hard_failure_count >= 0 do
-    type_str = to_string(type)
-    active_ids = active_integration_ids_subquery(type, type_str)
+    {:ok, kind} = IntegrationTypes.parse(type)
+    type_str = IntegrationTypes.db_value(kind)
+    active_ids = active_integration_ids_subquery(kind)
 
     IntegrationHealthStateSchema
     |> where(
@@ -294,21 +294,15 @@ defmodule Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries do
     |> Repo.all()
   end
 
-  defp active_integration_ids_subquery(:calendar, _type_str),
-    do: from(c in CalendarIntegrationSchema, where: c.is_active == true, select: c.id)
+  defp active_integration_ids_subquery(kind),
+    do: from(i in IntegrationTypes.schema(kind), where: i.is_active == true, select: i.id)
 
-  defp active_integration_ids_subquery(:video, _type_str),
-    do: from(v in VideoIntegrationSchema, where: v.is_active == true, select: v.id)
-
-  defp active_integration_ids_subquery(type, type_str) when is_binary(type) do
-    active_integration_ids_subquery(String.to_existing_atom(type), type_str)
-  end
-
-  defp delete_orphaned_by_type(type_str, integration_schema) do
+  defp delete_orphaned_by_type(kind) do
     orphaned_query =
       from(s in IntegrationHealthStateSchema,
-        where: s.integration_type == ^type_str,
-        where: s.integration_id not in subquery(from(i in integration_schema, select: i.id))
+        where: s.integration_type == ^IntegrationTypes.db_value(kind),
+        where:
+          s.integration_id not in subquery(from(i in IntegrationTypes.schema(kind), select: i.id))
       )
 
     Repo.delete_all(orphaned_query)
