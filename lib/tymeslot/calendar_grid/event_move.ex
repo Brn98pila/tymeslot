@@ -68,6 +68,7 @@ defmodule Tymeslot.CalendarGrid.EventMove do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.CreatedEvent
+  alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.Events, as: CalendarEvents
   alias Tymeslot.Integrations.Calendar.ICalBuilder
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
@@ -268,7 +269,7 @@ defmodule Tymeslot.CalendarGrid.EventMove do
       calendar_id || Calendar.booking_calendar_path(integration) ||
         List.first(Calendar.writable_calendar_paths(integration))
     else
-      calendar_id || integration.default_booking_calendar_id || "primary"
+      calendar_id || Defaults.booking_calendar_id(integration)
     end
   end
 

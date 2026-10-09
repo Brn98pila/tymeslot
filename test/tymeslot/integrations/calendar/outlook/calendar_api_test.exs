@@ -429,12 +429,12 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPITest do
       assert {:error, :rate_limited, _msg} = CalendarAPI.list_calendars(integration)
     end
 
-    test "500 from Graph API surfaces as :network_error", %{integration: integration} do
+    test "500 from Graph API surfaces as :server_error", %{integration: integration} do
       expect(Tymeslot.HTTPClientMock, :request, fn :get, _url, _body, _headers, _opts ->
         {:ok, %Req.Response{status: 500, body: ""}}
       end)
 
-      assert {:error, :network_error, _msg} = CalendarAPI.list_calendars(integration)
+      assert {:error, :server_error, "HTTP 500"} = CalendarAPI.list_calendars(integration)
     end
 
     test "403 with a throttled Graph code surfaces as :rate_limited", %{

@@ -44,6 +44,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ComponentView do
               is_refreshing={@is_refreshing}
               myself={@myself}
               health_states={@health_states}
+              stuck_changes={@stuck_changes}
             />
           <% end %>
         </div>

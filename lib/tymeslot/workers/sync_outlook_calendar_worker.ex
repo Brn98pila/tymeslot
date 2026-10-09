@@ -40,16 +40,15 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
-  alias Tymeslot.Integrations.Calendar.InvalidEventReport
+  alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookCalendarAPI
   alias Tymeslot.Integrations.Calendar.Outlook.Provider, as: OutlookProvider
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.Tokens
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
+  alias Tymeslot.Workers.CalendarSyncJob
   alias Tymeslot.Workers.RetryHelpers
-  alias Tymeslot.Workers.SnoozePolicy
-  alias Tymeslot.Workers.SyncHealth
 
   # CalendarGrid enqueues Outlook jobs with only calendar_integration_id (no graph_resource_id).
   # Outlook syncs are event-driven via Microsoft Graph webhooks — there is no full-sync path yet.
@@ -81,37 +80,25 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   def perform(
         %Oban.Job{
           args: %{
-            "calendar_integration_id" => integration_id,
+            "calendar_integration_id" => _integration_id,
             "graph_resource_id" => graph_resource_id
           }
-        } = job
+        } =
+          job
       ) do
-    Logger.metadata(
-      calendar_integration_id: integration_id,
-      graph_resource_id: graph_resource_id
+    Logger.metadata(graph_resource_id: graph_resource_id)
+
+    CalendarSyncJob.run(job, &sync_event(&1, graph_resource_id),
+      max_snoozes: @max_unavailable_snoozes,
+      exhausted_reason: "Outlook Calendar did not recover within the maximum wait"
     )
-
-    case CalendarIntegrationQueries.get(integration_id) do
-      {:ok, integration} ->
-        InvalidEventReport.collect(fn -> sync_event(integration, graph_resource_id, job) end)
-
-      {:error, :not_found} ->
-        Logger.warning("Calendar integration not found, discarding sync job",
-          calendar_integration_id: integration_id
-        )
-
-        {:discard, @integration_gone}
-
-      {:error, :requires_reencryption, integration} ->
-        CalendarManagement.handle_reauth_required(integration)
-    end
   end
 
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
 
-  defp sync_event(integration, graph_resource_id, job) do
+  defp sync_event(integration, graph_resource_id) do
     result =
       Tokens.with_access_token(integration, &OutlookCalendarAPI.refresh_token/1, fn token ->
         # Check for 404 (deleted event) and 401 BEFORE the circuit breaker so
@@ -136,13 +123,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
         end
       end)
 
-    result
-    |> handle_sync_result(integration, graph_resource_id)
-    |> SnoozePolicy.bound(job,
-      max_snoozes: @max_unavailable_snoozes,
-      reason: "Outlook Calendar did not recover within the maximum wait"
-    )
-    |> tap(&SyncHealth.record_outcome(integration, &1))
+    handle_sync_result(result, integration, graph_resource_id)
   end
 
   defp handle_sync_result(result, integration, graph_resource_id) do
@@ -219,7 +200,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   defp handle_event_fetched(integration, graph_resource_id, event) do
     context = %{
       calendar_integration_id: integration.id,
-      provider_calendar_id: integration.default_booking_calendar_id || "primary",
+      provider_calendar_id: Defaults.booking_calendar_id(integration),
       synced_at: DateTime.utc_now(:microsecond)
     }
 

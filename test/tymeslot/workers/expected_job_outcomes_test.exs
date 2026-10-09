@@ -162,7 +162,7 @@ defmodule Tymeslot.Workers.ExpectedJobOutcomesTest do
        "Credentials require reauthentication",
        "Outlook sync failed transiently; the next scheduled sweep will retry"
      ],
-     recorded: ["Integration is not Outlook"]},
+     recorded: ["Integration is not outlook"]},
     {Workers.ReregisterOutlookSubscriptionWorker,
      expected: ["Integration not found", "Credentials require reauthentication"], recorded: []},
     {Workers.SyncGoogleCalendarWorker,
@@ -205,7 +205,7 @@ defmodule Tymeslot.Workers.ExpectedJobOutcomesTest do
      ],
      recorded: []},
     {Workers.SyncDebugCalendarWorker,
-     expected: ["Integration not found"], recorded: ["Integration requires re-encryption"]},
+     expected: ["Integration not found", "Credentials require reauthentication"], recorded: []},
     {Workers.SyncIcsCalendarWorker,
      expected: ["Integration not found", "Credentials require reauthentication"],
      recorded: ["Subscription has no feed URL"]},
@@ -214,7 +214,8 @@ defmodule Tymeslot.Workers.ExpectedJobOutcomesTest do
        "Integration not found",
        "Credentials require reauthentication",
        "Credentials require reauthentication: invalid_grant",
-       "Credentials require reauthentication: invalid_grant: Token has been expired"
+       "Credentials require reauthentication: invalid_grant: Token has been expired",
+       "Another refresh held the integration's lock through every wait"
      ],
      recorded: ["Credentials require reauthentication: invalid_client"]}
   ]

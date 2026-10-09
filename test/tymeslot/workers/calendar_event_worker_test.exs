@@ -107,6 +107,20 @@ defmodule Tymeslot.Workers.CalendarEventWorkerTest do
       assert snooze_seconds_3 == 180
     end
 
+    test "snoozes for as long as the provider's rate limit asked" do
+      meeting = insert(:meeting)
+
+      expect(Tymeslot.CalendarMock, :create_event, fn _event_data, _user_id ->
+        {:error, {:rate_limited, 45}}
+      end)
+
+      assert {:snooze, 45} =
+               perform_job(CalendarEventWorker, %{
+                 "action" => "create",
+                 "meeting_id" => meeting.id
+               })
+    end
+
     test "discards on unauthorized" do
       meeting = insert(:meeting)
 

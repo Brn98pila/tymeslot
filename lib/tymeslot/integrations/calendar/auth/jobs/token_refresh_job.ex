@@ -42,9 +42,14 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.RetryHelpers
+  alias Tymeslot.Workers.SnoozePolicy
 
   @refresh_threshold_hours 2
   @lock_timeout_snooze_seconds 60
+  # A snooze costs no attempt (Oban 2.24), so `max_attempts` never ends a
+  # job that keeps snoozing; these bound the two waits by executions.
+  @max_lock_waits 12
+  @max_rate_limit_waits 12
   @sweep_spread_seconds 1800
 
   @doc """
@@ -85,9 +90,13 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
   # reconnect it. Any other refusal, such as `invalid_client`, points at the
   # OAuth client registration and is recorded.
   @integration_gone "Integration not found"
+  # Another refresh of the integration held its lock through every wait. That
+  # refresh is the one renewing the token, and the next sweep enqueues a new
+  # job if the token is still due.
+  @lock_held "Another refresh held the integration's lock through every wait"
 
   @impl ExpectedJobOutcome
-  def expected_outcome?(@integration_gone), do: true
+  def expected_outcome?(reason) when reason in [@integration_gone, @lock_held], do: true
 
   def expected_outcome?(reason) when is_binary(reason) do
     case String.split(reason, ReauthHandling.discard_reason(), parts: 2) do
@@ -100,11 +109,10 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
   def expected_outcome?(_reason), do: false
 
   @impl Oban.Worker
-  def perform(%Oban.Job{
-        id: job_id,
-        attempt: attempt,
-        args: %{"integration_id" => integration_id}
-      }) do
+  def perform(
+        %Oban.Job{id: job_id, attempt: attempt, args: %{"integration_id" => integration_id}} =
+          job
+      ) do
     # Single integration refresh (for retry jobs)
     case CalendarIntegrationQueries.get(integration_id) do
       {:error, :not_found} ->
@@ -114,7 +122,11 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
         CalendarManagement.handle_reauth_required(integration)
 
       {:ok, integration} ->
-        refresh_integration_token(integration, job_id: job_id, attempt: attempt)
+        refresh_integration_token(
+          integration,
+          [job_id: job_id, attempt: attempt],
+          SnoozePolicy.executions(job)
+        )
     end
   end
 
@@ -164,7 +176,8 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
 
   defp refresh_integration_token(
          %CalendarIntegrationSchema{provider: provider} = integration,
-         job_meta
+         job_meta,
+         executions
        ) do
     meta = Keyword.merge(job_meta, user_id: integration.user_id)
 
@@ -186,7 +199,13 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
           Keyword.merge(meta, integration_id: integration.id, provider: provider)
         )
 
-        {:snooze, @lock_timeout_snooze_seconds}
+        case SnoozePolicy.snooze_or_exhaust(executions,
+               max_snoozes: @max_lock_waits,
+               base_seconds: @lock_timeout_snooze_seconds
+             ) do
+          {:snooze, _seconds} = snooze -> snooze
+          :exhausted -> {:discard, @lock_held}
+        end
 
       {:error, :integration_not_found} ->
         # Deleted after `perform/1` read it; there is nothing left to refresh,
@@ -199,14 +218,14 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
         {:discard, ReauthHandling.discard_reason()}
 
       {:error, {type, msg}} ->
-        handle_refresh_error(integration, "#{type}: #{msg}")
+        handle_refresh_error(integration, "#{type}: #{msg}", executions)
 
       {:error, reason} ->
-        handle_refresh_error(integration, reason)
+        handle_refresh_error(integration, reason, executions)
     end
   end
 
-  defp handle_refresh_error(integration, reason) do
+  defp handle_refresh_error(integration, reason, executions) do
     case categorize_error(reason) do
       :permanent ->
         # Only the owner can fix this, so ask them to reconnect rather than
@@ -226,18 +245,27 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
         end
 
       :rate_limited ->
-        # Respect rate limiting with custom backoff
-        retry_after = RetryHelpers.parse_retry_after_from_message(reason) || 300
-
         persist_refresh_failure(integration, refresh_failure_message())
-
-        {:snooze, retry_after}
+        wait_out_rate_limit(reason, executions)
 
       :retryable ->
         # Let Oban handle retry with our custom backoff
         persist_refresh_failure(integration, refresh_failure_message())
 
         {:error, "#{reason}"}
+    end
+  end
+
+  # A rate limit is waited out for the delay the provider asked for. Once the
+  # waits are spent it fails like any other retryable refusal, so the
+  # remaining attempts back off and the job ends, recorded, when they run out.
+  defp wait_out_rate_limit(reason, executions) do
+    case SnoozePolicy.snooze_or_exhaust(executions,
+           max_snoozes: @max_rate_limit_waits,
+           base_seconds: RetryHelpers.parse_retry_after_from_message(reason) || 300
+         ) do
+      {:snooze, _seconds} = snooze -> snooze
+      :exhausted -> {:error, "#{reason}"}
     end
   end
 
@@ -259,7 +287,10 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
   # A crash is a bug, so it fails the job and Oban retries it and reports it;
   # the owner sees it in `sync_error` like any other failed refresh.
   defp refresh_recording_crashes(integration) do
-    Tokens.refresh_oauth_token(integration, buffer_seconds: @refresh_threshold_hours * 3600)
+    Tokens.refresh_oauth_token(integration,
+      buffer_seconds: @refresh_threshold_hours * 3600,
+      lock_timeout: Application.get_env(:tymeslot, :token_refresh_lock_timeout_ms, 60_000)
+    )
   rescue
     exception ->
       persist_refresh_failure(integration, refresh_failure_message())

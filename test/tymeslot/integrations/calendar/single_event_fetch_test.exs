@@ -58,7 +58,7 @@ defmodule Tymeslot.Integrations.Calendar.SingleEventFetchTest do
     } do
       expect_status(500)
 
-      assert {:error, :network_error, _message} =
+      assert {:error, :server_error, _message} =
                GoogleAPI.get_event(integration, "work", "abc123def")
     end
   end

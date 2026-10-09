@@ -11,6 +11,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPIBehaviour do
            | :not_found
            | :rate_limited
            | :network_error
+           | :server_error
            | :authentication_error
            # A list read followed more next links than the page cap allows.
            | :too_many_pages, String.t()}

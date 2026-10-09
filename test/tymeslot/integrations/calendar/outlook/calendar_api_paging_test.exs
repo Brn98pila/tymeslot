@@ -91,7 +91,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPIPagingTest do
 
       now = DateTime.utc_now()
 
-      assert {:error, :network_error, _message} =
+      assert {:error, :server_error, _message} =
                CalendarAPI.list_primary_events(integration, now, now)
     end
 

@@ -56,7 +56,6 @@ defmodule Tymeslot.Integrations.Calendar.Google.CacheSweep do
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.ProviderCalendarSweepQueries
-  alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Meetings
@@ -71,16 +70,6 @@ defmodule Tymeslot.Integrations.Calendar.Google.CacheSweep do
   @type listed ::
           {calendar_id :: String.t(), {DateTime.t(), DateTime.t()}}
           | {calendar_id :: String.t(), {DateTime.t(), DateTime.t()}, master_id :: String.t()}
-
-  @doc """
-  The window a windowed listing started at `now` reads: the configured sync
-  window either side of it.
-  """
-  @spec listing_window(DateTime.t()) :: {DateTime.t(), DateTime.t()}
-  def listing_window(now) do
-    {DateTime.add(now, -ProviderConfig.sync_window_past_days(), :day),
-     DateTime.add(now, ProviderConfig.sync_window_future_days(), :day)}
-  end
 
   @doc """
   Sweeps each calendar in `listed`, whose complete listings the run begun

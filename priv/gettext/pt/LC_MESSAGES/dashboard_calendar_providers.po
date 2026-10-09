@@ -241,7 +241,7 @@ msgstr "Início de sessão e segurança → Senhas específicas de apps"
 msgid "Something went wrong. Please try again."
 msgstr "Algo deu errado. Tente novamente."
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/caldav_family_config.ex
 #, elixir-autogen, elixir-format
 msgid "Sync calendars from your Apple iCloud account"
@@ -257,7 +257,7 @@ msgstr "Sincronize os calendários do seu servidor Nextcloud"
 msgid "Sync calendars from your Zimbra server"
 msgstr "Sincronize os calendários do seu servidor Zimbra"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/caldav_family_config.ex
 #, elixir-autogen, elixir-format
 msgid "Sync calendars from your mailbox.org account"
@@ -351,42 +351,42 @@ msgstr "https://mail.example.com"
 msgid "https://radicale.example.com:5232"
 msgstr "https://radicale.example.com:5232"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Enterprise Zimbra calendar integration"
 msgstr "Integração de calendário Zimbra corporativa"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Full OAuth integration with Google Meet support"
 msgstr "Integração OAuth completa com suporte a Google Meet"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Homepage demo provider"
 msgstr "Provedor de demonstração da página inicial"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Lightweight self-hosted calendar server"
 msgstr "Servidor de calendário leve e auto-hospedado"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Microsoft 365 and Outlook.com integration"
 msgstr "Integração com Microsoft 365 e Outlook.com"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "PHP-based CalDAV/CardDAV server integration"
 msgstr "Integração com servidor CalDAV/CardDAV em PHP"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Self-hosted Nextcloud calendar sync"
 msgstr "Sincronização de calendário Nextcloud auto-hospedado"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Universal CalDAV server support"
 msgstr "Suporte universal a servidores CalDAV"
@@ -956,7 +956,7 @@ msgstr "Assinar"
 msgid "Subscribe to a published calendar feed"
 msgstr "Assine um feed de calendário publicado"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Subscribe to a published calendar feed, read-only"
 msgstr "Assine um feed de calendário publicado, somente leitura"
@@ -1166,7 +1166,7 @@ msgstr "Verificar o certificado TLS do servidor"
 msgid "name@example.com or DOMAIN\\user"
 msgstr "name@example.com ou DOMINIO\\usuario"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "On-premises Microsoft Exchange Server, two-way sync"
 msgstr "Microsoft Exchange Server local, sincronização bidirecional"

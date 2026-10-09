@@ -514,68 +514,6 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries do
     end)
   end
 
-  @doc """
-  Replaces all cached events for an integration in a single transaction.
-
-  Deletes every existing row for the integration, then inserts the provided
-  events. Intended for full-refresh syncs where the local cache must exactly
-  match the provider's current state.
-
-  Returns `:ok` on success or `{:error, reason}` on failure.
-  """
-  @spec full_refresh_for_integration(integer(), [map()]) ::
-          {:ok, non_neg_integer()} | {:error, term()}
-  def full_refresh_for_integration(calendar_integration_id, events_attrs) do
-    Repo.transaction(fn ->
-      Repo.query!("SELECT pg_advisory_xact_lock($1, $2)", [2, calendar_integration_id])
-
-      ProviderCalendarEventSchema
-      |> where([e], e.calendar_integration_id == ^calendar_integration_id)
-      |> Repo.delete_all()
-
-      {:ok, count} = upsert_batch(events_attrs)
-      count
-    end)
-  end
-
-  @doc """
-  Deletes cached events that ended before the given cutoff datetime.
-
-  Both timed events (end_at) and all-day events (end_date) are considered.
-  Returns the number of deleted rows.
-  """
-  @spec prune_ended_before(DateTime.t()) :: non_neg_integer()
-  def prune_ended_before(cutoff) do
-    cutoff_date = DateTime.to_date(cutoff)
-
-    {count, _rows} =
-      ProviderCalendarEventSchema
-      |> where(
-        [e],
-        (e.all_day == false and e.end_at < ^cutoff) or
-          (e.all_day == true and e.end_date < ^cutoff_date)
-      )
-      |> Repo.delete_all()
-
-    count
-  end
-
-  @doc """
-  Deletes all cached events belonging to inactive integrations.
-
-  Returns the number of deleted rows.
-  """
-  @spec prune_inactive_integrations() :: non_neg_integer()
-  def prune_inactive_integrations do
-    {count, _rows} =
-      ProviderCalendarEventSchema
-      |> join(:inner, [e], i in assoc(e, :calendar_integration))
-      |> where([_e, i], i.is_active == false)
-      |> Repo.delete_all()
-
-    count
-  end
-
   # Fields updated on conflict — everything except the surrogate key, inserted_at,
   # the identity fields :provider and :provider_calendar_id (set at insert time from
   # the integration and must never be overwritten with EXCLUDED values from partial

@@ -142,9 +142,7 @@ defmodule Tymeslot.CalendarGrid.SeriesEdit do
   alias Tymeslot.CalendarGrid.SeriesCarry
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Workers.RefreshOutlookCalendarWorker
-  alias Tymeslot.Workers.SyncCalDavCalendarWorker
-  alias Tymeslot.Workers.SyncGoogleCalendarWorker
+  alias Tymeslot.Integrations.Calendar.SyncSchedule
 
   require Logger
 
@@ -412,7 +410,7 @@ defmodule Tymeslot.CalendarGrid.SeriesEdit do
   """
   @spec request_sync(String.t() | atom(), pos_integer()) :: :ok
   def request_sync(provider, integration_id) do
-    case enqueue_sync(to_string(provider), integration_id) do
+    case SyncSchedule.request_sync(%{provider: to_string(provider), id: integration_id}) do
       {:ok, _job} ->
         :ok
 
@@ -423,15 +421,6 @@ defmodule Tymeslot.CalendarGrid.SeriesEdit do
         )
     end
   end
-
-  defp enqueue_sync("google", integration_id),
-    do: SyncGoogleCalendarWorker.enqueue(integration_id)
-
-  defp enqueue_sync("outlook", integration_id),
-    do: RefreshOutlookCalendarWorker.enqueue(integration_id)
-
-  defp enqueue_sync(_caldav, integration_id),
-    do: SyncCalDavCalendarWorker.enqueue_full_fetch(integration_id)
 
   defp refuse(reason), do: {:error, %{reason: reason, retry: :not_queued}}
 end

@@ -13,9 +13,15 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ApiResponse do
   statuses inline would have to remember `Redactor.redact_and_truncate/1` every
   time; routing through here means it cannot be skipped.
 
+  Throttling and server failure are classified here too, because both
+  providers answer them alike: a 429 is `:rate_limited`, carrying the
+  `Retry-After` seconds as `"retry_after:<n>"` when the header gives them,
+  and a 5xx is `:server_error`. Both are transient; neither is a network
+  failure, and a caller that waits out a rate limit needs to tell them apart.
+
   Providers keep what genuinely differs, passing it as `:custom`: Google
   classifies a 403 from `error.errors[].reason`, Graph from `error.code` plus a
-  `Retry-After` header, and only Graph reports throttling as a bare 429.
+  `Retry-After` header.
   """
 
   require Logger
@@ -129,6 +135,20 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ApiResponse do
     {:error, :not_found, "Calendar not found"}
   end
 
+  defp default_handle({:ok, %{status: 429} = response}, _label) do
+    {:error, :rate_limited, rate_limited_message(response, "Too many requests")}
+  end
+
+  defp default_handle({:ok, %{status: status, body: body}}, label) when status in 500..599 do
+    Logger.warning("Calendar API server error",
+      provider: label,
+      status: status,
+      body: Redactor.redact_and_truncate(body)
+    )
+
+    {:error, :server_error, "HTTP #{status}"}
+  end
+
   # The only path that sees an unrecognised provider body, and so the only one
   # that has to redact. The caller gets an opaque message: the detail is in the
   # logs, where it is truncated and stripped of credentials.
@@ -144,6 +164,29 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ApiResponse do
 
   defp default_handle({:error, reason}, _label) do
     {:error, :network_error, "Network error: #{inspect(reason)}"}
+  end
+
+  @doc """
+  The message a rate-limited `response` carries: `"retry_after:<n>"` when its
+  `Retry-After` header gives a number of seconds (the form
+  `Tymeslot.Workers.RetryHelpers.parse_retry_after_from_message/1` reads),
+  `fallback` otherwise.
+  """
+  @spec rate_limited_message(map(), String.t()) :: String.t()
+  def rate_limited_message(response, fallback) do
+    case retry_after(response) do
+      seconds when is_integer(seconds) -> "retry_after:" <> Integer.to_string(seconds)
+      nil -> fallback
+    end
+  end
+
+  defp retry_after(response) do
+    with [value | _rest] <- response |> Map.get(:headers, %{}) |> Map.get("retry-after"),
+         {seconds, _remainder} <- Integer.parse(value) do
+      seconds
+    else
+      _no_seconds -> nil
+    end
   end
 
   defp decode_body(""), do: {:ok, %{}}
