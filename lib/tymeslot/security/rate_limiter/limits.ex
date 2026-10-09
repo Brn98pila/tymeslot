@@ -28,8 +28,10 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
   - `:operation`: the English bucket name the log line carries.
   - `:action`: optional, the localised plural the refusal says out loud
     ("the limit of 5 signup attempts"), stored as a msgid.
-  - `:log`: `false` for the flood caps on machine-to-machine endpoints, whose
-    refusals would otherwise write one warning per request under a flood.
+  - `:log`: `false` where a refusal writes no log line: the flood caps on
+    machine-to-machine endpoints, whose refusals would otherwise write one
+    warning per request under a flood, and limits whose refusal has never
+    been logged (form keystrokes, public poll voting, settings edits).
   """
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -240,14 +242,16 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
       scope: :source,
       limit: 5,
       window_ms: @minute,
-      operation: "poll registration"
+      operation: "poll registration",
+      log: false
     ],
     poll_vote: [
       prefix: "poll_vote",
       scope: :source,
       limit: 10,
       window_ms: @minute,
-      operation: "poll vote"
+      operation: "poll vote",
+      log: false
     ],
 
     # Machine-to-machine endpoints
@@ -343,14 +347,16 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
       scope: :key,
       limit: 6,
       window_ms: 2 * @hour,
-      operation: "username change"
+      operation: "username change",
+      log: false
     ],
     username_check: [
       prefix: "username_check",
       scope: :key,
       limit: 60,
       window_ms: 2 * @minute,
-      operation: "username check"
+      operation: "username check",
+      log: false
     ],
 
     # Dashboard, per organiser
@@ -383,14 +389,16 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
       scope: :key,
       limit: 60,
       window_ms: @minute,
-      operation: "webhook form"
+      operation: "webhook form",
+      log: false
     ],
     webhook_form_validate: [
       prefix: "webhook_form_validate",
       scope: :key,
       limit: 180,
       window_ms: @minute,
-      operation: "webhook form validation"
+      operation: "webhook form validation",
+      log: false
     ],
     calendar_refresh: [
       prefix: "calendar_refresh",
@@ -489,7 +497,8 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
       scope: :user,
       limit: 5,
       window_ms: 10 * @minute,
-      operation: "theme background upload"
+      operation: "theme background upload",
+      log: false
     ],
     theme_customization: [
       prefix: "theme_customization",
@@ -538,7 +547,8 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
       scope: :user,
       limit: Keyword.get(@payment_limits, :max_attempts, 5),
       window_ms: Keyword.get(@payment_limits, :window_ms, 10 * @minute),
-      operation: "payment initiation"
+      operation: "payment initiation",
+      log: false
     ],
     # Keyed on the schedule being edited.
     availability_add_break: [
@@ -546,21 +556,24 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
       scope: :key,
       limit: 8,
       window_ms: @minute,
-      operation: "availability break"
+      operation: "availability break",
+      log: false
     ],
     availability_quick_break: [
       prefix: "availability:quick_break",
       scope: :key,
       limit: 8,
       window_ms: @minute,
-      operation: "availability quick break"
+      operation: "availability quick break",
+      log: false
     ],
     availability_update_hours: [
       prefix: "availability:update_hours",
       scope: :key,
       limit: 10,
       window_ms: 10_000,
-      operation: "availability hours update"
+      operation: "availability hours update",
+      log: false
     ]
   }
 
