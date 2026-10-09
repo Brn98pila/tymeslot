@@ -12,6 +12,11 @@ defmodule Tymeslot.Workers.CalendarSyncJob do
       (`Tymeslot.Integrations.Calendar.InvalidEventReport`);
     * bounds the snoozes a cycle uses to wait out an open breaker or a rate
       limit, when the worker names a budget (`Tymeslot.Workers.SnoozePolicy`);
+    * discards a cycle that failed because its integration was deleted while
+      it ran (`{:error, :integration_gone}` from a cache write, or any failure
+      once the row is gone), as a job whose integration is gone at the start
+      is, recording nothing against a health state that no longer has an
+      integration;
     * records the verdict against the integration's health state
       (`Tymeslot.Workers.SyncHealth`), after the bound, so a cycle that gave
       up waiting counts as the failure it is;
@@ -86,7 +91,7 @@ defmodule Tymeslot.Workers.CalendarSyncJob do
           integration
           |> cycle.()
           |> bound(job, opts)
-          |> tap(&SyncHealth.record_outcome(integration, &1))
+          |> unless_gone(integration, &SyncHealth.record_outcome(integration, &1))
         end
         |> InvalidEventReport.collect()
         |> SyncRequest.rerun_if_requested(job)
@@ -100,6 +105,22 @@ defmodule Tymeslot.Workers.CalendarSyncJob do
         )
 
         {:discard, "Integration is not #{provider}"}
+    end
+  end
+
+  defp unless_gone(:ok, _integration, record), do: tap(:ok, record)
+  defp unless_gone({:snooze, _seconds} = verdict, _integration, record), do: tap(verdict, record)
+
+  defp unless_gone(verdict, integration, record) do
+    if verdict == {:error, :integration_gone} or
+         not CalendarIntegrationQueries.exists?(integration.id) do
+      Logger.info("Calendar integration deleted during its sync, discarding",
+        calendar_integration_id: integration.id
+      )
+
+      {:discard, @integration_gone}
+    else
+      tap(verdict, record)
     end
   end
 

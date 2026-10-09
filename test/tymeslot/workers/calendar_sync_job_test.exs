@@ -88,6 +88,41 @@ defmodule Tymeslot.Workers.CalendarSyncJobTest do
     assert failures(integration) == 0
   end
 
+  # A cache write that finds its integration deleted answers
+  # `{:error, :integration_gone}`; a provider that folds the reason into its
+  # own failure shape (Outlook's transient/hard class) still fails once the
+  # row is gone. Either way the job ends as one whose integration was gone at
+  # the start does, and nothing is recorded against its health.
+  describe "an integration deleted while its cycle runs" do
+    setup do
+      %{integration: insert(:calendar_integration, provider: "caldav")}
+    end
+
+    for {label, failure} <- [
+          {"a cache write refused as gone", {:error, :integration_gone}},
+          {"a failure of the provider's own shape", {:error, {:delta_sync_failed, :transient}}}
+        ] do
+      test "#{label} is discarded as not found", %{integration: integration} do
+        assert {:discard, "Integration not found"} =
+                 CalendarSyncJob.run(job(integration.id), fn loaded ->
+                   Repo.delete!(loaded)
+                   unquote(Macro.escape(failure))
+                 end)
+
+        assert failures(integration) == 0
+      end
+    end
+
+    test "a failure while the integration still exists is recorded as one", %{
+      integration: integration
+    } do
+      assert {:error, :timeout} =
+               CalendarSyncJob.run(job(integration.id), fn _loaded -> {:error, :timeout} end)
+
+      assert failures(integration) == 1
+    end
+  end
+
   describe "a cycle waiting out an unavailable provider" do
     setup do
       %{integration: insert(:calendar_integration, provider: "caldav")}

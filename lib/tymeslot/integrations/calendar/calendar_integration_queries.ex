@@ -408,8 +408,14 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
     |> Changeset.change(%{
       sync_error: error_message
     })
-    |> Repo.update()
+    # A sync can outlive its integration: an error recorded after the row was
+    # deleted is an `{:error, changeset}`, not a crash of the job reporting it.
+    |> Repo.update(stale_error_field: :id)
   end
+
+  @doc "Whether the calendar integration `id` still exists."
+  @spec exists?(integer()) :: boolean()
+  def exists?(id), do: Repo.exists?(from(i in CalendarIntegrationSchema, where: i.id == ^id))
 
   @doc """
   Flags an integration as needing reauthentication — used when the stored
