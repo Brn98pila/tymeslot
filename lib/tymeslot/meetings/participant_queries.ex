@@ -86,6 +86,21 @@ defmodule Tymeslot.Meetings.ParticipantQueries do
     :ok
   end
 
+  @doc """
+  Advances the `ical_sequence` of every live participant of a meeting by one:
+  each seat is its own calendar entry, so a change to the meeting's time is a
+  new revision of every live seat's entry too.
+  """
+  @spec advance_live_sequences(String.t()) :: non_neg_integer()
+  def advance_live_sequences(meeting_id) do
+    {count, _rows} =
+      Participant
+      |> where([p], p.meeting_id == ^meeting_id and is_nil(p.cancelled_at))
+      |> Repo.update_all(inc: [ical_sequence: 1])
+
+    count
+  end
+
   @doc "Counts the live (not cancelled) participants of a meeting."
   @spec count_live_for_meeting(binary()) :: non_neg_integer()
   def count_live_for_meeting(meeting_id) do

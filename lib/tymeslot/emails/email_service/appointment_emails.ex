@@ -16,6 +16,7 @@ defmodule Tymeslot.Emails.EmailService.AppointmentEmails do
     BookingApprovalRequest,
     BookingRequestOutcome,
     BookingRequestReceived,
+    MeetingEndChanged,
     RescheduleRequestExpired,
     SeatUpdateForOrganizer
   }
@@ -244,6 +245,28 @@ defmodule Tymeslot.Emails.EmailService.AppointmentEmails do
     Delivery.deliver(
       AppointmentRescheduled.render(:organizer, organizer_email, appointment_details)
     )
+  end
+
+  @doc """
+  Tells the attendee, or one group participant, that the meeting's end moved
+  in the host's calendar, with an updated calendar entry.
+  """
+  @spec send_end_change_to_attendee(
+          String.t(),
+          Tymeslot.Emails.EmailService.appointment_details()
+        ) :: {:ok, any()} | {:error, any()}
+  def send_end_change_to_attendee(attendee_email, appointment_details) do
+    Delivery.deliver(MeetingEndChanged.render(:attendee, attendee_email, appointment_details))
+  end
+
+  @doc """
+  Tells a guest that the meeting's end moved in the host's calendar, with an
+  updated calendar entry.
+  """
+  @spec send_guest_end_change(String.t(), Tymeslot.Emails.EmailService.appointment_details()) ::
+          {:ok, any()} | {:error, any()}
+  def send_guest_end_change(guest_email, appointment_details) do
+    Delivery.deliver(MeetingEndChanged.render(:guest, guest_email, appointment_details))
   end
 
   @doc """

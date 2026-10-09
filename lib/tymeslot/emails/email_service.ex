@@ -129,6 +129,16 @@ defmodule Tymeslot.Emails.EmailService do
   defdelegate send_reschedule_emails(appointment_details), to: AppointmentEmails
 
   @impl Tymeslot.Emails.EmailServiceBehaviour
+  defdelegate send_end_change_to_attendee(attendee_email, appointment_details),
+    to: AppointmentEmails
+
+  @impl Tymeslot.Emails.EmailServiceBehaviour
+  defdelegate send_guest_end_change(guest_email, appointment_details), to: AppointmentEmails
+
+  @impl Tymeslot.Emails.EmailServiceBehaviour
+  defdelegate send_end_change_to_organizer(meeting, organizer_email, notice), to: CalendarEmails
+
+  @impl Tymeslot.Emails.EmailServiceBehaviour
   defdelegate send_appointment_reminder_to_organizer(organizer_email, appointment_details),
     to: AppointmentEmails
 

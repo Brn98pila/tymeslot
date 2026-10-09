@@ -389,6 +389,7 @@ msgstr "Якщо у вас виникнуть запитання, дайте в�
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
 #: lib/tymeslot/emails/templates/appointment_reminder.ex
 #: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
 #, elixir-autogen, elixir-format
 msgid "Join Meeting"
 msgstr "Приєднатися до зустрічі"
@@ -426,6 +427,7 @@ msgstr "З нетерпінням чекаю на зустріч!"
 #: lib/tymeslot/emails/templates/appointment_reminder.ex
 #: lib/tymeslot/emails/templates/event_update_notification.ex
 #: lib/tymeslot/emails/templates/external_booking_change.ex
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
 #: lib/tymeslot/emails/templates/seat_update_for_organizer.ex
 #, elixir-autogen, elixir-format
 msgid "MEETING DETAILS:"
@@ -479,6 +481,7 @@ msgstr "Зустріч перенесено"
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
 #: lib/tymeslot/emails/templates/appointment_reminder.ex
 #: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
 #, elixir-autogen, elixir-format
 msgid "Meeting with %{name}"
 msgstr "Зустріч із %{name}"
@@ -853,6 +856,7 @@ msgid "Tymeslot platform fee: %{amount}"
 msgstr "Комісія платформи Tymeslot: %{amount}"
 
 #: lib/tymeslot/emails/templates/event_update_notification.ex
+#: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
 msgid "Updated"
 msgstr "Оновлено"
@@ -1269,3 +1273,74 @@ msgstr "Групову зустріч «%{title}» перенесено у ва�
 #, elixir-autogen, elixir-format
 msgid "This group meeting was <strong>rescheduled in your external calendar</strong>. Tymeslot still shows the original time above, and its participants still expect it. To keep the original time, move the event back in your calendar. To change it, send the participants a reschedule request from your dashboard, or cancel the meeting there so every participant is notified."
 msgstr "Цю групову зустріч <strong>перенесено у вашому зовнішньому календарі</strong>. У Tymeslot вище досі показано початковий час, і учасники досі на нього розраховують. Щоб зберегти початковий час, поверніть подію на місце у своєму календарі. Щоб змінити його, надішліть учасникам запит на перенесення з панелі керування або скасуйте там зустріч, щоб кожен учасник отримав сповіщення."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "\"%{title}\" now ends at %{time} (%{date})"
+msgstr "«%{title}» тепер закінчується о %{time} (%{date})"
+
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
+#, elixir-autogen, elixir-format
+msgid "Hi %{guest} - the meeting with %{organizer} now ends at %{to} instead of %{from}. It still starts at the same time, so your answer stands."
+msgstr "Вітаю, %{guest}! Зустріч з %{organizer} тепер закінчується о %{to} замість %{from}. Вона починається в той самий час, тож ваша відповідь залишається чинною."
+
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
+#, elixir-autogen, elixir-format
+msgid "Hi %{name} - our meeting now ends at %{to} instead of %{from}. It still starts at the same time, and my calendar is already updated."
+msgstr "Вітаю, %{name} - наша зустріч тепер закінчується о %{to} замість %{from}. Вона починається в той самий час, мій календар уже оновлено."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting end updated from your calendar"
+msgstr "Час завершення зустрічі оновлено з вашого календаря"
+
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
+#, elixir-autogen, elixir-format
+msgid "New end time"
+msgstr "Новий час завершення"
+
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
+#, elixir-autogen, elixir-format
+msgid "New end time - %{date} with %{name}"
+msgstr "Новий час завершення - %{date} з %{name}"
+
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
+#, elixir-autogen, elixir-format
+msgid "Previously ended at"
+msgstr "Раніше завершувалася о"
+
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
+#, elixir-autogen, elixir-format
+msgid "Same link, new end time"
+msgstr "Те саме посилання, новий час завершення"
+
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
+#, elixir-autogen, elixir-format
+msgid "The meeting now ends at %{time}."
+msgstr "Зустріч тепер закінчується о %{time}."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "Their guest was emailed too."
+msgid_plural "Their %{count} guests were emailed too."
+msgstr[0] "Гостю також надіслано лист."
+msgstr[1] "%{count} гостям також надіслано листи."
+msgstr[2] "%{count} гостям також надіслано листи."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "We emailed %{name} the new end time, with an updated calendar entry."
+msgstr "Ми надіслали %{name} лист із новим часом завершення та оновленим записом у календарі."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "We emailed the participant the new end time, with an updated calendar entry."
+msgid_plural "We emailed all %{count} participants the new end time, with an updated calendar entry."
+msgstr[0] "Ми надіслали учаснику лист із новим часом завершення та оновленим записом у календарі."
+msgstr[1] "Ми надіслали всім %{count} учасникам листи з новим часом завершення та оновленими записами в календарі."
+msgstr[2] "Ми надіслали всім %{count} учасникам листи з новим часом завершення та оновленими записами в календарі."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "You changed when \"%{title}\" ends in your external calendar, so Tymeslot updated the booking: it now ends at %{to} instead of %{from}."
+msgstr "Ви змінили час завершення «%{title}» у своєму зовнішньому календарі, тому Tymeslot оновив бронювання: тепер зустріч закінчується о %{to} замість %{from}."

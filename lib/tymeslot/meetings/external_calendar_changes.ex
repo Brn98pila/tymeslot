@@ -18,6 +18,7 @@ defmodule Tymeslot.Meetings.ExternalCalendarChanges do
   require Logger
 
   alias Tymeslot.Bookings.Cancel
+  alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Emails.EmailService
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Meetings.MeetingCalendarQueries
@@ -75,6 +76,9 @@ defmodule Tymeslot.Meetings.ExternalCalendarChanges do
   overlaps another booking. Availability follows at once, and so does the
   meeting's video room; reminders are timed from the start and render the
   meeting as it stands when they are sent, so they follow without a reschedule.
+  The booker, or every participant, and every guest are emailed the new end
+  with an updated calendar entry, and the host is told who was
+  (`Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails`).
 
   An end at or before the start is no length a meeting can have; that event
   is treated as an external modification for the host to look at.
@@ -108,6 +112,7 @@ defmodule Tymeslot.Meetings.ExternalCalendarChanges do
         resolve_modification(updated)
         AvailabilityCache.invalidate_for_user(updated.organizer_user_id)
         sync_video_room(updated)
+        announce_end(updated, meeting.end_time)
 
       # Rescheduled, cancelled, voided or deleted since the event was read:
       # the end was compared against a meeting that no longer stands, so
@@ -115,6 +120,25 @@ defmodule Tymeslot.Meetings.ExternalCalendarChanges do
       {:error, :not_found} ->
         Logger.info("External end change dropped: the meeting changed since it was read",
           meeting_id: meeting.id
+        )
+
+        :ok
+    end
+  end
+
+  # Only from a write that landed, so a change that lost its race announces
+  # nothing. The notices wait a little and coalesce (see
+  # `EmailScheduler.schedule_end_change_emails/2`); chat channels and webhooks
+  # are not told, since the booking did not move.
+  defp announce_end(meeting, previous_end) do
+    case EmailScheduler.schedule_end_change_emails(meeting.id, previous_end) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("Failed to schedule the notices of an external end change",
+          meeting_id: meeting.id,
+          reason: reason
         )
 
         :ok

@@ -13,6 +13,7 @@ defmodule Tymeslot.Meetings.MeetingCalendarQueries do
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
   alias Tymeslot.Meetings.MeetingState
+  alias Tymeslot.Meetings.ParticipantQueries
   alias Tymeslot.Repo
 
   @externally_deleted "externally_deleted"
@@ -167,23 +168,38 @@ defmodule Tymeslot.Meetings.MeetingCalendarQueries do
   rescheduled, cancelled or sent a reschedule request in the meantime is left
   alone: the end was read against what it was before.
 
+  The new end is a new revision of every calendar entry that carries the
+  meeting, so the meeting's `ical_sequence` advances, and so does each live
+  group seat's, which is a calendar entry of its own: an update sent at an
+  unchanged sequence is ignored by calendar clients.
+
   Returns `{:ok, meeting}`, or `{:error, :not_found}` if no row matched.
   """
   @spec update_end_time(Meeting.t(), DateTime.t()) :: {:ok, Meeting.t()} | {:error, :not_found}
   def update_end_time(%Meeting{id: id, start_time: start_time}, %DateTime{} = end_time) do
-    {count, _rows} =
-      Meeting
-      |> where([m], m.id == ^id and m.start_time == ^start_time)
-      |> MeetingState.where_expects_calendar_event()
-      |> Repo.update_all(
-        set: [
-          end_time: end_time,
-          duration: DateTime.diff(end_time, start_time, :minute),
-          updated_at: DateTime.utc_now(:second)
-        ]
-      )
+    Repo.transaction(fn ->
+      {count, _rows} =
+        Meeting
+        |> where([m], m.id == ^id and m.start_time == ^start_time)
+        |> MeetingState.where_expects_calendar_event()
+        |> Repo.update_all(
+          set: [
+            end_time: end_time,
+            duration: DateTime.diff(end_time, start_time, :minute),
+            updated_at: DateTime.utc_now(:second)
+          ],
+          inc: [ical_sequence: 1]
+        )
 
-    if count > 0, do: MeetingQueries.get_meeting(id), else: {:error, :not_found}
+      if count == 0, do: Repo.rollback(:not_found)
+
+      ParticipantQueries.advance_live_sequences(id)
+
+      case MeetingQueries.get_meeting(id) do
+        {:ok, meeting} -> meeting
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
   end
 
   @doc """
