@@ -310,3 +310,37 @@ msgstr "Elimina"
 #, elixir-autogen, elixir-format
 msgid "Delete %{name}"
 msgstr "Elimina %{name}"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "1 change made here was not saved to this calendar."
+msgid_plural "%{count} changes made here were not saved to this calendar."
+msgstr[0] "%{count} modifica fatta qui non è stata salvata in questo calendario."
+msgstr[1] "%{count} modifiche fatte qui non sono state salvate in questo calendario."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "1 change made here was not saved to this calendar. The server said: %{error}"
+msgid_plural "%{count} changes made here were not saved to this calendar. The server said: %{error}"
+msgstr[0] "%{count} modifica fatta qui non è stata salvata in questo calendario. Il server ha risposto: %{error}"
+msgstr[1] "%{count} modifiche fatte qui non sono state salvate in questo calendario. Il server ha risposto: %{error}"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid "Could not retry the changes. Please try again."
+msgstr "Impossibile inviare di nuovo le modifiche. Riprova."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Retry changes"
+msgstr "Invia di nuovo le modifiche"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Send the changes this calendar's server refused to it again"
+msgstr "Invia di nuovo le modifiche rifiutate dal server di questo calendario"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid "Sending the changes again. This calendar will update shortly."
+msgstr "Invio delle modifiche in corso. Questo calendario si aggiornerà a breve."

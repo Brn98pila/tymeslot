@@ -308,3 +308,39 @@ msgstr "Usuń"
 #, elixir-autogen, elixir-format
 msgid "Delete %{name}"
 msgstr "Usuń %{name}"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "1 change made here was not saved to this calendar."
+msgid_plural "%{count} changes made here were not saved to this calendar."
+msgstr[0] "%{count} zmiana wprowadzona tutaj nie została zapisana w tym kalendarzu."
+msgstr[1] "%{count} zmiany wprowadzone tutaj nie zostały zapisane w tym kalendarzu."
+msgstr[2] "%{count} zmian wprowadzonych tutaj nie zostało zapisanych w tym kalendarzu."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "1 change made here was not saved to this calendar. The server said: %{error}"
+msgid_plural "%{count} changes made here were not saved to this calendar. The server said: %{error}"
+msgstr[0] "%{count} zmiana wprowadzona tutaj nie została zapisana w tym kalendarzu. Odpowiedź serwera: %{error}"
+msgstr[1] "%{count} zmiany wprowadzone tutaj nie zostały zapisane w tym kalendarzu. Odpowiedź serwera: %{error}"
+msgstr[2] "%{count} zmian wprowadzonych tutaj nie zostało zapisanych w tym kalendarzu. Odpowiedź serwera: %{error}"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid "Could not retry the changes. Please try again."
+msgstr "Nie udało się ponownie wysłać zmian. Spróbuj ponownie."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Retry changes"
+msgstr "Wyślij zmiany ponownie"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Send the changes this calendar's server refused to it again"
+msgstr "Wyślij ponownie zmiany odrzucone przez serwer tego kalendarza"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid "Sending the changes again. This calendar will update shortly."
+msgstr "Ponownie wysyłamy zmiany. Ten kalendarz wkrótce się zaktualizuje."

@@ -28,6 +28,7 @@ defmodule Tymeslot.Integrations.Calendar do
 
   @behaviour Tymeslot.Security.EncryptedStorage
 
+  alias Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
@@ -155,6 +156,21 @@ defmodule Tymeslot.Integrations.Calendar do
   @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.toggle_integration/2`."
   @spec toggle_integration(user_id(), integration_id()) :: {:ok, integration()} | {:error, any()}
   defdelegate toggle_integration(user_id, integration_id), to: OwnerActions
+
+  @doc """
+  The changes of the user's CalDAV calendars the server kept refusing, which
+  are no longer replayed, by integration id. See
+  `Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue.stuck_changes/1`.
+  """
+  @spec stuck_changes(user_id()) :: %{
+          integration_id() => %{count: pos_integer(), last_error: String.t() | nil}
+        }
+  defdelegate stuck_changes(user_id), to: OfflineQueue
+
+  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.retry_stuck_changes/2`."
+  @spec retry_stuck_changes(user_id(), integration_id()) ::
+          {:ok, non_neg_integer()} | {:error, any()}
+  defdelegate retry_stuck_changes(user_id, integration_id), to: OwnerActions
 
   # ---------------------------
   # Public API: Discovery/Selection

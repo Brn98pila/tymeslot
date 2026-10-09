@@ -2,7 +2,8 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   @moduledoc """
   The changes an organiser makes to one of their own connected calendars from
   the dashboard: switching it on or off, renaming it, recolouring it, ticking
-  its calendars, refreshing it, and deleting it.
+  its calendars, refreshing it, retrying the changes its server kept
+  refusing, and deleting it.
 
   Every function takes the acting user's id and the integration's id. It
   charges the user's budget first, then loads the integration scoped to that
@@ -13,16 +14,19 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
 
   The budgets are the existing ones: the shared integration write budget for
   changes to what is synced and booked, the looser appearance budget for name
-  and colour, and the refresh budget for a refresh.
+  and colour, and the refresh budget for a refresh, which a retry of stuck
+  changes is too: it asks for a sync.
   """
 
   alias Tymeslot.Dashboard.DashboardContext
   alias Tymeslot.Infrastructure.Tasks
+  alias Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Deletion
   alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Selection
+  alias Tymeslot.Integrations.Calendar.SyncSchedule
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.InputValidators
   alias Tymeslot.Security.RateLimiter
@@ -151,6 +155,21 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
       with {:ok, _updated} <- Workflows.update_integration_with_discovery(integration),
            do: {:ok, :calendars_rediscovered}
     end
+  end
+
+  @doc """
+  Puts the integration's stuck changes (those the offline queue stopped
+  replaying, see `OfflineQueue.stuck_changes/1`) back in the queue and asks
+  for a sync to replay them. Answers how many changes were retried.
+  """
+  @spec retry_stuck_changes(pos_integer(), pos_integer()) ::
+          {:ok, non_neg_integer()} | {:error, refusal() | term()}
+  def retry_stuck_changes(user_id, integration_id) do
+    with_owned(user_id, integration_id, :refresh, fn integration ->
+      released = OfflineQueue.release_stuck(integration.id)
+
+      with {:ok, _job} <- SyncSchedule.request_sync(integration), do: {:ok, released}
+    end)
   end
 
   defp refresh_outcome({:ok, {:ok, _done}}), do: :ok
