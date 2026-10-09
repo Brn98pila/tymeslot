@@ -8,6 +8,29 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueriesPruningTest
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
 
   describe "prune_ended_before/1" do
+    # Pruned one integration at a time under its cache lock; the count is the
+    # sum across all of them.
+    test "prunes every integration's ended events and counts them all" do
+      user = insert(:user)
+      cutoff = ~U[2026-06-01 00:00:00Z]
+
+      for integration <- [
+            insert(:calendar_integration, user: user),
+            insert(:calendar_integration, user: user)
+          ],
+          uid <- ["a", "b"] do
+        insert(:provider_calendar_event,
+          calendar_integration: integration,
+          uid: uid,
+          start_at: ~U[2026-05-01 10:00:00Z],
+          end_at: ~U[2026-05-01 11:00:00Z]
+        )
+      end
+
+      assert IntegrationCacheQueries.prune_ended_before(cutoff) == 4
+      assert Repo.aggregate(ProviderCalendarEventSchema, :count) == 0
+    end
+
     test "deletes timed events that ended before cutoff" do
       user = insert(:user)
       integration = insert(:calendar_integration, user: user)

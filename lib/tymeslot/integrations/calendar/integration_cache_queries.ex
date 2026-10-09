@@ -6,13 +6,33 @@ defmodule Tymeslot.Integrations.Calendar.IntegrationCacheQueries do
   ## The integration cache lock
 
   A transaction-scoped advisory lock of class `2`
-  (`@integration_cache_lock_class`), keyed on the calendar integration's id. Every write to that integration's
-  rows in `provider_calendar_events` takes it first, through `lock/1` or
-  `under_lock/2`: a full refresh (`replace_cached_rows/3`), a sync's upsert
-  (`Tymeslot.Integrations.Calendar.Sync.upsert_cache/2`) and the CalDAV
-  reconciler's atomic upsert-and-delete. Two writes to one integration's
-  cache therefore never interleave, and a delete-and-reinsert is never seen
-  half done.
+  (`@integration_cache_lock_class`), keyed on the calendar integration's id.
+  It is taken, through `lock/1` or `under_lock/2`, by the writes that touch
+  many of one integration's rows in more than one statement, or that insert
+  rows beside rows they update:
+
+    * a full refresh (`replace_cached_rows/3`), a delete-and-reinsert that is
+      never seen half done;
+    * a sync's upsert (`Tymeslot.Integrations.Calendar.Sync.upsert_cache/2`),
+      which updates the rows it already has, inserts the new ones and hands
+      a replaced series master's room on;
+    * the CalDAV reconciler's atomic upsert-and-delete;
+    * the cache's pruning (`prune_ended_before/1`,
+      `prune_inactive_integrations/0`), one integration at a time, since a
+      multi-row delete across the table could meet a reconciler's rows in
+      the opposite order.
+
+  Two of these on one integration never interleave.
+
+  The other writers are single statements on rows they already know: the
+  grid's edits and deletes of one event, the offline queue's per-row
+  bookkeeping and `QueueQueries.release_stuck/2`, the meeting
+  reconciliation's per-event updates, and the label rewrite
+  `ProviderCalendarLabelQueries.relabel/4`. None of them holds one cached
+  row while it waits on another row: an update or delete of rows that exist
+  sets no foreign key, and the grid's insert of one new event takes its
+  parents' key-share locks holding no row a deletion could be waiting for.
+  So none can close a cycle with a deletion, and they take no lock.
 
   ## Lock order
 
@@ -189,40 +209,56 @@ defmodule Tymeslot.Integrations.Calendar.IntegrationCacheQueries do
     do: where(query, [e], e.role == ^role)
 
   @doc """
-  Deletes cached events that ended before the given cutoff datetime.
-
-  Both timed events (end_at) and all-day events (end_date) are considered.
-  Returns the number of deleted rows.
+  Deletes cached events that ended before `cutoff`, timed events by `end_at`
+  and all-day events by `end_date`, one integration at a time under its cache
+  lock. Returns the number of deleted rows.
   """
   @spec prune_ended_before(DateTime.t()) :: non_neg_integer()
   def prune_ended_before(cutoff) do
     cutoff_date = DateTime.to_date(cutoff)
 
-    {count, _rows} =
-      ProviderCalendarEventSchema
-      |> where(
-        [e],
-        (e.all_day == false and e.end_at < ^cutoff) or
-          (e.all_day == true and e.end_date < ^cutoff_date)
+    ended =
+      from(e in ProviderCalendarEventSchema,
+        where:
+          (e.all_day == false and e.end_at < ^cutoff) or
+            (e.all_day == true and e.end_date < ^cutoff_date)
       )
-      |> Repo.delete_all()
 
-    count
+    prune_per_integration(ended)
   end
 
   @doc """
-  Deletes all cached events belonging to inactive integrations.
-
-  Returns the number of deleted rows.
+  Deletes all cached events belonging to inactive integrations, one
+  integration at a time under its cache lock. Returns the number of deleted
+  rows.
   """
   @spec prune_inactive_integrations() :: non_neg_integer()
   def prune_inactive_integrations do
-    {count, _rows} =
-      ProviderCalendarEventSchema
-      |> join(:inner, [e], i in assoc(e, :calendar_integration))
-      |> where([_e, i], i.is_active == false)
-      |> Repo.delete_all()
+    prune_per_integration(
+      from(e in ProviderCalendarEventSchema,
+        join: i in assoc(e, :calendar_integration),
+        where: i.is_active == false
+      )
+    )
+  end
 
-    count
+  defp prune_per_integration(rows) do
+    rows
+    |> distinct(true)
+    |> select([e], e.calendar_integration_id)
+    |> Repo.all()
+    |> Enum.sum_by(fn integration_id ->
+      case under_lock(integration_id, fn ->
+             {count, _rows} =
+               rows
+               |> where([e], e.calendar_integration_id == ^integration_id)
+               |> Repo.delete_all()
+
+             count
+           end) do
+        {:ok, count} -> count
+        {:error, :integration_gone} -> 0
+      end
+    end)
   end
 end
