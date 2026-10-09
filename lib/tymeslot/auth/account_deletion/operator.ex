@@ -67,7 +67,7 @@ defmodule Tymeslot.Auth.AccountDeletion.Operator do
            {:ok, pending} <-
              UserQueries.mark_deletion_scheduled(target, target.deletion_requested_at || now, now),
            {_count, nil} <- Jobs.delete_user_jobs(AccountDeletionWorker, target.id),
-           {:ok, _job} <- AccountDeletionWorker.schedule(target.id, job_at || now) do
+           {:ok, _job} <- AccountDeletionWorker.schedule(target.id, job_at || now, force: force?) do
         {pending, Session.delete_session_rows(pending.id)}
       else
         {:error, reason} -> Repo.rollback(reason)

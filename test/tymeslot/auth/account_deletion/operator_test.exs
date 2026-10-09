@@ -116,4 +116,27 @@ defmodule Tymeslot.Auth.AccountDeletion.OperatorTest do
     assert Auth.delete_account_now(actor, target.id, force: true) == {:error, :last_admin}
     refute Repo.reload!(target).deletion_scheduled_at
   end
+
+  test "a forced release-shell deletion carries force into its fallback job" do
+    only_admin = insert(:user, is_admin: true)
+    later = DateTime.add(DateTime.utc_now(:second), 5, :minute)
+
+    assert {:ok, _pending} =
+             Auth.delete_account_now(:cli, only_admin.id, force: true, job_at: later)
+
+    assert [%{args: %{"force" => true} = args}] = all_enqueued(worker: AccountDeletionWorker)
+
+    # The job runs as the fallback would: the last admin is deleted, not held.
+    assert :ok = perform_job(AccountDeletionWorker, args)
+    refute Repo.get(UserSchema, only_admin.id)
+  end
+
+  test "an unforced deletion queues a job without force" do
+    target = insert(:user)
+    _admin = insert(:user, is_admin: true)
+
+    assert {:ok, _pending} = Auth.delete_account_now(:cli, target.id)
+    assert [%{args: args}] = all_enqueued(worker: AccountDeletionWorker)
+    refute Map.has_key?(args, "force")
+  end
 end
