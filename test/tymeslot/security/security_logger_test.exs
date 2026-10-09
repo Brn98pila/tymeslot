@@ -11,7 +11,7 @@ defmodule Tymeslot.Security.SecurityLoggerTest do
 
   import Mox, only: [verify_on_exit!: 1]
 
-  alias Tymeslot.Security.SecurityLogger
+  alias Tymeslot.Security.{SecurityLogger, Token}
   alias Tymeslot.Test.LogCapture
 
   # SecurityLogger emits most events at :info, while config/test.exs pins the primary level
@@ -171,7 +171,7 @@ defmodule Tymeslot.Security.SecurityLoggerTest do
       assert meta.email_masked == nil
       assert meta.ip_address == nil
       assert meta.user_agent == nil
-      assert meta.session_id == nil
+      assert meta.session_hash == nil
     end
 
     test "forwards every supplied detail as structured metadata" do
@@ -180,7 +180,7 @@ defmodule Tymeslot.Security.SecurityLoggerTest do
           user_id: 1,
           ip_address: "1.2.3.4",
           user_agent: "test",
-          session_id: "abcdef12345678",
+          session_hash: "abcdef12345678",
           email: "c@d.com"
         })
       end)
@@ -189,7 +189,7 @@ defmodule Tymeslot.Security.SecurityLoggerTest do
       assert meta.user_id == 1
       assert meta.ip_address == "1.2.3.4"
       assert meta.user_agent == "test"
-      assert meta.session_id == "abcdef12345678"
+      assert meta.session_hash == "abcdef12345678"
       assert meta.email_masked == "c***@d.com"
     end
 
@@ -285,39 +285,48 @@ defmodule Tymeslot.Security.SecurityLoggerTest do
   end
 
   describe "log_session_event/4" do
-    test "redacts a long session id down to its last eight characters" do
+    test "names the session by the start of its stored hash, never by the token" do
+      token = "super_secret_session_token_abcdef12"
+
       capture_security_logs(fn ->
-        SecurityLogger.log_session_event(
-          "created",
-          1,
-          "super_secret_session_token_abcdef12",
-          %{}
-        )
+        SecurityLogger.log_session_event("created", 1, token, %{})
       end)
 
-      assert_receive {:captured_log, %{meta: %{event_type: "session_created"} = meta}}
+      assert_receive {:captured_log,
+                      %{level: :info, meta: %{event_type: "session_created"} = meta}}
+
       assert meta.user_id == 1
-      assert meta.session_id == "…abcdef12"
+      assert meta.session_hash == binary_part(Token.hash_token(token), 0, 16)
       refute inspect(meta) =~ "super_secret_session_token"
+      refute inspect(meta) =~ "abcdef12"
     end
 
-    test "replaces a session id shorter than eight characters outright" do
-      capture_security_logs(fn ->
-        SecurityLogger.log_session_event("created", 1, "short", %{})
-      end)
-
-      assert_receive {:captured_log, %{meta: %{event_type: "session_created"} = meta}}
-      assert meta.session_id == "…REDACTED"
-      refute inspect(meta) =~ "short"
-    end
-
-    test "tolerates a nil session id" do
+    test "tolerates a nil session token" do
       capture_security_logs(fn ->
         SecurityLogger.log_session_event("destroyed", 1, nil, %{})
       end)
 
       assert_receive {:captured_log, %{meta: %{event_type: "session_destroyed"} = meta}}
-      assert meta.session_id == nil
+      assert meta.session_hash == nil
+    end
+  end
+
+  # Level-keyed alerting must see every refusal and failure.
+  describe "event levels" do
+    test "lockouts, rate-limit refusals, CSRF failures and failed social sign-ins warn" do
+      capture_security_logs(fn ->
+        SecurityLogger.log_account_lockout("a@b.com", "failed_attempts", %{})
+        SecurityLogger.log_rate_limit_violation("a@b.com", "login", %{})
+        SecurityLogger.log_csrf_violation(1, "login", %{})
+        SecurityLogger.log_social_auth_event("google", false, %{})
+        SecurityLogger.log_social_auth_event("google", true, %{})
+      end)
+
+      for event <- ~w(account_lockout rate_limit_violation csrf_violation social_auth_failure) do
+        assert_receive {:captured_log, %{level: :warning, meta: %{event_type: ^event}}}
+      end
+
+      assert_receive {:captured_log, %{level: :info, meta: %{event_type: "social_auth_success"}}}
     end
   end
 
