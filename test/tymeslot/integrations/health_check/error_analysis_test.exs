@@ -115,6 +115,14 @@ defmodule Tymeslot.Integrations.HealthCheck.ErrorAnalysisTest do
       assert ErrorAnalysis.classify_error("access_denied") == :hard
     end
 
+    # The same calendar meets the same cap on every retry.
+    test "classifies a read past the page cap as hard" do
+      assert ErrorAnalysis.classify_error(:too_many_pages) == :hard
+
+      assert ErrorAnalysis.classify_error({:too_many_pages, "Graph read exceeded 100 pages"}) ==
+               :hard
+    end
+
     test "classifies exception wrappers with hard auth markers as hard" do
       assert ErrorAnalysis.classify_error({:exception, "invalid_grant"}) == :hard
       assert ErrorAnalysis.classify_error({:exception, "access_denied: user revoked"}) == :hard

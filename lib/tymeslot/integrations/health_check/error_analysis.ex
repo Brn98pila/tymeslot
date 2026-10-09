@@ -80,12 +80,18 @@ defmodule Tymeslot.Integrations.HealthCheck.ErrorAnalysis do
 
   def classify_error({:http_error, _status, _message}), do: :transient
 
-  def classify_error(reason) when reason in [:timeout, :nxdomain, :econnrefused, :network_error],
-    do: :transient
+  def classify_error(reason)
+      when reason in [:timeout, :nxdomain, :econnrefused, :network_error, :server_error],
+      do: :transient
 
   def classify_error(reason)
       when reason in [:unauthorized, :invalid_credentials, :token_expired],
       do: :hard
+
+  # A read past Graph's or Google's page cap meets the same calendar, and the
+  # same cap, on every retry: waiting does not shorten it.
+  def classify_error(:too_many_pages), do: :hard
+  def classify_error({:too_many_pages, _message}), do: :hard
 
   def classify_error({:exception, message}) when is_binary(message),
     do: classify_error(message)

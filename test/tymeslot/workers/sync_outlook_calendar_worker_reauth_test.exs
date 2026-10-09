@@ -119,7 +119,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorkerReauthTest do
   end
 
   describe "sweep filter" do
-    test "stream_all_active skips integrations with needs_reauth: true" do
+    test "list_active_page skips integrations with needs_reauth: true" do
       healthy =
         insert(:calendar_integration,
           provider: "outlook",
@@ -138,9 +138,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorkerReauthTest do
         )
 
       ids =
-        CalendarIntegrationQueries.stream_all_active(100, [], fn row, acc ->
-          [row.id | acc]
-        end)
+        Enum.map(CalendarIntegrationQueries.list_active_page(0, 100), & &1.id)
 
       assert healthy.id in ids
       refute flagged.id in ids

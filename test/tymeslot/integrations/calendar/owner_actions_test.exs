@@ -146,7 +146,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActionsTest do
       assert {:ok, [{"Team feed", :ok}]} = Calendar.refresh_all_integrations(user.id)
 
       assert [job] = all_enqueued(worker: SyncIcsCalendarWorker)
-      assert job.args == %{"calendar_integration_id" => active.id}
+      assert job.args["calendar_integration_id"] == active.id
     end
 
     test "is refused once the refresh budget is spent" do

@@ -28,6 +28,7 @@ defmodule Tymeslot.Integrations.Calendar do
 
   @behaviour Tymeslot.Security.EncryptedStorage
 
+  alias Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
@@ -40,6 +41,7 @@ defmodule Tymeslot.Integrations.Calendar do
   alias Tymeslot.Integrations.Calendar.Discovery
   alias Tymeslot.Integrations.Calendar.Exchange.Creation, as: ExchangeCreation
   alias Tymeslot.Integrations.Calendar.Exchange.FreeBusy
+  alias Tymeslot.Integrations.Calendar.IntegrationCacheQueries
   alias Tymeslot.Integrations.Calendar.Nextcloud.Login, as: NextcloudLogin
   alias Tymeslot.Integrations.Calendar.OAuth
   alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
@@ -155,6 +157,32 @@ defmodule Tymeslot.Integrations.Calendar do
   @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.toggle_integration/2`."
   @spec toggle_integration(user_id(), integration_id()) :: {:ok, integration()} | {:error, any()}
   defdelegate toggle_integration(user_id, integration_id), to: OwnerActions
+
+  @doc """
+  The changes of the user's CalDAV calendars the server kept refusing, which
+  are no longer replayed, by integration id. See
+  `Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue.stuck_changes/1`.
+  """
+  @spec stuck_changes(user_id()) :: %{
+          integration_id() => %{count: pos_integer(), last_error: String.t() | nil}
+        }
+  defdelegate stuck_changes(user_id), to: OfflineQueue
+
+  @doc """
+  Takes the integration cache lock's advisory step for every calendar the
+  user has, as deleting the account must before it deletes the user row. Call
+  it inside a transaction. See
+  `Tymeslot.Integrations.Calendar.IntegrationCacheQueries`.
+  """
+  @spec lock_calendar_caches(user_id()) :: :ok
+  defdelegate lock_calendar_caches(user_id),
+    to: IntegrationCacheQueries,
+    as: :lock_cache_class_for_user
+
+  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.retry_stuck_changes/2`."
+  @spec retry_stuck_changes(user_id(), integration_id()) ::
+          {:ok, non_neg_integer()} | {:error, any()}
+  defdelegate retry_stuck_changes(user_id, integration_id), to: OwnerActions
 
   # ---------------------------
   # Public API: Discovery/Selection

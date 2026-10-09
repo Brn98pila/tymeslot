@@ -34,6 +34,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
      |> assign(:selected_provider, nil)
      |> assign(:is_refreshing, false)
      |> assign(:health_states, %{})
+     |> assign(:stuck_changes, %{})
      |> assign(:show_picker, false)
      |> assign(:managing_calendar_id, nil)
      |> assign(:available_calendar_providers, Calendar.list_available_providers(:calendar))}
@@ -53,14 +54,16 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
 
   # The integrations hub already loads the calendar list and health states
   # for its active tab child (one query per hub render instead of two) and
-  # passes them down as the `integrations`/`health_states` props. Reuse them
+  # passes them down as the `integrations`/`health_states`/`stuck_changes`
+  # props. Reuse them
   # when present; fall back to loading independently otherwise — e.g. when
   # mounted standalone via the `:calendar_integration` dashboard action, or
   # when a `send_update/2` targets us with a partial assign (those always
   # want a fresh reload, matching prior behaviour).
   defp maybe_load_integrations(socket, %{
          integrations: _integrations,
-         health_states: _health_states
+         health_states: _health_states,
+         stuck_changes: _stuck_changes
        }),
        do: socket
 
@@ -200,6 +203,30 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
          Tasks.with_context(fn -> Calendar.refresh_all_integrations(user_id) end)
        )}
     end
+  end
+
+  def handle_event("retry_stuck_changes", %{"id" => id}, socket) do
+    with_owned_integration(socket, id, &Calendar.retry_stuck_changes/2, fn
+      {:ok, _retried} ->
+        Flash.info(
+          dgettext(
+            "dashboard_calendar_settings",
+            "Sending the changes again. This calendar will update shortly."
+          )
+        )
+
+        {:noreply, load_integrations(socket)}
+
+      {:error, _reason} ->
+        Flash.error(
+          dgettext(
+            "dashboard_calendar_settings",
+            "Could not retry the changes. Please try again."
+          )
+        )
+
+        {:noreply, socket}
+    end)
   end
 
   def handle_event(
@@ -402,7 +429,11 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
     socket
     |> assign(:integrations, integrations)
     |> assign(:health_states, health_states)
+    |> load_stuck_changes()
   end
+
+  defp load_stuck_changes(socket),
+    do: assign(socket, :stuck_changes, Calendar.stuck_changes(socket.assigns.current_user.id))
 
   defp format_refresh_failures(names) when length(names) <= 3 do
     Enum.join(names, ", ")

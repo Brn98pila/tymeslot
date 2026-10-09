@@ -192,9 +192,7 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Creation do
   # gap; a failure to enqueue is non-fatal, since the fallback sweep will still
   # pick the integration up.
   defp enqueue_initial_sync(integration) do
-    case %{"calendar_integration_id" => integration.id}
-         |> SyncExchangeCalendarWorker.new()
-         |> Oban.insert() do
+    case SyncExchangeCalendarWorker.enqueue(integration.id) do
       {:ok, _job} ->
         :ok
 

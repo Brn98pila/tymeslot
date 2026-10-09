@@ -22,6 +22,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.QueueQueries do
 
   import Ecto.Query, warn: false
 
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Repo
 
@@ -106,6 +107,62 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.QueueQueries do
     |> order_by([e], asc: e.updated_at)
     |> limit(^limit)
     |> Repo.all()
+  end
+
+  @doc """
+  The queued changes of `user_id`'s integrations that have failed
+  `max_attempts` counted times and are no longer replayed, by integration:
+  how many there are, and the failure most recently recorded on one.
+
+  Keyed on the attempt count, not on `sync_last_error`: a change still being
+  retried carries an error too.
+  """
+  @spec stuck_by_integration(pos_integer(), pos_integer()) :: %{
+          pos_integer() => %{count: pos_integer(), last_error: String.t() | nil}
+        }
+  def stuck_by_integration(user_id, max_attempts) do
+    ProviderCalendarEventSchema
+    |> join(:inner, [e], i in CalendarIntegrationSchema, on: i.id == e.calendar_integration_id)
+    |> where([_e, i], i.user_id == ^user_id)
+    |> where_stuck(max_attempts)
+    |> group_by([e], e.calendar_integration_id)
+    |> select([e], {
+      e.calendar_integration_id,
+      %{
+        count: count(e.id),
+        last_error:
+          fragment(
+            "(array_agg(? ORDER BY ? DESC) FILTER (WHERE ? IS NOT NULL))[1]",
+            e.sync_last_error,
+            e.sync_last_attempt_at,
+            e.sync_last_error
+          )
+      }
+    })
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
+  Returns the stuck changes of `calendar_integration_id` (see
+  `stuck_by_integration/2`) to the queue: their attempt count and deferral
+  clock start again, so the next flush replays them. Answers how many.
+  """
+  @spec release_stuck(pos_integer(), pos_integer()) :: non_neg_integer()
+  def release_stuck(calendar_integration_id, max_attempts) do
+    {count, _rows} =
+      ProviderCalendarEventSchema
+      |> where([e], e.calendar_integration_id == ^calendar_integration_id)
+      |> where_stuck(max_attempts)
+      |> Repo.update_all(set: [sync_attempts: 0, sync_deferred_since: nil])
+
+    count
+  end
+
+  defp where_stuck(query, max_attempts) do
+    query
+    |> where([e], e.sync_state != "synced")
+    |> where([e], e.sync_attempts >= ^max_attempts)
   end
 
   @doc """

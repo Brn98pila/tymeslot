@@ -14,6 +14,7 @@ defmodule Tymeslot.Auth.AccountDeletion do
   alias Tymeslot.Auth.{Session, UserQueries, UserSchema}
   alias Tymeslot.FinancialRetention
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Jobs
   alias Tymeslot.Profiles
   alias Tymeslot.Repo
@@ -83,6 +84,10 @@ defmodule Tymeslot.Auth.AccountDeletion do
   # once the deletion has committed.
   defp run_deletion_transaction(user, opts) do
     Repo.transaction(fn ->
+      # Before the user row: the cascade reaches every cached calendar event,
+      # which a sync may be writing under its integration cache lock.
+      Calendar.lock_calendar_caches(user.id)
+
       with :ok <- confirm_due_for_deletion(user.id, Keyword.get(opts, :only_if_pending, false)),
            session_hashes = Session.delete_session_rows(user.id),
            :ok <- FinancialRetention.anonymise_host(user.id),

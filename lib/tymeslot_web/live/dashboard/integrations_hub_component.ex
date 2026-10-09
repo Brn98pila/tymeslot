@@ -42,6 +42,7 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
      |> assign(:calendars, calendars)
      |> assign(:videos, videos)
      |> assign(:health_states, health_states)
+     |> assign(:stuck_changes, Calendar.stuck_changes(user_id))
      |> assign(:connect_account, connect_account)
      |> assign(:active_tab, parse_tab(assigns[:params], payments_allowed?))}
   end
@@ -307,6 +308,7 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
             user_agent={@user_agent}
             integrations={@calendars}
             health_states={@health_states.calendars}
+            stuck_changes={@stuck_changes}
           />
           <.live_component
             :if={@active_tab == :video}
