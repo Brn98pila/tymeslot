@@ -104,7 +104,7 @@ defmodule Tymeslot.Auth.SignupSecurity do
   defp verify_recaptcha(user_params, metadata) do
     token = Map.get(user_params, "g-recaptcha-response", "")
 
-    case RecaptchaHelpers.maybe_verify_signup_token(token, metadata) do
+    case RecaptchaHelpers.verify(:signup, token, metadata) do
       :ok ->
         :ok
 

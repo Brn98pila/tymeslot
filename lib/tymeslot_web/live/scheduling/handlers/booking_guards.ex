@@ -199,7 +199,7 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingGuards do
 
     token = Map.get(raw_params, "g-recaptcha-response", "")
 
-    case RecaptchaHelpers.maybe_verify_booking_token(token, metadata) do
+    case RecaptchaHelpers.verify(:booking, token, metadata) do
       :ok -> :ok
       {:error, reason} -> {:error, recaptcha_error(socket, reason)}
     end

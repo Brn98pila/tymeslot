@@ -120,7 +120,7 @@ defmodule TymeslotWeb.Themes.Core.PollVoting do
 
     token = Map.get(params, "g-recaptcha-response", "")
 
-    case RecaptchaHelpers.maybe_verify_booking_token(token, metadata) do
+    case RecaptchaHelpers.verify(:booking, token, metadata) do
       :ok -> :ok
       {:error, reason} -> {:error, recaptcha_error_message(reason)}
     end
