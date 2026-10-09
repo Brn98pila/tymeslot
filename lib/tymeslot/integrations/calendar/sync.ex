@@ -303,9 +303,14 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
     meetings_by_identifier =
       Meetings.list_meetings_by_calendar_identifiers(integration.id, identifiers)
 
+    # Read once for the batch, and only when an all-day event needs it.
+    host_zone =
+      if Enum.any?(calendar_events, & &1.all_day),
+        do: Profiles.get_user_timezone(integration.user_id)
+
     Enum.each(
       calendar_events,
-      &maybe_reconcile_time_change(integration, &1, meetings_by_identifier)
+      &maybe_reconcile_time_change(integration, &1, meetings_by_identifier, host_zone)
     )
 
     :ok
@@ -314,14 +319,15 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
   defp maybe_reconcile_time_change(
          integration,
          %CalendarEvent{} = cal_event,
-         meetings_by_identifier
+         meetings_by_identifier,
+         host_zone
        ) do
     case linked_meeting(cal_event, meetings_by_identifier) do
       nil ->
         :ok
 
       meeting ->
-        case timing_change(meeting, cal_event, integration.user_id) do
+        case timing_change(meeting, cal_event, host_zone) do
           :moved ->
             reconcile(integration.id, cal_event.provider_event_id, cal_event.uid, :modified)
 
@@ -353,17 +359,16 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
   # An all-day event carries no hours, so only its first day is compared, on
   # the host's calendar: the meeting's UTC date is the day before for a
   # morning meeting east of UTC.
-  defp timing_change(meeting, %CalendarEvent{all_day: true} = cal_event, user_id) do
-    zone = Profiles.get_user_timezone(user_id)
-    meeting_day = meeting.start_time |> DateTime.shift_zone!(zone) |> DateTime.to_date()
+  defp timing_change(meeting, %CalendarEvent{all_day: true} = cal_event, host_zone) do
+    meeting_day = meeting.start_time |> DateTime.shift_zone!(host_zone) |> DateTime.to_date()
 
     if cal_event.start_date == meeting_day, do: :none, else: :moved
   end
 
   # Timed event with no start_at — should not occur for valid timed events, treat as unchanged.
-  defp timing_change(_meeting, %CalendarEvent{start_at: nil}, _user_id), do: :none
+  defp timing_change(_meeting, %CalendarEvent{start_at: nil}, _host_zone), do: :none
 
-  defp timing_change(meeting, %CalendarEvent{start_at: start_at, end_at: end_at}, _user_id) do
+  defp timing_change(meeting, %CalendarEvent{start_at: start_at, end_at: end_at}, _host_zone) do
     cond do
       not same_second?(meeting.start_time, start_at) -> :moved
       is_nil(end_at) or same_second?(meeting.end_time, end_at) -> :none
