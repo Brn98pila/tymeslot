@@ -1,6 +1,6 @@
 defmodule Tymeslot.SignedToken do
   @moduledoc """
-  Every `Phoenix.Token` the app signs, by purpose.
+  Every `Phoenix.Token` the application signs, by purpose.
 
   Each purpose has its own salt, so a token signed for one can never verify
   as another, and its own lifetime. The salts are what tokens already handed
@@ -18,6 +18,7 @@ defmodule Tymeslot.SignedToken do
           | :oauth_signup_confirmation
           | :booking_preview
           | :cursor_page
+          | :slack_oauth_state
 
   @purposes %{
     embed_session: [salt: "embed_session", max_age: 6 * 3600],
@@ -33,7 +34,9 @@ defmodule Tymeslot.SignedToken do
     # Cursors are permanent: they name a position, not a grant. Bump the
     # salt when the cursor payload shape changes; that also invalidates every
     # cursor in the wild.
-    cursor_page: [salt: "cursor-page:v1", max_age: :infinity]
+    cursor_page: [salt: "cursor-page:v1", max_age: :infinity],
+    # Ten minutes to finish the Slack install it was issued for.
+    slack_oauth_state: [salt: "slack_oauth_state", max_age: 600]
   }
 
   @doc "Signs `payload` for `purpose`."
