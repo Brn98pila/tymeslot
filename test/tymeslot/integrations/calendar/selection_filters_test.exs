@@ -134,6 +134,98 @@ defmodule Tymeslot.Integrations.Calendar.SelectionFiltersTest do
   defp entries(maps), do: Enum.map(maps, &CalendarEntry.normalize/1)
 
   # =====================================
+  # blocking
+  # =====================================
+
+  describe "blocking_calendars/1" do
+    test "keeps selected calendars that block, read-only ones included" do
+      list =
+        entries([
+          %{id: "work", selected: true},
+          %{id: "shared", selected: true, read_only: true},
+          %{id: "holidays", selected: true, blocks_availability: false},
+          %{id: "old", selected: false, blocks_availability: true}
+        ])
+
+      assert Enum.map(Selection.blocking_calendars(list), & &1.id) == ["work", "shared"]
+    end
+
+    test "returns [] for nil" do
+      assert Selection.blocking_calendars(nil) == []
+    end
+  end
+
+  describe "availability_view/1" do
+    test "narrows the list and the paths to the blocking calendars" do
+      integration = %{
+        id: 1,
+        calendar_paths: ["/cal/work/", "/cal/holidays/"],
+        calendar_list:
+          entries([
+            %{id: "/cal/work/", path: "/cal/work/", selected: true},
+            %{
+              id: "/cal/holidays/",
+              path: "/cal/holidays/",
+              selected: true,
+              blocks_availability: false
+            }
+          ])
+      }
+
+      view = Selection.availability_view(integration)
+
+      assert Enum.map(view.calendar_list, & &1.id) == ["/cal/work/"]
+      assert view.calendar_paths == ["/cal/work/"]
+    end
+
+    test "drops an integration whose selected calendars all show only" do
+      # Passed on with an empty list, Google and Outlook would read the
+      # account's primary calendar instead.
+      integration = %{
+        id: 1,
+        calendar_list: entries([%{id: "work", selected: true, blocks_availability: false}])
+      }
+
+      assert Selection.availability_view(integration) == nil
+    end
+
+    test "leaves an integration that predates calendar selection unchanged" do
+      for list <- [nil, []] do
+        integration = %{id: 1, calendar_list: list, calendar_paths: ["/cal/a/"]}
+        assert Selection.availability_view(integration) == integration
+      end
+    end
+  end
+
+  describe "blocking_rules/1" do
+    test "matches only the blocking calendars, beside the wider visibility rule" do
+      integration = %{
+        id: 7,
+        calendar_list:
+          entries([
+            %{id: "work", selected: true},
+            %{id: "holidays", selected: true, blocks_availability: false}
+          ])
+      }
+
+      assert Selection.blocking_rules([integration]) ==
+               %{7 => {:selected, [%{id: "work", prefix: "work"}]}}
+
+      assert %{7 => {:selected, [_, _]}} = Selection.visibility_rules([integration])
+    end
+
+    test "is :none when nothing blocks and :all without a calendar list" do
+      show_only = %{
+        id: 1,
+        calendar_list: entries([%{id: "a", selected: true, blocks_availability: false}])
+      }
+
+      assert Selection.blocking_rules([show_only, %{id: 2, calendar_list: nil}]) ==
+               %{1 => :none, 2 => :all}
+    end
+  end
+
+  # =====================================
   # find_calendar_by_path/2
   # =====================================
 

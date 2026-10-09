@@ -41,6 +41,10 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
 
   @doc """
   Merge discovered calendars with an existing list of selections.
+
+  A calendar already in `existing_list` keeps the owner's choices, whether it
+  is selected and whether it blocks availability. A new one arrives
+  deselected, with the blocking default its discovery gave it.
   """
   @spec unify_discovered_with_existing(list(), list()) :: [CalendarEntry.t()]
   def unify_discovered_with_existing(discovered, existing_list) do
@@ -52,20 +56,23 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
     # always persist a usable path rather than `null`.
     |> Enum.map(&CalendarEntry.with_defaults/1)
     |> Enum.map(fn entry ->
-      selected = lookup_selection(existing_map, [entry.path, entry.id])
-      %{entry | selected: selected}
+      case lookup_choices(existing_map, [entry.path, entry.id]) do
+        nil -> %{entry | selected: false}
+        choices -> Map.merge(entry, choices)
+      end
     end)
   end
 
   defp build_existing_selection_map(existing) do
     Enum.reduce(existing, %{}, fn cal, acc ->
       entry = CalendarEntry.normalize(cal)
+      choices = Map.take(entry, [:selected, :blocks_availability])
 
       acc
-      |> maybe_put(entry.path, entry.selected)
-      |> maybe_put(entry.id, entry.selected)
-      |> maybe_put_decoded(entry.path, entry.selected)
-      |> maybe_put_decoded(entry.id, entry.selected)
+      |> maybe_put(entry.path, choices)
+      |> maybe_put(entry.id, choices)
+      |> maybe_put_decoded(entry.path, choices)
+      |> maybe_put_decoded(entry.id, choices)
     end)
   end
 
@@ -73,19 +80,16 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
     Enum.any?(selected_paths, &UriUtils.uri_safe_match?(path, &1))
   end
 
-  # Looks up a selection boolean for a calendar identified by any of the given
-  # keys (tried in order). Treats false and true as distinct — unlike `||`, this
-  # returns false immediately when a key is present with that value rather than
-  # continuing to the next candidate.
-  defp lookup_selection(existing_map, keys) do
+  # Looks up the stored choices for a calendar identified by any of the given
+  # keys (tried in order, each also percent-decoded), or nil for a calendar
+  # the existing list does not know.
+  defp lookup_choices(existing_map, keys) do
     keys
     |> Enum.flat_map(fn
       nil -> []
       key -> [key, UriUtils.safe_decode(key)]
     end)
-    |> Enum.find_value(false, fn key ->
-      if Map.has_key?(existing_map, key), do: Map.fetch!(existing_map, key)
-    end)
+    |> Enum.find_value(&Map.get(existing_map, &1))
   end
 
   defp maybe_put(acc, nil, _val), do: acc
@@ -289,6 +293,54 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   end
 
   @doc """
+  Whether `entry`'s busy time removes slots from the booking page: it is
+  selected and the owner has not set it to show only. A deselected calendar
+  never blocks, whatever its `blocks_availability` says.
+  """
+  @spec blocking?(CalendarEntry.t()) :: boolean()
+  def blocking?(%CalendarEntry{selected: selected, blocks_availability: blocks}),
+    do: selected and blocks
+
+  @doc """
+  Returns the entries from a `calendar_list` that block availability (see
+  `blocking?/1`), read-only ones included. `[]` for nil input.
+  """
+  @spec blocking_calendars([CalendarEntry.t()] | nil) :: [CalendarEntry.t()]
+  def blocking_calendars(nil), do: []
+
+  def blocking_calendars(calendar_list) when is_list(calendar_list),
+    do: calendar_list |> Enum.map(&CalendarEntry.normalize/1) |> Enum.filter(&blocking?/1)
+
+  @doc """
+  The integration as the availability read must see it: `calendar_list`
+  narrowed to its blocking calendars, with `calendar_paths` to match, or
+  `nil` when it has a calendar list and none of it blocks.
+
+  Availability reads blocking calendars only, so a calendar set to show only
+  is never read for it and can never refuse a slot. Dropping an integration
+  with nothing blocking, rather than passing it on with an empty list, is
+  load-bearing: Google and Outlook read the account's primary calendar when
+  no calendar is selected. An integration with no calendar list predates
+  selection and is returned unchanged, everything it has blocking as before.
+  """
+  @spec availability_view(map()) :: map() | nil
+  def availability_view(%{calendar_list: list} = integration) when list in [nil, []],
+    do: integration
+
+  def availability_view(%{calendar_list: list} = integration) do
+    case blocking_calendars(list) do
+      [] ->
+        nil
+
+      blocking ->
+        Map.merge(integration, %{
+          calendar_list: blocking,
+          calendar_paths: derive_selected_paths(blocking)
+        })
+    end
+  end
+
+  @doc """
   Returns the selected entries from a `calendar_list` that are also
   writable — the calendars available as booking/sync targets. Read-only
   calendars can still be selected for conflict-checking visibility (see
@@ -436,17 +488,31 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   the row.
   """
   @spec visibility_rules([map()]) :: %{integer() => visibility_rule()}
-  def visibility_rules(integrations) do
-    Map.new(integrations, fn integration -> {integration.id, integration_rule(integration)} end)
+  def visibility_rules(integrations),
+    do: rules(integrations, &selected_calendars/1)
+
+  @doc """
+  The availability counterpart of `visibility_rules/1`: per integration id,
+  the `t:visibility_rule/0` that keeps only cached rows from calendars that
+  block availability (see `blocking?/1`). Same shape, so the same query
+  builder applies it; a calendar list with nothing blocking is `:none`.
+  """
+  @spec blocking_rules([map()]) :: %{integer() => visibility_rule()}
+  def blocking_rules(integrations),
+    do: rules(integrations, &blocking_calendars/1)
+
+  defp rules(integrations, pick) do
+    Map.new(integrations, fn integration ->
+      {integration.id, integration_rule(integration, pick)}
+    end)
   end
 
-  defp integration_rule(%{calendar_list: nil}), do: :all
-  defp integration_rule(%{calendar_list: []}), do: :all
+  defp integration_rule(%{calendar_list: list}, _pick) when list in [nil, []], do: :all
 
-  defp integration_rule(%{calendar_list: calendar_list}) do
-    case selected_calendars(calendar_list) do
+  defp integration_rule(%{calendar_list: calendar_list}, pick) do
+    case pick.(calendar_list) do
       [] -> :none
-      selected -> {:selected, Enum.map(selected, &%{id: &1.id, prefix: &1.path || &1.id})}
+      entries -> {:selected, Enum.map(entries, &%{id: &1.id, prefix: &1.path || &1.id})}
     end
   end
 

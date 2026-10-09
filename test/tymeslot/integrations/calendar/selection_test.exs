@@ -17,6 +17,33 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
   # =====================================
 
   describe "unify_discovered_with_existing/2" do
+    test "carries a show-only choice across rediscovery, selected or not" do
+      discovered = [
+        %{id: "holidays", name: "Holidays"},
+        %{id: "archive", name: "Archive"}
+      ]
+
+      existing = [
+        %{"id" => "holidays", "selected" => true, "blocks_availability" => false},
+        %{"id" => "archive", "selected" => false, "blocks_availability" => false}
+      ]
+
+      assert [holidays, archive] = Selection.unify_discovered_with_existing(discovered, existing)
+      assert {holidays.selected, holidays.blocks_availability} == {true, false}
+      assert {archive.selected, archive.blocks_availability} == {false, false}
+    end
+
+    test "gives a newly discovered calendar the blocking default discovery gave it" do
+      discovered = [
+        %{id: "work", name: "Work", selected: true},
+        %{id: "birthdays", name: "Birthdays", blocks_availability: false}
+      ]
+
+      assert [work, birthdays] = Selection.unify_discovered_with_existing(discovered, [])
+      assert {work.selected, work.blocks_availability} == {false, true}
+      assert {birthdays.selected, birthdays.blocks_availability} == {false, false}
+    end
+
     test "preserves selection when discovered ID is percent-encoded and existing is decoded" do
       discovered = [
         %{

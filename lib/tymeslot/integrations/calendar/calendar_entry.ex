@@ -30,6 +30,12 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEntry do
       unwritable, defaults to `false`
     * `:primary` — whether the provider marks this as the account's default
       calendar, defaults to `false`
+    * `:blocks_availability` — whether the calendar's busy time removes
+      slots from the booking page, defaults to `true`. Effective only while
+      `:selected` (see `Tymeslot.Integrations.Calendar.Selection.blocking?/1`),
+      and kept while deselected so re-ticking the calendar restores it. A
+      missing key reads as `true`: every calendar blocked before the choice
+      existed, so a legacy row keeps blocking.
     * `:color` — provider display colour (Google `backgroundColor`, Outlook
       `color`, CalDAV `calendar-color`), when supplied
     * `:raw` — internal passthrough for keys `cast/1` doesn't recognise
@@ -37,7 +43,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEntry do
       `can_edit`/`owner`, discovery's `metadata`/`provider`), so a
       round-trip through this type never silently drops data it doesn't
       understand. Not part of the public reading surface: callers must not
-      read or rely on this field, only the eight named ones above.
+      read or rely on this field, only the nine named ones above.
 
   `:primary` and `:color` were added after `:id`/`:path`/`:name`/`:type`/
   `:selected`/`:read_only`. No writer rewrote already-persisted
@@ -51,7 +57,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEntry do
 
   use Ecto.Type
 
-  @known_keys ~w(id path href name type selected read_only primary color)
+  @known_keys ~w(id path href name type selected read_only primary color blocks_availability)
 
   @type t :: %__MODULE__{
           id: String.t() | nil,
@@ -61,6 +67,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEntry do
           selected: boolean(),
           read_only: boolean(),
           primary: boolean(),
+          blocks_availability: boolean(),
           color: String.t() | nil,
           raw: map()
         }
@@ -72,6 +79,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEntry do
             selected: false,
             read_only: false,
             primary: false,
+            blocks_availability: true,
             color: nil,
             raw: %{}
 
@@ -92,6 +100,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEntry do
        selected: fetch(map, :selected) || false,
        read_only: fetch(map, :read_only) || false,
        primary: fetch(map, :primary) || false,
+       blocks_availability: fetch(map, :blocks_availability) != false,
        color: fetch(map, :color),
        raw: extract_raw(map)
      }}
@@ -114,6 +123,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEntry do
        "selected" => entry.selected,
        "read_only" => entry.read_only,
        "primary" => entry.primary,
+       "blocks_availability" => entry.blocks_availability,
        "color" => entry.color
      })}
   end
