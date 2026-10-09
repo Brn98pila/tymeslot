@@ -4,55 +4,9 @@ defmodule Tymeslot.Security.Security do
   Provides protection against common attack vectors.
   """
 
-  require Logger
+  use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Security.FieldValidators.TLDList
-  alias Tymeslot.Timezones
-
-  # Longest IANA id is well under 40 chars; this is an injection guard, not a
-  # format check, so it stays generous.
-  @max_timezone_length 100
-
-  @doc """
-  Sanitizes timezone input to prevent injection.
-
-  Identity is decided by `Timezones.valid?/1`, a real IANA lookup, so anything
-  the time zone database resolves is accepted. A prior format regex rejected
-  legitimate zones the picker itself offers — three-segment ids such as
-  `America/Argentina/Buenos_Aires` and offset zones such as `Etc/GMT+5` — which
-  silently discarded the user's choice.
-
-  The length guard runs first so an oversized string is rejected before it
-  reaches the lookup.
-  """
-  @spec validate_timezone(String.t()) :: {:ok, String.t()} | {:error, String.t()}
-  def validate_timezone(timezone) when is_binary(timezone) do
-    cond do
-      String.length(timezone) > @max_timezone_length ->
-        Logger.warning("Timezone validation failed: too long",
-          timezone_length: String.length(timezone)
-        )
-
-        {:error, "Timezone too long"}
-
-      not Timezones.valid?(timezone) ->
-        Logger.warning("Timezone validation failed: unknown zone", timezone: timezone)
-        {:error, "Unknown timezone"}
-
-      true ->
-        {:ok, timezone}
-    end
-  end
-
-  @spec validate_timezone(term()) :: {:error, String.t()}
-  def validate_timezone(timezone) do
-    Logger.warning("Timezone validation failed: not a string",
-      value_type: LogFormat.reason(timezone)
-    )
-
-    {:error, "Invalid timezone"}
-  end
 
   @doc """
   Validates a list of domain names, filtering empty entries first.
@@ -97,7 +51,7 @@ defmodule Tymeslot.Security.Security do
         {:ok, "none"}
 
       String.length(domain) > 255 ->
-        {:error, "Some domains exceed maximum length (max 255 characters)"}
+        {:error, dgettext("errors", "Some domains exceed maximum length (max 255 characters)")}
 
       # Wildcard subdomain pattern: *.example.com
       String.starts_with?(domain, "*.") ->
@@ -112,7 +66,7 @@ defmodule Tymeslot.Security.Security do
             error -> error
           end
         else
-          {:error, "Invalid domain format (e.g. *.example.com)"}
+          {:error, dgettext("errors", "Invalid domain format (e.g. *.example.com)")}
         end
 
       # Domain pattern: alphanumeric, dots, and hyphens. Must not start/end with hyphen/dot.
@@ -124,11 +78,11 @@ defmodule Tymeslot.Security.Security do
         validate_domain_tld(String.downcase(domain))
 
       true ->
-        {:error, "Invalid domain format (e.g. example.com)"}
+        {:error, dgettext("errors", "Invalid domain format (e.g. example.com)")}
     end
   end
 
-  def validate_domain(_invalid_value), do: {:error, "Invalid domain"}
+  def validate_domain(_invalid_value), do: {:error, dgettext("errors", "Invalid domain")}
 
   defp validate_domain_tld(domain) do
     tld = TLDList.extract_tld(domain)

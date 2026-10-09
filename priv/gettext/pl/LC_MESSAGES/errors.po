@@ -659,19 +659,16 @@ msgstr "Wiadomość musi zawierać sensowną treść"
 msgid "Name cannot be blank"
 msgstr "Imię i nazwisko nie może być puste"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name cannot be only numbers"
 msgstr "Imię i nazwisko nie może składać się wyłącznie z cyfr"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name contains excessive whitespace"
 msgstr "Imię i nazwisko zawiera zbędne spacje"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name contains invalid characters"
@@ -682,7 +679,6 @@ msgstr "Imię i nazwisko zawiera niedozwolone znaki"
 msgid "Name is required"
 msgstr "Imię i nazwisko jest wymagane"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name is too long (maximum %{max_length} characters)"
@@ -693,7 +689,6 @@ msgstr "Imię i nazwisko jest za długie (maksymalna liczba znaków: %{max_lengt
 msgid "Name is too short (minimum %{min_length} characters)"
 msgstr "Imię i nazwisko jest za krótkie (minimalna liczba znaków: %{min_length})"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name must be a text value"
@@ -868,3 +863,28 @@ msgstr "Adres URL jest wymagany"
 #, elixir-autogen, elixir-format
 msgid "URL must be text"
 msgstr "Adres URL musi być tekstem"
+
+#: lib/tymeslot/security/security.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid domain"
+msgstr "Nieprawidłowa domena"
+
+#: lib/tymeslot/security/security.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid domain format (e.g. *.example.com)"
+msgstr "Nieprawidłowy format domeny (np. *.example.com)"
+
+#: lib/tymeslot/security/security.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid domain format (e.g. example.com)"
+msgstr "Nieprawidłowy format domeny (np. example.com)"
+
+#: lib/tymeslot/timezones/timezones.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid timezone"
+msgstr "Nieprawidłowa strefa czasowa"
+
+#: lib/tymeslot/security/security.ex
+#, elixir-autogen, elixir-format
+msgid "Some domains exceed maximum length (max 255 characters)"
+msgstr "Niektóre domeny przekraczają maksymalną długość (maks. 255 znaków)"
