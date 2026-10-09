@@ -258,6 +258,11 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
         tidy_after_write(job)
         :ok
 
+      # A rate limit that said how long to wait (see `OAuthBase`).
+      {:error, {:rate_limited, seconds}} when is_integer(seconds) ->
+        tag_for_offline_queue(job, :rate_limited)
+        handle_error_result(:rate_limited, job, "retry_after:#{seconds}")
+
       {:error, error_type} ->
         handle_failure(error_type, job)
 
