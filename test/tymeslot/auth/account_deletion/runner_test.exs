@@ -233,6 +233,20 @@ defmodule Tymeslot.Auth.AccountDeletion.RunnerTest do
       refute Repo.get(UserSchema, admin.id)
     end
 
+    test "is held, then deleted on the next run once another admin can sign in", %{
+      admin: admin
+    } do
+      assert {:snooze, _seconds} = Runner.run(admin.id)
+      assert Repo.get(UserSchema, admin.id)
+
+      insert(:user, is_admin: true)
+      # The day's hold has passed.
+      pending_user_from(Repo.get!(UserSchema, admin.id))
+
+      assert Runner.run(admin.id) == {:ok, :deleted}
+      refute Repo.get(UserSchema, admin.id)
+    end
+
     test "is deleted when the release shell forces it", %{admin: admin} do
       assert Runner.run(admin.id, force: true) == {:ok, :deleted}
       refute Repo.get(UserSchema, admin.id)
