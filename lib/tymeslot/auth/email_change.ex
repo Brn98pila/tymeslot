@@ -21,7 +21,6 @@ defmodule Tymeslot.Auth.EmailChange do
     RateLimit,
     Session,
     UserQueries,
-    UserSessionQueries,
     UserTokenQueries,
     Validation
   }
@@ -211,7 +210,7 @@ defmodule Tymeslot.Auth.EmailChange do
       {:ok, result} ->
         # After successful commit, disconnect any live sockets bound to the
         # now-revoked sessions, then enqueue confirmation emails.
-        Enum.each(result.revoked_session_hashes, &Session.disconnect_session_hash/1)
+        Session.disconnect_sessions(result.revoked_session_hashes)
 
         _result =
           EmailScheduler.schedule_email_change_confirmations(
@@ -260,13 +259,9 @@ defmodule Tymeslot.Auth.EmailChange do
     Repo.transaction(fn ->
       with {:ok, user} <- AccountTokens.fetch(:email_change, token, lock: true),
            {:ok, updated_user} <- AccountTokens.consume(:email_change, user) do
-        # Invalidate all existing sessions for security. Capture the token
-        # hashes before deleting so the caller can disconnect their live
-        # sockets *after* this transaction commits — never from inside it.
-        revoked_session_hashes =
-          UserSessionQueries.list_user_session_token_hashes(updated_user.id)
-
-        UserSessionQueries.delete_user_sessions(updated_user.id)
+        # Invalidate all existing sessions for security. The caller
+        # disconnects their live sockets only after this transaction commits.
+        revoked_session_hashes = Session.delete_session_rows(updated_user.id)
 
         Logger.info("Email change verified successfully", user_id: updated_user.id)
 
