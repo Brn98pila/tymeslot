@@ -3,6 +3,7 @@ defmodule Tymeslot.Emails.EmailService.AccountEmails do
 
   require Logger
 
+  alias Tymeslot.Clock
   alias Tymeslot.Emails.Delivery
   alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Emails.Shared.MjmlEmail
@@ -57,7 +58,7 @@ defmodule Tymeslot.Emails.EmailService.AccountEmails do
       new_email: new_email
     )
 
-    request_time = DateTime.utc_now()
+    request_time = Clock.utc_now()
 
     RecipientLocale.with_user_locale(user, fn ->
       html_body = EmailChangeNotification.render(user, new_email, request_time)
