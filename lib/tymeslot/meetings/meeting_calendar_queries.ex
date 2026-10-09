@@ -12,6 +12,7 @@ defmodule Tymeslot.Meetings.MeetingCalendarQueries do
   alias Tymeslot.Meetings.CalendarEventLink
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
+  alias Tymeslot.Meetings.MeetingState
   alias Tymeslot.Repo
 
   @externally_deleted "externally_deleted"
@@ -161,8 +162,10 @@ defmodule Tymeslot.Meetings.MeetingCalendarQueries do
 
   @doc """
   Moves a meeting's end to `end_time`, with its duration, while its start is
-  still `start_time`. A meeting rescheduled in the meantime keeps its new
-  times: the end was read against the old ones.
+  still the one the provider event was compared against and it still expects
+  a provider event (`MeetingState.where_expects_calendar_event/1`). A meeting
+  rescheduled, cancelled or sent a reschedule request in the meantime is left
+  alone: the end was read against what it was before.
 
   Returns `{:ok, meeting}`, or `{:error, :not_found}` if no row matched.
   """
@@ -171,6 +174,7 @@ defmodule Tymeslot.Meetings.MeetingCalendarQueries do
     {count, _rows} =
       Meeting
       |> where([m], m.id == ^id and m.start_time == ^start_time)
+      |> MeetingState.where_expects_calendar_event()
       |> Repo.update_all(
         set: [
           end_time: end_time,

@@ -22,6 +22,7 @@ defmodule Tymeslot.Integrations.Calendar.ExternalEndChangeTest do
   alias Ecto.Changeset
   alias Tymeslot.EmailServiceMock
   alias Tymeslot.Infrastructure.AvailabilityCache
+  alias Tymeslot.Meetings
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.TestMocks
@@ -135,6 +136,87 @@ defmodule Tymeslot.Integrations.Calendar.ExternalEndChangeTest do
       assert updated.calendar_sync_status == "externally_modified"
       assert updated.end_time == ctx.meeting.end_time
     end
+  end
+
+  describe "an end change for a meeting that no longer stands" do
+    for {label, attrs} <- [
+          {"cancelled", [status: "cancelled"]},
+          {"waiting on a reschedule request",
+           [reschedule_requested_at: ~U[2026-01-01 00:00:00Z]]},
+          {"with the legacy reschedule status", [status: "reschedule_requested"]}
+        ] do
+      test "is not followed for a meeting #{label}", ctx do
+        meeting = ctx.meeting |> Changeset.change(unquote(Macro.escape(attrs))) |> Repo.update!()
+        with_video_room(meeting)
+
+        sync(ctx, meeting.start_time, ~T[11:30:00])
+
+        assert_unchanged(meeting)
+      end
+    end
+
+    test "is not followed for a meeting whose slot has passed", ctx do
+      start_time = DateTime.add(DateTime.utc_now(:second), -2, :hour)
+
+      meeting =
+        ctx.meeting
+        |> Changeset.change(start_time: start_time, end_time: DateTime.add(start_time, 1800))
+        |> Repo.update!()
+
+      with_video_room(meeting)
+
+      sync(ctx, meeting.start_time, DateTime.to_time(DateTime.add(start_time, 3600)))
+
+      assert_unchanged(meeting)
+    end
+
+    # The sync reads the meeting, then writes; these land in between.
+    test "is not written over a reschedule that landed after the read", ctx do
+      read = ctx.meeting
+      moved_start = DateTime.add(read.start_time, 2, :hour)
+
+      moved =
+        read
+        |> Changeset.change(start_time: moved_start, end_time: DateTime.add(moved_start, 1800))
+        |> Repo.update!()
+
+      with_video_room(moved)
+
+      assert :ok =
+               Meetings.apply_external_end_change(
+                 read,
+                 DateTime.add(read.start_time, 90, :minute)
+               )
+
+      assert_unchanged(moved)
+    end
+
+    test "is not written over a cancellation that landed after the read", ctx do
+      read = ctx.meeting
+      cancelled = read |> Changeset.change(status: "cancelled") |> Repo.update!()
+      with_video_room(cancelled)
+
+      assert :ok =
+               Meetings.apply_external_end_change(
+                 read,
+                 DateTime.add(read.start_time, 90, :minute)
+               )
+
+      assert_unchanged(cancelled)
+    end
+  end
+
+  defp with_video_room(meeting) do
+    Repo.update_all(from(m in MeetingSchema, where: m.id == ^meeting.id),
+      set: [video_room_id: "room-1"]
+    )
+  end
+
+  defp assert_unchanged(meeting) do
+    {:ok, reloaded} = MeetingQueries.get_meeting(meeting.id)
+    assert reloaded.end_time == meeting.end_time
+    assert reloaded.duration == meeting.duration
+    refute_enqueued(worker: VideoSyncWorker, args: %{"meeting_id" => meeting.id})
   end
 
   describe "a meeting mirrored as an all-day event" do

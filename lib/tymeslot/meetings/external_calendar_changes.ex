@@ -109,9 +109,14 @@ defmodule Tymeslot.Meetings.ExternalCalendarChanges do
         AvailabilityCache.invalidate_for_user(updated.organizer_user_id)
         sync_video_room(updated)
 
-      # Rescheduled or deleted since the event was read: its times are no
-      # longer the ones the event was compared against.
+      # Rescheduled, cancelled, voided or deleted since the event was read:
+      # the end was compared against a meeting that no longer stands, so
+      # nothing is written and nothing follows from it.
       {:error, :not_found} ->
+        Logger.info("External end change dropped: the meeting changed since it was read",
+          meeting_id: meeting.id
+        )
+
         :ok
     end
   end
