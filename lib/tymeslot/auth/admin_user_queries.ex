@@ -172,12 +172,16 @@ defmodule Tymeslot.Auth.AdminUserQueries do
   @doc """
   Acquires a `FOR UPDATE` row lock on every admin user and returns them.
 
-  Must be called inside a transaction. Used by `AdminRoles` to prevent
-  concurrent demotions from racing past the last-admin invariant.
+  Must be called inside a transaction. Used by `AdminRoles` and account
+  deletion to prevent concurrent demotions and deletions from racing past the
+  last-admin invariant. The rows are locked in id order, so two callers always
+  take them in the same order and cannot deadlock on each other.
   """
   @spec lock_admins() :: [UserSchema.t()]
   def lock_admins do
-    Repo.all(from(u in UserSchema, where: u.is_admin == true, lock: "FOR UPDATE"))
+    Repo.all(
+      from(u in UserSchema, where: u.is_admin == true, order_by: [asc: u.id], lock: "FOR UPDATE")
+    )
   end
 
   @doc """
