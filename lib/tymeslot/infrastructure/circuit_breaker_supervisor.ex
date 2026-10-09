@@ -25,6 +25,10 @@ defmodule Tymeslot.Infrastructure.CircuitBreakerSupervisor do
   @spec email_breaker_name() :: atom()
   def email_breaker_name, do: @email_breaker_name
 
+  @doc "The email breaker's configuration."
+  @spec email_breaker_config() :: map()
+  def email_breaker_config, do: @email_breaker_config
+
   @doc """
   How long the email breaker stays open before it probes the provider again.
 
