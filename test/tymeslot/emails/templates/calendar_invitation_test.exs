@@ -148,7 +148,7 @@ defmodule Tymeslot.Emails.Templates.CalendarInvitationTest do
             {30, "30 minutes"},
             {45, "45 minutes"},
             {60, "1 hour"},
-            {90, "1.5 hours"},
+            {90, "1 hour 30 minutes"},
             {120, "2 hours"}
           ] do
         details = build_invitation_details(%{duration: duration})
