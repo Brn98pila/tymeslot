@@ -298,11 +298,6 @@ msgstr[1] "vérifie les conflits sur %{selected} des %{count} calendriers"
 
 #: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
 #, elixir-autogen, elixir-format
-msgid "Last synced %{time}"
-msgstr "Dernière synchronisation %{time}"
-
-#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
-#, elixir-autogen, elixir-format
 msgid "Delete"
 msgstr "Supprimer"
 
@@ -317,13 +312,6 @@ msgid "1 change made here was not saved to this calendar."
 msgid_plural "%{count} changes made here were not saved to this calendar."
 msgstr[0] "%{count} modification effectuée ici n'a pas été enregistrée dans ce calendrier."
 msgstr[1] "%{count} modifications effectuées ici n'ont pas été enregistrées dans ce calendrier."
-
-#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
-#, elixir-autogen, elixir-format
-msgid "1 change made here was not saved to this calendar. The server said: %{error}"
-msgid_plural "%{count} changes made here were not saved to this calendar. The server said: %{error}"
-msgstr[0] "%{count} modification effectuée ici n'a pas été enregistrée dans ce calendrier. Le serveur a répondu : %{error}"
-msgstr[1] "%{count} modifications effectuées ici n'ont pas été enregistrées dans ce calendrier. Le serveur a répondu : %{error}"
 
 #: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
 #, elixir-autogen, elixir-format
@@ -344,3 +332,36 @@ msgstr "Renvoyer les modifications refusées par le serveur de ce calendrier"
 #, elixir-autogen, elixir-format
 msgid "Sending the changes again. This calendar will update shortly."
 msgstr "Renvoi des modifications en cours. Ce calendrier sera mis à jour sous peu."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "1 change made here was not saved to this calendar. Last error: %{error}"
+msgid_plural "%{count} changes made here were not saved to this calendar. Last error: %{error}"
+msgstr[0] "%{count} modification effectuée ici n'a pas été enregistrée dans ce calendrier. Dernière erreur : %{error}"
+msgstr[1] "%{count} modifications effectuées ici n'ont pas été enregistrées dans ce calendrier. Dernière erreur : %{error}"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Last synced %{count} day ago"
+msgid_plural "Last synced %{count} days ago"
+msgstr[0] "Dernière synchronisation il y a %{count} jour"
+msgstr[1] "Dernière synchronisation il y a %{count} jours"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Last synced %{count} hour ago"
+msgid_plural "Last synced %{count} hours ago"
+msgstr[0] "Dernière synchronisation il y a %{count} heure"
+msgstr[1] "Dernière synchronisation il y a %{count} heures"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Last synced %{count} minute ago"
+msgid_plural "Last synced %{count} minutes ago"
+msgstr[0] "Dernière synchronisation il y a %{count} minute"
+msgstr[1] "Dernière synchronisation il y a %{count} minutes"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Last synced just now"
+msgstr "Dernière synchronisation à l'instant"

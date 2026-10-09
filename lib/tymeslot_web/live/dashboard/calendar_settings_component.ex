@@ -54,16 +54,18 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
 
   # The integrations hub already loads the calendar list and health states
   # for its active tab child (one query per hub render instead of two) and
-  # passes them down as the `integrations`/`health_states` props. Reuse them
+  # passes them down as the `integrations`/`health_states`/`stuck_changes`
+  # props. Reuse them
   # when present; fall back to loading independently otherwise — e.g. when
   # mounted standalone via the `:calendar_integration` dashboard action, or
   # when a `send_update/2` targets us with a partial assign (those always
   # want a fresh reload, matching prior behaviour).
   defp maybe_load_integrations(socket, %{
          integrations: _integrations,
-         health_states: _health_states
+         health_states: _health_states,
+         stuck_changes: _stuck_changes
        }),
-       do: load_stuck_changes(socket)
+       do: socket
 
   defp maybe_load_integrations(socket, _assigns), do: load_integrations(socket)
 

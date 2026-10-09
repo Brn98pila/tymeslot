@@ -9,7 +9,6 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.DisplayHelpers
   alias Tymeslot.Integrations.Calendar.ProviderConfig
-  alias Tymeslot.Integrations.Calendar.TokenUtils
   alias Tymeslot.Integrations.HealthCheck
 
   alias TymeslotWeb.Components.Dashboard.Integrations.Calendar.{
@@ -338,7 +337,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
           )}</span>
         </button>
         <button
-          :if={@stuck}
+          :if={retry_offered?(@integration, @stuck)}
           phx-click="retry_stuck_changes"
           phx-value-id={@integration.id}
           phx-target={@myself}
@@ -442,13 +441,10 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   defp reconnect_label_class(:attention), do: nil
   defp reconnect_label_class(:normal), do: "max-sm:sr-only"
 
-  # Card actions that carry a text label as well as an icon, so they cannot be
-  # `icon_button/1`, take its tile look (the `.icon-button` colour rules set no
-  # size or padding) and the small action button's size, so they sit level
-  # with the icon buttons in the card's footer and keep their label at every
-  # width.
   # A change the server kept refusing is no longer sent, so until the owner
-  # retries it the calendar differs from what the grid shows.
+  # retries it the calendar differs from what the grid shows. The error is
+  # stored as an English msgid (a CalDAV error, or Tymeslot's own reason for
+  # skipping the change) and translated as it is shown.
   defp stuck_notice(nil), do: nil
 
   defp stuck_notice(%{count: count, last_error: nil}) do
@@ -463,13 +459,25 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   defp stuck_notice(%{count: count, last_error: error}) do
     dngettext(
       "dashboard_calendar_settings",
-      "1 change made here was not saved to this calendar. The server said: %{error}",
-      "%{count} changes made here were not saved to this calendar. The server said: %{error}",
+      "1 change made here was not saved to this calendar. Last error: %{error}",
+      "%{count} changes made here were not saved to this calendar. Last error: %{error}",
       count,
-      error: error
+      error: ConnectionLabels.translate_reason(error)
     )
   end
 
+  # Retrying resets the changes for the next sync to send, so it is offered
+  # only while syncs run: not while the calendar waits to be reconnected or
+  # is paused.
+  defp retry_offered?(%{needs_reauth: true}, _stuck), do: false
+  defp retry_offered?(%{is_active: false}, _stuck), do: false
+  defp retry_offered?(_integration, stuck), do: stuck != nil
+
+  # Card actions that carry a text label as well as an icon, so they cannot be
+  # `icon_button/1`, take its tile look (the `.icon-button` colour rules set no
+  # size or padding) and the small action button's size, so they sit level
+  # with the icon buttons in the card's footer and keep their label at every
+  # width.
   defp tile_class(variant),
     do: ["icon-button", "icon-button--#{variant}", "gap-1.5 px-3 py-1.5 text-token-sm font-bold"]
 
@@ -564,11 +572,46 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   # The card's last-activity line; nothing for a connection never synced.
   # `last_external_sync_at` is what every sync worker stamps and what the
   # staleness banner reads.
-  defp last_synced(%{last_external_sync_at: %DateTime{} = synced_at}),
-    do:
-      dgettext("dashboard_calendar_settings", "Last synced %{time}",
-        time: TokenUtils.relative_time(synced_at)
-      )
+  # Whole sentences rather than "Last synced %{time}" around a relative
+  # phrase, so each language words the time as its own sentence needs.
+  defp last_synced(%{last_external_sync_at: %DateTime{} = synced_at}) do
+    seconds = max(DateTime.diff(DateTime.utc_now(), synced_at), 0)
+
+    cond do
+      seconds < 60 ->
+        dgettext("dashboard_calendar_settings", "Last synced just now")
+
+      seconds < 3600 ->
+        count = div(seconds, 60)
+
+        dngettext(
+          "dashboard_calendar_settings",
+          "Last synced %{count} minute ago",
+          "Last synced %{count} minutes ago",
+          count
+        )
+
+      seconds < 86_400 ->
+        count = div(seconds, 3600)
+
+        dngettext(
+          "dashboard_calendar_settings",
+          "Last synced %{count} hour ago",
+          "Last synced %{count} hours ago",
+          count
+        )
+
+      true ->
+        count = div(seconds, 86_400)
+
+        dngettext(
+          "dashboard_calendar_settings",
+          "Last synced %{count} day ago",
+          "Last synced %{count} days ago",
+          count
+        )
+    end
+  end
 
   defp last_synced(_integration), do: nil
 end
