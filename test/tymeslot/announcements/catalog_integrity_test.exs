@@ -11,6 +11,8 @@ defmodule Tymeslot.Announcements.CatalogIntegrityTest do
   @max_cta_label_length 40
   @max_bullet_length 100
 
+  @expired_grace_days 30
+
   setup do
     {:ok, entries: Catalog.list()}
   end
@@ -124,6 +126,25 @@ defmodule Tymeslot.Announcements.CatalogIntegrityTest do
         assert DateTime.after?(expires_at, entry.published_at),
                "expires_at for #{entry.key} must be after published_at; the entry would never be shown."
       end
+    end
+
+    # Expired entries are never shown but keep costing a translation in every
+    # locale, so they are deleted once they have been expired for a while.
+    # This fails on the day one passes that grace: delete the entry (and its
+    # gettext strings), it is no longer needed.
+    test "no entry has been expired for more than #{@expired_grace_days} days", %{
+      entries: entries
+    } do
+      cutoff = DateTime.add(DateTime.utc_now(), -@expired_grace_days, :day)
+
+      long_expired =
+        for %{expires_at: %DateTime{} = expires_at, key: key} <- entries,
+            DateTime.before?(expires_at, cutoff),
+            do: key
+
+      assert long_expired == [],
+             "expired more than #{@expired_grace_days} days ago, delete from the catalogue: " <>
+               Enum.join(long_expired, ", ")
     end
   end
 end
