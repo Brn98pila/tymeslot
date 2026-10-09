@@ -12,9 +12,12 @@ defmodule Tymeslot.Workers.FallbackSyncSweepWorker do
   CalDAV integrations also get a forced full fetch once a day, to recover
   events their tier's delta reads missed.
 
-  Jobs are enqueued in batches of 50, each batch scheduled one second after
-  the previous via `scheduled_at`, to avoid thundering-herd load on provider
-  APIs and the database without blocking the queue slot.
+  Integrations are read as a stream and handled 50 at a time: each batch is
+  decided and enqueued before the next is read, so the sweep holds one batch
+  in memory however many integrations there are. Each batch's jobs are
+  scheduled one second after the previous batch's via `scheduled_at`, to
+  avoid thundering-herd load on provider APIs and the database without
+  blocking the queue slot.
   """
 
   use Oban.Worker,
@@ -51,186 +54,137 @@ defmodule Tymeslot.Workers.FallbackSyncSweepWorker do
   def perform(%Oban.Job{}) do
     now = DateTime.utc_now()
     paused_ids = SyncGating.paused_integration_ids(:calendar)
-    by_provider = drop_paused_integrations(collect_integrations_by_provider(), paused_ids)
+    sweep = %{batch: [], batch_index: 0, counts: %{}}
 
-    google_count = enqueue_due(Map.get(by_provider, "google", []), now)
-    outlook_count = enqueue_due(Map.get(by_provider, "outlook", []), now)
-
-    caldav_providers = Enum.map(ProviderConfig.caldav_based_providers(), &Atom.to_string/1)
-    caldav_integrations = Enum.flat_map(caldav_providers, &Map.get(by_provider, &1, []))
-
-    # Enqueue forced full-fetch jobs first so that, for integrations needing
-    # both a normal sync and a forced full fetch, Oban's unique constraint on
-    # SyncCalDavCalendarWorker (keyed by calendar_integration_id) keeps the
-    # forced job rather than deduping it to a plain sync.
-    # The subsequent normal enqueue pass will hit Oban's unique conflict for
-    # those same integrations and be silently ignored, which is the desired
-    # outcome.
-    {forced_full_count, forced_full_conflicts} =
-      enqueue_caldav_forced_full_fetches(caldav_integrations)
-
-    due_caldav = Enum.filter(caldav_integrations, &SyncSchedule.due?(&1, now))
-    caldav_count = enqueue_batched(due_caldav, now)
-    caldav_skipped = length(caldav_integrations) - length(due_caldav)
-
-    subscription_count =
-      ProviderConfig.subscription_provider_strings()
-      |> Enum.flat_map(&Map.get(by_provider, &1, []))
-      |> enqueue_due(now)
-
-    exchange_count =
-      ProviderConfig.ews_provider_strings()
-      |> Enum.flat_map(&Map.get(by_provider, &1, []))
-      |> enqueue_due(now)
+    counts =
+      @batch_size
+      |> CalendarIntegrationQueries.stream_all_active(sweep, fn integration, sweep ->
+        sweep = %{sweep | batch: [integration | sweep.batch]}
+        if length(sweep.batch) == @batch_size, do: flush(sweep, now, paused_ids), else: sweep
+      end)
+      |> flush(now, paused_ids)
+      |> Map.fetch!(:counts)
 
     Logger.info("FallbackSyncSweep complete",
-      google_scheduled: google_count,
-      outlook_scheduled: outlook_count,
-      caldav_scheduled: caldav_count,
-      caldav_skipped: caldav_skipped,
-      caldav_forced_full_scheduled: forced_full_count,
-      caldav_forced_full_conflicts: forced_full_conflicts,
-      subscription_scheduled: subscription_count,
-      exchange_scheduled: exchange_count
+      google_scheduled: Map.get(counts, :google, 0),
+      outlook_scheduled: Map.get(counts, :outlook, 0),
+      caldav_scheduled: Map.get(counts, :caldav, 0),
+      caldav_skipped: Map.get(counts, :caldav_skipped, 0),
+      caldav_forced_full_scheduled: Map.get(counts, :caldav_forced_full, 0),
+      caldav_forced_full_conflicts: Map.get(counts, :caldav_forced_full_conflicts, 0),
+      subscription_scheduled: Map.get(counts, :subscription, 0),
+      exchange_scheduled: Map.get(counts, :exchange, 0),
+      paused: Map.get(counts, :paused, 0)
     )
 
     :ok
   end
 
   # ---------------------------------------------------------------------------
-  # Integration loading (streamed to avoid unbounded memory)
+  # One batch of the stream: at most `@batch_size` integrations are held at a
+  # time, and each batch is decided and enqueued before the next is read.
   # ---------------------------------------------------------------------------
 
-  defp collect_integrations_by_provider do
-    CalendarIntegrationQueries.stream_all_active(@batch_size, %{}, fn integration, acc ->
-      Map.update(acc, integration.provider, [integration], &[integration | &1])
-    end)
+  defp flush(%{batch: []} = sweep, _now, _paused_ids), do: sweep
+
+  defp flush(sweep, now, paused_ids) do
+    {paused, batch} =
+      sweep.batch
+      |> Enum.reverse()
+      |> Enum.split_with(&MapSet.member?(paused_ids, &1.id))
+
+    caldav = Enum.filter(batch, &(group(&1) == :caldav))
+
+    # Forced full fetches first, so that for an integration due both a plain
+    # sync and a forced full fetch, Oban's unique constraint on
+    # SyncCalDavCalendarWorker (keyed by calendar_integration_id) keeps the
+    # forced job; the plain enqueue below then conflicts and is not counted.
+    {forced, forced_conflicts} = enqueue_caldav_forced_full_fetches(caldav, now)
+    due = Enum.filter(batch, &SyncSchedule.due?(&1, now))
+
+    counts =
+      due
+      |> Enum.filter(&(enqueue(&1, sweep.batch_index, now) == :ok))
+      |> Enum.frequencies_by(&group/1)
+      |> Map.merge(
+        %{
+          paused: length(paused),
+          caldav_skipped: length(caldav) - Enum.count(due, &(group(&1) == :caldav)),
+          caldav_forced_full: forced,
+          caldav_forced_full_conflicts: forced_conflicts
+        },
+        fn _key, left, right -> left + right end
+      )
+      |> Map.merge(sweep.counts, fn _key, left, right -> left + right end)
+
+    %{sweep | batch: [], batch_index: sweep.batch_index + 1, counts: counts}
   end
 
-  # Drop integrations whose health state indicates sustained hard failures
-  # (typically `invalid_grant` after a revoked token). They stay in the DB
-  # with `is_active = true` so the dashboard still shows them, but periodic
-  # sync stops hammering them until the next successful health check clears
-  # the failure counter — which will only happen after the user reauthorises.
-  defp drop_paused_integrations(by_provider, paused_ids) do
-    if MapSet.size(paused_ids) == 0 do
-      by_provider
-    else
-      Map.new(by_provider, fn {provider, integrations} ->
-        kept = Enum.reject(integrations, fn i -> MapSet.member?(paused_ids, i.id) end)
+  defp group(%{provider: "google"}), do: :google
+  defp group(%{provider: "outlook"}), do: :outlook
 
-        if length(kept) < length(integrations) do
-          Logger.info("Sync gating paused integrations in fallback sweep",
-            provider: provider,
-            paused_count: length(integrations) - length(kept)
-          )
-        end
-
-        {provider, kept}
-      end)
+  defp group(%{provider: provider}) do
+    cond do
+      provider in ProviderConfig.caldav_based_provider_strings() -> :caldav
+      provider in ProviderConfig.subscription_provider_strings() -> :subscription
+      provider in ProviderConfig.ews_provider_strings() -> :exchange
+      true -> :other
     end
   end
 
-  # ---------------------------------------------------------------------------
-  # Shared batch processing
-  # ---------------------------------------------------------------------------
+  # Each batch after the first is scheduled a second after the one before it
+  # rather than slept between, for the same pacing against provider APIs and
+  # the database without holding the sweep's queue slot.
+  defp enqueue(integration, batch_index, now) do
+    {:ok, %{worker: worker_module}} = SyncSchedule.schedule(integration)
+    args = %{"calendar_integration_id" => integration.id}
 
-  defp process_in_batches(items, per_item_fun) do
-    items
-    |> Enum.chunk_every(@batch_size)
-    |> Enum.with_index()
-    |> Enum.reduce({0, 0}, fn {batch, batch_index}, {total, conflicts} ->
-      {batch_count, batch_conflicts} =
-        Enum.reduce(batch, {0, 0}, fn item, {count, confl} ->
-          case per_item_fun.(item, batch_index) do
-            :ok -> {count + 1, confl}
-            :conflict -> {count, confl + 1}
-            :error -> {count, confl}
-          end
-        end)
+    opts =
+      if batch_index > 0,
+        do: [scheduled_at: DateTime.add(now, batch_index * @batch_stagger_seconds, :second)],
+        else: []
 
-      {total + batch_count, conflicts + batch_conflicts}
-    end)
+    insert(
+      worker_module.new(args, opts),
+      integration,
+      "Failed to enqueue worker in fallback sweep"
+    )
   end
 
-  # The integrations of `integrations` whose sync `SyncSchedule` says is due
-  # at `now`, each enqueued with the worker its provider syncs with.
-  defp enqueue_due(integrations, now) do
-    integrations
-    |> Enum.filter(&SyncSchedule.due?(&1, now))
-    |> enqueue_batched(now)
-  end
+  defp insert(changeset, integration, failure) do
+    case Oban.insert(changeset) do
+      {:ok, %Oban.Job{conflict?: true}} ->
+        :conflict
 
-  defp enqueue_batched(integrations, now) do
-    {scheduled, _conflicts} =
-      process_in_batches(integrations, fn integration, batch_index ->
-        {:ok, %{worker: worker_module}} = SyncSchedule.schedule(integration)
-        args = %{"calendar_integration_id" => integration.id}
+      {:ok, _job} ->
+        :ok
 
-        # Stagger each batch by scheduled_at offset instead of sleeping
-        # between batches — same thundering-herd pacing without blocking
-        # the sweep's queue slot.
-        opts =
-          if batch_index > 0 do
-            [scheduled_at: DateTime.add(now, batch_index * @batch_stagger_seconds, :second)]
-          else
-            []
-          end
+      {:error, reason} ->
+        Logger.warning(failure,
+          worker: changeset.changes.worker,
+          calendar_integration_id: integration.id,
+          error: reason
+        )
 
-        case Oban.insert(worker_module.new(args, opts)) do
-          {:ok, %Oban.Job{conflict?: true}} ->
-            :conflict
-
-          {:ok, _job} ->
-            :ok
-
-          {:error, reason} ->
-            Logger.warning("Failed to enqueue worker in fallback sweep",
-              worker: worker_module,
-              calendar_integration_id: integration.id,
-              error: reason
-            )
-
-            :error
-        end
-      end)
-
-    scheduled
+        :error
+    end
   end
 
   # ---------------------------------------------------------------------------
   # Periodic forced full fetch (recovers events missed by Tier 1/2 optimisations)
   # ---------------------------------------------------------------------------
 
-  defp enqueue_caldav_forced_full_fetches(integrations) do
-    now = DateTime.utc_now()
-    due = Enum.filter(integrations, &forced_full_fetch_due?(&1, now))
-
-    process_in_batches(due, fn integration, _batch_index ->
+  defp enqueue_caldav_forced_full_fetches(integrations, now) do
+    integrations
+    |> Enum.filter(&forced_full_fetch_due?(&1, now))
+    |> Enum.map(fn integration ->
       delay_seconds = :rand.uniform(@forced_full_fetch_jitter_seconds)
-      scheduled_at = DateTime.add(now, delay_seconds, :second)
 
-      args = %{
-        "calendar_integration_id" => integration.id,
-        "force_full_fetch" => true
-      }
-
-      case Oban.insert(SyncCalDavCalendarWorker.new(args, scheduled_at: scheduled_at)) do
-        {:ok, %Oban.Job{conflict?: true}} ->
-          :conflict
-
-        {:ok, _job} ->
-          :ok
-
-        {:error, reason} ->
-          Logger.warning("Failed to enqueue forced full-fetch CalDAV job",
-            calendar_integration_id: integration.id,
-            error: reason
-          )
-
-          :error
-      end
+      %{"calendar_integration_id" => integration.id, "force_full_fetch" => true}
+      |> SyncCalDavCalendarWorker.new(scheduled_at: DateTime.add(now, delay_seconds, :second))
+      |> insert(integration, "Failed to enqueue forced full-fetch CalDAV job")
     end)
+    |> then(&{Enum.count(&1, fn r -> r == :ok end), Enum.count(&1, fn r -> r == :conflict end)})
   end
 
   defp forced_full_fetch_due?(%{last_full_sync_at: nil}, _now), do: true

@@ -50,6 +50,18 @@ defmodule Tymeslot.Integrations.Calendar.SyncScheduleTest do
     end
   end
 
+  # A sync is short provider I/O, so every swept provider's runs on the
+  # wide `:calendar_events` queue; the two-slot `:calendar_integrations`
+  # queue is for health checks and the sweep itself.
+  for provider <- ["google", "outlook", "ics_url", "exchange", "caldav"] do
+    test "a #{provider} sync runs on the calendar_events queue" do
+      {:ok, %{worker: worker}} =
+        SyncSchedule.schedule(%CalendarIntegrationSchema{provider: unquote(provider)})
+
+      assert worker.new(%{"calendar_integration_id" => 1}).changes.queue == "calendar_events"
+    end
+  end
+
   describe "a provider with no schedule" do
     setup do
       %{integration: %CalendarIntegrationSchema{id: 1, provider: "carrier_pigeon"}}

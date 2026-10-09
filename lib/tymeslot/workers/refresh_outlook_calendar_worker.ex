@@ -18,7 +18,7 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
   """
 
   use Oban.Worker,
-    queue: :calendar_integrations,
+    queue: :calendar_events,
     max_attempts: 5,
     unique: [
       period: 60,
