@@ -50,7 +50,12 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ReconnectHttpTest do
     # breaker and the host-specific one so a prior 401 run doesn't
     # short-circuit the next run's PROPFIND.
     CalendarCircuitBreaker.reset(:caldav)
-    CalendarCircuitBreaker.reset(:caldav, ProviderBreakers.host_from_base_url("http://localhost:65432"))
+
+    CalendarCircuitBreaker.reset(
+      :caldav,
+      ProviderBreakers.host_from_base_url("http://localhost:65432")
+    )
+
     RateLimiter.clear_all()
     :ok
   end

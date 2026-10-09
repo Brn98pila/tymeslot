@@ -42,9 +42,7 @@ defmodule Tymeslot.Infrastructure.CalendarCircuitBreaker do
   """
   @spec breaker_key(atom(), String.t() | nil) :: {atom(), String.t() | nil}
   def breaker_key(:caldav, base_url),
-    do:
-      {CalDAVProvider.client_provider(base_url),
-       ProviderBreakers.host_from_base_url(base_url)}
+    do: {CalDAVProvider.client_provider(base_url), ProviderBreakers.host_from_base_url(base_url)}
 
   def breaker_key(provider, base_url) when provider in @host_keyed_providers,
     do: {provider, ProviderBreakers.host_from_base_url(base_url)}
