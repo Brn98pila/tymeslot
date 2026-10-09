@@ -44,30 +44,21 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   end
 
   @doc """
-  Streams all active calendar integrations in batches, reducing over them with
-  the given accumulator. Uses `Repo.stream/2` inside a transaction to avoid
-  loading all rows into memory at once.
+  The next page of active integrations not waiting to be reconnected, in id
+  order: at most `limit` of them with an id above `after_id` (`0` for the
+  first page). Credentials are left encrypted, as for `list_all_active/0`.
 
-  `fun` receives each integration, credentials left encrypted as for
-  `list_all_active/0`, and the current accumulator. Returns the final
-  accumulator value.
+  Each page is its own short query, so a caller can act on one page (enqueue
+  jobs, say) before reading the next without holding a transaction open
+  across the whole walk.
   """
-  @spec stream_all_active(pos_integer(), acc, (CalendarIntegrationSchema.t(), acc -> acc)) :: acc
-        when acc: term()
-  def stream_all_active(max_rows, initial_acc, fun) when is_function(fun, 2) do
-    {:ok, result} =
-      Repo.transaction(
-        fn ->
-          CalendarIntegrationSchema
-          |> where([c], c.is_active == true and c.needs_reauth == false)
-          |> order_by([c], asc: c.id)
-          |> Repo.stream(max_rows: max_rows)
-          |> Enum.reduce(initial_acc, fun)
-        end,
-        timeout: :infinity
-      )
-
-    result
+  @spec list_active_page(non_neg_integer(), pos_integer()) :: [CalendarIntegrationSchema.t()]
+  def list_active_page(after_id, limit) do
+    CalendarIntegrationSchema
+    |> where([c], c.is_active == true and c.needs_reauth == false and c.id > ^after_id)
+    |> order_by([c], asc: c.id)
+    |> limit(^limit)
+    |> Repo.all()
   end
 
   @doc """

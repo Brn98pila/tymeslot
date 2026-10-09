@@ -12,9 +12,10 @@ defmodule Tymeslot.Workers.FallbackSyncSweepWorker do
   CalDAV integrations also get a forced full fetch once a day, to recover
   events their tier's delta reads missed.
 
-  Integrations are read as a stream and handled 50 at a time: each batch is
-  decided and enqueued before the next is read, so the sweep holds one batch
-  in memory however many integrations there are. Each batch's jobs are
+  Integrations are read 50 at a time, a page by id per query and no
+  transaction around the walk: each page is decided and enqueued before the
+  next is read, so the sweep holds one page in memory however many
+  integrations there are, and each job is visible as soon as it is inserted. Each batch's jobs are
   scheduled one second after the previous batch's via `scheduled_at`, to
   avoid thundering-herd load on provider APIs and the database without
   blocking the queue slot.
@@ -54,16 +55,7 @@ defmodule Tymeslot.Workers.FallbackSyncSweepWorker do
   def perform(%Oban.Job{}) do
     now = DateTime.utc_now()
     paused_ids = SyncGating.paused_integration_ids(:calendar)
-    sweep = %{batch: [], batch_index: 0, counts: %{}}
-
-    counts =
-      @batch_size
-      |> CalendarIntegrationQueries.stream_all_active(sweep, fn integration, sweep ->
-        sweep = %{sweep | batch: [integration | sweep.batch]}
-        if length(sweep.batch) == @batch_size, do: flush(sweep, now, paused_ids), else: sweep
-      end)
-      |> flush(now, paused_ids)
-      |> Map.fetch!(:counts)
+    counts = sweep_pages(0, 0, %{}, now, paused_ids)
 
     Logger.info("FallbackSyncSweep complete",
       google_scheduled: Map.get(counts, :google, 0),
@@ -81,17 +73,29 @@ defmodule Tymeslot.Workers.FallbackSyncSweepWorker do
   end
 
   # ---------------------------------------------------------------------------
-  # One batch of the stream: at most `@batch_size` integrations are held at a
-  # time, and each batch is decided and enqueued before the next is read.
+  # One page at a time, by id. Each page is read by its own query and its jobs
+  # inserted before the next is read, outside any transaction: an insert made
+  # inside one would hold Oban's unique lock for the job until the whole sweep
+  # committed, so an owner's Refresh or a webhook enqueue for the same
+  # integration would meet it as a conflict and be dropped, and the staggered
+  # jobs would stay invisible until the end.
   # ---------------------------------------------------------------------------
 
-  defp flush(%{batch: []} = sweep, _now, _paused_ids), do: sweep
+  defp sweep_pages(after_id, batch_index, counts, now, paused_ids) do
+    case CalendarIntegrationQueries.list_active_page(after_id, @batch_size) do
+      [] ->
+        counts
 
-  defp flush(sweep, now, paused_ids) do
-    {paused, batch} =
-      sweep.batch
-      |> Enum.reverse()
-      |> Enum.split_with(&MapSet.member?(paused_ids, &1.id))
+      page ->
+        counts =
+          Map.merge(counts, flush(page, batch_index, now, paused_ids), fn _key, a, b -> a + b end)
+
+        sweep_pages(List.last(page).id, batch_index + 1, counts, now, paused_ids)
+    end
+  end
+
+  defp flush(page, batch_index, now, paused_ids) do
+    {paused, batch} = Enum.split_with(page, &MapSet.member?(paused_ids, &1.id))
 
     caldav = Enum.filter(batch, &(group(&1) == :caldav))
 
@@ -102,22 +106,18 @@ defmodule Tymeslot.Workers.FallbackSyncSweepWorker do
     {forced, forced_conflicts} = enqueue_caldav_forced_full_fetches(caldav, now)
     due = Enum.filter(batch, &SyncSchedule.due?(&1, now))
 
-    counts =
-      due
-      |> Enum.filter(&(enqueue(&1, sweep.batch_index, now) == :ok))
-      |> Enum.frequencies_by(&group/1)
-      |> Map.merge(
-        %{
-          paused: length(paused),
-          caldav_skipped: length(caldav) - Enum.count(due, &(group(&1) == :caldav)),
-          caldav_forced_full: forced,
-          caldav_forced_full_conflicts: forced_conflicts
-        },
-        fn _key, left, right -> left + right end
-      )
-      |> Map.merge(sweep.counts, fn _key, left, right -> left + right end)
-
-    %{sweep | batch: [], batch_index: sweep.batch_index + 1, counts: counts}
+    due
+    |> Enum.filter(&(enqueue(&1, batch_index, now) == :ok))
+    |> Enum.frequencies_by(&group/1)
+    |> Map.merge(
+      %{
+        paused: length(paused),
+        caldav_skipped: length(caldav) - Enum.count(due, &(group(&1) == :caldav)),
+        caldav_forced_full: forced,
+        caldav_forced_full_conflicts: forced_conflicts
+      },
+      fn _key, left, right -> left + right end
+    )
   end
 
   defp group(%{provider: "google"}), do: :google
