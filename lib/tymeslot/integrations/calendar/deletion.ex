@@ -58,16 +58,21 @@ defmodule Tymeslot.Integrations.Calendar.Deletion do
   # The promotion and the delete commit together, under the lock a toggle or
   # an automatic pause takes too, so a failed delete leaves the primary where
   # it was and a concurrent change cannot elect from a list this one is
-  # changing.
+  # changing. The integration cache lock comes first: the delete cascades
+  # into the cached events a sync may be writing.
   defp delete_and_reassign(integration) do
-    PrimaryElection.under_lock(integration.user_id, fn ->
-      # A concurrent delete may have removed the row while this one waited on
-      # the lock; deleting the struct read before it would raise.
-      case CalendarIntegrationQueries.reload(integration) do
-        nil -> Repo.rollback(:not_found)
-        stored -> delete_stored(stored)
-      end
-    end)
+    PrimaryElection.under_lock(
+      integration.user_id,
+      fn ->
+        # A concurrent delete may have removed the row while this one waited on
+        # the lock; deleting the struct read before it would raise.
+        case CalendarIntegrationQueries.reload(integration) do
+          nil -> Repo.rollback(:not_found)
+          stored -> delete_stored(stored)
+        end
+      end,
+      cache_of: [integration.id]
+    )
   end
 
   defp delete_stored(integration) do

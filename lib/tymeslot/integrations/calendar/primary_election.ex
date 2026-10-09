@@ -14,7 +14,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   paused or read-only calendar never becomes the primary, since every
   booking written to it would fail.
 
-  Both run inside `under_lock/2`, which takes
+  Both run inside `under_lock/3`, which takes
   `CalendarIntegrationQueries.lock_user_profile_and_integrations/1` before
   anything else, so a concurrent create, toggle, pause, delete or reconnect
   cannot decide from a list another one is changing, and every path locks in
@@ -24,6 +24,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.IntegrationCacheQueries
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Profiles.ProfileQueries
@@ -34,11 +35,18 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   @doc """
   Runs `fun` in a transaction holding the user's primary lock, returning
   `{:ok, result}`, or `{:error, reason}` when `fun` calls `Repo.rollback/1`.
+
+  `:cache_of` names integrations whose cached events `fun` will reach (a
+  delete cascades into them): their integration cache locks are taken
+  first, before the profile and integration rows, in the order
+  `IntegrationCacheQueries` documents.
   """
-  @spec under_lock(pos_integer(), (-> result)) :: {:ok, result} | {:error, term()}
+  @spec under_lock(pos_integer(), (-> result), cache_of: [pos_integer()]) ::
+          {:ok, result} | {:error, term()}
         when result: term()
-  def under_lock(user_id, fun) do
+  def under_lock(user_id, fun, opts \\ []) do
     Repo.transaction(fn ->
+      IntegrationCacheQueries.lock_cache_class(Keyword.get(opts, :cache_of, []))
       CalendarIntegrationQueries.lock_user_profile_and_integrations(user_id)
       fun.()
     end)
@@ -59,7 +67,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   @doc """
   Makes the next eligible integration of `user_id`, other than those in
   `exclude_ids`, the primary, or clears the primary when none is eligible.
-  Call it inside `under_lock/2`.
+  Call it inside `under_lock/3`.
 
   A candidate refused by `CalendarPrimary.set_primary_calendar_integration/2`
   (it changed or vanished since it was listed) is excluded and the next one
@@ -91,7 +99,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
 
   @doc """
   Adopts `integration` as its user's primary calendar when they have none, or
-  the one they have is inactive or gone. Call it inside `under_lock/2`.
+  the one they have is inactive or gone. Call it inside `under_lock/3`.
 
   A read-only integration is never adopted: it blocks time but refuses every
   write. Nor is one waiting to be reconnected, which `elect_next/2` would

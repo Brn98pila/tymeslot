@@ -6,7 +6,7 @@ defmodule Tymeslot.Integrations.Calendar.Ics.SyncCycle do
   A published feed has no delta mechanism: no sync token, no CTag, no
   per-event ETags worth trusting. Every run therefore fetches the whole file
   and replaces the integration's cached events in one transaction
-  (`ProviderCalendarEventQueries.full_refresh_for_integration/2`), which is
+  (`IntegrationCacheQueries.replace_cached_rows/3`), which is
   also what makes deletions visible: an event that has vanished from the
   feed simply isn't in the replacement set.
 
@@ -23,7 +23,7 @@ defmodule Tymeslot.Integrations.Calendar.Ics.SyncCycle do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.EventRole
   alias Tymeslot.Integrations.Calendar.Ics.Provider
-  alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
+  alias Tymeslot.Integrations.Calendar.IntegrationCacheQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
@@ -67,7 +67,7 @@ defmodule Tymeslot.Integrations.Calendar.Ics.SyncCycle do
   defp write_cache(integration, events) do
     attrs = Enum.map(events, &ProviderCalendarEventSchema.from_calendar_event/1)
 
-    case ProviderCalendarEventQueries.full_refresh_for_integration(integration.id, attrs) do
+    case IntegrationCacheQueries.replace_cached_rows(integration.id, :all, attrs) do
       {:ok, count} ->
         # Deliberately not `Sync.post_commit_reconciliation/2`: that also
         # rewrites linked meetings whose times moved externally, which a

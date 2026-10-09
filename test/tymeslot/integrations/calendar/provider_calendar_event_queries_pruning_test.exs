@@ -4,7 +4,7 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueriesPruningTest
   @moduletag :database
   @moduletag :queries
 
-  alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
+  alias Tymeslot.Integrations.Calendar.IntegrationCacheQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
 
   describe "prune_ended_before/1" do
@@ -26,7 +26,7 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueriesPruningTest
           end_at: ~U[2026-07-01 11:00:00Z]
         )
 
-      assert 1 = ProviderCalendarEventQueries.prune_ended_before(cutoff)
+      assert 1 = IntegrationCacheQueries.prune_ended_before(cutoff)
       assert Repo.get(ProviderCalendarEventSchema, future.id)
     end
 
@@ -54,7 +54,7 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueriesPruningTest
           end_at: nil
         )
 
-      assert 1 = ProviderCalendarEventQueries.prune_ended_before(cutoff)
+      assert 1 = IntegrationCacheQueries.prune_ended_before(cutoff)
       assert Repo.get(ProviderCalendarEventSchema, future.id)
     end
   end
@@ -68,7 +68,7 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueriesPruningTest
       kept = insert(:provider_calendar_event, calendar_integration: active)
       insert(:provider_calendar_event, calendar_integration: inactive)
 
-      assert 1 = ProviderCalendarEventQueries.prune_inactive_integrations()
+      assert 1 = IntegrationCacheQueries.prune_inactive_integrations()
       assert Repo.get(ProviderCalendarEventSchema, kept.id)
     end
   end

@@ -4,13 +4,13 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueries do
 
   Reads convert results via
   `ProviderCalendarEventSchema.to_calendar_event/1`, so callers work with
-  domain structs rather than database records; the one write here converts the
-  other way. `ProviderCalendarEventQueries` remains the row-level module for
-  the same table.
+  domain structs rather than database records. `ProviderCalendarEventQueries`
+  remains the row-level module for the same table, and
+  `IntegrationCacheQueries.replace_cached_rows/3` the replacement a provider
+  with more than one read path makes, one role at a time.
 
-  It is also where the `role` column is honoured on both sides: `in_range/2`
-  is the availability read and `full_refresh_for_role/3` the replacement a
-  provider with more than one read path needs.
+  It is also where the `role` column is honoured on the read side:
+  `in_range/2` is the availability read.
   `list_blocking_for_range/3` is `in_range/2`'s one departure from the
   canonical-struct rule, and exists so the role filter is written once rather
   than once per shape; see its own doc.
@@ -107,42 +107,6 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueries do
     |> where([e], e.role != ^@role_display_only)
     |> ProviderCalendarEventQueries.where_overlapping_range(range_start, range_end)
     |> Repo.all()
-  end
-
-  @doc """
-  Replaces every cached row an integration holds under `role`, in one
-  transaction.
-
-  The scoped counterpart to
-  `ProviderCalendarEventQueries.full_refresh_for_integration/2`, and the only
-  refresh an integration with two read paths may use. Exchange has two:
-  `GetUserAvailability` writes the `busy_only` rows and the item path writes
-  the `display_only` ones, both under the same integration id, so the unscoped
-  refresh would have each half delete the other's rows on every cycle —
-  intermittently, and with nothing to say so. Takes the same advisory lock, on
-  the same key, so the two halves still serialise against each other.
-  """
-  @spec full_refresh_for_role(integer(), String.t(), [CalendarEvent.t()]) ::
-          {:ok, non_neg_integer()} | {:error, term()}
-  def full_refresh_for_role(calendar_integration_id, role, calendar_events)
-      when role in @roles and is_list(calendar_events) do
-    attrs =
-      Enum.map(calendar_events, fn event ->
-        event
-        |> ProviderCalendarEventSchema.from_calendar_event()
-        |> Map.put(:role, role)
-      end)
-
-    Repo.transaction(fn ->
-      Repo.query!("SELECT pg_advisory_xact_lock($1, $2)", [2, calendar_integration_id])
-
-      ProviderCalendarEventSchema
-      |> where([e], e.calendar_integration_id == ^calendar_integration_id and e.role == ^role)
-      |> Repo.delete_all()
-
-      {:ok, count} = ProviderCalendarEventQueries.upsert_batch(attrs)
-      count
-    end)
   end
 
   @doc """

@@ -27,6 +27,7 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.CalendarEventQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.IntegrationCacheQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Integrations.Calendar.ProviderCalendarSeriesQueries
@@ -206,9 +207,16 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
           {:ok, non_neg_integer()} | {:error, term()}
   def full_refresh_for_role(%CalendarIntegrationSchema{} = integration, role, calendar_events)
       when is_binary(role) and is_list(calendar_events) do
-    calendar_events = flag_tymeslot_owned(integration, calendar_events)
+    attrs =
+      integration
+      |> flag_tymeslot_owned(calendar_events)
+      |> Enum.map(
+        &(&1
+          |> ProviderCalendarEventSchema.from_calendar_event()
+          |> Map.put(:role, role))
+      )
 
-    CalendarEventQueries.full_refresh_for_role(integration.id, role, calendar_events)
+    IntegrationCacheQueries.replace_cached_rows(integration.id, {:role, role}, attrs)
   rescue
     e ->
       ErrorTracking.report_error(e, __STACKTRACE__, %{
@@ -249,10 +257,11 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
       |> flag_tymeslot_owned(calendar_events)
       |> Enum.map(&ProviderCalendarEventSchema.from_calendar_event/1)
 
-    with {:ok, count} <- ProviderCalendarEventQueries.upsert_batch(attrs_list) do
+    IntegrationCacheQueries.under_lock(integration.id, fn ->
+      {:ok, count} = ProviderCalendarEventQueries.upsert_batch(attrs_list)
       drop_replaced_masters(integration.id, calendar_events)
-      {:ok, count}
-    end
+      count
+    end)
   rescue
     e ->
       ErrorTracking.report_error(e, __STACKTRACE__, %{

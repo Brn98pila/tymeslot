@@ -1,15 +1,11 @@
 defmodule Tymeslot.Integrations.Calendar.CalendarEventQueriesTest do
   use Tymeslot.DataCase, async: true
 
-  import Ecto.Query, only: [from: 2]
-
   @moduletag :integrations
   @moduletag :queries
 
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.CalendarEventQueries
-  alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
-  alias Tymeslot.Repo
 
   describe "in_range/2 with DateTime range" do
     test "returns timed events overlapping the range" do
@@ -329,55 +325,6 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueriesTest do
     end
   end
 
-  describe "full_refresh_for_role/3" do
-    setup do
-      user = insert(:user)
-      integration = insert(:calendar_integration, user: user)
-
-      %{integration: integration}
-    end
-
-    test "replaces only the rows of the role it is given", %{integration: integration} do
-      insert(:provider_calendar_event,
-        calendar_integration: integration,
-        uid: "kept-display-row",
-        role: "display_only",
-        start_at: ~U[2026-06-15 10:00:00Z],
-        end_at: ~U[2026-06-15 11:00:00Z]
-      )
-
-      insert(:provider_calendar_event,
-        calendar_integration: integration,
-        uid: "replaced-busy-row",
-        role: "busy_only",
-        start_at: ~U[2026-06-15 10:00:00Z],
-        end_at: ~U[2026-06-15 11:00:00Z]
-      )
-
-      {:ok, 1} =
-        CalendarEventQueries.full_refresh_for_role(integration.id, "busy_only", [
-          busy_event(integration, "fresh-busy-row")
-        ])
-
-      assert Enum.sort(all_uids(integration)) == ["fresh-busy-row", "kept-display-row"]
-    end
-
-    test "stamps the role it was given onto the rows it writes", %{integration: integration} do
-      {:ok, 1} =
-        CalendarEventQueries.full_refresh_for_role(integration.id, "busy_only", [
-          busy_event(integration, "written-row")
-        ])
-
-      assert [%{role: "busy_only"}] = all_rows(integration)
-    end
-
-    test "rejects a role the column's constraint would not admit", %{integration: integration} do
-      assert_raise FunctionClauseError, fn ->
-        CalendarEventQueries.full_refresh_for_role(integration.id, "everything", [])
-      end
-    end
-  end
-
   describe "any_in_range?/4" do
     setup do
       user = insert(:user)
@@ -443,26 +390,5 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueriesTest do
       [integration.id],
       {~U[2026-06-01 00:00:00Z], ~U[2026-06-30 23:59:59Z]}
     )
-  end
-
-  defp all_rows(integration) do
-    Repo.all(
-      from(e in ProviderCalendarEventSchema, where: e.calendar_integration_id == ^integration.id)
-    )
-  end
-
-  defp all_uids(integration), do: integration |> all_rows() |> Enum.map(& &1.uid)
-
-  defp busy_event(integration, uid) do
-    CalendarEvent.new!(%{
-      uid: uid,
-      calendar_integration_id: integration.id,
-      provider: :exchange,
-      provider_calendar_id: "mailbox",
-      synced_at: DateTime.utc_now(),
-      all_day: false,
-      start_at: ~U[2026-06-16 10:00:00Z],
-      end_at: ~U[2026-06-16 11:00:00Z]
-    })
   end
 end

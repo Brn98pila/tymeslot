@@ -41,6 +41,7 @@ defmodule Tymeslot.Integrations.Calendar do
   alias Tymeslot.Integrations.Calendar.Discovery
   alias Tymeslot.Integrations.Calendar.Exchange.Creation, as: ExchangeCreation
   alias Tymeslot.Integrations.Calendar.Exchange.FreeBusy
+  alias Tymeslot.Integrations.Calendar.IntegrationCacheQueries
   alias Tymeslot.Integrations.Calendar.Nextcloud.Login, as: NextcloudLogin
   alias Tymeslot.Integrations.Calendar.OAuth
   alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
@@ -166,6 +167,17 @@ defmodule Tymeslot.Integrations.Calendar do
           integration_id() => %{count: pos_integer(), last_error: String.t() | nil}
         }
   defdelegate stuck_changes(user_id), to: OfflineQueue
+
+  @doc """
+  Takes the integration cache lock's advisory step for every calendar the
+  user has, as deleting the account must before it deletes the user row. Call
+  it inside a transaction. See
+  `Tymeslot.Integrations.Calendar.IntegrationCacheQueries`.
+  """
+  @spec lock_calendar_caches(user_id()) :: :ok
+  defdelegate lock_calendar_caches(user_id),
+    to: IntegrationCacheQueries,
+    as: :lock_cache_class_for_user
 
   @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.retry_stuck_changes/2`."
   @spec retry_stuck_changes(user_id(), integration_id()) ::
