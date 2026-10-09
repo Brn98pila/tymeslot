@@ -59,8 +59,21 @@ defmodule Tymeslot.Integrations.Calendar.EventsRead do
     end
   end
 
+  # The fallback reads `ProviderAdapter.default_window/0`, widened to take in
+  # the whole range asked for, and filters the answer to that range. A read
+  # of the default window alone answered a range reaching outside it as
+  # empty, and an empty answer offers slots over the host's real conflicts.
   defp fallback_list_events_for_client(client, start_utc, end_utc, _original_error) do
-    case ProviderAdapter.get_events(client) do
+    {window_start, window_end} = ProviderAdapter.default_window()
+
+    window =
+      {Enum.min([start_utc, window_start], DateTime), Enum.max([end_utc, window_end], DateTime)}
+
+    fallback_read(client, start_utc, end_utc, window)
+  end
+
+  defp fallback_read(client, start_utc, end_utc, {window_start, window_end}) do
+    case ProviderAdapter.get_events(client, window_start, window_end) do
       {:ok, all_events} ->
         # Normalise before filtering, exactly as the primary path does. Google
         # and Outlook return raw string-keyed API maps here, on which every
