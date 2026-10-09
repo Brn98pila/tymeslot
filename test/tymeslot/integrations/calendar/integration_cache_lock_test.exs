@@ -38,8 +38,6 @@ defmodule Tymeslot.Integrations.Calendar.IntegrationCacheLockTest do
   @start ~U[2026-11-02 10:00:00Z]
 
   setup do
-    written = :atomics.new(1, [])
-
     {user, integration, video} =
       unboxed(fn ->
         user = insert(:user)
@@ -52,7 +50,7 @@ defmodule Tymeslot.Integrations.Calendar.IntegrationCacheLockTest do
       unboxed(fn -> Repo.delete_all(from(u in UserSchema, where: u.id == ^user.id)) end)
     end)
 
-    %{user: user, integration: integration, video: video, written: written}
+    %{user: user, integration: integration, video: video, relay: relay()}
   end
 
   defp event(integration, uid, attrs \\ %{}) do
@@ -93,13 +91,12 @@ defmodule Tymeslot.Integrations.Calendar.IntegrationCacheLockTest do
   end
 
   # A sync transaction that rewrites `held` (a row already cached, which it
-  # then holds), parks, and writes `then`. `written` is raised once it holds
-  # the row, for `after_sync_holds/2`.
-  defp sync(integration, held, then, written) do
+  # then holds), tells `relay` it holds it, parks, and writes `then`.
+  defp sync(integration, held, then, relay) do
     fn hold ->
       Repo.transaction(fn ->
         {:ok, 1} = Sync.upsert_cache(integration, [held])
-        :atomics.put(written, 1, 1)
+        send(relay, :sync_holds)
         hold.(nil)
         {:ok, _count} = Sync.upsert_cache(integration, then)
         :synced
@@ -109,18 +106,27 @@ defmodule Tymeslot.Integrations.Calendar.IntegrationCacheLockTest do
 
   # A deletion that starts only once the sync holds its row, so it always
   # meets the sync mid-transaction rather than racing it to the start.
-  defp after_sync_holds(written, delete) do
+  defp after_sync_holds(relay, delete) do
     fn _hold ->
-      wait_for(written)
-      delete.()
+      send(relay, {:deleter, self()})
+
+      receive do
+        :go -> delete.()
+      end
     end
   end
 
-  defp wait_for(written) do
-    if :atomics.get(written, 1) == 0 do
-      Process.sleep(5)
-      wait_for(written)
-    end
+  # Passes the sync's word on to the deletion, whichever reaches it first.
+  defp relay do
+    spawn_link(fn ->
+      receive do
+        :sync_holds -> :ok
+      end
+
+      receive do
+        {:deleter, pid} -> send(pid, :go)
+      end
+    end)
   end
 
   defp refute_deadlock(results) do
@@ -139,13 +145,13 @@ defmodule Tymeslot.Integrations.Calendar.IntegrationCacheLockTest do
   end
 
   test "deleting the calendar integration mid-sync waits for the sync, then removes its rows",
-       %{user: user, integration: integration, written: written} do
+       %{user: user, integration: integration, relay: relay} do
     cache(integration, "standup", [])
 
     [synced, deleted] =
       race([
-        sync(integration, event(integration, "standup"), [event(integration, "review")], written),
-        after_sync_holds(written, fn ->
+        sync(integration, event(integration, "standup"), [event(integration, "review")], relay),
+        after_sync_holds(relay, fn ->
           Deletion.delete_with_primary_reassignment(user.id, integration.id)
         end)
       ])
@@ -157,13 +163,13 @@ defmodule Tymeslot.Integrations.Calendar.IntegrationCacheLockTest do
   end
 
   test "deleting the account mid-sync waits for the sync, then removes everything",
-       %{user: user, integration: integration, written: written} do
+       %{user: user, integration: integration, relay: relay} do
     cache(integration, "standup", [])
 
     [synced, deleted] =
       race([
-        sync(integration, event(integration, "standup"), [event(integration, "review")], written),
-        after_sync_holds(written, fn -> AccountDeletion.delete_account(user) end)
+        sync(integration, event(integration, "standup"), [event(integration, "review")], relay),
+        after_sync_holds(relay, fn -> AccountDeletion.delete_account(user) end)
       ])
 
     refute_deadlock([synced, deleted])
@@ -175,7 +181,7 @@ defmodule Tymeslot.Integrations.Calendar.IntegrationCacheLockTest do
   # The sync hands a replaced series master's room to the occurrence it
   # caches, which names the video integration the deletion is removing.
   test "deleting a video integration a cached row names mid-sync waits for the sync",
-       %{integration: integration, video: video, written: written} do
+       %{integration: integration, video: video, relay: relay} do
     cache(integration, "weekly-master",
       provider_event_id: "weekly",
       video_integration_id: video.id,
@@ -194,9 +200,9 @@ defmodule Tymeslot.Integrations.Calendar.IntegrationCacheLockTest do
           integration,
           event(integration, "weekly-master", %{provider_event_id: "weekly"}),
           [occurrence],
-          written
+          relay
         ),
-        after_sync_holds(written, fn ->
+        after_sync_holds(relay, fn ->
           VideoIntegrationQueries.delete(Repo.get!(VideoIntegrationSchema, video.id))
         end)
       ])
@@ -209,9 +215,16 @@ defmodule Tymeslot.Integrations.Calendar.IntegrationCacheLockTest do
   test "a cache write whose integration is gone writes nothing", %{integration: integration} do
     unboxed(fn -> Repo.delete!(Repo.get!(CalendarIntegrationSchema, integration.id)) end)
 
+    attrs =
+      integration
+      |> event("written-after-delete")
+      |> ProviderCalendarEventSchema.from_calendar_event()
+
     assert {:error, :integration_gone} =
              unboxed(fn ->
-               IntegrationCacheQueries.replace_cached_rows(integration.id, :all, [])
+               IntegrationCacheQueries.replace_cached_rows(integration.id, :all, [attrs])
              end)
+
+    assert cached_uids(integration) == []
   end
 end
