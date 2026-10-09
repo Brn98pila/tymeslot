@@ -5,10 +5,7 @@ defmodule Tymeslot.Infrastructure.CircuitBreakerSupervisor do
 
   use Supervisor
 
-  alias Tymeslot.Infrastructure.CalendarCircuitBreaker
-  alias Tymeslot.Infrastructure.VideoCircuitBreaker
-  alias Tymeslot.Integrations.Calendar.ProviderConfig, as: CalendarProviderConfig
-  alias Tymeslot.Integrations.Video.ProviderConfig, as: VideoProviderConfig
+  alias Tymeslot.Infrastructure.ProviderBreakers
 
   @email_breaker_name :email_service_breaker
 
@@ -49,12 +46,6 @@ defmodule Tymeslot.Infrastructure.CircuitBreakerSupervisor do
       :ets.new(:circuit_breaker_state_table, [:named_table, :public, :set])
     end
 
-    # Build children for all calendar providers
-    calendar_breakers = build_calendar_breakers()
-
-    # Build children for all video providers
-    video_breakers = build_video_breakers()
-
     # Dynamic supervisor for per-host circuit breakers
     dynamic_breakers = [
       {Registry, keys: :unique, name: Tymeslot.Infrastructure.CircuitBreakerRegistry},
@@ -72,43 +63,10 @@ defmodule Tymeslot.Infrastructure.CircuitBreakerSupervisor do
       )
     ]
 
-    children = calendar_breakers ++ video_breakers ++ dynamic_breakers ++ other_breakers
+    children =
+      ProviderBreakers.child_specs(:calendar) ++
+        ProviderBreakers.child_specs(:video) ++ dynamic_breakers ++ other_breakers
 
     Supervisor.init(children, strategy: :one_for_one)
-  end
-
-  defp build_calendar_breakers do
-    CalendarProviderConfig.all_providers()
-    |> Enum.filter(&CalendarProviderConfig.circuit_breaker_enabled?/1)
-    |> Enum.map(fn provider ->
-      # provider comes from the fixed, compile-time-known provider list, so the
-      # atom set is bounded — no unbounded-atom-creation risk here.
-      # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
-      name = :"calendar_breaker_#{provider}"
-      config = CalendarCircuitBreaker.get_config(provider)
-
-      Supervisor.child_spec({Tymeslot.Infrastructure.CircuitBreaker, name: name, config: config},
-        id: name
-      )
-    end)
-  end
-
-  # Every known provider, switched off or not: a provider switched off still
-  # serves the integrations connected before the switch, and their room calls
-  # go through its breaker.
-  defp build_video_breakers do
-    VideoProviderConfig.known_providers()
-    |> Enum.filter(&VideoProviderConfig.circuit_breaker_enabled?/1)
-    |> Enum.map(fn provider ->
-      # provider comes from the fixed, compile-time-known provider list, so the
-      # atom set is bounded — no unbounded-atom-creation risk here.
-      # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
-      name = :"video_breaker_#{provider}"
-      config = VideoCircuitBreaker.get_config(provider)
-
-      Supervisor.child_spec({Tymeslot.Infrastructure.CircuitBreaker, name: name, config: config},
-        id: name
-      )
-    end)
   end
 end

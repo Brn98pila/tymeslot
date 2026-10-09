@@ -17,8 +17,8 @@ defmodule Tymeslot.Integrations.HealthCheck.Scheduler do
 
   alias Tymeslot.Infrastructure.{
     CalendarCircuitBreaker,
-    CircuitBreakerHelpers,
     ErrorTracking,
+    ProviderBreakers,
     VideoCircuitBreaker
   }
 
@@ -191,7 +191,7 @@ defmodule Tymeslot.Integrations.HealthCheck.Scheduler do
             breaker_provider |> CalendarCircuitBreaker.status(host) |> unstarted_as_closed(host)
 
           :video ->
-            host = CircuitBreakerHelpers.host_from_base_url(base_url)
+            host = ProviderBreakers.host_from_base_url(base_url)
             provider_atom |> VideoCircuitBreaker.status(host) |> unstarted_as_closed(host)
         end
       rescue

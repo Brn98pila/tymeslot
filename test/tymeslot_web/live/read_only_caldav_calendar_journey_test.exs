@@ -26,6 +26,7 @@ defmodule TymeslotWeb.ReadOnlyCalDAVCalendarJourneyTest do
 
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
+  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Repo
@@ -48,7 +49,7 @@ defmodule TymeslotWeb.ReadOnlyCalDAVCalendarJourneyTest do
     TestMocks.setup_email_mocks()
     RateLimiter.clear_all()
     AvailabilityCache.clear_all()
-    CalendarCircuitBreaker.reset_all_hosts()
+    ProviderBreakers.reset_all_hosts()
 
     recaptcha = Application.get_env(:tymeslot, :recaptcha, [])
     Application.put_env(:tymeslot, :recaptcha, Keyword.put(recaptcha, :booking_enabled, false))

@@ -125,15 +125,4 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
           | {:calendar_listing_too_large, String.t()}
           | {:unexpected_status, pos_integer()}
           | String.t()
-
-  @doc """
-  Extracts the host from a URL string.
-  """
-  @spec extract_host_from_url(String.t()) :: String.t() | nil
-  def extract_host_from_url(url) do
-    case URI.parse(url) do
-      %URI{host: host} when is_binary(host) -> host
-      _other -> nil
-    end
-  end
 end

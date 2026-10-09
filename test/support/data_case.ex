@@ -20,6 +20,7 @@ defmodule Tymeslot.DataCase do
   alias Ecto.Changeset
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
+  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Infrastructure.CircuitBreaker
   alias Tymeslot.Infrastructure.VideoCircuitBreaker
   alias Tymeslot.Repo
@@ -101,7 +102,7 @@ defmodule Tymeslot.DataCase do
 
     # Host-keyed breakers are registered dynamically and are not covered by
     # the per-provider reset above
-    CalendarCircuitBreaker.reset_all_hosts()
+    ProviderBreakers.reset_all_hosts()
 
     # Video provider breakers. These matter now that `ProviderAdapter` routes
     # room create/update/delete through them: three induced provider failures
