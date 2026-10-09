@@ -23,13 +23,13 @@ defmodule Tymeslot.Announcements do
   crash, and the underlying query swallows DB/constraint errors — this is a
   non-critical dashboard side effect that must never take down the LiveView.
   """
-  @spec mark_seen!(UserSchema.t() | nil, String.t()) :: :ok
-  def mark_seen!(%UserSchema{id: user_id}, announcement_key)
+  @spec mark_seen(UserSchema.t() | nil, String.t()) :: :ok
+  def mark_seen(%UserSchema{id: user_id}, announcement_key)
       when is_binary(announcement_key) do
-    AnnouncementQueries.mark_seen!(user_id, announcement_key)
+    AnnouncementQueries.mark_seen(user_id, announcement_key)
   end
 
-  def mark_seen!(nil, announcement_key) when is_binary(announcement_key), do: :ok
+  def mark_seen(nil, announcement_key) when is_binary(announcement_key), do: :ok
 
   @doc """
   Returns the unseen, unexpired announcements a user should be shown.
