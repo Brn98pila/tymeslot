@@ -88,6 +88,8 @@ defmodule Tymeslot.Emails.EmailScheduler do
   defdelegate schedule_email_change_emails(user_id, new_email, verification_url, token_hash),
     to: AccountScheduler
 
+  defdelegate schedule_email_change_notification(user_id, new_email), to: AccountScheduler
+
   defdelegate schedule_email_change_confirmations(user_id, old_email, new_email),
     to: AccountScheduler
 

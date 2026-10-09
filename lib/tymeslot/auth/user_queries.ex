@@ -219,22 +219,14 @@ defmodule Tymeslot.Auth.UserQueries do
   end
 
   @doc """
-  Checks whether an email is free to become someone's pending email: no user
-  holds it as their address or as their own pending change.
-
-  This is a fast pre-check for a friendly error, not the guard. Two concurrent
-  requests can both pass it; the unique index on `pending_email` (and on
-  `lower(email)` at confirmation) is what settles the race.
+  Whether any account, the caller's own included, signs in with `email`.
   """
-  @spec check_email_availability(String.t()) :: {:ok, :available} | {:error, :taken}
-  def check_email_availability(email) when is_binary(email) do
-    email = String.downcase(email)
+  @spec email_registered?(String.t()) :: boolean()
+  def email_registered?(email) when is_binary(email) do
+    email = email |> String.trim() |> String.downcase()
 
-    taken? =
-      UserSchema
-      |> where([u], u.email == ^email or u.pending_email == ^email)
-      |> Repo.exists?()
-
-    if taken?, do: {:error, :taken}, else: {:ok, :available}
+    UserSchema
+    |> where([u], u.email == ^email)
+    |> Repo.exists?()
   end
 end

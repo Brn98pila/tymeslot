@@ -314,27 +314,27 @@ msgstr[2] "musi przypadać w ciągu %{count} lat"
 msgid "video server checks"
 msgstr "sprawdzeń serwera wideo"
 
-#: lib/tymeslot/security/rate_limiter/bookings.ex
+#: lib/tymeslot/security/rate_limiter/limits.ex
 #, elixir-autogen, elixir-format
 msgid "bookings"
 msgstr "rezerwacji"
 
-#: lib/tymeslot/security/rate_limiter/calendar.ex
+#: lib/tymeslot/security/rate_limiter/limits.ex
 #, elixir-autogen, elixir-format
 msgid "calendar event moves"
 msgstr "przeniesień wydarzeń w kalendarzu"
 
-#: lib/tymeslot/security/rate_limiter/auth.ex
+#: lib/tymeslot/security/rate_limiter/limits.ex
 #, elixir-autogen, elixir-format
 msgid "password reset requests"
 msgstr "próśb o zresetowanie hasła"
 
-#: lib/tymeslot/security/rate_limiter/auth.ex
+#: lib/tymeslot/security/rate_limiter/limits.ex
 #, elixir-autogen, elixir-format
 msgid "signup attempts"
 msgstr "prób rejestracji"
 
-#: lib/tymeslot/security/rate_limiter/auth.ex
+#: lib/tymeslot/security/rate_limiter/limits.ex
 #, elixir-autogen, elixir-format
 msgid "verification emails"
 msgstr "e-maili potwierdzających"

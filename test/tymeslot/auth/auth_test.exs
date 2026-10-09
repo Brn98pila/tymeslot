@@ -64,10 +64,10 @@ defmodule Tymeslot.AuthTest do
                  ClientIP.request_opts(%Plug.Conn{})
                )
 
-      # Duplicate email blocked
+      # A registered address gets the answer a free one does
       insert(:user, email: "taken@example.com")
 
-      assert {:error, %{new_email: "Email address is already in use"}} =
+      assert {:ok, _user, "Verification email sent to taken@example.com"} =
                Auth.request_email_change(
                  user,
                  "taken@example.com",

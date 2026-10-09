@@ -21,6 +21,7 @@ defmodule Tymeslot.Auth.EmailChangeTest do
   alias TymeslotWeb.Endpoint
   alias TymeslotWeb.Helpers.ClientIP
 
+  import Ecto.Query, only: [from: 2]
   import Tymeslot.Factory
 
   describe "request_email_change/3" do
@@ -113,14 +114,14 @@ defmodule Tymeslot.Auth.EmailChangeTest do
                )
     end
 
-    test "fails with same email as current", %{user: user} do
-      assert {:error, %{new_email: "New email must be different from current email"}} =
-               Auth.request_email_change(
-                 user,
-                 user.email,
-                 "Password123!",
-                 ClientIP.request_opts(%Plug.Conn{})
-               )
+    test "the own current address is answered as a free one and never mailed a link", %{
+      user: user
+    } do
+      assert {:ok, updated_user, message} = request(user, user.email)
+
+      assert message == "Verification email sent to #{user.email}"
+      assert updated_user.pending_email == user.email
+      refute_verification_link_sent(user)
     end
 
     test "fails with invalid email format", %{user: user} do
@@ -143,13 +144,15 @@ defmodule Tymeslot.Auth.EmailChangeTest do
           Token.generate_token()
         )
 
-      assert {:error, %{new_email: "Email address is already in use"}} =
-               Auth.request_email_change(
-                 user,
-                 "wanted@example.com",
-                 "Password123!",
-                 ClientIP.request_opts(%Plug.Conn{})
-               )
+      # The address cannot be held twice, so nothing is recorded, but the
+      # answer is still the one a free address gets.
+      assert {:ok, returned, "Verification email sent to wanted@example.com"} =
+               request(user, "wanted@example.com")
+
+      assert returned.pending_email == nil
+      assert Repo.reload!(user).pending_email == nil
+      assert Repo.reload!(other_user).pending_email == "wanted@example.com"
+      refute_verification_link_sent(user)
     end
 
     test "an expired pending change on another account does not hold the address", %{
@@ -272,16 +275,49 @@ defmodule Tymeslot.Auth.EmailChangeTest do
                )
     end
 
-    test "fails when email is already taken", %{user: user} do
+    test "another account's address is answered and recorded as a free one is", %{user: user} do
       other_user = insert(:user)
 
-      assert {:error, %{new_email: "Email address is already in use"}} =
-               Auth.request_email_change(
-                 user,
-                 other_user.email,
-                 "Password123!",
-                 ClientIP.request_opts(%Plug.Conn{})
-               )
+      assert {:ok, updated_user, message} = request(user, other_user.email)
+
+      assert message == "Verification email sent to #{other_user.email}"
+      assert updated_user.pending_email == other_user.email
+      assert byte_size(updated_user.email_change_token_hash) > 0
+      assert %DateTime{} = updated_user.email_change_sent_at
+
+      # The current address hears of it, as for a free address; the address's
+      # owner is sent nothing, and no link exists anywhere.
+      assert_enqueued(
+        worker: EmailWorker,
+        args: %{
+          "action" => "send_email_change_notification",
+          "user_id" => user.id,
+          "new_email" => other_user.email
+        }
+      )
+
+      refute_verification_link_sent(user)
+      assert all_enqueued(worker: EmailWorker, args: %{"user_id" => other_user.id}) == []
+    end
+
+    test "a change to another account's address cannot be confirmed even with its token", %{
+      user: user
+    } do
+      other_user = insert(:user)
+      {:ok, _updated_user, _message} = request(user, other_user.email)
+
+      # Nobody holds the stored token; the same row with a token we do hold
+      # shows the confirm path refuses it all the same.
+      token = Token.generate_token()
+
+      {:ok, _pending} =
+        UserTokenQueries.request_email_change(Repo.reload!(user), other_user.email, token)
+
+      assert {:error, {_reason, _message}} =
+               Auth.verify_email_change(token, ClientIP.request_opts(%Plug.Conn{}))
+
+      assert Repo.reload!(user).email == user.email
+      assert Repo.reload!(other_user).email == other_user.email
     end
 
     test "overwrites pending change when a new one is requested", %{user: user} do
@@ -498,14 +534,11 @@ defmodule Tymeslot.Auth.EmailChangeTest do
 
       results = Task.await_many(tasks)
 
-      # Only one should succeed
-      successful =
-        Enum.filter(results, fn
-          {:ok, _user, _message} -> true
-          _other -> false
-        end)
+      # Every request is answered alike; only one of them holds the address.
+      assert Enum.all?(results, &match?({:ok, _user, _message}, &1))
 
-      assert length(successful) == 1
+      holders = Repo.all(from(u in UserSchema, where: u.pending_email == ^email))
+      assert length(holders) == 1
     end
   end
 
@@ -521,5 +554,21 @@ defmodule Tymeslot.Auth.EmailChangeTest do
     user
     |> Changeset.change(%{email_change_sent_at: sent_at})
     |> Repo.update!()
+  end
+
+  defp request(user, new_email) do
+    Auth.request_email_change(
+      user,
+      new_email,
+      "Password123!",
+      ClientIP.request_opts(%Plug.Conn{})
+    )
+  end
+
+  defp refute_verification_link_sent(user) do
+    assert all_enqueued(
+             worker: EmailWorker,
+             args: %{"action" => "send_email_change_verification", "user_id" => user.id}
+           ) == []
   end
 end

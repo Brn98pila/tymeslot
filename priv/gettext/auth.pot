@@ -666,11 +666,6 @@ msgstr ""
 
 #: lib/tymeslot/auth/email_change.ex
 #, elixir-autogen, elixir-format
-msgid "Email address is already in use"
-msgstr ""
-
-#: lib/tymeslot/auth/email_change.ex
-#, elixir-autogen, elixir-format
 msgid "Email changed successfully. Please sign in with your new email."
 msgstr ""
 
@@ -682,11 +677,6 @@ msgstr ""
 #: lib/tymeslot/auth/email_change.ex
 #, elixir-autogen, elixir-format
 msgid "Invalid or expired verification link"
-msgstr ""
-
-#: lib/tymeslot/auth/email_change.ex
-#, elixir-autogen, elixir-format
-msgid "New email must be different from current email"
 msgstr ""
 
 #: lib/tymeslot/auth/password_update.ex
