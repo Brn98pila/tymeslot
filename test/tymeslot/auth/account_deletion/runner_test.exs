@@ -6,9 +6,11 @@ defmodule Tymeslot.Auth.AccountDeletion.RunnerTest do
   @moduletag :integration
 
   import Ecto.Query
+  import Tymeslot.AdminAlertsCaptureHelpers
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
   alias Tymeslot.Auth
   alias Tymeslot.Auth.AccountDeletion
   alias Tymeslot.Auth.AccountDeletion.Runner
@@ -195,5 +197,54 @@ defmodule Tymeslot.Auth.AccountDeletion.RunnerTest do
       assert_enqueued(worker: AccountDeletionWorker, args: %{"user_id" => overdue.id})
       assert Auth.enqueue_overdue_account_deletions() == 0
     end
+  end
+
+  describe "the last admin who can sign in" do
+    setup :capture_admin_alerts
+
+    setup do
+      # The other admin left during the grace period.
+      admin = pending_user_from(insert(:user, is_admin: true))
+      %{admin: admin}
+    end
+
+    test "is held rather than deleted, stays restorable, and operators are told", %{
+      admin: admin
+    } do
+      assert {:snooze, seconds} = Runner.run(admin.id)
+      assert_in_delta seconds, 86_400, 5
+
+      held = Repo.get!(UserSchema, admin.id)
+      assert DateTime.compare(held.deletion_scheduled_at, DateTime.utc_now()) == :gt
+      assert held.deletion_requested_at == admin.deletion_requested_at
+
+      assert_received {:send_alert, :account_deletion_stalled, payload}
+      assert payload.user_id == admin.id
+
+      assert {:ok, restored} = Auth.restore_account(held)
+      refute restored.deletion_scheduled_at
+    end
+
+    test "is deleted once another admin who can sign in is back", %{admin: admin} do
+      insert(:user, is_admin: true)
+
+      assert Runner.run(admin.id) == {:ok, :deleted}
+      refute_received {:send_alert, _type, _payload}
+      refute Repo.get(UserSchema, admin.id)
+    end
+
+    test "is deleted when the release shell forces it", %{admin: admin} do
+      assert Runner.run(admin.id, force: true) == {:ok, :deleted}
+      refute Repo.get(UserSchema, admin.id)
+    end
+  end
+
+  defp pending_user_from(user) do
+    user
+    |> Changeset.change(
+      deletion_requested_at: DateTime.add(past(), -14, :day),
+      deletion_scheduled_at: past()
+    )
+    |> Repo.update!()
   end
 end

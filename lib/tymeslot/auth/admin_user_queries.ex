@@ -90,17 +90,22 @@ defmodule Tymeslot.Auth.AdminUserQueries do
   the query module free of `AppSettings` reads while still refusing to count
   an identity nobody can currently use to log in.
 
-  Used to guard demoting the last admin: counting bare `is_admin` rows (as
-  `count_admins/1` does) would let an operator demote the only admin who can
-  actually authenticate, as long as some other `is_admin` row happens to
-  exist without a usable sign-in path.
+  An admin whose account is pending deletion does not count either: signing
+  in leads such an account to the restore page alone, and the account is
+  about to go.
+
+  Used to guard demoting or deleting the last admin: counting bare `is_admin`
+  rows (as `count_admins/1` does) would let an operator demote the only admin
+  who can actually authenticate, as long as some other `is_admin` row happens
+  to exist without a usable sign-in path.
   """
   @spec count_signin_capable_admins_excluding(integer(), [atom()], module()) :: non_neg_integer()
   def count_signin_capable_admins_excluding(excluded_user_id, usable_paths, repo \\ Repo) do
     condition =
       dynamic(
         [u],
-        u.is_admin and u.id != ^excluded_user_id and ^signin_capable_condition(usable_paths)
+        u.is_admin and u.id != ^excluded_user_id and is_nil(u.deletion_scheduled_at) and
+          ^signin_capable_condition(usable_paths)
       )
 
     repo.aggregate(

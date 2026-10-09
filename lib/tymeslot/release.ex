@@ -74,7 +74,7 @@ defmodule Tymeslot.Release do
     with {:ok, user} <- UserQueries.get_user_by_email(email),
          {:ok, _pending} <-
            Auth.delete_account_now(:cli, user.id, force: force?, job_at: fallback_job_at()) do
-      case Auth.run_scheduled_deletion(user.id) do
+      case Auth.run_scheduled_deletion(user.id, force: force?) do
         {:ok, outcome} when outcome in [:deleted, :already_deleted] -> {:ok, :deleted}
         {:ok, outcome} -> {:error, outcome}
         {:snooze, _seconds} -> {:error, :not_due}
