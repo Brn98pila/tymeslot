@@ -108,6 +108,18 @@ INSERT INTO calendar_integrations (user_id, provider, base_url, name, is_active,
 SELECT id, 'caldav', 'https://old.example.com', 'Deactivated', false, true, '{}', ARRAY[]::jsonb[], NOW(), NOW()
 FROM users WHERE email = 'seed-user-1@example.com';
 
+-- A calendar list as integrations stored it before per-calendar choices
+-- existed: mixed selection, a read-only entry, provider keys the code passes
+-- through, and an entry with no keys beyond its id. Later migrations that
+-- rewrite calendar_list elements run against this.
+INSERT INTO calendar_integrations (user_id, provider, base_url, name, is_active, verify_ssl, calendar_paths, calendar_list, inserted_at, updated_at)
+SELECT id, 'google', 'https://www.googleapis.com/calendar/v3', 'Google (legacy list)', false, true, '{primary}',
+       ARRAY['{"id": "primary", "name": "Me", "selected": true, "read_only": false, "primary": true}'::jsonb,
+             '{"id": "team@group.calendar.google.com", "selected": false, "read_only": true, "access_role": "reader"}'::jsonb,
+             '{"id": "bare"}'::jsonb],
+       NOW(), NOW()
+FROM users WHERE email = 'seed-user-1@example.com';
+
 -- Second user with a single integration (baseline — should never cause issues)
 INSERT INTO calendar_integrations (user_id, provider, base_url, name, is_active, verify_ssl, calendar_paths, calendar_list, inserted_at, updated_at)
 SELECT id, 'radicale', 'https://radicale.example.com', 'Radicale', true, true, '{}', ARRAY[]::jsonb[], NOW(), NOW()
