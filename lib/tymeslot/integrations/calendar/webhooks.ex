@@ -288,6 +288,11 @@ defmodule Tymeslot.Integrations.Calendar.Webhooks do
       {:error, :rate_limited, _message} ->
         Logger.warning(message, integration_id: integration.id)
         {:error, :rate_limited}
+
+      # An integration without a stored id cannot be counted, so it is
+      # refused as an exhausted one would be.
+      {:error, :invalid_id} ->
+        {:error, :rate_limited}
     end
   end
 
