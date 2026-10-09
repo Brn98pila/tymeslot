@@ -13,7 +13,7 @@ defmodule Tymeslot.Announcements do
   alias Tymeslot.Announcements.Announcement
   alias Tymeslot.Announcements.AnnouncementQueries
   alias Tymeslot.Auth.UserSchema
-  alias TymeslotWeb.Live.Shared.DocsUrl
+  alias Tymeslot.Docs
 
   @doc """
   Records that the given user has seen an announcement.
@@ -75,13 +75,13 @@ defmodule Tymeslot.Announcements do
   @doc """
   Composes the full documentation URL for a CTA slug.
 
-  Delegates to `TymeslotWeb.Live.Shared.DocsUrl.article_url/1`, the single
-  place `:docs_article_base_url` is read and normalised, so an operator
+  Delegates to `Tymeslot.Docs.article_url/1`, the single place
+  `:docs_article_base_url` is read and normalised, so an operator
   pointing that setting at their own docs gets announcement CTAs too, not
   just the rest of the dashboard's help links.
   """
   @spec docs_url(String.t()) :: String.t()
-  def docs_url(slug) when is_binary(slug), do: DocsUrl.article_url(slug)
+  def docs_url(slug) when is_binary(slug), do: Docs.article_url(slug)
 
   defp expired?(%Announcement{expires_at: nil}, _now), do: false
 
