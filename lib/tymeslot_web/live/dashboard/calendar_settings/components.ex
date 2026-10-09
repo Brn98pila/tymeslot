@@ -9,7 +9,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.DisplayHelpers
   alias Tymeslot.Integrations.Calendar.ProviderConfig
-  alias Tymeslot.Integrations.Calendar.TokenUtils
+
   alias Tymeslot.Integrations.HealthCheck
 
   alias TymeslotWeb.Components.Dashboard.Integrations.Calendar.{
@@ -22,6 +22,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   alias TymeslotWeb.Components.Dashboard.Integrations.Shared.IntegrationCard
   alias TymeslotWeb.Components.Icons.ProviderIcon
   alias TymeslotWeb.Dashboard.CalendarSettings.Helpers
+  alias TymeslotWeb.Helpers.TimeAgo
 
   @doc """
   Renders the configuration view for a specific calendar provider.
@@ -516,11 +517,36 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   # The card's last-activity line; nothing for a connection never synced.
   # `last_external_sync_at` is what every sync worker stamps and what the
   # staleness banner reads.
-  defp last_synced(%{last_external_sync_at: %DateTime{} = synced_at}),
-    do:
-      dgettext("dashboard_calendar_settings", "Last synced %{time}",
-        time: TokenUtils.relative_time(synced_at)
-      )
+  defp last_synced(%{last_external_sync_at: %DateTime{} = synced_at}) do
+    case TimeAgo.since(synced_at) do
+      :just_now ->
+        dgettext("dashboard_calendar_settings", "Last synced just now")
+
+      {:minutes, count} ->
+        dngettext(
+          "dashboard_calendar_settings",
+          "Last synced %{count} minute ago",
+          "Last synced %{count} minutes ago",
+          count
+        )
+
+      {:hours, count} ->
+        dngettext(
+          "dashboard_calendar_settings",
+          "Last synced %{count} hour ago",
+          "Last synced %{count} hours ago",
+          count
+        )
+
+      {:days, count} ->
+        dngettext(
+          "dashboard_calendar_settings",
+          "Last synced %{count} day ago",
+          "Last synced %{count} days ago",
+          count
+        )
+    end
+  end
 
   defp last_synced(_integration), do: nil
 end

@@ -54,6 +54,22 @@ defmodule TymeslotWeb.AccountLiveTest do
       assert html =~ user.email
     end
 
+    test "says how long ago a pending email change was sent, as one sentence", %{
+      conn: conn,
+      user: user
+    } do
+      user
+      |> Changeset.change(
+        pending_email: "new@example.com",
+        email_change_sent_at: DateTime.add(DateTime.utc_now(:second), -300, :second)
+      )
+      |> Repo.update!()
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/account")
+
+      assert render(view) =~ "Sent 5 minutes ago"
+    end
+
     test "Back to Dashboard navigates rather than patches, as it leaves this LiveView", %{
       conn: conn
     } do

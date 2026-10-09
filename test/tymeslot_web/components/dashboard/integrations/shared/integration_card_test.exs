@@ -287,6 +287,38 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Shared.IntegrationCardTe
   end
 
   describe "as a calendar connection" do
+    # The whole sentence is one msgid: a relative phrase dropped into
+    # "Last synced %{time}" used to stay English in every language.
+    test "the last sync is told in the viewer's language" do
+      integration = %{
+        id: 13,
+        name: "My CalDAV",
+        provider: "caldav",
+        is_active: true,
+        needs_reauth: false,
+        calendar_list: [%CalendarEntry{id: "/a/", path: "/a/", name: "A", selected: true}],
+        calendar_paths: ["/a/"],
+        base_url: "https://caldav.example.com",
+        is_primary: false,
+        default_booking_calendar_id: nil,
+        provider_account_email: nil,
+        last_external_sync_at: DateTime.add(DateTime.utc_now(), -300, :second)
+      }
+
+      html =
+        Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+          render_component(&CalendarComponents.calendar_connection_row/1,
+            integration: integration,
+            health_state: nil,
+            myself: "target"
+          )
+        end)
+
+      assert [activity] = texts(doc(html), "[data-part='last-activity']")
+      assert activity =~ "Zuletzt synchronisiert vor 5 Minuten"
+      refute activity =~ ~r/\b(ago|minutes|just now)\b/
+    end
+
     test "a CalDAV connection shows its status, last sync and actions" do
       integration = %{
         id: 12,
@@ -314,7 +346,7 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Shared.IntegrationCardTe
 
       assert LazyHTML.text(doc) =~ "Healthy"
       assert [activity] = texts(doc, "[data-part='last-activity']")
-      assert activity =~ "Last synced "
+      assert activity =~ "Last synced 2 minutes ago"
       # The provider logo is decorative: the title beside it names the connection.
       assert doc |> LazyHTML.query("img") |> LazyHTML.attribute("alt") == [""]
       # The sync time moved out of the summary onto the activity line.
