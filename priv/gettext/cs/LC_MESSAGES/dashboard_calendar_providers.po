@@ -241,7 +241,7 @@ msgstr "Přihlášení a zabezpečení → Hesla pro konkrétní aplikace"
 msgid "Something went wrong. Please try again."
 msgstr "Došlo k chybě. Zkuste to prosím znovu."
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/caldav_family_config.ex
 #, elixir-autogen, elixir-format
 msgid "Sync calendars from your Apple iCloud account"
@@ -257,7 +257,7 @@ msgstr "Synchronizujte kalendáře ze serveru Nextcloud"
 msgid "Sync calendars from your Zimbra server"
 msgstr "Synchronizujte kalendáře ze serveru Zimbra"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/caldav_family_config.ex
 #, elixir-autogen, elixir-format
 msgid "Sync calendars from your mailbox.org account"
@@ -352,42 +352,42 @@ msgstr "https://mail.example.com"
 msgid "https://radicale.example.com:5232"
 msgstr "https://radicale.example.com:5232"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Enterprise Zimbra calendar integration"
 msgstr "Firemní integrace kalendáře Zimbra"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Full OAuth integration with Google Meet support"
 msgstr "Plná integrace OAuth s podporou Google Meet"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Homepage demo provider"
 msgstr "Ukázkový poskytovatel pro domovskou stránku"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Lightweight self-hosted calendar server"
 msgstr "Nenáročný kalendářový server, který si provozujete sami"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Microsoft 365 and Outlook.com integration"
 msgstr "Integrace s Microsoft 365 a Outlook.com"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "PHP-based CalDAV/CardDAV server integration"
 msgstr "Integrace serveru CalDAV/CardDAV založeného na PHP"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Self-hosted Nextcloud calendar sync"
 msgstr "Synchronizace kalendáře Nextcloud na vlastním serveru"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Universal CalDAV server support"
 msgstr "Univerzální podpora serverů CalDAV"
@@ -957,7 +957,7 @@ msgstr "Odebírat"
 msgid "Subscribe to a published calendar feed"
 msgstr "Odebírejte publikovaný kanál kalendáře"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "Subscribe to a published calendar feed, read-only"
 msgstr "Odběr publikovaného kanálu kalendáře, jen pro čtení"
@@ -1167,7 +1167,7 @@ msgstr "Ověřovat certifikát TLS serveru"
 msgid "name@example.com or DOMAIN\\user"
 msgstr "name@example.com nebo DOMAIN\\user"
 
-#: lib/tymeslot/integrations/calendar/providers/provider_config.ex
+#: lib/tymeslot/integrations/calendar/providers/provider_config/metadata.ex
 #, elixir-autogen, elixir-format
 msgid "On-premises Microsoft Exchange Server, two-way sync"
 msgstr "Místní server Microsoft Exchange, obousměrná synchronizace"
