@@ -23,8 +23,6 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  @default_timezone Profiles.get_default_timezone()
-
   @spec from_meeting(map(), map() | nil) :: Tymeslot.Emails.EmailService.appointment_details()
   def from_meeting(meeting, reminder_interval \\ nil) do
     build(meeting, reminder_interval)
@@ -143,19 +141,15 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
 
   defp booking_payment_for(_meeting), do: nil
 
-  defp owner_timezone(meeting) do
-    case meeting.organizer_user_id do
-      nil ->
-        Logger.error("Missing organizer_user_id for meeting, using default timezone",
-          meeting_id: meeting.id
-        )
+  defp owner_timezone(%{organizer_user_id: nil} = meeting) do
+    Logger.error("Missing organizer_user_id for meeting, using default timezone",
+      meeting_id: meeting.id
+    )
 
-        @default_timezone
-
-      _user_id ->
-        HostClock.timezone(meeting)
-    end
+    HostClock.timezone(meeting)
   end
+
+  defp owner_timezone(meeting), do: HostClock.timezone(meeting)
 
   # A group meeting's row never carries an attendee: its people are its
   # participants, whose own timezone comes in through the recipient overlay.
