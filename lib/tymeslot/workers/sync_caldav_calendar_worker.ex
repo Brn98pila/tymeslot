@@ -43,10 +43,9 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
   alias Tymeslot.Integrations.Calendar.CalDAV.Errors, as: CalDAVErrors
   alias Tymeslot.Integrations.Calendar.CalDAV.Sync
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
-  alias Tymeslot.Integrations.Calendar.InvalidEventReport
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
-  alias Tymeslot.Workers.SyncHealth
+  alias Tymeslot.Workers.CalendarSyncJob
   alias Tymeslot.Workers.SyncRequest
 
   # Without one Oban lets a job run for ever. A sync is the offline queue's
@@ -100,33 +99,15 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: args} = job) do
-    integration_id = Map.fetch!(args, "calendar_integration_id")
     force_full_fetch? = Map.get(args, "force_full_fetch", false) == true
+    CalendarSyncJob.run(job, &sync(&1, force_full_fetch?))
+  end
 
-    Logger.metadata(calendar_integration_id: integration_id)
-
-    case CalendarIntegrationQueries.get(integration_id) do
-      {:ok, integration} ->
-        fn ->
-          integration
-          |> Sync.run(force_full_fetch?)
-          |> tap(&record_failure(integration, &1))
-          |> handle_sync_result(integration)
-          |> tap(&SyncHealth.record_outcome(integration, &1))
-        end
-        |> InvalidEventReport.collect()
-        |> SyncRequest.rerun_if_requested(job)
-
-      {:error, :not_found} ->
-        Logger.warning("CalDAV integration not found, discarding sync job",
-          calendar_integration_id: integration_id
-        )
-
-        {:discard, @integration_gone}
-
-      {:error, :requires_reencryption, integration} ->
-        CalendarManagement.handle_reauth_required(integration)
-    end
+  defp sync(integration, force_full_fetch?) do
+    integration
+    |> Sync.run(force_full_fetch?)
+    |> tap(&record_failure(integration, &1))
+    |> handle_sync_result(integration)
   end
 
   # Every clause below that discards is a failure no operator or user would

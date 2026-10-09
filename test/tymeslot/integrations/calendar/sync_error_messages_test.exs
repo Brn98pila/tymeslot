@@ -42,8 +42,8 @@ defmodule Tymeslot.Integrations.Calendar.SyncErrorMessagesTest do
   ]
 
   @exchange_reasons [
-    {:empty_result_with_populated_cache, "busy_only"},
-    {:empty_result_with_populated_cache, "events"},
+    {:empty_feed_with_populated_cache, "busy_only"},
+    {:empty_feed_with_populated_cache, "events"},
     {:soap_fault, "ErrorInternalServerError"},
     :no_response_code,
     {:response_code, "ErrorAccessDenied"},

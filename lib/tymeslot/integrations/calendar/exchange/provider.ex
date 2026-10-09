@@ -22,7 +22,7 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Provider do
 
   A sync window costs two independent EWS reads, and neither subsumes the
   other. **Neither is a `Provider` callback and neither is named like one**:
-  both are called only by `Tymeslot.Workers.SyncExchangeCalendarWorker`, and
+  both are called only by `Tymeslot.Integrations.Calendar.Exchange.SyncCycle`, and
   the names say so on purpose (see the next section).
 
     * `list_busy_intervals/2` asks `GetUserAvailability` when the mailbox is
@@ -269,7 +269,7 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Provider do
   @doc """
   Builds one client per selected calendar folder, for the item read.
 
-  Called only by `Tymeslot.Workers.SyncExchangeCalendarWorker`, which pairs it
+  Called only by `Tymeslot.Integrations.Calendar.Exchange.SyncCycle`, which pairs it
   with `list_calendar_items/2`. A selected calendar the discovery named no
   folder id for is dropped rather than carried: a client with no folder id
   does not read nothing, it reads the mailbox's default calendar, so the
@@ -353,7 +353,7 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Provider do
   Lists the raw calendar items falling in the requested range.
 
   A **live** EWS read, called only by
-  `Tymeslot.Workers.SyncExchangeCalendarWorker`. Answers the `t:CalendarItem`
+  `Tymeslot.Integrations.Calendar.Exchange.SyncCycle`. Answers the `t:CalendarItem`
   elements of a batched `GetItem`, which `normalise_events/2` turns into
   `CalendarEvent` structs cached as `display_only` rows. This is the dashboard
   grid's read; availability comes from `list_busy_intervals/2`, and the two
@@ -385,7 +385,7 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Provider do
   Lists the mailbox's busy intervals over the requested range.
 
   A **live** EWS read, called only by
-  `Tymeslot.Workers.SyncExchangeCalendarWorker`, whose intervals are cached as
+  `Tymeslot.Integrations.Calendar.Exchange.SyncCycle`, whose intervals are cached as
   the `busy_only` rows `list_events/2` then serves. It is the source of truth
   for availability, and the only read that sees every occurrence
   of a recurring series. It answers plain maps carrying bounds and a busy

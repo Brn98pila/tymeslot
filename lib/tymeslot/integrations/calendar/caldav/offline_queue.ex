@@ -48,9 +48,8 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue do
     * a row that has failed `@max_replay_attempts` counted times is no
       longer replayed. It keeps its pending state and the last failure in
       `sync_last_error`, and is replayed again once a new local change to
-      it resets the count. Nothing shows the owner such a row yet: the
-      column is kept readable for when something does, and the row's uid
-      and error are in the log of every failed attempt.
+      it resets the count, or the owner retries it from the calendar's
+      card (`stuck_changes/1`, `release_stuck/1`).
 
   A `412 Precondition Failed` response to a `locally_modified` flush
   follows the usual conflict-resolution policy (`:keep_local` for
@@ -125,6 +124,23 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue do
   # and 504) is the server answering about this change, and counts.
   @unanswered_reasons @unreachable_reasons -- [:server_error]
   @deferral_grace_hours 24
+
+  @doc """
+  The changes of `user_id`'s calendars that are no longer replayed, by
+  integration id: how many, and the last failure recorded on one.
+  """
+  @spec stuck_changes(pos_integer()) :: %{
+          pos_integer() => %{count: pos_integer(), last_error: String.t() | nil}
+        }
+  def stuck_changes(user_id), do: QueueQueries.stuck_by_integration(user_id, @max_replay_attempts)
+
+  @doc """
+  Puts `integration_id`'s stuck changes back in the queue with a fresh count,
+  for the next flush to replay. Answers how many there were.
+  """
+  @spec release_stuck(pos_integer()) :: non_neg_integer()
+  def release_stuck(integration_id),
+    do: QueueQueries.release_stuck(integration_id, @max_replay_attempts)
 
   @spec flush(map(), CalDAVBase.client()) :: :ok
   def flush(integration, client) do

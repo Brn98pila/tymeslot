@@ -95,7 +95,12 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Shared.ConnectionLabels 
     end
   end
 
-  defp translate_reason(reason) do
+  @doc """
+  A reason stored as an English msgid, translated from the first of
+  `reason_domains/0` that has it, or returned as stored when none does.
+  """
+  @spec translate_reason(String.t()) :: String.t()
+  def translate_reason(reason) do
     Enum.find_value(@reason_domains, reason, fn domain ->
       case Gettext.dgettext(TymeslotWeb.Gettext, domain, reason) do
         ^reason -> nil

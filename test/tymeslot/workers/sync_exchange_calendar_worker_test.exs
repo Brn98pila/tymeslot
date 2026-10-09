@@ -284,7 +284,7 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorkerTest do
 
       stub_full_sync(intervals: [])
 
-      assert {:error, {:empty_result_with_populated_cache, "busy_only"}} = run(integration)
+      assert {:error, {:empty_feed_with_populated_cache, "busy_only"}} = run(integration)
 
       assert [_busy] = availability_events(integration),
              "the busy half was wiped by an empty free/busy response"
@@ -303,7 +303,7 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorkerTest do
       age_last_full_sync(integration)
       stub_full_sync(find_item: ExchangeFixtures.empty_find_item_response())
 
-      assert {:error, {:empty_result_with_populated_cache, "display_only"}} = run(integration)
+      assert {:error, {:empty_feed_with_populated_cache, "display_only"}} = run(integration)
 
       assert [_item] = grid_rows(integration)
     end

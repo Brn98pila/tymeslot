@@ -198,6 +198,10 @@ defmodule Tymeslot.Integrations.Calendar.EventsTest do
       end
     end
 
+    test "a rate limit that named its wait is not queueable" do
+      refute Events.queueable_error?({:rate_limited, 30})
+    end
+
     test "a non-atom reason is queueable" do
       assert Events.queueable_error?({:http_error, 502})
     end

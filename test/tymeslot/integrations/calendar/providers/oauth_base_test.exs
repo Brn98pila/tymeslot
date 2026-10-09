@@ -64,6 +64,16 @@ defmodule Tymeslot.Integrations.Calendar.Providers.OAuthBaseTest do
     # Callers above this layer dispatch on the atom: CalendarEventSync recreates
     # an event on :not_found, CalendarEventWorker discards on :unauthorized.
     # Returning the provider's message instead made those branches unreachable.
+    # The shared response envelope carries a 429's Retry-After as
+    # "retry_after:<n>"; the wait reaches CalendarEventWorker as seconds.
+    test "keeps the wait a rate limit asked for" do
+      assert {:error, {:rate_limited, 30}} =
+               OAuthBase.handle_api_call(fn -> {:error, :rate_limited, "retry_after:30"} end)
+
+      assert {:error, :rate_limited} =
+               OAuthBase.handle_api_call(fn -> {:error, :rate_limited, "Too many requests"} end)
+    end
+
     test "keeps the classification atom from a typed provider error" do
       assert {:error, :not_found} =
                OAuthBase.handle_api_call(fn -> {:error, :not_found, "Event not found"} end)

@@ -495,15 +495,24 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
   @spec delete_by_provider_account(String.t(), String.t()) :: {:ok, non_neg_integer()}
   def delete_by_provider_account(provider, provider_account_id)
       when is_binary(provider) and is_binary(provider_account_id) and provider_account_id != "" do
-    {count, _rows} =
-      VideoIntegrationSchema
-      |> where(
-        [v],
-        v.provider == ^provider and v.provider_account_id == ^provider_account_id
-      )
-      |> Repo.delete_all()
+    # The rows are locked in ascending id order before any is deleted: a
+    # calendar sync key-shares its owner's video integrations in that order
+    # (`Calendar.IntegrationCacheQueries.lock/1`), and a delete that reached
+    # two of them the other way round could deadlock against it.
+    Repo.transaction(fn ->
+      ids =
+        Repo.all(
+          from(v in VideoIntegrationSchema,
+            where: v.provider == ^provider and v.provider_account_id == ^provider_account_id,
+            order_by: v.id,
+            lock: "FOR UPDATE",
+            select: v.id
+          )
+        )
 
-    {:ok, count}
+      {count, _rows} = Repo.delete_all(from(v in VideoIntegrationSchema, where: v.id in ^ids))
+      count
+    end)
   end
 
   @doc """

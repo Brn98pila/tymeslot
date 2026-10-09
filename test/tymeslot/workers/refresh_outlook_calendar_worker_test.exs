@@ -396,7 +396,7 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorkerTest do
       # any unexpected call.
       integration = insert(:calendar_integration, provider: "google", is_active: true)
 
-      assert {:discard, "Integration is not Outlook"} =
+      assert {:discard, "Integration is not outlook"} =
                perform_job(RefreshOutlookCalendarWorker, %{
                  "calendar_integration_id" => integration.id
                })
