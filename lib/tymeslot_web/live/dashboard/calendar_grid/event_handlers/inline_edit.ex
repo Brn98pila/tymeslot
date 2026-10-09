@@ -7,6 +7,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.InlineEdit do
 
   alias Tymeslot.CalendarGrid
   alias Tymeslot.CalendarGrid.AllDay
+  alias Tymeslot.CalendarGrid.EventEdit
   alias Tymeslot.CalendarGrid.SeriesEdit
   alias Tymeslot.Meetings.AttendeeNotifications
   alias Tymeslot.Security.UniversalSanitizer
@@ -126,9 +127,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.InlineEdit do
         with :ok <- EditWorkflow.assert_event_writable(socket, event),
              :ok <- Shared.check_seat_lock(socket, event),
              :ok <- Shared.check_edit_rate_limit(socket) do
-          optimistic_event = AllDay.toggle(event, socket.assigns.user_timezone)
-
-          push_all_day_change(socket, event, optimistic_event)
+          push_all_day_change(socket, event, &EventEdit.toggle_all_day(event, &1))
         else
           {:error, reason} = error
           when reason in [:unauthorized, :read_only, :group_booking] ->
@@ -161,8 +160,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.InlineEdit do
                Date.compare(exclusive_end, event.end_date) == :eq do
             {:noreply, socket}
           else
-            optimistic_event = %{event | start_date: start_date, end_date: exclusive_end}
-            push_all_day_change(socket, event, optimistic_event)
+            push_all_day_change(socket, event, fn _timezone ->
+              %{event | start_date: start_date, end_date: exclusive_end}
+            end)
           end
         else
           {:error, reason} = error
@@ -246,10 +246,12 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.InlineEdit do
         {:noreply, socket}
 
       event ->
+        timezone = Shared.recurrence_timezone(event, socket.assigns.user_timezone)
+
         event_context = %{
           all_day: Map.get(event, :all_day, false),
-          start_date: AllDay.start_date(event),
-          timezone: Shared.recurrence_timezone(event, socket.assigns.user_timezone),
+          start_date: AllDay.start_date(event, timezone),
+          timezone: timezone,
           rule: event.recurrence_rule
         }
 
@@ -534,16 +536,18 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.InlineEdit do
   # Flipping all-day refits a recurring event's UNTIL to the value type its new
   # DTSTART calls for, and a timed UNTIL is an instant, so the domain needs a
   # timezone to end the chosen day in: the event's own, which is the calendar
-  # the series sits on.
-  defp push_all_day_change(socket, original_event, optimistic_event) do
+  # the series sits on. `build` derives the new copy of the event in that same
+  # zone.
+  defp push_all_day_change(socket, original_event, build) do
     timezone = Shared.recurrence_timezone(original_event, socket.assigns.user_timezone)
+    optimistic_event = build.(timezone)
 
     result =
       Shared.apply_optimistic_update(socket, optimistic_event, fn s ->
         EditWorkflow.update_event_async(
           s,
           original_event,
-          Map.take(optimistic_event, [:all_day, :start_at, :end_at, :start_date, :end_date]),
+          EventEdit.timing_changes(optimistic_event),
           timezone: timezone
         )
       end)

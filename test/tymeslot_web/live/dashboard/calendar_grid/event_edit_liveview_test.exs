@@ -106,6 +106,31 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
       assert payload.recurrence_rule == @rrule
     end
 
+    test "keeps an evening event that ends at midnight on its one day", %{
+      conn: conn,
+      integration: integration
+    } do
+      today = Date.utc_today()
+
+      event =
+        insert_timed_event(integration, %{
+          start_at: DateTime.new!(today, ~T[22:00:00.000000], "Etc/UTC"),
+          end_at: DateTime.new!(Date.add(today, 1), ~T[00:00:00.000000], "Etc/UTC"),
+          recurrence_rule: nil,
+          recurring_event_id: nil
+        })
+
+      expect_provider_update(:ok)
+
+      {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+      lv |> element("[id^='event-#{event.id}-']") |> render_click()
+      lv |> element("#calendar-grid") |> render_hook("toggle_event_all_day", %{})
+
+      payload = await_provider_update(lv)
+      assert payload.start_time == today
+      assert payload.end_time == Date.add(today, 1)
+    end
+
     test "rewrites the series' UNTIL to the bare date an all-day DTSTART needs", %{
       conn: conn,
       integration: integration
