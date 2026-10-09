@@ -75,6 +75,15 @@ defmodule Tymeslot.Jobs do
   defdelegate delete_meeting_jobs(worker_module, meeting_id), to: ObanJobQueries
 
   @doc """
+  Deletes every pending job naming the user id or one of the meeting ids. See
+  `Tymeslot.Jobs.ObanJobQueries.delete_pending_account_jobs/2`.
+  """
+  defdelegate delete_pending_account_jobs(user_id, meeting_ids), to: ObanJobQueries
+
+  @doc "Deletes a worker's pending jobs for one user id."
+  defdelegate delete_user_jobs(worker_module, user_id), to: ObanJobQueries
+
+  @doc """
   Queues holding jobs older than `recent_cutoff`, with their depth.
   """
   defdelegate list_accumulated_jobs(recent_cutoff), to: ObanJobQueries

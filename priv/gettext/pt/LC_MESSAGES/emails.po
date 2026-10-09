@@ -558,6 +558,16 @@ msgstr "O endereço vai ser combinado depois do agendamento."
 msgid "The address will be arranged with you after booking."
 msgstr "O endereço vai ser combinado com você depois do agendamento."
 
+#: lib/tymeslot/emails/email_service/auth_emails.ex
+#, elixir-autogen, elixir-format
+msgid "Your Tymeslot account has been deleted"
+msgstr "Sua conta do Tymeslot foi excluída"
+
+#: lib/tymeslot/emails/email_service/auth_emails.ex
+#, elixir-autogen, elixir-format
+msgid "Your Tymeslot account is scheduled for deletion"
+msgstr "A exclusão da sua conta do Tymeslot foi agendada"
+
 #: lib/tymeslot/emails/appointment_builder.ex
 #, elixir-autogen, elixir-format
 msgid "%{count} participant"

@@ -188,6 +188,10 @@ defmodule TymeslotWeb.MeetingRequestLive do
   defp apply_answer(socket, meeting, action, success_state) do
     case current_request(socket.assigns.token, meeting) do
       {:ok, current} -> run_answer(socket, current, action, success_state)
+      # The meeting is gone or its host is unavailable (account pending
+      # deletion): nothing "has changed", so the page just shows the
+      # unrecognised-link state.
+      {:error, :not_found} -> assign(socket, meeting: nil, state: :invalid)
       {:error, _reason} -> stale_request(socket)
     end
   end

@@ -140,6 +140,34 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
     |> Repo.update()
   end
 
+  @doc """
+  Narrows `query` to the rows of the binding named `binding` (an `id` column)
+  that have no incomplete job of `worker` whose `args["user_id"]` is that id.
+
+  "Incomplete" is Oban's own group (`Oban.Job.unique_states(:incomplete)`:
+  waiting, scheduled, retrying, executing and suspended), the one a worker
+  declaring `unique: [states: :incomplete]` is held to. A suspended job is
+  counted because such a worker would reject a new insert while it exists, so
+  a sweep that treated it as absent would try again on every run.
+  """
+  @spec without_incomplete_user_job(Ecto.Queryable.t(), module(), atom()) :: Ecto.Query.t()
+  def without_incomplete_user_job(query, worker, binding) when is_atom(binding) do
+    worker_name = normalize_worker_name(worker)
+    states = Enum.map(Job.unique_states(:incomplete), &Atom.to_string/1)
+
+    where(
+      query,
+      [],
+      not exists(
+        from(j in Job,
+          where: j.worker == ^worker_name,
+          where: j.state in ^states,
+          where: fragment("?->>'user_id' = ?::text", j.args, parent_as(^binding).id)
+        )
+      )
+    )
+  end
+
   # The state list every "still pending" delete below matches against. Kept
   # in one place because it has to stay in step with the `unique: [states:
   # ...]` guard on whichever worker is being cleared.
@@ -233,6 +261,35 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
     args_match = %{"poll_id" => poll_id}
     delete_pending_jobs(worker_module, args_match, queue: "emails")
   end
+
+  @doc """
+  Deletes every job still waiting to run whose args name `user_id` or one of
+  `meeting_ids`, on any queue and for any worker. Run once an account has
+  been deleted: nothing queued for it may run later, and no reminder may keep
+  a guest's address in its args.
+
+  A job already `executing` is left alone; it finds its rows gone and ends.
+  """
+  @spec delete_pending_account_jobs(integer(), [term()]) :: {non_neg_integer(), nil}
+  def delete_pending_account_jobs(user_id, meeting_ids)
+      when is_integer(user_id) and is_list(meeting_ids) do
+    user_id = Integer.to_string(user_id)
+    meeting_ids = Enum.map(meeting_ids, &to_string/1)
+
+    Job
+    |> where([j], j.state in @pending_states)
+    |> where(
+      [j],
+      fragment("?->>'user_id' = ?", j.args, ^user_id) or
+        fragment("?->>'meeting_id' = ANY(?)", j.args, ^meeting_ids)
+    )
+    |> Repo.delete_all()
+  end
+
+  @doc "Deletes `worker_module`'s pending jobs whose args carry `user_id`."
+  @spec delete_user_jobs(module(), integer()) :: {non_neg_integer(), nil}
+  def delete_user_jobs(worker_module, user_id) when is_integer(user_id),
+    do: delete_pending_jobs(worker_module, %{"user_id" => user_id})
 
   defp delete_pending_jobs(worker_module, args_match, opts \\ []) do
     worker_name = normalize_worker_name(worker_module)

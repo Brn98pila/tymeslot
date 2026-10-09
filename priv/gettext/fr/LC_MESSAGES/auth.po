@@ -930,3 +930,38 @@ msgstr "Le mot de passe est trop long"
 #, elixir-autogen, elixir-format
 msgid "An account with this email address already exists. Sign in with your password or with the service you originally signed up with. If you have forgotten your password, you can reset it from the sign-in page."
 msgstr "Un compte existe déjà avec cette adresse e-mail. Veuillez vous connecter avec votre mot de passe ou avec le service utilisé lors de votre inscription. Si vous avez oublié votre mot de passe, vous pouvez le réinitialiser depuis la page de connexion."
+
+#: lib/tymeslot_web/controllers/auth/account_restore_html.ex
+#, elixir-autogen, elixir-format
+msgid "Restore my account"
+msgstr "Restaurer mon compte"
+
+#: lib/tymeslot_web/controllers/auth/account_restore_html.ex
+#, elixir-autogen, elixir-format
+msgid "Sign out"
+msgstr "Se déconnecter"
+
+#: lib/tymeslot_web/controllers/auth/account_restore_controller.ex
+#, elixir-autogen, elixir-format
+msgid "Welcome back. Your account has been restored and will not be deleted."
+msgstr "Bon retour parmi nous. Votre compte a été restauré et ne sera pas supprimé."
+
+#: lib/tymeslot_web/controllers/auth/account_restore_controller.ex
+#, elixir-autogen, elixir-format
+msgid "Your account could not be restored. Please try again."
+msgstr "Votre compte n’a pas pu être restauré. Veuillez réessayer."
+
+#: lib/tymeslot_web/controllers/auth/account_restore_html.ex
+#, elixir-autogen, elixir-format
+msgid "Your account is being deleted"
+msgstr "Votre compte est en cours de suppression"
+
+#: lib/tymeslot_web/controllers/auth/account_restore_html.ex
+#, elixir-autogen, elixir-format
+msgid "Your account is being deleted and can no longer be restored."
+msgstr "Votre compte est en cours de suppression et ne peut plus être restauré."
+
+#: lib/tymeslot_web/controllers/auth/account_restore_html.ex
+#, elixir-autogen, elixir-format
+msgid "Your account is in the process of being deleted (scheduled for %{date}). If you want to keep it, restore it here."
+msgstr "Votre compte est en cours de suppression (prévue le %{date}). Si vous souhaitez le conserver, restaurez-le ici."

@@ -9,6 +9,7 @@ defmodule Tymeslot.Release do
   and production (`bin/tymeslot rpc 'Tymeslot.Release.promote_admin("…")'`).
   """
 
+  alias Tymeslot.Auth
   alias Tymeslot.Auth.{AdminRoles, AdminUserQueries, UserQueries, UserSchema}
   alias Tymeslot.Media.UploadMetadataSweep
 
@@ -55,6 +56,37 @@ defmodule Tymeslot.Release do
       AdminRoles.demote(:cli, user.id, force: force?)
     end
   end
+
+  @doc """
+  Deletes the account with the given email now, bypassing any grace period,
+  and waits for the deletion to finish:
+
+      bin/tymeslot rpc 'Tymeslot.Release.delete_account("someone@example.com")'
+
+  Refuses the only remaining admin unless `force?` is true. Returns
+  `{:ok, :deleted}`, or the error that stopped the deletion; in that case the
+  queued deletion job retries by itself.
+  """
+  @spec delete_account(String.t(), boolean()) :: {:ok, :deleted} | {:error, term()}
+  def delete_account(email, force? \\ false) when is_binary(email) do
+    ensure_started()
+
+    with {:ok, user} <- UserQueries.get_user_by_email(email),
+         {:ok, _pending} <-
+           Auth.delete_account_now(:cli, user.id, force: force?, job_at: fallback_job_at()) do
+      case Auth.run_scheduled_deletion(user.id) do
+        {:ok, outcome} when outcome in [:deleted, :already_deleted] -> {:ok, :deleted}
+        {:ok, outcome} -> {:error, outcome}
+        {:snooze, _seconds} -> {:error, :not_due}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  # The deletion runs synchronously, so the queued job is only the retry if
+  # that fails. Queued for now, Oban would race the synchronous run and do
+  # the cleanup and the hook twice; on success it finds the account gone.
+  defp fallback_job_at, do: DateTime.add(DateTime.utc_now(:second), 5, :minute)
 
   # Checked here too (rather than relying solely on `AdminRoles.demote/3`'s
   # own check) so a disabled admin UI is reported before an unknown email,

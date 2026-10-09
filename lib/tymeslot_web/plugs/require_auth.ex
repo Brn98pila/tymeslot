@@ -7,6 +7,9 @@ defmodule TymeslotWeb.Plugs.RequireAuthPlug do
   with an explanatory flash. LiveViews behind this plug re-check on mount with
   `{TymeslotWeb.Hooks.AuthLiveSessionHook, :ensure_authenticated}`, since a
   live navigation does not pass through the plug pipeline.
+
+  An account pending deletion is frozen: it is sent to `/auth/restore`
+  instead, the one signed-in page it can reach.
   """
   use Phoenix.VerifiedRoutes,
     endpoint: TymeslotWeb.Endpoint,
@@ -18,22 +21,27 @@ defmodule TymeslotWeb.Plugs.RequireAuthPlug do
   import Plug.Conn
 
   alias Phoenix.Controller
+  alias Tymeslot.Auth
 
   @spec init(any()) :: any()
   def init(opts), do: opts
 
   @spec call(Plug.Conn.t(), any()) :: Plug.Conn.t()
   def call(conn, _opts) do
-    if conn.assigns[:current_user] do
-      conn
-    else
-      conn
-      |> Controller.put_flash(
-        :error,
-        dgettext("auth", "You must be logged in to access this page.")
-      )
-      |> Controller.redirect(to: ~p"/auth/login")
-      |> halt()
+    case conn.assigns[:current_user] do
+      nil ->
+        conn
+        |> Controller.put_flash(
+          :error,
+          dgettext("auth", "You must be logged in to access this page.")
+        )
+        |> Controller.redirect(to: ~p"/auth/login")
+        |> halt()
+
+      user ->
+        if Auth.deletion_pending?(user),
+          do: conn |> Controller.redirect(to: ~p"/auth/restore") |> halt(),
+          else: conn
     end
   end
 end

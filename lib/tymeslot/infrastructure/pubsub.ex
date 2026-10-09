@@ -78,4 +78,37 @@ defmodule Tymeslot.Infrastructure.PubSub do
     # registry is not running (a race against application start).
     error -> {:error, error}
   end
+
+  @doc """
+  Tells every LiveView of `user_id` that the account has been asked to be
+  deleted, so a tab still showing its data leaves (see
+  `TymeslotWeb.Hooks.AuthLiveSessionHook`). Delivered as
+  `{:account_deletion_requested, user_id}`.
+  """
+  @spec broadcast_account_deletion_requested(pos_integer()) :: :ok
+  def broadcast_account_deletion_requested(user_id) do
+    case Phoenix.PubSub.broadcast(
+           Tymeslot.PubSub,
+           account_topic(user_id),
+           {:account_deletion_requested, user_id}
+         ) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("Failed to broadcast account deletion request",
+          user_id: user_id,
+          reason: LogFormat.reason(reason)
+        )
+
+        :ok
+    end
+  end
+
+  @doc "Subscribes the calling process to events about one account."
+  @spec subscribe_to_account(pos_integer()) :: :ok | {:error, term()}
+  def subscribe_to_account(user_id),
+    do: Phoenix.PubSub.subscribe(Tymeslot.PubSub, account_topic(user_id))
+
+  defp account_topic(user_id), do: "auth:account:#{user_id}"
 end

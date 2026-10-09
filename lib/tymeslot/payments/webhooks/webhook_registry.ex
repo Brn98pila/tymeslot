@@ -49,7 +49,8 @@ defmodule Tymeslot.Payments.Webhooks.WebhookRegistry do
   # charge, payment-intent, customer and setup events that accompany it carry
   # nothing further. Connect application-fee events fire on the platform
   # account for every paid booking (the platform fee being collected or
-  # returned).
+  # returned). `customer.deleted` is the echo of a customer we removed
+  # ourselves, for instance when an account is deleted.
   @ignored ~w(
     charge.succeeded
     charge.failed
@@ -62,6 +63,7 @@ defmodule Tymeslot.Payments.Webhooks.WebhookRegistry do
     setup_intent.succeeded
     application_fee.created
     application_fee.refunded
+    customer.deleted
   )
 
   @doc """

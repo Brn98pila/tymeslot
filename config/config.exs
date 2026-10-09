@@ -96,6 +96,14 @@ config :tymeslot,
   # succeed before a user is deleted. See delete_user/1.
   account_deletion_hook: nil,
 
+  # Days between a self-service deletion request and the deletion itself.
+  # With 0 the account is deleted as soon as the deletion job runs.
+  account_deletion_grace_days: 0,
+
+  # Whether the deletion dialog asks why the user is leaving. The answer is
+  # passed to the account-deletion hook; Core stores nothing.
+  collect_deletion_feedback: false,
+
   # The Oban crontab, one definition for every environment that runs the cron
   # service (dev and production; test does not). The environment's Oban
   # config only switches the service on with `cron: []`, and
@@ -144,7 +152,10 @@ config :tymeslot,
     # Run daily at 03:05 UTC to resolve quiet errors and prune old ones
     {"5 3 * * *", Tymeslot.Workers.ErrorTrackerMaintenanceWorker},
     # Run daily at 07:00 UTC to email the digest of info-severity admin alerts
-    {"0 7 * * *", Tymeslot.Workers.AdminAlertDigestWorker}
+    {"0 7 * * *", Tymeslot.Workers.AdminAlertDigestWorker},
+    # Run daily at 04:20 UTC to queue any account deletion that is overdue
+    # because its own job was lost or gave up
+    {"20 4 * * *", Tymeslot.Workers.AccountDeletionSweepWorker}
   ],
 
   # Additional Oban crontab entries - none by default. An external layer adds

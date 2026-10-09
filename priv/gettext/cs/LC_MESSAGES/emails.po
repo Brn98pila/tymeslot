@@ -565,6 +565,16 @@ msgstr "Adresa bude domluvena po rezervaci."
 msgid "The address will be arranged with you after booking."
 msgstr "Adresu s vámi domluvíme po rezervaci."
 
+#: lib/tymeslot/emails/email_service/auth_emails.ex
+#, elixir-autogen, elixir-format
+msgid "Your Tymeslot account has been deleted"
+msgstr "Váš účet Tymeslot byl smazán"
+
+#: lib/tymeslot/emails/email_service/auth_emails.ex
+#, elixir-autogen, elixir-format
+msgid "Your Tymeslot account is scheduled for deletion"
+msgstr "Váš účet Tymeslot je naplánován ke smazání"
+
 #: lib/tymeslot/emails/appointment_builder.ex
 #, elixir-autogen, elixir-format
 msgid "%{count} participant"

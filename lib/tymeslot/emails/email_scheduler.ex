@@ -82,6 +82,7 @@ defmodule Tymeslot.Emails.EmailScheduler do
   defdelegate schedule_no_password_to_reset(user_id), to: AuthScheduler
   defdelegate schedule_signup_attempt_notice(user_id), to: AuthScheduler
   defdelegate schedule_social_signup_confirmation(details), to: AuthScheduler
+  defdelegate schedule_account_deletion_notice(details), to: AuthScheduler
 
   # Account emails
 
@@ -137,6 +138,7 @@ defmodule Tymeslot.Emails.EmailScheduler do
     "send_no_password_to_reset" => ["user_id"],
     "send_signup_attempt_notice" => ["user_id"],
     "send_social_signup_confirmation" => ["email", "provider", "confirm_url_encrypted"],
+    "send_account_deletion_notice" => ["email", "scheduled_at", "restorable"],
     "send_poll_deadline_reminders" => ["poll_id"],
     "send_poll_host_nudge" => ["poll_id", "variant"],
     "send_email_change_verification" => [
