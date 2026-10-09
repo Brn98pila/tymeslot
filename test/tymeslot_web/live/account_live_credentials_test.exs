@@ -41,7 +41,7 @@ defmodule TymeslotWeb.AccountLiveCredentialsTest do
       {:ok, view, _html} = live(conn, ~p"/dashboard/account")
 
       # Meanwhile, someone else who knows the password redirects the account.
-      change_token = Token.generate_token()
+      change_token = Token.generate()
 
       {:ok, _pending} =
         UserTokenQueries.request_email_change(user, "attacker@example.com", change_token)

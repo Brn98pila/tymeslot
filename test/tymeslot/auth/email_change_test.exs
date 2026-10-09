@@ -141,7 +141,7 @@ defmodule Tymeslot.Auth.EmailChangeTest do
         UserTokenQueries.request_email_change(
           other_user,
           "wanted@example.com",
-          Token.generate_token()
+          Token.generate()
         )
 
       # The address cannot be held twice, so nothing is recorded, but the
@@ -164,7 +164,7 @@ defmodule Tymeslot.Auth.EmailChangeTest do
         UserTokenQueries.request_email_change(
           squatter,
           "wanted@example.com",
-          Token.generate_token()
+          Token.generate()
         )
 
       set_email_change_sent_at(squatter, -(24 * 3600 + 60))
@@ -187,7 +187,7 @@ defmodule Tymeslot.Auth.EmailChangeTest do
 
     test "re-requesting an address after the own link expired holds it again", %{user: user} do
       {:ok, user} =
-        UserTokenQueries.request_email_change(user, "again@example.com", Token.generate_token())
+        UserTokenQueries.request_email_change(user, "again@example.com", Token.generate())
 
       set_email_change_sent_at(user, -(24 * 3600 + 60))
 
@@ -308,7 +308,7 @@ defmodule Tymeslot.Auth.EmailChangeTest do
 
       # Nobody holds the stored token; the same row with a token we do hold
       # shows the confirm path refuses it all the same.
-      token = Token.generate_token()
+      token = Token.generate()
 
       {:ok, _pending} =
         UserTokenQueries.request_email_change(Repo.reload!(user), other_user.email, token)
@@ -351,7 +351,7 @@ defmodule Tymeslot.Auth.EmailChangeTest do
     setup do
       user = insert(:user)
       new_email = "new.email@example.com"
-      token = Token.generate_token()
+      token = Token.generate()
 
       {:ok, user_with_pending} =
         UserTokenQueries.request_email_change(user, new_email, token)
@@ -406,7 +406,7 @@ defmodule Tymeslot.Auth.EmailChangeTest do
     end
 
     test "revokes a reset link mailed to the old address", %{user: user, token: token} do
-      reset_token = Token.generate_token()
+      reset_token = Token.generate()
       {:ok, _user} = UserTokenQueries.set_reset_token(user, reset_token)
 
       assert {:ok, updated_user, _message} =
@@ -481,7 +481,7 @@ defmodule Tymeslot.Auth.EmailChangeTest do
     setup do
       user = insert(:user)
       new_email = "new.email@example.com"
-      token = Token.generate_token()
+      token = Token.generate()
 
       {:ok, user_with_pending} =
         UserTokenQueries.request_email_change(user, new_email, token)
@@ -503,7 +503,7 @@ defmodule Tymeslot.Auth.EmailChangeTest do
   describe "cancel_email_change/1 revokes the link" do
     test "the cancelled link no longer confirms" do
       user = insert(:user)
-      token = Token.generate_token()
+      token = Token.generate()
       {:ok, user} = UserTokenQueries.request_email_change(user, "new.email@example.com", token)
 
       assert {:ok, _user, _message} = Auth.cancel_email_change(user)

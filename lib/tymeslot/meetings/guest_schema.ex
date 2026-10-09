@@ -165,13 +165,6 @@ defmodule Tymeslot.Meetings.GuestSchema do
   def status_key("declined"), do: :declined
   def status_key(_pending), do: :pending
 
-  # Generates an unguessable, URL-safe RSVP token.
-  defp generate_token do
-    @token_bytes
-    |> :crypto.strong_rand_bytes()
-    |> Base.url_encode64(padding: false)
-  end
-
   defp ensure_status(changeset) do
     case get_field(changeset, :status) do
       nil -> put_change(changeset, :status, "pending")
@@ -181,7 +174,7 @@ defmodule Tymeslot.Meetings.GuestSchema do
 
   defp ensure_rsvp_token(changeset) do
     case get_field(changeset, :rsvp_token) do
-      nil -> put_change(changeset, :rsvp_token, generate_token())
+      nil -> put_change(changeset, :rsvp_token, Token.generate(@token_bytes))
       _present -> changeset
     end
   end

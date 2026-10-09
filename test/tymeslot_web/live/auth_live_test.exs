@@ -505,7 +505,7 @@ defmodule TymeslotWeb.AuthLiveTest do
 
   defp setup_password_reset_token(_context) do
     user = insert(:user)
-    token = Token.generate_token()
+    token = Token.generate()
     {:ok, _result} = UserTokenQueries.set_reset_token(user, token)
     %{user: user, token: token}
   end

@@ -72,7 +72,7 @@ defmodule Tymeslot.Workers.ExpiredSessionCleanupWorkerTest do
 
   defp pending_change(address, sent_offset_seconds) do
     {:ok, user} =
-      UserTokenQueries.request_email_change(insert(:user), address, Token.generate_token())
+      UserTokenQueries.request_email_change(insert(:user), address, Token.generate())
 
     user
     |> Changeset.change(
