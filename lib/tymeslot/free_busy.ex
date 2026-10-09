@@ -11,6 +11,7 @@ defmodule Tymeslot.FreeBusy do
   """
 
   alias Tymeslot.Availability.{Events, TimeOff}
+  alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.CalendarEventQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
@@ -64,7 +65,7 @@ defmodule Tymeslot.FreeBusy do
   @spec feed(ProfileSchema.t(), keyword()) :: String.t()
   def feed(%ProfileSchema{} = profile, opts \\ []) do
     horizon_days = Keyword.get(opts, :horizon_days, @default_horizon_days)
-    window_start = DateTime.truncate(Keyword.get(opts, :now, DateTime.utc_now()), :second)
+    window_start = DateTime.truncate(Keyword.get_lazy(opts, :now, &Clock.utc_now/0), :second)
     window_end = DateTime.add(window_start, horizon_days, :day)
 
     FreebusyGenerator.generate(

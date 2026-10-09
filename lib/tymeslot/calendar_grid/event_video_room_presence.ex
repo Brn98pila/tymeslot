@@ -53,6 +53,7 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomPresence do
   alias Tymeslot.CalendarGrid.EventVideoRoomQueries
   alias Tymeslot.CalendarGrid.EventVideoRooms
   alias Tymeslot.CalendarGrid.EventVideoRoomSchema
+  alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.Operations, as: CalendarOperations
   alias Tymeslot.Integrations.Calendar.ProviderConfig, as: CalendarProviderConfig
   alias Tymeslot.Integrations.Video.ProviderConfig
@@ -69,7 +70,7 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomPresence do
   def list_gone do
     cache_reaches_back_to =
       DateTime.add(
-        DateTime.utc_now(),
+        Clock.utc_now(),
         -CalendarProviderConfig.sync_window_past_days() * @seconds_per_day,
         :second
       )
@@ -216,7 +217,7 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomPresence do
     end
   end
 
-  defp now, do: DateTime.utc_now(:second)
+  defp now, do: DateTime.truncate(Clock.utc_now(), :second)
 
   defp describe({:ok, []}), do: :no_usable_event
   defp describe({:error, reason}) when is_atom(reason), do: reason

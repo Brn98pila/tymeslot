@@ -64,6 +64,7 @@ defmodule Tymeslot.CalendarGrid.EventMove do
   alias Tymeslot.CalendarGrid.Occurrence
   alias Tymeslot.CalendarGrid.ProviderPayload
   alias Tymeslot.CalendarGrid.SeriesTransfer
+  alias Tymeslot.Clock
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar
@@ -308,7 +309,7 @@ defmodule Tymeslot.CalendarGrid.EventMove do
         provider_calendar_id: created.calendar_id || moved.provider_calendar_id,
         provider_event_id: created.provider_event_id,
         etag: created.etag,
-        synced_at: DateTime.utc_now(:microsecond)
+        synced_at: Clock.utc_now()
       })
 
     {:ok, _count} = ProviderCalendarEventQueries.upsert_batch([row])

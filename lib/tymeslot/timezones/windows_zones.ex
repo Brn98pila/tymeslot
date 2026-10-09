@@ -15,6 +15,8 @@ defmodule Tymeslot.Timezones.WindowsZones do
   all 140 Windows zones documented by Microsoft as of 2026.
   """
 
+  alias Tymeslot.Clock
+
   @windows_to_iana %{
     "AUS Central Standard Time" => "Australia/Darwin",
     "AUS Eastern Standard Time" => "Australia/Sydney",
@@ -235,7 +237,7 @@ defmodule Tymeslot.Timezones.WindowsZones do
   returned as given.
   """
   @spec from_iana(String.t(), DateTime.t()) :: String.t()
-  def from_iana(zone, anchor \\ DateTime.utc_now()) when is_binary(zone) do
+  def from_iana(zone, anchor \\ Clock.utc_now()) when is_binary(zone) do
     cond do
       Map.has_key?(@windows_to_iana, zone) -> zone
       windows = Map.get(@cldr_iana_to_windows, zone) -> windows
