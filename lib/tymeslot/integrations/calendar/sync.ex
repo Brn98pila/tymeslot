@@ -326,6 +326,14 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
       nil ->
         :ok
 
+      # A booking the host turned into a recurring series comes back as the
+      # series and its moved or cancelled occurrences, all carrying the
+      # booking's UID. Only the series row describes the booking itself; an
+      # occurrence elsewhere in the series would flag it, and the series row
+      # clear it again, on every sync.
+      _meeting when is_binary(cal_event.recurrence_id) or is_binary(cal_event.recurring_event_id) ->
+        :ok
+
       meeting ->
         case timing_change(meeting, cal_event, host_zone) do
           :moved ->
