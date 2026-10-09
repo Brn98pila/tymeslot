@@ -80,8 +80,9 @@ defmodule Tymeslot.Integrations.HealthCheck.ErrorAnalysis do
 
   def classify_error({:http_error, _status, _message}), do: :transient
 
-  def classify_error(reason) when reason in [:timeout, :nxdomain, :econnrefused, :network_error],
-    do: :transient
+  def classify_error(reason)
+      when reason in [:timeout, :nxdomain, :econnrefused, :network_error, :server_error],
+      do: :transient
 
   def classify_error(reason)
       when reason in [:unauthorized, :invalid_credentials, :token_expired],

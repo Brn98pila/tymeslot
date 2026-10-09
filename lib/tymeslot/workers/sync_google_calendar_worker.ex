@@ -23,7 +23,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  # An open breaker or a rate limit is waited out with a snooze, which from
+  # An open breaker is waited out with a snooze, which from
   # Oban 2.24 costs no attempt; without a bound a provider that never
   # recovers would keep this job snoozing for ever, with no alert.
   @max_unavailable_snoozes 12

@@ -112,7 +112,8 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycleTest do
             {{:error, :circuit_open}, {:error, :circuit_open}},
             {{:error, :too_many_pages, "Too many pages"},
              {:error, {:too_many_pages, "Too many pages"}}},
-            {{:error, :network_error, "HTTP 500"}, {:error, "HTTP 500"}},
+            {{:error, :server_error, "HTTP 503"}, {:error, "HTTP 503"}},
+            {{:error, :rate_limited, "retry_after:30"}, {:error, "retry_after:30"}},
             {{:error, :timeout}, {:error, :timeout}}
           ] do
         @client_error client_error
