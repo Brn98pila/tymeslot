@@ -9,7 +9,8 @@ defmodule Tymeslot.Auth.AccountDeletion.Operator do
   admin between them. An admin can delete neither themselves (their own
   account settings do that, with re-authentication) nor the last admin
   who can sign in; `:cli` may delete that admin only with `force: true`, as with
-  `Tymeslot.Release.demote_admin/2`. The admin UI switch gates admin actors
+  `Tymeslot.Release.demote_admin/2`, and the option is ignored for an admin
+  actor. The admin UI switch gates admin actors
   only, so operators of an install without the admin UI can still use the
   release shell.
 
@@ -35,7 +36,7 @@ defmodule Tymeslot.Auth.AccountDeletion.Operator do
   def delete_now(actor, target_user_id, opts \\ []) do
     with :ok <- ensure_admin_ui(actor),
          {:ok, {pending, session_hashes}} <-
-           schedule_now(actor, target_user_id, Keyword.get(opts, :force, false), opts[:job_at]) do
+           schedule_now(actor, target_user_id, force?(actor, opts), opts[:job_at]) do
       Session.disconnect_sessions(session_hashes)
 
       Logger.info("Account deletion started by an operator",
@@ -47,6 +48,11 @@ defmodule Tymeslot.Auth.AccountDeletion.Operator do
       {:ok, pending}
     end
   end
+
+  # Only the release shell may force past the last-admin rule; an admin actor
+  # passing `force: true` is held to it like any other.
+  defp force?(:cli, opts), do: Keyword.get(opts, :force, false) == true
+  defp force?(_admin, _opts), do: false
 
   defp schedule_now(actor, target_user_id, force?, job_at) do
     now = DateTime.utc_now(:second)

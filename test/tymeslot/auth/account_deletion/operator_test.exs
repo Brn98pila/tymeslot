@@ -108,4 +108,12 @@ defmodule Tymeslot.Auth.AccountDeletion.OperatorTest do
     assert Auth.delete_account_now(:cli, target.id) == {:error, :last_admin}
     refute Repo.reload!(target).deletion_scheduled_at
   end
+
+  test "force is the release shell's alone: an admin passing it is still refused" do
+    actor = insert(:unverified_user, is_admin: true)
+    target = insert(:user, is_admin: true)
+
+    assert Auth.delete_account_now(actor, target.id, force: true) == {:error, :last_admin}
+    refute Repo.reload!(target).deletion_scheduled_at
+  end
 end
