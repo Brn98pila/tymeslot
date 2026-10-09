@@ -211,7 +211,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionFiltersTest do
       assert Selection.blocking_rules([integration]) ==
                %{7 => {:selected, [%{id: "work", prefix: "work"}]}}
 
-      assert %{7 => {:selected, [_, _]}} = Selection.visibility_rules([integration])
+      assert %{7 => {:selected, [_work, _holidays]}} = Selection.visibility_rules([integration])
     end
 
     test "is :none when nothing blocks and :all without a calendar list" do
