@@ -12,6 +12,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPIBehaviour do
            | :rate_limited
            | :not_a_calendar_user
            | :network_error
+           | :server_error
            | :authentication_error
            | :gone
            # A listing walked past the paginator's page cap, which means the

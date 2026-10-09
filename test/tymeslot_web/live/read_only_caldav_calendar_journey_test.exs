@@ -4,7 +4,8 @@ defmodule TymeslotWeb.ReadOnlyCalDAVCalendarJourneyTest do
   a subscribed calendar) and selected on their CalDAV integration cannot take
   a booking, but its events block time: the booking page leaves a busy slot
   out, and a booker who picked that slot before the event appeared is refused
-  on submit.
+  on submit. One the server will not let Tymeslot read blocks every slot,
+  since its busy time is unknown.
 
   The `:calendar_module` seam points back at the runtime module, so the whole
   read path runs (`ClientManager`, the CalDAV provider, the REPORT parse) and
@@ -153,6 +154,34 @@ defmodule TymeslotWeb.ReadOnlyCalDAVCalendarJourneyTest do
     assert render(view) =~ "no longer available"
     refute render(view) =~ "Meeting Confirmed!"
     assert Repo.aggregate(MeetingSchema, :count, :id) == 0
+  end
+
+  # A rota the server will not let Tymeslot read has unknown busy time, not
+  # none: the booking page must not offer slots built from the bookings
+  # calendar alone, which would hide whatever the rota holds.
+  test "a calendar the server will not read offers no slots", %{
+    conn: conn,
+    profile: profile,
+    tomorrow: tomorrow
+  } do
+    stub(Tymeslot.HTTPClientMock, :request, fn :report, url, _body, _headers, _opts ->
+      if URI.parse(url).path == @rota,
+        do: {:ok, %Req.Response{status: 403, body: ""}},
+        else: {:ok, %Req.Response{status: 207, body: multistatus([])}}
+    end)
+
+    {:ok, view, _html} = live(conn, "/#{profile.username}?timezone=Etc/UTC")
+    view |> element("button[data-testid='duration-option']") |> render_click()
+    view |> element("button[data-testid='next-step']") |> render_click()
+
+    eventually(fn -> :sys.get_state(view.pid).socket.assigns[:availability_status] == :error end)
+
+    day = "button[data-testid='calendar-day'][phx-value-date='#{tomorrow}']"
+    show_month(view, tomorrow)
+    view |> element(day) |> render_click()
+    eventually(fn -> :sys.get_state(view.pid).socket.assigns[:loading_slots] == false end)
+
+    refute has_element?(view, @time_slot)
   end
 
   defp put_rota_event(rota, date, from, to) do

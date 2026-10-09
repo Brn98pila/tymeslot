@@ -308,6 +308,40 @@ msgstr "Elimina %{name}"
 
 #: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
 #, elixir-autogen, elixir-format
+msgid "1 change made here was not saved to this calendar."
+msgid_plural "%{count} changes made here were not saved to this calendar."
+msgstr[0] "%{count} modifica fatta qui non è stata salvata in questo calendario."
+msgstr[1] "%{count} modifiche fatte qui non sono state salvate in questo calendario."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid "Could not retry the changes. Please try again."
+msgstr "Impossibile inviare di nuovo le modifiche. Riprova."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Retry changes"
+msgstr "Invia di nuovo le modifiche"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Send the changes this calendar's server refused to it again"
+msgstr "Invia di nuovo le modifiche rifiutate dal server di questo calendario"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid "Sending the changes again. This calendar will update shortly."
+msgstr "Invio delle modifiche in corso. Questo calendario si aggiornerà a breve."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "1 change made here was not saved to this calendar. Last error: %{error}"
+msgid_plural "%{count} changes made here were not saved to this calendar. Last error: %{error}"
+msgstr[0] "%{count} modifica fatta qui non è stata salvata in questo calendario. Ultimo errore: %{error}"
+msgstr[1] "%{count} modifiche fatte qui non sono state salvate in questo calendario. Ultimo errore: %{error}"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
 msgid "Last synced %{count} day ago"
 msgid_plural "Last synced %{count} days ago"
 msgstr[0] "Ultima sincronizzazione %{count} giorno fa"
@@ -330,4 +364,4 @@ msgstr[1] "Ultima sincronizzazione %{count} minuti fa"
 #: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
 #, elixir-autogen, elixir-format
 msgid "Last synced just now"
-msgstr "Ultima sincronizzazione proprio ora"
+msgstr "Ultima sincronizzazione poco fa"

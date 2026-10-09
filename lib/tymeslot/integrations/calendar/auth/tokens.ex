@@ -96,6 +96,8 @@ defmodule Tymeslot.Integrations.Calendar.Tokens do
 
     * `:buffer_seconds` — refresh a token expiring within this many seconds
       (5 minutes).
+    * `:lock_timeout` — how long to wait for another refresh's lock, in
+      milliseconds (`Tymeslot.Integrations.Shared.OAuth.Refresh.run/3`).
   """
   @spec refresh_oauth_token(integration(), keyword()) :: {:ok, integration()} | {:error, term()}
   def refresh_oauth_token(integration, opts \\ [])
@@ -109,7 +111,7 @@ defmodule Tymeslot.Integrations.Calendar.Tokens do
         (refreshed_since?(current, integration) and Refresh.valid?(current.token_expires_at))
     end
 
-    case refresh(integration, &provider_refresh/1, valid?) do
+    case refresh(integration, &provider_refresh/1, valid?, Keyword.take(opts, [:lock_timeout])) do
       {:error, type, message} -> {:error, {type, message}}
       result -> result
     end
@@ -123,16 +125,20 @@ defmodule Tymeslot.Integrations.Calendar.Tokens do
   @spec refresh_lock_key(term()) :: Refresh.lock_key()
   def refresh_lock_key(integration_id), do: Refresh.lock_key(:calendar, integration_id)
 
-  defp refresh(integration, refresh_fun, valid?) do
-    Refresh.run(refresh_lock_key(integration.id), %{
-      fetch: fn -> fetch(integration.id) end,
-      valid?: valid?,
-      already_valid: &{:ok, CalendarIntegrationSchema.decrypt_oauth_tokens(&1)},
-      # From the row just read, not the caller's copy: a long job's copy can
-      # predate a reconnect flag, and the attributes written depend on it.
-      refresh: refresh_fun,
-      persist: &persist/2
-    })
+  defp refresh(integration, refresh_fun, valid?, opts \\ []) do
+    Refresh.run(
+      refresh_lock_key(integration.id),
+      %{
+        fetch: fn -> fetch(integration.id) end,
+        valid?: valid?,
+        already_valid: &{:ok, CalendarIntegrationSchema.decrypt_oauth_tokens(&1)},
+        # From the row just read, not the caller's copy: a long job's copy can
+        # predate a reconnect flag, and the attributes written depend on it.
+        refresh: refresh_fun,
+        persist: &persist/2
+      },
+      opts
+    )
   end
 
   defp refreshed_since?(%{token_expires_at: nil}, _seen), do: false

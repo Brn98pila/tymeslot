@@ -9,6 +9,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.OAuthBase do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CreatedEvent
   alias Tymeslot.Integrations.Shared.ProviderConfigHelper
+  alias Tymeslot.Workers.RetryHelpers
 
   require Logger
 
@@ -100,6 +101,18 @@ defmodule Tymeslot.Integrations.Calendar.Providers.OAuthBase do
     handle_api_call(api_call_fn, fn raw ->
       raw |> conversion_fn.() |> CreatedEvent.from_provider_event()
     end)
+  end
+
+  # A rate limit whose answer said how long to wait keeps the wait, as
+  # `{:rate_limited, seconds}`, so `CalendarEventWorker` can snooze for it.
+  # Callers that do not care still get a two-element error.
+  defp log_typed_error(:rate_limited, message) do
+    Logger.warning("Calendar provider API call failed", error_type: :rate_limited)
+
+    case RetryHelpers.parse_retry_after_from_message(message) do
+      seconds when is_integer(seconds) -> {:error, {:rate_limited, seconds}}
+      nil -> {:error, :rate_limited}
+    end
   end
 
   defp log_typed_error(type, message) do

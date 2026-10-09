@@ -310,6 +310,42 @@ msgstr "Smazat %{name}"
 
 #: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
 #, elixir-autogen, elixir-format
+msgid "1 change made here was not saved to this calendar."
+msgid_plural "%{count} changes made here were not saved to this calendar."
+msgstr[0] "%{count} změna provedená zde nebyla uložena do tohoto kalendáře."
+msgstr[1] "%{count} změny provedené zde nebyly uloženy do tohoto kalendáře."
+msgstr[2] "%{count} změn provedených zde nebylo uloženo do tohoto kalendáře."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid "Could not retry the changes. Please try again."
+msgstr "Změny se nepodařilo odeslat znovu. Zkuste to prosím znovu."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Retry changes"
+msgstr "Odeslat změny znovu"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Send the changes this calendar's server refused to it again"
+msgstr "Znovu odeslat změny, které server tohoto kalendáře odmítl"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid "Sending the changes again. This calendar will update shortly."
+msgstr "Změny se odesílají znovu. Tento kalendář se brzy aktualizuje."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "1 change made here was not saved to this calendar. Last error: %{error}"
+msgid_plural "%{count} changes made here were not saved to this calendar. Last error: %{error}"
+msgstr[0] "%{count} změna provedená zde nebyla uložena do tohoto kalendáře. Poslední chyba: %{error}"
+msgstr[1] "%{count} změny provedené zde nebyly uloženy do tohoto kalendáře. Poslední chyba: %{error}"
+msgstr[2] "%{count} změn provedených zde nebylo uloženo do tohoto kalendáře. Poslední chyba: %{error}"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
 msgid "Last synced %{count} day ago"
 msgid_plural "Last synced %{count} days ago"
 msgstr[0] "Naposledy synchronizováno před %{count} dnem"

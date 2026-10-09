@@ -9,7 +9,6 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.DisplayHelpers
   alias Tymeslot.Integrations.Calendar.ProviderConfig
-
   alias Tymeslot.Integrations.HealthCheck
 
   alias TymeslotWeb.Components.Dashboard.Integrations.Calendar.{
@@ -152,6 +151,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   attr :is_refreshing, :boolean, required: true
   attr :myself, :any, required: true
   attr :health_states, :map, default: %{}
+  attr :stuck_changes, :map, default: %{}
 
   @spec connected_calendars_section(map()) :: Phoenix.LiveView.Rendered.t()
   def connected_calendars_section(assigns) do
@@ -200,6 +200,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
               integration={integration}
               myself={@myself}
               health_state={Map.get(@health_states, integration.id)}
+              stuck={Map.get(@stuck_changes, integration.id)}
             />
           <% end %>
         </div>
@@ -226,6 +227,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
               integration={integration}
               myself={@myself}
               health_state={Map.get(@health_states, integration.id)}
+              stuck={Map.get(@stuck_changes, integration.id)}
             />
           <% end %>
         </div>
@@ -245,6 +247,10 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   attr :integration, :map, required: true
   attr :myself, :any, required: true
   attr :health_state, :map, default: nil
+
+  attr :stuck, :map,
+    default: nil,
+    doc: "Its changes the server kept refusing (`Calendar.stuck_changes/1`), if any"
 
   @spec calendar_connection_row(map()) :: Phoenix.LiveView.Rendered.t()
   def calendar_connection_row(assigns) do
@@ -278,7 +284,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
       title={@display_name}
       type_tag={if @read_only?, do: dgettext("dashboard_calendar_settings", "Read-only")}
       summary={@summary}
-      notice={ConnectionLabels.calendar_notice(@integration, @health_state)}
+      notice={ConnectionLabels.calendar_notice(@integration, @health_state) || stuck_notice(@stuck)}
       status={@status}
       active={@integration.is_active}
       toggle_event="toggle_integration"
@@ -330,6 +336,24 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
             "dashboard_calendar_settings",
             "Manage calendars"
           )}</span>
+        </button>
+        <button
+          :if={retry_offered?(@integration, @stuck)}
+          phx-click="retry_stuck_changes"
+          phx-value-id={@integration.id}
+          phx-target={@myself}
+          class={tile_class(:warning)}
+          title={
+            dgettext(
+              "dashboard_calendar_settings",
+              "Send the changes this calendar's server refused to it again"
+            )
+          }
+        >
+          <.icon name="hero-arrow-path" class="w-4 h-4" /> {dgettext(
+            "dashboard_calendar_settings",
+            "Retry changes"
+          )}
         </button>
         <%!-- Reconnecting a subscription means pasting a new feed URL, not
         re-entering credentials, so the CalDAV reconnect modal does not apply.
@@ -417,6 +441,38 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   # owner has to take, so it keeps its label there too.
   defp reconnect_label_class(:attention), do: nil
   defp reconnect_label_class(:normal), do: "max-sm:sr-only"
+
+  # A change the server kept refusing is no longer sent, so until the owner
+  # retries it the calendar differs from what the grid shows. The error is
+  # stored as an English msgid (a CalDAV error, or Tymeslot's own reason for
+  # skipping the change) and translated as it is shown.
+  defp stuck_notice(nil), do: nil
+
+  defp stuck_notice(%{count: count, last_error: nil}) do
+    dngettext(
+      "dashboard_calendar_settings",
+      "1 change made here was not saved to this calendar.",
+      "%{count} changes made here were not saved to this calendar.",
+      count
+    )
+  end
+
+  defp stuck_notice(%{count: count, last_error: error}) do
+    dngettext(
+      "dashboard_calendar_settings",
+      "1 change made here was not saved to this calendar. Last error: %{error}",
+      "%{count} changes made here were not saved to this calendar. Last error: %{error}",
+      count,
+      error: ConnectionLabels.translate_reason(error)
+    )
+  end
+
+  # Retrying resets the changes for the next sync to send, so it is offered
+  # only while syncs run: not while the calendar waits to be reconnected or
+  # is paused.
+  defp retry_offered?(%{needs_reauth: true}, _stuck), do: false
+  defp retry_offered?(%{is_active: false}, _stuck), do: false
+  defp retry_offered?(_integration, stuck), do: stuck != nil
 
   # Card actions that carry a text label as well as an icon, so they cannot be
   # `icon_button/1`, take its tile look (the `.icon-button` colour rules set no
@@ -516,7 +572,9 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
 
   # The card's last-activity line; nothing for a connection never synced.
   # `last_external_sync_at` is what every sync worker stamps and what the
-  # staleness banner reads.
+  # staleness banner reads. Whole sentences rather than "Last synced
+  # %{time}" around a relative phrase, so each language words the time as
+  # its own sentence needs.
   defp last_synced(%{last_external_sync_at: %DateTime{} = synced_at}) do
     case TimeAgo.since(synced_at) do
       :just_now ->

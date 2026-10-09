@@ -465,6 +465,7 @@ defmodule Tymeslot.Integrations.Calendar.Events do
   """
   @spec queueable_error?(term()) :: boolean()
   def queueable_error?(reason) when reason in @non_queueable_errors, do: false
+  def queueable_error?({:rate_limited, _seconds}), do: false
   def queueable_error?(_reason), do: true
 
   @doc """

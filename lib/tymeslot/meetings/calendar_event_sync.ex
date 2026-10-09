@@ -500,6 +500,10 @@ defmodule Tymeslot.Meetings.CalendarEventSync do
       waiting when waiting in [:rate_limited, :circuit_open, :server_unresponsive] ->
         {:error, waiting}
 
+      # A rate limit that named its wait (`OAuthBase`), waited out the same way.
+      {:rate_limited, seconds} = waiting when is_integer(seconds) ->
+        {:error, waiting}
+
       :unauthorized ->
         {:error, :unauthorized}
 
