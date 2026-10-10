@@ -146,13 +146,55 @@ defmodule Tymeslot.Notifications.Events do
   # `channel_event` is what webhooks, Telegram and Slack are told; the email
   # and reminder fan-out is the same for both announcements.
   defp announce_meeting_created(meeting, channel_event) do
-    case send_notifications(:meeting_created, meeting, fn ->
-           Orchestrator.schedule_meeting_notifications(meeting)
-         end) do
+    result =
+      :meeting_created
+      |> send_notifications(meeting, fn ->
+        Orchestrator.schedule_meeting_notifications(meeting)
+      end)
+      |> retryable_only(:meeting_created, meeting)
+
+    case result do
       {:error, _reason} = error -> {error, []}
       result -> {result, [{channel_event, meeting, :per_seat}]}
     end
   end
+
+  # An announcement's caller rolls the booking back on an error, for a retry.
+  # Only a failing queue or database can be helped by one: a fault composing
+  # the emails (a bug, an odd legacy row) fails the same way every time, and
+  # rolling back would refuse the booking for good, or answer a paid
+  # checkout's webhook with a 503 for days. Such a fault is reported where it
+  # was rescued (`send_notifications/3`) and the booking goes ahead without
+  # its emails, as one that cannot be emailed does (`{:ok, :not_sendable}`).
+  defp retryable_only({:error, {:notifications_failed, exception}} = error, event, meeting) do
+    if storage_failure?(exception) do
+      error
+    else
+      Logger.error("Announcing without emails: composing them failed",
+        event: event,
+        meeting_id: Map.get(meeting, :id),
+        error: LogFormat.reason(exception)
+      )
+
+      {:ok, :not_sendable}
+    end
+  end
+
+  defp retryable_only(result, _event, _meeting), do: result
+
+  # The database refused or dropped the write; in a transaction, Postgres has
+  # also aborted it, so nothing could commit anyway.
+  defp storage_failure?(%struct{})
+       when struct in [
+              DBConnection.ConnectionError,
+              DBConnection.OwnershipError,
+              Postgrex.Error,
+              Ecto.ConstraintError,
+              Ecto.StaleEntryError
+            ],
+       do: true
+
+  defp storage_failure?(_exception), do: false
 
   @doc """
   Handles a seat being booked on a group meeting.
@@ -218,9 +260,11 @@ defmodule Tymeslot.Notifications.Events do
           {{:ok, term()} | {:error, term()}, pending()}
   def meeting_requested_deferred(meeting, opts \\ []) do
     result =
-      send_notifications(:meeting_requested, meeting, fn ->
+      :meeting_requested
+      |> send_notifications(meeting, fn ->
         Orchestrator.schedule_request_notifications(meeting, opts)
       end)
+      |> retryable_only(:meeting_requested, meeting)
 
     {result, [{:meeting_requested, meeting, :once}]}
   end

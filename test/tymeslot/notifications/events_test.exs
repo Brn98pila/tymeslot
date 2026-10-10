@@ -44,6 +44,19 @@ defmodule Tymeslot.Notifications.EventsTest do
     def schedule_reminder_emails(_meeting_id, _value, _unit, _schedule_at), do: :ok
   end
 
+  # Stands in for an email step whose database write fails.
+  defmodule DatabaseDownWorker do
+    @spec schedule_confirmation_emails(term()) :: no_return()
+    def schedule_confirmation_emails(_meeting_id),
+      do: raise(DBConnection.ConnectionError, "connection refused")
+
+    @spec cancel_reminder_emails(term()) :: :ok
+    def cancel_reminder_emails(_meeting_id), do: :ok
+
+    @spec schedule_reminder_emails(term(), term(), term(), term()) :: :ok
+    def schedule_reminder_emails(_meeting_id, _value, _unit, _schedule_at), do: :ok
+  end
+
   describe "dispatch wiring" do
     setup do
       setup_config(:tymeslot,
@@ -345,12 +358,31 @@ defmodule Tymeslot.Notifications.EventsTest do
       )
     end
 
+    # A fault composing the emails fails the same way on every retry, so the
+    # booking is announced without them rather than refused for good.
+    test "meeting_created/1 announces a booking whose emails could not be composed", %{
+      meeting: meeting,
+      telegram_integration: telegram_integration
+    } do
+      assert {:ok, :not_sendable} = Events.meeting_created(meeting)
+
+      assert_enqueued(
+        worker: TelegramWorker,
+        args: %{"integration_id" => telegram_integration.id, "event_type" => "meeting.created"}
+      )
+
+      assert %{announced_at: %DateTime{}} = Repo.reload!(meeting)
+    end
+
     # The booking's emails and its announcement commit together, and the
-    # integrations hear of it only once they have: a failed email step leaves
-    # the claim free for the caller's retry, which then announces it once.
-    test "meeting_created/1 tells no integration when its emails fail, and leaves the claim for a retry",
+    # integrations hear of it only once they have: a database that fails the
+    # email step leaves the claim free for the caller's retry.
+    test "meeting_created/1 tells no integration when the database fails its emails, and leaves the claim for a retry",
          %{meeting: meeting} do
-      assert {:error, {:notifications_failed, %RuntimeError{}}} = Events.meeting_created(meeting)
+      Application.put_env(:tymeslot, :email_worker_module, DatabaseDownWorker)
+
+      assert {:error, {:notifications_failed, %DBConnection.ConnectionError{}}} =
+               Events.meeting_created(meeting)
 
       refute_enqueued(worker: TelegramWorker)
       assert %{announced_at: nil} = Repo.reload!(meeting)
@@ -373,8 +405,8 @@ defmodule Tymeslot.Notifications.EventsTest do
       )
     end
 
-    # The email step runs in the announcement's transaction, which rolls back,
-    # so the report is written from a task of its own and survives it.
+    # The email step runs inside the announcement's transaction, so the report
+    # is written from a task of its own, whatever becomes of the transaction.
     test "meeting_created/1 records the email failure with the meeting", %{meeting: meeting} do
       with_config(:error_tracker, enabled: true)
       test_pid = self()
@@ -390,7 +422,7 @@ defmodule Tymeslot.Notifications.EventsTest do
 
       on_exit(fn -> :telemetry.detach(handler) end)
 
-      assert {:error, {:notifications_failed, _exception}} = Events.meeting_created(meeting)
+      assert {:ok, :not_sendable} = Events.meeting_created(meeting)
       assert_receive :occurrence_recorded, 5_000
 
       assert [%Error{kind: "Elixir.RuntimeError", reason: "email pipeline down"} = error] =
