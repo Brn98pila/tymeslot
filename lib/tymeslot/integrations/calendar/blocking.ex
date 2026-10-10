@@ -46,10 +46,10 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.Defaults
+  alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.CalendarManagement
-  alias Tymeslot.MeetingTypes
-  alias Tymeslot.Repo
+  alias Tymeslot.MeetingTypes.BookingCalendar
   alias Tymeslot.Utils.UriUtils
 
   @type integration :: CalendarIntegrationSchema.t()
@@ -145,6 +145,47 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   end
 
   @doc """
+  Sets whether the calendar `calendar_id` of `integration` is shown (used),
+  leaving whether it blocks as it is: for an Exchange mailbox's main
+  calendar, whose busy time blocks whether or not it is shown.
+  `{:error, :not_found}` when the integration lists no such calendar.
+  """
+  @spec set_shown(integration(), String.t() | integer(), boolean()) ::
+          {:ok, integration()} | {:error, :not_found | term()}
+  def set_shown(%{id: id}, calendar_id, shown?) when is_boolean(shown?) do
+    calendar_id = to_string(calendar_id)
+
+    id
+    |> CalendarSelectionQueries.with_locked(fn fresh ->
+      case find(fresh.calendar_list, calendar_id) do
+        nil ->
+          {:error, :not_found}
+
+        entry ->
+          Selection.persist_calendar_list(
+            fresh,
+            Enum.map(fresh.calendar_list, fn cal ->
+              if cal.id == entry.id, do: %{cal | selected: shown?}, else: cal
+            end)
+          )
+      end
+    end)
+    |> invalidate_on_success()
+  end
+
+  @doc """
+  Whether `entry` of `integration` blocks the booking page, for a surface
+  that says so. An Exchange mailbox blocks through its main calendar alone,
+  shown or not; any other calendar when it is used and set to block.
+  """
+  @spec blocks?(%{provider: String.t() | atom()}, CalendarEntry.t()) :: boolean()
+  def blocks?(%{provider: provider}, %CalendarEntry{} = entry) do
+    if ProviderConfig.ews?(provider),
+      do: entry.primary and entry.blocks_availability,
+      else: Selection.blocking?(entry)
+  end
+
+  @doc """
   The `t:state/0` an entry is in.
   """
   @spec state(CalendarEntry.t()) :: state()
@@ -155,22 +196,50 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   @doc """
   Whether `calendar_id` is a booking calendar of `integration`: the calendar
   bookings on it go to, or one a meeting type of its owner names.
+
+  On an Exchange mailbox only the main calendar is held to the rule: busy
+  time is read for the mailbox through it, and another folder cannot block
+  whatever it is set to.
   """
   @spec booking_calendar?(integration(), String.t()) :: boolean()
   def booking_calendar?(integration, calendar_id) do
-    integration
-    |> booking_calendar_ids()
-    |> Enum.any?(&UriUtils.uri_safe_match?(&1, calendar_id))
+    held_to_rule?(integration, calendar_id) and
+      integration
+      |> booking_calendar_ids()
+      |> Enum.any?(&UriUtils.uri_safe_match?(&1, calendar_id))
+  end
+
+  defp held_to_rule?(integration, calendar_id) do
+    not ProviderConfig.ews?(integration.provider) or
+      match?(%CalendarEntry{primary: true}, find(integration.calendar_list, calendar_id))
   end
 
   defp booking_calendar_ids(integration) do
-    default_ids =
-      case Defaults.booking_target(integration) do
-        {_writable, %CalendarEntry{id: id}} -> [id]
-        :none -> []
-      end
+    default_booking_ids(integration) ++
+      BookingCalendar.ids(integration.user_id, integration.id)
+  end
 
-    default_ids ++ MeetingTypes.booking_calendar_ids(integration.user_id, integration.id)
+  defp default_booking_ids(integration) do
+    case Defaults.booking_target(integration) do
+      {_writable, %CalendarEntry{id: id}} -> [id]
+      :none -> []
+    end
+  end
+
+  @doc """
+  Per integration id, the ids of its booking calendars (see
+  `booking_calendar?/2`), for a page listing the user's `integrations`
+  together. One query, whatever the number of integrations.
+  """
+  @spec booking_calendar_ids_by_integration(pos_integer(), [integration()]) ::
+          %{pos_integer() => [String.t()]}
+  def booking_calendar_ids_by_integration(user_id, integrations) do
+    targets = BookingCalendar.ids_by_integration(user_id)
+
+    Map.new(integrations, fn integration ->
+      {integration.id,
+       Enum.uniq(default_booking_ids(integration) ++ Map.get(targets, integration.id, []))}
+    end)
   end
 
   @doc """
@@ -264,7 +333,7 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   end
 
   defp invalidate_on_success({:ok, %{user_id: user_id}} = ok) do
-    unless Repo.in_transaction?(), do: AvailabilityCache.invalidate_for_user(user_id)
+    unless CalendarIntegrationQueries.in_transaction?(), do: AvailabilityCache.invalidate_for_user(user_id)
     ok
   end
 

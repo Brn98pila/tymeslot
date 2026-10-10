@@ -9,6 +9,7 @@ defmodule Tymeslot.MeetingTypes.BookingCalendar do
 
   alias Ecto.Changeset
   alias Tymeslot.Integrations.Calendar.Blocking
+  alias Tymeslot.MeetingTypes.MeetingTypeQueries
 
   @doc """
   Makes the booking calendar `changeset` names block, when the write changes
@@ -32,5 +33,23 @@ defmodule Tymeslot.MeetingTypes.BookingCalendar do
     else
       {:ok, :unchanged}
     end
+  end
+
+  @doc """
+  The calendars of the user's integration `calendar_integration_id` that
+  their meeting types name as the calendar they book into.
+  """
+  @spec ids(integer(), integer()) :: [String.t()]
+  def ids(user_id, calendar_integration_id),
+    do: MeetingTypeQueries.target_calendar_ids(user_id, calendar_integration_id)
+
+  @doc """
+  `ids/2` for every integration of the user at once, keyed by integration id.
+  """
+  @spec ids_by_integration(integer()) :: %{integer() => [String.t()]}
+  def ids_by_integration(user_id) do
+    user_id
+    |> MeetingTypeQueries.calendar_targets()
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
   end
 end

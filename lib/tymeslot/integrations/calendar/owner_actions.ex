@@ -120,6 +120,16 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   end
 
   @doc """
+  Sets whether one of an integration's calendars is shown, leaving whether
+  it blocks as it is (see `Blocking.set_shown/3`).
+  """
+  @spec set_calendar_shown(pos_integer(), pos_integer(), String.t() | integer(), boolean()) ::
+          {:ok, integration()} | {:error, refusal() | term()}
+  def set_calendar_shown(user_id, integration_id, calendar_id, shown?) do
+    with_owned(user_id, integration_id, :write, &Blocking.set_shown(&1, calendar_id, shown?))
+  end
+
+  @doc """
   Sets whether one of an integration's calendars blocks availability (see
   `Blocking.set/3`). `{:error, :booking_calendar}` when asked to make a
   calendar bookings go to show only.

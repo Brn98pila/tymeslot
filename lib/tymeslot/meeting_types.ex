@@ -334,14 +334,6 @@ defmodule Tymeslot.MeetingTypes do
     end
   end
 
-  @doc """
-  The calendars of the user's integration `calendar_integration_id` that
-  their meeting types name as the calendar they book into.
-  """
-  @spec booking_calendar_ids(integer(), integer()) :: [String.t()]
-  def booking_calendar_ids(user_id, calendar_integration_id),
-    do: MeetingTypeQueries.target_calendar_ids(user_id, calendar_integration_id)
-
   # Capacity follows the type: a new seat limit above one applies to the
   # type's future group meetings, in the same transaction as the type itself.
   # A limit below the seats already taken on a meeting leaves that meeting

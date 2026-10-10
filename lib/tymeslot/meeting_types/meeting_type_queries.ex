@@ -220,6 +220,23 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeQueries do
   end
 
   @doc """
+  Every `{calendar_integration_id, target_calendar_id}` pair the user's
+  meeting types name, each once.
+  """
+  @spec calendar_targets(integer()) :: [{integer(), String.t()}]
+  def calendar_targets(user_id) do
+    Repo.all(
+      from(mt in MeetingTypeSchema,
+        where:
+          mt.user_id == ^user_id and not is_nil(mt.calendar_integration_id) and
+            not is_nil(mt.target_calendar_id),
+        distinct: true,
+        select: {mt.calendar_integration_id, mt.target_calendar_id}
+      )
+    )
+  end
+
+  @doc """
   Clears calendar references (`calendar_integration_id` and `target_calendar_id`)
   on all meeting types pointing to the given calendar integration.
 

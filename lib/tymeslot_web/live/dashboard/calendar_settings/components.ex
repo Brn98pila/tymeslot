@@ -271,6 +271,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
       |> assign(:summary, calendar_summary(integration))
       |> assign(:last_synced, last_synced(integration))
       |> assign(:subscription?, subscription?)
+      |> assign(:feed, subscription? && List.first(calendar_list))
       |> assign(:read_only?, read_only?)
       |> assign(
         :display_name,
@@ -354,6 +355,25 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
             "Retry changes"
           )}
         </button>
+        <%!-- A subscription has no Manage calendars modal, so whether its one
+             calendar blocks the booking page is chosen here. --%>
+        <.segmented_control
+          :if={@feed}
+          id={"calendar-#{@integration.id}-feed-busy"}
+          size={:sm}
+          value={to_string(@feed.blocks_availability)}
+          aria_label={dgettext("dashboard_calendar_settings", "Busy times")}
+          on_change={
+            JS.push("set_calendar_blocking",
+              value: %{integration_id: @integration.id, calendar_id: @feed.id},
+              target: @myself
+            )
+          }
+          param="blocks"
+        >
+          <:option value="true" label={dgettext("dashboard_calendar_settings", "Block")} />
+          <:option value="false" label={dgettext("dashboard_calendar_settings", "Don't block")} />
+        </.segmented_control>
         <%!-- Reconnecting a subscription means pasting a new feed URL, not
         re-entering credentials, so the CalDAV reconnect modal does not apply.
         A revoked feed is replaced by removing this row and subscribing again. --%>

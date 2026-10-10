@@ -372,3 +372,23 @@ msgstr[2] "Остання синхронізація %{count} хвилин то�
 #, elixir-autogen, elixir-format
 msgid "Last synced just now"
 msgstr "Остання синхронізація щойно"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Block"
+msgstr "Блокувати"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times"
+msgstr "Зайнятий час"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Don't block"
+msgstr "Не блокувати"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid "Your booking calendar always blocks your availability."
+msgstr "Календар для бронювань завжди блокує вашу доступність."
