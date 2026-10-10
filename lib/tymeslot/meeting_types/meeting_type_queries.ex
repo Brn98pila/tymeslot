@@ -220,6 +220,13 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeQueries do
   end
 
   @doc """
+  Whether the caller runs inside a transaction, so a write leaves what must
+  wait for the commit (dropping a cache) to the caller that commits.
+  """
+  @spec in_transaction?() :: boolean()
+  def in_transaction?, do: Repo.in_transaction?()
+
+  @doc """
   Every `{calendar_integration_id, target_calendar_id}` pair the user's
   meeting types name, each once.
   """

@@ -239,6 +239,18 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
       assert blocks?(integration, "rota")
     end
 
+    test "is refused as not found when the owner is gone", %{user: user} do
+      integration = google_integration(user, calendars(), default_booking_calendar_id: "work")
+      meeting_type = insert(:meeting_type, user: user)
+      Repo.delete!(user)
+
+      assert {:error, :not_found} =
+               MeetingTypes.update_meeting_type(meeting_type, %{
+                 calendar_integration_id: integration.id,
+                 target_calendar_id: "rota"
+               })
+    end
+
     test "leaves it blocking once the meeting type moves away or is deleted", %{user: user} do
       integration = google_integration(user, calendars(), default_booking_calendar_id: "work")
       meeting_type = insert(:meeting_type, user: user)
