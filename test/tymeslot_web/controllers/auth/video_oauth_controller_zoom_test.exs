@@ -177,6 +177,26 @@ defmodule TymeslotWeb.VideoOAuthControllerZoomTest do
       assert Flash.get(conn.assigns.flash, :error) =~ "Could not identify your Zoom account"
     end
 
+    test "tells the owner Zoom is busy when it rate limits the connect", %{conn: conn} do
+      user_id = 5004
+      conn = authenticate_state_user(conn, user_id)
+
+      :meck.expect(ZoomOAuthHelper, :exchange_code_for_tokens, fn _code, _uri, _opts ->
+        {:error, :provider_rate_limited}
+      end)
+
+      conn =
+        get(conn, ~p"/auth/zoom/video/callback", %{
+          "code" => "code",
+          "state" => signed_state(user_id)
+        })
+
+      assert redirected_to(conn) == "/dashboard/integrations?tab=video"
+
+      assert Flash.get(conn.assigns.flash, :error) ==
+               "Zoom is busy right now. Please try again in a minute."
+    end
+
     test "handles invalid callback params (no code, no error)", %{conn: conn} do
       conn = get(conn, ~p"/auth/zoom/video/callback", %{"unrelated" => "junk"})
 

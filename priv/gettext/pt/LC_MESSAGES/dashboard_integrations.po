@@ -461,3 +461,8 @@ msgstr[1] "%{name}: %{count} calendários não estão mais no seu servidor de ca
 #, elixir-autogen, elixir-format
 msgid "%{name}: “%{calendar}” is no longer on your calendar server, so Tymeslot has stopped using it."
 msgstr "%{name}: o calendário “%{calendar}” não está mais no seu servidor de calendário, então o Tymeslot parou de usá-lo."
+
+#: lib/tymeslot_web/controllers/integrations/oauth_callback_handler.ex
+#, elixir-autogen, elixir-format
+msgid "%{service} is busy right now. Please try again in a minute."
+msgstr "O %{service} está sobrecarregado no momento. Tente novamente em um minuto."

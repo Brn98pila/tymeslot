@@ -91,7 +91,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
   """
   @impl Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperBehaviour
   @spec exchange_code_for_tokens(String.t(), String.t(), keyword()) ::
-          {:ok, map()} | {:error, String.t()}
+          {:ok, map()} | {:error, String.t() | :provider_rate_limited}
   # credo:disable-for-next-line Credo.Check.Design.DuplicatedCode
   def exchange_code_for_tokens(code, redirect_uri, opts \\ []) do
     with {:ok, tokens} <- fetch_tokens(code, redirect_uri, opts),
@@ -219,8 +219,9 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
   defp profile_error_message({:error, {:http_error, status, _body}}),
     do: {:error, "Failed to fetch user profile: HTTP #{status}"}
 
+  # The owner is told the provider is busy, rather than shown a status code.
   defp profile_error_message({:error, {:rate_limited, _seconds}}),
-    do: {:error, "Failed to fetch user profile: HTTP 429"}
+    do: {:error, :provider_rate_limited}
 
   defp profile_error_message({:error, exception}) when is_exception(exception),
     do: {:error, "Network error fetching profile: #{Exception.message(exception)}"}

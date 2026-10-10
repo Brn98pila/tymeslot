@@ -179,7 +179,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
           end)
         end)
 
-      assert result == {:error, "Failed to fetch user profile: HTTP 429"}
+      assert result == {:error, :provider_rate_limited}
       assert div(elapsed_us, 1_000) < 1_000
     end
 
