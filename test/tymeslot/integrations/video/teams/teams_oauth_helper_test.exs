@@ -2,6 +2,7 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelperTest do
   use Tymeslot.DataCase, async: false
   @moduletag :integrations
 
+  alias ExUnit.CaptureLog
   alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper
   import Mox
@@ -74,6 +75,38 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelperTest do
                TeamsOAuthHelper.exchange_code_for_tokens("code", "http://uri",
                  profile_retry: [initial_delay: 0]
                )
+    end
+
+    # Graph names how long to wait; waiting less only earns another 429.
+    test "retries a rate-limited profile request after the wait Graph names" do
+      %{resp_body: resp_body} = oauth_test_data()
+      profile_body = Jason.encode!(%{"id" => "teams-user-429", "mail" => "alice@example.com"})
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, _headers, _body, _opts ->
+        {:ok, %{status: 200, body: resp_body}}
+      end)
+
+      expect(Tymeslot.HTTPClientMock, :get, fn _url, _headers, _opts ->
+        {:ok, %Req.Response{status: 429, headers: %{"retry-after" => ["1"]}, body: ""}}
+      end)
+
+      expect(Tymeslot.HTTPClientMock, :get, fn _url, _headers, _opts ->
+        {:ok, %Req.Response{status: 200, body: profile_body}}
+      end)
+
+      # The usual backoff here is no wait; the named second, capped at 60 ms.
+      {elapsed_us, result} =
+        :timer.tc(fn ->
+          CaptureLog.with_log(fn ->
+            TeamsOAuthHelper.exchange_code_for_tokens("code", "http://uri",
+              profile_retry: [initial_delay: 0, max_delay: 60, jitter: 0.0]
+            )
+          end)
+        end)
+
+      assert {{:ok, tokens}, _log} = result
+      assert tokens.provider_account_id == "teams-user-429"
+      assert div(elapsed_us, 1_000) >= 60
     end
 
     # Graph refused the token: asking again cannot change that.
