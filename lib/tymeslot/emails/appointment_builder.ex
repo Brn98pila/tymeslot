@@ -366,12 +366,6 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
     }
   end
 
-  # Derive a display location from the meeting's fields. When a video URL is
-  # present the location is "Video Call" regardless of any physical location
-  # stored on the record. When nothing is set, return nil so the rendering
-  # layer (`Formatting.format_location/1`) substitutes the localised "TBD".
-  # Legacy meetings persisted the English placeholder before that change —
-  # treat it as nil here so they also render translated.
   defp legacy_reminder_details(label) do
     case label do
       nil ->
@@ -400,6 +394,12 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
     end
   end
 
+  # Derive a display location from the meeting's fields. When a video URL is
+  # present the location is "Video Call" regardless of any physical location
+  # stored on the record. When nothing is set, return nil so the rendering
+  # layer (`Formatting.format_location/1`) substitutes the localised "TBD".
+  # Legacy meetings persisted the English placeholder before that change —
+  # treat it as nil here so they also render translated.
   defp format_location(meeting) do
     cond do
       meeting.meeting_url -> "Video Call"
