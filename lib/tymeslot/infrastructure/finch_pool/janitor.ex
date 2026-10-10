@@ -332,12 +332,9 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
 
   defp adopt_pools(keep_until) do
     # Finch has no public listing of its pools, so this reads the registry
-    # it keys them in. (The form-input check matches the call by name alone;
-    # this is not a form helper.)
-    # credo:disable-for-next-line CredoChecks.UseCoreInputs
-    pool_names = Registry.select(@finch, [{{:"$1", :_, :_}, [], [:"$1"]}])
-
-    pool_names
+    # it keys them in.
+    @finch
+    |> Registry.select([{{:"$1", :_, :_}, [], [:"$1"]}])
     |> Enum.uniq()
     |> Enum.filter(&match?({_scheme, _host, _port, tag} when is_binary(tag), &1))
     |> Map.new(fn {scheme, host, port, tag} ->
