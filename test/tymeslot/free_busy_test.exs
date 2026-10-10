@@ -187,6 +187,53 @@ defmodule Tymeslot.FreeBusyTest do
     end
   end
 
+  describe "busy_intervals/3 and rows filed under the \"primary\" label" do
+    # An Outlook integration's rows cached before discovery named its default
+    # calendar carry "primary" until a later read relabels them.
+    defp outlook_with(default_blocks?) do
+      profile = insert(:profile)
+
+      integration =
+        insert(:calendar_integration,
+          user: profile.user,
+          provider: "outlook",
+          calendar_list: [
+            %{
+              id: "AAMk-default",
+              primary: true,
+              selected: true,
+              blocks_availability: default_blocks?
+            },
+            %{id: "AAMk-team", selected: true}
+          ]
+        )
+
+      insert(:provider_calendar_event,
+        calendar_integration: integration,
+        provider: "outlook",
+        provider_calendar_id: "primary",
+        start_at: ~U[2030-06-03 09:00:00Z],
+        end_at: ~U[2030-06-03 10:00:00Z]
+      )
+
+      profile
+    end
+
+    defp starts(profile) do
+      profile
+      |> FreeBusy.busy_intervals(~U[2030-06-01 00:00:00Z], ~U[2030-06-10 00:00:00Z])
+      |> Enum.map(fn {s, _e} -> DateTime.truncate(s, :second) end)
+    end
+
+    test "count as the default calendar's when it blocks" do
+      assert starts(outlook_with(true)) == [~U[2030-06-03 09:00:00Z]]
+    end
+
+    test "do not when the default calendar is set to show only" do
+      assert starts(outlook_with(false)) == []
+    end
+  end
+
   describe "busy_intervals/3 for a CalDAV calendar shared as busy times only" do
     test "publishes the busy periods its sync cached" do
       profile = insert(:profile)

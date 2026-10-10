@@ -50,9 +50,14 @@ defmodule Tymeslot.Integrations.Calendar.AvailabilityView do
     Map.new(integrations, fn integration ->
       rule =
         case reading(integration) do
-          :whole -> :all
-          :none -> :none
-          {:only, blocking} -> Selection.entries_rule(blocking)
+          :whole ->
+            :all
+
+          :none ->
+            :none
+
+          {:only, blocking} ->
+            Selection.entries_rule(blocking ++ primary_alias(integration, blocking))
         end
 
       {integration.id, rule}
@@ -76,6 +81,19 @@ defmodule Tymeslot.Integrations.Calendar.AvailabilityView do
       %CalendarEntry{blocks_availability: false} -> :none
       _blocking_or_unknown -> :whole
     end
+  end
+
+  # Google and Outlook rows cached before discovery named the account's
+  # default calendar are filed under "primary", the name both APIs give it,
+  # until a later read relabels them (`Outlook.FeedCalendar`). They are that
+  # calendar's rows, so they block exactly when it does.
+  @primary_alias "primary"
+
+  defp primary_alias(integration, blocking) do
+    if ProviderConfig.in_family?(Map.get(integration, :provider), :oauth) and
+         Enum.any?(blocking, & &1.primary),
+       do: [%CalendarEntry{id: @primary_alias}],
+       else: []
   end
 
   defp only([]), do: :none
