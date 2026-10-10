@@ -162,19 +162,13 @@ defmodule Tymeslot.Workers.EmailWorker do
     {:error, "#{count} guest email(s) failed"}
   end
 
-  defp handle_email_error(reason, _job) when is_binary(reason) do
-    # Generic error - retry with backoff
-    {:error, reason}
-  end
-
-  defp handle_email_error(_other_reason, _job) do
-    # Unknown error format - retry
-    {:error, "Unknown error"}
-  end
+  # Any other reason retries with backoff, kept as it is so the job's
+  # recorded error says what went wrong.
+  defp handle_email_error(reason, _job), do: {:error, reason}
 
   defp handle_unexpected_email_result(result) do
-    Logger.error("Unexpected result from email job", result: result)
-    {:error, "Unexpected result"}
+    Logger.error("Unexpected result from email job", result: LogFormat.reason(result))
+    {:error, {:unexpected_result, result}}
   end
 
   defp execute_email_job_with_timeout(action, args, job) do

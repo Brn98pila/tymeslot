@@ -43,15 +43,16 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers do
   This is the primary entry point for the EmailWorker to process various types of
   email jobs, including confirmations, reminders, and authentication emails.
 
-  Returns `:ok` on success, `{:error, reason}` for retriable failures,
-  `{:discard, reason}` for fatal errors that shouldn't be retried,
-  or `{:snooze, seconds}` if the job should be delayed.
+  Returns `:ok` on success, `{:error, reason}` for retriable failures, or
+  `{:discard, reason}` for fatal errors that shouldn't be retried. Snoozing
+  (an open mail circuit, a rate limit) is `EmailWorker`'s decision, made from
+  the error reason.
 
   `job_id` is the id of the Oban job running the action, or `nil` for a job
   that was never persisted (which cannot be rescued, so needs no guard).
   """
   @spec execute_email_action(String.t(), %{String.t() => term()}, integer() | nil) ::
-          :ok | {:error, term()} | {:discard, String.t()} | {:snooze, integer()}
+          :ok | {:error, term()} | {:discard, String.t()}
   def execute_email_action(action, args, job_id \\ nil) do
     case EmailActions.handler(action) do
       {:ok, {module, fun}} -> apply(module, fun, [args])
