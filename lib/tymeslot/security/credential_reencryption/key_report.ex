@@ -14,6 +14,7 @@ defmodule Tymeslot.Security.CredentialReencryption.KeyReport do
 
   require Logger
 
+  alias Tymeslot.Emails.EmailScheduler.LinkArg
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Security.CredentialReencryption
   alias Tymeslot.Security.CredentialReencryptionQueries, as: Queries
@@ -41,9 +42,9 @@ defmodule Tymeslot.Security.CredentialReencryption.KeyReport do
     batch_size = Keyword.get(opts, :batch_size, @default_batch_size)
 
     tables =
-      Map.new(CredentialReencryption.covered_tables(), fn {table, columns} ->
-        {table, count_table(table, columns, batch_size)}
-      end)
+      CredentialReencryption.covered_tables()
+      |> Map.new(fn {table, columns} -> {table, count_table(table, columns, batch_size)} end)
+      |> Map.put("oban_jobs", %{email_links: count_values(LinkArg.pending_ciphertexts())})
 
     totals =
       for {_table, columns} <- tables, {_column, counts} <- columns, reduce: %{} do
@@ -81,20 +82,20 @@ defmodule Tymeslot.Security.CredentialReencryption.KeyReport do
     table
     |> Queries.stream_rows(columns, batch_size)
     |> Enum.reduce(empty, fn row, acc ->
-      Enum.reduce(columns, acc, &count_value(&2, &1, Map.get(row, &1)))
+      Enum.reduce(columns, acc, fn column, acc ->
+        Map.update!(acc, column, &tally(&1, Map.get(row, column)))
+      end)
     end)
   end
 
-  defp count_value(acc, column, value) do
-    case Encryption.key_version(value) do
-      :empty -> acc
-      {:ok, version} -> bump(acc, column, version)
-      {:error, :requires_reencryption} -> bump(acc, column, :unreadable)
-    end
-  end
+  defp count_values(values), do: Enum.reduce(values, %{}, &tally(&2, &1))
 
-  defp bump(acc, column, key) do
-    Map.update!(acc, column, fn counts -> Map.update(counts, key, 1, &(&1 + 1)) end)
+  defp tally(counts, value) do
+    case Encryption.key_version(value) do
+      :empty -> counts
+      {:ok, version} -> Map.update(counts, version, 1, &(&1 + 1))
+      {:error, :requires_reencryption} -> Map.update(counts, :unreadable, 1, &(&1 + 1))
+    end
   end
 
   defp log_unreadable(%{tables: tables}) do

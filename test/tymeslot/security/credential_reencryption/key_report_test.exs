@@ -3,9 +3,11 @@ defmodule Tymeslot.Security.CredentialReencryption.KeyReportTest do
 
   @moduletag :security
 
+  alias Tymeslot.Emails.EmailScheduler.LinkArg
   alias Tymeslot.Security.CredentialReencryption
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Test.LegacyCiphertext
+  alias Tymeslot.Workers.EmailWorker
 
   test "counts each column's values by the key version that opens them" do
     insert(:telegram_integration, bot_token_encrypted: LegacyCiphertext.encrypt("legacy"))
@@ -45,5 +47,23 @@ defmodule Tymeslot.Security.CredentialReencryption.KeyReportTest do
     assert report.tables["telegram_integrations"][:bot_token_encrypted][0] == 3
     assert report.tables["slack_integrations"][:bot_token_encrypted][0] == 1
     assert report.totals[0] == column_sum
+  end
+
+  test "counts the links held by email jobs not yet done, not those already sent" do
+    pending = insert_link_job("https://app.example.com/reset/pending")
+    sent = insert_link_job("https://app.example.com/reset/sent")
+    Repo.update_all(from(j in Oban.Job, where: j.id == ^sent.id), set: [state: "completed"])
+
+    report = CredentialReencryption.key_report()
+
+    assert report.tables["oban_jobs"] == %{email_links: %{Encryption.current_version() => 1}}
+    assert pending.state == "available"
+  end
+
+  defp insert_link_job(url) do
+    %{"action" => "send_password_reset", "user_id" => 1}
+    |> LinkArg.put("reset_url", url)
+    |> EmailWorker.new()
+    |> Oban.insert!()
   end
 end
