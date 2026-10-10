@@ -596,3 +596,8 @@ msgstr[1] "Gruppentermin: Sie haben einen von %{count} Plätzen."
 #, elixir-autogen, elixir-format
 msgid "ends %{time} on %{date}"
 msgstr "endet um %{time} am %{date}"
+
+#: lib/tymeslot/emails/shared/text_body_helper.ex
+#, elixir-autogen, elixir-format
+msgid "Duration:"
+msgstr "Dauer:"

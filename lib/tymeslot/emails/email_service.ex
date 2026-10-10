@@ -40,6 +40,8 @@ defmodule Tymeslot.Emails.EmailService do
           optional(:organizer_note) => String.t() | nil,
           optional(:start_time_attendee_tz) => DateTime.t(),
           optional(:start_time_owner_tz) => DateTime.t(),
+          optional(:attendee_timezone) => String.t(),
+          optional(:owner_timezone) => String.t(),
           optional(:attendee_video_url) => String.t() | nil,
           optional(:guest_video_url) => String.t() | nil,
           optional(:reschedule_url) => String.t() | nil,

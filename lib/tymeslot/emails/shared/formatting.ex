@@ -197,6 +197,61 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   end
 
   @doc """
+  The time line of a meeting-details map, as both parts of an email state it:
+  the HTML card (`Tymeslot.Emails.Shared.Meeting.Hero`) and the plain-text body
+  (`Tymeslot.Emails.Shared.TextBodyHelper`) render this one line, so the two
+  cannot drift apart.
+
+  `:start_time` is already in the recipient's zone. Outside UTC the zone named
+  by `:timezone` follows the time, since an abbreviation alone is ambiguous;
+  `:time_format` is the organiser's chosen clock, nil for every other reader.
+  A meeting ending on a later day says when it ends, and an all-day event
+  (`all_day: true` with `:date` and an inclusive `:last_date`) has no clock
+  time at all. nil when the map carries no start time.
+
+  Example (en): "02:30 PM IST (Asia/Kolkata)"
+  """
+  @spec format_meeting_time(map(), String.t()) :: String.t() | nil
+  def format_meeting_time(
+        %{all_day: true, date: %Date{} = first, last_date: %Date{} = last},
+        locale
+      ),
+      do: format_all_day(first, last, locale)
+
+  def format_meeting_time(%{start_time: %DateTime{} = start_time} = details, locale) do
+    time_format = Map.get(details, :time_format)
+
+    line =
+      format_time(start_time, locale, time_format) <>
+        zone_label(Map.get(details, :timezone))
+
+    case format_next_day_end(start_time, Map.get(details, :duration), locale, time_format) do
+      nil -> line
+      note -> "#{line}, #{note}"
+    end
+  end
+
+  def format_meeting_time(_details, _locale), do: nil
+
+  defp zone_label(zone) when is_binary(zone) and zone != "UTC", do: " (#{zone})"
+  defp zone_label(_zone), do: ""
+
+  @doc """
+  The duration of a meeting-details map: minutes for a timed meeting, the
+  number of days an all-day event covers. Shared by the HTML card and the
+  plain-text body, as `format_meeting_time/2` is.
+  """
+  @spec format_meeting_duration(map(), String.t()) :: String.t()
+  def format_meeting_duration(
+        %{all_day: true, date: %Date{} = first, last_date: %Date{} = last},
+        locale
+      ),
+      do: format_day_count(first, last, locale)
+
+  def format_meeting_duration(details, locale),
+    do: format_duration(Map.get(details, :duration), locale)
+
+  @doc """
   Formats how many days an all-day event covers, from its first and inclusive
   last day. Example (en): "1 day", "3 days"
   """

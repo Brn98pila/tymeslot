@@ -9,20 +9,23 @@ defmodule Tymeslot.Emails.Shared.TextBodyHelper do
   use Gettext, backend: TymeslotWeb.Gettext
 
   @doc """
-  Formats basic meeting details for text body.
+  The plain-text meeting details, from the same meeting-details map the HTML
+  card receives (`Tymeslot.Emails.Shared.MeetingComponents.meeting_details_table/2`):
+  the recipient's date, time and zone, duration, location and meeting type.
+  The time line is `Tymeslot.Emails.Shared.Formatting.format_meeting_time/2`,
+  word for word what the card shows.
   """
   @spec format_meeting_details(map(), String.t()) :: String.t()
-  def format_meeting_details(appointment_details, locale) do
+  def format_meeting_details(meeting_details, locale) do
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
-      details = [
-        "#{dgettext("emails", "Date:")} #{Formatting.format_date(appointment_details.date, locale)}",
-        format_time_line(appointment_details, locale),
-        format_location_line(appointment_details),
-        Formatting.location_note(appointment_details),
-        format_meeting_type_line(appointment_details.meeting_type)
+      [
+        "#{dgettext("emails", "Date:")} #{Formatting.format_date(meeting_details.date, locale)}",
+        format_time_line(meeting_details, locale),
+        format_duration_line(meeting_details, locale),
+        format_location_line(meeting_details),
+        Formatting.location_note(meeting_details),
+        format_meeting_type_line(Map.get(meeting_details, :meeting_type))
       ]
-
-      details
       |> Enum.filter(& &1)
       |> Enum.join("\n")
     end)
@@ -182,36 +185,17 @@ defmodule Tymeslot.Emails.Shared.TextBodyHelper do
     end)
   end
 
-  defp format_time_line(
-         %{all_day: true, date: %Date{} = first, last_date: %Date{} = last},
-         locale
-       ),
-       do: "#{dgettext("emails", "Time:")} #{Formatting.format_all_day(first, last, locale)}"
+  defp format_time_line(meeting_details, locale) do
+    case Formatting.format_meeting_time(meeting_details, locale) do
+      nil -> nil
+      line -> "#{dgettext("emails", "Time:")} #{line}"
+    end
+  end
 
-  defp format_time_line(appointment_details, locale) do
-    time_key =
-      cond do
-        appointment_details[:start_time_attendee_tz] -> :start_time_attendee_tz
-        appointment_details[:start_time_owner_tz] -> :start_time_owner_tz
-        appointment_details[:start_time] -> :start_time
-        true -> nil
-      end
-
-    if time_key && appointment_details[:duration] do
-      time_format = Map.get(appointment_details, :time_format)
-      time_str = Formatting.format_time(appointment_details[time_key], locale, time_format)
-      duration_str = Formatting.format_duration(appointment_details.duration, locale)
-      line = "#{dgettext("emails", "Time:")} #{time_str} (#{duration_str})"
-
-      case Formatting.format_next_day_end(
-             appointment_details[time_key],
-             appointment_details.duration,
-             locale,
-             time_format
-           ) do
-        nil -> line
-        note -> "#{line}, #{note}"
-      end
+  defp format_duration_line(meeting_details, locale) do
+    case Formatting.format_meeting_duration(meeting_details, locale) do
+      "" -> nil
+      duration -> "#{dgettext("emails", "Duration:")} #{duration}"
     end
   end
 

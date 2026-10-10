@@ -94,54 +94,83 @@ defmodule Tymeslot.Emails.Shared.TemplateHelper do
     |> MjmlEmail.compile_mjml()
   end
 
-  @doc """
-  Rewrites a shared appointment payload for an organiser-addressed render.
-
-  The payload is built once and rendered twice, for the attendee and for the
-  organiser, so the organiser's clock travels under `:organizer_time_format`
-  where an attendee render cannot mistake it for its own. Promoting it to the
-  generic `:time_format` key here marks the point where the audience is known,
-  and is the only place that promotion happens. It also marks the render as
-  the host's (`audience: :host`), which words the details for them.
+  @typedoc """
+  The meeting as one recipient reads it, handed unchanged to both the HTML card
+  (`Tymeslot.Emails.Shared.MeetingComponents.meeting_details_table/2`) and the
+  plain-text body (`Tymeslot.Emails.Shared.TextBodyHelper.format_meeting_details/2`),
+  so the two parts of an email state the same time in the same zone.
   """
-  @spec as_organizer_view(map()) :: map()
-  def as_organizer_view(appointment_details) do
-    Map.merge(appointment_details, %{
-      time_format: Map.get(appointment_details, :organizer_time_format),
-      audience: :host
+  @type meeting_details :: %{
+          required(:date) => Date.t() | DateTime.t(),
+          required(:start_time) => DateTime.t() | nil,
+          required(:duration) => integer() | nil,
+          required(:location) => String.t() | nil,
+          required(:location_type) => atom() | nil,
+          required(:meeting_type) => String.t() | nil,
+          required(:timezone) => String.t() | nil,
+          optional(:time_format) => String.t() | nil,
+          optional(:audience) => :host | :guest,
+          optional(:all_day) => boolean(),
+          optional(:last_date) => Date.t() | nil
+        }
+
+  @doc """
+  The meeting-details map for the booker (`:attendee`) or a guest the booker
+  invited (`:guest`): the meeting in the booker's timezone, on the clock their
+  locale uses. A guest's map is marked `audience: :guest`, which words the
+  details for them rather than for the booker; the booker's carries no
+  audience, the default wording.
+
+  A payload without `:attendee_timezone` still renders, with no zone named.
+  """
+  @spec attendee_meeting_details(map(), :attendee | :guest) :: meeting_details()
+  def attendee_meeting_details(appointment_details, audience)
+      when audience in [:attendee, :guest] do
+    appointment_details
+    |> shared_meeting_details()
+    |> Map.merge(%{
+      start_time: appointment_details.start_time_attendee_tz,
+      timezone: Map.get(appointment_details, :attendee_timezone)
     })
+    |> put_audience(audience)
   end
-
-  @doc """
-  Marks a shared appointment payload as rendered for a guest the booker
-  invited (`audience: :guest`), which words the details for them rather than
-  for the booker.
-  """
-  @spec as_guest_view(map()) :: map()
-  def as_guest_view(appointment_details), do: Map.put(appointment_details, :audience, :guest)
 
   @doc """
   The meeting-details map for an organiser-addressed render: the meeting as the
   organiser sees it, in their own timezone and on the clock they chose.
 
-  Three templates (confirmation, cancellation, reminder) render the same block
-  from the same payload, so the shape lives here once. Two copies of "which
-  fields the organiser's meeting card shows" is exactly where a new field gets
-  added to one and forgotten in the other.
+  The payload is built once and rendered for every recipient, so the
+  organiser's clock travels under `:organizer_time_format`, where a render for
+  the booker cannot mistake it for its own; this is the only place it becomes
+  the map's `:time_format`. The map is marked as the host's (`audience: :host`),
+  which words the details for them.
   """
-  @spec organizer_meeting_details(map()) :: map()
+  @spec organizer_meeting_details(map()) :: meeting_details()
   def organizer_meeting_details(appointment_details) do
-    %{
-      date: appointment_details.date,
+    appointment_details
+    |> shared_meeting_details()
+    |> Map.merge(%{
       start_time: appointment_details.start_time_owner_tz,
+      timezone: Map.get(appointment_details, :owner_timezone),
+      time_format: Map.get(appointment_details, :organizer_time_format),
+      audience: :host
+    })
+  end
+
+  defp shared_meeting_details(appointment_details) do
+    appointment_details
+    |> Map.take([:all_day, :last_date])
+    |> Map.merge(%{
+      date: appointment_details.date,
       duration: appointment_details.duration,
       location: appointment_details.location,
       location_type: Map.get(appointment_details, :location_type),
-      meeting_type: appointment_details.meeting_type,
-      time_format: Map.get(appointment_details, :organizer_time_format),
-      audience: :host
-    }
+      meeting_type: appointment_details.meeting_type
+    })
   end
+
+  defp put_audience(meeting_details, :guest), do: Map.put(meeting_details, :audience, :guest)
+  defp put_audience(meeting_details, :attendee), do: meeting_details
 
   @doc "Formats error reasons for display in templates."
   @spec format_error_reason(any()) :: String.t()

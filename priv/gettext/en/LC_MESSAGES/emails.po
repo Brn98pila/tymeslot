@@ -596,3 +596,8 @@ msgstr[1] ""
 #, elixir-autogen, elixir-format
 msgid "ends %{time} on %{date}"
 msgstr ""
+
+#: lib/tymeslot/emails/shared/text_body_helper.ex
+#, elixir-autogen, elixir-format
+msgid "Duration:"
+msgstr ""

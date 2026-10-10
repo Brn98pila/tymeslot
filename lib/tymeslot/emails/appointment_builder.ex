@@ -214,6 +214,7 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
 
   defp timezone_details(meeting, owner_timezone, attendee_timezone) do
     %{
+      owner_timezone: owner_timezone,
       attendee_timezone: attendee_timezone,
       start_time_owner_tz: DateTimeUtils.convert_to_timezone(meeting.start_time, owner_timezone),
       end_time_owner_tz: DateTimeUtils.convert_to_timezone(meeting.end_time, owner_timezone),

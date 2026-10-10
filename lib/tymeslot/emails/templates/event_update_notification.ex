@@ -126,7 +126,7 @@ defmodule Tymeslot.Emails.Templates.EventUpdateNotification do
         )
       )
       |> html_body(html_body)
-      |> text_body(build_text_body(details, locale))
+      |> text_body(build_text_body(details, meeting_details, locale))
       |> attachment(build_ics_attachment(ics_details, details, locale))
     end)
   end
@@ -301,7 +301,7 @@ defmodule Tymeslot.Emails.Templates.EventUpdateNotification do
   defp escape(nil), do: dgettext("emails_booking", "(none)")
   defp escape(val), do: val |> to_string() |> Sanitise.sanitize_for_email()
 
-  defp build_text_body(details, locale) do
+  defp build_text_body(details, meeting_details, locale) do
     {changes_heading, changes_text} =
       if first_notification?(details),
         do:
@@ -310,17 +310,6 @@ defmodule Tymeslot.Emails.Templates.EventUpdateNotification do
         else:
           {dgettext("emails_booking", "What Changed"),
            TextBodyHelper.format_event_changes(details.changes, locale)}
-
-    meeting_details =
-      details
-      |> Map.take([:all_day, :last_date])
-      |> Map.merge(%{
-        date: details.date,
-        start_time: details.start_time,
-        duration: details.duration,
-        location: details.location,
-        meeting_type: details.event_title
-      })
 
     """
     #{dgettext("emails_booking", "Event Updated")}

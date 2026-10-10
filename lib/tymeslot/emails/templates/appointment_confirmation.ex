@@ -46,14 +46,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       attendee_video_url = JoinUrl.for(:attendee, appointment_details)
 
-      meeting_details = %{
-        date: appointment_details.date,
-        start_time: appointment_details.start_time_attendee_tz,
-        duration: appointment_details.duration,
-        location: appointment_details.location,
-        location_type: Map.get(appointment_details, :location_type),
-        meeting_type: appointment_details.meeting_type
-      }
+      meeting_details = TemplateHelper.attendee_meeting_details(appointment_details, :attendee)
 
       intro_copy =
         dgettext(
@@ -122,7 +115,9 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
         )
       )
       |> html_body(html_body)
-      |> text_body(build_attendee_text_body(appointment_details, locale, payment_receipt))
+      |> text_body(
+        build_attendee_text_body(appointment_details, meeting_details, locale, payment_receipt)
+      )
       |> attachment(
         IcsGenerator.generate_ics_attachment(
           appointment_details,
@@ -134,8 +129,6 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
   end
 
   def render(:guest, guest_email, appointment_details) do
-    appointment_details = TemplateHelper.as_guest_view(appointment_details)
-
     # Guests have no per-guest locale field; they intentionally inherit the
     # booker's locale (`:attendee_locale`) set when the booking was created.
     locale = RecipientLocale.attendee_locale(appointment_details)
@@ -144,15 +137,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
       guest_name = Map.get(appointment_details, :guest_name) || guest_email
       guest_video_url = JoinUrl.for(:guest, appointment_details)
 
-      meeting_details = %{
-        date: appointment_details.date,
-        start_time: appointment_details.start_time_attendee_tz,
-        duration: appointment_details.duration,
-        location: appointment_details.location,
-        location_type: Map.get(appointment_details, :location_type),
-        meeting_type: appointment_details.meeting_type,
-        audience: :guest
-      }
+      meeting_details = TemplateHelper.attendee_meeting_details(appointment_details, :guest)
 
       intro_copy = guest_intro(appointment_details, guest_name)
 
@@ -201,7 +186,9 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
         )
       )
       |> html_body(html_body)
-      |> text_body(build_guest_text_body(appointment_details, guest_name, locale))
+      |> text_body(
+        build_guest_text_body(appointment_details, meeting_details, guest_name, locale)
+      )
       |> attachment(
         IcsGenerator.generate_ics_attachment(
           # The calendar entry is where a guest is most likely to click from,
@@ -220,13 +207,14 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
     Gettext.with_locale(TymeslotWeb.Gettext, organizer_locale(appointment_details), fn ->
       organiser_payment = PaymentBlocks.organizer_summary(appointment_details)
       organizer_video_url = JoinUrl.for(:organizer, appointment_details)
+      meeting_details = TemplateHelper.organizer_meeting_details(appointment_details)
 
       mjml_content = """
       #{MeetingComponents.attendee_info_section(@intent, %{name: appointment_details.attendee_name, email: appointment_details.attendee_email})}
 
       #{MeetingComponents.attendee_message_box(@intent, appointment_details[:attendee_message])}
 
-      #{MeetingComponents.meeting_details_table(TemplateHelper.organizer_meeting_details(appointment_details), organizer_locale(appointment_details))}
+      #{MeetingComponents.meeting_details_table(meeting_details, organizer_locale(appointment_details))}
 
       #{if organizer_video_url do
         MeetingComponents.video_meeting_section(@intent, organizer_video_url,
@@ -276,12 +264,14 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
         )
       )
       |> html_body(html_body)
-      |> text_body(build_organizer_text_body(appointment_details, organiser_payment))
+      |> text_body(
+        build_organizer_text_body(appointment_details, meeting_details, organiser_payment)
+      )
     end)
   end
 
-  defp build_attendee_text_body(appointment_details, locale, payment_receipt) do
-    meeting_details = TextBodyHelper.format_meeting_details(appointment_details, locale)
+  defp build_attendee_text_body(appointment_details, meeting_details, locale, payment_receipt) do
+    meeting_details = TextBodyHelper.format_meeting_details(meeting_details, locale)
 
     video_section =
       TextBodyHelper.format_video_section(JoinUrl.for(:attendee, appointment_details), locale)
@@ -350,8 +340,8 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
     )
   end
 
-  defp build_guest_text_body(appointment_details, guest_name, locale) do
-    meeting_details = TextBodyHelper.format_meeting_details(appointment_details, locale)
+  defp build_guest_text_body(appointment_details, meeting_details, guest_name, locale) do
+    meeting_details = TextBodyHelper.format_meeting_details(meeting_details, locale)
 
     video_section =
       TextBodyHelper.format_video_section(JoinUrl.for(:guest, appointment_details), locale)
@@ -374,12 +364,10 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
     """
   end
 
-  defp build_organizer_text_body(appointment_details, organiser_payment) do
-    appointment_details = TemplateHelper.as_organizer_view(appointment_details)
-
+  defp build_organizer_text_body(appointment_details, meeting_details, organiser_payment) do
     meeting_details =
       TextBodyHelper.format_meeting_details(
-        appointment_details,
+        meeting_details,
         organizer_locale(appointment_details)
       )
 

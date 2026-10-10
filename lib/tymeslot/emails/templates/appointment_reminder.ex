@@ -33,15 +33,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
     locale = RecipientLocale.attendee_locale(appointment_details)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
-      meeting_details = %{
-        date: appointment_details.date,
-        start_time: appointment_details.start_time_attendee_tz,
-        duration: appointment_details.duration,
-        location: appointment_details.location,
-        location_type: Map.get(appointment_details, :location_type),
-        meeting_type: appointment_details.meeting_type,
-        timezone: appointment_details.attendee_timezone
-      }
+      meeting_details = TemplateHelper.attendee_meeting_details(appointment_details, :attendee)
 
       mjml_content = """
       #{MeetingComponents.time_alert_badge(@intent, appointment_details.time_until)}
@@ -88,13 +80,11 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
         )
       )
       |> html_body(html_body)
-      |> text_body(build_attendee_text_body(appointment_details, locale))
+      |> text_body(build_attendee_text_body(appointment_details, meeting_details, locale))
     end)
   end
 
   def render(:guest, guest_email, appointment_details) do
-    appointment_details = TemplateHelper.as_guest_view(appointment_details)
-
     # Guests inherit the booker's locale, as their invitation does.
     locale = RecipientLocale.attendee_locale(appointment_details)
 
@@ -102,16 +92,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
       guest_name = Map.get(appointment_details, :guest_name) || guest_email
       guest_video_url = JoinUrl.for(:guest, appointment_details)
 
-      meeting_details = %{
-        date: appointment_details.date,
-        start_time: appointment_details.start_time_attendee_tz,
-        duration: appointment_details.duration,
-        location: appointment_details.location,
-        location_type: Map.get(appointment_details, :location_type),
-        meeting_type: appointment_details.meeting_type,
-        timezone: Map.get(appointment_details, :attendee_timezone),
-        audience: :guest
-      }
+      meeting_details = TemplateHelper.attendee_meeting_details(appointment_details, :guest)
 
       intro_copy =
         dgettext(
@@ -168,7 +149,9 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
         )
       )
       |> html_body(html_body)
-      |> text_body(build_guest_text_body(appointment_details, guest_name, locale))
+      |> text_body(
+        build_guest_text_body(appointment_details, meeting_details, guest_name, locale)
+      )
     end)
   end
 
@@ -226,7 +209,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
         )
       )
       |> html_body(html_body)
-      |> text_body(build_organizer_text_body(appointment_details))
+      |> text_body(build_organizer_text_body(appointment_details, meeting_details))
     end)
   end
 
@@ -251,8 +234,8 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
     ]
   end
 
-  defp build_attendee_text_body(appointment_details, locale) do
-    meeting_details = TextBodyHelper.format_meeting_details(appointment_details, locale)
+  defp build_attendee_text_body(appointment_details, meeting_details, locale) do
+    meeting_details = TextBodyHelper.format_meeting_details(meeting_details, locale)
 
     video_section =
       TextBodyHelper.format_video_section(
@@ -281,8 +264,8 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
     """
   end
 
-  defp build_guest_text_body(appointment_details, guest_name, locale) do
-    meeting_details = TextBodyHelper.format_meeting_details(appointment_details, locale)
+  defp build_guest_text_body(appointment_details, meeting_details, guest_name, locale) do
+    meeting_details = TextBodyHelper.format_meeting_details(meeting_details, locale)
 
     video_section =
       TextBodyHelper.format_video_section(JoinUrl.for(:guest, appointment_details), locale)
@@ -305,12 +288,10 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
     """
   end
 
-  defp build_organizer_text_body(appointment_details) do
-    appointment_details = TemplateHelper.as_organizer_view(appointment_details)
-
+  defp build_organizer_text_body(appointment_details, meeting_details) do
     meeting_details =
       TextBodyHelper.format_meeting_details(
-        appointment_details,
+        meeting_details,
         organizer_locale(appointment_details)
       )
 

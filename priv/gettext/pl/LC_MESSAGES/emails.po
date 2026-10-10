@@ -601,3 +601,8 @@ msgstr[2] "Sesja grupowa: masz jedno z %{count} miejsc."
 #, elixir-autogen, elixir-format
 msgid "ends %{time} on %{date}"
 msgstr "koniec: %{date}, %{time}"
+
+#: lib/tymeslot/emails/shared/text_body_helper.ex
+#, elixir-autogen, elixir-format
+msgid "Duration:"
+msgstr "Czas trwania:"

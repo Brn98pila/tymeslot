@@ -55,6 +55,7 @@ defmodule Tymeslot.Emails.Templates.MeetingEndChanged do
 
       email(
         {appointment_details.attendee_name, attendee_email},
+        :attendee,
         appointment_details,
         locale,
         {intro, JoinUrl.for(:attendee, appointment_details)}
@@ -63,8 +64,6 @@ defmodule Tymeslot.Emails.Templates.MeetingEndChanged do
   end
 
   def render(:guest, guest_email, appointment_details) do
-    appointment_details = TemplateHelper.as_guest_view(appointment_details)
-
     # Guests inherit the booker's locale, as their invitation does.
     locale = RecipientLocale.attendee_locale(appointment_details)
 
@@ -86,6 +85,7 @@ defmodule Tymeslot.Emails.Templates.MeetingEndChanged do
 
       email(
         {guest_name, guest_email},
+        :guest,
         # The calendar entry advertises the guests' link, as the email does.
         Map.put(appointment_details, :meeting_url, guest_video_url),
         locale,
@@ -94,18 +94,10 @@ defmodule Tymeslot.Emails.Templates.MeetingEndChanged do
     end)
   end
 
-  defp email(recipient, appointment_details, locale, {intro, video_url}) do
+  defp email(recipient, audience, appointment_details, locale, {intro, video_url}) do
     {to, from} = end_times(appointment_details, locale)
 
-    meeting_details = %{
-      date: appointment_details.date,
-      start_time: appointment_details.start_time_attendee_tz,
-      duration: appointment_details.duration,
-      location: appointment_details.location,
-      location_type: Map.get(appointment_details, :location_type),
-      meeting_type: appointment_details.meeting_type,
-      timezone: Map.get(appointment_details, :attendee_timezone)
-    }
+    meeting_details = TemplateHelper.attendee_meeting_details(appointment_details, audience)
 
     mjml_content = """
     #{Text.centered_text(intro, padding: "8px 0 16px 0")}
@@ -142,7 +134,9 @@ defmodule Tymeslot.Emails.Templates.MeetingEndChanged do
     |> to(recipient)
     |> subject(Sanitise.sanitize_for_header(subject))
     |> html_body(TemplateHelper.compile_template(mjml_content, header))
-    |> text_body(text_body(appointment_details, intro, {to, from}, video_url, locale))
+    |> text_body(
+      text_body(appointment_details, meeting_details, intro, {to, from}, video_url, locale)
+    )
     |> attachment(
       IcsGenerator.generate_ics_update_attachment(
         appointment_details,
@@ -169,8 +163,8 @@ defmodule Tymeslot.Emails.Templates.MeetingEndChanged do
       else: Formatting.format_datetime(finish, locale)
   end
 
-  defp text_body(appointment_details, intro, {to, from}, video_url, locale) do
-    meeting_details = TextBodyHelper.format_meeting_details(appointment_details, locale)
+  defp text_body(appointment_details, meeting_details, intro, {to, from}, video_url, locale) do
+    meeting_details = TextBodyHelper.format_meeting_details(meeting_details, locale)
     video_section = TextBodyHelper.format_video_section(video_url, locale)
 
     """
