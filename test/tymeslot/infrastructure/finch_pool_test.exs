@@ -13,6 +13,7 @@ defmodule Tymeslot.Infrastructure.FinchPoolTest do
 
   alias Finch.Pool
   alias Tymeslot.Infrastructure.FinchPool
+  alias Tymeslot.Infrastructure.FinchPool.Janitor
 
   describe "with_pool/3" do
     test "asks for the shared pool by name when there is nothing to configure" do
@@ -99,6 +100,44 @@ defmodule Tymeslot.Infrastructure.FinchPoolTest do
     end
   end
 
+  describe "the lease with_pool/3 takes" do
+    test "is held while the function runs and ended when it returns" do
+      url = "https://93.184.216.40/notify"
+
+      tag =
+        FinchPool.with_pool(url, [hostname: "lease.example.com"], fn {:ok, options} ->
+          assert leases_on(url, options[:pool_tag]) == 1
+          options[:pool_tag]
+        end)
+
+      assert leases_on(url, tag) == 0
+    end
+
+    test "is ended when the function raises" do
+      url = "https://93.184.216.41/notify"
+      test_pid = self()
+
+      assert_raise RuntimeError, fn ->
+        FinchPool.with_pool(url, [hostname: "raise.example.com"], fn {:ok, options} ->
+          send(test_pid, {:tag, options[:pool_tag]})
+          raise "request failed"
+        end)
+      end
+
+      assert_received {:tag, tag}
+      assert leases_on(url, tag) == 0
+    end
+
+    test "falls back to an unpooled request when no pool can be leased" do
+      # Finch rejects the protocol, so the janitor cannot start the pool; the
+      # request must still go ahead, without one.
+      assert FinchPool.with_pool("https://93.184.216.42/notify", [protocols: [:nope]], & &1) ==
+               :error
+
+      assert Process.alive?(Process.whereis(Janitor))
+    end
+  end
+
   describe "default_options/0" do
     test "carries the connect timeout where Mint actually reads it" do
       # Mint takes the socket's connect timeout from `transport_opts`, and
@@ -143,6 +182,17 @@ defmodule Tymeslot.Infrastructure.FinchPoolTest do
   defp pool_conn_opts(pid) do
     %{state: %{opts: %{conn_opts: conn_opts}}} = :sys.get_state(pid)
     conn_opts
+  end
+
+  # Outstanding leases on the pool for `url` under `tag`, read from the
+  # janitor's own state. The call queues behind any release cast before it.
+  defp leases_on(url, tag) do
+    %{pools: pools} = :sys.get_state(Janitor)
+
+    case Map.fetch(pools, Pool.new(url, tag: tag)) do
+      {:ok, %{leases: leases}} -> MapSet.size(leases)
+      :error -> 0
+    end
   end
 
   # The Req option `with_pool/3` hands its function. The lease ends when it

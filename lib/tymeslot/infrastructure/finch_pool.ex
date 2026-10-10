@@ -73,8 +73,8 @@ defmodule Tymeslot.Infrastructure.FinchPool do
 
   `fun` receives `:error` when there is no Finch instance or janitor to
   register with (the test suite routes Req through a plug instead; a release
-  `eval` starts neither), and should then pass the connection options
-  through to Req.
+  `eval` starts neither), or when the janitor cannot lease a pool, and should
+  then pass the connection options through to Req.
   """
   @spec with_pool(String.t(), keyword(), ({:ok, keyword()} | :error -> result)) :: result
         when result: term()
@@ -84,12 +84,17 @@ defmodule Tymeslot.Infrastructure.FinchPool do
     if running?() do
       pool_options = pool_options(connect_options)
       tag = tag_for(pool_options)
-      lease = Janitor.lease(url, pool_options, tag)
 
-      try do
-        fun.({:ok, [name: @finch, pool_tag: tag]})
-      after
-        Janitor.release(lease)
+      case Janitor.lease(url, pool_options, tag) do
+        {:ok, lease} ->
+          try do
+            fun.({:ok, [name: @finch, pool_tag: tag]})
+          after
+            Janitor.release(lease)
+          end
+
+        :error ->
+          fun.(:error)
       end
     else
       fun.(:error)
