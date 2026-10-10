@@ -37,46 +37,8 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
       assert base_dir == upload_root
     end
 
-    test "get_theme_upload_directory/3 creates correct path structure" do
-      path = Storage.get_theme_upload_directory(123, "1", "images")
-
-      assert path =~ "themes/123/1/images"
-    end
-
-    test "get_theme_upload_directory/3 for videos" do
-      path = Storage.get_theme_upload_directory(456, "2", "videos")
-
-      assert path =~ "themes/456/2/videos"
-    end
-
-    test "ensure_directory_exists/1 creates directory" do
-      test_dir = Path.join([System.tmp_dir!(), "tymeslot_test_#{:rand.uniform(100_000)}"])
-
-      try do
-        assert Storage.ensure_directory_exists(test_dir) == :ok
-        assert File.dir?(test_dir)
-      after
-        File.rm_rf!(test_dir)
-      end
-    end
-
-    test "ensure_directory_exists/1 returns error tuple on permission denied" do
-      # Create a read-only parent directory so mkdir_p inside it fails with :eacces
-      parent = Path.join(System.tmp_dir!(), "tymeslot_readonly_#{:rand.uniform(100_000)}")
-      File.mkdir_p!(parent)
-      File.chmod!(parent, 0o444)
-
-      try do
-        child = Path.join(parent, "subdir")
-        assert {:error, :eacces} = Storage.ensure_directory_exists(child)
-      after
-        File.chmod!(parent, 0o755)
-        File.rm_rf!(parent)
-      end
-    end
-
     test "store_background_image/3 returns error tuple when directory creation fails" do
-      # Point upload dir at a read-only location so ensure_directory_exists fails
+      # Point upload dir at a read-only location so the store cannot create its directory
       readonly = Path.join(System.tmp_dir!(), "tymeslot_ro_#{:rand.uniform(100_000)}")
       File.mkdir_p!(readonly)
       File.chmod!(readonly, 0o444)
@@ -142,12 +104,64 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
 
     test "store_background_video/3 refuses a container whose metadata cannot be stripped" do
       temp_file = Path.join(System.tmp_dir!(), "test_video_#{System.unique_integer([:positive])}")
-      # AVI passes the magic-byte check but is neither MP4 nor WebM.
+      # AVI is neither MP4 nor WebM.
       File.write!(temp_file, "RIFF" <> <<100::little-32>> <> "AVI LIST")
       on_exit(fn -> File.rm(temp_file) end)
 
       assert {:error, :invalid_video_format} =
                Storage.store_background_video(1, "1", %{path: temp_file, filename: "clip.mp4"})
+    end
+
+    test "store_background_video/3 names a WebM sent as .mp4 after what it is" do
+      temp_file = MediaFixtures.temp_copy!("gps.webm")
+
+      assert {:ok, stored_path} =
+               Storage.store_background_video(1, "1", %{path: temp_file, filename: "clip.mp4"})
+
+      assert Path.basename(stored_path) =~ ~r/\A[0-9a-f-]{36}\.webm\z/
+      assert File.exists?(Storage.build_theme_file_path(stored_path))
+    end
+
+    test "store_background_video/3 refuses junk whose first byte is the MPEG-TS sync byte" do
+      temp_file = Path.join(System.tmp_dir!(), "test_video_#{System.unique_integer([:positive])}")
+      File.write!(temp_file, <<0x47>> <> :binary.copy(<<0xFF>>, 1_000))
+      on_exit(fn -> File.rm(temp_file) end)
+
+      assert {:error, :invalid_video_format} =
+               Storage.store_background_video(1, "1", %{path: temp_file, filename: "clip.mp4"})
+    end
+
+    test "store_background_image/3 names a PNG sent as .jpg after what it is" do
+      temp_file = MediaFixtures.temp_copy!("gps.png")
+
+      assert {:ok, stored_path} =
+               Storage.store_background_image(1, "1", %{path: temp_file, filename: "bg.jpg"})
+
+      assert Path.basename(stored_path) =~ ~r/\A[0-9a-f-]{36}\.png\z/
+      stored = stored_path |> Storage.build_theme_file_path() |> File.read!()
+      assert <<137, 80, 78, 71, _rest::binary>> = stored
+      assert MediaFixtures.image_metadata_fields(stored) == []
+    end
+
+    test "store_background_image/3 refuses an animated GIF sent under an accepted name" do
+      temp_file = MediaFixtures.temp_copy!("animated.gif")
+
+      assert {:error, :invalid_image_format} =
+               Storage.store_background_image(1, "1", %{path: temp_file, filename: "bg.png"})
+    end
+
+    # The code default, "uploads", is relative to the working directory.
+    @tag :tmp_dir
+    test "store_background_video/3 stores under a relative upload root at the path it returns",
+         %{tmp_dir: tmp_dir} do
+      Application.put_env(:tymeslot, :upload_directory, Path.relative_to_cwd(tmp_dir))
+      temp_file = MediaFixtures.temp_copy!("gps.mp4")
+
+      assert {:ok, stored_path} =
+               Storage.store_background_video(1, "1", %{path: temp_file, filename: "clip.mp4"})
+
+      assert File.exists?(Path.join(tmp_dir, stored_path))
+      refute File.exists?(Path.join([tmp_dir, Path.relative_to_cwd(tmp_dir), stored_path]))
     end
   end
 end

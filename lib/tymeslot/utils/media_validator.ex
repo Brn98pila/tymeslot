@@ -3,6 +3,19 @@ defmodule Tymeslot.Utils.MediaValidator do
   Utility for validating media files (images and videos) using magic bytes.
   """
 
+  # Brands of an ISO base media file that name a video file: the ISO base
+  # media versions, MP4 v1/v2, H.264 MP4, CMAF video, QuickTime, iTunes video,
+  # MPEG-DASH segments and 3GPP/3GPP2 video.
+  @video_brands ~w(isom iso2 iso3 iso4 iso5 iso6 iso7 iso8 iso9 mp41 mp42 avc1 cmfc dash) ++
+                  ~w(3gp4 3gp5 3gp6 3g2a 3g2b 3g2c) ++ ["qt  ", "M4V ", "M4VH", "M4VP"]
+
+  # Major brands of still images (HEIF/HEIC, AVIF, Canon raw) and audio
+  # (iTunes and Flash audio) in the same family. Such files routinely list a
+  # video brand (`mp42`, `isom`) among their compatible brands, so their major
+  # brand alone must refuse them.
+  @not_video_brands ~w(heic heix hevc hevx heim heis hevm hevs mif1 mif2 msf1 miaf) ++
+                      ~w(avif avis avio) ++ ["crx ", "M4A ", "M4B ", "M4P ", "F4A ", "F4B "]
+
   @doc """
   Validates if a binary is a supported image format using ExImageInfo.
   """
@@ -38,38 +51,50 @@ defmodule Tymeslot.Utils.MediaValidator do
 
   @doc """
   Validates if a binary is a supported video format using magic bytes.
-  Supports MP4, WebM/MKV, and AVI.
+
+  Recognises only the containers whose metadata is stripped on upload
+  (`Tymeslot.Media.VideoMetadata`): Matroska/WebM (the EBML header), and the
+  ISO base media family, read from the leading `ftyp` box. QuickTime files
+  are of that family and pass; they are stored as `.mp4`, and the stripper
+  removes their location metadata like any other MP4's.
+  A file of that family passes when its major brand is a known video brand,
+  or when the major brand is not a known image or audio brand and one of its
+  compatible brands is a video brand, which admits cameras' own brands
+  (Sony's `XAVC`, `MSNV`). Still images and audio of the same family (HEIC,
+  AVIF, M4A) are refused, as is anything else, whatever its name: a GIF or
+  an image renamed `.mp4` is never stored, served as a background video or
+  queued for transcoding.
   """
   @spec valid_video?(binary()) :: boolean()
-  def valid_video?(binary) when is_binary(binary) do
-    # We only need the first 16 bytes for magic byte validation
-    header = binary_part(binary, 0, min(byte_size(binary), 16))
-    video_header?(header)
-  end
+  def valid_video?(binary) when is_binary(binary), do: video_header?(binary)
 
   @spec valid_video?(any()) :: boolean()
   def valid_video?(_other), do: false
 
-  # MP4 / MOV: ftyp at offset 4
-  defp video_header?(<<_a::binary-size(4), "ftyp", _rest::binary>>), do: true
+  # MP4 / MOV: an ftyp box at offset 4: its size, the major brand, then a
+  # minor version and the compatible brands filling the rest of the box.
+  defp video_header?(<<size::32, "ftyp", major::binary-size(4), rest::binary>>) do
+    major in @video_brands or
+      (major not in @not_video_brands and
+         Enum.any?(compatible_brands(rest, size - 12), &(&1 in @video_brands)))
+  end
 
   # WebM / MKV: 1A 45 DF A3
   defp video_header?(<<0x1A, 0x45, 0xDF, 0xA3, _rest::binary>>), do: true
 
-  # AVI: RIFF .... AVI
-  defp video_header?(<<"RIFF", _size::binary-size(4), "AVI ", _rest::binary>>), do: true
-
-  # MPEG Transport Stream: 0x47
-  defp video_header?(<<0x47, _rest::binary>>), do: true
-
-  # MPEG Program Stream: 00 00 01 BA or 00 00 01 B3
-  defp video_header?(<<0x00, 0x00, 0x01, 0xBA, _rest::binary>>), do: true
-  defp video_header?(<<0x00, 0x00, 0x01, 0xB3, _rest::binary>>), do: true
-
-  # Flash Video: FLV
-  defp video_header?(<<"FLV", _rest::binary>>), do: true
-
   defp video_header?(_other), do: false
+
+  # `rest` starts with the minor version; the brands follow it, up to the end
+  # of the box (`length` bytes after the major brand) or of the header read.
+  defp compatible_brands(rest, length) do
+    case binary_part(rest, 0, min(max(length, 0), byte_size(rest))) do
+      <<_minor::binary-size(4), brands::binary>> ->
+        for <<brand::binary-size(4) <- brands>>, do: brand
+
+      _no_brands ->
+        []
+    end
+  end
 
   @doc """
   Validates if a file at the given path is a supported image format.

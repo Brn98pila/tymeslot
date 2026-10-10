@@ -207,4 +207,23 @@ defmodule Tymeslot.Media.VideoMetadataTest do
 
   defp ebml_unknown(id, payload),
     do: <<:binary.encode_unsigned(id)::binary, 0x01FFFFFFFFFFFFFF::64, payload::binary>>
+
+  describe "extension/1" do
+    test "names MP4 and WebM after their bytes, whatever the file is called" do
+      assert VideoMetadata.extension(MediaFixtures.temp_copy!("gps.mp4")) == {:ok, ".mp4"}
+      assert VideoMetadata.extension(MediaFixtures.temp_copy!("gps.webm")) == {:ok, ".webm"}
+    end
+
+    test "refuses any other container" do
+      path = Path.join(System.tmp_dir!(), "avi_#{System.unique_integer([:positive])}.mp4")
+      File.write!(path, "RIFF" <> <<100::little-32>> <> "AVI LIST")
+      on_exit(fn -> File.rm(path) end)
+
+      assert VideoMetadata.extension(path) == {:error, :unsupported_container}
+    end
+
+    test "returns the error for a missing file" do
+      assert VideoMetadata.extension("/nonexistent/clip.mp4") == {:error, :enoent}
+    end
+  end
 end

@@ -457,4 +457,44 @@ defmodule Tymeslot.Media.ImageMetadataTest do
       type when type in [2, 6] -> :truecolour
     end
   end
+
+  describe "extension/1" do
+    test "names each accepted format after its bytes, whatever the file is called" do
+      cases = [
+        {"gps_portrait.jpg", ".jpg"},
+        {"gps.png", ".png"},
+        {"animated.gif", ".gif"},
+        {"gps.webp", ".webp"}
+      ]
+
+      for {fixture, expected} <- cases do
+        mislabelled = rename_to(MediaFixtures.temp_copy!(fixture), ".bin")
+        assert ImageMetadata.extension(mislabelled) == {:ok, expected}, fixture
+      end
+    end
+
+    test "refuses a file that is not an accepted image" do
+      path = Path.join(System.tmp_dir!(), "not_image_#{System.unique_integer([:positive])}")
+      File.write!(path, "<svg xmlns='http://www.w3.org/2000/svg'/>")
+      on_exit(fn -> File.rm(path) end)
+
+      assert ImageMetadata.extension(path) == {:error, :invalid_image_format}
+    end
+
+    test "refuses an empty or missing file" do
+      path = Path.join(System.tmp_dir!(), "empty_#{System.unique_integer([:positive])}")
+      File.write!(path, "")
+      on_exit(fn -> File.rm(path) end)
+
+      assert ImageMetadata.extension(path) == {:error, :invalid_image_format}
+      assert ImageMetadata.extension(path <> "-missing") == {:error, :invalid_image_format}
+    end
+  end
+
+  defp rename_to(path, extension) do
+    renamed = Path.rootname(path) <> extension
+    File.rename!(path, renamed)
+    on_exit(fn -> File.rm(renamed) end)
+    renamed
+  end
 end

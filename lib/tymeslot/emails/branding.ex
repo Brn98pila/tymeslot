@@ -22,7 +22,7 @@ defmodule Tymeslot.Emails.Branding do
   and it would put a filesystem path from user input into a column that later
   feeds `File.read/1`.
 
-  Each stored file gets a random suffix. The admin preview is served from
+  Each stored file gets a fresh random name. The admin preview is served from
   `/uploads`, and reusing one filename would leave browsers showing the
   previous logo from cache after a replacement.
   """
@@ -37,7 +37,6 @@ defmodule Tymeslot.Emails.Branding do
 
   @logo_dir "branding"
   @logo_extension ".png"
-  @random_suffix_bytes 8
 
   @stock_logo_path "priv/static/images/brand/logo-with-text.png"
 
@@ -280,9 +279,9 @@ defmodule Tymeslot.Emails.Branding do
   end
 
   defp write_logo(source_path) do
-    case Uploads.store_atomically(source_path, @logo_dir, random_filename(), %{
-           context: :email_logo
-         }) do
+    filename = Uploads.stored_name(@logo_extension)
+
+    case Uploads.store_atomically(source_path, @logo_dir, filename, %{context: :email_logo}) do
       {:ok, filename} ->
         {:ok, Path.join(@logo_dir, filename)}
 
@@ -296,14 +295,5 @@ defmodule Tymeslot.Emails.Branding do
 
   defp delete_stored_logo(relative) do
     Uploads.delete_safely(relative, %{context: :email_logo})
-  end
-
-  defp random_filename do
-    suffix =
-      @random_suffix_bytes
-      |> :crypto.strong_rand_bytes()
-      |> Base.url_encode64(padding: false)
-
-    "email-logo-#{suffix}#{@logo_extension}"
   end
 end

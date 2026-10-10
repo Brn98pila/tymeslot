@@ -15,8 +15,8 @@ defmodule TymeslotWeb.UploadsCompositionTest do
     * wrong MIME / extension (SVG) — rejected at the framework layer
     * zero-byte content past the framework layer — rejected by
       `MediaValidator` (empty binary has no valid image magic bytes)
-    * path-traversal `client_name` past the framework layer — rejected
-      by `Avatars.validate_file_name/1`
+    * the client's file name never reaches the disk: stored names are
+      generated from the detected format (see `avatar_validation_test.exs`)
 
   Not covered here:
 
@@ -123,42 +123,6 @@ defmodule TymeslotWeb.UploadsCompositionTest do
     test "rejects non-binary input" do
       refute MediaValidator.valid_image?(nil)
       refute MediaValidator.valid_image?(:not_a_binary)
-    end
-  end
-
-  describe "avatars.validate_file_name/1" do
-    # The LiveView upload form is configured with `accept:` restricted to
-    # image extensions, so the framework layer blocks a raw `../etc/passwd`
-    # client_name before it ever reaches the consume callback. The
-    # server-side `Avatars.validate_file_name/1` guard is the defence-in-
-    # depth layer — a future change that loosens `accept:` or that invokes
-    # the consume path from a non-LV entrypoint must still refuse these
-    # names. These unit tests pin that contract directly.
-
-    test "rejects a filename containing ../" do
-      assert {:error, "Invalid file name"} =
-               Avatars.validate_file_name(%{"client_name" => "../etc/passwd.png"})
-    end
-
-    test "rejects a filename containing a null byte" do
-      assert {:error, "Invalid file name"} =
-               Avatars.validate_file_name(%{"client_name" => "ok\0hidden.png"})
-    end
-
-    test "rejects a filename with a windows-style backslash traversal" do
-      assert {:error, "Invalid file name"} =
-               Avatars.validate_file_name(%{"client_name" => "..\\win.png"})
-    end
-
-    test "rejects a filename over 255 characters even if it contains only safe chars" do
-      long_name = String.duplicate("a", 260) <> ".png"
-
-      assert {:error, "File name too long"} =
-               Avatars.validate_file_name(%{"client_name" => long_name})
-    end
-
-    test "accepts a legitimate unicode filename" do
-      assert :ok = Avatars.validate_file_name(%{"client_name" => "café.png"})
     end
   end
 end

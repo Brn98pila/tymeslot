@@ -4,13 +4,14 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
   Owns directory management, path building, and file storage.
   """
 
-  require Logger
   alias Tymeslot.Media.ImageMetadata
   alias Tymeslot.Media.Uploads
   alias Tymeslot.Media.VideoMetadata
   alias Tymeslot.Utils.MediaValidator
 
-  @type file_upload :: %{required(:path) => Path.t(), required(:filename) => String.t()}
+  @type file_upload :: %{required(:path) => Path.t(), optional(:filename) => String.t()}
+
+  @invalid_format %{image: :invalid_image_format, video: :invalid_video_format}
 
   @doc """
   Builds an absolute file system path from a stored relative path.
@@ -30,15 +31,6 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
   end
 
   @doc """
-  Returns the directory where theme assets are stored for a profile/theme/type.
-  Type is one of "images" | "videos".
-  """
-  @spec get_theme_upload_directory(integer(), String.t(), String.t()) :: String.t()
-  def get_theme_upload_directory(profile_id, theme_id, type) do
-    Path.join([get_upload_base_directory(), "themes", to_string(profile_id), theme_id, type])
-  end
-
-  @doc """
   Removes a profile's whole theme upload directory: every theme's images,
   videos and transcoded variants, whether or not a row still references them.
   """
@@ -53,30 +45,6 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
   end
 
   @doc """
-  Ensures the given directory exists.
-  Returns :ok on success, {:error, reason} on failure.
-  """
-  @spec ensure_directory_exists(String.t()) :: :ok | {:error, atom()}
-  def ensure_directory_exists(dir_path) do
-    case File.mkdir_p(dir_path) do
-      :ok ->
-        :ok
-
-      {:error, :eacces} = error ->
-        Logger.error("Permission denied creating directory", dir_path: dir_path)
-        error
-
-      {:error, :enospc} = error ->
-        Logger.error("No space left on device for directory", dir_path: dir_path)
-        error
-
-      {:error, reason} = error ->
-        Logger.error("Failed to create directory", dir_path: dir_path, reason: reason)
-        error
-    end
-  end
-
-  @doc """
   Stores a background image file and returns {:ok, relative_path}.
 
   The image is re-encoded without its metadata (see
@@ -85,21 +53,20 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
   """
   @spec store_background_image(integer(), String.t(), file_upload()) ::
           {:ok, String.t()} | {:error, term()}
-  def store_background_image(profile_id, theme_id, %{path: temp_path, filename: filename}) do
+  def store_background_image(profile_id, theme_id, %{path: temp_path}) do
     if MediaValidator.valid_image_file?(temp_path) do
-      dest_dir = get_theme_upload_directory(profile_id, theme_id, "images")
+      dest_dir = theme_directory(profile_id, theme_id, "images")
 
-      with :ok <- ImageMetadata.strip(temp_path, temp_path, Path.extname(filename)),
-           :ok <- ensure_directory_exists(dest_dir),
+      with {:ok, extension} <- detected_extension(:image, ImageMetadata.extension(temp_path)),
+           :ok <- ImageMetadata.strip(temp_path, temp_path, extension),
            {:ok, sanitized_filename} <-
              Uploads.store_atomically(
                temp_path,
                dest_dir,
-               filename,
+               Uploads.stored_name(extension),
                %{operation: :store_background_image, profile_id: profile_id, theme_id: theme_id}
              ) do
-        {:ok,
-         Path.join(["themes", to_string(profile_id), theme_id, "images", sanitized_filename])}
+        {:ok, Path.join(dest_dir, sanitized_filename)}
       end
     else
       {:error, :invalid_image_format}
@@ -116,26 +83,41 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
   """
   @spec store_background_video(integer(), String.t(), file_upload()) ::
           {:ok, String.t()} | {:error, term()}
-  def store_background_video(profile_id, theme_id, %{path: temp_path, filename: filename}) do
+  def store_background_video(profile_id, theme_id, %{path: temp_path}) do
     if MediaValidator.valid_video_file?(temp_path) do
-      dest_dir = get_theme_upload_directory(profile_id, theme_id, "videos")
+      dest_dir = theme_directory(profile_id, theme_id, "videos")
 
-      with {:ok, _stripped_or_unchanged} <- strip_video(temp_path),
-           :ok <- ensure_directory_exists(dest_dir),
+      with {:ok, extension} <- detected_extension(:video, VideoMetadata.extension(temp_path)),
+           {:ok, _stripped_or_unchanged} <- strip_video(temp_path),
            {:ok, sanitized_filename} <-
              Uploads.store_atomically(
                temp_path,
                dest_dir,
-               filename,
+               Uploads.stored_name(extension),
                %{operation: :store_background_video, profile_id: profile_id, theme_id: theme_id}
              ) do
-        {:ok,
-         Path.join(["themes", to_string(profile_id), theme_id, "videos", sanitized_filename])}
+        {:ok, Path.join(dest_dir, sanitized_filename)}
       end
     else
       {:error, :invalid_video_format}
     end
   end
+
+  # Relative to the upload root, as `Uploads.store_atomically/4` takes it and
+  # as the row stores it.
+  defp theme_directory(profile_id, theme_id, type),
+    do: Path.join(["themes", to_string(profile_id), theme_id, type])
+
+  # The file is named after the format its bytes are, which must also be one
+  # this kind of background accepts (an animated GIF is not a background).
+  defp detected_extension(kind, {:ok, extension}) do
+    if extension in Uploads.allowed_extensions(kind),
+      do: {:ok, extension},
+      else: {:error, Map.fetch!(@invalid_format, kind)}
+  end
+
+  defp detected_extension(kind, {:error, _unrecognised}),
+    do: {:error, Map.fetch!(@invalid_format, kind)}
 
   defp strip_video(path) do
     case VideoMetadata.strip(path) do

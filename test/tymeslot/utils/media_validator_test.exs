@@ -34,6 +34,63 @@ defmodule Tymeslot.Utils.MediaValidatorTest do
       assert MediaValidator.valid_video?(<<0x1A, 0x45, 0xDF, 0xA3, 0x01>>)
     end
 
+    test "returns true for QuickTime MOV" do
+      assert MediaValidator.valid_video?(<<0, 0, 0, 20, "ftypqt  ", 0, 0, 2, 0>>)
+    end
+
+    test "returns true for an ISO base media MP4" do
+      assert MediaValidator.valid_video?(<<0, 0, 0, 24, "ftypisom", 0, 0, 2, 0>>)
+    end
+
+    test "accepts every video brand of the ISO base media family" do
+      brands =
+        ~w(isom iso2 iso3 iso4 iso5 iso6 iso7 iso8 iso9 mp41 mp42 avc1 cmfc dash) ++
+          ~w(3gp4 3gp5 3gp6 3g2a 3g2b 3g2c) ++ ["qt  ", "M4V ", "M4VH", "M4VP"]
+
+      assert Enum.reject(brands, &MediaValidator.valid_video?(ftyp(&1, [&1]))) == []
+    end
+
+    test "accepts a camera's own brand that lists a video brand as compatible" do
+      # Sony cameras write these, with MP4 brands after them.
+      assert MediaValidator.valid_video?(ftyp("XAVC", ["XAVC", "mp42", "iso2"]))
+      assert MediaValidator.valid_video?(ftyp("MSNV", ["MSNV", "mp42", "isom"]))
+    end
+
+    test "refuses an unknown brand with no video brand among its compatible brands" do
+      refute MediaValidator.valid_video?(ftyp("abcd", ["abcd", "wxyz"]))
+    end
+
+    test "refuses still images and audio of the same family renamed as video" do
+      # HEIC, AVIF and M4A all start with an ftyp box, and routinely list MP4
+      # brands as compatible, which alone once passed.
+      for brand <- ["heic", "mif1", "avif", "M4A "] do
+        refute MediaValidator.valid_video?(ftyp(brand, [brand, "mp42", "isom"])),
+               "brand #{inspect(brand)} passed"
+      end
+    end
+
+    test "reads compatible brands only within the ftyp box" do
+      # A video brand in the bytes after a box that lists none is not one of
+      # its brands.
+      refute MediaValidator.valid_video?(ftyp("abcd", ["abcd"]) <> "isom")
+    end
+
+    test "refuses a GIF, although its first byte is the MPEG-TS sync byte" do
+      # "G" is 0x47. A GIF named `.mp4` used to pass as an MPEG transport
+      # stream, and was stored and queued for transcoding.
+      refute MediaValidator.valid_video?("GIF89a" <> :binary.copy(<<0>>, 32))
+      refute MediaValidator.valid_video?("GIF87a" <> :binary.copy(<<0>>, 32))
+    end
+
+    test "refuses containers the upload allowlist never admits" do
+      # MPEG-TS (sync byte every 188 bytes), MPEG-PS, FLV and AVI.
+      ts_packet = <<0x47>> <> :binary.copy(<<0xFF>>, 187)
+      refute MediaValidator.valid_video?(:binary.copy(ts_packet, 3))
+      refute MediaValidator.valid_video?(<<0x00, 0x00, 0x01, 0xBA, 0x44, 0x00>>)
+      refute MediaValidator.valid_video?(<<"FLV", 0x01, 0x05, 0, 0, 0, 9>>)
+      refute MediaValidator.valid_video?(<<"RIFF", 0, 0, 0, 0, "AVI LIST">>)
+    end
+
     test "returns false for invalid video" do
       refute MediaValidator.valid_video?(<<"not a video">>)
     end
@@ -123,5 +180,10 @@ defmodule Tymeslot.Utils.MediaValidatorTest do
         Process.info(pid, :current_function)
       )
     end)
+  end
+
+  defp ftyp(major, compatible) do
+    brands = Enum.join(compatible)
+    <<16 + byte_size(brands)::32, "ftyp", major::binary, 0::32, brands::binary>>
   end
 end

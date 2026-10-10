@@ -15,7 +15,7 @@ defmodule Tymeslot.Profiles.Avatars do
 
   @type profile :: ProfileSchema.t()
   @type uploaded_entry :: %{
-          required(:client_name) => String.t(),
+          optional(:client_name) => String.t(),
           required(:path) => String.t(),
           optional(atom()) => term()
         }
@@ -33,16 +33,16 @@ defmodule Tymeslot.Profiles.Avatars do
   def max_file_size, do: @max_file_size
 
   @doc """
-  Validates an avatar upload's file type, size, and name.
+  Validates an avatar upload's file type and size.
 
-  Expects a map with string keys: `"client_name"`, `"size"`, and `"path"`.
+  Expects a map with string keys: `"client_name"` and `"path"`. The size is
+  read from the uploaded file itself, not from what the client reported.
   Returns `{:ok, file_params}` on success or `{:error, reason}` on failure.
   """
   @spec validate_upload(map()) :: {:ok, map()} | {:error, String.t()}
   def validate_upload(file_params) do
     with :ok <- validate_file_type(file_params),
-         :ok <- validate_file_size(file_params),
-         :ok <- validate_file_name(file_params) do
+         :ok <- validate_file_size(file_params) do
       {:ok, file_params}
     end
   end
@@ -65,46 +65,16 @@ defmodule Tymeslot.Profiles.Avatars do
     end
   end
 
-  # Validates the file size against the maximum allowed.
   @spec validate_file_size(map()) :: :ok | {:error, String.t()}
-  defp validate_file_size(file_params) do
-    case Map.get(file_params, "size") do
-      nil ->
-        :ok
-
-      size when is_integer(size) ->
-        if size <= @max_file_size,
-          do: :ok,
-          else: {:error, "File too large. Maximum size is 10MB"}
-
-      _other ->
-        {:error, "Invalid file size"}
+  defp validate_file_size(%{"path" => path}) when is_binary(path) do
+    case File.stat(path) do
+      {:ok, %File.Stat{size: size}} when size <= @max_file_size -> :ok
+      {:ok, %File.Stat{}} -> {:error, "File too large. Maximum size is 10MB"}
+      {:error, _reason} -> {:error, "Invalid file size"}
     end
   end
 
-  @doc "Validates the file name for path traversal and illegal characters."
-  @spec validate_file_name(map()) :: :ok | {:error, String.t()}
-  def validate_file_name(file_params) do
-    case Map.get(file_params, "client_name") do
-      nil ->
-        {:error, "No file name provided"}
-
-      filename ->
-        cond do
-          String.contains?(filename, ["../", "..\\", "\0"]) ->
-            {:error, "Invalid file name"}
-
-          String.match?(filename, ~r/[<>:"\\|?*]/) ->
-            {:error, "Invalid file name"}
-
-          String.length(filename) > 255 ->
-            {:error, "File name too long"}
-
-          true ->
-            :ok
-        end
-    end
-  end
+  defp validate_file_size(_file_params), do: {:error, "Invalid file size"}
 
   @doc """
   Updates a user's avatar file and database record.
@@ -219,25 +189,22 @@ defmodule Tymeslot.Profiles.Avatars do
 
   # Private helpers
 
+  # The stored name and format come from the bytes, never from the client's
+  # file name: a PNG sent as `photo.jpg` is stored and served as a PNG.
   defp store_avatar_file(uploaded_entry, profile) do
-    timestamp = System.system_time(:second)
-    unique_suffix = System.unique_integer([:positive])
-    extension = String.downcase(Path.extname(uploaded_entry.client_name))
-    filename = "#{profile.id}_avatar_#{timestamp}_#{unique_suffix}#{extension}"
-
     profile_dir = Path.join([Uploads.root(), "avatars", to_string(profile.id)])
 
     # The avatar is public: it appears on the booking page, in embeds and in
     # email. Re-encoding drops the EXIF location and device details a phone
     # photo carries, and runs only once the content has passed the check.
-    with :ok <- File.mkdir_p(profile_dir),
-         {:ok, binary} <- File.read(uploaded_entry.path),
+    with {:ok, binary} <- File.read(uploaded_entry.path),
          :ok <- validate_image_binary(binary),
+         {:ok, extension} <- ImageMetadata.extension(uploaded_entry.path),
+         :ok <- File.mkdir_p(profile_dir),
+         filename = Uploads.stored_name(extension),
          :ok <-
            ImageMetadata.strip(uploaded_entry.path, Path.join(profile_dir, filename), extension) do
       {:ok, filename}
-    else
-      {:error, reason} -> {:error, reason}
     end
   end
 
