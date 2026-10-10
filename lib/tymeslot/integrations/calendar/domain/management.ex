@@ -7,6 +7,7 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   """
 
   alias Tymeslot.Emails.EmailScheduler.IntegrationScheduler
+  alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CalendarPreferencesQueries
@@ -428,10 +429,10 @@ defmodule Tymeslot.Integrations.CalendarManagement do
     end
   end
 
+  # The booking calendar must block availability, so storing one makes it
+  # block in the same write (see `Blocking`).
   defp update_default_booking_calendar(integration, default_id) do
-    case CalendarIntegrationQueries.update(integration, %{
-           default_booking_calendar_id: default_id
-         }) do
+    case Blocking.set_default_booking_calendar(integration, default_id) do
       {:ok, updated} ->
         {:ok, updated}
 

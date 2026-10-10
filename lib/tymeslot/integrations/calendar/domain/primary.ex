@@ -7,7 +7,9 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   """
 
   alias Tymeslot.Integrations.Calendar, as: CalendarContext
+  alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.BookingEligibility
+  alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.Selection
@@ -80,24 +82,33 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   # Private helpers
 
   # Stores the discovered list and picks the default booking calendar: the
-  # provider's primary, else a selected one, else the first. Only calendars
-  # a booking can be written to are considered, so the id stored here is
-  # never one `Defaults.resolve_default_calendar_id/1` would refuse. Only an
-  # OAuth connection reaches this, and its discovered entries carry no path,
-  # so `calendar_paths` is left alone: it must stay empty for those providers.
-  defp auto_select_primary_calendar(integration, calendars) do
-    eligible = Defaults.eligible_for_booking(calendars)
+  # one already stored while discovery still finds it, so a reconnect never
+  # moves the owner's bookings, else the provider's primary, else a selected
+  # one, else the first. Only calendars a booking can be written to are
+  # considered (`Defaults.default_booking_calendar/2`), so the id stored here
+  # is never one `Defaults.resolve_default_calendar_id/1` would refuse. Only
+  # an OAuth connection reaches this, and its discovered entries carry no
+  # path, so `calendar_paths` is left alone: it must stay empty for those
+  # providers.
+  #
+  # Both the carried choices and the stored default are read from the row
+  # under its lock, not from `integration`, which was read before discovery
+  # went to the network: a change the owner made meanwhile is kept.
+  defp auto_select_primary_calendar(integration, discovered) do
+    discovered = Enum.map(discovered, &CalendarEntry.normalize/1)
 
-    default_calendar_id =
-      Defaults.primary_id(eligible) || Defaults.selected_id(eligible) ||
-        Defaults.first_id_from_list(eligible)
+    Blocking.replace_selection(integration, fn stored ->
+      # A reconnected account keeps whether each calendar it already knew
+      # blocks availability; the selection is discovery's, as on any
+      # connect, but for its booking calendars, which `Blocking` keeps
+      # selected and blocking whatever discovery says.
+      calendars = Selection.carry_blocking_choices(discovered, stored.calendar_list)
 
-    attrs =
-      if default_calendar_id,
-        do: %{calendar_list: calendars, default_booking_calendar_id: default_calendar_id},
-        else: %{calendar_list: calendars}
-
-    Selection.replace_selection(integration, attrs)
+      case Defaults.default_booking_calendar(calendars, stored.default_booking_calendar_id) do
+        %CalendarEntry{id: id} -> {calendars, %{default_booking_calendar_id: id}}
+        nil -> {calendars, %{}}
+      end
+    end)
   end
 
   defp validate_and_prepare_integration(user_id, integration_id) do
@@ -138,10 +149,7 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
     if is_nil(integration.default_booking_calendar_id) do
       with calendar_id when is_binary(calendar_id) <-
              Defaults.resolve_default_calendar_id(integration),
-           {:ok, updated} <-
-             CalendarManagement.update_calendar_integration(integration, %{
-               default_booking_calendar_id: calendar_id
-             }) do
+           {:ok, updated} <- Blocking.set_default_booking_calendar(integration, calendar_id) do
         updated
       else
         _error -> integration

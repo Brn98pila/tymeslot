@@ -20,6 +20,8 @@ defmodule Tymeslot.Integrations.Calendar.Ics.AvailabilityIntegrationTest do
   @moduletag :integrations
   @moduletag :calendar
 
+  alias Ecto.Changeset
+  alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.Ics.Provider, as: IcsProvider
   alias Tymeslot.Integrations.Calendar.Runtime.ClientManager
   alias Tymeslot.Integrations.Calendar.Runtime.EventFetcher
@@ -79,6 +81,27 @@ defmodule Tymeslot.Integrations.Calendar.Ics.AvailabilityIntegrationTest do
                EventFetcher.get_events_for_range_fresh(user.id, ~D[2026-08-01], ~D[2026-08-20])
 
       assert Enum.any?(events, &(&1.uid == "blocked-slot@example.com"))
+    end
+
+    test "a feed set to show only contributes nothing", %{user: user, integration: integration} do
+      integration
+      |> Changeset.change(
+        calendar_list: [
+          %CalendarEntry{
+            id: "subscription",
+            path: "subscription",
+            selected: true,
+            read_only: true,
+            blocks_availability: false
+          }
+        ]
+      )
+      |> Repo.update!()
+
+      assert {:ok, events} =
+               EventFetcher.get_events_for_range_fresh(user.id, ~D[2026-08-01], ~D[2026-08-20])
+
+      refute Enum.any?(events, &(&1.uid == "blocked-slot@example.com"))
     end
 
     test "a range that excludes the cached event's window returns no events for it", %{

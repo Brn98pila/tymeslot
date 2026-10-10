@@ -19,6 +19,7 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
   """
 
   alias Tymeslot.Integrations.Calendar
+  alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Connection
@@ -132,6 +133,7 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
        ) do
     %{credentials: creds, calendars: calendars} = payload
 
+    # The selection is the one just made.
     calendar_list =
       Enum.map(calendars, fn cal ->
         entry = CalendarEntry.normalize(cal)
@@ -148,21 +150,28 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
       password: Map.get(creds, :password)
     }
 
-    attrs = Map.merge(credential_attrs, Selection.calendar_list_attrs(calendar_list))
-
     # A submitted path that matches no discovered calendar would persist an
     # empty `calendar_paths` behind a successful "reconnected" flash, leaving
     # the integration syncing nothing. Refuse on the derived selection, not on
     # the submitted list, which was already checked by the caller.
-    if attrs.calendar_paths == [] do
+    if Selection.derive_selected_paths(calendar_list) == [] do
       {:error, :no_calendars_selected}
     else
-      persist_account_change(integration, attrs)
+      persist_account_change(integration, calendar_list, credential_attrs)
     end
   end
 
-  defp persist_account_change(integration, attrs) do
-    case Selection.replace_selection(integration, attrs) do
+  # Whether each calendar blocks is carried over from the row as it stands
+  # under its lock, not from `integration`, read before it: reconnecting
+  # undoes neither the owner's choices nor one made in between. A booking
+  # calendar stays selected and blocking whatever was ticked
+  # (`Blocking.replace_selection/2`).
+  defp persist_account_change(integration, calendar_list, credential_attrs) do
+    build = fn stored ->
+      {Selection.carry_blocking_choices(calendar_list, stored.calendar_list), credential_attrs}
+    end
+
+    case Blocking.replace_selection(integration, build) do
       # Discovery has just reached the server with these credentials, so a
       # breaker its earlier failures opened is closed rather than left to
       # refuse the reconnected integration until it times out.

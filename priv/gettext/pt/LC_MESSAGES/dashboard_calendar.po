@@ -355,3 +355,8 @@ msgstr "%{count}/%{capacity} vagas ocupadas"
 #, elixir-autogen, elixir-format
 msgid "Participants"
 msgstr "Participantes"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/header/calendar_list_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Doesn't block"
+msgstr "Não bloqueia"

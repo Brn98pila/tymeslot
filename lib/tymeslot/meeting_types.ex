@@ -11,6 +11,7 @@ defmodule Tymeslot.MeetingTypes do
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Meetings
+  alias Tymeslot.MeetingTypes.BookingCalendar
   alias Tymeslot.MeetingTypes.Duration
   alias Tymeslot.MeetingTypes.FormMapper
   alias Tymeslot.MeetingTypes.FormValidation
@@ -282,9 +283,22 @@ defmodule Tymeslot.MeetingTypes do
   `opts` are forwarded to the changeset for payment-validation context.
   """
   @spec create_meeting_type(map(), keyword()) ::
-          {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t() | :not_found}
   def create_meeting_type(attrs, opts \\ []) do
-    with {:ok, meeting_type} <- MeetingTypeQueries.create_meeting_type(attrs, opts) do
+    result =
+      Repo.transaction(fn ->
+        changeset = MeetingTypeSchema.changeset(%MeetingTypeSchema{}, attrs, opts)
+
+        with {:ok, promotion} <- BookingCalendar.promote(changeset),
+             {:ok, meeting_type} <- MeetingTypeQueries.create_meeting_type(attrs, opts) do
+          {meeting_type, promotion}
+        else
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end)
+
+    with {:ok, {meeting_type, promotion}} <- result do
+      if promotion == :promoted, do: invalidate_after_commit(meeting_type.user_id)
       Publication.maybe_publish(meeting_type.user_id)
       {:ok, meeting_type}
     end
@@ -296,7 +310,7 @@ defmodule Tymeslot.MeetingTypes do
   `opts` are forwarded to the changeset for payment-validation context.
   """
   @spec update_meeting_type(Ecto.Schema.t(), map(), keyword()) ::
-          {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t() | :not_found}
   def update_meeting_type(meeting_type, attrs, opts \\ []) do
     case Repo.transaction(fn -> do_update_meeting_type(meeting_type, attrs, opts) end) do
       {:ok, updated} ->
@@ -304,7 +318,7 @@ defmodule Tymeslot.MeetingTypes do
         maybe_broadcast_seat_change(meeting_type, updated)
         # Offered slots are cached per meeting type, and an edit can change which
         # availability schedule the type resolves to, so the cached answer must go.
-        AvailabilityCache.invalidate_for_user(updated.user_id)
+        invalidate_after_commit(updated.user_id)
         {:ok, updated}
 
       {:error, reason} ->
@@ -313,13 +327,14 @@ defmodule Tymeslot.MeetingTypes do
   end
 
   defp do_update_meeting_type(meeting_type, attrs, opts) do
-    case MeetingTypeQueries.update_meeting_type(meeting_type, attrs, opts) do
-      {:ok, updated} ->
-        sync_group_capacity(meeting_type, updated)
-        updated
+    changeset = MeetingTypeSchema.changeset(meeting_type, attrs, opts)
 
-      {:error, reason} ->
-        Repo.rollback(reason)
+    with {:ok, _promotion} <- BookingCalendar.promote(changeset),
+         {:ok, updated} <- MeetingTypeQueries.update_meeting_type(meeting_type, attrs, opts) do
+      sync_group_capacity(meeting_type, updated)
+      updated
+    else
+      {:error, reason} -> Repo.rollback(reason)
     end
   end
 
@@ -497,6 +512,13 @@ defmodule Tymeslot.MeetingTypes do
   exactly the number the save path enforces.
   """
   defdelegate max_reminders(), to: ReminderValidation
+
+  # Once the write commits, never inside a caller's transaction, where a read
+  # in between would cache the old answer again.
+  defp invalidate_after_commit(user_id) do
+    unless MeetingTypeQueries.in_transaction?(),
+      do: AvailabilityCache.invalidate_for_user(user_id)
+  end
 
   @doc """
   Creates a meeting type from form parameters with validation.

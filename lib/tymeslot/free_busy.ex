@@ -12,6 +12,7 @@ defmodule Tymeslot.FreeBusy do
 
   alias Tymeslot.Availability.{Events, TimeOff}
   alias Tymeslot.Clock
+  alias Tymeslot.Integrations.Calendar.AvailabilityView
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.CalendarEventQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
@@ -86,14 +87,15 @@ defmodule Tymeslot.FreeBusy do
   @spec busy_intervals(ProfileSchema.t(), DateTime.t(), DateTime.t()) ::
           [FreebusyGenerator.interval()]
   def busy_intervals(%ProfileSchema{} = profile, window_start, window_end) do
-    integration_ids =
-      profile.user_id
-      |> CalendarIntegrationQueries.list_active_for_user()
-      |> Enum.map(& &1.id)
+    integrations = CalendarIntegrationQueries.list_active_for_user(profile.user_id)
 
     event_intervals =
-      integration_ids
-      |> CalendarEventQueries.in_range({window_start, window_end})
+      integrations
+      |> Enum.map(& &1.id)
+      |> CalendarEventQueries.in_range(
+        {window_start, window_end},
+        AvailabilityView.rules(integrations)
+      )
       |> Enum.filter(&CalendarEvent.blocking?/1)
       |> Enum.flat_map(&event_interval(&1, Profiles.timezone(profile)))
 

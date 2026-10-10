@@ -257,6 +257,23 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ProviderCommon do
   end
 
   @doc """
+  The selected collections of a CalDAV-family integration shared with the
+  account as busy times only (`CalendarEntry.free_busy_only`), which a read
+  reaches through the free-busy-query REPORT and a sync skips.
+  """
+  @spec caldav_free_busy_paths(map()) :: [String.t()]
+  def caldav_free_busy_paths(%{calendar_list: list}) when is_list(list) do
+    for entry <- Selection.selected_calendars(list),
+        entry.free_busy_only,
+        path = entry.path || entry.id,
+        is_binary(path),
+        do: path
+  end
+
+  # Predating calendar selection, nothing is known to be free/busy only.
+  def caldav_free_busy_paths(_integration), do: []
+
+  @doc """
   Returns a single CalDAV client config for the booking flow, scoped to the
   path resolved by `CalendarPathResolver`. Returns `nil` when no path is
   resolvable for the integration.
@@ -309,7 +326,8 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ProviderCommon do
       password: integration.password,
       calendar_path: path,
       calendar_paths: [path],
-      writable_calendar_paths: writable_paths
+      writable_calendar_paths: writable_paths,
+      free_busy_paths: Enum.filter(caldav_free_busy_paths(integration), &(&1 == path))
     }
   end
 

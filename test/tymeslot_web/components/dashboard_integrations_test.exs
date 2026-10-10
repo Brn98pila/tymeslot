@@ -420,7 +420,7 @@ defmodule TymeslotWeb.Components.DashboardIntegrationsTest do
     end
   end
 
-  # `toggle_calendar_selection` LiveComponent handler — full user-visible
+  # `set_calendar_state` LiveComponent handler — full user-visible
   # round-trip (happy path, stale/deleted integration) is exercised in
   # `test/tymeslot_web/live/dashboard/calendar_settings_composition_test.exs`.
 end

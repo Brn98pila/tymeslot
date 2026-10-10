@@ -4,8 +4,47 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueriesTest do
   @moduletag :integrations
   @moduletag :queries
 
+  alias Tymeslot.Integrations.Calendar.AvailabilityView
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.CalendarEventQueries
+
+  describe "in_range/3 with blocking rules" do
+    setup do
+      integration =
+        insert(:calendar_integration,
+          provider: "google",
+          calendar_list: [
+            %{id: "work", selected: true},
+            %{id: "holidays", selected: true, blocks_availability: false}
+          ]
+        )
+
+      for calendar_id <- ["work", "holidays"] do
+        insert(:provider_calendar_event,
+          calendar_integration: integration,
+          provider_calendar_id: calendar_id,
+          summary: calendar_id,
+          start_at: ~U[2026-06-15 10:00:00Z],
+          end_at: ~U[2026-06-15 11:00:00Z]
+        )
+      end
+
+      %{integration: integration, rules: AvailabilityView.rules([integration])}
+    end
+
+    test "keeps only blocking calendars' rows, for either range shape", %{
+      integration: integration,
+      rules: rules
+    } do
+      for range <- [
+            {~U[2026-06-01 00:00:00Z], ~U[2026-06-30 23:59:59Z]},
+            {~D[2026-06-01], ~D[2026-06-30]}
+          ] do
+        assert [%CalendarEvent{summary: "work"}] =
+                 CalendarEventQueries.in_range([integration.id], range, rules)
+      end
+    end
+  end
 
   describe "in_range/2 with DateTime range" do
     test "returns timed events overlapping the range" do

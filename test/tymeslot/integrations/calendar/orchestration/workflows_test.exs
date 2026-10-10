@@ -138,7 +138,7 @@ defmodule Tymeslot.Integrations.Calendar.Orchestration.WorkflowsTest do
         {:ok, fresh} = CalendarManagement.get_calendar_integration(integration.id, user.id)
 
         {:ok, _saved} =
-          Selection.update_calendar_selection(fresh, %{"selected_calendars" => ["cal_1", "cal_2"]})
+          select_only(fresh, ["cal_1", "cal_2"])
 
         {:ok,
          [%{"id" => "cal_1", "summary" => "Cal 1"}, %{"id" => "cal_2", "summary" => "Cal 2"}]}
@@ -190,5 +190,16 @@ defmodule Tymeslot.Integrations.Calendar.Orchestration.WorkflowsTest do
       assert updated.calendar_paths == ["p1"]
       assert [%CalendarEntry{id: "cal_1", selected: true}] = updated.calendar_list
     end
+  end
+
+  # Another writer's selection, landed on the row as it stands: only `ids`
+  # selected.
+  defp select_only(integration, ids) do
+    integration = Repo.reload!(integration)
+
+    Selection.persist_calendar_list(
+      integration,
+      Enum.map(integration.calendar_list, &%{&1 | selected: &1.id in ids})
+    )
   end
 end
