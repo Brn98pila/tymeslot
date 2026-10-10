@@ -46,13 +46,39 @@ defmodule Tymeslot.Repo.Migrations.AddBlocksAvailabilityToCalendarListTest do
     ]
   end
 
-  test "makes every legacy entry block, selected or not, in the stored order" do
+  test "makes every legacy entry block, selected or not" do
     integration = integration_storing(legacy_list())
 
     MigrationRunner.rerun!(@version)
 
     assert stored(integration) ==
              Enum.map(legacy_list(), &Map.put(&1, "blocks_availability", true))
+  end
+
+  test "leaves anything in the list that is not an entry as it is, run after run" do
+    integration = integration_storing(["stray", 42, ["nested"], nil, %{"id" => "work"}])
+
+    MigrationRunner.rerun!(@version)
+    MigrationRunner.replay!(@version)
+
+    assert stored(integration) ==
+             ["stray", 42, ["nested"], nil, %{"id" => "work", "blocks_availability" => true}]
+
+    MigrationRunner.down!(@version)
+
+    assert stored(integration) == ["stray", 42, ["nested"], nil, %{"id" => "work"}]
+  end
+
+  test "leaves a row with no calendar list at all as it is" do
+    integration = integration_storing([])
+
+    Repo.query!("UPDATE calendar_integrations SET calendar_list = NULL WHERE id = $1", [
+      integration.id
+    ])
+
+    MigrationRunner.rerun!(@version)
+
+    assert stored(integration) == nil
   end
 
   test "keeps a show-only choice an owner already made" do

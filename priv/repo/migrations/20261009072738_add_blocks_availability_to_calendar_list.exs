@@ -11,7 +11,9 @@ defmodule Tymeslot.Repo.Migrations.AddBlocksAvailabilityToCalendarList do
   # `CalendarEntry` already reads a missing key as `true`, so this only makes
   # the stored rows say what the code assumes. Only entries without the key
   # are touched, so a second run updates no rows, and a choice already made
-  # is never overwritten.
+  # is never overwritten. Only JSON objects are entries: anything else in the
+  # array (a string, a number, a null, a nested array) is left exactly as it
+  # is, since `||` would turn it into an array and grow it on every run.
 
   # excellent_migrations:safety-assured-for-this-file raw_sql_executed
   def up do
@@ -22,15 +24,18 @@ defmodule Tymeslot.Repo.Migrations.AddBlocksAvailabilityToCalendarList do
     UPDATE calendar_integrations
     SET calendar_list = (
           SELECT array_agg(
-                   CASE WHEN entry ? 'blocks_availability' THEN entry
-                        ELSE entry || '{"blocks_availability": true}'::jsonb END
+                   CASE WHEN jsonb_typeof(entry) = 'object'
+                             AND NOT (entry ? 'blocks_availability')
+                        THEN entry || '{"blocks_availability": true}'::jsonb
+                        ELSE entry END
                    ORDER BY ord)
           FROM unnest(calendar_list) WITH ORDINALITY AS elements(entry, ord)
         )
     WHERE EXISTS (
           SELECT 1
           FROM unnest(calendar_list) AS legacy(entry)
-          WHERE NOT (legacy.entry ? 'blocks_availability')
+          WHERE jsonb_typeof(legacy.entry) = 'object'
+            AND NOT (legacy.entry ? 'blocks_availability')
         )
     """)
   end
@@ -42,13 +47,18 @@ defmodule Tymeslot.Repo.Migrations.AddBlocksAvailabilityToCalendarList do
     execute("""
     UPDATE calendar_integrations
     SET calendar_list = (
-          SELECT array_agg(entry - 'blocks_availability' ORDER BY ord)
+          SELECT array_agg(
+                   CASE WHEN jsonb_typeof(entry) = 'object'
+                        THEN entry - 'blocks_availability'
+                        ELSE entry END
+                   ORDER BY ord)
           FROM unnest(calendar_list) WITH ORDINALITY AS elements(entry, ord)
         )
     WHERE EXISTS (
           SELECT 1
           FROM unnest(calendar_list) AS current(entry)
-          WHERE current.entry ? 'blocks_availability'
+          WHERE jsonb_typeof(current.entry) = 'object'
+            AND current.entry ? 'blocks_availability'
         )
     """)
   end
