@@ -75,7 +75,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
   def check_edit_rate_limit(socket) do
     user_id = socket.assigns.current_user.id
 
-    case RateLimiter.check_calendar_event_edit_rate_limit(user_id) do
+    case RateLimiter.check(:calendar_event_edit, user_id) do
       :ok -> :ok
       {:error, :rate_limited, message} -> {:error, :rate_limited, message}
     end
@@ -125,7 +125,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
   def check_move_rate_limit(socket) do
     user_id = socket.assigns.current_user.id
 
-    case RateLimiter.check_calendar_event_move_rate_limit(user_id) do
+    case RateLimiter.check(:calendar_event_move, user_id) do
       :ok -> :ok
       {:error, :rate_limited, message} -> {:error, :rate_limited, message}
     end
@@ -136,7 +136,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
   def check_quick_add_meeting_rate_limit(socket) do
     user_id = socket.assigns.current_user.id
 
-    case RateLimiter.check_dashboard_quick_add_meeting_rate_limit(user_id) do
+    case RateLimiter.check(:dashboard_quick_add_meeting, user_id) do
       :ok -> :ok
       {:error, :rate_limited, message} -> {:error, :rate_limited, message}
     end

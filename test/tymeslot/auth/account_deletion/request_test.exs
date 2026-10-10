@@ -243,4 +243,41 @@ defmodule Tymeslot.Auth.AccountDeletion.RequestTest do
     assert length(all_enqueued(worker: AccountDeletionWorker)) == 1
     assert length(all_enqueued(worker: EmailWorker)) == 1
   end
+
+  describe "the last admin who can sign in" do
+    test "is refused, and the account stays as it was" do
+      admin = insert(:user, is_admin: true)
+
+      assert {:error, %{base: message}} =
+               Auth.request_account_deletion(admin, %{"current_password" => @password}, @opts)
+
+      assert message =~ "only admin who can sign in"
+      refute Repo.reload!(admin).deletion_scheduled_at
+      refute_enqueued(worker: AccountDeletionWorker)
+    end
+
+    test "can ask once another admin who can sign in remains" do
+      admin = insert(:user, is_admin: true)
+      _other_admin = insert(:user, is_admin: true)
+
+      assert {:ok, %UserSchema{deletion_scheduled_at: %DateTime{}}} =
+               Auth.request_account_deletion(admin, %{"current_password" => @password}, @opts)
+    end
+
+    test "is refused when the other admin is already pending deletion" do
+      admin = insert(:user, is_admin: true)
+
+      _leaving_admin =
+        insert(:user,
+          is_admin: true,
+          deletion_requested_at: DateTime.utc_now(:second),
+          deletion_scheduled_at: DateTime.add(DateTime.utc_now(:second), 14, :day)
+        )
+
+      assert {:error, %{base: _message}} =
+               Auth.request_account_deletion(admin, %{"current_password" => @password}, @opts)
+
+      refute Repo.reload!(admin).deletion_scheduled_at
+    end
+  end
 end

@@ -87,7 +87,7 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
       meeting = socket.assigns[:meeting]
       client_ip = ClientIP.get(socket)
 
-      case RateLimiter.check_meeting_cancel_rate_limit(client_ip) do
+      case RateLimiter.check(:meeting_cancel, client_ip) do
         :ok ->
           case Meetings.cancel_meeting(meeting) do
             {:ok, _result} ->
@@ -110,7 +110,7 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
     if socket.assigns[:live_action] == :cancel do
       client_ip = ClientIP.get(socket)
 
-      case RateLimiter.check_meeting_keep_rate_limit(client_ip) do
+      case RateLimiter.check(:meeting_keep, client_ip) do
         :ok ->
           {:noreply, assign(socket, :meeting_kept, true)}
 

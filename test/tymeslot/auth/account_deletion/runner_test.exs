@@ -6,13 +6,15 @@ defmodule Tymeslot.Auth.AccountDeletion.RunnerTest do
   @moduletag :integration
 
   import Ecto.Query
+  import Tymeslot.AdminAlertsCaptureHelpers
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
   alias Tymeslot.Auth
   alias Tymeslot.Auth.AccountDeletion
   alias Tymeslot.Auth.AccountDeletion.Runner
-  alias Tymeslot.Auth.UserSchema
+  alias Tymeslot.Auth.{UserQueries, UserSchema}
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Repo
   alias Tymeslot.Workers.{AccountDeletionWorker, EmailWorker, WebhookWorker}
@@ -195,5 +197,85 @@ defmodule Tymeslot.Auth.AccountDeletion.RunnerTest do
       assert_enqueued(worker: AccountDeletionWorker, args: %{"user_id" => overdue.id})
       assert Auth.enqueue_overdue_account_deletions() == 0
     end
+  end
+
+  describe "the last admin who can sign in" do
+    setup :capture_admin_alerts
+
+    setup do
+      # The other admin left during the grace period.
+      admin = pending_user_from(insert(:user, is_admin: true))
+      %{admin: admin}
+    end
+
+    test "is held rather than deleted, stays restorable, and operators are told", %{
+      admin: admin
+    } do
+      assert {:snooze, seconds} = Runner.run(admin.id)
+      assert_in_delta seconds, 86_400, 5
+
+      held = Repo.get!(UserSchema, admin.id)
+      assert DateTime.compare(held.deletion_scheduled_at, DateTime.utc_now()) == :gt
+      assert held.deletion_requested_at == admin.deletion_requested_at
+
+      assert_received {:send_alert, :account_deletion_held_last_admin, payload}
+      assert payload.user_id == admin.id
+      refute_received {:send_alert, :account_deletion_stalled, _payload}
+
+      assert {:ok, restored} = Auth.restore_account(held)
+      refute restored.deletion_scheduled_at
+    end
+
+    test "is deleted once another admin who can sign in is back", %{admin: admin} do
+      insert(:user, is_admin: true)
+
+      assert Runner.run(admin.id) == {:ok, :deleted}
+      refute_received {:send_alert, _type, _payload}
+      refute Repo.get(UserSchema, admin.id)
+    end
+
+    test "is held, then deleted on the next run once another admin can sign in", %{
+      admin: admin
+    } do
+      assert {:snooze, _seconds} = Runner.run(admin.id)
+      assert Repo.get(UserSchema, admin.id)
+
+      insert(:user, is_admin: true)
+      # The day's hold has passed.
+      pending_user_from(Repo.get!(UserSchema, admin.id))
+
+      assert Runner.run(admin.id) == {:ok, :deleted}
+      refute Repo.get(UserSchema, admin.id)
+    end
+
+    test "is neither held nor deleted when the hold cannot be written", %{admin: admin} do
+      # Unloaded when the test process exits.
+      :meck.new(UserQueries, [:passthrough])
+
+      :meck.expect(UserQueries, :mark_deletion_scheduled, fn user, _requested_at, _until ->
+        {:error, Changeset.add_error(Changeset.change(user), :deletion_scheduled_at, "invalid")}
+      end)
+
+      assert {:error, %Changeset{}} = Runner.run(admin.id)
+
+      # Rolled back: still there, still due at its old date, and no alert.
+      kept = Repo.get!(UserSchema, admin.id)
+      assert kept.deletion_scheduled_at == admin.deletion_scheduled_at
+      refute_received {:send_alert, _type, _payload}
+    end
+
+    test "is deleted when the release shell forces it", %{admin: admin} do
+      assert Runner.run(admin.id, force: true) == {:ok, :deleted}
+      refute Repo.get(UserSchema, admin.id)
+    end
+  end
+
+  defp pending_user_from(user) do
+    user
+    |> Changeset.change(
+      deletion_requested_at: DateTime.add(past(), -14, :day),
+      deletion_scheduled_at: past()
+    )
+    |> Repo.update!()
   end
 end

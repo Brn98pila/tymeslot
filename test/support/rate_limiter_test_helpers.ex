@@ -25,7 +25,7 @@ defmodule Tymeslot.RateLimiterTestHelpers do
       test_multiple_users_operate_independently(
         [1000, 2000, 3000, 4000, 5000],
         100,
-        &RateLimiter.check_theme_customization_rate_limit/1
+        &RateLimiter.check(:theme_customization, &1)
       )
   """
   @spec test_multiple_users_operate_independently(

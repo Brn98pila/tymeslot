@@ -322,7 +322,7 @@ defmodule TymeslotWeb.MeetingRequestLiveTest do
       {:ok, view, _html} = live(conn, request_path(meeting))
 
       client_ip = :sys.get_state(view.pid).socket.assigns[:client_ip]
-      Enum.each(1..20, fn _i -> RateLimiter.check_meeting_approval_rate_limit(client_ip) end)
+      Enum.each(1..20, fn _i -> RateLimiter.check(:meeting_approval, client_ip) end)
 
       html = view |> element("[data-testid='approve-request']") |> render_click()
 

@@ -234,7 +234,6 @@ defmodule Tymeslot.Auth.UserSchema do
     |> validate_required([:pending_email, :email_change_token_hash])
     |> update_change(:pending_email, &String.downcase/1)
     |> EmailChangeset.validate_email(:pending_email)
-    |> validate_different_email()
     |> unsafe_validate_unique(:pending_email, Tymeslot.Repo, message: "is already registered")
     |> unique_constraint(:pending_email)
     |> unique_constraint(:email_change_token_hash)
@@ -255,20 +254,6 @@ defmodule Tymeslot.Auth.UserSchema do
     })
     |> revoke_credential_tokens()
     |> unique_constraint(:email)
-  end
-
-  defp validate_different_email(changeset) do
-    case get_field(changeset, :pending_email) do
-      nil ->
-        changeset
-
-      pending_email ->
-        if pending_email == changeset.data.email do
-          add_error(changeset, :pending_email, "must be different from current email")
-        else
-          changeset
-        end
-    end
   end
 
   defp validate_email(changeset) do

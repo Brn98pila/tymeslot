@@ -565,10 +565,10 @@ defmodule Tymeslot.Auth do
 
   @doc """
   Deletes one account if it is pending and due. See
-  `Tymeslot.Auth.AccountDeletion.Runner.run/1` for the outcomes.
+  `Tymeslot.Auth.AccountDeletion.Runner.run/2` for the outcomes.
   """
-  @spec run_scheduled_deletion(integer()) :: Runner.outcome()
-  defdelegate run_scheduled_deletion(user_id), to: Runner, as: :run
+  @spec run_scheduled_deletion(integer(), keyword()) :: Runner.outcome()
+  defdelegate run_scheduled_deletion(user_id, opts \\ []), to: Runner, as: :run
 
   @doc "Queues a deletion job for every overdue account; returns how many."
   @spec enqueue_overdue_account_deletions() :: non_neg_integer()
@@ -616,7 +616,7 @@ defmodule Tymeslot.Auth do
   @doc """
   Demotes the user identified by `user_id` from admin.
 
-  See `Tymeslot.Auth.AdminRoles.demote/2` for the full contract.
+  See `Tymeslot.Auth.AdminRoles.demote/3` for the full contract.
   """
   defdelegate demote_admin(actor, user_id), to: AdminRoles, as: :demote
 end

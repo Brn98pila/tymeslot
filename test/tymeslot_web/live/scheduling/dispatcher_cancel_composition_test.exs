@@ -158,7 +158,7 @@ defmodule TymeslotWeb.Live.Scheduling.DispatcherCancelCompositionTest do
     client_ip = :sys.get_state(view.pid).socket.assigns[:client_ip] || "unknown"
 
     Enum.each(1..10, fn _i ->
-      RateLimiter.check_meeting_cancel_rate_limit(client_ip)
+      RateLimiter.check(:meeting_cancel, client_ip)
     end)
 
     view |> element("[data-testid='cancel-meeting']") |> render_click()

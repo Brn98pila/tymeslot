@@ -5,7 +5,6 @@ defmodule TymeslotWeb.Live.Shared.LiveHelpers do
   """
   import Phoenix.Component
 
-  alias Tymeslot.Security.Security
   alias Tymeslot.Timezones
 
   # ========== TIMEZONE HELPERS ==========
@@ -15,7 +14,7 @@ defmodule TymeslotWeb.Live.Shared.LiveHelpers do
   """
   @spec update_timezone(Phoenix.LiveView.Socket.t(), String.t()) :: Phoenix.LiveView.Socket.t()
   def update_timezone(socket, new_timezone) do
-    case Security.validate_timezone(new_timezone) do
+    case Timezones.validate(new_timezone) do
       {:ok, validated} ->
         # Normalize timezone to ensure consistency
         normalized_timezone = Timezones.normalize(validated)
