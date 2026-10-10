@@ -36,7 +36,6 @@ config :tymeslot,
 
   # Navigation: Where the logo/home link points to
   site_home_path: "/dashboard",
-  repo: Tymeslot.Repo,
   contact_url: nil,
   about_url: nil,
   features_url: nil,

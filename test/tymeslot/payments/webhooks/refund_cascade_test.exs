@@ -35,7 +35,6 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
 
   setup do
     original_manager = Application.get_env(:tymeslot, :subscription_manager)
-    original_repo = Application.get_env(:tymeslot, :repo)
     original_template = Application.get_env(:tymeslot, :refund_processed_template)
     original_handler = Application.get_env(:tymeslot, :payment_event_handler)
 
@@ -43,16 +42,11 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
 
     on_exit(fn -> restore(:refund_processed_template, original_template) end)
 
-    # The test env defaults :repo to Tymeslot.SaasRepo. Subscription lookups in
-    # this test live in Tymeslot.Repo (where the factory inserts), so point both
-    # the payments config and the email-delivery helper at Tymeslot.Repo.
-    Application.put_env(:tymeslot, :repo, Tymeslot.Repo)
     Application.put_env(:tymeslot, :subscription_manager, SubscriptionManagerMock)
     stub_lookups_over_transactions()
 
     on_exit(fn ->
       restore(:subscription_manager, original_manager)
-      restore(:repo, original_repo)
       restore(:payment_event_handler, original_handler)
     end)
 

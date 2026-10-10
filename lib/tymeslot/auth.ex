@@ -463,6 +463,10 @@ defmodule Tymeslot.Auth do
     UserQueries.get_user(id)
   end
 
+  @doc "Gets a user by ID with the profile preloaded, for greeting them by name."
+  @spec get_user_with_profile(integer()) :: {:ok, UserSchema.t()} | {:error, :not_found}
+  defdelegate get_user_with_profile(id), to: UserQueries
+
   @doc """
   Whether an account is pending deletion. Takes the user (no query) or a user
   id (one query; an unknown id is not pending).
