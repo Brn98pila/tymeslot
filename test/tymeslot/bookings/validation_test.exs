@@ -395,6 +395,16 @@ defmodule Tymeslot.Bookings.ValidationTest do
       assert DateTime.diff(end_datetime, start_datetime, :minute) == 30
     end
 
+    test "refuses a duration it cannot read instead of booking 30 minutes" do
+      assert {:error, :invalid_datetime} =
+               Validation.parse_meeting_times("2025-06-15", "10:00", "soon", "Europe/Berlin")
+
+      assert {:ok, {start_datetime, end_datetime}} =
+               Validation.parse_meeting_times("2025-06-15", "10:00", "45min", "Europe/Berlin")
+
+      assert DateTime.diff(end_datetime, start_datetime, :minute) == 45
+    end
+
     test "still rejects an unknown timezone" do
       assert {:error, :invalid_datetime} =
                Validation.parse_meeting_times("2025-06-15", "10:00", 30, "Not/AZone")
