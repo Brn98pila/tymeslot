@@ -90,27 +90,25 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   # an OAuth connection reaches this, and its discovered entries carry no
   # path, so `calendar_paths` is left alone: it must stay empty for those
   # providers.
+  #
+  # Both the carried choices and the stored default are read from the row
+  # under its lock, not from `integration`, which was read before discovery
+  # went to the network: a change the owner made meanwhile is kept.
   defp auto_select_primary_calendar(integration, discovered) do
-    # A reconnected account keeps whether each calendar it already knew
-    # blocks availability; the selection is discovery's, as on any connect,
-    # but for its booking calendars.
-    calendars =
-      discovered
-      |> Enum.map(&CalendarEntry.normalize/1)
-      |> Selection.carry_blocking_choices(integration.calendar_list)
+    discovered = Enum.map(discovered, &CalendarEntry.normalize/1)
 
-    attrs =
-      case Defaults.default_booking_calendar(
-             calendars,
-             integration.default_booking_calendar_id
-           ) do
-        %CalendarEntry{id: id} -> %{default_booking_calendar_id: id}
-        nil -> %{}
+    Blocking.replace_selection(integration, fn stored ->
+      # A reconnected account keeps whether each calendar it already knew
+      # blocks availability; the selection is discovery's, as on any
+      # connect, but for its booking calendars, which `Blocking` keeps
+      # selected and blocking whatever discovery says.
+      calendars = Selection.carry_blocking_choices(discovered, stored.calendar_list)
+
+      case Defaults.default_booking_calendar(calendars, stored.default_booking_calendar_id) do
+        %CalendarEntry{id: id} -> {calendars, %{default_booking_calendar_id: id}}
+        nil -> {calendars, %{}}
       end
-
-    # A booking calendar, this one or one a meeting type names, stays
-    # selected and blocking whatever discovery says (see `Blocking`).
-    Blocking.replace_selection(integration, calendars, attrs)
+    end)
   end
 
   defp validate_and_prepare_integration(user_id, integration_id) do

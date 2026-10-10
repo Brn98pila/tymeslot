@@ -245,6 +245,11 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   rather than merging it. A CalDAV-family integration's `calendar_paths` are
   derived from the list in the same write; any other keeps none.
 
+  `build` may instead be a function of the locked row returning the
+  `{calendar_list, attrs}` to write, for a caller whose choice depends on
+  what the row holds: one read before a network call can be stale by the
+  time it is written.
+
   A calendar of the list that is a booking calendar (`booking_calendar?/2`)
   is kept selected and blocking whatever the list says: one of the stored
   integration, as bookings still go to it, and the one bookings default to
@@ -252,9 +257,15 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   """
   @spec replace_selection(integration(), [CalendarEntry.t()], map()) ::
           {:ok, integration()} | {:error, Ecto.Changeset.t() | :not_found}
-  def replace_selection(%{id: id}, calendar_list, attrs) when is_map(attrs) do
+  def replace_selection(integration, calendar_list, attrs) when is_map(attrs),
+    do: replace_selection(integration, fn _stored -> {calendar_list, attrs} end)
+
+  @spec replace_selection(integration(), (integration() -> {[CalendarEntry.t()], map()})) ::
+          {:ok, integration()} | {:error, Ecto.Changeset.t() | :not_found}
+  def replace_selection(%{id: id}, build) when is_function(build, 1) do
     id
     |> CalendarSelectionQueries.with_locked_stored(fn stored ->
+      {calendar_list, attrs} = build.(stored)
       held = hold(stored, calendar_list, booking_calendar_ids(stored))
       # Holding it cannot move the pick: a CalDAV-family row picks among
       # the calendars already selected, any other by id or primary flag.

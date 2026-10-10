@@ -5,11 +5,13 @@ defmodule TymeslotWeb.CalendarOAuthReactivationTest do
   @moduletag :calendar
   @moduletag :integrations
 
+  import Ecto.Query, only: [from: 2]
   import Mox
   import Tymeslot.AuthTestHelpers, only: [log_in_user: 2]
   import Tymeslot.Factory
   import Tymeslot.OAuthFlowHelpers
 
+  alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Shared.OAuth.GoogleOAuthHelper
   alias Tymeslot.Repo
@@ -81,7 +83,12 @@ defmodule TymeslotWeb.CalendarOAuthReactivationTest do
     conn: conn
   } do
     user = insert(:user)
-    paused = paused_integration(user, "team")
+
+    paused =
+      paused_integration(user, "team", [
+        %{"id" => "work", "name" => "Work", "primary" => true, "blocks_availability" => false},
+        %{"id" => "team", "name" => "Team", "selected" => true}
+      ])
 
     reactivated =
       reconnect(conn, user, paused, [
@@ -90,12 +97,42 @@ defmodule TymeslotWeb.CalendarOAuthReactivationTest do
       ])
 
     assert reactivated.default_booking_calendar_id == "work"
+
+    assert %{selected: true, blocks_availability: true} =
+             Enum.find(reactivated.calendar_list, &(&1.id == "work"))
+  end
+
+  # The callback read the integration before discovery went to the network;
+  # what the owner changed meanwhile is what the reconnect builds on.
+  test "reconnecting keeps changes the owner made while discovery ran", %{conn: conn} do
+    user = insert(:user)
+    paused = paused_integration(user, "team")
+
+    reactivated =
+      reconnect(conn, user, paused, [other(), work(), team()], fn ->
+        Repo.update_all(
+          from(ci in CalendarIntegrationSchema, where: ci.id == ^paused.id),
+          set: [
+            default_booking_calendar_id: "other",
+            calendar_list: [
+              %CalendarEntry{id: "other", name: "Other", selected: true},
+              %CalendarEntry{id: "work", name: "Work", primary: true, blocks_availability: false}
+            ]
+          ]
+        )
+      end)
+
+    assert reactivated.default_booking_calendar_id == "other"
+
+    assert %{blocks_availability: false} =
+             Enum.find(reactivated.calendar_list, &(&1.id == "work"))
   end
 
   defp work, do: %{"id" => "work", "summary" => "Work", "primary" => true, "selected" => true}
+  defp other, do: %{"id" => "other", "summary" => "Other", "selected" => true}
   defp team, do: %{"id" => "team", "summary" => "Team", "selected" => false}
 
-  defp paused_integration(user, default_booking_calendar_id) do
+  defp paused_integration(user, default_booking_calendar_id, calendar_list \\ nil) do
     insert(:profile, user: user)
 
     insert(:calendar_integration,
@@ -104,16 +141,19 @@ defmodule TymeslotWeb.CalendarOAuthReactivationTest do
       provider_account_id: "sub-1",
       is_active: false,
       default_booking_calendar_id: default_booking_calendar_id,
-      calendar_list: [
-        %{"id" => "work", "name" => "Work", "primary" => true, "selected" => true},
-        %{"id" => "team", "name" => "Team", "selected" => true}
-      ]
+      calendar_list:
+        calendar_list ||
+          [
+            %{"id" => "work", "name" => "Work", "primary" => true, "selected" => true},
+            %{"id" => "team", "name" => "Team", "selected" => true}
+          ]
     )
   end
 
   # Runs the callback the provider redirects to, with the code exchanged for
-  # the account's tokens and discovery answering `discovered`.
-  defp reconnect(conn, user, paused, discovered) do
+  # the account's tokens and discovery answering `discovered`, after running
+  # `meanwhile`.
+  defp reconnect(conn, user, paused, discovered, meanwhile \\ fn -> :ok end) do
     :meck.expect(GoogleOAuthHelper, :exchange_code_for_tokens, fn "code", _uri, _opts ->
       {:ok,
        %{
@@ -126,7 +166,10 @@ defmodule TymeslotWeb.CalendarOAuthReactivationTest do
        }}
     end)
 
-    expect(GoogleCalendarAPIMock, :list_calendars, fn _integration -> {:ok, discovered} end)
+    expect(GoogleCalendarAPIMock, :list_calendars, fn _integration ->
+      meanwhile.()
+      {:ok, discovered}
+    end)
 
     conn =
       conn
