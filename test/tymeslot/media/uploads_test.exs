@@ -7,10 +7,13 @@ defmodule Tymeslot.Media.UploadsTest do
   @moduletag :tmp_dir
 
   import ExUnit.CaptureLog
+  import Tymeslot.AdminAlertsCaptureHelpers
 
   alias Ecto.UUID
   alias Tymeslot.Media.Uploads
   alias Tymeslot.Profiles.Avatars
+
+  setup :capture_admin_alerts
 
   setup %{tmp_dir: tmp_dir} do
     root = Path.join(tmp_dir, "uploads")
@@ -173,6 +176,7 @@ defmodule Tymeslot.Media.UploadsTest do
 
     test "treats a file already gone as deleted" do
       assert Uploads.delete_safely("avatars/1/missing.png", %{}) == :ok
+      refute_received {:send_alert, _type, _payload}
     end
 
     test "leaves a file outside the root alone and reports it", %{outside: outside} do
@@ -183,6 +187,7 @@ defmodule Tymeslot.Media.UploadsTest do
       end)
 
       assert File.exists?(path)
+      assert_received {:send_alert, :upload_delete_failed, %{file_path: ^path}}
     end
 
     test "returns a failed delete instead of raising", %{root: root} do
@@ -197,6 +202,9 @@ defmodule Tymeslot.Media.UploadsTest do
 
       assert log =~ "Upload delete failed"
       assert File.dir?(dir)
+
+      # Nothing else will come back for the file, so the operator is told.
+      assert_received {:send_alert, :upload_delete_failed, %{file_path: ^dir, summary: _}}
     end
   end
 end

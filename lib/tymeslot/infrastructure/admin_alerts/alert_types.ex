@@ -46,7 +46,8 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     analytics_tracking_anomaly: %{category: "Analytics", severity: :warning},
     recipient_email_rejected: %{category: "Email", severity: :warning},
     user_registered_hook_failed: %{category: "System", severity: :error},
-    group_meeting_release_failed: %{category: "Booking", severity: :error}
+    group_meeting_release_failed: %{category: "Booking", severity: :error},
+    upload_delete_failed: %{category: "System", severity: :warning}
   }
 
   @doc "Returns the full registry map for enumeration and lookup."
@@ -500,6 +501,15 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
 
     "Group meeting #{meeting_id} lost its last participant but could not be cancelled, " <>
       "so it may still show as confirmed (#{reason_text(metadata)})"
+  end
+
+  # A replaced or removed upload is still on disk, unreferenced; a refused
+  # path outside the upload directory is the same alert, and worth a look.
+  def format_message(:upload_delete_failed, metadata) do
+    path = Map.get(metadata, :file_path, "unknown")
+
+    "Uploaded file #{path} could not be deleted and is still on disk; " <>
+      "remove it by hand (#{reason_text(metadata)})"
   end
 
   def format_message(type, _metadata) do

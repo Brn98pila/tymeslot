@@ -13,6 +13,7 @@ defmodule Tymeslot.Media.Uploads do
   require Logger
 
   alias Ecto.UUID
+  alias Tymeslot.Infrastructure.AdminAlerts
 
   @type kind :: :avatar | :image | :video
 
@@ -92,9 +93,10 @@ defmodule Tymeslot.Media.Uploads do
   @doc """
   Deletes the file at `path` (relative to the root, or absolute inside it).
 
-  One attempt; a file already gone counts as deleted. A failure is logged and
-  returned, never raised, so a caller cleaning up after a successful write can
-  ignore it.
+  One attempt; a file already gone counts as deleted. A failure is reported
+  to the operator (`Tymeslot.Infrastructure.AdminAlerts`), since nothing else
+  will come back for the file, and returned, never raised, so a caller
+  cleaning up after a successful write can ignore it.
   """
   @spec delete_safely(Path.t(), map()) :: :ok | {:error, term()}
   def delete_safely(path, context) do
@@ -108,6 +110,13 @@ defmodule Tymeslot.Media.Uploads do
 
       {:error, reason} ->
         Logger.warning("Upload delete failed", file_path: path, reason: reason, context: context)
+
+        AdminAlerts.report(:upload_delete_failed,
+          summary: "An uploaded file could not be deleted",
+          reason: reason,
+          context: Map.put(context, :file_path, path)
+        )
+
         {:error, reason}
     end
   end
