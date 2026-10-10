@@ -325,6 +325,16 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
       assert "2:00 PM" in offered(ctx.profile, ctx.date, "30min")
     end
 
+    test "frees a calendar's times at once when its connection is switched off", ctx do
+      # The switch runs under the primary lock, which drops the cache once
+      # it commits.
+      refute "2:00 PM" in offered(ctx.profile, ctx.date, "30min")
+
+      {:ok, _updated} = OwnerActions.toggle_integration(ctx.user.id, ctx.integration.id)
+
+      assert "2:00 PM" in offered(ctx.profile, ctx.date, "30min")
+    end
+
     test "frees a calendar's times at once when it is unticked", ctx do
       refute "2:00 PM" in offered(ctx.profile, ctx.date, "30min")
 
