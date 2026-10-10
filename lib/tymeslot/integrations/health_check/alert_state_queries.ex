@@ -23,9 +23,7 @@ defmodule Tymeslot.Integrations.HealthCheck.AlertStateQueries do
   def put(%AlertStateSchema{} = state) do
     fields = [:status, :incident_started_at, :last_above_at, :last_window_end]
 
-    AlertStateSchema
-    |> struct(state |> Map.take([:signal | fields]))
-    |> Repo.insert!(
+    Repo.insert!(struct(AlertStateSchema, Map.take(state, [:signal | fields])),
       on_conflict: {:replace, fields ++ [:updated_at]},
       conflict_target: :signal
     )

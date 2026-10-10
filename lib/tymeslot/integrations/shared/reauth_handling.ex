@@ -189,23 +189,23 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandling do
   @spec flag_and_notify(IntegrationTypes.kind(), struct(), String.t()) ::
           {:ok, struct()} | {:error, :not_found | :notification_failed}
   def flag_and_notify(kind, integration, message) do
-    Repo.transaction(fn ->
-      case IntegrationTypes.queries(kind).flag_needs_reauth(integration, message) do
-        {:ok, updated, true} -> notify(kind, updated)
-        {:ok, updated, false} -> updated
-        {:error, :not_found} -> Repo.rollback(:not_found)
-      end
-    end)
-    |> tap(fn
-      {:error, :not_found} ->
-        Logger.warning("Integration to flag for reauth no longer exists",
-          integration_type: IntegrationTypes.log_name(kind),
-          integration_id: integration.id
-        )
+    result =
+      Repo.transaction(fn ->
+        case IntegrationTypes.queries(kind).flag_needs_reauth(integration, message) do
+          {:ok, updated, true} -> notify(kind, updated)
+          {:ok, updated, false} -> updated
+          {:error, :not_found} -> Repo.rollback(:not_found)
+        end
+      end)
 
-      _result ->
-        :ok
-    end)
+    if result == {:error, :not_found} do
+      Logger.warning("Integration to flag for reauth no longer exists",
+        integration_type: IntegrationTypes.log_name(kind),
+        integration_id: integration.id
+      )
+    end
+
+    result
   end
 
   # A uniqueness conflict is reported as :ok: an email for this flag is
