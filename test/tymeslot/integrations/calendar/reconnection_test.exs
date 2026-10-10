@@ -10,6 +10,7 @@ defmodule Tymeslot.Integrations.Calendar.ReconnectionTest do
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Reconnection
+  alias Tymeslot.Integrations.Calendar.Runtime.CalendarPathResolver
   alias Tymeslot.Repo
   alias Tymeslot.Security.Encryption
 
@@ -327,6 +328,40 @@ defmodule Tymeslot.Integrations.Calendar.ReconnectionTest do
         assert %{selected: true, blocks_availability: true} =
                  Enum.find(reloaded.calendar_list, &(&1.path == path))
       end
+    end
+
+    # With no booking calendar stored, bookings go to the first selected
+    # writable path, which a reconnect can move to a calendar set to show.
+    test "the calendar bookings move to when the first path vanishes is made to block", %{
+      integration: integration
+    } do
+      {:ok, integration} =
+        integration
+        |> Changeset.change(
+          default_booking_calendar_id: nil,
+          calendar_paths: ["/a/", "/b/"],
+          calendar_list: [
+            %CalendarEntry{id: "/a/", path: "/a/", selected: true},
+            %CalendarEntry{id: "/b/", path: "/b/", selected: true, blocks_availability: false}
+          ]
+        )
+        |> Repo.update()
+
+      payload = %{
+        credentials: %{url: "https://caldav.example.com", username: "alice", password: "new"},
+        calendars: [
+          %{"id" => "/b/", "path" => "/b/", "name" => "B", "type" => "calendar"},
+          %{"id" => "/c/", "path" => "/c/", "name" => "C", "type" => "calendar"}
+        ]
+      }
+
+      assert {:ok, updated} = Reconnection.finalise_account_change(integration, payload, ["/b/"])
+
+      reloaded = Repo.get!(CalendarIntegrationSchema, updated.id)
+      assert CalendarPathResolver.resolve(reloaded) == "/b/"
+
+      assert %{selected: true, blocks_availability: true} =
+               Enum.find(reloaded.calendar_list, &(&1.path == "/b/"))
     end
 
     test "matches a selected path that differs only by percent-encoding", %{

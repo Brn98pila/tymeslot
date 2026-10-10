@@ -238,35 +238,52 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   end
 
   @doc """
-  Writes a reconnect's `calendar_list`, with the credentials and any other
-  `attrs` that go with it, to the row as stored and under its lock
+  Writes a whole new `calendar_list`, from a reconnect or a fresh discovery,
+  with the credentials, default booking calendar and any other `attrs` that
+  go with it, to the row as stored and under its lock
   (`CalendarSelectionQueries.with_locked_stored/2`), replacing the selection
-  rather than merging it.
+  rather than merging it. A CalDAV-family integration's `calendar_paths` are
+  derived from the list in the same write; any other keeps none.
 
-  A calendar of the list that is a booking calendar of the stored integration
-  (`booking_calendar?/2`) is kept selected and blocking whatever was ticked:
-  bookings still go to it, so its busy time must keep taking slots.
+  A calendar of the list that is a booking calendar (`booking_calendar?/2`)
+  is kept selected and blocking whatever the list says: one of the stored
+  integration, as bookings still go to it, and the one bookings default to
+  on the row as written, which the new list or `attrs` can move.
   """
   @spec replace_selection(integration(), [CalendarEntry.t()], map()) ::
           {:ok, integration()} | {:error, Ecto.Changeset.t() | :not_found}
   def replace_selection(%{id: id}, calendar_list, attrs) when is_map(attrs) do
     id
     |> CalendarSelectionQueries.with_locked_stored(fn stored ->
-      booking_ids = booking_calendar_ids(stored)
-
-      held =
-        Enum.map(calendar_list, fn entry ->
-          if booking_calendar?(stored, booking_ids, entry.id),
-            do: %{entry | selected: true, blocks_availability: true},
-            else: entry
-        end)
+      held = hold(stored, calendar_list, booking_calendar_ids(stored))
+      # Holding it cannot move the pick: a CalDAV-family row picks among
+      # the calendars already selected, any other by id or primary flag.
+      written = written(stored, held, attrs)
+      held = hold(written, held, default_booking_ids(written))
 
       CalendarManagement.update_calendar_integration(
         stored,
-        Map.merge(attrs, Selection.calendar_list_attrs(held))
+        Map.merge(attrs, list_attrs(stored, held))
       )
     end)
     |> invalidate_on_success()
+  end
+
+  defp hold(integration, calendar_list, booking_ids) do
+    Enum.map(calendar_list, fn entry ->
+      if booking_calendar?(integration, booking_ids, entry.id),
+        do: %{entry | selected: true, blocks_availability: true},
+        else: entry
+    end)
+  end
+
+  defp written(stored, calendar_list, attrs),
+    do: struct(stored, Map.merge(attrs, list_attrs(stored, calendar_list)))
+
+  defp list_attrs(integration, calendar_list) do
+    if ProviderConfig.caldav_based?(integration.provider),
+      do: Selection.calendar_list_attrs(calendar_list),
+      else: %{calendar_list: calendar_list}
   end
 
   defp held_to_rule?(integration, calendar_id) do
