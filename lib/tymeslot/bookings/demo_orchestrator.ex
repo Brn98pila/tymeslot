@@ -9,6 +9,8 @@ defmodule Tymeslot.Bookings.DemoOrchestrator do
   - Doesn't send emails
   - Doesn't create calendar events
   - Doesn't create video rooms
+  - Gives the meeting no reschedule or cancel link, since there is no stored
+    meeting for one to open
 
   ## Mock status contract
 
@@ -268,8 +270,8 @@ defmodule Tymeslot.Bookings.DemoOrchestrator do
       attendee_company: validated_data["company"],
       attendee_message: validated_data["message"],
       location: "Online Meeting",
-      reschedule_url: build_demo_meeting_url(uid, "/reschedule", organizer),
-      cancel_url: build_demo_meeting_url(uid, "/cancel", organizer)
+      reschedule_url: nil,
+      cancel_url: nil
     }
   end
 
@@ -278,16 +280,6 @@ defmodule Tymeslot.Bookings.DemoOrchestrator do
       user.profile.full_name || user.email
     else
       user.email
-    end
-  end
-
-  defp build_demo_meeting_url(uid, path, organizer) do
-    username = if organizer.profile, do: organizer.profile.username, else: nil
-
-    if username do
-      "/#{username}/meeting/#{uid}#{path}"
-    else
-      "/meeting/#{uid}#{path}"
     end
   end
 end
