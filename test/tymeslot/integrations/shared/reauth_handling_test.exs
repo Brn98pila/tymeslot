@@ -108,6 +108,8 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandlingTest do
     end
   end
 
+  @factories %{calendar: :calendar_integration, video: :video_integration}
+
   describe "flag_and_notify/3" do
     # Each flagger decides from the struct it loaded, and two that loaded the
     # row before either wrote both see `needs_reauth: false`. Only the row
@@ -115,13 +117,13 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandlingTest do
     # is no help here: it is the backstop, not the decision.)
     test "a flagger holding a stale, unflagged struct does not email again" do
       for kind <- [:calendar, :video] do
-        stale = insert(:"#{kind}_integration", needs_reauth: false)
+        stale = insert(@factories[kind], needs_reauth: false)
 
-        assert {:ok, _} = ReauthHandling.flag_and_notify(kind, stale, "Reconnect, please.")
+        assert {:ok, _flagged} = ReauthHandling.flag_and_notify(kind, stale, "Reconnect, please.")
         assert [first] = reauth_emails(stale)
         Repo.delete!(first)
 
-        assert {:ok, _} = ReauthHandling.flag_and_notify(kind, stale, "Reconnect, please.")
+        assert {:ok, _flagged} = ReauthHandling.flag_and_notify(kind, stale, "Reconnect, please.")
         assert reauth_emails(stale) == []
       end
     end
@@ -129,7 +131,8 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandlingTest do
     test "re-flagging updates the message and does not email again" do
       integration = insert(:calendar_integration, needs_reauth: true, sync_error: "Old reason.")
 
-      assert {:ok, _} = ReauthHandling.flag_and_notify(:calendar, integration, "New reason.")
+      assert {:ok, _flagged} =
+               ReauthHandling.flag_and_notify(:calendar, integration, "New reason.")
 
       assert Repo.reload!(integration).sync_error == "New reason."
       assert reauth_emails(integration) == []

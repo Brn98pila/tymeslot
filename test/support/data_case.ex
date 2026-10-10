@@ -20,8 +20,8 @@ defmodule Tymeslot.DataCase do
   alias Ecto.Changeset
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
-  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Infrastructure.CircuitBreaker
+  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Infrastructure.VideoCircuitBreaker
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter

@@ -152,13 +152,13 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandling do
   def flag(kind, integration, cause \\ @default_cause) do
     cause_key = cause_key(cause)
     %{log: log, message: message} = fetch_cause(cause_key)
-    label = IntegrationTypes.label(kind)
+    log_name = IntegrationTypes.log_name(kind)
 
     if cause_key == :credentials_undecryptable,
-      do: report_undecryptable(integration, label)
+      do: report_undecryptable(integration, log_name)
 
     Logger.warning(log,
-      integration_type: label,
+      integration_type: log_name,
       provider: integration.provider,
       integration_id: integration.id,
       user_id: integration.user_id
@@ -197,7 +197,7 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandling do
 
       {:error, :not_found} ->
         Logger.warning("Integration to flag for reauth no longer exists",
-          integration_type: IntegrationTypes.label(kind),
+          integration_type: IntegrationTypes.log_name(kind),
           integration_id: integration.id
         )
 
@@ -216,9 +216,9 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandling do
   # only a reconnect recovers that integration, so the failure is recorded
   # here instead. One call site and one reason, so however many
   # integrations are affected it is one error, and one new-error alert.
-  defp report_undecryptable(integration, label) do
+  defp report_undecryptable(integration, log_name) do
     ErrorTracking.report_error(:credentials_undecryptable, nil, %{
-      integration_type: label,
+      integration_type: log_name,
       provider: integration.provider,
       integration_id: integration.id,
       user_id: integration.user_id

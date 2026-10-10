@@ -44,9 +44,9 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Client do
   """
 
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
-  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Infrastructure.ResponseTooLargeError
   alias Tymeslot.Integrations.Calendar.Exchange.ClientConfig
   alias Tymeslot.Integrations.Calendar.Exchange.Soap

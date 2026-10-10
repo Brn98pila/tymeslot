@@ -36,9 +36,9 @@ defmodule Tymeslot.Application do
   alias Tymeslot.Infrastructure.ErrorTracking.SafeIntegrations
   alias Tymeslot.Infrastructure.ErrorTracking.Throttle
   alias Tymeslot.Infrastructure.Logging.{FileSink, LogFormat, MetadataRedactor}
-  alias Tymeslot.Integrations.Telemetry
   alias Tymeslot.Integrations.HealthCheck.Alerting
   alias Tymeslot.Integrations.Shared.Lock
+  alias Tymeslot.Integrations.Telemetry
   alias Tymeslot.Mailer.HealthCheck, as: MailerHealthCheck
   alias Tymeslot.Payments.Webhooks.SecretCheck
   alias Tymeslot.Telegram.BotSetup

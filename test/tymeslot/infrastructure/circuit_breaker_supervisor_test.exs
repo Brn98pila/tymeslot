@@ -4,10 +4,10 @@ defmodule Tymeslot.Infrastructure.CircuitBreakerSupervisorTest do
   @moduletag :infrastructure
 
   alias Tymeslot.Infrastructure.CircuitBreaker
-  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Infrastructure.CircuitBreakerRegistry
   alias Tymeslot.Infrastructure.CircuitBreakerSupervisor
   alias Tymeslot.Infrastructure.DynamicCircuitBreakerSupervisor
+  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Integrations.Calendar.ProviderConfig, as: CalendarProviderConfig
   alias Tymeslot.Integrations.Video.ProviderConfig, as: VideoProviderConfig
 

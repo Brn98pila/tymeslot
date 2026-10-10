@@ -68,7 +68,7 @@ defmodule Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries do
         }
       )
 
-    {count, _} =
+    {count, _rows} =
       Repo.insert_all(IntegrationHealthStateSchema, missing,
         on_conflict: :nothing,
         conflict_target: [:integration_type, :integration_id]

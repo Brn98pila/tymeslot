@@ -8,7 +8,6 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
   import Ecto.Query
   import Mox
 
-  alias Ecto.Adapters.SQL.Sandbox
   alias Oban.Job
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.HealthCheck

@@ -439,13 +439,13 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
     flag = [needs_reauth: true, sync_error: message, updated_at: DateTime.utc_now(:second)]
 
     case Repo.update_all(where(row, needs_reauth: false), set: flag) do
-      {1, _} ->
+      {1, _rows} ->
         {:ok, struct(integration, flag), true}
 
-      {0, _} ->
+      {0, _rows} ->
         case Repo.update_all(row, set: flag) do
-          {1, _} -> {:ok, struct(integration, flag), false}
-          {0, _} -> {:error, :not_found}
+          {1, _rows} -> {:ok, struct(integration, flag), false}
+          {0, _rows} -> {:error, :not_found}
         end
     end
   end

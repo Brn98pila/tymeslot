@@ -51,7 +51,7 @@ defmodule Tymeslot.Integrations.Shared.IntegrationTypes do
   def domain(:video), do: Video
 
   @doc "A short label for log lines."
-  @spec label(kind()) :: String.t()
-  def label(:calendar), do: "Calendar"
-  def label(:video), do: "Video"
+  @spec log_name(kind()) :: String.t()
+  def log_name(:calendar), do: "Calendar"
+  def log_name(:video), do: "Video"
 end

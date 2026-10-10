@@ -37,7 +37,7 @@ defmodule Tymeslot.Infrastructure.ProviderBreakersTest do
   defp unique_host, do: "breakers-#{System.unique_integer([:positive])}.example.com"
 
   defp trip(kind, provider, host) do
-    for _ <- 1..ProviderBreakers.config(kind, provider).failure_threshold do
+    for _attempt <- 1..ProviderBreakers.config(kind, provider).failure_threshold do
       ProviderBreakers.call_with_host(kind, provider, host, fn -> {:provider_error, :down} end)
     end
 

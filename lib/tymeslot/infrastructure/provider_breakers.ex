@@ -204,9 +204,14 @@ defmodule Tymeslot.Infrastructure.ProviderBreakers do
   """
   @spec reset_all_hosts() :: :ok
   def reset_all_hosts do
-    @registry
-    |> Registry.select([{{:"$1", :_, :_}, [{:is_tuple, :"$1"}], [:"$1"]}])
-    |> Enum.each(&CircuitBreaker.reset({:via, Registry, {@registry, &1}}))
+    for {_id, pid, :worker, _modules} when is_pid(pid) <-
+          DynamicSupervisor.which_children(@dynamic_supervisor),
+        key <- Registry.keys(@registry, pid) do
+      # By name, not pid: the persisted snapshot is keyed by the name.
+      CircuitBreaker.reset({:via, Registry, {@registry, key}})
+    end
+
+    :ok
   end
 
   @doc "Whether the breaker registered as `name` is running."

@@ -19,10 +19,10 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
 
   require Logger
   alias Tymeslot.Infrastructure.BreakerOutcome
-  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Logging.Redactor
   alias Tymeslot.Infrastructure.Metrics
+  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Infrastructure.VideoCircuitBreaker
   alias Tymeslot.Integrations.Video.MeetingContext
   alias Tymeslot.Integrations.Video.ProviderConfig
