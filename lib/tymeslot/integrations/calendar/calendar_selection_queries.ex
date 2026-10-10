@@ -16,8 +16,8 @@ defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueries do
   alias Ecto.Changeset
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.RemovedCalendar
   alias Tymeslot.Repo
-  alias Tymeslot.Utils.UriUtils
 
   @doc """
   Runs `fun` with the integration `id` locked and freshly read (decrypted),
@@ -96,59 +96,19 @@ defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueries do
   end
 
   @doc """
-  Marks the given calendars as unselected within an integration's
-  `calendar_list`, applied to the row as it stands.
-
-  Used when a previously-selected secondary calendar no longer exists on the
-  provider (HTTP 404), so the sync worker stops attempting to fetch it on
-  every run. Entries are matched on the provider calendar id. A no-op when
-  nothing matches.
+  Writes a new selection to `fresh`, the row as `with_locked/2` read it:
+  `attrs` carries the `calendar_list` (and `calendar_paths`, when it moves
+  with it), and `removed_calendars` the list of calendars the server stopped
+  listing, both in one update. Call it from the function passed to
+  `with_locked/2`, so the list it starts from is the one it replaces.
   """
-  @spec deselect_calendars(CalendarIntegrationSchema.t(), [String.t()]) ::
-          {:ok, CalendarIntegrationSchema.t()} | {:error, Ecto.Changeset.t() | :not_found}
-  def deselect_calendars(%CalendarIntegrationSchema{id: id}, calendar_ids) do
-    ids = MapSet.new(calendar_ids)
-
-    with_locked(id, fn fresh ->
-      updated_list =
-        Enum.map(fresh.calendar_list, fn cal ->
-          if MapSet.member?(ids, cal.id), do: %{cal | selected: false}, else: cal
-        end)
-
-      fresh
-      |> CalendarIntegrationSchema.changeset(%{calendar_list: updated_list})
-      |> Repo.update()
-    end)
-  end
-
-  @doc """
-  Removes the given paths from an integration's `calendar_paths`, and
-  deselects the `calendar_list` entries for them, in one update applied to
-  the row as it stands.
-
-  For a CalDAV collection gone (HTTP 404), like `deselect_calendars/2`:
-  pruning paths alone would leave it selected, failing booking pages closed.
-  """
-  @spec remove_calendar_paths(CalendarIntegrationSchema.t(), [String.t()]) ::
-          {:ok, CalendarIntegrationSchema.t()} | {:error, Ecto.Changeset.t() | :not_found}
-  def remove_calendar_paths(%CalendarIntegrationSchema{id: id}, paths) do
-    gone? = fn path -> Enum.any?(paths, &UriUtils.uri_safe_match?(&1, path)) end
-
-    with_locked(id, fn fresh ->
-      remaining = Enum.reject(fresh.calendar_paths || [], gone?)
-
-      calendar_list =
-        Enum.map(fresh.calendar_list || [], fn cal ->
-          if gone?.(cal.path || cal.id), do: %{cal | selected: false}, else: cal
-        end)
-
-      fresh
-      |> CalendarIntegrationSchema.changeset(%{
-        calendar_paths: remaining,
-        calendar_list: calendar_list
-      })
-      |> Repo.update()
-    end)
+  @spec update_selection(CalendarIntegrationSchema.t(), map(), [RemovedCalendar.t()]) ::
+          {:ok, CalendarIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
+  def update_selection(%CalendarIntegrationSchema{} = fresh, attrs, removed_calendars) do
+    fresh
+    |> CalendarIntegrationSchema.changeset(attrs)
+    |> Changeset.put_embed(:removed_calendars, removed_calendars)
+    |> Repo.update()
   end
 
   @doc """
