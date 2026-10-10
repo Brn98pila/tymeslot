@@ -65,25 +65,44 @@ defmodule Tymeslot.Security.CredentialReencryption.PlainOnlyReportTest do
              CredentialReencryption.plain_only_report()
   end
 
-  test "compares a Telegram link token with its hash" do
-    same = insert(:telegram_integration)
-    other = insert(:telegram_integration)
+  describe "Telegram link tokens" do
+    # The current release reissues and consumes link tokens without touching
+    # the plain column, so a pre-upgrade plain token outlives its link either
+    # way; it must not hold the drop back.
 
-    set_raw("telegram_integrations", same.id,
-      link_token: "same-token",
-      link_token_hash: Token.hash_token("same-token")
-    )
+    test "a token refreshed since the upgrade is counted, not blocking" do
+      integration = insert(:telegram_integration)
 
-    set_raw("telegram_integrations", other.id,
-      link_token: "plain-token",
-      link_token_hash: Token.hash_token("reissued-token")
-    )
+      set_raw("telegram_integrations", integration.id,
+        link_token: "pre-upgrade-token",
+        link_token_hash: Token.hash_token("reissued-token")
+      )
 
-    counts =
-      CredentialReencryption.plain_only_report().columns["telegram_integrations.link_token"]
+      assert_short_lived_only()
+    end
 
-    assert %{matching: 1, differing: 1, plain_only: 0} = counts
-    assert counts.sample_ids == %{differing: [other.id]}
+    test "a token consumed since the upgrade (hash cleared) is counted, not blocking" do
+      integration = insert(:telegram_integration)
+
+      set_raw("telegram_integrations", integration.id,
+        link_token: "pre-upgrade-token",
+        link_token_hash: nil
+      )
+
+      assert_short_lived_only()
+    end
+
+    defp assert_short_lived_only do
+      report = CredentialReencryption.plain_only_report()
+      counts = report.columns["telegram_integrations.link_token"]
+
+      assert report.clear?
+
+      assert Map.take(counts, [:plain_only, :differing, :unreadable, :matching, :short_lived]) ==
+               %{plain_only: 0, differing: 0, unreadable: 0, matching: 0, short_lived: 1}
+
+      assert counts.sample_ids == %{}
+    end
   end
 
   test "reports UUID-keyed rows by their UUID" do
@@ -101,8 +120,8 @@ defmodule Tymeslot.Security.CredentialReencryption.PlainOnlyReportTest do
   end
 
   test "checks every plain column the expand migrations kept, and only real columns" do
-    for {table, plain, {_kind, counterpart}} <- PlainOnlyReport.plain_copies(),
-        column <- [plain, counterpart] do
+    for {table, plain, counterpart} <- PlainOnlyReport.plain_copies(),
+        column <- columns(plain, counterpart) do
       %{num_rows: rows} =
         Repo.query!(
           "SELECT 1 FROM information_schema.columns WHERE table_name = $1 AND column_name = $2",
@@ -114,6 +133,9 @@ defmodule Tymeslot.Security.CredentialReencryption.PlainOnlyReportTest do
 
     assert length(PlainOnlyReport.plain_copies()) == 9
   end
+
+  defp columns(plain, {:encrypted, counterpart}), do: [plain, counterpart]
+  defp columns(plain, :short_lived), do: [plain]
 
   defp webhook_with(opts) do
     webhook = insert(:webhook)

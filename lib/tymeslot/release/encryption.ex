@@ -76,7 +76,8 @@ defmodule Tymeslot.Release.Encryption do
     for {column, counts} <- Enum.sort(report.columns) do
       IO.puts(
         "#{column}: plain only #{counts.plain_only}, differing #{counts.differing}, " <>
-          "unreadable #{counts.unreadable}, matching #{counts.matching}" <>
+          "unreadable #{counts.unreadable}, matching #{counts.matching}, " <>
+          "short-lived #{counts.short_lived}" <>
           format_samples(counts.sample_ids)
       )
     end

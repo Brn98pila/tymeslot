@@ -39,7 +39,7 @@ defmodule Tymeslot.ReleaseEncryptionTest do
       refute report.clear?
 
       assert output =~
-               "webhooks.url: plain only 1, differing 0, unreadable 0, matching 0 " <>
+               "webhooks.url: plain only 1, differing 0, unreadable 0, matching 0, short-lived 0 " <>
                  "(sample ids plain_only: #{webhook.id})\n"
 
       assert output =~ "NOT clear"
