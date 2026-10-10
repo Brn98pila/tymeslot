@@ -103,7 +103,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Discovery do
       result =
         case Http.propfind(discovery_url, client.username, client.password,
                depth: "0",
-               max_retries: 0
+               max_attempts: 1
              ) do
           {:ok, %Req.Response{}} ->
             :ok
@@ -163,7 +163,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Discovery do
       with_discovery_breaker(client, opts, fn ->
         discovery_url = UrlBuilder.build_discovery_url(client)
 
-        case Http.propfind(discovery_url, client.username, client.password, max_retries: 0) do
+        case Http.propfind(discovery_url, client.username, client.password, max_attempts: 1) do
           {:ok, %Req.Response{body: body}} ->
             parse_calendar_discovery(body, client)
 

@@ -3,143 +3,113 @@ defmodule Tymeslot.Infrastructure.RetryTest do
 
   @moduletag :infrastructure
 
+  import ExUnit.CaptureLog
+
   alias Tymeslot.Infrastructure.Retry
 
+  # No waiting between attempts.
+  @fast [initial_delay: 0, jitter: 0.0]
+
+  defp quietly(fun), do: fun |> with_log() |> elem(0)
+
+  defp counting(results) do
+    counter = :counters.new(1, [])
+
+    fun = fn ->
+      :counters.add(counter, 1, 1)
+      Enum.at(results, :counters.get(counter, 1) - 1, List.last(results))
+    end
+
+    {fun, fn -> :counters.get(counter, 1) end}
+  end
+
   describe "with_backoff/2" do
-    test "returns success on first attempt" do
-      assert {:ok, :done} = Retry.with_backoff(fn -> {:ok, :done} end)
+    test "returns a success from the first attempt" do
+      {fun, calls} = counting([{:ok, :done}])
+
+      assert {:ok, :done} = Retry.with_backoff(fun, @fast)
+      assert calls.() == 1
     end
 
-    test "retries on retriable error and succeeds" do
-      {result, counter} =
-        backoff_with_counter(2, {:error, "timeout"}, {:ok, :recovered}, max_attempts: 5)
+    test "retries a transient error until the call succeeds" do
+      {fun, calls} = counting([{:error, :timeout}, {:error, :econnreset}, {:ok, :done}])
 
-      assert {:ok, :recovered} = result
-      assert Agent.get(counter, & &1) == 3
+      assert {:ok, :done} = quietly(fn -> Retry.with_backoff(fun, @fast) end)
+      assert calls.() == 3
     end
 
-    test "returns max_attempts_exceeded after exhausting retries" do
-      result =
-        Retry.with_backoff(
-          fn -> {:error, "timeout"} end,
-          max_attempts: 2,
-          initial_delay: 1,
-          max_delay: 10
-        )
+    # Callers report what went wrong; a bare "attempts exceeded" told them
+    # nothing about why.
+    test "returns the last error, not a placeholder, once the attempts run out" do
+      {fun, calls} = counting([{:error, :timeout}, {:error, {:http_error, 503, "busy"}}])
 
-      assert {:error, :max_attempts_exceeded} = result
+      assert {:error, {:http_error, 503, "busy"}} =
+               quietly(fn -> Retry.with_backoff(fun, @fast ++ [max_attempts: 2]) end)
+
+      assert calls.() == 2
     end
 
-    test "does not retry non-retriable errors" do
-      counter = new_counter()
+    test "does not retry an error the breaker would not count as an outage" do
+      for reason <- [:unauthorized, {:http_error, 404, ""}, "Something broke", :circuit_open] do
+        {fun, calls} = counting([{:error, reason}, {:ok, :never}])
 
-      result =
-        Retry.with_backoff(
-          fn ->
-            Agent.update(counter, &(&1 + 1))
-            {:error, :not_found}
-          end,
-          initial_delay: 1,
-          max_delay: 10
-        )
-
-      assert {:error, :not_found} = result
-      # Only called once — no retries for non-retriable errors
-      assert Agent.get(counter, & &1) == 1
+        assert {:error, ^reason} = Retry.with_backoff(fun, @fast)
+        assert calls.() == 1, inspect(reason)
+      end
     end
 
-    test "returns non-standard results without retry" do
-      assert :something = Retry.with_backoff(fn -> :something end)
+    test "retries the transport failures and statuses the breaker counts" do
+      transient = [
+        :econnreset,
+        :econnrefused,
+        :nxdomain,
+        {:http_error, 429, ""},
+        {:http_error, 502, ""},
+        %Mint.TransportError{reason: :closed},
+        %Req.TransportError{reason: :timeout}
+      ]
+
+      for reason <- transient do
+        {fun, calls} = counting([{:error, reason}, {:ok, :done}])
+
+        assert {:ok, :done} = quietly(fn -> Retry.with_backoff(fun, @fast) end)
+        assert calls.() == 2, inspect(reason)
+      end
     end
 
-    test "handles bare :error atom" do
-      result =
-        Retry.with_backoff(
-          fn -> :error end,
-          max_attempts: 2,
-          initial_delay: 1,
-          max_delay: 10
-        )
+    test "uses a caller's own retry rule" do
+      {fun, calls} = counting([{:error, :custom}, {:ok, :done}])
 
-      assert {:error, :max_attempts_exceeded} = result
+      assert {:ok, :done} =
+               quietly(fn ->
+                 Retry.with_backoff(fun, @fast ++ [retriable?: &(&1 == :custom)])
+               end)
+
+      assert calls.() == 2
     end
 
-    test "respects custom retriable? function" do
-      {result, _counter} =
-        backoff_with_counter(1, {:error, :custom_error}, {:ok, :done},
-          retriable?: fn reason -> reason == :custom_error end
-        )
+    test "returns anything else as it is, without retrying" do
+      for result <- [:ok, :error, {:error, :a, :b}, nil] do
+        {fun, calls} = counting([result])
 
-      assert {:ok, :done} = result
-    end
-  end
-
-  describe "default_retriable?/1" do
-    test "string patterns: retries timeout errors" do
-      # Test via with_backoff since default_retriable? is private
-      assert_retried_once({:error, "Connection timeout occurred"})
-    end
-
-    test "string patterns: does not retry unknown errors" do
-      assert_not_retried({:error, "invalid credentials"})
-    end
-
-    test "exception patterns: retries Mint.TransportError timeout" do
-      assert_retried_once({:error, %Mint.TransportError{reason: :timeout}})
-    end
-
-    test "exception patterns: does not retry non-transient Mint errors" do
-      assert_not_retried({:error, %Mint.TransportError{reason: :nxdomain}})
+        assert Retry.with_backoff(fun, @fast) == result
+        assert calls.() == 1
+      end
     end
   end
 
-  defp backoff_with_counter(succeed_after, error_result, success_result, opts) do
-    counter = new_counter()
+  describe "delay/2" do
+    test "starts at the initial delay and doubles up to the cap" do
+      opts = [initial_delay: 1_000, max_delay: 3_000, jitter: 0.0]
 
-    result =
-      Retry.with_backoff(
-        fn ->
-          n = Agent.get_and_update(counter, fn c -> {c, c + 1} end)
-          if n < succeed_after, do: error_result, else: success_result
-        end,
-        Keyword.merge([initial_delay: 1, max_delay: 10], opts)
-      )
+      assert Enum.map(1..4, &Retry.delay(&1, opts)) == [1_000, 2_000, 3_000, 3_000]
+    end
 
-    {result, counter}
-  end
+    test "jitter varies a delay by at most its fraction either way" do
+      delays = for _n <- 1..200, do: Retry.delay(1, initial_delay: 1_000, jitter: 0.1)
 
-  defp new_counter do
-    {:ok, counter} = Agent.start_link(fn -> 0 end)
-    counter
-  end
-
-  defp assert_retried_once(error_result) do
-    counter = new_counter()
-
-    Retry.with_backoff(
-      fn ->
-        n = Agent.get_and_update(counter, fn c -> {c, c + 1} end)
-        if n < 1, do: error_result, else: {:ok, :done}
-      end,
-      initial_delay: 1,
-      max_delay: 10
-    )
-
-    assert Agent.get(counter, & &1) == 2
-  end
-
-  defp assert_not_retried(error_result) do
-    counter = new_counter()
-
-    Retry.with_backoff(
-      fn ->
-        Agent.update(counter, &(&1 + 1))
-        error_result
-      end,
-      initial_delay: 1,
-      max_delay: 10
-    )
-
-    assert Agent.get(counter, & &1) == 1
+      assert Enum.all?(delays, &(&1 in 900..1_100))
+      assert length(Enum.uniq(delays)) > 1
+    end
   end
 end

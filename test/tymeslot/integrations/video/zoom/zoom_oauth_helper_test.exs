@@ -108,6 +108,38 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
       assert tokens.provider_account_email == "alice@example.com"
     end
 
+    # A profile request Zoom keeps failing is retried, and the error names the
+    # last status rather than only that the attempts ran out.
+    test "retries a failing profile request and reports its last status" do
+      %{resp_body: resp_body} = oauth_test_data()
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, _body, _headers, _opts ->
+        {:ok, %{status: 200, body: resp_body}}
+      end)
+
+      expect(Tymeslot.HTTPClientMock, :get, 3, fn _url, _headers, _opts ->
+        {:ok, %Req.Response{status: 503, body: "busy"}}
+      end)
+
+      assert {:error, "Failed to fetch user profile: HTTP 503"} =
+               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb")
+    end
+
+    test "does not retry a profile request Zoom refuses" do
+      %{resp_body: resp_body} = oauth_test_data()
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, _body, _headers, _opts ->
+        {:ok, %{status: 200, body: resp_body}}
+      end)
+
+      expect(Tymeslot.HTTPClientMock, :get, 1, fn _url, _headers, _opts ->
+        {:ok, %Req.Response{status: 401, body: "no"}}
+      end)
+
+      assert {:error, "Failed to fetch user profile: HTTP 401"} =
+               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb")
+    end
+
     test "fails when profile is missing id" do
       %{resp_body: resp_body} = oauth_test_data()
       profile_body = Jason.encode!(%{"email" => "alice@example.com"})

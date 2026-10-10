@@ -321,18 +321,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.EventsTest do
                  "retry-uid",
                  event_data,
                  etag: "\"cached\"",
-                 retry_opts: [
-                   max_retries: 1,
-                   base_delay_ms: 1,
-                   max_delay_ms: 5,
-                   jitter_factor: 0.0,
-                   retryable_errors: [
-                     :network_error,
-                     :timeout,
-                     :server_error,
-                     :service_unavailable
-                   ]
-                 ],
+                 retry_opts: [initial_delay: 1, max_delay: 5, jitter: 0.0],
                  skip_breaker: true
                )
 
@@ -366,18 +355,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.EventsTest do
                  "/calendars/user/personal/",
                  "no-etag-uid",
                  event_data,
-                 retry_opts: [
-                   max_retries: 1,
-                   base_delay_ms: 1,
-                   max_delay_ms: 5,
-                   jitter_factor: 0.0,
-                   retryable_errors: [
-                     :network_error,
-                     :timeout,
-                     :server_error,
-                     :service_unavailable
-                   ]
-                 ],
+                 retry_opts: [initial_delay: 1, max_delay: 5, jitter: 0.0],
                  skip_breaker: true
                )
 

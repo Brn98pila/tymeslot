@@ -57,6 +57,23 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelperTest do
       assert tokens.tenant_id == "common"
     end
 
+    # A profile request Graph keeps failing is retried, and the error names
+    # the last status rather than only that the attempts ran out.
+    test "retries a failing profile request and reports its last status" do
+      %{resp_body: resp_body} = oauth_test_data()
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, _headers, _body, _opts ->
+        {:ok, %{status: 200, body: resp_body}}
+      end)
+
+      expect(Tymeslot.HTTPClientMock, :get, 3, fn _url, _headers, _opts ->
+        {:ok, %Req.Response{status: 502, body: "bad gateway"}}
+      end)
+
+      assert {:error, "Failed to fetch user profile: HTTP 502"} =
+               TeamsOAuthHelper.exchange_code_for_tokens("code", "http://uri")
+    end
+
     test "extracts tenant_id from id_token claims" do
       # Mock id_token with tid claim
       header = Base.url_encode64(Jason.encode!(%{alg: "RS256"}), padding: false)

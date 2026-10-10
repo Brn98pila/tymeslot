@@ -180,7 +180,9 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
       {"Content-Type", "application/json"}
     ]
 
-    Retry.with_backoff(fn ->
+    # The reason stays structured inside the retry, so a 5xx or a dropped
+    # connection is retried and the message names what failed last.
+    fn ->
       case Config.http_client_module().get(@user_profile_url, headers, []) do
         {:ok, %Req.Response{status: 200, body: body}} ->
           parse_profile_body(body)
@@ -191,16 +193,28 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
             body: Redactor.redact_and_truncate(body)
           )
 
-          {:error, "Failed to fetch user profile: HTTP #{status}"}
-
-        {:error, exception} when is_exception(exception) ->
-          {:error, "Network error fetching profile: #{Exception.message(exception)}"}
+          {:error, {:http_error, status, body}}
 
         {:error, reason} ->
-          {:error, "Network error fetching profile: #{inspect(reason)}"}
+          {:error, reason}
       end
-    end)
+    end
+    |> Retry.with_backoff()
+    |> profile_error_message()
   end
+
+  defp profile_error_message({:error, {:http_error, status, _body}}),
+    do: {:error, "Failed to fetch user profile: HTTP #{status}"}
+
+  defp profile_error_message({:error, exception}) when is_exception(exception),
+    do: {:error, "Network error fetching profile: #{Exception.message(exception)}"}
+
+  defp profile_error_message({:error, reason}) when is_binary(reason), do: {:error, reason}
+
+  defp profile_error_message({:error, reason}),
+    do: {:error, "Network error fetching profile: #{inspect(reason)}"}
+
+  defp profile_error_message(result), do: result
 
   defp parse_profile_body(body) do
     case Jason.decode(body) do
