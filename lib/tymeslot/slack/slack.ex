@@ -249,11 +249,8 @@ defmodule Tymeslot.Slack do
   @spec disconnect(SlackIntegrationSchema.t()) ::
           {:ok, SlackIntegrationSchema.t()}
           | {:error, Ecto.Changeset.t() | :insufficient_plan | :feature_access_checker_failed}
-  def disconnect(%SlackIntegrationSchema{} = integration) do
-    with :ok <- Features.check_access(integration.user_id, :automations_allowed) do
-      SlackQueries.disconnect(integration)
-    end
-  end
+  def disconnect(%SlackIntegrationSchema{} = integration),
+    do: SlackQueries.disconnect(integration)
 
   @doc """
   Lists channels the bot can post to, paginated transparently across
@@ -298,13 +295,17 @@ defmodule Tymeslot.Slack do
   @doc """
   Sends a single test message to the integration's channel and returns
   `:ok | {:error, reason}`. Used by the "Send test message" button in the UI.
+  Refused, sending nothing, while the owner's plan doesn't include
+  automations.
   """
   @spec test_integration(SlackIntegrationSchema.t()) :: :ok | {:error, term()}
   def test_integration(%SlackIntegrationSchema{} = integration) do
-    case integration.app_mode do
-      "oauth" -> send_test_via_oauth(integration)
-      "webhook_url" -> send_test_via_webhook(integration)
-      other -> {:error, {:unknown_mode, other}}
+    with :ok <- Features.check_access(integration.user_id, :automations_allowed) do
+      case integration.app_mode do
+        "oauth" -> send_test_via_oauth(integration)
+        "webhook_url" -> send_test_via_webhook(integration)
+        other -> {:error, {:unknown_mode, other}}
+      end
     end
   end
 
@@ -401,15 +402,6 @@ defmodule Tymeslot.Slack do
       end
     end
   end
-
-  @doc """
-  Switches the integration off because its owner's plan no longer covers
-  automations. A paused or already disabled integration is left as it is,
-  keeping the user's choice or the earlier reason.
-  """
-  @spec disable_for_revoked_plan(integer()) :: {:ok, boolean()}
-  def disable_for_revoked_plan(integration_id),
-    do: SlackQueries.disable_if_active(integration_id, "Plan no longer permits automations")
 
   @spec auto_disable(SlackIntegrationSchema.t(), String.t()) ::
           {:ok, SlackIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}

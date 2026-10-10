@@ -38,16 +38,6 @@ defmodule Tymeslot.Payments.Config do
   end
 
   @doc """
-  Get Core repository.
-
-  Defaults to `Tymeslot.Repo` if not configured.
-  """
-  @spec repo() :: module()
-  def repo do
-    Application.get_env(:tymeslot, :repo, Tymeslot.Repo)
-  end
-
-  @doc """
   Get subscription manager (if configured).
 
   Returns `nil` if no subscription manager is configured (Core standalone mode).

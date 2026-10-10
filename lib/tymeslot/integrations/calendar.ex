@@ -169,6 +169,12 @@ defmodule Tymeslot.Integrations.Calendar do
         }
   defdelegate stuck_changes(user_id), to: OfflineQueue
 
+  @doc "Of `user_ids`, those with at least one active calendar integration."
+  @spec user_ids_with_active_calendar([user_id()]) :: [user_id()]
+  defdelegate user_ids_with_active_calendar(user_ids),
+    to: CalendarIntegrationQueries,
+    as: :user_ids_with_active
+
   @doc """
   Takes the integration cache lock's advisory step for every calendar the
   user has, as deleting the account must before it deletes the user row. Call

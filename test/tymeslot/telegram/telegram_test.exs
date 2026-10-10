@@ -583,6 +583,7 @@ defmodule Tymeslot.TelegramTest do
     test "answers :no_chat for an integration not linked to a chat yet" do
       assert {:error, :no_chat} =
                Telegram.test_integration(%TelegramIntegrationSchema{
+                 user_id: insert(:user).id,
                  bot_mode: "own",
                  chat_id: nil
                })

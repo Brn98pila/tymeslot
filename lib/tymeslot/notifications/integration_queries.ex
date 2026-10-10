@@ -27,7 +27,6 @@ defmodule Tymeslot.Notifications.IntegrationQueries do
 
   import Ecto.Query, warn: false
 
-  alias Ecto.Type
   alias Tymeslot.Infrastructure.BatchDeleteQueries
   alias Tymeslot.Repo
 
@@ -157,30 +156,6 @@ defmodule Tymeslot.Notifications.IntegrationQueries do
       failure_count: 0
     })
     |> Repo.update()
-  end
-
-  @doc """
-  Switches off the integration with the given id, recording `reason`, but
-  only while it is still active and not already disabled. One conditional
-  write, so a user's pause, an earlier disable reason, or a re-enable racing
-  with this call is never overwritten.
-
-  Returns `{:ok, true}` when this call switched it off, `{:ok, false}` when
-  there was nothing to switch off.
-  """
-  @spec disable_if_active(module(), integer(), String.t()) :: {:ok, boolean()}
-  def disable_if_active(schema, id, reason) do
-    {:ok, disabled_at} =
-      Type.cast(schema.__schema__(:type, :disabled_at), DateTime.utc_now())
-
-    {count, _rows} =
-      schema
-      |> where([i], i.id == ^id and i.is_active == true and is_nil(i.disabled_at))
-      |> Repo.update_all(
-        set: [is_active: false, disabled_at: disabled_at, disabled_reason: reason]
-      )
-
-    {:ok, count == 1}
   end
 
   @doc """

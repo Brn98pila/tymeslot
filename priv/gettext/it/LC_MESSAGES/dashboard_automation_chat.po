@@ -863,3 +863,9 @@ msgstr "Manca il token del bot"
 #, elixir-autogen, elixir-format
 msgid "The shared Telegram bot is not configured"
 msgstr "Il bot Telegram condiviso non è configurato"
+
+#: lib/tymeslot_web/live/dashboard/automation/slack_card.ex
+#: lib/tymeslot_web/live/dashboard/automation/telegram_card.ex
+#, elixir-autogen, elixir-format
+msgid "Paused: your plan doesn't include automations. Upgrading resumes it."
+msgstr "In pausa: il tuo piano non include le automazioni. Passando a un piano superiore riprenderà da sola."

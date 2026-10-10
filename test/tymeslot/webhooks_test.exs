@@ -4,6 +4,7 @@ defmodule Tymeslot.WebhooksTest do
 
   @moduletag :security
 
+  import Mox
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
 
@@ -418,6 +419,18 @@ defmodule Tymeslot.WebhooksTest do
   # ============================================================================
   # Feature Access Denial
   # ============================================================================
+
+  describe "test_webhook/1 - feature access denied" do
+    setup :verify_on_exit!
+
+    test "sends nothing while the plan doesn't include automations" do
+      setup_config(:tymeslot, feature_access_checker: Tymeslot.WebhooksTest.DenyAccessChecker)
+      webhook = insert(:webhook)
+      expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts -> :unused end)
+
+      assert {:error, :insufficient_plan} = Webhooks.test_webhook(webhook)
+    end
+  end
 
   describe "create_webhook/2 - feature access denied" do
     setup do

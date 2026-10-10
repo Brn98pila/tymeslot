@@ -1,7 +1,7 @@
 defmodule Tymeslot.Integrations.Calendar.CalDAV.Sync.SyncTokenQueries do
   @moduledoc """
-  Writes to an integration's per-path CalDAV sync tokens
-  (`caldav_sync_tokens`), each one atomic edit of the stored map.
+  Writes to the `caldav_sync_tokens` column of `calendar_integrations`: the
+  per-path CalDAV sync tokens a sync run reads and records.
   """
 
   import Ecto.Query
