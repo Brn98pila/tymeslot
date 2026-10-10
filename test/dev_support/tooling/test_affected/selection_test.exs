@@ -191,6 +191,30 @@ defmodule Tymeslot.TestAffected.SelectionTest do
       assert Selection.mirror("lib/tymeslot/announcements.ex", index()) == nil
     end
 
+    test "dev tooling and Credo checks mirror into test/dev_support" do
+      index =
+        index(
+          test_files:
+            MapSet.new([
+              "test/dev_support/tooling/precommit/runner_test.exs",
+              "test/dev_support/credo_checks/repo_call_boundary_test.exs"
+            ])
+        )
+
+      assert Selection.classify("dev_support/tooling/precommit/runner.ex") ==
+               {:lib, "dev_support/tooling/precommit/runner.ex"}
+
+      assert Selection.mirror_file("dev_support/tooling/precommit/runner.ex", index) ==
+               "test/dev_support/tooling/precommit/runner_test.exs"
+
+      assert Selection.mirror_file("dev_support/credo_checks/repo_call_boundary.ex", index) ==
+               "test/dev_support/credo_checks/repo_call_boundary_test.exs"
+
+      assert {["test/dev_support/tooling/precommit/runner_test.exs"],
+              "test/dev_support/tooling/precommit/"} =
+               Selection.mirror("dev_support/tooling/precommit/guard.ex", index)
+    end
+
     test "a colocated template resolves to its module's test, not one named after itself" do
       assert Selection.mirror_file("lib/tymeslot/auth/session.html.heex", index()) ==
                "test/tymeslot/auth/session_test.exs"
