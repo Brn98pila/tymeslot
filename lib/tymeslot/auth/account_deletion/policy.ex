@@ -49,7 +49,11 @@ defmodule Tymeslot.Auth.AccountDeletion.Policy do
 
   def local_date(%DateTime{} = at, _no_timezone), do: DateTime.to_date(at)
 
-  @doc "`local_date/2` in the timezone of the user's profile (UTC without one)."
+  @doc """
+  `local_date/2` in the user's own zone (`user_timezone/1`): the default
+  zone for a profile with none, or with one the time-zone database does not
+  know.
+  """
   @spec user_local_date(DateTime.t(), integer()) :: Date.t()
   def user_local_date(%DateTime{} = at, user_id), do: local_date(at, user_timezone(user_id))
 
