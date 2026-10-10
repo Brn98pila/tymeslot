@@ -146,7 +146,9 @@ if config_env() == :prod do
   data_encryption_key = System.get_env("DATA_ENCRYPTION_KEY")
   data_encryption_keys = System.get_env("DATA_ENCRYPTION_KEYS")
 
-  if is_nil(data_encryption_key) and is_nil(data_encryption_keys) do
+  # Blank counts as unset, as it does for the keyring: Compose passes an unset
+  # `${DATA_ENCRYPTION_KEY}` through as an empty string.
+  if Enum.all?([data_encryption_key, data_encryption_keys], &(String.trim(&1 || "") == "")) do
     IO.warn(
       "DATA_ENCRYPTION_KEY is not set; data-at-rest credentials are still encrypted " <>
         "with a key derived from SECRET_KEY_BASE. Rotating SECRET_KEY_BASE would make " <>
