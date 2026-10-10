@@ -54,6 +54,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Sync do
   alias Tymeslot.Integrations.Calendar.CalDAV.TierDetector
   alias Tymeslot.Integrations.Calendar.CalDAV.UrlBuilder
   alias Tymeslot.Integrations.Calendar.Providers.CaldavCommon
+  alias Tymeslot.Integrations.Calendar.Shared.ProviderCommon
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
 
   @typedoc """
@@ -77,14 +78,33 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Sync do
   """
   @spec run(struct(), boolean()) :: result()
   def run(integration, force_full_fetch?) do
+    case syncable_client(integration) do
+      :free_busy_only ->
+        :ok
+
+      client ->
+        OfflineQueue.flush(integration, client)
+
+        if force_full_fetch? do
+          broadcast_on_success(integration, forced_full_fetch(integration, client))
+        else
+          run_tiered(integration, client)
+        end
+    end
+  end
+
+  # A collection shared as busy times only has no events to mirror, and its
+  # calendar-query answer is a 403 that must never reach the reauth flag; the
+  # availability read asks it for busy periods instead. An integration whose
+  # every selected collection is one has nothing to sync, which is not the
+  # "no calendar selected" failure an empty path list otherwise means.
+  defp syncable_client(integration) do
     client = CaldavCommon.client_for_integration(integration)
+    free_busy = ProviderCommon.caldav_free_busy_paths(integration)
 
-    OfflineQueue.flush(integration, client)
-
-    if force_full_fetch? do
-      broadcast_on_success(integration, forced_full_fetch(integration, client))
-    else
-      run_tiered(integration, client)
+    case client.calendar_paths -- free_busy do
+      [] when free_busy != [] -> :free_busy_only
+      paths -> %{client | calendar_paths: paths}
     end
   end
 

@@ -58,6 +58,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
         password: config[:password],
         calendar_paths: calendar_paths,
         writable_calendar_paths: config[:writable_calendar_paths],
+        free_busy_paths: config[:free_busy_paths],
         skip_breaker: config[:skip_breaker] || false
       },
       provider: provider
@@ -85,6 +86,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
       writable_calendar_paths:
         Map.get(config, :writable_calendar_paths) ||
           Map.get(config, "writable_calendar_paths") || [],
+      free_busy_paths: Map.get(config, :free_busy_paths) || [],
       skip_breaker: Map.get(config, :skip_breaker, false),
       provider: provider
     }
@@ -253,7 +255,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
       Enum.map(paths, fn path ->
         {path,
          Tasks.async(Tymeslot.TaskSupervisor, fn ->
-           Events.fetch_events(client, path, start_time, end_time)
+           fetch_path(client, path, start_time, end_time)
          end)}
       end)
 
@@ -266,6 +268,14 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommon do
       Enum.split_with(results, fn {_path, r} -> match?({:ok, _result}, r) end)
 
     handle_fetch_results(successes, errors)
+  end
+
+  # A collection shared as busy times only answers calendar-query with 403;
+  # its busy periods come through the free-busy-query REPORT instead.
+  defp fetch_path(client, path, start_time, end_time) do
+    if path in Map.get(client, :free_busy_paths, []),
+      do: Events.fetch_free_busy(client, path, start_time, end_time),
+      else: Events.fetch_events(client, path, start_time, end_time)
   end
 
   # If every calendar path errored, surface the first error — callers must be
