@@ -116,10 +116,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Slack.StateHandlers do
 
             {:noreply, AutomationHelpers.maybe_load_slack(socket)}
 
-          {:error, reason} when reason in [:insufficient_plan, :feature_access_checker_failed] ->
-            {:noreply, AutomationHelpers.handle_feature_access_error(socket, reason)}
-
-          {:error, _reason} ->
+          {:error, _changeset} ->
             Flash.error(dgettext("dashboard_automation_chat", "Failed to disconnect Slack"))
             {:noreply, socket}
         end
