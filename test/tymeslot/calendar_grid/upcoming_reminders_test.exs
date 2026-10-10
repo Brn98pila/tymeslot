@@ -139,12 +139,12 @@ defmodule Tymeslot.CalendarGrid.UpcomingRemindersTest do
         reminders: [%{"method" => "popup", "minutes_before" => 10}]
       )
 
-    assert [%{id: id}] =
-             CalendarGrid.list_upcoming_events_with_reminders(
-               [integration.id],
-               @now,
-               [integration], limit: 3)
+    result =
+      CalendarGrid.list_upcoming_events_with_reminders([integration.id], @now, [integration],
+        limit: 3
+      )
 
+    assert [%{id: id}] = result
     assert id == kept.id
   end
 

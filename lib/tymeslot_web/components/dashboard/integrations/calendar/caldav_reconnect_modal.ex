@@ -74,21 +74,7 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CaldavReconnect
 
     case Calendar.reconnect_caldav_integration(user_id, integration.id, params) do
       {:ok, :needs_calendar_selection, payload} ->
-        selected_paths = Enum.filter(integration.calendar_paths || [], &is_binary/1)
-
-        booking_paths =
-          user_id
-          |> Calendar.booking_calendar_ids_by_integration([integration])
-          |> Map.get(integration.id, [])
-
-        {:noreply,
-         socket
-         |> assign(:phase, :calendar_selection)
-         |> assign(:discovery_payload, payload)
-         |> assign(:selected_paths, selected_paths)
-         |> assign(:booking_paths, booking_paths)
-         |> assign(:form_errors, %{})
-         |> assign(:is_submitting, false)}
+        {:noreply, open_selection(socket, integration, payload)}
 
       {:error, :invalid_credentials} ->
         {:noreply,
@@ -444,6 +430,24 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CaldavReconnect
     |> assign(:selected_paths, [])
     |> assign(:booking_paths, [])
     |> assign(:is_submitting, false)
+  end
+
+  # The calendars synced so far come up ticked, and the ones bookings go to
+  # ticked and locked.
+  defp open_selection(socket, integration, payload) do
+    booking_paths =
+      socket.assigns.current_user.id
+      |> Calendar.booking_calendar_ids_by_integration([integration])
+      |> Map.get(integration.id, [])
+
+    assign(socket,
+      phase: :calendar_selection,
+      discovery_payload: payload,
+      selected_paths: Enum.filter(integration.calendar_paths || [], &is_binary/1),
+      booking_paths: booking_paths,
+      form_errors: %{},
+      is_submitting: false
+    )
   end
 
   # The same id matcher the context holds booking calendars by.

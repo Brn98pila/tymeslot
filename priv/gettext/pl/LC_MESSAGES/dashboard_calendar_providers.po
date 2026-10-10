@@ -1337,6 +1337,7 @@ msgstr "Tylko pokazuj"
 msgid "This calendar stays read-only: bookings are never written to it. Choose another calendar as your booking destination."
 msgstr "Ten kalendarz pozostaje tylko do odczytu: rezerwacje nigdy nie są w nim zapisywane. Wybierz inny kalendarz jako miejsce zapisu rezerwacji."
 
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/caldav_reconnect_modal.ex
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Your booking calendar always blocks your availability."

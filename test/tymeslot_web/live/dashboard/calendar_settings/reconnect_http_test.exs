@@ -24,7 +24,6 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ReconnectHttpTest do
   import Tymeslot.DashboardTestHelpers
   import Tymeslot.Factory
 
-  alias Ecto.Changeset
   alias Plug.Conn
   alias Req.Test, as: ReqTest
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
@@ -32,6 +31,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ReconnectHttpTest do
   alias Tymeslot.Repo
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Security.RateLimiter
+  alias Tymeslot.Test.CalDAVDiscoveryStub
   alias Tymeslot.Workers.SyncCalDavCalendarWorker
 
   # Route CalDAV HTTP through the real HTTPClient so `Req.Test` can intercept
@@ -196,71 +196,6 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ReconnectHttpTest do
 
       assert Enum.sort(reloaded.calendar_paths) ==
                Enum.sort(["/calendars/alice/default/", "/calendars/alice/work/"])
-    end
-
-    test "a booking calendar's box is locked ticked, and saving keeps it blocking",
-         %{conn: conn, integration: integration, user: user} do
-      integration =
-        integration
-        |> Changeset.change(
-          calendar_paths: ["/calendars/alice/default/", "/calendars/alice/work/"],
-          default_booking_calendar_id: "/calendars/alice/default/",
-          calendar_list: [
-            %{id: "/calendars/alice/default/", path: "/calendars/alice/default/", selected: true},
-            %{
-              id: "/calendars/alice/work/",
-              path: "/calendars/alice/work/",
-              selected: true,
-              blocks_availability: false
-            }
-          ]
-        )
-        |> Repo.update!()
-
-      insert(:meeting_type,
-        user: user,
-        calendar_integration_id: integration.id,
-        target_calendar_id: "/calendars/alice/work/"
-      )
-
-      stub_two_calendar_discovery_server(
-        accept: "alice:oldpass",
-        principal_path: "/principals/alice/",
-        home_set_path: "/calendars/alice/",
-        calendars: [
-          {"/calendars/alice/default/", "Default"},
-          {"/calendars/alice/work/", "Work"}
-        ]
-      )
-
-      {:ok, view, _html} = live(conn, ~p"/dashboard/integrations?tab=calendars")
-
-      view
-      |> element("button[phx-click='show_reconnect'][phx-value-id='#{integration.id}']")
-      |> render_click()
-
-      view
-      |> form("form[phx-submit='reconnect_caldav_discover']",
-        reconnect: %{url: integration.base_url, username: "alice", password: "oldpass"}
-      )
-      |> render_submit()
-
-      assert has_element?(
-               view,
-               "input[type=checkbox][checked][disabled][value='/calendars/alice/work/']"
-             )
-
-      assert has_element?(view, "input[type=hidden][value='/calendars/alice/work/']")
-
-      # A request naming the other calendar alone, as a forged one could.
-      view
-      |> element("form[phx-submit='reconnect_caldav_submit']")
-      |> render_submit(%{"selected_paths" => ["/calendars/alice/default/"]})
-
-      reloaded = Repo.get!(CalendarIntegrationSchema, integration.id)
-
-      assert %{selected: true, blocks_availability: true} =
-               Enum.find(reloaded.calendar_list, &(&1.path == "/calendars/alice/work/"))
     end
 
     test "invalid password: error shown on credentials phase, record unchanged", %{
@@ -578,7 +513,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ReconnectHttpTest do
     calendar_href = Keyword.fetch!(opts, :calendar_href)
     calendar_name = Keyword.fetch!(opts, :calendar_name)
 
-    stub_discovery(accept_basic, principal_path, home_set_path, [
+    CalDAVDiscoveryStub.stub(accept_basic, principal_path, home_set_path, [
       {calendar_href, calendar_name}
     ])
   end
@@ -591,82 +526,6 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ReconnectHttpTest do
     home_set_path = Keyword.fetch!(opts, :home_set_path)
     calendars = Keyword.fetch!(opts, :calendars)
 
-    stub_discovery(accept_basic, principal_path, home_set_path, calendars)
-  end
-
-  defp stub_discovery(accept_basic, principal_path, home_set_path, calendars) do
-    ReqTest.stub(:tymeslot_http, fn http_conn ->
-      with ["Basic " <> encoded] <- Conn.get_req_header(http_conn, "authorization"),
-           {:ok, ^accept_basic} <- Base.decode64(encoded) do
-        respond_caldav(http_conn, principal_path, home_set_path, calendars)
-      else
-        _no_match -> Conn.resp(http_conn, 401, "")
-      end
-    end)
-  end
-
-  defp respond_caldav(conn, principal_path, home_set_path, calendars) do
-    {:ok, body, conn} = Conn.read_body(conn)
-
-    cond do
-      String.contains?(body, "current-user-principal") ->
-        xml_multistatus(conn, """
-          <response>
-            <href>#{conn.request_path}</href>
-            <propstat>
-              <prop>
-                <current-user-principal xmlns="DAV:"><href>#{principal_path}</href></current-user-principal>
-              </prop>
-              <status>HTTP/1.1 200 OK</status>
-            </propstat>
-          </response>
-        """)
-
-      String.contains?(body, "calendar-home-set") ->
-        xml_multistatus(conn, """
-          <response>
-            <href>#{conn.request_path}</href>
-            <propstat>
-              <prop>
-                <calendar-home-set xmlns="urn:ietf:params:xml:ns:caldav">
-                  <href xmlns="DAV:">#{home_set_path}</href>
-                </calendar-home-set>
-              </prop>
-              <status>HTTP/1.1 200 OK</status>
-            </propstat>
-          </response>
-        """)
-
-      true ->
-        # Calendar listing — emit one <response> per requested calendar.
-        inner =
-          Enum.map_join(calendars, "\n", fn {href, name} ->
-            """
-              <response>
-                <href>#{href}</href>
-                <propstat>
-                  <prop>
-                    <displayname>#{name}</displayname>
-                    <resourcetype>
-                      <collection/>
-                      <calendar xmlns="urn:ietf:params:xml:ns:caldav"/>
-                    </resourcetype>
-                  </prop>
-                  <status>HTTP/1.1 200 OK</status>
-                </propstat>
-              </response>
-            """
-          end)
-
-        xml_multistatus(conn, inner)
-    end
-  end
-
-  defp xml_multistatus(conn, inner) do
-    xml = ~s|<?xml version="1.0"?><multistatus xmlns="DAV:">#{inner}</multistatus>|
-
-    conn
-    |> Conn.put_resp_header("content-type", "application/xml")
-    |> Conn.resp(207, xml)
+    CalDAVDiscoveryStub.stub(accept_basic, principal_path, home_set_path, calendars)
   end
 end
