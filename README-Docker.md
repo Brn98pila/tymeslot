@@ -644,27 +644,113 @@ rotated freely without touching stored data.
 3. Migrate existing rows onto the new key:
 
    ```bash
-   docker exec tymeslot /app/bin/tymeslot eval \
-     'Ecto.Migrator.with_repo(Tymeslot.Repo, fn _ -> IO.inspect(Tymeslot.Security.CredentialReencryption.run(), label: "reencryption") end)'
+   docker exec tymeslot /app/bin/tymeslot eval "Tymeslot.Release.Encryption.reencrypt_credentials()"
    ```
 
-   Re-run until the reported `migrated_values` is `0` to confirm every credential is on the
-   new key. The sweep is idempotent and safe to run repeatedly.
+   Re-run until it reports `migrated values: 0`. The sweep is idempotent and safe to run while
+   the app serves traffic.
 
-Only after the sweep reports zero migrated values is it safe to rotate `SECRET_KEY_BASE`.
+4. Confirm nothing is left on the legacy key, then retire it:
 
-### Rotating the data key in the future
+   ```bash
+   docker exec tymeslot /app/bin/tymeslot eval "Tymeslot.Release.Encryption.key_report()"
+   ```
 
-The versioned format is built for rotation, not just the one-time legacy migration above. A new
-key gets its own version and coexists with the current one: new writes use the new key, existing
-values keep opening under the previous key, and the re-encryption sweep walks the data onto the
-new key. Only once the sweep reports zero is the previous key retired. Nothing is ever wiped.
+   The report lists, per table and column, how many values each key version holds (`v0` is the
+   legacy key) and how many no configured key opens (`unreadable`). It never prints a value.
+   Once no `v0` appears, set `LEGACY_KEY_RETIRED=true` and restart. From then on
+   `SECRET_KEY_BASE` plays no part in data-at-rest encryption and can be rotated freely.
 
-**Do not rotate by simply changing `DATA_ENCRYPTION_KEY` to a new value.** Replacing it in place
-would strand every credential already written under the old key — the old key would no longer be
-in the keyring to decrypt them. True rotation keeps both keys available until the sweep finishes,
-which requires a release that registers the additional key. When key rotation is supported, follow
-the upgrade notes for that version rather than editing the value by hand.
+If `LEGACY_KEY_RETIRED` is set while values under the legacy key remain, those values stop
+opening (the integrations they belong to ask to be reconnected) but are never altered, and the
+app logs an error at boot naming each affected table and column. Unset the flag, restart, run the
+sweep and retire the key again; nothing is lost as long as `SECRET_KEY_BASE` has not changed in
+the meantime.
+
+A `DATA_ENCRYPTION_KEY` that is not valid Base64, or that decodes to fewer than 32 bytes, stops
+the app at boot with a message naming the variable. Earlier versions started and then failed on
+the first credential they touched; replace such a value with one from
+`openssl rand -base64 48`.
+
+### Rotating the data key
+
+Rotate when a key may have leaked, or on a schedule. Every stored value carries the id of the key
+that wrote it, so several keys can be configured at once: new values are written with the
+primary, every other configured key stays readable, and the sweep moves existing values onto the
+primary. Nothing is wiped.
+
+**Never rotate by changing `DATA_ENCRYPTION_KEY` to a new value.** That leaves every value written
+under the old key with no key to open it. Add keys with `DATA_ENCRYPTION_KEYS` instead:
+
+```bash
+DATA_ENCRYPTION_KEYS="2:<new key>,1:<current key>"
+```
+
+Each entry is `<id>:<base64 key>`, with an id from 1 to 255. The **first entry is the primary**.
+`DATA_ENCRYPTION_KEY` is always key 1 and is merged into the list, so it may stay set as it is;
+giving id 1 a different key in the list is refused at boot. Never reuse an id for a different key:
+the next rotation after this one adds key 3.
+
+1. **Back up.** Take a database dump and keep, with it, the key values in use when it was taken
+   (`DATA_ENCRYPTION_KEY`, and `SECRET_KEY_BASE` if `LEGACY_KEY_RETIRED` is not set). A dump is
+   only readable with the keys it was written under, so keep the old key for as long as you keep
+   backups made before the rotation.
+
+2. **Record a baseline.** Run the key report (above) and note the `unreadable` counts, so you can
+   tell afterwards that the rotation added none.
+
+3. **Generate the new key** with `openssl rand -base64 48 | tr -d '\n'`.
+
+4. **Phase 1: make the new key readable everywhere.** Set
+   `DATA_ENCRYPTION_KEYS="1:<current key>,2:<new key>"` (the current key first, so it stays the
+   primary) and restart. Every instance can now read values written under key 2, but none writes
+   with it yet.
+
+5. **Phase 2: promote the new key.** Set `DATA_ENCRYPTION_KEYS="2:<new key>,1:<current key>"` and
+   restart. New values are written under key 2. Run this phase only once you no longer need to
+   roll back to an image older than the one that added `DATA_ENCRYPTION_KEYS`: such an image
+   reads `DATA_ENCRYPTION_KEY` alone and cannot open anything written under key 2. Keep
+   `DATA_ENCRYPTION_KEY` set until then, too.
+
+6. **Sweep.** Run `reencrypt_credentials()` (above) until it reports `migrated values: 0`. A value
+   an older instance writes under key 1 after the promotion is still readable, and the next
+   sweep moves it.
+
+7. **Verify.** Run the key report again: no `v1` may remain, and `unreadable` must not have grown.
+
+8. **Retire the old key.** Remove the `1:` entry from `DATA_ENCRYPTION_KEYS` and unset
+   `DATA_ENCRYPTION_KEY`, then restart. If the old key leaked, also treat the backups taken before
+   the rotation as exposed.
+
+**Single container (Docker Compose).** `docker compose up -d` stops the old container before the
+new one starts, so no two instances ever run with different keys, and phases 1 and 2 may be done
+in one restart, straight to `"2:<new key>,1:<current key>"`. Back up first all the same; the
+rollback limit of phase 2 applies.
+
+**Railway.** A redeploy keeps the old deployment serving until the new one is healthy, and stops
+it only after any overlap (`RAILWAY_DEPLOYMENT_OVERLAP_SECONDS`) and draining
+(`RAILWAY_DEPLOYMENT_DRAINING_SECONDS`) time configured, so for a while both serve. Run phase 1
+and phase 2 as two separate redeploys, letting the first finish (the old deployment gone) before
+changing the variable again: with key 2 promoted in one step, the old deployment could not read
+what the new one writes in that window. Run the helpers over SSH, for example
+`railway ssh -- /app/bin/tymeslot eval "Tymeslot.Release.Encryption.key_report()"` with the
+Dockerfile build (the Railpack build keeps the release at
+`/app/_build/prod/rel/tymeslot/bin/tymeslot`).
+
+### Before dropping the plain-text copies
+
+Upgrading to the release that encrypted webhook URLs, custom meeting links, push-channel secrets
+and link tokens kept their old plain-text columns, so that an image rolled back across it still
+works. A later release removes them. Before it does, this read-only check lists the rows that
+still need attention:
+
+```bash
+docker exec tymeslot /app/bin/tymeslot eval "Tymeslot.Release.Encryption.plain_only_report()"
+```
+
+For each plain column it counts rows whose value is missing from the encrypted copy (`plain only`,
+written by a rolled-back image), differs from it (`differing`), or cannot be compared because no
+key opens the copy (`unreadable`), with sample row ids, and ends with `clear` once none remain.
 
 ---
 

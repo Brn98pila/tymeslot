@@ -458,9 +458,11 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationSchema do
   under the current keyring. Returns `:ok` when every ciphertext is either
   absent or decryptable, `:requires_reencryption` otherwise.
 
-  Used by sync workers to short-circuit jobs when SECRET_KEY_BASE has been
-  rotated without keeping the previous key on the keyring — the worker can
-  then flag `needs_reauth` so the user sees a reconnect prompt.
+  Used by sync workers to short-circuit jobs when no configured key opens a
+  credential: a data key removed from `DATA_ENCRYPTION_KEYS` while values
+  remained under it, `LEGACY_KEY_RETIRED` set too early, or `SECRET_KEY_BASE`
+  changed while values were still on the legacy key. The worker can then flag
+  `needs_reauth` so the user sees a reconnect prompt.
   """
   @spec decryption_status(t()) :: :ok | :requires_reencryption
   def decryption_status(%__MODULE__{} = integration) do
