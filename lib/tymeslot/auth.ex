@@ -481,6 +481,17 @@ defmodule Tymeslot.Auth do
   @spec existing_user_ids([integer()]) :: [integer()]
   defdelegate existing_user_ids(ids), to: UserQueries, as: :existing_ids
 
+  @doc """
+  The ids of the accounts a filter keeps: `compose` receives a query with
+  `users` as its first binding and returns it narrowed.
+  """
+  @spec list_user_ids_where((Ecto.Query.t() -> Ecto.Query.t())) :: [integer()]
+  defdelegate list_user_ids_where(compose), to: UserQueries, as: :list_ids_where
+
+  @doc "How many accounts a filter keeps, as for `list_user_ids_where/1`."
+  @spec count_users_where((Ecto.Query.t() -> Ecto.Query.t())) :: non_neg_integer()
+  defdelegate count_users_where(compose), to: UserQueries, as: :count_where
+
   @doc "Days between a deletion request and the deletion (0: straight away)."
   @spec account_deletion_grace_days() :: non_neg_integer()
   defdelegate account_deletion_grace_days(), to: Policy, as: :grace_days

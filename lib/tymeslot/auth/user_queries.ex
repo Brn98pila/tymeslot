@@ -305,4 +305,24 @@ defmodule Tymeslot.Auth.UserQueries do
     |> select([u], u.id)
     |> Repo.all()
   end
+
+  @doc """
+  The ids of the accounts `compose` keeps. `compose` receives a query with
+  `users` as its first binding and returns it filtered.
+  """
+  @spec list_ids_where((Ecto.Query.t() -> Ecto.Query.t())) :: [integer()]
+  def list_ids_where(compose) when is_function(compose, 1) do
+    from(u in UserSchema)
+    |> compose.()
+    |> select([u], u.id)
+    |> Repo.all()
+  end
+
+  @doc "The number of accounts `compose` keeps, as for `list_ids_where/1`."
+  @spec count_where((Ecto.Query.t() -> Ecto.Query.t())) :: non_neg_integer()
+  def count_where(compose) when is_function(compose, 1) do
+    from(u in UserSchema)
+    |> compose.()
+    |> Repo.aggregate(:count, :id)
+  end
 end
