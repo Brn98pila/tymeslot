@@ -58,9 +58,11 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Shared.IntegrationCard d
   attr :toggle_id, :string, default: nil, doc: "The switch's DOM id; defaults to `toggle-<id>`"
   attr :target, :any, default: nil
   attr :tags, :list, default: [], doc: "Event names shown as chips"
+
   attr :notice, :any,
     default: nil,
     doc: "What needs the owner's attention: a string, or a list of them shown one under another"
+
   attr :notice_tone, :atom, default: :warning, values: [:neutral, :warning, :danger]
 
   attr :heading_level, :integer,
