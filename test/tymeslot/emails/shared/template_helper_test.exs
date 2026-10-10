@@ -160,7 +160,7 @@ defmodule Tymeslot.Emails.Shared.TemplateHelperTest do
       details = TemplateHelper.attendee_meeting_details(payload(), :attendee)
 
       assert details.start_time == DateTime.shift_zone!(~U[2026-01-15 09:00:00Z], "Asia/Kolkata")
-      assert details.timezone == "Asia/Kolkata"
+      assert details.start_time.time_zone == "Asia/Kolkata"
       refute Map.has_key?(details, :audience)
       refute Map.has_key?(details, :time_format)
     end
@@ -169,17 +169,7 @@ defmodule Tymeslot.Emails.Shared.TemplateHelperTest do
       details = TemplateHelper.attendee_meeting_details(payload(), :guest)
 
       assert details.audience == :guest
-      assert details.timezone == "Asia/Kolkata"
-    end
-
-    test "attendee_meeting_details/2 renders a payload with no booker zone, unlabelled" do
-      details =
-        TemplateHelper.attendee_meeting_details(
-          Map.delete(payload(), :attendee_timezone),
-          :attendee
-        )
-
-      assert details.timezone == nil
+      assert details.start_time.time_zone == "Asia/Kolkata"
     end
 
     test "attendee_meeting_details/2 carries an all-day event's days" do
@@ -199,7 +189,6 @@ defmodule Tymeslot.Emails.Shared.TemplateHelperTest do
       assert details.start_time ==
                DateTime.shift_zone!(~U[2026-01-15 09:00:00Z], "Europe/Berlin")
 
-      assert details.timezone == "Europe/Berlin"
       assert details.time_format == "24h"
       assert details.audience == :host
     end

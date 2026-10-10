@@ -109,7 +109,6 @@ defmodule Tymeslot.Emails.Shared.TemplateHelper do
           required(:location) => String.t() | nil,
           required(:location_type) => atom() | nil,
           required(:meeting_type) => String.t() | nil,
-          required(:timezone) => String.t() | nil,
           optional(:time_format) => String.t() | nil,
           optional(:audience) => :host | :guest,
           optional(:all_day) => boolean(),
@@ -122,17 +121,12 @@ defmodule Tymeslot.Emails.Shared.TemplateHelper do
   locale uses. A guest's map is marked `audience: :guest`, which words the
   details for them rather than for the booker; the booker's carries no
   audience, the default wording.
-
-  A payload without `:attendee_timezone` still renders, with no zone named.
   """
   @spec attendee_meeting_details(map(), :attendee | :guest) :: meeting_details()
   def attendee_meeting_details(appointment_details, audience)
       when audience in [:attendee, :guest] do
     appointment_details
     |> shared_meeting_details(appointment_details.start_time_attendee_tz)
-    |> Map.merge(%{
-      timezone: Map.get(appointment_details, :attendee_timezone)
-    })
     |> put_audience(audience)
   end
 
@@ -151,7 +145,6 @@ defmodule Tymeslot.Emails.Shared.TemplateHelper do
     appointment_details
     |> shared_meeting_details(appointment_details.start_time_owner_tz)
     |> Map.merge(%{
-      timezone: Map.get(appointment_details, :owner_timezone),
       time_format: Map.get(appointment_details, :organizer_time_format),
       audience: :host
     })

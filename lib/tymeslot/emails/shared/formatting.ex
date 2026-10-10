@@ -202,8 +202,10 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   (`Tymeslot.Emails.Shared.TextBodyHelper`) render this one line, so the two
   cannot drift apart.
 
-  `:start_time` is already in the recipient's zone. Outside UTC the zone named
-  by `:timezone` follows the time, since an abbreviation alone is ambiguous;
+  `:start_time` is already in the recipient's zone, and that zone's name
+  follows the time outside UTC, since an abbreviation alone is ambiguous. It
+  is read from the start time itself, so a label can never name a zone the
+  time was not shifted into;
   `:time_format` is the organiser's chosen clock, nil for every other reader.
   A meeting ending on a later day says when it ends, and an all-day event
   (`all_day: true` with `:date` and an inclusive `:last_date`) has no clock
@@ -221,9 +223,7 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   def format_meeting_time(%{start_time: %DateTime{} = start_time} = details, locale) do
     time_format = Map.get(details, :time_format)
 
-    line =
-      format_time(start_time, locale, time_format) <>
-        zone_label(Map.get(details, :timezone))
+    line = format_time(start_time, locale, time_format) <> zone_name(start_time)
 
     case format_next_day_end(start_time, Map.get(details, :duration), locale, time_format) do
       nil -> line
@@ -232,9 +232,6 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   end
 
   def format_meeting_time(_details, _locale), do: nil
-
-  defp zone_label(zone) when is_binary(zone) and zone != "UTC", do: " (#{zone})"
-  defp zone_label(_zone), do: ""
 
   @doc """
   The duration of a meeting-details map: minutes for a timed meeting, the

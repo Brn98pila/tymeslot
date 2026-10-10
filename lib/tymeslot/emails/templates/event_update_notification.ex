@@ -65,7 +65,7 @@ defmodule Tymeslot.Emails.Templates.EventUpdateNotification do
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       meeting_details =
         details
-        |> Map.take([:all_day, :last_date, :timezone])
+        |> Map.take([:all_day, :last_date])
         |> Map.merge(%{
           date: details.date,
           start_time: details.start_time,

@@ -81,6 +81,28 @@ defmodule Tymeslot.Emails.Shared.TextBodyHelperTest do
       assert card =~ "02:30 PM IST (Asia/Kolkata)"
     end
 
+    test "names the zone the start time is in, not the one the map claims" do
+      text =
+        TextBodyHelper.format_meeting_details(
+          details(%{start_time: ~U[2026-01-15 14:00:00Z], timezone: "Bad/Zone"}),
+          "en"
+        )
+
+      assert text =~ "Time: 02:00 PM UTC\n"
+      refute text =~ "Bad/Zone"
+    end
+
+    test "names no zone for a start time in Etc/UTC, as an ad-hoc meeting has" do
+      text =
+        TextBodyHelper.format_meeting_details(
+          details(%{start_time: ~U[2026-01-15 14:00:00Z], timezone: "Etc/UTC"}),
+          "en"
+        )
+
+      assert text =~ "Time: 02:00 PM UTC\n"
+      refute text =~ "Etc/UTC"
+    end
+
     test "names no zone for UTC" do
       text = TextBodyHelper.format_meeting_details(details(%{timezone: "UTC"}), "en")
 

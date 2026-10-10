@@ -96,7 +96,7 @@ defmodule Tymeslot.Emails.Templates.RecipientTimeZoneTest do
     end
   end
 
-  test "a payload without the booker's zone still renders their time, unlabelled" do
+  test "a payload without the booker's zone still names the zone their time is in" do
     email =
       AppointmentCancellation.render(
         :attendee,
@@ -104,8 +104,8 @@ defmodule Tymeslot.Emails.Templates.RecipientTimeZoneTest do
         Map.delete(details(), :attendee_timezone)
       )
 
-    assert email.html_body =~ "02:30 PM IST"
-    assert email.text_body =~ "Time: 02:30 PM IST\n"
+    assert email.html_body =~ "02:30 PM IST (Asia/Kolkata)"
+    assert email.text_body =~ "Time: 02:30 PM IST (Asia/Kolkata)\n"
   end
 
   describe "a meeting on different days for the two sides" do
