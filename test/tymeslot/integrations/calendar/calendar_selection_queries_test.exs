@@ -57,9 +57,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueriesTest do
       {:ok, fresh} = CalendarIntegrationQueries.get(integration.id)
 
       {:ok, _saved} =
-        Selection.update_calendar_selection(fresh, %{
-          "selected_calendars" => ["work", "gone@example.com"]
-        })
+        select_only(fresh, ["work", "gone@example.com"])
 
       {:ok, updated} =
         CalendarSelectionQueries.deselect_calendars(integration, ["gone@example.com"])
@@ -67,5 +65,16 @@ defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueriesTest do
       assert Enum.find(updated.calendar_list, &(&1.id == "work")).selected == true
       assert Enum.find(updated.calendar_list, &(&1.id == "gone@example.com")).selected == false
     end
+  end
+
+  # Another writer's selection, landed on the row as it stands: only `ids`
+  # selected.
+  defp select_only(integration, ids) do
+    integration = Repo.reload!(integration)
+
+    Selection.persist_calendar_list(
+      integration,
+      Enum.map(integration.calendar_list, &%{&1 | selected: &1.id in ids})
+    )
   end
 end

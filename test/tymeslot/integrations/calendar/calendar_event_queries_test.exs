@@ -7,7 +7,6 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueriesTest do
   alias Tymeslot.Integrations.Calendar.AvailabilityView
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.CalendarEventQueries
-  alias Tymeslot.Integrations.Calendar.Selection
 
   describe "in_range/3 with blocking rules" do
     setup do

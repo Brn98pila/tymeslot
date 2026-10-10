@@ -7,6 +7,7 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.CalendarEntry
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.CalendarManagement
@@ -123,57 +124,6 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   end
 
   @doc """
-  Update calendar selection for an integration.
-  """
-  @spec update_calendar_selection(
-          Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t(),
-          %{String.t() => term()}
-        ) :: {:ok, Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t()} | {:error, any()}
-  def update_calendar_selection(integration, params) do
-    selected_calendar_ids = params["selected_calendars"] || []
-
-    # Applied to the row as it stands, so calendars a discovery refresh added
-    # since `integration` was read are kept rather than dropped.
-    CalendarSelectionQueries.with_locked(integration.id, fn fresh ->
-      calendar_list =
-        Enum.map(fresh.calendar_list || [], fn cal ->
-          entry = cal |> CalendarEntry.normalize() |> CalendarEntry.with_defaults()
-          is_selected = Enum.any?(selected_calendar_ids, &UriUtils.uri_safe_match?(entry.id, &1))
-          %{entry | selected: is_selected}
-        end)
-
-      persist_calendar_list(fresh, calendar_list)
-    end)
-  end
-
-  @doc """
-  Flips one calendar's selection, leaving every other calendar as the row
-  stands. Read and written under the row lock: a selection rebuilt from the
-  caller's copy would re-select a calendar a discovery refresh has since
-  dropped, or revert a choice made in another tab meanwhile.
-  """
-  @spec toggle_calendar(
-          Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t(),
-          String.t() | integer()
-        ) :: {:ok, Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t()} | {:error, any()}
-  def toggle_calendar(integration, calendar_id) do
-    calendar_id = to_string(calendar_id)
-
-    CalendarSelectionQueries.with_locked(integration.id, fn fresh ->
-      calendar_list =
-        Enum.map(fresh.calendar_list || [], fn cal ->
-          entry = cal |> CalendarEntry.normalize() |> CalendarEntry.with_defaults()
-
-          if UriUtils.uri_safe_match?(to_string(entry.id), calendar_id),
-            do: %{entry | selected: !entry.selected},
-            else: entry
-        end)
-
-      persist_calendar_list(fresh, calendar_list)
-    end)
-  end
-
-  @doc """
   Merges freshly `discovered` calendars into the integration's selection and
   persists the result, returning the updated integration and the merged list.
 
@@ -207,7 +157,7 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
       # A calendar that stopped blocking (gone from the provider) frees its
       # slots at once rather than after the cache expires.
       {:ok, {updated, merged, blocking_changed?}} ->
-        if blocking_changed?, do: AvailabilityCache.invalidate_for_user(updated.user_id)
+        if blocking_changed?, do: invalidate_after_commit({:ok, updated})
         {:ok, {updated, merged}}
 
       error ->
@@ -249,10 +199,57 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
           {:ok, Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t()}
           | {:error, Ecto.Changeset.t() | :not_found}
   def replace_selection(%{id: id}, attrs) when is_map(attrs) do
-    CalendarSelectionQueries.with_locked_stored(id, fn stored ->
+    id
+    |> CalendarSelectionQueries.with_locked_stored(fn stored ->
       CalendarManagement.update_calendar_integration(stored, attrs)
     end)
+    |> invalidate_after_commit()
   end
+
+  @doc """
+  Deselects the calendars `calendar_ids` of `integration` that the provider
+  answered as gone (HTTP 404), on the row as it stands
+  (`CalendarSelectionQueries.deselect_calendars/2`). A calendar that stopped
+  blocking frees its slots at once.
+  """
+  @spec deselect_missing(
+          Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t(),
+          [String.t()]
+        ) ::
+          {:ok, Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t()}
+          | {:error, Ecto.Changeset.t() | :not_found}
+  def deselect_missing(integration, calendar_ids) do
+    integration
+    |> CalendarSelectionQueries.deselect_calendars(calendar_ids)
+    |> invalidate_after_commit()
+  end
+
+  @doc """
+  `deselect_missing/2` for CalDAV collections, by path
+  (`CalendarSelectionQueries.remove_calendar_paths/2`).
+  """
+  @spec remove_missing_paths(
+          Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t(),
+          [String.t()]
+        ) ::
+          {:ok, Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t()}
+          | {:error, Ecto.Changeset.t() | :not_found}
+  def remove_missing_paths(integration, paths) do
+    integration
+    |> CalendarSelectionQueries.remove_calendar_paths(paths)
+    |> invalidate_after_commit()
+  end
+
+  # Dropped once the write commits, never inside a caller's transaction,
+  # where a read in between would cache the old answer again.
+  defp invalidate_after_commit({:ok, %{user_id: user_id}} = ok) do
+    unless CalendarIntegrationQueries.in_transaction?(),
+      do: AvailabilityCache.invalidate_for_user(user_id)
+
+    ok
+  end
+
+  defp invalidate_after_commit(error), do: error
 
   @doc """
   Persists `calendar_list` together with the `calendar_paths` derived from

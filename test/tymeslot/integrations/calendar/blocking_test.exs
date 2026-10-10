@@ -18,6 +18,7 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.OwnerActions
   alias Tymeslot.Integrations.Calendar.Runtime.EventFetcher
+  alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.MeetingTypes
@@ -337,6 +338,17 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
 
       {:ok, _updated} =
         OwnerActions.set_calendar_blocking(ctx.user.id, ctx.integration.id, "team", false)
+
+      assert "2:00 PM" in offered(ctx.profile, ctx.date, "30min")
+    end
+
+    test "frees a calendar's times at once when a reconnect replaces the selection", ctx do
+      refute "2:00 PM" in offered(ctx.profile, ctx.date, "30min")
+
+      list = Enum.map(ctx.integration.calendar_list, &%{&1 | selected: &1.id == "work"})
+
+      {:ok, _updated} =
+        Selection.replace_selection(ctx.integration, Selection.calendar_list_attrs(list))
 
       assert "2:00 PM" in offered(ctx.profile, ctx.date, "30min")
     end
