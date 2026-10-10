@@ -35,6 +35,28 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.CalendarsRemovedNotificationTest 
                execute_calendars_removed_notification(user.id, integration.id, ["Work", "Team"])
     end
 
+    # A failed send is retried, keeping what the delivery layer said: an open
+    # circuit is waited out rather than counted as an ordinary failure.
+    @tag :capture_log
+    test "returns a failed send as an error, so the job is retried" do
+      user = insert(:user)
+      integration = insert(:calendar_integration, user: user)
+
+      expect(EmailServiceMock, :send_calendars_removed_notification, fn _user, _int, _names ->
+        {:error, :circuit_open}
+      end)
+
+      assert {:error, :circuit_open} =
+               execute_calendars_removed_notification(user.id, integration.id, ["Work"])
+
+      expect(EmailServiceMock, :send_calendars_removed_notification, fn _user, _int, _names ->
+        {:error, :smtp_failed}
+      end)
+
+      assert {:error, "Failed to send notification"} =
+               execute_calendars_removed_notification(user.id, integration.id, ["Work"])
+    end
+
     test "discards, as expected, when the integration was deleted before the job ran" do
       user = insert(:user)
       integration = insert(:calendar_integration, user: user)
