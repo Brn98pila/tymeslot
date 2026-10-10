@@ -44,7 +44,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
 
       #{MeetingComponents.custom_answers_section(appointment_details)}
 
-      #{if attendee_video_url = JoinUrl.with_room_fallback(:attendee, appointment_details) do
+      #{if attendee_video_url = JoinUrl.for(:attendee, appointment_details) do
         MeetingComponents.video_meeting_section(@intent, attendee_video_url,
         title: dgettext("emails_booking", "Join when you're ready"),
         button_text: dgettext("emails_booking", "Join Meeting"))
@@ -239,7 +239,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
 
     video_section =
       TextBodyHelper.format_video_section(
-        JoinUrl.with_room_fallback(:attendee, appointment_details),
+        JoinUrl.for(:attendee, appointment_details),
         locale
       )
 

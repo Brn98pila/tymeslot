@@ -20,41 +20,26 @@ defmodule Tymeslot.Emails.Shared.JoinUrl do
       confers no moderator rights, because a server enforcing tokens refuses
       the bare URL outright.
 
-  The organiser URL falls back to the room URL: a meeting can carry
-  `meeting_url` without the per-role pair (its presence is also what marks a
-  booking as a video meeting; `AppointmentBuilder` derives
-  `location_type: :video` from it), and the host reaching the room beats no
-  join link at all. The guest URL falls back to the room URL for the same
-  reason: a payload assembled before `guest_video_url` existed, or by a caller
-  that builds its own map, still has a room to point at.
+  Every role falls back to the room URL. A meeting can carry `meeting_url`
+  without the per-role links (its presence is also what marks a booking as a
+  video meeting; `AppointmentBuilder` derives `location_type: :video` from
+  it), and reaching the room beats no join link at all: the organiser still
+  hosts, and the booker joins without the identity their own link would have
+  given them. A guest's falls back for the same reason: a payload assembled
+  before `guest_video_url` existed, or by a caller that builds its own map,
+  still has a room to point at.
   """
 
   @type role :: :organizer | :attendee | :guest
 
   @doc """
-  The join URL for `role`, or nil when the payload carries none for it.
-
-  The attendee has no fallback: `for/2` returns nil when no participant URL
-  was minted. Callers that prefer the bare room URL to no button at all use
-  `with_room_fallback/2`.
+  The join URL for `role`, falling back to the bare room URL (`meeting_url`);
+  nil only when the payload carries neither.
   """
   @spec for(role(), map()) :: String.t() | nil
-  def for(:organizer, details) do
-    Map.get(details, :organizer_video_url) || Map.get(details, :meeting_url)
-  end
+  def for(role, details), do: Map.get(details, own_link(role)) || Map.get(details, :meeting_url)
 
-  def for(:attendee, details), do: Map.get(details, :attendee_video_url)
-
-  def for(:guest, details) do
-    Map.get(details, :guest_video_url) || Map.get(details, :meeting_url)
-  end
-
-  @doc """
-  The join URL for `role`, falling back to the bare room URL (`meeting_url`)
-  when the payload carries no link for that role.
-  """
-  @spec with_room_fallback(role(), map()) :: String.t() | nil
-  def with_room_fallback(role, details) do
-    __MODULE__.for(role, details) || Map.get(details, :meeting_url)
-  end
+  defp own_link(:organizer), do: :organizer_video_url
+  defp own_link(:attendee), do: :attendee_video_url
+  defp own_link(:guest), do: :guest_video_url
 end
