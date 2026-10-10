@@ -4,7 +4,8 @@ defmodule Tymeslot.Availability.NilProfileTimezoneTest do
   page, the published free/busy feed and the time-off form's warning about
   bookings it covers all read the host's hours and time off on the default
   zone (`Tymeslot.Profiles.timezone/1`). They used to split, the booking page
-  on the default zone and the other two on UTC, hours apart.
+  on the default zone and the other two on UTC, hours apart. A blank stored
+  zone, or one the time-zone database does not know, is no zone either.
   """
   use Tymeslot.DataCase, async: false
 
@@ -16,6 +17,7 @@ defmodule Tymeslot.Availability.NilProfileTimezoneTest do
   alias Tymeslot.FreeBusy
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Profiles
+  alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.TestMocks
 
   setup do
@@ -40,36 +42,48 @@ defmodule Tymeslot.Availability.NilProfileTimezoneTest do
     %{user: user, profile: profile, date: date, zone: zone, period: period}
   end
 
-  test "the booking page withholds the time off on the default zone", ctx do
-    labels = ctx.profile |> offered(ctx.date, 60, timezone: ctx.zone) |> Enum.map(&label/1)
+  for {label, stored} <- [{"no", nil}, {"a blank", ""}, {"an unknown", "Not/AZone"}] do
+    describe "a host with #{label} timezone" do
+      setup ctx do
+        Repo.update_all(from(p in ProfileSchema, where: p.id == ^ctx.profile.id),
+          set: [timezone: unquote(stored)]
+        )
 
-    assert labels != []
-    refute "11:00 AM" in labels
-    refute "1:00 PM" in labels
-    assert "2:00 PM" in labels
-  end
+        %{profile: Repo.reload!(ctx.profile)}
+      end
 
-  test "the free/busy feed blocks the same hours", ctx do
-    from = DateTime.add(DateTime.new!(ctx.date, ~T[00:00:00], "Etc/UTC"), -1, :day)
-    to = DateTime.add(from, 3, :day)
+      test "the booking page withholds the time off on the default zone", ctx do
+        labels = ctx.profile |> offered(ctx.date, 60, timezone: ctx.zone) |> Enum.map(&label/1)
 
-    assert FreeBusy.busy_intervals(ctx.profile, from, to) == [
-             {local(ctx, ~T[11:00:00]), local(ctx, ~T[14:00:00])}
-           ]
-  end
+        assert labels != []
+        refute "11:00 AM" in labels
+        refute "1:00 PM" in labels
+        assert "2:00 PM" in labels
+      end
 
-  test "the time off warns about a booking inside it", ctx do
-    start_time = local(ctx, ~T[11:30:00])
+      test "the free/busy feed blocks the same hours", ctx do
+        from = DateTime.add(DateTime.new!(ctx.date, ~T[00:00:00], "Etc/UTC"), -1, :day)
+        to = DateTime.add(from, 3, :day)
 
-    meeting =
-      insert(:meeting,
-        organizer_user_id: ctx.user.id,
-        start_time: start_time,
-        end_time: DateTime.add(start_time, 30, :minute)
-      )
+        assert FreeBusy.busy_intervals(ctx.profile, from, to) == [
+                 {local(ctx, ~T[11:00:00]), local(ctx, ~T[14:00:00])}
+               ]
+      end
 
-    assert [%{id: id}] = TimeOff.conflicting_meetings(ctx.period)
-    assert id == meeting.id
+      test "the time off warns about a booking inside it", ctx do
+        start_time = local(ctx, ~T[11:30:00])
+
+        meeting =
+          insert(:meeting,
+            organizer_user_id: ctx.user.id,
+            start_time: start_time,
+            end_time: DateTime.add(start_time, 30, :minute)
+          )
+
+        assert [%{id: id}] = TimeOff.conflicting_meetings(ctx.period)
+        assert id == meeting.id
+      end
+    end
   end
 
   defp local(ctx, time),

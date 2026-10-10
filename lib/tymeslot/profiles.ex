@@ -28,6 +28,7 @@ defmodule Tymeslot.Profiles do
   alias Tymeslot.Security.FieldValidators.UsernameValidator
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Themes.Catalog
+  alias Tymeslot.Timezones
 
   @type user_id :: pos_integer()
   @type username :: String.t()
@@ -255,9 +256,16 @@ defmodule Tymeslot.Profiles do
   owner's clock: the booking page, time off, the free/busy feed and booking
   limits all go through it, and so agree on where a nil-timezone host's day
   begins. Takes anything carrying `:timezone`, or `nil` for no profile.
+
+  A blank zone, or one the time-zone database does not know
+  (`Timezones.valid?/1`), counts as none: every caller can shift into
+  whatever this returns.
   """
   @spec timezone(map() | nil) :: timezone
-  def timezone(%{timezone: timezone}) when is_binary(timezone), do: timezone
+  def timezone(%{timezone: timezone}) when is_binary(timezone) do
+    if Timezones.valid?(timezone), do: timezone, else: get_default_timezone()
+  end
+
   def timezone(_profile), do: get_default_timezone()
 
   @doc """
