@@ -24,12 +24,13 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
     calendars = Calendar.list_integrations(user_id)
     videos = Video.list_integrations(user_id)
     health_states = HealthCheck.health_states_for_user(user_id)
+    stuck_changes = Calendar.stuck_changes(user_id)
     connect_account = load_connect_account(payments_allowed?, user_id)
     payment_state = MeetingPayments.connect_display_state(connect_account)
 
     # A single attention list drives both the aggregated banner and the
     # per-tab status dots — one source of truth for "what needs attention".
-    attention = attention_items(calendars, videos, health_states, payment_state)
+    attention = attention_items(calendars, videos, health_states, stuck_changes, payment_state)
 
     {:ok,
      socket
@@ -41,7 +42,7 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
      |> assign(:calendars, calendars)
      |> assign(:videos, videos)
      |> assign(:health_states, health_states)
-     |> assign(:stuck_changes, Calendar.stuck_changes(user_id))
+     |> assign(:stuck_changes, stuck_changes)
      |> assign(:connect_account, connect_account)
      |> assign(:active_tab, parse_tab(assigns[:params], payments_allowed?))}
   end
@@ -99,22 +100,22 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
 
   # ── Attention aggregation ─────────────────────────────────────────
 
-  defp attention_items(calendars, videos, health_states, payment_state) do
+  defp attention_items(calendars, videos, health_states, stuck_changes, payment_state) do
     items =
-      integration_attention(calendars, health_states.calendar, :calendars) ++
-        integration_attention(videos, health_states.video, :video) ++
+      integration_attention(calendars, health_states.calendar, stuck_changes, :calendars) ++
+        integration_attention(videos, health_states.video, %{}, :video) ++
         payment_attention(payment_state)
 
     Enum.sort_by(items, &severity_rank(&1.severity))
   end
 
-  defp integration_attention(integrations, health_states, tab),
-    do: Enum.flat_map(integrations, &attention_for(&1, health_states, tab))
+  defp integration_attention(integrations, health_states, stuck_changes, tab),
+    do: Enum.flat_map(integrations, &attention_for(&1, health_states, stuck_changes, tab))
 
   # Delegates precedence (paused → needs_reauth → unhealthy → healthy) to the
   # canonical `HealthCheck.attention_status/2` classifier, the same one the
   # per-row badges use, so the two can never drift.
-  defp attention_for(integration, health_states, tab) do
+  defp attention_for(integration, health_states, stuck_changes, tab) do
     health = Map.get(health_states, integration.id)
 
     case HealthCheck.attention_status(integration, health) do
@@ -143,7 +144,8 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
         ]
 
       :ok ->
-        room_creation_attention(integration, tab)
+        room_creation_attention(integration, tab) ++
+          stuck_attention(Map.get(stuck_changes, integration.id), integration, tab)
 
       _paused ->
         []
@@ -173,6 +175,29 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
 
   # Calendar integrations have no such field, and so no such refusal.
   defp room_creation_attention(_integration, _tab), do: []
+
+  # CalDAV changes made in Tymeslot that the server kept refusing are no
+  # longer sent (`Calendar.stuck_changes/1`), so the calendar differs from the
+  # grid until the owner retries them from the calendar's card. Like the
+  # card's notice, only for an otherwise healthy integration: a paused or
+  # disconnected one reports that first, and offers no retry.
+  defp stuck_attention(nil, _integration, _tab), do: []
+
+  defp stuck_attention(%{count: count}, integration, tab),
+    do: [
+      %{
+        tab: tab,
+        severity: :warning,
+        message:
+          dngettext(
+            "dashboard_integrations",
+            "%{name}: 1 change made here was not saved to the calendar.",
+            "%{name}: %{count} changes made here were not saved to the calendar.",
+            count,
+            name: integration.name
+          )
+      }
+    ]
 
   defp payment_attention(:restricted),
     do: [

@@ -442,3 +442,10 @@ msgstr "Elimina integrazione %{type}"
 #, elixir-autogen, elixir-format
 msgid "Your Stripe account's currency is not supported. Choose another to take payments."
 msgstr "La valuta del tuo account Stripe non è supportata. Scegline un'altra per accettare pagamenti."
+
+#: lib/tymeslot_web/live/dashboard/integrations_hub_component.ex
+#, elixir-autogen, elixir-format
+msgid "%{name}: 1 change made here was not saved to the calendar."
+msgid_plural "%{name}: %{count} changes made here were not saved to the calendar."
+msgstr[0] "%{name}: %{count} modifica fatta qui non è stata salvata nel calendario."
+msgstr[1] "%{name}: %{count} modifiche fatte qui non sono state salvate nel calendario."
