@@ -8,26 +8,27 @@ defmodule Tymeslot.Security.Encryption do
   one-byte version prefix identifying the key that produced them, so several keys
   can coexist and data can be rotated from one key to another without downtime.
 
-    * **v0 (legacy)** — the historical format: `nonce <> tag <> ciphertext` with no
-      version prefix, encrypted under a key *derived from* `SECRET_KEY_BASE`. This
-      welded data-at-rest protection to the cookie-signing secret. The legacy key
-      stays available for decrypt-only so existing values keep opening.
-    * **v1 (primary)** — `<<1>> <> nonce <> tag <> ciphertext`, encrypted under the
-      dedicated `DATA_ENCRYPTION_KEY`. This is what new writes use once the key is
-      configured.
+    * **v0 (legacy)**: the historical format, `nonce <> tag <> ciphertext` with no
+      version prefix, encrypted under a key *derived from* `SECRET_KEY_BASE`. It
+      stays readable until the operator sets `LEGACY_KEY_RETIRED`.
+    * **v1 to v255**: `<<version>> <> nonce <> tag <> ciphertext`, encrypted under
+      the key with that id in `DATA_ENCRYPTION_KEYS`, or under
+      `DATA_ENCRYPTION_KEY`, which is always key 1.
 
-  Rotating to a future key is a one-line addition (`@current_version` bump plus a
-  keyring entry) followed by a re-encryption sweep — never a wipe.
+  `Tymeslot.Security.Encryption.Keyring` builds the keyring from configuration
+  and documents the settings. New writes use the primary key; every other
+  configured key stays readable. Rotating is a configuration change followed by
+  the re-encryption sweep (`Tymeslot.Security.CredentialReencryption`), never a
+  wipe: the README's "Data-at-rest encryption" section has the procedure.
 
   ## Graceful rollout
 
-  When `DATA_ENCRYPTION_KEY` is absent the keyring falls back to writing the legacy
-  v0 format, so deploying this code with no environment change preserves the exact
-  previous behaviour. Setting the key flips new writes to v1; running the
-  re-encryption sweep (`mix tymeslot.reencrypt_credentials` from a source install,
-  or `Tymeslot.Security.CredentialReencryption.run/0` via `bin/tymeslot eval` for a
-  release — see README) then migrates existing v0 values to v1. Only a
-  *malformed* key raises — an absent one is treated as "not opted in yet".
+  With no versioned key configured the keyring writes the legacy v0 format, so an
+  install that never set `DATA_ENCRYPTION_KEY` keeps its exact previous
+  behaviour, and one with a single `DATA_ENCRYPTION_KEY` keeps writing v1. The
+  keyring is built and validated at boot (`validate!/0`), so a malformed key or
+  an impossible combination stops the application from starting rather than
+  failing on the first credential it touches.
 
   ## Failure surface
 
@@ -38,10 +39,11 @@ defmodule Tymeslot.Security.Encryption do
   for reauthentication instead of crashing.
   """
 
-  @aad "Tymeslot.Encryption"
+  alias Tymeslot.Security.Encryption.Keyring
+
+  @aad Keyring.aad()
 
   @legacy_version 0
-  @current_version 1
 
   @nonce_size 12
   @tag_size 16
@@ -188,11 +190,28 @@ defmodule Tymeslot.Security.Encryption do
   def current?(_value), do: false
 
   @doc """
-  The primary key version new writes are stamped with. `0` means no dedicated
-  `DATA_ENCRYPTION_KEY` is configured and writes still use the legacy format.
+  The primary key version new writes are stamped with. `0` means no versioned
+  key is configured and writes still use the legacy format.
   """
   @spec current_version() :: non_neg_integer()
   def current_version, do: keyring().current_version
+
+  @doc """
+  Builds and caches the keyring, raising with an operator-readable message when
+  the key configuration cannot work. Called once at application start.
+  """
+  @spec validate!() :: :ok
+  def validate! do
+    reset_keyring()
+    _keyring = keyring()
+    :ok
+  end
+
+  @doc """
+  Whether `LEGACY_KEY_RETIRED` is in effect, so v0 values no longer open.
+  """
+  @spec legacy_key_retired?() :: boolean()
+  def legacy_key_retired?, do: is_nil(keyring().legacy_key)
 
   @doc false
   # Drops the cached keyring so the next call rebuilds it from current config.
@@ -212,6 +231,10 @@ defmodule Tymeslot.Security.Encryption do
     end
   end
 
+  # With the legacy key retired, a value no versioned key opens cannot be told
+  # apart from a v0 value, so it is reported as unreadable and left untouched.
+  defp legacy_decrypt(_value, nil), do: {:error, :requires_reencryption}
+
   defp legacy_decrypt(
          <<nonce::binary-size(@nonce_size), tag::binary-size(@tag_size), ciphertext::binary>>,
          key
@@ -227,63 +250,12 @@ defmodule Tymeslot.Security.Encryption do
   defp keyring do
     case :persistent_term.get({__MODULE__, :keyring}, nil) do
       nil ->
-        built = build_keyring()
+        built = Keyring.build!()
         :persistent_term.put({__MODULE__, :keyring}, built)
         built
 
       built ->
         built
-    end
-  end
-
-  defp build_keyring do
-    legacy_key = legacy_key()
-
-    case data_key() do
-      nil ->
-        # No dedicated key configured — behave exactly as before: read and write
-        # the legacy v0 format derived from SECRET_KEY_BASE.
-        %{current_version: @legacy_version, keys: %{}, legacy_key: legacy_key}
-
-      key ->
-        %{
-          current_version: @current_version,
-          keys: %{@current_version => key},
-          legacy_key: legacy_key
-        }
-    end
-  end
-
-  defp legacy_key do
-    secret_base = Application.get_env(:tymeslot, TymeslotWeb.Endpoint)[:secret_key_base]
-
-    if is_nil(secret_base) or byte_size(secret_base) < 64 do
-      raise "SECRET_KEY_BASE must be at least 64 bytes for secure encryption"
-    end
-
-    :crypto.hash(:sha256, secret_base <> @aad)
-  end
-
-  defp data_key do
-    case Application.get_env(:tymeslot, __MODULE__)[:data_encryption_key] do
-      nil -> nil
-      encoded -> encoded |> String.trim() |> trimmed_data_key()
-    end
-  end
-
-  defp trimmed_data_key(""), do: nil
-  defp trimmed_data_key(trimmed), do: derive_data_key(trimmed)
-
-  defp derive_data_key(encoded) do
-    case Base.decode64(encoded) do
-      {:ok, raw} when byte_size(raw) >= 32 ->
-        :crypto.hash(:sha256, raw)
-
-      {:ok, raw} ->
-        raise "DATA_ENCRYPTION_KEY must decode to at least 32 bytes of entropy, got #{byte_size(raw)}"
-
-      :error ->
-        raise "DATA_ENCRYPTION_KEY must be valid Base64"
     end
   end
 end

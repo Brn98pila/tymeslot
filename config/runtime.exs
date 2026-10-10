@@ -135,16 +135,18 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  # Data-at-rest encryption key, decoupled from SECRET_KEY_BASE so the cookie
-  # signing secret can be rotated without touching stored credentials. Absent is
-  # allowed (the keyring falls back to the legacy SECRET_KEY_BASE-derived key and
-  # keeps writing the old format), so existing deployments upgrade with no change;
-  # a malformed value raises in the encryption module. Once set, run the
-  # re-encryption sweep (see README, "Data-at-rest encryption") to migrate
-  # existing values, then the two secrets are fully independent.
+  # Data-at-rest encryption keys, decoupled from SECRET_KEY_BASE so the cookie
+  # signing secret can be rotated without touching stored credentials.
+  # DATA_ENCRYPTION_KEY is key 1; DATA_ENCRYPTION_KEYS ("2:<b64>,1:<b64>", first
+  # entry primary) adds keys for rotation. Both absent is allowed (the keyring
+  # falls back to the legacy SECRET_KEY_BASE-derived key and keeps writing the
+  # old format), so existing deployments upgrade with no change; a malformed
+  # value stops the boot (see Tymeslot.Security.Encryption.Keyring). Once a key
+  # is set, run the re-encryption sweep (see README, "Data-at-rest encryption").
   data_encryption_key = System.get_env("DATA_ENCRYPTION_KEY")
+  data_encryption_keys = System.get_env("DATA_ENCRYPTION_KEYS")
 
-  if is_nil(data_encryption_key) do
+  if is_nil(data_encryption_key) and is_nil(data_encryption_keys) do
     IO.warn(
       "DATA_ENCRYPTION_KEY is not set; data-at-rest credentials are still encrypted " <>
         "with a key derived from SECRET_KEY_BASE. Rotating SECRET_KEY_BASE would make " <>
@@ -155,7 +157,10 @@ if config_env() == :prod do
     )
   end
 
-  config :tymeslot, Tymeslot.Security.Encryption, data_encryption_key: data_encryption_key
+  config :tymeslot, Tymeslot.Security.Encryption,
+    data_encryption_key: data_encryption_key,
+    data_encryption_keys: data_encryption_keys,
+    legacy_key_retired: System.get_env("LEGACY_KEY_RETIRED") in ["true", "1", "yes"]
 
   host =
     System.get_env("PHX_HOST") ||
