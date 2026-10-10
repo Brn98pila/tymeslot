@@ -71,9 +71,7 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
 
       MjmlEmail.base_email()
       |> to(recipient(meeting.organizer_name, organizer_email))
-      |> subject(
-        Sanitise.sanitize_for_header(email_subject(discrepancy, meeting.title, date_short))
-      )
+      |> subject(email_subject(discrepancy, meeting.title, date_short))
       |> html_body(html_body)
       |> text_body(text_body)
     end)
@@ -148,12 +146,10 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
       MjmlEmail.base_email()
       |> to(recipient(meeting.organizer_name, organizer_email))
       |> subject(
-        Sanitise.sanitize_for_header(
-          dgettext("emails_booking", "\"%{title}\" now ends at %{time} (%{date})",
-            title: title,
-            time: to,
-            date: Formatting.format_date_short(owner_time, locale)
-          )
+        dgettext("emails_booking", "\"%{title}\" now ends at %{time} (%{date})",
+          title: title,
+          time: to,
+          date: Formatting.format_date_short(owner_time, locale)
         )
       )
       |> html_body(html_body)

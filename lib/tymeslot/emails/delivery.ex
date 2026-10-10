@@ -283,10 +283,17 @@ defmodule Tymeslot.Emails.Delivery do
   def timeout_error?({504, _body}), do: true
   def timeout_error?(_reason), do: false
 
-  # Header values reach the adapter's header encoding as they are. A CR or LF
-  # in a display name or subject (an attendee's name, a meeting title) is
-  # replaced here, once, rather than by each template remembering to.
-  defp sanitise_headers(%Swoosh.Email{} = email) do
+  @doc """
+  `email` as `deliver/2` hands it to the adapter: every display name and the
+  subject stripped of control characters, everything else (addresses,
+  bodies, private data) as it was.
+
+  Header values reach the adapter's header encoding as they are, so a CR or
+  LF in a display name or subject (an attendee's name, a meeting title) is
+  replaced here, once, rather than by each template remembering to.
+  """
+  @spec sanitise_headers(Swoosh.Email.t()) :: Swoosh.Email.t()
+  def sanitise_headers(%Swoosh.Email{} = email) do
     %{
       email
       | subject: Sanitise.sanitize_for_header(email.subject),

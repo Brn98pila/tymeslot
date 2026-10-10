@@ -26,7 +26,6 @@ defmodule Tymeslot.Emails.Templates.MeetingEndChanged do
     JoinUrl,
     MeetingComponents,
     MjmlEmail,
-    Sanitise,
     TemplateHelper,
     Text,
     TextBodyHelper
@@ -132,7 +131,7 @@ defmodule Tymeslot.Emails.Templates.MeetingEndChanged do
 
     MjmlEmail.base_email()
     |> to(recipient)
-    |> subject(Sanitise.sanitize_for_header(subject))
+    |> subject(subject)
     |> html_body(TemplateHelper.compile_template(mjml_content, header))
     |> text_body(
       text_body(appointment_details, meeting_details, intro, {to, from}, video_url, locale)

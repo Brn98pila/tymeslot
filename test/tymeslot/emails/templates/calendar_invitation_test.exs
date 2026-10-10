@@ -2,6 +2,7 @@ defmodule Tymeslot.Emails.Templates.CalendarInvitationTest do
   use Tymeslot.DataCase, async: true
   @moduletag :emails
 
+  alias Tymeslot.Emails.Delivery
   alias Tymeslot.Emails.Templates.CalendarInvitation
 
   describe "render/2" do
@@ -195,6 +196,7 @@ defmodule Tymeslot.Emails.Templates.CalendarInvitationTest do
 
       email = CalendarInvitation.render("guest@example.com", details)
 
+      email = Delivery.sanitise_headers(email)
       refute email.subject =~ "\r"
       refute email.subject =~ "\n"
     end

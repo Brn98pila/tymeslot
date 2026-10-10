@@ -70,13 +70,11 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestExpired do
       MjmlEmail.base_email()
       |> to({meeting.organizer_name, meeting.organizer_email})
       |> subject(
-        Sanitise.sanitize_for_header(
-          dgettext(
-            "emails_booking_requests",
-            "Reschedule request expired, booking cancelled: %{name} - %{date}",
-            name: meeting.attendee_name,
-            date: Formatting.format_date_short(host_time, locale)
-          )
+        dgettext(
+          "emails_booking_requests",
+          "Reschedule request expired, booking cancelled: %{name} - %{date}",
+          name: meeting.attendee_name,
+          date: Formatting.format_date_short(host_time, locale)
         )
       )
       |> html_body(html_body)

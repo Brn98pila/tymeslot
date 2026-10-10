@@ -9,6 +9,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmationOrganizerTest do
   use Tymeslot.DataCase, async: true
   @moduletag :emails
 
+  alias Tymeslot.Emails.Delivery
   alias Tymeslot.Emails.Templates.AppointmentConfirmation
   import Tymeslot.EmailTestHelpers
 
@@ -399,6 +400,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmationOrganizerTest do
       email =
         AppointmentConfirmation.render(:organizer, "organizer@example.com", details)
 
+      email = Delivery.sanitise_headers(email)
       refute email.subject =~ "\r"
       refute email.subject =~ "\n"
     end

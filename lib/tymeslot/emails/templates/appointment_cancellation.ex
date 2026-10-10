@@ -23,7 +23,6 @@ defmodule Tymeslot.Emails.Templates.AppointmentCancellation do
     Formatting,
     MeetingComponents,
     MjmlEmail,
-    Sanitise,
     TemplateHelper,
     Text,
     TextBodyHelper,
@@ -73,11 +72,9 @@ defmodule Tymeslot.Emails.Templates.AppointmentCancellation do
       MjmlEmail.base_email()
       |> to({appointment_details.attendee_name, attendee_email})
       |> subject(
-        Sanitise.sanitize_for_header(
-          dgettext("emails_booking", "Spot cancelled - %{date} with %{name}",
-            date: Formatting.format_date_short(meeting_details.date, locale),
-            name: appointment_details.organizer_name
-          )
+        dgettext("emails_booking", "Spot cancelled - %{date} with %{name}",
+          date: Formatting.format_date_short(meeting_details.date, locale),
+          name: appointment_details.organizer_name
         )
       )
       |> html_body(TemplateHelper.compile_template(mjml_content, organizer_details))
@@ -124,11 +121,9 @@ defmodule Tymeslot.Emails.Templates.AppointmentCancellation do
       MjmlEmail.base_email()
       |> to({appointment_details.attendee_name, attendee_email})
       |> subject(
-        Sanitise.sanitize_for_header(
-          dgettext("emails_booking", "Meeting Cancelled - %{date} with %{name}",
-            date: date_short,
-            name: appointment_details.organizer_name
-          )
+        dgettext("emails_booking", "Meeting Cancelled - %{date} with %{name}",
+          date: date_short,
+          name: appointment_details.organizer_name
         )
       )
       |> html_body(html_body)
@@ -171,11 +166,9 @@ defmodule Tymeslot.Emails.Templates.AppointmentCancellation do
       MjmlEmail.base_email()
       |> to({guest_name, guest_email})
       |> subject(
-        Sanitise.sanitize_for_header(
-          dgettext("emails_booking", "Meeting Cancelled - %{date} with %{name}",
-            date: date_short,
-            name: appointment_details.organizer_name
-          )
+        dgettext("emails_booking", "Meeting Cancelled - %{date} with %{name}",
+          date: date_short,
+          name: appointment_details.organizer_name
         )
       )
       |> html_body(html_body)
@@ -217,15 +210,13 @@ defmodule Tymeslot.Emails.Templates.AppointmentCancellation do
       MjmlEmail.base_email()
       |> to({appointment_details.organizer_name, organizer_email})
       |> subject(
-        Sanitise.sanitize_for_header(
-          dgettext("emails_booking", "Meeting Cancelled - %{date} with %{name}",
-            date:
-              Formatting.format_date_short(
-                meeting_details.date,
-                organizer_locale(appointment_details)
-              ),
-            name: appointment_details.attendee_name
-          )
+        dgettext("emails_booking", "Meeting Cancelled - %{date} with %{name}",
+          date:
+            Formatting.format_date_short(
+              meeting_details.date,
+              organizer_locale(appointment_details)
+            ),
+          name: appointment_details.attendee_name
         )
       )
       |> html_body(html_body)

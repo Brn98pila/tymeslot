@@ -6,6 +6,7 @@ defmodule Tymeslot.Emails.Templates.CalendarsRemovedTest do
   @moduletag :emails
   @moduletag :calendar
 
+  alias Tymeslot.Emails.Delivery
   alias Tymeslot.Emails.EmailService.IntegrationEmails
   alias Tymeslot.Emails.Templates.CalendarsRemoved
 
@@ -54,7 +55,10 @@ defmodule Tymeslot.Emails.Templates.CalendarsRemovedTest do
 
   # The name comes from the calendar server and lands in a header.
   test "keeps a line break in a calendar's name out of the subject" do
-    email = CalendarsRemoved.render(@user, @integration, ["Projects\r\nBcc: x@example.com"])
+    email =
+      Delivery.sanitise_headers(
+        CalendarsRemoved.render(@user, @integration, ["Projects\r\nBcc: x@example.com"])
+      )
 
     assert email.subject == "“Projects Bcc: x@example.com” is no longer on your calendar server"
   end

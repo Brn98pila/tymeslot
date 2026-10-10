@@ -28,7 +28,6 @@ defmodule Tymeslot.Emails.Templates.CalendarInvitation do
     Formatting,
     MeetingComponents,
     MjmlEmail,
-    Sanitise,
     TemplateHelper,
     TextBodyHelper
   }
@@ -98,7 +97,7 @@ defmodule Tymeslot.Emails.Templates.CalendarInvitation do
 
       MjmlEmail.base_email()
       |> to(attendee_email)
-      |> subject(Sanitise.sanitize_for_header(copy.subject))
+      |> subject(copy.subject)
       |> html_body(html_body)
       |> text_body(build_text_body(invitation_details, meeting_details, copy, locale))
       |> attachment(build_ics_attachment(ics_details, invitation_details, locale))

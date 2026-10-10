@@ -28,7 +28,6 @@ defmodule Tymeslot.Emails.Templates.SeatUpdateForOrganizer do
     Formatting,
     MeetingComponents,
     MjmlEmail,
-    Sanitise,
     TemplateHelper,
     Text,
     TextBodyHelper
@@ -77,7 +76,7 @@ defmodule Tymeslot.Emails.Templates.SeatUpdateForOrganizer do
 
       MjmlEmail.base_email()
       |> to({details.organizer_name, organizer_email})
-      |> subject(Sanitise.sanitize_for_header(copy.subject))
+      |> subject(copy.subject)
       |> html_body(TemplateHelper.compile_template(mjml_content, stage))
       |> text_body(text_body(details, meeting_details, copy, locale))
     end)

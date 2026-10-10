@@ -64,7 +64,7 @@ defmodule Tymeslot.Emails.Shared.IntegrationNotice do
   def email(user, copy) do
     MjmlEmail.base_email()
     |> Email.to({Map.get(user, :name) || user.email, user.email})
-    |> Email.subject(Sanitise.sanitize_for_header(copy.subject))
+    |> Email.subject(copy.subject)
     |> Email.html_body(html(copy))
     |> Email.text_body(text(copy))
   end
