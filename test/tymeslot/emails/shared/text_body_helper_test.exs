@@ -132,4 +132,18 @@ defmodule Tymeslot.Emails.Shared.TextBodyHelperTest do
       assert TextBodyHelper.format_action_links(%{}, "en") == ""
     end
   end
+
+  describe "format_video_section/2" do
+    test "lists a web join link" do
+      text = TextBodyHelper.format_video_section("https://meet.example.com/room", "en")
+
+      assert text =~ "JOIN VIDEO MEETING:\nhttps://meet.example.com/room"
+    end
+
+    test "is empty for a bare room id, a mailto address or an unsafe link" do
+      for url <- ["room-1234", "mailto:host@example.com", "javascript:alert(1)", "", nil] do
+        assert TextBodyHelper.format_video_section(url, "en") == "", inspect(url)
+      end
+    end
+  end
 end

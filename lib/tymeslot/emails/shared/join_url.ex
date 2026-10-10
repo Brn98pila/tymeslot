@@ -33,11 +33,16 @@ defmodule Tymeslot.Emails.Shared.JoinUrl do
   @type role :: :organizer | :attendee | :guest
 
   @doc """
-  The join URL for `role`, falling back to the bare room URL (`meeting_url`);
-  nil only when the payload carries neither.
+  The join URL for `role`, falling back to the bare room URL (`meeting_url`)
+  when the role's own link is missing or empty; nil only when the payload
+  carries neither.
   """
   @spec for(role(), map()) :: String.t() | nil
-  def for(role, details), do: Map.get(details, own_link(role)) || Map.get(details, :meeting_url)
+  def for(role, details),
+    do: present(Map.get(details, own_link(role))) || present(Map.get(details, :meeting_url))
+
+  defp present(""), do: nil
+  defp present(url), do: url
 
   defp own_link(:organizer), do: :organizer_video_url
   defp own_link(:attendee), do: :attendee_video_url

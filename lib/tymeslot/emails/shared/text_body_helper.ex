@@ -46,10 +46,18 @@ defmodule Tymeslot.Emails.Shared.TextBodyHelper do
   end
 
   @doc """
-  Formats video meeting section for text body.
+  The join link block of a text body, or `""` unless `meeting_url` is a web
+  address (`Sanitise.safe_web_url?/1`): a bare room id or a `mailto:` address
+  is no way into the meeting, as the HTML join section also refuses.
   """
   @spec format_video_section(String.t() | nil, String.t()) :: String.t()
-  def format_video_section(meeting_url, locale) when is_binary(meeting_url) do
+  def format_video_section(meeting_url, locale) do
+    if Sanitise.safe_web_url?(meeting_url),
+      do: video_section(meeting_url, locale),
+      else: ""
+  end
+
+  defp video_section(meeting_url, locale) do
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       """
 
@@ -59,8 +67,6 @@ defmodule Tymeslot.Emails.Shared.TextBodyHelper do
       """
     end)
   end
-
-  def format_video_section(_meeting_url, _locale), do: ""
 
   @doc """
   The ACTIONS block of a text body: one line per action the payload carries a

@@ -32,5 +32,17 @@ defmodule Tymeslot.Emails.Shared.JoinUrlTest do
       assert JoinUrl.for(:attendee, %{}) == nil
       assert JoinUrl.for(:guest, %{}) == nil
     end
+
+    test "treats an empty own link as absent, so the room URL applies" do
+      details = %{meeting_url: "https://meet.example.com/room"}
+
+      for {role, key} <- [
+            organizer: :organizer_video_url,
+            attendee: :attendee_video_url,
+            guest: :guest_video_url
+          ] do
+        assert JoinUrl.for(role, Map.put(details, key, "")) == "https://meet.example.com/room"
+      end
+    end
   end
 end

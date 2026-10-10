@@ -70,5 +70,19 @@ defmodule Tymeslot.Emails.Templates.OrganizerPrepChecklistTest do
       assert_both_parts_list(email, ["Location confirmed"])
       refute email.text_body =~ "Camera"
     end
+
+    test "asks for the location when the only join link is not a web address" do
+      details =
+        build_appointment_details(%{
+          meeting_url: nil,
+          organizer_video_url: "javascript:alert(1)",
+          attendee_video_url: nil
+        })
+
+      email = AppointmentReminder.render(:organizer, "organizer@example.com", details)
+
+      assert_both_parts_list(email, ["Location confirmed"])
+      refute email.html_body =~ "Camera"
+    end
   end
 end

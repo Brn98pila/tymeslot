@@ -256,7 +256,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
 
     #{dgettext("emails_booking", "DETAILS:")}
     #{meeting_details}#{TextBodyHelper.format_organizer_note(appointment_details, locale)}#{video_section}#{custom_answers}
-    #{dgettext("emails_booking", "Need to change plans?")}#{action_links}
+    #{if action_links != "", do: dgettext("emails_booking", "Need to change plans?") <> action_links}
 
     #{dgettext("emails_booking", "See you %{time_until}!", time_until: appointment_details.time_until_friendly || dgettext("emails_booking", "soon"))}
 
@@ -343,7 +343,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
   def organizer_prep_items(appointment_details) do
     Gettext.with_locale(TymeslotWeb.Gettext, organizer_locale(appointment_details), fn ->
       [
-        if(JoinUrl.for(:organizer, appointment_details),
+        if(Sanitise.safe_web_url?(JoinUrl.for(:organizer, appointment_details)),
           do: dgettext("emails_booking", "Camera & mic ready"),
           else: dgettext("emails_booking", "Location confirmed")
         ),

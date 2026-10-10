@@ -30,7 +30,7 @@ defmodule Tymeslot.Emails.Templates.MissingActionUrlsTest do
   end
 
   defp refute_dead_links(email) do
-    refute email.html_body =~ ~s(href="#")
+    refute email.html_body =~ ~r/href="(#|\s*)"/
     refute email.html_body =~ "javascript:"
     refute email.text_body =~ ": #"
     refute email.text_body =~ "javascript:"
@@ -47,6 +47,8 @@ defmodule Tymeslot.Emails.Templates.MissingActionUrlsTest do
         refute email.text_body =~ "Reschedule:"
         refute email.text_body =~ "Cancel:"
         refute email.text_body =~ "ACTIONS:"
+        refute email.text_body =~ "Need to change plans?"
+        refute email.text_body =~ "Need to make changes?"
       end
 
       test "the organiser gets no reschedule or cancel action without a URL" do
