@@ -24,19 +24,18 @@ defmodule Tymeslot.Webhooks.InputValidation do
   # Interactive validation (every blur, every event-checkbox toggle) and the
   # actual save used to share this one bucket, so typing could spend the
   # budget the save needed and refuse a save the user never rate-limited
-  # themselves on. Interactive callers pass `:bucket` / `:limit` to use a
-  # separate, looser budget; the save path keeps the defaults below.
-  @default_bucket "webhook_form"
-  @default_limit 60
-  @window_ms 60_000
+  # themselves on. Interactive callers pass `bucket: :webhook_form_validate`
+  # for a separate, looser budget; the save path keeps the default.
+  @default_bucket :webhook_form
 
   @doc """
   Validates webhook form input.
 
   ## Parameters
   - `params` - Map containing webhook form parameters
-  - `opts` - Options including metadata for logging, plus `:bucket` and
-    `:limit` to use a rate-limit budget other than the save path's default
+  - `opts` - Options including metadata for logging, plus `:bucket`, the
+    `Tymeslot.Security.RateLimiter.Limits` entry to charge in place of the
+    save path's `:webhook_form`
 
   ## Returns
   - `{:ok, sanitized_params}` | `{:error, validation_errors}`
@@ -46,9 +45,8 @@ defmodule Tymeslot.Webhooks.InputValidation do
   def validate_webhook_form(params, opts \\ []) do
     metadata = Keyword.get(opts, :metadata, %{})
     bucket = Keyword.get(opts, :bucket, @default_bucket)
-    limit = Keyword.get(opts, :limit, @default_limit)
 
-    case check_rate_limit(bucket, metadata, limit) do
+    case check_rate_limit(bucket, metadata) do
       :ok ->
         with {:ok, sanitized_params} <- sanitize_text_fields(params, metadata) do
           sanitized_params
@@ -112,25 +110,21 @@ defmodule Tymeslot.Webhooks.InputValidation do
   # break: never one instance-wide bucket, the actor is always required.
   # A bare literal key gave every logged-in user of an instance the same 60/min
   # budget, so one of them could refuse webhook edits for all the others.
-  defp check_rate_limit(bucket_key, metadata, limit) do
-    case RateLimiter.check_rate_limit(actor_bucket(bucket_key, metadata), limit, @window_ms) do
+  defp check_rate_limit(bucket, metadata) do
+    case RateLimiter.check(bucket, actor(metadata)) do
       :ok -> :ok
-      {:error, _reason} -> {:error, :rate_limited}
+      {:error, :rate_limited, _message} -> {:error, :rate_limited}
     end
   end
 
-  defp actor_bucket(bucket_key, %{user_id: nil} = metadata),
-    do: actor_bucket(bucket_key, Map.delete(metadata, :user_id))
-
-  defp actor_bucket(bucket_key, %{user_id: user_id}), do: "#{bucket_key}:user:#{user_id}"
-
-  defp actor_bucket(bucket_key, %{ip: ip}) when is_binary(ip),
-    do: "#{bucket_key}:ip:#{RateLimiter.source_key(ip)}"
+  defp actor(%{user_id: nil} = metadata), do: actor(Map.delete(metadata, :user_id))
+  defp actor(%{user_id: user_id}), do: "user:#{user_id}"
+  defp actor(%{ip: ip}) when is_binary(ip), do: "ip:#{RateLimiter.source_key(ip)}"
 
   # Still reachable: validate_webhook_form/2's `metadata` opt defaults to
-  # %{}, so a caller that omits it (every current one supplies it) falls
-  # through to a bare, instance-wide bucket rather than crashing.
-  defp actor_bucket(bucket_key, _metadata), do: bucket_key
+  # %{}, so a caller that omits it (every current one supplies it) shares one
+  # bucket with every other such caller rather than crashing.
+  defp actor(_metadata), do: "unknown"
 
   defp translate_errors(changeset) do
     Changeset.traverse_errors(changeset, fn {msg, opts} ->

@@ -32,7 +32,7 @@ defmodule Tymeslot.Auth.Session do
   def create_session(user_id, opts \\ []) do
     revoke_token(opts[:replacing])
 
-    token = Token.generate_session_token()
+    token = Token.generate()
 
     expires_at =
       DateTime.truncate(DateTime.add(DateTime.utc_now(), @session_ttl_hours, :hour), :second)

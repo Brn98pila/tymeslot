@@ -4,6 +4,16 @@ defmodule Tymeslot.Security.FieldValidators.NameValidator do
 
   Validates name fields with appropriate length limits and
   character restrictions while allowing international names.
+
+  Options:
+
+    * `:required` (default `true`): when `false`, a missing or blank name
+      is valid.
+    * `:min_length` (default 2) and `:max_length` (default 100), counted
+      on the trimmed name.
+
+  An optional display name (the `:full_name` field type in
+  `Tymeslot.Security.InputProcessor`) is `required: false, min_length: 1`.
   """
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -43,7 +53,9 @@ defmodule Tymeslot.Security.FieldValidators.NameValidator do
 
     cond do
       trimmed_name == "" ->
-        {:error, dgettext("errors", "Name cannot be blank")}
+        if Keyword.get(opts, :required, true),
+          do: {:error, dgettext("errors", "Name cannot be blank")},
+          else: :ok
 
       String.length(trimmed_name) < min_length ->
         {:error,

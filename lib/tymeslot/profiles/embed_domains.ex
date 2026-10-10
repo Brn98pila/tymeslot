@@ -57,11 +57,15 @@ defmodule Tymeslot.Profiles.EmbedDomains do
         normalized = validated |> Enum.reject(&(&1 == "none")) |> Enum.uniq()
         {:ok, %{allowed_embed_domains: disabled_when_empty(normalized)}}
 
-      {:error, error_msg} ->
+      {:error, messages} ->
+        # add_error/3 prepends, so add them last first to keep their order.
         changeset =
-          profile
-          |> Changeset.change()
-          |> Changeset.add_error(:allowed_embed_domains, error_msg)
+          messages
+          |> Enum.reverse()
+          |> Enum.reduce(
+            Changeset.change(profile),
+            &Changeset.add_error(&2, :allowed_embed_domains, &1)
+          )
 
         {:error, changeset}
     end

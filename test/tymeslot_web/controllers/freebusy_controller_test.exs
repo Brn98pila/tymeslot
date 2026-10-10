@@ -37,7 +37,7 @@ defmodule TymeslotWeb.FreebusyControllerTest do
       # forwarded headers are present, so `ClientIP.get/1` resolves to exactly
       # this address — matching the bucket we pre-fill here.
       rate_limit_ip = {203, 0, 113, 7}
-      for _i <- 1..60, do: RateLimiter.check_freebusy_feed_rate_limit("203.0.113.7")
+      for _i <- 1..60, do: RateLimiter.check(:freebusy, "203.0.113.7")
 
       conn = get(%{conn | remote_ip: rate_limit_ip}, ~p"/free-busy/any-token")
 

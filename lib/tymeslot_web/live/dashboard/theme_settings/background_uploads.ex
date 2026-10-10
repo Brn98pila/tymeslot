@@ -30,11 +30,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
   alias TymeslotWeb.Helpers.UploadConstraints
   alias TymeslotWeb.Live.Shared.Flash
 
-  # Five uploads per ten minutes, shared across both kinds: video encoding is
-  # the expensive part and a per-kind budget would double the ceiling.
-  @rate_limit_max 5
-  @rate_limit_window_ms 600_000
-
   @kinds %{
     image: %{upload_key: :background_image, constraint: :image},
     video: %{upload_key: :background_video, constraint: :video}
@@ -92,15 +87,11 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
   defp rate_limited(socket, fun) do
     user_id = socket.assigns.profile.user_id
 
-    case RateLimiter.check_rate_limit(
-           "theme_upload:#{user_id}",
-           @rate_limit_max,
-           @rate_limit_window_ms
-         ) do
+    case RateLimiter.check(:theme_upload, user_id) do
       :ok ->
         fun.()
 
-      {:error, :rate_limited} ->
+      {:error, :rate_limited, _message} ->
         Flash.error(
           dgettext(
             "dashboard_appearance",

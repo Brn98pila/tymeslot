@@ -89,7 +89,7 @@ defmodule Tymeslot.Auth.SignupSecurity do
     email = user_params["email"]
 
     if is_binary(email) and email != "" do
-      RateLimit.check(RateLimiter.check_signup_ip_rate_limit(metadata[:ip]),
+      RateLimit.check(RateLimiter.check(:signup_ip, metadata[:ip]),
         event: "signup",
         identifier: email,
         ip: metadata[:ip],
@@ -104,7 +104,7 @@ defmodule Tymeslot.Auth.SignupSecurity do
   defp verify_recaptcha(user_params, metadata) do
     token = Map.get(user_params, "g-recaptcha-response", "")
 
-    case RecaptchaHelpers.maybe_verify_signup_token(token, metadata) do
+    case RecaptchaHelpers.verify(:signup, token, metadata) do
       :ok ->
         :ok
 

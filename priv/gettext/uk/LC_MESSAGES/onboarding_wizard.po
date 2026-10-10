@@ -374,11 +374,6 @@ msgstr "На скільки днів уперед клієнти можуть з
 msgid "I'll connect a calendar later"
 msgstr "Я підключу календар пізніше"
 
-#: lib/tymeslot_web/live/onboarding_live/timezone_handlers.ex
-#, elixir-autogen, elixir-format
-msgid "Invalid timezone"
-msgstr "Некоректний часовий пояс"
-
 #: lib/tymeslot_web/live/onboarding_live/step_config.ex
 #, elixir-autogen, elixir-format
 msgid "Let's get you up and running in just a few steps."
@@ -604,11 +599,6 @@ msgstr "Це ім'я користувача вже зайняте"
 #, elixir-autogen, elixir-format
 msgid "This username is reserved"
 msgstr "Це ім'я користувача зарезервоване"
-
-#: lib/tymeslot_web/live/onboarding_live/timezone_handlers.ex
-#, elixir-autogen, elixir-format
-msgid "Timezone must be a string"
-msgstr "Часовий пояс має бути рядком"
 
 #: lib/tymeslot_web/live/dashboard/onboarding_checklist.ex
 #, elixir-autogen, elixir-format

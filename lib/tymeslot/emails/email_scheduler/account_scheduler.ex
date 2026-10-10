@@ -42,21 +42,7 @@ defmodule Tymeslot.Emails.EmailScheduler.AccountScheduler do
                ]
              )
            ),
-         {:ok, _job2} <-
-           Oban.insert(
-             EmailWorker.new(
-               %{
-                 "action" => "send_email_change_notification",
-                 "user_id" => user_id,
-                 "new_email" => new_email
-               },
-               unique: [
-                 period: 600,
-                 fields: [:args, :queue],
-                 keys: [:action, :user_id, :new_email]
-               ]
-             )
-           ) do
+         {:ok, _job2} <- insert_email_change_notification(user_id, new_email) do
       :ok
     else
       error ->
@@ -67,6 +53,44 @@ defmodule Tymeslot.Emails.EmailScheduler.AccountScheduler do
 
         :ok
     end
+  end
+
+  @doc """
+  Schedules only the notice to the current address of a pending email change,
+  for a change whose verification link is never sent. Same uniqueness window
+  as `schedule_email_change_emails/4`.
+  """
+  @spec schedule_email_change_notification(term(), String.t()) :: :ok
+  def schedule_email_change_notification(user_id, new_email) do
+    case insert_email_change_notification(user_id, new_email) do
+      {:ok, _job} ->
+        :ok
+
+      error ->
+        Logger.error("Failed to enqueue email change emails",
+          error: Helpers.format_insert_error(error),
+          user_id: user_id
+        )
+
+        :ok
+    end
+  end
+
+  defp insert_email_change_notification(user_id, new_email) do
+    Oban.insert(
+      EmailWorker.new(
+        %{
+          "action" => "send_email_change_notification",
+          "user_id" => user_id,
+          "new_email" => new_email
+        },
+        unique: [
+          period: 600,
+          fields: [:args, :queue],
+          keys: [:action, :user_id, :new_email]
+        ]
+      )
+    )
   end
 
   @doc """

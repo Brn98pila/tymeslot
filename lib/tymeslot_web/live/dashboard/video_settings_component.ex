@@ -178,7 +178,7 @@ defmodule TymeslotWeb.Dashboard.VideoSettingsComponent do
   def handle_event("reconnect_integration", %{"id" => id}, socket) do
     user_id = socket.assigns.current_user.id
 
-    with_rate_limit(RateLimiter.check_integration_write_rate_limit(user_id), socket, fn ->
+    with_rate_limit(RateLimiter.check(:integration_write, user_id), socket, fn ->
       case FormInput.integration_id(id) do
         nil ->
           {:noreply, socket}
@@ -206,7 +206,7 @@ defmodule TymeslotWeb.Dashboard.VideoSettingsComponent do
   def handle_event("toggle_integration", %{"id" => id}, socket) do
     user_id = socket.assigns.current_user.id
 
-    with_rate_limit(RateLimiter.check_integration_write_rate_limit(user_id), socket, fn ->
+    with_rate_limit(RateLimiter.check(:integration_write, user_id), socket, fn ->
       case FormInput.integration_id(id) do
         nil ->
           {:noreply, socket}
@@ -514,7 +514,7 @@ defmodule TymeslotWeb.Dashboard.VideoSettingsComponent do
   defp add_validated_integration(provider, validated_params, socket) do
     user_id = socket.assigns.current_user.id
 
-    with_rate_limit(RateLimiter.check_integration_write_rate_limit(user_id), socket, fn ->
+    with_rate_limit(RateLimiter.check(:integration_write, user_id), socket, fn ->
       handle_create_result(
         Video.create_integration(user_id, provider, FormInput.to_atom_keys(validated_params)),
         provider,

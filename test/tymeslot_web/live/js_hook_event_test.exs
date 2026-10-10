@@ -269,8 +269,12 @@ defmodule TymeslotWeb.Live.JsHookEventTest do
 
       :meck.new(RateLimiter, [:passthrough])
 
-      :meck.expect(RateLimiter, :check_meeting_type_write_rate_limit, fn _user_id ->
-        {:error, :rate_limited, "Slow down — too many reorders"}
+      :meck.expect(RateLimiter, :check, fn
+        :meeting_type_write, _user_id ->
+          {:error, :rate_limited, "Slow down — too many reorders"}
+
+        name, key ->
+          :meck.passthrough([name, key])
       end)
 
       socket = build_component_socket(user)

@@ -12,7 +12,6 @@ defmodule Tymeslot.Polls.PollParticipantSchema do
   alias Tymeslot.Security.FieldValidators.NameValidator
   alias Tymeslot.Security.Token
   alias Tymeslot.Timezones
-  alias Tymeslot.Utils.UnguessableToken
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -104,7 +103,7 @@ defmodule Tymeslot.Polls.PollParticipantSchema do
 
   defp put_new_token(changeset) do
     case get_field(changeset, :token) do
-      nil -> put_change(changeset, :token, UnguessableToken.generate())
+      nil -> put_change(changeset, :token, Token.generate(24))
       _token -> changeset
     end
   end

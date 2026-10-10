@@ -49,6 +49,7 @@ defmodule Tymeslot.Infrastructure.AdminAlerts do
           | :late_payment_refund_failed
           | :account_deletion_billing_sync_failed
           | :account_deletion_stalled
+          | :account_deletion_held_last_admin
           | :analytics_tracking_anomaly
           | :user_registered_hook_failed
           | atom()

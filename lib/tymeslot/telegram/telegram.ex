@@ -16,6 +16,7 @@ defmodule Tymeslot.Telegram do
   alias Tymeslot.Notifications.EventTypes
   alias Tymeslot.Repo
   alias Tymeslot.Security.SharedSecret
+  alias Tymeslot.Security.Token
   alias Tymeslot.Telegram.{API, MessageBuilder, TelegramDeliverySchema, TelegramIntegrationSchema}
   alias Tymeslot.Telegram.TelegramQueries
   alias Tymeslot.Workers.TelegramWorker
@@ -257,7 +258,7 @@ defmodule Tymeslot.Telegram do
 
   @spec generate_link_token() :: String.t()
   def generate_link_token do
-    Base.url_encode64(:crypto.strong_rand_bytes(24), padding: false)
+    Token.generate(24)
   end
 
   @spec refresh_link_token(TelegramIntegrationSchema.t()) ::

@@ -110,7 +110,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
   def handle_event("filter_meetings", %{"filter" => filter}, socket) do
     user_id = socket.assigns.current_user.id
 
-    case RateLimiter.check_meeting_filter_rate_limit(user_id) do
+    case RateLimiter.check(:meeting_filter, user_id) do
       :ok ->
         case validate_filter(filter) do
           {:ok, validated_filter} ->
@@ -178,7 +178,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
   def handle_event("confirm_cancel_meeting", params, socket) do
     user_id = socket.assigns.current_user.id
 
-    case RateLimiter.check_dashboard_cancel_rate_limit(user_id) do
+    case RateLimiter.check(:dashboard_cancel, user_id) do
       {:error, :rate_limited, message} ->
         Flash.error(message)
         {:noreply, socket}
@@ -230,7 +230,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
   def handle_event("confirm_reschedule_request", _params, socket) do
     user_id = socket.assigns.current_user.id
 
-    case RateLimiter.check_dashboard_reschedule_rate_limit(user_id) do
+    case RateLimiter.check(:dashboard_reschedule, user_id) do
       {:error, :rate_limited, message} ->
         Flash.error(message)
         {:noreply, socket}
@@ -313,7 +313,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
   # Gated on the same per-answer limiter the emailed link uses, so this is
   # not the one write handler in the module a click loop can drive unbounded.
   def handle_event("approve_request", %{"id" => _id} = params, socket) do
-    case RateLimiter.check_meeting_approval_rate_limit(dashboard_approval_key(socket)) do
+    case RateLimiter.check(:meeting_approval, dashboard_approval_key(socket)) do
       :ok ->
         RequestActions.answer(socket, params, &Approval.approve/1,
           success:
@@ -370,7 +370,7 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementComponent do
   end
 
   def handle_event("confirm_decline_request", params, socket) do
-    case RateLimiter.check_meeting_approval_rate_limit(dashboard_approval_key(socket)) do
+    case RateLimiter.check(:meeting_approval, dashboard_approval_key(socket)) do
       :ok ->
         reason = sanitize_decline_reason(Map.get(params, "reason"))
 

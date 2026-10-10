@@ -11,7 +11,6 @@ defmodule Tymeslot.Polls.PollSchema do
   alias Tymeslot.Polls.{PollParticipantSchema, PollTimeSlotSchema}
   alias Tymeslot.Security.EncryptedString
   alias Tymeslot.Security.Token
-  alias Tymeslot.Utils.UnguessableToken
   alias Tymeslot.Validation.Constraints
 
   @max_slots 40
@@ -137,7 +136,7 @@ defmodule Tymeslot.Polls.PollSchema do
 
   defp put_new_token(changeset) do
     case get_field(changeset, :token) do
-      nil -> put_change(changeset, :token, UnguessableToken.generate())
+      nil -> put_change(changeset, :token, Token.generate(24))
       _token -> changeset
     end
   end

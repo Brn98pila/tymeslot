@@ -82,6 +82,33 @@ defmodule Tymeslot.Auth.AuthenticationLockoutAuditTest do
     end
   end
 
+  describe "a login refused by the rate limit" do
+    test "is logged once, as a rate_limit_violation", %{user: user} do
+      for _i <- 1..10, do: RateLimiter.check_auth_rate_limit(user.email, @opts[:ip])
+
+      capture_at_info(fn ->
+        assert {:error, :rate_limited, _message} =
+                 Authentication.authenticate_user(user.email, @password, @opts)
+      end)
+
+      assert [line] = LogCapture.drain()
+      assert LogCapture.user_metadata(line)[:event_type] == "rate_limit_violation"
+    end
+  end
+
+  describe "a login for an address with no account" do
+    test "is logged once, as an authentication failure naming the reason" do
+      capture_at_info(fn ->
+        assert {:error, :not_found, _message} =
+                 Authentication.authenticate_user("nobody@example.com", @password, @opts)
+      end)
+
+      assert [line] = LogCapture.drain()
+      assert LogCapture.user_metadata(line)[:event_type] == "authentication_failure"
+      assert LogCapture.user_metadata(line)[:reason] == "user_not_found"
+    end
+  end
+
   defp logged_event_types do
     LogCapture.drain()
     |> Enum.map(&LogCapture.user_metadata(&1)[:event_type])

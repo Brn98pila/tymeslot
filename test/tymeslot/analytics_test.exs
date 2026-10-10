@@ -12,7 +12,6 @@ defmodule Tymeslot.AnalyticsTest do
   alias Tymeslot.Factory
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
-  alias Tymeslot.Security.RateLimiter.Analytics, as: AnalyticsLimiter
 
   setup do
     user = Factory.insert(:user)
@@ -177,7 +176,11 @@ defmodule Tymeslot.AnalyticsTest do
 
       # Exhaust the IP bucket without going through log_page_view
       for _i <- 1..limit do
-        AnalyticsLimiter.check_ip(bucket_key, window_ms, limit)
+        RateLimiter.check_bucket(bucket_key,
+          limit: limit,
+          window_ms: window_ms,
+          operation: "test"
+        )
       end
 
       assert {:ok, :filtered_rate_limit} =

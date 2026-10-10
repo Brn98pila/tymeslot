@@ -24,7 +24,7 @@ defmodule TymeslotWeb.AuthLive.RateLimitingTest do
       # The address's budget is anyone's to spend, so it must not refuse the
       # visitor below; it only stops more emails going to the mailbox.
       for _i <- 1..5 do
-        RateLimiter.check_password_reset_recipient_rate_limit(user.email)
+        RateLimiter.check(:password_reset_email, user.email)
       end
 
       {:ok, view, _html} = live(conn, ~p"/auth/reset-password")
@@ -48,7 +48,7 @@ defmodule TymeslotWeb.AuthLive.RateLimitingTest do
       # Auth.PasswordReset alone, so a second charge at the LiveView layer
       # would reject a request still inside the budget, and reject it where
       # nothing audits the rejection.
-      for _i <- 1..4, do: RateLimiter.check_password_reset_ip_rate_limit("127.0.0.1")
+      for _i <- 1..4, do: RateLimiter.check(:password_reset_ip, "127.0.0.1")
 
       {:ok, view, _html} = live(conn, ~p"/auth/reset-password")
 
@@ -67,7 +67,7 @@ defmodule TymeslotWeb.AuthLive.RateLimitingTest do
       # Exhaust the client's 1-hour per-IP bucket (limit: 5) so the request
       # below is rejected by Auth.PasswordReset, which is the only layer that
       # charges the limit and the only layer that audits a rejection.
-      for _i <- 1..5, do: RateLimiter.check_password_reset_ip_rate_limit("127.0.0.1")
+      for _i <- 1..5, do: RateLimiter.check(:password_reset_ip, "127.0.0.1")
 
       result =
         LogCapture.with_capture([logger_level: :info], fn ->
@@ -99,7 +99,7 @@ defmodule TymeslotWeb.AuthLive.RateLimitingTest do
 
       # Exhaust the 1-hour per-IP bucket (limit: 5) without charging any
       # address's own budget.
-      for _i <- 1..5, do: RateLimiter.check_password_reset_ip_rate_limit(ip)
+      for _i <- 1..5, do: RateLimiter.check(:password_reset_ip, ip)
 
       # A brand-new email, never charged before, submitted from the same IP.
       fresh_email = "rl-reset-ip-fresh-#{System.unique_integer([:positive])}@example.com"
@@ -145,7 +145,7 @@ defmodule TymeslotWeb.AuthLive.RateLimitingTest do
     end
 
     test "the address limit, which says nothing about any account, is shown", %{conn: conn} do
-      for _i <- 1..5, do: RateLimiter.check_verification_ip_rate_limit("127.0.0.1")
+      for _i <- 1..5, do: RateLimiter.check(:verification_ip, "127.0.0.1")
 
       user = insert(:unverified_user)
       {:ok, view, _html} = live(bind_unverified(conn, user), ~p"/auth/verify-email")

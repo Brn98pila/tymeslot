@@ -58,7 +58,7 @@ defmodule Tymeslot.Auth.PasswordReset do
   # budget can be spent by anyone who types it, so refusing on it would let
   # one client lock the owner out of their own reset.
   defp check_reset_rate_limit(email, opts) do
-    RateLimit.check(RateLimiter.check_password_reset_ip_rate_limit(opts[:ip]),
+    RateLimit.check(RateLimiter.check(:password_reset_ip, opts[:ip]),
       event: "password_reset",
       identifier: email,
       ip: opts[:ip],
@@ -69,7 +69,7 @@ defmodule Tymeslot.Auth.PasswordReset do
   # Caps the emails one address is sent. Over the cap the request is audited
   # and answered as usual, and no email goes out.
   defp recipient_allowance(email, opts) do
-    case RateLimit.check(RateLimiter.check_password_reset_recipient_rate_limit(email),
+    case RateLimit.check(RateLimiter.check(:password_reset_email, email),
            event: "password_reset",
            identifier: email,
            ip: opts[:ip],
@@ -269,7 +269,7 @@ defmodule Tymeslot.Auth.PasswordReset do
           | {:error, atom(), String.t()}
   def reset_password(token, new_password, password_confirmation, opts) do
     RateLimit.with_limit(
-      RateLimiter.check_password_reset_submit_rate_limit(opts[:ip]),
+      RateLimiter.check(:password_reset_submit, opts[:ip]),
       [event: "password_reset_submit", ip: opts[:ip], user_agent: opts[:user_agent]],
       fn -> do_reset_password(token, new_password, password_confirmation, opts) end
     )

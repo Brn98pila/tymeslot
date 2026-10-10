@@ -7,9 +7,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploadsTest do
   alias TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads
 
   @user_id 4_242
-  @bucket "theme_upload:#{@user_id}"
   @limit 5
-  @window_ms 600_000
 
   setup do
     RateLimiter.clear_all()
@@ -30,9 +28,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploadsTest do
 
   defp budget_remaining do
     Enum.reduce_while(1..(@limit + 1), 0, fn _i, spent ->
-      case RateLimiter.check_rate_limit(@bucket, @limit, @window_ms) do
+      case RateLimiter.check(:theme_upload, @user_id) do
         :ok -> {:cont, spent + 1}
-        {:error, :rate_limited} -> {:halt, spent}
+        {:error, :rate_limited, _message} -> {:halt, spent}
       end
     end)
   end
@@ -57,7 +55,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploadsTest do
 
     test "refuses a finished upload once the limit is spent" do
       for _i <- 1..@limit,
-          do: assert(:ok = RateLimiter.check_rate_limit(@bucket, @limit, @window_ms))
+          do: assert(:ok = RateLimiter.check(:theme_upload, @user_id))
 
       socket = socket_with([%{done?: true, cancelled?: false}])
 

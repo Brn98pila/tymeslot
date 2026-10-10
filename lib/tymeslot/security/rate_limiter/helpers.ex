@@ -58,15 +58,6 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
     :ok
   end
 
-  @spec check_rate_limit(bucket_key(), pos_integer(), pos_integer()) ::
-          :ok | {:error, :rate_limited}
-  def check_rate_limit(bucket_key, limit, window_ms) do
-    case check_rate(bucket_key, window_ms, limit) do
-      {:allow, _count} -> :ok
-      {:deny, _retry_after} -> {:error, :rate_limited}
-    end
-  end
-
   @doc """
   Charges one token and, on a refusal, logs it and builds the copy the person
   reads.
@@ -92,9 +83,33 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
         ) ::
           :ok | {:error, :rate_limited, String.t()}
   def check_with_logging(bucket_key, limit, window_ms, operation, identifier, action \\ nil) do
+    check_window(bucket_key, limit, window_ms,
+      operation: operation,
+      identifier: identifier,
+      action: action
+    )
+  end
+
+  @doc """
+  `check_with_logging/6` with its labels as options, and one more: `log:
+  false` refuses without the log line, for the flood caps on
+  machine-to-machine endpoints, where a line per refused request would turn a
+  flood into a log flood.
+  """
+  @spec check_window(bucket_key(), pos_integer(), pos_integer(), keyword()) ::
+          :ok | {:error, :rate_limited, String.t()}
+  def check_window(bucket_key, limit, window_ms, opts)
+      when is_integer(limit) and limit > 0 and is_integer(window_ms) and window_ms > 0 do
+    operation = Keyword.fetch!(opts, :operation)
+    action = Keyword.get(opts, :action) || "#{operation} actions"
+    log? = Keyword.get(opts, :log, true)
+
     case check_rate(bucket_key, window_ms, limit) do
       {:allow, _count} ->
         :ok
+
+      {:deny, retry_after_ms} when not log? ->
+        {:error, :rate_limited, refusal_message(limit, window_ms, retry_after_ms, action)}
 
       {:deny, retry_after_ms} ->
         # Neither the identifier nor the bucket key reaches the log line raw:
@@ -102,9 +117,9 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
         # rejection under attack would otherwise write it twice per request,
         # on the one path that fires at volume. `operation` already names the
         # bucket, so the bucket key adds nothing but the identifier.
-        refuse(limit, window_ms, retry_after_ms, action || "#{operation} actions",
+        refuse(limit, window_ms, retry_after_ms, action,
           operation: operation,
-          identifier_masked: mask_identifier(identifier)
+          identifier_masked: mask_identifier(opts[:identifier])
         )
     end
   end
@@ -206,6 +221,12 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
     {:error, :invalid_user_id}
   end
 
+  @spec invalid_id(String.t(), any()) :: {:error, :invalid_id}
+  def invalid_id(operation, id) do
+    Logger.error("Invalid id for rate limit", operation: operation, id: LogFormat.reason(id))
+    {:error, :invalid_id}
+  end
+
   @doc """
   The key a per-IP bucket counts as one client.
 
@@ -252,12 +273,16 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
 
   Refuses in the same shape as `check_with_logging/6`, and for the same
   reason: a person who is over a limit needs to know which limit and for how
-  long, not that something went wrong.
+  long, not that something went wrong. `log: false` refuses without the log
+  line, as `check_window/4` does.
   """
-  @spec check_multi_bucket_limits([bucket()]) :: :ok | {:error, :rate_limited, String.t()}
-  def check_multi_bucket_limits(buckets) do
+  @spec check_multi_bucket_limits([bucket()], keyword()) ::
+          :ok | {:error, :rate_limited, String.t()}
+  def check_multi_bucket_limits(buckets, opts \\ []) do
+    log? = Keyword.get(opts, :log, true)
+
     Enum.reduce_while(buckets, :ok, fn {bucket_base, limits, operation, action}, _acc ->
-      case apply_limits(bucket_base, limits, operation, action) do
+      case apply_limits(bucket_base, limits, operation, action, log?) do
         :ok -> {:cont, :ok}
         error -> {:halt, error}
       end
@@ -269,13 +294,17 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
   # the walk is the tightest one that tripped, and its limit and window are
   # what the sentence names: telling someone about the daily cap when the
   # per-minute one stopped them would send them away for a day.
-  @spec apply_limits(bucket_key(), [tier()], String.t(), String.t()) ::
+  @spec apply_limits(bucket_key(), [tier()], String.t(), String.t(), boolean()) ::
           :ok | {:error, :rate_limited, String.t()}
-  defp apply_limits(bucket_base, limits, operation, action) do
+  defp apply_limits(bucket_base, limits, operation, action, log?) do
     Enum.reduce_while(limits, :ok, fn {label, limit, window_ms}, _acc ->
       case check_rate("#{bucket_base}:#{label}", window_ms, limit) do
         {:allow, _count} ->
           {:cont, :ok}
+
+        {:deny, retry_after_ms} when not log? ->
+          {:halt,
+           {:error, :rate_limited, refusal_message(limit, window_ms, retry_after_ms, action)}}
 
         {:deny, retry_after_ms} ->
           # No identifier here: these bucket bases embed one (an email address

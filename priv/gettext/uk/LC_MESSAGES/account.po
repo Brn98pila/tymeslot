@@ -389,3 +389,8 @@ msgid_plural "If you delete your account, it is frozen for %{count} days, then d
 msgstr[0] "Якщо ви видалите обліковий запис, його буде заморожено на %{count} день, після чого його буде видалено. Увійдіть протягом цього часу, щоб відновити його."
 msgstr[1] "Якщо ви видалите обліковий запис, його буде заморожено на %{count} дні, після чого його буде видалено. Увійдіть протягом цього часу, щоб відновити його."
 msgstr[2] "Якщо ви видалите обліковий запис, його буде заморожено на %{count} днів, після чого його буде видалено. Увійдіть протягом цього часу, щоб відновити його."
+
+#: lib/tymeslot/auth/account_deletion/request.ex
+#, elixir-autogen, elixir-format
+msgid "You are the only admin who can sign in, so this account cannot be deleted yet. Make another account an admin first, or ask the server operator to delete it from the release shell."
+msgstr "Ви єдиний адміністратор, який може увійти, тому цей обліковий запис поки не можна видалити. Спершу зробіть адміністратором інший обліковий запис або попросіть оператора сервера видалити його з release shell."

@@ -666,11 +666,6 @@ msgstr "La password attuale non è corretta"
 
 #: lib/tymeslot/auth/email_change.ex
 #, elixir-autogen, elixir-format
-msgid "Email address is already in use"
-msgstr "Questo indirizzo email è già in uso"
-
-#: lib/tymeslot/auth/email_change.ex
-#, elixir-autogen, elixir-format
 msgid "Email changed successfully. Please sign in with your new email."
 msgstr "Indirizzo email modificato. Accedi con il tuo nuovo indirizzo."
 
@@ -683,11 +678,6 @@ msgstr "Token per la reimpostazione della password non valido o scaduto."
 #, elixir-autogen, elixir-format
 msgid "Invalid or expired verification link"
 msgstr "Link di verifica non valido o scaduto"
-
-#: lib/tymeslot/auth/email_change.ex
-#, elixir-autogen, elixir-format
-msgid "New email must be different from current email"
-msgstr "Il nuovo indirizzo email deve essere diverso da quello attuale"
 
 #: lib/tymeslot/auth/password_update.ex
 #, elixir-autogen, elixir-format

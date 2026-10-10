@@ -64,10 +64,10 @@ defmodule Tymeslot.AuthTest do
                  ClientIP.request_opts(%Plug.Conn{})
                )
 
-      # Duplicate email blocked
+      # A registered address gets the answer a free one does
       insert(:user, email: "taken@example.com")
 
-      assert {:error, %{new_email: "Email address is already in use"}} =
+      assert {:ok, _user, "Verification email sent to taken@example.com"} =
                Auth.request_email_change(
                  user,
                  "taken@example.com",
@@ -133,7 +133,7 @@ defmodule Tymeslot.AuthTest do
   describe "verify_user_email/1" do
     test "verifies the email without re-broadcasting :user_registered" do
       user = insert(:unverified_user)
-      token = Token.generate_token()
+      token = Token.generate()
       {:ok, _updated} = UserTokenQueries.set_verification_token(user, token)
 
       assert :ok = Auth.subscribe_to_user_registrations()

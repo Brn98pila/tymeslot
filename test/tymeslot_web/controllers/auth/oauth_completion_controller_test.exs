@@ -29,7 +29,7 @@ defmodule TymeslotWeb.OAuthCompletionControllerTest do
     def on_user_registered(_user_id, _metadata), do: :ok
   end
 
-  # `RateLimiter.OAuth.check_completion/1` allows this many per IP per window.
+  # The `:oauth_completion` rate limit allows this many per IP per window.
   @completion_limit 6
 
   setup :setup_providers
@@ -164,7 +164,7 @@ defmodule TymeslotWeb.OAuthCompletionControllerTest do
 
     test "the notice to a taken address's owner shares the sign-up form's cap", %{conn: conn} do
       owner = insert(:user, email: "capped@example.com")
-      for _i <- 1..5, do: RateLimiter.check_signup_attempt_notice_rate_limit(owner.id)
+      for _i <- 1..5, do: RateLimiter.check(:signup_attempt_notice, owner.id)
 
       conn =
         conn
