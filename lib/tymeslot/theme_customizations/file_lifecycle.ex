@@ -2,16 +2,14 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
   @moduledoc """
   Side-effecting cleanup of theme background assets on the filesystem.
 
-  Orchestrates `Storage` and `Transcoder` to delete stale background images,
-  videos, and their transcoded variants when a customisation is updated,
-  deleted. Persistence is handled by the
+  Orchestrates `Tymeslot.Media.Uploads` and `Transcoder` to delete stale
+  background images, videos, and their transcoded variants when a
+  customisation is updated or deleted. Persistence is handled by the
   caller — this module only deals with files.
   """
 
-  require Logger
-
   alias Tymeslot.Media.Transcoder
-  alias Tymeslot.ThemeCustomizations.Storage
+  alias Tymeslot.Media.Uploads
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   @doc """
@@ -76,38 +74,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
   defp replaced?(old, new), do: old != new
 
   defp delete_file(relative_path, context, file_type) do
-    relative_path
-    |> Storage.build_theme_file_path()
-    |> safe_delete(Map.put(context, :file_type, file_type))
-  end
-
-  # Best-effort filesystem delete: never fails the calling cleanup, a missing
-  # file is treated as already-gone. Kept in the domain layer so this module
-  # has no dependency on the web layer.
-  @spec safe_delete(String.t(), map()) :: :ok
-  defp safe_delete(absolute_path, context) do
-    case File.rm(absolute_path) do
-      :ok ->
-        Logger.info("File deleted successfully", file_path: absolute_path, context: context)
-        :ok
-
-      {:error, :enoent} ->
-        Logger.debug("File deletion skipped - file not found",
-          file_path: absolute_path,
-          context: context
-        )
-
-        :ok
-
-      {:error, reason} ->
-        Logger.warning("File deletion failed",
-          file_path: absolute_path,
-          reason: reason,
-          context: context
-        )
-
-        :ok
-    end
+    Uploads.delete_safely(relative_path, Map.put(context, :file_type, file_type))
   end
 
   defp delete_video_variants(video_path, context, file_type) do

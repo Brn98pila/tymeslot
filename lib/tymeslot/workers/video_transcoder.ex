@@ -20,6 +20,7 @@ defmodule Tymeslot.Workers.VideoTranscoder do
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Jobs
   alias Tymeslot.Media.Transcoder
+  alias Tymeslot.Media.Uploads
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationQueries
 
   @status_completed "completed"
@@ -68,15 +69,14 @@ defmodule Tymeslot.Workers.VideoTranscoder do
   end
 
   defp run_transcoding(id, video_path, transcoder, job) do
-    upload_dir = Application.get_env(:tymeslot, :upload_directory, "uploads")
-    source_path = Path.join(upload_dir, video_path)
+    case Uploads.resolve(video_path) do
+      {:ok, source_path} ->
+        transcode_variants(id, source_path, transcoder, job)
 
-    if path_within_directory?(source_path, upload_dir) do
-      transcode_variants(id, source_path, transcoder, job)
-    else
-      Logger.error("Path traversal attempt detected", video_path: video_path)
-      update_status(id, @status_failed)
-      {:error, "Invalid video path"}
+      {:error, :path_traversal_attempt} ->
+        Logger.error("Path traversal attempt detected", video_path: video_path)
+        update_status(id, @status_failed)
+        {:error, "Invalid video path"}
     end
   end
 
@@ -214,19 +214,5 @@ defmodule Tymeslot.Workers.VideoTranscoder do
 
   defp transcoder_impl do
     Application.get_env(:tymeslot, :transcoder, Tymeslot.Media.Transcoder)
-  end
-
-  defp path_within_directory?(path, directory) do
-    expanded_path = Path.expand(path)
-    expanded_dir = Path.expand(directory)
-
-    within_dir? = String.starts_with?(expanded_path, expanded_dir <> "/")
-    not_symlink? = not symlink?(expanded_path)
-
-    within_dir? and not_symlink?
-  end
-
-  defp symlink?(path) do
-    match?({:ok, %{type: :symlink}}, File.lstat(path))
   end
 end

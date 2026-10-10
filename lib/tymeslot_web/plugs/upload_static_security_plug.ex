@@ -24,7 +24,7 @@ defmodule TymeslotWeb.Plugs.UploadStaticSecurity do
 
   import Plug.Conn
 
-  alias TymeslotWeb.Helpers.UploadConstraints
+  alias Tymeslot.Media.Uploads
 
   @uploads_prefix "uploads"
 
@@ -33,9 +33,9 @@ defmodule TymeslotWeb.Plugs.UploadStaticSecurity do
   @legacy_extensions [".mov"]
 
   @allowed_extensions MapSet.new(
-                        UploadConstraints.allowed_extensions(:avatar) ++
-                          UploadConstraints.allowed_extensions(:image) ++
-                          UploadConstraints.allowed_extensions(:video) ++
+                        Uploads.allowed_extensions(:avatar) ++
+                          Uploads.allowed_extensions(:image) ++
+                          Uploads.allowed_extensions(:video) ++
                           @legacy_extensions
                       )
 

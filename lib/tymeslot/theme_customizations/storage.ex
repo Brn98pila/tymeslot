@@ -6,9 +6,9 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
 
   require Logger
   alias Tymeslot.Media.ImageMetadata
+  alias Tymeslot.Media.Uploads
   alias Tymeslot.Media.VideoMetadata
   alias Tymeslot.Utils.MediaValidator
-  alias TymeslotWeb.Helpers.UploadHandler
 
   @type file_upload :: %{required(:path) => Path.t(), required(:filename) => String.t()}
 
@@ -26,7 +26,7 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
   """
   @spec get_upload_base_directory() :: String.t()
   def get_upload_base_directory do
-    Application.get_env(:tymeslot, :upload_directory, "uploads")
+    Uploads.root()
   end
 
   @doc """
@@ -92,7 +92,7 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
       with :ok <- ImageMetadata.strip(temp_path, temp_path, Path.extname(filename)),
            :ok <- ensure_directory_exists(dest_dir),
            {:ok, sanitized_filename} <-
-             UploadHandler.store_file_atomically(
+             Uploads.store_atomically(
                temp_path,
                dest_dir,
                filename,
@@ -123,7 +123,7 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
       with {:ok, _stripped_or_unchanged} <- strip_video(temp_path),
            :ok <- ensure_directory_exists(dest_dir),
            {:ok, sanitized_filename} <-
-             UploadHandler.store_file_atomically(
+             Uploads.store_atomically(
                temp_path,
                dest_dir,
                filename,

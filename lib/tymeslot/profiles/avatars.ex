@@ -5,14 +5,13 @@ defmodule Tymeslot.Profiles.Avatars do
   """
 
   alias Tymeslot.Media.ImageMetadata
+  alias Tymeslot.Media.Uploads
   alias Tymeslot.Profiles
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Utils.AvatarUtils
   alias Tymeslot.Utils.MediaValidator
   alias Tymeslot.Utils.UrlBuilder
-  alias TymeslotWeb.Helpers.UploadConstraints
-  alias TymeslotWeb.Helpers.UploadHandler
 
   @type profile :: ProfileSchema.t()
   @type uploaded_entry :: %{
@@ -22,8 +21,8 @@ defmodule Tymeslot.Profiles.Avatars do
         }
   @type result(t) :: {:ok, t} | {:error, any()}
 
-  @accepted_extensions UploadConstraints.allowed_extensions(:avatar)
-  @max_file_size UploadConstraints.max_file_size(:avatar)
+  @accepted_extensions Uploads.allowed_extensions(:avatar)
+  @max_file_size Uploads.max_file_size(:avatar)
 
   @doc "Returns the list of accepted avatar file extensions."
   @spec accepted_extensions() :: [String.t()]
@@ -135,7 +134,7 @@ defmodule Tymeslot.Profiles.Avatars do
       {:ok, updated_profile} ->
         if profile.avatar do
           file_path = build_avatar_path(profile.avatar, profile)
-          UploadHandler.delete_file_safely(file_path, context)
+          Uploads.delete_safely(file_path, context)
         end
 
         {:ok, updated_profile}
@@ -152,7 +151,7 @@ defmodule Tymeslot.Profiles.Avatars do
   """
   @spec delete_all_files(pos_integer()) :: :ok | {:error, File.posix(), Path.t()}
   def delete_all_files(profile_id) when is_integer(profile_id) do
-    [get_upload_directory(), "avatars", Integer.to_string(profile_id)]
+    [Uploads.root(), "avatars", Integer.to_string(profile_id)]
     |> Path.join()
     |> remove_directory()
   end
@@ -226,8 +225,7 @@ defmodule Tymeslot.Profiles.Avatars do
     extension = String.downcase(Path.extname(uploaded_entry.client_name))
     filename = "#{profile.id}_avatar_#{timestamp}_#{unique_suffix}#{extension}"
 
-    upload_dir = get_upload_directory()
-    profile_dir = Path.join([upload_dir, "avatars", to_string(profile.id)])
+    profile_dir = Path.join([Uploads.root(), "avatars", to_string(profile.id)])
 
     # The avatar is public: it appears on the booking page, in embeds and in
     # email. Re-encoding drops the EXIF location and device details a phone
@@ -255,12 +253,11 @@ defmodule Tymeslot.Profiles.Avatars do
 
   defp maybe_delete_old_avatar(old_avatar, profile, context) do
     old_file_path = build_avatar_path(old_avatar, profile)
-    UploadHandler.delete_file_safely(old_file_path, Map.put(context, :file_type, "old_avatar"))
+    Uploads.delete_safely(old_file_path, Map.put(context, :file_type, "old_avatar"))
   end
 
   defp build_avatar_path(filename, profile) do
-    upload_dir = get_upload_directory()
-    Path.join([upload_dir, "avatars", to_string(profile.id), filename])
+    Path.join(["avatars", to_string(profile.id), filename])
   end
 
   defp remove_directory(path) do
@@ -268,9 +265,5 @@ defmodule Tymeslot.Profiles.Avatars do
       {:ok, _removed} -> :ok
       {:error, reason, failed_path} -> {:error, reason, failed_path}
     end
-  end
-
-  defp get_upload_directory do
-    Application.get_env(:tymeslot, :upload_directory, "uploads")
   end
 end
