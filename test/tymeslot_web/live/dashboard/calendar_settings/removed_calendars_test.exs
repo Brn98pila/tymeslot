@@ -129,6 +129,23 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.RemovedCalendarsTest do
     assert render(view) =~ "“Team” is no longer on your calendar server"
   end
 
+  # The list comes back from the browser, so it may not be what the card sent.
+  test "a shown list that is not a JSON list dismisses nothing", %{
+    conn: conn,
+    integration: integration
+  } do
+    {:ok, view, _html} = live(conn, ~p"/dashboard/integrations?tab=calendars")
+
+    for shown <- ["not json", ~s({"id": "/old/"}), ~s("/old/"), ~s([1, null])] do
+      view |> dismiss_button(integration) |> render_click(%{"shown" => shown})
+
+      assert [%RemovedCalendar{id: "/old/"}] =
+               Repo.get!(CalendarIntegrationSchema, integration.id).removed_calendars
+    end
+
+    assert render(view) =~ "“Projects” is no longer on your calendar server"
+  end
+
   test "several calendars are counted and listed", %{conn: conn, integration: integration} do
     integration
     |> Changeset.change()
