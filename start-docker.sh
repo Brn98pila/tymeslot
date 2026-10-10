@@ -485,7 +485,7 @@ export ALLOW_PRIVATE_IPS_FOR_WEBHOOKS="${ALLOW_PRIVATE_IPS_FOR_WEBHOOKS:-false}"
 export ENABLE_GOOGLE_AUTH="${ENABLE_GOOGLE_AUTH:-false}"
 export ENABLE_GITHUB_AUTH="${ENABLE_GITHUB_AUTH:-false}"
 
-if su -p app -c "cd /app && bin/tymeslot eval 'Ecto.Migrator.with_repo(Tymeslot.Repo, &Ecto.Migrator.run(&1, :up, all: true))'"; then
+if su -p app -c "cd /app && bin/tymeslot eval 'Tymeslot.Release.migrate()'"; then
     echo "========================================"
     echo "✓ Database migrations completed successfully"
     echo "========================================"

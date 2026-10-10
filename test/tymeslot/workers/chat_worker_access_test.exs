@@ -48,18 +48,19 @@ defmodule Tymeslot.Workers.ChatWorkerAccessTest do
       end
 
       for reason <- [:insufficient_plan, :pro_required, :stripe_required] do
-        test "switches the integration off when the plan answers #{reason}", %{
-          integration: integration,
-          meeting: meeting
-        } do
+        # The integration pauses with the plan and resumes with it: the job
+        # is dropped, the row left active for the next plan that covers it.
+        test "discards the job and leaves the integration on when the plan answers #{reason}",
+             %{integration: integration, meeting: meeting} do
           ProcessAccessChecker.answer({:error, unquote(reason)})
 
           assert {:discard, "Insufficient plan"} =
                    perform_job(unquote(worker), args(integration, meeting))
 
           updated = Repo.get!(unquote(schema), integration.id)
-          refute updated.is_active
-          assert updated.disabled_reason == "Plan no longer permits automations"
+          assert updated.is_active
+          assert is_nil(updated.disabled_at)
+          assert is_nil(updated.disabled_reason)
         end
       end
 

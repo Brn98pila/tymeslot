@@ -246,7 +246,7 @@ fi
 
 # Run database migrations
 echo "Running database migrations..."
-/app/bin/tymeslot eval 'Ecto.Migrator.with_repo(Tymeslot.Repo, &Ecto.Migrator.run(&1, :up, all: true))'
+/app/bin/tymeslot eval 'Tymeslot.Release.migrate()'
 
 # Start the Phoenix server
 echo "Starting Phoenix server..."

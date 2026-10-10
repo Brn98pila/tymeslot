@@ -703,3 +703,13 @@ msgstr "Para uma proteção maior, verifique a assinatura. O cabeçalho tem o fo
 #, elixir-autogen, elixir-format
 msgid "Request signature"
 msgstr "Assinatura da requisição"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "Paused"
+msgstr "Pausado"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "Paused: your plan doesn't include automations. Upgrading resumes it."
+msgstr "Pausado: seu plano não inclui automações. Ao fazer upgrade, ele é retomado automaticamente."

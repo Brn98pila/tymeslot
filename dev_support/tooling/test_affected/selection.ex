@@ -65,6 +65,10 @@ defmodule Tymeslot.TestAffected.Selection do
   @widening_prefixes ~w[config/ test/support/ test/test_helper.exs]
   @migration_prefixes ~w[priv/repo/migrations/ priv/saas_repo/migrations/]
 
+  # Code resolved through a mirror directory: `lib/x` to `test/x`, and the
+  # dev tooling and Credo checks in `dev_support/x` to `test/dev_support/x`.
+  @source_prefixes ~w[lib/ dev_support/]
+
   @doc """
   Builds the plan for `changed` against `index`.
 
@@ -102,7 +106,7 @@ defmodule Tymeslot.TestAffected.Selection do
       String.ends_with?(path, "_test.exs") -> {:test, path}
       starts_with_any?(path, @ignored_prefixes) -> :ignore
       Path.extname(path) in @ignored_extensions -> :ignore
-      String.starts_with?(path, "lib/") -> {:lib, path}
+      starts_with_any?(path, @source_prefixes) -> {:lib, path}
       true -> {:widen, path}
     end
   end
@@ -117,9 +121,13 @@ defmodule Tymeslot.TestAffected.Selection do
   defp mirror_dir(path, index) do
     path
     |> Path.dirname()
-    |> String.replace_prefix("lib/", "test/")
+    |> test_dir()
     |> walk_up(index)
   end
+
+  defp test_dir("lib/" <> rest), do: "test/" <> rest
+  defp test_dir("dev_support/" <> rest), do: "test/dev_support/" <> rest
+  defp test_dir(path), do: path
 
   defp walk_up("test", _index), do: nil
   defp walk_up(".", _index), do: nil
@@ -235,7 +243,7 @@ defmodule Tymeslot.TestAffected.Selection do
   def mirror_file(path, index) do
     candidate =
       path
-      |> String.replace_prefix("lib/", "test/")
+      |> test_dir()
       |> strip_source_extension()
       |> Kernel.<>("_test.exs")
 

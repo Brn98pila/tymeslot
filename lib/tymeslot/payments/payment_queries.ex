@@ -222,4 +222,64 @@ defmodule Tymeslot.Payments.PaymentQueries do
 
     Repo.update_all(query, [])
   end
+
+  # The flag a handled abandoned checkout carries in its metadata. The key
+  # predates the move of this bookkeeping into Core; existing rows carry it.
+  @handled_key "abandoned_email_sent"
+
+  @doc """
+  Pending transactions older than `:cutoff` not yet marked handled, counted
+  per user, as `{user_id, count}` tuples. `:product_identifiers` (a list) and
+  `:payment_type` (matched on `metadata.payment_type`) narrow the set.
+  """
+  @spec list_abandoned_checkouts(keyword()) :: [{pos_integer(), pos_integer()}]
+  def list_abandoned_checkouts(opts) do
+    opts
+    |> abandoned_scope()
+    |> where(
+      [t],
+      fragment("coalesce(? ->> ?, 'false') = 'false'", t.metadata, ^@handled_key)
+    )
+    |> group_by([t], t.user_id)
+    |> select([t], {t.user_id, count(t.id)})
+    |> Repo.all()
+  end
+
+  @doc """
+  Marks the user's pending transactions older than `:cutoff` as handled,
+  under the same filters as `list_abandoned_checkouts/1`. Returns the number
+  of rows marked.
+  """
+  @spec mark_abandoned_checkouts_handled(pos_integer(), keyword()) :: non_neg_integer()
+  def mark_abandoned_checkouts_handled(user_id, opts) do
+    {count, _rows} =
+      opts
+      |> abandoned_scope()
+      |> where([t], t.user_id == ^user_id)
+      |> update([t],
+        set: [metadata: fragment("? || ?", t.metadata, ^%{@handled_key => "true"})]
+      )
+      |> Repo.update_all([])
+
+    count
+  end
+
+  defp abandoned_scope(opts) do
+    cutoff = Keyword.fetch!(opts, :cutoff)
+
+    PaymentTransaction
+    |> where([t], t.status == "pending" and t.inserted_at < ^cutoff)
+    |> filter_products(Keyword.get(opts, :product_identifiers))
+    |> filter_payment_type(Keyword.get(opts, :payment_type))
+  end
+
+  defp filter_products(query, nil), do: query
+
+  defp filter_products(query, identifiers) when is_list(identifiers),
+    do: where(query, [t], t.product_identifier in ^identifiers)
+
+  defp filter_payment_type(query, nil), do: query
+
+  defp filter_payment_type(query, payment_type) when is_binary(payment_type),
+    do: where(query, [t], fragment("? ->> 'payment_type' = ?", t.metadata, ^payment_type))
 end

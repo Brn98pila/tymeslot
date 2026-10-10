@@ -24,6 +24,7 @@ defmodule Tymeslot.Payments.Stripe do
     do: Application.get_env(:tymeslot, :stripe_subscription_mod, Subscription)
 
   defp charge_mod, do: Application.get_env(:tymeslot, :stripe_charge_mod, Stripe.Charge)
+  defp invoice_mod, do: Application.get_env(:tymeslot, :stripe_invoice_mod, Stripe.Invoice)
 
   @doc """
   Creates a Stripe customer for the given email.
@@ -163,6 +164,52 @@ defmodule Tymeslot.Payments.Stripe do
 
     with {:ok, opts} <- api_key_opts(),
          do: subscription_mod().update(subscription_id, %{cancel_at_period_end: false}, opts)
+  end
+
+  @doc """
+  Lists charges from Stripe, one page at a time, with Stripe's own filters
+  (`customer`, `created`, `limit`, `starting_after`, `expand`). A charge's
+  refunds come back only when expanded (`expand: ["data.refunds"]`).
+  """
+  @impl StripeProvider
+  @spec list_charges(map()) :: stripe_result()
+  def list_charges(params) when is_map(params) do
+    Logger.info("Listing Stripe charges", params: LogFormat.reason(params))
+
+    with {:ok, opts} <- api_key_opts(), do: charge_mod().list(params, opts)
+  end
+
+  @doc """
+  Lists invoices from Stripe, one page at a time, with Stripe's own filters
+  (`customer`, `subscription`, `status`, `created`, `limit`,
+  `starting_after`).
+  """
+  @impl StripeProvider
+  @spec list_invoices(map()) :: stripe_result()
+  def list_invoices(params) when is_map(params) do
+    Logger.info("Listing Stripe invoices", params: LogFormat.reason(params))
+
+    with {:ok, opts} <- api_key_opts(), do: invoice_mod().list(params, opts)
+  end
+
+  @doc """
+  Turns Stripe Tax's automatic calculation on or off for a subscription, from
+  its next invoice on.
+
+  Sent without an idempotency key: setting the flag is idempotent by itself.
+  """
+  @impl StripeProvider
+  @spec update_subscription_automatic_tax(String.t(), boolean()) :: stripe_result()
+  def update_subscription_automatic_tax(subscription_id, enabled)
+      when is_binary(subscription_id) and is_boolean(enabled) do
+    Logger.info("Updating Stripe subscription automatic tax",
+      subscription_id: subscription_id,
+      enabled: enabled
+    )
+
+    with {:ok, opts} <- api_key_opts(),
+         do:
+           subscription_mod().update(subscription_id, %{automatic_tax: %{enabled: enabled}}, opts)
   end
 
   @doc """

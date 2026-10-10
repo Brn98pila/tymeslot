@@ -4,7 +4,7 @@ defmodule Tymeslot.Payments.Webhooks.WebhookUtils do
   """
 
   require Logger
-  alias Tymeslot.Auth.UserSchema
+  alias Tymeslot.Auth
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Mailer
 
@@ -13,18 +13,15 @@ defmodule Tymeslot.Payments.Webhooks.WebhookUtils do
   """
   @spec deliver_user_email(integer(), atom(), atom(), list(), keyword()) :: :ok
   def deliver_user_email(user_id, config_key, template_fun, args, opts) do
-    repo = Application.get_env(:tymeslot, :repo, Tymeslot.Repo)
-
-    case repo.get(UserSchema, user_id) do
-      nil ->
+    # Every template reached from here greets the recipient by name, and
+    # `Profiles.user_display_name/1` raises rather than guessing when
+    # `:profile` is unloaded, so the user comes with the profile loaded.
+    case Auth.get_user_with_profile(user_id) do
+      {:error, :not_found} ->
         Logger.warning("User not found", user_id: user_id)
         :ok
 
-      user ->
-        # Every template reached from here greets the recipient by name, and
-        # `Profiles.user_display_name/1` raises rather than guessing when
-        # `:profile` is unloaded. Preload once here so no template has to.
-        user = repo.preload(user, :profile)
+      {:ok, user} ->
         template = Application.get_env(:tymeslot, config_key)
 
         if template && Code.ensure_loaded?(template) do

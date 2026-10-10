@@ -579,6 +579,14 @@ defmodule Tymeslot.Meetings do
   @spec count_converting_visitors(integer(), DateTime.t(), DateTime.t()) :: non_neg_integer()
   defdelegate count_converting_visitors(organizer_user_id, from, to), to: MeetingAnalyticsQueries
 
+  @doc """
+  Of `organizer_user_ids`, those who have had a real booking: not cancelled,
+  booked by someone other than the organiser, group meetings included. See
+  `Tymeslot.Meetings.MeetingAnalyticsQueries.organisers_with_real_booking/1`.
+  """
+  @spec organisers_with_real_booking([integer()]) :: [integer()]
+  defdelegate organisers_with_real_booking(organizer_user_ids), to: MeetingAnalyticsQueries
+
   @doc "Distinct converting-visitor counts grouped by `utm_source`; primitive for `Analytics.attribution_table/3`."
   @spec converting_visitors_by_utm_source(integer(), DateTime.t(), DateTime.t()) :: [
           %{utm_source: String.t(), converting_visitors: non_neg_integer()}

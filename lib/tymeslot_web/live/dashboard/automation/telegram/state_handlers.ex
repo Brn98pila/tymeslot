@@ -12,6 +12,16 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.StateHandlers do
   alias TymeslotWeb.Dashboard.Automation.Helpers, as: AutomationHelpers
   alias TymeslotWeb.Live.Shared.Flash
 
+  # Refusals from `Tymeslot.Features.check_access/2`, shown by
+  # `AutomationHelpers.handle_feature_access_error/2`.
+  @access_errors [
+    :insufficient_plan,
+    :feature_disabled,
+    :pro_required,
+    :stripe_required,
+    :feature_access_checker_failed
+  ]
+
   @spec handle_toggle(map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_toggle(%{"id" => id}, socket) do
@@ -54,9 +64,13 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.StateHandlers do
     )
   end
 
+  # A plan refusal stays an atom, for the shared access-error flash.
   defp test_integration(integration) do
-    with {:error, reason} <- Telegram.test_integration(integration),
-         do: {:error, Telegram.translate_error(reason)}
+    case Telegram.test_integration(integration) do
+      {:error, reason} when reason in @access_errors -> {:error, reason}
+      {:error, reason} -> {:error, Telegram.translate_error(reason)}
+      :ok -> :ok
+    end
   end
 
   @spec handle_reenable(map(), Phoenix.LiveView.Socket.t()) ::

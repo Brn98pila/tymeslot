@@ -77,11 +77,6 @@ defmodule Tymeslot.Telegram.TelegramQueries do
     |> Repo.delete_all()
   end
 
-  @doc "See `IntegrationQueries.disable_if_active/3`."
-  @spec disable_if_active(integer(), String.t()) :: {:ok, boolean()}
-  def disable_if_active(id, reason),
-    do: IntegrationQueries.disable_if_active(TelegramIntegrationSchema, id, reason)
-
   @spec list_active_integrations_for_event(integer(), String.t()) :: [
           TelegramIntegrationSchema.t()
         ]
