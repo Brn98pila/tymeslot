@@ -965,3 +965,8 @@ msgstr "Sua conta está sendo excluída e não pode mais ser restaurada."
 #, elixir-autogen, elixir-format
 msgid "Your account is in the process of being deleted (scheduled for %{date}). If you want to keep it, restore it here."
 msgstr "Sua conta está em processo de exclusão (agendada para %{date}). Se quiser mantê-la, restaure-a aqui."
+
+#: lib/tymeslot/auth/email_change.ex
+#, elixir-autogen, elixir-format
+msgid "The verification email could not be sent. Please try again."
+msgstr "Não foi possível enviar o e-mail de verificação. Tente novamente."

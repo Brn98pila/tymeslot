@@ -967,3 +967,8 @@ msgstr "Váš účet se maže a už ho nelze obnovit."
 #, elixir-autogen, elixir-format
 msgid "Your account is in the process of being deleted (scheduled for %{date}). If you want to keep it, restore it here."
 msgstr "Váš účet se právě maže (naplánováno na %{date}). Pokud ho chcete zachovat, obnovte ho zde."
+
+#: lib/tymeslot/auth/email_change.ex
+#, elixir-autogen, elixir-format
+msgid "The verification email could not be sent. Please try again."
+msgstr "Ověřovací e-mail se nepodařilo odeslat. Zkuste to prosím znovu."
