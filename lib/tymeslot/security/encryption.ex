@@ -122,72 +122,43 @@ defmodule Tymeslot.Security.Encryption do
   Calendar and video sync workers use this to detect the failure case and flag
   affected integrations as needing reauthentication rather than crashing.
   """
-  @spec decrypt_with_status(nil) :: {:ok, nil}
-  def decrypt_with_status(nil), do: {:ok, nil}
-
-  @spec decrypt_with_status(binary()) ::
+  @spec decrypt_with_status(binary() | nil) ::
           {:ok, binary() | nil} | {:error, :requires_reencryption}
-  def decrypt_with_status(
-        <<version, nonce::binary-size(@nonce_size), tag::binary-size(@tag_size),
-          ciphertext::binary>> = encrypted
-      )
-      when byte_size(encrypted) >= @versioned_min_size do
-    %{keys: keys, legacy_key: legacy_key} = keyring()
-
-    case Map.get(keys, version) do
-      nil ->
-        # The version byte is not a live key id — the bytes are a prefix-less
-        # legacy value. Re-interpret the whole binary under the legacy key.
-        legacy_decrypt(encrypted, legacy_key)
-
-      key ->
-        case aead_decrypt(key, nonce, tag, ciphertext) do
-          {:ok, plaintext} ->
-            {:ok, plaintext}
-
-          :error ->
-            # The version byte collided with a live key id but verification
-            # failed — the bytes may still be a legacy value. Retry legacy.
-            legacy_decrypt(encrypted, legacy_key)
-        end
+  def decrypt_with_status(encrypted) do
+    case open(encrypted) do
+      {:ok, _version, plaintext} -> {:ok, plaintext}
+      :empty -> {:ok, nil}
+      {:error, :requires_reencryption} = error -> error
     end
   end
 
-  def decrypt_with_status(encrypted)
-      when is_binary(encrypted) and byte_size(encrypted) >= @legacy_min_size do
-    %{legacy_key: legacy_key} = keyring()
-    legacy_decrypt(encrypted, legacy_key)
-  end
+  @doc """
+  Reports which key version opens a stored value, without returning it.
 
-  def decrypt_with_status(_value), do: {:ok, nil}
+  Returns `{:ok, version}` (`0` for the legacy key), `:empty` for `nil` or a
+  value too short to be ciphertext, or `{:error, :requires_reencryption}` when
+  no configured key opens it. The key report and the re-encryption sweep use
+  it to tell the operator what each key still holds.
+  """
+  @spec key_version(binary() | nil) ::
+          {:ok, non_neg_integer()} | :empty | {:error, :requires_reencryption}
+  def key_version(encrypted) do
+    case open(encrypted) do
+      {:ok, version, _plaintext} -> {:ok, version}
+      other -> other
+    end
+  end
 
   @doc """
   Returns `true` when a stored value is already written under the current primary
   version, i.e. the re-encryption sweep has nothing to do for it.
 
-  A value counts as current only when its version prefix matches the primary *and*
-  it verifies under the primary key, so a legacy blob whose leading nonce byte
-  coincides with the primary version id is never mistaken for migrated data.
+  A value counts as current only when it verifies under the primary key, so a
+  legacy blob whose leading nonce byte coincides with the primary version id is
+  never mistaken for migrated data.
   """
-  @spec current?(binary()) :: boolean()
-  def current?(
-        <<version, nonce::binary-size(@nonce_size), tag::binary-size(@tag_size),
-          ciphertext::binary>> = encrypted
-      )
-      when byte_size(encrypted) >= @versioned_min_size do
-    %{current_version: current_version, keys: keys} = keyring()
-
-    case Map.get(keys, version) do
-      nil ->
-        false
-
-      key ->
-        version == current_version and
-          match?({:ok, _plaintext}, aead_decrypt(key, nonce, tag, ciphertext))
-    end
-  end
-
-  def current?(_value), do: false
+  @spec current?(binary() | nil) :: boolean()
+  def current?(encrypted), do: key_version(encrypted) == {:ok, current_version()}
 
   @doc """
   The primary key version new writes are stamped with. `0` means no versioned
@@ -224,6 +195,31 @@ defmodule Tymeslot.Security.Encryption do
 
   # Private functions
 
+  # The version prefix selects the key. A value whose prefix is not a live key
+  # id, or that fails under the key it names, is retried as a prefix-less
+  # legacy value, so a legacy blob whose first nonce byte collides with a live
+  # version id still opens.
+  defp open(
+         <<version, nonce::binary-size(@nonce_size), tag::binary-size(@tag_size),
+           ciphertext::binary>> = encrypted
+       )
+       when byte_size(encrypted) >= @versioned_min_size do
+    %{keys: keys, legacy_key: legacy_key} = keyring()
+
+    with {:ok, key} <- Map.fetch(keys, version),
+         {:ok, plaintext} <- aead_decrypt(key, nonce, tag, ciphertext) do
+      {:ok, version, plaintext}
+    else
+      _not_versioned -> legacy_open(encrypted, legacy_key)
+    end
+  end
+
+  defp open(encrypted) when is_binary(encrypted) and byte_size(encrypted) >= @legacy_min_size do
+    legacy_open(encrypted, keyring().legacy_key)
+  end
+
+  defp open(_value), do: :empty
+
   defp aead_decrypt(key, nonce, tag, ciphertext) do
     case :crypto.crypto_one_time_aead(:aes_256_gcm, key, nonce, ciphertext, @aad, tag, false) do
       :error -> :error
@@ -233,19 +229,17 @@ defmodule Tymeslot.Security.Encryption do
 
   # With the legacy key retired, a value no versioned key opens cannot be told
   # apart from a v0 value, so it is reported as unreadable and left untouched.
-  defp legacy_decrypt(_value, nil), do: {:error, :requires_reencryption}
+  defp legacy_open(_value, nil), do: {:error, :requires_reencryption}
 
-  defp legacy_decrypt(
+  defp legacy_open(
          <<nonce::binary-size(@nonce_size), tag::binary-size(@tag_size), ciphertext::binary>>,
          key
        ) do
     case aead_decrypt(key, nonce, tag, ciphertext) do
-      {:ok, plaintext} -> {:ok, plaintext}
+      {:ok, plaintext} -> {:ok, @legacy_version, plaintext}
       :error -> {:error, :requires_reencryption}
     end
   end
-
-  defp legacy_decrypt(_value, _key), do: {:ok, nil}
 
   defp keyring do
     case :persistent_term.get({__MODULE__, :keyring}, nil) do

@@ -35,6 +35,24 @@ defmodule Tymeslot.Security.CredentialReencryptionQueries do
     |> Repo.all()
   end
 
+  @doc """
+  Streams every row of the table as `fetch_batch/4` pages it, `batch_size`
+  rows per query, so a caller walks a whole table without loading it.
+  """
+  @spec stream_rows(String.t(), [atom()], pos_integer()) :: Enumerable.t()
+  def stream_rows(table, columns, batch_size) do
+    # The first page starts from no id rather than 0, since some of the tables
+    # are keyed by UUID.
+    {:after, nil}
+    |> Stream.unfold(fn {:after, after_id} ->
+      case fetch_batch(table, columns, after_id, batch_size) do
+        [] -> nil
+        rows -> {rows, {:after, rows |> List.last() |> Map.fetch!(:id)}}
+      end
+    end)
+    |> Stream.concat()
+  end
+
   defp after_id(query, nil), do: query
   defp after_id(query, id), do: where(query, [r], r.id > ^id)
 

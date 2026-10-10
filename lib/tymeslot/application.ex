@@ -41,6 +41,7 @@ defmodule Tymeslot.Application do
   alias Tymeslot.Integrations.Shared.Lock
   alias Tymeslot.Mailer.HealthCheck, as: MailerHealthCheck
   alias Tymeslot.Payments.Webhooks.SecretCheck
+  alias Tymeslot.Security.CredentialReencryption.KeyReport
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Telegram.BotSetup
   alias Tymeslot.Workers.ErrorTrackerMaintenanceWorker
@@ -296,12 +297,12 @@ defmodule Tymeslot.Application do
   end
 
   # The startup checks that only work once the rest of the tree is up: the
-  # mailer credential probe needs Tymeslot.Finch, the invalid-index report
-  # needs Tymeslot.Repo. Both are supervised tasks appended after every other
-  # child for that reason, and both are skipped in test.
+  # mailer credential probe needs Tymeslot.Finch, the invalid-index report and
+  # the retired-key check need Tymeslot.Repo. All are supervised tasks appended
+  # after every other child for that reason, and all are skipped in test.
   @spec startup_check_children() :: [Supervisor.child_spec()]
   defp startup_check_children do
-    mailer_health_check_children() ++ index_health_children()
+    mailer_health_check_children() ++ index_health_children() ++ retired_key_check_children()
   end
 
   # Runs the mailer startup health check as a supervised, transient Task
@@ -344,6 +345,26 @@ defmodule Tymeslot.Application do
         Supervisor.child_spec(
           {Task, &IndexHealth.check/0},
           id: Tymeslot.Infrastructure.IndexHealthTask,
+          restart: :temporary
+        )
+      ]
+    else
+      []
+    end
+  end
+
+  # Logs an error when LEGACY_KEY_RETIRED is set while stored values no
+  # configured key opens remain (see `KeyReport`). Off the boot path and
+  # `:temporary`, like `index_health_children/0`: a diagnostic never delays or
+  # takes down the application. The check itself returns at once when the flag
+  # is unset. Skipped in test, which drives the check directly.
+  @spec retired_key_check_children() :: [Supervisor.child_spec()]
+  defp retired_key_check_children do
+    if Application.get_env(:tymeslot, :environment) != :test do
+      [
+        Supervisor.child_spec(
+          {Task, &KeyReport.warn_if_retired_key_holds_values/0},
+          id: Tymeslot.Security.RetiredKeyCheckTask,
           restart: :temporary
         )
       ]

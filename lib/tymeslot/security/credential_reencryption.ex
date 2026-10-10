@@ -25,6 +25,7 @@ defmodule Tymeslot.Security.CredentialReencryption do
   alias Tymeslot.Meetings
   alias Tymeslot.Polls
   alias Tymeslot.Profiles
+  alias Tymeslot.Security.CredentialReencryption.KeyReport
   alias Tymeslot.Security.CredentialReencryptionQueries, as: Queries
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Slack
@@ -98,28 +99,24 @@ defmodule Tymeslot.Security.CredentialReencryption do
   defp check_batch_size(size) when is_integer(size) and size >= 1, do: :ok
   defp check_batch_size(size), do: {:error, {:invalid_batch_size, size}}
 
+  @doc """
+  Read-only counts of the stored values under each key version, per table and
+  column: the evidence for retiring a key. See
+  `Tymeslot.Security.CredentialReencryption.KeyReport`.
+  """
+  @spec key_report(keyword()) :: KeyReport.report()
+  defdelegate key_report(opts \\ []), to: KeyReport, as: :run
+
   @doc "The tables and encrypted columns the sweep covers."
   @spec covered_tables() :: [{String.t(), [atom()]}]
   def covered_tables do
     Enum.flat_map(@contexts, &List.wrap(&1.encrypted_storage()))
   end
 
-  # The first page starts from no id rather than 0, since some of the tables
-  # are keyed by UUID.
   defp sweep_table(table, columns, batch_size) do
-    sweep_batches(table, columns, batch_size, nil, empty_stats())
-  end
-
-  defp sweep_batches(table, columns, batch_size, after_id, stats) do
-    case Queries.fetch_batch(table, columns, after_id, batch_size) do
-      [] ->
-        stats
-
-      rows ->
-        stats = Enum.reduce(rows, stats, &sweep_row(table, columns, &1, &2))
-        last_id = rows |> List.last() |> Map.fetch!(:id)
-        sweep_batches(table, columns, batch_size, last_id, stats)
-    end
+    table
+    |> Queries.stream_rows(columns, batch_size)
+    |> Enum.reduce(empty_stats(), &sweep_row(table, columns, &1, &2))
   end
 
   defp sweep_row(table, columns, row, stats) do
