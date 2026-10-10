@@ -8,7 +8,7 @@ defmodule Tymeslot.Emails.Shared.TemplateHelper do
   """
 
   alias Tymeslot.Emails.Branding
-  alias Tymeslot.Emails.Shared.{Layouts, MjmlEmail}
+  alias Tymeslot.Emails.Shared.{Layouts, MjmlEmail, Stage}
   alias Tymeslot.Emails.Shared.Styles.Tokens
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -53,8 +53,8 @@ defmodule Tymeslot.Emails.Shared.TemplateHelper do
   """
   @spec build_organizer_details(organizer_source(), keyword()) :: organizer_details()
   def build_organizer_details(appointment_details, stage) do
-    fetch_required!(stage, :intent)
-    fetch_required!(stage, :eyebrow)
+    Stage.fetch_required!(stage, :intent)
+    Stage.fetch_required!(stage, :eyebrow)
 
     base = %{
       name: appointment_details.organizer_name,
@@ -83,8 +83,8 @@ defmodule Tymeslot.Emails.Shared.TemplateHelper do
   @spec compile_system_template(String.t(), String.t(), String.t() | nil, keyword()) ::
           String.t()
   def compile_system_template(mjml_content, title, preview, stage) do
-    fetch_required!(stage, :intent)
-    fetch_required!(stage, :eyebrow)
+    Stage.fetch_required!(stage, :intent)
+    Stage.fetch_required!(stage, :eyebrow)
 
     opts =
       [title: title]
@@ -210,19 +210,6 @@ defmodule Tymeslot.Emails.Shared.TemplateHelper do
   @spec format_error_reason(any()) :: String.t()
   def format_error_reason(reason) when is_binary(reason), do: reason
   def format_error_reason(reason), do: inspect(reason)
-
-  @spec fetch_required!(keyword(), atom()) :: term()
-  defp fetch_required!(opts, key) do
-    case Keyword.fetch(opts, key) do
-      {:ok, value} ->
-        value
-
-      :error ->
-        raise ArgumentError,
-              "Tymeslot.Emails.Shared.TemplateHelper: missing required stage option `#{inspect(key)}`. " <>
-                "Templates must declare `:intent` and `:eyebrow` at the call site."
-    end
-  end
 
   defp maybe_put(opts, _key, nil), do: opts
   defp maybe_put(opts, key, value), do: Keyword.put(opts, key, value)
