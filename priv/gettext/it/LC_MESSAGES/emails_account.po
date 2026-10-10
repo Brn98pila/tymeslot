@@ -24,7 +24,7 @@ msgstr "Ti basta una nuova password per accedere di nuovo."
 #: lib/tymeslot/emails/templates/email_change_notification.ex
 #, elixir-autogen, elixir-format
 msgid "A request has been made to change the email address on your Tymeslot account. We're letting you know so you can confirm it was you."
-msgstr "È stata inviata una richiesta per modificare l'indirizzo email del tuo account Tymeslot. Ti avvisiamo per permetterti di confermare che sia stato tu."
+msgstr "È stata inviata una richiesta per modificare l'indirizzo email del tuo account Tymeslot. Ti avvisiamo per permetterti di confermare che la richiesta venga da te."
 
 #: lib/tymeslot/emails/templates/email_change_notification.ex
 #, elixir-autogen, elixir-format
@@ -177,12 +177,12 @@ msgstr "Per motivi di sicurezza, una copia di questa conferma è stata inviata a
 #: lib/tymeslot/emails/templates/email_verification.ex
 #, elixir-autogen, elixir-format
 msgid "For your security, this link expires in 24 hours. If you didn't sign up for Tymeslot, no further action is needed."
-msgstr "Per la tua sicurezza, questo link scadrà tra 24 ore. Se non ti sei registrato a Tymeslot, non devi fare nient'altro."
+msgstr "Per la tua sicurezza, questo link scadrà tra 24 ore. Se non hai effettuato tu la registrazione a Tymeslot, non devi fare nient'altro."
 
 #: lib/tymeslot/emails/templates/email_verification.ex
 #, elixir-autogen, elixir-format
 msgid "For your security, this link expires in 24 hours. If you didn't sign up for Tymeslot, you can ignore this email."
-msgstr "Per la tua sicurezza, questo link scadrà tra 24 ore. Se non ti sei registrato a Tymeslot, puoi ignorare questa email."
+msgstr "Per la tua sicurezza, questo link scadrà tra 24 ore. Se non hai effettuato tu la registrazione a Tymeslot, puoi ignorare questa email."
 
 #: lib/tymeslot/emails/templates/signup_attempt_notice.ex
 #, elixir-autogen, elixir-format
@@ -197,7 +197,7 @@ msgstr "Avviso"
 #: lib/tymeslot/emails/templates/signup_attempt_notice.ex
 #, elixir-autogen, elixir-format
 msgid "If it wasn't you, you can ignore this email. No new account was created and nothing about your account has changed."
-msgstr "Se non sei stato tu, puoi ignorare questa email. Non è stato creato alcun nuovo account e nel tuo account non è cambiato nulla."
+msgstr "Se non è opera tua, puoi ignorare questa email. Non è stato creato alcun nuovo account e nel tuo account non è cambiato nulla."
 
 #: lib/tymeslot/emails/templates/email_change_confirmed.ex
 #, elixir-autogen, elixir-format
@@ -375,12 +375,12 @@ msgstr "Qualcuno ha chiesto di reimpostare la password del tuo account Tymeslot,
 #: lib/tymeslot/emails/templates/signup_attempt_notice.ex
 #, elixir-autogen, elixir-format
 msgid "Someone just tried to create a new Tymeslot account with this email address, which already has an account. If it was you, sign in below, or reset your password if you can't remember it."
-msgstr "Qualcuno ha appena provato a creare un nuovo account Tymeslot con questo indirizzo email, che ha già un account. Se sei stato tu, accedi qui sotto, oppure reimposta la password se non la ricordi."
+msgstr "Qualcuno ha appena provato a creare un nuovo account Tymeslot con questo indirizzo email, che ha già un account. Se eri tu, accedi qui sotto, oppure reimposta la password se non la ricordi."
 
 #: lib/tymeslot/emails/templates/signup_attempt_notice.ex
 #, elixir-autogen, elixir-format
 msgid "Someone just tried to create a new Tymeslot account with this email address, which already has an account. If it was you, sign in with %{provider} below."
-msgstr "Qualcuno ha appena provato a creare un nuovo account Tymeslot con questo indirizzo email, che ha già un account. Se sei stato tu, accedi qui sotto con %{provider}."
+msgstr "Qualcuno ha appena provato a creare un nuovo account Tymeslot con questo indirizzo email, che ha già un account. Se eri tu, accedi qui sotto con %{provider}."
 
 #: lib/tymeslot/emails/templates/signup_attempt_notice.ex
 #, elixir-autogen, elixir-format
@@ -422,7 +422,7 @@ msgstr "Questo è un avviso di sicurezza inviato per proteggere il tuo account. 
 #: lib/tymeslot/emails/templates/social_signup_confirmation.ex
 #, elixir-autogen, elixir-format
 msgid "This link expires in 24 hours. If you didn't sign up for Tymeslot, you can ignore this email and no account will be created."
-msgstr "Questo link scade tra 24 ore. Se non ti sei registrato a Tymeslot, puoi ignorare questa email e non verrà creato alcun account."
+msgstr "Questo link scade tra 24 ore. Se non hai effettuato tu la registrazione a Tymeslot, puoi ignorare questa email e non verrà creato alcun account."
 
 #: lib/tymeslot/emails/templates/email_change_verification.ex
 #, elixir-autogen, elixir-format
@@ -482,28 +482,28 @@ msgstr "Che bello averti qui. Manca solo un piccolo passo e il tuo calendario sa
 #: lib/tymeslot/emails/templates/email_change_notification.ex
 #, elixir-autogen, elixir-format
 msgid "We're letting you know in case it wasn't you."
-msgstr "Te lo segnaliamo nel caso in cui non fossi stato tu."
+msgstr "Te lo segnaliamo nel caso in cui la richiesta non venga da te."
 
 #: lib/tymeslot/emails/templates/email_verification.ex
 #: lib/tymeslot/emails/templates/social_signup_confirmation.ex
 #, elixir-autogen, elixir-format
 msgid "Welcome"
-msgstr "Benvenuto"
+msgstr "Ti diamo il benvenuto"
 
 #: lib/tymeslot/emails/templates/email_verification.ex
 #, elixir-autogen, elixir-format
 msgid "Welcome to Tymeslot"
-msgstr "Benvenuto su Tymeslot"
+msgstr "Ti diamo il benvenuto su Tymeslot"
 
 #: lib/tymeslot/emails/templates/email_verification.ex
 #, elixir-autogen, elixir-format
 msgid "Welcome to Tymeslot - please verify your email."
-msgstr "Benvenuto su Tymeslot: verifica la tua email."
+msgstr "Ti diamo il benvenuto su Tymeslot: verifica la tua email."
 
 #: lib/tymeslot/emails/templates/email_verification.ex
 #, elixir-autogen, elixir-format
 msgid "Welcome to Tymeslot!"
-msgstr "Benvenuto su Tymeslot!"
+msgstr "Ti diamo il benvenuto su Tymeslot!"
 
 #: lib/tymeslot/emails/templates/email_change_notification.ex
 #, elixir-autogen, elixir-format
@@ -654,3 +654,48 @@ msgstr "Le tue prenotazioni future verranno eliminate da Tymeslot insieme al tuo
 #, elixir-autogen, elixir-format
 msgid "Someone just tried to create a new Tymeslot account with this email address. It belongs to an account that is scheduled for deletion on %{date}. If it was you, sign in before then to restore that account, or sign up again after that date."
 msgstr "Qualcuno ha appena provato a creare un nuovo account Tymeslot con questo indirizzo email. Appartiene a un account la cui eliminazione è programmata per il %{date}. Se il tentativo è partito da te, accedi prima di quella data per ripristinare l'account, oppure registrati di nuovo dopo quella data."
+
+#: lib/tymeslot/emails/templates/social_signup_confirmation.ex
+#, elixir-autogen, elixir-format
+msgid "Confirm your email to finish signing up"
+msgstr "Conferma la tua email per completare la registrazione"
+
+#: lib/tymeslot/emails/templates/email_change_confirmed.ex
+#, elixir-autogen, elixir-format
+msgid "Email Address Changed - Tymeslot Account"
+msgstr "Indirizzo email modificato - account Tymeslot"
+
+#: lib/tymeslot/emails/templates/email_change_confirmed.ex
+#, elixir-autogen, elixir-format
+msgid "Email Address Changed Successfully"
+msgstr "Indirizzo email modificato con successo"
+
+#: lib/tymeslot/emails/templates/email_verification.ex
+#, elixir-autogen, elixir-format
+msgid "Verify your email address"
+msgstr "Verifica il tuo indirizzo email"
+
+#: lib/tymeslot/emails/templates/signup_attempt_notice.ex
+#, elixir-autogen, elixir-format
+msgid "You already have a Tymeslot account"
+msgstr "Hai già un account Tymeslot"
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "Your Tymeslot account has been deleted"
+msgstr "Il tuo account Tymeslot è stato eliminato"
+
+#: lib/tymeslot/emails/templates/no_password_to_reset.ex
+#, elixir-autogen, elixir-format
+msgid "Your Tymeslot account has no password"
+msgstr "Il tuo account Tymeslot non ha una password"
+
+#: lib/tymeslot/emails/templates/account_deletion_notice.ex
+#, elixir-autogen, elixir-format
+msgid "Your Tymeslot account is scheduled for deletion"
+msgstr "L'eliminazione del tuo account Tymeslot è programmata"
+
+#: lib/tymeslot/emails/templates/email_change_notification.ex
+#, elixir-autogen, elixir-format
+msgid "⚠️ Email Change Request - Security Alert"
+msgstr "⚠️ Richiesta di modifica dell'email - avviso di sicurezza"

@@ -103,12 +103,9 @@ defmodule Tymeslot.Emails.HostClockTest do
   end
 
   test "the calendar sync failure notice uses the host's clock", %{host: host} do
-    {html, text} =
-      Gettext.with_locale(TymeslotWeb.Gettext, "en", fn ->
-        CalendarSyncError.render_both(meeting(host, %{status: "confirmed"}), :timeout)
-      end)
+    email = CalendarSyncError.render(meeting(host, %{status: "confirmed"}), :timeout)
 
-    assert_24_hour(%{html_body: html, text_body: text}, "14:30")
+    assert_24_hour(email, "14:30")
   end
 
   test "an organiser-less meeting reads in the default zone on the locale's own clock" do

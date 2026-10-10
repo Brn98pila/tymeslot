@@ -8,26 +8,37 @@ defmodule Tymeslot.Emails.Templates.CalendarsRemoved do
   removed; the dashboard shows the same notice until the owner dismisses it
   (see `Tymeslot.Integrations.Calendar.RemovedCalendars`).
 
-  Rendered in the owner's locale. The caller establishes it with
-  `Tymeslot.Emails.RecipientLocale`.
+  Rendered in the owner's locale.
   """
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Emails.Shared.{Buttons, Callouts, Sanitise, Styles, TemplateHelper, Text}
-  alias Tymeslot.Utils.UrlBuilder
+  alias Swoosh.Email
+  alias Tymeslot.Emails.RecipientLocale
+  alias Tymeslot.Emails.Shared.{IntegrationLabels, IntegrationNotice}
 
-  @intent :alert
+  @doc """
+  The email naming every calendar in `calendars`, addressed and rendered in
+  the recipient's locale.
+  """
+  @spec render(
+          Tymeslot.Emails.EmailService.user_map(),
+          %{required(:name) => String.t(), optional(atom()) => term()},
+          [String.t(), ...]
+        ) :: Email.t()
+  def render(user, integration, [_first | _rest] = calendars) do
+    RecipientLocale.with_user_locale(user, fn ->
+      IntegrationNotice.email(user, copy(integration, calendars))
+    end)
+  end
 
-  @doc "The subject line, in the current locale."
-  @spec subject([String.t()]) :: String.t()
-  def subject([calendar]) do
+  defp subject([calendar]) do
     dgettext("emails_integrations", "“%{calendar}” is no longer on your calendar server",
       calendar: calendar
     )
   end
 
-  def subject(calendars) do
+  defp subject(calendars) do
     dngettext(
       "emails_integrations",
       "%{count} calendar is no longer on your calendar server",
@@ -36,78 +47,17 @@ defmodule Tymeslot.Emails.Templates.CalendarsRemoved do
     )
   end
 
-  @doc "Returns `{html_body, text_body}`."
-  @spec render_both(%{required(:name) => String.t(), optional(atom()) => term()}, [String.t()]) ::
-          {String.t(), String.t()}
-  def render_both(integration, [_first | _rest] = calendars) do
-    copy = copy(integration, calendars)
-    {render_html(copy), render_text(copy)}
-  end
-
-  defp render_html(copy) do
-    mjml_content = """
-    #{Callouts.alert_box(:alert, copy.reason, title: copy.title, items: list_items(copy.calendars))}
-
-    #{Text.title_section(dgettext("emails_integrations", "What's happening?"))}
-
-    <mj-text
-      font-size="16px"
-      color="#{Styles.ink_soft()}"
-      line-height="1.5"
-      align="left"
-      css-class="mobile-text"
-    >
-      #{Sanitise.sanitize_for_email(copy.happening)}
-    </mj-text>
-
-    #{Text.divider()}
-
-    #{Text.title_section(dgettext("emails_integrations", "What should I do?"))}
-
-    <mj-text color="#{Styles.ink_soft()}" font-size="14px" line-height="1.6">
-      #{copy.action}
-    </mj-text>
-
-    #{Buttons.action_button(@intent, copy.button, copy.settings_url)}
-
-    #{Text.divider()}
-
-    #{Text.system_footer_note(copy.footer)}
-    """
-
-    TemplateHelper.compile_system_template(mjml_content, copy.title, copy.subject,
-      intent: @intent,
-      eyebrow: dgettext("emails_integrations", "Integration"),
-      stage_title: copy.title,
-      stage_subtitle: copy.subject
-    )
-  end
-
-  defp render_text(copy) do
-    """
-    #{copy.title}
-
-    #{copy.reason}
-    #{Enum.map_join(list_items(copy.calendars), "", &("\n- " <> &1))}
-
-    #{String.upcase(dgettext("emails_integrations", "What's happening?"))}
-    #{copy.happening}
-
-    #{String.upcase(dgettext("emails_integrations", "What should I do?"))}
-    #{copy.action}
-
-    #{copy.button}:
-    #{copy.settings_url}
-
-    #{copy.footer}
-    """
-  end
-
   defp copy(integration, calendars) do
     count = length(calendars)
 
+    subject = subject(calendars)
+
     %{
-      calendars: calendars,
+      subject: subject,
+      preheader: subject,
+      subtitle: subject,
+      eyebrow: dgettext("emails_integrations", "Integration"),
+      reason_items: list_items(calendars),
       title:
         dngettext(
           "emails_integrations",
@@ -115,8 +65,8 @@ defmodule Tymeslot.Emails.Templates.CalendarsRemoved do
           "Calendars no longer available",
           count
         ),
-      subject: subject(calendars),
       reason: reason(calendars),
+      happening_heading: dgettext("emails_integrations", "What's happening?"),
       happening:
         dngettext(
           "emails_integrations",
@@ -125,7 +75,8 @@ defmodule Tymeslot.Emails.Templates.CalendarsRemoved do
           count,
           integration: integration.name
         ),
-      action:
+      next_heading: dgettext("emails_integrations", "What should I do?"),
+      next:
         dngettext(
           "emails_integrations",
           "If you removed it on purpose, there is nothing to do. If not, restore it on your calendar server, then select it again in your calendar settings.",
@@ -133,7 +84,7 @@ defmodule Tymeslot.Emails.Templates.CalendarsRemoved do
           count
         ),
       button: dgettext("emails_integrations", "Open calendar settings"),
-      settings_url: UrlBuilder.build_url("/dashboard/integrations?tab=calendars"),
+      settings_url: IntegrationLabels.settings_url(:calendar),
       footer:
         dgettext(
           "emails_integrations",

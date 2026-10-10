@@ -19,6 +19,7 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequest do
     Styles,
     TemplateHelper,
     Text,
+    TextBodyHelper,
     TimezoneHelper
   }
 
@@ -54,8 +55,7 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequest do
           duration: meeting.duration,
           location: meeting.location,
           location_type: BookingRequestLocation.type(meeting),
-          meeting_type: meeting.meeting_type || dgettext("emails_booking_requests", "Meeting"),
-          timezone: meeting.attendee_timezone || "UTC"
+          meeting_type: meeting.meeting_type || dgettext("emails_booking_requests", "Meeting")
         })
 
       mjml_content = """
@@ -120,11 +120,7 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequest do
     #{dgettext("emails_booking_requests", "I need to reschedule our upcoming meeting. Could you please select a new time that works for you?")}
 
     #{dgettext("emails_booking_requests", "CANCELLED APPOINTMENT DETAILS:")}
-    #{dgettext("emails_booking_requests", "Date:")} #{Formatting.format_date_short(details.date, locale)}
-    #{dgettext("emails_booking_requests", "Duration:")} #{Formatting.format_duration(details.duration, locale)}
-    #{dgettext("emails_booking_requests", "Location:")} #{Formatting.format_location(details)}
-    #{dgettext("emails_booking_requests", "Type:")} #{details.meeting_type}
-    #{dgettext("emails_booking_requests", "Timezone:")} #{details.timezone}
+    #{TextBodyHelper.format_meeting_details(details, locale)}
 
     #{dgettext("emails_booking_requests", "I apologize for any inconvenience this may cause. Your current appointment has been cancelled, and I'd like to help you reschedule at your earliest convenience.")}
 

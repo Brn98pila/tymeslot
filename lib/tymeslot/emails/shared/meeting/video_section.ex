@@ -16,16 +16,23 @@ defmodule Tymeslot.Emails.Shared.Meeting.VideoSection do
   A video meeting section — ticket-stub feel with a left colour rail and a
   prominent join button. The colour comes from the supplied intent.
 
-  Options: `:title`, `:button_text`.
+  Options: `:title`, `:button_text`. Renders nothing unless `meeting_url` is
+  a web address (`Sanitise.safe_web_url?/1`).
   """
-  @spec video_meeting_section(Tokens.intent(), String.t(), keyword()) :: String.t()
+  @spec video_meeting_section(Tokens.intent(), String.t() | nil, keyword()) :: String.t()
   def video_meeting_section(intent, meeting_url, opts \\ []) when is_atom(intent) do
+    case Sanitise.sanitize_web_url(meeting_url) do
+      nil -> ""
+      safe_url -> join_section(intent, safe_url, opts)
+    end
+  end
+
+  defp join_section(intent, safe_url, opts) do
     title = Keyword.get(opts, :title, dgettext("emails", "Join Video Meeting"))
     button_text = Keyword.get(opts, :button_text, dgettext("emails", "Join Meeting"))
 
     safe_title = Sanitise.sanitize_for_email(title)
     safe_button_text = Sanitise.sanitize_for_email(button_text)
-    safe_url = Sanitise.sanitize_url(meeting_url)
 
     tokens = Styles.intent(intent)
 

@@ -35,7 +35,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmailsTest do
                })
 
       assert_receive {:password_reset_recipient, recipient}
-      assert PasswordReset.render_text(recipient, reset_url) =~ "Hi Ada Lovelace,"
+      assert PasswordReset.render(recipient, reset_url).text_body =~ "Hi Ada Lovelace,"
     end
 
     test "greets an OAuth user by their signup name before onboarding runs" do
@@ -55,7 +55,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmailsTest do
                })
 
       assert_receive {:password_reset_recipient, recipient}
-      assert PasswordReset.render_text(recipient, reset_url) =~ "Hi Ada from GitHub,"
+      assert PasswordReset.render(recipient, reset_url).text_body =~ "Hi Ada from GitHub,"
     end
   end
 

@@ -50,14 +50,47 @@ defmodule Tymeslot.Emails.Shared.Sanitise do
   end
 
   @doc """
-  Validates and sanitises a URL for use in an email `href`. Returns `"#"` for
-  anything that doesn't parse as an http(s) URL.
+  Whether `url` may be linked from an email: an http(s) URL
+  (`safe_web_url?/1`), or a `mailto:` address. Every link, button and
+  plain-text action line in an email goes through this one rule; an action
+  whose URL fails it is left out. The scheme's case does not matter; a URL
+  with anything before its scheme, or none at all, is refused.
   """
-  @spec sanitize_url(String.t() | nil) :: String.t()
+  @spec safe_url?(term()) :: boolean()
+  def safe_url?(url) when is_binary(url), do: mailto?(url) or safe_web_url?(url)
+  def safe_url?(_url), do: false
+
+  @doc """
+  Whether `url` is a web page an email may link to: http(s) only. Join and
+  video links use this rather than `safe_url?/1`, since a `mailto:` address
+  behind a "Join" button opens a mail client, not the meeting.
+  """
+  @spec safe_web_url?(term()) :: boolean()
+  def safe_web_url?(url), do: UrlValidation.validate_http_url(url) == :ok
+
+  @doc """
+  `url` escaped for an email `href`, or nil when it is missing or not safe to
+  link (see `safe_url?/1`). Components render nothing for nil rather than a
+  link that goes nowhere.
+  """
+  @spec sanitize_url(term()) :: String.t() | nil
   def sanitize_url(url) do
-    case UrlValidation.validate_http_url(url) do
-      :ok -> sanitize_for_email(url)
-      _other -> "#"
+    if safe_url?(url), do: sanitize_for_email(url)
+  end
+
+  @doc """
+  `url` escaped for an email `href` when it is a web page
+  (`safe_web_url?/1`), nil otherwise. For join and video links.
+  """
+  @spec sanitize_web_url(term()) :: String.t() | nil
+  def sanitize_web_url(url) do
+    if safe_web_url?(url), do: sanitize_for_email(url)
+  end
+
+  defp mailto?(url) do
+    case URI.parse(url) do
+      %URI{scheme: "mailto", path: address} when is_binary(address) and address != "" -> true
+      _other -> false
     end
   end
 

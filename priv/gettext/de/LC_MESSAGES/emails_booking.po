@@ -61,31 +61,6 @@ msgstr "(vorher)"
 msgid "(updated)"
 msgstr "(aktualisiert)"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#, elixir-autogen, elixir-format
-msgid "- No reminder emails are scheduled for this appointment"
-msgstr "- Für diesen Termin sind keine Erinnerungs-E-Mails geplant"
-
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#, elixir-autogen, elixir-format
-msgid "- Prepare an agenda if needed"
-msgstr "- Bei Bedarf eine Agenda vorbereiten"
-
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#, elixir-autogen, elixir-format
-msgid "- Review any relevant materials"
-msgstr "- Relevante Unterlagen durchsehen"
-
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#, elixir-autogen, elixir-format
-msgid "- Set a reminder %{time} before"
-msgstr "- Eine Erinnerung %{time} vorher einstellen"
-
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#, elixir-autogen, elixir-format
-msgid "- Test video/audio setup if virtual"
-msgstr "- Video-/Audio-Einrichtung testen, falls virtuell"
-
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
 msgid "A meeting changed in your external calendar."
@@ -157,16 +132,12 @@ msgstr "DETAILS ZUM ABGESAGTEN TERMIN:"
 msgid "Can you still make it?"
 msgstr "Können Sie noch teilnehmen?"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/template_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Can't make it"
 msgstr "Kann nicht teilnehmen"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/text_body_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Can't make it: %{url}"
 msgstr "Kann nicht teilnehmen: %{url}"
@@ -931,16 +902,12 @@ msgstr "Sind Sie dabei?"
 msgid "Would you like to schedule a new appointment?"
 msgstr "Möchten Sie einen neuen Termin vereinbaren?"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/template_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Yes, I'll attend"
 msgstr "Ja, ich nehme teil"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/text_body_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Yes, I'll attend: %{url}"
 msgstr "Ja, ich nehme teil: %{url}"
@@ -1029,26 +996,6 @@ msgstr "mit %{name}"
 #, elixir-autogen, elixir-format
 msgid "your host"
 msgstr "Ihr Gastgeber"
-
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#, elixir-autogen, elixir-format
-msgid "• Agenda ready"
-msgstr "• Agenda bereit"
-
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#, elixir-autogen, elixir-format
-msgid "• Camera & mic ready"
-msgstr "• Kamera & Mikrofon bereit"
-
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#, elixir-autogen, elixir-format
-msgid "• Location confirmed"
-msgstr "• Ort bestätigt"
-
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#, elixir-autogen, elixir-format
-msgid "• Materials prepared"
-msgstr "• Materialien vorbereitet"
 
 #: lib/tymeslot/emails/templates/appointment_reminder.ex
 #, elixir-autogen, elixir-format
@@ -1348,3 +1295,58 @@ msgid "We emailed the guest the new end time, with an updated calendar entry."
 msgid_plural "We emailed %{count} guests the new end time, with an updated calendar entry."
 msgstr[0] "Wir haben den Gast per E-Mail über die neue Endzeit informiert, mit einem aktualisierten Kalendereintrag."
 msgstr[1] "Wir haben %{count} Gäste per E-Mail über die neue Endzeit informiert, mit einem aktualisierten Kalendereintrag."
+
+#: lib/tymeslot/emails/templates/appointment_reminder.ex
+#, elixir-autogen, elixir-format
+msgid "Agenda ready"
+msgstr "Agenda bereit"
+
+#: lib/tymeslot/emails/templates/appointment_reminder.ex
+#, elixir-autogen, elixir-format
+msgid "Camera & mic ready"
+msgstr "Kamera & Mikrofon bereit"
+
+#: lib/tymeslot/emails/templates/appointment_reminder.ex
+#, elixir-autogen, elixir-format
+msgid "Location confirmed"
+msgstr "Ort bestätigt"
+
+#: lib/tymeslot/emails/templates/appointment_reminder.ex
+#, elixir-autogen, elixir-format
+msgid "Materials prepared"
+msgstr "Materialien vorbereitet"
+
+#: lib/tymeslot/emails/templates/appointment_confirmation.ex
+#, elixir-autogen, elixir-format
+msgid "No reminder emails are scheduled for this appointment"
+msgstr "Für diesen Termin sind keine Erinnerungs-E-Mails geplant"
+
+#: lib/tymeslot/emails/templates/appointment_confirmation.ex
+#, elixir-autogen, elixir-format
+msgid "Preparation reminders"
+msgstr "Vorbereitungshinweise"
+
+#: lib/tymeslot/emails/templates/appointment_confirmation.ex
+#, elixir-autogen, elixir-format
+msgid "Prepare an agenda if needed"
+msgstr "Bei Bedarf eine Agenda vorbereiten"
+
+#: lib/tymeslot/emails/templates/appointment_reminder.ex
+#, elixir-autogen, elixir-format
+msgid "Quick prep"
+msgstr "Kurze Vorbereitung"
+
+#: lib/tymeslot/emails/templates/appointment_confirmation.ex
+#, elixir-autogen, elixir-format
+msgid "Review any relevant materials"
+msgstr "Relevante Unterlagen durchsehen"
+
+#: lib/tymeslot/emails/templates/appointment_confirmation.ex
+#, elixir-autogen, elixir-format
+msgid "Set a reminder %{time} before"
+msgstr "Eine Erinnerung %{time} vorher einstellen"
+
+#: lib/tymeslot/emails/templates/appointment_confirmation.ex
+#, elixir-autogen, elixir-format
+msgid "Test video/audio setup if virtual"
+msgstr "Video-/Audio-Einrichtung testen, falls virtuell"

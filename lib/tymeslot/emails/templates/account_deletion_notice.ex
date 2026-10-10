@@ -10,14 +10,38 @@ defmodule Tymeslot.Emails.Templates.AccountDeletionNotice do
   """
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias Swoosh.Email
+  alias Tymeslot.Emails.RecipientLocale
+
   alias Tymeslot.Auth.AccountDeletion.Policy
-  alias Tymeslot.Emails.Shared.{Buttons, Formatting, Greeting, TemplateHelper, Text}
+  alias Tymeslot.Emails.Shared.{Buttons, Formatting, Greeting, MjmlEmail, TemplateHelper, Text}
 
   @intent :alert
 
-  @spec render(Tymeslot.Emails.EmailService.user_map(), DateTime.t(), String.t() | nil) ::
-          String.t()
+  @doc """
+  The email, addressed and rendered in the recipient's locale.
+  """
+  @spec render(
+          Tymeslot.Emails.EmailService.user_map(),
+          DateTime.t(),
+          String.t() | nil
+        ) :: Email.t()
   def render(user, scheduled_at, sign_in_url) do
+    RecipientLocale.with_user_locale(user, fn ->
+      MjmlEmail.base_email()
+      |> Email.to({user.name || user.email, user.email})
+      |> Email.subject(subject(sign_in_url))
+      |> Email.html_body(html_body(user, scheduled_at, sign_in_url))
+      |> Email.text_body(text_body(user, scheduled_at, sign_in_url))
+    end)
+  end
+
+  defp subject(nil), do: dgettext("emails_account", "Your Tymeslot account has been deleted")
+
+  defp subject(_url),
+    do: dgettext("emails_account", "Your Tymeslot account is scheduled for deletion")
+
+  defp html_body(user, scheduled_at, sign_in_url) do
     scheduled_at = Policy.local_date(scheduled_at, user[:timezone])
 
     mjml_content = """
@@ -43,9 +67,7 @@ defmodule Tymeslot.Emails.Templates.AccountDeletionNotice do
     )
   end
 
-  @spec render_text(Tymeslot.Emails.EmailService.user_map(), DateTime.t(), String.t() | nil) ::
-          String.t()
-  def render_text(user, scheduled_at, sign_in_url) do
+  defp text_body(user, scheduled_at, sign_in_url) do
     scheduled_at = Policy.local_date(scheduled_at, user[:timezone])
 
     """

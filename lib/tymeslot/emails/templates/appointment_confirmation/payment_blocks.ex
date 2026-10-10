@@ -75,7 +75,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation.PaymentBlocks do
           amount: Formatting.format_currency(amount, currency),
           paid_at: format_paid_at(bp, appointment_details),
           reference: Map.get(bp, :stripe_charge_id),
-          receipt_url: receipt_url_for(bp)
+          receipt_url: web_url(receipt_url_for(bp))
         }
 
       _other ->
@@ -271,11 +271,14 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation.PaymentBlocks do
   # msgid, so the HTML and plain-text summaries share one translation each.
   defp strong(amount), do: "<strong>#{Sanitise.sanitize_for_email(amount)}</strong>"
 
+  # A receipt link that is not a web address is dropped from both parts.
+  defp web_url(url), do: if(Sanitise.safe_web_url?(url), do: url)
+
   defp receipt_button(%{receipt_url: nil}), do: nil
 
   defp receipt_button(%{receipt_url: receipt_url}) do
     button_label = dgettext("emails_booking", "View receipt")
-    safe_url = Sanitise.sanitize_for_email(receipt_url)
+    safe_url = Sanitise.sanitize_web_url(receipt_url)
     accent_deep = Styles.intent_accent_deep(:confirmed)
 
     """

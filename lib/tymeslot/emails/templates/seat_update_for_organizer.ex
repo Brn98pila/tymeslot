@@ -47,6 +47,7 @@ defmodule Tymeslot.Emails.Templates.SeatUpdateForOrganizer do
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       intent = intent(variant)
       copy = copy(variant, details)
+      meeting_details = TemplateHelper.organizer_meeting_details(details)
 
       mjml_content = """
       #{Text.centered_text(copy.lead, padding: "8px 0 16px 0")}
@@ -55,7 +56,7 @@ defmodule Tymeslot.Emails.Templates.SeatUpdateForOrganizer do
 
       #{MeetingComponents.attendee_message_box(intent, details[:attendee_message])}
 
-      #{MeetingComponents.meeting_details_table(TemplateHelper.organizer_meeting_details(details), locale)}
+      #{MeetingComponents.meeting_details_table(meeting_details, locale)}
 
       #{MeetingComponents.custom_answers_section(details)}
 
@@ -78,7 +79,7 @@ defmodule Tymeslot.Emails.Templates.SeatUpdateForOrganizer do
       |> to({details.organizer_name, organizer_email})
       |> subject(Sanitise.sanitize_for_header(copy.subject))
       |> html_body(TemplateHelper.compile_template(mjml_content, stage))
-      |> text_body(text_body(details, copy, locale))
+      |> text_body(text_body(details, meeting_details, copy, locale))
     end)
   end
 
@@ -160,7 +161,11 @@ defmodule Tymeslot.Emails.Templates.SeatUpdateForOrganizer do
   end
 
   defp short_date(details),
-    do: Formatting.format_date_short(details.date, RecipientLocale.organizer_locale(details))
+    do:
+      Formatting.format_date_short(
+        TemplateHelper.organizer_meeting_details(details).date,
+        RecipientLocale.organizer_locale(details)
+      )
 
   # The time the spot moved from is unknown only when its seat row has since
   # gone (see `SeatEmails`), so the sentence then names the new time alone.
@@ -222,16 +227,14 @@ defmodule Tymeslot.Emails.Templates.SeatUpdateForOrganizer do
     )
   end
 
-  defp text_body(details, copy, locale) do
-    view = TemplateHelper.as_organizer_view(details)
-
+  defp text_body(details, meeting_details, copy, locale) do
     """
     #{copy.title}
 
     #{copy.lead}
-    #{TextBodyHelper.format_attendee_info(view, locale)}
+    #{TextBodyHelper.format_attendee_info(details, locale)}
     #{dgettext("emails_booking", "MEETING DETAILS:")}
-    #{TextBodyHelper.format_meeting_details(view, locale)}#{TextBodyHelper.format_custom_answers(view, locale)}
+    #{TextBodyHelper.format_meeting_details(meeting_details, locale)}#{TextBodyHelper.format_custom_answers(details, locale)}
 
     #{seats_line(details)}
     #{dgettext("emails_booking", "Open in dashboard")}: #{details.dashboard_url}

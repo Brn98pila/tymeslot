@@ -15,6 +15,12 @@ defmodule Tymeslot.Emails.Shared.Meeting.VideoSectionTest do
       refute html =~ "<script>"
     end
 
+    test "renders nothing for an unsafe or missing URL" do
+      assert VideoSection.video_meeting_section(:confirmed, "javascript:alert(1)") == ""
+      assert VideoSection.video_meeting_section(:confirmed, nil) == ""
+      assert VideoSection.video_meeting_section(:confirmed, "mailto:host@example.com") == ""
+    end
+
     test "includes meeting URL in button" do
       url = "https://meet.example.com/room123"
       html = VideoSection.video_meeting_section(:confirmed, url)

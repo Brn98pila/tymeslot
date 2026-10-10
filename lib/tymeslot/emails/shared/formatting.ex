@@ -198,6 +198,79 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   end
 
   @doc """
+  The time line of a meeting-details map, as both parts of an email state it:
+  the HTML card (`Tymeslot.Emails.Shared.Meeting.Hero`) and the plain-text body
+  (`Tymeslot.Emails.Shared.TextBodyHelper`) render this one line, so the two
+  cannot drift apart.
+
+  `:start_time` is already in the recipient's zone, and that zone's name
+  follows the time outside UTC, since an abbreviation alone is ambiguous. It
+  is read from the start time itself, so a label can never name a zone the
+  time was not shifted into;
+  `:time_format` is the organiser's chosen clock, nil for every other reader.
+  A meeting ending on a later day says when it ends, and an all-day event
+  (`all_day: true` with `:date` and an inclusive `:last_date`) has no clock
+  time at all. nil when the map carries no start time.
+
+  Example (en): "02:30 PM IST (Asia/Kolkata)"
+  """
+  @spec format_meeting_time(map(), String.t()) :: String.t() | nil
+  def format_meeting_time(
+        %{all_day: true, date: %Date{} = first, last_date: %Date{} = last},
+        locale
+      ),
+      do: format_all_day(first, last, locale)
+
+  def format_meeting_time(%{start_time: %DateTime{} = start_time} = details, locale) do
+    time_format = Map.get(details, :time_format)
+
+    line = format_time(start_time, locale, time_format) <> zone_name(start_time)
+
+    case format_next_day_end(start_time, Map.get(details, :duration), locale, time_format) do
+      nil -> line
+      note -> "#{line}, #{note}"
+    end
+  end
+
+  def format_meeting_time(_details, _locale), do: nil
+
+  @doc """
+  A meeting's date and start time as one phrase, the time worded exactly as
+  `format_meeting_time/2` words it (the recipient's clock, the zone named),
+  for a time stated outside the details card, such as the one a rescheduled
+  meeting moved from. Reads `:start_time` and `:time_format` only.
+
+  Example (en): "14 January 2026 at 01:30 PM IST (Asia/Kolkata)"
+  """
+  @spec format_meeting_datetime(map(), String.t()) :: String.t()
+  def format_meeting_datetime(%{start_time: %DateTime{} = start_time} = details, locale) do
+    time =
+      format_meeting_time(
+        %{start_time: start_time, time_format: Map.get(details, :time_format)},
+        locale
+      )
+
+    Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
+      dgettext("emails", "%{date} at %{time}", date: format_date(start_time, locale), time: time)
+    end)
+  end
+
+  @doc """
+  The duration of a meeting-details map: minutes for a timed meeting, the
+  number of days an all-day event covers. Shared by the HTML card and the
+  plain-text body, as `format_meeting_time/2` is.
+  """
+  @spec format_meeting_duration(map(), String.t()) :: String.t()
+  def format_meeting_duration(
+        %{all_day: true, date: %Date{} = first, last_date: %Date{} = last},
+        locale
+      ),
+      do: format_day_count(first, last, locale)
+
+  def format_meeting_duration(details, locale),
+    do: format_duration(Map.get(details, :duration), locale)
+
+  @doc """
   Formats how many days an all-day event covers, from its first and inclusive
   last day. Example (en): "1 day", "3 days"
   """

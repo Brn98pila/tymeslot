@@ -48,6 +48,30 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmationPaymentTest do
       assert email.html_body =~ "View receipt"
     end
 
+    test "links no receipt whose URL is not a web address" do
+      booking_payment = %{
+        status: "paid",
+        amount_cents: 5000,
+        currency: "eur",
+        application_fee_cents: 25,
+        paid_at: ~U[2026-05-08 14:32:00Z],
+        stripe_charge_id: "ch_TEST_RECEIPT",
+        stripe_account_id: "acct_TEST"
+      }
+
+      expect(StripeAdapterMock, :retrieve_charge, fn _id, _opts ->
+        {:ok, %{receipt_url: "javascript:alert(1)"}}
+      end)
+
+      details = build_appointment_details(%{booking_payment: booking_payment})
+      email = AppointmentConfirmation.render(:attendee, "attendee@example.com", details)
+
+      assert email.text_body =~ "PAYMENT RECEIPT"
+      refute email.html_body =~ "View receipt"
+      refute email.html_body =~ "javascript:"
+      refute email.text_body =~ "javascript:"
+    end
+
     test "renders without payment block for free booking" do
       details = build_appointment_details(%{booking_payment: nil})
       email = AppointmentConfirmation.render(:attendee, "attendee@example.com", details)

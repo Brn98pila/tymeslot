@@ -107,7 +107,6 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestExpired do
       location: meeting.location,
       location_type: BookingRequestLocation.type(meeting),
       meeting_type: meeting.meeting_type || dgettext("emails_booking_requests", "Meeting"),
-      timezone: clock.timezone,
       time_format: clock.time_format,
       audience: :host
     }
@@ -122,11 +121,7 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestExpired do
     #{dgettext("emails_booking_requests", "From:")} #{meeting.attendee_name} <#{meeting.attendee_email}>
 
     #{dgettext("emails_booking_requests", "REQUESTED TIME:")}
-    #{dgettext("emails_booking_requests", "Date:")} #{Formatting.format_date_short(details.date, locale)}
-    #{dgettext("emails_booking_requests", "Duration:")} #{Formatting.format_duration(details.duration, locale)}
-    #{dgettext("emails_booking_requests", "Location:")} #{Formatting.format_location(details)}#{TextBodyHelper.location_note_line(details)}
-    #{dgettext("emails_booking_requests", "Type:")} #{details.meeting_type}
-    #{dgettext("emails_booking_requests", "Timezone:")} #{details.timezone}
+    #{TextBodyHelper.format_meeting_details(details, locale)}
 
     #{explanation(meeting)}
     """

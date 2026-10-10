@@ -9,20 +9,11 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Shared.ConnectionLabels 
   """
 
   alias Tymeslot.Integrations.HealthCheck
-
-  # The flagging callers (Oban workers, `ReauthHandling`, the video providers)
-  # persist the reason as its untranslated English msgid, marked with
-  # `dgettext_noop/2` in one of these domains. Translating at write time would
-  # bake in the locale of whichever process raised the flag, which is not the
-  # owner's. Looking the msgid up here, in the viewer's locale, is the one place
-  # it is translated; a reason that isn't a known msgid in any of them (a raw
-  # diagnostic string, or a row flagged before reasons were stored this way)
-  # comes back unchanged.
-  @reason_domains ~w[dashboard_calendar_providers dashboard_integrations dashboard_video]
+  alias Tymeslot.Integrations.Shared.StoredReason
 
   @doc "The gettext domains a stored reason is looked up in, as a msgid."
   @spec reason_domains() :: [String.t()]
-  def reason_domains, do: @reason_domains
+  defdelegate reason_domains, to: StoredReason, as: :domains
 
   @doc """
   The reason an integration awaiting reconnection was flagged, for the card's
@@ -96,16 +87,9 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Shared.ConnectionLabels 
   end
 
   @doc """
-  A reason stored as an English msgid, translated from the first of
-  `reason_domains/0` that has it, or returned as stored when none does.
+  A reason stored as an English msgid, translated into the viewer's locale
+  (see `Tymeslot.Integrations.Shared.StoredReason`).
   """
   @spec translate_reason(String.t()) :: String.t()
-  def translate_reason(reason) do
-    Enum.find_value(@reason_domains, reason, fn domain ->
-      case Gettext.dgettext(TymeslotWeb.Gettext, domain, reason) do
-        ^reason -> nil
-        translated -> translated
-      end
-    end)
-  end
+  defdelegate translate_reason(reason), to: StoredReason, as: :translate
 end
