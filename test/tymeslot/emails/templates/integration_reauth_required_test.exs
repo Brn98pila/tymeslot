@@ -22,13 +22,13 @@ defmodule Tymeslot.Emails.Templates.IntegrationReauthRequiredTest do
     test "links to the video settings tab for a video integration" do
       html = IntegrationReauthRequired.render(@user, integration(), :video)
 
-      assert html =~ "/dashboard/settings?tab=video"
+      assert html =~ "/dashboard/integrations?tab=video"
     end
 
     test "links to the calendars tab for a calendar integration" do
       html = IntegrationReauthRequired.render(@user, integration(), :calendar)
 
-      assert html =~ "/dashboard/settings?tab=calendars"
+      assert html =~ "/dashboard/integrations?tab=calendars"
     end
 
     test "falls back to a true statement when no reason was recorded" do
@@ -116,26 +116,13 @@ defmodule Tymeslot.Emails.Templates.IntegrationReauthRequiredTest do
     end
   end
 
-  describe "provider_label/2" do
-    test "uses the video provider's display name and humanises a calendar provider" do
-      assert IntegrationReauthRequired.provider_label(%{provider: "nextcloud_talk"}, :video) ==
-               "Nextcloud Talk"
-
-      assert IntegrationReauthRequired.provider_label(%{provider: "teams"}, :video) ==
-               "Microsoft Teams"
-
-      assert IntegrationReauthRequired.provider_label(%{provider: "google"}, :calendar) ==
-               "Google"
-    end
-  end
-
   describe "render_text/3" do
     test "carries the same reason as the HTML part" do
       text = IntegrationReauthRequired.render_text(@user, integration(), :video)
 
       assert text =~ "Zoom is missing the permission needed to reschedule meetings."
       assert text =~ "Reconnect required"
-      assert text =~ "/dashboard/settings?tab=video"
+      assert text =~ "/dashboard/integrations?tab=video"
     end
 
     test "falls back to a true statement when no reason was recorded" do

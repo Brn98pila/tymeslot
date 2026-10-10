@@ -25,10 +25,17 @@ defmodule Tymeslot.Emails.Templates.IntegrationReauthRequired do
   This is an operational alert — always rendered in English.
   """
 
-  alias Tymeslot.Emails.Shared.{Buttons, Callouts, Styles, TemplateHelper, Text}
+  alias Tymeslot.Emails.Shared.{
+    Buttons,
+    Callouts,
+    IntegrationLabels,
+    Styles,
+    TemplateHelper,
+    Text
+  }
+
   alias Tymeslot.Integrations.Calendar.ProviderConfig, as: CalendarProviderConfig
   alias Tymeslot.Integrations.Video.ProviderConfig, as: VideoProviderConfig
-  alias Tymeslot.Utils.UrlBuilder
 
   @intent :alert
 
@@ -45,10 +52,11 @@ defmodule Tymeslot.Emails.Templates.IntegrationReauthRequired do
 
   @spec render(user_map(), integration(), atom() | String.t()) :: String.t()
   def render(_user, integration, type) do
-    {type_label, provider_label, settings_url} = labels(integration, type)
+    provider_label = IntegrationLabels.provider_name(integration, type)
+    settings_url = IntegrationLabels.settings_url(type)
     reason = reason_for(integration, provider_label)
     %{steps: steps, button: button, action: action} = fix(integration, type, provider_label)
-    subject = integration_phrase(provider_label, type_label)
+    subject = IntegrationLabels.integration_name(integration, type)
 
     mjml_content = """
     #{Callouts.alert_box(:alert, reason, title: "Reconnect required")}
@@ -95,10 +103,11 @@ defmodule Tymeslot.Emails.Templates.IntegrationReauthRequired do
 
   @spec render_text(user_map(), integration(), atom() | String.t()) :: String.t()
   def render_text(_user, integration, type) do
-    {type_label, provider_label, settings_url} = labels(integration, type)
+    provider_label = IntegrationLabels.provider_name(integration, type)
+    settings_url = IntegrationLabels.settings_url(type)
     reason = reason_for(integration, provider_label)
     %{steps: steps, button: button, action: action} = fix(integration, type, provider_label)
-    subject = integration_phrase(provider_label, type_label)
+    subject = IntegrationLabels.integration_name(integration, type)
 
     """
     Reconnect required
@@ -134,49 +143,12 @@ defmodule Tymeslot.Emails.Templates.IntegrationReauthRequired do
   defp default_reason(provider_label),
     do: "#{provider_label} needs reconnecting before Tymeslot can use it again."
 
-  @doc """
-  The provider's name as the owner knows it: the video provider's display name
-  (`Nextcloud Talk`, not `Nextcloud talk`), `Calendar subscription` for a
-  subscribed feed, or the humanised identifier for any other calendar or an
-  unknown provider. Shared with the email's subject line.
-  """
-  @spec provider_label(integration(), atom() | String.t()) :: String.t()
-  def provider_label(integration, :video) do
-    case VideoProviderConfig.parse_known(integration.provider) do
-      {:ok, provider} when provider != :none -> VideoProviderConfig.display_name(provider)
-      _unknown -> humanize_provider(integration.provider)
-    end
-  end
-
-  def provider_label(integration, :calendar) do
-    if CalendarProviderConfig.subscription?(integration.provider),
-      do: "Calendar subscription",
-      else: humanize_provider(integration.provider)
-  end
-
-  def provider_label(integration, _type), do: humanize_provider(integration.provider)
-
-  # "Zoom video", but "Calendar subscription" rather than "Calendar subscription
-  # calendar".
-  defp integration_phrase(provider_label, type_label) do
-    if String.contains?(String.downcase(provider_label), type_label),
-      do: provider_label,
-      else: "#{provider_label} #{type_label}"
-  end
-
   # The owner is not told again while the integration stays flagged: the reauth
   # email goes out when the flag is set, and the unhealthy email is withheld
   # from a flagged integration.
   defp footer(action),
     do:
       "This notification is sent when an integration needs attention. You will not receive another notice about this until you #{action} it."
-
-  defp humanize_provider(provider),
-    do: provider |> to_string() |> String.replace("_", " ") |> String.capitalize()
-
-  defp labels(integration, type) do
-    {humanize_type(type), provider_label(integration, type), settings_url_for_type(type)}
-  end
 
   # A video integration outside the OAuth family has no Reconnect button: its
   # credentials were typed in, and they are replaced from the Edit dialog.
@@ -250,14 +222,4 @@ defmodule Tymeslot.Emails.Templates.IntegrationReauthRequired do
 
   defp text_step({before, action, rest}), do: before <> action <> rest
   defp text_step(step), do: step
-
-  defp humanize_type(:calendar), do: "calendar"
-  defp humanize_type(:video), do: "video"
-  defp humanize_type(type), do: to_string(type)
-
-  defp settings_url_for_type(:calendar),
-    do: UrlBuilder.build_url("/dashboard/settings?tab=calendars")
-
-  defp settings_url_for_type(:video), do: UrlBuilder.build_url("/dashboard/settings?tab=video")
-  defp settings_url_for_type(_other), do: UrlBuilder.build_url("/dashboard/settings")
 end

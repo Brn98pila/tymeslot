@@ -7,8 +7,14 @@ defmodule Tymeslot.Emails.Templates.IntegrationPaused do
   This is an operational alert — always rendered in English.
   """
 
-  alias Tymeslot.Emails.Shared.{Buttons, Callouts, Styles, TemplateHelper, Text}
-  alias Tymeslot.Utils.UrlBuilder
+  alias Tymeslot.Emails.Shared.{
+    Buttons,
+    Callouts,
+    IntegrationLabels,
+    Styles,
+    TemplateHelper,
+    Text
+  }
 
   @intent :alert
 
@@ -23,11 +29,12 @@ defmodule Tymeslot.Emails.Templates.IntegrationPaused do
           pos_integer()
         ) :: String.t()
   def render(_user, integration, type, cutoff_days) do
-    {type_label, provider_label, settings_url} = labels(integration, type)
+    integration_name = IntegrationLabels.integration_name(integration, type)
+    settings_url = IntegrationLabels.settings_url(type)
 
     mjml_content = """
     #{Callouts.alert_box(:alert,
-    "We've paused your #{provider_label} #{type_label} integration after #{cutoff_days} days of failed health checks. Reconnect when you're ready and it'll resume.",
+    "We've paused your #{integration_name} integration after #{cutoff_days} days of failed health checks. Reconnect when you're ready and it'll resume.",
     title: "Integration paused")}
 
     #{Text.title_section("What's happening?")}
@@ -39,7 +46,7 @@ defmodule Tymeslot.Emails.Templates.IntegrationPaused do
       align="left"
       css-class="mobile-text"
     >
-      Your <strong>#{provider_label}</strong> #{type_label} integration has been failing connection checks for #{cutoff_days}+ days. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted — your settings, calendar selections, and history are all preserved.
+      Your <strong>#{integration_name}</strong> integration has been failing connection checks for #{cutoff_days}+ days. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted — your settings, calendar selections, and history are all preserved.
     </mj-text>
 
     #{Text.divider()}
@@ -64,12 +71,12 @@ defmodule Tymeslot.Emails.Templates.IntegrationPaused do
     TemplateHelper.compile_system_template(
       mjml_content,
       "Integration paused",
-      "Your #{provider_label} #{type_label} integration has been paused",
+      "Your #{integration_name} integration has been paused",
       intent: @intent,
       eyebrow: "Integration",
       stage_title: "Integration paused",
       stage_subtitle:
-        "Your #{provider_label} #{type_label} integration has been paused after #{cutoff_days} days of failed health checks."
+        "Your #{integration_name} integration has been paused after #{cutoff_days} days of failed health checks."
     )
   end
 
@@ -84,15 +91,16 @@ defmodule Tymeslot.Emails.Templates.IntegrationPaused do
           pos_integer()
         ) :: String.t()
   def render_text(_user, integration, type, cutoff_days) do
-    {type_label, provider_label, settings_url} = labels(integration, type)
+    integration_name = IntegrationLabels.integration_name(integration, type)
+    settings_url = IntegrationLabels.settings_url(type)
 
     """
     Integration paused
 
-    We've paused your #{provider_label} #{type_label} integration after #{cutoff_days} days of failed health checks. Reconnect when you're ready and it'll resume.
+    We've paused your #{integration_name} integration after #{cutoff_days} days of failed health checks. Reconnect when you're ready and it'll resume.
 
     WHAT'S HAPPENING?
-    Your #{provider_label} #{type_label} integration has been failing connection checks for #{cutoff_days}+ days. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted — your settings, calendar selections, and history are all preserved.
+    Your #{integration_name} integration has been failing connection checks for #{cutoff_days}+ days. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted — your settings, calendar selections, and history are all preserved.
 
     HOW DO I BRING IT BACK?
     - Open your integration settings
@@ -105,23 +113,4 @@ defmodule Tymeslot.Emails.Templates.IntegrationPaused do
     This is the only paused-integration notification you'll receive for this integration. Reactivating it will reset the health monitor.
     """
   end
-
-  defp labels(integration, type) do
-    type_label = humanize_type(type)
-
-    provider_label =
-      integration.provider |> to_string() |> String.replace("_", " ") |> String.capitalize()
-
-    {type_label, provider_label, settings_url_for_type(type)}
-  end
-
-  defp humanize_type(:calendar), do: "calendar"
-  defp humanize_type(:video), do: "video"
-  defp humanize_type(type), do: to_string(type)
-
-  defp settings_url_for_type(:calendar),
-    do: UrlBuilder.build_url("/dashboard/settings?tab=calendars")
-
-  defp settings_url_for_type(:video), do: UrlBuilder.build_url("/dashboard/settings?tab=video")
-  defp settings_url_for_type(_other), do: UrlBuilder.build_url("/dashboard/settings")
 end

@@ -21,7 +21,7 @@ defmodule Tymeslot.Emails.Templates.VideoRoomCreationErrorTest do
         # Nothing about a booking: a calendar grid event gets its room the same
         # way, and the same email.
         refute body =~ "its confirmation went out"
-        assert body =~ "/dashboard/settings?tab=video"
+        assert body =~ "/dashboard/integrations?tab=video"
       end
 
       assert html =~ "<!doctype html>"

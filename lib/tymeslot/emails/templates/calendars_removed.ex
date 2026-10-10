@@ -14,8 +14,15 @@ defmodule Tymeslot.Emails.Templates.CalendarsRemoved do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Emails.Shared.{Buttons, Callouts, Sanitise, Styles, TemplateHelper, Text}
-  alias Tymeslot.Utils.UrlBuilder
+  alias Tymeslot.Emails.Shared.{
+    Buttons,
+    Callouts,
+    IntegrationLabels,
+    Sanitise,
+    Styles,
+    TemplateHelper,
+    Text
+  }
 
   @intent :alert
 
@@ -133,7 +140,7 @@ defmodule Tymeslot.Emails.Templates.CalendarsRemoved do
           count
         ),
       button: dgettext("emails_integrations", "Open calendar settings"),
-      settings_url: UrlBuilder.build_url("/dashboard/integrations?tab=calendars"),
+      settings_url: IntegrationLabels.settings_url(:calendar),
       footer:
         dgettext(
           "emails_integrations",

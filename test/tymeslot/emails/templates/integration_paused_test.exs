@@ -13,7 +13,7 @@ defmodule Tymeslot.Emails.Templates.IntegrationPausedTest do
 
       assert html =~ "<!doctype html>"
       assert html =~ "Integration paused"
-      assert html =~ "Google calendar calendar integration has been paused"
+      assert html =~ "Google calendar integration has been paused"
       assert html =~ "Open Integration Settings"
     end
 
@@ -74,7 +74,7 @@ defmodule Tymeslot.Emails.Templates.IntegrationPausedTest do
       assert html =~ "<!doctype html>"
       # An unrecognised type falls back to its own string form rather than
       # dropping the provider/type wording altogether.
-      assert html =~ "Custom service other integration has been paused"
+      assert html =~ "Custom service integration has been paused"
       assert html =~ "Open Integration Settings"
     end
   end
@@ -108,7 +108,7 @@ defmodule Tymeslot.Emails.Templates.IntegrationPausedTest do
 
       text = IntegrationPaused.render_text(user, integration, :calendar, 14)
 
-      assert text =~ "/dashboard/settings"
+      assert text =~ "/dashboard/integrations?tab=calendars"
     end
   end
 

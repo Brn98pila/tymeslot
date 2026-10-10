@@ -16,10 +16,16 @@ defmodule Tymeslot.Emails.Templates.VideoRoomCreationError do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Emails.Shared.{Buttons, Callouts, Styles, TemplateHelper, Text}
-  alias Tymeslot.Emails.Templates.IntegrationReauthRequired
+  alias Tymeslot.Emails.Shared.{
+    Buttons,
+    Callouts,
+    IntegrationLabels,
+    Styles,
+    TemplateHelper,
+    Text
+  }
+
   alias Tymeslot.Integrations.Video.RoomCreationError
-  alias Tymeslot.Utils.UrlBuilder
 
   @intent :alert
 
@@ -121,7 +127,7 @@ defmodule Tymeslot.Emails.Templates.VideoRoomCreationError do
           "Change the setting described above, or ask whoever runs the server to. Once a booking gets its video link again, the notice on your video integration disappears."
         ),
       button: dgettext("emails_integrations", "Open video settings"),
-      settings_url: UrlBuilder.build_url("/dashboard/settings?tab=video"),
+      settings_url: IntegrationLabels.settings_url(:video),
       footer:
         dgettext(
           "emails_integrations",
@@ -132,5 +138,5 @@ defmodule Tymeslot.Emails.Templates.VideoRoomCreationError do
   end
 
   defp provider_label(integration),
-    do: IntegrationReauthRequired.provider_label(integration, :video)
+    do: IntegrationLabels.provider_name(integration, :video)
 end

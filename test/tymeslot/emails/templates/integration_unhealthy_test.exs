@@ -13,7 +13,7 @@ defmodule Tymeslot.Emails.Templates.IntegrationUnhealthyTest do
 
       assert html =~ "<!doctype html>"
       assert html =~ "Integration may need attention"
-      assert html =~ "Google calendar calendar integration have been failing"
+      assert html =~ "Google calendar integration have been failing"
       assert html =~ "Check Integration Settings"
     end
 
@@ -83,7 +83,7 @@ defmodule Tymeslot.Emails.Templates.IntegrationUnhealthyTest do
       assert html =~ "<!doctype html>"
       # An unrecognised type falls back to its own string form rather than
       # dropping the provider/type wording altogether.
-      assert html =~ "Custom service other integration have been failing"
+      assert html =~ "Custom service integration have been failing"
       assert html =~ "Check Integration Settings"
     end
   end

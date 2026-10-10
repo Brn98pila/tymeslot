@@ -6,7 +6,7 @@ defmodule Tymeslot.Emails.EmailService.IntegrationEmails do
   alias Swoosh.Email
   alias Tymeslot.Emails.Delivery
   alias Tymeslot.Emails.RecipientLocale
-  alias Tymeslot.Emails.Shared.MjmlEmail
+  alias Tymeslot.Emails.Shared.{IntegrationLabels, MjmlEmail}
 
   alias Tymeslot.Emails.Templates.{
     AdminAlert,
@@ -74,7 +74,7 @@ defmodule Tymeslot.Emails.EmailService.IntegrationEmails do
     html_body = IntegrationReauthRequired.render(user, integration, type)
     text_body = IntegrationReauthRequired.render_text(user, integration, type)
 
-    provider_label = IntegrationReauthRequired.provider_label(integration, type)
+    provider_label = IntegrationLabels.provider_name(integration, type)
 
     display_name = Map.get(user, :name) || user.email
 
