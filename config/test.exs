@@ -1,7 +1,7 @@
 import Config
 
 # Configure environment
-config :tymeslot, environment: :test, test_mode: true
+config :tymeslot, environment: :test, video_room_backoff_base_ms: 0
 
 # Reduce bcrypt cost for tests — default log_rounds (12) adds ~200-400ms per
 # password hash, which compounds across hundreds of factory user inserts.

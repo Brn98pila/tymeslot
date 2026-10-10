@@ -47,10 +47,10 @@ defmodule Tymeslot.Workers.VideoRoomWorker do
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Logging.Redactor
-  alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.{MeetingQueries, MeetingSchema}
+  alias Tymeslot.Workers.Bounded
   alias Tymeslot.Workers.SnoozePolicy
   alias Tymeslot.Workers.VideoRoom.{Announcement, ErrorPolicy, Recovery}
 
@@ -64,7 +64,8 @@ defmodule Tymeslot.Workers.VideoRoomWorker do
   # event; see "Waiting for the booking's calendar event" above.
   @calendar_event_wait_seconds 3
 
-  @backoff_base_ms 1_000
+  # Zero in the test configuration, which runs every retry path.
+  @backoff_base_ms Application.compile_env(:tymeslot, :video_room_backoff_base_ms, 1_000)
   @backoff_cap_ms 16_000
 
   # Terminal failures that still owe the attendees a booking: there will never
@@ -223,18 +224,14 @@ defmodule Tymeslot.Workers.VideoRoomWorker do
   defp backoff(_meeting_id, 1), do: :ok
 
   defp backoff(meeting_id, execution) do
-    if Application.get_env(:tymeslot, :test_mode, false) do
-      :ok
-    else
-      backoff_ms = round(min(@backoff_base_ms * :math.pow(2, execution - 1), @backoff_cap_ms))
+    backoff_ms = round(min(@backoff_base_ms * :math.pow(2, execution - 1), @backoff_cap_ms))
 
-      Logger.info("Retrying video room creation after backoff",
-        meeting_id: meeting_id,
-        backoff_ms: backoff_ms
-      )
+    Logger.info("Retrying video room creation after backoff",
+      meeting_id: meeting_id,
+      backoff_ms: backoff_ms
+    )
 
-      Process.sleep(backoff_ms)
-    end
+    Process.sleep(backoff_ms)
   end
 
   @doc """
@@ -267,12 +264,7 @@ defmodule Tymeslot.Workers.VideoRoomWorker do
     meeting_id = meeting.id
     timeout_ms = creation_timeout_ms(meeting)
 
-    task =
-      Tasks.async(Tymeslot.TaskSupervisor, fn ->
-        Meetings.add_video_room_to_meeting(meeting_id)
-      end)
-
-    case Task.yield(task, timeout_ms) || Task.shutdown(task) do
+    case Bounded.run(fn -> Meetings.add_video_room_to_meeting(meeting_id) end, timeout_ms) do
       {:ok, {:ok, meeting}} ->
         handle_success(meeting, announcement, execution)
 
@@ -287,7 +279,12 @@ defmodule Tymeslot.Workers.VideoRoomWorker do
       {:ok, other} ->
         to_oban_result(other, execution)
 
-      nil ->
+      # As a crash in the job itself would: an error for Oban to retry, its
+      # reason redacted before Oban stores it.
+      {:exit, reason} ->
+        {:error, "Video room creation crashed: #{LogFormat.reason(reason)}"}
+
+      :timeout ->
         Logger.error("Video room creation timed out",
           meeting_id: meeting_id,
           timeout_ms: timeout_ms

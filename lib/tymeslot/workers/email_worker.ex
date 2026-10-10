@@ -23,9 +23,10 @@ defmodule Tymeslot.Workers.EmailWorker do
   alias Tymeslot.Emails.Delivery
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
-  alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Meetings.Guests
+  alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Workers.Bounded
   alias Tymeslot.Workers.EmailWorker.AdminAlertScheduler
   alias Tymeslot.Workers.EmailWorkerHandlers
   alias Tymeslot.Workers.SnoozePolicy
@@ -169,17 +170,13 @@ defmodule Tymeslot.Workers.EmailWorker do
   defp execute_email_job_with_timeout(action, args, job) do
     timeout_ms = email_timeout_ms()
 
-    task =
-      Tasks.async(Tymeslot.TaskSupervisor, fn ->
-        EmailWorkerHandlers.execute_email_action(action, args, job.id)
-      end)
-
-    case Task.yield(task, timeout_ms) || Task.shutdown(task) do
-      {:ok, result} ->
-        handle_result(result, job)
-
-      nil ->
-        handle_timeout(action, timeout_ms, job)
+    case Bounded.run(
+           fn -> EmailWorkerHandlers.execute_email_action(action, args, job.id) end,
+           timeout_ms
+         ) do
+      {:ok, result} -> handle_result(result, job)
+      {:exit, reason} -> {:error, "Email job crashed: #{LogFormat.reason(reason)}"}
+      :timeout -> handle_timeout(action, timeout_ms, job)
     end
   end
 

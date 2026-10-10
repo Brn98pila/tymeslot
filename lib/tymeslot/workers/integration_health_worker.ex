@@ -18,9 +18,9 @@ defmodule Tymeslot.Workers.IntegrationHealthWorker do
 
   require Logger
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.HealthCheck
   alias Tymeslot.Integrations.Shared.IntegrationTypes
+  alias Tymeslot.Workers.Bounded
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"type" => type_str, "integration_id" => integration_id}} = job)
@@ -41,14 +41,12 @@ defmodule Tymeslot.Workers.IntegrationHealthWorker do
   end
 
   defp run_with_timeout(type, integration_id, job_id) do
-    task =
-      Tasks.async(Tymeslot.TaskSupervisor, fn ->
-        health_check_module().perform_single_check(type, integration_id)
-      end)
-
     timeout_ms = Application.get_env(:tymeslot, :health_check_timeout_ms, @job_timeout_ms)
 
-    case Task.yield(task, timeout_ms) || Task.shutdown(task, :brutal_kill) do
+    case Bounded.run(
+           fn -> health_check_module().perform_single_check(type, integration_id) end,
+           timeout_ms
+         ) do
       {:ok, :ok} ->
         :ok
 
@@ -63,7 +61,17 @@ defmodule Tymeslot.Workers.IntegrationHealthWorker do
 
         :ok
 
-      nil ->
+      {:exit, reason} ->
+        Logger.error("Integration health check crashed",
+          type: type,
+          integration_id: integration_id,
+          reason: LogFormat.reason(reason),
+          job_id: job_id
+        )
+
+        :ok
+
+      :timeout ->
         Logger.warning("Integration health check timed out",
           type: type,
           integration_id: integration_id,

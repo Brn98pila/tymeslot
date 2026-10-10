@@ -24,7 +24,6 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Calendar.CalDAV.QueueWiring
   alias Tymeslot.Integrations.Calendar.CalendarEventBuilder
   alias Tymeslot.Integrations.Calendar.Events, as: CalendarEvents
@@ -33,6 +32,7 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.CalendarEventSync
   alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Workers.Bounded
   alias Tymeslot.Workers.RetryHelpers
   alias Tymeslot.Workers.SnoozePolicy
   require Logger
@@ -126,18 +126,31 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
   defp notify_if_create_abandoned(_result, _action, _meeting_id, _job), do: :ok
 
   defp run_unbounded(action, meeting_id, job, attempt) do
-    if Application.get_env(:tymeslot, :test_mode, false) do
-      # In test mode, run synchronously to avoid SQL sandbox and Mox allowance issues
-      # with child processes created by Task.async
-      result = dispatch_action(action, meeting_id, job.args, attempt)
-      handle_result(result, job)
-    else
-      task =
-        Tasks.async(Tymeslot.TaskSupervisor, fn ->
-          dispatch_action(action, meeting_id, job.args, attempt)
-        end)
+    timeout_ms = calendar_timeout_ms()
 
-      handle_task_result(task, action, meeting_id, job)
+    case Bounded.run(fn -> dispatch_action(action, meeting_id, job.args, attempt) end, timeout_ms) do
+      {:ok, result} ->
+        handle_result(result, job)
+
+      {:exit, reason} ->
+        Logger.error("Calendar operation crashed",
+          action: action,
+          meeting_id: meeting_id,
+          reason: LogFormat.reason(reason)
+        )
+
+        {:error, "Calendar operation crashed: #{LogFormat.reason(reason)}"}
+
+      :timeout ->
+        Logger.error("Calendar operation timed out",
+          action: action,
+          meeting_id: meeting_id,
+          timeout_ms: timeout_ms
+        )
+
+        # Snooze instead of error to give the server recovery time before
+        # the next attempt, especially important before the final attempt.
+        {:snooze, 300}
     end
   end
 
@@ -219,35 +232,6 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
 
   defp calendar_timeout_ms do
     Application.get_env(:tymeslot, :calendar_timeout_ms, @default_calendar_timeout_ms)
-  end
-
-  defp handle_task_result(task, action, meeting_id, job) do
-    timeout_ms = calendar_timeout_ms()
-
-    case Task.yield(task, timeout_ms) || Task.shutdown(task) do
-      {:ok, result} ->
-        handle_result(result, job)
-
-      {:exit, reason} ->
-        Logger.error("Calendar operation crashed",
-          action: action,
-          meeting_id: meeting_id,
-          reason: LogFormat.reason(reason)
-        )
-
-        {:error, "Calendar operation crashed: #{LogFormat.reason(reason)}"}
-
-      nil ->
-        Logger.error("Calendar operation timed out",
-          action: action,
-          meeting_id: meeting_id,
-          timeout_ms: timeout_ms
-        )
-
-        # Snooze instead of error to give the server recovery time before
-        # the next attempt, especially important before the final attempt.
-        {:snooze, 300}
-    end
   end
 
   # Private functions
