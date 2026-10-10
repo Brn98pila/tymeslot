@@ -408,6 +408,12 @@ HTTPS_PROXY=http://proxy.company.com:8080
 NO_PROXY=localhost,*.internal.company.com
 ```
 
+**Checking the proxy:** once the container is running, this sends a test request through the proxy and once around it, and reports whether the proxy carried it (add `quick: true` for a faster reachability check, or `test_url: "https://…"` to test against your own endpoint):
+
+```bash
+docker exec tymeslot bin/tymeslot eval 'Tymeslot.Release.verify_proxy()'
+```
+
 **What Uses the Proxy:**
 
 All outbound HTTP/HTTPS requests including:

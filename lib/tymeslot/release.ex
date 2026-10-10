@@ -11,6 +11,7 @@ defmodule Tymeslot.Release do
 
   alias Tymeslot.Auth
   alias Tymeslot.Auth.{AdminRoles, AdminUserQueries, UserQueries, UserSchema}
+  alias Tymeslot.Infrastructure.{FinchPool, ProxyVerifier}
   alias Tymeslot.Media.UploadMetadataSweep
 
   @doc """
@@ -122,11 +123,61 @@ defmodule Tymeslot.Release do
   @spec strip_upload_metadata() :: UploadMetadataSweep.report()
   def strip_upload_metadata, do: UploadMetadataSweep.run()
 
+  @doc """
+  Checks that outbound HTTP goes through the configured proxy, and prints a
+  report. Returns `:ok` when the proxy carried the test request.
+
+  For a release, where `mix tymeslot.verify_proxy` cannot run:
+
+      bin/tymeslot eval 'Tymeslot.Release.verify_proxy()'
+      bin/tymeslot eval 'Tymeslot.Release.verify_proxy(test_url: "https://internal.example/ip")'
+      bin/tymeslot eval 'Tymeslot.Release.verify_proxy(quick: true)'
+
+  Runs in the one-shot VM `eval` starts, with only the HTTP client, so it
+  does not touch the database or the running node. Options: `:quick` for
+  the faster check only, and `ProxyVerifier.verify/1`'s `:test_url` and
+  `:timeout`.
+  """
+  @spec verify_proxy(keyword()) :: :ok | {:error, term()}
+  def verify_proxy(opts \\ []) do
+    ensure_http_started()
+
+    if Keyword.get(opts, :quick, false) do
+      case ProxyVerifier.quick_check() do
+        :ok ->
+          IO.puts("PASSED: proxy is working")
+
+        {:error, reason} = error ->
+          IO.puts("FAILED: #{reason}")
+          error
+      end
+    else
+      result = opts |> Keyword.take([:test_url, :timeout]) |> ProxyVerifier.verify()
+      IO.puts(ProxyVerifier.report(result))
+
+      if result.traffic_flows_through_proxy, do: :ok, else: {:error, :proxy_not_verified}
+    end
+  end
+
   # When called via `bin/tymeslot eval`, the application isn't started — we
   # need at least the Repo running to issue queries. `rpc` against a live
   # node already has everything up, so the second start is a no-op.
   defp ensure_started do
     {:ok, _apps} = Application.ensure_all_started(:tymeslot)
+    :ok
+  end
+
+  # The proxy check needs only the HTTP client's pool, not the application:
+  # starting that in an `eval` VM beside a running node would try to bind
+  # the node's port. Under `rpc`, or with the application up, it is there.
+  defp ensure_http_started do
+    {:ok, _apps} = Application.ensure_all_started(:req)
+
+    if is_nil(Process.whereis(Tymeslot.Finch)) do
+      {:ok, _pid} =
+        Finch.start_link(name: Tymeslot.Finch, pools: %{default: FinchPool.default_options()})
+    end
+
     :ok
   end
 end
