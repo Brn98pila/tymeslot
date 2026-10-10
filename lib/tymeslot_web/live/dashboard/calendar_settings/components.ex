@@ -359,6 +359,9 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
           :if={Map.get(@integration, :removed_calendars, []) != []}
           phx-click="dismiss_removed_calendars"
           phx-value-id={@integration.id}
+          phx-value-shown={
+            @integration |> Map.get(:removed_calendars, []) |> Enum.map(& &1.id) |> Jason.encode!()
+          }
           phx-target={@myself}
           class={tile_class(:neutral)}
           title={

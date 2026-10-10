@@ -13,6 +13,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueries do
 
   import Ecto.Query
 
+  alias Ecto.Changeset
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Repo
@@ -129,6 +130,34 @@ defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueries do
         calendar_list: calendar_list
       })
       |> Repo.update()
+    end)
+  end
+
+  @doc """
+  Drops the removed-calendar entries whose ids are in `shown_ids`: the ones
+  the owner was shown when they dismissed the notice. An entry recorded
+  since is kept, so the owner still sees it. Whether anything was dropped.
+  """
+  @spec dismiss_removed_calendars(CalendarIntegrationSchema.t(), [String.t()]) ::
+          {:ok, boolean()} | {:error, Ecto.Changeset.t() | :not_found}
+  def dismiss_removed_calendars(%CalendarIntegrationSchema{id: id}, shown_ids) do
+    shown = MapSet.new(shown_ids)
+
+    with_locked_stored(id, fn fresh ->
+      case Enum.reject(fresh.removed_calendars, &MapSet.member?(shown, &1.id)) do
+        kept when length(kept) == length(fresh.removed_calendars) ->
+          {:ok, false}
+
+        kept ->
+          fresh
+          |> Changeset.change()
+          |> Changeset.put_embed(:removed_calendars, kept)
+          |> Repo.update()
+          |> then(fn
+            {:ok, _updated} -> {:ok, true}
+            {:error, changeset} -> {:error, changeset}
+          end)
+      end
     end)
   end
 end

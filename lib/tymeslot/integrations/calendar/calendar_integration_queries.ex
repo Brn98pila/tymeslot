@@ -459,17 +459,6 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
     |> Map.new()
   end
 
-  @doc "Empties `removed_calendars` (the owner dismissed the notice); whether a row was cleared."
-  @spec clear_removed_calendars(CalendarIntegrationSchema.t()) :: {:ok, boolean()}
-  def clear_removed_calendars(%CalendarIntegrationSchema{id: id}) do
-    {count, _rows} =
-      Repo.update_all(from(i in CalendarIntegrationSchema, where: i.id == ^id),
-        set: [removed_calendars: [], updated_at: DateTime.utc_now(:second)]
-      )
-
-    {:ok, count > 0}
-  end
-
   @doc """
   The integration's row as it stands now, credentials left encrypted, or nil
   once it is gone. For a change decided under a lock, which must act on the

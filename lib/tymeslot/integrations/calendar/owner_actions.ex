@@ -22,8 +22,8 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   alias Tymeslot.Dashboard.DashboardContext
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue
-  alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.Deletion
   alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
   alias Tymeslot.Integrations.Calendar.ProviderConfig
@@ -182,14 +182,15 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   end
 
   @doc """
-  Dismisses the notice about calendars the server stopped listing, emptying
-  the integration's `removed_calendars`.
+  Dismisses the notice about calendars the server stopped listing, for the
+  entries in `shown_ids`: those the owner was shown. One recorded after the
+  notice was rendered stays, so the owner sees it before it can go.
   """
-  @spec dismiss_removed_calendars(pos_integer(), pos_integer()) ::
-          {:ok, boolean()} | {:error, refusal()}
-  def dismiss_removed_calendars(user_id, integration_id) do
+  @spec dismiss_removed_calendars(pos_integer(), pos_integer(), [String.t()]) ::
+          {:ok, boolean()} | {:error, refusal() | Ecto.Changeset.t()}
+  def dismiss_removed_calendars(user_id, integration_id, shown_ids) do
     with_owned(user_id, integration_id, :appearance, fn integration ->
-      CalendarIntegrationQueries.clear_removed_calendars(integration)
+      CalendarSelectionQueries.dismiss_removed_calendars(integration, shown_ids)
     end)
   end
 

@@ -204,8 +204,12 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
     end
   end
 
-  def handle_event("dismiss_removed_calendars", %{"id" => id}, socket) do
-    with_owned_integration(socket, id, &Calendar.dismiss_removed_calendars/2, fn
+  # The ids are those the card rendered, so a calendar recorded since stays.
+  def handle_event("dismiss_removed_calendars", %{"id" => id} = params, socket) do
+    shown_ids = shown_ids(params)
+    dismiss = &Calendar.dismiss_removed_calendars(&1, &2, shown_ids)
+
+    with_owned_integration(socket, id, dismiss, fn
       {:ok, _cleared} ->
         # The hub's banner lists the same calendars, from the parent's copy.
         send(self(), {:integration_updated, :calendar})
@@ -506,6 +510,16 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
   # detail of the picker rather than something the schema has to know about.
   defp palette_key("default"), do: nil
   defp palette_key(colour), do: colour
+
+  # A tampered or missing list dismisses nothing.
+  defp shown_ids(%{"shown" => shown}) when is_binary(shown) do
+    case Jason.decode(shown) do
+      {:ok, ids} when is_list(ids) -> Enum.filter(ids, &is_binary/1)
+      _invalid -> []
+    end
+  end
+
+  defp shown_ids(_params), do: []
 
   defp parse_int(id) when is_integer(id), do: {:ok, id}
 

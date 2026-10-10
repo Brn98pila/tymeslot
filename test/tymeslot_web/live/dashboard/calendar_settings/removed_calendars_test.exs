@@ -103,6 +103,32 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.RemovedCalendarsTest do
     refute reloaded =~ "is no longer on your calendar server"
   end
 
+  # The page rendered Projects; Team was recorded after, so the owner has
+  # not seen it and Dismiss must leave it.
+  test "Dismiss keeps a calendar recorded after the page rendered", %{
+    conn: conn,
+    integration: integration
+  } do
+    {:ok, view, _html} = live(conn, ~p"/dashboard/integrations?tab=calendars")
+
+    integration
+    |> Changeset.change()
+    |> Changeset.put_embed(
+      :removed_calendars,
+      integration.removed_calendars ++
+        [%RemovedCalendar{id: "/team/", name: "Team", removed_at: ~U[2026-10-01 09:00:00Z]}]
+    )
+    |> Repo.update!()
+
+    view |> dismiss_button(integration) |> render_click()
+
+    assert [%RemovedCalendar{id: "/team/"}] =
+             Repo.get!(CalendarIntegrationSchema, integration.id).removed_calendars
+
+    # Reloaded after the dismissal, the card now shows what is left.
+    assert render(view) =~ "“Team” is no longer on your calendar server"
+  end
+
   test "several calendars are counted and listed", %{conn: conn, integration: integration} do
     integration
     |> Changeset.change()

@@ -12,6 +12,7 @@ defmodule Tymeslot.Integrations.Calendar.RemovedCalendarsTest do
 
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
@@ -126,16 +127,39 @@ defmodule Tymeslot.Integrations.Calendar.RemovedCalendarsTest do
       %{user: user, integration: integration}
     end
 
-    test "empties the list for its owner", %{user: user, integration: integration} do
-      assert {:ok, true} = Calendar.dismiss_removed_calendars(user.id, integration.id)
+    test "drops the calendars its owner was shown", %{user: user, integration: integration} do
+      assert {:ok, true} =
+               Calendar.dismiss_removed_calendars(user.id, integration.id, ["/dav/work/"])
+
       assert Repo.get!(CalendarIntegrationSchema, integration.id).removed_calendars == []
+    end
+
+    # Recorded after the notice was rendered, so the owner has not seen it.
+    test "keeps a calendar recorded since the owner was shown the notice", %{
+      user: user,
+      integration: integration
+    } do
+      integration
+      |> Changeset.change()
+      |> Changeset.put_embed(
+        :removed_calendars,
+        integration.removed_calendars ++
+          [%RemovedCalendar{id: "/dav/team/", name: "Team", removed_at: ~U[2026-10-01 09:00:00Z]}]
+      )
+      |> Repo.update!()
+
+      assert {:ok, true} =
+               Calendar.dismiss_removed_calendars(user.id, integration.id, ["/dav/work/"])
+
+      assert [%RemovedCalendar{id: "/dav/team/"}] =
+               Repo.get!(CalendarIntegrationSchema, integration.id).removed_calendars
     end
 
     test "is not found for another user", %{integration: integration} do
       intruder = insert(:user)
 
       assert {:error, :not_found} =
-               Calendar.dismiss_removed_calendars(intruder.id, integration.id)
+               Calendar.dismiss_removed_calendars(intruder.id, integration.id, ["/dav/work/"])
 
       assert [_kept] = Repo.get!(CalendarIntegrationSchema, integration.id).removed_calendars
     end
@@ -146,7 +170,7 @@ defmodule Tymeslot.Integrations.Calendar.RemovedCalendarsTest do
       |> Enum.find(&match?({:error, :rate_limited, _message}, &1))
 
       assert {:error, {:rate_limited, _message}} =
-               Calendar.dismiss_removed_calendars(user.id, integration.id)
+               Calendar.dismiss_removed_calendars(user.id, integration.id, ["/dav/work/"])
 
       assert [_kept] = Repo.get!(CalendarIntegrationSchema, integration.id).removed_calendars
     end
