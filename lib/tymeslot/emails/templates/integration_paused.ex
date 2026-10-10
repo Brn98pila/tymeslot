@@ -55,8 +55,8 @@ defmodule Tymeslot.Emails.Templates.IntegrationPaused do
       happening:
         {dngettext(
            "emails_integrations",
-           "Your %{integration} integration has been failing connection checks for %{count}+ day. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted — your settings, calendar selections, and history are all preserved.",
-           "Your %{integration} integration has been failing connection checks for %{count}+ days. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted — your settings, calendar selections, and history are all preserved.",
+           "Your %{integration} integration has been failing connection checks for %{count}+ day. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted: your settings, calendar selections, and history are all preserved.",
+           "Your %{integration} integration has been failing connection checks for %{count}+ days. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted: your settings, calendar selections, and history are all preserved.",
            days,
            integration: name
          ), name},

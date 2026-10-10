@@ -379,11 +379,6 @@ msgstr ""
 
 #: lib/tymeslot/emails/templates/integration_unhealthy.ex
 #, elixir-autogen, elixir-format
-msgid "Our connection probes to your %{integration} integration have been failing intermittently for 48+ hours. The integration may already be working again — but if it isn't, syncing and new bookings could be affected, so it's worth a quick check."
-msgstr ""
-
-#: lib/tymeslot/emails/templates/integration_unhealthy.ex
-#, elixir-autogen, elixir-format
 msgid "Our health checks for your %{integration} integration have been returning errors on and off for at least 48 hours. It's worth taking a look in case something needs your attention."
 msgstr ""
 
@@ -467,13 +462,6 @@ msgstr[1] ""
 
 #: lib/tymeslot/emails/templates/integration_paused.ex
 #, elixir-autogen, elixir-format
-msgid "Your %{integration} integration has been failing connection checks for %{count}+ day. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted — your settings, calendar selections, and history are all preserved."
-msgid_plural "Your %{integration} integration has been failing connection checks for %{count}+ days. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted — your settings, calendar selections, and history are all preserved."
-msgstr[0] ""
-msgstr[1] ""
-
-#: lib/tymeslot/emails/templates/integration_paused.ex
-#, elixir-autogen, elixir-format
 msgid "Your %{integration} integration has been paused"
 msgstr ""
 
@@ -518,3 +506,15 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Your video integration may need attention"
 msgstr ""
+
+#: lib/tymeslot/emails/templates/integration_unhealthy.ex
+#, elixir-autogen, elixir-format
+msgid "Our connection probes to your %{integration} integration have been failing intermittently for 48+ hours. The integration may already be working again. If it isn't, syncing and new bookings could be affected, so it's worth a quick check."
+msgstr ""
+
+#: lib/tymeslot/emails/templates/integration_paused.ex
+#, elixir-autogen, elixir-format
+msgid "Your %{integration} integration has been failing connection checks for %{count}+ day. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted: your settings, calendar selections, and history are all preserved."
+msgid_plural "Your %{integration} integration has been failing connection checks for %{count}+ days. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted: your settings, calendar selections, and history are all preserved."
+msgstr[0] ""
+msgstr[1] ""

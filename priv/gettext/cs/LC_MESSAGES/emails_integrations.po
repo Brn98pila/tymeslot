@@ -383,11 +383,6 @@ msgstr "Otevřete nastavení integrací"
 
 #: lib/tymeslot/emails/templates/integration_unhealthy.ex
 #, elixir-autogen, elixir-format
-msgid "Our connection probes to your %{integration} integration have been failing intermittently for 48+ hours. The integration may already be working again — but if it isn't, syncing and new bookings could be affected, so it's worth a quick check."
-msgstr "Pokusy o připojení k vaší integraci %{integration} už déle než 48 hodin občas selhávají. Integrace už možná zase funguje. Pokud ne, může to ovlivnit synchronizaci i nové rezervace, a proto se vyplatí ji rychle zkontrolovat."
-
-#: lib/tymeslot/emails/templates/integration_unhealthy.ex
-#, elixir-autogen, elixir-format
 msgid "Our health checks for your %{integration} integration have been returning errors on and off for at least 48 hours. It's worth taking a look in case something needs your attention."
 msgstr "Kontroly stavu vaší integrace %{integration} už nejméně 48 hodin střídavě hlásí chyby. Vyplatí se na ni podívat, pokud by něco vyžadovalo vaši pozornost."
 
@@ -472,14 +467,6 @@ msgstr[2] "Po %{count} dnech neúspěšných kontrol stavu jsme vaši integraci
 
 #: lib/tymeslot/emails/templates/integration_paused.ex
 #, elixir-autogen, elixir-format
-msgid "Your %{integration} integration has been failing connection checks for %{count}+ day. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted — your settings, calendar selections, and history are all preserved."
-msgid_plural "Your %{integration} integration has been failing connection checks for %{count}+ days. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted — your settings, calendar selections, and history are all preserved."
-msgstr[0] "Kontroly připojení vaší integrace %{integration} selhávají už nejméně %{count} den. Pozastavili jsme ji, aby zbytečně nespotřebovávala prostředky a nevytvářela zbytečná hlášení. Nic nebylo smazáno: nastavení, vybrané kalendáře i historie zůstávají zachovány."
-msgstr[1] "Kontroly připojení vaší integrace %{integration} selhávají už nejméně %{count} dny. Pozastavili jsme ji, aby zbytečně nespotřebovávala prostředky a nevytvářela zbytečná hlášení. Nic nebylo smazáno: nastavení, vybrané kalendáře i historie zůstávají zachovány."
-msgstr[2] "Kontroly připojení vaší integrace %{integration} selhávají už nejméně %{count} dní. Pozastavili jsme ji, aby zbytečně nespotřebovávala prostředky a nevytvářela zbytečná hlášení. Nic nebylo smazáno: nastavení, vybrané kalendáře i historie zůstávají zachovány."
-
-#: lib/tymeslot/emails/templates/integration_paused.ex
-#, elixir-autogen, elixir-format
 msgid "Your %{integration} integration has been paused"
 msgstr "Vaše integrace %{integration} byla pozastavena"
 
@@ -524,5 +511,17 @@ msgstr "Vaše videointegrace byla pozastavena"
 #: lib/tymeslot/emails/templates/integration_unhealthy.ex
 #, elixir-autogen, elixir-format
 msgid "Your video integration may need attention"
-
 msgstr "Vaše videointegrace možná vyžaduje pozornost"
+
+#: lib/tymeslot/emails/templates/integration_unhealthy.ex
+#, elixir-autogen, elixir-format
+msgid "Our connection probes to your %{integration} integration have been failing intermittently for 48+ hours. The integration may already be working again. If it isn't, syncing and new bookings could be affected, so it's worth a quick check."
+msgstr "Pokusy o připojení k vaší integraci %{integration} už déle než 48 hodin občas selhávají. Integrace už možná zase funguje. Pokud ne, může to ovlivnit synchronizaci i nové rezervace, a proto se vyplatí ji rychle zkontrolovat."
+
+#: lib/tymeslot/emails/templates/integration_paused.ex
+#, elixir-autogen, elixir-format
+msgid "Your %{integration} integration has been failing connection checks for %{count}+ day. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted: your settings, calendar selections, and history are all preserved."
+msgid_plural "Your %{integration} integration has been failing connection checks for %{count}+ days. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted: your settings, calendar selections, and history are all preserved."
+msgstr[0] "Kontroly připojení vaší integrace %{integration} selhávají už nejméně %{count} den. Pozastavili jsme ji, aby zbytečně nespotřebovávala prostředky a nevytvářela nadbytečná hlášení. Nic nebylo smazáno: nastavení, vybrané kalendáře i historie zůstávají zachovány."
+msgstr[1] "Kontroly připojení vaší integrace %{integration} selhávají už nejméně %{count} dny. Pozastavili jsme ji, aby zbytečně nespotřebovávala prostředky a nevytvářela nadbytečná hlášení. Nic nebylo smazáno: nastavení, vybrané kalendáře i historie zůstávají zachovány."
+msgstr[2] "Kontroly připojení vaší integrace %{integration} selhávají už nejméně %{count} dní. Pozastavili jsme ji, aby zbytečně nespotřebovávala prostředky a nevytvářela nadbytečná hlášení. Nic nebylo smazáno: nastavení, vybrané kalendáře i historie zůstávají zachovány."

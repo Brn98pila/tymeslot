@@ -203,7 +203,7 @@ msgid "%{count} calendar is no longer on your calendar server"
 msgid_plural "%{count} calendars are no longer on your calendar server"
 msgstr[0] "%{count} календар зник з вашого сервера календаря"
 msgstr[1] "%{count} календарі зникли з вашого сервера календаря"
-msgstr[2] "%{count} календарів зникли з вашого сервера календаря"
+msgstr[2] "%{count} календарів зникло з вашого сервера календаря"
 
 #: lib/tymeslot/emails/templates/calendars_removed.ex
 #, elixir-autogen, elixir-format
@@ -273,12 +273,12 @@ msgstr "%{provider} (календар)"
 #: lib/tymeslot/emails/templates/integration_reauth_required.ex
 #, elixir-autogen, elixir-format
 msgid "%{provider} needs reconnecting before Tymeslot can use it again."
-msgstr "Потрібно перепідключити %{provider}: доти Tymeslot не зможе працювати з цією інтеграцією."
+msgstr "Доки ви не перепідключите %{provider}, Tymeslot не зможе працювати з цією інтеграцією."
 
 #: lib/tymeslot/emails/shared/integration_labels.ex
 #, elixir-autogen, elixir-format
 msgid "%{provider} video"
-msgstr "%{provider} (відеозв’язок)"
+msgstr "%{provider} (відеозв'язок)"
 
 #: lib/tymeslot/emails/templates/integration_unhealthy.ex
 #, elixir-autogen, elixir-format
@@ -308,7 +308,7 @@ msgstr "Якщо проблема не зникне, зверніться до �
 #: lib/tymeslot/emails/templates/integration_unhealthy.ex
 #, elixir-autogen, elixir-format
 msgid "Contact your video provider if the issue persists"
-msgstr "Якщо проблема не зникне, зверніться до свого провайдера відеозв’язку"
+msgstr "Якщо проблема не зникне, зверніться до свого провайдера відеозв'язку"
 
 #: lib/tymeslot/emails/templates/integration_reauth_required.ex
 #, elixir-autogen, elixir-format
@@ -380,11 +380,6 @@ msgstr "Відкрийте налаштування календаря"
 #, elixir-autogen, elixir-format
 msgid "Open your integration settings"
 msgstr "Відкрийте налаштування інтеграцій"
-
-#: lib/tymeslot/emails/templates/integration_unhealthy.ex
-#, elixir-autogen, elixir-format
-msgid "Our connection probes to your %{integration} integration have been failing intermittently for 48+ hours. The integration may already be working again — but if it isn't, syncing and new bookings could be affected, so it's worth a quick check."
-msgstr "Перевірки підключення до вашої інтеграції %{integration} уже понад 48 годин час від часу завершуються помилкою. Можливо, інтеграція вже знову працює. Якщо ж ні, це може позначитися на синхронізації та нових бронюваннях, тож варто швидко все перевірити."
 
 #: lib/tymeslot/emails/templates/integration_unhealthy.ex
 #, elixir-autogen, elixir-format
@@ -472,14 +467,6 @@ msgstr[2] "Ми призупинили вашу інтеграцію %{integrati
 
 #: lib/tymeslot/emails/templates/integration_paused.ex
 #, elixir-autogen, elixir-format
-msgid "Your %{integration} integration has been failing connection checks for %{count}+ day. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted — your settings, calendar selections, and history are all preserved."
-msgid_plural "Your %{integration} integration has been failing connection checks for %{count}+ days. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted — your settings, calendar selections, and history are all preserved."
-msgstr[0] "Ваша інтеграція %{integration} не проходить перевірки підключення вже %{count}+ день. Ми призупинили її, щоб вона не витрачала ресурси й не створювала зайвого шуму. Нічого не видалено: ваші налаштування, вибрані календарі та історію збережено."
-msgstr[1] "Ваша інтеграція %{integration} не проходить перевірки підключення вже %{count}+ дні. Ми призупинили її, щоб вона не витрачала ресурси й не створювала зайвого шуму. Нічого не видалено: ваші налаштування, вибрані календарі та історію збережено."
-msgstr[2] "Ваша інтеграція %{integration} не проходить перевірки підключення вже %{count}+ днів. Ми призупинили її, щоб вона не витрачала ресурси й не створювала зайвого шуму. Нічого не видалено: ваші налаштування, вибрані календарі та історію збережено."
-
-#: lib/tymeslot/emails/templates/integration_paused.ex
-#, elixir-autogen, elixir-format
 msgid "Your %{integration} integration has been paused"
 msgstr "Вашу інтеграцію %{integration} призупинено"
 
@@ -519,9 +506,22 @@ msgstr "Інтеграція календаря, можливо, потребу�
 #: lib/tymeslot/emails/templates/integration_paused.ex
 #, elixir-autogen, elixir-format
 msgid "Your video integration has been paused"
-msgstr "Інтеграцію відеозв’язку призупинено"
+msgstr "Інтеграцію відеозв'язку призупинено"
 
 #: lib/tymeslot/emails/templates/integration_unhealthy.ex
 #, elixir-autogen, elixir-format
 msgid "Your video integration may need attention"
-msgstr "Інтеграція відеозв’язку, можливо, потребує уваги"
+msgstr "Інтеграція відеозв'язку, можливо, потребує уваги"
+
+#: lib/tymeslot/emails/templates/integration_unhealthy.ex
+#, elixir-autogen, elixir-format
+msgid "Our connection probes to your %{integration} integration have been failing intermittently for 48+ hours. The integration may already be working again. If it isn't, syncing and new bookings could be affected, so it's worth a quick check."
+msgstr "Перевірки підключення до вашої інтеграції %{integration} уже понад 48 годин час від часу завершуються помилкою. Можливо, інтеграція вже знову працює. Якщо ж ні, це може позначитися на синхронізації та нових бронюваннях, тож варто швидко все перевірити."
+
+#: lib/tymeslot/emails/templates/integration_paused.ex
+#, elixir-autogen, elixir-format
+msgid "Your %{integration} integration has been failing connection checks for %{count}+ day. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted: your settings, calendar selections, and history are all preserved."
+msgid_plural "Your %{integration} integration has been failing connection checks for %{count}+ days. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted: your settings, calendar selections, and history are all preserved."
+msgstr[0] "Ваша інтеграція %{integration} не проходить перевірки підключення щонайменше %{count} день. Ми призупинили її, щоб вона не витрачала ресурси й не створювала зайвих сповіщень. Нічого не видалено: ваші налаштування, вибрані календарі та історію збережено."
+msgstr[1] "Ваша інтеграція %{integration} не проходить перевірки підключення щонайменше %{count} дні. Ми призупинили її, щоб вона не витрачала ресурси й не створювала зайвих сповіщень. Нічого не видалено: ваші налаштування, вибрані календарі та історію збережено."
+msgstr[2] "Ваша інтеграція %{integration} не проходить перевірки підключення щонайменше %{count} днів. Ми призупинили її, щоб вона не витрачала ресурси й не створювала зайвих сповіщень. Нічого не видалено: ваші налаштування, вибрані календарі та історію збережено."

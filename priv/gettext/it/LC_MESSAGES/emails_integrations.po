@@ -379,11 +379,6 @@ msgstr "Apri le impostazioni delle tue integrazioni"
 
 #: lib/tymeslot/emails/templates/integration_unhealthy.ex
 #, elixir-autogen, elixir-format
-msgid "Our connection probes to your %{integration} integration have been failing intermittently for 48+ hours. The integration may already be working again — but if it isn't, syncing and new bookings could be affected, so it's worth a quick check."
-msgstr "Da oltre 48 ore i nostri test di connessione alla tua integrazione %{integration} falliscono a intermittenza. L'integrazione potrebbe già funzionare di nuovo, ma se così non fosse, la sincronizzazione e le nuove prenotazioni potrebbero risentirne: vale la pena dare una rapida occhiata."
-
-#: lib/tymeslot/emails/templates/integration_unhealthy.ex
-#, elixir-autogen, elixir-format
 msgid "Our health checks for your %{integration} integration have been returning errors on and off for at least 48 hours. It's worth taking a look in case something needs your attention."
 msgstr "Da almeno 48 ore i nostri controlli di stato sulla tua integrazione %{integration} restituiscono errori a intermittenza. Conviene dare un'occhiata, nel caso qualcosa richieda il tuo intervento."
 
@@ -467,13 +462,6 @@ msgstr[1] "Abbiamo messo in pausa la tua integrazione %{integration} dopo %{coun
 
 #: lib/tymeslot/emails/templates/integration_paused.ex
 #, elixir-autogen, elixir-format
-msgid "Your %{integration} integration has been failing connection checks for %{count}+ day. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted — your settings, calendar selections, and history are all preserved."
-msgid_plural "Your %{integration} integration has been failing connection checks for %{count}+ days. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted — your settings, calendar selections, and history are all preserved."
-msgstr[0] "Da almeno %{count} giorno la tua integrazione %{integration} non supera i test di connessione. L'abbiamo messa in pausa perché smetta di consumare risorse e di generare segnalazioni inutili. Non è stato eliminato nulla: impostazioni, calendari selezionati e cronologia sono tutti conservati."
-msgstr[1] "Da almeno %{count} giorni la tua integrazione %{integration} non supera i test di connessione. L'abbiamo messa in pausa perché smetta di consumare risorse e di generare segnalazioni inutili. Non è stato eliminato nulla: impostazioni, calendari selezionati e cronologia sono tutti conservati."
-
-#: lib/tymeslot/emails/templates/integration_paused.ex
-#, elixir-autogen, elixir-format
 msgid "Your %{integration} integration has been paused"
 msgstr "La tua integrazione %{integration} è stata messa in pausa"
 
@@ -518,3 +506,15 @@ msgstr "La tua integrazione video è stata messa in pausa"
 #, elixir-autogen, elixir-format
 msgid "Your video integration may need attention"
 msgstr "La tua integrazione video potrebbe richiedere attenzione"
+
+#: lib/tymeslot/emails/templates/integration_unhealthy.ex
+#, elixir-autogen, elixir-format
+msgid "Our connection probes to your %{integration} integration have been failing intermittently for 48+ hours. The integration may already be working again. If it isn't, syncing and new bookings could be affected, so it's worth a quick check."
+msgstr "Da oltre 48 ore i nostri test di connessione alla tua integrazione %{integration} falliscono a intermittenza. L'integrazione potrebbe già funzionare di nuovo, ma se così non fosse, la sincronizzazione e le nuove prenotazioni potrebbero risentirne: vale la pena dare una rapida occhiata."
+
+#: lib/tymeslot/emails/templates/integration_paused.ex
+#, elixir-autogen, elixir-format
+msgid "Your %{integration} integration has been failing connection checks for %{count}+ day. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted: your settings, calendar selections, and history are all preserved."
+msgid_plural "Your %{integration} integration has been failing connection checks for %{count}+ days. We've paused it so it stops consuming resources and stops generating noise. Nothing has been deleted: your settings, calendar selections, and history are all preserved."
+msgstr[0] "Da almeno %{count} giorno la tua integrazione %{integration} non supera i test di connessione. L'abbiamo messa in pausa perché smetta di consumare risorse e di generare segnalazioni inutili. Non è stato eliminato nulla: impostazioni, calendari selezionati e cronologia sono tutti conservati."
+msgstr[1] "Da almeno %{count} giorni la tua integrazione %{integration} non supera i test di connessione. L'abbiamo messa in pausa perché smetta di consumare risorse e di generare segnalazioni inutili. Non è stato eliminato nulla: impostazioni, calendari selezionati e cronologia sono tutti conservati."

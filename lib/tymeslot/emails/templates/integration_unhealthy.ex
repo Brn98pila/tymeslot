@@ -49,7 +49,7 @@ defmodule Tymeslot.Emails.Templates.IntegrationUnhealthy do
       happening:
         {dgettext(
            "emails_integrations",
-           "Our connection probes to your %{integration} integration have been failing intermittently for 48+ hours. The integration may already be working again — but if it isn't, syncing and new bookings could be affected, so it's worth a quick check.",
+           "Our connection probes to your %{integration} integration have been failing intermittently for 48+ hours. The integration may already be working again. If it isn't, syncing and new bookings could be affected, so it's worth a quick check.",
            integration: name
          ), name},
       next_heading: dgettext("emails_integrations", "What should I do?"),
