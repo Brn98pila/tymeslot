@@ -17,10 +17,10 @@ defmodule Tymeslot.Meetings.ExternalCalendarChanges do
 
   require Logger
 
+  alias Tymeslot.Availability
   alias Tymeslot.Bookings.Cancel
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Emails.EmailService
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Meetings.MeetingCalendarQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
   alias Tymeslot.Meetings.MeetingState
@@ -110,7 +110,7 @@ defmodule Tymeslot.Meetings.ExternalCalendarChanges do
         )
 
         resolve_modification(updated)
-        AvailabilityCache.invalidate_for_user(updated.organizer_user_id)
+        Availability.changed(updated.organizer_user_id)
         sync_video_room(updated)
         announce_end(updated)
 

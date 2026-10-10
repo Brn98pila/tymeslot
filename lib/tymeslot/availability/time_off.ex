@@ -22,9 +22,9 @@ defmodule Tymeslot.Availability.TimeOff do
   """
 
   alias Ecto.Changeset
+  alias Tymeslot.Availability
   alias Tymeslot.Availability.TimeOffPeriodQueries
   alias Tymeslot.Availability.TimeOffPeriodSchema
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Profiles
@@ -352,7 +352,7 @@ defmodule Tymeslot.Availability.TimeOff do
   # or a profile that could not be read, is a no-op: invalidation must never
   # turn a successful edit into an error.
   defp invalidate_cache({:ok, _period} = outcome, %{user_id: user_id}) do
-    AvailabilityCache.invalidate_for_user(user_id)
+    Availability.changed(user_id)
     outcome
   end
 

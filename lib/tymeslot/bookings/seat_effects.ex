@@ -22,9 +22,9 @@ defmodule Tymeslot.Bookings.SeatEffects do
   that then rolls back.
   """
 
+  alias Tymeslot.Availability
   alias Tymeslot.Bookings.Activation
   alias Tymeslot.Bookings.CalendarJobs
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings.SeatBroadcast
   alias Tymeslot.Notifications.Orchestrator
@@ -79,7 +79,7 @@ defmodule Tymeslot.Bookings.SeatEffects do
   """
   @spec broadcast_and_invalidate(map()) :: :ok
   def broadcast_and_invalidate(meeting) do
-    AvailabilityCache.invalidate_for_user(meeting.organizer_user_id)
+    Availability.changed(meeting.organizer_user_id)
     SeatBroadcast.broadcast_seat_change(meeting.meeting_type_id)
     :ok
   end

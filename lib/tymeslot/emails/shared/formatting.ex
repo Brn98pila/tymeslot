@@ -19,6 +19,7 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   """
 
   alias Tymeslot.MeetingPayments.Money
+  alias Tymeslot.Utils.DateTimeUtils.Duration
   alias Tymeslot.Utils.DateTimeUtils.TimeFormat
   alias Tymeslot.Utils.ReminderUtils
   alias TymeslotWeb.Helpers.LocaleFormat
@@ -411,12 +412,7 @@ defmodule Tymeslot.Emails.Shared.Formatting do
 
   defp parse_duration_minutes(0), do: {:ok, 0}
 
-  defp parse_duration_minutes(str) when is_binary(str) do
-    case Regex.run(~r/^\s*(\d+)\s*(?:-?\s*min(?:utes?)?)?\s*$/i, str) do
-      [_full, m] -> {:ok, String.to_integer(m)}
-      _no_match -> :error
-    end
-  end
+  defp parse_duration_minutes(str) when is_binary(str), do: Duration.parse_minutes(str)
 
   defp parse_duration_minutes(_other), do: :error
 

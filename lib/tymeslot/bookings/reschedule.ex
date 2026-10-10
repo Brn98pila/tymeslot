@@ -31,6 +31,8 @@ defmodule Tymeslot.Bookings.Reschedule do
 
   alias Tymeslot.Auth
 
+  alias Tymeslot.Availability
+
   alias Tymeslot.Bookings.{
     CalendarCheck,
     CalendarJobs,
@@ -42,7 +44,6 @@ defmodule Tymeslot.Bookings.Reschedule do
 
   alias Tymeslot.Availability.Schedules
   alias Tymeslot.Clock
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.Approval
@@ -157,7 +158,7 @@ defmodule Tymeslot.Bookings.Reschedule do
   # availability, the provider side of any room the move left behind or
   # moved, and the emails.
   defp after_commit(updated_meeting, original_meeting) do
-    AvailabilityCache.invalidate_for_user(updated_meeting.organizer_user_id)
+    Availability.changed(updated_meeting.organizer_user_id)
     RescheduleLocation.release_abandoned_room(updated_meeting, original_meeting)
     sync_provider_video_room(updated_meeting)
     announce(updated_meeting, original_meeting)

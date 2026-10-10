@@ -67,10 +67,10 @@ defmodule Tymeslot.CalendarGrid.EventDeletion do
 
   require Logger
 
+  alias Tymeslot.Availability
   alias Tymeslot.CalendarGrid.EventVideoDiscard
   alias Tymeslot.CalendarGrid.EventVideoRooms
   alias Tymeslot.CalendarGrid.Occurrence
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.Events, as: CalendarEvents
@@ -333,7 +333,7 @@ defmodule Tymeslot.CalendarGrid.EventDeletion do
     end)
 
     after_delete("invalidate cached availability", context, fn ->
-      AvailabilityCache.invalidate_for_user(user_id)
+      Availability.changed(user_id)
     end)
   end
 

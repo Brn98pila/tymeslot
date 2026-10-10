@@ -27,11 +27,11 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
 
   require Logger
 
+  alias Tymeslot.Availability
   alias Tymeslot.Bookings.CreateAdHoc
   alias Tymeslot.CalendarGrid.EventVideo
   alias Tymeslot.CalendarGrid.EventVideoRooms
   alias Tymeslot.CalendarGrid.ProviderPayload
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CreatedEvent
@@ -386,7 +386,7 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
     # unavailable, so it is the write path that most needs the drop. Both
     # `finalise_create_result/2` success clauses funnel through here, and the
     # failure clause does not, so a queued create is left alone.
-    AvailabilityCache.invalidate_for_user(user_id)
+    Availability.changed(user_id)
 
     {:ok, _status} = AttendeeNotifications.event_created(notify_event, attendees)
 

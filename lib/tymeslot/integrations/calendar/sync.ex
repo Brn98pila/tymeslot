@@ -21,7 +21,7 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
 
   require Logger
 
-  alias Tymeslot.Infrastructure.AvailabilityCache
+  alias Tymeslot.Availability
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarEvent
@@ -351,7 +351,7 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
   """
   @spec invalidate_cache_for_user(CalendarIntegrationSchema.t()) :: :ok
   def invalidate_cache_for_user(%CalendarIntegrationSchema{} = integration) do
-    AvailabilityCache.invalidate_for_user(integration.user_id)
+    Availability.changed(integration.user_id)
     :ok
   rescue
     e ->

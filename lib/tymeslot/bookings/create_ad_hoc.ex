@@ -9,10 +9,10 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
   """
 
   alias Ecto.UUID
+  alias Tymeslot.Availability
   alias Tymeslot.Bookings.Activation
   alias Tymeslot.Bookings.CalendarJobs
   alias Tymeslot.Bookings.MeetingLinks
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Locales
   alias Tymeslot.Meetings.Guests
   alias Tymeslot.Meetings.Scheduling
@@ -48,7 +48,7 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
   def execute(params) do
     with {:ok, meeting, pending} <- execute_deferred(params) do
       :ok = Activation.after_commit(pending)
-      AvailabilityCache.invalidate_for_user(meeting.organizer_user_id)
+      Availability.changed(meeting.organizer_user_id)
       {:ok, meeting}
     end
   end

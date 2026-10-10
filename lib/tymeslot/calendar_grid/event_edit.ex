@@ -69,13 +69,13 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
   series member is never queued (see `Tymeslot.CalendarGrid.SeriesEdit`).
   """
 
+  alias Tymeslot.Availability
   alias Tymeslot.CalendarGrid.AllDay
   alias Tymeslot.CalendarGrid.EventVideoRooms
   alias Tymeslot.CalendarGrid.Occurrence
   alias Tymeslot.CalendarGrid.ProviderPayload
   alias Tymeslot.CalendarGrid.RecurrenceScope
   alias Tymeslot.CalendarGrid.SeriesEdit
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.Events, as: CalendarEvents
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
@@ -457,6 +457,6 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
         )
     end
 
-    AvailabilityCache.invalidate_for_user(user_id)
+    Availability.changed(user_id)
   end
 end

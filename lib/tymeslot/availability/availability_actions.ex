@@ -5,10 +5,9 @@ defmodule Tymeslot.Availability.AvailabilityActions do
   without any UI-specific concerns.
   """
 
+  alias Tymeslot.Availability
   alias Tymeslot.Availability.AvailabilityScheduleQueries
   alias Tymeslot.Availability.{Breaks, WeeklyAvailabilityQueries, WeeklySchedule, Window}
-  alias Tymeslot.Infrastructure.AvailabilityCache
-  alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Utils.DateTimeUtils
 
   # Schedule Management Actions
@@ -193,15 +192,8 @@ defmodule Tymeslot.Availability.AvailabilityActions do
     result
   end
 
-  # The cache is keyed by user, so invalidation walks schedule -> profile -> user.
-  # A missing link is a no-op: failing to invalidate must never fail the edit the
-  # user just made.
+  # A schedule that no longer exists has no booking page left to refresh.
   defp invalidate_for_schedule(schedule_id) do
-    with %{profile_id: profile_id} <- AvailabilityScheduleQueries.get(schedule_id),
-         %{user_id: user_id} <- ProfileQueries.get_with_user(profile_id) do
-      AvailabilityCache.invalidate_for_user(user_id)
-    else
-      _other -> :ok
-    end
+    schedule_id |> AvailabilityScheduleQueries.get() |> Availability.changed()
   end
 end

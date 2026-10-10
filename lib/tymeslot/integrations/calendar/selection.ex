@@ -4,7 +4,7 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   for persistence.
   """
 
-  alias Tymeslot.Infrastructure.AvailabilityCache
+  alias Tymeslot.Availability
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
@@ -267,7 +267,7 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   # where a read in between would cache the old answer again.
   defp invalidate_after_commit({:ok, %{user_id: user_id}} = ok) do
     unless CalendarIntegrationQueries.in_transaction?(),
-      do: AvailabilityCache.invalidate_for_user(user_id)
+      do: Availability.changed(user_id)
 
     ok
   end

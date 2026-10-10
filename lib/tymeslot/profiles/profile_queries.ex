@@ -122,6 +122,20 @@ defmodule Tymeslot.Profiles.ProfileQueries do
   end
 
   @doc """
+  The id of the user owning a profile, or nil when there is no such profile.
+  Keyed by *profile* id, like `get_with_user/1`.
+  """
+  @spec user_id_for_profile(integer() | nil) :: integer() | nil
+  def user_id_for_profile(nil), do: nil
+
+  def user_id_for_profile(profile_id) do
+    ProfileSchema
+    |> where([p], p.id == ^profile_id)
+    |> select([p], p.user_id)
+    |> Repo.one()
+  end
+
+  @doc """
   Gets a profile by username.
   Returns {:ok, profile} if found, {:error, :not_found} otherwise.
 
