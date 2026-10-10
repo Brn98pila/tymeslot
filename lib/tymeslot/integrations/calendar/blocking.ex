@@ -34,7 +34,10 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   only at the integration row and waits there.
 
   Every write that changes which calendars block drops the owner's cached
-  availability once it commits.
+  availability once it commits, never before: a read in between would cache
+  the old answer again. A write nested in a caller's transaction (a default
+  booking calendar stored while `PrimaryElection` hands the primary on)
+  leaves that to the caller, which commits.
   """
 
   alias Tymeslot.Infrastructure.AvailabilityCache
@@ -46,6 +49,7 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.MeetingTypes
+  alias Tymeslot.Repo
   alias Tymeslot.Utils.UriUtils
 
   @type integration :: CalendarIntegrationSchema.t()
@@ -190,7 +194,7 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   end
 
   defp invalidate_on_success({:ok, %{user_id: user_id}} = ok) do
-    AvailabilityCache.invalidate_for_user(user_id)
+    unless Repo.in_transaction?(), do: AvailabilityCache.invalidate_for_user(user_id)
     ok
   end
 
