@@ -435,6 +435,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
       access_role: cal["accessRole"],
       read_only: read_only_access_role?(cal["accessRole"]),
       blocks_availability: not informational_calendar?(cal["id"]),
+      free_busy_only: cal["accessRole"] == "freeBusyReader",
       color: cal["backgroundColor"]
     }
     |> CalendarEntry.normalize()

@@ -82,6 +82,76 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
     |> invalidate_on_success()
   end
 
+  @typedoc """
+  What the owner lets a calendar do: nothing (`:off`, not selected), appear
+  in Tymeslot without taking slots (`:show`), or appear and take slots
+  (`:block`).
+  """
+  @type state :: :off | :show | :block
+
+  @doc """
+  Sets whether the calendar `calendar_id` of `integration` is used, and
+  whether it blocks availability, in one write.
+
+  `{:error, :booking_calendar}` for anything but `:block` on a booking
+  calendar; `{:error, :free_busy_only}` for `:show` on a calendar shared as
+  busy times only, which has no events to show; `{:error, :not_found}` when
+  the integration lists no such calendar.
+  """
+  @spec set_state(integration(), String.t() | integer(), state()) ::
+          {:ok, integration()}
+          | {:error, :booking_calendar | :free_busy_only | :not_found | term()}
+  def set_state(%{id: id}, calendar_id, state) when state in [:off, :show, :block] do
+    calendar_id = to_string(calendar_id)
+
+    id
+    |> CalendarSelectionQueries.with_locked(fn fresh ->
+      case find(fresh.calendar_list, calendar_id) do
+        nil ->
+          {:error, :not_found}
+
+        entry ->
+          with :ok <- allowed(fresh, entry, state) do
+            Selection.persist_calendar_list(
+              fresh,
+              put_state(fresh.calendar_list, entry.id, state)
+            )
+          end
+      end
+    end)
+    |> invalidate_on_success()
+  end
+
+  defp allowed(integration, entry, state) when state in [:off, :show] do
+    cond do
+      booking_calendar?(integration, entry.id) -> {:error, :booking_calendar}
+      state == :show and entry.free_busy_only -> {:error, :free_busy_only}
+      true -> :ok
+    end
+  end
+
+  defp allowed(_integration, _entry, :block), do: :ok
+
+  defp put_state(calendar_list, calendar_id, state) do
+    Enum.map(calendar_list, fn cal ->
+      entry = CalendarEntry.normalize(cal)
+
+      cond do
+        entry.id != calendar_id -> entry
+        state == :off -> %{entry | selected: false}
+        true -> %{entry | selected: true, blocks_availability: state == :block}
+      end
+    end)
+  end
+
+  @doc """
+  The `t:state/0` an entry is in.
+  """
+  @spec state(CalendarEntry.t()) :: state()
+  def state(%CalendarEntry{selected: false}), do: :off
+  def state(%CalendarEntry{blocks_availability: false}), do: :show
+  def state(%CalendarEntry{}), do: :block
+
   @doc """
   Whether `calendar_id` is a booking calendar of `integration`: the calendar
   bookings on it go to, or one a meeting type of its owner names.

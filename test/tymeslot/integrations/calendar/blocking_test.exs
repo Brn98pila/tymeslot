@@ -125,6 +125,53 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
     end
   end
 
+  describe "OwnerActions.set_calendar_state/4" do
+    defp state_of(integration, calendar_id) do
+      CalendarIntegrationSchema
+      |> Repo.get!(integration.id)
+      |> Map.fetch!(:calendar_list)
+      |> Enum.find(&(&1.id == calendar_id))
+      |> Blocking.state()
+    end
+
+    test "moves a calendar between off, show only and show and block", %{user: user} do
+      integration = google_integration(user, calendars(), default_booking_calendar_id: "work")
+
+      for state <- [:off, :block, :show, :off, :show, :block] do
+        assert {:ok, _updated} =
+                 OwnerActions.set_calendar_state(user.id, integration.id, "team", state)
+
+        assert state_of(integration, "team") == state
+      end
+    end
+
+    test "keeps a booking calendar showing and blocking", %{user: user} do
+      integration = google_integration(user, calendars(), default_booking_calendar_id: "work")
+
+      for state <- [:off, :show] do
+        assert {:error, :booking_calendar} =
+                 OwnerActions.set_calendar_state(user.id, integration.id, "work", state)
+      end
+
+      assert state_of(integration, "work") == :block
+    end
+
+    test "never shows a calendar shared as busy times only", %{user: user} do
+      integration =
+        google_integration(user, [
+          %{id: "boss", selected: false, read_only: true, free_busy_only: true}
+        ])
+
+      assert {:error, :free_busy_only} =
+               OwnerActions.set_calendar_state(user.id, integration.id, "boss", :show)
+
+      assert {:ok, _updated} =
+               OwnerActions.set_calendar_state(user.id, integration.id, "boss", :block)
+
+      assert state_of(integration, "boss") == :block
+    end
+  end
+
   describe "a meeting type naming a booking calendar" do
     test "makes a show-only calendar block when created against it", %{user: user} do
       integration = google_integration(user, calendars(), default_booking_calendar_id: "work")

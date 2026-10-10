@@ -42,6 +42,7 @@ defmodule Tymeslot.Integrations.Calendar.DiscoverAndConfigureTest do
          [
            %{"id" => "me@example.com", "summary" => "Me", "primary" => true},
            %{"id" => "team@group.calendar.google.com", "accessRole" => "reader"},
+           %{"id" => "boss@example.com", "accessRole" => "freeBusyReader"},
            %{"id" => "en.uk#holiday@group.v.calendar.google.com", "accessRole" => "reader"},
            %{
              "id" => "addressbook#contacts@group.v.calendar.google.com",
@@ -61,9 +62,12 @@ defmodule Tymeslot.Integrations.Calendar.DiscoverAndConfigureTest do
 
       assert {:ok, updated} = CalendarPrimary.discover_and_configure_calendars(integration)
 
+      assert [%{id: "boss@example.com"}] = Enum.filter(updated.calendar_list, & &1.free_busy_only)
+
       assert Map.new(updated.calendar_list, &{&1.id, &1.blocks_availability}) == %{
                "me@example.com" => true,
                "team@group.calendar.google.com" => true,
+               "boss@example.com" => true,
                "en.uk#holiday@group.v.calendar.google.com" => false,
                "addressbook#contacts@group.v.calendar.google.com" => false,
                "e_2_en#weeknum@group.v.calendar.google.com" => false
