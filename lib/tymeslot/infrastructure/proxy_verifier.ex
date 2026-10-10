@@ -226,7 +226,7 @@ defmodule Tymeslot.Infrastructure.ProxyVerifier do
   defp detail(label, value), do: ["  #{label}: #{value}"]
 
   defp report_proxy(proxy) do
-    auth = if proxy[:auth], do: "[#{proxy[:auth]}]", else: ""
+    auth = if proxy[:auth], do: "[#{proxy[:auth]}]@", else: ""
     "#{proxy[:scheme]}://#{auth}#{proxy[:host]}:#{proxy[:port]}"
   end
 

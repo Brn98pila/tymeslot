@@ -137,6 +137,11 @@ defmodule Tymeslot.Release do
   does not touch the database or the running node. Options: `:quick` for
   the faster check only, and `ProxyVerifier.verify/1`'s `:test_url` and
   `:timeout`.
+
+  `eval` exits 0 whatever this returns, so the verdict is the last line
+  printed, which starts `PASSED:` or `FAILED:`; a script checks that. It
+  does not halt with a status of its own: called through `rpc` instead,
+  that would stop the running node.
   """
   @spec verify_proxy(keyword()) :: :ok | {:error, term()}
   def verify_proxy(opts \\ []) do

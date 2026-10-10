@@ -414,6 +414,12 @@ NO_PROXY=localhost,*.internal.company.com
 docker exec tymeslot bin/tymeslot eval 'Tymeslot.Release.verify_proxy()'
 ```
 
+The last line it prints starts with `PASSED:` or `FAILED:`, and that line is the result: the command itself exits with status 0 either way. In a script, check the line:
+
+```bash
+docker exec tymeslot bin/tymeslot eval 'Tymeslot.Release.verify_proxy()' | tail -n 1 | grep -q '^PASSED:'
+```
+
 **What Uses the Proxy:**
 
 All outbound HTTP/HTTPS requests including:

@@ -31,7 +31,7 @@ defmodule Tymeslot.ReleaseVerifyProxyTest do
 
     assert output =~ "[failed] Proxy configured"
     assert output =~ "No proxy configured"
-    assert output =~ "FAILED: proxy verification failed"
+    assert last_line(output) == "FAILED: proxy verification failed"
   end
 
   test "the quick check reports a missing proxy configuration and fails" do
@@ -40,7 +40,7 @@ defmodule Tymeslot.ReleaseVerifyProxyTest do
     output =
       capture_io(fn -> assert {:error, _reason} = Release.verify_proxy(quick: true) end)
 
-    assert output =~ "FAILED: No proxy configured"
+    assert last_line(output) =~ ~r/^FAILED: No proxy configured/
   end
 
   # The report goes to an operator's terminal and their support tickets: the
@@ -59,9 +59,15 @@ defmodule Tymeslot.ReleaseVerifyProxyTest do
 
     output = capture_io(fn -> assert {:error, _reason} = Release.verify_proxy() end)
 
-    assert output =~ "proxy.corp.example:3128"
+    # The credential is acknowledged, not printed, and the URL stays a URL.
+    assert output =~ "http://[configured]@proxy.corp.example:3128"
     assert output =~ "NO_PROXY: httpbin.org"
     assert output =~ "is in NO_PROXY list"
     refute output =~ "s3cret-pass"
   end
+
+  # The verdict line is the contract a script relies on: `eval` exits 0
+  # either way.
+  defp last_line(output),
+    do: output |> String.trim_trailing() |> String.split("\n") |> List.last()
 end
