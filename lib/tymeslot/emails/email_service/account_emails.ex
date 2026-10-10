@@ -89,7 +89,7 @@ defmodule Tymeslot.Emails.EmailService.AccountEmails do
       new_email: new_email
     )
 
-    confirmed_time = DateTime.utc_now()
+    confirmed_time = Clock.utc_now()
 
     {old_result, new_result} =
       RecipientLocale.with_user_locale(user, fn ->
