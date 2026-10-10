@@ -21,7 +21,7 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
     # High priority for calendar sync
     priority: 1
 
-  alias Tymeslot.Infrastructure.AvailabilityCache
+  alias Tymeslot.Availability
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Tasks
@@ -353,7 +353,7 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
   # from before the event existed. "update"/"delete" don't shift what counts
   # as busy in a way booking-page callers observe, so this is create-only.
   defp maybe_invalidate_availability_cache("create", meeting),
-    do: AvailabilityCache.invalidate_for_user(meeting.organizer_user_id)
+    do: Availability.changed(meeting.organizer_user_id)
 
   defp maybe_invalidate_availability_cache(_action, _meeting), do: :ok
 

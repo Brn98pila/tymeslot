@@ -44,6 +44,9 @@ defmodule Tymeslot.Infrastructure.CacheStore do
           required(:ref) => reference()
         }
 
+  @typedoc "What one invalidation drops: a key, a key pattern, or everything."
+  @type scope :: {:key, any()} | {:pattern, any()} | :all
+
   @typedoc """
   `pending` holds the current computation per key, the only ones whose result
   may be stored. `superseded` holds, by token, computations whose key was
@@ -119,6 +122,15 @@ defmodule Tymeslot.Infrastructure.CacheStore do
       """
       def clear_all do
         CacheStore.invalidate(__MODULE__, :all)
+      end
+
+      @doc """
+      Invalidate several keys or patterns as one step: no computation can
+      start between them, so none can read an entry that one scope drops
+      while another has already been dropped.
+      """
+      def invalidate_together(scopes) when is_list(scopes) do
+        CacheStore.invalidate(__MODULE__, scopes)
       end
 
       @doc """
@@ -275,7 +287,7 @@ defmodule Tymeslot.Infrastructure.CacheStore do
   # The table belongs to the cache process, so while the process is down (a
   # restart in progress) there is nothing cached to invalidate. Callers
   # invalidate after committing a change and must not crash for it.
-  @spec invalidate(GenServer.server(), {:key, any()} | {:pattern, any()} | :all) :: true
+  @spec invalidate(GenServer.server(), scope() | [scope()]) :: true
   def invalidate(server, scope) do
     GenServer.call(server, {:invalidate, scope})
   catch
@@ -283,9 +295,17 @@ defmodule Tymeslot.Infrastructure.CacheStore do
   end
 
   @doc false
-  @spec handle_invalidate(atom(), {:key, any()} | {:pattern, any()} | :all, state()) ::
-          {:reply, true, state()}
+  @spec handle_invalidate(atom(), scope() | [scope()], state()) :: {:reply, true, state()}
+  def handle_invalidate(table_name, scopes, state) when is_list(scopes) do
+    state = Enum.reduce(scopes, state, &detach(table_name, &1, &2))
+    {:reply, true, state}
+  end
+
   def handle_invalidate(table_name, scope, state) do
+    {:reply, true, detach(table_name, scope, state)}
+  end
+
+  defp detach(table_name, scope, state) do
     # A table someone dropped from outside leaves nothing to delete; failing
     # here would take the cache process down with it.
     if :ets.whereis(table_name) != :undefined, do: delete_entries(table_name, scope)
@@ -298,7 +318,7 @@ defmodule Tymeslot.Infrastructure.CacheStore do
         Map.put(acc, entry.token, {key, entry})
       end)
 
-    {:reply, true, %{state | pending: pending, superseded: superseded}}
+    %{state | pending: pending, superseded: superseded}
   end
 
   defp delete_entries(table_name, {:key, key}), do: :ets.delete(table_name, key)

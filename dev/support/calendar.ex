@@ -103,13 +103,10 @@ defmodule Tymeslot.Dev.Calendar do
   end
 
   @impl CalendarBehaviour
-  def delete_event(uid, _context) do
+  def delete_event(uid, _context, _opts) do
     DebugStore.delete_event(uid)
     :ok
   end
-
-  @impl CalendarBehaviour
-  def delete_event(uid, context, _opts), do: delete_event(uid, context)
 
   @impl CalendarBehaviour
   def get_booking_integration_info(_context), do: {:error, :no_integration}

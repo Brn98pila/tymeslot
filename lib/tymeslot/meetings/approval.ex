@@ -77,10 +77,10 @@ defmodule Tymeslot.Meetings.Approval do
 
   require Logger
 
+  alias Tymeslot.Availability
   alias Tymeslot.Bookings.Activation
   alias Tymeslot.Bookings.CalendarJobs
   alias Tymeslot.Clock
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings
@@ -232,7 +232,7 @@ defmodule Tymeslot.Meetings.Approval do
          ) do
       {:ok, confirmed} ->
         Logger.info("Booking request approved", meeting_id: confirmed.id)
-        AvailabilityCache.invalidate_for_user(confirmed.organizer_user_id)
+        Availability.changed(confirmed.organizer_user_id)
         activate_confirmed(confirmed)
 
         {:ok, confirmed}
@@ -394,7 +394,7 @@ defmodule Tymeslot.Meetings.Approval do
           status: released.status
         )
 
-        AvailabilityCache.invalidate_for_user(released.organizer_user_id)
+        Availability.changed(released.organizer_user_id)
         after_fun.(released)
         {:ok, released}
 

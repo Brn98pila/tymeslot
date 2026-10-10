@@ -40,7 +40,7 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   leaves that to the caller, which commits.
   """
 
-  alias Tymeslot.Infrastructure.AvailabilityCache
+  alias Tymeslot.Availability
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
@@ -422,7 +422,7 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
 
   defp invalidate_on_success({:ok, %{user_id: user_id}} = ok) do
     unless CalendarIntegrationQueries.in_transaction?(),
-      do: AvailabilityCache.invalidate_for_user(user_id)
+      do: Availability.changed(user_id)
 
     ok
   end

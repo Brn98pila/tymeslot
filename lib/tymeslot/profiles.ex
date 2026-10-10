@@ -11,6 +11,7 @@ defmodule Tymeslot.Profiles do
 
   require Logger
 
+  alias Tymeslot.Availability
   alias Tymeslot.Availability.Schedules
   alias Tymeslot.BookingPage.Publication
   alias Tymeslot.Infrastructure.Logging.LogFormat
@@ -169,6 +170,9 @@ defmodule Tymeslot.Profiles do
   def update_profile(%ProfileSchema{} = profile, attrs) do
     case ProfileQueries.update_profile(profile, attrs) do
       {:ok, updated_profile} = result ->
+        # The timezone is what the booking page lays the host's hours out in.
+        Availability.changed(updated_profile)
+
         Logger.info("Profile updated successfully",
           user_id: updated_profile.user_id,
           timezone: updated_profile.timezone

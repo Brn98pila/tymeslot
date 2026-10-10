@@ -7,6 +7,7 @@ defmodule Tymeslot.CalendarGrid do
   display colours to integrations.
   """
 
+  alias Tymeslot.Availability
   alias Tymeslot.CalendarGrid.BookingEvent
   alias Tymeslot.CalendarGrid.BookingEvents
   alias Tymeslot.CalendarGrid.EventDeletion
@@ -20,7 +21,6 @@ defmodule Tymeslot.CalendarGrid do
   alias Tymeslot.CalendarGrid.Freshness
   alias Tymeslot.CalendarGrid.IcsImport
   alias Tymeslot.CalendarGrid.SeriesCarry
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.Appearance
   alias Tymeslot.Integrations.Calendar.CalendarAppearanceSchema
@@ -269,7 +269,7 @@ defmodule Tymeslot.CalendarGrid do
         summary = IcsImport.run(target, plan, opts)
 
         if summary.created > 0 do
-          AvailabilityCache.invalidate_for_user(user_id)
+          Availability.changed(user_id)
           SyncSchedule.request_sync(target.integration)
         end
 
