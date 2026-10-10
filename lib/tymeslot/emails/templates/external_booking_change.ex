@@ -172,19 +172,21 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
   end
 
   defp told_line(meeting, %{attendees: attendees, guests: guests}) do
-    [attendees_line(meeting, attendees), guests_line(guests)]
+    [attendees_line(meeting, attendees), guests_line(guests, attendees != [])]
     |> Enum.reject(&is_nil/1)
     |> Enum.join(" ")
   end
 
   defp attendees_line(_meeting, []), do: nil
 
+  # Counts the participants reached, which on a retry or a rejected address
+  # need not be all of them.
   defp attendees_line(meeting, attendees) do
     if Meeting.group?(meeting) do
       dngettext(
         "emails_booking",
-        "We emailed the participant the new end time, with an updated calendar entry.",
-        "We emailed all %{count} participants the new end time, with an updated calendar entry.",
+        "We emailed %{count} participant the new end time, with an updated calendar entry.",
+        "We emailed %{count} participants the new end time, with an updated calendar entry.",
         length(attendees)
       )
     else
@@ -196,13 +198,23 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
     end
   end
 
-  defp guests_line(0), do: nil
+  defp guests_line(0, _after_attendees?), do: nil
 
-  defp guests_line(guests) do
+  defp guests_line(guests, true) do
     dngettext(
       "emails_booking",
       "Their guest was emailed too.",
       "Their %{count} guests were emailed too.",
+      guests
+    )
+  end
+
+  # No attendee was reached, so "their" would have nobody to refer to.
+  defp guests_line(guests, false) do
+    dngettext(
+      "emails_booking",
+      "We emailed the guest the new end time, with an updated calendar entry.",
+      "We emailed %{count} guests the new end time, with an updated calendar entry.",
       guests
     )
   end

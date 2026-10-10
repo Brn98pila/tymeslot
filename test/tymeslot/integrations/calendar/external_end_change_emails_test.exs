@@ -178,7 +178,7 @@ defmodule Tymeslot.Integrations.Calendar.ExternalEndChangeEmailsTest do
       end
 
       host = received_for(meeting.organizer_email)
-      assert host.text_body =~ "We emailed all 2 participants the new end time"
+      assert host.text_body =~ "We emailed 2 participants the new end time"
     end
   end
 

@@ -1332,12 +1332,19 @@ msgstr "Enviamos o novo horário de término para %{name} por e-mail, com uma en
 
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
-msgid "We emailed the participant the new end time, with an updated calendar entry."
-msgid_plural "We emailed all %{count} participants the new end time, with an updated calendar entry."
-msgstr[0] "Enviamos o novo horário de término para o participante por e-mail, com uma entrada de calendário atualizada."
-msgstr[1] "Enviamos o novo horário de término para todos os %{count} participantes por e-mail, com uma entrada de calendário atualizada."
+msgid "You changed when \"%{title}\" ends in your external calendar, so Tymeslot updated the booking: it now ends at %{to} instead of %{from}."
+msgstr "Você alterou o término de \"%{title}\" no seu calendário externo, então o Tymeslot atualizou a reserva: agora ela termina às %{to} em vez de %{from}."
 
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
-msgid "You changed when \"%{title}\" ends in your external calendar, so Tymeslot updated the booking: it now ends at %{to} instead of %{from}."
-msgstr "Você alterou o término de \"%{title}\" no seu calendário externo, então o Tymeslot atualizou a reserva: agora ela termina às %{to} em vez de %{from}."
+msgid "We emailed %{count} participant the new end time, with an updated calendar entry."
+msgid_plural "We emailed %{count} participants the new end time, with an updated calendar entry."
+msgstr[0] "Enviamos o novo horário de término para %{count} participante por e-mail, com uma entrada de calendário atualizada."
+msgstr[1] "Enviamos o novo horário de término para %{count} participantes por e-mail, com uma entrada de calendário atualizada."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "We emailed the guest the new end time, with an updated calendar entry."
+msgid_plural "We emailed %{count} guests the new end time, with an updated calendar entry."
+msgstr[0] "Enviamos o novo horário de término para o convidado por e-mail, com uma entrada de calendário atualizada."
+msgstr[1] "Enviamos o novo horário de término para os %{count} convidados por e-mail, com uma entrada de calendário atualizada."

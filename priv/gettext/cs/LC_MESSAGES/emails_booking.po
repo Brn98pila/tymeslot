@@ -1334,13 +1334,21 @@ msgstr "Poslali jsme %{name} e-mail s novým časem konce a aktualizovanou polo�
 
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
-msgid "We emailed the participant the new end time, with an updated calendar entry."
-msgid_plural "We emailed all %{count} participants the new end time, with an updated calendar entry."
-msgstr[0] "Poslali jsme účastníkovi e-mail s novým časem konce a aktualizovanou položkou kalendáře."
-msgstr[1] "Poslali jsme všem %{count} účastníkům e-mail s novým časem konce a aktualizovanou položkou kalendáře."
-msgstr[2] "Poslali jsme všem %{count} účastníkům e-mail s novým časem konce a aktualizovanou položkou kalendáře."
+msgid "You changed when \"%{title}\" ends in your external calendar, so Tymeslot updated the booking: it now ends at %{to} instead of %{from}."
+msgstr "Ve svém externím kalendáři jste změnili konec schůzky „%{title}“, Tymeslot proto upravil rezervaci: nyní končí v %{to} místo v %{from}."
 
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
-msgid "You changed when \"%{title}\" ends in your external calendar, so Tymeslot updated the booking: it now ends at %{to} instead of %{from}."
-msgstr "Ve svém externím kalendáři jste změnili konec schůzky „%{title}“, Tymeslot proto upravil rezervaci: nyní končí v %{to} místo v %{from}."
+msgid "We emailed %{count} participant the new end time, with an updated calendar entry."
+msgid_plural "We emailed %{count} participants the new end time, with an updated calendar entry."
+msgstr[0] "Poslali jsme %{count} účastníkovi e-mail s novým časem konce a aktualizovanou položkou kalendáře."
+msgstr[1] "Poslali jsme %{count} účastníkům e-mail s novým časem konce a aktualizovanou položkou kalendáře."
+msgstr[2] "Poslali jsme %{count} účastníkům e-mail s novým časem konce a aktualizovanou položkou kalendáře."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "We emailed the guest the new end time, with an updated calendar entry."
+msgid_plural "We emailed %{count} guests the new end time, with an updated calendar entry."
+msgstr[0] "Poslali jsme hostovi e-mail s novým časem konce a aktualizovanou položkou kalendáře."
+msgstr[1] "Poslali jsme %{count} hostům e-mail s novým časem konce a aktualizovanou položkou kalendáře."
+msgstr[2] "Poslali jsme %{count} hostům e-mail s novým časem konce a aktualizovanou položkou kalendáře."

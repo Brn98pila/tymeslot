@@ -1323,7 +1323,7 @@ msgstr "Зустріч тепер закінчується о %{time}."
 #, elixir-autogen, elixir-format
 msgid "Their guest was emailed too."
 msgid_plural "Their %{count} guests were emailed too."
-msgstr[0] "Гостю також надіслано лист."
+msgstr[0] "%{count} гостю також надіслано лист."
 msgstr[1] "%{count} гостям також надіслано листи."
 msgstr[2] "%{count} гостям також надіслано листи."
 
@@ -1334,13 +1334,21 @@ msgstr "Ми надіслали %{name} лист із новим часом за
 
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
-msgid "We emailed the participant the new end time, with an updated calendar entry."
-msgid_plural "We emailed all %{count} participants the new end time, with an updated calendar entry."
-msgstr[0] "Ми надіслали учаснику лист із новим часом завершення та оновленим записом у календарі."
-msgstr[1] "Ми надіслали всім %{count} учасникам листи з новим часом завершення та оновленими записами в календарі."
-msgstr[2] "Ми надіслали всім %{count} учасникам листи з новим часом завершення та оновленими записами в календарі."
+msgid "You changed when \"%{title}\" ends in your external calendar, so Tymeslot updated the booking: it now ends at %{to} instead of %{from}."
+msgstr "Ви змінили час завершення «%{title}» у своєму зовнішньому календарі, тому Tymeslot оновив бронювання: тепер зустріч закінчується о %{to} замість %{from}."
 
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
-msgid "You changed when \"%{title}\" ends in your external calendar, so Tymeslot updated the booking: it now ends at %{to} instead of %{from}."
-msgstr "Ви змінили час завершення «%{title}» у своєму зовнішньому календарі, тому Tymeslot оновив бронювання: тепер зустріч закінчується о %{to} замість %{from}."
+msgid "We emailed %{count} participant the new end time, with an updated calendar entry."
+msgid_plural "We emailed %{count} participants the new end time, with an updated calendar entry."
+msgstr[0] "Ми надіслали %{count} учаснику лист із новим часом завершення та оновленим записом у календарі."
+msgstr[1] "Ми надіслали %{count} учасникам листи з новим часом завершення та оновленими записами в календарі."
+msgstr[2] "Ми надіслали %{count} учасникам листи з новим часом завершення та оновленими записами в календарі."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "We emailed the guest the new end time, with an updated calendar entry."
+msgid_plural "We emailed %{count} guests the new end time, with an updated calendar entry."
+msgstr[0] "Ми надіслали %{count} гостю лист із новим часом завершення та оновленим записом у календарі."
+msgstr[1] "Ми надіслали %{count} гостям листи з новим часом завершення та оновленими записами в календарі."
+msgstr[2] "Ми надіслали %{count} гостям листи з новим часом завершення та оновленими записами в календарі."

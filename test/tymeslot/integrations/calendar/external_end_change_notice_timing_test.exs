@@ -185,7 +185,7 @@ defmodule Tymeslot.Integrations.Calendar.ExternalEndChangeNoticeTimingTest do
       assert :ok = run(job)
       assert told(early.email) =~ "now ends at 11:30 AM UTC instead of 10:30 AM UTC"
       host = assert_host_told()
-      assert host.text_body =~ "We emailed the participant the new end time"
+      assert host.text_body =~ "We emailed 1 participant the new end time"
       refute host.text_body =~ late.name
       refute_received {:email, _late}
     end
