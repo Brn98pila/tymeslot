@@ -34,6 +34,10 @@ defmodule Tymeslot.Notifications.EventsTest do
     @spec schedule_cancellation_emails(term()) :: no_return()
     def schedule_cancellation_emails(_meeting_id), do: raise("email pipeline down")
 
+    @spec schedule_seat_confirmation_emails(term(), term()) :: no_return()
+    def schedule_seat_confirmation_emails(_meeting_id, _participant_id),
+      do: raise("email pipeline down")
+
     @spec schedule_reschedule_emails(term(), term()) :: no_return()
     def schedule_reschedule_emails(_meeting, _original), do: raise("email pipeline down")
 
@@ -48,6 +52,10 @@ defmodule Tymeslot.Notifications.EventsTest do
   defmodule DatabaseDownWorker do
     @spec schedule_confirmation_emails(term()) :: no_return()
     def schedule_confirmation_emails(_meeting_id),
+      do: raise(DBConnection.ConnectionError, "connection refused")
+
+    @spec schedule_seat_confirmation_emails(term(), term()) :: no_return()
+    def schedule_seat_confirmation_emails(_meeting_id, _participant_id),
       do: raise(DBConnection.ConnectionError, "connection refused")
 
     @spec cancel_reminder_emails(term()) :: :ok
@@ -386,6 +394,24 @@ defmodule Tymeslot.Notifications.EventsTest do
 
       refute_enqueued(worker: TelegramWorker)
       assert %{announced_at: nil} = Repo.reload!(meeting)
+    end
+
+    # A group seat follows the solo rule: a fault composing its confirmation
+    # books the seat without it; only a storage failure refuses the seat.
+    test "seat_booked_deferred/3 books a seat whose confirmation could not be composed", %{
+      meeting: meeting
+    } do
+      assert {{:ok, :not_sendable}, [_fan_out]} =
+               Events.seat_booked_deferred(meeting, %{id: 1})
+    end
+
+    test "seat_booked_deferred/3 refuses a seat when the database fails its confirmation", %{
+      meeting: meeting
+    } do
+      Application.put_env(:tymeslot, :email_worker_module, DatabaseDownWorker)
+
+      assert {{:error, {:notifications_failed, %DBConnection.ConnectionError{}}}, _pending} =
+               Events.seat_booked_deferred(meeting, %{id: 1})
     end
 
     test "meeting_cancelled/1 still dispatches Telegram and reports the failure", %{

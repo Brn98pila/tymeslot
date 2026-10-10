@@ -228,7 +228,13 @@ defmodule Tymeslot.Notifications.Events do
       if Keyword.get(opts, :defer_emails?, false) do
         {:ok, :deferred_to_video_room}
       else
-        Orchestrator.schedule_seat_confirmation(meeting, participant)
+        # As for a solo booking: only a storage failure rolls the seat back;
+        # a fault composing its emails would refuse the seat on every retry.
+        :seat_booked
+        |> send_notifications(meeting, fn ->
+          Orchestrator.schedule_seat_confirmation(meeting, participant)
+        end)
+        |> retryable_only(:seat_booked, meeting)
       end
 
     {result, [{:meeting_created, meeting, {:seat, participant}}]}
