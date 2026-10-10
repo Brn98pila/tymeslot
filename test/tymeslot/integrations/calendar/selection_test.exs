@@ -394,6 +394,8 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
           user: insert(:user),
           provider: "caldav",
           is_active: true,
+          # Bookings go to C, so A is the owner's to switch off.
+          default_booking_calendar_id: "/cal/c/",
           calendar_list: [
             %{"id" => "/cal/a/", "path" => "/cal/a/", "name" => "A", "selected" => true},
             %{"id" => "/cal/b/", "path" => "/cal/b/", "name" => "B", "selected" => false},
