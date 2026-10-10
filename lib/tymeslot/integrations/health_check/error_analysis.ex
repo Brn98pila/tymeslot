@@ -23,16 +23,21 @@ defmodule Tymeslot.Integrations.HealthCheck.ErrorAnalysis do
   @doc """
   Analyzes a check result and classifies any errors.
   Returns a tuple suitable for Monitor.update_health/2.
+
+  A failure is logged once, as a warning carrying `metadata` (the
+  integration's type, id and provider).
   """
-  @spec analyze({:ok, any()} | {:error, any()}, map()) :: analysis_result()
-  def analyze({:ok, result}, _health_state) do
+  @spec analyze({:ok, any()} | {:error, any()}, map(), keyword()) :: analysis_result()
+  def analyze(check_result, health_state, metadata \\ [])
+
+  def analyze({:ok, result}, _health_state, _metadata) do
     {:ok, result}
   end
 
-  def analyze({:error, reason}, health_state) do
+  def analyze({:error, reason}, health_state, metadata) do
     error_class = classify_error(reason)
 
-    log_error(reason, error_class, health_state)
+    log_error(reason, error_class, health_state, metadata)
 
     {:error, reason, error_class}
   end
@@ -138,21 +143,27 @@ defmodule Tymeslot.Integrations.HealthCheck.ErrorAnalysis do
 
   # Private Functions
 
-  defp log_error(reason, :transient, health_state) do
-    Logger.warning("Integration health check transient failure",
-      reason: LogFormat.reason(reason),
-      backoff_ms: calculate_next_backoff(health_state, :transient),
-      error_class: :transient
+  defp log_error(reason, :transient, health_state, metadata) do
+    Logger.warning(
+      "Integration health check transient failure",
+      metadata ++
+        [
+          reason: LogFormat.reason(reason),
+          backoff_ms: calculate_next_backoff(health_state, :transient),
+          error_class: :transient
+        ]
     )
   end
 
-  defp log_error(reason, :hard, health_state) do
-    failures = health_state.failures + 1
-
-    Logger.warning("Integration health check failed",
-      reason: LogFormat.reason(reason),
-      failures: failures,
-      error_class: :hard
+  defp log_error(reason, :hard, health_state, metadata) do
+    Logger.warning(
+      "Integration health check failed",
+      metadata ++
+        [
+          reason: LogFormat.reason(reason),
+          failures: health_state.failures + 1,
+          error_class: :hard
+        ]
     )
   end
 end

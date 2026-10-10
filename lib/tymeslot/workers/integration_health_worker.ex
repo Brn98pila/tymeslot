@@ -52,11 +52,12 @@ defmodule Tymeslot.Workers.IntegrationHealthWorker do
       {:ok, :ok} ->
         :ok
 
+      # Already logged, classified, as a warning by `HealthCheck.ErrorAnalysis`.
       {:ok, {:error, reason}} ->
-        Logger.warning("Integration health check returned error",
+        Logger.debug("Integration health check returned error",
           type: type,
           integration_id: integration_id,
-          reason: reason,
+          reason: LogFormat.reason(reason),
           job_id: job_id
         )
 

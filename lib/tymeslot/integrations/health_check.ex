@@ -275,7 +275,14 @@ defmodule Tymeslot.Integrations.HealthCheck do
     {:ok, {old_health_state, new_health_state}} =
       Repo.transaction(fn ->
         old_health_state = Monitor.get_state_for_update(type, id, integration.user_id)
-        analyzed_result = ErrorAnalysis.analyze(check_result, old_health_state)
+
+        analyzed_result =
+          ErrorAnalysis.analyze(check_result, old_health_state,
+            type: type,
+            integration_id: id,
+            provider: integration.provider
+          )
+
         new_health_state = Monitor.update_health(old_health_state, analyzed_result)
         Monitor.put_state(type, id, new_health_state)
         {old_health_state, new_health_state}

@@ -19,12 +19,36 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
   alias Tymeslot.Integrations.Shared.OAuth.GoogleOAuthHelper
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Repo
+  alias Tymeslot.Test.LogCapture
   alias Tymeslot.Workers.EmailWorker
 
   setup :verify_on_exit!
   setup :use_real_health_check
 
   describe "integration health monitoring" do
+    # The telemetry handler used to log the same failure a second time, as a
+    # warning without the integration's id.
+    test "a failed probe logs one warning, naming the integration and provider" do
+      user = insert(:user)
+      integration = insert(:calendar_integration, user: user, is_active: true, provider: "google")
+
+      expect(GoogleCalendarAPIMock, :list_primary_events, fn _integration, _start, _end ->
+        {:error, :timeout}
+      end)
+
+      LogCapture.attach()
+      run_health_checks()
+
+      warnings =
+        for %{level: :warning} = event <- LogCapture.drain(),
+            LogCapture.message_text(event.msg) =~ ~r/health check/i,
+            do: event
+
+      assert [%{meta: meta}] = warnings
+      assert meta.integration_id == integration.id
+      assert meta.provider == "google"
+    end
+
     test "marks integration as unhealthy after repeated failures" do
       user = insert(:user)
       integration = insert(:calendar_integration, user: user, is_active: true, provider: "google")
