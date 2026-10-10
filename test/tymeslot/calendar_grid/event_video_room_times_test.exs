@@ -28,6 +28,20 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomTimesTest do
                {:exact, ~U[2026-10-04 10:00:00Z], ~U[2026-10-07 00:00:00Z]}
     end
 
+    # The rule carries no owner zone on purpose: anchoring it at the owner's
+    # midnight would shut out a guest whose day has already begun.
+    for zone <-
+          ~w(Pacific/Kiritimati Pacific/Auckland Australia/Sydney Pacific/Honolulu Etc/GMT+12) do
+      test "an all-day event's room covers the whole day of an owner in #{zone}" do
+        zone = unquote(zone)
+        event = %{all_day: true, start_date: ~D[2026-10-05], end_date: ~D[2026-10-06]}
+        {:exact, lobby, ends} = EventVideoRoomTimes.for_event(event)
+
+        refute DateTime.after?(lobby, DateTime.new!(~D[2026-10-05], ~T[00:00:00], zone))
+        refute DateTime.before?(ends, DateTime.new!(~D[2026-10-06], ~T[00:00:00], zone))
+      end
+    end
+
     test "the create form's payload is read like a cached row" do
       payload = %{
         all_day: false,

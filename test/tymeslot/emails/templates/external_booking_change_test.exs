@@ -199,4 +199,45 @@ defmodule Tymeslot.Emails.ExternalBookingChangeTest do
                )
     end
   end
+
+  describe "ExternalBookingChange.render_end_followed/4 says who was told" do
+    # A retry or a rejected address can leave some participants untold, so
+    # the line counts those reached rather than claiming "all".
+    test "the participants reached, by count" do
+      meeting = build_meeting(%{capacity: 4, end_time: ~U[2026-04-01 11:00:00Z]})
+
+      body = end_followed(meeting, %{attendees: ["Ann", "Bo"], guests: 0})
+
+      assert body =~ "We emailed 2 participants the new end time"
+      refute body =~ "all 2"
+    end
+
+    test "a guest reached when no attendee was is named as the guest, not as theirs" do
+      meeting = build_meeting(%{end_time: ~U[2026-04-01 11:00:00Z]})
+
+      body = end_followed(meeting, %{attendees: [], guests: 1})
+
+      assert body =~ "We emailed the guest the new end time"
+      refute body =~ "Their"
+    end
+
+    # Ukrainian uses its singular form for 21, 31 and so on, so that form
+    # carries the number too.
+    test "21 guests are counted in Ukrainian" do
+      host = insert(:user, locale: "uk")
+
+      meeting =
+        build_meeting(%{organizer_user_id: host.id, end_time: ~U[2026-04-01 11:00:00Z]})
+
+      body = end_followed(meeting, %{attendees: ["Ann"], guests: 21})
+
+      assert body =~ "21 гостю також надіслано лист."
+    end
+  end
+
+  defp end_followed(meeting, told) do
+    notice = Map.put(told, :previous_end_time, ~U[2026-04-01 10:30:00Z])
+
+    ExternalBookingChange.render_end_followed(meeting, "john@example.com", notice, "Etc/UTC").text_body
+  end
 end

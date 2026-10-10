@@ -46,6 +46,7 @@ defmodule Tymeslot.Bookings.Reschedule do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.Approval
+  alias Tymeslot.Meetings.MeetingCalendarQueries
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.Scheduling
   alias Tymeslot.Meetings.VideoRooms
@@ -222,6 +223,9 @@ defmodule Tymeslot.Bookings.Reschedule do
     case Repo.transaction(fn ->
            with {:ok, updated} <- update_meeting(meeting, attrs),
                 {:ok, _result} <- schedule_calendar_job(updated) do
+             # Everyone is told the new times (see `announce/2`), so an end
+             # change still waiting to be announced has nothing left to say.
+             :ok = MeetingCalendarQueries.clear_notified_ends(updated.id)
              updated
            else
              {:error, reason} ->

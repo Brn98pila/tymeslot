@@ -114,6 +114,7 @@ defmodule Tymeslot.Migrations.DirtySeedMigrationTest do
         assert_availability_rekeyed!(seeded)
         assert_buffers_split!()
         assert_midnight_windows_rewritten!()
+        assert_seats_not_yet_notified!()
       after
         # Always restore clean state for other tests
         reset_database!()
@@ -313,6 +314,19 @@ defmodule Tymeslot.Migrations.DirtySeedMigrationTest do
              ["seed-user-3@example.com", 15, 15, 15],
              ["seed-user-4@example.com", 500, 120, 120]
            ]
+  end
+
+  # Nobody on an existing booking has been told of an end change, so every
+  # seat comes through with no notified end. Participants postdate the pin
+  # and so are absent from the seed; the column is NULL for them by the same
+  # nullable, default-free add.
+  defp assert_seats_not_yet_notified! do
+    assert scalar!("SELECT COUNT(*) FROM meetings") > 0
+    assert scalar!("SELECT COUNT(*) FROM meeting_guests") == 2
+
+    for table <- ~w(meetings meeting_participants meeting_guests) do
+      assert scalar!("SELECT COUNT(*) FROM #{table} WHERE notified_end_time IS NOT NULL") == 0
+    end
   end
 
   # The seed's "until the end of the day" rows arrive ending at midnight the

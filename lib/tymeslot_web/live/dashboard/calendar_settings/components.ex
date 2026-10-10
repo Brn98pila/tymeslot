@@ -21,6 +21,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   alias TymeslotWeb.Components.Dashboard.Integrations.Shared.IntegrationCard
   alias TymeslotWeb.Components.Icons.ProviderIcon
   alias TymeslotWeb.Dashboard.CalendarSettings.Helpers
+  alias TymeslotWeb.Helpers.TimeAgo
 
   @doc """
   Renders the configuration view for a specific calendar provider.
@@ -595,19 +596,15 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
 
   # The card's last-activity line; nothing for a connection never synced.
   # `last_external_sync_at` is what every sync worker stamps and what the
-  # staleness banner reads.
-  # Whole sentences rather than "Last synced %{time}" around a relative
-  # phrase, so each language words the time as its own sentence needs.
+  # staleness banner reads. Whole sentences rather than "Last synced
+  # %{time}" around a relative phrase, so each language words the time as
+  # its own sentence needs.
   defp last_synced(%{last_external_sync_at: %DateTime{} = synced_at}) do
-    seconds = max(DateTime.diff(DateTime.utc_now(), synced_at), 0)
-
-    cond do
-      seconds < 60 ->
+    case TimeAgo.since(synced_at) do
+      :just_now ->
         dgettext("dashboard_calendar_settings", "Last synced just now")
 
-      seconds < 3600 ->
-        count = div(seconds, 60)
-
+      {:minutes, count} ->
         dngettext(
           "dashboard_calendar_settings",
           "Last synced %{count} minute ago",
@@ -615,9 +612,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
           count
         )
 
-      seconds < 86_400 ->
-        count = div(seconds, 3600)
-
+      {:hours, count} ->
         dngettext(
           "dashboard_calendar_settings",
           "Last synced %{count} hour ago",
@@ -625,9 +620,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
           count
         )
 
-      true ->
-        count = div(seconds, 86_400)
-
+      {:days, count} ->
         dngettext(
           "dashboard_calendar_settings",
           "Last synced %{count} day ago",

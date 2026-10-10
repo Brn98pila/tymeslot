@@ -5,6 +5,7 @@ defmodule Tymeslot.CalendarGrid.Freshness do
   among them, and enqueueing a sync of every active integration.
   """
 
+  alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.SyncSchedule
   alias Tymeslot.Integrations.CalendarManagement
@@ -49,7 +50,7 @@ defmodule Tymeslot.CalendarGrid.Freshness do
   """
   @spec stale_integrations([CalendarIntegrationSchema.t()]) :: [CalendarIntegrationSchema.t()]
   def stale_integrations(integrations) do
-    now = DateTime.utc_now()
+    now = Clock.utc_now()
     Enum.filter(integrations, &stale?(&1, now))
   end
 

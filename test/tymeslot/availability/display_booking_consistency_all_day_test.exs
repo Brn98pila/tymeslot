@@ -24,7 +24,7 @@ defmodule Tymeslot.Availability.DisplayBookingConsistencyAllDayTest do
 
   alias Tymeslot.Availability.Schedules
   alias Tymeslot.Availability.TimeSlots
-  alias Tymeslot.Bookings.{CalendarCheck, Create, Policy}
+  alias Tymeslot.Bookings.{CalendarCheck, Create}
   alias Tymeslot.CalendarMock
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.TestMocks

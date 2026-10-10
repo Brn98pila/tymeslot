@@ -88,6 +88,26 @@ defmodule Tymeslot.Emails.EmailService.CalendarEmails do
   end
 
   @doc """
+  Tells an organiser that a meeting now ends where they moved its end in their
+  own calendar, and who was emailed the new end. `notice` carries the end it
+  had before (`:previous_end_time`), the names of the attendees reached
+  (`:attendees`) and how many guests were (`:guests`).
+  """
+  @spec send_end_change_to_organizer(map(), String.t(), ExternalBookingChange.end_notice()) ::
+          {:ok, any()} | {:error, any()}
+  def send_end_change_to_organizer(meeting, organizer_email, notice) do
+    Logger.info("Sending external end change notice", meeting_id: meeting.id)
+
+    meeting
+    |> ExternalBookingChange.render_end_followed(
+      organizer_email,
+      notice,
+      HostClock.timezone(meeting)
+    )
+    |> Delivery.deliver()
+  end
+
+  @doc """
   Sends a calendar invitation email to an attendee for a dashboard-created event.
   """
   @spec send_calendar_invitation(String.t(), map()) :: {:ok, any()} | {:error, any()}

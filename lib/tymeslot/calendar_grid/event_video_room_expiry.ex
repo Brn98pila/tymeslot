@@ -46,6 +46,7 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomExpiry do
   alias Tymeslot.CalendarGrid.EventVideoRooms
   alias Tymeslot.CalendarGrid.EventVideoRoomSchema
   alias Tymeslot.CalendarGrid.EventVideoRoomTimes
+  alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.Operations, as: CalendarOperations
 
   @seconds_per_day 86_400
@@ -187,7 +188,7 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomExpiry do
 
   defp synced_since_due?(_room), do: false
 
-  defp cutoff, do: DateTime.add(DateTime.utc_now(), -retention_seconds(), :second)
+  defp cutoff, do: DateTime.add(Clock.utc_now(), -retention_seconds(), :second)
 
   # Read at run time: `config/runtime.exs` sets it from the environment.
   defp retention_seconds,

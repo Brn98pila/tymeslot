@@ -342,10 +342,9 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
   # place, on the scheduling rules `Schedules.config/2` assembles for the real
   # availability path and the booking submit alike.
   #
-  # `owner_timezone` falls back to `Profiles.get_default_timezone()` for a
-  # profile with none set, as `Tymeslot.Availability.Offer` and
-  # `Tymeslot.Bookings.Schedules.booking_config/2` do, so a nil profile
-  # timezone resolves to the same zone everywhere.
+  # `owner_timezone` is read through `Profiles.timezone/1`, as everywhere an
+  # owner's clock is read, so a nil profile timezone resolves to the same zone
+  # here as on the real availability path.
   @spec availability_config(map() | nil, map(), map() | nil) :: %{
           required(:schedule_id) => integer() | nil,
           required(:max_advance_booking_days) => pos_integer(),
@@ -361,7 +360,7 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
     |> Schedules.config(meeting_type)
     |> Map.merge(%{
       duration_minutes: Offer.duration_minutes(meeting_type, nil),
-      owner_timezone: organizer_profile.timezone || Profiles.get_default_timezone()
+      owner_timezone: Profiles.timezone(organizer_profile)
     })
   end
 end

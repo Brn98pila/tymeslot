@@ -89,6 +89,7 @@ defmodule Tymeslot.Meetings.MeetingSchema do
           provider_event_id: String.t() | nil,
           ical_sequence: integer(),
           last_notified_state: map(),
+          notified_end_time: DateTime.t() | nil,
           custom_fields_snapshot: [map()],
           custom_field_answers: map(),
           show_as_free: boolean(),
@@ -286,6 +287,11 @@ defmodule Tymeslot.Meetings.MeetingSchema do
     # Attendee notification tracking
     field(:ical_sequence, :integer, default: 0)
     field(:last_notified_state, :map, default: %{})
+
+    # The end the booker was last told by an end change notice, or held before
+    # a change not yet announced; nil when it knows the meeting as booked or
+    # last rescheduled. Written only by the end change and reschedule paths.
+    field(:notified_end_time, :utc_datetime)
 
     # Custom booking fields
     field(:custom_fields_snapshot, {:array, :map}, default: [])

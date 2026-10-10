@@ -74,16 +74,21 @@ defmodule Tymeslot.Emails.Templates.EmailChangeConfirmedTest do
       assert html =~ "Just now"
     end
 
-    test "formats confirmed_time when provided" do
-      user = build_user_data()
-      old_email = "old@example.com"
-      new_email = "new@example.com"
+    test "states the confirmed time on the user's own clock" do
+      profile = insert(:profile, timezone: "America/New_York")
+      user = build_user_data(%{id: profile.user_id})
       confirmed_time = ~U[2025-01-15 11:00:00Z]
-      is_old_email = false
 
-      html = EmailChangeConfirmed.render(user, old_email, new_email, confirmed_time, is_old_email)
+      html =
+        EmailChangeConfirmed.render(
+          user,
+          "old@example.com",
+          "new@example.com",
+          confirmed_time,
+          false
+        )
 
-      assert html =~ "15 January 2025 at 11:00 AM UTC"
+      assert html =~ "15 January 2025 at 6:00 AM EST"
     end
 
     test "includes instructions for using new email" do
