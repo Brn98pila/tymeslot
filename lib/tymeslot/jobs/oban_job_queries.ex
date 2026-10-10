@@ -3,10 +3,21 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
   Query interface for Oban job-related database operations.
   """
   import Ecto.Query, warn: false
-  alias Ecto.Changeset
   alias Oban.Job
   alias Oban.Worker
   alias Tymeslot.Repo
+
+  # Every state a job has not finished in: Oban's own `:incomplete` group
+  # (available, scheduled, executing, retryable, suspended), the one a worker
+  # declaring `unique: [states: :incomplete]` is held to. Every "is one still
+  # pending?" question here asks it of this list, so none can let a duplicate
+  # through that a worker's uniqueness would refuse.
+  @incomplete_states Enum.map(Job.unique_states(:incomplete), &Atom.to_string/1)
+
+  # The incomplete states a job can be deleted from: not `executing`, whose
+  # process is running and would carry on, and not `suspended`, which belongs
+  # to whoever suspended it.
+  @deletable_states ~w(available scheduled retryable)
 
   @doc """
   Returns the args currently stored on a job's row, or `nil` when no row exists.
@@ -47,10 +58,9 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
   @doc """
   Counts maintenance worker jobs in active states.
 
-  `suspended` is treated as active: a suspended job has not reached a terminal
-  state and may resume, so it must count as pending to keep this manual
-  duplicate-prevention check in agreement with Oban's `unique: [states: ...]`
-  guards on the workers.
+  Active is every incomplete state, `retryable` and `suspended` included: a
+  job waiting to retry has not finished either, and this manual
+  duplicate-prevention check has to agree with the workers' uniqueness.
   """
   @spec count_active_maintenance_jobs(module() | String.t()) :: non_neg_integer()
   def count_active_maintenance_jobs(worker) do
@@ -59,7 +69,7 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
     query =
       from(j in Job,
         where: j.worker == ^worker_name,
-        where: j.state in ["available", "scheduled", "executing", "suspended"],
+        where: j.state in ^@incomplete_states,
         select: count(j.id)
       )
 
@@ -87,7 +97,7 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
     Repo.all(
       from(j in Job,
         where: j.worker == ^worker_name,
-        where: j.state in ["available", "scheduled", "executing", "retryable", "suspended"],
+        where: j.state in ^@incomplete_states,
         where: fragment("?->>'action' = ANY(?)", j.args, ^actions),
         distinct: true,
         select: fragment("(?->>'user_id')::bigint", j.args)
@@ -124,20 +134,32 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
   end
 
   @doc """
-  Updates a job to discarded state with error information.
+  Moves a job that is still `executing` to `discarded`, appending
+  `error_info` to its errors.
+
+  Guarded on the row's state rather than on the struct the caller read: a job
+  that completed, or was retried, between that read and this write is left
+  as it is and reported `{:error, :no_longer_executing}`.
   """
   @spec update_job_to_discarded(Job.t(), map()) ::
-          {:ok, Job.t()} | {:error, Ecto.Changeset.t()}
-  def update_job_to_discarded(job, error_info) do
-    existing_errors = job.errors || []
+          {:ok, :discarded} | {:error, :no_longer_executing}
+  def update_job_to_discarded(%Job{id: id}, error_info) do
+    {count, _rows} =
+      Repo.update_all(
+        from(j in Job,
+          where: j.id == ^id and j.state == "executing",
+          update: [
+            set: [
+              state: "discarded",
+              discarded_at: ^DateTime.utc_now(),
+              errors: fragment("array_append(?, ?)", j.errors, type(^error_info, :map))
+            ]
+          ]
+        ),
+        []
+      )
 
-    job
-    |> Changeset.change(%{
-      state: "discarded",
-      discarded_at: DateTime.utc_now(),
-      errors: existing_errors ++ [error_info]
-    })
-    |> Repo.update()
+    if count == 1, do: {:ok, :discarded}, else: {:error, :no_longer_executing}
   end
 
   @doc """
@@ -153,7 +175,6 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
   @spec without_incomplete_user_job(Ecto.Queryable.t(), module(), atom()) :: Ecto.Query.t()
   def without_incomplete_user_job(query, worker, binding) when is_atom(binding) do
     worker_name = normalize_worker_name(worker)
-    states = Enum.map(Job.unique_states(:incomplete), &Atom.to_string/1)
 
     where(
       query,
@@ -161,17 +182,12 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
       not exists(
         from(j in Job,
           where: j.worker == ^worker_name,
-          where: j.state in ^states,
+          where: j.state in ^@incomplete_states,
           where: fragment("?->>'user_id' = ?::text", j.args, parent_as(^binding).id)
         )
       )
     )
   end
-
-  # The state list every "still pending" delete below matches against. Kept
-  # in one place because it has to stay in step with the `unique: [states:
-  # ...]` guard on whichever worker is being cleared.
-  @pending_states ~w(available scheduled retryable)
 
   @doc """
   Deletes any pending job for one meeting and one action.
@@ -237,7 +253,7 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
       from(j in Job,
         where: j.worker == ^worker_name,
         where: j.queue == "emails",
-        where: j.state in ["available", "scheduled", "executing", "retryable", "suspended"],
+        where: j.state in ^@incomplete_states,
         where: fragment("?->>'action' = 'send_reminder_emails'", j.args),
         where: fragment("?->>'meeting_id' = ANY(?)", j.args, ^meeting_ids),
         select: {
@@ -277,7 +293,7 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
     meeting_ids = Enum.map(meeting_ids, &to_string/1)
 
     Job
-    |> where([j], j.state in @pending_states)
+    |> where([j], j.state in @deletable_states)
     |> where(
       [j],
       fragment("?->>'user_id' = ?", j.args, ^user_id) or
@@ -297,7 +313,7 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
 
     Job
     |> where([j], j.worker == ^worker_name)
-    |> where([j], j.state in @pending_states)
+    |> where([j], j.state in @deletable_states)
     |> where([j], fragment("? @> ?::jsonb", j.args, type(^args_match, :map)))
     |> queue_filter(queue)
     |> Repo.delete_all()

@@ -17,7 +17,7 @@ defmodule Tymeslot.Notifications.ReminderSchedule do
   """
 
   alias Tymeslot.Clock
-  alias Tymeslot.Jobs.ObanJobQueries
+  alias Tymeslot.Jobs
   alias Tymeslot.Meetings.MeetingState
   alias Tymeslot.Notifications.SchedulingRules
   alias Tymeslot.Utils.ReminderUtils
@@ -68,7 +68,7 @@ defmodule Tymeslot.Notifications.ReminderSchedule do
     ids = Enum.map(meetings, & &1.id)
 
     EmailWorker
-    |> ObanJobQueries.pending_reminder_jobs(ids)
+    |> Jobs.pending_reminder_jobs(ids)
     |> Enum.flat_map(&scheduled_entry/1)
     |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
     |> Map.new(fn {id, reminders} -> {id, MapSet.new(reminders)} end)

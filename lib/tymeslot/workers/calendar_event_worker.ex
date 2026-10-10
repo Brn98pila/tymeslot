@@ -28,7 +28,7 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
   alias Tymeslot.Integrations.Calendar.CalendarEventBuilder
   alias Tymeslot.Integrations.Calendar.Events, as: CalendarEvents
   alias Tymeslot.Integrations.Shared.ReauthHandling
-  alias Tymeslot.Jobs.ObanJobQueries
+  alias Tymeslot.Jobs
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.CalendarEventSync
   alias Tymeslot.Meetings.MeetingQueries
@@ -192,7 +192,7 @@ defmodule Tymeslot.Workers.CalendarEventWorker do
   # one waits and the queue always moves.
   defp wait_behind_earlier_write(%Oban.Job{id: id, attempted_at: %DateTime{}} = job, meeting_id)
        when is_integer(id) do
-    if ObanJobQueries.earlier_job_executing?(__MODULE__, meeting_id, job) do
+    if Jobs.earlier_job_executing?(__MODULE__, meeting_id, job) do
       case SnoozePolicy.snooze_or_exhaust(SnoozePolicy.executions(job),
              max_snoozes: @max_write_waits,
              base_seconds: @write_wait_seconds,
