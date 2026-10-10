@@ -62,7 +62,7 @@ defmodule Tymeslot.Auth.AdminRolesTest do
     end
   end
 
-  describe "demote/2" do
+  describe "demote/3" do
     test "an admin can demote another admin" do
       admin = insert(:user, is_admin: true)
       target = insert(:user, is_admin: true)
@@ -94,7 +94,7 @@ defmodule Tymeslot.Auth.AdminRolesTest do
   # The last-admin guard counts the admins who could still sign in once the
   # target is demoted, not bare `is_admin` rows: an admin row nobody can sign
   # in as does not keep the install reachable.
-  describe "demote/2 last-admin guard" do
+  describe "demote/3 last-admin guard" do
     test "an admin can demote themselves when another admin can still sign in" do
       admin = insert(:user, is_admin: true)
       _other = insert(:user, is_admin: true)
@@ -134,18 +134,29 @@ defmodule Tymeslot.Auth.AdminRolesTest do
       assert Repo.reload!(target).is_admin
     end
 
-    test "the CLI can still demote the only admin who can sign in" do
+    test "refuses the CLI demoting the only admin who can sign in, unless forced" do
       target = insert(:user, is_admin: true)
       _other = insert(:unverified_user, is_admin: true)
 
-      assert {:ok, %{is_admin: false}} = AdminRoles.demote(:cli, target.id)
+      assert {:error, :last_admin} = AdminRoles.demote(:cli, target.id)
+      assert Repo.reload!(target).is_admin
+
+      assert {:ok, %{is_admin: false}} = AdminRoles.demote(:cli, target.id, force: true)
+    end
+
+    test "force is the CLI's alone: an admin passing it is still refused" do
+      actor = insert(:unverified_user, is_admin: true)
+      target = insert(:user, is_admin: true)
+
+      assert {:error, :last_admin} = AdminRoles.demote(actor, target.id, force: true)
+      assert Repo.reload!(target).is_admin
     end
   end
 
   # A verified password admin only keeps the install reachable while password
   # sign-in is switched on. These tests toggle global sign-in settings, which
   # is why this module is not async.
-  describe "demote/2 last-admin guard with password sign-in disabled" do
+  describe "demote/3 last-admin guard with password sign-in disabled" do
     setup :restore_app_settings_env
 
     setup do

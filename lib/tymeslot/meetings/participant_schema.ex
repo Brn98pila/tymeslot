@@ -164,17 +164,9 @@ defmodule Tymeslot.Meetings.ParticipantSchema do
   def live?(%__MODULE__{cancelled_at: nil}), do: true
   def live?(%__MODULE__{}), do: false
 
-  @doc "Generates an unguessable, URL-safe management token."
-  @spec generate_token() :: String.t()
-  def generate_token do
-    @token_bytes
-    |> :crypto.strong_rand_bytes()
-    |> Base.url_encode64(padding: false)
-  end
-
   defp ensure_management_token(changeset) do
     case get_field(changeset, :management_token) do
-      nil -> put_change(changeset, :management_token, generate_token())
+      nil -> put_change(changeset, :management_token, Token.generate(@token_bytes))
       _present -> changeset
     end
   end

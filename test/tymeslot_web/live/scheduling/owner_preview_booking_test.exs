@@ -195,7 +195,7 @@ defmodule TymeslotWeb.Live.Scheduling.OwnerPreviewBookingTest do
 
       # Saturating from here takes 9 more, not 10, because this attempt counted.
       client_ip = client_ip_for(view)
-      Enum.each(1..9, fn _i -> RateLimiter.check_booking_submission_limit(client_ip) end)
+      Enum.each(1..9, fn _i -> RateLimiter.check(:booking_submit, client_ip) end)
 
       visitor = navigate_to_booking_form(conn, profile, event_type)
       assert submit_booking(visitor, "blocked@example.com") =~ "Too many booking attempts"
@@ -223,7 +223,7 @@ defmodule TymeslotWeb.Live.Scheduling.OwnerPreviewBookingTest do
       |> navigate_to_booking_form(profile, event_type)
       |> client_ip_for()
 
-    Enum.each(1..9, fn _i -> RateLimiter.check_booking_submission_limit(client_ip) end)
+    Enum.each(1..9, fn _i -> RateLimiter.check(:booking_submit, client_ip) end)
 
     client_ip
   end

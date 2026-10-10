@@ -42,6 +42,7 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     late_payment_refund_failed: %{category: "Payment", severity: :error},
     account_deletion_billing_sync_failed: %{category: "Payment", severity: :error},
     account_deletion_stalled: %{category: "Account", severity: :error},
+    account_deletion_held_last_admin: %{category: "Account", severity: :warning},
     analytics_tracking_anomaly: %{category: "Analytics", severity: :warning},
     recipient_email_rejected: %{category: "Email", severity: :warning},
     user_registered_hook_failed: %{category: "System", severity: :error}
@@ -214,6 +215,12 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
   # stuck account alerts once per window and a second one raises its own.
   def dedup_key(:account_deletion_stalled, metadata) do
     "account_deletion_stalled:#{Map.get(metadata, :user_id, "unknown")}"
+  end
+
+  # A hold repeats daily for as long as the account is the last admin; one
+  # alert per account per window, kept apart from a failed deletion's.
+  def dedup_key(:account_deletion_held_last_admin, metadata) do
+    "account_deletion_held_last_admin:#{Map.get(metadata, :user_id, "unknown")}"
   end
 
   # Each payment left unrefunded is money an attendee is owed, so one alert
@@ -402,6 +409,14 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
 
     "Subscription renewal for user #{user_id} could not be synced with an account deletion " <>
       "after every retry (#{detail}); check the subscription at Stripe by hand"
+  end
+
+  def format_message(:account_deletion_held_last_admin, metadata) do
+    user_id = Map.get(metadata, :user_id, "unknown")
+
+    "Account deletion for user #{user_id} is on hold: the account is the last admin who can " <>
+      "sign in. Make another account an admin and the deletion goes ahead on its next daily " <>
+      "check; the owner can still restore the account meanwhile"
   end
 
   def format_message(:account_deletion_stalled, metadata) do

@@ -52,7 +52,7 @@ defmodule Tymeslot.Auth.AccountTokens do
   @spec issue(purpose(), UserSchema.t(), map()) ::
           {:ok, UserSchema.t(), String.t()} | {:error, Ecto.Changeset.t()}
   def issue(purpose, %UserSchema{} = user, attrs \\ %{}) do
-    token = Token.generate_token()
+    token = Token.generate()
 
     case persist(purpose, user, token, attrs) do
       {:ok, updated_user} -> {:ok, updated_user, token}

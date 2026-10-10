@@ -257,6 +257,21 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypesTest do
       assert msg =~ "billing_unreachable"
     end
 
+    # A last-admin hold is not a failure: it says what to do, and neither alert
+    # may suppress the other for the same account.
+    test ":account_deletion_held_last_admin says it is a hold, and dedups apart from a failure" do
+      held = %{user_id: 4242, reason_message: "last_admin"}
+
+      msg = AlertTypes.format_message(:account_deletion_held_last_admin, held)
+      assert msg =~ "4242"
+      assert msg =~ "on hold"
+      assert msg =~ "last admin"
+      refute msg =~ "failed"
+
+      refute AlertTypes.dedup_key(:account_deletion_held_last_admin, held) ==
+               AlertTypes.dedup_key(:account_deletion_stalled, held)
+    end
+
     # The daily dunning run raises this type afresh each pass, with the day
     # count one higher. Keyed on the message, every pass looked new and the
     # admin was emailed daily about a condition nobody had resolved yet.

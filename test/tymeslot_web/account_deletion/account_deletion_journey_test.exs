@@ -12,6 +12,7 @@ defmodule TymeslotWeb.AccountDeletion.AccountDeletionJourneyTest do
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
   alias Tymeslot.Auth.{UserSchema, UserSessionSchema}
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Video.VideoIntegrationSchema
@@ -19,6 +20,7 @@ defmodule TymeslotWeb.AccountDeletion.AccountDeletionJourneyTest do
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
   alias Tymeslot.Profiles
   alias Tymeslot.Profiles.ProfileSchema
+  alias Tymeslot.Release
   alias Tymeslot.Repo
   alias Tymeslot.Security.{Encryption, RateLimiter}
   alias Tymeslot.Slack.SlackIntegrationSchema
@@ -250,5 +252,39 @@ defmodule TymeslotWeb.AccountDeletion.AccountDeletionJourneyTest do
     # The account works again: the dashboard opens and the booking page is back.
     assert restored |> recycle() |> get(~p"/dashboard") |> html_response(200)
     assert build_conn() |> get("/second-thoughts") |> html_response(200)
+  end
+
+  test "the only admin who can sign in is told to promote another first", %{conn: conn} do
+    with_config(:tymeslot, :account_deletion_grace_days, 14)
+    admin = host("sole-admin") |> Changeset.change(is_admin: true) |> Repo.update!()
+
+    html = request_deletion(conn, admin)
+
+    assert html =~ "You are the only admin who can sign in"
+    assert Repo.get(UserSchema, admin.id).deletion_scheduled_at == nil
+    refute_enqueued(worker: AccountDeletionWorker)
+  end
+
+  test "an admin left alone during the grace period is held, not deleted, and can restore",
+       %{conn: conn} do
+    with_config(:tymeslot, :account_deletion_grace_days, 14)
+    admin = host("leaving-admin") |> Changeset.change(is_admin: true) |> Repo.update!()
+    other = insert(:user, is_admin: true)
+
+    assert {:error, {:redirect, %{to: "/auth/login"}}} = request_deletion(conn, admin)
+
+    # The other admin goes during the grace period, forced from the release shell.
+    assert {:ok, _demoted} = Release.demote_admin(other.email, true)
+    make_overdue(admin)
+
+    assert {:snooze, _seconds} = perform_job(AccountDeletionWorker, %{"user_id" => admin.id})
+    assert Repo.get(UserSchema, admin.id)
+
+    page = admin |> sign_in() |> recycle() |> get(~p"/auth/restore")
+    assert html_response(page, 200) =~ "Restore my account"
+
+    restored = page |> recycle() |> post(~p"/auth/restore")
+    assert redirected_to(restored) == "/dashboard"
+    assert Repo.get(UserSchema, admin.id).deletion_scheduled_at == nil
   end
 end

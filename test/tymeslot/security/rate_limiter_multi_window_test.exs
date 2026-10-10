@@ -3,26 +3,27 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
   @moduletag :security
 
   alias Tymeslot.Security.RateLimiter
+  alias Tymeslot.Security.RateLimiter.Limits
 
   describe "signup multi-window limits (email + IP)" do
     test "the IP bucket blocks after 5 attempts in 10 minutes, across emails" do
       ip = "203.0.113.10"
 
-      for _i <- 1..5, do: assert(:ok = RateLimiter.check_signup_ip_rate_limit(ip))
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check(:signup_ip, ip))
 
-      assert {:error, :rate_limited, _msg} = RateLimiter.check_signup_ip_rate_limit(ip)
-      assert :ok = RateLimiter.check_signup_ip_rate_limit("203.0.113.11")
+      assert {:error, :rate_limited, _msg} = RateLimiter.check(:signup_ip, ip)
+      assert :ok = RateLimiter.check(:signup_ip, "203.0.113.11")
     end
 
     test "the address bucket blocks after 5 attempts in 10 minutes, per address" do
       email = "user1@example.com"
 
-      for _i <- 1..5, do: assert(:ok = RateLimiter.check_signup_recipient_rate_limit(email))
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check(:signup_email, email))
 
       assert {:error, :rate_limited, _msg} =
-               RateLimiter.check_signup_recipient_rate_limit(email)
+               RateLimiter.check(:signup_email, email)
 
-      assert :ok = RateLimiter.check_signup_recipient_rate_limit("user2@example.com")
+      assert :ok = RateLimiter.check(:signup_email, "user2@example.com")
     end
   end
 
@@ -44,28 +45,28 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
     test "the IP bucket blocks after 5 requests in 1 hour, across addresses" do
       ip = "192.0.2.44"
 
-      for _i <- 1..5, do: assert(:ok = RateLimiter.check_password_reset_ip_rate_limit(ip))
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check(:password_reset_ip, ip))
 
-      assert {:error, :rate_limited, _msg} = RateLimiter.check_password_reset_ip_rate_limit(ip)
-      assert :ok = RateLimiter.check_password_reset_ip_rate_limit("192.0.2.45")
+      assert {:error, :rate_limited, _msg} = RateLimiter.check(:password_reset_ip, ip)
+      assert :ok = RateLimiter.check(:password_reset_ip, "192.0.2.45")
     end
 
     test "normalizes nil IPs for password reset buckets" do
-      for _i <- 1..5, do: assert(:ok = RateLimiter.check_password_reset_ip_rate_limit(nil))
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check(:password_reset_ip, nil))
 
-      assert {:error, :rate_limited, _msg} = RateLimiter.check_password_reset_ip_rate_limit(nil)
+      assert {:error, :rate_limited, _msg} = RateLimiter.check(:password_reset_ip, nil)
     end
 
     test "the recipient bucket blocks after 5 requests in 1 hour, per address" do
       email = "reset@example.com"
 
       for _i <- 1..5,
-          do: assert(:ok = RateLimiter.check_password_reset_recipient_rate_limit(email))
+          do: assert(:ok = RateLimiter.check(:password_reset_email, email))
 
       assert {:error, :rate_limited, _msg} =
-               RateLimiter.check_password_reset_recipient_rate_limit(email)
+               RateLimiter.check(:password_reset_email, email)
 
-      assert :ok = RateLimiter.check_password_reset_recipient_rate_limit("other@example.com")
+      assert :ok = RateLimiter.check(:password_reset_email, "other@example.com")
     end
   end
 
@@ -92,30 +93,30 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
       email = "victim@example.com"
 
       Enum.each(1..5, fn _i ->
-        assert :ok = RateLimiter.check_booking_recipient_limit(email)
+        assert :ok = RateLimiter.check(:booking_recipient, email)
       end)
 
-      assert {:error, :rate_limited, _msg} = RateLimiter.check_booking_recipient_limit(email)
+      assert {:error, :rate_limited, _msg} = RateLimiter.check(:booking_recipient, email)
     end
 
     test "the bucket is per-recipient — a different mailbox is unaffected" do
       bombed = "bombed@example.com"
       other = "other-recipient@example.com"
 
-      Enum.each(1..6, fn _i -> RateLimiter.check_booking_recipient_limit(bombed) end)
+      Enum.each(1..6, fn _i -> RateLimiter.check(:booking_recipient, bombed) end)
 
-      assert {:error, :rate_limited, _msg} = RateLimiter.check_booking_recipient_limit(bombed)
-      assert :ok = RateLimiter.check_booking_recipient_limit(other)
+      assert {:error, :rate_limited, _msg} = RateLimiter.check(:booking_recipient, bombed)
+      assert :ok = RateLimiter.check(:booking_recipient, other)
     end
 
     test "case and whitespace variants of an address share one bucket" do
       Enum.each(1..5, fn _i ->
-        assert :ok = RateLimiter.check_booking_recipient_limit("Mixed.Case@Example.com")
+        assert :ok = RateLimiter.check(:booking_recipient, "Mixed.Case@Example.com")
       end)
 
       # A padded, lower-cased variant must not get a fresh allowance.
       assert {:error, :rate_limited, _msg} =
-               RateLimiter.check_booking_recipient_limit("  mixed.case@example.com  ")
+               RateLimiter.check(:booking_recipient, "  mixed.case@example.com  ")
     end
   end
 
@@ -129,7 +130,7 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
       user_id = "verification-victim"
       attacker_ip = "203.0.113.62"
 
-      for _i <- 1..5, do: assert(:ok = RateLimiter.check_verification_ip_rate_limit(attacker_ip))
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check(:verification_ip, attacker_ip))
 
       for _i <- 1..10 do
         assert {:error, :rate_limited, _msg} =
@@ -143,14 +144,18 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
       email = "recipient-window@example.com"
       user_id = "recipient-window-user"
 
-      assert :ok = RateLimiter.check_signup_recipient_rate_limit(email)
-      assert :ok = RateLimiter.check_password_reset_recipient_rate_limit(email)
+      assert :ok = RateLimiter.check(:signup_email, email)
+      assert :ok = RateLimiter.check(:password_reset_email, email)
       assert :ok = RateLimiter.check_verification_rate_limit(user_id, "203.0.113.66")
+      assert :ok = RateLimiter.check(:signup_attempt_notice, user_id)
+      assert :ok = RateLimiter.check(:social_signup_confirmation, email)
 
       for bucket <- [
             "signup:email:#{email}",
             "password_reset:email:#{email}",
-            "email_verification:user:#{user_id}"
+            "email_verification:user:#{user_id}",
+            "signup_attempt_notice:user:#{user_id}",
+            "social_signup_confirmation:email:#{email}"
           ] do
         windows = windows_ms(bucket)
         assert windows != [], "no tier recorded for #{bucket}"
@@ -158,6 +163,26 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
       end
     end
   end
+
+  describe "window lengths" do
+    # Hammer keeps its counters in node-local ETS, which every deploy clears,
+    # so a window past a day promised a policy nobody enforced while holding a
+    # row per hit for its whole span.
+    test "no limit keeps a count for longer than a day" do
+      for {name, entry} <- Limits.all() do
+        RateLimiter.check(name, sample_key(entry[:scope]))
+      end
+
+      windows = all_windows_ms()
+      assert length(windows) > length(Map.keys(Limits.all()))
+      assert Enum.reject(windows, &(&1 <= @day_ms)) == []
+    end
+  end
+
+  defp sample_key(:source), do: "203.0.113.90"
+  defp sample_key(:email), do: "window@example.com"
+  defp sample_key(:key), do: "window-key"
+  defp sample_key(scope) when scope in [:user, :id], do: 4_242
 
   # The span of every live entry Hammer's sliding window holds under the tiers
   # of `bucket`: each entry is `{{key, inserted_at_us}, expires_at_us}`.
@@ -167,5 +192,11 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
         String.starts_with?(key, bucket <> ":") do
       div(expires_at - inserted_at, 1000)
     end
+  end
+
+  defp all_windows_ms do
+    for {{key, inserted_at}, expires_at} <- :ets.tab2list(Tymeslot.Security.RateLimit),
+        is_binary(key),
+        do: div(expires_at - inserted_at, 1000)
   end
 end

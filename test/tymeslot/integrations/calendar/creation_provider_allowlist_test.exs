@@ -44,7 +44,7 @@ defmodule Tymeslot.Integrations.Calendar.CreationProviderAllowlistTest do
       Calendar.create_integration_with_validation(user.id, form("google"))
 
     writes_left =
-      fn -> RateLimiter.check_integration_write_rate_limit(user.id) end
+      fn -> RateLimiter.check(:integration_write, user.id) end
       |> Stream.repeatedly()
       |> Enum.take_while(&(&1 == :ok))
       |> length()

@@ -19,6 +19,7 @@ defmodule Tymeslot.FreeBusy do
   alias Tymeslot.Profiles
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Profiles.ProfileSchema
+  alias Tymeslot.Security.Token
 
   @token_bytes 24
   @default_horizon_days 60
@@ -42,7 +43,7 @@ defmodule Tymeslot.FreeBusy do
     if feed_enabled?(profile) do
       {:ok, profile}
     else
-      ProfileQueries.update_freebusy_token(profile, generate_token())
+      ProfileQueries.update_freebusy_token(profile, Token.generate(@token_bytes))
     end
   end
 
@@ -50,7 +51,7 @@ defmodule Tymeslot.FreeBusy do
   @spec regenerate_token(ProfileSchema.t()) ::
           {:ok, ProfileSchema.t()} | {:error, Ecto.Changeset.t()}
   def regenerate_token(%ProfileSchema{} = profile),
-    do: ProfileQueries.update_freebusy_token(profile, generate_token())
+    do: ProfileQueries.update_freebusy_token(profile, Token.generate(@token_bytes))
 
   @doc "Disables the feed by clearing the token."
   @spec disable_feed(ProfileSchema.t()) ::
@@ -113,8 +114,4 @@ defmodule Tymeslot.FreeBusy do
        do: email
 
   defp organizer_email(_profile), do: nil
-
-  defp generate_token do
-    @token_bytes |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
-  end
 end

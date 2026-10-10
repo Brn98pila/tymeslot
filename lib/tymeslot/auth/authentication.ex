@@ -6,7 +6,6 @@ defmodule Tymeslot.Auth.Authentication do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Auth.ErrorFormatter
-  alias Tymeslot.Auth.Helpers.AccountLogging
   alias Tymeslot.Auth.{RateLimit, UserQueries, Validation, Verification}
   alias Tymeslot.Security.{Password, RateLimiter, SecurityLogger}
 
@@ -59,8 +58,8 @@ defmodule Tymeslot.Auth.Authentication do
         # "wrong password" (slow bcrypt verify) by measuring response time.
         Password.no_user_verify()
 
-        AccountLogging.log_operation_failure("authentication", email, :not_found)
-
+        # Logged once, as the security event; the reason says the account
+        # does not exist.
         SecurityLogger.log_authentication_attempt(email, false, "user_not_found", %{
           ip_address: opts[:ip],
           user_agent: opts[:user_agent]

@@ -380,3 +380,8 @@ msgstr[2] "Wysłano %{count} minut temu"
 #, elixir-autogen, elixir-format
 msgid "Sent just now"
 msgstr "Wysłano przed chwilą"
+
+#: lib/tymeslot/auth/account_deletion/request.ex
+#, elixir-autogen, elixir-format
+msgid "You are the only admin who can sign in, so this account cannot be deleted yet. Make another account an admin first, or ask the server operator to delete it from the release shell."
+msgstr "Jesteś jedynym administratorem, który może się zalogować, więc tego konta nie można jeszcze usunąć. Najpierw nadaj uprawnienia administratora innemu kontu albo poproś operatora serwera o usunięcie go z powłoki release."

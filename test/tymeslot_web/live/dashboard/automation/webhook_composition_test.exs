@@ -6,7 +6,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookCompositionTest do
   happy-path create / edit / toggle / delete round-trip (line 33) and
   invalid-URL + empty-name form validation (line 121). This file fills
   the single remaining plan-required gap: the rate-limit seam between
-  the LiveComponent, `RateLimiter.check_webhook_write_rate_limit/1`,
+  the LiveComponent, `&RateLimiter.check(:webhook_write, &1)/1`,
   and the `Webhooks.create_webhook/2` entry point.
 
   Dropped from the plan with rationale:
@@ -64,7 +64,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookCompositionTest do
       # next create attempt trips the limiter before validation or
       # persistence can fire.
       Enum.each(1..30, fn _i ->
-        :ok = RateLimiter.check_webhook_write_rate_limit(user.id)
+        :ok = RateLimiter.check(:webhook_write, user.id)
       end)
 
       {:ok, view, _html} = live(conn, "/dashboard/automation")

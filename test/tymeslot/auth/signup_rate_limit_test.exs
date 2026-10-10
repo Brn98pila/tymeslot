@@ -79,7 +79,7 @@ defmodule Tymeslot.Auth.SignupRateLimitTest do
     email = "trim-bucket-test@example.com"
 
     # Exhaust the per-address budget (5 per 10 minutes) with the trimmed form.
-    for _i <- 1..5, do: assert(:ok = RateLimiter.check_signup_recipient_rate_limit(email))
+    for _i <- 1..5, do: assert(:ok = RateLimiter.check(:signup_email, email))
 
     # A padded variant of the same address must still be over the allowance:
     # bucketed on the raw untrimmed value it would get a fresh budget, and an
@@ -102,7 +102,7 @@ defmodule Tymeslot.Auth.SignupRateLimitTest do
       victim = "capped-#{System.unique_integer([:positive])}@example.com"
 
       # Spent from another client, as an attacker would spend it.
-      for _i <- 1..5, do: assert(:ok = RateLimiter.check_signup_recipient_rate_limit(victim))
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check(:signup_email, victim))
 
       %{victim: victim}
     end

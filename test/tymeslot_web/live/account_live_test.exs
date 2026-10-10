@@ -376,7 +376,11 @@ defmodule TymeslotWeb.AccountLiveTest do
       # Exhaust the account-wide auth ceiling (50 per 30 minutes) before each
       # test; it applies whatever address the request comes from.
       Enum.each(1..50, fn _i ->
-        RateLimiter.check_rate("login:#{user.email}", 1_800_000, 50)
+        RateLimiter.check_bucket("login:#{user.email}",
+          limit: 50,
+          window_ms: 1_800_000,
+          operation: "test"
+        )
       end)
 
       :ok

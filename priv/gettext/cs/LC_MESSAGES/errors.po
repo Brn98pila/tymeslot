@@ -318,27 +318,27 @@ msgstr[2] "musí být nejvýše %{count} let dopředu"
 msgid "video server checks"
 msgstr "kontroly videoserveru"
 
-#: lib/tymeslot/security/rate_limiter/bookings.ex
+#: lib/tymeslot/security/rate_limiter/limits.ex
 #, elixir-autogen, elixir-format
 msgid "bookings"
 msgstr "rezervace"
 
-#: lib/tymeslot/security/rate_limiter/calendar.ex
+#: lib/tymeslot/security/rate_limiter/limits.ex
 #, elixir-autogen, elixir-format
 msgid "calendar event moves"
 msgstr "přesuny událostí v kalendáři"
 
-#: lib/tymeslot/security/rate_limiter/auth.ex
+#: lib/tymeslot/security/rate_limiter/limits.ex
 #, elixir-autogen, elixir-format
 msgid "password reset requests"
 msgstr "žádosti o obnovení hesla"
 
-#: lib/tymeslot/security/rate_limiter/auth.ex
+#: lib/tymeslot/security/rate_limiter/limits.ex
 #, elixir-autogen, elixir-format
 msgid "signup attempts"
 msgstr "pokusy o registraci"
 
-#: lib/tymeslot/security/rate_limiter/auth.ex
+#: lib/tymeslot/security/rate_limiter/limits.ex
 #, elixir-autogen, elixir-format
 msgid "verification emails"
 msgstr "ověřovací e-maily"
@@ -663,19 +663,16 @@ msgstr "Zpráva musí mít smysluplný obsah"
 msgid "Name cannot be blank"
 msgstr "Jméno nesmí být prázdné"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name cannot be only numbers"
 msgstr "Jméno nesmí obsahovat pouze číslice"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name contains excessive whitespace"
 msgstr "Jméno obsahuje nadbytečné mezery"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name contains invalid characters"
@@ -686,7 +683,6 @@ msgstr "Jméno obsahuje neplatné znaky"
 msgid "Name is required"
 msgstr "Jméno je povinné"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name is too long (maximum %{max_length} characters)"
@@ -697,7 +693,6 @@ msgstr "Jméno je příliš dlouhé (maximální počet znaků: %{max_length})"
 msgid "Name is too short (minimum %{min_length} characters)"
 msgstr "Jméno je příliš krátké (minimální počet znaků: %{min_length})"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name must be a text value"
@@ -872,3 +867,28 @@ msgstr "URL je povinná"
 #, elixir-autogen, elixir-format
 msgid "URL must be text"
 msgstr "URL musí být text"
+
+#: lib/tymeslot/security/security.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid domain"
+msgstr "Neplatná doména"
+
+#: lib/tymeslot/security/security.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid domain format (e.g. *.example.com)"
+msgstr "Neplatný formát domény (např. *.example.com)"
+
+#: lib/tymeslot/security/security.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid domain format (e.g. example.com)"
+msgstr "Neplatný formát domény (např. example.com)"
+
+#: lib/tymeslot/timezones/timezones.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid timezone"
+msgstr "Neplatné časové pásmo"
+
+#: lib/tymeslot/security/security.ex
+#, elixir-autogen, elixir-format
+msgid "Some domains exceed maximum length (max 255 characters)"
+msgstr "Některé domény překračují maximální délku (max. 255 znaků)"

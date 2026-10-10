@@ -299,27 +299,27 @@ msgstr[1] "deve rientrare entro %{count} anni"
 msgid "video server checks"
 msgstr "verifiche del server video"
 
-#: lib/tymeslot/security/rate_limiter/bookings.ex
+#: lib/tymeslot/security/rate_limiter/limits.ex
 #, elixir-autogen, elixir-format
 msgid "bookings"
 msgstr "prenotazioni"
 
-#: lib/tymeslot/security/rate_limiter/calendar.ex
+#: lib/tymeslot/security/rate_limiter/limits.ex
 #, elixir-autogen, elixir-format
 msgid "calendar event moves"
 msgstr "spostamenti di eventi del calendario"
 
-#: lib/tymeslot/security/rate_limiter/auth.ex
+#: lib/tymeslot/security/rate_limiter/limits.ex
 #, elixir-autogen, elixir-format
 msgid "password reset requests"
 msgstr "richieste di reimpostazione della password"
 
-#: lib/tymeslot/security/rate_limiter/auth.ex
+#: lib/tymeslot/security/rate_limiter/limits.ex
 #, elixir-autogen, elixir-format
 msgid "signup attempts"
 msgstr "tentativi di registrazione"
 
-#: lib/tymeslot/security/rate_limiter/auth.ex
+#: lib/tymeslot/security/rate_limiter/limits.ex
 #, elixir-autogen, elixir-format
 msgid "verification emails"
 msgstr "email di verifica"
@@ -639,19 +639,16 @@ msgstr "Il messaggio deve avere un contenuto significativo"
 msgid "Name cannot be blank"
 msgstr "Il nome non può essere vuoto"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name cannot be only numbers"
 msgstr "Il nome non può contenere solo numeri"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name contains excessive whitespace"
 msgstr "Il nome contiene troppi spazi"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name contains invalid characters"
@@ -662,7 +659,6 @@ msgstr "Il nome contiene caratteri non validi"
 msgid "Name is required"
 msgstr "Il nome è obbligatorio"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name is too long (maximum %{max_length} characters)"
@@ -673,7 +669,6 @@ msgstr "Il nome è troppo lungo (massimo %{max_length} caratteri)"
 msgid "Name is too short (minimum %{min_length} characters)"
 msgstr "Il nome è troppo corto (minimo %{min_length} caratteri)"
 
-#: lib/tymeslot/security/field_validators/full_name_validator.ex
 #: lib/tymeslot/security/field_validators/name_validator.ex
 #, elixir-autogen, elixir-format
 msgid "Name must be a text value"
@@ -848,3 +843,28 @@ msgstr "L'URL è obbligatorio"
 #, elixir-autogen, elixir-format
 msgid "URL must be text"
 msgstr "L'URL deve essere un testo"
+
+#: lib/tymeslot/security/security.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid domain"
+msgstr "Dominio non valido"
+
+#: lib/tymeslot/security/security.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid domain format (e.g. *.example.com)"
+msgstr "Formato del dominio non valido (ad es. *.example.com)"
+
+#: lib/tymeslot/security/security.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid domain format (e.g. example.com)"
+msgstr "Formato del dominio non valido (ad es. example.com)"
+
+#: lib/tymeslot/timezones/timezones.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid timezone"
+msgstr "Fuso orario non valido"
+
+#: lib/tymeslot/security/security.ex
+#, elixir-autogen, elixir-format
+msgid "Some domains exceed maximum length (max 255 characters)"
+msgstr "Alcuni domini superano la lunghezza massima (max 255 caratteri)"

@@ -80,7 +80,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Preferences do
     user_id = socket.assigns.current_user.id
     stored = if colour == "default", do: nil, else: colour
 
-    with :ok <- RateLimiter.check_integration_appearance_rate_limit(user_id),
+    with :ok <- RateLimiter.check(:integration_appearance, user_id),
          {:ok, integration_id} <- Shared.parse_int(id_str),
          {:ok, _appearance} <-
            Appearance.set_colour(user_id, integration_id, calendar_id, stored) do

@@ -25,8 +25,8 @@ defmodule Tymeslot.Workers.AccountDeletionWorker do
   alias Tymeslot.Infrastructure.AdminAlerts
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"user_id" => user_id}} = job) when is_integer(user_id) do
-    case Auth.run_scheduled_deletion(user_id) do
+  def perform(%Oban.Job{args: %{"user_id" => user_id} = args} = job) when is_integer(user_id) do
+    case Auth.run_scheduled_deletion(user_id, force: Map.get(args, "force") == true) do
       {:ok, _outcome} ->
         :ok
 
@@ -39,13 +39,21 @@ defmodule Tymeslot.Workers.AccountDeletionWorker do
     end
   end
 
-  @doc "Queues the deletion of `user_id` for `at`."
-  @spec schedule(pos_integer(), DateTime.t()) :: {:ok, Oban.Job.t()} | {:error, term()}
-  def schedule(user_id, %DateTime{} = at) do
+  @doc """
+  Queues the deletion of `user_id` for `at`. `force: true` carries a
+  release-shell deletion forced past the last-admin rule into the job, so a
+  forced deletion that falls back to the job is not held.
+  """
+  @spec schedule(pos_integer(), DateTime.t(), keyword()) :: {:ok, Oban.Job.t()} | {:error, term()}
+  def schedule(user_id, %DateTime{} = at, opts \\ []) do
     %{"user_id" => user_id}
+    |> put_force(Keyword.get(opts, :force, false))
     |> new(scheduled_at: at)
     |> Oban.insert()
   end
+
+  defp put_force(args, true), do: Map.put(args, "force", true)
+  defp put_force(args, _not_forced), do: args
 
   defp alert(user_id, reason) do
     AdminAlerts.report(:account_deletion_stalled,
