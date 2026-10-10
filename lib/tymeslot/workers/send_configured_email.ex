@@ -12,14 +12,17 @@ defmodule Tymeslot.Workers.SendConfiguredEmail do
   so a job the lifeline rescues after it went out does not send it again.
 
   The template's arguments travel in the job encoded with
-  `:erlang.term_to_binary/1` (and read back with `:safe`), since they can
-  hold dates; callers pass plain maps and values, never a whole struct.
+  `:erlang.term_to_binary/1` (and read back with
+  `Plug.Crypto.non_executable_binary_to_term/2`, which refuses new atoms and
+  functions), since they can hold dates; callers pass plain maps and values,
+  never a whole struct.
   """
 
   use Oban.Worker, queue: :emails, max_attempts: 10, priority: 1
 
   require Logger
 
+  alias Plug.Crypto
   alias Tymeslot.Auth
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Workers.DeliveryClaims
@@ -73,7 +76,11 @@ defmodule Tymeslot.Workers.SendConfiguredEmail do
 
     with {:ok, template} <- fetch_template(template_key),
          {:ok, first_arg} <- resolve_recipient(recipient) do
-      template_args = args["template_args"] |> Base.decode64!() |> :erlang.binary_to_term([:safe])
+      template_args =
+        args["template_args"]
+        |> Base.decode64!()
+        |> Crypto.non_executable_binary_to_term([:safe])
+
       template_fun = String.to_existing_atom(fun)
 
       DeliveryClaims.once(job, "email", fn ->
