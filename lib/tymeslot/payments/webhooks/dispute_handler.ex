@@ -15,9 +15,9 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
 
   require Logger
 
+  alias Tymeslot.Emails.Delivery
   alias Tymeslot.Infrastructure.AdminAlerts
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Mailer
   alias Tymeslot.Payments.Behaviours.WebhookHandler
   alias Tymeslot.Payments.{Config, PaymentQueries, PubSub}
   alias Tymeslot.Security.SecurityLogger
@@ -308,7 +308,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
   defp do_deliver_dispute_email(template, template_fun, email, data) do
     email_struct = apply(template, template_fun, [email, data])
 
-    case Mailer.deliver(email_struct) do
+    case Delivery.deliver(email_struct) do
       {:ok, _result} ->
         Logger.info("Dispute email sent",
           template: template_fun,

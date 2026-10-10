@@ -5,8 +5,8 @@ defmodule Tymeslot.Payments.Webhooks.WebhookUtils do
 
   require Logger
   alias Tymeslot.Auth
+  alias Tymeslot.Emails.Delivery
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Mailer
 
   @doc """
   Fetches a user and executes a template-based email delivery.
@@ -27,7 +27,7 @@ defmodule Tymeslot.Payments.Webhooks.WebhookUtils do
         if template && Code.ensure_loaded?(template) do
           email = apply(template, template_fun, [user | args])
 
-          case Mailer.deliver(email) do
+          case Delivery.deliver(email) do
             {:ok, _metadata} ->
               Logger.info(Keyword.get(opts, :success_msg, "Email sent to user #{user_id}"))
               :ok
