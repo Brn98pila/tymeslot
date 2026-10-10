@@ -7,8 +7,12 @@ defmodule Tymeslot.Emails.Shared.IntegrationLabels do
   from the provider registries: `Google Calendar`, `Nextcloud Talk`,
   `Calendar subscription`, never a humanised identifier such as
   `Google calendar` or `Nextcloud talk`. Only a provider the registries do
-  not know falls back to its humanised identifier.
+  not know falls back to its humanised identifier. Brand names stay as they
+  are in every language; the words around them are translated into the
+  current locale.
   """
+
+  use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Integrations.Calendar.ProviderConfig, as: CalendarProviderConfig
   alias Tymeslot.Integrations.Video.ProviderConfig, as: VideoProviderConfig
@@ -55,12 +59,15 @@ defmodule Tymeslot.Emails.Shared.IntegrationLabels do
 
     if CalendarProviderConfig.subscription?(integration.provider) or names?(name, "calendar"),
       do: name,
-      else: "#{name} calendar"
+      else: dgettext("emails_integrations", "%{provider} calendar", provider: name)
   end
 
   def integration_name(integration, :video) do
     name = provider_name(integration, :video)
-    if names?(name, "video"), do: name, else: "#{name} video"
+
+    if names?(name, "video"),
+      do: name,
+      else: dgettext("emails_integrations", "%{provider} video", provider: name)
   end
 
   def integration_name(integration, kind), do: provider_name(integration, kind)

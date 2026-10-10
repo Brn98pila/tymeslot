@@ -174,4 +174,29 @@ defmodule Tymeslot.Emails.Templates.IntegrationReauthRequiredTest do
       sync_error: "Zoom is missing the permission needed to reschedule meetings."
     })
   end
+
+  describe "in the recipient's language" do
+    test "writes every part, the stored reason included, in German" do
+      user = Map.put(@user, :locale, "de")
+
+      integration = %{
+        provider: "zoom",
+        sync_error:
+          "Zoom is missing the permission needed to cancel meetings. Please reconnect your Zoom account."
+      }
+
+      email = IntegrationReauthRequired.render(user, integration, :video)
+
+      assert email.subject == "Bitte verbinden Sie Ihre Integration Zoom erneut"
+
+      for body <- [email.html_body, email.text_body] do
+        assert body =~ "Zoom fehlt die für das Absagen von Meetings erforderliche Berechtigung."
+        refute body =~ "Zoom is missing the permission"
+        refute body =~ "Open your integration settings"
+      end
+
+      assert email.html_body =~
+               "Klicken Sie in der Zeile Zoom auf <strong>Erneut verbinden</strong>"
+    end
+  end
 end

@@ -4,6 +4,8 @@ defmodule Tymeslot.Emails.Templates.IntegrationUnhealthy do
   unhealthy for more than 48 hours.
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   alias Swoosh.Email
   alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Emails.Shared.{IntegrationLabels, IntegrationNotice}
@@ -25,34 +27,63 @@ defmodule Tymeslot.Emails.Templates.IntegrationUnhealthy do
 
     %{
       subject: subject(kind),
-      title: "Integration may need attention",
-      preheader: "Your #{name} integration may need attention",
+      title: dgettext("emails_integrations", "Integration may need attention"),
+      preheader:
+        dgettext("emails_integrations", "Your %{integration} integration may need attention",
+          integration: name
+        ),
       subtitle:
-        "Health probes for your #{name} integration have been failing intermittently for 48+ hours.",
-      eyebrow: "Integration",
+        dgettext(
+          "emails_integrations",
+          "Health probes for your %{integration} integration have been failing intermittently for 48+ hours.",
+          integration: name
+        ),
+      eyebrow: dgettext("emails_integrations", "Integration"),
       reason:
-        "Our health checks for your #{name} integration have been returning errors on and off for at least 48 hours. It's worth taking a look in case something needs your attention.",
-      happening_heading: "What's happening?",
+        dgettext(
+          "emails_integrations",
+          "Our health checks for your %{integration} integration have been returning errors on and off for at least 48 hours. It's worth taking a look in case something needs your attention.",
+          integration: name
+        ),
+      happening_heading: dgettext("emails_integrations", "What's happening?"),
       happening:
-        {"Our connection probes to your #{name} integration have been failing intermittently for 48+ hours. The integration may already be working again — but if it isn't, syncing and new bookings could be affected, so it's worth a quick check.",
-         name},
-      next_heading: "What should I do?",
+        {dgettext(
+           "emails_integrations",
+           "Our connection probes to your %{integration} integration have been failing intermittently for 48+ hours. The integration may already be working again — but if it isn't, syncing and new bookings could be affected, so it's worth a quick check.",
+           integration: name
+         ), name},
+      next_heading: dgettext("emails_integrations", "What should I do?"),
       next: [
-        "Visit your integration settings to test the connection",
-        "Check that your credentials or OAuth tokens are still valid",
-        "If you changed your password recently, you may need to reconnect the integration",
+        dgettext("emails_integrations", "Visit your integration settings to test the connection"),
+        dgettext(
+          "emails_integrations",
+          "Check that your credentials or OAuth tokens are still valid"
+        ),
+        dgettext(
+          "emails_integrations",
+          "If you changed your password recently, you may need to reconnect the integration"
+        ),
         contact_provider(kind)
       ],
-      button: "Check Integration Settings",
+      button: dgettext("emails_integrations", "Check Integration Settings"),
       settings_url: IntegrationLabels.settings_url(kind),
       footer:
-        "This notification is sent when an integration remains unhealthy for 48+ hours. It will not repeat for 30 days."
+        dgettext(
+          "emails_integrations",
+          "This notification is sent when an integration remains unhealthy for 48+ hours. It will not repeat for 30 days."
+        )
     }
   end
 
-  defp subject(:video), do: "Your video integration may need attention"
-  defp subject(_kind), do: "Your calendar integration may need attention"
+  defp subject(:video),
+    do: dgettext("emails_integrations", "Your video integration may need attention")
 
-  defp contact_provider(:video), do: "Contact your video provider if the issue persists"
-  defp contact_provider(_kind), do: "Contact your calendar provider if the issue persists"
+  defp subject(_kind),
+    do: dgettext("emails_integrations", "Your calendar integration may need attention")
+
+  defp contact_provider(:video),
+    do: dgettext("emails_integrations", "Contact your video provider if the issue persists")
+
+  defp contact_provider(_kind),
+    do: dgettext("emails_integrations", "Contact your calendar provider if the issue persists")
 end

@@ -11,8 +11,9 @@ defmodule Tymeslot.Emails.Templates.IntegrationReauthRequired do
   need attention" about a certainty would understate it.
 
   The reason shown is the integration's stored `sync_error`: the English
-  source of the sentence the dashboard shows translated, so the two cannot
-  drift apart. The rest of the copy stays true for every cause, because the
+  msgid of the sentence the dashboard shows, translated here the same way
+  (`Tymeslot.Integrations.Shared.StoredReason`), so the two cannot drift
+  apart. The rest of the copy stays true for every cause, because the
   reason is the only part that varies.
 
   The steps follow the actions the integration's dashboard row actually has.
@@ -25,10 +26,13 @@ defmodule Tymeslot.Emails.Templates.IntegrationReauthRequired do
   Rendered in the recipient's locale.
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   alias Swoosh.Email
   alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Emails.Shared.{IntegrationLabels, IntegrationNotice}
   alias Tymeslot.Integrations.Calendar.ProviderConfig, as: CalendarProviderConfig
+  alias Tymeslot.Integrations.Shared.StoredReason
   alias Tymeslot.Integrations.Video.ProviderConfig, as: VideoProviderConfig
 
   @doc "The email, addressed and rendered in the recipient's locale."
@@ -49,15 +53,26 @@ defmodule Tymeslot.Emails.Templates.IntegrationReauthRequired do
     fix = fix(integration, kind, provider, name)
 
     %{
-      subject: "Reconnect your #{provider} integration",
-      title: "Reconnect required",
-      preheader: "Your #{name} integration needs reconnecting",
-      subtitle: "Your #{name} integration needs reconnecting before it can keep working.",
-      eyebrow: "Integration",
+      subject:
+        dgettext("emails_integrations", "Reconnect your %{provider} integration",
+          provider: provider
+        ),
+      title: dgettext("emails_integrations", "Reconnect required"),
+      preheader:
+        dgettext("emails_integrations", "Your %{integration} integration needs reconnecting",
+          integration: name
+        ),
+      subtitle:
+        dgettext(
+          "emails_integrations",
+          "Your %{integration} integration needs reconnecting before it can keep working.",
+          integration: name
+        ),
+      eyebrow: dgettext("emails_integrations", "Integration"),
       reason: reason_for(integration, provider),
-      happening_heading: "What's happening?",
+      happening_heading: dgettext("emails_integrations", "What's happening?"),
       happening: {fix.happening, name},
-      next_heading: "What should I do?",
+      next_heading: dgettext("emails_integrations", "What should I do?"),
       next: fix.steps,
       button: fix.button,
       settings_url: IntegrationLabels.settings_url(kind),
@@ -65,17 +80,26 @@ defmodule Tymeslot.Emails.Templates.IntegrationReauthRequired do
     }
   end
 
-  # The stored reason is written for the dashboard badge and already names the
-  # provider and the action. A blank one means the flag was set by a path that
-  # recorded no diagnosis, so fall back to something true rather than empty.
+  # The stored reason is the English msgid of the sentence the dashboard badge
+  # shows, and already names the provider and the action. A blank one means
+  # the flag was set by a path that recorded no diagnosis, so fall back to
+  # something true rather than empty.
   defp reason_for(%{sync_error: reason}, provider) when is_binary(reason) do
-    if String.trim(reason) == "", do: default_reason(provider), else: reason
+    case String.trim(reason) do
+      "" -> default_reason(provider)
+      trimmed -> StoredReason.translate(trimmed)
+    end
   end
 
   defp reason_for(_integration, provider), do: default_reason(provider)
 
   defp default_reason(provider),
-    do: "#{provider} needs reconnecting before Tymeslot can use it again."
+    do:
+      dgettext(
+        "emails_integrations",
+        "%{provider} needs reconnecting before Tymeslot can use it again.",
+        provider: provider
+      )
 
   # A video integration outside the OAuth family has no Reconnect button: its
   # credentials were typed in, and they are replaced from the Edit dialog.
@@ -97,49 +121,88 @@ defmodule Tymeslot.Emails.Templates.IntegrationReauthRequired do
 
   # The owner is not told again while the integration stays flagged: the reauth
   # email goes out when the flag is set, and the unhealthy email is withheld
-  # from a flagged integration. Each fix says so with its own verb.
+  # from a flagged integration. Each fix says so with its own verb, in whole
+  # sentences so that each translates as one.
   defp reconnect_fix(provider, name) do
     %{
       happening:
-        "Tymeslot can no longer use your #{name} integration, and it will stay that way until you reconnect it. The reason is shown above. Your existing bookings are not affected.",
+        dgettext(
+          "emails_integrations",
+          "Tymeslot can no longer use your %{integration} integration, and it will stay that way until you reconnect it. The reason is shown above. Your existing bookings are not affected.",
+          integration: name
+        ),
       steps: [
-        "Open your integration settings",
-        {"Select Reconnect on the #{provider} row", "Reconnect"},
-        "Follow the steps #{provider} asks for"
+        dgettext("emails_integrations", "Open your integration settings"),
+        row_step(dgettext("emails_integrations", "Reconnect"), provider),
+        dgettext("emails_integrations", "Follow the steps %{provider} asks for",
+          provider: provider
+        )
       ],
-      button: "Reconnect #{provider}",
+      button: dgettext("emails_integrations", "Reconnect %{provider}", provider: provider),
       footer:
-        "This notification is sent when an integration needs attention. You will not receive another notice about this until you reconnect it."
+        dgettext(
+          "emails_integrations",
+          "This notification is sent when an integration needs attention. You will not receive another notice about this until you reconnect it."
+        )
     }
   end
 
   defp edit_fix(provider, name) do
     %{
       happening:
-        "Tymeslot can no longer use your #{name} integration, and it will stay that way until you update it. The reason is shown above. Your existing bookings are not affected.",
+        dgettext(
+          "emails_integrations",
+          "Tymeslot can no longer use your %{integration} integration, and it will stay that way until you update it. The reason is shown above. Your existing bookings are not affected.",
+          integration: name
+        ),
       steps: [
-        "Open your integration settings",
-        {"Select Edit on the #{provider} row", "Edit"},
-        "Enter the credentials again, or new ones if the old ones were revoked, and save"
+        dgettext("emails_integrations", "Open your integration settings"),
+        row_step(dgettext("emails_integrations", "Edit"), provider),
+        dgettext(
+          "emails_integrations",
+          "Enter the credentials again, or new ones if the old ones were revoked, and save"
+        )
       ],
-      button: "Edit #{provider}",
+      button: dgettext("emails_integrations", "Edit %{provider}", provider: provider),
       footer:
-        "This notification is sent when an integration needs attention. You will not receive another notice about this until you update it."
+        dgettext(
+          "emails_integrations",
+          "This notification is sent when an integration needs attention. You will not receive another notice about this until you update it."
+        )
     }
   end
 
   defp subscription_fix(provider, name) do
     %{
       happening:
-        "Tymeslot can no longer use your #{name} integration, and it will stay that way until you replace it. The reason is shown above. Your existing bookings are not affected.",
+        dgettext(
+          "emails_integrations",
+          "Tymeslot can no longer use your %{integration} integration, and it will stay that way until you replace it. The reason is shown above. Your existing bookings are not affected.",
+          integration: name
+        ),
       steps: [
-        "Open your calendar settings",
-        {"Select Delete on the #{provider} row", "Delete"},
-        {"Choose #{provider}, paste the current feed link and select Subscribe", provider}
+        dgettext("emails_integrations", "Open your calendar settings"),
+        row_step(dgettext("emails_integrations", "Delete"), provider),
+        {dgettext(
+           "emails_integrations",
+           "Choose %{provider}, paste the current feed link and select Subscribe",
+           provider: provider
+         ), provider}
       ],
-      button: "Open calendar settings",
+      button: dgettext("emails_integrations", "Open calendar settings"),
       footer:
-        "This notification is sent when an integration needs attention. You will not receive another notice about this until you replace it."
+        dgettext(
+          "emails_integrations",
+          "This notification is sent when an integration needs attention. You will not receive another notice about this until you replace it."
+        )
     }
+  end
+
+  # `action` is the label of the row's button, set in bold.
+  defp row_step(action, provider) do
+    {dgettext("emails_integrations", "Select %{action} on the %{provider} row",
+       action: action,
+       provider: provider
+     ), action}
   end
 end

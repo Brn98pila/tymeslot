@@ -51,4 +51,20 @@ defmodule Tymeslot.Emails.Templates.IntegrationUnhealthyTest do
       refute email.html_body =~ "Weird<b>"
     end
   end
+
+  describe "in the recipient's language" do
+    test "writes every part in German for a German-speaking owner" do
+      user = Map.put(@user, :locale, "de")
+
+      email = IntegrationUnhealthy.render(user, %{provider: :zoom}, :video)
+
+      assert email.subject == "Ihre Video-Integration erfordert möglicherweise Aufmerksamkeit"
+
+      for body <- [email.html_body, email.text_body] do
+        assert body =~ "Zoom-Video"
+        assert body =~ "Integrationseinstellungen prüfen"
+        refute body =~ "Check Integration Settings"
+      end
+    end
+  end
 end

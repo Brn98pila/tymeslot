@@ -56,6 +56,20 @@ defmodule Tymeslot.Emails.Shared.IntegrationLabelsTest do
     end
   end
 
+  describe "in another language" do
+    test "translates the words around a brand name, never the brand" do
+      Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+        assert IntegrationLabels.integration_name(%{provider: :zoom}, :video) == "Zoom-Video"
+
+        assert IntegrationLabels.integration_name(%{provider: :google}, :calendar) ==
+                 "Google Calendar"
+
+        assert IntegrationLabels.provider_name(%{provider: :ics_url}, :calendar) ==
+                 "Kalenderabonnement"
+      end)
+    end
+  end
+
   describe "settings_url/1" do
     test "points at the integrations page's tab for the kind" do
       assert IntegrationLabels.settings_url(:calendar) =~ "/dashboard/integrations?tab=calendars"
