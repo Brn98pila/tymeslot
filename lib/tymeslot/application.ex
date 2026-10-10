@@ -41,6 +41,7 @@ defmodule Tymeslot.Application do
   alias Tymeslot.Integrations.Shared.Lock
   alias Tymeslot.Mailer.HealthCheck, as: MailerHealthCheck
   alias Tymeslot.Payments.Webhooks.SecretCheck
+  alias Tymeslot.Security.Encryption
   alias Tymeslot.Telegram.BotSetup
   alias Tymeslot.Workers.ErrorTrackerMaintenanceWorker
   alias TymeslotWeb.Endpoint
@@ -245,6 +246,10 @@ defmodule Tymeslot.Application do
   end
 
   defp validate_config! do
+    # Stops the boot on a key configuration that cannot work, instead of
+    # failing on the first credential read or written.
+    Encryption.validate!()
+
     # Mailer configuration is validated by mailer_health_check_children/0
     # instead of here: its credential probe needs Tymeslot.Finch, which
     # doesn't exist yet at this point in start/2, before Supervisor.start_link
