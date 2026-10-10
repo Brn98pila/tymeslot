@@ -49,6 +49,9 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
   @lease_timeout :timer.seconds(5)
   # How long a sweep waits for Finch's registries to forget a stopped pool.
   @unregister_timeout 1_000
+  # How many draining pools one sweep stops again. Each stop can hold the
+  # janitor for `@unregister_timeout`, and leases wait behind the sweep.
+  @max_restops_per_sweep 2
 
   defmodule State do
     @moduledoc false
@@ -266,15 +269,27 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
         MapSet.size(entry.leases) == 0 and entry.last_used <= cutoff and not kept?(entry)
       end)
 
-    # A draining pool is stopped again: its last stop may have exited before
-    # it took. No lease can hold one, so stopping it is always safe.
-    draining =
-      for pool <- Enum.concat(Enum.map(idle, &elem(&1, 0)), state.draining),
-          stop_pool(pool) == :draining,
-          into: MapSet.new(),
-          do: pool
+    stuck = for {pool, _entry} <- idle, stop_pool(pool) == :draining, do: pool
+    draining = state.draining |> still_draining() |> MapSet.union(MapSet.new(stuck))
 
     {length(idle), %{state | pools: Map.new(in_use), draining: draining}}
+  end
+
+  # A draining pool Finch still finds is stopped again, since its last stop
+  # may have exited before it took; no lease can hold one, so that is safe.
+  # A few per sweep, so pools that never unregister cannot hold the janitor
+  # past a lease's timeout. One Finch no longer finds only waits for its
+  # registries to catch up, and is dropped once they have.
+  defp still_draining(draining) do
+    {found, not_found} =
+      Enum.split_with(draining, &match?({:ok, _pid}, Finch.find_pool(@finch, &1)))
+
+    {restop, later} = Enum.split(found, @max_restops_per_sweep)
+
+    MapSet.new(
+      Enum.reject(not_found, &unregistered?/1) ++
+        Enum.filter(restop, &(stop_pool(&1) == :draining)) ++ later
+    )
   end
 
   # A pool already gone (its supervisor restarted, say) needs no stopping.

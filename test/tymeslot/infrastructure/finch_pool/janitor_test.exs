@@ -70,6 +70,21 @@ defmodule Tymeslot.Infrastructure.FinchPool.JanitorTest do
 
   defp deadline, do: System.monotonic_time(:millisecond) + 2_000
 
+  defp hold_registry_entry!(pool) do
+    test_pid = self()
+    {scheme, host, port, tag} = {pool.scheme, pool.host, pool.port, pool.tag}
+
+    holder =
+      spawn(fn ->
+        {:ok, _owner} = Registry.register(@finch, {scheme, host, port, tag}, Finch.HTTP1.Pool)
+        send(test_pid, :registered)
+        receive do: (:release -> :ok)
+      end)
+
+    assert_receive :registered
+    on_exit(fn -> send(holder, :release) end)
+  end
+
   defp start_unleased!(url, tag, options) do
     :ok = Finch.start_pool(@finch, Pool.new(url, tag: tag), options)
   end
@@ -236,6 +251,28 @@ defmodule Tymeslot.Infrastructure.FinchPool.JanitorTest do
     refute pool_alive?(url, tag)
     assert %{draining: draining} = :sys.get_state(janitor)
     refute MapSet.member?(draining, pool)
+  end
+
+  # A pool whose registry entry outlives every stop: here a process holding
+  # the entry Finch looks the pool up by, with no supervisor behind it.
+  test "pools that never unregister cannot hold a sweep past a lease's timeout",
+       %{janitor: janitor} do
+    pools =
+      for _n <- 1..5 do
+        {url, tag, _options} = destination()
+        pool = Pool.new(url, tag: tag)
+        hold_registry_entry!(pool)
+        pool
+      end
+
+    :sys.replace_state(janitor, &%{&1 | draining: MapSet.new(pools)})
+
+    {elapsed_us, 0} = :timer.tc(fn -> Janitor.sweep(janitor) end)
+
+    # At most two are stopped again, each waiting up to a second.
+    assert div(elapsed_us, 1_000) < 2_500
+    assert %{draining: draining} = :sys.get_state(janitor)
+    assert MapSet.equal?(draining, MapSet.new(pools))
   end
 
   test "a restarted janitor adopts the pools its predecessor left", %{janitor: janitor} do
