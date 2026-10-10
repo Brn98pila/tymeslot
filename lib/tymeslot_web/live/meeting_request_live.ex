@@ -257,6 +257,13 @@ defmodule TymeslotWeb.MeetingRequestLive do
             "That time has since been booked by somebody else, so this request can no longer be approved."
           )
         )
+
+      # Nothing was saved (e.g. an approval whose confirmation could not be
+      # scheduled rolled back), so the request is still open to answer again.
+      {:error, _reason} ->
+        socket
+        |> load_request(socket.assigns.token)
+        |> put_flash(:error, dgettext("booking_manage", "Please wait a moment and try again."))
     end
   end
 end

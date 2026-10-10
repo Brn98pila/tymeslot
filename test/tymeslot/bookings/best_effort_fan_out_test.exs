@@ -176,9 +176,9 @@ defmodule Tymeslot.Bookings.BestEffortFanOutTest do
     end
   end
 
-  # These paths confirm a booking that is already committed, so they still
-  # run the fan-out at once, through `Activation.activate/2`.
-  describe "paths that activate after commit" do
+  # These paths confirm a booking in a transaction of their own, and run the
+  # fan-out once it has committed.
+  describe "paths that confirm a booking" do
     test "approving a request sends one Slack notice", %{user: user} do
       held =
         insert_meeting_for_user(user, %{
@@ -196,12 +196,18 @@ defmodule Tymeslot.Bookings.BestEffortFanOutTest do
                )
     end
 
-    # The payment confirmation calls exactly this once its transaction has
-    # committed (`MeetingPayments.Webhooks.CheckoutSessionCompleted`).
-    test "activating a committed booking sends one Slack notice", %{user: user} do
+    # The payment confirmation does exactly this: it activates in its own
+    # transaction and dispatches once that has committed
+    # (`MeetingPayments.Webhooks.CheckoutSessionCompleted`).
+    test "activating in the confirming transaction sends one Slack notice", %{user: user} do
       meeting = insert_meeting_for_user(user, %{status: "confirmed"})
 
-      assert :ok = Activation.activate(meeting, with_video_room: true)
+      assert {:ok, {:ok, pending}} =
+               Repo.transaction(fn ->
+                 Activation.activate_in_transaction(meeting, with_video_room: true)
+               end)
+
+      assert :ok = Activation.after_commit(pending)
 
       assert [_one] = all_enqueued(worker: SlackWorker, args: %{"meeting_id" => meeting.id})
     end

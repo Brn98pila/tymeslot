@@ -93,11 +93,12 @@ defmodule Tymeslot.Meetings.Approval do
   alias Tymeslot.Notifications.Events
   alias Tymeslot.Notifications.GuestNotifications
   alias Tymeslot.Notifications.Orchestrator
+  alias Tymeslot.Repo
   alias Tymeslot.Validation.Constraints
   alias Tymeslot.Workers.VideoSyncWorker
 
   @typedoc "Why a transition out of the approval gate did not happen."
-  @type error :: :not_awaiting_approval | :meeting_started | :slot_taken
+  @type error :: :not_awaiting_approval | :meeting_started | :slot_taken | :not_scheduled
 
   @doc """
   Whether bookings on this meeting type are held for the host to approve.
@@ -226,14 +227,11 @@ defmodule Tymeslot.Meetings.Approval do
   end
 
   defp do_approve(meeting, now) do
-    case MeetingQueries.transition_from_awaiting_approval(meeting.id,
-           status: "confirmed",
-           approval_resolved_at: DateTime.truncate(now, :second)
-         ) do
-      {:ok, confirmed} ->
+    case confirm(meeting, now) do
+      {:ok, {confirmed, pending}} ->
         Logger.info("Booking request approved", meeting_id: confirmed.id)
         Availability.changed(confirmed.organizer_user_id)
-        activate_confirmed(confirmed)
+        activate_confirmed(confirmed, pending)
 
         {:ok, confirmed}
 
@@ -257,13 +255,43 @@ defmodule Tymeslot.Meetings.Approval do
         )
 
         error
+
+      # The confirmation emails or reminders could not be enqueued, so the
+      # approval rolled back and the request is still held for the host to
+      # approve again.
+      {:error, reason} ->
+        Logger.error("Approval rolled back: the confirmation could not be scheduled",
+          meeting_id: meeting.id,
+          reason: LogFormat.reason(reason)
+        )
+
+        {:error, :not_scheduled}
     end
   end
 
-  @doc """
-  Runs everything a booking newly confirmed out of the approval gate needs.
+  # The confirmation and its emails and reminders commit together: a
+  # confirmed booking whose announcement was claimed but whose emails were
+  # never queued would be one nobody is ever told about.
+  defp confirm(meeting, now) do
+    Repo.transaction(fn ->
+      with {:ok, confirmed} <-
+             MeetingQueries.transition_from_awaiting_approval(meeting.id,
+               status: "confirmed",
+               approval_resolved_at: DateTime.truncate(now, :second)
+             ),
+           {:ok, pending} <- Activation.activate_in_transaction(confirmed, with_video_room: true) do
+        {confirmed, pending}
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
 
-  `approve/1` calls this once it has won the guarded transition. It is public
+  @doc """
+  Runs what a booking newly confirmed out of the approval gate needs once its
+  confirmation has committed.
+
+  `approve/1` calls this once its transaction has committed. It is public
   because approval is not the only way a held request becomes a confirmed
   booking: `Tymeslot.Bookings.Reschedule` confirms one outright when its
   meeting type stopped requiring approval while the request was still held,
@@ -275,21 +303,22 @@ defmodule Tymeslot.Meetings.Approval do
   emails' nudge and expiry jobs stayed armed against a booking that is no
   longer held.
 
-  Three steps, in this order: stop the request notifications, flip the
-  tentative calendar hold to a real event, then hand the meeting to
-  `Bookings.Activation`, which creates the video room before composing the
-  confirmation so the join link is in the invitee's first email rather than a
-  later correction. A booking confirmed before a reschedule sent it back into
-  the gate is announced as rescheduled instead, to the invitee and to every
-  integration (`Orchestrator.send_reapproval_notifications/1`,
-  `Notifications.Events.meeting_created/1`).
+  Both callers have already run `Bookings.Activation.activate_in_transaction/2`
+  in the transaction that confirmed the booking, so the video room job, the
+  confirmation emails and the reminders committed with it or not at all;
+  `pending` is the integration fan-out that returned. A booking confirmed
+  before a reschedule sent it back into the gate is announced as rescheduled
+  instead, to the invitee and to every integration
+  (`Orchestrator.send_reapproval_notifications/1`,
+  `Notifications.Events.meeting_created_deferred/1`).
 
-  Each step is best-effort. The row is committed before this runs, so no
-  failure here may turn a real confirmation into an error the caller has to
-  explain; every step is separately retried or logged by its own module.
+  What is left runs here, in this order: stop the request notifications, flip
+  the tentative calendar hold to a real event, fan out to webhooks, Telegram
+  and Slack, and send any reapproval notice. Each step is best-effort and is
+  separately retried or logged by its own module; the confirmation stands.
   """
-  @spec activate_confirmed(Meeting.t()) :: :ok
-  def activate_confirmed(%Meeting{} = confirmed) do
+  @spec activate_confirmed(Meeting.t(), Events.pending()) :: :ok
+  def activate_confirmed(%Meeting{} = confirmed, pending) do
     best_effort(confirmed, "cancel request notifications", fn ->
       Orchestrator.cancel_request_notifications(confirmed)
     end)
@@ -298,8 +327,8 @@ defmodule Tymeslot.Meetings.Approval do
       confirm_calendar_event(confirmed)
     end)
 
-    best_effort(confirmed, "activate booking", fn ->
-      Activation.activate(confirmed, with_video_room: true)
+    best_effort(confirmed, "announce to integrations", fn ->
+      Activation.after_commit(pending)
     end)
 
     best_effort(confirmed, "send reschedule notifications", fn ->

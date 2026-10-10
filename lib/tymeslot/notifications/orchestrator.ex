@@ -24,12 +24,10 @@ defmodule Tymeslot.Notifications.Orchestrator do
   Schedules all notifications for a newly created meeting: the confirmation
   and the reminders.
 
-  The two are scheduled independently, like the steps of
-  `schedule_request_notifications/2`: the meeting's announcement is claimed
-  before this runs and nothing retries it, so a failure to schedule the
-  confirmation must not leave the booking without its reminders too. Both
-  always run and each failure is logged; any failure is returned, keyed by
-  the step that failed.
+  Both always run and each failure is logged; any failure is returned, keyed
+  by the step that failed. The caller runs this in the transaction that
+  claims the meeting's announcement and rolls it back on an error, so the
+  booking is announced with both or with neither, and is retried whole.
   """
   @spec schedule_meeting_notifications(%{atom() => term()}) ::
           {:ok, :notifications_scheduled} | {:error, term()}
@@ -158,17 +156,36 @@ defmodule Tymeslot.Notifications.Orchestrator do
 
   # Schedules confirmation notifications for a meeting.
   defp schedule_confirmation_notifications(meeting) do
-    recipients = Recipients.determine_recipients(meeting)
-    content = ContentBuilder.build_appointment_details(meeting)
-
-    with :ok <- Recipients.validate_recipients(recipients),
-         :ok <- ContentBuilder.validate_content(content, Meetings.group?(meeting)),
-         result <- schedule_confirmation_job(meeting.id) do
-      case result do
+    with_sendable(meeting, :confirmation, fn ->
+      case schedule_confirmation_job(meeting.id) do
         :ok -> :ok
         {:ok, _result} -> :ok
         error -> error
       end
+    end)
+  end
+
+  # A meeting missing what its emails need (a legacy row without an attendee
+  # name, say) can never be emailed, however often it is retried, so it is
+  # logged and reported as `{:ok, :not_sendable}` rather than as an error: an
+  # error here rolls the booking back for a retry, which only an enqueue
+  # that failed can be helped by.
+  defp with_sendable(meeting, step, fun) do
+    recipients = Recipients.determine_recipients(meeting)
+    content = ContentBuilder.build_appointment_details(meeting)
+
+    with :ok <- Recipients.validate_recipients(recipients),
+         :ok <- ContentBuilder.validate_content(content, Meetings.group?(meeting)) do
+      fun.()
+    else
+      {:error, reason} ->
+        Logger.error("Meeting cannot be emailed, nothing scheduled",
+          meeting_id: meeting.id,
+          step: step,
+          reason: reason
+        )
+
+        {:ok, :not_sendable}
     end
   end
 
@@ -183,23 +200,20 @@ defmodule Tymeslot.Notifications.Orchestrator do
     # what is scheduled here.
     reminders = ReminderSchedule.configured(meeting)
 
-    recipients = Recipients.determine_recipients(meeting)
-    content = ContentBuilder.build_appointment_details(meeting)
-
     # Pending reminders are cleared before the configured ones are pinned
     # afresh: a reminder now too late for a meeting moved closer, or one no
     # longer configured, is skipped below and must not fire at its old time.
-    with :ok <- Recipients.validate_recipients(recipients),
-         :ok <- ContentBuilder.validate_content(content, Meetings.group?(meeting)),
-         :ok <- cancel_reminder_notifications(meeting) do
-      {result, scheduled_any?} = schedule_reminders(meeting, reminders)
+    with_sendable(meeting, :reminders, fn ->
+      with :ok <- cancel_reminder_notifications(meeting) do
+        {result, scheduled_any?} = schedule_reminders(meeting, reminders)
 
-      case {result, scheduled_any?} do
-        {:ok, true} -> :ok
-        {:ok, false} -> {:ok, :reminder_not_scheduled}
-        {error, _scheduled} -> error
+        case {result, scheduled_any?} do
+          {:ok, true} -> :ok
+          {:ok, false} -> {:ok, :reminder_not_scheduled}
+          {error, _scheduled} -> error
+        end
       end
-    end
+    end)
   end
 
   @doc """

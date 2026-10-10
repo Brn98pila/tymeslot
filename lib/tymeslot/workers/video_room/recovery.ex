@@ -99,22 +99,35 @@ defmodule Tymeslot.Workers.VideoRoom.Recovery do
   On the first recovery attempt this also raises the job's announcement
   without a join link, so the attendees are not left waiting on an email that
   may never come. `cause` is logged to distinguish a failing provider from a
-  hanging one.
+  hanging one. An announcement that cannot be raised returns its error, so the
+  job retries rather than snoozing past a booking nobody was told about.
   """
-  @spec enter(String.t(), pos_integer(), String.t(), Announcement.t()) :: decision()
+  @spec enter(String.t(), pos_integer(), String.t(), Announcement.t()) ::
+          decision() | {:error, term()}
   def enter(meeting_id, execution, cause, announcement) do
-    if execution == @fallback_attempt do
-      Logger.warning("Video room creation entering recovery, announcing without a room",
-        meeting_id: meeting_id,
-        attempts: @fallback_attempt,
-        cause: cause
-      )
-
-      send_fallback_notifications(meeting_id, announcement, execution)
+    with :ok <- announce_on_entry(meeting_id, execution, cause, announcement) do
+      decide(meeting_id, execution - @fallback_attempt + 1)
     end
-
-    decide(meeting_id, execution - @fallback_attempt + 1)
   end
+
+  defp announce_on_entry(meeting_id, @fallback_attempt = execution, cause, announcement) do
+    Logger.warning("Video room creation entering recovery, announcing without a room",
+      meeting_id: meeting_id,
+      attempts: @fallback_attempt,
+      cause: cause
+    )
+
+    send_fallback_notifications(meeting_id, announcement, execution)
+  end
+
+  # A booking whose fallback announcement failed is still owed one, and a
+  # room that never arrives would otherwise leave it unannounced for good.
+  # Each later attempt tries again; the booking's claim makes it a no-op once
+  # an announcement has gone out.
+  defp announce_on_entry(meeting_id, execution, _cause, :created = announcement),
+    do: send_fallback_notifications(meeting_id, announcement, execution)
+
+  defp announce_on_entry(_meeting_id, _execution, _cause, _announcement), do: :ok
 
   @doc """
   Raises the job's announcement without a video room link.
@@ -127,7 +140,8 @@ defmodule Tymeslot.Workers.VideoRoom.Recovery do
   to announce the meeting a second time; `Announcement.deliver/3` is what
   makes sure it does not, given `execution`.
   """
-  @spec send_fallback_notifications(String.t(), Announcement.t(), pos_integer()) :: :ok
+  @spec send_fallback_notifications(String.t(), Announcement.t(), pos_integer()) ::
+          :ok | {:error, term()}
   def send_fallback_notifications(meeting_id, announcement, execution) do
     Logger.info("Announcing the meeting without a video room after creation failed",
       meeting_id: meeting_id

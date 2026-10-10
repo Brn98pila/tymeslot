@@ -342,11 +342,12 @@ defmodule Tymeslot.Workers.VideoRoomWorker do
       # no amount of retrying will produce a link, so give up now and announce
       # the booking without one. Reaching `Recovery` instead would spend ten
       # attempts and a permanent-failure alert to arrive at the same place.
+      #
+      # An announcement that fails retries the job instead, so the booking is
+      # still announced once its emails can be queued.
       categorized in @announce_without_room ->
-        if Announcement.owed?(announcement),
-          do: Recovery.send_fallback_notifications(meeting_id, announcement, execution)
-
-        {:discard, ErrorPolicy.discard_reason(categorized)}
+        with :ok <- announce_without_room(meeting_id, announcement, execution),
+             do: {:discard, ErrorPolicy.discard_reason(categorized)}
 
       Recovery.recovering?(execution, Announcement.owed?(announcement)) ->
         Recovery.enter(
@@ -359,6 +360,12 @@ defmodule Tymeslot.Workers.VideoRoomWorker do
       true ->
         {:error, categorized}
     end
+  end
+
+  defp announce_without_room(meeting_id, announcement, execution) do
+    if Announcement.owed?(announcement),
+      do: Recovery.send_fallback_notifications(meeting_id, announcement, execution),
+      else: :ok
   end
 
   defp log_failure(reason, meeting_id),

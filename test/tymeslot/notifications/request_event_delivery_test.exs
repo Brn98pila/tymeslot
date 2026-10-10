@@ -99,10 +99,13 @@ defmodule Tymeslot.Notifications.RequestEventDeliveryTest do
         events: ["meeting.created", "meeting.requested"]
       )
 
-      # `Bookings.Create` hands a held booking to `Activation.activate/2`
-      # exactly like this, with no options — the same seam a real gated
-      # submission goes through.
-      assert :ok = Activation.activate(meeting)
+      # `Bookings.Create` hands a held booking to `Activation` exactly like
+      # this, with no options — the same seam a real gated submission goes
+      # through: activated in the booking's transaction, dispatched after it.
+      assert {:ok, {:ok, pending}} =
+               Repo.transaction(fn -> Activation.activate_in_transaction(meeting) end)
+
+      assert :ok = Activation.after_commit(pending)
 
       assert [requested_job] = all_enqueued(worker: WebhookWorker)
       assert requested_job.args["event_type"] == "meeting.requested"

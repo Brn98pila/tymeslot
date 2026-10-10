@@ -99,13 +99,19 @@ defmodule Tymeslot.Workers.VideoRoom.Announcement do
   A reschedule is not announced either when the meeting no longer starts when
   this reschedule put it: a later reschedule has moved it since, and has told
   the attendees about the meeting it is now.
+
+  A booking whose emails could not be queued is not announced at all, and
+  `{:error, {:announcement_failed, reason}}` tells the job to retry; a
+  reschedule's failures are only logged, as before.
   """
-  @spec deliver(t(), MeetingSchema.t(), boolean()) :: :ok
+  @spec deliver(t(), MeetingSchema.t(), boolean()) :: :ok | {:error, term()}
   def deliver(:none, _meeting, _already_announced?), do: :ok
 
   def deliver(:created, meeting, _already_announced?) do
     Logger.info("Announcing the meeting now its room exists", meeting_id: meeting.id)
-    Events.announce_video_room_outcome(meeting)
+
+    with {:error, reason} <- Events.announce_video_room_outcome(meeting),
+         do: {:error, {:announcement_failed, reason}}
   end
 
   def deliver({:rescheduled, _previous, _rescheduled_to}, meeting, true) do

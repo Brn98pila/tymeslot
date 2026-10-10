@@ -15,6 +15,7 @@ defmodule Tymeslot.Notifications.Events do
   alias Tymeslot.Notifications.ChannelFanout
   alias Tymeslot.Notifications.DispatchInTransactionError
   alias Tymeslot.Notifications.Orchestrator
+  alias Tymeslot.Repo
 
   @doc """
   Handles meeting creation event.
@@ -27,9 +28,13 @@ defmodule Tymeslot.Notifications.Events do
   channel subscribed to it.
 
   The claim is taken before the fan-out rather than after it, so two callers
-  racing cannot both dispatch. A fan-out that then fails keeps the claim: every
-  channel here is best-effort and none of the callers retry the event, so
-  releasing it would buy nothing and would risk announcing twice instead.
+  racing cannot both dispatch. The claim, the confirmation emails and the
+  reminders commit together or not at all: here they run in one transaction,
+  so an email or reminder that cannot be enqueued releases the claim and
+  returns the error for the caller (the video room job) to retry. The
+  integration fan-out runs only once they have committed, so a retry can
+  never announce the booking twice to webhooks, Telegram or Slack, and a
+  failing integration never releases the claim: each channel is best-effort.
 
   A booking can win the claim a second time in one case: a reschedule sent it
   back into the approval gate, which frees the claim so the host's approval of
@@ -42,9 +47,18 @@ defmodule Tymeslot.Notifications.Events do
   """
   @spec meeting_created(term()) :: {:ok, term()} | {:error, term()}
   def meeting_created(meeting) do
-    {result, pending} = meeting_created_deferred(meeting)
-    :ok = dispatch_deferred(pending)
-    result
+    announcement =
+      Repo.transaction(fn ->
+        case meeting_created_deferred(meeting) do
+          {{:error, reason}, _pending} -> Repo.rollback(reason)
+          announced -> announced
+        end
+      end)
+
+    with {:ok, {result, pending}} <- announcement do
+      :ok = dispatch_deferred(pending)
+      result
+    end
   end
 
   @typedoc """
@@ -62,8 +76,11 @@ defmodule Tymeslot.Notifications.Events do
   to `dispatch_deferred/1` once the transaction has committed.
 
   The emails and reminders are jobs, written in the caller's transaction, so
-  they commit with the booking or not at all. The integrations are kept out
-  of it because a database error inside a dispatcher, rescued here as
+  they commit with the booking or not at all. On `{:error, _}` the caller
+  must roll its transaction back, which releases the claim with it, and
+  `pending` is empty: nothing is announced to the integrations for a booking
+  whose emails were never queued. The integrations are kept out of the
+  transaction because a database error inside a dispatcher, rescued here as
   best-effort, would still leave the caller's transaction unable to commit.
   """
   @spec meeting_created_deferred(term()) :: {{:ok, term()} | {:error, term()}, pending()}
@@ -129,12 +146,12 @@ defmodule Tymeslot.Notifications.Events do
   # `channel_event` is what webhooks, Telegram and Slack are told; the email
   # and reminder fan-out is the same for both announcements.
   defp announce_meeting_created(meeting, channel_event) do
-    result =
-      send_notifications(:meeting_created, meeting, fn ->
-        Orchestrator.schedule_meeting_notifications(meeting)
-      end)
-
-    {result, [{channel_event, meeting, :per_seat}]}
+    case send_notifications(:meeting_created, meeting, fn ->
+           Orchestrator.schedule_meeting_notifications(meeting)
+         end) do
+      {:error, _reason} = error -> {error, []}
+      result -> {result, [{channel_event, meeting, :per_seat}]}
+    end
   end
 
   @doc """
@@ -227,16 +244,17 @@ defmodule Tymeslot.Notifications.Events do
   enqueues is uniqued on `(meeting_id, participant_id)`, and should a late
   release enqueue one anyway, the seat's own sent markers
   (`confirmation_sent_at`, `organizer_notified_at`) stop it sending again.
+
+  Returns `{:error, reason}` when a solo meeting's emails could not be
+  queued; nothing was announced, so the job retries.
   """
-  @spec announce_video_room_outcome(term()) :: :ok
+  @spec announce_video_room_outcome(term()) :: :ok | {:error, term()}
   def announce_video_room_outcome(meeting) do
     if MeetingSchema.group?(meeting) do
       release_seat_confirmations(meeting)
     else
-      meeting_created(meeting)
+      with {:ok, _result} <- meeting_created(meeting), do: :ok
     end
-
-    :ok
   end
 
   # A room job that finishes after the host cancelled the meeting has no

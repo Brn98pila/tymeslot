@@ -134,10 +134,10 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   # lock, then finds the meeting no longer awaiting payment and does nothing.
   defp run(payment, event_id, object) do
     case complete(payment, event_id, object) do
-      {:ok, {:advanced, paid, meeting}} ->
-        after_payment(paid, meeting, object)
+      {:ok, {:advanced, paid, meeting, pending}} ->
+        after_payment(paid, meeting, pending, object)
 
-      {:ok, {:recovered, paid, meeting}} ->
+      {:ok, {:recovered, paid, meeting, pending}} ->
         Logger.warning(
           "checkout.session.completed: recovery transition — completed event arrived after expiry",
           meeting_id: meeting.id,
@@ -145,7 +145,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
           event_id: event_id
         )
 
-        after_payment(paid, meeting, object)
+        after_payment(paid, meeting, pending, object)
 
       {:ok, {:refund_scheduled, paid, meeting}} ->
         after_late_refund_scheduled(paid, meeting, event_id)
@@ -172,12 +172,12 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   # all look up the row via stripe_charge_id so this field is required for
   # them to work.  A failure here is logged but does not roll back the
   # payment transition; the reconciler can retry if needed.
-  defp after_payment(paid, meeting, object) do
+  defp after_payment(paid, meeting, pending, object) do
     backfill_charge_id(paid, object)
     emit_payment_succeeded(paid, meeting)
     broadcast(meeting.id, :paid)
-    enqueue_post_payment_effects(meeting, paid)
-    :ok
+    Availability.changed(meeting.organizer_user_id)
+    Activation.after_commit(pending)
   end
 
   defp after_late_refund_scheduled(paid, meeting, event_id) do
@@ -293,8 +293,9 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
          {:ok, paid} <- mark_paid(payment, event_id, object),
          {:ok, confirmed} <-
            MeetingQueries.update_meeting_status(meeting, post_payment_status(meeting)),
-         {:ok, _job_status} <- schedule_calendar_creation(confirmed) do
-      {:ok, {transition, paid, confirmed}}
+         {:ok, _job_status} <- schedule_calendar_creation(confirmed),
+         {:ok, pending} <- activate(confirmed) do
+      {:ok, {transition, paid, confirmed, pending}}
     else
       :no_op -> {:ok, :no_op}
       {:refuse, :host_pending_deletion, meeting} -> refuse(payment, meeting, event_id, object)
@@ -496,18 +497,19 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   # calendars alone, so a booking only stops being offered once it has been
   # written there as an event. The free path schedules that write inside the
   # booking transaction; a paid booking is not confirmed until this webhook
-  # lands, so its write is scheduled inside `run_in_transaction/3` above
+  # lands, so its write is scheduled inside `run_in_transaction/4`
   # (`schedule_calendar_creation/1`), atomically with the payment/meeting
-  # transition. Everything below here is best-effort and does not need to be
-  # atomic with that state change.
+  # transition.
   #
-  # The video room and the emails are `Bookings.Activation`'s, shared with the
-  # free path so the two cannot drift. It also refuses to confirm a booking
-  # that landed in the approval gate: a paid request is not a booking anyone
-  # has agreed to, so it takes the request fan-out instead, and
-  # `Meetings.Approval` calls back in once the host says yes.
-  defp enqueue_post_payment_effects(meeting, _payment) do
-    Availability.changed(meeting.organizer_user_id)
-    Activation.activate(meeting, with_video_room: true)
-  end
+  # The video room, the emails and the reminders are `Bookings.Activation`'s,
+  # shared with the free path so the two cannot drift, and they commit with
+  # the transition too: an email that cannot be queued rolls the payment and
+  # the meeting back to where they were, the handler answers `:retry_later`,
+  # and Stripe's redelivery confirms the booking whole. Activation also
+  # refuses to confirm a booking that landed in the approval gate: a paid
+  # request is not a booking anyone has agreed to, so it takes the request
+  # fan-out instead, and `Meetings.Approval` confirms it once the host says
+  # yes. Only the integration fan-out waits for the commit (`after_payment/4`).
+  defp activate(confirmed),
+    do: Activation.activate_in_transaction(confirmed, with_video_room: true)
 end

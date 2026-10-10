@@ -16,6 +16,13 @@ defmodule Tymeslot.Notifications.EventsTest do
   alias Tymeslot.Notifications.Events
   alias Tymeslot.Workers.{SlackWorker, TelegramWorker}
 
+  @doc false
+  @spec forward_occurrence([atom()], map(), map(), pid()) :: :ok
+  def forward_occurrence(_event, _measurements, _metadata, test_pid) do
+    send(test_pid, :occurrence_recorded)
+    :ok
+  end
+
   setup :verify_on_exit!
 
   # Stands in for an email pipeline that raises rather than returning
@@ -338,20 +345,15 @@ defmodule Tymeslot.Notifications.EventsTest do
       )
     end
 
-    test "meeting_created/1 still dispatches Telegram and reports the failure", %{
-      meeting: meeting,
-      telegram_integration: telegram_integration
-    } do
+    # The booking's emails and its announcement commit together, and the
+    # integrations hear of it only once they have: a failed email step leaves
+    # the claim free for the caller's retry, which then announces it once.
+    test "meeting_created/1 tells no integration when its emails fail, and leaves the claim for a retry",
+         %{meeting: meeting} do
       assert {:error, {:notifications_failed, %RuntimeError{}}} = Events.meeting_created(meeting)
 
-      assert_enqueued(
-        worker: TelegramWorker,
-        args: %{
-          "integration_id" => telegram_integration.id,
-          "event_type" => "meeting.created",
-          "meeting_id" => meeting.id
-        }
-      )
+      refute_enqueued(worker: TelegramWorker)
+      assert %{announced_at: nil} = Repo.reload!(meeting)
     end
 
     test "meeting_cancelled/1 still dispatches Telegram and reports the failure", %{
@@ -371,10 +373,25 @@ defmodule Tymeslot.Notifications.EventsTest do
       )
     end
 
+    # The email step runs in the announcement's transaction, which rolls back,
+    # so the report is written from a task of its own and survives it.
     test "meeting_created/1 records the email failure with the meeting", %{meeting: meeting} do
       with_config(:error_tracker, enabled: true)
+      test_pid = self()
+      handler = "events-test-occurrence-#{System.unique_integer([:positive])}"
+
+      :ok =
+        :telemetry.attach(
+          handler,
+          [:error_tracker, :occurrence, :new],
+          &__MODULE__.forward_occurrence/4,
+          test_pid
+        )
+
+      on_exit(fn -> :telemetry.detach(handler) end)
 
       assert {:error, {:notifications_failed, _exception}} = Events.meeting_created(meeting)
+      assert_receive :occurrence_recorded, 5_000
 
       assert [%Error{kind: "Elixir.RuntimeError", reason: "email pipeline down"} = error] =
                Error |> Repo.all() |> Repo.preload(:occurrences)

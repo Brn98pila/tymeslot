@@ -34,6 +34,7 @@ defmodule Tymeslot.Bookings.Reschedule do
   alias Tymeslot.Availability
 
   alias Tymeslot.Bookings.{
+    Activation,
     CalendarCheck,
     CalendarJobs,
     Errors,
@@ -129,14 +130,14 @@ defmodule Tymeslot.Bookings.Reschedule do
          {:ok, new_times} <-
            Validation.prepare_new_times(new_params, original_meeting, meeting_type, config),
          :ok <- verify_calendar_free(original_meeting, new_times, config),
-         {:ok, updated_meeting} <-
+         {:ok, {updated_meeting, pending}} <-
            apply_time_update_and_schedule_job(
              original_meeting,
              new_times,
              meeting_type,
              RescheduleLocation.attributes(original_meeting, meeting_type, new_params)
            ) do
-      after_commit(updated_meeting, original_meeting)
+      after_commit(updated_meeting, original_meeting, pending)
       {:ok, updated_meeting}
     else
       {:error, :not_found} -> {:error, :meeting_not_found}
@@ -156,12 +157,13 @@ defmodule Tymeslot.Bookings.Reschedule do
 
   # Everything a committed reschedule sets off outside the meeting row: fresh
   # availability, the provider side of any room the move left behind or
-  # moved, and the emails.
-  defp after_commit(updated_meeting, original_meeting) do
+  # moved, and the emails. `pending` is the integration fan-out a booking
+  # confirmed outright still owes (see `activate_if_confirmed_outright/2`).
+  defp after_commit(updated_meeting, original_meeting, pending) do
     Availability.changed(updated_meeting.organizer_user_id)
     RescheduleLocation.release_abandoned_room(updated_meeting, original_meeting)
     sync_provider_video_room(updated_meeting)
-    announce(updated_meeting, original_meeting)
+    announce(updated_meeting, original_meeting, pending)
   end
 
   defp apply_time_update_and_schedule_job(
@@ -200,7 +202,7 @@ defmodule Tymeslot.Bookings.Reschedule do
     # entries apart.
     #
     # A reschedule that re-enters the approval gate sends no calendar entry at
-    # all (see `announce/2`), so the bump reserves the revision rather than
+    # all (see `announce/3`), so the bump reserves the revision rather than
     # announcing it: the confirmation ICS the host's approval sends carries
     # this value, and nothing else has used it in the meantime. A request that
     # is declined or expires simply leaves the revision unspent, which costs
@@ -223,17 +225,18 @@ defmodule Tymeslot.Bookings.Reschedule do
 
     case Repo.transaction(fn ->
            with {:ok, updated} <- update_meeting(meeting, attrs),
-                {:ok, _result} <- schedule_calendar_job(updated) do
-             # Everyone is told the new times (see `announce/2`), so an end
+                {:ok, _result} <- schedule_calendar_job(updated),
+                {:ok, pending} <- activate_if_confirmed_outright(updated, meeting) do
+             # Everyone is told the new times (see `announce/3`), so an end
              # change still waiting to be announced has nothing left to say.
              :ok = MeetingCalendarQueries.clear_notified_ends(updated.id)
-             updated
+             {updated, pending}
            else
              {:error, reason} ->
                Repo.rollback(reason)
            end
          end) do
-      {:ok, updated} -> {:ok, updated}
+      {:ok, {_updated, _pending}} = ok -> ok
       {:error, :slot_taken} -> {:error, :slot_taken}
       {:error, :booking_limit_reached} -> {:error, :booking_limit_reached}
       {:error, :meeting_not_found} -> {:error, :meeting_not_found}
@@ -241,6 +244,18 @@ defmodule Tymeslot.Bookings.Reschedule do
       {:error, _reason} -> {:error, :failed_to_update_meeting}
     end
   end
+
+  # A held request this reschedule confirms outright (see `gate_attributes/3`)
+  # is a new booking nobody has been told about, so its emails and reminders
+  # commit with the reschedule, as an approval's commit with the approval, or
+  # the reschedule fails and is retried whole.
+  defp activate_if_confirmed_outright(
+         %{status: "confirmed"} = updated,
+         %{status: "awaiting_approval"}
+       ),
+       do: Activation.activate_in_transaction(updated, with_video_room: true)
+
+  defp activate_if_confirmed_outright(_updated, _meeting), do: {:ok, []}
 
   # On an ungated meeting type, or on a gated one whose current status the
   # gate is not meaningful for (see the module doc), `status` is left
@@ -349,7 +364,7 @@ defmodule Tymeslot.Bookings.Reschedule do
   # analogous to `Tymeslot.Meetings.AttendeeNotifications`'s ICS handling,
   # which lives outside this module's booking-email templates and is left for
   # that work rather than bolted on here.
-  defp announce(%{status: "awaiting_approval"} = updated, original) do
+  defp announce(%{status: "awaiting_approval"} = updated, original, _pending) do
     cancel_stale_reminders(updated)
     GuestNotifications.reset_for_new_time(updated)
 
@@ -391,8 +406,8 @@ defmodule Tymeslot.Bookings.Reschedule do
   # `apply_time_update_and_schedule_job/3`'s own is harmless:
   # `CalendarJobs.schedule_job/2` is uniqueness-guarded and reports the second
   # insert as `:already_scheduled`.
-  defp announce(%{status: "confirmed"} = updated, %{status: "awaiting_approval"}) do
-    Approval.activate_confirmed(updated)
+  defp announce(%{status: "confirmed"} = updated, %{status: "awaiting_approval"}, pending) do
+    Approval.activate_confirmed(updated, pending)
   end
 
   # A room on a newly chosen video integration, or one still on its way when
@@ -401,7 +416,7 @@ defmodule Tymeslot.Bookings.Reschedule do
   # leave room creation to the approval that confirms the booking. When a room
   # is on its way, its job sends these notifications once the join link
   # exists.
-  defp announce(updated, original) do
+  defp announce(updated, original, _pending) do
     case RescheduleLocation.create_room(updated, original) do
       :scheduled -> :ok
       :not_scheduled -> send_reschedule_notifications(updated, original)
