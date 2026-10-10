@@ -12,6 +12,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.Guests
   alias Tymeslot.Security.RateLimiter
+  alias Tymeslot.Timezones
   alias Tymeslot.Utils.DateTimeUtils
   alias TymeslotWeb.Dashboard.CalendarGrid.Helpers
 
@@ -209,13 +210,28 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
   def recurrence_timezone(nil, user_timezone), do: user_timezone
 
   def recurrence_timezone(event, user_timezone) do
-    case Map.get(event, :timezone) do
-      zone when is_binary(zone) and zone != "" ->
-        if one_off?(event) and TimeZoneComponent.utc_zone?(zone), do: user_timezone, else: zone
+    zone = Map.get(event, :timezone)
 
-      _none ->
-        user_timezone
+    cond do
+      # A name the time-zone database does not know (Outlook's "Customized
+      # Time Zone", say) cannot place a date anywhere.
+      not Timezones.valid?(zone) -> user_timezone
+      one_off?(event) and TimeZoneComponent.utc_zone?(zone) -> user_timezone
+      true -> zone
     end
+  end
+
+  @doc """
+  The zone an event's days are read in when it is toggled to or from all-day:
+  for a series, the zone it repeats in (`recurrence_timezone/2`), so its
+  first occurrence keeps its calendar's day; for a one-off, the viewer's, so
+  it lands on the day the grid showed it on.
+  """
+  @spec all_day_timezone(map(), String.t() | nil) :: String.t() | nil
+  def all_day_timezone(event, user_timezone) do
+    if one_off?(event),
+      do: user_timezone,
+      else: recurrence_timezone(event, user_timezone)
   end
 
   # A Google or Outlook occurrence carries no rule, only the master it

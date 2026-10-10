@@ -18,9 +18,12 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
   import Tymeslot.AuthTestHelpers
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
   alias Plug.Test
   alias Tymeslot.Integrations.Calendar.Google.EventMapper, as: GoogleEventMapper
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
+  alias Tymeslot.Profiles
+  alias Tymeslot.Repo
 
   setup :verify_on_exit!
 
@@ -151,6 +154,107 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
 
       {:ok, row} = ProviderCalendarEventQueries.get_by_uid(integration.id, event.uid)
       assert row.recurrence_rule == "FREQ=WEEKLY;BYDAY=MO;UNTIL=20261231"
+    end
+  end
+
+  describe "an event in a zone the time-zone database does not know" do
+    # Outlook-made calendar files often name their zone "Customized Time
+    # Zone"; the grid reads such an event in the organiser's zone.
+    test "a series toggles to all-day on the day it shows on", %{
+      conn: conn,
+      integration: integration
+    } do
+      event = insert_timed_event(integration, %{timezone: "Customized Time Zone"})
+
+      expect_provider_update(:ok)
+
+      lv = open_event(conn, event)
+      lv |> element("#calendar-grid") |> render_hook("toggle_event_all_day", %{})
+
+      payload = await_provider_update(lv)
+      assert payload.start_time == Date.utc_today()
+    end
+
+    test "opens the repeat editor for its series", %{conn: conn, integration: integration} do
+      event = insert_timed_event(integration, %{timezone: "Customized Time Zone"})
+
+      lv = open_event(conn, event)
+
+      html =
+        lv
+        |> element("#calendar-grid")
+        |> render_hook("update_event_recurrence", %{
+          "freq" => "weekly",
+          "interval" => "1",
+          "by_day" => ["mo", "we"],
+          "end_type" => "never"
+        })
+
+      assert html =~ "Repeats weekly on Mon, Wed"
+    end
+  end
+
+  describe "toggling to all-day an event kept in another zone than the viewer's" do
+    setup %{user: user} do
+      user.id
+      |> Profiles.get_profile()
+      |> Changeset.change(timezone: "America/New_York")
+      |> Repo.update!()
+
+      %{today: DateTime.to_date(DateTime.now!("America/New_York"))}
+    end
+
+    # 22:00 in New York is already tomorrow in Berlin, the event's own zone.
+    test "a one-off lands on the day the viewer sees it on", %{
+      conn: conn,
+      integration: integration,
+      today: today
+    } do
+      start_at = new_york(today, ~T[22:00:00])
+
+      event =
+        insert_timed_event(integration, %{
+          start_at: start_at,
+          end_at: DateTime.add(start_at, 30, :minute),
+          timezone: "Europe/Berlin",
+          recurrence_rule: nil,
+          recurring_event_id: nil
+        })
+
+      expect_provider_update(:ok)
+
+      lv = open_event(conn, event)
+      lv |> element("#calendar-grid") |> render_hook("toggle_event_all_day", %{})
+
+      payload = await_provider_update(lv)
+      assert payload.start_time == today
+    end
+
+    # A series belongs to the calendar it repeats on: 00:30 in Berlin is
+    # still the evening before in New York, and the series keeps Berlin's day.
+    test "a series keeps the day of the calendar it repeats on", %{
+      conn: conn,
+      integration: integration,
+      today: today
+    } do
+      start_at = new_york(today, ~T[19:30:00])
+      berlin_day = start_at |> DateTime.shift_zone!("Europe/Berlin") |> DateTime.to_date()
+      assert Date.diff(berlin_day, today) == 1
+
+      event =
+        insert_timed_event(integration, %{
+          start_at: start_at,
+          end_at: DateTime.add(start_at, 30, :minute),
+          timezone: "Europe/Berlin"
+        })
+
+      expect_provider_update(:ok)
+
+      lv = open_event(conn, event)
+      lv |> element("#calendar-grid") |> render_hook("toggle_event_all_day", %{})
+
+      payload = await_provider_update(lv)
+      assert payload.start_time == berlin_day
     end
   end
 
@@ -392,6 +496,15 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
 
     insert(:provider_calendar_event, Map.merge(defaults, attrs))
   end
+
+  defp open_event(conn, event) do
+    {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+    lv |> element("[id^='event-#{event.id}-']") |> render_click()
+    lv
+  end
+
+  defp new_york(date, time),
+    do: date |> DateTime.new!(time, "America/New_York") |> DateTime.shift_zone!("Etc/UTC")
 
   defp expect_provider_update(result) do
     test_pid = self()

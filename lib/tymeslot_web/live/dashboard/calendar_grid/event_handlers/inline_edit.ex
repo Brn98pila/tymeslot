@@ -537,9 +537,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.InlineEdit do
   # DTSTART calls for, and a timed UNTIL is an instant, so the domain needs a
   # timezone to end the chosen day in: the event's own, which is the calendar
   # the series sits on. `build` derives the new copy of the event in that same
-  # zone.
+  # zone. A one-off has no UNTIL and keeps the day the viewer saw it on
+  # (`Shared.all_day_timezone/2`).
   defp push_all_day_change(socket, original_event, build) do
-    timezone = Shared.recurrence_timezone(original_event, socket.assigns.user_timezone)
+    timezone = Shared.all_day_timezone(original_event, socket.assigns.user_timezone)
     optimistic_event = build.(timezone)
 
     result =
