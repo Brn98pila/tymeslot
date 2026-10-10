@@ -120,6 +120,25 @@ defmodule Tymeslot.Infrastructure.RetryTest do
 
       assert div(elapsed_us, 1_000) < 1_000
     end
+
+    test "is returned at once when it asks for longer than the caller will wait" do
+      {fun, calls} = counting([{:error, {:rate_limited, 3}}, {:ok, :done}])
+
+      assert Retry.with_backoff(fun, @fast ++ [max_rate_limit_wait: 2_000]) ==
+               {:error, {:rate_limited, 3}}
+
+      assert calls.() == 1
+    end
+
+    test "is still retried when it asks for no more than the caller will wait" do
+      {fun, calls} = counting([{:error, {:rate_limited, 2}}, {:ok, :done}])
+
+      assert quietly(fn ->
+               Retry.with_backoff(fun, @fast ++ [max_delay: 0, max_rate_limit_wait: 2_000])
+             end) == {:ok, :done}
+
+      assert calls.() == 2
+    end
   end
 
   describe "retry_after_seconds/1" do

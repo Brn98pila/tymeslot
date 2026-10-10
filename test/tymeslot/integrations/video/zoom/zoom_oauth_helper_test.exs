@@ -160,6 +160,29 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
       assert div(elapsed_us, 1_000) >= 60
     end
 
+    # The owner is waiting on the callback page.
+    test "fails at once when Zoom asks for a longer wait than a page can hold" do
+      %{resp_body: resp_body} = oauth_test_data()
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, _body, _headers, _opts ->
+        {:ok, %{status: 200, body: resp_body}}
+      end)
+
+      expect(Tymeslot.HTTPClientMock, :get, 1, fn _url, _headers, _opts ->
+        {:ok, %Req.Response{status: 429, headers: %{"retry-after" => ["30"]}, body: ""}}
+      end)
+
+      {elapsed_us, {result, _log}} =
+        :timer.tc(fn ->
+          CaptureLog.with_log(fn ->
+            ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb")
+          end)
+        end)
+
+      assert result == {:error, "Failed to fetch user profile: HTTP 429"}
+      assert div(elapsed_us, 1_000) < 1_000
+    end
+
     test "does not retry a profile request Zoom refuses" do
       %{resp_body: resp_body} = oauth_test_data()
 

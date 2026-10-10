@@ -23,6 +23,11 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
 
   require Logger
 
+  # The profile is fetched during the OAuth callback, with the owner waiting
+  # on the page: a rate limit asking for longer than this fails the connect
+  # with its error rather than holding the request.
+  @profile_retry [max_rate_limit_wait: 2_000]
+
   @doc """
   Generates the OAuth authorization URL for Microsoft Teams.
   """
@@ -145,7 +150,7 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
           {:error, reason}
       end
     end
-    |> Retry.with_backoff(Keyword.get(opts, :profile_retry, []))
+    |> Retry.with_backoff(Keyword.merge(@profile_retry, Keyword.get(opts, :profile_retry, [])))
     |> profile_error_message()
   end
 

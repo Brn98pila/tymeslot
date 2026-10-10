@@ -12,7 +12,8 @@ defmodule Tymeslot.Infrastructure.Retry do
   knows what failed.
 
   A rate limit that names its wait, `{:rate_limited, seconds}`, is retried
-  after that wait (capped at `:max_delay`) rather than the usual backoff.
+  after that wait (capped at `:max_delay`) rather than the usual backoff, or
+  returned at once when the wait is longer than `:max_rate_limit_wait`.
   `retry_after_seconds/1` reads the wait from a 429 response.
   """
 
@@ -25,6 +26,7 @@ defmodule Tymeslot.Infrastructure.Retry do
     max_attempts: 3,
     initial_delay: 1_000,
     max_delay: 16_000,
+    max_rate_limit_wait: :infinity,
     jitter: 0.25,
     retriable?: &BreakerOutcome.transient?/1
   ]
@@ -33,6 +35,7 @@ defmodule Tymeslot.Infrastructure.Retry do
           max_attempts: pos_integer(),
           initial_delay: non_neg_integer(),
           max_delay: non_neg_integer(),
+          max_rate_limit_wait: non_neg_integer() | :infinity,
           jitter: float(),
           retriable?: (term() -> boolean())
         ]
@@ -46,6 +49,10 @@ defmodule Tymeslot.Infrastructure.Retry do
     * `:initial_delay` - delay before the second attempt, in ms (default 1000);
       each later delay doubles
     * `:max_delay` - cap on any one delay, in ms (default 16000)
+    * `:max_rate_limit_wait` - the longest wait a rate limit may name, in ms,
+      for it to be retried (default `:infinity`). Set it where someone is
+      waiting on the answer: past it, waiting less than the provider asked
+      only earns another rate limit, so the error is returned instead.
     * `:jitter` - each delay varies by up to this fraction either way
       (default 0.25; 0.0 for none)
     * `:retriable?` - whether an error reason is worth another attempt
@@ -97,6 +104,9 @@ defmodule Tymeslot.Infrastructure.Retry do
       not opts[:retriable?].(reason) ->
         error
 
+      waits_too_long?(reason, opts[:max_rate_limit_wait]) ->
+        error
+
       attempt >= opts[:max_attempts] ->
         Logger.warning("Retry attempts exhausted",
           attempts: attempt,
@@ -119,6 +129,12 @@ defmodule Tymeslot.Infrastructure.Retry do
         run(fun, attempt + 1, opts)
     end
   end
+
+  defp waits_too_long?({:rate_limited, seconds}, max_wait)
+       when is_integer(seconds) and is_integer(max_wait),
+       do: seconds * 1_000 > max_wait
+
+  defp waits_too_long?(_reason, _max_wait), do: false
 
   defp delay_for({:rate_limited, seconds}, _attempt, opts)
        when is_integer(seconds) and seconds >= 0,
