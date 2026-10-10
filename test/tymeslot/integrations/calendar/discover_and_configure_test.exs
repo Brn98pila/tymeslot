@@ -74,6 +74,33 @@ defmodule Tymeslot.Integrations.Calendar.DiscoverAndConfigureTest do
              }
     end
 
+    test "a reconnected account keeps each known calendar's blocking choice", %{user: user} do
+      expect(GoogleCalendarAPIMock, :list_calendars, fn _integration ->
+        {:ok,
+         [
+           %{"id" => "me@example.com", "summary" => "Me", "primary" => true},
+           %{"id" => "team@group.calendar.google.com", "accessRole" => "owner"}
+         ]}
+      end)
+
+      integration =
+        insert(:calendar_integration,
+          user: user,
+          provider: "google",
+          calendar_list: [
+            %{id: "me@example.com", primary: true, selected: true},
+            %{id: "team@group.calendar.google.com", selected: true, blocks_availability: false}
+          ]
+        )
+
+      assert {:ok, updated} = CalendarPrimary.discover_and_configure_calendars(integration)
+
+      assert Map.new(updated.calendar_list, &{&1.id, &1.blocks_availability}) == %{
+               "me@example.com" => true,
+               "team@group.calendar.google.com" => false
+             }
+    end
+
     test "a read-only calendar listed first is passed over for the writable one",
          %{user: user} do
       # Delegated or Workspace resource accounts can have no primary entry at

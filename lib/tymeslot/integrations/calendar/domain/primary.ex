@@ -9,6 +9,7 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   alias Tymeslot.Integrations.Calendar, as: CalendarContext
   alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.BookingEligibility
+  alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.Selection
@@ -86,7 +87,14 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   # never one `Defaults.resolve_default_calendar_id/1` would refuse. Only an
   # OAuth connection reaches this, and its discovered entries carry no path,
   # so `calendar_paths` is left alone: it must stay empty for those providers.
-  defp auto_select_primary_calendar(integration, calendars) do
+  defp auto_select_primary_calendar(integration, discovered) do
+    # A reconnected account keeps whether each calendar it already knew
+    # blocks availability; the selection is discovery's, as on any connect.
+    calendars =
+      discovered
+      |> Enum.map(&CalendarEntry.normalize/1)
+      |> Selection.carry_blocking_choices(integration.calendar_list)
+
     eligible = Defaults.eligible_for_booking(calendars)
 
     default_calendar_id =
