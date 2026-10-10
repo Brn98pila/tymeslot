@@ -7,9 +7,7 @@ defmodule Tymeslot.Emails.EmailService.IntegrationEmails do
 
   require Logger
 
-  alias Swoosh.Email
   alias Tymeslot.Emails.Delivery
-  alias Tymeslot.Emails.Shared.MjmlEmail
 
   alias Tymeslot.Emails.Templates.{
     AdminAlert,
@@ -150,17 +148,9 @@ defmodule Tymeslot.Emails.EmailService.IntegrationEmails do
       severity: severity
     )
 
-    html_body = AdminAlert.render(category, severity, message, metadata)
-    text_body = AdminAlert.render_text(category, severity, message, metadata)
-
-    email =
-      MjmlEmail.base_email()
-      |> Email.to({"Tymeslot Operator", recipient})
-      |> Email.subject(AdminAlert.subject(category, severity))
-      |> Email.html_body(html_body)
-      |> Email.text_body(text_body)
-
-    Delivery.deliver(email)
+    recipient
+    |> AdminAlert.render(category, severity, message, metadata)
+    |> Delivery.deliver()
   end
 
   @doc """
@@ -177,13 +167,8 @@ defmodule Tymeslot.Emails.EmailService.IntegrationEmails do
       entries: length(Map.get(digest, "entries", []))
     )
 
-    email =
-      MjmlEmail.base_email()
-      |> Email.to({"Tymeslot Operator", recipient})
-      |> Email.subject(AdminAlertDigest.subject(digest))
-      |> Email.html_body(AdminAlertDigest.render(digest))
-      |> Email.text_body(AdminAlertDigest.render_text(digest))
-
-    Delivery.deliver(email)
+    recipient
+    |> AdminAlertDigest.render(digest)
+    |> Delivery.deliver()
   end
 end
