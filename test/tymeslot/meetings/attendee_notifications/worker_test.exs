@@ -124,6 +124,36 @@ defmodule Tymeslot.Meetings.AttendeeNotifications.WorkerTest do
       assert Enum.map(jobs, & &1.state) == ["completed", "available"]
     end
 
+    # The baseline is the record of what attendees were told. An enqueue that
+    # fails must leave it where it was, so the retry still sees the change.
+    test "a failed enqueue leaves the baseline, and the retry announces the change", %{
+      event: event,
+      baseline_state: baseline_state
+    } do
+      {:ok, event} = event |> Changeset.change(summary: "changed") |> Repo.update()
+
+      # Rolled back with the test's sandbox transaction.
+      Repo.query!("""
+      ALTER TABLE oban_jobs ADD CONSTRAINT test_refuse_event_update
+      CHECK (args->>'action' <> 'send_event_update_notification')
+      """)
+
+      assert_raise Ecto.ConstraintError, fn -> perform_job(Worker, update_args(event)) end
+
+      assert Repo.get!(ProviderCalendarEventSchema, event.id).last_notified_state ==
+               baseline_state
+
+      Repo.query!("ALTER TABLE oban_jobs DROP CONSTRAINT test_refuse_event_update")
+
+      assert :ok = perform_job(Worker, update_args(event))
+
+      assert [%Oban.Job{args: %{"before_title" => "original"}}] =
+               all_enqueued(worker: EmailWorker)
+
+      assert Repo.get!(ProviderCalendarEventSchema, event.id).last_notified_state["title"] ==
+               "changed"
+    end
+
     test "no-ops when diff is empty (user reverted edits)", %{event: event} do
       args = %{
         "event_id" => event.id,
