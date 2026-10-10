@@ -36,23 +36,14 @@ defmodule Tymeslot.Meetings.ApprovalToken do
   approved would hand them the host's calendar.
   """
 
-  alias Phoenix.Token
   alias Tymeslot.Auth
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
   alias Tymeslot.SignedToken
-  alias TymeslotWeb.Endpoint
-
-  @salt "meeting approval"
-
-  # Two weeks is the longest window a meeting type may configure; the extra
-  # fortnight covers a host coming back from leave to a request that has long
-  # since lapsed, so they see "this expired" rather than a broken link.
-  @max_age_seconds 28 * 24 * 3600
 
   @doc "How long an issued token stays verifiable, in seconds."
   @spec max_age() :: pos_integer()
-  def max_age, do: @max_age_seconds
+  def max_age, do: SignedToken.max_age(:meeting_approval)
 
   @doc """
   Signs a token identifying one booking request and the host who owns it.
@@ -63,7 +54,7 @@ defmodule Tymeslot.Meetings.ApprovalToken do
   """
   @spec sign(Meeting.t()) :: String.t()
   def sign(%Meeting{id: id, organizer_user_id: organizer_user_id} = meeting) do
-    Token.sign(Endpoint, @salt, {id, organizer_user_id, meeting.approval_requested_at})
+    SignedToken.sign(:meeting_approval, {id, organizer_user_id, meeting.approval_requested_at})
   end
 
   @doc """
@@ -84,7 +75,7 @@ defmodule Tymeslot.Meetings.ApprovalToken do
   """
   @spec verify(String.t()) :: {:ok, Meeting.t()} | {:error, atom()}
   def verify(token) when is_binary(token) do
-    SignedToken.verify(token, @salt, @max_age_seconds, &validate/1)
+    SignedToken.verify(:meeting_approval, token, validate: &validate/1)
   end
 
   def verify(_token), do: {:error, :invalid}

@@ -42,7 +42,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Creation do
   def run(socket, posted_params) do
     user = socket.assigns.current_user
 
-    case RateLimiter.check_meeting_type_write_rate_limit(user.id) do
+    case RateLimiter.check(:meeting_type_write, user.id) do
       :ok ->
         socket = merge_posted_details(socket, posted_params)
 

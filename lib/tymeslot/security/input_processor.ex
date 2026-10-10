@@ -117,7 +117,7 @@ defmodule Tymeslot.Security.InputProcessor do
   def validate_field(value, type_or_module, opts \\ []) do
     universal_opts = Keyword.get(opts, :universal_opts, [])
     field = Keyword.get(opts, :field, type_or_module)
-    validator_module = resolve_validator(type_or_module)
+    {validator_module, default_opts} = resolve_validator(type_or_module)
 
     # The caller's request metadata goes into the security log entry the
     # sanitiser writes when it changes the value, as it does for whole forms.
@@ -129,7 +129,7 @@ defmodule Tymeslot.Security.InputProcessor do
 
     with {:ok, sanitized} <-
            UniversalSanitizer.sanitize_and_validate(value, universal_opts_with_field),
-         :ok <- validator_module.validate(sanitized, opts) do
+         :ok <- validator_module.validate(sanitized, Keyword.merge(default_opts, opts)) do
       {:ok, sanitized}
     end
   end
@@ -162,7 +162,7 @@ defmodule Tymeslot.Security.InputProcessor do
   # name a field by atom or string; params arrive with string keys.
   defp identifier_keys(field_specs) do
     for spec <- field_specs,
-        resolve_validator(elem(spec, 1)) in @identifier_validators,
+        elem(resolve_validator(elem(spec, 1)), 0) in @identifier_validators,
         into: MapSet.new(),
         do: to_string(elem(spec, 0))
   end
@@ -197,7 +197,7 @@ defmodule Tymeslot.Security.InputProcessor do
             {f, t} -> {f, t, []}
           end
 
-        validator_module = resolve_validator(type_or_module)
+        {validator_module, default_opts} = resolve_validator(type_or_module)
         field_key = safe_field_key(field_name)
 
         field_value =
@@ -209,7 +209,7 @@ defmodule Tymeslot.Security.InputProcessor do
               Map.get(sanitized_params, name)
           end
 
-        case validator_module.validate(field_value, field_opts) do
+        case validator_module.validate(field_value, Keyword.merge(default_opts, field_opts)) do
           :ok ->
             acc
 
@@ -225,13 +225,18 @@ defmodule Tymeslot.Security.InputProcessor do
     end
   end
 
-  defp resolve_validator(:email), do: FieldValidators.EmailValidator
-  defp resolve_validator(:password), do: FieldValidators.PasswordValidator
-  defp resolve_validator(:name), do: FieldValidators.NameValidator
-  defp resolve_validator(:full_name), do: FieldValidators.FullNameValidator
-  defp resolve_validator(:username), do: FieldValidators.UsernameValidator
-  defp resolve_validator(:message), do: FieldValidators.MessageValidator
-  defp resolve_validator(:text), do: FieldValidators.TextValidator
-  defp resolve_validator(:integration_name), do: FieldValidators.IntegrationNameValidator
-  defp resolve_validator(module) when is_atom(module), do: module
+  # A field type names a validator and the options it starts from; the
+  # caller's options are merged over them.
+  defp resolve_validator(:email), do: {FieldValidators.EmailValidator, []}
+  defp resolve_validator(:password), do: {FieldValidators.PasswordValidator, []}
+  defp resolve_validator(:name), do: {FieldValidators.NameValidator, []}
+  # A display name is optional, and one letter is a name.
+  defp resolve_validator(:full_name),
+    do: {FieldValidators.NameValidator, [required: false, min_length: 1]}
+
+  defp resolve_validator(:username), do: {FieldValidators.UsernameValidator, []}
+  defp resolve_validator(:message), do: {FieldValidators.MessageValidator, []}
+  defp resolve_validator(:text), do: {FieldValidators.TextValidator, []}
+  defp resolve_validator(:integration_name), do: {FieldValidators.IntegrationNameValidator, []}
+  defp resolve_validator(module) when is_atom(module), do: {module, []}
 end

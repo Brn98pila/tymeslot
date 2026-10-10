@@ -184,7 +184,7 @@ defmodule Tymeslot.Auth.RegistrationTest do
         UserTokenQueries.request_email_change(
           squatter,
           "parked@example.com",
-          Token.generate_token()
+          Token.generate()
         )
 
       squatter

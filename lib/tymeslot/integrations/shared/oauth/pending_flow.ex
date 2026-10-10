@@ -21,6 +21,7 @@ defmodule Tymeslot.Integrations.Shared.OAuth.PendingFlow do
   alias Tymeslot.Clock
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlowQueries
   alias Tymeslot.Security.Encryption
+  alias Tymeslot.Security.Token
 
   # As long as the signed state itself is valid (`State`'s default TTL).
   @ttl_seconds 3600
@@ -105,7 +106,7 @@ defmodule Tymeslot.Integrations.Shared.OAuth.PendingFlow do
 
   # 32 random bytes, base64url: 43 characters, inside RFC 7636's 43 to 128
   # for a verifier, and free of the `:` and `|` the state's encoding uses.
-  defp random_token, do: Base.url_encode64(:crypto.strong_rand_bytes(32), padding: false)
+  defp random_token, do: Token.generate(32)
 
   defp code_challenge(code_verifier),
     do: Base.url_encode64(:crypto.hash(:sha256, code_verifier), padding: false)

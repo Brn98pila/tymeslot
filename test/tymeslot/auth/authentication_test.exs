@@ -63,7 +63,7 @@ defmodule Tymeslot.Auth.AuthenticationTest do
     test "the fresh link is capped per account, and the reply stays the generic failure" do
       password = "ValidPass123!"
       user = insert(:unverified_user, password_hash: Password.hash_password(password))
-      for _i <- 1..5, do: RateLimiter.check_verification_user_rate_limit(user.id)
+      for _i <- 1..5, do: RateLimiter.check(:verification_user, user.id)
 
       assert {:error, :invalid_password, message} =
                Authentication.authenticate_user(user.email, password, ip: "198.51.100.62")

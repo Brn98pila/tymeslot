@@ -154,6 +154,6 @@ defmodule Tymeslot.AuthTestHelpers do
   """
   @spec generate_email_verification_token(term()) :: binary()
   def generate_email_verification_token(_user) do
-    Token.generate_token()
+    Token.generate()
   end
 end

@@ -165,7 +165,7 @@ defmodule Tymeslot.Auth.RegistrationCompositionTest do
 
       # Burn through the requester's 10-minute / 5-attempt signup bucket.
       for _i <- 1..5 do
-        RateLimiter.check_signup_ip_rate_limit(opts[:ip])
+        RateLimiter.check(:signup_ip, opts[:ip])
       end
 
       params = %{

@@ -11,7 +11,7 @@ defmodule Tymeslot.Auth.AccountDeletion do
   require Logger
 
   alias Tymeslot.Auth.AccountDeletion.Hook
-  alias Tymeslot.Auth.{Session, UserQueries, UserSchema, UserSessionQueries}
+  alias Tymeslot.Auth.{Session, UserQueries, UserSchema}
   alias Tymeslot.FinancialRetention
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar
@@ -79,9 +79,9 @@ defmodule Tymeslot.Auth.AccountDeletion do
     end
   end
 
-  # The session rows go with the user by FK cascade; their hashes are read
-  # first, inside the same transaction, so the live sockets bound to them can
-  # be told to disconnect once the deletion has committed.
+  # The session rows are deleted first, inside the same transaction, and their
+  # hashes kept, so the live sockets bound to them can be told to disconnect
+  # once the deletion has committed.
   defp run_deletion_transaction(user, opts) do
     Repo.transaction(fn ->
       # Before the user row: the cascade reaches every cached calendar event,
@@ -89,7 +89,7 @@ defmodule Tymeslot.Auth.AccountDeletion do
       Calendar.lock_calendar_caches(user.id)
 
       with :ok <- confirm_due_for_deletion(user.id, Keyword.get(opts, :only_if_pending, false)),
-           session_hashes = UserSessionQueries.list_user_session_token_hashes(user.id),
+           session_hashes = Session.delete_session_rows(user.id),
            :ok <- FinancialRetention.anonymise_host(user.id),
            {:ok, deleted} <- UserQueries.delete_user_row(user) do
         clear_pending_jobs(user.id, Keyword.get(opts, :meeting_ids))
@@ -132,7 +132,7 @@ defmodule Tymeslot.Auth.AccountDeletion do
   # Only after the commit: a rolled-back deletion must leave its sessions
   # connected.
   defp disconnect_sessions({:ok, {deleted, session_hashes}}) do
-    Enum.each(session_hashes, &Session.disconnect_session_hash/1)
+    :ok = Session.disconnect_sessions(session_hashes)
     {:ok, deleted}
   end
 

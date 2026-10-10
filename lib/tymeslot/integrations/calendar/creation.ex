@@ -152,7 +152,7 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
   """
   @spec check_write_budget(user_id()) :: :ok | {:error, {:rate_limited, String.t()}}
   def check_write_budget(user_id) when is_integer(user_id) and user_id > 0 do
-    case RateLimiter.check_integration_write_rate_limit(user_id) do
+    case RateLimiter.check(:integration_write, user_id) do
       :ok -> :ok
       {:error, :rate_limited, message} -> {:error, {:rate_limited, message}}
     end

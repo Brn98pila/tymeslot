@@ -29,9 +29,9 @@ defmodule Tymeslot.Security.RateLimiterMultiBucketRefusalTest do
     test "signup names its 10-minute tier" do
       ip = "203.0.113.90"
 
-      for _i <- 1..5, do: assert(:ok = RateLimiter.check_signup_ip_rate_limit(ip))
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check(:signup_ip, ip))
 
-      assert {:error, :rate_limited, message} = RateLimiter.check_signup_ip_rate_limit(ip)
+      assert {:error, :rate_limited, message} = RateLimiter.check(:signup_ip, ip)
 
       assert message ==
                "You've reached the limit of 5 signup attempts per 10 minutes. " <>
@@ -55,10 +55,10 @@ defmodule Tymeslot.Security.RateLimiterMultiBucketRefusalTest do
     test "password reset names its hourly tier" do
       ip = "203.0.113.92"
 
-      for _i <- 1..5, do: assert(:ok = RateLimiter.check_password_reset_ip_rate_limit(ip))
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check(:password_reset_ip, ip))
 
       assert {:error, :rate_limited, message} =
-               RateLimiter.check_password_reset_ip_rate_limit(ip)
+               RateLimiter.check(:password_reset_ip, ip)
 
       assert message ==
                "You've reached the limit of 5 password reset requests per hour. " <>
@@ -68,10 +68,10 @@ defmodule Tymeslot.Security.RateLimiterMultiBucketRefusalTest do
     test "the booking recipient cap names its hourly tier" do
       email = "refusal-recipient@example.com"
 
-      for _i <- 1..5, do: assert(:ok = RateLimiter.check_booking_recipient_limit(email))
+      for _i <- 1..5, do: assert(:ok = RateLimiter.check(:booking_recipient, email))
 
       assert {:error, :rate_limited, message} =
-               RateLimiter.check_booking_recipient_limit(email)
+               RateLimiter.check(:booking_recipient, email)
 
       assert message ==
                "You've reached the limit of 5 bookings per hour. " <>
@@ -85,10 +85,10 @@ defmodule Tymeslot.Security.RateLimiterMultiBucketRefusalTest do
     test "a calendar event move names its one-minute tier in the singular, not as per 1 minutes" do
       user_id = 99_501
 
-      for _i <- 1..3, do: assert(:ok = RateLimiter.check_calendar_event_move_rate_limit(user_id))
+      for _i <- 1..3, do: assert(:ok = RateLimiter.check(:calendar_event_move, user_id))
 
       assert {:error, :rate_limited, message} =
-               RateLimiter.check_calendar_event_move_rate_limit(user_id)
+               RateLimiter.check(:calendar_event_move, user_id)
 
       assert message ==
                "You've reached the limit of 3 calendar event moves per minute. " <>
@@ -104,9 +104,9 @@ defmodule Tymeslot.Security.RateLimiterMultiBucketRefusalTest do
 
       message =
         Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
-          for _i <- 1..5, do: assert(:ok = RateLimiter.check_signup_ip_rate_limit(ip))
+          for _i <- 1..5, do: assert(:ok = RateLimiter.check(:signup_ip, ip))
 
-          assert {:error, :rate_limited, message} = RateLimiter.check_signup_ip_rate_limit(ip)
+          assert {:error, :rate_limited, message} = RateLimiter.check(:signup_ip, ip)
           message
         end)
 
@@ -118,20 +118,22 @@ defmodule Tymeslot.Security.RateLimiterMultiBucketRefusalTest do
     test "the log line stays English while the sentence is translated" do
       LogCapture.attach()
 
-      ip = "203.0.113.94"
+      # A tiered limit that logs its own refusals (the auth ones leave that to
+      # the auth flows' security event).
+      email = "tiers-#{System.unique_integer([:positive])}@example.com"
 
       Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
-        for _i <- 1..5, do: RateLimiter.check_signup_ip_rate_limit(ip)
-        assert {:error, :rate_limited, _message} = RateLimiter.check_signup_ip_rate_limit(ip)
+        for _i <- 1..5, do: RateLimiter.check(:booking_recipient, email)
+        assert {:error, :rate_limited, _message} = RateLimiter.check(:booking_recipient, email)
       end)
 
       assert_receive {:captured_log, %{level: :warning, meta: %{operation: operation} = meta}}
 
       # `operation` is what a log search is keyed on, so it must not follow the
       # reader's locale the way the sentence does.
-      assert operation == "signup"
+      assert operation == "booking"
       assert meta.limit == 5
-      assert meta.window_minutes == 10
+      assert meta.window_minutes == 60
     end
   end
 

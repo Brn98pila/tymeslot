@@ -160,6 +160,22 @@ defmodule TymeslotWeb.Live.Dashboard.EmbedSettingsTest do
       assert render(view) =~ "Invalid domain format"
     end
 
+    test "lists every problem with the domains, in the order entered", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/dashboard/embed")
+
+      view |> element("button#embed-settings-tabs-tab-security") |> render_click()
+
+      view
+      |> form("form[phx-submit='save_embed_domains']", %{
+        allowed_domains: "example.com/path, *.bad_host.com"
+      })
+      |> render_submit()
+
+      assert render(view) =~
+               "Failed to save: Invalid domain format (e.g. example.com), " <>
+                 "Invalid domain format (e.g. *.example.com)"
+    end
+
     test "shows error when too many domains", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/dashboard/embed")
 

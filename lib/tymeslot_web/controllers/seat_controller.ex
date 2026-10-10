@@ -113,7 +113,7 @@ defmodule TymeslotWeb.SeatController do
   # Private helpers
   # ---------------------------------------------------------------------------
 
-  defp rate_limit(conn), do: RateLimiter.check_seat_manage_rate_limit(ClientIP.get(conn))
+  defp rate_limit(conn), do: RateLimiter.check(:seat_manage, ClientIP.get(conn))
 
   # Only a supported locale is applied; a stored one the app has since
   # stopped offering leaves the request's own in place.

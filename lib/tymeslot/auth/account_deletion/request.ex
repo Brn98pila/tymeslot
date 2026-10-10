@@ -7,6 +7,11 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
   its email address (`Policy.confirmation_method/1`). The check is held to
   the login rate limit, like every other password check in account settings.
 
+  The only admin who can still sign in is refused (`:last_admin`): another
+  admin has to be promoted first, or an operator deletes the account from the
+  release shell. The admins are locked for the check, as for demotion, so two
+  admins asking at once cannot both pass it.
+
   Then, in one transaction under the user's row lock, the account is marked
   pending (due at now plus the grace period) and its deletion job queued for
   that time, and its session rows deleted. A repeated request keeps the
@@ -33,7 +38,17 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
   require Logger
 
   alias Tymeslot.Auth.AccountDeletion.{Hook, Policy}
-  alias Tymeslot.Auth.{RateLimit, Session, UserQueries, UserSchema, Validation}
+
+  alias Tymeslot.Auth.{
+    AdminRoles,
+    AdminUserQueries,
+    RateLimit,
+    Session,
+    UserQueries,
+    UserSchema,
+    Validation
+  }
+
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.PubSub
@@ -77,8 +92,11 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
 
   defp schedule(user_id, params, now, scheduled_at) do
     Repo.transaction(fn ->
+      AdminUserQueries.lock_admins()
+
       with {:ok, user} <- UserQueries.get_user_for_update(user_id),
            :ok <- confirm_identity(user, params),
+           :ok <- refuse_last_admin(user),
            {:ok, outcome} <- mark_pending(user, now, scheduled_at),
            {:ok, result} <- finish_scheduling(outcome) do
         result
@@ -87,6 +105,14 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
       end
     end)
   end
+
+  # An admin already pending does not count as one who can sign in, so a
+  # repeated request is let through to keep its first schedule.
+  defp refuse_last_admin(%UserSchema{is_admin: true, deletion_scheduled_at: nil} = user) do
+    if AdminRoles.remaining_signin_capable_admins?(user), do: :ok, else: {:error, :last_admin}
+  end
+
+  defp refuse_last_admin(_user), do: :ok
 
   # A second submit (a double click, two tabs) keeps the first schedule and
   # repeats none of its side effects.
@@ -152,6 +178,16 @@ defmodule Tymeslot.Auth.AccountDeletion.Request do
 
   defp field_error(:email_mismatch),
     do: %{confirm_email: dgettext("account", "That is not the email address of this account.")}
+
+  defp field_error(:last_admin) do
+    %{
+      base:
+        dgettext(
+          "account",
+          "You are the only admin who can sign in, so this account cannot be deleted yet. Make another account an admin first, or ask the server operator to delete it from the release shell."
+        )
+    }
+  end
 
   defp field_error(_unexpected) do
     %{

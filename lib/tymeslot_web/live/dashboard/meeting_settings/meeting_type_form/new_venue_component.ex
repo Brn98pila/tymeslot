@@ -40,7 +40,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.NewVenueComponen
   def handle_event("save", %{"venue" => params}, socket) do
     user_id = socket.assigns.current_user.id
 
-    case RateLimiter.check_meeting_type_write_rate_limit(user_id) do
+    case RateLimiter.check(:meeting_type_write, user_id) do
       :ok ->
         create(socket, user_id, params)
 

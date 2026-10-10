@@ -36,7 +36,6 @@ defmodule Tymeslot.Factory do
   alias Tymeslot.Telegram.TelegramDeliverySchema
   alias Tymeslot.Telegram.TelegramIntegrationSchema
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
-  alias Tymeslot.Utils.UnguessableToken
   alias Tymeslot.Venues.VenueSchema
   alias Tymeslot.Webhooks.WebhookDeliverySchema
   alias Tymeslot.Webhooks.WebhookSchema
@@ -142,7 +141,7 @@ defmodule Tymeslot.Factory do
       timezone: "Europe/Zurich",
       locale: "en",
       custom_field_answers: %{},
-      management_token: ParticipantSchema.generate_token()
+      management_token: Token.generate(32)
     }
     |> merge_attributes(attrs)
     |> evaluate_lazy_attributes()
@@ -167,7 +166,7 @@ defmodule Tymeslot.Factory do
 
   @spec user_session_factory() :: Tymeslot.Auth.UserSessionSchema.t()
   def user_session_factory do
-    token = Token.generate_session_token()
+    token = Token.generate()
 
     %UserSessionSchema{
       token: token,
@@ -529,7 +528,7 @@ defmodule Tymeslot.Factory do
       duration_minutes: 30,
       timezone: "Etc/UTC",
       status: :open,
-      token: UnguessableToken.generate(),
+      token: Token.generate(24),
       user: build(:user)
     }
     |> merge_attributes(attrs)
@@ -555,7 +554,7 @@ defmodule Tymeslot.Factory do
     %PollParticipantSchema{
       name: sequence(:poll_participant_name, &"Participant #{&1}"),
       email: sequence(:poll_participant_email, &"participant#{&1}@example.com"),
-      token: UnguessableToken.generate(),
+      token: Token.generate(24),
       locale: "en",
       poll: build(:poll)
     }

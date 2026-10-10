@@ -133,7 +133,7 @@ defmodule Tymeslot.Auth.PasswordResetTest do
       user = insert(:user, password_hash: Password.hash_password("OldPass123!"))
 
       # Simulate the first request: store the reset token and queue its email.
-      original_token = Token.generate_token()
+      original_token = Token.generate()
       {:ok, _result} = UserTokenQueries.set_reset_token(user, original_token)
 
       assert {:ok, :scheduled} =
@@ -163,7 +163,7 @@ defmodule Tymeslot.Auth.PasswordResetTest do
   describe "verify_token/1" do
     test "with valid token returns the user as a schema struct" do
       user = insert(:user, password_hash: Password.hash_password("OldPass123!"))
-      token = Token.generate_token()
+      token = Token.generate()
       {:ok, _result} = UserTokenQueries.set_reset_token(user, token)
 
       # A struct, not a bare map: the schema's `redact: true` keeps secrets
@@ -174,7 +174,7 @@ defmodule Tymeslot.Auth.PasswordResetTest do
 
     test "a token issued just inside its two-hour lifetime is still valid" do
       user = insert(:user)
-      token = Token.generate_token()
+      token = Token.generate()
       {:ok, _result} = UserTokenQueries.set_reset_token(user, token)
       set_reset_sent_at(user, -(2 * 3600 - 60))
 
@@ -183,7 +183,7 @@ defmodule Tymeslot.Auth.PasswordResetTest do
 
     test "a token just past its two-hour lifetime has expired" do
       user = insert(:user)
-      token = Token.generate_token()
+      token = Token.generate()
       {:ok, _result} = UserTokenQueries.set_reset_token(user, token)
       set_reset_sent_at(user, -(2 * 3600 + 60))
 
@@ -192,7 +192,7 @@ defmodule Tymeslot.Auth.PasswordResetTest do
 
     test "with expired token returns {:error, :token_expired, _}" do
       user = insert(:user)
-      token = Token.generate_token()
+      token = Token.generate()
       {:ok, _result} = UserTokenQueries.set_reset_token(user, token)
 
       # Manually expire the token by setting reset_sent_at to 3 hours ago
@@ -215,7 +215,7 @@ defmodule Tymeslot.Auth.PasswordResetTest do
   describe "reset_password/3" do
     test "reset tokens are single-use" do
       user = insert(:user, password_hash: Password.hash_password("OldPass123!"))
-      token = Token.generate_token()
+      token = Token.generate()
       {:ok, _result} = UserTokenQueries.set_reset_token(user, token)
 
       new_password = "NewSecurePassword123!"
@@ -241,7 +241,7 @@ defmodule Tymeslot.Auth.PasswordResetTest do
 
     test "returns the user struct without the plaintext password" do
       user = insert(:user, password_hash: Password.hash_password("OldPass123!"))
-      token = Token.generate_token()
+      token = Token.generate()
       {:ok, _result} = UserTokenQueries.set_reset_token(user, token)
 
       assert {:ok, %UserSchema{} = updated, _message} =
@@ -265,12 +265,12 @@ defmodule Tymeslot.Auth.PasswordResetTest do
     test "revokes a pending email change, so its link can no longer be confirmed" do
       user = insert(:user, password_hash: Password.hash_password("Password123!"))
 
-      change_token = Token.generate_token()
+      change_token = Token.generate()
 
       {:ok, pending_user} =
         UserTokenQueries.request_email_change(user, "attacker@example.com", change_token)
 
-      reset_token = Token.generate_token()
+      reset_token = Token.generate()
       {:ok, _result} = UserTokenQueries.set_reset_token(pending_user, reset_token)
 
       assert {:ok, _user, _message} =
@@ -294,7 +294,7 @@ defmodule Tymeslot.Auth.PasswordResetTest do
 
     test "records a password_change audit entry carrying the request context" do
       user = insert(:user, password_hash: Password.hash_password("OldPass123!"))
-      token = Token.generate_token()
+      token = Token.generate()
       {:ok, _result} = UserTokenQueries.set_reset_token(user, token)
 
       # SecurityLogger emits at :info; config/test.exs pins the primary level to
@@ -326,7 +326,7 @@ defmodule Tymeslot.Auth.PasswordResetTest do
         Endpoint.subscribe("users_sessions:#{Base.url_encode64(Token.hash_token(session.token))}")
       end)
 
-      token = Token.generate_token()
+      token = Token.generate()
       {:ok, _result} = UserTokenQueries.set_reset_token(user, token)
 
       new_password = "NewSecurePassword123!"
@@ -348,7 +348,7 @@ defmodule Tymeslot.Auth.PasswordResetTest do
 
     test "with mismatched confirmation returns error" do
       user = insert(:user, password_hash: Password.hash_password("OldPass123!"))
-      token = Token.generate_token()
+      token = Token.generate()
       {:ok, _result} = UserTokenQueries.set_reset_token(user, token)
 
       assert {:error, _reason, _message} =
@@ -362,7 +362,7 @@ defmodule Tymeslot.Auth.PasswordResetTest do
 
     test "enforces strong password requirements" do
       user = insert(:user)
-      token = Token.generate_token()
+      token = Token.generate()
       {:ok, _result} = UserTokenQueries.set_reset_token(user, token)
 
       # Weak password rejected
@@ -470,7 +470,7 @@ defmodule Tymeslot.Auth.PasswordResetTest do
   describe "token tamper + replay resistance" do
     test "a single-bit-flipped token is rejected as :invalid_token, not matched to a neighbour" do
       user = insert(:user, password_hash: Password.hash_password("OldPass123!"))
-      token = Token.generate_token()
+      token = Token.generate()
       {:ok, _result} = UserTokenQueries.set_reset_token(user, token)
 
       # Flip the last character to produce a different-but-same-length token.
@@ -506,7 +506,7 @@ defmodule Tymeslot.Auth.PasswordResetTest do
       # lock itself is verified at the query level in
       # `Tymeslot.Auth.UserTokenQueriesTest`.
       user = insert(:user, password_hash: Password.hash_password("OldPass123!"))
-      token = Token.generate_token()
+      token = Token.generate()
       {:ok, _result} = UserTokenQueries.set_reset_token(user, token)
 
       tasks =
