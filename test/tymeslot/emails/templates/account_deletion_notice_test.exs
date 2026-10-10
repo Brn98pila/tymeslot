@@ -11,8 +11,11 @@ defmodule Tymeslot.Emails.Templates.AccountDeletionNoticeTest do
 
   test "a scheduled deletion names the date, offers a restore and warns about bookings" do
     Gettext.with_locale(TymeslotWeb.Gettext, "en", fn ->
-      text = AccountDeletionNotice.render_text(@recipient, @at, "https://example.com/auth/login")
-      html = AccountDeletionNotice.render(@recipient, @at, "https://example.com/auth/login")
+      text =
+        AccountDeletionNotice.render(@recipient, @at, "https://example.com/auth/login").text_body
+
+      html =
+        AccountDeletionNotice.render(@recipient, @at, "https://example.com/auth/login").html_body
 
       assert text =~ "scheduled for deletion on 16 October 2026"
       assert text =~ "sign in before that date and you can restore your account"
@@ -30,8 +33,11 @@ defmodule Tymeslot.Emails.Templates.AccountDeletionNoticeTest do
     at = ~U[2026-10-16 12:00:00Z]
 
     Gettext.with_locale(TymeslotWeb.Gettext, "en", fn ->
-      text = AccountDeletionNotice.render_text(recipient, at, "https://example.com/auth/login")
-      html = AccountDeletionNotice.render(recipient, at, "https://example.com/auth/login")
+      text =
+        AccountDeletionNotice.render(recipient, at, "https://example.com/auth/login").text_body
+
+      html =
+        AccountDeletionNotice.render(recipient, at, "https://example.com/auth/login").html_body
 
       assert text =~ "scheduled for deletion on 17 October 2026"
       assert html =~ "17 October 2026"
@@ -43,8 +49,11 @@ defmodule Tymeslot.Emails.Templates.AccountDeletionNoticeTest do
     recipient = %{@recipient | locale: "de"}
 
     Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
-      text = AccountDeletionNotice.render_text(recipient, @at, "https://example.com/auth/login")
-      html = AccountDeletionNotice.render(recipient, @at, "https://example.com/auth/login")
+      text =
+        AccountDeletionNotice.render(recipient, @at, "https://example.com/auth/login").text_body
+
+      html =
+        AccountDeletionNotice.render(recipient, @at, "https://example.com/auth/login").html_body
 
       assert text =~ "Ihr Tymeslot-Konto am 16. Oktober 2026 gelöscht"
       assert text =~ "Ihre Gäste werden nicht benachrichtigt"
@@ -57,8 +66,8 @@ defmodule Tymeslot.Emails.Templates.AccountDeletionNoticeTest do
 
   test "an immediate deletion says it is done, in the past tense, and offers no restore" do
     Gettext.with_locale(TymeslotWeb.Gettext, "en", fn ->
-      text = AccountDeletionNotice.render_text(@recipient, @at, nil)
-      html = AccountDeletionNotice.render(@recipient, @at, nil)
+      text = AccountDeletionNotice.render(@recipient, @at, nil).text_body
+      html = AccountDeletionNotice.render(@recipient, @at, nil).html_body
 
       assert text =~ "has been deleted"
       assert text =~ "This cannot be undone"

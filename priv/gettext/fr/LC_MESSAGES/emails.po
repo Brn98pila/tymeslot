@@ -274,11 +274,6 @@ msgstr "Nom"
 msgid "Phone"
 msgstr "Téléphone"
 
-#: lib/tymeslot/emails/email_service/auth_emails.ex
-#, elixir-autogen, elixir-format
-msgid "Reset your password"
-msgstr "Réinitialiser votre mot de passe"
-
 #: lib/tymeslot/emails/shared/formatting.ex
 #, elixir-autogen, elixir-format
 msgid "Saturday"
@@ -303,11 +298,6 @@ msgstr "Fuseau horaire"
 #, elixir-autogen, elixir-format
 msgid "Tuesday"
 msgstr "mardi"
-
-#: lib/tymeslot/emails/email_service/account_emails.ex
-#, elixir-autogen, elixir-format
-msgid "Verify your new email address"
-msgstr "Vérifiez votre nouvelle adresse e-mail"
 
 #: lib/tymeslot/emails/shared/meeting/video_section.ex
 #, elixir-autogen, elixir-format
@@ -360,30 +350,10 @@ msgstr "Rejoindre l’appel vidéo"
 msgid "Calendar Owner"
 msgstr "Propriétaire du calendrier"
 
-#: lib/tymeslot/emails/email_service/account_emails.ex
-#, elixir-autogen, elixir-format
-msgid "Email Address Changed - Tymeslot Account"
-msgstr "Adresse e-mail modifiée - Compte Tymeslot"
-
-#: lib/tymeslot/emails/email_service/account_emails.ex
-#, elixir-autogen, elixir-format
-msgid "Email Address Changed Successfully"
-msgstr "Adresse e-mail modifiée avec succès"
-
-#: lib/tymeslot/emails/email_service/auth_emails.ex
-#, elixir-autogen, elixir-format
-msgid "Verify your email address"
-msgstr "Vérifiez votre adresse e-mail"
-
 #: lib/tymeslot/emails/email_service/calendar_emails.ex
 #, elixir-autogen, elixir-format
 msgid "⚠️ Calendar Sync Error - Manual Action Required"
 msgstr "⚠️ Erreur de synchronisation du calendrier - Action manuelle requise"
-
-#: lib/tymeslot/emails/email_service/account_emails.ex
-#, elixir-autogen, elixir-format
-msgid "⚠️ Email Change Request - Security Alert"
-msgstr "⚠️ Demande de changement d’e-mail - Alerte de sécurité"
 
 #: lib/tymeslot/emails/appointment_builder.ex
 #, elixir-autogen, elixir-format
@@ -473,25 +443,10 @@ msgstr "Participant : %{attendee}"
 msgid "Message from attendee:"
 msgstr "Message du participant :"
 
-#: lib/tymeslot/emails/email_service/auth_emails.ex
-#, elixir-autogen, elixir-format
-msgid "You already have a Tymeslot account"
-msgstr "Vous avez déjà un compte Tymeslot"
-
-#: lib/tymeslot/emails/email_service/auth_emails.ex
-#, elixir-autogen, elixir-format
-msgid "Your Tymeslot account has no password"
-msgstr "Votre compte Tymeslot n’a pas de mot de passe"
-
 #: lib/tymeslot/emails/shared/sign_in_provider.ex
 #, elixir-autogen, elixir-format
 msgid "single sign-on"
 msgstr "l’authentification unique"
-
-#: lib/tymeslot/emails/email_service/auth_emails.ex
-#, elixir-autogen, elixir-format
-msgid "Confirm your email to finish signing up"
-msgstr "Confirmez votre e-mail pour finaliser votre inscription"
 
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format
@@ -557,16 +512,6 @@ msgstr "L'adresse sera convenue après la réservation."
 #, elixir-autogen, elixir-format
 msgid "The address will be arranged with you after booking."
 msgstr "L'adresse sera convenue avec vous après la réservation."
-
-#: lib/tymeslot/emails/email_service/auth_emails.ex
-#, elixir-autogen, elixir-format
-msgid "Your Tymeslot account has been deleted"
-msgstr "Votre compte Tymeslot a été supprimé"
-
-#: lib/tymeslot/emails/email_service/auth_emails.ex
-#, elixir-autogen, elixir-format
-msgid "Your Tymeslot account is scheduled for deletion"
-msgstr "La suppression de votre compte Tymeslot est programmée"
 
 #: lib/tymeslot/emails/appointment_builder.ex
 #, elixir-autogen, elixir-format
