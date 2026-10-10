@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.BookingApprovalEmails do
+defmodule Tymeslot.Notifications.Email.BookingApprovalEmails do
   @moduledoc """
   Handles the approval-gated booking email actions: the request emails sent
   when a host must approve a booking, the mid-window nudge, and the outcome
@@ -15,8 +15,8 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.BookingApprovalEmails do
   alias Tymeslot.Meetings.ApprovalToken
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingState
+  alias Tymeslot.Notifications.Email.MeetingEmails
   alias Tymeslot.Workers.DeliveryClaims
-  alias Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails
 
   @doc """
   Sends the invitee's acknowledgement and the host's request.

@@ -1,9 +1,9 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.DeliveryOutcomeTest do
+defmodule Tymeslot.Notifications.Email.DeliveryOutcomeTest do
   use ExUnit.Case, async: true
 
   @moduletag :emails
 
-  alias Tymeslot.Workers.EmailWorkerHandlers.DeliveryOutcome
+  alias Tymeslot.Notifications.Email.DeliveryOutcome
 
   describe "from_dual_send/4" do
     test "both delivered is :ok" do

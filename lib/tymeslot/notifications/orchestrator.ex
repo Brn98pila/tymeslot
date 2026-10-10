@@ -330,7 +330,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
   time.
 
   The notices go out from a retrying email job
-  (`Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails`), like every other
+  (`Tymeslot.Notifications.Email.RescheduleEmails`), like every other
   booking email, so a mail outage delays them rather than losing them, and
   the reschedule does not wait on the mail provider. The job carries the time
   the booking moved from, which the meeting row no longer holds.

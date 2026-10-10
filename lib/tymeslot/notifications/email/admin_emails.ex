@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.AdminEmails do
+defmodule Tymeslot.Notifications.Email.AdminEmails do
   @moduledoc """
   Handles admin alert email actions: a single alert, and the daily digest or
   the error roll-up.
@@ -8,7 +8,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.AdminEmails do
 
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Workers.EmailWorkerHandlers.DeliveryOutcome
+  alias Tymeslot.Notifications.Email.DeliveryOutcome
 
   @spec handle_admin_alert(%{String.t() => term()}) ::
           :ok | {:error, term()}

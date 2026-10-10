@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.PollEmails do
+defmodule Tymeslot.Notifications.Email.PollEmails do
   @moduledoc """
   Handles poll-related email actions: deadline reminders to unvoted participants
   and pick-a-time nudges to the host.

@@ -32,13 +32,13 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
   alias Tymeslot.Bookings.Reschedule
   alias Tymeslot.Meetings.Guests
   alias Tymeslot.Meetings.MeetingSchema
+  alias Tymeslot.Notifications.EmailHandlers
   alias Tymeslot.Notifications.Orchestrator
   alias Tymeslot.Repo
   alias Tymeslot.TestMocks
   alias Tymeslot.Workers.DeliveryClaims
   alias Tymeslot.Workers.DeliveryClaims.DeliveryClaimQueries
   alias Tymeslot.Workers.EmailWorker
-  alias Tymeslot.Workers.EmailWorkerHandlers
   alias Tymeslot.Workers.TelegramWorker
   alias Tymeslot.Workers.WebhookWorker
 
@@ -371,7 +371,7 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
       [job] = all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"})
 
       assert_raise KeyError, fn ->
-        EmailWorkerHandlers.execute_email_action("send_reschedule_emails", job.args, job.id)
+        EmailHandlers.execute_email_action("send_reschedule_emails", job.args, job.id)
       end
 
       refute DeliveryClaimQueries.claimed?(job.id, "reschedule:organizer")
@@ -411,7 +411,7 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
       end)
 
       assert :ok =
-               EmailWorkerHandlers.execute_email_action(
+               EmailHandlers.execute_email_action(
                  "send_reschedule_emails",
                  job.args,
                  job.id

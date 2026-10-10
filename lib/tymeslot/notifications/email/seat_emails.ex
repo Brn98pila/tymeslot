@@ -1,9 +1,9 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.SeatEmails do
+defmodule Tymeslot.Notifications.Email.SeatEmails do
   @moduledoc """
   The emails for one seat's own lifecycle on a group meeting: booked,
   cancelled by its participant, and moved to another time. (A participant's
   copy of a whole-meeting event, a reminder or the host's cancellation, is
-  `Tymeslot.Workers.EmailWorkerHandlers.GroupMeetingEmails`.)
+  `Tymeslot.Notifications.Email.GroupMeetingEmails`.)
 
   Each job sends to more than one recipient: the participant, the organiser,
   and the participant's guests. Every delivery is recorded as it succeeds, so
@@ -40,11 +40,11 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.SeatEmails do
   alias Tymeslot.Meetings.ParticipantQueries
   alias Tymeslot.Meetings.ParticipantSchema
   alias Tymeslot.Meetings.Recipient
+  alias Tymeslot.Notifications.Email.DeliveryOutcome
+  alias Tymeslot.Notifications.Email.GuestEmails
+  alias Tymeslot.Notifications.Email.SeatJobs
   alias Tymeslot.Notifications.GuestNotifications
   alias Tymeslot.Workers.DeliveryClaims
-  alias Tymeslot.Workers.EmailWorkerHandlers.DeliveryOutcome
-  alias Tymeslot.Workers.EmailWorkerHandlers.GuestEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.SeatJobs
 
   @doc """
   A booked seat: the participant's confirmation, the organiser's "a spot was

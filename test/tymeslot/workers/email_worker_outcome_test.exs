@@ -11,8 +11,8 @@ defmodule Tymeslot.Workers.EmailWorkerOutcomeTest do
 
   @moduletag :emails
 
+  alias Tymeslot.Notifications.EmailHandlers
   alias Tymeslot.Workers.EmailWorker
-  alias Tymeslot.Workers.EmailWorkerHandlers
 
   test "an error reason with no rule of its own is kept, not replaced by \"Unknown error\"" do
     assert {:error, {:http_error, 500, "provider down"}} =
@@ -24,9 +24,9 @@ defmodule Tymeslot.Workers.EmailWorkerOutcomeTest do
   end
 
   defp perform_returning(result) do
-    :meck.new(EmailWorkerHandlers, [:passthrough])
+    :meck.new(EmailHandlers, [:passthrough])
 
-    :meck.expect(EmailWorkerHandlers, :execute_email_action, fn _action, _args, _job_id ->
+    :meck.expect(EmailHandlers, :execute_email_action, fn _action, _args, _job_id ->
       result
     end)
 
@@ -37,7 +37,7 @@ defmodule Tymeslot.Workers.EmailWorkerOutcomeTest do
         args: %{"action" => "send_no_password_to_reset", "user_id" => 1}
       })
     after
-      :meck.unload(EmailWorkerHandlers)
+      :meck.unload(EmailHandlers)
     end
   end
 end

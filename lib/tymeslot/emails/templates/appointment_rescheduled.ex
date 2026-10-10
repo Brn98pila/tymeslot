@@ -289,7 +289,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
   end
 
   # The time the spot left is unknown only when its seat row has since gone
-  # (see `Tymeslot.Workers.EmailWorkerHandlers.SeatEmails`).
+  # (see `Tymeslot.Notifications.Email.SeatEmails`).
   defp seat_move_times(appointment_details, locale) do
     to =
       moment(appointment_details.start_time_attendee_tz, appointment_details, :attendee, locale)

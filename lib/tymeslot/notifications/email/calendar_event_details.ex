@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.CalendarEventDetails do
+defmodule Tymeslot.Notifications.Email.CalendarEventDetails do
   @moduledoc """
   Builds what the calendar invitation and event update emails say about an
   event: its timing, and for an update the list of changes to announce.

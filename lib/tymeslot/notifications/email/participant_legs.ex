@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.ParticipantLegs do
+defmodule Tymeslot.Notifications.Email.ParticipantLegs do
   @moduledoc """
   The organiser's and the attendee's copy of a booking notice (a reschedule,
   a cancellation), each claimed for the job (`DeliveryClaims`).
@@ -12,8 +12,8 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.ParticipantLegs do
   and neither is sent again.
   """
 
+  alias Tymeslot.Notifications.Email.DeliveryOutcome
   alias Tymeslot.Workers.DeliveryClaims
-  alias Tymeslot.Workers.EmailWorkerHandlers.DeliveryOutcome
 
   @type send_fun :: (-> {:ok, term()} | {:error, term()})
 

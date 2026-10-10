@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestReminderTest do
+defmodule Tymeslot.Notifications.Email.GuestReminderTest do
   use Tymeslot.DataCase, async: true
 
   @moduletag :workers
@@ -11,7 +11,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestReminderTest do
   alias Tymeslot.EmailServiceMock
   alias Tymeslot.Meetings.GuestQueries
   alias Tymeslot.Meetings.Guests
-  alias Tymeslot.Workers.EmailWorkerHandlers
+  alias Tymeslot.Notifications.EmailHandlers
 
   setup :verify_on_exit!
 
@@ -55,7 +55,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestReminderTest do
   end
 
   defp run_reminder(meeting, value \\ 24, unit \\ "hours") do
-    EmailWorkerHandlers.execute_email_action("send_reminder_emails", %{
+    EmailHandlers.execute_email_action("send_reminder_emails", %{
       "meeting_id" => meeting.id,
       "reminder_value" => value,
       "reminder_unit" => unit

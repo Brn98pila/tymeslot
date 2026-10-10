@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmailsTest do
+defmodule Tymeslot.Notifications.Email.AuthEmailsTest do
   use Tymeslot.DataCase, async: true
 
   @moduletag :workers
@@ -8,7 +8,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmailsTest do
   alias Tymeslot.Emails.EmailScheduler.LinkArg
   alias Tymeslot.Emails.Templates.PasswordReset
   alias Tymeslot.EmailServiceMock
-  alias Tymeslot.Workers.EmailWorkerHandlers
+  alias Tymeslot.Notifications.EmailHandlers
   alias TymeslotWeb.Endpoint
 
   setup :verify_on_exit!
@@ -29,7 +29,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmailsTest do
       end)
 
       assert :ok =
-               EmailWorkerHandlers.execute_email_action("send_password_reset", %{
+               EmailHandlers.execute_email_action("send_password_reset", %{
                  "user_id" => user.id,
                  "reset_url" => reset_url
                })
@@ -49,7 +49,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmailsTest do
       end)
 
       assert :ok =
-               EmailWorkerHandlers.execute_email_action("send_password_reset", %{
+               EmailHandlers.execute_email_action("send_password_reset", %{
                  "user_id" => user.id,
                  "reset_url" => reset_url
                })
@@ -70,7 +70,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmailsTest do
       end)
 
       assert :ok =
-               EmailWorkerHandlers.execute_email_action("send_no_password_to_reset", %{
+               EmailHandlers.execute_email_action("send_no_password_to_reset", %{
                  "user_id" => user.id
                })
 
@@ -89,7 +89,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmailsTest do
       end)
 
       assert :ok =
-               EmailWorkerHandlers.execute_email_action("send_signup_attempt_notice", %{
+               EmailHandlers.execute_email_action("send_signup_attempt_notice", %{
                  "user_id" => user.id
                })
 
@@ -101,7 +101,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmailsTest do
 
     test "a notice for an account deleted since is discarded" do
       assert {:discard, _reason} =
-               EmailWorkerHandlers.execute_email_action("send_signup_attempt_notice", %{
+               EmailHandlers.execute_email_action("send_signup_attempt_notice", %{
                  "user_id" => -1
                })
     end
@@ -114,7 +114,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmailsTest do
       end)
 
       assert {:error, _reason} =
-               EmailWorkerHandlers.execute_email_action("send_no_password_to_reset", %{
+               EmailHandlers.execute_email_action("send_no_password_to_reset", %{
                  "user_id" => user.id
                })
     end
@@ -143,7 +143,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmailsTest do
         )
 
       assert :ok =
-               EmailWorkerHandlers.execute_email_action("send_social_signup_confirmation", args)
+               EmailHandlers.execute_email_action("send_social_signup_confirmation", args)
 
       assert_receive {:confirmation, recipient, "github", ^url}
       assert recipient.email == "typed@example.com"
@@ -152,7 +152,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmailsTest do
 
     test "a job whose link cannot be read is discarded" do
       assert {:discard, _reason} =
-               EmailWorkerHandlers.execute_email_action("send_social_signup_confirmation", %{
+               EmailHandlers.execute_email_action("send_social_signup_confirmation", %{
                  "email" => "typed@example.com",
                  "provider" => "github"
                })

@@ -78,7 +78,7 @@ defmodule Tymeslot.Meetings.ExternalCalendarChanges do
   meeting as it stands when they are sent, so they follow without a reschedule.
   The booker, or every participant, and every guest are emailed the new end
   with an updated calendar entry, and the host is told who was
-  (`Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails`).
+  (`Tymeslot.Notifications.Email.EndChangeEmails`).
 
   An end at or before the start is no length a meeting can have; that event
   is treated as an external modification for the host to look at.

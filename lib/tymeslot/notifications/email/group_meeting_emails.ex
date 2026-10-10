@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.GroupMeetingEmails do
+defmodule Tymeslot.Notifications.Email.GroupMeetingEmails do
   @moduledoc """
   Fan-out for a group meeting's meeting-level emails (the host's
   cancellation, the reminders, the host's reschedule request) and the
@@ -19,8 +19,8 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GroupMeetingEmails do
   re-enqueuing an already-unique per-seat job is a no-op.
 
   A seat's own lifecycle (booked, cancelled, moved) is
-  `Tymeslot.Workers.EmailWorkerHandlers.SeatEmails`; both re-check the seat
-  when the job runs through `Tymeslot.Workers.EmailWorkerHandlers.SeatJobs`.
+  `Tymeslot.Notifications.Email.SeatEmails`; both re-check the seat
+  when the job runs through `Tymeslot.Notifications.Email.SeatJobs`.
 
   The organiser's copies are built by
   `Tymeslot.Emails.AppointmentBuilder.for_organizer_of_group/3`: named after
@@ -39,8 +39,8 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GroupMeetingEmails do
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.Recipient
-  alias Tymeslot.Workers.EmailWorkerHandlers.DeliveryOutcome
-  alias Tymeslot.Workers.EmailWorkerHandlers.SeatJobs
+  alias Tymeslot.Notifications.Email.DeliveryOutcome
+  alias Tymeslot.Notifications.Email.SeatJobs
 
   # Bounds how many per-seat `Oban.insert/1` calls `dispatch_seat_jobs/2` runs
   # concurrently. Sequential inserts for a meeting near `max_participants` (in

@@ -26,9 +26,9 @@ defmodule Tymeslot.Workers.EmailWorker do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Meetings.Guests
+  alias Tymeslot.Notifications.EmailHandlers
   alias Tymeslot.Workers.Bounded
   alias Tymeslot.Workers.EmailWorker.AdminAlertScheduler
-  alias Tymeslot.Workers.EmailWorkerHandlers
   alias Tymeslot.Workers.SnoozePolicy
   alias Tymeslot.Workers.TransactionalEmailDelivery
   require Logger
@@ -66,7 +66,7 @@ defmodule Tymeslot.Workers.EmailWorker do
   def expected_outcome?(reason),
     do:
       reason in [@meeting_gone, @meeting_cancelled] or
-        EmailWorkerHandlers.expected_discard?(reason) or
+        EmailHandlers.expected_discard?(reason) or
         TransactionalEmailDelivery.recipient_rejected?(reason) or
         reason == ReauthHandling.discard_reason()
 
@@ -175,7 +175,7 @@ defmodule Tymeslot.Workers.EmailWorker do
     timeout_ms = email_timeout_ms()
 
     case Bounded.run(
-           fn -> EmailWorkerHandlers.execute_email_action(action, args, job.id) end,
+           fn -> EmailHandlers.execute_email_action(action, args, job.id) end,
            timeout_ms
          ) do
       {:ok, result} ->

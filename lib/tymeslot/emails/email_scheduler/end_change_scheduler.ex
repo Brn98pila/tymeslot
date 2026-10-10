@@ -10,7 +10,7 @@ defmodule Tymeslot.Emails.EmailScheduler.EndChangeScheduler do
 
   @doc """
   Schedules the notices of a booking whose end the host moved in their own
-  calendar (`Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails`). One job
+  calendar (`Tymeslot.Notifications.Email.EndChangeEmails`). One job
   waits per meeting; a change while it waits moves it back by the settling
   delay and gives it that change's start. What each seat is told comes from
   the seat itself when the job runs, not from the job; the job carries the

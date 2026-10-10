@@ -20,8 +20,8 @@ defmodule Tymeslot.Workers.BookingRequestEmailsTest do
   alias ErrorTracker.Error
   alias Tymeslot.Meetings.ApprovalToken
   alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Notifications.EmailHandlers
   alias Tymeslot.Workers.EmailWorker
-  alias Tymeslot.Workers.EmailWorkerHandlers
 
   setup :verify_on_exit!
   setup :set_mox_from_context
@@ -278,7 +278,7 @@ defmodule Tymeslot.Workers.BookingRequestEmailsTest do
   # Runs the request job as Oban runs one execution of a persisted job: the
   # same id each time, so a retry sees the legs the earlier run claimed.
   defp run_request(meeting, job_id, extra_args \\ %{}) do
-    EmailWorkerHandlers.execute_email_action(
+    EmailHandlers.execute_email_action(
       "send_booking_request_emails",
       Map.merge(
         %{"action" => "send_booking_request_emails", "meeting_id" => meeting.id},

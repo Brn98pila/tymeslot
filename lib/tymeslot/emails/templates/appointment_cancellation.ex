@@ -3,7 +3,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentCancellation do
   Email module for sending appointment cancellation notifications.
 
   A group participant who gave up their own spot (`:seat_given_up`, set by
-  `Tymeslot.Workers.EmailWorkerHandlers.SeatEmails`) gets their own wording:
+  `Tymeslot.Notifications.Email.SeatEmails`) gets their own wording:
   they cancelled, not the host, and the meeting goes on for the others, so
   there is no apology and no "this time is free again".
 

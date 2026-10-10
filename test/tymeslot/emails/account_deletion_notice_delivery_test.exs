@@ -9,7 +9,7 @@ defmodule Tymeslot.Emails.AccountDeletionNoticeDeliveryTest do
 
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Emails.EmailService.AuthEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.AuthEmails, as: AuthEmailHandlers
+  alias Tymeslot.Notifications.Email.AuthEmails, as: AuthEmailHandlers
 
   setup :verify_on_exit!
 

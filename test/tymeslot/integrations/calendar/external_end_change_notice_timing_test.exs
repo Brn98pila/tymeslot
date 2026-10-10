@@ -34,9 +34,9 @@ defmodule Tymeslot.Integrations.Calendar.ExternalEndChangeNoticeTimingTest do
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.ParticipantSchema
+  alias Tymeslot.Notifications.Email.EndChangeEmails
   alias Tymeslot.TestMocks
   alias Tymeslot.Workers.EmailWorker
-  alias Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails
 
   setup :verify_on_exit!
 

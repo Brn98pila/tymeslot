@@ -1,11 +1,11 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestEmails do
+defmodule Tymeslot.Notifications.Email.GuestEmails do
   @moduledoc """
   Email job handlers and the shared send loops for a meeting's guests: a
   booking's guests are invited alongside its confirmation and reminded
   alongside its reminders, and the guests a host adds after the booking was
   made are invited by a job of their own.
 
-  Split out of `Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails` so the
+  Split out of `Tymeslot.Notifications.Email.MeetingEmails` so the
   solo and group handlers (`GroupMeetingEmails`) share one send loop. Each
   guest is stamped on success, so a retry only reaches the guests a previous
   run missed, and a failed guest send never fails the job that made it.
@@ -20,10 +20,10 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestEmails do
   alias Tymeslot.Meetings.Guests
   alias Tymeslot.Meetings.GuestSchema
   alias Tymeslot.Meetings.MeetingSchema
+  alias Tymeslot.Notifications.Email.DeliveryOutcome
+  alias Tymeslot.Notifications.Email.MeetingEmails
   alias Tymeslot.Notifications.GuestNotifications
   alias Tymeslot.Utils.ReminderUtils
-  alias Tymeslot.Workers.EmailWorkerHandlers.DeliveryOutcome
-  alias Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails
 
   # The meeting was cancelled, moved or started after the guests were added.
   @meeting_closed "Meeting no longer open to guests"

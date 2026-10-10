@@ -340,7 +340,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   @doc """
   Schedules the notices for a booking that moved, to its organiser, attendee
   and guests, sent at once with high priority
-  (`Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails`).
+  (`Tymeslot.Notifications.Email.RescheduleEmails`).
 
   `original` is the time the booking moved from, `%{start_time:, end_time:,
   attendee_video_url:}`, which the meeting row no longer holds, so the job

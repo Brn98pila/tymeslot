@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmails do
+defmodule Tymeslot.Notifications.Email.AuthEmails do
   @moduledoc """
   Handles authentication-related email actions: email verification, password reset, and
   email change flows.
@@ -10,8 +10,8 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.AuthEmails do
   alias Tymeslot.Emails.EmailScheduler.LinkArg
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Notifications.Email.DeliveryOutcome
   alias Tymeslot.Utils.UrlBuilder
-  alias Tymeslot.Workers.EmailWorkerHandlers.DeliveryOutcome
 
   # A newer request replaced the token, or the user is gone. An unreadable link
   # is recorded.

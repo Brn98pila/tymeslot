@@ -7,10 +7,10 @@ defmodule Tymeslot.Notifications.OrchestratorLifecycleTest do
   import Tymeslot.Factory
 
   alias Ecto.Changeset
+  alias Tymeslot.Notifications.EmailHandlers
   alias Tymeslot.Notifications.Orchestrator
   alias Tymeslot.Repo
   alias Tymeslot.Workers.EmailWorker
-  alias Tymeslot.Workers.EmailWorkerHandlers
 
   defmodule SuccessWorker do
     @spec schedule_cancellation_emails(term()) :: :ok
@@ -239,7 +239,7 @@ defmodule Tymeslot.Notifications.OrchestratorLifecycleTest do
                all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"})
 
       assert {:error, _reason} =
-               EmailWorkerHandlers.execute_email_action(
+               EmailHandlers.execute_email_action(
                  "send_reschedule_emails",
                  job.args,
                  job.id
@@ -251,7 +251,7 @@ defmodule Tymeslot.Notifications.OrchestratorLifecycleTest do
       Application.put_env(:tymeslot, :test_attendee_down, false)
 
       assert :ok =
-               EmailWorkerHandlers.execute_email_action(
+               EmailHandlers.execute_email_action(
                  "send_reschedule_emails",
                  job.args,
                  job.id

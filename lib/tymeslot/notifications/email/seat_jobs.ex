@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.SeatJobs do
+defmodule Tymeslot.Notifications.Email.SeatJobs do
   @moduledoc """
   The liveness check every per-seat email job of a group meeting makes
   before it sends anything.
@@ -30,8 +30,8 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.SeatJobs do
   alias Tymeslot.Meetings.MeetingState
   alias Tymeslot.Meetings.ParticipantQueries
   alias Tymeslot.Meetings.ParticipantSchema
-  alias Tymeslot.Workers.EmailWorkerHandlers.DeliveryOutcome
-  alias Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails
+  alias Tymeslot.Notifications.Email.DeliveryOutcome
+  alias Tymeslot.Notifications.Email.MeetingEmails
 
   @meeting_cancelled "Meeting cancelled"
   @meeting_not_cancelled "Meeting not cancelled"

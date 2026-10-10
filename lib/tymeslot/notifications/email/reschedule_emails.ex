@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails do
+defmodule Tymeslot.Notifications.Email.RescheduleEmails do
   @moduledoc """
   Sends the notices for a booking that moved: to the organiser, the attendee
   and every guest, each with an updated calendar entry.
@@ -28,10 +28,10 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails do
   alias Tymeslot.Emails.AppointmentBuilder
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Meetings.MeetingState
+  alias Tymeslot.Notifications.Email.MeetingEmails
+  alias Tymeslot.Notifications.Email.ParticipantLegs
   alias Tymeslot.Notifications.GuestNotifications
   alias Tymeslot.Workers.DeliveryClaims
-  alias Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.ParticipantLegs
 
   # A notice overtaken by events since the move it announces. The cancelled
   # reason is the one `MeetingEmails` gives, the void-slot one the one

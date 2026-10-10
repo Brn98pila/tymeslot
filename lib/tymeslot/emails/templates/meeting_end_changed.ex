@@ -4,7 +4,7 @@ defmodule Tymeslot.Emails.Templates.MeetingEndChanged do
   calendar: it still starts when it did, and now ends at another time.
   Role-dispatched via `render/3`.
 
-  Sent by `Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails` to the
+  Sent by `Tymeslot.Notifications.Email.EndChangeEmails` to the
   booker or each group participant (`:attendee`, the meeting as that person
   sees it) and to each guest (`:guest`). Both state the new end beside the
   one it replaces, read in the recipient's zone, and attach an updated

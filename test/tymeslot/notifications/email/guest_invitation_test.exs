@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestInvitationTest do
+defmodule Tymeslot.Notifications.Email.GuestInvitationTest do
   @moduledoc """
   Guests a host adds after the booking was made are invited, and the guests who
   were already there are not written to a second time.
@@ -15,12 +15,12 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestInvitationTest do
   alias Tymeslot.EmailServiceMock
   alias Tymeslot.Meetings.GuestQueries
   alias Tymeslot.Meetings.Guests
-  alias Tymeslot.Workers.EmailWorkerHandlers
+  alias Tymeslot.Notifications.EmailHandlers
 
   setup :verify_on_exit!
 
   defp run(meeting, guests) do
-    EmailWorkerHandlers.execute_email_action("send_guest_invitations", %{
+    EmailHandlers.execute_email_action("send_guest_invitations", %{
       "meeting_id" => meeting.id,
       "guest_ids" => Enum.map(guests, & &1.id)
     })
@@ -103,7 +103,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestInvitationTest do
 
       # No expectation: any send fails the test.
       assert {:discard, reason} = run(meeting, guests)
-      assert EmailWorkerHandlers.expected_discard?(reason)
+      assert EmailHandlers.expected_discard?(reason)
       assert [%{email: "late@example.com"}] = GuestQueries.list_unsent_for_meeting(meeting.id)
     end
 
@@ -169,7 +169,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestInvitationTest do
           {:ok, "sent"}
       end)
 
-      EmailWorkerHandlers.execute_email_action("send_confirmation_emails", %{
+      EmailHandlers.execute_email_action("send_confirmation_emails", %{
         "meeting_id" => meeting.id
       })
 

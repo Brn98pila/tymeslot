@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.CalendarsRemovedNotificationTest do
+defmodule Tymeslot.Notifications.Email.CalendarsRemovedNotificationTest do
   @moduledoc """
   The email job telling an owner that their calendar server stopped listing
   calendars Tymeslot used.
@@ -12,8 +12,8 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.CalendarsRemovedNotificationTest 
   import Tymeslot.Factory
 
   alias Tymeslot.EmailServiceMock
-  alias Tymeslot.Workers.EmailWorkerHandlers
-  alias Tymeslot.Workers.EmailWorkerHandlers.IntegrationEmails
+  alias Tymeslot.Notifications.Email.IntegrationEmails
+  alias Tymeslot.Notifications.EmailHandlers
 
   setup :verify_on_exit!
 
@@ -74,7 +74,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.CalendarsRemovedNotificationTest 
   end
 
   defp execute_calendars_removed_notification(user_id, integration_id, names) do
-    EmailWorkerHandlers.execute_email_action("send_calendars_removed_notification", %{
+    EmailHandlers.execute_email_action("send_calendars_removed_notification", %{
       "user_id" => user_id,
       "integration_id" => integration_id,
       "calendar_names" => names

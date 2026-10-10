@@ -1,18 +1,23 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers do
+defmodule Tymeslot.Notifications.EmailHandlers do
   @moduledoc """
-  Internal handlers for EmailWorker actions.
+  Runs an email job's action through its handler, one of the
+  `Tymeslot.Notifications.Email.*` modules, which hold the rules for each
+  email: who receives it, what makes it stale, how a retry avoids a second
+  send. `Tymeslot.Workers.EmailWorker` stays the thin Oban side: timeout,
+  snoozes and the outcome it hands Oban. The action table is
+  `Tymeslot.Emails.EmailActions`.
   """
 
   alias Tymeslot.Emails.EmailActions
-  alias Tymeslot.Workers.EmailWorkerHandlers.AuthEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.GroupMeetingEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.GuestEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.IntegrationEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.PollEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.SeatJobs
+  alias Tymeslot.Notifications.Email.AuthEmails
+  alias Tymeslot.Notifications.Email.EndChangeEmails
+  alias Tymeslot.Notifications.Email.GroupMeetingEmails
+  alias Tymeslot.Notifications.Email.GuestEmails
+  alias Tymeslot.Notifications.Email.IntegrationEmails
+  alias Tymeslot.Notifications.Email.MeetingEmails
+  alias Tymeslot.Notifications.Email.PollEmails
+  alias Tymeslot.Notifications.Email.RescheduleEmails
+  alias Tymeslot.Notifications.Email.SeatJobs
 
   # The handlers that declare some of their discards an expected end of the
   # job. `AdminEmails` discards nothing of its own.

@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails do
+defmodule Tymeslot.Notifications.Email.MeetingEmails do
   @moduledoc """
   Handles meeting-related email actions: confirmations, cancellations, reminders, and
   reschedule requests.
@@ -16,13 +16,13 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails do
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.MeetingState
   alias Tymeslot.Meetings.ReminderEntry
+  alias Tymeslot.Notifications.Email.DeliveryOutcome
+  alias Tymeslot.Notifications.Email.GroupMeetingEmails
+  alias Tymeslot.Notifications.Email.GuestEmails
+  alias Tymeslot.Notifications.Email.ParticipantLegs
   alias Tymeslot.Notifications.GuestNotifications
   alias Tymeslot.Utils.ReminderUtils
   alias Tymeslot.Workers.DeliveryClaims
-  alias Tymeslot.Workers.EmailWorkerHandlers.DeliveryOutcome
-  alias Tymeslot.Workers.EmailWorkerHandlers.GroupMeetingEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.GuestEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.ParticipantLegs
 
   # The meeting is gone, started, or changed state since the email was
   # scheduled. A partial cancellation delivery is recorded.

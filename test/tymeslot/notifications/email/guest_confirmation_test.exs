@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestConfirmationTest do
+defmodule Tymeslot.Notifications.Email.GuestConfirmationTest do
   use Tymeslot.DataCase, async: true
 
   @moduletag :workers
@@ -9,7 +9,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestConfirmationTest do
   alias Tymeslot.EmailServiceMock
   alias Tymeslot.Meetings.GuestQueries
   alias Tymeslot.Meetings.Guests
-  alias Tymeslot.Workers.EmailWorkerHandlers
+  alias Tymeslot.Notifications.EmailHandlers
 
   setup :verify_on_exit!
 
@@ -47,7 +47,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestConfirmationTest do
       end)
 
       assert :ok =
-               EmailWorkerHandlers.execute_email_action("send_confirmation_emails", %{
+               EmailHandlers.execute_email_action("send_confirmation_emails", %{
                  "meeting_id" => meeting.id
                })
 
@@ -79,7 +79,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestConfirmationTest do
       end)
 
       assert :ok =
-               EmailWorkerHandlers.execute_email_action("send_confirmation_emails", %{
+               EmailHandlers.execute_email_action("send_confirmation_emails", %{
                  "meeting_id" => meeting.id
                })
 
@@ -105,7 +105,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestConfirmationTest do
 
       # verify_on_exit! will fail the test if send_guest_confirmation is called.
       assert :ok =
-               EmailWorkerHandlers.execute_email_action("send_confirmation_emails", %{
+               EmailHandlers.execute_email_action("send_confirmation_emails", %{
                  "meeting_id" => meeting.id
                })
     end
@@ -129,7 +129,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestConfirmationTest do
 
       # The overall job must still return :ok — guest failures must not bubble up.
       assert :ok =
-               EmailWorkerHandlers.execute_email_action("send_confirmation_emails", %{
+               EmailHandlers.execute_email_action("send_confirmation_emails", %{
                  "meeting_id" => meeting.id
                })
 
@@ -151,7 +151,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestConfirmationTest do
 
       # verify_on_exit! enforces send_guest_confirmation is never called.
       assert :ok =
-               EmailWorkerHandlers.execute_email_action("send_confirmation_emails", %{
+               EmailHandlers.execute_email_action("send_confirmation_emails", %{
                  "meeting_id" => meeting.id
                })
     end
@@ -173,7 +173,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestConfirmationTest do
       end)
 
       assert :ok =
-               EmailWorkerHandlers.execute_email_action("send_confirmation_emails", %{
+               EmailHandlers.execute_email_action("send_confirmation_emails", %{
                  "meeting_id" => meeting.id
                })
 
@@ -197,7 +197,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GuestConfirmationTest do
       end)
 
       assert :ok =
-               EmailWorkerHandlers.execute_email_action("send_confirmation_emails", %{
+               EmailHandlers.execute_email_action("send_confirmation_emails", %{
                  "meeting_id" => meeting.id
                })
 

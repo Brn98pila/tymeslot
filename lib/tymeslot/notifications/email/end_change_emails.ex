@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails do
+defmodule Tymeslot.Notifications.Email.EndChangeEmails do
   @moduledoc """
   Sends the notices for a booking whose end the host moved in their own
   calendar (`Tymeslot.Meetings.ExternalCalendarChanges.apply_end_change/2`).
@@ -52,9 +52,9 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails do
   alias Tymeslot.Meetings.MeetingState
   alias Tymeslot.Meetings.ParticipantQueries
   alias Tymeslot.Meetings.Recipient
+  alias Tymeslot.Notifications.Email.MeetingEmails
   alias Tymeslot.Notifications.GuestNotifications
   alias Tymeslot.Workers.DeliveryClaims
-  alias Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails
 
   @not_confirmed "Meeting not confirmed"
   @slot_void "Meeting time no longer holds"

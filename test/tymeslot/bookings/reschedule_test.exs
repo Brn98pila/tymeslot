@@ -14,9 +14,9 @@ defmodule Tymeslot.Bookings.RescheduleTest do
   alias Tymeslot.Bookings.Validation
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Notifications.EmailHandlers
   alias Tymeslot.TestMocks
   alias Tymeslot.Workers.EmailWorker
-  alias Tymeslot.Workers.EmailWorkerHandlers
   import Tymeslot.AvailabilityTestHelpers
   import Tymeslot.Test.ClockHelpers
   import Tymeslot.MeetingTestHelpers
@@ -278,7 +278,7 @@ defmodule Tymeslot.Bookings.RescheduleTest do
         {:ok, "sent"}
       end)
 
-      assert :ok = EmailWorkerHandlers.execute_email_action(job.args["action"], job.args)
+      assert :ok = EmailHandlers.execute_email_action(job.args["action"], job.args)
 
       {:ok, after_send} = MeetingQueries.get_meeting(meeting.id)
 

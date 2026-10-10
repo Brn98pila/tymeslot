@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.DeliveryOutcome do
+defmodule Tymeslot.Notifications.Email.DeliveryOutcome do
   @moduledoc """
   Translates a `Tymeslot.Emails.Delivery` failure reason into the job outcome
   `Tymeslot.Workers.EmailWorker` acts on.

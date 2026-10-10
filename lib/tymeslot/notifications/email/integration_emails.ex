@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.IntegrationEmails do
+defmodule Tymeslot.Notifications.Email.IntegrationEmails do
   @moduledoc """
   Handles integration- and calendar-related email actions: integration health notifications,
   calendar invitations, and event update notifications.
@@ -17,9 +17,9 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.IntegrationEmails do
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Integrations.Video.RoomCreationError
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
+  alias Tymeslot.Notifications.Email.CalendarEventDetails
+  alias Tymeslot.Notifications.Email.DeliveryOutcome
   alias Tymeslot.Workers.DeliveryClaims
-  alias Tymeslot.Workers.EmailWorkerHandlers.CalendarEventDetails
-  alias Tymeslot.Workers.EmailWorkerHandlers.DeliveryOutcome
 
   # The user, integration or event is gone, or the condition the email was
   # about has cleared. Unknown error codes, unreadable dates and partial

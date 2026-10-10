@@ -13,9 +13,9 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
   alias Tymeslot.Meetings.Approval
   alias Tymeslot.Meetings.GuestQueries
   alias Tymeslot.Meetings.Guests
+  alias Tymeslot.Notifications.EmailHandlers
   alias Tymeslot.Notifications.GuestNotifications
   alias Tymeslot.Workers.EmailWorker
-  alias Tymeslot.Workers.EmailWorkerHandlers
 
   setup :verify_on_exit!
 
@@ -306,7 +306,7 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
       end)
 
       assert :ok =
-               EmailWorkerHandlers.execute_email_action("send_cancellation_emails", %{
+               EmailHandlers.execute_email_action("send_cancellation_emails", %{
                  "meeting_id" => meeting.id
                })
     end

@@ -7,7 +7,7 @@ defmodule Tymeslot.Emails.EmailActions do
   One table, read by `Tymeslot.Workers.EmailWorker` when a job is built
   (`validate/2` refuses an unknown action, or one missing a required arg, at
   insert rather than at run time) and by
-  `Tymeslot.Workers.EmailWorkerHandlers` when it runs. A new email type is
+  `Tymeslot.Notifications.EmailHandlers` when it runs. A new email type is
   one entry here; a typo in a scheduler's action fails its insert instead of
   being discarded as "Unknown action" hours later.
 
@@ -22,17 +22,17 @@ defmodule Tymeslot.Emails.EmailActions do
   """
 
   alias Ecto.Changeset
-  alias Tymeslot.Workers.EmailWorkerHandlers.AdminEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.AuthEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.BookingApprovalEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.GroupMeetingEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.GuestEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.IntegrationEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.PollEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.SeatEmails
+  alias Tymeslot.Notifications.Email.AdminEmails
+  alias Tymeslot.Notifications.Email.AuthEmails
+  alias Tymeslot.Notifications.Email.BookingApprovalEmails
+  alias Tymeslot.Notifications.Email.EndChangeEmails
+  alias Tymeslot.Notifications.Email.GroupMeetingEmails
+  alias Tymeslot.Notifications.Email.GuestEmails
+  alias Tymeslot.Notifications.Email.IntegrationEmails
+  alias Tymeslot.Notifications.Email.MeetingEmails
+  alias Tymeslot.Notifications.Email.PollEmails
+  alias Tymeslot.Notifications.Email.RescheduleEmails
+  alias Tymeslot.Notifications.Email.SeatEmails
 
   @type handler :: {module(), atom()} | {module(), atom(), :with_job_id}
 

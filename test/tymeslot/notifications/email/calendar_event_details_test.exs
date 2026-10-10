@@ -1,4 +1,4 @@
-defmodule Tymeslot.Workers.EmailWorkerHandlers.CalendarEventDetailsTest do
+defmodule Tymeslot.Notifications.Email.CalendarEventDetailsTest do
   @moduledoc """
   Dashboard invitations and event updates go to people the organiser added to
   an event, whose language and timezone are unknown, so they are written as
@@ -12,7 +12,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.CalendarEventDetailsTest do
 
   alias Tymeslot.Emails.Templates.CalendarInvitation
   alias Tymeslot.Emails.Templates.EventUpdateNotification
-  alias Tymeslot.Workers.EmailWorkerHandlers.CalendarEventDetails
+  alias Tymeslot.Notifications.Email.CalendarEventDetails
 
   setup do
     user = insert(:user, locale: "de")
