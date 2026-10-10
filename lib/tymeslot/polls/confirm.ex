@@ -10,11 +10,11 @@ defmodule Tymeslot.Polls.Confirm do
   subscribers are notified.
   """
 
+  alias Tymeslot.Availability
   alias Tymeslot.Availability.TimeOff
   alias Tymeslot.Bookings.Activation
   alias Tymeslot.Bookings.CreateAdHoc
   alias Tymeslot.Emails.EmailScheduler.PollScheduler
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes
@@ -58,7 +58,7 @@ defmodule Tymeslot.Polls.Confirm do
         # from a meeting that is still uncommitted, and subscribers must not be
         # told about a confirmation that could still roll back.
         :ok = Activation.after_commit(pending)
-        AvailabilityCache.invalidate_for_user(user_id)
+        Availability.changed(user_id)
         Polls.broadcast_update(poll_id)
         {:ok, meeting}
 

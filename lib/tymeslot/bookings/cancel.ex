@@ -6,9 +6,9 @@ defmodule Tymeslot.Bookings.Cancel do
 
   require Logger
 
+  alias Tymeslot.Availability
   alias Tymeslot.Bookings.Policy
   alias Tymeslot.Clock
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.Approval
@@ -149,7 +149,7 @@ defmodule Tymeslot.Bookings.Cancel do
   """
   @spec finalise_cancellation(Meeting.t()) :: :ok
   def finalise_cancellation(%Meeting{} = meeting) do
-    AvailabilityCache.invalidate_for_user(meeting.organizer_user_id)
+    Availability.changed(meeting.organizer_user_id)
 
     with :ok <- Meetings.cancel_calendar_event(meeting),
          :ok <- delete_provider_video_room(meeting) do
@@ -342,7 +342,7 @@ defmodule Tymeslot.Bookings.Cancel do
           cancellation_reason: cancellation_reason
         )
 
-        AvailabilityCache.invalidate_for_user(updated_meeting.organizer_user_id)
+        Availability.changed(updated_meeting.organizer_user_id)
         {:ok, updated_meeting}
 
       {:error, :already_cancelled} = error ->

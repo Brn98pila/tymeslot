@@ -22,10 +22,10 @@ defmodule Tymeslot.Bookings.RescheduleRequest do
 
   require Logger
 
+  alias Tymeslot.Availability
   alias Tymeslot.Bookings.Policy
   alias Tymeslot.Clock
   alias Tymeslot.Emails.EmailScheduler
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.MeetingQueries
@@ -132,7 +132,7 @@ defmodule Tymeslot.Bookings.RescheduleRequest do
         # The slot is void from this moment, and the booking page computes its
         # offer from the meetings table, so the cached range must go or the
         # freed time stays greyed out until the entry expires.
-        AvailabilityCache.invalidate_for_user(updated_meeting.organizer_user_id)
+        Availability.changed(updated_meeting.organizer_user_id)
         Meetings.cancel_calendar_event(updated_meeting)
         :ok
 
