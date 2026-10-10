@@ -180,6 +180,74 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.CalendarBlockingTest do
     end
   end
 
+  describe "a hand-crafted push the controls never send" do
+    # A real control, its pushed values overridden as a hand-crafted client
+    # would, so the push meets the same handler and context a click does.
+    defp crafted_click(view, selector, params),
+      do: view |> element(selector) |> render_click(params)
+
+    defp exchange(user, list \\ nil) do
+      insert(:calendar_integration,
+        user: user,
+        provider: "exchange",
+        calendar_list:
+          list ||
+            [
+              %{id: "main", primary: true, selected: true},
+              %{id: "team", selected: true, blocks_availability: false}
+            ]
+      )
+    end
+
+    test "cannot hide another provider's booking calendar through the Exchange-only switch",
+         %{conn: conn, user: user} do
+      google =
+        google(user, [%{id: "work", primary: true, selected: true}],
+          default_booking_calendar_id: "work"
+        )
+
+      view = open_manage_modal(conn, exchange(user))
+
+      crafted_click(view, "#calendar-selection-calendar-0-shown-false", %{
+        "integration_id" => to_string(google.id),
+        "calendar_id" => "work"
+      })
+
+      assert %{selected: true, blocks_availability: true} = entry(google, user, "work")
+    end
+
+    test "cannot make an Exchange folder other than the main calendar block",
+         %{conn: conn, user: user} do
+      integration = exchange(user)
+      view = open_manage_modal(conn, integration)
+
+      crafted_click(view, "#calendar-selection-calendar-1-state-show", %{"state" => "block"})
+
+      crafted_click(view, "#calendar-selection-calendar-0-busy-true", %{"calendar_id" => "team"})
+
+      assert %{blocks_availability: false} = entry(integration, user, "team")
+    end
+
+    test "cannot set a calendar shared as busy times only to show without blocking",
+         %{conn: conn, user: user} do
+      integration =
+        google(user, [
+          %{id: "work", primary: true, selected: true},
+          %{id: "boss", selected: true, read_only: true, free_busy_only: true}
+        ])
+
+      view = open_manage_modal(conn, exchange(user))
+
+      crafted_click(view, "#calendar-selection-calendar-0-busy-true", %{
+        "integration_id" => to_string(integration.id),
+        "calendar_id" => "boss",
+        "blocks" => "false"
+      })
+
+      assert %{selected: true, blocks_availability: true} = entry(integration, user, "boss")
+    end
+  end
+
   describe "a subscription" do
     setup %{user: user} do
       integration =

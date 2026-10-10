@@ -54,34 +54,6 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
 
   @type integration :: CalendarIntegrationSchema.t()
 
-  @doc """
-  Sets whether the calendar `calendar_id` of `integration` blocks
-  availability.
-
-  `{:error, :booking_calendar}` when asked to make a booking calendar show
-  only; `{:error, :not_found}` when the integration lists no such calendar.
-  """
-  @spec set(integration(), String.t() | integer(), boolean()) ::
-          {:ok, integration()} | {:error, :booking_calendar | :not_found | term()}
-  def set(%{id: id}, calendar_id, blocks?) when is_boolean(blocks?) do
-    calendar_id = to_string(calendar_id)
-
-    id
-    |> CalendarSelectionQueries.with_locked(fn fresh ->
-      cond do
-        is_nil(find(fresh.calendar_list, calendar_id)) ->
-          {:error, :not_found}
-
-        not blocks? and booking_calendar?(fresh, calendar_id) ->
-          {:error, :booking_calendar}
-
-        true ->
-          Selection.persist_calendar_list(fresh, put(fresh.calendar_list, calendar_id, blocks?))
-      end
-    end)
-    |> invalidate_on_success()
-  end
-
   @typedoc """
   What the owner lets a calendar do: nothing (`:off`, not selected), appear
   in Tymeslot without taking slots (`:show`), or appear and take slots
@@ -89,89 +61,129 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   """
   @type state :: :off | :show | :block
 
+  @typedoc "Why a change to a calendar's use is refused."
+  @type refusal ::
+          :not_found | :booking_calendar | :free_busy_only | :cannot_block | :not_exchange_main
+
+  @doc """
+  Sets whether the calendar `calendar_id` of `integration` blocks
+  availability, leaving whether it is shown as it is. See `change/3` for
+  the refusals.
+  """
+  @spec set(integration(), String.t() | integer(), boolean()) ::
+          {:ok, integration()} | {:error, refusal() | term()}
+  def set(integration, calendar_id, blocks?) when is_boolean(blocks?),
+    do: change(integration, calendar_id, {:blocks, blocks?})
+
   @doc """
   Sets whether the calendar `calendar_id` of `integration` is used, and
-  whether it blocks availability, in one write.
-
-  `{:error, :booking_calendar}` for anything but `:block` on a booking
-  calendar; `{:error, :free_busy_only}` for `:show` on a calendar shared as
-  busy times only, which has no events to show; `{:error, :not_found}` when
-  the integration lists no such calendar.
+  whether it blocks availability, in one write. See `change/3` for the
+  refusals.
   """
   @spec set_state(integration(), String.t() | integer(), state()) ::
-          {:ok, integration()}
-          | {:error, :booking_calendar | :free_busy_only | :not_found | term()}
-  def set_state(%{id: id}, calendar_id, state) when state in [:off, :show, :block] do
+          {:ok, integration()} | {:error, refusal() | term()}
+  def set_state(integration, calendar_id, state) when state in [:off, :show, :block],
+    do: change(integration, calendar_id, {:state, state})
+
+  @doc """
+  Sets whether an Exchange mailbox's main calendar is shown, leaving whether
+  it blocks as it is: its busy time blocks whether or not it is shown. Any
+  other calendar is refused (`:not_exchange_main`); its use is `set_state/3`.
+  """
+  @spec set_shown(integration(), String.t() | integer(), boolean()) ::
+          {:ok, integration()} | {:error, refusal() | term()}
+  def set_shown(integration, calendar_id, shown?) when is_boolean(shown?),
+    do: change(integration, calendar_id, {:shown, shown?})
+
+  @doc """
+  Flips whether the calendar `calendar_id` of `integration` is used, under
+  the same rules: a calendar switched back on blocks as it was set to, and
+  a booking calendar is not switched off.
+  """
+  @spec toggle(integration(), String.t() | integer()) ::
+          {:ok, integration()} | {:error, refusal() | term()}
+  def toggle(integration, calendar_id), do: change(integration, calendar_id, :toggle)
+
+  # Every write to a calendar's use runs here, under the integration's row
+  # lock and against the row as it stands, so no change can reach a state
+  # the rules refuse:
+  #
+  #   * a booking calendar always shows and blocks (`booking_calendar?/2`);
+  #   * a calendar shared as busy times only has nothing to show, so it is
+  #     off or blocking;
+  #   * an Exchange mailbox's main calendar is shown and blocks apart (its
+  #     busy time stands for the mailbox), and only it can be shown that
+  #     way; the mailbox's other folders cannot block.
+  defp change(%{id: id}, calendar_id, requested) do
     calendar_id = to_string(calendar_id)
 
     id
     |> CalendarSelectionQueries.with_locked(fn fresh ->
-      case find(fresh.calendar_list, calendar_id) do
-        nil ->
-          {:error, :not_found}
-
-        entry ->
-          with :ok <- allowed(fresh, entry, state) do
-            Selection.persist_calendar_list(
-              fresh,
-              put_state(fresh.calendar_list, entry.id, state)
-            )
-          end
+      with %CalendarEntry{} = entry <-
+             find(fresh.calendar_list, calendar_id) || {:error, :not_found},
+           change = resolve(fresh, entry, requested),
+           :ok <- check(fresh, entry, change) do
+        Selection.persist_calendar_list(
+          fresh,
+          apply_change(fresh.calendar_list, entry.id, change)
+        )
       end
     end)
     |> invalidate_on_success()
   end
 
-  defp allowed(integration, entry, state) when state in [:off, :show] do
+  defp resolve(integration, entry, :toggle) do
     cond do
-      booking_calendar?(integration, entry.id) -> {:error, :booking_calendar}
-      state == :show and entry.free_busy_only -> {:error, :free_busy_only}
-      true -> :ok
+      kind(integration, entry) == :exchange_main -> {:shown, not entry.selected}
+      entry.selected -> {:state, :off}
+      entry.blocks_availability -> {:state, :block}
+      true -> {:state, :show}
     end
   end
 
-  defp allowed(_integration, _entry, :block), do: :ok
+  defp resolve(_integration, _entry, change), do: change
 
-  defp put_state(calendar_list, calendar_id, state) do
+  defp check(integration, entry, change) do
+    kind = kind(integration, entry)
+    booking? = booking_calendar?(integration, entry.id)
+
+    case change do
+      {:shown, _shown?} when kind != :exchange_main -> {:error, :not_exchange_main}
+      {:shown, _shown?} -> :ok
+      {:state, :off} when kind == :exchange_main -> :ok
+      {:state, :block} when kind == :exchange_folder -> {:error, :cannot_block}
+      {:blocks, true} when kind == :exchange_folder -> {:error, :cannot_block}
+      {:state, :block} -> :ok
+      {:blocks, true} -> :ok
+      _stops_blocking when booking? -> {:error, :booking_calendar}
+      {:state, :off} -> :ok
+      _shown_without_blocking when entry.free_busy_only -> {:error, :free_busy_only}
+      _shown_without_blocking -> :ok
+    end
+  end
+
+  defp kind(integration, entry) do
+    cond do
+      not ProviderConfig.ews?(integration.provider) -> :other
+      entry.primary -> :exchange_main
+      true -> :exchange_folder
+    end
+  end
+
+  defp apply_change(calendar_list, calendar_id, change) do
     Enum.map(calendar_list, fn cal ->
       entry = CalendarEntry.normalize(cal)
-
-      cond do
-        entry.id != calendar_id -> entry
-        state == :off -> %{entry | selected: false}
-        true -> %{entry | selected: true, blocks_availability: state == :block}
-      end
+      if entry.id == calendar_id, do: changed(entry, change), else: entry
     end)
   end
 
-  @doc """
-  Sets whether the calendar `calendar_id` of `integration` is shown (used),
-  leaving whether it blocks as it is: for an Exchange mailbox's main
-  calendar, whose busy time blocks whether or not it is shown.
-  `{:error, :not_found}` when the integration lists no such calendar.
-  """
-  @spec set_shown(integration(), String.t() | integer(), boolean()) ::
-          {:ok, integration()} | {:error, :not_found | term()}
-  def set_shown(%{id: id}, calendar_id, shown?) when is_boolean(shown?) do
-    calendar_id = to_string(calendar_id)
+  defp changed(entry, {:state, :off}), do: %{entry | selected: false}
 
-    id
-    |> CalendarSelectionQueries.with_locked(fn fresh ->
-      case find(fresh.calendar_list, calendar_id) do
-        nil ->
-          {:error, :not_found}
+  defp changed(entry, {:state, state}),
+    do: %{entry | selected: true, blocks_availability: state == :block}
 
-        entry ->
-          Selection.persist_calendar_list(
-            fresh,
-            Enum.map(fresh.calendar_list, fn cal ->
-              if cal.id == entry.id, do: %{cal | selected: shown?}, else: cal
-            end)
-          )
-      end
-    end)
-    |> invalidate_on_success()
-  end
+  defp changed(entry, {:shown, shown?}), do: %{entry | selected: shown?}
+  defp changed(entry, {:blocks, blocks?}), do: %{entry | blocks_availability: blocks?}
 
   @doc """
   Whether `entry` of `integration` blocks the booking page, for a surface

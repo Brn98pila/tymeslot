@@ -19,7 +19,6 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   """
 
   alias Tymeslot.Dashboard.DashboardContext
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue
@@ -27,7 +26,6 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   alias Tymeslot.Integrations.Calendar.Deletion
   alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
   alias Tymeslot.Integrations.Calendar.ProviderConfig
-  alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Calendar.SyncSchedule
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.InputValidators
@@ -96,23 +94,13 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   end
 
   @doc """
-  Ticks or unticks one of an integration's calendars. A ticked calendar that
-  blocks availability takes slots at once, so the owner's cached availability
-  is dropped.
+  Ticks or unticks one of an integration's calendars, under the rules of
+  `Blocking.toggle/2`: a booking calendar is not switched off.
   """
   @spec toggle_calendar_selection(pos_integer(), pos_integer(), String.t() | integer()) ::
-          {:ok, integration()} | {:error, refusal() | term()}
+          {:ok, integration()} | {:error, refusal() | Blocking.refusal() | term()}
   def toggle_calendar_selection(user_id, integration_id, calendar_id) do
-    with {:ok, _updated} = ok <-
-           with_owned(
-             user_id,
-             integration_id,
-             :write,
-             &Selection.toggle_calendar(&1, calendar_id)
-           ) do
-      AvailabilityCache.invalidate_for_user(user_id)
-      ok
-    end
+    with_owned(user_id, integration_id, :write, &Blocking.toggle(&1, calendar_id))
   end
 
   @doc """

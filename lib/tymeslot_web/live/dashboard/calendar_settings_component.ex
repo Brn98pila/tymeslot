@@ -230,26 +230,6 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
     end)
   end
 
-  def handle_event(
-        "toggle_calendar_selection",
-        %{"integration_id" => id, "calendar_id" => cal_id},
-        socket
-      ) do
-    with_owned_integration(
-      socket,
-      id,
-      &Calendar.toggle_calendar_selection(&1, &2, cal_id),
-      fn
-        {:ok, _result} ->
-          {:noreply, load_integrations(socket)}
-
-        _error ->
-          Flash.error(dgettext("dashboard_calendar_settings", "Failed to update selection"))
-          {:noreply, socket}
-      end
-    )
-  end
-
   @calendar_states %{"off" => :off, "show" => :show, "block" => :block}
 
   def handle_event(

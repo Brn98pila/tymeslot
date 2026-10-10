@@ -10,12 +10,11 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsCompositionTest do
     * `toggle_integration` full round-trip — the DB `is_active` flag
       flips and the view refreshes; pins the LiveComponent → Calendar
       context → Ecto-update seam that has no composition coverage today.
-    * `toggle_calendar_selection` happy path — clicking a calendar pill
-      flips its `selected` flag in the persisted `calendar_list`. Pins
-      the LiveComponent → `Calendar.toggle_calendar_selection/3` →
-      Ecto-update seam that `dashboard_integrations_test.exs` used to
-      cover with handle_event-only stubs.
-    * `toggle_calendar_selection` race with deletion — if the underlying
+    * `set_calendar_state` happy path — switching a calendar off in the
+      Manage calendars modal clears its `selected` flag in the persisted
+      `calendar_list`. Pins the LiveComponent →
+      `Calendar.set_calendar_state/4` → Ecto-update seam.
+    * `set_calendar_state` race with deletion — if the underlying
       integration row is removed between mount and the click, the handler
       re-fetches by id, surfaces the not-found arm as a user-visible
       flash, and reloads the list so the stale entry disappears. Without
