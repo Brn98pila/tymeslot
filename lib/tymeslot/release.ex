@@ -2,16 +2,40 @@ defmodule Tymeslot.Release do
   @moduledoc """
   Helpers callable from a packaged release where `mix` is not available.
 
-  Designed to be invoked via `bin/tymeslot rpc` (against a running node) or
-  `bin/tymeslot eval` (in a one-shot helper VM). The mix tasks under
-  `Mix.Tasks.Tymeslot.*` delegate here so the implementation stays in one
-  place and behaves identically across dev (`mix tymeslot.promote_admin`)
-  and production (`bin/tymeslot rpc 'Tymeslot.Release.promote_admin("…")'`).
+  `migrate/1` and `strip_upload_metadata/0` run in a one-shot helper VM,
+  `bin/tymeslot eval`, and need no running node. Every other helper acts
+  on the running node and goes through `bin/tymeslot rpc`: under `eval` it
+  raises rather than boot a second copy of the application (its Oban
+  queues, endpoint and start-up tasks) beside the live one. The mix tasks
+  under `Mix.Tasks.Tymeslot.*` delegate here so the implementation stays in
+  one place and behaves identically across dev (`mix
+  tymeslot.promote_admin`) and production (`bin/tymeslot rpc
+  'Tymeslot.Release.promote_admin("…")'`).
   """
 
+  alias Ecto.Migrator
   alias Tymeslot.Auth
   alias Tymeslot.Auth.{AdminRoles, AdminUserQueries, UserQueries, UserSchema}
   alias Tymeslot.Media.UploadMetadataSweep
+
+  @doc """
+  Runs every pending migration of `app`'s repos (its `:ecto_repos`), each
+  through `Ecto.Migrator.with_repo/2`, which starts only the repo. Every
+  start script runs it before the server starts:
+
+      bin/tymeslot eval 'Tymeslot.Release.migrate()'
+  """
+  @spec migrate(atom()) :: :ok
+  def migrate(app \\ :tymeslot) do
+    :ok = Application.ensure_loaded(app)
+
+    for repo <- Application.fetch_env!(app, :ecto_repos) do
+      {:ok, _migrated, _apps} =
+        Migrator.with_repo(repo, &Migrator.run(&1, :up, all: true))
+    end
+
+    :ok
+  end
 
   @doc """
   Promotes the user with the given email to admin.
@@ -26,7 +50,7 @@ defmodule Tymeslot.Release do
           {:ok, UserSchema.t()}
           | {:error, :not_found | :admin_ui_disabled | Ecto.Changeset.t()}
   def promote_admin(email) when is_binary(email) do
-    ensure_started()
+    ensure_running!()
 
     with {:ok, user} <- UserQueries.get_user_by_email(email) do
       AdminRoles.promote(:cli, user.id)
@@ -49,7 +73,7 @@ defmodule Tymeslot.Release do
           {:ok, UserSchema.t()}
           | {:error, :not_found | :admin_ui_disabled | :last_admin | Ecto.Changeset.t()}
   def demote_admin(email, force? \\ false) when is_binary(email) do
-    ensure_started()
+    ensure_running!()
 
     with :ok <- ensure_admin_ui_enabled(),
          {:ok, user} <- UserQueries.get_user_by_email(email) do
@@ -69,7 +93,7 @@ defmodule Tymeslot.Release do
   """
   @spec delete_account(String.t(), boolean()) :: {:ok, :deleted} | {:error, term()}
   def delete_account(email, force? \\ false) when is_binary(email) do
-    ensure_started()
+    ensure_running!()
 
     with {:ok, user} <- UserQueries.get_user_by_email(email),
          {:ok, _pending} <-
@@ -101,7 +125,7 @@ defmodule Tymeslot.Release do
   """
   @spec list_admins() :: [%{id: integer(), email: String.t()}]
   def list_admins do
-    ensure_started()
+    ensure_running!()
 
     Enum.map(AdminUserQueries.list_admins(), fn user -> %{id: user.id, email: user.email} end)
   end
@@ -122,11 +146,16 @@ defmodule Tymeslot.Release do
   @spec strip_upload_metadata() :: UploadMetadataSweep.report()
   def strip_upload_metadata, do: UploadMetadataSweep.run()
 
-  # When called via `bin/tymeslot eval`, the application isn't started — we
-  # need at least the Repo running to issue queries. `rpc` against a live
-  # node already has everything up, so the second start is a no-op.
-  defp ensure_started do
-    {:ok, _apps} = Application.ensure_all_started(:tymeslot)
+  # These helpers act on the running node (its repo, Oban queues and
+  # caches). Under `bin/tymeslot eval` nothing is running, and starting the
+  # application there would boot a second copy beside the live node, so
+  # they refuse instead. `rpc` and the mix tasks (after `app.start`) run
+  # where the application is already up.
+  defp ensure_running! do
+    unless List.keymember?(Application.started_applications(), :tymeslot, 0) do
+      raise "Tymeslot.Release needs the running node: use `bin/tymeslot rpc`, not `eval`"
+    end
+
     :ok
   end
 end
