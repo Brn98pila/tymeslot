@@ -364,4 +364,4 @@ msgstr[1] "Zuletzt synchronisiert vor %{count} Minuten"
 #: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
 #, elixir-autogen, elixir-format
 msgid "Last synced just now"
-msgstr "Zuletzt synchronisiert gerade eben"
+msgstr "Gerade eben synchronisiert"

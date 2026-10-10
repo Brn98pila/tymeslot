@@ -36,6 +36,13 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
 
   @type discrepancy :: :deleted | :modified
 
+  @typedoc "Who `render_end_followed/4` reports as told about a new end."
+  @type end_notice :: %{
+          previous_end_time: DateTime.t(),
+          attendees: [String.t()],
+          guests: non_neg_integer()
+        }
+
   @doc """
   Builds a Swoosh email notifying `organizer_email` that `meeting` was changed
   externally.  `discrepancy` is either `:deleted` or `:modified`.
@@ -70,6 +77,146 @@ defmodule Tymeslot.Emails.Templates.ExternalBookingChange do
       |> html_body(html_body)
       |> text_body(text_body)
     end)
+  end
+
+  @doc """
+  Builds the email telling `organizer_email` that `meeting` now ends where they
+  moved its end in their own calendar, and who was emailed the new end
+  (`notice`). Nothing is asked of them: Tymeslot followed their calendar.
+  """
+  @spec render_end_followed(Meeting.t(), String.t(), end_notice(), String.t()) ::
+          Swoosh.Email.t()
+  def render_end_followed(%Meeting{} = meeting, organizer_email, notice, owner_timezone) do
+    locale = RecipientLocale.locale_for_user_id(meeting.organizer_user_id)
+
+    Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
+      owner_time = DateTimeUtils.convert_to_timezone(meeting.start_time, owner_timezone)
+      time_format = HostClock.time_format(meeting, locale)
+      title = meeting.title || dgettext("emails_booking", "Meeting")
+      to = end_label(meeting.end_time, owner_time, locale, time_format)
+      from = end_label(notice.previous_end_time, owner_time, locale, time_format)
+      meeting = %{MeetingLinks.with_current_links(meeting) | title: title}
+
+      summary =
+        dgettext(
+          "emails_booking",
+          "You changed when \"%{title}\" ends in your external calendar, so Tymeslot updated the booking: it now ends at %{to} instead of %{from}.",
+          title: Sanitise.sanitize_for_email(title),
+          to: to,
+          from: from
+        )
+
+      told = told_line(meeting, notice)
+      view_url = view_url(meeting, UrlBuilder.build_url("/dashboard/meetings"))
+
+      mjml_content = """
+      #{Callouts.alert_box(:confirmed, summary, title: dgettext("emails_booking", "Meeting end updated from your calendar"))}
+
+      #{Text.centered_text(Sanitise.sanitize_for_email(told), padding: "8px 0 16px 0")}
+
+      #{MeetingComponents.meeting_details_table(%{date: owner_time, start_time: owner_time, duration: meeting.duration, location: meeting.location, location_type: if(meeting.meeting_url, do: :video, else: :custom), meeting_type: meeting.meeting_type, time_format: time_format}, locale)}
+
+      #{Buttons.action_button(:confirmed, dgettext("emails_booking", "View Meeting Details"), view_url, full_width: true)}
+
+      #{Text.system_footer_note(dgettext("emails_booking", "This notification was triggered automatically when a change was detected in your external calendar."))}
+      """
+
+      html_body =
+        TemplateHelper.compile_system_template(
+          mjml_content,
+          dgettext("emails_booking", "Meeting end updated from your calendar"),
+          dgettext("emails_booking", "A meeting changed in your external calendar."),
+          intent: :confirmed,
+          eyebrow: dgettext("emails_booking", "Updated"),
+          stage_title: dgettext("emails_booking", "Meeting end updated from your calendar"),
+          stage_subtitle: told
+        )
+
+      text_body = """
+      #{dgettext("emails_booking", "Meeting end updated from your calendar")}
+
+      #{summary}
+
+      #{told}
+
+      #{dgettext("emails_booking", "View meeting:")}
+      #{view_url}
+
+      #{dgettext("emails_booking", "This notification was triggered automatically when a change was detected in your external calendar.")}
+      """
+
+      MjmlEmail.base_email()
+      |> to(recipient(meeting.organizer_name, organizer_email))
+      |> subject(
+        Sanitise.sanitize_for_header(
+          dgettext("emails_booking", "\"%{title}\" now ends at %{time} (%{date})",
+            title: title,
+            time: to,
+            date: Formatting.format_date_short(owner_time, locale)
+          )
+        )
+      )
+      |> html_body(html_body)
+      |> text_body(text_body)
+    end)
+  end
+
+  # The end in the host's zone and clock; on a later day than the start, with
+  # its day.
+  defp end_label(end_time, owner_start, locale, time_format) do
+    finish = DateTimeUtils.convert_to_timezone(end_time, owner_start.time_zone)
+
+    if Date.compare(DateTime.to_date(finish), DateTime.to_date(owner_start)) == :eq,
+      do: Formatting.format_time(finish, locale, time_format),
+      else: Formatting.format_datetime(finish, locale, time_format)
+  end
+
+  defp told_line(meeting, %{attendees: attendees, guests: guests}) do
+    [attendees_line(meeting, attendees), guests_line(guests, attendees != [])]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+  end
+
+  defp attendees_line(_meeting, []), do: nil
+
+  # Counts the participants reached, which on a retry or a rejected address
+  # need not be all of them.
+  defp attendees_line(meeting, attendees) do
+    if Meeting.group?(meeting) do
+      dngettext(
+        "emails_booking",
+        "We emailed %{count} participant the new end time, with an updated calendar entry.",
+        "We emailed %{count} participants the new end time, with an updated calendar entry.",
+        length(attendees)
+      )
+    else
+      dgettext(
+        "emails_booking",
+        "We emailed %{name} the new end time, with an updated calendar entry.",
+        name: Enum.join(attendees, ", ")
+      )
+    end
+  end
+
+  defp guests_line(0, _after_attendees?), do: nil
+
+  defp guests_line(guests, true) do
+    dngettext(
+      "emails_booking",
+      "Their guest was emailed too.",
+      "Their %{count} guests were emailed too.",
+      guests
+    )
+  end
+
+  # No attendee was reached, so "their" would have nobody to refer to.
+  defp guests_line(guests, false) do
+    dngettext(
+      "emails_booking",
+      "We emailed the guest the new end time, with an updated calendar entry.",
+      "We emailed %{count} guests the new end time, with an updated calendar entry.",
+      guests
+    )
   end
 
   # Only attach a display name when the organiser actually has one — otherwise

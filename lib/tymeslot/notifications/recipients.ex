@@ -4,8 +4,10 @@ defmodule Tymeslot.Notifications.Recipients do
   Pure functions for recipient determination and notification targeting.
   """
 
+  require Logger
+
+  alias Tymeslot.Emails.HostClock
   alias Tymeslot.Meetings
-  alias Tymeslot.Profiles
 
   @typep participant :: %{
            required(:email) => String.t() | nil,
@@ -64,21 +66,15 @@ defmodule Tymeslot.Notifications.Recipients do
   Requires the meeting to have organizer_user_id set.
   """
   @spec get_organizer_timezone(term()) :: String.t()
-  def get_organizer_timezone(meeting) do
-    case meeting.organizer_user_id do
-      nil ->
-        require Logger
+  def get_organizer_timezone(%{organizer_user_id: nil} = meeting) do
+    Logger.error("Missing organizer_user_id for meeting; using default timezone",
+      meeting_id: Map.get(meeting, :id)
+    )
 
-        Logger.error("Missing organizer_user_id for meeting; using default timezone",
-          meeting_id: Map.get(meeting, :id)
-        )
-
-        Profiles.get_default_timezone()
-
-      user_id ->
-        Profiles.get_user_timezone(user_id)
-    end
+    HostClock.timezone(meeting)
   end
+
+  def get_organizer_timezone(meeting), do: HostClock.timezone(meeting)
 
   @doc """
   Gets the attendee's timezone from the meeting record.

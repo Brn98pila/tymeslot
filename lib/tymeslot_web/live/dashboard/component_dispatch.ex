@@ -74,10 +74,19 @@ defmodule TymeslotWeb.Dashboard.ComponentDispatch do
     %{shared_data: %{agenda: assigns[:agenda] || %Day{}}}
   end
 
-  def props_for_action(%{live_action: action} = assigns)
-      when action in [:settings, :availability] do
+  # The settings form suggests the browser's zone to a host who has none.
+  def props_for_action(%{live_action: :settings} = assigns) do
     %{profile: Profiles.prefill_timezone(assigns.profile, assigns[:detected_timezone])}
   end
+
+  # The availability page shows the hours and time off on the clock the
+  # booking engine reads them on (`Profiles.timezone/1`), never the browser's.
+  def props_for_action(%{live_action: :availability, profile: %{} = profile}) do
+    %{profile: %{profile | timezone: Profiles.timezone(profile)}}
+  end
+
+  def props_for_action(%{live_action: :availability} = assigns),
+    do: %{profile: assigns.profile}
 
   def props_for_action(_assigns), do: %{}
 

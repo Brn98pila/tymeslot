@@ -427,7 +427,6 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   end
 
   defp format_localized_duration(60), do: "1 #{dngettext("emails", "hour", "hours", 1)}"
-  defp format_localized_duration(90), do: "1.5 #{dngettext("emails", "hour", "hours", 2)}"
 
   defp format_localized_duration(m) when rem(m, 60) == 0 do
     hours = div(m, 60)

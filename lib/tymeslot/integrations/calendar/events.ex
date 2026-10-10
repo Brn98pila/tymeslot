@@ -9,6 +9,7 @@ defmodule Tymeslot.Integrations.Calendar.Events do
 
   alias Tymeslot.Availability.Reach
   alias Tymeslot.Availability.Schedules
+  alias Tymeslot.Clock
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalDAV.Client, as: CalDAVClient
@@ -530,11 +531,11 @@ defmodule Tymeslot.Integrations.Calendar.Events do
 
     case profile_result do
       {:ok, profile} ->
-        today = Date.utc_today()
+        today = Clock.utc_today()
         {today, Date.add(today, booking_window_days(profile) + meeting_reach_days())}
 
       {:error, _reason} ->
-        today = Date.utc_today()
+        today = Clock.utc_today()
         {today, Date.add(today, 30 + meeting_reach_days())}
     end
   end

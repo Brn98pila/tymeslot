@@ -13,27 +13,6 @@ msgstr ""
 
 #: lib/tymeslot_web/live/account_live/components.ex
 #, elixir-autogen, elixir-format
-msgid "%{count} day ago"
-msgid_plural "%{count} days ago"
-msgstr[0] "%{count} giorno fa"
-msgstr[1] "%{count} giorni fa"
-
-#: lib/tymeslot_web/live/account_live/components.ex
-#, elixir-autogen, elixir-format
-msgid "%{count} hour ago"
-msgid_plural "%{count} hours ago"
-msgstr[0] "%{count} ora fa"
-msgstr[1] "%{count} ore fa"
-
-#: lib/tymeslot_web/live/account_live/components.ex
-#, elixir-autogen, elixir-format
-msgid "%{count} minute ago"
-msgid_plural "%{count} minutes ago"
-msgstr[0] "%{count} minuto fa"
-msgstr[1] "%{count} minuti fa"
-
-#: lib/tymeslot_web/live/account_live/components.ex
-#, elixir-autogen, elixir-format
 msgid "A verification email has been sent to"
 msgstr "Un'email di verifica è stata inviata a"
 
@@ -164,11 +143,6 @@ msgstr "L'autenticazione tramite password non è disponibile per gli account con
 msgid "Pending change to:"
 msgstr "Nuovo indirizzo in sospeso:"
 
-#: lib/tymeslot_web/live/account_live/components.ex
-#, elixir-autogen, elixir-format
-msgid "Sent %{time}"
-msgstr "Inviata %{time}"
-
 #: lib/tymeslot_web/live/account_live/forms.ex
 #, elixir-autogen, elixir-format
 msgid "Update Email"
@@ -193,11 +167,6 @@ msgstr "Aggiornamento password in corso"
 #, elixir-autogen, elixir-format
 msgid "Your password has been changed. Please sign in again with your new password."
 msgstr "La tua password è stata modificata. Accedi di nuovo con la nuova password."
-
-#: lib/tymeslot_web/live/account_live/components.ex
-#, elixir-autogen, elixir-format
-msgid "just now"
-msgstr "proprio ora"
 
 #: lib/tymeslot_web/live/account_live/forms.ex
 #, elixir-autogen, elixir-format
@@ -385,6 +354,32 @@ msgid "If you delete your account, it is frozen for %{count} day, then deleted. 
 msgid_plural "If you delete your account, it is frozen for %{count} days, then deleted. Sign in during that time to restore it."
 msgstr[0] "Se elimini il tuo account, resta congelato per %{count} giorno, poi viene eliminato. Accedi in questo periodo per ripristinarlo."
 msgstr[1] "Se elimini il tuo account, resta congelato per %{count} giorni, poi viene eliminato. Accedi in questo periodo per ripristinarlo."
+
+#: lib/tymeslot_web/live/account_live/components.ex
+#, elixir-autogen, elixir-format
+msgid "Sent %{count} day ago"
+msgid_plural "Sent %{count} days ago"
+msgstr[0] "Inviata %{count} giorno fa"
+msgstr[1] "Inviata %{count} giorni fa"
+
+#: lib/tymeslot_web/live/account_live/components.ex
+#, elixir-autogen, elixir-format
+msgid "Sent %{count} hour ago"
+msgid_plural "Sent %{count} hours ago"
+msgstr[0] "Inviata %{count} ora fa"
+msgstr[1] "Inviata %{count} ore fa"
+
+#: lib/tymeslot_web/live/account_live/components.ex
+#, elixir-autogen, elixir-format
+msgid "Sent %{count} minute ago"
+msgid_plural "Sent %{count} minutes ago"
+msgstr[0] "Inviata %{count} minuto fa"
+msgstr[1] "Inviata %{count} minuti fa"
+
+#: lib/tymeslot_web/live/account_live/components.ex
+#, elixir-autogen, elixir-format
+msgid "Sent just now"
+msgstr "Inviata proprio ora"
 
 #: lib/tymeslot/auth/account_deletion/request.ex
 #, elixir-autogen, elixir-format

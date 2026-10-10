@@ -23,8 +23,6 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  @default_timezone Profiles.get_default_timezone()
-
   @spec from_meeting(map(), map() | nil) :: Tymeslot.Emails.EmailService.appointment_details()
   def from_meeting(meeting, reminder_interval \\ nil) do
     build(meeting, reminder_interval)
@@ -143,19 +141,15 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
 
   defp booking_payment_for(_meeting), do: nil
 
-  defp owner_timezone(meeting) do
-    case meeting.organizer_user_id do
-      nil ->
-        Logger.error("Missing organizer_user_id for meeting, using default timezone",
-          meeting_id: meeting.id
-        )
+  defp owner_timezone(%{organizer_user_id: nil} = meeting) do
+    Logger.error("Missing organizer_user_id for meeting, using default timezone",
+      meeting_id: meeting.id
+    )
 
-        @default_timezone
-
-      _user_id ->
-        HostClock.timezone(meeting)
-    end
+    HostClock.timezone(meeting)
   end
+
+  defp owner_timezone(meeting), do: HostClock.timezone(meeting)
 
   # A group meeting's row never carries an attendee: its people are its
   # participants, whose own timezone comes in through the recipient overlay.
@@ -317,31 +311,15 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
     }
   end
 
+  # A meeting booked before reminders were stored as value and unit carries
+  # a label instead. One that reads as an interval is localised like any
+  # other, for both recipients; free text the app no longer writes is kept.
   defp handle_normalized_reminders([], meeting) do
-    case legacy_reminder_label(meeting) do
-      nil ->
-        %{
-          reminder_time: nil,
-          default_reminder_time: nil,
-          time_until: nil,
-          time_until_friendly: nil,
-          reminders_enabled: false,
-          reminders_summary:
-            dgettext("emails", "No reminder emails are scheduled for this appointment.")
-        }
+    label = legacy_reminder_label(meeting)
 
-      legacy_label ->
-        %{
-          reminder_time: legacy_label,
-          default_reminder_time: legacy_label,
-          time_until: legacy_label,
-          time_until_friendly: dgettext("emails", "in %{label}", label: legacy_label),
-          reminders_enabled: true,
-          reminders_summary:
-            dgettext("emails", "I'll send you a reminder %{label} before our appointment.",
-              label: legacy_label
-            )
-        }
+    case ReminderUtils.parse_label(label) do
+      {:ok, reminder} -> handle_normalized_reminders([reminder], meeting)
+      :error -> legacy_reminder_details(label)
     end
   end
 
@@ -386,6 +364,34 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
           count: length(reminder_list)
         )
     }
+  end
+
+  defp legacy_reminder_details(label) do
+    case label do
+      nil ->
+        %{
+          reminder_time: nil,
+          default_reminder_time: nil,
+          time_until: nil,
+          time_until_friendly: nil,
+          reminders_enabled: false,
+          reminders_summary:
+            dgettext("emails", "No reminder emails are scheduled for this appointment.")
+        }
+
+      legacy_label ->
+        %{
+          reminder_time: legacy_label,
+          default_reminder_time: legacy_label,
+          time_until: legacy_label,
+          time_until_friendly: dgettext("emails", "in %{label}", label: legacy_label),
+          reminders_enabled: true,
+          reminders_summary:
+            dgettext("emails", "I'll send you a reminder %{label} before our appointment.",
+              label: legacy_label
+            )
+        }
+    end
   end
 
   # Derive a display location from the meeting's fields. When a video URL is

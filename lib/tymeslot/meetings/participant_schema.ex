@@ -32,6 +32,7 @@ defmodule Tymeslot.Meetings.ParticipantSchema do
           management_token: String.t() | nil,
           management_token_hash: String.t() | nil,
           ical_sequence: non_neg_integer(),
+          notified_end_time: DateTime.t() | nil,
           confirmation_sent_at: DateTime.t() | nil,
           organizer_notified_at: DateTime.t() | nil,
           cancelled_at: DateTime.t() | nil,
@@ -61,6 +62,10 @@ defmodule Tymeslot.Meetings.ParticipantSchema do
     # The seat's own calendar-file revision: each seat is its own event in
     # the participant's calendar.
     field(:ical_sequence, :integer, default: 0)
+    # The end this seat was last told by an end change notice, or held before
+    # a change not yet announced; nil when it knows the meeting as booked or
+    # last rescheduled. Written only by the end change and reschedule paths.
+    field(:notified_end_time, :utc_datetime)
     field(:confirmation_sent_at, :utc_datetime)
     field(:organizer_notified_at, :utc_datetime)
     field(:cancelled_at, :utc_datetime)

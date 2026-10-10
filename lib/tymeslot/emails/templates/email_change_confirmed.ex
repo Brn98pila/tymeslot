@@ -5,7 +5,8 @@ defmodule Tymeslot.Emails.Templates.EmailChangeConfirmed do
   """
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Emails.Shared.{Callouts, Cards, Formatting, Greeting, TemplateHelper, Text}
+  alias Tymeslot.Emails.HostClock
+  alias Tymeslot.Emails.Shared.{Callouts, Cards, Greeting, TemplateHelper, Text}
 
   # A positive confirmation that an account change succeeded.
   @intent :confirmed
@@ -38,7 +39,7 @@ defmodule Tymeslot.Emails.Templates.EmailChangeConfirmed do
 
     #{Callouts.alert_box(@intent, dgettext("emails_account", "Email change completed successfully."))}
 
-    #{Cards.contact_details_card(dgettext("emails_account", "Change details"), [%{label: dgettext("emails_account", "Previous email"), value: old_email}, %{label: dgettext("emails_account", "New email"), value: new_email}, %{label: dgettext("emails_account", "Changed at"), value: format_time(confirmed_time)}, %{label: dgettext("emails_account", "Status"), value: dgettext("emails_account", "Active")}])}
+    #{Cards.contact_details_card(dgettext("emails_account", "Change details"), [%{label: dgettext("emails_account", "Previous email"), value: old_email}, %{label: dgettext("emails_account", "New email"), value: new_email}, %{label: dgettext("emails_account", "Changed at"), value: format_time(confirmed_time, user)}, %{label: dgettext("emails_account", "Status"), value: dgettext("emails_account", "Active")}])}
 
     #{Text.section_title(dgettext("emails_account", "What you need to know"), padding: "24px 0 8px 0")}
 
@@ -113,7 +114,7 @@ defmodule Tymeslot.Emails.Templates.EmailChangeConfirmed do
     #{dgettext("emails_account", "CHANGE DETAILS:")}
     #{dgettext("emails_account", "Previous email:")} #{old_email}
     #{dgettext("emails_account", "New email:")} #{new_email}
-    #{dgettext("emails_account", "Changed at:")} #{format_time(confirmed_time)}
+    #{dgettext("emails_account", "Changed at:")} #{format_time(confirmed_time, user)}
     #{dgettext("emails_account", "Status:")} #{dgettext("emails_account", "Active")}
 
     #{dgettext("emails_account", "WHAT YOU NEED TO KNOW:")}
@@ -125,9 +126,9 @@ defmodule Tymeslot.Emails.Templates.EmailChangeConfirmed do
     """
   end
 
-  defp format_time(nil), do: dgettext("emails_account", "Just now")
+  defp format_time(nil, _user), do: dgettext("emails_account", "Just now")
 
-  defp format_time(datetime) do
-    Formatting.format_datetime(datetime, Gettext.get_locale(TymeslotWeb.Gettext))
-  end
+  # A security notice is easier to act on in the user's own zone and clock.
+  defp format_time(datetime, user),
+    do: HostClock.format_datetime(datetime, user.id, Gettext.get_locale(TymeslotWeb.Gettext))
 end

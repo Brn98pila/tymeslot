@@ -357,6 +357,23 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
         document
       )
 
+  @doc """
+  The event as it would read toggled between all-day and timed, its dates or
+  times derived in `timezone`: the zone the caller passes `update_event/4` as
+  `:timezone`, so the dates and a recurring event's refitted `UNTIL` are read
+  on the same calendar. See `Tymeslot.CalendarGrid.AllDay.toggle/2`.
+
+  The grid renders this copy while the write is queued, and writes its timing
+  fields (`timing_changes/1`).
+  """
+  @spec toggle_all_day(map(), String.t()) :: map()
+  defdelegate toggle_all_day(event, timezone), to: AllDay, as: :toggle
+
+  @doc "The timing fields of `event`, as `update_event/4` takes them."
+  @spec timing_changes(map()) :: changes()
+  def timing_changes(event),
+    do: Map.take(event, [:all_day, :start_at, :end_at, :start_date, :end_date])
+
   defp ensure_known_fields!(changes) do
     case Map.keys(changes) -- @editable_fields do
       [] ->
@@ -387,7 +404,7 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
   defp retarget_rule(updated, _was_all_day, timezone) do
     case RRule.retarget(updated.recurrence_rule,
            all_day: updated.all_day,
-           start_date: AllDay.start_date(updated),
+           start_date: AllDay.start_date(updated, timezone),
            timezone: timezone
          ) do
       {:ok, rule} -> {:ok, %{updated | recurrence_rule: rule}}

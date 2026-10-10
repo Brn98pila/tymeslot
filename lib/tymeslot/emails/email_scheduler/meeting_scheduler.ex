@@ -27,7 +27,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
         keys: [:action, :meeting_id]
       ]
     )
-    |> insert_job("Confirmation emails", meeting_id)
+    |> Helpers.insert_job("Confirmation emails", meeting_id)
   end
 
   @doc """
@@ -43,7 +43,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
       when is_list(guest_ids) and guest_ids != [] do
     %{"action" => "send_guest_invitations", "meeting_id" => meeting_id, "guest_ids" => guest_ids}
     |> EmailWorker.new(queue: :emails, priority: 0)
-    |> insert_job("Guest invitations", meeting_id)
+    |> Helpers.insert_job("Guest invitations", meeting_id)
   end
 
   @doc """
@@ -86,7 +86,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
         states: [:suspended, :available, :scheduled, :retryable]
       ]
     )
-    |> insert_job("Booking request emails", meeting_id)
+    |> Helpers.insert_job("Booking request emails", meeting_id)
   end
 
   # A reschedule back into the approval gate knows the time the booking was
@@ -127,7 +127,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
         states: :incomplete
       ]
     )
-    |> insert_job("Approval nudge", meeting_id)
+    |> Helpers.insert_job("Approval nudge", meeting_id)
   end
 
   @doc """
@@ -149,7 +149,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
       priority: 0,
       unique: [period: 300, fields: [:args, :queue], keys: [:action, :meeting_id]]
     )
-    |> insert_job("Booking request outcome", meeting_id)
+    |> Helpers.insert_job("Booking request outcome", meeting_id)
   end
 
   @doc """
@@ -165,7 +165,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
       priority: 0,
       unique: [period: 300, fields: [:args, :queue], keys: [:action, :meeting_id]]
     )
-    |> insert_job("Reschedule request expired", meeting_id)
+    |> Helpers.insert_job("Reschedule request expired", meeting_id)
   end
 
   @doc """
@@ -186,42 +186,6 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
       "send_booking_approval_nudge",
       meeting_id
     )
-  end
-
-  # Shared insert-and-report used by every scheduling function in this
-  # module. A unique-conflict is success: the job we wanted already exists.
-  # Oban signals that by returning the existing job with `conflict?: true`,
-  # not a changeset error — a unique constraint never reaches the changeset
-  # because Oban resolves it with an upsert, so matching on
-  # `{:error, %Ecto.Changeset{errors: [unique: _]}}` is unreachable and would
-  # silently misreport a dedup as a fresh schedule.
-  defp insert_job(changeset, label, meeting_id, extra_meta \\ []) do
-    case Oban.insert(changeset) do
-      {:ok, %Oban.Job{conflict?: true}} ->
-        Logger.info(
-          "Approval email job already exists, skipping duplicate",
-          [meeting_id: meeting_id, email_job: label] ++ extra_meta
-        )
-
-        :ok
-
-      {:ok, _job} ->
-        Logger.info(
-          "Approval email job scheduled",
-          [meeting_id: meeting_id, email_job: label] ++ extra_meta
-        )
-
-        :ok
-
-      {:error, reason} ->
-        Logger.error(
-          "Failed to schedule approval email job",
-          [meeting_id: meeting_id, email_job: label, error: Helpers.format_insert_error(reason)] ++
-            extra_meta
-        )
-
-        {:error, "Failed to schedule job"}
-    end
   end
 
   # Canonical seat-email action names, declared once so the same six strings
@@ -451,7 +415,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
     }
     |> maybe_put_original(original)
     |> EmailWorker.new(queue: :emails, priority: 0)
-    |> insert_job("Reschedule emails", meeting.id)
+    |> Helpers.insert_job("Reschedule emails", meeting.id)
   end
 
   defp maybe_put_original(args, nil), do: args
@@ -481,7 +445,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
         keys: [:action, :meeting_id]
       ]
     )
-    |> insert_job("Cancellation emails", meeting_id)
+    |> Helpers.insert_job("Cancellation emails", meeting_id)
   end
 
   @doc """
@@ -520,7 +484,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
             states: :incomplete
           ]
         )
-        |> insert_job("Reminder emails", meeting_id, scheduled_at: scheduled_at)
+        |> Helpers.insert_job("Reminder emails", meeting_id, scheduled_at: scheduled_at)
 
       _error ->
         {:error, "invalid_reminder"}
