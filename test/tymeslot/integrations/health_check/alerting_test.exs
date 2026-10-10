@@ -337,6 +337,80 @@ defmodule Tymeslot.Integrations.HealthCheck.AlertingTest do
     end
   end
 
+  describe "persisted signal state" do
+    # Once alerted, the incident lives in the signal's state rather than in the
+    # history it was derived from: a recovery is still reported after the
+    # windows that raised it have been pruned.
+    test "a recovery is reported from the stored incident, not re-derived from history", %{
+      user: user,
+      hour: hour
+    } do
+      insert_refusals(user, hour, 5)
+      assert :alerted = Alerting.check_signal(:availability_refusals, at(hour, 1))
+      Repo.delete_all(AvailabilityRefusalSchema)
+
+      assert :ok = Alerting.check_signal(:availability_refusals, at(hour, 2))
+      assert :recovered = Alerting.check_signal(:availability_refusals, at(hour, 3))
+
+      assert_received {:send_alert, :integration_health_failure, _failure}
+
+      assert_received {:send_alert, :integration_health_recovery,
+                       %{incident_started_at: started_at}}
+
+      assert started_at == DateTime.to_iso8601(DateTime.add(hour, 1, :hour))
+    end
+
+    # The worker retried, or two nodes ran the same hour: one evaluation only.
+    test "a window already evaluated is not evaluated again", %{user: user, hour: hour} do
+      insert_refusals(user, hour, 5)
+
+      assert :alerted = Alerting.check_signal(:availability_refusals, at(hour, 1))
+      assert :ok = Alerting.check_signal(:availability_refusals, at(hour, 1))
+
+      assert_received {:send_alert, :integration_health_failure, _payload}
+      refute_received {:send_alert, _type, _payload}
+    end
+  end
+
+  # Installations upgrading to persisted state start with none. The first run
+  # rebuilds it from the windows behind it, so it behaves as the run before
+  # the upgrade would have: no new alert key, no lost recovery.
+  describe "the first run without persisted state" do
+    test "mid-incident, alerts under the key the incident already had", %{
+      user: user,
+      hour: hour
+    } do
+      for offset <- 0..2, do: insert_refusals(user, DateTime.add(hour, offset, :hour), 5)
+
+      assert :alerted = Alerting.check_signal(:availability_refusals, at(hour, 3))
+
+      assert_received {:send_alert, :integration_health_failure,
+                       %{incident_started_at: started_at}}
+
+      assert started_at == DateTime.to_iso8601(DateTime.add(hour, 1, :hour))
+    end
+
+    test "in a dip, neither alerts nor recovers early, and recovers on time", %{
+      user: user,
+      hour: hour
+    } do
+      insert_refusals(user, hour, 5)
+
+      assert :ok = Alerting.check_signal(:availability_refusals, at(hour, 2))
+      refute_received {:send_alert, _type, _payload}
+
+      assert :recovered = Alerting.check_signal(:availability_refusals, at(hour, 3))
+      assert_received {:send_alert, :integration_health_recovery, _recovery}
+    end
+
+    test "when quiet, stays quiet", %{user: user, hour: hour} do
+      insert_refusals(user, DateTime.add(hour, -5, :hour), 5)
+
+      assert :ok = Alerting.check_signal(:availability_refusals, at(hour, 1))
+      refute_received {:send_alert, _type, _payload}
+    end
+  end
+
   describe "recover_after configuration" do
     test "is refused below one window, rather than reading every quiet hour as a recovery" do
       for windows <- [0, -1, nil] do
