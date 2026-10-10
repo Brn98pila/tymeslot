@@ -177,12 +177,12 @@ msgstr "Par sécurité, une copie de cette confirmation a été envoyée à votr
 #: lib/tymeslot/emails/templates/email_verification.ex
 #, elixir-autogen, elixir-format
 msgid "For your security, this link expires in 24 hours. If you didn't sign up for Tymeslot, no further action is needed."
-msgstr "Pour votre sécurité, ce lien expire dans 24 heures. Si vous ne vous êtes pas inscrit(e) à Tymeslot, aucune action supplémentaire n’est nécessaire."
+msgstr "Pour votre sécurité, ce lien expire dans 24 heures. Si cette inscription à Tymeslot ne vient pas de vous, aucune action supplémentaire n’est nécessaire."
 
 #: lib/tymeslot/emails/templates/email_verification.ex
 #, elixir-autogen, elixir-format
 msgid "For your security, this link expires in 24 hours. If you didn't sign up for Tymeslot, you can ignore this email."
-msgstr "Pour votre sécurité, ce lien expire dans 24 heures. Si vous ne vous êtes pas inscrit(e) à Tymeslot, vous pouvez ignorer cet e-mail."
+msgstr "Pour votre sécurité, ce lien expire dans 24 heures. Si cette inscription à Tymeslot ne vient pas de vous, vous pouvez ignorer cet e-mail."
 
 #: lib/tymeslot/emails/templates/signup_attempt_notice.ex
 #, elixir-autogen, elixir-format

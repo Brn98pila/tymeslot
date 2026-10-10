@@ -14,7 +14,7 @@ msgstr ""
 #: lib/tymeslot/emails/templates/reschedule_request_expired.ex
 #, elixir-autogen, elixir-format
 msgid "%{name} asked to move their confirmed booking to this time, and the request wasn't answered before its deadline. The previous time had already been given up for it, so the booking has been cancelled. %{name} has been told and can book a new time."
-msgstr "%{name} a demandé à déplacer sa réservation confirmée à ce créneau, et la demande n'a pas reçu de réponse avant l'échéance. Le créneau précédent avait déjà été libéré pour cela, la réservation a donc été annulée. %{name} a été prévenu(e) et peut réserver un nouveau créneau."
+msgstr "%{name} a demandé à déplacer sa réservation confirmée à ce créneau, et la demande n'a pas reçu de réponse avant l'échéance. Le créneau précédent avait déjà été libéré pour cela, la réservation a donc été annulée. %{name} a reçu une notification et peut réserver un nouveau créneau."
 
 #: lib/tymeslot/emails/templates/booking_approval_request.ex
 #, elixir-autogen, elixir-format

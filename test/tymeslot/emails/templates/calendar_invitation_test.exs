@@ -164,7 +164,7 @@ defmodule Tymeslot.Emails.Templates.CalendarInvitationTest do
             {"en", "Calendar Invitation", "You're Invited"},
             {"de", "Kalendereinladung", "Sie sind eingeladen"},
             {"uk", "Запрошення до календаря", "Вас запрошено"},
-            {"fr", "Invitation :", "Vous êtes invité(e)"},
+            {"fr", "Invitation :", "Vous avez reçu une invitation"},
             {"it", "Invito di calendario", "Hai ricevuto un invito"}
           ] do
         details = build_invitation_details(%{attendee_locale: locale})

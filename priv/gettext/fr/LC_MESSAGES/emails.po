@@ -197,7 +197,7 @@ msgstr "Appel téléphonique"
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format
 msgid "%{name} has invited you to an event."
-msgstr "%{name} vous a invité(e) à un événement."
+msgstr "%{name} vous a envoyé une invitation à un événement."
 
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format
@@ -207,7 +207,7 @@ msgstr "Invitation : %{title} le %{date}"
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format
 msgid "You're Invited"
-msgstr "Vous êtes invité(e)"
+msgstr "Vous avez reçu une invitation"
 
 #: lib/tymeslot/emails/shared/text_body_helper.ex
 #, elixir-autogen, elixir-format
@@ -247,7 +247,7 @@ msgstr "vendredi"
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format
 msgid "Invited"
-msgstr "Invité(e)"
+msgstr "Invitation"
 
 #: lib/tymeslot/emails/shared/meeting/hero.ex
 #, elixir-autogen, elixir-format
@@ -451,12 +451,12 @@ msgstr "l’authentification unique"
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format
 msgid "%{name} has cancelled a recurring event you were invited to. Every occurrence is cancelled."
-msgstr "%{name} a annulé un événement récurrent auquel vous étiez invité(e). Toutes les occurrences sont annulées."
+msgstr "%{name} a annulé un événement récurrent pour lequel vous aviez reçu une invitation. Toutes les occurrences sont annulées."
 
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format
 msgid "%{name} has cancelled an event you were invited to."
-msgstr "%{name} a annulé un événement auquel vous étiez invité(e)."
+msgstr "%{name} a annulé un événement pour lequel vous aviez reçu une invitation."
 
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format
