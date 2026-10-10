@@ -187,7 +187,7 @@ defmodule Tymeslot.Bookings.CalendarUidJourneyTest do
       send(test, {:calendar_update, identifier, event_data})
       :ok
     end)
-    |> stub(:delete_event, fn identifier, _context ->
+    |> stub(:delete_event, fn identifier, _context, _opts ->
       send(test, {:calendar_delete, identifier})
       :ok
     end)

@@ -277,7 +277,7 @@ defmodule Tymeslot.Meetings.CalendarEventSync do
         attendees: Meetings.attendees_for_calendar(meeting)
       )
 
-    with {:ok, created} <- calendar_module().create_event(event_data, meeting) do
+    with {:ok, created} <- CalendarEvents.create_event(event_data, meeting) do
       case record_replacement(meeting, event_id, created) do
         {:ok, :recorded} ->
           delete_replaced_event(meeting, event_id)
@@ -319,7 +319,7 @@ defmodule Tymeslot.Meetings.CalendarEventSync do
   # gone, its cached copy goes too: nothing links it to the meeting now, so
   # until inbound sync drops it the grid would show it beside the booking.
   defp delete_replaced_event(meeting, event_id) do
-    case calendar_module().delete_event(event_id, meeting) do
+    case CalendarEvents.delete_event(event_id, meeting) do
       result when result in [:ok, {:ok, :deleted}, {:error, :not_found}] ->
         Logger.info("Replaced calendar event deleted", meeting_id: meeting.id)
         CalendarEventCache.forget(meeting, event_id)
@@ -363,7 +363,7 @@ defmodule Tymeslot.Meetings.CalendarEventSync do
   end
 
   defp update_existing_event(meeting, event_data) do
-    case calendar_module().update_event(calendar_event_identifier(meeting), event_data, meeting) do
+    case CalendarEvents.update_event(calendar_event_identifier(meeting), event_data, meeting) do
       :ok ->
         record_successful_update(meeting, event_data)
 
@@ -386,7 +386,7 @@ defmodule Tymeslot.Meetings.CalendarEventSync do
     Logger.info("Calendar event not found, creating new one", meeting_id: meeting_id)
 
     # Use the organizer_user_id to create in the correct calendar
-    case calendar_module().create_event(event_data, meeting.organizer_user_id) do
+    case CalendarEvents.create_event(event_data, meeting.organizer_user_id) do
       {:ok, created} ->
         CalendarEventMapping.persist_or_compensate(meeting, created)
 
@@ -433,7 +433,7 @@ defmodule Tymeslot.Meetings.CalendarEventSync do
   end
 
   defp delete_event_for_meeting(meeting, meeting_id) do
-    case calendar_module().delete_event(calendar_event_identifier(meeting), meeting) do
+    case CalendarEvents.delete_event(calendar_event_identifier(meeting), meeting) do
       :ok ->
         Logger.info("Calendar event deleted successfully", meeting_id: meeting_id)
         :ok
@@ -461,7 +461,7 @@ defmodule Tymeslot.Meetings.CalendarEventSync do
       )
 
     # Use the meeting context to create in the correct calendar
-    case calendar_module().create_event(event_data, meeting) do
+    case CalendarEvents.create_event(event_data, meeting) do
       {:ok, created} ->
         Logger.info("Calendar event created successfully", meeting_id: meeting_id)
 
@@ -547,10 +547,5 @@ defmodule Tymeslot.Meetings.CalendarEventSync do
           error: LogFormat.reason(reason)
         )
     end
-  end
-
-  defp calendar_module do
-    Application.get_env(:tymeslot, :calendar_module) ||
-      Tymeslot.Integrations.Calendar.Events
   end
 end

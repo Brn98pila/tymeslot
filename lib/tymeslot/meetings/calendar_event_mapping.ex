@@ -13,6 +13,7 @@ defmodule Tymeslot.Meetings.CalendarEventMapping do
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CreatedEvent
+  alias Tymeslot.Integrations.Calendar.Events, as: CalendarEvents
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema
   require Logger
@@ -69,7 +70,7 @@ defmodule Tymeslot.Meetings.CalendarEventMapping do
   end
 
   defp delete_orphan(meeting, identifier) do
-    case calendar_module().delete_event(identifier, meeting) do
+    case CalendarEvents.delete_event(identifier, meeting) do
       :ok ->
         :ok
 
@@ -99,7 +100,7 @@ defmodule Tymeslot.Meetings.CalendarEventMapping do
   """
   @spec persist(MeetingSchema.t(), CreatedEvent.t(), map()) :: :ok | {:error, term()}
   def persist(meeting, created, base_attrs) do
-    case calendar_module().get_booking_integration_info(meeting) do
+    case CalendarEvents.get_booking_integration_info(meeting) do
       {:ok, %{integration_id: integration_id, calendar_path: calendar_path}} ->
         attrs =
           Map.merge(base_attrs, %{
@@ -151,9 +152,4 @@ defmodule Tymeslot.Meetings.CalendarEventMapping do
     do: Map.put(attrs, :provider_event_id, id)
 
   defp put_provider_mapping(attrs, %CreatedEvent{}), do: attrs
-
-  defp calendar_module do
-    Application.get_env(:tymeslot, :calendar_module) ||
-      Tymeslot.Integrations.Calendar.Events
-  end
 end
