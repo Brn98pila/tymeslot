@@ -422,7 +422,7 @@ msgstr "Ceci est une notification de sécurité envoyée pour protéger votre co
 #: lib/tymeslot/emails/templates/social_signup_confirmation.ex
 #, elixir-autogen, elixir-format
 msgid "This link expires in 24 hours. If you didn't sign up for Tymeslot, you can ignore this email and no account will be created."
-msgstr "Ce lien expire dans 24 heures. Si vous ne vous êtes pas inscrit(e) à Tymeslot, vous pouvez ignorer cet e-mail et aucun compte ne sera créé."
+msgstr "Ce lien expire dans 24 heures. Si cette inscription à Tymeslot ne vient pas de vous, vous pouvez ignorer cet e-mail et aucun compte ne sera créé."
 
 #: lib/tymeslot/emails/templates/email_change_verification.ex
 #, elixir-autogen, elixir-format
