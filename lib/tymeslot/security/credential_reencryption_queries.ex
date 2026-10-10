@@ -15,12 +15,19 @@ defmodule Tymeslot.Security.CredentialReencryptionQueries do
   @doc """
   Fetches up to `limit` rows of the given table with `id > after_id` (every
   row from the start for a `nil` `after_id`), ordered by `id`, selecting only
-  the id and the requested encrypted columns. The id may be an integer or a
-  UUID, which comes back as its raw bytes and is passed back the same way.
+  the id and the requested columns. The id may be an integer or a UUID, which
+  comes back as its raw bytes and is passed back the same way.
+
+  Option `:present`: only rows where that column is not null.
   """
-  @spec fetch_batch(String.t(), [atom()], integer() | binary() | nil, pos_integer()) ::
-          [map()]
-  def fetch_batch(table, columns, after_id, limit) do
+  @spec fetch_batch(
+          String.t(),
+          [atom()],
+          integer() | binary() | nil,
+          pos_integer(),
+          keyword()
+        ) :: [map()]
+  def fetch_batch(table, columns, after_id, limit, opts \\ []) do
     fields = [:id | columns]
 
     query =
@@ -32,8 +39,31 @@ defmodule Tymeslot.Security.CredentialReencryptionQueries do
 
     query
     |> after_id(after_id)
+    |> present(opts[:present])
     |> Repo.all()
   end
+
+  @doc """
+  Streams every row of the table as `fetch_batch/5` pages it, `batch_size`
+  rows per query, so a caller walks a whole table without loading it. Takes
+  `fetch_batch/5`'s options.
+  """
+  @spec stream_rows(String.t(), [atom()], pos_integer(), keyword()) :: Enumerable.t()
+  def stream_rows(table, columns, batch_size, opts \\ []) do
+    # The first page starts from no id rather than 0, since some of the tables
+    # are keyed by UUID.
+    {:after, nil}
+    |> Stream.unfold(fn {:after, after_id} ->
+      case fetch_batch(table, columns, after_id, batch_size, opts) do
+        [] -> nil
+        rows -> {rows, {:after, rows |> List.last() |> Map.fetch!(:id)}}
+      end
+    end)
+    |> Stream.concat()
+  end
+
+  defp present(query, nil), do: query
+  defp present(query, column), do: where(query, [r], not is_nil(field(r, ^column)))
 
   defp after_id(query, nil), do: query
   defp after_id(query, id), do: where(query, [r], r.id > ^id)
@@ -48,24 +78,19 @@ defmodule Tymeslot.Security.CredentialReencryptionQueries do
   between the batch read and this call, that column's update affects zero
   rows and is silently skipped rather than clobbering the newer value.
 
-  Returns `true` if at least one column was updated, `false` otherwise
-  (including the no-op case of an empty `updates` list).
+  Returns the number of columns written: `0` when every CAS lost (and for the
+  no-op case of an empty `updates` list).
   """
   @spec update_row(String.t(), integer() | binary(), [{atom(), binary(), binary()}]) ::
-          boolean()
-  def update_row(_table, _id, []), do: false
-
+          non_neg_integer()
   def update_row(table, id, updates) do
-    Enum.reduce(updates, false, fn {column, old_value, new_value}, any_updated? ->
+    Enum.count(updates, fn {column, old_value, new_value} ->
       query =
         from(r in table,
           where: r.id == ^id and field(r, ^column) == ^old_value
         )
 
-      case Repo.update_all(query, set: [{column, new_value}]) do
-        {0, _returned} -> any_updated?
-        {_count, _returned} -> true
-      end
+      match?({1, _returned}, Repo.update_all(query, set: [{column, new_value}]))
     end)
   end
 end

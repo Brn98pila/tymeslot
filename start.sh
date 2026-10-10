@@ -176,8 +176,15 @@ fi
 # session secret can be rotated without making stored credentials undecryptable.
 # It MUST persist across restarts — losing it makes existing credentials
 # unrecoverable, forcing every integration to be reconnected.
+#
+# The generated key is key 1. Once DATA_ENCRYPTION_KEYS is set (key rotation),
+# a missing key file is never regenerated: deleting the file, and the line this
+# script wrote into /app/data/.env, is how key 1 is retired after the sweep.
 DATA_KEY_FILE="/app/data/data_encryption_key"
-if [ -z "${DATA_ENCRYPTION_KEY:-}" ]; then
+if [ -z "${DATA_ENCRYPTION_KEY:-}" ] && [ -n "${DATA_ENCRYPTION_KEYS:-}" ] &&
+  [ ! -f "$DATA_KEY_FILE" ]; then
+  echo "==> DATA_ENCRYPTION_KEYS set and no generated key file; key 1 is retired"
+elif [ -z "${DATA_ENCRYPTION_KEY:-}" ]; then
   if [ ! -f "$DATA_KEY_FILE" ]; then
     openssl rand -base64 48 | tr -d '\n' > "$DATA_KEY_FILE"
     chmod 600 "$DATA_KEY_FILE"

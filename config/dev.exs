@@ -83,7 +83,8 @@ config :tymeslot, TymeslotWeb.Endpoint,
 # silently overridden the moment you set your own, stranding credentials already
 # written under it. Production supplies the key via runtime.exs.
 config :tymeslot, Tymeslot.Security.Encryption,
-  data_encryption_key: System.get_env("DATA_ENCRYPTION_KEY")
+  data_encryption_key: System.get_env("DATA_ENCRYPTION_KEY"),
+  data_encryption_keys: System.get_env("DATA_ENCRYPTION_KEYS")
 
 # Enable dev routes for dashboard and mailbox
 config :tymeslot, dev_routes: true
