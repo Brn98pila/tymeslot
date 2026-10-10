@@ -128,6 +128,35 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandlingTest do
       end
     end
 
+    # Every later flag reads the row as already flagged, so a flag that
+    # committed without its email would leave the owner never told. The job
+    # insert is made to fail with a check named as one Oban's changeset
+    # declares, so it comes back as `{:error, changeset}` rather than raising;
+    # it is gone again with the test's transaction.
+    test "a flag whose email cannot be queued is rolled back, and the next flag emails" do
+      integration = insert(:calendar_integration, needs_reauth: false)
+
+      Repo.query!("""
+      ALTER TABLE oban_jobs ADD CONSTRAINT priority_range
+        CHECK (args->>'action' IS DISTINCT FROM 'send_integration_reauth_notification') NOT VALID
+      """)
+
+      capture_log(fn ->
+        assert {:error, :notification_failed} =
+                 ReauthHandling.flag_and_notify(:calendar, integration, "Reconnect, please.")
+      end)
+
+      refute Repo.reload!(integration).needs_reauth
+
+      Repo.query!("ALTER TABLE oban_jobs DROP CONSTRAINT priority_range")
+
+      assert {:ok, _flagged} =
+               ReauthHandling.flag_and_notify(:calendar, integration, "Reconnect, please.")
+
+      assert Repo.reload!(integration).needs_reauth
+      assert [_email] = reauth_emails(integration)
+    end
+
     test "re-flagging updates the message and does not email again" do
       integration = insert(:calendar_integration, needs_reauth: true, sync_error: "Old reason.")
 

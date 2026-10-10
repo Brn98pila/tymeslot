@@ -12,7 +12,7 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandling do
 
   Two distinct return shapes are available depending on context:
 
-  - `flag/3` — returns `:ok | {:error, :not_found}`. Suitable for non-Oban
+  - `flag/3` — returns `:ok | {:error, reason}`. Suitable for non-Oban
     callers (fetch helpers, token refreshers) that just want the side-effect
     and a simple success/failure signal.
 
@@ -28,6 +28,7 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandling do
   alias Tymeslot.Infrastructure.BreakerOutcome
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Integrations.Shared.IntegrationTypes
+  alias Tymeslot.Repo
 
   require Logger
 
@@ -146,9 +147,12 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandling do
   `cause` (a `t:cause/0`, `:credentials_undecryptable` by default), through
   `flag_and_notify/3`.
 
-  Returns `{:error, :not_found}` when the integration's row is gone.
+  Returns `{:error, :not_found}` when the integration's row is gone, and
+  `{:error, :notification_failed}` when nothing was flagged because the email
+  could not be queued.
   """
-  @spec flag(IntegrationTypes.kind(), struct(), cause()) :: :ok | {:error, :not_found}
+  @spec flag(IntegrationTypes.kind(), struct(), cause()) ::
+          :ok | {:error, :not_found | :notification_failed}
   def flag(kind, integration, cause \\ @default_cause) do
     cause_key = cause_key(cause)
     %{log: log, message: message} = fetch_cause(cause_key)
@@ -175,33 +179,45 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandling do
   Only a false to true transition is news: re-flagging an integration the
   owner has already been told about would email them again about a problem
   they are already looking at. The transition is decided by the row, so of
-  two flaggers holding the same stale struct only one sends the email. The
-  badge alone reaches only owners who open the dashboard, so flagging and
-  notifying are one step and cannot come apart.
+  two flaggers holding the same stale struct only one sends the email.
+
+  The flag and the email job commit together. Every later flag reads the row
+  as already flagged, so a flag that committed without its email would leave
+  the owner never told; if the job cannot be inserted, the flag is rolled
+  back and `{:error, :notification_failed}` returned, for the caller to retry.
   """
   @spec flag_and_notify(IntegrationTypes.kind(), struct(), String.t()) ::
-          {:ok, struct()} | {:error, :not_found}
+          {:ok, struct()} | {:error, :not_found | :notification_failed}
   def flag_and_notify(kind, integration, message) do
-    case IntegrationTypes.queries(kind).flag_needs_reauth(integration, message) do
-      {:ok, updated, true} ->
-        IntegrationScheduler.schedule_integration_reauth_notification(
-          %{id: updated.user_id},
-          updated,
-          kind
-        )
-
-        {:ok, updated}
-
-      {:ok, updated, false} ->
-        {:ok, updated}
-
+    Repo.transaction(fn ->
+      case IntegrationTypes.queries(kind).flag_needs_reauth(integration, message) do
+        {:ok, updated, true} -> notify(kind, updated)
+        {:ok, updated, false} -> updated
+        {:error, :not_found} -> Repo.rollback(:not_found)
+      end
+    end)
+    |> tap(fn
       {:error, :not_found} ->
         Logger.warning("Integration to flag for reauth no longer exists",
           integration_type: IntegrationTypes.log_name(kind),
           integration_id: integration.id
         )
 
-        {:error, :not_found}
+      _result ->
+        :ok
+    end)
+  end
+
+  # A uniqueness conflict is reported as :ok: an email for this flag is
+  # already queued.
+  defp notify(kind, updated) do
+    case IntegrationScheduler.schedule_integration_reauth_notification(
+           %{id: updated.user_id},
+           updated,
+           kind
+         ) do
+      :ok -> updated
+      {:error, _reason} -> Repo.rollback(:notification_failed)
     end
   end
 

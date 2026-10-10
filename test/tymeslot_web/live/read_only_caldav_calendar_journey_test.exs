@@ -25,7 +25,6 @@ defmodule TymeslotWeb.ReadOnlyCalDAVCalendarJourneyTest do
   import Tymeslot.TestHelpers.Eventually
 
   alias Tymeslot.Infrastructure.AvailabilityCache
-  alias Tymeslot.Infrastructure.CalendarCircuitBreaker
   alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Meetings.MeetingSchema

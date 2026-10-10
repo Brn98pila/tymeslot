@@ -5,6 +5,7 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
 
   import Ecto.Query
   alias Ecto.Changeset
+  alias Tymeslot.Clock
   alias Tymeslot.Integrations.Video.VideoIntegrationSchema
   alias Tymeslot.Repo
 
@@ -363,7 +364,7 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
   clearing `needs_reauth`, the message explaining it, and any recorded room
   creation error.
 
-  `sync_error` is written alongside `needs_reauth` by `mark_needs_reauth/2` and
+  `sync_error` is written alongside `needs_reauth` by `flag_needs_reauth/2` and
   describes why the integration stopped working. Leaving it behind outlives the
   flag it belongs to, and the row then carries an explanation of a problem it no
   longer has: the dashboard reads it for the reconnect prompt's reason, and the
@@ -436,7 +437,12 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
           | {:error, :not_found}
   def flag_needs_reauth(%VideoIntegrationSchema{id: id} = integration, message) do
     row = where(VideoIntegrationSchema, id: ^id)
-    flag = [needs_reauth: true, sync_error: message, updated_at: DateTime.utc_now(:second)]
+
+    flag = [
+      needs_reauth: true,
+      sync_error: message,
+      updated_at: DateTime.truncate(Clock.utc_now(), :second)
+    ]
 
     case Repo.update_all(where(row, needs_reauth: false), set: flag) do
       {1, _rows} ->

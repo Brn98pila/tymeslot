@@ -86,7 +86,8 @@ defmodule Tymeslot.Integrations.Calendar.Tokens do
   A failure is `{:error, reason}`, with a provider's typed failure as
   `{:error, {type, message}}`. When the stored credentials no longer
   decrypt, the integration is flagged for reconnection and the answer is
-  `{:error, :requires_reencryption}`. An integration deleted before the re-read
+  `{:error, :requires_reencryption}`, or `{:error, :reauth_flag_failed}` when
+  the flag could not be recorded. An integration deleted before the re-read
   is `{:error, :integration_not_found}`, distinct from an event's
   `:not_found`. A wait for another holder of the lock that outlasts the lock
   timeout is `{:error, :lock_timeout}`.
@@ -157,8 +158,10 @@ defmodule Tymeslot.Integrations.Calendar.Tokens do
   # `handle_reauth_required/1` answers in Oban's terms; this module's callers
   # expect `{:ok, _} | {:error, _}`.
   defp flag_unreadable(stale) do
-    {:discard, _reason} = CalendarManagement.handle_reauth_required(stale)
-    {:error, :requires_reencryption}
+    case CalendarManagement.handle_reauth_required(stale) do
+      {:discard, _reason} -> {:error, :requires_reencryption}
+      {:error, _reason} -> {:error, :reauth_flag_failed}
+    end
   end
 
   defp provider_refresh(%{provider: "google"} = integration),

@@ -69,6 +69,20 @@ defmodule Tymeslot.Integrations.HealthCheck.SchedulerProbeTimingTest do
     )
   end
 
+  # Checks enqueued in one sweep are spread over the next thirty seconds,
+  # never scheduled in the past.
+  test "schedules each probe within the jitter window", %{now: now, integration: integration} do
+    :ok = Scheduler.schedule_all()
+
+    assert [%{scheduled_at: scheduled_at}] =
+             all_enqueued(
+               worker: IntegrationHealthWorker,
+               args: %{"type" => "calendar", "integration_id" => integration.id}
+             )
+
+    assert DateTime.diff(scheduled_at, now, :millisecond) in 0..30_000
+  end
+
   test "enqueues when the integration has never been checked", %{integration: integration} do
     :ok = Scheduler.schedule_all()
 

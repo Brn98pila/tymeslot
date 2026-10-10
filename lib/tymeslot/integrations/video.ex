@@ -82,16 +82,18 @@ defmodule Tymeslot.Integrations.Video do
   when the integration needs reconnecting for a different reason, so the message
   recorded on `sync_error` describes what actually failed.
 
-  Returns `{:discard, _}`, an Oban return value: retrying won't recover the
-  credentials, and an integration whose row is gone has nothing to retry. A
-  database failure while flagging raises, so Oban retries the job and takes
-  another shot at recording the flag.
+  Returns an Oban return value: `{:discard, _}` once flagged (retrying won't
+  recover the credentials) or when the integration's row is gone, and
+  `{:error, _}` when the flag could not be recorded with its email, so Oban
+  retries the job and takes another shot.
   """
-  @spec handle_reauth_required(VideoIntegrationSchema.t(), keyword()) :: {:discard, String.t()}
+  @spec handle_reauth_required(VideoIntegrationSchema.t(), keyword()) ::
+          {:discard, String.t()} | {:error, String.t()}
   def handle_reauth_required(%VideoIntegrationSchema{} = integration, opts \\ []) do
     case flag_for_reauth(integration, opts) do
       :ok -> {:discard, ReauthHandling.discard_reason()}
       {:error, :not_found} -> {:discard, "Integration no longer exists"}
+      {:error, :notification_failed} -> {:error, "Failed to flag integration for reauth"}
     end
   end
 

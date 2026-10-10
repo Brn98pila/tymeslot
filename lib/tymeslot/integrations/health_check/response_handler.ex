@@ -165,7 +165,8 @@ defmodule Tymeslot.Integrations.HealthCheck.ResponseHandler do
   # Private Functions
 
   # Returns the integration as the rest of the check should see it: flagged
-  # when the flag was written, untouched when its row has gone.
+  # when the flag was written, untouched otherwise (the row has gone, or the
+  # flag was rolled back because its email could not be queued).
   defp apply_permanent_auth_failure(type, integration, {:error, reason}) do
     if BreakerOutcome.permanent_credential_error?(reason) do
       Logger.warning("Permanent auth failure detected, flagging for reauth",
@@ -177,7 +178,7 @@ defmodule Tymeslot.Integrations.HealthCheck.ResponseHandler do
 
       case ReauthHandling.flag(type, integration, ReauthHandling.rejection_cause(reason)) do
         :ok -> %{integration | needs_reauth: true}
-        {:error, :not_found} -> integration
+        {:error, _reason} -> integration
       end
     else
       integration

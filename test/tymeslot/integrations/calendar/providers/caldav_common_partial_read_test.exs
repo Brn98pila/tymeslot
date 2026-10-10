@@ -11,8 +11,6 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommonPartialReadTest d
   @moduletag :calendar
   @moduletag :integrations
 
-  alias Tymeslot.Infrastructure.CalendarCircuitBreaker
-
   alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Infrastructure.ResponseTooLargeError
   alias Tymeslot.Integrations.Calendar.Providers.CaldavCommon
