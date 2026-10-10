@@ -445,3 +445,9 @@ msgstr "Paramètres d'intégration"
 #, elixir-autogen, elixir-format
 msgid "Remove %{domain}"
 msgstr "Supprimer %{domain}"
+
+#. The separator between two problems with the domains entered, as in: Invalid domain, Invalid domain format
+#: lib/tymeslot_web/live/dashboard/embed_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid ", "
+msgstr ", "

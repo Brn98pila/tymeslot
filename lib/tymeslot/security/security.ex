@@ -13,7 +13,7 @@ defmodule Tymeslot.Security.Security do
   Returns `{:ok, validated_domains}` if all non-empty entries are valid,
   or `{:error, error_message}` with aggregated error reasons otherwise.
   """
-  @spec validate_domains([String.t()]) :: {:ok, [String.t()]} | {:error, String.t()}
+  @spec validate_domains([String.t()]) :: {:ok, [String.t()]} | {:error, [String.t()]}
   def validate_domains(domains) when is_list(domains) do
     filtered = Enum.reject(domains, &(&1 == "" or is_nil(&1)))
     results = Enum.map(filtered, &validate_domain/1)
@@ -22,13 +22,9 @@ defmodule Tymeslot.Security.Security do
     if errors == [] do
       {:ok, Enum.map(oks, fn {:ok, d} -> d end)}
     else
-      error_msg =
-        errors
-        |> Enum.map(fn {:error, reason} -> reason end)
-        |> Enum.uniq()
-        |> Enum.join(", ")
-
-      {:error, error_msg}
+      # Each distinct problem once, as its own translated message: joining
+      # them is the presentation's job, in the reader's language.
+      {:error, errors |> Enum.map(fn {:error, reason} -> reason end) |> Enum.uniq()}
     end
   end
 

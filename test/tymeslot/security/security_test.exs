@@ -96,4 +96,22 @@ defmodule Tymeslot.Security.SecurityTest do
       end)
     end
   end
+
+  describe "validate_domains/1" do
+    test "returns each distinct problem as its own message, for the reader's language to join" do
+      assert {:error, messages} =
+               Security.validate_domains(["example.com/path", "other.org/x", "*.bad_host.com"])
+
+      assert Enum.sort(messages) ==
+               Enum.sort([
+                 "Invalid domain format (e.g. example.com)",
+                 "Invalid domain format (e.g. *.example.com)"
+               ])
+    end
+
+    test "returns the valid domains when every entry passes" do
+      assert {:ok, ["example.com", "*.example.org"]} =
+               Security.validate_domains(["example.com", "", "*.example.org"])
+    end
+  end
 end
