@@ -118,6 +118,13 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
   defp attention_for(integration, health_states, stuck_changes, tab) do
     health = Map.get(health_states, integration.id)
 
+    # Removed calendars are listed whatever the connection's state, since
+    # the owner dismisses them from the card and must see what that clears.
+    connection_attention(integration, health, stuck_changes, tab) ++
+      removed_attention(integration, tab)
+  end
+
+  defp connection_attention(integration, health, stuck_changes, tab) do
     case HealthCheck.attention_status(integration, health) do
       :needs_reauth ->
         [
@@ -145,8 +152,7 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
 
       :ok ->
         room_creation_attention(integration, tab) ++
-          stuck_attention(Map.get(stuck_changes, integration.id), integration, tab) ++
-          removed_attention(integration, tab)
+          stuck_attention(Map.get(stuck_changes, integration.id), integration, tab)
 
       _paused ->
         []

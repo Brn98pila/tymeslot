@@ -16,6 +16,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.RemovedCalendarsTest do
   alias Ecto.Changeset
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.RemovedCalendar
+  alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateSchema
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
 
@@ -44,6 +45,40 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.RemovedCalendarsTest do
         view,
         "button[phx-click='dismiss_removed_calendars'][phx-value-id='#{integration.id}']"
       )
+
+  # Dismiss sits on the card whatever the connection's state, so what it
+  # clears must be shown alongside the connection's own notice.
+  test "an unhealthy integration shows its removed calendars beside its own notice", %{
+    conn: conn,
+    user: user,
+    integration: integration
+  } do
+    %IntegrationHealthStateSchema{}
+    |> IntegrationHealthStateSchema.changeset(%{
+      integration_type: "calendar",
+      integration_id: integration.id,
+      user_id: user.id,
+      status: "unhealthy"
+    })
+    |> Repo.insert!()
+
+    integration |> Changeset.change(sync_error: "Connection refused") |> Repo.update!()
+
+    {:ok, view, html} = live(conn, ~p"/dashboard/integrations?tab=calendars")
+
+    # The banner leads with the worse problem and counts the removal with it.
+    assert html =~ "2 connections need attention - Home server stopped syncing."
+
+    # The card shows both, one under the other, beside the Dismiss button.
+    notices =
+      view |> render() |> Floki.parse_document!() |> Floki.find("[data-part='notice']")
+
+    assert Enum.map(notices, &Floki.text/1) |> Enum.map(&String.trim/1) |> Enum.at(-1) ==
+             "“Projects” is no longer on your calendar server, so Tymeslot has stopped using it."
+
+    assert length(notices) == 2
+    assert has_element?(dismiss_button(view, integration))
+  end
 
   test "the card and the banner name the calendar, and Dismiss clears both", %{
     conn: conn,

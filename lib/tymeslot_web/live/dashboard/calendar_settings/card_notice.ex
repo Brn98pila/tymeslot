@@ -1,8 +1,9 @@
 defmodule TymeslotWeb.Dashboard.CalendarSettings.CardNotice do
   @moduledoc """
-  The one notice a calendar integration's card shows: whatever needs the
+  The notices a calendar integration's card shows: whatever needs the
   owner's action first (the connection, then changes its server refused),
-  then the calendars its server stopped listing, which need none.
+  and, under it, the calendars its server stopped listing, which the owner
+  dismisses from the same card and so must always be able to see.
   """
   use Gettext, backend: TymeslotWeb.Gettext
 
@@ -10,14 +11,20 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.CardNotice do
   alias TymeslotWeb.Components.Dashboard.Integrations.Shared.ConnectionLabels
 
   @doc """
-  The card's notice for `integration`, given its health state and its stuck
-  changes (`nil` for none), or `nil` when there is nothing to say.
+  The card's notices for `integration`, given its health state and its
+  stuck changes (`nil` for none), in the order shown; `[]` when there is
+  nothing to say.
   """
   @spec notice(CalendarIntegrationSchema.t() | map(), map() | nil, map() | nil) ::
-          String.t() | nil
+          [String.t()]
   def notice(integration, health_state, stuck) do
-    ConnectionLabels.calendar_notice(integration, health_state) || stuck_notice(stuck) ||
-      removed_notice(Map.get(integration, :removed_calendars, []))
+    Enum.reject(
+      [
+        ConnectionLabels.calendar_notice(integration, health_state) || stuck_notice(stuck),
+        removed_notice(Map.get(integration, :removed_calendars, []))
+      ],
+      &is_nil/1
+    )
   end
 
   # A change the server kept refusing is no longer sent, so until the owner
