@@ -47,7 +47,8 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     recipient_email_rejected: %{category: "Email", severity: :warning},
     user_registered_hook_failed: %{category: "System", severity: :error},
     group_meeting_release_failed: %{category: "Booking", severity: :error},
-    upload_delete_failed: %{category: "System", severity: :warning}
+    upload_delete_failed: %{category: "System", severity: :warning},
+    account_files_delete_failed: %{category: "Account", severity: :error}
   }
 
   @doc "Returns the full registry map for enumeration and lookup."
@@ -510,6 +511,15 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
 
     "Uploaded file #{path} could not be deleted and is still on disk; " <>
       "remove it by hand (#{reason_text(metadata)})"
+  end
+
+  # Every retry is spent: personal files outlive the account they belonged to.
+  def format_message(:account_files_delete_failed, metadata) do
+    profile_id = Map.get(metadata, :profile_id, "unknown")
+    paths = Map.get(metadata, :paths, "unknown")
+
+    "Uploaded files of deleted profile #{profile_id} could not be removed after every retry; " <>
+      "delete #{paths} by hand (#{reason_text(metadata)})"
   end
 
   def format_message(type, _metadata) do

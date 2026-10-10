@@ -18,7 +18,7 @@ defmodule Tymeslot.Auth.AccountDeletion do
   alias Tymeslot.Jobs
   alias Tymeslot.Profiles
   alias Tymeslot.Repo
-  alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.Workers.AccountFilesPurgeWorker
 
   @doc """
   Deletes a user.
@@ -47,8 +47,10 @@ defmodule Tymeslot.Auth.AccountDeletion do
   and an avatar is usually a photo of the person, so leaving the files would
   keep personal data past an erasure request. Files go only after the commit:
   a rolled-back deletion must not leave live rows pointing at missing files.
-  A file that cannot be removed is logged and does not fail the deletion,
-  which has already happened.
+  A file that cannot be removed does not fail the deletion, which has
+  already happened: the removal is retried in the background
+  (`Tymeslot.Workers.AccountFilesPurgeWorker`), and the operator is alerted
+  if it never succeeds.
 
   Options:
 
@@ -167,28 +169,32 @@ defmodule Tymeslot.Auth.AccountDeletion do
 
   defp log_transaction_failure(result, _user_id), do: result
 
+  # A file that cannot be removed now is retried in the background, and the
+  # operator is told if it never goes; the deletion itself has already
+  # happened and is not undone.
   defp delete_uploaded_files({:ok, deleted} = result, %{id: profile_id}) do
-    for {kind, outcome} <- [
-          avatars: Profiles.delete_avatar_files(profile_id),
-          theme_backgrounds: ThemeCustomizations.delete_profile_files(profile_id)
-        ],
-        outcome != :ok do
-      {:error, reason, path} = outcome
-
-      Logger.error(
-        "Account deleted but its uploaded files could not be removed; delete them by hand",
+    with {:error, failures} <- AccountFilesPurgeWorker.purge(profile_id) do
+      Logger.warning("Account deleted but its uploaded files could not be removed yet; retrying",
         user_id: deleted.id,
         profile_id: profile_id,
-        files: kind,
-        path: path,
-        reason: LogFormat.reason(reason)
+        files: Enum.map(failures, & &1.files),
+        reason: LogFormat.reason(hd(failures).reason)
       )
+
+      retry_file_purge(profile_id, failures)
     end
 
     result
   end
 
   defp delete_uploaded_files(result, _profile), do: result
+
+  defp retry_file_purge(profile_id, failures) do
+    case AccountFilesPurgeWorker.enqueue(profile_id) do
+      {:ok, _job} -> :ok
+      {:error, _reason} -> AccountFilesPurgeWorker.report(profile_id, failures)
+    end
+  end
 
   # A daily run deletes at most this many, so a sign-up flood cannot turn one
   # run into an unbounded loop of deletions; the rest go on the following days.
