@@ -45,6 +45,7 @@ defmodule Tymeslot.Auth.SessionCreationAuditTest do
     assert meta.user_id == user.id
     refute inspect(meta) =~ token
     # The row it names is findable by the hash the table stores.
+    assert meta.session_hash =~ ~r/\A[0-9a-f]{16}\z/
     assert String.starts_with?(Token.hash_token(token), meta.session_hash)
   end
 

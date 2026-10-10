@@ -249,8 +249,8 @@ defmodule Tymeslot.Auth.AccountDeletion.RunnerTest do
     end
 
     test "is neither held nor deleted when the hold cannot be written", %{admin: admin} do
+      # Unloaded when the test process exits.
       :meck.new(UserQueries, [:passthrough])
-      on_exit(fn -> :meck.unload() end)
 
       :meck.expect(UserQueries, :mark_deletion_scheduled, fn user, _requested_at, _until ->
         {:error, Changeset.add_error(Changeset.change(user), :deletion_scheduled_at, "invalid")}
