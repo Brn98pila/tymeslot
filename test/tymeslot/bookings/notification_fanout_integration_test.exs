@@ -256,9 +256,14 @@ defmodule Tymeslot.Bookings.NotificationFanoutIntegrationTest do
       assert {:ok, %{status: "awaiting_approval"} = moved} =
                Reschedule.execute(confirmed.uid, new_params, ctx.user.id)
 
-      expect(Tymeslot.EmailServiceMock, :send_reschedule_emails, fn details ->
+      expect(Tymeslot.EmailServiceMock, :send_reschedule_email_to_organizer, fn _email,
+                                                                                _details ->
+        {:ok, :sent}
+      end)
+
+      expect(Tymeslot.EmailServiceMock, :send_reschedule_email_to_attendee, fn _email, details ->
         send(test_pid, {:reschedule_emails, details})
-        {{:ok, :sent}, {:ok, :sent}}
+        {:ok, :sent}
       end)
 
       assert {:ok, reapproved} = Approval.approve(moved)

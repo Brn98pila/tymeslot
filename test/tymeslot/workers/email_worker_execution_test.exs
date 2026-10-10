@@ -15,6 +15,7 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
   alias Tymeslot.Infrastructure.CircuitBreakerSupervisor
   alias Tymeslot.Meetings.GuestQueries
   alias Tymeslot.Meetings.Guests
+  alias Tymeslot.Workers.DeliveryClaims
   alias Tymeslot.Workers.DeliveryClaims.DeliveryClaimQueries
   alias Tymeslot.Workers.EmailWorker
 
@@ -61,8 +62,14 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
       profile = insert(:profile)
       meeting = insert(:meeting, organizer_user: profile.user, status: "cancelled")
 
-      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_emails, fn _details ->
-        {{:ok, :sent}, {:ok, :sent}}
+      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, fn _email,
+                                                                                      _details ->
+        {:ok, :sent}
+      end)
+
+      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, fn _email,
+                                                                                     _details ->
+        {:ok, :sent}
       end)
 
       assert :ok =
@@ -88,8 +95,14 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
 
       {:ok, [_guest]} = Guests.create_for_meeting(meeting.id, ["guest@example.com"])
 
-      expect(Tymeslot.EmailServiceMock, :send_cancellation_emails, 1, fn _details ->
-        {{:ok, :sent}, {:ok, :sent}}
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, 1, fn _email,
+                                                                                     _details ->
+        {:ok, :sent}
+      end)
+
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _email,
+                                                                                    _details ->
+        {:ok, :sent}
       end)
 
       expect(Tymeslot.EmailServiceMock, :send_guest_cancellation, 1, fn "guest@example.com",
@@ -133,8 +146,14 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
       :claimed = DeliveryClaimQueries.claim(job.id, "cancellation:participants")
       :claimed = DeliveryClaimQueries.claim(job.id, "cancellation:guest:#{told.id}")
 
-      expect(Tymeslot.EmailServiceMock, :send_cancellation_emails, 0, fn _details ->
-        {{:ok, :sent}, {:ok, :sent}}
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, 0, fn _email,
+                                                                                     _details ->
+        {:ok, :sent}
+      end)
+
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, 0, fn _email,
+                                                                                    _details ->
+        {:ok, :sent}
       end)
 
       expect(Tymeslot.EmailServiceMock, :send_guest_cancellation, 1, fn "untold@example.com",
@@ -192,12 +211,20 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
       profile = insert(:profile)
       meeting = insert(:meeting, organizer_user: profile.user, status: "cancelled")
 
-      expect(Tymeslot.EmailServiceMock, :send_cancellation_emails, 1, fn _details ->
-        {{:error, :delivery_failed}, {:error, :delivery_failed}}
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, 1, fn _, _ ->
+        {:error, :delivery_failed}
       end)
 
-      expect(Tymeslot.EmailServiceMock, :send_cancellation_emails, 1, fn _details ->
-        {{:ok, :sent}, {:ok, :sent}}
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _, _ ->
+        {:error, :delivery_failed}
+      end)
+
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, 1, fn _, _ ->
+        {:ok, :sent}
+      end)
+
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _, _ ->
+        {:ok, :sent}
       end)
 
       job =
@@ -210,27 +237,82 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
       assert :ok = EmailWorker.perform(%{job | attempt: 2})
     end
 
-    test "discards job on partial failure to avoid duplicate sends" do
+    test "a partial failure errors the job and the retry sends only the copy that failed" do
       profile = insert(:profile)
       meeting = insert(:meeting, organizer_user: profile.user, status: "cancelled")
 
-      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_emails, fn _details ->
-        {{:ok, :sent}, {:error, :delivery_failed}}
+      # The organiser's copy goes out on the first run only; the attendee's
+      # fails once and is the only one sent again.
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, 1, fn _, _ ->
+        {:ok, :sent}
       end)
 
-      assert {:discard, _reason} =
-               perform_job(EmailWorker, %{
-                 "action" => "send_cancellation_emails",
-                 "meeting_id" => meeting.id
-               })
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _, _ ->
+        {:error, :delivery_failed}
+      end)
+
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _, _ ->
+        {:ok, :sent}
+      end)
+
+      job =
+        persisted_job(EmailWorker, %{
+          "action" => "send_cancellation_emails",
+          "meeting_id" => meeting.id
+        })
+
+      assert {:error, _reason} = EmailWorker.perform(job)
+      assert :ok = EmailWorker.perform(%{job | attempt: 2})
+    end
+
+    test "a job holding the legacy participants claim sends no participant copy but tells an unclaimed guest" do
+      profile = insert(:profile)
+
+      meeting =
+        insert(:meeting,
+          organizer_user: profile.user,
+          status: "cancelled",
+          first_announced_at: DateTime.utc_now(:second)
+        )
+
+      {:ok, [_guest]} = Guests.create_for_meeting(meeting.id, ["guest@example.com"])
+
+      job =
+        persisted_job(EmailWorker, %{
+          "action" => "send_cancellation_emails",
+          "meeting_id" => meeting.id
+        })
+
+      :ok = DeliveryClaims.once(job.id, "cancellation:participants", fn -> :ok end)
+
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, 0, fn _email,
+                                                                                     _details ->
+        {:ok, :sent}
+      end)
+
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, 0, fn _email,
+                                                                                    _details ->
+        {:ok, :sent}
+      end)
+
+      expect(Tymeslot.EmailServiceMock, :send_guest_cancellation, 1, fn "guest@example.com",
+                                                                        _details ->
+        {:ok, :sent}
+      end)
+
+      assert :ok = EmailWorker.perform(job)
     end
 
     test "returns error on total failure so job is retried" do
       profile = insert(:profile)
       meeting = insert(:meeting, organizer_user: profile.user, status: "cancelled")
 
-      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_emails, fn _details ->
-        {{:error, :delivery_failed}, {:error, :delivery_failed}}
+      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, fn _, _ ->
+        {:error, :delivery_failed}
+      end)
+
+      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, fn _, _ ->
+        {:error, :delivery_failed}
       end)
 
       assert {:error, _reason} =
@@ -242,16 +324,19 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
 
     # A permanent rejection of one recipient used to discard the whole job,
     # throwing away the other recipient's still-retryable send. Neither
-    # succeeded here, so nothing has gone out yet — the job must retry, not
+    # succeeded here, so nothing has gone out yet: the job must retry, not
     # discard, or the still-live recipient never gets their cancellation
     # email.
     test "retries rather than discarding when one recipient is rejected and the other fails transiently" do
       profile = insert(:profile)
       meeting = insert(:meeting, organizer_user: profile.user, status: "cancelled")
 
-      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_emails, fn _details ->
-        {{:error, {:recipient_rejected, {422, %{"ErrorCode" => 406}}}},
-         {:error, :delivery_failed}}
+      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, fn _, _ ->
+        {:error, {:recipient_rejected, {422, %{"ErrorCode" => 406}}}}
+      end)
+
+      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, fn _, _ ->
+        {:error, :delivery_failed}
       end)
 
       assert {:error, _reason} =

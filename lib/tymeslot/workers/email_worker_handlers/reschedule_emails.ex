@@ -30,7 +30,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails do
   alias Tymeslot.Notifications.ContentBuilder
   alias Tymeslot.Notifications.GuestNotifications
   alias Tymeslot.Workers.DeliveryClaims
-  alias Tymeslot.Workers.EmailWorkerHandlers.DeliveryOutcome
+  alias Tymeslot.Workers.EmailWorkerHandlers.ParticipantLegs
   alias Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails
 
   # A notice overtaken by events since the move it announces. The cancelled
@@ -99,35 +99,26 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails do
   defp status_changed?(_meeting, nil), do: false
   defp status_changed?(meeting, status), do: meeting.status != status
 
+  # Each copy, the organiser's, the attendee's and each guest's, is claimed
+  # for the job, so the guests are told on this run whatever became of the
+  # participants' copies, and a retry writes only to whoever was missed.
   defp send_reschedule_emails(meeting, original, job_id) do
     content = content(meeting, original)
-    once = &DeliveryClaims.once(job_id, &1, &2)
+    service = Config.email_service_module()
 
-    result =
-      once.("reschedule:participants", fn ->
-        {organizer_result, attendee_result} =
-          Config.email_service_module().send_reschedule_emails(content)
+    participants =
+      ParticipantLegs.deliver(
+        job_id,
+        "reschedule",
+        meeting.id,
+        fn -> service.send_reschedule_email_to_organizer(content.organizer_email, content) end,
+        fn -> service.send_reschedule_email_to_attendee(content.attendee_email, content) end
+      )
 
-        DeliveryOutcome.from_dual_send(
-          "reschedule",
-          [meeting_id: meeting.id],
-          organizer_result,
-          attendee_result
-        )
-      end)
+    guests = notify_guests(meeting, content, original, &DeliveryClaims.once(job_id, &1, &2))
 
-    # As for a cancellation: guests are told whenever at least one
-    # participant email went out, even on a partial failure that is discarded
-    # rather than retried, so they are told now or never.
-    if result == :ok or match?({:discard, _reason}, result),
-      do: with_guests(result, notify_guests(meeting, content, original, once)),
-      else: result
+    with :ok <- participants, do: guests
   end
-
-  # A guest send that failed after the participants' went out retries the
-  # job: their claim is kept, so the retry writes only to the guests missed.
-  defp with_guests(:ok, guests_result), do: guests_result
-  defp with_guests(result, _guests_result), do: result
 
   defp notify_guests(meeting, content, nil, once),
     do: GuestNotifications.notify_reapproved(meeting, content, once)

@@ -21,6 +21,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails do
   alias Tymeslot.Workers.EmailWorkerHandlers.DeliveryOutcome
   alias Tymeslot.Workers.EmailWorkerHandlers.GroupMeetingEmails
   alias Tymeslot.Workers.EmailWorkerHandlers.GuestEmails
+  alias Tymeslot.Workers.EmailWorkerHandlers.ParticipantLegs
 
   # The meeting is gone, started, or changed state since the email was
   # scheduled. A partial cancellation delivery is recorded.
@@ -178,68 +179,64 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails do
 
   # Unlike confirmations and reminders, a cancellation has no per-recipient
   # sent flag on the meeting, so what stops a rescued job re-sending it is a
-  # claim on the job itself (`DeliveryClaims`): one for the organiser and
-  # attendee pair, which the email service sends in one call, and one for each
-  # guest, so a rescue part-way through the guests still tells the rest. A
-  # retry after both participant emails failed releases the first claim and
-  # sends them again, as before. On a group meeting the first claim covers the
-  # per-seat fan-out instead, which is itself safe to repeat (see
-  # `GroupMeetingEmails`).
+  # claim on the job itself (`DeliveryClaims`): one for the organiser's copy,
+  # one for the attendee's (`ParticipantLegs`) and one for each guest. So the
+  # guests are told on this run whatever became of the participants' copies,
+  # and a retry writes only to whoever was missed. On a group meeting one
+  # claim covers the per-seat fan-out instead, which is itself safe to repeat
+  # (see `GroupMeetingEmails`).
   defp send_cancellation_emails_for_meeting(meeting, job_id) do
     appointment_details = AppointmentBuilder.from_meeting(meeting)
-
-    result =
-      DeliveryClaims.once(job_id, "cancellation:participants", fn ->
-        send_participant_cancellations(meeting, appointment_details)
-      end)
-
-    # Guests are told whenever at least one participant email went out, even
-    # on a partial failure that is discarded rather than retried, so they are
-    # told now or never. A guest send that failed after the participants'
-    # went out retries the job, which then writes only to the guests missed.
-    if result == :ok or match?({:discard, _reason}, result) do
-      guests_result =
-        GuestNotifications.notify_cancelled(
-          meeting,
-          appointment_details,
-          &DeliveryClaims.once(job_id, &1, &2)
-        )
-
-      if result == :ok, do: guests_result, else: result
-    else
-      result
-    end
-  end
-
-  defp send_participant_cancellations(meeting, appointment_details) do
     Logger.info("Sending cancellation emails", meeting_id: meeting.id)
 
-    if Meetings.group?(meeting) do
-      # `group?/1` is capacity-based, not "has live participants": a meeting
-      # emptied by every participant leaving is still a group meeting. Each of
-      # them was told when they left, and so was the organiser: the last
-      # leaver's seat email (or the last mover's) says the slot is now empty
-      # and free. A second, meeting-level email here would only repeat that
-      # with nobody to name, so the emptied meeting sends nothing more.
-      case Meetings.recipients(meeting) do
-        [] -> :ok
-        participants -> GroupMeetingEmails.send_group_cancellation_emails(meeting, participants)
-      end
-    else
-      send_solo_cancellation_emails(meeting, appointment_details)
-    end
+    participants = send_participant_cancellations(meeting, appointment_details, job_id)
+
+    guests =
+      GuestNotifications.notify_cancelled(
+        meeting,
+        appointment_details,
+        &DeliveryClaims.once(job_id, &1, &2)
+      )
+
+    with :ok <- participants, do: guests
   end
 
-  defp send_solo_cancellation_emails(meeting, appointment_details) do
-    {organizer_result, attendee_result} =
-      Config.email_service_module().send_cancellation_emails(appointment_details)
+  defp send_participant_cancellations(meeting, appointment_details, job_id) do
+    if Meetings.group?(meeting) do
+      DeliveryClaims.once(job_id, "cancellation:participants", fn ->
+        # `group?/1` is capacity-based, not "has live participants": a meeting
+        # emptied by every participant leaving is still a group meeting. Each
+        # of them was told when they left, and so was the organiser: the last
+        # leaver's seat email (or the last mover's) says the slot is now
+        # empty and free. A second, meeting-level email here would only
+        # repeat that with nobody to name, so the emptied meeting sends
+        # nothing more.
+        case Meetings.recipients(meeting) do
+          [] -> :ok
+          participants -> GroupMeetingEmails.send_group_cancellation_emails(meeting, participants)
+        end
+      end)
+    else
+      service = Config.email_service_module()
 
-    DeliveryOutcome.from_dual_send(
-      "cancellation",
-      [meeting_id: meeting.id],
-      organizer_result,
-      attendee_result
-    )
+      ParticipantLegs.deliver(
+        job_id,
+        "cancellation",
+        meeting.id,
+        fn ->
+          service.send_cancellation_email_to_organizer(
+            appointment_details.organizer_email,
+            appointment_details
+          )
+        end,
+        fn ->
+          service.send_cancellation_email_to_attendee(
+            appointment_details.attendee_email,
+            appointment_details
+          )
+        end
+      )
+    end
   end
 
   defp send_confirmation_emails(meeting) do

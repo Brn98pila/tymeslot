@@ -128,8 +128,12 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
     test "the reschedule job retries, and the retry writes only to the guest missed" do
       %{meeting: meeting} = meeting_with_guests(moved())
 
-      expect(EmailServiceMock, :send_reschedule_emails, 1, fn _details ->
-        {{:ok, :sent}, {:ok, :sent}}
+      expect(EmailServiceMock, :send_reschedule_email_to_organizer, 1, fn _email, _details ->
+        {:ok, :sent}
+      end)
+
+      expect(EmailServiceMock, :send_reschedule_email_to_attendee, 1, fn _email, _details ->
+        {:ok, :sent}
       end)
 
       fail_once_for("no@example.com", :send_guest_reschedule)
@@ -152,8 +156,12 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
     test "the cancellation job retries, and the retry writes only to the guest missed" do
       %{meeting: meeting} = meeting_with_guests(moved(%{status: "cancelled"}))
 
-      expect(EmailServiceMock, :send_cancellation_emails, 1, fn _details ->
-        {{:ok, :sent}, {:ok, :sent}}
+      expect(EmailServiceMock, :send_cancellation_email_to_organizer, 1, fn _email, _details ->
+        {:ok, :sent}
+      end)
+
+      expect(EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _email, _details ->
+        {:ok, :sent}
       end)
 
       fail_once_for("yes@example.com", :send_guest_cancellation)
@@ -203,8 +211,12 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
       %{meeting: meeting} = meeting_with_guests(held(%{}))
       GuestNotifications.reset_for_new_time(meeting)
 
-      expect(EmailServiceMock, :send_reschedule_emails, fn _details ->
-        {{:ok, :sent}, {:ok, :sent}}
+      expect(EmailServiceMock, :send_reschedule_email_to_organizer, fn _email, _details ->
+        {:ok, :sent}
+      end)
+
+      expect(EmailServiceMock, :send_reschedule_email_to_attendee, fn _email, _details ->
+        {:ok, :sent}
       end)
 
       expect(EmailServiceMock, :send_guest_reschedule, 2, fn _email, details ->
@@ -281,8 +293,12 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
     test "the cancellation email job tells the guests alongside host and booker" do
       %{meeting: meeting} = meeting_with_guests(%{status: "cancelled"})
 
-      expect(EmailServiceMock, :send_cancellation_emails, fn _details ->
-        {{:ok, :sent}, {:ok, :sent}}
+      expect(EmailServiceMock, :send_cancellation_email_to_organizer, fn _email, _details ->
+        {:ok, :sent}
+      end)
+
+      expect(EmailServiceMock, :send_cancellation_email_to_attendee, fn _email, _details ->
+        {:ok, :sent}
       end)
 
       expect(EmailServiceMock, :send_guest_cancellation, 2, fn _email, _details ->

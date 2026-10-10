@@ -10,6 +10,7 @@ defmodule Tymeslot.Notifications.OrchestratorLifecycleTest do
   alias Tymeslot.Notifications.Orchestrator
   alias Tymeslot.Repo
   alias Tymeslot.Workers.EmailWorker
+  alias Tymeslot.Workers.EmailWorkerHandlers
 
   defmodule SuccessWorker do
     @spec schedule_cancellation_emails(term()) :: :ok
@@ -42,24 +43,44 @@ defmodule Tymeslot.Notifications.OrchestratorLifecycleTest do
   end
 
   defmodule SuccessEmailService do
-    @spec send_reschedule_emails(map()) :: {{:ok, term()}, {:ok, term()}}
-    def send_reschedule_emails(content) do
+    @spec send_reschedule_email_to_organizer(String.t(), map()) :: {:ok, term()}
+    def send_reschedule_email_to_organizer(_email, content) do
       # The email job sends from a task; tell the test process that started it.
-      send(List.last(Process.get(:"$callers", [self()])), {:reschedule_emails_sent, content})
-      {{:ok, :organizer_email}, {:ok, :attendee_email}}
+      send(List.last(Process.get(:"$callers", [self()])), {:organizer_reschedule_sent, content})
+      {:ok, :organizer_email}
+    end
+
+    @spec send_reschedule_email_to_attendee(String.t(), map()) :: {:ok, term()}
+    def send_reschedule_email_to_attendee(_email, content) do
+      send(List.last(Process.get(:"$callers", [self()])), {:attendee_reschedule_sent, content})
+      {:ok, :attendee_email}
     end
   end
 
   defmodule CircuitOpenEmailService do
-    @spec send_reschedule_emails(map()) :: {{:error, :circuit_open}, {:error, :circuit_open}}
-    def send_reschedule_emails(_content), do: {{:error, :circuit_open}, {:error, :circuit_open}}
+    @spec send_reschedule_email_to_organizer(String.t(), map()) :: {:error, :circuit_open}
+    def send_reschedule_email_to_organizer(_email, _content), do: {:error, :circuit_open}
+
+    @spec send_reschedule_email_to_attendee(String.t(), map()) :: {:error, :circuit_open}
+    def send_reschedule_email_to_attendee(_email, _content), do: {:error, :circuit_open}
   end
 
+  # The organiser's copy always goes out; the attendee's fails while the
+  # `:attendee_down` flag is set.
   defmodule PartialFailureEmailService do
-    @spec send_reschedule_emails(map()) :: {{:ok, term()}, {:error, term()}}
-    def send_reschedule_emails(content) do
-      send(List.last(Process.get(:"$callers", [self()])), {:reschedule_emails_partial, content})
-      {{:ok, :organizer_email}, {:error, :smtp_down}}
+    @spec send_reschedule_email_to_organizer(String.t(), map()) :: {:ok, term()}
+    def send_reschedule_email_to_organizer(_email, _content) do
+      send(List.last(Process.get(:"$callers", [self()])), :organizer_attempted)
+      {:ok, :organizer_email}
+    end
+
+    @spec send_reschedule_email_to_attendee(String.t(), map()) :: {:ok, term()} | {:error, term()}
+    def send_reschedule_email_to_attendee(_email, _content) do
+      send(List.last(Process.get(:"$callers", [self()])), :attendee_attempted)
+
+      if Application.get_env(:tymeslot, :test_attendee_down),
+        do: {:error, :smtp_down},
+        else: {:ok, :attendee_email}
     end
   end
 
@@ -70,6 +91,7 @@ defmodule Tymeslot.Notifications.OrchestratorLifecycleTest do
     on_exit(fn ->
       restore_env(:email_worker_module, original_worker)
       restore_env(:email_service_module, original_service)
+      Application.delete_env(:tymeslot, :test_attendee_down)
     end)
 
     :ok
@@ -172,7 +194,7 @@ defmodule Tymeslot.Notifications.OrchestratorLifecycleTest do
       assert {:ok, :reschedules_scheduled} =
                Orchestrator.send_reschedule_notifications(updated, original)
 
-      refute_received {:reschedule_emails_sent, _content}
+      refute_received {:attendee_reschedule_sent, _content}
 
       assert [job] =
                all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"})
@@ -180,7 +202,9 @@ defmodule Tymeslot.Notifications.OrchestratorLifecycleTest do
       assert job.args["original"]["start_time"] == "2036-06-01T10:00:00Z"
       assert :ok = perform_job(EmailWorker, job.args)
 
-      assert_received {:reschedule_emails_sent, content}
+      assert_received {:organizer_reschedule_sent, organizer_content}
+      assert_received {:attendee_reschedule_sent, content}
+      assert organizer_content.original_start_time == ~U[2036-06-01 10:00:00Z]
       assert content.organizer_email == "alice@example.com"
       assert content.attendee_email == "bob@example.com"
       assert content.is_rescheduled == true
@@ -203,8 +227,9 @@ defmodule Tymeslot.Notifications.OrchestratorLifecycleTest do
       assert {:snooze, _seconds} = perform_job(EmailWorker, job.args)
     end
 
-    test "a partial delivery is not repeated" do
+    test "a partial delivery errors the job and the retry sends only the copy that failed" do
       Application.put_env(:tymeslot, :email_service_module, PartialFailureEmailService)
+      Application.put_env(:tymeslot, :test_attendee_down, true)
       meeting = meeting_for_lifecycle()
 
       assert {:ok, :reschedules_scheduled} =
@@ -213,8 +238,27 @@ defmodule Tymeslot.Notifications.OrchestratorLifecycleTest do
       assert [job] =
                all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"})
 
-      assert {:discard, _reason} = perform_job(EmailWorker, job.args)
-      assert_received {:reschedule_emails_partial, _content}
+      assert {:error, _reason} =
+               EmailWorkerHandlers.execute_email_action(
+                 "send_reschedule_emails",
+                 job.args,
+                 job.id
+               )
+
+      assert_received :organizer_attempted
+      assert_received :attendee_attempted
+
+      Application.put_env(:tymeslot, :test_attendee_down, false)
+
+      assert :ok =
+               EmailWorkerHandlers.execute_email_action(
+                 "send_reschedule_emails",
+                 job.args,
+                 job.id
+               )
+
+      assert_received :attendee_attempted
+      refute_received :organizer_attempted
     end
 
     test "schedules nothing when recipients are incomplete" do
