@@ -37,6 +37,8 @@ defmodule Tymeslot.Emails.Delivery do
   # `Tymeslot.Mailer.SMTPAdapter`'s 15-second session deadline, which is what
   # reports a relay that hung before any message data was sent as retryable.
   @default_send_deadline_ms 20_000
+  @ambiguous_policy {__MODULE__, :ambiguous_timeouts}
+  @ambiguous_seen {__MODULE__, :ambiguous_timeout_seen}
 
   @doc """
   Delivers an email using the configured mailer, wrapped in a circuit breaker.
@@ -70,6 +72,32 @@ defmodule Tymeslot.Emails.Delivery do
     end
   end
 
+  @doc """
+  Runs `fun` with `policy` for ambiguous timeouts in every `deliver/2` it
+  makes, and returns `{result, ambiguous?}`: `fun`'s result, and whether a
+  delivery in it hit an ambiguous timeout.
+
+  `:retry_once` reports such a timeout as `{:error, {:ambiguous, reason}}`
+  so the caller retries it, which only a caller that records the retry can
+  bound; `:assume_delivered` reports it as `{:ok, :assumed_delivered}`, the
+  default outside this function.
+  """
+  @spec with_ambiguous_timeouts(:retry_once | :assume_delivered, (-> result)) ::
+          {result, boolean()}
+        when result: term()
+  def with_ambiguous_timeouts(policy, fun) when policy in [:retry_once, :assume_delivered] do
+    Process.put(@ambiguous_policy, policy)
+    Process.delete(@ambiguous_seen)
+
+    try do
+      result = fun.()
+      {result, Process.get(@ambiguous_seen, false)}
+    after
+      Process.delete(@ambiguous_policy)
+      Process.delete(@ambiguous_seen)
+    end
+  end
+
   # `BreakerOutcome`'s default classifier only recognises a narrow set of
   # transport/HTTP error shapes; Tymeslot supports several mail adapters
   # (Postmark, SendGrid, Mailgun, AhaSend, SMTP) whose error reasons don't
@@ -80,11 +108,12 @@ defmodule Tymeslot.Emails.Delivery do
   # instead of guessing again from the raw reason.
   defp classify_outcome({:error, {:recipient_rejected, _reason}}), do: :ignore
   defp classify_outcome({:error, _reason}), do: :failure
-  # A client-side timeout is reported to the caller as `:assumed_delivered`
-  # (see `handle_delivery_error/3` below) so a retry doesn't duplicate a mail
-  # that likely already went out, but it is still evidence the provider is
-  # unhealthy — a hung connection is the common shape of an SMTP/API outage,
-  # so it must count as a breaker failure or the breaker never opens for it.
+  # An ambiguous timeout is reported to the caller as `:assumed_delivered` or,
+  # under `with_ambiguous_timeouts(:retry_once, _)`, as `{:error, {:ambiguous, _}}`
+  # (see `handle_delivery_error/3` below), but either way it is evidence the
+  # provider is unhealthy — a hung connection is the common shape of an
+  # SMTP/API outage, so it must count as a breaker failure or the breaker
+  # never opens for it.
   defp classify_outcome({:ok, :assumed_delivered}), do: :failure
   defp classify_outcome(_other), do: :success
 
@@ -117,6 +146,13 @@ defmodule Tymeslot.Emails.Delivery do
     Application.get_env(:tymeslot, :email_send_deadline_ms, @default_send_deadline_ms)
   end
 
+  # AhaSend answers 202 Accepted with a body its adapter cannot always parse,
+  # which reaches here as an error: the provider has taken the message.
+  defp handle_delivery_result({:error, {202, _body}}, email) do
+    Logger.info("Email accepted by the provider", recipient_domains: recipient_domains(email))
+    {:ok, :accepted}
+  end
+
   defp handle_delivery_result({:ok, _receipt} = result, email) do
     Logger.info("Email delivered successfully", recipient_domains: recipient_domains(email))
 
@@ -141,18 +177,31 @@ defmodule Tymeslot.Emails.Delivery do
     {:error, {:recipient_rejected, reason}}
   end
 
-  # A client-side timeout is ambiguous: the SMTP server has very likely already
-  # accepted and sent the message, and only the client gave up waiting. Treating
-  # it as a failure means a retry (here or via Oban) re-sends a message that was
-  # already delivered — the root cause of duplicate emails. So we assume delivery
-  # on timeout; a genuinely lost mail can be re-requested by the user.
+  # A timeout after the message may have been handed over is ambiguous: the
+  # provider has quite possibly accepted it, and only the client gave up
+  # waiting. Retrying every such timeout duplicates mail; assuming every one
+  # delivered loses mail behind a provider that never took it. A caller that
+  # can bound the retry (an email job, which records that it already retried
+  # once) asks for one retry through `with_ambiguous_timeouts/2`; everyone
+  # else assumes delivery, as before.
   defp handle_delivery_error(:timeout, email, reason) do
-    Logger.warning("Email delivery timed out; assuming delivered to avoid duplicate sends",
-      recipient_domains: recipient_domains(email),
-      reason: LogFormat.reason(reason)
-    )
+    if Process.get(@ambiguous_policy) == :retry_once do
+      Process.put(@ambiguous_seen, true)
 
-    {:ok, :assumed_delivered}
+      Logger.warning("Email delivery timed out and may have been sent; retrying it once",
+        recipient_domains: recipient_domains(email),
+        reason: LogFormat.reason(reason)
+      )
+
+      {:error, {:ambiguous, reason}}
+    else
+      Logger.warning("Email delivery timed out; assuming delivered to avoid duplicate sends",
+        recipient_domains: recipient_domains(email),
+        reason: LogFormat.reason(reason)
+      )
+
+      {:ok, :assumed_delivered}
+    end
   end
 
   defp handle_delivery_error(:transient, email, reason) do
@@ -203,15 +252,19 @@ defmodule Tymeslot.Emails.Delivery do
 
     * our own send deadline (`{:send_deadline_exceeded, _}`) and a bare
       `:timeout`: the adapter was mid-send, ambiguous;
-    * gen_smtp timing out after the session opened
-      (`{:send, {:network_failure, _host, {:error, :timeout}}}`): ambiguous;
+    * gen_smtp timing out, or the connection closing, after the session
+      opened (`{:send, {:network_failure, _host, {:error, :timeout | :closed}}}`):
+      the message may already have been sent, ambiguous;
     * gen_smtp failing while opening the session (`{:retries_exceeded, _}`,
       `{:no_more_hosts, _}`): before any message data, so certainly not sent,
       and retryable. Treating it as delivered is how an unreachable relay
       once silently swallowed every email;
-    * an API adapter's `%Mint.TransportError{reason: :timeout}`, which Finch
-      reports alike for a connect and a receive timeout, and a gateway's 504:
-      ambiguous;
+    * an API adapter's transport timeout (`%Finch.TransportError{}`, or
+      `%Mint.TransportError{}` from an older client), and a gateway's 504:
+      ambiguous. Finch wraps a connect timeout and a receive timeout in the
+      same struct, with nothing saying which phase failed, so a connect
+      timeout cannot be told apart and is treated as ambiguous too: under
+      the bounded retry it gets one more attempt;
     * anything else, including other HTTP statuses and transport errors:
       not a timeout, so retryable.
 
@@ -220,7 +273,12 @@ defmodule Tymeslot.Emails.Delivery do
   @spec timeout_error?(term()) :: boolean()
   def timeout_error?(:timeout), do: true
   def timeout_error?({:send_deadline_exceeded, _deadline_ms}), do: true
-  def timeout_error?({:send, {:network_failure, _host, {:error, :timeout}}}), do: true
+
+  def timeout_error?({:send, {:network_failure, _host, {:error, reason}}})
+      when reason in [:timeout, :closed],
+      do: true
+
+  def timeout_error?(%Finch.TransportError{reason: :timeout}), do: true
   def timeout_error?(%Mint.TransportError{reason: :timeout}), do: true
   def timeout_error?({504, _body}), do: true
   def timeout_error?(_reason), do: false

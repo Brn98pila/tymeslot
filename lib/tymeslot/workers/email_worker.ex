@@ -30,6 +30,7 @@ defmodule Tymeslot.Workers.EmailWorker do
   alias Tymeslot.Meetings.Guests
   alias Tymeslot.Notifications.EmailHandlers
   alias Tymeslot.Workers.Bounded
+  alias Tymeslot.Workers.DeliveryClaims
   alias Tymeslot.Workers.EmailWorker.AdminAlertScheduler
   alias Tymeslot.Workers.SnoozePolicy
   alias Tymeslot.Workers.TransactionalEmailDelivery
@@ -47,6 +48,7 @@ defmodule Tymeslot.Workers.EmailWorker do
   @headroom_deadlines 1
   # 1 second base for exponential backoff
   @backoff_cap_ms 120_000
+  @ambiguous_retry "ambiguous_timeout"
   @backoff_base_ms 1_000
   # The actions that deliver admin alerts (`AdminAlertScheduler.actions/0`),
   # as a literal for use in guards.
@@ -180,12 +182,18 @@ defmodule Tymeslot.Workers.EmailWorker do
 
   defp execute_email_job_with_timeout(action, args, job) do
     timeout_ms = email_timeout_ms()
+    policy = ambiguous_timeout_policy(job)
 
     case Bounded.run(
-           fn -> EmailHandlers.execute_email_action(action, args, job.id) end,
+           fn ->
+             Delivery.with_ambiguous_timeouts(policy, fn ->
+               EmailHandlers.execute_email_action(action, args, job.id)
+             end)
+           end,
            timeout_ms
          ) do
-      {:ok, result} ->
+      {:ok, {result, ambiguous?}} ->
+        if ambiguous? and result != :ok, do: record_ambiguous_retry(job, action)
         handle_result(result, job)
 
       {:exit, reason} ->
@@ -200,6 +208,25 @@ defmodule Tymeslot.Workers.EmailWorker do
       :timeout ->
         handle_timeout(action, timeout_ms, job)
     end
+  end
+
+  # A send that timed out after the message may have been handed over is
+  # retried once, never more (decision of 2026-10-07: a rare duplicate over a
+  # lost email, at most one extra copy). The first run that meets one records
+  # it on the job; every later run assumes such a send delivered. Copies a
+  # handler claims (`DeliveryClaims`) are kept once sent or assumed sent, so
+  # none of them goes out again whatever happens after.
+  defp ambiguous_timeout_policy(%Oban.Job{id: job_id}) do
+    if DeliveryClaims.recall(job_id, @ambiguous_retry), do: :assume_delivered, else: :retry_once
+  end
+
+  defp record_ambiguous_retry(%Oban.Job{id: job_id}, action) do
+    _kept = DeliveryClaims.remember(job_id, @ambiguous_retry, "retried")
+
+    Logger.warning("Email job retrying a send that may have gone out; it will not retry it again",
+      action: action,
+      job_id: job_id
+    )
   end
 
   # An admin alert, or the daily digest of them, is the one email where a

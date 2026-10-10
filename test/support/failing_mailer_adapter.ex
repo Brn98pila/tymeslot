@@ -13,9 +13,16 @@ defmodule Tymeslot.Test.FailingMailerAdapter do
 
   @default_error :econnrefused
 
+  # `:test_delivery_attempts_to`, when set to a pid, is sent
+  # `{:delivery_attempt, recipients}` for every attempt, so a test can count
+  # how many times an email was really handed to the provider.
   @impl Swoosh.Adapter
-  def deliver(_email, _config),
-    do: {:error, Application.get_env(:tymeslot, :test_delivery_error, @default_error)}
+  def deliver(email, _config) do
+    with pid when is_pid(pid) <- Application.get_env(:tymeslot, :test_delivery_attempts_to),
+         do: send(pid, {:delivery_attempt, Enum.map(email.to, &elem(&1, 1))})
+
+    {:error, Application.get_env(:tymeslot, :test_delivery_error, @default_error)}
+  end
 
   @impl Swoosh.Adapter
   def validate_config(_config), do: :ok
