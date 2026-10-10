@@ -109,6 +109,29 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelperTest do
       assert div(elapsed_us, 1_000) >= 60
     end
 
+    # The owner is waiting on the callback page.
+    test "fails at once when Graph asks for a longer wait than a page can hold" do
+      %{resp_body: resp_body} = oauth_test_data()
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, _headers, _body, _opts ->
+        {:ok, %{status: 200, body: resp_body}}
+      end)
+
+      expect(Tymeslot.HTTPClientMock, :get, 1, fn _url, _headers, _opts ->
+        {:ok, %Req.Response{status: 429, headers: %{"retry-after" => ["30"]}, body: ""}}
+      end)
+
+      {elapsed_us, {result, _log}} =
+        :timer.tc(fn ->
+          CaptureLog.with_log(fn ->
+            TeamsOAuthHelper.exchange_code_for_tokens("code", "http://uri")
+          end)
+        end)
+
+      assert result == {:error, :provider_rate_limited}
+      assert div(elapsed_us, 1_000) < 1_000
+    end
+
     # Graph refused the token: asking again cannot change that.
     test "does not retry a profile request Graph refuses" do
       %{resp_body: resp_body} = oauth_test_data()
