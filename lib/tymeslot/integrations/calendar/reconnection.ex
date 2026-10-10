@@ -132,11 +132,15 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
        ) do
     %{credentials: creds, calendars: calendars} = payload
 
+    # The selection is the one just made; whether each calendar blocks is
+    # carried over from the stored list, so reconnecting does not undo it.
     calendar_list =
-      Enum.map(calendars, fn cal ->
+      calendars
+      |> Enum.map(fn cal ->
         entry = CalendarEntry.normalize(cal)
         %{entry | selected: Enum.any?(selected_paths, &UriUtils.uri_safe_match?(entry.path, &1))}
       end)
+      |> Selection.carry_blocking_choices(integration.calendar_list)
 
     credential_attrs = %{
       base_url:

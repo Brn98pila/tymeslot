@@ -32,8 +32,10 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   @type client :: map()
 
   @doc """
-  Gets configured calendar clients for all calendars belonging to a user.
-  Returns a list of adapter clients, one for each configured calendar path.
+  The clients that read a user's calendars for availability: those of
+  `availability_sources/1`, without the ids of unreadable integrations. A
+  calendar set to show only gets none (see `Selection.availability_view/1`);
+  for every calendar the user has, use `clients_for_integration/1`.
   """
   @spec clients(user_id() | nil) :: [client()]
   def clients(user_id) do

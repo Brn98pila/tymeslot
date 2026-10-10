@@ -26,6 +26,22 @@ defmodule Tymeslot.Integrations.Calendar.SelectionRediscoveryTest do
       assert {archive.selected, archive.blocks_availability} == {false, false}
     end
 
+    test "carries a show-only choice when the server now percent-encodes the path" do
+      discovered = [%{id: "/dav/user%40example.org/Rota/", path: "/dav/user%40example.org/Rota/"}]
+
+      existing = [
+        %{
+          "id" => "/dav/user@example.org/Rota/",
+          "path" => "/dav/user@example.org/Rota/",
+          "selected" => true,
+          "blocks_availability" => false
+        }
+      ]
+
+      assert [rota] = Selection.unify_discovered_with_existing(discovered, existing)
+      assert {rota.selected, rota.blocks_availability} == {true, false}
+    end
+
     test "gives a newly discovered calendar the blocking default discovery gave it" do
       discovered = [
         %{id: "work", name: "Work", selected: true},

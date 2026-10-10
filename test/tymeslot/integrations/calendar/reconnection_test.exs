@@ -5,6 +5,7 @@ defmodule Tymeslot.Integrations.Calendar.ReconnectionTest do
   @moduletag :calendar
 
   alias Tymeslot.Factory
+  alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Reconnection
   alias Tymeslot.Repo
@@ -247,6 +248,43 @@ defmodule Tymeslot.Integrations.Calendar.ReconnectionTest do
       assert reloaded.calendar_paths == ["/a/"]
       assert Enum.find(reloaded.calendar_list, &(&1.path == "/a/")).selected == true
       assert Enum.find(reloaded.calendar_list, &(&1.path == "/b/")).selected == false
+    end
+
+    test "keeps each known calendar's blocking choice, whatever is selected now", %{
+      integration: integration
+    } do
+      {:ok, integration} =
+        integration
+        |> Ecto.Changeset.change(
+          calendar_list: [
+            %CalendarEntry{
+              id: "/b/",
+              path: "/b/",
+              selected: true,
+              blocks_availability: false
+            }
+          ]
+        )
+        |> Repo.update()
+
+      payload = %{
+        credentials: %{
+          url: "https://caldav.new.example.com",
+          username: "bob",
+          password: "bobpass"
+        },
+        calendars: [
+          %{"id" => "/a/", "path" => "/a/", "name" => "A", "type" => "calendar"},
+          %{"id" => "/b/", "path" => "/b/", "name" => "B", "type" => "calendar"}
+        ]
+      }
+
+      assert {:ok, updated} =
+               Reconnection.finalise_account_change(integration, payload, ["/a/", "/b/"])
+
+      list = Repo.get!(CalendarIntegrationSchema, updated.id).calendar_list
+      assert Enum.find(list, &(&1.path == "/b/")).blocks_availability == false
+      assert Enum.find(list, &(&1.path == "/a/")).blocks_availability == true
     end
 
     test "matches a selected path that differs only by percent-encoding", %{

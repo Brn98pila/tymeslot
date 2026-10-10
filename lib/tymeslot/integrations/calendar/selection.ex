@@ -64,6 +64,25 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
     end)
   end
 
+  @doc """
+  `calendar_list` with each calendar that `existing_list` already knows
+  keeping the owner's blocking choice, for a write that rebuilds the list
+  from a fresh discovery with a selection made anew (a reconnect). A
+  calendar `existing_list` does not know keeps the default its discovery
+  gave it.
+  """
+  @spec carry_blocking_choices([CalendarEntry.t()], list() | nil) :: [CalendarEntry.t()]
+  def carry_blocking_choices(calendar_list, existing_list) do
+    existing_map = build_existing_selection_map(existing_list || [])
+
+    Enum.map(calendar_list, fn entry ->
+      case lookup_choices(existing_map, [entry.path, entry.id]) do
+        nil -> entry
+        %{blocks_availability: blocks} -> %{entry | blocks_availability: blocks}
+      end
+    end)
+  end
+
   defp build_existing_selection_map(existing) do
     Enum.reduce(existing, %{}, fn cal, acc ->
       entry = CalendarEntry.normalize(cal)
