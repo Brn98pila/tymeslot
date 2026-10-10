@@ -161,12 +161,12 @@ defmodule TymeslotWeb.Dashboard.Automation.PausedCardsTest do
       end
     end
 
-    test "on Slack, disconnecting is inert too, since the context refuses it without the plan" do
+    test "on Slack, disconnecting stays available: the owner can always disconnect" do
       [_webhook, slack, _telegram] = cards()
       disconnect = slack |> render_card(true) |> button_labelled!("Slack trennen")
 
-      assert disabled?(disconnect)
-      refute clickable?(disconnect)
+      refute disabled?(disconnect)
+      assert LazyHTML.attribute(disconnect, "phx-click") == ["disconnect"]
     end
   end
 

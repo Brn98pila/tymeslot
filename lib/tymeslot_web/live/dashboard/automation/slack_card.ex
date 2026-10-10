@@ -116,14 +116,14 @@ defmodule TymeslotWeb.Dashboard.Automation.SlackCard do
           disabled={@paused}
           phx-click={!@paused && @on_edit}
         />
-        <%!-- OAuth installs only, once a channel is set. --%>
+        <%!-- OAuth installs only, once a channel is set. Available while paused:
+             the owner can always disconnect. --%>
         <.icon_button
           :if={@on_disconnect && @integration.app_mode == "oauth" && @integration.channel_id}
           icon="hero-no-symbol"
           variant={:warning}
           label={dgettext("dashboard_automation_chat", "Disconnect Slack")}
-          disabled={@paused}
-          phx-click={!@paused && @on_disconnect}
+          phx-click={@on_disconnect}
         />
         <.icon_button
           icon="hero-trash"

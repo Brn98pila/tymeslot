@@ -146,11 +146,19 @@ defmodule Tymeslot.Telegram do
   @doc """
   Sends a test message to the integration's chat. A failure is a reason,
   not text; `translate_error/1` renders it for the organiser.
+  Refused, sending nothing, while the owner's plan doesn't include
+  automations; an integration not yet saved names its owner in `user_id`.
   """
-  @spec test_integration(TelegramIntegrationSchema.t()) :: :ok | {:error, test_error()}
-  def test_integration(%TelegramIntegrationSchema{chat_id: nil}), do: {:error, :no_chat}
+  @spec test_integration(TelegramIntegrationSchema.t()) ::
+          :ok | {:error, test_error() | Features.access_error()}
+  def test_integration(%TelegramIntegrationSchema{user_id: user_id} = integration) do
+    with :ok <- Features.check_access(user_id, :automations_allowed),
+         do: send_test(integration)
+  end
 
-  def test_integration(%TelegramIntegrationSchema{} = integration) do
+  defp send_test(%TelegramIntegrationSchema{chat_id: nil}), do: {:error, :no_chat}
+
+  defp send_test(%TelegramIntegrationSchema{} = integration) do
     case resolve_bot_token(integration) do
       {:ok, token} ->
         message = MessageBuilder.build_test_message()

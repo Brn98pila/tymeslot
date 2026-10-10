@@ -14,6 +14,16 @@ defmodule TymeslotWeb.Dashboard.Automation.Slack.StateHandlers do
   alias TymeslotWeb.Dashboard.Automation.Helpers, as: AutomationHelpers
   alias TymeslotWeb.Live.Shared.Flash
 
+  # Refusals from `Tymeslot.Features.check_access/2`, shown by
+  # `AutomationHelpers.handle_feature_access_error/2`.
+  @access_errors [
+    :insufficient_plan,
+    :feature_disabled,
+    :pro_required,
+    :stripe_required,
+    :feature_access_checker_failed
+  ]
+
   @spec handle_toggle_active(map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_toggle_active(%{"id" => id}, socket) do
@@ -67,6 +77,12 @@ defmodule TymeslotWeb.Dashboard.Automation.Slack.StateHandlers do
           :ok ->
             Flash.info(dgettext("dashboard_automation_chat", "Test message sent! Check Slack."))
             {:noreply, assign(socket, :slack_testing, nil)}
+
+          {:error, reason} when reason in @access_errors ->
+            {:noreply,
+             socket
+             |> AutomationHelpers.handle_feature_access_error(reason)
+             |> assign(:slack_testing, nil)}
 
           {:error, reason} ->
             Flash.error(Slack.translate_error(reason))
