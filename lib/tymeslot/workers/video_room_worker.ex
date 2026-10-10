@@ -185,19 +185,21 @@ defmodule Tymeslot.Workers.VideoRoomWorker do
     |> handle_insert(meeting_id, announcement)
   end
 
-  defp handle_insert({:ok, _job}, meeting_id, announcement) do
-    Logger.info("Video room creation job scheduled",
-      meeting_id: meeting_id,
-      announce: Announcement.owed?(announcement)
+  # The uniqueness window did its job; the existing job will create the room.
+  # Oban reports that as the existing job with `conflict?: true`, never as a
+  # changeset error.
+  defp handle_insert({:ok, %Oban.Job{conflict?: true}}, meeting_id, _announcement) do
+    Logger.info("Video room creation job already exists, skipping duplicate",
+      meeting_id: meeting_id
     )
 
     :ok
   end
 
-  # The uniqueness window did its job; the existing job will create the room.
-  defp handle_insert({:error, %Changeset{errors: [unique: _details]}}, meeting_id, _announce) do
-    Logger.info("Video room creation job already exists, skipping duplicate",
-      meeting_id: meeting_id
+  defp handle_insert({:ok, _job}, meeting_id, announcement) do
+    Logger.info("Video room creation job scheduled",
+      meeting_id: meeting_id,
+      announce: Announcement.owed?(announcement)
     )
 
     :ok
