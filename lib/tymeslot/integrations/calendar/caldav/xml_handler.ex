@@ -32,7 +32,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
           required(:start_time) => DateTime.t() | Date.t(),
           required(:end_time) => DateTime.t() | Date.t() | nil,
           required(:transparency) => String.t() | nil,
-          required(:raw_ical) => String.t()
+          required(:raw_ical) => String.t() | nil
         }
 
   @doc """

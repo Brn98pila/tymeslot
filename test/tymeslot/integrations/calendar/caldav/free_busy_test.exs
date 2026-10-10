@@ -90,6 +90,40 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FreeBusyTest do
       assert intervals(body) == [{~U[2026-08-10 11:00:00Z], ~U[2026-08-10 12:00:00Z]}]
     end
 
+    test "keeps two periods that start together apart" do
+      # The read dedupes events on their uid, so a short tentative period
+      # must not swallow a longer one starting at the same time.
+      {:ok, events} =
+        FreeBusy.parse(
+          vfreebusy([
+            "FREEBUSY;FBTYPE=BUSY-TENTATIVE:20260810T140000Z/PT30M",
+            "FREEBUSY;FBTYPE=BUSY-UNAVAILABLE:20260810T140000Z/PT2H"
+          ]),
+          @path
+        )
+
+      assert events |> Enum.map(& &1.uid) |> Enum.uniq() |> length() == 2
+
+      assert Enum.map(events, & &1.end_time) == [
+               ~U[2026-08-10 14:30:00Z],
+               ~U[2026-08-10 16:00:00Z]
+             ]
+    end
+
+    test "refuses a body that holds no free/busy answer, rather than reading it as free" do
+      for body <- [
+            ~s(<D:multistatus xmlns:D="DAV:"></D:multistatus>),
+            "<html><body>502 Bad Gateway</body></html>",
+            ""
+          ] do
+        assert FreeBusy.parse(body, @path) == {:error, :not_free_busy}
+      end
+    end
+
+    test "reads a free/busy answer with no busy periods as free" do
+      assert FreeBusy.parse(vfreebusy([]), @path) == {:ok, []}
+    end
+
     test "answers busy periods as opaque, confirmed events of that calendar" do
       {:ok, [event]} = FreeBusy.parse(vfreebusy(["FREEBUSY:20260810T090000Z/PT1H"]), @path)
 

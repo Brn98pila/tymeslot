@@ -122,6 +122,17 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FreeBusyAvailabilityTest do
     refute_received {:report, @shared, :calendar}
   end
 
+  test "an answer that is not free/busy refuses every slot", %{profile: profile, date: date} do
+    ReqTest.stub(:tymeslot_http, fn conn ->
+      case conn.request_path do
+        @shared -> Conn.send_resp(conn, 207, ~s(<D:multistatus xmlns:D="DAV:"></D:multistatus>))
+        @own -> Conn.send_resp(conn, 207, ~s(<D:multistatus xmlns:D="DAV:"></D:multistatus>))
+      end
+    end)
+
+    assert {:error, _reason} = slots(profile, date)
+  end
+
   test "a refused REPORT refuses every slot", %{profile: profile, date: date} do
     serve(self(), date, 403)
 

@@ -35,17 +35,27 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FreeBusy do
   @doc """
   The busy periods of a `VFREEBUSY` response from the calendar at
   `calendar_path`, as events. A period that does not parse is skipped.
-  """
-  @spec parse(String.t(), String.t()) :: {:ok, [XmlHandler.parsed_event()]}
-  def parse(body, calendar_path) when is_binary(body) do
-    events =
-      body
-      |> unfold()
-      |> String.split(~r/\r?\n/)
-      |> Enum.flat_map(&busy_periods/1)
-      |> Enum.map(&to_event(&1, calendar_path, body))
 
-    {:ok, events}
+  `{:error, :not_free_busy}` for a body holding no `VFREEBUSY` at all (a
+  Multi-Status, a proxy's error page, nothing): that is not an answer saying
+  the calendar is free, so the read fails closed on it.
+  """
+  @spec parse(String.t(), String.t()) ::
+          {:ok, [XmlHandler.parsed_event()]} | {:error, :not_free_busy}
+  def parse(body, calendar_path) when is_binary(body) do
+    unfolded = unfold(body)
+
+    if unfolded =~ ~r/^BEGIN:VFREEBUSY\r?$/m do
+      events =
+        unfolded
+        |> String.split(~r/\r?\n/)
+        |> Enum.flat_map(&busy_periods/1)
+        |> Enum.map(&to_event(&1, calendar_path))
+
+      {:ok, events}
+    else
+      {:error, :not_free_busy}
+    end
   end
 
   # RFC 5545 §3.1: a line break followed by a space or tab continues the line.
@@ -130,9 +140,12 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FreeBusy do
   defp to_int(""), do: 0
   defp to_int(digits), do: String.to_integer(digits)
 
-  defp to_event({start, finish}, calendar_path, body) do
+  # The end is part of the uid: the read dedupes on it, and two periods may
+  # share a start (a tentative half hour inside an unavailable two hours).
+  defp to_event({start, finish}, calendar_path) do
     %{
-      uid: "freebusy:#{calendar_path}:#{DateTime.to_iso8601(start)}",
+      uid:
+        "freebusy:#{calendar_path}:#{DateTime.to_iso8601(start)}/#{DateTime.to_iso8601(finish)}",
       href: calendar_path,
       etag: nil,
       summary: nil,
@@ -148,7 +161,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FreeBusy do
       floating: false,
       transparency: "opaque",
       status: "CONFIRMED",
-      raw_ical: body
+      raw_ical: nil
     }
   end
 
