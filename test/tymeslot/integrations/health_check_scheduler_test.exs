@@ -17,7 +17,7 @@ defmodule Tymeslot.Integrations.HealthCheckSchedulerTest do
   alias Tymeslot.Repo
 
   setup :verify_on_exit!
-  setup :start_health_check_server
+  setup :use_real_health_check
 
   describe "circuit breaker integration" do
     test "circuit breaker opens after repeated failures" do

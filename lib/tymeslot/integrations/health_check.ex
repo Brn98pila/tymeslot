@@ -17,7 +17,7 @@ defmodule Tymeslot.Integrations.HealthCheck do
   ## Orchestration Value
 
   This module provides:
-  - GenServer lifecycle management for periodic scheduling
+  - Scheduling, through `Scheduler` run by `IntegrationHealthSweepWorker`
   - Public API surface for the health check system
   - Stateless orchestration functions called directly by Oban workers
   - Coordination of the check flow: Schedule → Assess → Analyze → Monitor → Respond
@@ -36,12 +36,10 @@ defmodule Tymeslot.Integrations.HealthCheck do
   Without it, queries may be slow on systems with thousands of pending jobs.
   """
 
-  use GenServer
   @behaviour Tymeslot.Integrations.HealthCheck.HealthCheckBehaviour
 
   require Logger
 
-  alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateSchema
@@ -53,31 +51,19 @@ defmodule Tymeslot.Integrations.HealthCheck do
     Assessor,
     ErrorAnalysis,
     Monitor,
-    ResponseHandler,
-    Scheduler
+    ResponseHandler
   }
-
-  @check_interval :timer.minutes(30)
 
   # Type definitions
   @type health_status :: Monitor.health_status()
   @type integration_type :: Monitor.integration_type()
   @type health_state :: Monitor.health_state()
 
-  defmodule State do
-    @moduledoc false
-    @type t :: %__MODULE__{
-            check_timer: reference() | nil
-          }
-    defstruct check_timer: nil
-  end
-
   # Client API
 
   @doc """
   Performs a single health check for an integration.
-  Called directly by Oban workers — does not go through the GenServer,
-  so multiple checks can run concurrently without serialising.
+  Called by `IntegrationHealthWorker`, so checks run concurrently, one job each.
 
   ## Orchestration Flow
 
@@ -99,16 +85,7 @@ defmodule Tymeslot.Integrations.HealthCheck do
   end
 
   @doc """
-  Starts the health check process.
-  """
-  @spec start_link(keyword()) :: GenServer.on_start()
-  def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-  end
-
-  @doc """
   Lists unhealthy health-state records for a user's active integrations.
-  Queries the database directly; does not go through the GenServer.
   """
   @spec list_unhealthy_for_user(integer()) :: [IntegrationHealthStateSchema.t()]
   def list_unhealthy_for_user(user_id) do
@@ -228,48 +205,6 @@ defmodule Tymeslot.Integrations.HealthCheck do
     :ok
   end
 
-  # Server Callbacks
-
-  @impl GenServer
-  def init(opts) do
-    interval = Keyword.get(opts, :check_interval, @check_interval)
-    initial_delay = Keyword.get(opts, :initial_delay, 1000)
-
-    timer =
-      if initial_delay > 0 do
-        Process.send_after(self(), :scheduled_check, initial_delay)
-      else
-        schedule_next_check(interval)
-      end
-
-    {:ok, %State{check_timer: timer}}
-  end
-
-  @impl GenServer
-  def handle_info(:scheduled_check, state) do
-    Logger.debug("Scheduling health check jobs for all integrations")
-
-    run_scheduled_sweep()
-
-    timer = schedule_next_check(@check_interval)
-
-    {:noreply, %{state | check_timer: timer}}
-  end
-
-  # A failed sweep must never take this process down: it is permanent under
-  # the application supervisor, so repeated crashes would exceed the restart
-  # intensity and stop the whole application. Report it and wait for the next
-  # tick instead.
-  @spec run_scheduled_sweep() :: :ok
-  defp run_scheduled_sweep do
-    Scheduler.schedule_all()
-    :ok
-  rescue
-    e ->
-      ErrorTracking.report_error(e, __STACKTRACE__, %{context: :scheduled_health_check})
-      :ok
-  end
-
   # Private Functions — Orchestration Logic
 
   @spec orchestrate_health_check(integration_type(), integer()) :: :ok | {:error, any()}
@@ -354,10 +289,5 @@ defmodule Tymeslot.Integrations.HealthCheck do
       {:error, _reason} = error -> error
       _ok -> :ok
     end
-  end
-
-  @spec schedule_next_check(pos_integer()) :: reference()
-  defp schedule_next_check(interval) do
-    Process.send_after(self(), :scheduled_check, interval)
   end
 end

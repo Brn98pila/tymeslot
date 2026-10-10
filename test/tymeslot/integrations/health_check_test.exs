@@ -22,24 +22,7 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
   alias Tymeslot.Workers.EmailWorker
 
   setup :verify_on_exit!
-  setup :start_health_check_server
-
-  describe "scheduled sweep failures" do
-    test "a failing sweep is reported and does not stop the process", %{health_check_pid: pid} do
-      # Leaving shared mode means the server holds no sandbox connection, so the
-      # sweep's first query raises an ownership error: a real failure inside
-      # the sweep without altering any production code.
-      Sandbox.mode(Repo, :manual)
-
-      ref = Process.monitor(pid)
-      send(pid, :scheduled_check)
-      state = :sys.get_state(pid)
-
-      assert Process.alive?(pid)
-      refute_received {:DOWN, ^ref, :process, ^pid, _reason}
-      assert state.check_timer
-    end
-  end
+  setup :use_real_health_check
 
   describe "integration health monitoring" do
     test "marks integration as unhealthy after repeated failures" do
@@ -55,21 +38,18 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
 
       # 1st failure
       run_health_checks()
-      sync_with_server()
       status = health_status(:calendar, integration.id)
       assert status.status == :degraded
       assert status.failures == 1
 
       # 2nd failure
       run_health_checks()
-      sync_with_server()
       status = health_status(:calendar, integration.id)
       assert status.status == :degraded
       assert status.failures == 2
 
       # 3rd failure
       run_health_checks()
-      sync_with_server()
       status = health_status(:calendar, integration.id)
       assert status.status == :unhealthy
       assert status.failures == 3
@@ -93,7 +73,6 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       end)
 
       run_health_checks()
-      sync_with_server()
       assert health_status(:calendar, integration.id).status == :degraded
 
       # Mock success for 2 checks (recovery threshold is 2)
@@ -105,12 +84,10 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
 
       # 1st success
       run_health_checks()
-      sync_with_server()
       assert health_status(:calendar, integration.id).status == :degraded
 
       # 2nd success
       run_health_checks()
-      sync_with_server()
       assert health_status(:calendar, integration.id).status == :healthy
     end
 
@@ -129,7 +106,6 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
 
       # Trigger check
       run_health_checks()
-      sync_with_server()
 
       status = health_status(:calendar, integration.id)
       assert status.status == :healthy
@@ -146,7 +122,6 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       end)
 
       run_health_checks()
-      sync_with_server()
 
       status = health_status(:calendar, integration.id)
       assert status.status == :healthy
@@ -165,7 +140,6 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
 
       # Trigger check
       run_health_checks()
-      sync_with_server()
 
       # Crashes are wrapped as `{:error, {:exception, message}}` and treated
       # as `:transient` under the conservative classification policy. The
@@ -186,7 +160,6 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       end)
 
       run_health_checks()
-      sync_with_server()
 
       status = health_status(:calendar, integration.id)
       assert status.status == :healthy
@@ -203,7 +176,6 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       end)
 
       run_health_checks()
-      sync_with_server()
 
       status = health_status(:calendar, integration.id)
       assert status.status == :healthy
@@ -220,7 +192,6 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       end)
 
       run_health_checks()
-      sync_with_server()
 
       # Non-UTF-8 garbage from a provider is opaque — under the conservative
       # classification policy we default unknown errors to `:transient` rather
@@ -242,7 +213,6 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       integration = apple_integration_refusing_credentials(user)
 
       run_health_checks()
-      sync_with_server()
 
       status = health_status(:calendar, integration.id)
       assert status.last_error_class == :hard
@@ -323,9 +293,7 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       end)
 
       run_health_checks()
-      sync_with_server()
       run_health_checks()
-      sync_with_server()
 
       assert %{status: :healthy, successes: 2} = health_status(:calendar, c1.id)
       assert %{status: :healthy, successes: 2} = health_status(:video, v1.id)
@@ -344,7 +312,6 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       end)
 
       run_health_checks()
-      sync_with_server()
 
       {:ok, updated} = CalendarIntegrationQueries.get(integration.id)
       assert updated.needs_reauth == true
@@ -374,7 +341,6 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
         end)
 
         run_health_checks()
-        sync_with_server()
 
         {:ok, updated} = CalendarIntegrationQueries.get(integration.id)
         assert updated.needs_reauth
@@ -401,7 +367,6 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       end)
 
       run_health_checks()
-      sync_with_server()
 
       assert CalendarIntegrationQueries.get(integration.id) |> elem(1) |> Map.get(:needs_reauth)
 
@@ -424,7 +389,6 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       integration = apple_integration_refusing_credentials(user)
 
       run_health_checks()
-      sync_with_server()
 
       {:ok, updated} = CalendarIntegrationQueries.get(integration.id)
       assert updated.needs_reauth == true
@@ -459,7 +423,6 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       end)
 
       run_health_checks()
-      sync_with_server()
 
       assert_enqueued(
         worker: EmailWorker,
@@ -484,7 +447,6 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       end)
 
       run_health_checks()
-      sync_with_server()
 
       {:ok, updated} = CalendarIntegrationQueries.get(integration.id)
       assert updated.needs_reauth == false

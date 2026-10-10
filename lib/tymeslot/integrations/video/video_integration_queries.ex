@@ -38,11 +38,20 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
   """
   @spec list_all_active() :: list(VideoIntegrationSchema.t())
   def list_all_active do
+    active_query()
+    |> order_by([v], asc: v.name)
+    |> Repo.all()
+  end
+
+  @doc """
+  The query for every active integration across all users: switched on and
+  not disconnected. For other queries modules to join against.
+  """
+  @spec active_query() :: Ecto.Query.t()
+  def active_query do
     VideoIntegrationSchema
     |> exclude_deleted()
     |> where([v], v.is_active == true)
-    |> order_by([v], asc: v.name)
-    |> Repo.all()
   end
 
   @doc """

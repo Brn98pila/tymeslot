@@ -36,7 +36,7 @@ defmodule Tymeslot.Application do
   alias Tymeslot.Infrastructure.ErrorTracking.SafeIntegrations
   alias Tymeslot.Infrastructure.ErrorTracking.Throttle
   alias Tymeslot.Infrastructure.Logging.{FileSink, LogFormat, MetadataRedactor}
-  alias Tymeslot.Integrations.{HealthCheck, Telemetry}
+  alias Tymeslot.Integrations.Telemetry
   alias Tymeslot.Integrations.HealthCheck.Alerting
   alias Tymeslot.Integrations.Shared.Lock
   alias Tymeslot.Mailer.HealthCheck, as: MailerHealthCheck
@@ -49,7 +49,7 @@ defmodule Tymeslot.Application do
 
   # Children the test environment does without: periodic schedulers whose
   # timers would fire into unrelated tests.
-  @not_started_in_test [HealthCheck, PoolPressureMonitor]
+  @not_started_in_test [PoolPressureMonitor]
 
   @impl Application
   def start(_type, _args) do
@@ -142,8 +142,6 @@ defmodule Tymeslot.Application do
           Tymeslot.Infrastructure.CircuitBreakerSupervisor,
           # Background jobs (manual testing mode in tests)
           {Oban, oban_config()},
-          # Schedules integration health checks, which it enqueues as jobs
-          HealthCheck,
           # Alert when queries keep waiting for a database connection
           PoolPressureMonitor
         ],

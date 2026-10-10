@@ -16,6 +16,9 @@ defmodule Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries do
 
   alias Tymeslot.Repo
 
+  # A new integration starts at the healthy check interval.
+  @initial_backoff_ms 1_800_000
+
   @doc """
   Retrieves the health state record for a specific integration.
   Returns `{:ok, record}` or `{:error, :not_found}`.
@@ -32,6 +35,79 @@ defmodule Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries do
       nil -> {:error, :not_found}
       record -> {:ok, record}
     end
+  end
+
+  @doc """
+  Inserts the default health state for every active integration of `kind`
+  that has none, in one statement. Returns the number inserted.
+
+  The sweep runs it first, so `due/2` can read health states alone.
+  """
+  @spec seed_missing(IntegrationTypes.kind()) :: non_neg_integer()
+  def seed_missing(kind) do
+    type_str = IntegrationTypes.db_value(kind)
+    now = DateTime.truncate(Clock.utc_now(), :second)
+
+    missing =
+      from(i in IntegrationTypes.queries(kind).active_query(),
+        left_join: s in IntegrationHealthStateSchema,
+        on: s.integration_type == ^type_str and s.integration_id == i.id,
+        where: is_nil(s.id),
+        select: %{
+          integration_type: ^type_str,
+          integration_id: i.id,
+          user_id: i.user_id,
+          status: ^HealthStatus.to_db_value(:healthy),
+          failures: 0,
+          consecutive_hard_failures: 0,
+          consecutive_sync_failures: 0,
+          successes: 0,
+          backoff_ms: ^@initial_backoff_ms,
+          inserted_at: ^now,
+          updated_at: ^now
+        }
+      )
+
+    {count, _} =
+      Repo.insert_all(IntegrationHealthStateSchema, missing,
+        on_conflict: :nothing,
+        conflict_target: [:integration_type, :integration_id]
+      )
+
+    count
+  end
+
+  @doc """
+  The active integrations of `kind` whose next health check is due at `now`:
+  never checked, or checked longer ago than their backoff.
+
+  Reads health states through `integration_health_states_next_check_index`,
+  whose expression the comparison below repeats exactly, so the cost follows
+  the number of due rows rather than the number of integrations. Selects only
+  what scheduling needs; credentials stay in the table.
+  """
+  @spec due(IntegrationTypes.kind(), DateTime.t()) :: [
+          %{id: integer(), provider: String.t(), base_url: String.t() | nil}
+        ]
+  def due(kind, %DateTime{} = now) do
+    type_str = IntegrationTypes.db_value(kind)
+    now = DateTime.to_naive(now)
+
+    Repo.all(
+      from(s in IntegrationHealthStateSchema,
+        join: i in subquery(IntegrationTypes.queries(kind).active_query()),
+        on: i.id == s.integration_id,
+        where: s.integration_type == ^type_str,
+        where:
+          fragment(
+            "(COALESCE(?, '-infinity'::timestamp) + ? * interval '1 millisecond') <= ?",
+            s.last_check_at,
+            s.backoff_ms,
+            ^now
+          ),
+        select: %{id: i.id, provider: i.provider, base_url: i.base_url}
+      )
+    )
   end
 
   @doc """
@@ -54,7 +130,7 @@ defmodule Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries do
       consecutive_hard_failures: 0,
       consecutive_sync_failures: 0,
       successes: 0,
-      backoff_ms: 1_800_000
+      backoff_ms: @initial_backoff_ms
     }
 
     %IntegrationHealthStateSchema{}
@@ -295,7 +371,7 @@ defmodule Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries do
   end
 
   defp active_integration_ids_subquery(kind),
-    do: from(i in IntegrationTypes.schema(kind), where: i.is_active == true, select: i.id)
+    do: select(IntegrationTypes.queries(kind).active_query(), [i], i.id)
 
   defp delete_orphaned_by_type(kind) do
     orphaned_query =

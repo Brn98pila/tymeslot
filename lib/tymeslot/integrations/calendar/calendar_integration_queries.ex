@@ -37,11 +37,17 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   """
   @spec list_all_active() :: list(CalendarIntegrationSchema.t())
   def list_all_active do
-    CalendarIntegrationSchema
-    |> where([c], c.is_active == true)
+    active_query()
     |> order_by([c], asc: c.name)
     |> Repo.all()
   end
+
+  @doc """
+  The query for every active integration across all users. For other
+  queries modules to join against.
+  """
+  @spec active_query() :: Ecto.Query.t()
+  def active_query, do: where(CalendarIntegrationSchema, [c], c.is_active == true)
 
   @doc """
   The next page of active integrations not waiting to be reconnected, in id
