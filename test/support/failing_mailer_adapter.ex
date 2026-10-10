@@ -21,7 +21,24 @@ defmodule Tymeslot.Test.FailingMailerAdapter do
     with pid when is_pid(pid) <- Application.get_env(:tymeslot, :test_delivery_attempts_to),
          do: send(pid, {:delivery_attempt, Enum.map(email.to, &elem(&1, 1))})
 
-    {:error, Application.get_env(:tymeslot, :test_delivery_error, @default_error)}
+    case error_for(email) do
+      :raise -> raise "mailer adapter crashed"
+      reason -> {:error, reason}
+    end
+  end
+
+  # `:test_delivery_error` is one reason for every email, or a map from a
+  # recipient address to its reason (`:raise` crashes the adapter), with
+  # `:default` for the rest.
+  defp error_for(email) do
+    case Application.get_env(:tymeslot, :test_delivery_error, @default_error) do
+      %{} = by_recipient ->
+        [{_name, address} | _rest] = email.to
+        Map.get(by_recipient, address, Map.get(by_recipient, :default, @default_error))
+
+      reason ->
+        reason
+    end
   end
 
   @impl Swoosh.Adapter

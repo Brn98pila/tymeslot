@@ -186,14 +186,15 @@ defmodule Tymeslot.Workers.EmailWorker do
 
     case Bounded.run(
            fn ->
-             Delivery.with_ambiguous_timeouts(policy, fn ->
-               EmailHandlers.execute_email_action(action, args, job.id)
-             end)
+             Delivery.with_ambiguous_timeouts(
+               policy,
+               fn -> EmailHandlers.execute_email_action(action, args, job.id) end,
+               on_ambiguous: fn -> record_ambiguous_retry(job, action) end
+             )
            end,
            timeout_ms
          ) do
-      {:ok, {result, ambiguous?}} ->
-        if ambiguous? and result != :ok, do: record_ambiguous_retry(job, action)
+      {:ok, {result, _ambiguous?}} ->
         handle_result(result, job)
 
       {:exit, reason} ->
@@ -212,8 +213,11 @@ defmodule Tymeslot.Workers.EmailWorker do
 
   # A send that timed out after the message may have been handed over is
   # retried once, never more (decision of 2026-10-07: a rare duplicate over a
-  # lost email, at most one extra copy). The first run that meets one records
-  # it on the job; every later run assumes such a send delivered. Copies a
+  # lost email, at most one extra copy). The first such timeout records it on
+  # the job as it happens, from inside the run, so the record stands even if
+  # the run then crashes; every later run assumes such a send delivered. The
+  # record is per job, not per copy: once one copy has had its retry, an
+  # ambiguous timeout on another copy of the same job is assumed delivered. Copies a
   # handler claims (`DeliveryClaims`) are kept once sent or assumed sent, so
   # none of them goes out again whatever happens after.
   defp ambiguous_timeout_policy(%Oban.Job{id: job_id}) do

@@ -64,6 +64,44 @@ defmodule Tymeslot.Workers.EmailWorkerAmbiguousTimeoutTest do
     refute_received {:delivery_attempt, _more}
   end
 
+  # The retry is recorded as the timeout happens, not when the run returns,
+  # so a later copy crashing the run cannot let the first copy go out again
+  # on every attempt.
+  test "a run that crashes after an ambiguous timeout still spends that copy's one retry" do
+    meeting = insert(:meeting, status: "cancelled")
+
+    setup_config(:tymeslot, :test_delivery_error, %{
+      meeting.organizer_email => :timeout,
+      meeting.attendee_email => :raise
+    })
+
+    job = insert_job(%{"action" => "send_cancellation_emails", "meeting_id" => meeting.id})
+
+    for _run <- 1..3, do: quietly(fn -> run(job) end)
+
+    assert attempts_to(meeting.organizer_email) == 2
+  end
+
+  # The record is per job. Another copy's ordinary failure keeps retrying as
+  # it would anyway, while the copy that timed out is retried once.
+  test "a copy failing for an ordinary reason keeps retrying alongside one that timed out" do
+    meeting = insert(:meeting, status: "cancelled")
+
+    setup_config(:tymeslot, :test_delivery_error, %{
+      meeting.organizer_email => :timeout,
+      meeting.attendee_email => :econnrefused
+    })
+
+    job = insert_job(%{"action" => "send_cancellation_emails", "meeting_id" => meeting.id})
+
+    assert {:error, _reason} = quietly(fn -> run(job) end)
+    assert {:error, _reason} = quietly(fn -> run(job) end)
+    assert {:error, _reason} = quietly(fn -> run(job) end)
+
+    assert attempts_to(meeting.organizer_email) == 2
+    assert attempts_to(meeting.attendee_email) == 3
+  end
+
   # Only an ambiguous timeout spends the one retry; an ordinary failure
   # retries as before, and a later ambiguous timeout still gets its retry.
   test "an ordinary failure does not spend the retry an ambiguous timeout gets" do
@@ -76,6 +114,14 @@ defmodule Tymeslot.Workers.EmailWorkerAmbiguousTimeoutTest do
     setup_config(:tymeslot, :test_delivery_error, :timeout)
     assert {:error, _reason} = quietly(fn -> run(job) end)
     assert :ok = quietly(fn -> run(job) end)
+  end
+
+  defp attempts_to(address) do
+    receive do
+      {:delivery_attempt, [^address]} -> 1 + attempts_to(address)
+    after
+      0 -> 0
+    end
   end
 
   defp insert_job(args) do
