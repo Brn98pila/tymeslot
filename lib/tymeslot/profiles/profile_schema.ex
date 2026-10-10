@@ -261,7 +261,10 @@ defmodule Tymeslot.Profiles.ProfileSchema do
               put_change(changeset, :allowed_embed_domains, validated)
 
             {:error, messages} ->
-              Enum.reduce(messages, changeset, &add_error(&2, :allowed_embed_domains, &1))
+              # add_error/3 prepends, so add them last first to keep their order.
+              messages
+              |> Enum.reverse()
+              |> Enum.reduce(changeset, &add_error(&2, :allowed_embed_domains, &1))
           end
         end
 

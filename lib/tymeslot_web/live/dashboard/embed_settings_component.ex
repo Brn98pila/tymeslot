@@ -334,7 +334,7 @@ defmodule TymeslotWeb.Live.Dashboard.EmbedSettingsComponent do
                         "as in: Invalid domain, Invalid domain format"
                     )
 
-                    Enum.join(messages, dgettext("dashboard_embed", ", "))
+                    Enum.join(messages, dpgettext("dashboard_embed", "list separator", ", "))
 
                   {field, messages} ->
                     "#{field}: #{Enum.join(messages, ", ")}"

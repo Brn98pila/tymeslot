@@ -11,7 +11,8 @@ defmodule Tymeslot.Security.Security do
   @doc """
   Validates a list of domain names, filtering empty entries first.
   Returns `{:ok, validated_domains}` if all non-empty entries are valid,
-  or `{:error, error_message}` with aggregated error reasons otherwise.
+  or `{:error, messages}` otherwise: each distinct problem once, as its own
+  translated message, in the order the entries were given.
   """
   @spec validate_domains([String.t()]) :: {:ok, [String.t()]} | {:error, [String.t()]}
   def validate_domains(domains) when is_list(domains) do

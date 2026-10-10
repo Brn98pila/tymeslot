@@ -131,6 +131,16 @@ defmodule Tymeslot.Auth.AccountDeletion.OperatorTest do
     refute Repo.get(UserSchema, only_admin.id)
   end
 
+  test "an admin passing force queues a job without it" do
+    actor = insert(:user, is_admin: true)
+    _other_admin = insert(:user, is_admin: true)
+    target = insert(:user)
+
+    assert {:ok, _pending} = Auth.delete_account_now(actor, target.id, force: true)
+    assert [%{args: args}] = all_enqueued(worker: AccountDeletionWorker)
+    refute Map.has_key?(args, "force")
+  end
+
   test "an unforced deletion queues a job without force" do
     target = insert(:user)
     _admin = insert(:user, is_admin: true)
