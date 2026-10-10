@@ -30,8 +30,8 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails do
   alias Tymeslot.Notifications.ContentBuilder
   alias Tymeslot.Notifications.GuestNotifications
   alias Tymeslot.Workers.DeliveryClaims
-  alias Tymeslot.Workers.EmailWorkerHandlers.ParticipantLegs
   alias Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails
+  alias Tymeslot.Workers.EmailWorkerHandlers.ParticipantLegs
 
   # A notice overtaken by events since the move it announces. The cancelled
   # reason is the one `MeetingEmails` gives, the void-slot one the one

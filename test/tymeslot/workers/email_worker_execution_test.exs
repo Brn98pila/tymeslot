@@ -211,19 +211,23 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
       profile = insert(:profile)
       meeting = insert(:meeting, organizer_user: profile.user, status: "cancelled")
 
-      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, 1, fn _, _ ->
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, 1, fn _email,
+                                                                                     _details ->
         {:error, :delivery_failed}
       end)
 
-      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _, _ ->
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _email,
+                                                                                    _details ->
         {:error, :delivery_failed}
       end)
 
-      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, 1, fn _, _ ->
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, 1, fn _email,
+                                                                                     _details ->
         {:ok, :sent}
       end)
 
-      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _, _ ->
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _email,
+                                                                                    _details ->
         {:ok, :sent}
       end)
 
@@ -243,15 +247,18 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
 
       # The organiser's copy goes out on the first run only; the attendee's
       # fails once and is the only one sent again.
-      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, 1, fn _, _ ->
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, 1, fn _email,
+                                                                                     _details ->
         {:ok, :sent}
       end)
 
-      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _, _ ->
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _email,
+                                                                                    _details ->
         {:error, :delivery_failed}
       end)
 
-      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _, _ ->
+      expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _email,
+                                                                                    _details ->
         {:ok, :sent}
       end)
 
@@ -307,11 +314,13 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
       profile = insert(:profile)
       meeting = insert(:meeting, organizer_user: profile.user, status: "cancelled")
 
-      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, fn _, _ ->
+      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, fn _email,
+                                                                                      _details ->
         {:error, :delivery_failed}
       end)
 
-      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, fn _, _ ->
+      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, fn _email,
+                                                                                     _details ->
         {:error, :delivery_failed}
       end)
 
@@ -331,11 +340,13 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
       profile = insert(:profile)
       meeting = insert(:meeting, organizer_user: profile.user, status: "cancelled")
 
-      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, fn _, _ ->
+      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, fn _email,
+                                                                                      _details ->
         {:error, {:recipient_rejected, {422, %{"ErrorCode" => 406}}}}
       end)
 
-      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, fn _, _ ->
+      Mox.expect(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, fn _email,
+                                                                                     _details ->
         {:error, :delivery_failed}
       end)
 

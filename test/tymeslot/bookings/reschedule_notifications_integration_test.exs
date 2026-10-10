@@ -395,11 +395,13 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
 
       :ok = DeliveryClaims.once(job.id, "reschedule:participants", fn -> :ok end)
 
-      expect(Tymeslot.EmailServiceMock, :send_reschedule_email_to_organizer, 0, fn _, _ ->
+      expect(Tymeslot.EmailServiceMock, :send_reschedule_email_to_organizer, 0, fn _email,
+                                                                                   _details ->
         {:ok, :sent}
       end)
 
-      expect(Tymeslot.EmailServiceMock, :send_reschedule_email_to_attendee, 0, fn _, _ ->
+      expect(Tymeslot.EmailServiceMock, :send_reschedule_email_to_attendee, 0, fn _email,
+                                                                                  _details ->
         {:ok, :sent}
       end)
 
