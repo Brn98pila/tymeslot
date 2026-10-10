@@ -47,6 +47,7 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.ProviderConfig
+  alias Tymeslot.Integrations.Calendar.Runtime.CalendarPathResolver
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.MeetingTypes.BookingCalendar
@@ -231,10 +232,21 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
       BookingCalendar.ids(integration.user_id, integration.id)
   end
 
+  # The calendar a booking on the integration goes to when nothing names one:
+  # for a CalDAV-family integration the path the booking client resolves
+  # (its stored booking calendar, else the first selected writable path),
+  # for any other its stored booking calendar, else the provider's primary.
   defp default_booking_ids(integration) do
-    case Defaults.booking_target(integration) do
-      {_writable, %CalendarEntry{id: id}} -> [id]
-      :none -> []
+    if ProviderConfig.caldav_based?(integration.provider) do
+      case CalendarPathResolver.resolve(integration) do
+        nil -> []
+        path -> [path]
+      end
+    else
+      case Defaults.booking_target(integration) do
+        {_writable, %CalendarEntry{id: id}} -> [id]
+        :none -> []
+      end
     end
   end
 

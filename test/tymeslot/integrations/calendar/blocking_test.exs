@@ -97,6 +97,27 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
                OwnerActions.set_calendar_blocking(user.id, integration.id, "work", false)
     end
 
+    test "refuses the path a CalDAV connection books into when none is stored", %{user: user} do
+      # The booking client falls back to the first selected writable path.
+      integration =
+        insert(:calendar_integration,
+          user: user,
+          provider: "caldav",
+          calendar_paths: ["/cal/shared/", "/cal/home/", "/cal/team/"],
+          calendar_list: [
+            %{id: "/cal/shared/", path: "/cal/shared/", selected: true, read_only: true},
+            %{id: "/cal/home/", path: "/cal/home/", selected: true},
+            %{id: "/cal/team/", path: "/cal/team/", selected: true}
+          ]
+        )
+
+      assert {:error, :booking_calendar} =
+               OwnerActions.set_calendar_blocking(user.id, integration.id, "/cal/home/", false)
+
+      assert {:ok, _updated} =
+               OwnerActions.set_calendar_blocking(user.id, integration.id, "/cal/team/", false)
+    end
+
     test "refuses a calendar a meeting type books into", %{user: user} do
       integration = google_integration(user, calendars(), default_booking_calendar_id: "work")
 
