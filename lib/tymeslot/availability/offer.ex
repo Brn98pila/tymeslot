@@ -301,7 +301,7 @@ defmodule Tymeslot.Availability.Offer do
   #
   # Errors stay uncached, for the reason `get_or_compute_events/2` exists at
   # all: a timed-out calendar must be retried on the next request, not pinned
-  # empty for the TTL. `AvailabilityCache.invalidate_for_user/1` drops this
+  # empty for the TTL. `Tymeslot.Availability.changed/1` drops this
   # entry with the folded maps, so a calendar sync cannot leave the two
   # disagreeing about how fresh they are.
   defp booking_window_events(%{profile: %{user_id: user_id}} = request, start_date) do

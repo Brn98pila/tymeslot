@@ -38,10 +38,10 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   require Logger
 
   alias Tymeslot.Auth
+  alias Tymeslot.Availability
   alias Tymeslot.Bookings.Activation
   alias Tymeslot.Bookings.CalendarJobs
   alias Tymeslot.Clock
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
@@ -211,7 +211,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
     )
 
     backfill_charge_id(paid, object)
-    AvailabilityCache.invalidate_for_user(meeting.organizer_user_id)
+    Availability.changed(meeting.organizer_user_id)
     broadcast(meeting.id, :expired)
     :ok
   end
@@ -507,7 +507,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   # has agreed to, so it takes the request fan-out instead, and
   # `Meetings.Approval` calls back in once the host says yes.
   defp enqueue_post_payment_effects(meeting, _payment) do
-    AvailabilityCache.invalidate_for_user(meeting.organizer_user_id)
+    Availability.changed(meeting.organizer_user_id)
     Activation.activate(meeting, with_video_room: true)
   end
 end

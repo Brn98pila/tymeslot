@@ -134,13 +134,13 @@ defmodule Tymeslot.CalendarGrid.SeriesEdit do
   as they were and requests no sync.
   """
 
+  alias Tymeslot.Availability
   alias Tymeslot.CalendarGrid.EventDeletion
   alias Tymeslot.CalendarGrid.EventEdit
   alias Tymeslot.CalendarGrid.EventVideoRooms
   alias Tymeslot.CalendarGrid.Occurrence
   alias Tymeslot.CalendarGrid.RecurrenceScope
   alias Tymeslot.CalendarGrid.SeriesCarry
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.SyncSchedule
 
@@ -397,7 +397,7 @@ defmodule Tymeslot.CalendarGrid.SeriesEdit do
          do: EventDeletion.delete_series_rows(integration_id, address)
 
     SeriesCarry.carry(carried)
-    AvailabilityCache.invalidate_for_user(user_id)
+    Availability.changed(user_id)
     request_sync(stored.provider, integration_id)
   end
 

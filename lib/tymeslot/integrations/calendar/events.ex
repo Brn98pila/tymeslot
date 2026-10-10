@@ -68,7 +68,11 @@ defmodule Tymeslot.Integrations.Calendar.Events do
   Fetch calendar events for the user's entire booking window.
 
   This ensures that all events within the advance booking period are available
-  for conflict checking, not just the current month.
+  for conflict checking, not just the current month. The date is ignored: the
+  window always runs from today.
+
+  `opts` may carry the `:organizer_profile` the caller already holds, which
+  saves reading it again.
 
   Returns `{:error, :profile_not_found}` when the organiser's profile cannot be
   loaded: an organiser without a profile has no booking page.
@@ -76,24 +80,20 @@ defmodule Tymeslot.Integrations.Calendar.Events do
   @spec get_calendar_events(Date.t() | any(), user_id(), keyword()) ::
           {:ok, list()} | {:error, term()}
   def get_calendar_events(_date, organizer_user_id, opts \\ []) do
-    debug_module = Keyword.get(opts, :debug_calendar_module)
+    case organizer_profile(organizer_user_id, Keyword.get(opts, :organizer_profile)) do
+      {:ok, profile} ->
+        today = Clock.utc_today()
+        end_date = Date.add(today, booking_window_days(profile) + meeting_reach_days())
+        get_events_for_range_fresh(organizer_user_id, today, end_date)
 
-    cond do
-      is_function(debug_module, 1) ->
-        debug_module.(organizer_user_id)
-
-      is_atom(debug_module) && debug_module != nil ->
-        {start_date, end_date} = calculate_booking_window_range(organizer_user_id, opts)
-        debug_module.get_events_for_range_fresh(organizer_user_id, start_date, end_date)
-
-      true ->
-        fetch_events_for_booking_window(organizer_user_id)
+      {:error, _reason} ->
+        {:error, :profile_not_found}
     end
   end
 
   @doc """
-  Context-aware variant: fetches through the configured `:calendar_module`
-  (when set) and passes on the context's organizer profile.
+  `get_calendar_events/3` with the organiser's profile taken from a request
+  context, when it carries one.
   """
   @spec get_calendar_events_from_context(
           any(),
@@ -102,12 +102,7 @@ defmodule Tymeslot.Integrations.Calendar.Events do
         ) ::
           {:ok, list()} | {:error, term()}
   def get_calendar_events_from_context(date, organizer_user_id, context) do
-    opts = [
-      debug_calendar_module: Application.get_env(:tymeslot, :calendar_module),
-      organizer_profile: context[:organizer_profile]
-    ]
-
-    get_calendar_events(date, organizer_user_id, opts)
+    get_calendar_events(date, organizer_user_id, organizer_profile: context[:organizer_profile])
   end
 
   @doc """
@@ -512,33 +507,8 @@ defmodule Tymeslot.Integrations.Calendar.Events do
     end
   end
 
-  @spec fetch_events_for_booking_window(user_id()) :: {:ok, list()} | {:error, term()}
-  defp fetch_events_for_booking_window(user_id) do
-    {start_date, end_date} = calculate_booking_window_range(user_id)
-
-    case ProfileQueries.get_by_user_id(user_id) do
-      {:ok, _profile} -> get_events_for_range_fresh(user_id, start_date, end_date)
-      {:error, _reason} -> {:error, :profile_not_found}
-    end
-  end
-
-  defp calculate_booking_window_range(user_id, opts \\ []) do
-    profile_result =
-      case Keyword.get(opts, :organizer_profile) do
-        %{} = profile -> {:ok, profile}
-        nil -> ProfileQueries.get_by_user_id(user_id)
-      end
-
-    case profile_result do
-      {:ok, profile} ->
-        today = Clock.utc_today()
-        {today, Date.add(today, booking_window_days(profile) + meeting_reach_days())}
-
-      {:error, _reason} ->
-        today = Clock.utc_today()
-        {today, Date.add(today, 30 + meeting_reach_days())}
-    end
-  end
+  defp organizer_profile(_user_id, %{} = profile), do: {:ok, profile}
+  defp organizer_profile(user_id, nil), do: ProfileQueries.get_by_user_id(user_id)
 
   # The prefetch range must cover the furthest date any of the host's schedules
   # can be booked into: a meeting type on a longer window than the default would

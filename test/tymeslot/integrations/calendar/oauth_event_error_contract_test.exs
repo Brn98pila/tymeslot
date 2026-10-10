@@ -60,7 +60,7 @@ defmodule Tymeslot.Integrations.Calendar.OAuthEventErrorContractTest do
       end)
 
       assert {:error, :not_found} =
-               Operations.delete_event("event-123", {integration.id, user.id})
+               Operations.delete_event("event-123", {integration.id, user.id}, [])
     end
 
     test "an expired token surfaces as :unauthorized", %{user: user, integration: integration} do

@@ -6,12 +6,13 @@ defmodule Tymeslot.Bookings.Validation do
   All validation is based on the data passed in as parameters.
   """
 
-  alias Tymeslot.Availability.{Calculate, Events, Offer, TimeSlots}
+  alias Tymeslot.Availability.{Calculate, Events, Offer}
   alias Tymeslot.Bookings.Errors
   alias Tymeslot.Bookings.ScheduleCheck
   alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Utils.{DateTimeUtils, TimeRange}
+  alias Tymeslot.Utils.DateTimeUtils.Duration
 
   @default_min_advance_hours 3
   @default_max_advance_days 365
@@ -231,10 +232,13 @@ defmodule Tymeslot.Bookings.Validation do
 
   defp parse_duration(duration) when is_integer(duration), do: {:ok, duration}
 
+  # A booking names its length; one that cannot be read is refused rather
+  # than booked at a default length the booker never chose.
   defp parse_duration(duration) when is_binary(duration) do
-    # TimeSlots.parse_duration returns an integer directly
-    minutes = TimeSlots.parse_duration(duration)
-    {:ok, minutes}
+    case Duration.parse_minutes(duration) do
+      {:ok, minutes} when minutes > 0 -> {:ok, minutes}
+      _not_a_length -> {:error, :invalid_duration}
+    end
   end
 
   defp parse_duration(_invalid), do: {:error, :invalid_duration}

@@ -5,6 +5,7 @@ defmodule Tymeslot.Bookings.Create do
   """
 
   alias Tymeslot.Auth
+  alias Tymeslot.Availability
   alias Tymeslot.Availability.Offer
   alias Tymeslot.Availability.Schedules
 
@@ -24,7 +25,6 @@ defmodule Tymeslot.Bookings.Create do
   alias Tymeslot.Bookings.Create.PaidBooking
   alias Tymeslot.Bookings.Telemetry
   alias Tymeslot.CustomFields
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Locales
   alias Tymeslot.MeetingPayments
   alias Tymeslot.Meetings.BookingLimits.Checker
@@ -386,7 +386,7 @@ defmodule Tymeslot.Bookings.Create do
 
   defp map_transaction_result({:ok, {meeting, pending_integrations}}, _booking_data) do
     :ok = Activation.after_commit(pending_integrations)
-    AvailabilityCache.invalidate_for_user(meeting.organizer_user_id)
+    Availability.changed(meeting.organizer_user_id)
     Telemetry.booking_created()
     {:ok, meeting}
   end

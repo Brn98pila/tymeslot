@@ -32,11 +32,6 @@ defmodule Tymeslot.Integrations.Calendar.Operations do
   end
 
   @impl Tymeslot.Integrations.Calendar.CalendarBehaviour
-  def delete_event(uid, context) do
-    EventOperations.delete_event(uid, context, [])
-  end
-
-  @impl Tymeslot.Integrations.Calendar.CalendarBehaviour
   def delete_event(uid, context, opts) do
     EventOperations.delete_event(uid, context, opts)
   end

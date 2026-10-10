@@ -60,12 +60,12 @@ defmodule Tymeslot.CalendarGrid.EventMove do
   occurrence. Exchange has no series-wide write, so its series are refused.
   """
 
+  alias Tymeslot.Availability
   alias Tymeslot.CalendarGrid.EventVideoRooms
   alias Tymeslot.CalendarGrid.Occurrence
   alias Tymeslot.CalendarGrid.ProviderPayload
   alias Tymeslot.CalendarGrid.SeriesTransfer
   alias Tymeslot.Clock
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.CreatedEvent
@@ -193,7 +193,7 @@ defmodule Tymeslot.CalendarGrid.EventMove do
           reason: failure_label(kind, reason)
         )
 
-        AvailabilityCache.invalidate_for_user(user_id)
+        Availability.changed(user_id)
         {:ok, %{uid: cached_uid, integration_id: integration_id, source: :unknown}}
     end
   end
@@ -225,7 +225,7 @@ defmodule Tymeslot.CalendarGrid.EventMove do
         left -> Map.put(result, :source, left)
       end
 
-    AvailabilityCache.invalidate_for_user(user_id)
+    Availability.changed(user_id)
     {:ok, result}
   end
 

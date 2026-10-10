@@ -15,7 +15,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
 
   require Logger
 
-  alias Tymeslot.Infrastructure.AvailabilityCache
+  alias Tymeslot.Availability
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
   alias Tymeslot.MeetingPayments.Telemetry
@@ -117,7 +117,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
 
   defp release_cached_availability(meeting_id) do
     case MeetingQueries.get_meeting(meeting_id) do
-      {:ok, meeting} -> AvailabilityCache.invalidate_for_user(meeting.organizer_user_id)
+      {:ok, meeting} -> Availability.changed(meeting.organizer_user_id)
       {:error, :not_found} -> :ok
     end
   end
