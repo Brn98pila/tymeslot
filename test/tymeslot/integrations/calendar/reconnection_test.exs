@@ -4,6 +4,7 @@ defmodule Tymeslot.Integrations.Calendar.ReconnectionTest do
   @moduletag :integrations
   @moduletag :calendar
 
+  alias Ecto.Changeset
   alias Tymeslot.Factory
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
@@ -255,7 +256,7 @@ defmodule Tymeslot.Integrations.Calendar.ReconnectionTest do
     } do
       {:ok, integration} =
         integration
-        |> Ecto.Changeset.change(
+        |> Changeset.change(
           calendar_list: [
             %CalendarEntry{
               id: "/b/",
