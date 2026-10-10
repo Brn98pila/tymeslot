@@ -62,21 +62,34 @@ defmodule Tymeslot.Workers.DeliveryClaims do
   run itself changes what it would compute: an email stating "the end it
   was" must not, on a retry, read the end it already moved on. Kept as a
   claim (`name=value`), so it lives and is pruned with the job's other
-  claims. A job with no id has no later runs and keeps nothing.
+  claims. The first value written wins: two runs that both find nothing kept
+  both write, and both then answer the earliest written. A job with no id has
+  no later runs and keeps nothing.
   """
   @spec remember(job_id(), String.t(), String.t()) :: String.t()
   def remember(nil, _name, value), do: value
 
   def remember(job_id, name, value) when is_integer(job_id) do
+    case recall(job_id, name) do
+      nil ->
+        DeliveryClaimQueries.claim(job_id, name <> "=" <> value)
+        recall(job_id, name)
+
+      kept ->
+        kept
+    end
+  end
+
+  @doc "The value `remember/3` kept on the job under `name`, or `nil`."
+  @spec recall(job_id(), String.t()) :: String.t() | nil
+  def recall(nil, _name), do: nil
+
+  def recall(job_id, name) when is_integer(job_id) do
     prefix = name <> "="
 
-    case DeliveryClaimQueries.find_key(job_id, prefix) do
-      nil ->
-        DeliveryClaimQueries.claim(job_id, prefix <> value)
-        value
-
-      key ->
-        String.replace_prefix(key, prefix, "")
+    case DeliveryClaimQueries.first_key(job_id, prefix) do
+      nil -> nil
+      key -> String.replace_prefix(key, prefix, "")
     end
   end
 
