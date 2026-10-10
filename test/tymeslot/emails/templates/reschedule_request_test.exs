@@ -100,7 +100,7 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestTest do
       # 14:00 UTC on 15 March 2025 is 10:00 EDT in New York.
       assert email.html_body =~ "10:00 AM EDT"
       assert email.html_body =~ "America/New_York"
-      assert email.text_body =~ "Timezone: America/New_York"
+      assert email.text_body =~ "Time: 10:00 AM EDT (America/New_York)"
     end
 
     test "handles missing attendee timezone with UTC fallback" do
@@ -109,7 +109,7 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestTest do
 
       assert %Swoosh.Email{} = email
       assert email.html_body =~ "02:00 PM UTC"
-      assert email.text_body =~ "Timezone: UTC"
+      assert email.text_body =~ "Time: 02:00 PM UTC\n"
     end
 
     test "includes apology and explanation text" do
