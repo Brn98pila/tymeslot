@@ -32,6 +32,7 @@ defmodule Tymeslot.Emails.EmailActions do
   alias Tymeslot.Notifications.Email.MeetingEmails
   alias Tymeslot.Notifications.Email.PollEmails
   alias Tymeslot.Notifications.Email.RescheduleEmails
+  alias Tymeslot.Notifications.Email.RescheduleRequestEmails
   alias Tymeslot.Notifications.Email.SeatEmails
 
   @type handler :: {module(), atom()} | {module(), atom(), :with_job_id}
@@ -62,7 +63,8 @@ defmodule Tymeslot.Emails.EmailActions do
     "send_reminder_emails" =>
       {["meeting_id", "reminder_value", "reminder_unit"],
        {MeetingEmails, :handle_reminder_emails}},
-    "send_reschedule_request" => {["meeting_id"], {MeetingEmails, :handle_reschedule_request}},
+    "send_reschedule_request" =>
+      {["meeting_id"], {RescheduleRequestEmails, :handle_reschedule_request}},
     "send_guest_invitations" =>
       {["meeting_id", "guest_ids"], {GuestEmails, :handle_guest_invitations}},
     # Seats

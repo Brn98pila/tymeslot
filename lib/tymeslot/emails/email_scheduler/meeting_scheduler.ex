@@ -413,11 +413,22 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
         scheduled_at =
           scheduled_at || calculate_reminder_time(meeting_id, value, unit)
 
+        # The meeting start this reminder is pinned to, outside the unique
+        # keys: a job left over from before a move (one executing as the move
+        # lands) sees the meeting no longer starts then and discards itself.
+        pinned_start =
+          DateTime.add(
+            scheduled_at,
+            ReminderUtils.reminder_interval_seconds(value, unit),
+            :second
+          )
+
         %{
           "action" => "send_reminder_emails",
           "meeting_id" => meeting_id,
           "reminder_value" => value,
-          "reminder_unit" => unit
+          "reminder_unit" => unit,
+          "start_time" => DateTime.to_iso8601(pinned_start)
         }
         |> EmailWorker.new(
           queue: :emails,
