@@ -15,11 +15,13 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.SyncCycleTest do
   import Tymeslot.CalDAVSyncTestFixtures
   import Tymeslot.ConfigTestHelpers
 
+  alias Ecto.Changeset
   alias Plug.Conn
   alias Req.Test, as: ReqTest
   alias Tymeslot.CalendarGrid
   alias Tymeslot.Integrations.Calendar.CalDAV.Sync, as: CalDAVSync
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Workers.SyncCalDavCalendarWorker
 
@@ -212,6 +214,59 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.SyncCycleTest do
                CalendarIntegrationQueries.get(integration.id)
 
       assert sync_error =~ "busy times only"
+    end
+
+    test "widened to a full share, its busy periods go and its events come" do
+      integration = sharing([{path1(), false}, {path2(), true}])
+      serve(answer_periods([period(9)]))
+      assert :ok = CalDAVSync.run(integration, true)
+      assert [{"busy_only", _start}] = busy_rows(integration)
+
+      {:ok, widened} =
+        integration
+        |> Changeset.change(
+          calendar_list: Enum.map(integration.calendar_list, &%{&1 | free_busy_only: false})
+        )
+        |> Repo.update()
+
+      ReqTest.stub(:tymeslot_http, &respond_to_dual_paths/1)
+
+      assert :ok = CalDAVSync.run(widened, true)
+      refute Enum.any?(busy_rows(widened), &match?({"busy_only", _start}, &1))
+      assert "event-from-path2@test" in cached_uids(widened)
+    end
+
+    test "refused credentials ask for a reconnect, as on any other read" do
+      integration = sharing([{path2(), true}])
+      serve(answer_periods([period(9)]))
+      assert :ok = CalDAVSync.run(integration, false)
+
+      serve(&Conn.send_resp(&1, 401, "Unauthorized"))
+
+      assert {:error, :unauthorized} = CalDAVSync.run(integration, false)
+      assert [{"busy_only", _start}] = busy_rows(integration)
+
+      perform_job(SyncCalDavCalendarWorker, %{"calendar_integration_id" => integration.id})
+
+      assert {:ok, %{needs_reauth: true}} = CalendarIntegrationQueries.get(integration.id)
+    end
+
+    test "periods it cannot cache fail the sync, not the calendar's read" do
+      integration = sharing([{path2(), true}])
+
+      # The integration goes while its answer is on the way: the rows have
+      # nothing to belong to.
+      serve(fn conn ->
+        Repo.delete_all(
+          from i in CalendarIntegrationSchema,
+            where: i.id == ^integration.id
+        )
+
+        answer_periods([period(9)]).(conn)
+      end)
+
+      assert {:error, reason} = CalDAVSync.run(integration, false)
+      refute match?({:free_busy_unreadable, _reason}, reason)
     end
 
     test "flushes changes queued earlier even with nothing else to sync" do

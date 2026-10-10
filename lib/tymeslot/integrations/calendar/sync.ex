@@ -230,6 +230,18 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
           calendar_events
         )
 
+  @doc """
+  Drops the `role` rows of every calendar of the integration but
+  `provider_calendar_ids`: the rows a per-calendar read
+  (`full_refresh_for_calendar/4`) cached for a calendar it no longer reads.
+  """
+  @spec drop_role_except(CalendarIntegrationSchema.t(), String.t(), [String.t()]) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  def drop_role_except(integration, role, provider_calendar_ids)
+      when is_binary(role) and is_list(provider_calendar_ids),
+      do:
+        full_refresh(integration, {:role_except_calendars, role, provider_calendar_ids}, role, [])
+
   defp full_refresh(integration, scope, role, calendar_events) do
     attrs =
       integration
