@@ -12,6 +12,7 @@ defmodule Tymeslot.Security.CredentialReencryptionRotationTest do
   @moduletag :security
   @moduletag :integration
 
+  alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.Integrations.Video.VideoIntegrationSchema
   alias Tymeslot.Security.CredentialReencryption
   alias Tymeslot.Security.Encryption
@@ -45,6 +46,21 @@ defmodule Tymeslot.Security.CredentialReencryptionRotationTest do
 
     assert_columns(integration, "a", on: 2)
     refute Map.has_key?(CredentialReencryption.key_report().totals, 1)
+  end
+
+  test "an OAuth flow started before a rotation completes after the old key is removed" do
+    user = insert(:user)
+    {:ok, %{nonce: nonce, code_challenge: challenge}} = PendingFlow.start(user.id, :google)
+
+    put_keys(data_encryption_keys: "2:#{@key_2},1:#{@key_1}")
+
+    assert {:ok, %{tables: %{"oauth_pending_flows" => %{migrated_values: 1}}}} =
+             CredentialReencryption.run()
+
+    put_keys(data_encryption_keys: "2:#{@key_2}")
+
+    assert {:ok, verifier} = PendingFlow.consume(nonce, user.id, :google)
+    assert Base.url_encode64(:crypto.hash(:sha256, verifier), padding: false) == challenge
   end
 
   test "a primary that changes again part-way through a sweep loses nothing" do
