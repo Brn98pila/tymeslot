@@ -127,9 +127,8 @@ defmodule Tymeslot.Emails.Shared.TemplateHelper do
   def attendee_meeting_details(appointment_details, audience)
       when audience in [:attendee, :guest] do
     appointment_details
-    |> shared_meeting_details()
+    |> shared_meeting_details(appointment_details.start_time_attendee_tz)
     |> Map.merge(%{
-      start_time: appointment_details.start_time_attendee_tz,
       timezone: Map.get(appointment_details, :attendee_timezone)
     })
     |> put_audience(audience)
@@ -148,26 +147,37 @@ defmodule Tymeslot.Emails.Shared.TemplateHelper do
   @spec organizer_meeting_details(map()) :: meeting_details()
   def organizer_meeting_details(appointment_details) do
     appointment_details
-    |> shared_meeting_details()
+    |> shared_meeting_details(appointment_details.start_time_owner_tz)
     |> Map.merge(%{
-      start_time: appointment_details.start_time_owner_tz,
       timezone: Map.get(appointment_details, :owner_timezone),
       time_format: Map.get(appointment_details, :organizer_time_format),
       audience: :host
     })
   end
 
-  defp shared_meeting_details(appointment_details) do
+  # The date is the recipient's: the payload's `:date` is the start's UTC
+  # day, which is a different day wherever the meeting starts before or after
+  # midnight UTC. An all-day event's days are calendar days in no zone, so it
+  # keeps them.
+  defp shared_meeting_details(appointment_details, start_time) do
     appointment_details
     |> Map.take([:all_day, :last_date])
     |> Map.merge(%{
-      date: appointment_details.date,
+      date: recipient_date(appointment_details, start_time),
+      start_time: start_time,
       duration: appointment_details.duration,
       location: appointment_details.location,
       location_type: Map.get(appointment_details, :location_type),
       meeting_type: appointment_details.meeting_type
     })
   end
+
+  defp recipient_date(%{all_day: true, date: date}, _start_time), do: date
+
+  defp recipient_date(_appointment_details, %DateTime{} = start_time),
+    do: DateTime.to_date(start_time)
+
+  defp recipient_date(appointment_details, _start_time), do: appointment_details.date
 
   defp put_audience(meeting_details, :guest), do: Map.put(meeting_details, :audience, :guest)
   defp put_audience(meeting_details, :attendee), do: meeting_details

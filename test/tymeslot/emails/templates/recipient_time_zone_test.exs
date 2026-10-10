@@ -107,4 +107,63 @@ defmodule Tymeslot.Emails.Templates.RecipientTimeZoneTest do
     assert email.html_body =~ "02:30 PM IST"
     assert email.text_body =~ "Time: 02:30 PM IST\n"
   end
+
+  describe "a meeting on different days for the two sides" do
+    # 23:30 UTC on Thursday 15 January: 05:00 on Friday 16 January in
+    # Kolkata, 18:30 on Thursday 15 January in New York.
+    defp across_midnight do
+      start = ~U[2026-01-15 23:30:00Z]
+
+      details(%{
+        date: ~D[2026-01-15],
+        start_time: start,
+        end_time: DateTime.add(start, 60, :minute),
+        start_time_owner_tz: DateTime.shift_zone!(start, "America/New_York"),
+        start_time_attendee_tz: DateTime.shift_zone!(start, "Asia/Kolkata"),
+        owner_timezone: "America/New_York",
+        attendee_timezone: "Asia/Kolkata"
+      })
+    end
+
+    for template <- [
+          AppointmentConfirmation,
+          AppointmentReminder,
+          AppointmentCancellation,
+          AppointmentRescheduled
+        ] do
+      test "#{inspect(template)} gives the booker their own day" do
+        email = unquote(template).render(:attendee, "attendee@example.com", across_midnight())
+
+        assert email.html_body =~ "16 January 2026"
+        assert email.html_body =~ "FRIDAY"
+        assert email.text_body =~ "Date: 16 January 2026"
+      end
+
+      test "#{inspect(template)} gives the organiser their own day" do
+        email = unquote(template).render(:organizer, "organizer@example.com", across_midnight())
+
+        assert email.html_body =~ "15 January 2026"
+        assert email.html_body =~ "THURSDAY"
+        assert email.text_body =~ "Date: 15 January 2026"
+      end
+
+      test "#{inspect(template)} gives an organiser ahead of UTC their own day" do
+        start = ~U[2026-01-15 23:30:00Z]
+
+        swapped = %{
+          across_midnight()
+          | start_time_owner_tz: DateTime.shift_zone!(start, "Asia/Kolkata"),
+            start_time_attendee_tz: DateTime.shift_zone!(start, "America/New_York"),
+            owner_timezone: "Asia/Kolkata",
+            attendee_timezone: "America/New_York"
+        }
+
+        email = unquote(template).render(:organizer, "organizer@example.com", swapped)
+
+        assert email.html_body =~ "16 January 2026"
+        assert email.html_body =~ "FRIDAY"
+        assert email.text_body =~ "Date: 16 January 2026"
+      end
+    end
+  end
 end
