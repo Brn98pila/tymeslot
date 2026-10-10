@@ -19,7 +19,9 @@ defmodule Tymeslot.Emails.Templates.RecipientTimeZoneTest do
     AppointmentCancellation,
     AppointmentConfirmation,
     AppointmentReminder,
-    AppointmentRescheduled
+    AppointmentRescheduled,
+    MeetingEndChanged,
+    SeatUpdateForOrganizer
   }
 
   # 09:00 UTC on 15 January: 10:00 in Berlin (CET), 14:30 in Kolkata (IST).
@@ -168,7 +170,9 @@ defmodule Tymeslot.Emails.Templates.RecipientTimeZoneTest do
   end
 
   describe "subject lines" do
-    # The reminder's subject names no date.
+    # 23:30 UTC on 15 January: 16 January in Kolkata (the booker and their
+    # guests), still 15 January in New York (the organiser). The reminder's
+    # subject names no date.
     for template <- [AppointmentConfirmation, AppointmentCancellation, AppointmentRescheduled] do
       test "#{inspect(template)} names each recipient's own day" do
         start = ~U[2026-01-15 23:30:00Z]
@@ -177,17 +181,91 @@ defmodule Tymeslot.Emails.Templates.RecipientTimeZoneTest do
           details(%{
             date: ~D[2026-01-15],
             start_time: start,
-            start_time_owner_tz: DateTime.shift_zone!(start, "Asia/Kolkata"),
+            start_time_owner_tz: DateTime.shift_zone!(start, "America/New_York"),
             start_time_attendee_tz: DateTime.shift_zone!(start, "Asia/Kolkata"),
-            owner_timezone: "Asia/Kolkata"
+            owner_timezone: "America/New_York"
           })
 
-        for role <- [:attendee, :organizer, :guest] do
+        for {role, day, not_day} <- [
+              {:attendee, "16 Jan", "15 Jan"},
+              {:guest, "16 Jan", "15 Jan"},
+              {:organizer, "15 Jan", "16 Jan"}
+            ] do
           email = unquote(template).render(role, "someone@example.com", details)
 
-          assert email.subject =~ "16 Jan", "#{role}: #{email.subject}"
-          refute email.subject =~ "15 Jan"
+          assert email.subject =~ day, "#{role}: #{email.subject}"
+          refute email.subject =~ not_day
         end
+      end
+    end
+  end
+
+  describe "a meeting on the day the clocks change" do
+    # Europe moves to summer time at 01:00 UTC on 29 March 2026: 09:00 UTC
+    # that day is 11:00 CEST in Berlin, not 10:00 CET as a fixed offset
+    # taken from the winter would make it.
+    test "the organiser reads the summer-time clock in both parts" do
+      start = ~U[2026-03-29 09:00:00Z]
+
+      details =
+        details(%{
+          date: ~D[2026-03-29],
+          start_time: start,
+          start_time_owner_tz: DateTime.shift_zone!(start, "Europe/Berlin"),
+          start_time_attendee_tz: DateTime.shift_zone!(start, "Asia/Kolkata")
+        })
+
+      email = AppointmentConfirmation.render(:organizer, "organizer@example.com", details)
+
+      assert_reads(email, "11:00 CEST (Europe/Berlin)")
+      refute email.text_body =~ "CET (Europe/Berlin)"
+    end
+  end
+
+  describe "an organiser in UTC" do
+    test "reads the time without a zone name in brackets" do
+      details =
+        details(%{
+          start_time_owner_tz: DateTime.shift_zone!(@start, "Etc/UTC"),
+          owner_timezone: "Etc/UTC"
+        })
+
+      email = AppointmentConfirmation.render(:organizer, "organizer@example.com", details)
+
+      assert_reads(email, "09:00 UTC")
+      refute email.text_body =~ "(Etc/UTC)"
+      refute email.html_body =~ "(Etc/UTC)"
+    end
+  end
+
+  describe "the other emails built from a booking payload" do
+    test "SeatUpdateForOrganizer gives the organiser their own time" do
+      details =
+        Map.merge(details(), %{
+          capacity: 3,
+          seats_taken: 2,
+          dashboard_url: "https://example.com/dashboard/meetings"
+        })
+
+      email = SeatUpdateForOrganizer.render(:booked, "organizer@example.com", details)
+
+      assert_reads(email, @organizer_time)
+      refute email.text_body =~ "Asia/Kolkata"
+    end
+
+    for role <- [:attendee, :guest] do
+      test "MeetingEndChanged gives the #{role} the booker's time" do
+        details =
+          Map.merge(details(), %{
+            end_time: DateTime.add(@start, 90, :minute),
+            original_end_time: DateTime.add(@start, 60, :minute),
+            duration: 90
+          })
+
+        email = MeetingEndChanged.render(unquote(role), "someone@example.com", details)
+
+        assert_reads(email, @attendee_time_en)
+        refute email.text_body =~ "Europe/Berlin"
       end
     end
   end
@@ -233,4 +311,3 @@ defmodule Tymeslot.Emails.Templates.RecipientTimeZoneTest do
     end
   end
 end
-
