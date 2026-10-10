@@ -2,7 +2,6 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   @moduledoc "Schedules meeting-related emails via Oban."
 
   alias Tymeslot.Emails.EmailScheduler.Helpers
-  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Jobs
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Utils.ReminderUtils
@@ -13,7 +12,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   @doc """
   Schedules confirmation emails to be sent immediately with high priority.
   """
-  @spec schedule_confirmation_emails(term()) :: :ok | {:error, String.t()}
+  @spec schedule_confirmation_emails(term()) :: :ok | {:error, term()}
   def schedule_confirmation_emails(meeting_id) do
     %{"action" => "send_confirmation_emails", "meeting_id" => meeting_id}
     |> EmailWorker.new(
@@ -27,7 +26,8 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
         keys: [:action, :meeting_id]
       ]
     )
-    |> Helpers.insert_job("Confirmation emails", meeting_id)
+    |> Helpers.insert(meeting_id: meeting_id)
+    |> Helpers.ok()
   end
 
   @doc """
@@ -38,12 +38,13 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   and no two jobs ever send to the same guest, however they overlap. A retry
   sends only to those of its guests still without `confirmation_sent_at`.
   """
-  @spec schedule_guest_invitations(binary(), [binary()]) :: :ok | {:error, String.t()}
+  @spec schedule_guest_invitations(binary(), [binary()]) :: :ok | {:error, term()}
   def schedule_guest_invitations(meeting_id, guest_ids)
       when is_list(guest_ids) and guest_ids != [] do
     %{"action" => "send_guest_invitations", "meeting_id" => meeting_id, "guest_ids" => guest_ids}
     |> EmailWorker.new(queue: :emails, priority: 0)
-    |> Helpers.insert_job("Guest invitations", meeting_id)
+    |> Helpers.insert(meeting_id: meeting_id)
+    |> Helpers.ok()
   end
 
   @doc """
@@ -65,7 +66,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   the follow-up against the very job inserting it, and Oban would silently
   report that as a duplicate rather than creating the row.
   """
-  @spec schedule_request_emails(term(), keyword()) :: :ok | {:error, String.t()}
+  @spec schedule_request_emails(term(), keyword()) :: :ok | {:error, term()}
   def schedule_request_emails(meeting_id, opts \\ []) do
     args = %{"action" => "send_booking_request_emails", "meeting_id" => meeting_id}
 
@@ -86,7 +87,8 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
         states: [:suspended, :available, :scheduled, :retryable]
       ]
     )
-    |> Helpers.insert_job("Booking request emails", meeting_id)
+    |> Helpers.insert(meeting_id: meeting_id)
+    |> Helpers.ok()
   end
 
   # A reschedule back into the approval gate knows the time the booking was
@@ -111,7 +113,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   re-entered one — Oban's default unique scope matches completed jobs too,
   and this meeting may cycle through the approval gate more than once.
   """
-  @spec schedule_approval_nudge(term(), DateTime.t()) :: :ok | {:error, String.t()}
+  @spec schedule_approval_nudge(term(), DateTime.t()) :: :ok | {:error, term()}
   def schedule_approval_nudge(meeting_id, %DateTime{} = send_at) do
     delete_existing_approval_jobs(meeting_id)
 
@@ -127,7 +129,8 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
         states: :incomplete
       ]
     )
-    |> Helpers.insert_job("Approval nudge", meeting_id)
+    |> Helpers.insert(meeting_id: meeting_id)
+    |> Helpers.ok()
   end
 
   @doc """
@@ -137,7 +140,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   news the moment it stops being held. Uniqueness is keyed on the action and
   the meeting, so the expiry job and the sweep both firing produces one email.
   """
-  @spec schedule_request_outcome(term(), :declined | :expired) :: :ok | {:error, String.t()}
+  @spec schedule_request_outcome(term(), :declined | :expired) :: :ok | {:error, term()}
   def schedule_request_outcome(meeting_id, variant) when variant in [:declined, :expired] do
     %{
       "action" => "send_booking_request_outcome",
@@ -149,7 +152,8 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
       priority: 0,
       unique: [period: 300, fields: [:args, :queue], keys: [:action, :meeting_id]]
     )
-    |> Helpers.insert_job("Booking request outcome", meeting_id)
+    |> Helpers.insert(meeting_id: meeting_id)
+    |> Helpers.ok()
   end
 
   @doc """
@@ -157,7 +161,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   invitee's request to move it lapsed. Sent immediately, and unique per
   meeting like the invitee's outcome email.
   """
-  @spec schedule_reschedule_request_expired(term()) :: :ok | {:error, String.t()}
+  @spec schedule_reschedule_request_expired(term()) :: :ok | {:error, term()}
   def schedule_reschedule_request_expired(meeting_id) do
     %{"action" => "send_reschedule_request_expired", "meeting_id" => meeting_id}
     |> EmailWorker.new(
@@ -165,7 +169,8 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
       priority: 0,
       unique: [period: 300, fields: [:args, :queue], keys: [:action, :meeting_id]]
     )
-    |> Helpers.insert_job("Reschedule request expired", meeting_id)
+    |> Helpers.insert(meeting_id: meeting_id)
+    |> Helpers.ok()
   end
 
   @doc """
@@ -236,64 +241,34 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   email instead of the harmless no-op re-dispatch is meant to be.
   """
   @spec schedule_seat_email(String.t(), term(), term(), map(), [atom()]) ::
-          :ok | {:error, String.t()}
+          :ok | {:error, term()}
   def schedule_seat_email(action, meeting_id, participant_id, extra_args \\ %{}, extra_keys \\ []) do
-    result =
-      extra_args
-      |> Map.merge(%{
-        "action" => action,
-        "meeting_id" => meeting_id,
-        "participant_id" => participant_id
-      })
-      |> EmailWorker.new(
-        queue: :emails,
-        priority: 0,
-        unique: [
-          # 1 hour — comfortably past the ~330s worst-case circuit-open
-          # snooze on either the seat job itself or the meeting-level
-          # dispatcher that re-runs this. See the moduledoc above.
-          period: 3600,
-          fields: [:args, :queue],
-          keys: [:action, :meeting_id, :participant_id | extra_keys]
-        ]
-      )
-      |> Oban.insert()
-
-    case result do
-      {:ok, %{conflict?: true}} ->
-        Logger.info("Seat email job already exists, skipping duplicate",
-          action: action,
-          meeting_id: meeting_id,
-          participant_id: participant_id
-        )
-
-        :ok
-
-      {:ok, _job} ->
-        Logger.info("Seat email job scheduled",
-          action: action,
-          meeting_id: meeting_id,
-          participant_id: participant_id
-        )
-
-        :ok
-
-      {:error, reason} ->
-        Logger.error("Failed to schedule seat email",
-          action: action,
-          meeting_id: meeting_id,
-          participant_id: participant_id,
-          error: Helpers.format_insert_error(reason)
-        )
-
-        {:error, "Failed to schedule job"}
-    end
+    extra_args
+    |> Map.merge(%{
+      "action" => action,
+      "meeting_id" => meeting_id,
+      "participant_id" => participant_id
+    })
+    |> EmailWorker.new(
+      queue: :emails,
+      priority: 0,
+      unique: [
+        # 1 hour — comfortably past the ~330s worst-case circuit-open
+        # snooze on either the seat job itself or the meeting-level
+        # dispatcher that re-runs this. See the moduledoc above.
+        period: 3600,
+        fields: [:args, :queue],
+        keys: [:action, :meeting_id, :participant_id | extra_keys]
+      ]
+    )
+    |> Helpers.insert(meeting_id: meeting_id, participant_id: participant_id)
+    |> Helpers.ok()
   end
 
   @doc """
   Schedules the confirmation emails for a single group-booking seat.
   """
-  @spec schedule_seat_confirmation_emails(term(), term()) :: :ok | {:error, String.t()}
+  @spec schedule_seat_confirmation_emails(term(), term()) :: :ok | {:error, term()}
   def schedule_seat_confirmation_emails(meeting_id, participant_id),
     do: schedule_seat_email(seat_action(:seat_confirmation), meeting_id, participant_id)
 
@@ -303,7 +278,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   meeting.
   """
   @spec schedule_seat_cancellation_emails(term(), term(), boolean()) ::
-          :ok | {:error, String.t()}
+          :ok | {:error, term()}
   def schedule_seat_cancellation_emails(meeting_id, participant_id, slot_freed?) do
     schedule_seat_email(seat_action(:seat_cancellation), meeting_id, participant_id, %{
       "slot_freed" => slot_freed?
@@ -320,7 +295,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   `old_slot_freed?` says the move emptied, and so cancelled, the old meeting.
   """
   @spec schedule_seat_reschedule_emails(term(), term(), term(), boolean()) ::
-          :ok | {:error, String.t()}
+          :ok | {:error, term()}
   def schedule_seat_reschedule_emails(
         meeting_id,
         participant_id,
@@ -340,7 +315,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   cancellation job instead of sending inline, so a failure on one participant
   cannot discard the notification to the rest.
   """
-  @spec schedule_seat_meeting_cancellation_email(term(), term()) :: :ok | {:error, String.t()}
+  @spec schedule_seat_meeting_cancellation_email(term(), term()) :: :ok | {:error, term()}
   def schedule_seat_meeting_cancellation_email(meeting_id, participant_id),
     do: schedule_seat_email(seat_action(:seat_meeting_cancellation), meeting_id, participant_id)
 
@@ -352,7 +327,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   discard the reminder to the rest.
   """
   @spec schedule_seat_reminder_email(term(), term(), term(), term()) ::
-          :ok | {:error, String.t()}
+          :ok | {:error, term()}
   def schedule_seat_reminder_email(meeting_id, participant_id, reminder_value, reminder_unit) do
     schedule_seat_email(
       seat_action(:seat_reminder),
@@ -375,7 +350,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   later request is a new email.
   """
   @spec schedule_seat_reschedule_request(term(), term(), String.t() | nil) ::
-          :ok | {:error, String.t()}
+          :ok | {:error, term()}
   def schedule_seat_reschedule_request(meeting_id, participant_id, requested_at) do
     schedule_seat_email(
       seat_action(:seat_reschedule_request),
@@ -405,7 +380,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   @spec schedule_reschedule_emails(
           %{id: term(), start_time: DateTime.t(), status: String.t()},
           map() | nil
-        ) :: :ok | {:error, String.t()}
+        ) :: :ok | {:error, term()}
   def schedule_reschedule_emails(meeting, original) do
     %{
       "action" => "send_reschedule_emails",
@@ -415,7 +390,8 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
     }
     |> maybe_put_original(original)
     |> EmailWorker.new(queue: :emails, priority: 0)
-    |> Helpers.insert_job("Reschedule emails", meeting.id)
+    |> Helpers.insert(meeting_id: meeting.id)
+    |> Helpers.ok()
   end
 
   defp maybe_put_original(args, nil), do: args
@@ -431,7 +407,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   @doc """
   Schedules cancellation emails to be sent immediately with high priority.
   """
-  @spec schedule_cancellation_emails(term()) :: :ok | {:error, String.t()}
+  @spec schedule_cancellation_emails(term()) :: :ok | {:error, term()}
   def schedule_cancellation_emails(meeting_id) do
     %{"action" => "send_cancellation_emails", "meeting_id" => meeting_id}
     |> EmailWorker.new(
@@ -445,7 +421,8 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
         keys: [:action, :meeting_id]
       ]
     )
-    |> Helpers.insert_job("Cancellation emails", meeting_id)
+    |> Helpers.insert(meeting_id: meeting_id)
+    |> Helpers.ok()
   end
 
   @doc """
@@ -453,7 +430,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   If no `scheduled_at` is provided, defaults to the reminder interval before the meeting.
   """
   @spec schedule_reminder_emails(term(), term(), term(), DateTime.t() | nil) ::
-          :ok | {:error, String.t()}
+          :ok | {:error, term()}
   def schedule_reminder_emails(meeting_id, reminder_value, reminder_unit, scheduled_at \\ nil) do
     case ReminderUtils.normalize_reminder(%{value: reminder_value, unit: reminder_unit}) do
       {:ok, %{value: value, unit: unit}} ->
@@ -484,7 +461,8 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
             states: :incomplete
           ]
         )
-        |> Helpers.insert_job("Reminder emails", meeting_id, scheduled_at: scheduled_at)
+        |> Helpers.insert(meeting_id: meeting_id, scheduled_at: scheduled_at)
+        |> Helpers.ok()
 
       _error ->
         {:error, "invalid_reminder"}
@@ -526,36 +504,20 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
       "requested_at" => DateTime.to_iso8601(requested_at)
     }
 
-    job =
-      EmailWorker.new(job_params,
-        queue: :emails,
-        priority: 1,
-        # The window matches the per-seat jobs this one dispatches to, for the
-        # same reason (see `schedule_seat_email/5`).
-        unique: [
-          period: 3600,
-          fields: [:args, :queue],
-          keys: [:action, :meeting_id, :requested_at]
-        ]
-      )
-
-    case Oban.insert(job) do
-      {:ok, %{conflict?: true}} ->
-        Logger.info("Reschedule request email job already queued", meeting_id: meeting_id)
-        :ok
-
-      {:ok, _job} ->
-        Logger.info("Reschedule request email job queued", meeting_id: meeting_id)
-        :ok
-
-      {:error, reason} ->
-        Logger.error("Failed to queue reschedule request email",
-          meeting_id: meeting_id,
-          error: LogFormat.reason(reason)
-        )
-
-        {:error, reason}
-    end
+    job_params
+    |> EmailWorker.new(
+      queue: :emails,
+      priority: 1,
+      # The window matches the per-seat jobs this one dispatches to, for the
+      # same reason (see `schedule_seat_email/5`).
+      unique: [
+        period: 3600,
+        fields: [:args, :queue],
+        keys: [:action, :meeting_id, :requested_at]
+      ]
+    )
+    |> Helpers.insert(meeting_id: meeting_id)
+    |> Helpers.ok()
   end
 
   # Private helpers

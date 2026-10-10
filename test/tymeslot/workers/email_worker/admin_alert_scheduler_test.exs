@@ -8,6 +8,7 @@ defmodule Tymeslot.Workers.EmailWorker.AdminAlertSchedulerTest do
   import ExUnit.CaptureLog
 
   alias Ecto.Changeset
+  alias Tymeslot.Emails.EmailScheduler.Helpers
   alias Tymeslot.Repo
   alias Tymeslot.Workers.EmailWorker
   alias Tymeslot.Workers.EmailWorker.AdminAlertScheduler
@@ -121,9 +122,10 @@ defmodule Tymeslot.Workers.EmailWorker.AdminAlertSchedulerTest do
       # schedule made a worker failing on a loop look like it was emailing an
       # operator every cycle when the dedup window was suppressing all but one.
       # The suite runs at :warning, which filters debug before any capture
-      # handler sees it; a module-scoped override lifts it for this module only.
-      Logger.put_module_level(AdminAlertScheduler, :debug)
-      on_exit(fn -> Logger.delete_module_level(AdminAlertScheduler) end)
+      # handler sees it; a module-scoped override lifts it for the module that
+      # logs the insert only.
+      Logger.put_module_level(Helpers, :debug)
+      on_exit(fn -> Logger.delete_module_level(Helpers) end)
 
       assert :ok =
                AdminAlertScheduler.schedule(
@@ -148,8 +150,22 @@ defmodule Tymeslot.Workers.EmailWorker.AdminAlertSchedulerTest do
                    )
         end)
 
-      assert log =~ "deduplicated"
-      refute log =~ "Admin alert email scheduled"
+      assert log =~ "already queued"
+      refute log =~ "Email job scheduled"
+
+      info_log =
+        capture_log([level: :info], fn ->
+          AdminAlertScheduler.schedule(
+            "ops@example.com",
+            "Queue",
+            :error,
+            "Repeat alert",
+            %{},
+            dedup_key: "new_error:41"
+          )
+        end)
+
+      refute info_log =~ "already queued"
     end
 
     # Oban's default unique states stop at :completed, so an alert job that

@@ -17,7 +17,7 @@ defmodule Tymeslot.Emails.EmailScheduler.EndChangeScheduler do
   start the latest change was written against, so a meeting moved since is
   not told about its old end, and one moved and then changed again is.
   """
-  @spec schedule_end_change_emails(MeetingSchema.t()) :: :ok | {:error, String.t()}
+  @spec schedule_end_change_emails(MeetingSchema.t()) :: :ok | {:error, term()}
   def schedule_end_change_emails(%MeetingSchema{id: meeting_id, start_time: start_time}) do
     %{
       "action" => "send_end_change_emails",
@@ -36,6 +36,7 @@ defmodule Tymeslot.Emails.EmailScheduler.EndChangeScheduler do
       ],
       replace: [scheduled: [:scheduled_at, :args]]
     )
-    |> Helpers.insert_job("End change emails", meeting_id)
+    |> Helpers.insert(meeting_id: meeting_id)
+    |> Helpers.ok()
   end
 end
