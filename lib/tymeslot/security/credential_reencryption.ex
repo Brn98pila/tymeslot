@@ -125,32 +125,21 @@ defmodule Tymeslot.Security.CredentialReencryption do
         old_value = Map.get(row, column)
 
         case reencrypt_value(old_value) do
-          :skip ->
-            {updates, acc}
-
-          :already_current ->
-            {updates, bump(acc, :already_current)}
-
-          :unrecoverable ->
-            {updates, bump(acc, :unrecoverable)}
-
-          {:migrated, value} ->
-            {[{column, old_value, value} | updates], bump(acc, :migrated_values)}
+          :skip -> {updates, acc}
+          :already_current -> {updates, bump(acc, :already_current)}
+          :unrecoverable -> {updates, bump(acc, :unrecoverable)}
+          {:migrated, value} -> {[{column, old_value, value} | updates], acc}
         end
       end)
 
-    if updates == [] do
-      stats
-    else
-      # Each column is written with a compare-and-swap against the ciphertext
-      # read in this batch, so a concurrent writer (e.g. an OAuth token
-      # refresh) landing between the fetch and this write is never clobbered —
-      # that column's CAS simply matches zero rows and is skipped.
-      if Queries.update_row(table, Map.fetch!(row, :id), updates) do
-        bump(stats, :migrated_rows)
-      else
-        stats
-      end
+    # Each column is written with a compare-and-swap against the ciphertext
+    # read in this batch, so a concurrent writer (e.g. an OAuth token refresh)
+    # landing between the fetch and this write is never clobbered: that
+    # column's CAS matches zero rows and is skipped. Only the columns actually
+    # written count as migrated, so a run that reports zero has nothing left.
+    case Queries.update_row(table, Map.fetch!(row, :id), updates) do
+      0 -> stats
+      written -> stats |> bump(:migrated_values, written) |> bump(:migrated_rows)
     end
   end
 
@@ -173,7 +162,7 @@ defmodule Tymeslot.Security.CredentialReencryption do
     %{migrated_values: 0, migrated_rows: 0, already_current: 0, unrecoverable: 0}
   end
 
-  defp bump(stats, key), do: Map.update!(stats, key, &(&1 + 1))
+  defp bump(stats, key, by \\ 1), do: Map.update!(stats, key, &(&1 + by))
 
   defp total_stats(tables) do
     Enum.reduce(Map.values(tables), empty_stats(), fn stats, acc ->

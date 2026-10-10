@@ -66,24 +66,19 @@ defmodule Tymeslot.Security.CredentialReencryptionQueries do
   between the batch read and this call, that column's update affects zero
   rows and is silently skipped rather than clobbering the newer value.
 
-  Returns `true` if at least one column was updated, `false` otherwise
-  (including the no-op case of an empty `updates` list).
+  Returns the number of columns written: `0` when every CAS lost (and for the
+  no-op case of an empty `updates` list).
   """
   @spec update_row(String.t(), integer() | binary(), [{atom(), binary(), binary()}]) ::
-          boolean()
-  def update_row(_table, _id, []), do: false
-
+          non_neg_integer()
   def update_row(table, id, updates) do
-    Enum.reduce(updates, false, fn {column, old_value, new_value}, any_updated? ->
+    Enum.count(updates, fn {column, old_value, new_value} ->
       query =
         from(r in table,
           where: r.id == ^id and field(r, ^column) == ^old_value
         )
 
-      case Repo.update_all(query, set: [{column, new_value}]) do
-        {0, _returned} -> any_updated?
-        {_count, _returned} -> true
-      end
+      match?({1, _returned}, Repo.update_all(query, set: [{column, new_value}]))
     end)
   end
 end
