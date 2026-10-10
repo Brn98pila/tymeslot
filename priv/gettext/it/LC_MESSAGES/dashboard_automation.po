@@ -703,3 +703,13 @@ msgstr "Per una protezione più forte, verifica la firma. L'intestazione ha la f
 #, elixir-autogen, elixir-format
 msgid "Request signature"
 msgstr "Firma della richiesta"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "Paused"
+msgstr "In pausa"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "Paused: your plan doesn't include automations. Upgrading resumes it."
+msgstr "In pausa: il tuo piano non include le automazioni. Passando a un piano superiore riprenderà da solo."

@@ -319,6 +319,26 @@ defmodule Tymeslot.SlackTest do
 
       assert :ok = Slack.test_integration(integration)
     end
+
+    test "sends nothing while the plan doesn't include automations" do
+      setup_config(:tymeslot, feature_access_checker: Tymeslot.SlackTest.DenyAccessChecker)
+      integration = insert(:slack_integration, app_mode: "oauth", channel_id: "C9")
+      expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts -> :unused end)
+
+      assert {:error, :insufficient_plan} = Slack.test_integration(integration)
+    end
+  end
+
+  describe "disconnect/1" do
+    # A paused integration can still be disconnected: the owner keeps control
+    # of the install whatever their plan.
+    test "disconnects while the plan doesn't include automations" do
+      setup_config(:tymeslot, feature_access_checker: Tymeslot.SlackTest.DenyAccessChecker)
+      integration = insert(:slack_integration, app_mode: "oauth", channel_id: "C9")
+
+      assert {:ok, disconnected} = Slack.disconnect(integration)
+      assert is_nil(disconnected.channel_id)
+    end
   end
 
   # `schedule_for_event/3` enqueues SlackWorker jobs. End-to-end coverage of

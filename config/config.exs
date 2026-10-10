@@ -36,7 +36,6 @@ config :tymeslot,
 
   # Navigation: Where the logo/home link points to
   site_home_path: "/dashboard",
-  repo: Tymeslot.Repo,
   contact_url: nil,
   about_url: nil,
   features_url: nil,
@@ -213,9 +212,10 @@ config :tymeslot, :feature_assigns,
 # When an action is listed here, the corresponding assign must be true for the
 # section to render; otherwise a placeholder is shown. SaaS can extend this map
 # without modifying Core by setting :dashboard_feature_gates in its own config.
-config :tymeslot, :dashboard_feature_gates, %{
-  automation: :automations_allowed
-}
+# Automation is deliberately not gated here: the section reads
+# `automations_allowed` itself, so that existing integrations stay visible
+# (paused) while the plan doesn't include automations.
+config :tymeslot, :dashboard_feature_gates, %{}
 
 # Feature Access Checker - Default to allowing all features
 # SaaS can provide a custom implementation that checks subscription status

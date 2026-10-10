@@ -13,13 +13,9 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
   setup :verify_on_exit!
 
   setup do
-    original_repo = Application.get_env(:tymeslot, :repo)
     original_provider = Application.get_env(:tymeslot, :stripe_provider)
     original_manager = Application.get_env(:tymeslot, :subscription_manager)
 
-    # Test env defaults :repo to SaasRepo; this suite needs the factory's
-    # PaymentTransactionSchema rows, which live in Tymeslot.Repo.
-    Application.put_env(:tymeslot, :repo, Tymeslot.Repo)
     Application.put_env(:tymeslot, :stripe_provider, Tymeslot.Payments.StripeMock)
 
     # Dispute routing for charges without invoice/subscription references
@@ -32,7 +28,6 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
     )
 
     on_exit(fn ->
-      restore(:repo, original_repo)
       restore(:stripe_provider, original_provider)
       restore(:subscription_manager, original_manager)
     end)

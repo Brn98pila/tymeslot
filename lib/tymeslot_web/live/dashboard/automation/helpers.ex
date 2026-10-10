@@ -333,6 +333,10 @@ defmodule TymeslotWeb.Dashboard.Automation.Helpers do
                 Flash.info(success_msg)
                 {:noreply, assign(socket, testing_key, nil)}
 
+              {:error, reason} when is_atom(reason) ->
+                {:noreply,
+                 socket |> handle_feature_access_error(reason) |> assign(testing_key, nil)}
+
               {:error, reason} ->
                 Flash.error(
                   dgettext("dashboard_automation", "Test failed: %{reason}", reason: reason)

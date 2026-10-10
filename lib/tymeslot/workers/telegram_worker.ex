@@ -117,7 +117,7 @@ defmodule Tymeslot.Workers.TelegramWorker do
   # Why a job did not reach the API, as Oban's answer for it.
   defp refuse({:error, :not_found}, _integration_id), do: {:discard, @gone}
   defp refuse({:error, :disabled}, _integration_id), do: {:discard, @disabled}
-  defp refuse({:revoked, _reason}, integration_id), do: handle_revoked_access(integration_id)
+  defp refuse({:revoked, _reason}, _integration_id), do: {:discard, @insufficient_plan}
   defp refuse({:discard, :feature_disabled}, _integration_id), do: {:discard, @feature_disabled}
   defp refuse({:error, :feature_access_checker_failed} = error, _integration_id), do: error
 
@@ -156,13 +156,6 @@ defmodule Tymeslot.Workers.TelegramWorker do
   defdelegate backoff(job), to: MeetingNotificationJob, as: :chat_backoff
 
   # Private functions
-
-  # Matches Slack: an integration whose owner lost automations is switched
-  # off, visibly, instead of discarding every event it would have sent.
-  defp handle_revoked_access(integration_id) do
-    {:ok, _disabled?} = Telegram.disable_for_revoked_plan(integration_id)
-    {:discard, @insufficient_plan}
-  end
 
   defp check_active(%TelegramIntegrationSchema{} = integration) do
     if TelegramIntegrationSchema.should_be_active?(integration),

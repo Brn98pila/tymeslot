@@ -116,7 +116,7 @@ defmodule Mix.Tasks.MirotalkProdSmoke do
       Mix.raise("""
       MiroTalk configuration not set. Please either:
         1. Set MIROTALK_BASE_URL and MIROTALK_API_KEY environment variables
-        2. Edit `lib/mix/tasks/mirotalk_prod_smoke.ex` and set @mirotalk_base_url and @mirotalk_api_key
+        2. Edit `dev_support/tooling/mix/tasks/mirotalk_prod_smoke.ex` and set @mirotalk_base_url and @mirotalk_api_key
       """)
     end
 

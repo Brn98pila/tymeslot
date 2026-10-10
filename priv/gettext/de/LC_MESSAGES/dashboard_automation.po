@@ -703,3 +703,13 @@ msgstr "Für stärkeren Schutz prüfen Sie die Signatur. Der Header hat die Form
 #, elixir-autogen, elixir-format
 msgid "Request signature"
 msgstr "Anfragesignatur"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "Paused"
+msgstr "Pausiert"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "Paused: your plan doesn't include automations. Upgrading resumes it."
+msgstr "Pausiert: Ihr Tarif umfasst keine Automatisierungen. Nach einem Upgrade läuft der Webhook automatisch weiter."
