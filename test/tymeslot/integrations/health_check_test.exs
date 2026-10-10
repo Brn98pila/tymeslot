@@ -7,6 +7,7 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
   import Tymeslot.Integrations.HealthCheckTestSetup
   import Ecto.Query
   import Mox
+  import Tymeslot.WorkerTestHelpers, only: [insert_unhealthy_health_row: 3]
 
   alias Oban.Job
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
@@ -217,6 +218,31 @@ defmodule Tymeslot.Integrations.HealthCheckTest do
       assert status.last_error_class == :hard
       assert status.consecutive_hard_failures == 1
       assert status.failures == 1
+    end
+  end
+
+  describe "health_states_for_user/1" do
+    test "maps each kind's unhealthy, active integrations to their health state" do
+      user = insert(:user)
+      calendar = insert(:calendar_integration, user: user, is_active: true)
+      video = insert(:video_integration, user: user, is_active: true)
+      paused = insert(:calendar_integration, user: user, is_active: false, provider: "google")
+      others = insert(:calendar_integration, is_active: true)
+
+      for {type, id} <- [calendar: calendar.id, video: video.id, calendar: paused.id] do
+        insert_unhealthy_health_row(user, type, id)
+      end
+
+      insert_unhealthy_health_row(others.user, :calendar, others.id)
+
+      assert %{calendar: calendars, video: videos} = HealthCheck.health_states_for_user(user.id)
+      assert [calendar.id] == Map.keys(calendars)
+      assert %{status: :unhealthy} = calendars[calendar.id]
+      assert [video.id] == Map.keys(videos)
+    end
+
+    test "is empty for each kind when nothing is unhealthy" do
+      assert HealthCheck.health_states_for_user(insert(:user).id) == %{calendar: %{}, video: %{}}
     end
   end
 

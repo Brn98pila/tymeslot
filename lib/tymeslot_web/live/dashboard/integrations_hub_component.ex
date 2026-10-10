@@ -5,7 +5,6 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
 
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.HealthCheck
-  alias Tymeslot.Integrations.HealthCheck.Monitor
   alias Tymeslot.Integrations.Video
   alias Tymeslot.MeetingPayments
   alias TymeslotWeb.Components.Dashboard.Integrations.Shared.UIComponents
@@ -24,7 +23,7 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
 
     calendars = Calendar.list_integrations(user_id)
     videos = Video.list_integrations(user_id)
-    health_states = health_states_by_type(user_id)
+    health_states = HealthCheck.health_states_for_user(user_id)
     connect_account = load_connect_account(payments_allowed?, user_id)
     payment_state = MeetingPayments.connect_display_state(connect_account)
 
@@ -48,24 +47,6 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
   end
 
   # ── Summary data loading ──────────────────────────────────────────
-
-  # Builds the same `%{integration_id => health_state}` shape the per-row
-  # calendar/video settings components use, so the hub's attention
-  # classification and the row badges are derived from one health source.
-  defp health_states_by_type(user_id) do
-    grouped =
-      user_id
-      |> HealthCheck.list_unhealthy_for_user()
-      |> Enum.group_by(& &1.integration_type)
-      |> Map.new(fn {type, records} ->
-        {type, Map.new(records, &{&1.integration_id, Monitor.from_db_record(&1)})}
-      end)
-
-    %{
-      calendars: Map.get(grouped, "calendar", %{}),
-      video: Map.get(grouped, "video", %{})
-    }
-  end
 
   defp load_connect_account(false, _user_id), do: nil
 
@@ -120,7 +101,7 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
 
   defp attention_items(calendars, videos, health_states, payment_state) do
     items =
-      integration_attention(calendars, health_states.calendars, :calendars) ++
+      integration_attention(calendars, health_states.calendar, :calendars) ++
         integration_attention(videos, health_states.video, :video) ++
         payment_attention(payment_state)
 
@@ -307,7 +288,7 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
             client_ip={@client_ip}
             user_agent={@user_agent}
             integrations={@calendars}
-            health_states={@health_states.calendars}
+            health_states={@health_states.calendar}
             stuck_changes={@stuck_changes}
           />
           <.live_component

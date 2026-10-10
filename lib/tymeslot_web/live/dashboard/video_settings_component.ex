@@ -8,7 +8,6 @@ defmodule TymeslotWeb.Dashboard.VideoSettingsComponent do
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.HealthCheck
-  alias Tymeslot.Integrations.HealthCheck.Monitor
   alias Tymeslot.Integrations.Shared.Providers.Directory
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Integrations.Video.InputValidation, as: VideoInputValidation
@@ -578,11 +577,7 @@ defmodule TymeslotWeb.Dashboard.VideoSettingsComponent do
     user_id = socket.assigns.current_user.id
     integrations = Video.list_integrations(user_id)
 
-    health_states =
-      user_id
-      |> HealthCheck.list_unhealthy_for_user()
-      |> Enum.filter(&(&1.integration_type == "video"))
-      |> Map.new(fn s -> {s.integration_id, Monitor.from_db_record(s)} end)
+    health_states = HealthCheck.health_states_for_user(user_id).video
 
     socket
     |> assign(:integrations, integrations)

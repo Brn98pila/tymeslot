@@ -13,7 +13,6 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.HealthCheck
-  alias Tymeslot.Integrations.HealthCheck.Monitor
   alias Tymeslot.Profiles
   alias TymeslotWeb.Dashboard.CalendarSettings.ComponentView
   alias TymeslotWeb.Helpers.IntegrationProviders
@@ -420,11 +419,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
     user_id = socket.assigns.current_user.id
     integrations = Calendar.list_integrations(user_id)
 
-    health_states =
-      user_id
-      |> HealthCheck.list_unhealthy_for_user()
-      |> Enum.filter(&(&1.integration_type == "calendar"))
-      |> Map.new(fn s -> {s.integration_id, Monitor.from_db_record(s)} end)
+    health_states = HealthCheck.health_states_for_user(user_id).calendar
 
     socket
     |> assign(:integrations, integrations)

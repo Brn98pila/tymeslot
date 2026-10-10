@@ -42,7 +42,6 @@ defmodule Tymeslot.Integrations.HealthCheck do
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries
-  alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateSchema
   alias Tymeslot.Integrations.Shared.IntegrationTypes
   alias Tymeslot.Repo
   alias Tymeslot.Workers.IntegrationHealthWorker
@@ -85,11 +84,24 @@ defmodule Tymeslot.Integrations.HealthCheck do
   end
 
   @doc """
-  Lists unhealthy health-state records for a user's active integrations.
+  The unhealthy health states of a user's active integrations, by kind and
+  then integration id: what the dashboard's badges and attention list read.
+  An integration absent from its map is not unhealthy.
   """
-  @spec list_unhealthy_for_user(integer()) :: [IntegrationHealthStateSchema.t()]
-  def list_unhealthy_for_user(user_id) do
-    IntegrationHealthStateQueries.list_unhealthy_for_user(user_id)
+  @spec health_states_for_user(integer()) :: %{
+          calendar: %{integer() => health_state()},
+          video: %{integer() => health_state()}
+        }
+  def health_states_for_user(user_id) do
+    grouped =
+      user_id
+      |> IntegrationHealthStateQueries.list_unhealthy_for_user()
+      |> Enum.group_by(& &1.integration_type)
+
+    Map.new(IntegrationTypes.kinds(), fn kind ->
+      records = Map.get(grouped, IntegrationTypes.db_value(kind), [])
+      {kind, Map.new(records, &{&1.integration_id, Monitor.from_db_record(&1)})}
+    end)
   end
 
   @doc """
