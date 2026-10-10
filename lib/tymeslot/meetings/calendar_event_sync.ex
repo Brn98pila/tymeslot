@@ -320,7 +320,7 @@ defmodule Tymeslot.Meetings.CalendarEventSync do
   # until inbound sync drops it the grid would show it beside the booking.
   defp delete_replaced_event(meeting, event_id) do
     case CalendarEvents.delete_event(event_id, meeting) do
-      result when result in [:ok, {:ok, :deleted}, {:error, :not_found}] ->
+      result when result in [:ok, {:error, :not_found}] ->
         Logger.info("Replaced calendar event deleted", meeting_id: meeting.id)
         CalendarEventCache.forget(meeting, event_id)
 
@@ -435,10 +435,6 @@ defmodule Tymeslot.Meetings.CalendarEventSync do
   defp delete_event_for_meeting(meeting, meeting_id) do
     case CalendarEvents.delete_event(calendar_event_identifier(meeting), meeting) do
       :ok ->
-        Logger.info("Calendar event deleted successfully", meeting_id: meeting_id)
-        :ok
-
-      {:ok, :deleted} ->
         Logger.info("Calendar event deleted successfully", meeting_id: meeting_id)
         :ok
 

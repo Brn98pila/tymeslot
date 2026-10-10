@@ -74,9 +74,6 @@ defmodule Tymeslot.Meetings.CalendarEventMapping do
       :ok ->
         :ok
 
-      {:ok, :deleted} ->
-        :ok
-
       {:error, :not_found} ->
         :ok
 
