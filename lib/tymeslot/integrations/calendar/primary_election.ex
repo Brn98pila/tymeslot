@@ -21,7 +21,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   the same order.
   """
 
-  alias Tymeslot.Infrastructure.AvailabilityCache
+  alias Tymeslot.Availability
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
@@ -61,7 +61,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
 
     with {:ok, _value} <- result,
          false <- CalendarIntegrationQueries.in_transaction?() do
-      AvailabilityCache.invalidate_for_user(user_id)
+      Availability.changed(user_id)
     end
 
     result

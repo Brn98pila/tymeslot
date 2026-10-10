@@ -3,9 +3,9 @@ defmodule Tymeslot.MeetingTypes do
   Context for managing meeting types.
   """
   alias Ecto.UUID
+  alias Tymeslot.Availability
   alias Tymeslot.BookingPage.Publication
   alias Tymeslot.Clock
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.CalendarPrimary
@@ -513,7 +513,7 @@ defmodule Tymeslot.MeetingTypes do
   # in between would cache the old answer again.
   defp invalidate_after_commit(user_id) do
     unless MeetingTypeQueries.in_transaction?(),
-      do: AvailabilityCache.invalidate_for_user(user_id)
+      do: Availability.changed(user_id)
   end
 
   @doc """
