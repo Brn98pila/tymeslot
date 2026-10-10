@@ -15,6 +15,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails do
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.MeetingState
+  alias Tymeslot.Meetings.ReminderEntry
   alias Tymeslot.Notifications.GuestNotifications
   alias Tymeslot.Utils.ReminderUtils
   alias Tymeslot.Workers.DeliveryClaims
@@ -606,41 +607,14 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails do
     status.organizer and status.attendee
   end
 
-  # Per-recipient delivery state for one reminder config. An entry with no
-  # matching `(value, unit)` means neither recipient has been sent to yet; an
-  # entry written before per-recipient tracking existed (no `organizer_sent`/
-  # `attendee_sent` keys) is treated as fully sent, since it predates this
-  # tracking and existing behaviour already skipped it entirely.
+  # Per-recipient delivery state for one reminder config (`ReminderEntry`):
+  # no entry means neither recipient has been sent to; an entry from before
+  # per-recipient tracking reads as sent to both.
   defp reminder_sent_status(meeting, reminder_value, reminder_unit) do
-    reminder_value = ReminderUtils.parse_reminder_value(reminder_value)
-    reminder_unit = ReminderUtils.normalize_reminder_unit(reminder_unit)
-
-    meeting.reminders_sent
-    |> List.wrap()
-    |> Enum.find(fn reminder ->
-      case reminder do
-        %{"value" => value, "unit" => unit} -> value == reminder_value and unit == reminder_unit
-        %{value: value, unit: unit} -> value == reminder_value and unit == reminder_unit
-        _other -> false
-      end
-    end)
-    |> reminder_entry_status()
-  end
-
-  defp reminder_entry_status(nil), do: %{organizer: false, attendee: false}
-
-  defp reminder_entry_status(entry) do
-    %{
-      organizer: reminder_entry_flag(entry, "organizer_sent", :organizer_sent),
-      attendee: reminder_entry_flag(entry, "attendee_sent", :attendee_sent)
-    }
-  end
-
-  defp reminder_entry_flag(entry, string_key, atom_key) do
-    case entry do
-      %{^string_key => sent} when is_boolean(sent) -> sent
-      %{^atom_key => sent} when is_boolean(sent) -> sent
-      _other -> true
-    end
+    ReminderEntry.status(
+      meeting.reminders_sent,
+      ReminderUtils.parse_reminder_value(reminder_value),
+      ReminderUtils.normalize_reminder_unit(reminder_unit)
+    )
   end
 end

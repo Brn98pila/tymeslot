@@ -17,6 +17,7 @@ defmodule Tymeslot.Meetings.MeetingDeliveryQueries do
   alias Ecto.UUID
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
+  alias Tymeslot.Meetings.ReminderEntry
   alias Tymeslot.Repo
 
   @doc """
@@ -179,7 +180,7 @@ defmodule Tymeslot.Meetings.MeetingDeliveryQueries do
 
     {updated_entries, found?} =
       Enum.map_reduce(entries, false, fn entry, found? ->
-        if reminder_entry_match?(entry, val, unit) do
+        if ReminderEntry.for_reminder?(entry, val, unit) do
           {merge_reminder_entry(entry, val, unit, organizer_sent, attendee_sent), true}
         else
           {entry, found?}
@@ -201,44 +202,13 @@ defmodule Tymeslot.Meetings.MeetingDeliveryQueries do
     end
   end
 
-  # Whether a `reminders_sent` entry matches the given `(value, unit)` reminder
-  # config. The single authority on entry-matching: `Tymeslot.Workers.
-  # EmailWorkerHandlers.MeetingEmails` reads `reminders_sent` to decide whether
-  # a reminder still needs sending, so writer and reader must never disagree
-  # about which entry a `(value, unit)` config identifies.
-  defp reminder_entry_match?(entry, val, unit) do
-    case entry do
-      %{"value" => v, "unit" => u} -> v == val and u == unit
-      %{value: v, unit: u} -> v == val and u == unit
-      _other -> false
-    end
-  end
-
   defp merge_reminder_entry(entry, val, unit, organizer_sent, attendee_sent) do
     %{
       "value" => val,
       "unit" => unit,
-      "organizer_sent" =>
-        reminder_entry_flag(entry, "organizer_sent", :organizer_sent) or organizer_sent,
-      "attendee_sent" =>
-        reminder_entry_flag(entry, "attendee_sent", :attendee_sent) or attendee_sent
+      "organizer_sent" => ReminderEntry.sent?(entry, :organizer) or organizer_sent,
+      "attendee_sent" => ReminderEntry.sent?(entry, :attendee) or attendee_sent
     }
-  end
-
-  # Whether a `reminders_sent` entry records the recipient identified by
-  # `string_key`/`atom_key` as sent.
-  #
-  # Missing keys mean a pre-upsert entry; treated as already sent rather than
-  # guessing, so old rows never trigger a fresh send. This is the authority on
-  # legacy-entry semantics, and the default here cannot silently diverge from
-  # what `Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails`, the reader of
-  # this field, assumes.
-  defp reminder_entry_flag(entry, string_key, atom_key) do
-    case entry do
-      %{^string_key => sent} when is_boolean(sent) -> sent
-      %{^atom_key => sent} when is_boolean(sent) -> sent
-      _other -> true
-    end
   end
 
   @doc """
