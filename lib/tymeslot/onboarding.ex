@@ -111,6 +111,33 @@ defmodule Tymeslot.Onboarding do
   def dashboard_setup_dismissed?(_user), do: true
 
   @doc """
+  Candidate rows for an onboarding scan: one map per account whose signup or
+  verification falls after `window_start` (accounts pending deletion left
+  out), carrying `user_id`, `signup_at`, `verified_at`, `timezone` and
+  `page_published?`.
+
+  Options:
+
+    * `:compose` - a function given the row query, with `users` as its first
+      binding and a map select, that returns it extended (for example with a
+      `select_merge/3` of extra per-user facts). Defaults to the identity.
+  """
+  @spec list_candidates_since(DateTime.t(), keyword()) :: [map()]
+  def list_candidates_since(window_start, opts \\ []),
+    do: OnboardingQueries.list_candidates_since(window_start, compose(opts))
+
+  @doc """
+  The same candidate row as `list_candidates_since/2` for one account,
+  whatever its signup date, or `nil` when there is no such account. Takes the
+  same options.
+  """
+  @spec get_candidate(integer(), keyword()) :: map() | nil
+  def get_candidate(user_id, opts \\ []),
+    do: OnboardingQueries.get_candidate(user_id, compose(opts))
+
+  defp compose(opts), do: Keyword.get(opts, :compose, &Function.identity/1)
+
+  @doc """
   Seeds each booking theme with a video background so the onboarding preview —
   and the published page — shows motion out of the box.
 

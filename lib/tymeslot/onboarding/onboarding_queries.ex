@@ -1,12 +1,14 @@
 defmodule Tymeslot.Onboarding.OnboardingQueries do
   @moduledoc """
-  Writes to the onboarding and dashboard setup columns of the `users` table.
-  Idempotence and validation live in `Tymeslot.Onboarding`.
+  Writes to the onboarding and dashboard setup columns of the `users` table,
+  and the candidate scan over recent accounts. Idempotence and validation
+  live in `Tymeslot.Onboarding`.
   """
   import Ecto.Query, warn: false
 
   alias Ecto.Changeset
   alias Tymeslot.Auth.UserSchema
+  alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Repo
 
   @doc """
@@ -89,5 +91,44 @@ defmodule Tymeslot.Onboarding.OnboardingQueries do
     user
     |> Changeset.change(%{dashboard_setup_dismissed_at: DateTime.utc_now(:second)})
     |> Repo.update()
+  end
+
+  @doc """
+  One candidate row per account whose signup or verification falls after
+  `window_start`, leaving out accounts pending deletion. `compose` receives
+  the row query (`users` as the first binding, a map select) and may extend
+  it before it runs.
+  """
+  @spec list_candidates_since(DateTime.t(), (Ecto.Query.t() -> Ecto.Query.t())) :: [map()]
+  def list_candidates_since(%DateTime{} = window_start, compose) when is_function(compose, 1) do
+    from([u] in candidate_rows(),
+      where:
+        (u.inserted_at > ^window_start or u.verified_at > ^window_start) and
+          is_nil(u.deletion_scheduled_at)
+    )
+    |> compose.()
+    |> Repo.all()
+  end
+
+  @doc "The candidate row for one account whatever its age, or `nil`."
+  @spec get_candidate(integer(), (Ecto.Query.t() -> Ecto.Query.t())) :: map() | nil
+  def get_candidate(user_id, compose) when is_integer(user_id) and is_function(compose, 1) do
+    from([u] in candidate_rows(), where: u.id == ^user_id)
+    |> compose.()
+    |> Repo.one()
+  end
+
+  defp candidate_rows do
+    from(u in UserSchema,
+      left_join: p in ProfileSchema,
+      on: p.user_id == u.id,
+      select: %{
+        user_id: u.id,
+        signup_at: u.inserted_at,
+        verified_at: u.verified_at,
+        timezone: p.timezone,
+        page_published?: not is_nil(p.booking_page_published_at)
+      }
+    )
   end
 end

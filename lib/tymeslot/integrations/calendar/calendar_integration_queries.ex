@@ -27,6 +27,18 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
     |> Repo.all()
   end
 
+  @doc "Of `user_ids`, those with at least one active calendar integration."
+  @spec user_ids_with_active([integer()]) :: [integer()]
+  def user_ids_with_active([]), do: []
+
+  def user_ids_with_active(user_ids) when is_list(user_ids) do
+    CalendarIntegrationSchema
+    |> where([c], c.user_id in ^user_ids and c.is_active == true)
+    |> distinct(true)
+    |> select([c], c.user_id)
+    |> Repo.all()
+  end
+
   @doc """
   Gets all active calendar integrations across all users.
   Used for health checks and monitoring.

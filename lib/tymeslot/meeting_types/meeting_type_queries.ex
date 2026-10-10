@@ -372,4 +372,16 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeQueries do
 
     Map.new(rows, fn [venue_id, count] -> {venue_id, count} end)
   end
+
+  @doc "Of `user_ids`, those with at least one meeting type."
+  @spec user_ids_with_any([integer()]) :: [integer()]
+  def user_ids_with_any([]), do: []
+
+  def user_ids_with_any(user_ids) when is_list(user_ids) do
+    MeetingTypeSchema
+    |> where([mt], mt.user_id in ^user_ids)
+    |> distinct(true)
+    |> select([mt], mt.user_id)
+    |> Repo.all()
+  end
 end
