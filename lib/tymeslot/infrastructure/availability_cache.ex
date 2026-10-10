@@ -79,13 +79,21 @@ defmodule Tymeslot.Infrastructure.AvailabilityCache do
   after any committed seat change on one of the user's group meeting types.
   A `nil` user id is a no-op, so callers can pass `meeting.organizer_user_id`
   unconditionally.
+
+  Both kinds of entry go in one step. A range computation reads the cached
+  booking-window events, so with the ranges dropped first and the events a
+  moment later, a range computed in between would fold the old events and
+  be stored as current.
   """
   @spec invalidate_for_user(integer() | nil) :: :ok
   def invalidate_for_user(nil), do: :ok
 
   def invalidate_for_user(user_id) do
-    invalidate_pattern({:range_availability, user_id, :_, :_, :_, :_, :_, :_})
-    invalidate(booking_window_events_key(user_id))
+    invalidate_together([
+      {:pattern, {:range_availability, user_id, :_, :_, :_, :_, :_, :_}},
+      {:key, booking_window_events_key(user_id)}
+    ])
+
     :ok
   end
 end
