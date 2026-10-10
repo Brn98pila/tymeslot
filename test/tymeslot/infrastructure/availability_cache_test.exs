@@ -68,7 +68,12 @@ defmodule Tymeslot.Infrastructure.AvailabilityCacheTest do
     assert cached(range_key) == {:ok, [:new_event]}
   end
 
-  test "a range that read the events before the invalidation is not stored", context do
+  # Guards an ordering rather than the invalidation itself: a range is
+  # registered as in flight before it reads the events, so the invalidation
+  # finds it and detaches it. Were the read to come first, the range would
+  # be stored from the events the invalidation had just dropped.
+  test "a range that read the events before the invalidation is not stored, because it registers before reading",
+       context do
     %{user_id: user_id, events_key: events_key, range_key: range_key} = context
     AvailabilityCache.put(events_key, {:ok, [:old_event]})
     caller = self()
