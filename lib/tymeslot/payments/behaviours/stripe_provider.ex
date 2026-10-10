@@ -34,6 +34,9 @@ defmodule Tymeslot.Payments.Behaviours.StripeProvider do
   @callback list_subscriptions(params :: map()) ::
               {:ok, map()} | {:error, term()}
 
+  @callback list_invoices(params :: map()) ::
+              {:ok, map()} | {:error, term()}
+
   @callback update_subscription_automatic_tax(subscription_id :: String.t(), enabled :: boolean()) ::
               {:ok, map()} | {:error, term()}
 end
