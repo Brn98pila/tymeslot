@@ -227,7 +227,7 @@ defmodule Tymeslot.Bookings.Reschedule do
            with {:ok, updated} <- update_meeting(meeting, attrs),
                 {:ok, _result} <- schedule_calendar_job(updated),
                 {:ok, pending} <- activate_if_confirmed_outright(updated, meeting),
-                :ok <- clear_reminders_if_held(updated) do
+                :ok <- settle_reminders(updated, meeting) do
              # Everyone is told the new times (see `announce/3`), so an end
              # change still waiting to be announced has nothing left to say.
              :ok = MeetingCalendarQueries.clear_notified_ends(updated.id)
@@ -434,19 +434,35 @@ defmodule Tymeslot.Bookings.Reschedule do
 
   defp previous_start_opts(_updated, _original), do: []
 
+  # A moved booking's reminders are settled in the reschedule's transaction,
+  # so they commit with the new time or the reschedule fails for a retry: a
+  # reminder left at the old time would block the new one, then discard
+  # itself as overtaken, leaving the booking with none.
+  #
   # A booking re-entering the gate must not carry reminders pinned to the
   # time it was confirmed for before: left alone, they would fire and remind
-  # the attendee about a meeting nobody has agreed to yet. `Approval.approve/1`
-  # re-schedules them in full, through the same pipeline an ordinary
-  # confirmation uses, once the host answers — so this only ever needs to
-  # clear, never to re-pin. It clears in the reschedule's transaction, so a
-  # failure refuses the reschedule for a retry: a reminder left behind would
-  # block the one approval pins, then discard itself as overtaken, leaving
-  # the booking with no reminder at all.
-  defp clear_reminders_if_held(%{status: "awaiting_approval"} = updated),
+  # the attendee about a meeting nobody has agreed to yet, so they are
+  # cleared, and `Approval.approve/1` pins them afresh once the host answers.
+  # A held request confirmed outright got its reminders from its activation.
+  # Any other move replaces the reminders with ones pinned to the new time,
+  # including those an organiser's reschedule request had cleared.
+  defp settle_reminders(updated, meeting) do
+    case reminder_step(updated, meeting) do
+      :ok -> :ok
+      {:ok, _result} -> :ok
+      {:error, reason} -> {:error, {:reminders_not_settled, reason}}
+    end
+  rescue
+    exception -> {:error, {:reminders_not_settled, exception}}
+  end
+
+  defp reminder_step(%{status: "awaiting_approval"} = updated, _meeting),
     do: Orchestrator.cancel_reminder_notifications(updated)
 
-  defp clear_reminders_if_held(_updated), do: :ok
+  defp reminder_step(%{status: "confirmed"}, %{status: "awaiting_approval"}), do: :ok
+
+  defp reminder_step(updated, _meeting),
+    do: Orchestrator.schedule_reminder_notifications(updated, replace: true)
 
   defp validate_can_reschedule(meeting) do
     with :ok <- Policy.can_reschedule_meeting?(meeting) do

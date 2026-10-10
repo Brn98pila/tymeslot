@@ -448,11 +448,8 @@ defmodule Tymeslot.Notifications.Events do
         Orchestrator.send_reschedule_notifications(updated_meeting, original_meeting)
       end)
 
-    # Re-pin reminders to the new meeting time. This replaces reminder jobs
-    # still aimed at the old time and recreates the ones deleted when an
-    # organizer reschedule request voided the original slot. Failures are
-    # logged but never fail the reschedule itself.
-    schedule_reminders(updated_meeting)
+    # Reminders were re-pinned to the new time in the reschedule's own
+    # transaction (`Tymeslot.Bookings.Reschedule`), so they committed with it.
 
     # Webhooks, Telegram and Slack; none of them fails the reschedule.
     dispatch_integrations(:meeting_rescheduled, updated_meeting)
@@ -555,29 +552,6 @@ defmodule Tymeslot.Notifications.Events do
 
       {:error, reason} ->
         Logger.warning("Failed to cancel reminder jobs",
-          meeting_id: meeting.id,
-          reason: LogFormat.reason(reason)
-        )
-
-        :ok
-    end
-  end
-
-  defp schedule_reminders(meeting) do
-    case Orchestrator.schedule_reminder_notifications(meeting, replace: true) do
-      :ok ->
-        :ok
-
-      {:ok, _result} ->
-        :ok
-
-      {:error, reason} ->
-        # The legitimate "nothing to schedule" case (meeting starts too soon
-        # for any configured reminder) is `{:ok, :reminder_not_scheduled}`,
-        # matched above, not an error. Anything reaching here is a real
-        # defect that silently deprives a meeting of its reminders, so it is
-        # logged loudly rather than as a routine warning.
-        Logger.error("Failed to schedule reminder jobs",
           meeting_id: meeting.id,
           reason: LogFormat.reason(reason)
         )

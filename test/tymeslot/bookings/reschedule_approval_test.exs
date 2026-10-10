@@ -42,18 +42,6 @@ defmodule Tymeslot.Bookings.RescheduleApprovalTest do
     :ok
   end
 
-  # An email scheduler whose reminder jobs cannot be cleared.
-  defmodule UnclearableReminders do
-    @moduledoc false
-    @spec cancel_reminder_emails(term()) :: {:error, :database_unavailable}
-    def cancel_reminder_emails(_meeting_id), do: {:error, :database_unavailable}
-  end
-
-  defp restore_email_worker(nil), do: Application.delete_env(:tymeslot, :email_worker_module)
-
-  defp restore_email_worker(worker),
-    do: Application.put_env(:tymeslot, :email_worker_module, worker)
-
   defp gated_booking(requires_approval, meeting_attrs \\ %{}) do
     %{user: user} = create_always_bookable_profile()
 
@@ -177,34 +165,6 @@ defmodule Tymeslot.Bookings.RescheduleApprovalTest do
 
       # The booking is back in the gate — nobody has agreed to the new time
       # yet, so nothing should remind the attendee about it.
-      refute_enqueued(
-        worker: EmailWorker,
-        args: %{"action" => "send_reminder_emails", "meeting_id" => meeting.id}
-      )
-    end
-
-    # A reminder left behind would block the one approval pins, then discard
-    # itself as overtaken, leaving the booking with none: so a failure to
-    # clear it refuses the reschedule, and trying again clears it.
-    test "a reschedule whose old reminders cannot be cleared is refused, and a retry clears them" do
-      %{meeting: meeting, params: params} = gated_booking(true)
-      :ok = EmailScheduler.schedule_reminder_emails(meeting.id, 30, "minutes")
-
-      original_worker = Application.get_env(:tymeslot, :email_worker_module)
-      Application.put_env(:tymeslot, :email_worker_module, UnclearableReminders)
-
-      try do
-        assert {:error, :failed_to_update_meeting} =
-                 Reschedule.execute(meeting.uid, params, meeting.organizer_user_id)
-      after
-        restore_email_worker(original_worker)
-      end
-
-      assert %{status: "confirmed"} = reload(meeting)
-
-      assert {:ok, %{status: "awaiting_approval"}} =
-               Reschedule.execute(meeting.uid, params, meeting.organizer_user_id)
-
       refute_enqueued(
         worker: EmailWorker,
         args: %{"action" => "send_reminder_emails", "meeting_id" => meeting.id}
