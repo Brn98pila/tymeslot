@@ -226,7 +226,8 @@ defmodule Tymeslot.Bookings.Reschedule do
     case Repo.transaction(fn ->
            with {:ok, updated} <- update_meeting(meeting, attrs),
                 {:ok, _result} <- schedule_calendar_job(updated),
-                {:ok, pending} <- activate_if_confirmed_outright(updated, meeting) do
+                {:ok, pending} <- activate_if_confirmed_outright(updated, meeting),
+                :ok <- clear_reminders_if_held(updated) do
              # Everyone is told the new times (see `announce/3`), so an end
              # change still waiting to be announced has nothing left to say.
              :ok = MeetingCalendarQueries.clear_notified_ends(updated.id)
@@ -365,7 +366,6 @@ defmodule Tymeslot.Bookings.Reschedule do
   # which lives outside this module's booking-email templates and is left for
   # that work rather than bolted on here.
   defp announce(%{status: "awaiting_approval"} = updated, original, _pending) do
-    cancel_stale_reminders(updated)
     GuestNotifications.reset_for_new_time(updated)
 
     case Events.meeting_requested(updated, previous_start_opts(updated, original)) do
@@ -439,21 +439,14 @@ defmodule Tymeslot.Bookings.Reschedule do
   # the attendee about a meeting nobody has agreed to yet. `Approval.approve/1`
   # re-schedules them in full, through the same pipeline an ordinary
   # confirmation uses, once the host answers — so this only ever needs to
-  # clear, never to re-pin.
-  defp cancel_stale_reminders(meeting) do
-    case Orchestrator.cancel_reminder_notifications(meeting) do
-      :ok ->
-        :ok
+  # clear, never to re-pin. It clears in the reschedule's transaction, so a
+  # failure refuses the reschedule for a retry: a reminder left behind would
+  # block the one approval pins, then discard itself as overtaken, leaving
+  # the booking with no reminder at all.
+  defp clear_reminders_if_held(%{status: "awaiting_approval"} = updated),
+    do: Orchestrator.cancel_reminder_notifications(updated)
 
-      {:error, reason} ->
-        Logger.warning("Failed to cancel stale reminder jobs on reschedule",
-          meeting_id: meeting.id,
-          reason: LogFormat.reason(reason)
-        )
-
-        :ok
-    end
-  end
+  defp clear_reminders_if_held(_updated), do: :ok
 
   defp validate_can_reschedule(meeting) do
     with :ok <- Policy.can_reschedule_meeting?(meeting) do
