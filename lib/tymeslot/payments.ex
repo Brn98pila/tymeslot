@@ -152,4 +152,28 @@ defmodule Tymeslot.Payments do
   """
   @spec stripe_customer_ids_for_user(integer()) :: [String.t()]
   defdelegate stripe_customer_ids_for_user(user_id), to: PaymentQueries
+
+  @doc """
+  Checkouts left pending since before `:cutoff` (required) and not yet
+  marked handled, counted per user as `{user_id, count}` tuples.
+
+  Options:
+
+    * `:cutoff` - the instant before which a pending transaction counts as
+      abandoned. Pass the same value to `mark_abandoned_checkouts_handled/2`
+      so the two cover the same transactions.
+    * `:product_identifiers` - only transactions for these products.
+    * `:payment_type` - only transactions whose metadata `payment_type`
+      matches.
+  """
+  @spec list_abandoned_checkouts(keyword()) :: [{pos_integer(), pos_integer()}]
+  defdelegate list_abandoned_checkouts(opts), to: PaymentQueries
+
+  @doc """
+  Marks the user's abandoned checkouts handled, so `list_abandoned_checkouts/1`
+  stops returning them. Takes the same options; a checkout started after
+  `:cutoff` is left alone. Returns the number of transactions marked.
+  """
+  @spec mark_abandoned_checkouts_handled(pos_integer(), keyword()) :: non_neg_integer()
+  defdelegate mark_abandoned_checkouts_handled(user_id, opts), to: PaymentQueries
 end
