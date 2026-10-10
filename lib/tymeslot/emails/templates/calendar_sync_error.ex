@@ -2,15 +2,19 @@ defmodule Tymeslot.Emails.Templates.CalendarSyncError do
   @moduledoc """
   MJML template for calendar sync error notification sent to the calendar owner.
 
-  Rendered in the owner's locale. The caller establishes it from
-  `organizer_user_id` via `Tymeslot.Emails.RecipientLocale`; this module only
-  reads the ambient locale for the pure date and time formatting.
+  Addressed to the meeting's organiser (the instance's sender address when
+  the meeting has none) and rendered in their locale, resolved from
+  `organizer_user_id`.
   """
+
+  alias Swoosh.Email
+  alias Tymeslot.Emails.RecipientLocale
 
   alias Tymeslot.Emails.Shared.{
     Callouts,
     Formatting,
     MeetingComponents,
+    MjmlEmail,
     Styles,
     TemplateHelper,
     Text
@@ -27,6 +31,8 @@ defmodule Tymeslot.Emails.Templates.CalendarSyncError do
 
   @type meeting_map :: %{
           required(:start_time) => DateTime.t(),
+          required(:organizer_email) => String.t() | nil,
+          required(:organizer_name) => String.t() | nil,
           required(:duration) => integer(),
           required(:location) => String.t() | nil,
           optional(:organizer_user_id) => term(),
@@ -34,17 +40,34 @@ defmodule Tymeslot.Emails.Templates.CalendarSyncError do
         }
 
   @doc """
-  Returns `{html_body, text_body}`, computing the owner's local start time only once.
+  The email to the meeting's organiser, in their locale, computing their
+  local start time only once for both parts.
   """
-  @spec render_both(meeting_map(), any()) :: {String.t(), String.t()}
-  def render_both(meeting, error_reason) do
-    error_details = TemplateHelper.format_error_reason(error_reason)
-    locale = Gettext.get_locale(TymeslotWeb.Gettext)
-    clock = HostClock.for_meeting(meeting, locale)
-    owner_start_time = DateTimeUtils.convert_to_timezone(meeting.start_time, clock.timezone)
+  @spec render(meeting_map(), any()) :: Email.t()
+  def render(meeting, error_reason) do
+    RecipientLocale.with_user_id_locale(Map.get(meeting, :organizer_user_id), fn ->
+      error_details = TemplateHelper.format_error_reason(error_reason)
+      locale = Gettext.get_locale(TymeslotWeb.Gettext)
+      clock = HostClock.for_meeting(meeting, locale)
+      owner_start_time = DateTimeUtils.convert_to_timezone(meeting.start_time, clock.timezone)
 
-    {do_render_html(error_details, {owner_start_time, clock}, meeting, locale),
-     do_render_text(error_details, {owner_start_time, clock}, meeting, locale)}
+      MjmlEmail.base_email()
+      |> Email.to(recipient(meeting))
+      |> Email.subject(
+        dgettext("emails_integrations", "⚠️ Calendar Sync Error - Manual Action Required")
+      )
+      |> Email.html_body(
+        do_render_html(error_details, {owner_start_time, clock}, meeting, locale)
+      )
+      |> Email.text_body(
+        do_render_text(error_details, {owner_start_time, clock}, meeting, locale)
+      )
+    end)
+  end
+
+  defp recipient(meeting) do
+    {meeting.organizer_name || dgettext("emails_integrations", "Calendar Owner"),
+     meeting.organizer_email || Application.get_env(:tymeslot, :email)[:from_email]}
   end
 
   defp do_render_html(error_details, {owner_start_time, clock}, meeting, locale) do

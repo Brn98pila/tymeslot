@@ -9,11 +9,17 @@ defmodule Tymeslot.Emails.Templates.VideoRoomCreationErrorTest do
   alias Tymeslot.Emails.EmailService.IntegrationEmails
   alias Tymeslot.Emails.Templates.VideoRoomCreationError
 
-  describe "render_both/1" do
+  @user %{id: 1, email: "owner@example.com", name: "Olivia"}
+
+  describe "render/2" do
     test "explains the refusal with its fix and links to the video settings" do
       integration = %{provider: "nextcloud_talk", room_creation_error: :password_required}
 
-      {html, text} = VideoRoomCreationError.render_both(integration)
+      email = VideoRoomCreationError.render(@user, integration)
+      %{html_body: html, text_body: text} = email
+
+      assert email.to == [{"Olivia", "owner@example.com"}]
+      assert email.subject == "Bookings on Nextcloud Talk are getting no video link"
 
       for body <- [html, text] do
         assert body =~ "turn off the password requirement for public conversations"
@@ -32,7 +38,7 @@ defmodule Tymeslot.Emails.Templates.VideoRoomCreationErrorTest do
     test "names the refusal it was sent for" do
       integration = %{provider: "nextcloud_talk", room_creation_error: :talk_not_allowed}
 
-      {_html, text} = VideoRoomCreationError.render_both(integration)
+      %{text_body: text} = VideoRoomCreationError.render(@user, integration)
 
       assert text =~ "may not use Talk"
       refute text =~ "password requirement"

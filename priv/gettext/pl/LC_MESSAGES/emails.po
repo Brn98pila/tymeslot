@@ -343,16 +343,6 @@ msgstr "Dodatkowe informacje"
 msgid "Join the video call"
 msgstr "Dołącz do spotkania wideo"
 
-#: lib/tymeslot/emails/email_service/calendar_emails.ex
-#, elixir-autogen, elixir-format
-msgid "Calendar Owner"
-msgstr "Właściciel kalendarza"
-
-#: lib/tymeslot/emails/email_service/calendar_emails.ex
-#, elixir-autogen, elixir-format
-msgid "⚠️ Calendar Sync Error - Manual Action Required"
-msgstr "⚠️ Błąd synchronizacji kalendarza – wymagana interwencja"
-
 #: lib/tymeslot/emails/appointment_builder.ex
 #, elixir-autogen, elixir-format
 msgid "You'll receive %{count} reminder before the appointment."

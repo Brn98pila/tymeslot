@@ -241,3 +241,13 @@ msgstr "O calendário “%{calendar}” não está mais no seu servidor de calen
 #, elixir-autogen, elixir-format
 msgid "“%{calendar}” is no longer on your calendar server, so Tymeslot has stopped using it."
 msgstr "O calendário “%{calendar}” não está mais no seu servidor de calendário, então o Tymeslot parou de usá-lo."
+
+#: lib/tymeslot/emails/templates/calendar_sync_error.ex
+#, elixir-autogen, elixir-format
+msgid "Calendar Owner"
+msgstr "Responsável pelo calendário"
+
+#: lib/tymeslot/emails/templates/calendar_sync_error.ex
+#, elixir-autogen, elixir-format
+msgid "⚠️ Calendar Sync Error - Manual Action Required"
+msgstr "⚠️ Erro de sincronização de calendário - ação manual necessária"

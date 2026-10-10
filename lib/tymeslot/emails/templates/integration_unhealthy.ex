@@ -1,118 +1,58 @@
 defmodule Tymeslot.Emails.Templates.IntegrationUnhealthy do
   @moduledoc """
-  MJML email template notifying a user that one of their integrations has been
-  continuously unhealthy for more than 48 hours.
-
-  This is an operational alert — always rendered in English.
+  Email telling a user that one of their integrations has been continuously
+  unhealthy for more than 48 hours.
   """
 
-  alias Tymeslot.Emails.Shared.{
-    Buttons,
-    Callouts,
-    IntegrationLabels,
-    Styles,
-    TemplateHelper,
-    Text
-  }
+  alias Swoosh.Email
+  alias Tymeslot.Emails.RecipientLocale
+  alias Tymeslot.Emails.Shared.{IntegrationLabels, IntegrationNotice}
 
-  @intent :alert
-
+  @doc "The email, addressed and rendered in the recipient's locale."
   @spec render(
-          %{
-            required(:name) => String.t(),
-            required(:email) => String.t(),
-            optional(atom()) => term()
-          },
-          %{required(:provider) => atom(), optional(atom()) => term()},
-          atom() | String.t()
-        ) :: String.t()
-  def render(_user, integration, type) do
-    integration_name = IntegrationLabels.integration_name(integration, type)
-    settings_url = IntegrationLabels.settings_url(type)
+          Tymeslot.Emails.EmailService.user_map(),
+          IntegrationLabels.integration(),
+          IntegrationLabels.kind()
+        ) :: Email.t()
+  def render(user, integration, kind) do
+    RecipientLocale.with_user_locale(user, fn ->
+      IntegrationNotice.email(user, copy(integration, kind))
+    end)
+  end
 
-    mjml_content = """
-    #{Callouts.alert_box(:alert,
-    "Our health checks for your #{integration_name} integration have been returning errors on and off for at least 48 hours. It's worth taking a look in case something needs your attention.",
-    title: "Integration may need attention")}
+  defp copy(integration, kind) do
+    name = IntegrationLabels.integration_name(integration, kind)
 
-    #{Text.title_section("What's happening?")}
-
-    <mj-text
-      font-size="16px"
-      color="#{Styles.ink_soft()}"
-      line-height="1.5"
-      align="left"
-      css-class="mobile-text"
-    >
-      Our connection probes to your <strong>#{integration_name}</strong> integration have been failing intermittently for 48+ hours. The integration may already be working again — but if it isn't, syncing and new bookings could be affected, so it's worth a quick check.
-    </mj-text>
-
-    #{Text.divider()}
-
-    #{Text.title_section("What should I do?")}
-
-    <mj-text color="#{Styles.ink_soft()}" font-size="14px" line-height="1.6">
-      <ul style="padding-left: 20px; margin: 0;">
-        <li style="margin-bottom: 8px;">Visit your integration settings to test the connection</li>
-        <li style="margin-bottom: 8px;">Check that your credentials or OAuth tokens are still valid</li>
-        <li style="margin-bottom: 8px;">If you changed your password recently, you may need to reconnect the integration</li>
-        <li style="margin-bottom: 0;">Contact your #{kind_word(type)} provider if the issue persists</li>
-      </ul>
-    </mj-text>
-
-    #{Buttons.action_button(@intent, "Check Integration Settings", settings_url)}
-
-    #{Text.divider()}
-
-    #{Text.system_footer_note("This notification is sent when an integration remains unhealthy for 48+ hours. It will not repeat for 30 days.")}
-    """
-
-    TemplateHelper.compile_system_template(
-      mjml_content,
-      "Integration may need attention",
-      "Your #{integration_name} integration may need attention",
-      intent: @intent,
+    %{
+      subject: subject(kind),
+      title: "Integration may need attention",
+      preheader: "Your #{name} integration may need attention",
+      subtitle:
+        "Health probes for your #{name} integration have been failing intermittently for 48+ hours.",
       eyebrow: "Integration",
-      stage_title: "Integration may need attention",
-      stage_subtitle:
-        "Health probes for your #{integration_name} integration have been failing intermittently for 48+ hours."
-    )
+      reason:
+        "Our health checks for your #{name} integration have been returning errors on and off for at least 48 hours. It's worth taking a look in case something needs your attention.",
+      happening_heading: "What's happening?",
+      happening:
+        {"Our connection probes to your #{name} integration have been failing intermittently for 48+ hours. The integration may already be working again — but if it isn't, syncing and new bookings could be affected, so it's worth a quick check.",
+         name},
+      next_heading: "What should I do?",
+      next: [
+        "Visit your integration settings to test the connection",
+        "Check that your credentials or OAuth tokens are still valid",
+        "If you changed your password recently, you may need to reconnect the integration",
+        contact_provider(kind)
+      ],
+      button: "Check Integration Settings",
+      settings_url: IntegrationLabels.settings_url(kind),
+      footer:
+        "This notification is sent when an integration remains unhealthy for 48+ hours. It will not repeat for 30 days."
+    }
   end
 
-  @spec render_text(
-          %{
-            required(:name) => String.t(),
-            required(:email) => String.t(),
-            optional(atom()) => term()
-          },
-          %{required(:provider) => atom(), optional(atom()) => term()},
-          atom() | String.t()
-        ) :: String.t()
-  def render_text(_user, integration, type) do
-    integration_name = IntegrationLabels.integration_name(integration, type)
-    settings_url = IntegrationLabels.settings_url(type)
+  defp subject(:video), do: "Your video integration may need attention"
+  defp subject(_kind), do: "Your calendar integration may need attention"
 
-    """
-    Integration may need attention
-
-    Our health checks for your #{integration_name} integration have been returning errors on and off for at least 48 hours. It's worth taking a look in case something needs your attention.
-
-    WHAT'S HAPPENING?
-    Our connection probes to your #{integration_name} integration have been failing intermittently for 48+ hours. The integration may already be working again — but if it isn't, syncing and new bookings could be affected, so it's worth a quick check.
-
-    WHAT SHOULD I DO?
-    - Visit your integration settings to test the connection
-    - Check that your credentials or OAuth tokens are still valid
-    - If you changed your password recently, you may need to reconnect the integration
-    - Contact your #{kind_word(type)} provider if the issue persists
-
-    Check Integration Settings:
-    #{settings_url}
-
-    This notification is sent when an integration remains unhealthy for 48+ hours. It will not repeat for 30 days.
-    """
-  end
-
-  defp kind_word(:video), do: "video"
-  defp kind_word(_kind), do: "calendar"
+  defp contact_provider(:video), do: "Contact your video provider if the issue persists"
+  defp contact_provider(_kind), do: "Contact your calendar provider if the issue persists"
 end

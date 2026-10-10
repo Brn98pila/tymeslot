@@ -74,11 +74,15 @@ defmodule Tymeslot.Emails.Shared.IntegrationLabelsTest do
       test "all name #{provider} as #{name}" do
         integration = %{provider: unquote(provider), sync_error: nil}
 
-        bodies = [
-          IntegrationPaused.render(@user, integration, unquote(kind), 14),
-          IntegrationUnhealthy.render(@user, integration, unquote(kind)),
-          IntegrationReauthRequired.render(@user, integration, unquote(kind))
-        ]
+        bodies =
+          Enum.flat_map(
+            [
+              IntegrationPaused.render(@user, integration, unquote(kind), 14),
+              IntegrationUnhealthy.render(@user, integration, unquote(kind)),
+              IntegrationReauthRequired.render(@user, integration, unquote(kind))
+            ],
+            &[&1.html_body, &1.text_body]
+          )
 
         assert Enum.reject(bodies, &(&1 =~ unquote(name))) == []
         assert Enum.filter(bodies, &(&1 =~ unquote(humanised))) == []

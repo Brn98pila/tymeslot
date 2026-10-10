@@ -442,6 +442,35 @@ defmodule Tymeslot.Emails.EmailServiceTest do
     end
   end
 
+  describe "send_integration_paused_notification/4" do
+    test "delivers the paused notice to the owner" do
+      user = build_user_data(%{email: "owner@example.com", name: "Integration Owner"})
+      integration = %{id: System.unique_integer([:positive]), provider: :zoom}
+
+      assert {:ok, _response} =
+               EmailService.send_integration_paused_notification(user, integration, :video, 14)
+
+      email = next_email()
+      assert email.to == [{"Integration Owner", "owner@example.com"}]
+      assert email.subject == "Your video integration has been paused"
+      assert email.text_body =~ "after 14 days of failed health checks"
+      assert_no_more_emails()
+    end
+  end
+
+  describe "send_calendar_sync_error/2" do
+    test "delivers the sync failure notice to the organiser" do
+      meeting = insert(:meeting, organizer_name: "Sam Host", organizer_email: "sam@example.com")
+
+      assert {:ok, _response} = EmailService.send_calendar_sync_error(meeting, :timeout)
+
+      email = next_email()
+      assert email.to == [{"Sam Host", "sam@example.com"}]
+      assert email.subject == "⚠️ Calendar Sync Error - Manual Action Required"
+      assert_no_more_emails()
+    end
+  end
+
   describe "send_reschedule_request/1" do
     test "asks the attendee, not the organizer, to pick a new time" do
       user = insert(:user)

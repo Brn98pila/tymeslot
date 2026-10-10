@@ -22,204 +22,124 @@ defmodule Tymeslot.Emails.Templates.IntegrationReauthRequired do
   feed link is the whole connection, so it is removed and subscribed to again
   with the current link.
 
-  This is an operational alert — always rendered in English.
+  Rendered in the recipient's locale.
   """
 
-  alias Tymeslot.Emails.Shared.{
-    Buttons,
-    Callouts,
-    IntegrationLabels,
-    Styles,
-    TemplateHelper,
-    Text
-  }
-
+  alias Swoosh.Email
+  alias Tymeslot.Emails.RecipientLocale
+  alias Tymeslot.Emails.Shared.{IntegrationLabels, IntegrationNotice}
   alias Tymeslot.Integrations.Calendar.ProviderConfig, as: CalendarProviderConfig
   alias Tymeslot.Integrations.Video.ProviderConfig, as: VideoProviderConfig
 
-  @intent :alert
-
-  @type user_map :: %{
-          required(:name) => String.t(),
-          required(:email) => String.t(),
-          optional(atom()) => term()
-        }
-
-  @type integration :: %{
-          required(:provider) => atom() | String.t(),
-          optional(atom()) => term()
-        }
-
-  @spec render(user_map(), integration(), atom() | String.t()) :: String.t()
-  def render(_user, integration, type) do
-    provider_label = IntegrationLabels.provider_name(integration, type)
-    settings_url = IntegrationLabels.settings_url(type)
-    reason = reason_for(integration, provider_label)
-    %{steps: steps, button: button, action: action} = fix(integration, type, provider_label)
-    subject = IntegrationLabels.integration_name(integration, type)
-
-    mjml_content = """
-    #{Callouts.alert_box(:alert, reason, title: "Reconnect required")}
-
-    #{Text.title_section("What's happening?")}
-
-    <mj-text
-      font-size="16px"
-      color="#{Styles.ink_soft()}"
-      line-height="1.5"
-      align="left"
-      css-class="mobile-text"
-    >
-      Tymeslot can no longer use your <strong>#{subject}</strong> integration, and it will stay that way until you #{action} it. The reason is shown above. Your existing bookings are not affected.
-    </mj-text>
-
-    #{Text.divider()}
-
-    #{Text.title_section("What should I do?")}
-
-    <mj-text color="#{Styles.ink_soft()}" font-size="14px" line-height="1.6">
-      <ul style="padding-left: 20px; margin: 0;">
-        #{html_steps(steps)}
-      </ul>
-    </mj-text>
-
-    #{Buttons.action_button(@intent, button, settings_url)}
-
-    #{Text.divider()}
-
-    #{Text.system_footer_note(footer(action))}
-    """
-
-    TemplateHelper.compile_system_template(
-      mjml_content,
-      "Reconnect required",
-      "Your #{subject} integration needs reconnecting",
-      intent: @intent,
-      eyebrow: "Integration",
-      stage_title: "Reconnect required",
-      stage_subtitle: "Your #{subject} integration needs reconnecting before it can keep working."
-    )
+  @doc "The email, addressed and rendered in the recipient's locale."
+  @spec render(
+          Tymeslot.Emails.EmailService.user_map(),
+          IntegrationLabels.integration(),
+          IntegrationLabels.kind()
+        ) :: Email.t()
+  def render(user, integration, kind) do
+    RecipientLocale.with_user_locale(user, fn ->
+      IntegrationNotice.email(user, copy(integration, kind))
+    end)
   end
 
-  @spec render_text(user_map(), integration(), atom() | String.t()) :: String.t()
-  def render_text(_user, integration, type) do
-    provider_label = IntegrationLabels.provider_name(integration, type)
-    settings_url = IntegrationLabels.settings_url(type)
-    reason = reason_for(integration, provider_label)
-    %{steps: steps, button: button, action: action} = fix(integration, type, provider_label)
-    subject = IntegrationLabels.integration_name(integration, type)
+  defp copy(integration, kind) do
+    provider = IntegrationLabels.provider_name(integration, kind)
+    name = IntegrationLabels.integration_name(integration, kind)
+    fix = fix(integration, kind, provider, name)
 
-    """
-    Reconnect required
-
-    #{reason}
-
-    WHAT'S HAPPENING?
-    Tymeslot can no longer use your #{subject} integration, and it will stay that way until you #{action} it. The reason is shown above. Your existing bookings are not affected.
-
-    WHAT SHOULD I DO?
-    #{text_steps(steps)}
-
-    #{button}:
-    #{settings_url}
-
-    #{footer(action)}
-    """
+    %{
+      subject: "Reconnect your #{provider} integration",
+      title: "Reconnect required",
+      preheader: "Your #{name} integration needs reconnecting",
+      subtitle: "Your #{name} integration needs reconnecting before it can keep working.",
+      eyebrow: "Integration",
+      reason: reason_for(integration, provider),
+      happening_heading: "What's happening?",
+      happening: {fix.happening, name},
+      next_heading: "What should I do?",
+      next: fix.steps,
+      button: fix.button,
+      settings_url: IntegrationLabels.settings_url(kind),
+      footer: fix.footer
+    }
   end
 
   # The stored reason is written for the dashboard badge and already names the
   # provider and the action. A blank one means the flag was set by a path that
   # recorded no diagnosis, so fall back to something true rather than empty.
-  defp reason_for(integration, provider_label) do
-    case integration do
-      %{sync_error: reason} when is_binary(reason) ->
-        if String.trim(reason) == "", do: default_reason(provider_label), else: reason
-
-      _other ->
-        default_reason(provider_label)
-    end
+  defp reason_for(%{sync_error: reason}, provider) when is_binary(reason) do
+    if String.trim(reason) == "", do: default_reason(provider), else: reason
   end
 
-  defp default_reason(provider_label),
-    do: "#{provider_label} needs reconnecting before Tymeslot can use it again."
+  defp reason_for(_integration, provider), do: default_reason(provider)
 
-  # The owner is not told again while the integration stays flagged: the reauth
-  # email goes out when the flag is set, and the unhealthy email is withheld
-  # from a flagged integration.
-  defp footer(action),
-    do:
-      "This notification is sent when an integration needs attention. You will not receive another notice about this until you #{action} it."
+  defp default_reason(provider),
+    do: "#{provider} needs reconnecting before Tymeslot can use it again."
 
   # A video integration outside the OAuth family has no Reconnect button: its
   # credentials were typed in, and they are replaced from the Edit dialog.
-  defp fix(integration, :video, provider_label) do
+  defp fix(integration, :video, provider, name) do
     if VideoProviderConfig.oauth_provider?(integration.provider),
-      do: reconnect_fix(provider_label),
-      else: edit_fix(provider_label)
+      do: reconnect_fix(provider, name),
+      else: edit_fix(provider, name)
   end
 
   # A subscription row has no Reconnect button: a revoked feed link is replaced
   # by removing the row and subscribing again.
-  defp fix(integration, :calendar, provider_label) do
+  defp fix(integration, :calendar, provider, name) do
     if CalendarProviderConfig.subscription?(integration.provider),
-      do: subscription_fix(provider_label),
-      else: reconnect_fix(provider_label)
+      do: subscription_fix(provider, name),
+      else: reconnect_fix(provider, name)
   end
 
-  defp fix(_integration, _type, provider_label), do: reconnect_fix(provider_label)
+  defp fix(_integration, _kind, provider, name), do: reconnect_fix(provider, name)
 
-  defp reconnect_fix(provider_label) do
+  # The owner is not told again while the integration stays flagged: the reauth
+  # email goes out when the flag is set, and the unhealthy email is withheld
+  # from a flagged integration. Each fix says so with its own verb.
+  defp reconnect_fix(provider, name) do
     %{
+      happening:
+        "Tymeslot can no longer use your #{name} integration, and it will stay that way until you reconnect it. The reason is shown above. Your existing bookings are not affected.",
       steps: [
         "Open your integration settings",
-        {"Select ", "Reconnect", " on the #{provider_label} row"},
-        "Follow the steps #{provider_label} asks for"
+        {"Select Reconnect on the #{provider} row", "Reconnect"},
+        "Follow the steps #{provider} asks for"
       ],
-      button: "Reconnect #{provider_label}",
-      action: "reconnect"
+      button: "Reconnect #{provider}",
+      footer:
+        "This notification is sent when an integration needs attention. You will not receive another notice about this until you reconnect it."
     }
   end
 
-  defp edit_fix(provider_label) do
+  defp edit_fix(provider, name) do
     %{
+      happening:
+        "Tymeslot can no longer use your #{name} integration, and it will stay that way until you update it. The reason is shown above. Your existing bookings are not affected.",
       steps: [
         "Open your integration settings",
-        {"Select ", "Edit", " on the #{provider_label} row"},
+        {"Select Edit on the #{provider} row", "Edit"},
         "Enter the credentials again, or new ones if the old ones were revoked, and save"
       ],
-      button: "Edit #{provider_label}",
-      action: "update"
+      button: "Edit #{provider}",
+      footer:
+        "This notification is sent when an integration needs attention. You will not receive another notice about this until you update it."
     }
   end
 
-  defp subscription_fix(provider_label) do
+  defp subscription_fix(provider, name) do
     %{
+      happening:
+        "Tymeslot can no longer use your #{name} integration, and it will stay that way until you replace it. The reason is shown above. Your existing bookings are not affected.",
       steps: [
         "Open your calendar settings",
-        {"Select ", "Delete", " on the #{provider_label} row"},
-        {"Choose ", "Calendar subscription", ", paste the current feed link and select Subscribe"}
+        {"Select Delete on the #{provider} row", "Delete"},
+        {"Choose #{provider}, paste the current feed link and select Subscribe", provider}
       ],
       button: "Open calendar settings",
-      action: "replace"
+      footer:
+        "This notification is sent when an integration needs attention. You will not receive another notice about this until you replace it."
     }
   end
-
-  defp html_steps(steps) do
-    last = length(steps) - 1
-
-    steps
-    |> Enum.with_index()
-    |> Enum.map_join("\n        ", fn {step, index} ->
-      margin = if index == last, do: "0", else: "8px"
-      ~s(<li style="margin-bottom: #{margin};">#{html_step(step)}</li>)
-    end)
-  end
-
-  defp html_step({before, action, rest}), do: "#{before}<strong>#{action}</strong>#{rest}"
-  defp html_step(step), do: step
-
-  defp text_steps(steps), do: Enum.map_join(steps, "\n    ", &("- " <> text_step(&1)))
-
-  defp text_step({before, action, rest}), do: before <> action <> rest
-  defp text_step(step), do: step
 end
