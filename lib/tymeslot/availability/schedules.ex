@@ -11,12 +11,12 @@ defmodule Tymeslot.Availability.Schedules do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
+  alias Tymeslot.Availability
   alias Tymeslot.Availability.AvailabilityBreakQueries
   alias Tymeslot.Availability.AvailabilityOverrideQueries
   alias Tymeslot.Availability.AvailabilityScheduleQueries
   alias Tymeslot.Availability.AvailabilityScheduleSchema
   alias Tymeslot.Availability.WeeklyAvailabilityQueries
-  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Profiles
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Repo
@@ -432,19 +432,12 @@ defmodule Tymeslot.Availability.Schedules do
 
   # The UI submits string-keyed params while internal callers use atoms; the
   # merges above need one consistent key type.
-  # The slot engine reads these rows and the availability cache is keyed by
-  # user, so a mutation here walks profile -> user and clears it. Changing the
-  # default or deleting a schedule re-points every meeting type that follows the
-  # default, so leaving it to the two-minute TTL would keep offering the old
-  # hours to whoever is on the booking page meanwhile. A failed write, or a
-  # missing link in the walk, is a no-op: invalidation must never turn a
-  # successful edit into an error.
-  defp invalidate_cache({:ok, _result} = outcome, %{profile_id: profile_id}) do
-    case ProfileQueries.get_with_user(profile_id) do
-      %{user_id: user_id} -> AvailabilityCache.invalidate_for_user(user_id)
-      _no_profile -> :ok
-    end
-
+  # The slot engine reads these rows. Changing the default or deleting a
+  # schedule re-points every meeting type that follows the default, so leaving
+  # it to the cache's lifetime would keep offering the old hours to whoever is
+  # on the booking page meanwhile. A failed write changed nothing.
+  defp invalidate_cache({:ok, _result} = outcome, %AvailabilityScheduleSchema{} = schedule) do
+    Availability.changed(schedule)
     outcome
   end
 
