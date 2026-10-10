@@ -162,9 +162,9 @@ defmodule Tymeslot.Workers.BookingRequestEmailsTest do
       end)
 
       assert {:error, reason} = run_request(meeting, job_id)
-      refute match?({:recipient_rejected, _}, reason)
+      refute match?({:recipient_rejected, _rejection}, reason)
 
-      assert {:error, {:recipient_rejected, _}} = run_request(meeting, job_id)
+      assert {:error, {:recipient_rejected, _rejection}} = run_request(meeting, job_id)
       assert_received :host_email
       assert_received :host_email
     end

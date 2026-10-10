@@ -211,7 +211,7 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
         schedule(unquote(notice), meeting)
 
         assert {:error, reason} = run_queued(unquote(action))
-        refute match?({:recipient_rejected, _}, reason)
+        refute match?({:recipient_rejected, _rejection}, reason)
 
         # The retry reaches the guest it missed; only the rejected attendee is
         # left, which no retry can help.
