@@ -173,7 +173,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
   end
 
   @doc """
-  Schedules reminder notifications for a meeting.
+  Schedules reminder notifications for a meeting, replacing any still pending.
   """
   @spec schedule_reminder_notifications(%{atom() => term()}) ::
           :ok | {:ok, atom()} | {:error, term()}
@@ -186,8 +186,12 @@ defmodule Tymeslot.Notifications.Orchestrator do
     recipients = Recipients.determine_recipients(meeting)
     content = ContentBuilder.build_appointment_details(meeting)
 
+    # Pending reminders are cleared before the configured ones are pinned
+    # afresh: a reminder now too late for a meeting moved closer, or one no
+    # longer configured, is skipped below and must not fire at its old time.
     with :ok <- Recipients.validate_recipients(recipients),
-         :ok <- ContentBuilder.validate_content(content, Meetings.group?(meeting)) do
+         :ok <- ContentBuilder.validate_content(content, Meetings.group?(meeting)),
+         :ok <- cancel_reminder_notifications(meeting) do
       {result, scheduled_any?} = schedule_reminders(meeting, reminders)
 
       case {result, scheduled_any?} do

@@ -36,6 +36,9 @@ defmodule Tymeslot.Notifications.OrchestratorLifecycleTest do
       send(self(), {:scheduled_reminder, meeting_id, value, unit})
       :ok
     end
+
+    @spec cancel_reminder_emails(term()) :: :ok
+    def cancel_reminder_emails(_meeting_id), do: :ok
   end
 
   defmodule SuccessEmailService do

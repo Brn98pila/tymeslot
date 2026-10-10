@@ -330,6 +330,8 @@ defmodule Tymeslot.Bookings.CreateGroupBookingTest do
 
       defdelegate schedule_reminder_emails(meeting_id, value, unit, scheduled_at),
         to: EmailScheduler
+
+      defdelegate cancel_reminder_emails(meeting_id), to: EmailScheduler
     end
 
     defp fail_seat_confirmations do
