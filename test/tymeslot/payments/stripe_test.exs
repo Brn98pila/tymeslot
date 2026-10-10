@@ -123,6 +123,24 @@ defmodule Tymeslot.Payments.StripeTest do
     end
   end
 
+  describe "list_charges/1" do
+    setup do
+      Application.put_env(:tymeslot, :stripe_charge_mod, StripeChargeMock)
+      on_exit(fn -> Application.delete_env(:tymeslot, :stripe_charge_mod) end)
+    end
+
+    test "passes Stripe's filters through and returns the page" do
+      params = %{customer: "cus_1", expand: ["data.refunds"], limit: 100}
+
+      expect(StripeChargeMock, :list, fn ^params, opts ->
+        assert opts[:api_key] == "sk_test_fake"
+        {:ok, %{data: [%{id: "ch_1"}], has_more: false}}
+      end)
+
+      assert {:ok, %{data: [%{id: "ch_1"}]}} = Stripe.list_charges(params)
+    end
+  end
+
   describe "list_invoices/1" do
     setup do
       Application.put_env(:tymeslot, :stripe_invoice_mod, StripeInvoiceMock)

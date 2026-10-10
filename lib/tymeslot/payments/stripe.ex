@@ -167,6 +167,19 @@ defmodule Tymeslot.Payments.Stripe do
   end
 
   @doc """
+  Lists charges from Stripe, one page at a time, with Stripe's own filters
+  (`customer`, `created`, `limit`, `starting_after`, `expand`). A charge's
+  refunds come back only when expanded (`expand: ["data.refunds"]`).
+  """
+  @impl StripeProvider
+  @spec list_charges(map()) :: stripe_result()
+  def list_charges(params) when is_map(params) do
+    Logger.info("Listing Stripe charges", params: LogFormat.reason(params))
+
+    with {:ok, opts} <- api_key_opts(), do: charge_mod().list(params, opts)
+  end
+
+  @doc """
   Lists invoices from Stripe, one page at a time, with Stripe's own filters
   (`customer`, `subscription`, `status`, `created`, `limit`,
   `starting_after`).
