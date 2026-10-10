@@ -50,15 +50,22 @@ defmodule Tymeslot.Emails.Shared.Sanitise do
   end
 
   @doc """
-  Validates and sanitises a URL for use in an email `href`. Returns `"#"` for
-  anything that doesn't parse as an http(s) URL.
+  Whether `url` may be linked from an email: an http(s) URL, or a `mailto:`
+  address. Every link, button and plain-text action line in an email goes
+  through this one rule; an action whose URL fails it is left out.
   """
-  @spec sanitize_url(String.t() | nil) :: String.t()
+  @spec safe_url?(term()) :: boolean()
+  def safe_url?("mailto:" <> address), do: address != ""
+  def safe_url?(url), do: UrlValidation.validate_http_url(url) == :ok
+
+  @doc """
+  `url` escaped for an email `href`, or nil when it is missing or not safe to
+  link (see `safe_url?/1`). Components render nothing for nil rather than a
+  link that goes nowhere.
+  """
+  @spec sanitize_url(term()) :: String.t() | nil
   def sanitize_url(url) do
-    case UrlValidation.validate_http_url(url) do
-      :ok -> sanitize_for_email(url)
-      _other -> "#"
-    end
+    if safe_url?(url), do: sanitize_for_email(url)
   end
 
   @doc """

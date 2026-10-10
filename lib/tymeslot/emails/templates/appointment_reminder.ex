@@ -50,9 +50,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
         button_text: dgettext("emails_booking", "Join Meeting"))
       end}
 
-      #{Text.section_title(dgettext("emails_booking", "Need to change plans?"))}
-
-      #{MeetingComponents.meeting_actions_bar(@intent, [%{text: dgettext("emails_booking", "Reschedule"), url: Map.get(appointment_details, :reschedule_url, "#"), style: :secondary}, %{text: dgettext("emails_booking", "Cancel"), url: Map.get(appointment_details, :cancel_url, "#"), style: :danger}])}
+      #{MeetingComponents.actions_section(@intent, dgettext("emails_booking", "Need to change plans?"), [%{text: dgettext("emails_booking", "Reschedule"), url: Map.get(appointment_details, :reschedule_url), style: :secondary}, %{text: dgettext("emails_booking", "Cancel"), url: Map.get(appointment_details, :cancel_url), style: :danger}])}
 
       #{Text.centered_text(dgettext("emails_booking", "See you %{time_until}!", time_until: appointment_details.time_until_friendly || dgettext("emails_booking", "soon")), padding: "18px 0 0 0", font_size: "15px")}
       """
@@ -118,9 +116,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
         button_text: dgettext("emails_booking", "Join Meeting"))
       end}
 
-      #{Text.section_title(dgettext("emails_booking", "Can you still make it?"))}
-
-      #{MeetingComponents.meeting_actions_bar(@intent, [%{text: dgettext("emails_booking", "Yes, I'll attend"), url: Map.get(appointment_details, :guest_accept_url, "#"), style: :secondary}, %{text: dgettext("emails_booking", "Can't make it"), url: Map.get(appointment_details, :guest_decline_url, "#"), style: :danger}])}
+      #{MeetingComponents.actions_section(@intent, dgettext("emails_booking", "Can you still make it?"), TemplateHelper.guest_answer_actions(appointment_details))}
 
       #{Text.centered_text(dgettext("emails_booking", "Only %{booker} can move or cancel the meeting itself.", booker: appointment_details.attendee_name), font_size: "14px", padding: "16px 0 0 0")}
       """
@@ -177,9 +173,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
         button_text: dgettext("emails_booking", "Start Meeting"))
       end}
 
-      #{Text.section_title(dgettext("emails_booking", "Quick actions"))}
-
-      #{MeetingComponents.meeting_actions_bar(@intent, organizer_actions(appointment_details))}
+      #{MeetingComponents.actions_section(@intent, dgettext("emails_booking", "Quick actions"), organizer_actions(appointment_details))}
       """
 
       organizer_details =
@@ -213,22 +207,26 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
     end)
   end
 
-  # A group meeting's reminder (`AppointmentBuilder.for_organizer_of_group/3`)
-  # points the organiser at their dashboard: the public links to reschedule
-  # or cancel a booking are refused for a group meeting.
-  defp organizer_actions(%{dashboard_url: url}) when is_binary(url),
-    do: [%{text: dgettext("emails_booking", "Open in dashboard"), url: url, style: :primary}]
-
+  # Every action the payload has a link for; the bar leaves out the rest. A
+  # group meeting's reminder (`AppointmentBuilder.for_organizer_of_group/3`)
+  # carries only the dashboard link, since the public links to reschedule or
+  # cancel a booking are refused for a group meeting; a one-to-one booking
+  # carries those two and no dashboard link.
   defp organizer_actions(appointment_details) do
     [
       %{
+        text: dgettext("emails_booking", "Open in dashboard"),
+        url: Map.get(appointment_details, :dashboard_url),
+        style: :primary
+      },
+      %{
         text: dgettext("emails_booking", "Reschedule"),
-        url: Map.get(appointment_details, :reschedule_url, "#"),
+        url: Map.get(appointment_details, :reschedule_url),
         style: :secondary
       },
       %{
         text: dgettext("emails_booking", "Cancel"),
-        url: Map.get(appointment_details, :cancel_url, "#"),
+        url: Map.get(appointment_details, :cancel_url),
         style: :danger
       }
     ]
@@ -278,11 +276,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
     #{dgettext("emails_booking", "The meeting with %{organizer} that %{booker} invited you to is coming up.", organizer: appointment_details.organizer_name, booker: appointment_details.attendee_name)}
 
     #{dgettext("emails_booking", "DETAILS:")}
-    #{meeting_details}#{TextBodyHelper.format_organizer_note(appointment_details, locale)}#{video_section}
-
-    #{dgettext("emails_booking", "CAN YOU STILL MAKE IT?")}
-    #{dgettext("emails_booking", "Yes, I'll attend: %{url}", url: Map.get(appointment_details, :guest_accept_url, "#"))}
-    #{dgettext("emails_booking", "Can't make it: %{url}", url: Map.get(appointment_details, :guest_decline_url, "#"))}
+    #{meeting_details}#{TextBodyHelper.format_organizer_note(appointment_details, locale)}#{video_section}#{TextBodyHelper.format_guest_answers(appointment_details, dgettext("emails_booking", "CAN YOU STILL MAKE IT?"))}
 
     #{dgettext("emails_booking", "Only %{booker} can move or cancel the meeting itself.", booker: appointment_details.attendee_name)}
     """

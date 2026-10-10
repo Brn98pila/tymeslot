@@ -80,9 +80,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
         button_text: dgettext("emails_booking", "Join Video Meeting"))
       end}
 
-      #{Text.section_title(dgettext("emails_booking", "Does the new time not work?"))}
-
-      #{MeetingComponents.meeting_actions_bar(@intent, [%{text: dgettext("emails_booking", "Reschedule"), url: Map.get(appointment_details, :reschedule_url, "#"), style: :secondary}, %{text: dgettext("emails_booking", "Cancel Appointment"), url: Map.get(appointment_details, :cancel_url, "#"), style: :danger}])}
+      #{MeetingComponents.actions_section(@intent, dgettext("emails_booking", "Does the new time not work?"), [%{text: dgettext("emails_booking", "Reschedule"), url: Map.get(appointment_details, :reschedule_url), style: :secondary}, %{text: dgettext("emails_booking", "Cancel Appointment"), url: Map.get(appointment_details, :cancel_url), style: :danger}])}
 
       #{reminders_callout(appointment_details)}
       """
@@ -138,11 +136,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
         button_text: dgettext("emails_booking", "Join Meeting"))
       end}
 
-      #{Text.section_title(dgettext("emails_booking", "Will you be there at the new time?"))}
-
-      #{MeetingComponents.meeting_actions_bar(@intent, [%{text: dgettext("emails_booking", "Yes, I'll attend"), url: Map.get(appointment_details, :guest_accept_url, "#"), style: :secondary}, %{text: dgettext("emails_booking", "Can't make it"), url: Map.get(appointment_details, :guest_decline_url, "#"), style: :danger}])}
-
-      #{Text.centered_text(dgettext("emails_booking", "Your earlier response applied to the previous time, so please let us know again."), font_size: "14px", padding: "16px 0 0 0")}
+      #{MeetingComponents.actions_section(@intent, dgettext("emails_booking", "Will you be there at the new time?"), TemplateHelper.guest_answer_actions(appointment_details), footer: dgettext("emails_booking", "Your earlier response applied to the previous time, so please let us know again."))}
       """
 
       organizer_details =
@@ -208,9 +202,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
         button_text: dgettext("emails_booking", "Start Meeting"))
       end}
 
-      #{Text.section_title(dgettext("emails_booking", "Need to make changes?"))}
-
-      #{MeetingComponents.meeting_actions_bar(@intent, [%{text: dgettext("emails_booking", "Reschedule"), url: Map.get(appointment_details, :reschedule_url, "#"), style: :secondary}, %{text: dgettext("emails_booking", "Cancel Appointment"), url: Map.get(appointment_details, :cancel_url, "#"), style: :danger}])}
+      #{MeetingComponents.actions_section(@intent, dgettext("emails_booking", "Need to make changes?"), [%{text: dgettext("emails_booking", "Reschedule"), url: Map.get(appointment_details, :reschedule_url), style: :secondary}, %{text: dgettext("emails_booking", "Cancel Appointment"), url: Map.get(appointment_details, :cancel_url), style: :danger}])}
 
       #{Text.system_footer_note(dgettext("emails_booking", "The attendee has been notified of the new time."))}
       """
@@ -497,13 +489,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
     #{guest_moved_line(appointment_details)}
     #{previous_time_line(appointment_details, :attendee, locale)}
     #{dgettext("emails_booking", "NEW MEETING DETAILS:")}
-    #{meeting_details}#{video_section}
-
-    #{dgettext("emails_booking", "WILL YOU BE THERE AT THE NEW TIME?")}
-    #{dgettext("emails_booking", "Yes, I'll attend: %{url}", url: Map.get(appointment_details, :guest_accept_url, "#"))}
-    #{dgettext("emails_booking", "Can't make it: %{url}", url: Map.get(appointment_details, :guest_decline_url, "#"))}
-
-    #{dgettext("emails_booking", "Your earlier response applied to the previous time, so please let us know again.")}
+    #{meeting_details}#{video_section}#{TextBodyHelper.format_guest_answers(appointment_details, dgettext("emails_booking", "WILL YOU BE THERE AT THE NEW TIME?"), dgettext("emails_booking", "Your earlier response applied to the previous time, so please let us know again."))}
     """
   end
 

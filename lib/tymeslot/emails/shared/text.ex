@@ -7,7 +7,6 @@ defmodule Tymeslot.Emails.Shared.Text do
   """
 
   alias Tymeslot.Emails.Shared.{Sanitise, Styles}
-  alias Tymeslot.Security.UrlValidation
 
   use Gettext, backend: TymeslotWeb.Gettext
 
@@ -219,16 +218,18 @@ defmodule Tymeslot.Emails.Shared.Text do
 
   @doc """
   A troubleshooting link — shown below a button to help users who can't
-  click it. URL is sanitised.
+  click it. Renders nothing when `url` is missing or not safe to link, as the
+  button above it does.
   """
-  @spec troubleshooting_link(String.t()) :: String.t()
+  @spec troubleshooting_link(String.t() | nil) :: String.t()
   def troubleshooting_link(url) do
-    safe_url =
-      case UrlValidation.validate_http_url(url) do
-        :ok -> Sanitise.sanitize_for_email(url)
-        {:error, _reason} -> "#"
-      end
+    case Sanitise.sanitize_url(url) do
+      nil -> ""
+      safe_url -> troubleshooting_section(safe_url)
+    end
+  end
 
+  defp troubleshooting_section(safe_url) do
     """
     <mj-section padding="8px 0 0 0">
       <mj-column>

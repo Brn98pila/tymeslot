@@ -49,6 +49,11 @@ defmodule Tymeslot.Emails.Shared.TextTest do
       refute html =~ "'test'"
     end
 
+    test "renders nothing for an unsafe or missing URL" do
+      assert Text.troubleshooting_link("javascript:alert(1)") == ""
+      assert Text.troubleshooting_link(nil) == ""
+    end
+
     test "includes helpful text" do
       html = Text.troubleshooting_link("https://example.com/link")
 

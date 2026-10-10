@@ -157,16 +157,12 @@ msgstr "DETAILS ZUM ABGESAGTEN TERMIN:"
 msgid "Can you still make it?"
 msgstr "Können Sie noch teilnehmen?"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/template_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Can't make it"
 msgstr "Kann nicht teilnehmen"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/text_body_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Can't make it: %{url}"
 msgstr "Kann nicht teilnehmen: %{url}"
@@ -931,16 +927,12 @@ msgstr "Sind Sie dabei?"
 msgid "Would you like to schedule a new appointment?"
 msgstr "Möchten Sie einen neuen Termin vereinbaren?"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/template_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Yes, I'll attend"
 msgstr "Ja, ich nehme teil"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/text_body_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Yes, I'll attend: %{url}"
 msgstr "Ja, ich nehme teil: %{url}"

@@ -4,7 +4,7 @@ defmodule Tymeslot.Emails.Shared.TextBodyHelper do
   """
 
   alias Tymeslot.CustomFields.AnswerRenderer
-  alias Tymeslot.Emails.Shared.Formatting
+  alias Tymeslot.Emails.Shared.{Formatting, Sanitise}
 
   use Gettext, backend: TymeslotWeb.Gettext
 
@@ -63,48 +63,53 @@ defmodule Tymeslot.Emails.Shared.TextBodyHelper do
   def format_video_section(_meeting_url, _locale), do: ""
 
   @doc """
-  Formats action links for text body.
+  The ACTIONS block of a text body: one line per action the payload carries a
+  linkable URL for (`Sanitise.safe_url?/1`), or `""` when there is none.
   """
   @spec format_action_links(Tymeslot.Emails.EmailService.appointment_details(), String.t()) ::
           String.t()
   def format_action_links(appointment_details, locale) do
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
-      links = []
+      lines =
+        for {label, url} <- [
+              {dgettext("emails", "Reschedule:"), Map.get(appointment_details, :reschedule_url)},
+              {dgettext("emails", "Cancel:"), Map.get(appointment_details, :cancel_url)},
+              {dgettext("emails", "Open in dashboard:"),
+               Map.get(appointment_details, :dashboard_url)}
+            ],
+            Sanitise.safe_url?(url),
+            do: "#{label} #{url}"
 
-      links =
-        if appointment_details[:reschedule_url] do
-          ["#{dgettext("emails", "Reschedule:")} #{appointment_details.reschedule_url}" | links]
-        else
-          links
-        end
-
-      links =
-        if appointment_details[:cancel_url] do
-          ["#{dgettext("emails", "Cancel:")} #{appointment_details.cancel_url}" | links]
-        else
-          links
-        end
-
-      links =
-        if appointment_details[:dashboard_url] do
-          [
-            "#{dgettext("emails", "Open in dashboard:")} #{appointment_details.dashboard_url}"
-            | links
-          ]
-        else
-          links
-        end
-
-      if Enum.empty?(links) do
-        ""
-      else
-        """
-
-        #{dgettext("emails", "ACTIONS:")}
-        #{Enum.join(Enum.reverse(links), "\n")}
-        """
+      case lines do
+        [] -> ""
+        lines -> "\n#{dgettext("emails", "ACTIONS:")}\n#{Enum.join(lines, "\n")}\n"
       end
     end)
+  end
+
+  @doc """
+  A guest's answer links as a text block under `heading`, with an optional
+  closing `footer`: one line per answer the payload carries a linkable URL
+  for, or `""` when there is none, so no heading asks a question the email
+  gives no way to answer. Mirrors `TemplateHelper.guest_answer_actions/1`.
+  Must be called within a `Gettext.with_locale` block.
+  """
+  @spec format_guest_answers(map(), String.t(), String.t() | nil) :: String.t()
+  def format_guest_answers(appointment_details, heading, footer \\ nil) do
+    lines =
+      for {url, line} <- [
+            {Map.get(appointment_details, :guest_accept_url),
+             &dgettext("emails_booking", "Yes, I'll attend: %{url}", url: &1)},
+            {Map.get(appointment_details, :guest_decline_url),
+             &dgettext("emails_booking", "Can't make it: %{url}", url: &1)}
+          ],
+          Sanitise.safe_url?(url),
+          do: line.(url)
+
+    case lines do
+      [] -> ""
+      lines -> "\n\n#{heading}\n#{Enum.join(lines, "\n")}#{if footer, do: "\n\n" <> footer}"
+    end
   end
 
   @doc """

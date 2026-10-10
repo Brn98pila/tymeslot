@@ -82,6 +82,23 @@ defmodule Tymeslot.Emails.Shared.SanitiseTest do
     end
   end
 
+  describe "sanitize_url/1" do
+    test "escapes a safe http(s) or mailto URL for an href" do
+      assert Sanitise.sanitize_url("https://example.com/a?b=1&c=2") ==
+               "https://example.com/a?b=1&amp;c=2"
+
+      assert Sanitise.sanitize_url("mailto:someone@example.com") == "mailto:someone@example.com"
+    end
+
+    test "is nil for an unsafe, empty or missing URL" do
+      assert Sanitise.sanitize_url("javascript:alert(1)") == nil
+      assert Sanitise.sanitize_url("#") == nil
+      assert Sanitise.sanitize_url("mailto:") == nil
+      assert Sanitise.sanitize_url("") == nil
+      assert Sanitise.sanitize_url(nil) == nil
+    end
+  end
+
   describe "sanitize_for_header/1" do
     test "returns empty string for nil" do
       assert Sanitise.sanitize_for_header(nil) == ""

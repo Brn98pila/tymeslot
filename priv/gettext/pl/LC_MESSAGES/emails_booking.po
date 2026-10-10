@@ -157,16 +157,12 @@ msgstr "SZCZEGÓŁY ODWOŁANEGO SPOTKANIA:"
 msgid "Can you still make it?"
 msgstr "Termin nadal ci pasuje?"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/template_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Can't make it"
 msgstr "Nie mogę"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/text_body_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Can't make it: %{url}"
 msgstr "Nie mogę: %{url}"
@@ -931,16 +927,12 @@ msgstr "Będziesz?"
 msgid "Would you like to schedule a new appointment?"
 msgstr "Chcesz zarezerwować nowy termin?"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/template_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Yes, I'll attend"
 msgstr "Tak, będę"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/text_body_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Yes, I'll attend: %{url}"
 msgstr "Tak, będę: %{url}"

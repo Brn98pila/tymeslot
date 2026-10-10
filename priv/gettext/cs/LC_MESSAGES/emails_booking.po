@@ -157,16 +157,12 @@ msgstr "ÚDAJE O ZRUŠENÉ SCHŮZCE:"
 msgid "Can you still make it?"
 msgstr "Můžete se stále zúčastnit?"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/template_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Can't make it"
 msgstr "Nemohu se zúčastnit"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/text_body_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Can't make it: %{url}"
 msgstr "Nemohu se zúčastnit: %{url}"
@@ -931,16 +927,12 @@ msgstr "Zúčastníte se?"
 msgid "Would you like to schedule a new appointment?"
 msgstr "Chcete si naplánovat novou schůzku?"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/template_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Yes, I'll attend"
 msgstr "Ano, zúčastním se"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation.ex
-#: lib/tymeslot/emails/templates/appointment_reminder.ex
-#: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/shared/text_body_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Yes, I'll attend: %{url}"
 msgstr "Ano, zúčastním se: %{url}"

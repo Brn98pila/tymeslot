@@ -11,6 +11,8 @@ defmodule Tymeslot.Emails.Shared.TemplateHelper do
   alias Tymeslot.Emails.Shared.{Layouts, MjmlEmail}
   alias Tymeslot.Emails.Shared.Styles.Tokens
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   @type organizer_details :: %{
           required(:intent) => Tokens.intent(),
           required(:eyebrow) => String.t(),
@@ -181,6 +183,28 @@ defmodule Tymeslot.Emails.Shared.TemplateHelper do
 
   defp put_audience(meeting_details, :guest), do: Map.put(meeting_details, :audience, :guest)
   defp put_audience(meeting_details, :attendee), do: meeting_details
+
+  @doc """
+  A guest's answer actions, for `MeetingComponents.actions_section/4`: attend
+  or decline, each with the payload's link for it. An answer without a
+  linkable URL is left out when rendered; the plain-text counterpart is
+  `TextBodyHelper.format_guest_answers/3`.
+  """
+  @spec guest_answer_actions(map()) :: [map()]
+  def guest_answer_actions(appointment_details) do
+    [
+      %{
+        text: dgettext("emails_booking", "Yes, I'll attend"),
+        url: Map.get(appointment_details, :guest_accept_url),
+        style: :secondary
+      },
+      %{
+        text: dgettext("emails_booking", "Can't make it"),
+        url: Map.get(appointment_details, :guest_decline_url),
+        style: :danger
+      }
+    ]
+  end
 
   @doc "Formats error reasons for display in templates."
   @spec format_error_reason(any()) :: String.t()

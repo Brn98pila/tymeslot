@@ -99,9 +99,13 @@ defmodule Tymeslot.Emails.Templates.SignupAttemptNotice do
   end
 
   defp reset_section(user, reset_url) do
-    if SignInProvider.social?(user),
-      do: "",
-      else: Text.centered_html(reset_link(reset_url), padding: "4px 0 0 0")
+    case {SignInProvider.social?(user), Sanitise.sanitize_url(reset_url)} do
+      {false, safe_url} when is_binary(safe_url) ->
+        Text.centered_html(reset_link(safe_url), padding: "4px 0 0 0")
+
+      _no_link ->
+        ""
+    end
   end
 
   defp reset_text(user, reset_url) do
@@ -118,9 +122,7 @@ defmodule Tymeslot.Emails.Templates.SignupAttemptNotice do
 
   # A secondary, text-weight link under the one button, so the email keeps a
   # single primary action.
-  defp reset_link(reset_url) do
-    safe_url = Sanitise.sanitize_url(reset_url)
-
+  defp reset_link(safe_url) do
     safe_label =
       Sanitise.sanitize_for_email(
         dgettext("emails_account", "Forgot your password? Reset it here.")

@@ -76,9 +76,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
 
       #{if payment_receipt, do: PaymentBlocks.attendee_receipt_html(payment_receipt)}
 
-      #{Text.section_title(dgettext("emails_booking", "Need to make changes?"))}
-
-      #{MeetingComponents.meeting_actions_bar(@intent, [%{text: dgettext("emails_booking", "Reschedule"), url: Map.get(appointment_details, :reschedule_url, "#"), style: :secondary}, %{text: dgettext("emails_booking", "Cancel Appointment"), url: Map.get(appointment_details, :cancel_url, "#"), style: :danger}])}
+      #{MeetingComponents.actions_section(@intent, dgettext("emails_booking", "Need to make changes?"), [%{text: dgettext("emails_booking", "Reschedule"), url: Map.get(appointment_details, :reschedule_url), style: :secondary}, %{text: dgettext("emails_booking", "Cancel Appointment"), url: Map.get(appointment_details, :cancel_url), style: :danger}])}
 
       #{if appointment_details.organizer_contact_info do
         Text.centered_text(dgettext("emails_booking", "Questions? %{contact_info}", contact_info: appointment_details.organizer_contact_info), font_size: "14px", padding: "16px 0 0 0")
@@ -154,11 +152,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
         button_text: dgettext("emails_booking", "Join Meeting"))
       end}
 
-      #{Text.section_title(dgettext("emails_booking", "Will you be there?"))}
-
-      #{MeetingComponents.meeting_actions_bar(@intent, [%{text: dgettext("emails_booking", "Yes, I'll attend"), url: Map.get(appointment_details, :guest_accept_url, "#"), style: :secondary}, %{text: dgettext("emails_booking", "Can't make it"), url: Map.get(appointment_details, :guest_decline_url, "#"), style: :danger}])}
-
-      #{Text.centered_text(dgettext("emails_booking", "You can change your response any time using the buttons above."), font_size: "14px", padding: "16px 0 0 0")}
+      #{MeetingComponents.actions_section(@intent, dgettext("emails_booking", "Will you be there?"), TemplateHelper.guest_answer_actions(appointment_details), footer: dgettext("emails_booking", "You can change your response any time using the buttons above."))}
       """
 
       organizer_details =
@@ -225,9 +219,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
       #{MeetingComponents.custom_answers_section(appointment_details)}
       #{if organiser_payment, do: PaymentBlocks.organizer_summary_html(organiser_payment)}
 
-      #{Text.section_title(dgettext("emails_booking", "Need to make changes?"))}
-
-      #{MeetingComponents.meeting_actions_bar(@intent, [%{text: dgettext("emails_booking", "Reschedule"), url: Map.get(appointment_details, :reschedule_url, "#"), style: :secondary}, %{text: dgettext("emails_booking", "Cancel Appointment"), url: Map.get(appointment_details, :cancel_url, "#"), style: :danger}])}
+      #{MeetingComponents.actions_section(@intent, dgettext("emails_booking", "Need to make changes?"), [%{text: dgettext("emails_booking", "Reschedule"), url: Map.get(appointment_details, :reschedule_url), style: :secondary}, %{text: dgettext("emails_booking", "Cancel Appointment"), url: Map.get(appointment_details, :cancel_url), style: :danger}])}
       """
 
       organizer_details =
@@ -354,13 +346,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
     #{guest_invited_line(appointment_details)}
 
     #{dgettext("emails_booking", "MEETING DETAILS:")}
-    #{meeting_details}#{TextBodyHelper.format_organizer_note(appointment_details, locale)}#{video_section}
-
-    #{dgettext("emails_booking", "WILL YOU BE THERE?")}
-    #{dgettext("emails_booking", "Yes, I'll attend: %{url}", url: Map.get(appointment_details, :guest_accept_url, "#"))}
-    #{dgettext("emails_booking", "Can't make it: %{url}", url: Map.get(appointment_details, :guest_decline_url, "#"))}
-
-    #{dgettext("emails_booking", "You can change your response any time using the links above.")}
+    #{meeting_details}#{TextBodyHelper.format_organizer_note(appointment_details, locale)}#{video_section}#{TextBodyHelper.format_guest_answers(appointment_details, dgettext("emails_booking", "WILL YOU BE THERE?"), dgettext("emails_booking", "You can change your response any time using the links above."))}
     """
   end
 
