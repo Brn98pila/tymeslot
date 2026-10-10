@@ -27,7 +27,9 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
   *draining*: a lease on it is refused, so its request goes without a pool,
   until a later lease or sweep finds it gone. A restarted janitor adopts the
   tagged pools its predecessor left on the instance, so they are stopped once
-  idle rather than kept until something leases them again.
+  idle rather than kept until something leases them again. An adopted pool
+  is kept for `:adoption_grace` first, since a request its predecessor leased
+  it to may still be using it and its lease died with that janitor.
   """
 
   use GenServer
@@ -38,6 +40,11 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
 
   @finch Tymeslot.Finch
   @default_idle_after :timer.minutes(5)
+  # Longer than any request the HTTP client sends: its longest default
+  # budget is a CalDAV REPORT's 60 s receive timeout plus the pool and
+  # connect waits, and the timeouts integrations configure are in seconds.
+  # The client sets no hard ceiling, so this is a margin, not a derived bound.
+  @default_adoption_grace :timer.minutes(10)
   @default_sweep_every :timer.minutes(1)
   @lease_timeout :timer.seconds(5)
   # How long a sweep waits for Finch's registries to forget a stopped pool.
@@ -46,8 +53,9 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
   defmodule State do
     @moduledoc false
     @type pool_entry :: %{
-            leases: MapSet.t(reference()),
-            last_used: integer()
+            optional(:keep_until) => integer(),
+            required(:leases) => MapSet.t(reference()),
+            required(:last_used) => integer()
           }
     @type t :: %__MODULE__{
             pools: %{Finch.Pool.t() => pool_entry()},
@@ -66,8 +74,10 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
   @doc """
   Options: `:idle_after` (ms a pool may sit unused before it is stopped,
   default five minutes), `:sweep_every` (ms between sweeps, default one
-  minute, or `:manual` to sweep only through `sweep/1`) and `:adopt` (whether
-  to take over the tagged pools already on the instance, default true).
+  minute, or `:manual` to sweep only through `sweep/1`), `:adopt` (whether
+  to take over the tagged pools already on the instance, default true) and
+  `:adoption_grace` (ms an adopted pool is kept before it may be stopped,
+  default ten minutes).
   """
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
@@ -130,7 +140,7 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
   @impl GenServer
   def init(opts) do
     state = %State{
-      pools: if(Keyword.get(opts, :adopt, true), do: adopt_pools(), else: %{}),
+      pools: adopted_pools(opts),
       idle_after: Keyword.get(opts, :idle_after, @default_idle_after),
       sweep_every: Keyword.get(opts, :sweep_every, @default_sweep_every)
     }
@@ -243,12 +253,17 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
     end
   end
 
+  # An adopted pool is kept through its grace period. (Monotonic time can be
+  # negative, so an entry without one is compared with nothing.)
+  defp kept?(%{keep_until: keep_until}), do: now() < keep_until
+  defp kept?(_entry), do: false
+
   defp stop_idle(state) do
     cutoff = now() - state.idle_after
 
     {idle, in_use} =
       Enum.split_with(state.pools, fn {_pool, entry} ->
-        MapSet.size(entry.leases) == 0 and entry.last_used <= cutoff
+        MapSet.size(entry.leases) == 0 and entry.last_used <= cutoff and not kept?(entry)
       end)
 
     stuck = for {pool, _entry} <- idle, stop_pool(pool) == :draining, do: pool
@@ -305,10 +320,17 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
     :exit, _reason -> false
   end
 
+  defp adopted_pools(opts) do
+    if Keyword.get(opts, :adopt, true),
+      do: adopt_pools(now() + Keyword.get(opts, :adoption_grace, @default_adoption_grace)),
+      else: %{}
+  end
+
   # Only pinned pools carry a binary tag; the instance's default pool is
-  # tagged `:default`. Adopted as just used, so a request a previous janitor
-  # leased one to keeps it for at least `:idle_after`.
-  defp adopt_pools do
+  # tagged `:default`. Each is kept until `keep_until`, so a request a
+  # previous janitor leased one to can finish on it.
+
+  defp adopt_pools(keep_until) do
     # Finch has no public listing of its pools, so this reads the registry
     # it keys them in. (The form-input check matches the call by name alone;
     # this is not a form helper.)
@@ -320,7 +342,7 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
     |> Enum.filter(&match?({_scheme, _host, _port, tag} when is_binary(tag), &1))
     |> Map.new(fn {scheme, host, port, tag} ->
       {%Pool{scheme: scheme, host: host, port: port, tag: tag},
-       %{leases: MapSet.new(), last_used: now()}}
+       %{leases: MapSet.new(), last_used: now(), keep_until: keep_until}}
     end)
   rescue
     # No Finch instance running: nothing to adopt.

@@ -231,10 +231,34 @@ defmodule Tymeslot.Infrastructure.FinchPool.JanitorTest do
     assert pool_alive?(url, tag)
 
     name = {:global, {__MODULE__, :adopter, System.unique_integer([:positive])}}
-    start_supervised!({Janitor, name: name, idle_after: 0, sweep_every: :manual}, id: name)
+
+    start_supervised!(
+      {Janitor, name: name, idle_after: 0, adoption_grace: 0, sweep_every: :manual},
+      id: name
+    )
 
     assert Janitor.sweep(name) >= 1
     refute pool_alive?(url, tag)
+  end
+
+  # The predecessor's leases died with it, so a request it leased the pool
+  # to may still be using it.
+  test "an adopted pool is kept through its grace period", %{janitor: janitor} do
+    {url, tag, options} = destination()
+    release!(lease!(url, options, tag, janitor), janitor)
+    :ok = stop_supervised(Janitor)
+
+    name = {:global, {__MODULE__, :adopter, System.unique_integer([:positive])}}
+
+    start_supervised!(
+      {Janitor, name: name, idle_after: 0, adoption_grace: :timer.hours(1), sweep_every: :manual},
+      id: name
+    )
+
+    pool = Pool.new(url, tag: tag)
+    assert Janitor.sweep(name) == 0
+    assert pool_alive?(url, tag)
+    assert %{pools: %{^pool => _entry}} = :sys.get_state(name)
   end
 
   test "a janitor that is not running refuses leases without failing the caller" do
