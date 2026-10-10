@@ -95,6 +95,28 @@ defmodule CredoChecks.UseCoreInputsTest do
       |> assert_issue(fn issue -> assert issue.trigger == "checkbox" end)
     end
 
+    test "flags a helper called through an alias with other options" do
+      """
+      defmodule TymeslotWeb.SomeView do
+        alias Phoenix.HTML.Form, as: F, warn: false
+        def field(f), do: F.number_input(f, :count)
+      end
+      """
+      |> check()
+      |> assert_issue(fn issue -> assert issue.trigger == ".number_input" end)
+    end
+
+    test "flags a helper brought in by use PhoenixHTMLHelpers" do
+      """
+      defmodule TymeslotWeb.SomeView do
+        use PhoenixHTMLHelpers
+        def field(f), do: textarea(f, :notes)
+      end
+      """
+      |> check()
+      |> assert_issue(fn issue -> assert issue.trigger == "textarea" end)
+    end
+
     test "leaves another module's function of the same name alone" do
       """
       defmodule Tymeslot.Pools do

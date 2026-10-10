@@ -84,10 +84,17 @@ defmodule CredoChecks.UseCoreInputs do
          {:alias, _meta, [{:__aliases__, _, segments} | opts]} = ast,
          {aliases, imported?}
        ) do
+    # `as:` may come with other options, such as `warn: false`.
     name =
       case opts do
-        [[as: {:__aliases__, _, [as]}]] -> as
-        _no_as -> List.last(segments)
+        [[_ | _] = keyword] ->
+          case Keyword.get(keyword, :as) do
+            {:__aliases__, _, [as]} -> as
+            _no_as -> List.last(segments)
+          end
+
+        _no_options ->
+          List.last(segments)
       end
 
     {ast, {Map.put(aliases, name, segments), imported?}}
@@ -110,6 +117,13 @@ defmodule CredoChecks.UseCoreInputs do
          {aliases, imported?}
        ),
        do: {ast, {aliases, imported? or segments in @form_modules}}
+
+  # `use PhoenixHTMLHelpers` imports the form helpers along with the rest.
+  defp collect_names(
+         {:use, _meta, [{:__aliases__, _, [:PhoenixHTMLHelpers]} | _opts]} = ast,
+         {aliases, _imported?}
+       ),
+       do: {ast, {aliases, true}}
 
   defp collect_names(ast, acc), do: {ast, acc}
 
