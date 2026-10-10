@@ -700,3 +700,8 @@ msgstr "Aby zwiększyć ochronę, weryfikuj podpis. Nagłówek ma postać t=TIME
 #, elixir-autogen, elixir-format
 msgid "Request signature"
 msgstr "Podpis żądania"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "your plan no longer includes automations"
+msgstr "twój plan nie obejmuje już automatyzacji"

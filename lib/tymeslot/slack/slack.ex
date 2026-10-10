@@ -409,7 +409,7 @@ defmodule Tymeslot.Slack do
   """
   @spec disable_for_revoked_plan(integer()) :: {:ok, boolean()}
   def disable_for_revoked_plan(integration_id),
-    do: SlackQueries.disable_if_active(integration_id, "Plan no longer permits automations")
+    do: SlackQueries.disable_if_active(integration_id, "plan_revoked")
 
   @spec auto_disable(SlackIntegrationSchema.t(), String.t()) ::
           {:ok, SlackIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}

@@ -863,3 +863,9 @@ msgstr "Відсутній токен бота"
 #, elixir-autogen, elixir-format
 msgid "The shared Telegram bot is not configured"
 msgstr "Спільний бот Telegram не налаштовано"
+
+#: lib/tymeslot_web/live/dashboard/automation/slack_card.ex
+#: lib/tymeslot_web/live/dashboard/automation/telegram_card.ex
+#, elixir-autogen, elixir-format
+msgid "your plan no longer includes automations"
+msgstr "ваш тариф більше не включає автоматизації"

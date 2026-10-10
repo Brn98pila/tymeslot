@@ -148,6 +148,12 @@ defmodule TymeslotWeb.Dashboard.Automation.TelegramCard do
   defp disabled_reason_label(nil), do: dgettext("dashboard_automation_chat", "auto-disabled")
   defp disabled_reason_label(""), do: dgettext("dashboard_automation_chat", "auto-disabled")
 
+  # Recorded as "plan_revoked"; integrations switched off before that code
+  # carry the English sentence instead.
+  defp disabled_reason_label(reason)
+       when reason in ["plan_revoked", "Plan no longer permits automations"],
+       do: dgettext("dashboard_automation_chat", "your plan no longer includes automations")
+
   defp disabled_reason_label("invalid_token"),
     do: dgettext("dashboard_automation_chat", "bot token was rejected")
 

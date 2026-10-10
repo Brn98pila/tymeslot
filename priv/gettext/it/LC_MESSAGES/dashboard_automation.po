@@ -703,3 +703,8 @@ msgstr "Per una protezione più forte, verifica la firma. L'intestazione ha la f
 #, elixir-autogen, elixir-format
 msgid "Request signature"
 msgstr "Firma della richiesta"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "your plan no longer includes automations"
+msgstr "il tuo piano non include più le automazioni"

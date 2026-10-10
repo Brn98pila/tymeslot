@@ -703,3 +703,8 @@ msgstr "Para uma proteção maior, verifique a assinatura. O cabeçalho tem o fo
 #, elixir-autogen, elixir-format
 msgid "Request signature"
 msgstr "Assinatura da requisição"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "your plan no longer includes automations"
+msgstr "seu plano não inclui mais automações"

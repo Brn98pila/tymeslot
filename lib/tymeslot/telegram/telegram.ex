@@ -339,7 +339,7 @@ defmodule Tymeslot.Telegram do
   """
   @spec disable_for_revoked_plan(integer()) :: {:ok, boolean()}
   def disable_for_revoked_plan(integration_id),
-    do: TelegramQueries.disable_if_active(integration_id, "Plan no longer permits automations")
+    do: TelegramQueries.disable_if_active(integration_id, "plan_revoked")
 
   @spec auto_disable(TelegramIntegrationSchema.t(), String.t()) ::
           {:ok, TelegramIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}

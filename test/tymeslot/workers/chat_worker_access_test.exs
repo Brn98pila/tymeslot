@@ -59,7 +59,7 @@ defmodule Tymeslot.Workers.ChatWorkerAccessTest do
 
           updated = Repo.get!(unquote(schema), integration.id)
           refute updated.is_active
-          assert updated.disabled_reason == "Plan no longer permits automations"
+          assert updated.disabled_reason == "plan_revoked"
         end
       end
 

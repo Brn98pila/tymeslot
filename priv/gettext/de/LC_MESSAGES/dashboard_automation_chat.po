@@ -863,3 +863,9 @@ msgstr "Der Bot-Token fehlt"
 #, elixir-autogen, elixir-format
 msgid "The shared Telegram bot is not configured"
 msgstr "Der gemeinsame Telegram-Bot ist nicht konfiguriert"
+
+#: lib/tymeslot_web/live/dashboard/automation/slack_card.ex
+#: lib/tymeslot_web/live/dashboard/automation/telegram_card.ex
+#, elixir-autogen, elixir-format
+msgid "your plan no longer includes automations"
+msgstr "Ihr Tarif umfasst keine Automatisierungen mehr"

@@ -704,3 +704,8 @@ msgstr "Для надійнішого захисту перевіряйте пі
 #, elixir-autogen, elixir-format
 msgid "Request signature"
 msgstr "Підпис запиту"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "your plan no longer includes automations"
+msgstr "ваш тариф більше не включає автоматизації"

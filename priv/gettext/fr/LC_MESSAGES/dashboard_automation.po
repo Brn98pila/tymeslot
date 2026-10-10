@@ -703,3 +703,8 @@ msgstr "Pour une protection renforcée, vérifiez la signature. L'en-tête a la 
 #, elixir-autogen, elixir-format
 msgid "Request signature"
 msgstr "Signature de la requête"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "your plan no longer includes automations"
+msgstr "votre forfait n’inclut plus les automatisations"

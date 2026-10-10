@@ -703,3 +703,8 @@ msgstr "Für stärkeren Schutz prüfen Sie die Signatur. Der Header hat die Form
 #, elixir-autogen, elixir-format
 msgid "Request signature"
 msgstr "Anfragesignatur"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "your plan no longer includes automations"
+msgstr "Ihr Tarif umfasst keine Automatisierungen mehr"

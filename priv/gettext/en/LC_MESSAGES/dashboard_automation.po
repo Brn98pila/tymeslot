@@ -703,3 +703,8 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Request signature"
 msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "your plan no longer includes automations"
+msgstr ""

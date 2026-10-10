@@ -36,7 +36,9 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookCard do
       tags={@webhook.events}
       notice={
         @webhook.disabled_reason &&
-          dgettext("dashboard_automation", "Disabled: %{reason}", reason: @webhook.disabled_reason)
+          dgettext("dashboard_automation", "Disabled: %{reason}",
+            reason: disabled_reason_label(@webhook.disabled_reason)
+          )
       }
       notice_tone={:danger}
     >
@@ -107,6 +109,12 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookCard do
     do: {:danger, dgettext("dashboard_automation", "Disabled")}
 
   defp status(_webhook), do: {:neutral, dgettext("dashboard_automation", "Disabled")}
+
+  # Recorded as "plan_revoked"; any other reason is shown as recorded.
+  defp disabled_reason_label("plan_revoked"),
+    do: dgettext("dashboard_automation", "your plan no longer includes automations")
+
+  defp disabled_reason_label(reason), do: reason
 
   defp status_color(last_status) do
     case DeliveryStatus.state(last_status) do
