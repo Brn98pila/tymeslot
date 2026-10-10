@@ -7,6 +7,7 @@ defmodule Tymeslot.Integrations.CalendarManagementTest do
   import Mox
   import Tymeslot.Factory
 
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Shared.DiscoveryCache
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries
@@ -264,6 +265,50 @@ defmodule Tymeslot.Integrations.CalendarManagementTest do
 
       assert {:ok, _integration} = CalendarManagement.create_calendar_integration(attrs)
       assert_received {:telemetry, %{count: 1}, %{provider: "caldav"}}
+    end
+
+    # The row stops decrypting between its insert and the write that makes
+    # its calendar the default booking calendar, as it would were the key
+    # rotated away meanwhile.
+    test "keeps the integration, without a default, when it stops decrypting before one is set" do
+      stub(Tymeslot.HTTPClientMock, :request, fn _method, _url, _body, _headers, _opts ->
+        {:ok, %Req.Response{status: 207, body: @propfind_calendar_response}}
+      end)
+
+      user = insert(:user)
+      _profile = insert(:profile, user: user)
+
+      Repo.query!("""
+      CREATE FUNCTION pg_temp.garble_credentials() RETURNS trigger AS $$
+      BEGIN
+        UPDATE calendar_integrations
+        SET password_encrypted = decode(repeat('ab', 40), 'hex')
+        WHERE id = NEW.id;
+        RETURN NULL;
+      END
+      $$ LANGUAGE plpgsql
+      """)
+
+      Repo.query!("""
+      CREATE TRIGGER garble_credentials AFTER INSERT ON calendar_integrations
+      FOR EACH ROW EXECUTE FUNCTION pg_temp.garble_credentials()
+      """)
+
+      assert {:ok, integration} =
+               CalendarManagement.create_calendar_integration(%{
+                 user_id: user.id,
+                 name: "My CalDAV",
+                 provider: "caldav",
+                 base_url: "https://caldav.example.com",
+                 username: "user",
+                 password: "pass",
+                 calendar_paths: [],
+                 provider_account_id: "https://caldav.example.com||user",
+                 is_active: true
+               })
+
+      assert Repo.get!(CalendarIntegrationSchema, integration.id).default_booking_calendar_id ==
+               nil
     end
   end
 end

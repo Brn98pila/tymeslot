@@ -6,6 +6,7 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   separated from primary calendar logic and discovery operations.
   """
 
+  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
@@ -400,6 +401,18 @@ defmodule Tymeslot.Integrations.CalendarManagement do
 
       {:error, %Ecto.Changeset{} = changeset} ->
         handle_booking_calendar_update_error(integration, changeset)
+
+      # Deleted, or no longer decrypting, between the insert and this write.
+      # The integration was still created, so it is kept without a default,
+      # as on a unique conflict; the owner can pick one from the dashboard.
+      {:error, reason} ->
+        Logger.warning("Could not set default booking calendar",
+          user_id: integration.user_id,
+          integration_id: integration.id,
+          error: LogFormat.reason(reason)
+        )
+
+        {:ok, integration}
     end
   end
 
