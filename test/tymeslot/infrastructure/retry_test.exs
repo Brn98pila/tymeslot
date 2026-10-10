@@ -66,7 +66,8 @@ defmodule Tymeslot.Infrastructure.RetryTest do
         {:http_error, 429, ""},
         {:http_error, 502, ""},
         %Mint.TransportError{reason: :closed},
-        %Req.TransportError{reason: :timeout}
+        %Req.TransportError{reason: :timeout},
+        {:rate_limited, 30}
       ]
 
       for reason <- transient do

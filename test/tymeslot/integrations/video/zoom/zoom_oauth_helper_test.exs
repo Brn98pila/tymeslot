@@ -122,7 +122,9 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
       end)
 
       assert {:error, "Failed to fetch user profile: HTTP 503"} =
-               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb")
+               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb",
+                 profile_retry: [initial_delay: 0]
+               )
     end
 
     test "does not retry a profile request Zoom refuses" do

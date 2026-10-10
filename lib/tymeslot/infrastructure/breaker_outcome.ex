@@ -136,9 +136,12 @@ defmodule Tymeslot.Infrastructure.BreakerOutcome do
 
   The default retry rule of `Tymeslot.Infrastructure.Retry`, so a retry loop
   and the breaker around it agree on what is transient. A refusal from an open
-  breaker is not: retrying it only asks the breaker again.
+  breaker is not: retrying it only asks the breaker again. A rate limit that
+  names its wait (`{:rate_limited, seconds}`, as the OAuth clients report
+  one) is transient too.
   """
   @spec transient?(term()) :: boolean()
+  def transient?({:rate_limited, _retry_after}), do: true
   def transient?(reason), do: classify_error(reason) == :failure
 
   @doc """

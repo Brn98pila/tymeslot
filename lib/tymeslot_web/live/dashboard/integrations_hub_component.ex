@@ -178,9 +178,10 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
 
   # CalDAV changes made in Tymeslot that the server kept refusing are no
   # longer sent (`Calendar.stuck_changes/1`), so the calendar differs from the
-  # grid until the owner retries them from the calendar's card. Like the
-  # card's notice, only for an otherwise healthy integration: a paused or
-  # disconnected one reports that first, and offers no retry.
+  # grid until the owner retries them from the calendar's card. Listed only
+  # for an integration with nothing worse to report: a paused one or one
+  # waiting to be reconnected gets its own line, and its card offers no
+  # retry until that is resolved.
   defp stuck_attention(nil, _integration, _tab), do: []
 
   defp stuck_attention(%{count: count}, integration, tab),

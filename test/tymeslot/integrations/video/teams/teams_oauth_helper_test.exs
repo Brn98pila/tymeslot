@@ -71,6 +71,24 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelperTest do
       end)
 
       assert {:error, "Failed to fetch user profile: HTTP 502"} =
+               TeamsOAuthHelper.exchange_code_for_tokens("code", "http://uri",
+                 profile_retry: [initial_delay: 0]
+               )
+    end
+
+    # Graph refused the token: asking again cannot change that.
+    test "does not retry a profile request Graph refuses" do
+      %{resp_body: resp_body} = oauth_test_data()
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, _headers, _body, _opts ->
+        {:ok, %{status: 200, body: resp_body}}
+      end)
+
+      expect(Tymeslot.HTTPClientMock, :get, 1, fn _url, _headers, _opts ->
+        {:ok, %Req.Response{status: 401, body: "no"}}
+      end)
+
+      assert {:error, "Failed to fetch user profile: HTTP 401"} =
                TeamsOAuthHelper.exchange_code_for_tokens("code", "http://uri")
     end
 

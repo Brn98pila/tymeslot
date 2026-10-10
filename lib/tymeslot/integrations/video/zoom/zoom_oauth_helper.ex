@@ -80,6 +80,9 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
 
   Exchanges the code (the caller has verified the state), then fetches the
   Zoom user profile so the integration can be uniquely identified by the Zoom account ID.
+
+  `profile_retry:` takes `Tymeslot.Infrastructure.Retry` options for the
+  profile request (tests shorten its delays).
   """
   @impl Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperBehaviour
   @spec exchange_code_for_tokens(String.t(), String.t(), keyword()) ::
@@ -88,7 +91,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
   def exchange_code_for_tokens(code, redirect_uri, opts \\ []) do
     with {:ok, tokens} <- fetch_tokens(code, redirect_uri, opts),
          :ok <- verify_required_scopes(tokens),
-         {:ok, profile} <- fetch_user_profile(tokens.access_token) do
+         {:ok, profile} <- fetch_user_profile(tokens.access_token, opts) do
       {:ok, build_result_tokens(tokens, profile)}
     end
   end
@@ -174,7 +177,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
     end
   end
 
-  defp fetch_user_profile(token) do
+  defp fetch_user_profile(token, opts) do
     headers = [
       {"Authorization", "Bearer #{token}"},
       {"Content-Type", "application/json"}
@@ -199,7 +202,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
           {:error, reason}
       end
     end
-    |> Retry.with_backoff()
+    |> Retry.with_backoff(Keyword.get(opts, :profile_retry, []))
     |> profile_error_message()
   end
 
