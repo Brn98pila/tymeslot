@@ -7,7 +7,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails do
   was notified.
 
   The job waits a little before it runs and carries the end the attendees
-  last heard of (`MeetingScheduler.schedule_end_change_emails/2`), so the
+  last heard of (`EndChangeScheduler.schedule_end_change_emails/2`), so the
   notice announces the meeting as it stands when the job runs, and a host
   dragging the end several times sends one notice. An end moved back to
   where it was announces nothing.

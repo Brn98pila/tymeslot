@@ -7,6 +7,8 @@ defmodule Tymeslot.Emails.EmailScheduler do
 
   - `MeetingScheduler` — confirmation, cancellation, reminder, reschedule, and
     booking-approval emails
+  - `EndChangeScheduler`: the notices of a booking whose end the host moved
+    in their own calendar
   - `AuthScheduler` — email verification, password reset, and the account
     notices sent instead of an on-screen answer (no password to reset, a
     sign-up attempt with a registered address)
@@ -22,6 +24,7 @@ defmodule Tymeslot.Emails.EmailScheduler do
   alias Tymeslot.Emails.EmailScheduler.AccountScheduler
   alias Tymeslot.Emails.EmailScheduler.AuthScheduler
   alias Tymeslot.Emails.EmailScheduler.CalendarScheduler
+  alias Tymeslot.Emails.EmailScheduler.EndChangeScheduler
   alias Tymeslot.Emails.EmailScheduler.IntegrationScheduler
   alias Tymeslot.Emails.EmailScheduler.MeetingScheduler
 
@@ -31,7 +34,7 @@ defmodule Tymeslot.Emails.EmailScheduler do
   defdelegate schedule_seat_confirmation_emails(meeting_id, participant_id), to: MeetingScheduler
   defdelegate schedule_cancellation_emails(meeting_id), to: MeetingScheduler
   defdelegate schedule_reschedule_emails(meeting, original), to: MeetingScheduler
-  defdelegate schedule_end_change_emails(meeting_id, previous_end), to: MeetingScheduler
+  defdelegate schedule_end_change_emails(meeting_id, previous_end), to: EndChangeScheduler
 
   defdelegate schedule_seat_cancellation_emails(meeting_id, participant_id, slot_freed?),
     to: MeetingScheduler
