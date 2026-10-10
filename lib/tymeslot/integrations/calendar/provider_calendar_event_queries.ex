@@ -85,7 +85,9 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries do
   start falls in `[now, window_end)`, ordered by start time and capped.
 
   Only timed events are returned — all-day events have no meaningful clock time
-  to fire a desktop reminder against. Reminder filtering (events that actually
+  to fire a desktop reminder against. Busy time with nothing to show
+  (`busy_only` rows) is left out, as on the grid, so it never takes a place
+  under the limit. Reminder filtering (events that actually
   carry reminders) is done by the caller after normalisation.
 
   ## Options
@@ -110,6 +112,7 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries do
 
     ProviderCalendarEventSchema
     |> where([e], e.calendar_integration_id in ^integration_ids)
+    |> where([e], e.role != ^@role_busy_only)
     |> where([e], e.all_day == false and not is_nil(e.start_at))
     |> where([e], e.start_at >= ^now and e.start_at < ^window_end)
     |> where([e], ^Visibility.dynamic_for(rules))

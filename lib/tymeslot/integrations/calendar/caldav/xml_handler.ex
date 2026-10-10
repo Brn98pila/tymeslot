@@ -32,7 +32,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
           required(:start_time) => DateTime.t() | Date.t(),
           required(:end_time) => DateTime.t() | Date.t() | nil,
           required(:transparency) => String.t() | nil,
-          required(:raw_ical) => String.t()
+          required(:raw_ical) => String.t() | nil
         }
 
   @doc """
@@ -170,6 +170,13 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
           transform_by(
             ~x".//*[local-name()='current-user-privilege-set']/*[local-name()='privilege']/*[local-name()='read' or local-name()='all']",
             &(&1 != nil)
+          ),
+        # `CALDAV:read-free-busy` alone: the calendar answers the RFC 4791
+        # free-busy-query REPORT with its busy periods and nothing else.
+        has_free_busy_privilege:
+          transform_by(
+            ~x".//*[local-name()='current-user-privilege-set']/*[local-name()='privilege']/*[local-name()='read-free-busy']",
+            &(&1 != nil)
           )
       )
       |> Enum.filter(&include_calendar?/1)
@@ -180,7 +187,8 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
           path: cal.href,
           color: cal.calendar_color,
           selected: Keyword.get(opts, :selected_default, false),
-          read_only: read_only?(cal)
+          read_only: read_only?(cal),
+          free_busy_only: free_busy_only?(cal)
         }
       end)
 
@@ -355,16 +363,18 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
   defp build_prop_element(other),
     do: raise(ArgumentError, "unknown CalDAV property atom: #{inspect(other)}")
 
-  # A calendar whose reported privilege set grants neither read nor write
-  # (a free/busy-only share) cannot have its events read, so it is not
-  # offered at all. A set listing write alone is taken as readable: a server
-  # is not known to grant one without the other, and leaving out a writable
-  # calendar would cost the organiser their booking calendar. Without a
-  # privilege set (most servers send none), readable is assumed.
+  # A calendar whose reported privilege set grants none of read, write and
+  # read-free-busy cannot be read at all, so it is not offered. One granting
+  # read-free-busy alone is kept as free/busy only (`free_busy_only?/1`). A
+  # set listing write alone is taken as readable: a server is not known to
+  # grant one without the other, and leaving out a writable calendar would
+  # cost the organiser their booking calendar. Without a privilege set (most
+  # servers send none), readable is assumed.
   defp include_calendar?(%{
          has_privilege_set: true,
          has_read_privilege: false,
          has_write_privilege: false,
+         has_free_busy_privilege: false,
          href: href
        }) do
     Logger.debug("CalDAV calendar excluded: privilege set grants no read access", href: href)
@@ -398,6 +408,19 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandler do
   # privileges at all (most do not) are treated as writable.
   defp read_only?(%{has_privilege_set: true, has_write_privilege: false}), do: true
   defp read_only?(_other), do: false
+
+  # Shared for free/busy only: the privilege set grants `read-free-busy` and
+  # neither read nor write. Such a calendar is read through the
+  # free-busy-query REPORT (`CalDAV.FreeBusy`), never synced, never written.
+  defp free_busy_only?(%{
+         has_privilege_set: true,
+         has_read_privilege: false,
+         has_write_privilege: false,
+         has_free_busy_privilege: true
+       }),
+       do: true
+
+  defp free_busy_only?(_other), do: false
 
   defp determine_calendar_name(%{displayname: displayname, href: _calendar_href})
        when displayname != "" do

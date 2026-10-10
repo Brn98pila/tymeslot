@@ -53,14 +53,14 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.SubscriptionConnectTest do
     end)
   end
 
-  defp subscribe(view, url \\ @feed_url) do
+  defp subscribe(view, url \\ @feed_url, extra \\ %{}) do
     view
     |> element("button[phx-click='connect_provider'][phx-value-provider='ics_url']")
     |> render_click()
 
     view
     |> form("#calendar-subscription-form", %{
-      "integration" => %{"name" => "Work calendar", "url" => url}
+      "integration" => Map.merge(%{"name" => "Work calendar", "url" => url}, extra)
     })
     |> render_submit()
 
@@ -164,6 +164,16 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.SubscriptionConnectTest do
       assert [calendar] = integration.calendar_list
       assert calendar.read_only
       assert Calendar.writable_calendars(integration.calendar_list) == []
+    end
+
+    test "the subscription blocks unless the form's box is unticked", %{conn: conn, user: user} do
+      stub_feed()
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/integrations?tab=calendars")
+      subscribe(view, @feed_url, %{"blocks_availability" => "false"})
+
+      assert %{calendar_list: [%{blocks_availability: false}]} =
+               Repo.get_by(CalendarIntegrationSchema, user_id: user.id, provider: "ics_url")
     end
 
     @tag :capture_log

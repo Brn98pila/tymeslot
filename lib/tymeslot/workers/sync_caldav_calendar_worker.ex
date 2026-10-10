@@ -83,6 +83,7 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
   @server_error "CalDAV server returned a server error; the next scheduled sync will retry"
   @server_unreachable "CalDAV server did not respond; the next scheduled sync will retry"
   @too_large "CalDAV server returned more data than Tymeslot can process at once"
+  @free_busy_unreadable "A CalDAV calendar shared as busy times only could not be read; its last busy times are kept and the next scheduled sync will retry"
 
   @impl ExpectedJobOutcome
   def expected_outcome?(reason),
@@ -94,7 +95,8 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
         @no_calendar,
         @server_error,
         @server_unreachable,
-        @too_large
+        @too_large,
+        @free_busy_unreadable
       ] or reason == ReauthHandling.discard_reason()
 
   @impl Oban.Worker
@@ -224,6 +226,13 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
   # health check surfaces the integration.
   defp handle_sync_result({:error, :response_too_large}, _integration),
     do: {:discard, @too_large}
+
+  # A calendar shared as busy times only that would not answer its
+  # free-busy-query. Never a reason to reconnect: a 403 there means the share
+  # changed, and discovery is what drops a calendar that is gone. Its last
+  # busy times stay cached; the next cycle asks again.
+  defp handle_sync_result({:error, {:free_busy_unreadable, _reason}}, _integration),
+    do: {:discard, @free_busy_unreadable}
 
   # A 4xx there is no talking the request out of (415, 400…, and the modelled
   # `:method_not_allowed`) is the server

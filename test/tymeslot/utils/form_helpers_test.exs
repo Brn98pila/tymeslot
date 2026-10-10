@@ -48,6 +48,11 @@ defmodule Tymeslot.Utils.FormHelpersTest do
   end
 
   describe "format_context_error/1" do
+    test "explains a calendar gone while the save ran, rather than naming the atom" do
+      assert %{base: [message]} = FormHelpers.format_context_error(:not_found)
+      assert message =~ "no longer available"
+    end
+
     test "formats known error atoms" do
       assert FormHelpers.format_context_error(:video_integration_required) ==
                %{video_integration: ["Please select a video provider for video meetings"]}

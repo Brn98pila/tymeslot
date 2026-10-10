@@ -21,6 +21,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   the same order.
   """
 
+  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
@@ -40,16 +41,30 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   delete cascades into them): their integration cache locks are taken
   first, before the profile and integration rows, in the order
   `IntegrationCacheQueries` documents.
+
+  Each change made under the lock (a toggle, a pause, a delete, a new or
+  reconnected calendar, a booking calendar made to block) can change what
+  the user's booking page offers, so their cached availability is dropped
+  once the transaction commits. Nested in a caller's transaction, it is left
+  to that caller.
   """
   @spec under_lock(pos_integer(), (-> result), cache_of: [pos_integer()]) ::
           {:ok, result} | {:error, term()}
         when result: term()
   def under_lock(user_id, fun, opts \\ []) do
-    Repo.transaction(fn ->
-      IntegrationCacheQueries.lock_cache_class(Keyword.get(opts, :cache_of, []))
-      CalendarIntegrationQueries.lock_user_profile_and_integrations(user_id)
-      fun.()
-    end)
+    result =
+      Repo.transaction(fn ->
+        IntegrationCacheQueries.lock_cache_class(Keyword.get(opts, :cache_of, []))
+        CalendarIntegrationQueries.lock_user_profile_and_integrations(user_id)
+        fun.()
+      end)
+
+    with {:ok, _value} <- result,
+         false <- CalendarIntegrationQueries.in_transaction?() do
+      AvailabilityCache.invalidate_for_user(user_id)
+    end
+
+    result
   end
 
   @doc """
