@@ -89,7 +89,8 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   # so `calendar_paths` is left alone: it must stay empty for those providers.
   defp auto_select_primary_calendar(integration, discovered) do
     # A reconnected account keeps whether each calendar it already knew
-    # blocks availability; the selection is discovery's, as on any connect.
+    # blocks availability; the selection is discovery's, as on any connect,
+    # but for its booking calendars.
     calendars =
       discovered
       |> Enum.map(&CalendarEntry.normalize/1)
@@ -101,16 +102,14 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
       Defaults.primary_id(eligible) || Defaults.selected_id(eligible) ||
         Defaults.first_id_from_list(eligible)
 
-    # The booking calendar must block availability (see `Blocking`).
     attrs =
       if default_calendar_id,
-        do: %{
-          calendar_list: Blocking.with_booking_calendar_blocking(calendars, default_calendar_id),
-          default_booking_calendar_id: default_calendar_id
-        },
-        else: %{calendar_list: calendars}
+        do: %{default_booking_calendar_id: default_calendar_id},
+        else: %{}
 
-    Selection.replace_selection(integration, attrs)
+    # A booking calendar, this one or one a meeting type names, stays
+    # selected and blocking whatever discovery says (see `Blocking`).
+    Blocking.replace_selection(integration, calendars, attrs)
   end
 
   defp validate_and_prepare_integration(user_id, integration_id) do

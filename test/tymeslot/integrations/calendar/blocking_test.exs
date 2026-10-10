@@ -14,11 +14,9 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
   import Tymeslot.AvailabilityTestHelpers
 
   alias Tymeslot.Integrations.Calendar.Blocking
-  alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.OwnerActions
   alias Tymeslot.Integrations.Calendar.Runtime.EventFetcher
-  alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.MeetingTypes
@@ -312,13 +310,6 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
       assert updated.default_booking_calendar_id == "work"
       assert blocks?(integration, "work")
     end
-
-    test "a list stored with its booking calendar has that calendar blocking" do
-      list = Enum.map(calendars(), &CalendarEntry.normalize/1)
-
-      assert [_work, _team, %{id: "rota", blocks_availability: true}] =
-               Blocking.with_booking_calendar_blocking(list, "rota")
-    end
   end
 
   describe "the booking page after a change" do
@@ -380,8 +371,7 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
 
       list = Enum.map(ctx.integration.calendar_list, &%{&1 | selected: &1.id == "work"})
 
-      {:ok, _updated} =
-        Selection.replace_selection(ctx.integration, Selection.calendar_list_attrs(list))
+      {:ok, _updated} = Blocking.replace_selection(ctx.integration, list, %{})
 
       assert "2:00 PM" in offered(ctx.profile, ctx.date, "30min")
     end

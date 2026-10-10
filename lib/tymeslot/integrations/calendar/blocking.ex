@@ -393,17 +393,6 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
     |> invalidate_on_success()
   end
 
-  @doc """
-  `calendar_list` with the entry `calendar_id` made to block, for a write
-  that stores a list and its default booking calendar together.
-  """
-  @spec with_booking_calendar_blocking([CalendarEntry.t()], String.t() | nil) ::
-          [CalendarEntry.t()]
-  def with_booking_calendar_blocking(calendar_list, nil), do: calendar_list
-
-  def with_booking_calendar_blocking(calendar_list, calendar_id),
-    do: put(calendar_list, calendar_id, true)
-
   defp find(calendar_list, calendar_id) do
     Enum.find(calendar_list || [], fn cal ->
       UriUtils.uri_safe_match?(CalendarEntry.normalize(cal).id, calendar_id)

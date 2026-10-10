@@ -186,27 +186,6 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   end
 
   @doc """
-  Writes `attrs`, a whole selection the owner or a fresh connection decided
-  on (and, for a reconnect, the new credentials), to the row as it stands,
-  under the row lock `persist_discovered/2` takes, so a discovery merge
-  cannot interleave with it and undo it. Replaces rather than merges: the
-  selection in `attrs` is the one that must win.
-  """
-  @spec replace_selection(
-          Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t(),
-          map()
-        ) ::
-          {:ok, Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t()}
-          | {:error, Ecto.Changeset.t() | :not_found}
-  def replace_selection(%{id: id}, attrs) when is_map(attrs) do
-    id
-    |> CalendarSelectionQueries.with_locked_stored(fn stored ->
-      CalendarManagement.update_calendar_integration(stored, attrs)
-    end)
-    |> invalidate_after_commit()
-  end
-
-  @doc """
   Deselects the calendars `calendar_ids` of `integration` that the provider
   answered as gone (HTTP 404), on the row as it stands
   (`CalendarSelectionQueries.deselect_calendars/2`). A calendar that stopped

@@ -336,7 +336,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
 
   # A reconnect writes the selection its owner just made, from the
   # integration it read before discovery went to the network.
-  describe "Selection.replace_selection/2 from a stale copy" do
+  describe "Blocking.replace_selection/3 from a stale copy" do
     setup do
       integration =
         insert(:calendar_integration,
@@ -356,8 +356,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
       {:ok, _elsewhere} =
         select_only(stale, ["/cal/a/", "/cal/b/"])
 
-      {:ok, updated} =
-        Selection.replace_selection(stale, Selection.calendar_list_attrs(stale.calendar_list))
+      {:ok, updated} = Blocking.replace_selection(stale, stale.calendar_list, %{})
 
       stored = Repo.reload!(stale)
       assert updated.calendar_paths == ["/cal/a/"]
@@ -378,7 +377,10 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
       )
 
       assert {:ok, _updated} =
-               Selection.replace_selection(stale, %{username: "alice", password: "fresh"})
+               Blocking.replace_selection(stale, stale.calendar_list, %{
+                 username: "alice",
+                 password: "fresh"
+               })
 
       assert {:ok, %{username: "alice", password: "fresh"}} =
                CalendarIntegrationQueries.get(stale.id)
