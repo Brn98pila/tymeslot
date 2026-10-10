@@ -449,3 +449,15 @@ msgid "%{name}: 1 change made here was not saved to the calendar."
 msgid_plural "%{name}: %{count} changes made here were not saved to the calendar."
 msgstr[0] "%{name}: %{count} alteração feita aqui não foi salva no calendário."
 msgstr[1] "%{name}: %{count} alterações feitas aqui não foram salvas no calendário."
+
+#: lib/tymeslot_web/live/dashboard/integrations_hub_component.ex
+#, elixir-autogen, elixir-format
+msgid "%{name}: %{count} calendar is no longer on your calendar server, so Tymeslot has stopped using it."
+msgid_plural "%{name}: %{count} calendars are no longer on your calendar server, so Tymeslot has stopped using them."
+msgstr[0] "%{name}: %{count} calendário não está mais no seu servidor de calendário, então o Tymeslot parou de usá-lo."
+msgstr[1] "%{name}: %{count} calendários não estão mais no seu servidor de calendário, então o Tymeslot parou de usá-los."
+
+#: lib/tymeslot_web/live/dashboard/integrations_hub_component.ex
+#, elixir-autogen, elixir-format
+msgid "%{name}: “%{calendar}” is no longer on your calendar server, so Tymeslot has stopped using it."
+msgstr "%{name}: o calendário “%{calendar}” não está mais no seu servidor de calendário, então o Tymeslot parou de usá-lo."

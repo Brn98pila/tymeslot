@@ -204,6 +204,15 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
     end
   end
 
+  def handle_event("dismiss_removed_calendars", %{"id" => id}, socket) do
+    with_owned_integration(socket, id, &Calendar.dismiss_removed_calendars/2, fn
+      {:ok, _cleared} ->
+        # The hub's banner lists the same calendars, from the parent's copy.
+        send(self(), {:integration_updated, :calendar})
+        {:noreply, load_integrations(socket)}
+    end)
+  end
+
   def handle_event("retry_stuck_changes", %{"id" => id}, socket) do
     with_owned_integration(socket, id, &Calendar.retry_stuck_changes/2, fn
       {:ok, _retried} ->

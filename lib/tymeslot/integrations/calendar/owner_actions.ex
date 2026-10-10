@@ -3,7 +3,8 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   The changes an organiser makes to one of their own connected calendars from
   the dashboard: switching it on or off, renaming it, recolouring it, ticking
   its calendars, refreshing it, retrying the changes its server kept
-  refusing, and deleting it.
+  refusing, dismissing the notice about calendars its server stopped
+  listing, and deleting it.
 
   Every function takes the acting user's id and the integration's id. It
   charges the user's budget first, then loads the integration scoped to that
@@ -14,13 +15,14 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
 
   The budgets are the existing ones: the shared integration write budget for
   changes to what is synced and booked, the looser appearance budget for name
-  and colour, and the refresh budget for a refresh, which a retry of stuck
+  and colour and for dismissing a notice, and the refresh budget for a refresh, which a retry of stuck
   changes is too: it asks for a sync.
   """
 
   alias Tymeslot.Dashboard.DashboardContext
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Deletion
   alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
@@ -176,6 +178,18 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
       released = OfflineQueue.release_stuck(integration.id)
 
       with {:ok, _job} <- SyncSchedule.request_sync(integration), do: {:ok, released}
+    end)
+  end
+
+  @doc """
+  Dismisses the notice about calendars the server stopped listing, emptying
+  the integration's `removed_calendars`.
+  """
+  @spec dismiss_removed_calendars(pos_integer(), pos_integer()) ::
+          {:ok, boolean()} | {:error, refusal()}
+  def dismiss_removed_calendars(user_id, integration_id) do
+    with_owned(user_id, integration_id, :appearance, fn integration ->
+      CalendarIntegrationQueries.clear_removed_calendars(integration)
     end)
   end
 

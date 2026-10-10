@@ -145,7 +145,8 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
 
       :ok ->
         room_creation_attention(integration, tab) ++
-          stuck_attention(Map.get(stuck_changes, integration.id), integration, tab)
+          stuck_attention(Map.get(stuck_changes, integration.id), integration, tab) ++
+          removed_attention(integration, tab)
 
       _paused ->
         []
@@ -199,6 +200,41 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
           )
       }
     ]
+
+  # A calendar the server stopped listing, until its owner dismisses the
+  # notice on the calendar's card. Only calendar integrations record them.
+  defp removed_attention(%{removed_calendars: [%{name: calendar}]} = integration, tab),
+    do: [
+      %{
+        tab: tab,
+        severity: :warning,
+        message:
+          dgettext(
+            "dashboard_integrations",
+            "%{name}: “%{calendar}” is no longer on your calendar server, so Tymeslot has stopped using it.",
+            name: integration.name,
+            calendar: calendar
+          )
+      }
+    ]
+
+  defp removed_attention(%{removed_calendars: [_first | _rest] = removed} = integration, tab),
+    do: [
+      %{
+        tab: tab,
+        severity: :warning,
+        message:
+          dngettext(
+            "dashboard_integrations",
+            "%{name}: %{count} calendar is no longer on your calendar server, so Tymeslot has stopped using it.",
+            "%{name}: %{count} calendars are no longer on your calendar server, so Tymeslot has stopped using them.",
+            length(removed),
+            name: integration.name
+          )
+      }
+    ]
+
+  defp removed_attention(_integration, _tab), do: []
 
   defp payment_attention(:restricted),
     do: [
