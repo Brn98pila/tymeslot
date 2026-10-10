@@ -31,6 +31,11 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
 
   require Logger
 
+  # The profile is fetched during the OAuth callback, with the owner waiting
+  # on the page: a rate limit asking for longer than this fails the connect
+  # with its error rather than holding the request.
+  @profile_retry [max_rate_limit_wait: 2_000]
+
   # Granular scopes are one per action, so each write Tymeslot performs has to
   # be asked for by name. `Scopes` owns which ones this deployment asks for and
   # why one of them is conditional; keeping the list there is what lets the
@@ -80,15 +85,18 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
 
   Exchanges the code (the caller has verified the state), then fetches the
   Zoom user profile so the integration can be uniquely identified by the Zoom account ID.
+
+  `profile_retry:` takes `Tymeslot.Infrastructure.Retry` options for the
+  profile request (tests shorten its delays).
   """
   @impl Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperBehaviour
   @spec exchange_code_for_tokens(String.t(), String.t(), keyword()) ::
-          {:ok, map()} | {:error, String.t()}
+          {:ok, map()} | {:error, String.t() | :provider_rate_limited}
   # credo:disable-for-next-line Credo.Check.Design.DuplicatedCode
   def exchange_code_for_tokens(code, redirect_uri, opts \\ []) do
     with {:ok, tokens} <- fetch_tokens(code, redirect_uri, opts),
          :ok <- verify_required_scopes(tokens),
-         {:ok, profile} <- fetch_user_profile(tokens.access_token) do
+         {:ok, profile} <- fetch_user_profile(tokens.access_token, opts) do
       {:ok, build_result_tokens(tokens, profile)}
     end
   end
@@ -174,16 +182,23 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
     end
   end
 
-  defp fetch_user_profile(token) do
+  defp fetch_user_profile(token, opts) do
     headers = [
       {"Authorization", "Bearer #{token}"},
       {"Content-Type", "application/json"}
     ]
 
-    Retry.with_backoff(fn ->
+    # The reason stays structured inside the retry, so a 5xx or a dropped
+    # connection is retried and the message names what failed last.
+    fn ->
       case Config.http_client_module().get(@user_profile_url, headers, []) do
         {:ok, %Req.Response{status: 200, body: body}} ->
           parse_profile_body(body)
+
+        # Retried after the wait the provider names, when it names one.
+        {:ok, %Req.Response{status: 429} = response} ->
+          Logger.warning("Zoom user profile request rate limited")
+          {:error, {:rate_limited, Retry.retry_after_seconds(response)}}
 
         {:ok, %Req.Response{status: status, body: body}} ->
           Logger.error("Failed to fetch Zoom user profile",
@@ -191,16 +206,32 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper do
             body: Redactor.redact_and_truncate(body)
           )
 
-          {:error, "Failed to fetch user profile: HTTP #{status}"}
-
-        {:error, exception} when is_exception(exception) ->
-          {:error, "Network error fetching profile: #{Exception.message(exception)}"}
+          {:error, {:http_error, status, body}}
 
         {:error, reason} ->
-          {:error, "Network error fetching profile: #{inspect(reason)}"}
+          {:error, reason}
       end
-    end)
+    end
+    |> Retry.with_backoff(Keyword.merge(@profile_retry, Keyword.get(opts, :profile_retry, [])))
+    |> profile_error_message()
   end
+
+  defp profile_error_message({:error, {:http_error, status, _body}}),
+    do: {:error, "Failed to fetch user profile: HTTP #{status}"}
+
+  # The owner is told the provider is busy, rather than shown a status code.
+  defp profile_error_message({:error, {:rate_limited, _seconds}}),
+    do: {:error, :provider_rate_limited}
+
+  defp profile_error_message({:error, exception}) when is_exception(exception),
+    do: {:error, "Network error fetching profile: #{Exception.message(exception)}"}
+
+  defp profile_error_message({:error, reason}) when is_binary(reason), do: {:error, reason}
+
+  defp profile_error_message({:error, reason}),
+    do: {:error, "Network error fetching profile: #{inspect(reason)}"}
+
+  defp profile_error_message(result), do: result
 
   defp parse_profile_body(body) do
     case Jason.decode(body) do

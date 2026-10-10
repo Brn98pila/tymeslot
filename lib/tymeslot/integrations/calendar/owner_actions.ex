@@ -3,7 +3,8 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   The changes an organiser makes to one of their own connected calendars from
   the dashboard: switching it on or off, renaming it, recolouring it, ticking
   its calendars and choosing which of them block availability, refreshing
-  it, retrying the changes its server kept refusing, and deleting it.
+  it, retrying the changes its server kept refusing, dismissing the notice
+  about calendars its server stopped listing, and deleting it.
 
   Every function takes the acting user's id and the integration's id. It
   charges the user's budget first, then loads the integration scoped to that
@@ -14,7 +15,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
 
   The budgets are the existing ones: the shared integration write budget for
   changes to what is synced and booked, the looser appearance budget for name
-  and colour, and the refresh budget for a refresh, which a retry of stuck
+  and colour and for dismissing a notice, and the refresh budget for a refresh, which a retry of stuck
   changes is too: it asks for a sync.
   """
 
@@ -23,6 +24,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.Deletion
   alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
   alias Tymeslot.Integrations.Calendar.ProviderConfig
@@ -211,6 +213,19 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
       released = OfflineQueue.release_stuck(integration.id)
 
       with {:ok, _job} <- SyncSchedule.request_sync(integration), do: {:ok, released}
+    end)
+  end
+
+  @doc """
+  Dismisses the notice about calendars the server stopped listing, for the
+  entries in `shown_ids`: those the owner was shown. One recorded after the
+  notice was rendered stays, so the owner sees it before it can go.
+  """
+  @spec dismiss_removed_calendars(pos_integer(), pos_integer(), [String.t()]) ::
+          {:ok, boolean()} | {:error, refusal() | Ecto.Changeset.t()}
+  def dismiss_removed_calendars(user_id, integration_id, shown_ids) do
+    with_owned(user_id, integration_id, :appearance, fn integration ->
+      CalendarSelectionQueries.dismiss_removed_calendars(integration, shown_ids)
     end)
   end
 

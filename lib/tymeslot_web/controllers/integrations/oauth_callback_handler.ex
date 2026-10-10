@@ -78,7 +78,12 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandler do
 
   # Reasons the user can act on get their own message; anything else is a
   # generic failure worth an error-level log.
-  @actionable_reasons [:calendar_scope_missing, :missing_teams_fields, :missing_zoom_account_id]
+  @actionable_reasons [
+    :calendar_scope_missing,
+    :missing_teams_fields,
+    :missing_zoom_account_id,
+    :provider_rate_limited
+  ]
 
   @doc """
   Handles a provider's OAuth callback request and returns the redirected conn.
@@ -211,6 +216,14 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandler do
     dgettext(
       "dashboard_integrations",
       "Missing required Microsoft Teams information. Please try again."
+    )
+  end
+
+  defp failure_message(:provider_rate_limited, config) do
+    dgettext(
+      "dashboard_integrations",
+      "%{service} is busy right now. Please try again in a minute.",
+      service: config.name
     )
   end
 

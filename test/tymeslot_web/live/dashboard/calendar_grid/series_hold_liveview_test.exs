@@ -28,6 +28,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.SeriesHoldLiveViewTest do
 
   alias Plug.Test
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
+  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
 
@@ -53,8 +54,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.SeriesHoldLiveViewTest do
     end)
 
     for base <- [@source_base, @destination_base] do
-      CalendarCircuitBreaker.reset_for_url(:caldav, base)
-      CalendarCircuitBreaker.reset_for_url(:radicale, base)
+      CalendarCircuitBreaker.reset(:caldav, ProviderBreakers.host_from_base_url(base))
+      CalendarCircuitBreaker.reset(:radicale, ProviderBreakers.host_from_base_url(base))
     end
 
     user = insert(:user, onboarding_completed_at: DateTime.utc_now())

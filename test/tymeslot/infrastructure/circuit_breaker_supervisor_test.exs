@@ -4,10 +4,10 @@ defmodule Tymeslot.Infrastructure.CircuitBreakerSupervisorTest do
   @moduletag :infrastructure
 
   alias Tymeslot.Infrastructure.CircuitBreaker
-  alias Tymeslot.Infrastructure.CircuitBreakerHelpers
   alias Tymeslot.Infrastructure.CircuitBreakerRegistry
   alias Tymeslot.Infrastructure.CircuitBreakerSupervisor
   alias Tymeslot.Infrastructure.DynamicCircuitBreakerSupervisor
+  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Integrations.Calendar.ProviderConfig, as: CalendarProviderConfig
   alias Tymeslot.Integrations.Video.ProviderConfig, as: VideoProviderConfig
 
@@ -94,7 +94,7 @@ defmodule Tymeslot.Infrastructure.CircuitBreakerSupervisorTest do
     test "a host-keyed breaker starts under the dynamic supervisor and is found in the registry" do
       name = {:via, Registry, {CircuitBreakerRegistry, "circuit-breaker-supervisor-test.example"}}
 
-      refute CircuitBreakerHelpers.breaker_exists?(name)
+      refute ProviderBreakers.breaker_exists?(name)
 
       assert {:ok, pid} =
                DynamicSupervisor.start_child(
@@ -108,7 +108,7 @@ defmodule Tymeslot.Infrastructure.CircuitBreakerSupervisorTest do
         end
       end)
 
-      assert CircuitBreakerHelpers.breaker_exists?(name)
+      assert ProviderBreakers.breaker_exists?(name)
       assert %{status: :closed} = CircuitBreaker.status(name)
     end
   end

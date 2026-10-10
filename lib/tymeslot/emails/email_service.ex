@@ -230,6 +230,10 @@ defmodule Tymeslot.Emails.EmailService do
     to: IntegrationEmails
 
   @impl Tymeslot.Emails.EmailServiceBehaviour
+  defdelegate send_calendars_removed_notification(user, integration, calendar_names),
+    to: IntegrationEmails
+
+  @impl Tymeslot.Emails.EmailServiceBehaviour
   defdelegate send_admin_alert(recipient, category, severity, message, metadata),
     to: IntegrationEmails
 

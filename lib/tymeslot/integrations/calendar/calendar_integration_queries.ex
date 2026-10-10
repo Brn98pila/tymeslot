@@ -50,11 +50,17 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   """
   @spec list_all_active() :: list(CalendarIntegrationSchema.t())
   def list_all_active do
-    CalendarIntegrationSchema
-    |> where([c], c.is_active == true)
+    active_query()
     |> order_by([c], asc: c.name)
     |> Repo.all()
   end
+
+  @doc """
+  The query for every active integration across all users. For other
+  queries modules to join against.
+  """
+  @spec active_query() :: Ecto.Query.t()
+  def active_query, do: where(CalendarIntegrationSchema, [c], c.is_active == true)
 
   @doc """
   The next page of active integrations not waiting to be reconnected, in id
@@ -359,31 +365,33 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   def exists?(id), do: Repo.exists?(from(i in CalendarIntegrationSchema, where: i.id == ^id))
 
   @doc """
-  Flags an integration as needing reauthentication — used when the stored
-  credentials can no longer be decrypted. Also records a sync error so the
-  dashboard banner and the sync log stay consistent.
+  Flags an integration as needing reauthentication and records `message` as
+  its sync error, so the dashboard banner and the sync log stay consistent.
 
-  Stamps `reauth_flagged_at` only when the flag was not already set, so
-  re-flagging an integration already awaiting reconnection is not counted as a
-  new flag by `count_reauth_flagged_by_provider/2`.
+  Whether this is a new flag is decided by the row, not by `integration`,
+  which may be stale: of two concurrent flaggers, exactly one sees
+  `newly_flagged?` true. Only a new flag stamps `reauth_flagged_at`, so
+  re-flagging is not counted again by `count_reauth_flagged_by_provider/2`.
+  `{:error, :not_found}` when the row is gone.
   """
-  @spec mark_needs_reauth(CalendarIntegrationSchema.t(), String.t()) ::
-          {:ok, CalendarIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
-  def mark_needs_reauth(%CalendarIntegrationSchema{} = integration, error_message) do
-    integration
-    |> Changeset.change(%{needs_reauth: true, sync_error: error_message})
-    |> stamp_reauth_flagged_at(integration)
-    |> Repo.update()
-  end
+  @spec flag_needs_reauth(CalendarIntegrationSchema.t(), String.t()) ::
+          {:ok, CalendarIntegrationSchema.t(), newly_flagged? :: boolean()}
+          | {:error, :not_found}
+  def flag_needs_reauth(%CalendarIntegrationSchema{id: id} = integration, message) do
+    now = DateTime.truncate(Clock.utc_now(), :second)
+    row = where(CalendarIntegrationSchema, id: ^id)
+    flag = [needs_reauth: true, sync_error: message, updated_at: now]
 
-  defp stamp_reauth_flagged_at(changeset, %{needs_reauth: true}), do: changeset
+    case Repo.update_all(where(row, needs_reauth: false), set: [reauth_flagged_at: now] ++ flag) do
+      {1, _rows} ->
+        {:ok, struct(integration, [reauth_flagged_at: now] ++ flag), true}
 
-  defp stamp_reauth_flagged_at(changeset, _integration) do
-    Changeset.put_change(
-      changeset,
-      :reauth_flagged_at,
-      DateTime.truncate(Clock.utc_now(), :second)
-    )
+      {0, _rows} ->
+        case Repo.update_all(row, set: flag) do
+          {1, _rows} -> {:ok, struct(integration, flag), false}
+          {0, _rows} -> {:error, :not_found}
+        end
+    end
   end
 
   @doc """

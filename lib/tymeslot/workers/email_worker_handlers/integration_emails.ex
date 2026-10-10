@@ -297,6 +297,48 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.IntegrationEmails do
   defp delivery_failure(reason, _integration, _code),
     do: DeliveryOutcome.from_error(reason, "Failed to send notification")
 
+  @spec handle_calendars_removed_notification(%{String.t() => term()}) ::
+          :ok | {:error, term()} | {:discard, String.t()}
+  def handle_calendars_removed_notification(%{
+        "user_id" => user_id,
+        "integration_id" => integration_id,
+        "calendar_names" => [_first | _rest] = calendar_names
+      }) do
+    with {:ok, user} <- UserQueries.get_user(user_id),
+         {:ok, integration} <- fetch_integration("calendar", integration_id) do
+      case Config.email_service_module().send_calendars_removed_notification(
+             user,
+             integration,
+             calendar_names
+           ) do
+        {:ok, _result} ->
+          Logger.info("Calendars removed notification sent",
+            user_id: user_id,
+            integration_id: integration_id
+          )
+
+          :ok
+
+        {:error, reason} ->
+          Logger.error("Failed to send calendars removed notification",
+            user_id: user_id,
+            integration_id: integration_id,
+            error: LogFormat.reason(reason)
+          )
+
+          DeliveryOutcome.from_error(reason, "Failed to send notification")
+      end
+    else
+      {:error, :not_found} ->
+        Logger.warning("User or integration not found for calendars removed notification",
+          user_id: user_id,
+          integration_id: integration_id
+        )
+
+        {:discard, @gone}
+    end
+  end
+
   @spec handle_calendar_invitation(%{String.t() => term()}) ::
           :ok | {:error, term()} | {:discard, String.t()}
   def handle_calendar_invitation(%{"user_id" => user_id} = args) do

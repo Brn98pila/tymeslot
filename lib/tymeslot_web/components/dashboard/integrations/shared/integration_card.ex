@@ -63,7 +63,11 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Shared.IntegrationCard d
 
   attr :target, :any, default: nil
   attr :tags, :list, default: [], doc: "Event names shown as chips"
-  attr :notice, :string, default: nil, doc: "What needs the owner's attention"
+
+  attr :notice, :any,
+    default: nil,
+    doc: "What needs the owner's attention: a string, or a list of them shown one under another"
+
   attr :notice_tone, :atom, default: :warning, values: [:neutral, :warning, :danger]
 
   attr :heading_level, :integer,
@@ -194,12 +198,12 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Shared.IntegrationCard d
       </div>
 
       <p
-        :if={@notice}
+        :for={notice <- List.wrap(@notice)}
         data-part="notice"
         data-tone={@notice_tone}
         class={["mt-2 text-token-sm font-medium", @notice_class]}
       >
-        {@notice}
+        {notice}
       </p>
 
       <div

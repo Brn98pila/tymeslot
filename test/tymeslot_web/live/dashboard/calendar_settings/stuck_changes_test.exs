@@ -54,6 +54,39 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.StuckChangesTest do
   defp retry_button(view, integration),
     do: element(view, "button[phx-click='retry_stuck_changes'][phx-value-id='#{integration.id}']")
 
+  # The banner is the one place an owner who never opens the Calendars tab
+  # learns that the calendar differs from the grid.
+  test "the hub's attention banner lists the stuck change until it is retried", %{
+    conn: conn,
+    integration: integration
+  } do
+    integration |> Changeset.change(name: "Home server") |> Repo.update!()
+
+    {:ok, view, html} = live(conn, ~p"/dashboard/integrations?tab=calendars")
+
+    assert html =~ "1 connection needs attention"
+    assert html =~ "Home server: 1 change made here was not saved to the calendar."
+    assert has_element?(view, "a[href='/dashboard/integrations?tab=calendars']", "Review")
+
+    view |> retry_button(integration) |> render_click()
+
+    {:ok, _view, reloaded} = live(conn, ~p"/dashboard/integrations?tab=calendars")
+    refute reloaded =~ "needs attention"
+  end
+
+  # A paused calendar sends nothing and offers no retry, so its banner line
+  # says it is paused (or nothing), not that changes are stuck.
+  test "a paused calendar's stuck changes stay off the banner", %{
+    conn: conn,
+    integration: integration
+  } do
+    integration |> Changeset.change(is_active: false) |> Repo.update!()
+
+    {:ok, _view, html} = live(conn, ~p"/dashboard/integrations?tab=calendars")
+
+    refute html =~ "was not saved to the calendar"
+  end
+
   test "the card names the stuck change and Retry sends it again", %{
     conn: conn,
     integration: integration,

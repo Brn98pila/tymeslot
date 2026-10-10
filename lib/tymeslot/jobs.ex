@@ -26,6 +26,25 @@ defmodule Tymeslot.Jobs do
   defdelegate get_current_args(job), to: ObanJobQueries
 
   @doc """
+  Counts `worker`'s jobs whose args contain `args`, inserted at or after
+  `since`, with the oldest one's insertion time. See
+  `Tymeslot.Jobs.ObanJobQueries.count_inserted_since/3`.
+  """
+  defdelegate count_inserted_since(worker, args, since), to: ObanJobQueries
+
+  @doc """
+  Whether another of `worker`'s jobs for `meeting_id` started executing before
+  `job` and is executing still. See
+  `Tymeslot.Jobs.ObanJobQueries.earlier_job_executing?/3`.
+  """
+  defdelegate earlier_job_executing?(worker, meeting_id, job), to: ObanJobQueries
+
+  @doc """
+  The reminder jobs still to run for each of `meeting_ids`.
+  """
+  defdelegate pending_reminder_jobs(worker_module, meeting_ids), to: ObanJobQueries
+
+  @doc """
   Counts maintenance worker jobs in active states.
 
   A worker calls this with its own module before enqueuing, so a scheduled run
@@ -49,7 +68,9 @@ defmodule Tymeslot.Jobs do
   defdelegate workers_by_id(ids), to: ObanJobQueries
 
   @doc """
-  Moves a job to `discarded`, recording `error_info` against it.
+  Moves a job that is still `executing` to `discarded`, recording
+  `error_info` against it; `{:error, :no_longer_executing}` if it has since
+  finished or moved on.
   """
   defdelegate update_job_to_discarded(job, error_info), to: ObanJobQueries
 

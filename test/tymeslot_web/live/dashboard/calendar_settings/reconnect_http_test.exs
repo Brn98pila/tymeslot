@@ -27,6 +27,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ReconnectHttpTest do
   alias Plug.Conn
   alias Req.Test, as: ReqTest
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
+  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Repo
   alias Tymeslot.Security.Encryption
@@ -50,7 +51,12 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ReconnectHttpTest do
     # breaker and the host-specific one so a prior 401 run doesn't
     # short-circuit the next run's PROPFIND.
     CalendarCircuitBreaker.reset(:caldav)
-    CalendarCircuitBreaker.reset_for_url(:caldav, "http://localhost:65432")
+
+    CalendarCircuitBreaker.reset(
+      :caldav,
+      ProviderBreakers.host_from_base_url("http://localhost:65432")
+    )
+
     RateLimiter.clear_all()
     :ok
   end

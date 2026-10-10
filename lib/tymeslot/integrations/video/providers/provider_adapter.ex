@@ -19,10 +19,10 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
 
   require Logger
   alias Tymeslot.Infrastructure.BreakerOutcome
-  alias Tymeslot.Infrastructure.CircuitBreakerHelpers
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Logging.Redactor
   alias Tymeslot.Infrastructure.Metrics
+  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Infrastructure.VideoCircuitBreaker
   alias Tymeslot.Integrations.Video.MeetingContext
   alias Tymeslot.Integrations.Video.ProviderConfig
@@ -303,7 +303,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
       VideoCircuitBreaker.with_breaker(provider_type, [host: breaker_host(config)], fun)
     else
       # The breaker-enabled path unwraps `{:provider_error, reason}` back to
-      # `{:error, reason}` inside `VideoCircuitBreaker`/`CircuitBreakerHelpers`.
+      # `{:error, reason}` inside `ProviderBreakers`.
       # With the breaker disabled that unwrap never runs, so `create_room/3`
       # would otherwise hand `{:provider_error, _}` straight to
       # `create_meeting_room/2`'s `with/else`, which has no clause for it and
@@ -321,7 +321,7 @@ defmodule Tymeslot.Integrations.Video.Providers.ProviderAdapter do
   # sharing one breaker across every tenant on the provider. OAuth providers'
   # configs have no `base_url`, so this is a no-op for them.
   defp breaker_host(%{base_url: base_url}) when is_binary(base_url),
-    do: CircuitBreakerHelpers.host_from_base_url(base_url)
+    do: ProviderBreakers.host_from_base_url(base_url)
 
   defp breaker_host(_config), do: nil
 

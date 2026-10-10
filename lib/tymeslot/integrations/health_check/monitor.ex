@@ -27,7 +27,6 @@ defmodule Tymeslot.Integrations.HealthCheck.Monitor do
   # failure — the same order as the probe's own three-strikes-at-30-to-60-
   # minutes, and far short of the eleven days integration 97 went unnoticed.
   @default_sync_failure_threshold 10
-  @check_interval :timer.minutes(30)
   @max_backoff_ms :timer.hours(1)
   # On the very first transition into :unhealthy, override the standard 1 h
   # hard backoff with a quick 15-minute re-probe. This catches the common case
@@ -71,7 +70,7 @@ defmodule Tymeslot.Integrations.HealthCheck.Monitor do
       successes: 0,
       last_check_at: nil,
       status: :healthy,
-      backoff_ms: @check_interval,
+      backoff_ms: IntegrationHealthStateSchema.check_interval_ms(),
       last_error_class: nil,
       became_unhealthy_at: nil,
       notification_sent_at: nil
@@ -236,7 +235,7 @@ defmodule Tymeslot.Integrations.HealthCheck.Monitor do
         successes: health_state.successes + 1,
         last_check_at: Clock.utc_now(),
         status: determine_status(0, health_state.successes + 1, health_state.status),
-        backoff_ms: @check_interval,
+        backoff_ms: IntegrationHealthStateSchema.check_interval_ms(),
         last_error_class: nil
     }
   end

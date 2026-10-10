@@ -106,6 +106,7 @@ msgstr "Fehlerdetails"
 msgid "I was unable to add this meeting to your calendar. The appointment has been successfully confirmed in Tymeslot and both you and the attendee have received confirmation emails. However, you'll need to manually add it to your calendar."
 msgstr "Ich konnte diesen Termin nicht zu Ihrem Kalender hinzufügen. Der Termin wurde in Tymeslot erfolgreich bestätigt und sowohl Sie als auch der Teilnehmer haben Bestätigungs-E-Mails erhalten. Sie müssen ihn jedoch manuell zu Ihrem Kalender hinzufügen."
 
+#: lib/tymeslot/emails/templates/calendars_removed.ex
 #: lib/tymeslot/emails/templates/video_room_creation_error.ex
 #, elixir-autogen, elixir-format
 msgid "Integration"
@@ -176,12 +177,67 @@ msgstr "Uhrzeit:"
 msgid "Video rooms not created"
 msgstr "Videoräume nicht erstellt"
 
+#: lib/tymeslot/emails/templates/calendars_removed.ex
 #: lib/tymeslot/emails/templates/video_room_creation_error.ex
 #, elixir-autogen, elixir-format
 msgid "What should I do?"
 msgstr "Was muss ich tun?"
 
+#: lib/tymeslot/emails/templates/calendars_removed.ex
 #: lib/tymeslot/emails/templates/video_room_creation_error.ex
 #, elixir-autogen, elixir-format
 msgid "What's happening?"
 msgstr "Was ist passiert?"
+
+#: lib/tymeslot/emails/templates/calendars_removed.ex
+#, elixir-autogen, elixir-format
+msgid "%{count} calendar is no longer on your calendar server"
+msgid_plural "%{count} calendars are no longer on your calendar server"
+msgstr[0] "%{count} Kalender ist auf Ihrem Kalenderserver nicht mehr vorhanden"
+msgstr[1] "%{count} Kalender sind auf Ihrem Kalenderserver nicht mehr vorhanden"
+
+#: lib/tymeslot/emails/templates/calendars_removed.ex
+#, elixir-autogen, elixir-format
+msgid "Calendar no longer available"
+msgid_plural "Calendars no longer available"
+msgstr[0] "Kalender nicht mehr verfügbar"
+msgstr[1] "Kalender nicht mehr verfügbar"
+
+#: lib/tymeslot/emails/templates/calendars_removed.ex
+#, elixir-autogen, elixir-format
+msgid "If you removed it on purpose, there is nothing to do. If not, restore it on your calendar server, then select it again in your calendar settings."
+msgid_plural "If you removed them on purpose, there is nothing to do. If not, restore them on your calendar server, then select them again in your calendar settings."
+msgstr[0] "Wenn Sie ihn absichtlich entfernt haben, müssen Sie nichts tun. Andernfalls stellen Sie ihn auf Ihrem Kalenderserver wieder her und wählen ihn anschließend in Ihren Kalendereinstellungen erneut aus."
+msgstr[1] "Wenn Sie sie absichtlich entfernt haben, müssen Sie nichts tun. Andernfalls stellen Sie sie auf Ihrem Kalenderserver wieder her und wählen sie anschließend in Ihren Kalendereinstellungen erneut aus."
+
+#: lib/tymeslot/emails/templates/calendars_removed.ex
+#, elixir-autogen, elixir-format
+msgid "Open calendar settings"
+msgstr "Kalendereinstellungen öffnen"
+
+#: lib/tymeslot/emails/templates/calendars_removed.ex
+#, elixir-autogen, elixir-format
+msgid "These calendars are no longer on your calendar server, so Tymeslot has stopped using them:"
+msgstr "Diese Kalender sind auf Ihrem Kalenderserver nicht mehr vorhanden, daher verwendet Tymeslot sie nicht mehr:"
+
+#: lib/tymeslot/emails/templates/calendars_removed.ex
+#, elixir-autogen, elixir-format
+msgid "Tymeslot checked %{integration} and the server no longer has the calendar listed above. This usually means it was deleted, or stopped being shared with you, on the server. Your other calendars on %{integration} are unaffected."
+msgid_plural "Tymeslot checked %{integration} and the server no longer has the calendars listed above. This usually means they were deleted, or stopped being shared with you, on the server. Your other calendars on %{integration} are unaffected."
+msgstr[0] "Tymeslot hat %{integration} geprüft: Der oben genannte Kalender ist auf dem Server nicht mehr vorhanden. Meist bedeutet das, dass er auf dem Server gelöscht wurde oder nicht mehr für Sie freigegeben ist. Ihre anderen Kalender in %{integration} sind davon nicht betroffen."
+msgstr[1] "Tymeslot hat %{integration} geprüft: Die oben aufgeführten Kalender sind auf dem Server nicht mehr vorhanden. Meist bedeutet das, dass sie auf dem Server gelöscht wurden oder nicht mehr für Sie freigegeben sind. Ihre anderen Kalender in %{integration} sind davon nicht betroffen."
+
+#: lib/tymeslot/emails/templates/calendars_removed.ex
+#, elixir-autogen, elixir-format
+msgid "You get this email once each time a calendar disappears. The notice in your calendar settings stays until you dismiss it."
+msgstr "Wenn ein Kalender verschwindet, erhalten Sie dazu nur diese eine E-Mail. Der Hinweis in Ihren Kalendereinstellungen bleibt bestehen, bis Sie ihn schließen."
+
+#: lib/tymeslot/emails/templates/calendars_removed.ex
+#, elixir-autogen, elixir-format
+msgid "“%{calendar}” is no longer on your calendar server"
+msgstr "Der Kalender „%{calendar}“ ist auf Ihrem Kalenderserver nicht mehr vorhanden"
+
+#: lib/tymeslot/emails/templates/calendars_removed.ex
+#, elixir-autogen, elixir-format
+msgid "“%{calendar}” is no longer on your calendar server, so Tymeslot has stopped using it."
+msgstr "Der Kalender „%{calendar}“ ist auf Ihrem Kalenderserver nicht mehr vorhanden, daher verwendet Tymeslot ihn nicht mehr."

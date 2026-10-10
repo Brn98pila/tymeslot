@@ -103,6 +103,8 @@ defmodule Tymeslot.Emails.EmailServiceBehaviour do
               {:ok, any()} | {:error, any()}
   @callback send_video_room_creation_error_notification(user_map(), map()) ::
               {:ok, any()} | {:error, any()}
+  @callback send_calendars_removed_notification(user_map(), map(), [String.t()]) ::
+              {:ok, any()} | {:error, any()}
   @callback send_external_booking_change(map(), String.t(), :deleted | :modified) ::
               {:ok, any()} | {:error, any()}
   @callback send_calendar_invitation(String.t(), map()) :: {:ok, any()} | {:error, any()}

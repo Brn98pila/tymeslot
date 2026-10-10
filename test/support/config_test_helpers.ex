@@ -59,7 +59,7 @@ defmodule Tymeslot.ConfigTestHelpers do
   ### In Setup Blocks
 
       setup do
-        setup_config(:tymeslot, test_mode: true)
+        setup_config(:tymeslot, registration_enabled: false)
       end
 
   ## Important Notes
@@ -90,7 +90,7 @@ defmodule Tymeslot.ConfigTestHelpers do
       # Multiple config values
       with_config(:tymeslot, [
         stripe_webhook_secret: "whsec_test",
-        test_mode: true
+        registration_enabled: false
       ])
 
       # Can be called multiple times in a test
@@ -142,7 +142,7 @@ defmodule Tymeslot.ConfigTestHelpers do
       setup do
         setup_config(:tymeslot, [
           logo_links_to_marketing: false,
-          test_mode: true
+          registration_enabled: false
         ])
       end
 

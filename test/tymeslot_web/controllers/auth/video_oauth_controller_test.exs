@@ -503,6 +503,26 @@ defmodule TymeslotWeb.VideoOAuthControllerTest do
       assert Flash.get(conn.assigns.flash, :error) =~
                "Missing required Microsoft Teams information"
     end
+
+    test "teams_callback tells the owner Teams is busy when Graph rate limits", %{conn: conn} do
+      user_id = 998
+      conn = authenticate_state_user(conn, user_id)
+
+      :meck.expect(TeamsOAuthHelper, :exchange_code_for_tokens, fn _code, _uri, _opts ->
+        {:error, :provider_rate_limited}
+      end)
+
+      conn =
+        get(conn, ~p"/auth/teams/video/callback", %{
+          "code" => "code",
+          "state" => signed(:teams, user_id)
+        })
+
+      assert redirected_to(conn) == "/dashboard/integrations?tab=video"
+
+      assert Flash.get(conn.assigns.flash, :error) ==
+               "Microsoft Teams is busy right now. Please try again in a minute."
+    end
   end
 
   describe "dashboard integration status after connecting" do

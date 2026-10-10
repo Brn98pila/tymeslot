@@ -10,6 +10,7 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.ProviderConfig
+  alias Tymeslot.Integrations.Calendar.RemovedCalendars
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Utils.UriUtils
 
@@ -132,6 +133,11 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   network, and a calendar the owner ticked or unticked meanwhile must keep
   their choice. A merge that would empty a selection that was not empty
   keeps the stored list instead (see `keep_selection_if_emptied/2`).
+
+  A selected calendar the discovery no longer returns is dropped from the
+  list, and so recorded as removed and emailed about (see
+  `Tymeslot.Integrations.Calendar.RemovedCalendars`). A discovery that
+  failed never reaches this function.
   """
   @spec persist_discovered(
           Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t(),
@@ -148,7 +154,7 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
           |> unify_discovered_with_existing(fresh.calendar_list)
           |> keep_selection_if_emptied(fresh.calendar_list)
 
-        with {:ok, updated} <- persist_calendar_list(fresh, merged) do
+        with {:ok, updated} <- write_selection(fresh, calendar_list_attrs(merged)) do
           {:ok, {updated, merged, blocking_ids(fresh.calendar_list) != blocking_ids(merged)}}
         end
       end)
@@ -187,8 +193,9 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
 
   @doc """
   Deselects the calendars `calendar_ids` of `integration` that the provider
-  answered as gone (HTTP 404), on the row as it stands
-  (`CalendarSelectionQueries.deselect_calendars/2`). A calendar that stopped
+  answered as gone (HTTP 404), on the row as it stands, recording them as
+  removed and scheduling the email about them in the same transaction (see
+  `Tymeslot.Integrations.Calendar.RemovedCalendars`). A calendar that stopped
   blocking frees its slots at once.
   """
   @spec deselect_missing(
@@ -196,27 +203,64 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
           [String.t()]
         ) ::
           {:ok, Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t()}
-          | {:error, Ecto.Changeset.t() | :not_found}
-  def deselect_missing(integration, calendar_ids) do
-    integration
-    |> CalendarSelectionQueries.deselect_calendars(calendar_ids)
+          | {:error, Ecto.Changeset.t() | :not_found | term()}
+  def deselect_missing(%{id: id}, calendar_ids) do
+    ids = MapSet.new(calendar_ids)
+
+    id
+    |> CalendarSelectionQueries.with_locked(fn fresh ->
+      calendar_list =
+        Enum.map(fresh.calendar_list, fn cal ->
+          if MapSet.member?(ids, cal.id), do: %{cal | selected: false}, else: cal
+        end)
+
+      write_selection(fresh, %{calendar_list: calendar_list})
+    end)
     |> invalidate_after_commit()
   end
 
   @doc """
-  `deselect_missing/2` for CalDAV collections, by path
-  (`CalendarSelectionQueries.remove_calendar_paths/2`).
+  `deselect_missing/2` for CalDAV collections, by path: removes them from
+  `calendar_paths` too, since pruning paths alone would leave them selected,
+  failing booking pages closed.
   """
   @spec remove_missing_paths(
           Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t(),
           [String.t()]
         ) ::
           {:ok, Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t()}
-          | {:error, Ecto.Changeset.t() | :not_found}
-  def remove_missing_paths(integration, paths) do
-    integration
-    |> CalendarSelectionQueries.remove_calendar_paths(paths)
+          | {:error, Ecto.Changeset.t() | :not_found | term()}
+  def remove_missing_paths(%{id: id}, paths) do
+    gone? = fn path -> Enum.any?(paths, &UriUtils.uri_safe_match?(&1, path)) end
+
+    id
+    |> CalendarSelectionQueries.with_locked(fn fresh ->
+      calendar_list =
+        Enum.map(fresh.calendar_list || [], fn cal ->
+          if gone?.(cal.path || cal.id), do: %{cal | selected: false}, else: cal
+        end)
+
+      write_selection(fresh, %{
+        calendar_paths: Enum.reject(fresh.calendar_paths || [], gone?),
+        calendar_list: calendar_list
+      })
+    end)
     |> invalidate_after_commit()
+  end
+
+  # The one write of a selection that can drop calendars the server stopped
+  # listing: what it deselects is recorded on the row it deselects them on,
+  # merged into what `fresh` (read under the row lock) already records, and
+  # the email is scheduled in the same transaction. A retry finds them
+  # already deselected and records and sends nothing.
+  defp write_selection(fresh, attrs) do
+    removed = RemovedCalendars.removed(fresh.calendar_list, attrs.calendar_list)
+    recorded = RemovedCalendars.merge(fresh.removed_calendars, removed, DateTime.utc_now())
+
+    with {:ok, updated} <- CalendarSelectionQueries.update_selection(fresh, attrs, recorded),
+         :ok <- RemovedCalendars.notify(fresh, removed) do
+      {:ok, updated}
+    end
   end
 
   # Dropped once the write commits, never inside a caller's transaction,
