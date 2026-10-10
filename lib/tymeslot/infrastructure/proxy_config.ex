@@ -192,13 +192,29 @@ defmodule Tymeslot.Infrastructure.ProxyConfig do
   def matches_no_proxy_pattern?(host, pattern) do
     host = normalise_name(host)
 
-    if String.contains?(pattern, "/") do
-      matches_cidr?(host, pattern)
-    else
-      domain = pattern |> strip_port() |> String.trim_leading("*") |> normalise_name()
-      domain != "" and (host == domain or String.ends_with?(host, "." <> domain))
+    cond do
+      String.contains?(pattern, "/") -> matches_cidr?(host, pattern)
+      ip_literal?(host) -> matches_ip?(host, pattern)
+      true -> matches_domain?(host, pattern)
     end
   end
+
+  # An address matches only itself, or a CIDR range: the suffix rule would
+  # let "2.3" bypass the proxy for 10.1.2.3 (curl since 7.86, and Go, agree).
+  defp matches_ip?(host, pattern) do
+    {:ok, ip} = parse_strict(host)
+    parse_strict(pattern |> strip_port() |> normalise_name()) == {:ok, ip}
+  end
+
+  defp matches_domain?(host, pattern) do
+    domain = pattern |> strip_port() |> String.trim_leading("*") |> normalise_name()
+    domain != "" and (host == domain or String.ends_with?(host, "." <> domain))
+  end
+
+  defp ip_literal?(host), do: match?({:ok, _ip}, parse_strict(host))
+
+  # Strict: `:inet.parse_address/1` also reads "10.1" as 10.0.0.1.
+  defp parse_strict(string), do: string |> String.to_charlist() |> :inet.parse_strict_address()
 
   defp normalise_name(name) do
     name

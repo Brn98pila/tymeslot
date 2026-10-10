@@ -37,6 +37,21 @@ defmodule Tymeslot.Infrastructure.ProxyConfigTest do
       refute ProxyConfig.matches_no_proxy_pattern?("::2", "::1")
     end
 
+    # The suffix rule is for names: applied to an address, "2.3" would send
+    # 10.1.2.3 around the proxy.
+    test "an address matches only itself or a CIDR range containing it" do
+      assert ProxyConfig.matches_no_proxy_pattern?("10.1.2.3", "10.1.2.3")
+      assert ProxyConfig.matches_no_proxy_pattern?("10.1.2.3", "10.1.2.3:8080")
+      assert ProxyConfig.matches_no_proxy_pattern?("10.1.2.3", "10.0.0.0/8")
+
+      for partial <- ["1.2.3", "2.3", ".2.3", "*.2.3", "3"] do
+        refute ProxyConfig.matches_no_proxy_pattern?("10.1.2.3", partial), partial
+      end
+
+      assert ProxyConfig.should_bypass?("2001:db8::1", ["[2001:db8::1]"])
+      refute ProxyConfig.should_bypass?("2001:db8::1", ["db8::1"])
+    end
+
     test "matches wildcard domain patterns" do
       assert ProxyConfig.matches_no_proxy_pattern?("foo.example.com", "*.example.com")
       assert ProxyConfig.matches_no_proxy_pattern?("bar.example.com", "*.example.com")

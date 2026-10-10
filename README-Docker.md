@@ -383,7 +383,7 @@ NO_PROXY=localhost,127.0.0.1,*.internal.company.com,10.0.0.0/8
 - Domain: `example.com` (matches the host and every subdomain, such as `api.example.com`)
 - Leading dot or wildcard: `.example.com` or `*.example.com` (the same as a bare domain)
 - Port: `example.com:8443` (the port is ignored; the host is what is matched)
-- IP address: `10.1.2.3`, `[::1]`
+- IP address: `10.1.2.3`, `[::1]` (an address matches only itself; use CIDR notation for a range)
 - CIDR notation: `10.0.0.0/8`, `192.168.0.0/16`
 - Special: `*` (bypass proxy for all hosts)
 
