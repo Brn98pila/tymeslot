@@ -193,7 +193,7 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
     :sha256 |> :crypto.hash(url) |> Base.encode16(case: :lower)
   end
 
-  defp subscription_attrs(user_id, %{"name" => name, "url" => url}) do
+  defp subscription_attrs(user_id, %{"name" => name, "url" => url} = params) do
     %{
       user_id: user_id,
       name: name,
@@ -204,7 +204,7 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
       subscription_url: url,
       provider_account_id: subscription_account_id(url),
       calendar_paths: [],
-      calendar_list: [subscription_calendar()],
+      calendar_list: [subscription_calendar(params)],
       is_active: true
     }
   end
@@ -220,14 +220,16 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
     end
   end
 
-  defp subscription_calendar do
+  # The feed blocks availability unless the form said to show it only.
+  defp subscription_calendar(params) do
     %CalendarEntry{
       id: "subscription",
       path: "subscription",
       name: "Subscribed calendar",
       type: "calendar",
       selected: true,
-      read_only: true
+      read_only: true,
+      blocks_availability: Map.get(params, "blocks_availability", true)
     }
   end
 
