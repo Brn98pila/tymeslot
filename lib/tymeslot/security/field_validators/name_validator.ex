@@ -20,7 +20,9 @@ defmodule Tymeslot.Security.FieldValidators.NameValidator do
 
   @name_min_length 2
   @name_max_length 100
-  @invalid_chars_regex ~r/[<>"%;`\\\/\{\}\[\]]/
+  # Control characters too: a name ends up in email headers, where a line
+  # break inside it has no business.
+  @invalid_chars_regex ~r/[<>"%;`\\\/\{\}\[\]\x00-\x1F\x7F]/
 
   @doc """
   Validates name fields with specific error messages.
