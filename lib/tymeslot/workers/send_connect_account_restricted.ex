@@ -115,6 +115,7 @@ defmodule Tymeslot.Workers.SendConnectAccountRestricted do
     %RestrictionContext{
       host_email: user.email,
       host_name: user_display_name(user),
+      host_user_id: user.id,
       disabled_reason: account.disabled_reason || args["disabled_reason"],
       previous_disabled_reason: args["previous_disabled_reason"],
       charges_enabled: account.charges_enabled,

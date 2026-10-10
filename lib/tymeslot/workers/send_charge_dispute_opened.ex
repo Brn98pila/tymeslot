@@ -90,6 +90,7 @@ defmodule Tymeslot.Workers.SendChargeDisputeOpened do
     %DisputeContext{
       host_email: payment.host_email,
       host_name: payment.host_name,
+      host_user_id: payment.host_user_id,
       amount_cents: payment.amount_cents,
       currency: payment.currency,
       attendee_email: payment.attendee_email,
