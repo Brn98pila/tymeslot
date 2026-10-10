@@ -835,7 +835,7 @@ if config_env() != :test and
 end
 
 # Base URL for docs hub links across the dashboard and the feature-announcement
-# modal (TymeslotWeb.Live.Shared.DocsUrl, the single reader of this key).
+# modal (Tymeslot.Docs, the single reader of this key).
 # Defaults to the hosted docs site; a self-hoster running their own docs points
 # this at it instead. A blank value is treated as unset for the same reason as
 # WEBHOOK_BASE_URL above. A trailing slash is trimmed by the reader, not here.
