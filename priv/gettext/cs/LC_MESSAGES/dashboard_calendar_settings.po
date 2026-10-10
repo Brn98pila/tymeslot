@@ -372,3 +372,23 @@ msgstr[2] "Naposledy synchronizováno před %{count} minutami"
 #, elixir-autogen, elixir-format
 msgid "Last synced just now"
 msgstr "Naposledy synchronizováno právě teď"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Block"
+msgstr "Blokovat"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Don't block"
+msgstr "Neblokovat"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid "Your booking calendar always blocks your availability."
+msgstr "Rezervační kalendář vždy blokuje vaši dostupnost."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times of %{calendar}"
+msgstr "Obsazené časy kalendáře %{calendar}"

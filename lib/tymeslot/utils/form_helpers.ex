@@ -117,6 +117,19 @@ defmodule Tymeslot.Utils.FormHelpers do
     }
   end
 
+  # The owner's account, or the calendar the meeting type books into, went
+  # while the save was running.
+  def format_context_error(:not_found) do
+    %{
+      base: [
+        dgettext(
+          "dashboard_meeting_form",
+          "The calendar this meeting type books into is no longer available. Reload the page and try again."
+        )
+      ]
+    }
+  end
+
   def format_context_error(error) when is_atom(error) do
     %{base: [format_generic_error(error)]}
   end

@@ -434,11 +434,25 @@ defmodule Tymeslot.Integrations.Calendar.Google.Provider do
       selected: cal["primary"] || false,
       access_role: cal["accessRole"],
       read_only: read_only_access_role?(cal["accessRole"]),
+      blocks_availability: not informational_calendar?(cal["id"]),
+      free_busy_only: cal["accessRole"] == "freeBusyReader",
       color: cal["backgroundColor"]
     }
     |> CalendarEntry.normalize()
     |> CalendarEntry.with_defaults()
   end
+
+  # Calendars Google generates rather than the owner keeps: public holidays,
+  # contacts' birthdays, week numbers. Their entries are all-day markers, not
+  # busy time, so they are shown but do not block until the owner says so.
+  @informational_suffixes ~w(#holiday@group.v.calendar.google.com
+                             #contacts@group.v.calendar.google.com
+                             #weeknum@group.v.calendar.google.com)
+
+  defp informational_calendar?(id) when is_binary(id),
+    do: String.ends_with?(id, @informational_suffixes)
+
+  defp informational_calendar?(_id), do: false
 
   # Google's accessRole reports the caller's permission on the calendar:
   # "owner"/"writer" can create events, "reader"/"freeBusyReader" cannot.

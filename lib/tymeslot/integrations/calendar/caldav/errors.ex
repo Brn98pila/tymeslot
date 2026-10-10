@@ -43,6 +43,13 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Errors do
 
   # The status stays in the logs `Http` writes; the sentence is fixed so that
   # it can be translated where it is shown.
+  def describe_error({:free_busy_unreadable, _reason}),
+    do:
+      dgettext_noop(
+        "dashboard_calendar_providers",
+        "A calendar shared with you as busy times only could not be read. Its last known busy times still block your booking page."
+      )
+
   def describe_error({:unexpected_status, _status}),
     do: dgettext_noop("dashboard_calendar_providers", "The calendar server refused the request.")
 
