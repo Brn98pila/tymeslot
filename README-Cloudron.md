@@ -217,7 +217,8 @@ retire it after a rotation, as below.
    travels with the app's backups together with the key file. A Cloudron app runs as a single
    container, stopped before its replacement starts, so phases 1 and 2 may be one restart:
    `DATA_ENCRYPTION_KEYS=2:<new key>,1:<current key>`. Back up the app first.
-3. Run the sweep and the key report as above until no `v1` remains.
+3. Run the sweep and the key report as above until no `v1` remains, `oban_jobs.email_links`
+   included (links in emails still queued; they clear as the emails go out).
 4. Retire key 1: remove the `1:` entry, delete `/app/data/data_encryption_key` and the
    `DATA_ENCRYPTION_KEY=` line in `/app/data/.env`, and restart. With `DATA_ENCRYPTION_KEYS`
    set, the container no longer generates a replacement key.

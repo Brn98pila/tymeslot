@@ -665,12 +665,20 @@ If `LEGACY_KEY_RETIRED` is set while values under the legacy key remain, those v
 opening (the integrations they belong to ask to be reconnected) but are never altered, and the
 app logs an error at boot naming each affected table and column. Unset the flag, restart, run the
 sweep and retire the key again; nothing is lost as long as `SECRET_KEY_BASE` has not changed in
-the meantime.
+the meantime. The one exception is the calendar push-channel secrets (Google and Outlook): the
+daily channel renewal replaces a secret it cannot read with a fresh one, as it replaces them
+with every new channel anyway, so push notifications keep working and nothing an operator could
+recover is lost.
 
-A `DATA_ENCRYPTION_KEY` that is not valid Base64, or that decodes to fewer than 32 bytes, stops
-the app at boot with a message naming the variable. Earlier versions started and then failed on
-the first credential they touched; replace such a value with one from
-`openssl rand -base64 48`.
+The app refuses to start, with a message naming the variable, when:
+
+- `DATA_ENCRYPTION_KEY` (or an entry of `DATA_ENCRYPTION_KEYS`) is not valid Base64 or decodes to
+  fewer than 32 bytes. Replace it with a value from `openssl rand -base64 48`; an install with
+  such a key could not store any credential under it.
+- `SECRET_KEY_BASE` is shorter than 64 bytes while `LEGACY_KEY_RETIRED` is not set. Replace it
+  with a value from `openssl rand -base64 64 | tr -d '\n'`; this signs every user out once.
+
+Earlier versions started in both cases and failed on the first credential they touched.
 
 ### Rotating the data key
 
@@ -714,13 +722,21 @@ the next rotation after this one adds key 3.
 
 6. **Sweep.** Run `reencrypt_credentials()` (above) until it reports `migrated values: 0`. A value
    an older instance writes under key 1 after the promotion is still readable, and the next
-   sweep moves it.
+   sweep moves it. Run the sweep only from an instance on the promoted configuration: one still
+   on phase 1 writes with key 1, so its sweep moves key 2 values back to key 1. Nothing is lost,
+   but the run is wasted and has to be repeated.
 
 7. **Verify.** Run the key report again: no `v1` may remain, and `unreadable` must not have grown.
+   The report also lists `oban_jobs.email_links`: the encrypted links (password reset, email
+   verification, email change) in emails not yet sent or still retrying. The sweep does not move
+   those; they clear as the emails go out. Wait until no `v1` remains there either, or accept
+   that a user whose email was still queued has to request the link again.
 
 8. **Retire the old key.** Remove the `1:` entry from `DATA_ENCRYPTION_KEYS` and unset
-   `DATA_ENCRYPTION_KEY`, then restart. If the old key leaked, also treat the backups taken before
-   the rotation as exposed.
+   `DATA_ENCRYPTION_KEY`, then restart. Removing a key while the report still shows values under
+   its id makes those values unreadable (their integrations ask to be reconnected) until the key
+   is added back; nothing is altered in the meantime. If the old key leaked, also treat the
+   backups taken before the rotation as exposed.
 
 **Single container (Docker Compose).** `docker compose up -d` stops the old container before the
 new one starts, so no two instances ever run with different keys, and phases 1 and 2 may be done
@@ -751,6 +767,8 @@ docker exec tymeslot /app/bin/tymeslot eval "Tymeslot.Release.Encryption.plain_o
 For each plain column it counts rows whose value is missing from the encrypted copy (`plain only`,
 written by a rolled-back image), differs from it (`differing`), or cannot be compared because no
 key opens the copy (`unreadable`), with sample row ids, and ends with `clear` once none remain.
+Telegram link tokens are only counted (`short-lived`): they last ten minutes and are never
+restored, so they never hold the removal back.
 
 ---
 
