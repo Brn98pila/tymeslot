@@ -15,6 +15,12 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FreeBusy do
   """
 
   alias Tymeslot.Integrations.Calendar.CalDAV.XmlHandler
+  alias Tymeslot.Integrations.Calendar.CalendarEvent
+
+  # Cached periods carry a synthesised uid. The meeting reconciliation
+  # resolves a vanished event to a Tymeslot meeting by uid, so the namespace
+  # must be one no meeting or CalDAV event can produce: none admits a colon.
+  @cached_uid_prefix "tymeslot:caldav-busy:"
 
   @busy_types ~w(BUSY BUSY-TENTATIVE BUSY-UNAVAILABLE)
 
@@ -163,6 +169,42 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FreeBusy do
       status: "CONFIRMED",
       raw_ical: nil
     }
+  end
+
+  @doc """
+  Busy periods `parse/2` read, as the `CalendarEvent`s the sync caches for
+  the calendar at `calendar_path`: opaque, confirmed, and pointing at no
+  provider event, so the grid never shows them (they are written
+  `busy_only`) and nothing can resolve a deletion by them.
+  """
+  @spec to_cached_events([XmlHandler.parsed_event()], pos_integer(), String.t(), DateTime.t()) ::
+          [CalendarEvent.t()]
+  def to_cached_events(periods, calendar_integration_id, calendar_path, synced_at) do
+    Enum.map(periods, fn %{start_time: start_at, end_time: end_at} ->
+      CalendarEvent.new!(%{
+        uid:
+          @cached_uid_prefix <>
+            Enum.join(
+              [
+                calendar_integration_id,
+                calendar_path,
+                DateTime.to_iso8601(start_at),
+                DateTime.to_iso8601(end_at)
+              ],
+              "|"
+            ),
+        calendar_integration_id: calendar_integration_id,
+        provider: :caldav,
+        provider_calendar_id: calendar_path,
+        provider_event_id: nil,
+        synced_at: synced_at,
+        all_day: false,
+        start_at: start_at,
+        end_at: end_at,
+        transparency: :opaque,
+        status: :confirmed
+      })
+    end)
   end
 
   defp stamp(datetime),

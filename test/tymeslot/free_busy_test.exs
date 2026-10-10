@@ -187,6 +187,43 @@ defmodule Tymeslot.FreeBusyTest do
     end
   end
 
+  describe "busy_intervals/3 for a CalDAV calendar shared as busy times only" do
+    test "publishes the busy periods its sync cached" do
+      profile = insert(:profile)
+      path = "/calendars/colleague/availability/"
+
+      integration =
+        insert(:calendar_integration,
+          user: profile.user,
+          provider: "caldav",
+          calendar_list: [
+            %{id: "/calendars/host/personal/", path: "/calendars/host/personal/", selected: true},
+            %{id: path, path: path, selected: true, read_only: true, free_busy_only: true}
+          ]
+        )
+
+      insert(:provider_calendar_event,
+        calendar_integration: integration,
+        provider: "caldav",
+        provider_calendar_id: path,
+        provider_event_id: nil,
+        role: "busy_only",
+        uid: "tymeslot:caldav-busy:1",
+        start_at: ~U[2030-06-03 09:00:00Z],
+        end_at: ~U[2030-06-03 10:00:00Z]
+      )
+
+      assert [{start, _end}] =
+               FreeBusy.busy_intervals(
+                 profile,
+                 ~U[2030-06-01 00:00:00Z],
+                 ~U[2030-06-10 00:00:00Z]
+               )
+
+      assert DateTime.truncate(start, :second) == ~U[2030-06-03 09:00:00Z]
+    end
+  end
+
   describe "busy_intervals/3 for an Exchange mailbox" do
     test "publishes its mailbox-wide busy time whatever folders are selected" do
       profile = insert(:profile)
