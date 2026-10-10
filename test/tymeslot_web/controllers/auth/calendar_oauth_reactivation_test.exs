@@ -47,20 +47,7 @@ defmodule TymeslotWeb.CalendarOAuthReactivationTest do
     conn: conn
   } do
     user = insert(:user)
-    insert(:profile, user: user)
-
-    paused =
-      insert(:calendar_integration,
-        user: user,
-        provider: "google",
-        provider_account_id: "sub-1",
-        is_active: false,
-        default_booking_calendar_id: "work",
-        calendar_list: [
-          %{"id" => "work", "name" => "Work", "primary" => true, "selected" => true},
-          %{"id" => "team", "name" => "Team", "selected" => true}
-        ]
-      )
+    paused = paused_integration(user, "work")
 
     insert(:meeting_type,
       user: user,
@@ -68,6 +55,65 @@ defmodule TymeslotWeb.CalendarOAuthReactivationTest do
       target_calendar_id: "team"
     )
 
+    reactivated = reconnect(conn, user, paused, [work(), team()])
+
+    assert reactivated.is_active
+
+    assert %{selected: true, blocks_availability: true} =
+             Enum.find(reactivated.calendar_list, &(&1.id == "team"))
+  end
+
+  test "reconnecting keeps the booking calendar the owner chose while it still exists", %{
+    conn: conn
+  } do
+    user = insert(:user)
+    paused = paused_integration(user, "team")
+
+    reactivated = reconnect(conn, user, paused, [work(), team()])
+
+    assert reactivated.default_booking_calendar_id == "team"
+
+    assert %{selected: true, blocks_availability: true} =
+             Enum.find(reactivated.calendar_list, &(&1.id == "team"))
+  end
+
+  test "reconnecting moves bookings to the primary calendar once the chosen one is gone", %{
+    conn: conn
+  } do
+    user = insert(:user)
+    paused = paused_integration(user, "team")
+
+    reactivated =
+      reconnect(conn, user, paused, [
+        %{"id" => "other", "summary" => "Other", "selected" => true},
+        work()
+      ])
+
+    assert reactivated.default_booking_calendar_id == "work"
+  end
+
+  defp work, do: %{"id" => "work", "summary" => "Work", "primary" => true, "selected" => true}
+  defp team, do: %{"id" => "team", "summary" => "Team", "selected" => false}
+
+  defp paused_integration(user, default_booking_calendar_id) do
+    insert(:profile, user: user)
+
+    insert(:calendar_integration,
+      user: user,
+      provider: "google",
+      provider_account_id: "sub-1",
+      is_active: false,
+      default_booking_calendar_id: default_booking_calendar_id,
+      calendar_list: [
+        %{"id" => "work", "name" => "Work", "primary" => true, "selected" => true},
+        %{"id" => "team", "name" => "Team", "selected" => true}
+      ]
+    )
+  end
+
+  # Runs the callback the provider redirects to, with the code exchanged for
+  # the account's tokens and discovery answering `discovered`.
+  defp reconnect(conn, user, paused, discovered) do
     :meck.expect(GoogleOAuthHelper, :exchange_code_for_tokens, fn "code", _uri, _opts ->
       {:ok,
        %{
@@ -80,13 +126,7 @@ defmodule TymeslotWeb.CalendarOAuthReactivationTest do
        }}
     end)
 
-    expect(GoogleCalendarAPIMock, :list_calendars, fn _integration ->
-      {:ok,
-       [
-         %{"id" => "work", "summary" => "Work", "primary" => true, "selected" => true},
-         %{"id" => "team", "summary" => "Team", "selected" => false}
-       ]}
-    end)
+    expect(GoogleCalendarAPIMock, :list_calendars, fn _integration -> {:ok, discovered} end)
 
     conn =
       conn
@@ -97,11 +137,6 @@ defmodule TymeslotWeb.CalendarOAuthReactivationTest do
       })
 
     assert redirected_to(conn) == "/dashboard"
-
-    reactivated = Repo.get!(CalendarIntegrationSchema, paused.id)
-    assert reactivated.is_active
-
-    assert %{selected: true, blocks_availability: true} =
-             Enum.find(reactivated.calendar_list, &(&1.id == "team"))
+    Repo.get!(CalendarIntegrationSchema, paused.id)
   end
 end

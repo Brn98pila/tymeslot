@@ -82,11 +82,14 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   # Private helpers
 
   # Stores the discovered list and picks the default booking calendar: the
-  # provider's primary, else a selected one, else the first. Only calendars
-  # a booking can be written to are considered, so the id stored here is
-  # never one `Defaults.resolve_default_calendar_id/1` would refuse. Only an
-  # OAuth connection reaches this, and its discovered entries carry no path,
-  # so `calendar_paths` is left alone: it must stay empty for those providers.
+  # one already stored while discovery still finds it, so a reconnect never
+  # moves the owner's bookings, else the provider's primary, else a selected
+  # one, else the first. Only calendars a booking can be written to are
+  # considered (`Defaults.default_booking_calendar/2`), so the id stored here
+  # is never one `Defaults.resolve_default_calendar_id/1` would refuse. Only
+  # an OAuth connection reaches this, and its discovered entries carry no
+  # path, so `calendar_paths` is left alone: it must stay empty for those
+  # providers.
   defp auto_select_primary_calendar(integration, discovered) do
     # A reconnected account keeps whether each calendar it already knew
     # blocks availability; the selection is discovery's, as on any connect,
@@ -96,16 +99,14 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
       |> Enum.map(&CalendarEntry.normalize/1)
       |> Selection.carry_blocking_choices(integration.calendar_list)
 
-    eligible = Defaults.eligible_for_booking(calendars)
-
-    default_calendar_id =
-      Defaults.primary_id(eligible) || Defaults.selected_id(eligible) ||
-        Defaults.first_id_from_list(eligible)
-
     attrs =
-      if default_calendar_id,
-        do: %{default_booking_calendar_id: default_calendar_id},
-        else: %{}
+      case Defaults.default_booking_calendar(
+             calendars,
+             integration.default_booking_calendar_id
+           ) do
+        %CalendarEntry{id: id} -> %{default_booking_calendar_id: id}
+        nil -> %{}
+      end
 
     # A booking calendar, this one or one a meeting type names, stays
     # selected and blocking whatever discovery says (see `Blocking`).
