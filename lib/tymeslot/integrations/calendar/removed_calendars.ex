@@ -22,10 +22,12 @@ defmodule Tymeslot.Integrations.Calendar.RemovedCalendars do
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.RemovedCalendar
+  alias Tymeslot.Utils.UriUtils
 
   @doc """
   The calendars selected in `old_list` that are not selected in `new_list`,
-  matched by path or id. A calendar missing from `new_list` altogether counts
+  matched by path or id, percent-encoded or not, as discovery matches them.
+  A calendar missing from `new_list` altogether counts
   as removed, which is how discovery deselects.
   """
   @spec removed([CalendarEntry.t()], [CalendarEntry.t()]) :: [CalendarEntry.t()]
@@ -38,8 +40,8 @@ defmodule Tymeslot.Integrations.Calendar.RemovedCalendars do
   end
 
   @doc """
-  `existing` with `removed` added as of `now`. A calendar already listed is
-  replaced, not listed twice.
+  `existing` with `removed` added as of `now`. A calendar already listed,
+  under either encoding of its path, is replaced, not listed twice.
   """
   @spec merge([RemovedCalendar.t()], [CalendarEntry.t()], DateTime.t()) :: [RemovedCalendar.t()]
   def merge(existing, removed, now) do
@@ -50,8 +52,8 @@ defmodule Tymeslot.Integrations.Calendar.RemovedCalendars do
         %RemovedCalendar{id: calendar_id(entry), name: name(entry), removed_at: removed_at}
       end)
 
-    added_ids = MapSet.new(added, & &1.id)
-    Enum.reject(existing, &MapSet.member?(added_ids, &1.id)) ++ added
+    added_ids = MapSet.new(added, &UriUtils.safe_decode(&1.id))
+    Enum.reject(existing, &MapSet.member?(added_ids, UriUtils.safe_decode(&1.id))) ++ added
   end
 
   @doc """
@@ -77,7 +79,10 @@ defmodule Tymeslot.Integrations.Calendar.RemovedCalendars do
     )
   end
 
-  defp keys(%CalendarEntry{path: path, id: id}), do: Enum.reject([path, id], &is_nil/1)
+  # Decoded, so a server that starts percent-encoding a path it used to send
+  # plain (or the reverse) still names the same calendar.
+  defp keys(%CalendarEntry{path: path, id: id}),
+    do: [path, id] |> Enum.reject(&is_nil/1) |> Enum.map(&UriUtils.safe_decode/1)
 
   defp calendar_id(entry), do: entry.path || entry.id
 
