@@ -59,9 +59,14 @@ defmodule Tymeslot.Integrations.Calendar.RemovedCalendars do
   transaction that deselects them, so a failure rolls the deselection back
   and the next run tries both again.
   """
-  @spec notify(%{required(:id) => pos_integer(), required(:user_id) => pos_integer()}, [
-          CalendarEntry.t()
-        ]) :: :ok | {:error, term()}
+  @spec notify(
+          %{
+            required(:id) => pos_integer(),
+            required(:user_id) => pos_integer(),
+            optional(atom()) => term()
+          },
+          [CalendarEntry.t()]
+        ) :: :ok | {:error, term()}
   def notify(_integration, []), do: :ok
 
   def notify(%{id: id, user_id: user_id}, removed) do

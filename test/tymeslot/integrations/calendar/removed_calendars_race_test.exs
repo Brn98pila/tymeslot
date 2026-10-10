@@ -71,7 +71,7 @@ defmodule Tymeslot.Integrations.Calendar.RemovedCalendarsRaceTest do
   test "both calendars are deselected and recorded, and each is emailed about", %{
     integration: integration
   } do
-    assert [{:ok, _}, {:ok, _}] =
+    assert [{:ok, _work}, {:ok, _team}] =
              race([
                &deselect(&1, integration, "work"),
                &deselect(&1, integration, "team")
