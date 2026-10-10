@@ -173,6 +173,9 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
         button_text: dgettext("emails_booking", "Start Meeting"))
       end}
 
+      #{Text.section_title(dgettext("emails_booking", "Quick prep"))}
+      #{Text.bullet_list(organizer_prep_items(appointment_details))}
+
       #{MeetingComponents.actions_section(@intent, dgettext("emails_booking", "Quick actions"), organizer_actions(appointment_details))}
       """
 
@@ -322,13 +325,32 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
     #{meeting_details}#{video_section}#{attendee_info}#{custom_answers}
 
     #{dgettext("emails_booking", "QUICK PREP:")}
-    #{if JoinUrl.for(:organizer, appointment_details), do: dgettext("emails_booking", "• Camera & mic ready"), else: dgettext("emails_booking", "• Location confirmed")}
-    #{dgettext("emails_booking", "• Materials prepared")}
-    #{dgettext("emails_booking", "• Agenda ready")}#{action_links}
+    #{TextBodyHelper.format_bullets(organizer_prep_items(appointment_details))}#{action_links}
 
     #{dgettext("emails_booking", "Best,")}
     #{appointment_details.organizer_name}
     """
+  end
+
+  @doc """
+  The organiser's quick preparation list, in their locale: the one list both
+  the HTML and the plain-text body of their reminder render. A video meeting
+  asks for the camera and microphone, any other for the location.
+  """
+  @spec organizer_prep_items(Tymeslot.Emails.EmailService.appointment_details()) :: [
+          String.t()
+        ]
+  def organizer_prep_items(appointment_details) do
+    Gettext.with_locale(TymeslotWeb.Gettext, organizer_locale(appointment_details), fn ->
+      [
+        if(JoinUrl.for(:organizer, appointment_details),
+          do: dgettext("emails_booking", "Camera & mic ready"),
+          else: dgettext("emails_booking", "Location confirmed")
+        ),
+        dgettext("emails_booking", "Materials prepared"),
+        dgettext("emails_booking", "Agenda ready")
+      ]
+    end)
   end
 
   # The payload's `time_until` is already formatted in the attendee's

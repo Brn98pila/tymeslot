@@ -219,6 +219,9 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
       #{MeetingComponents.custom_answers_section(appointment_details)}
       #{if organiser_payment, do: PaymentBlocks.organizer_summary_html(organiser_payment)}
 
+      #{Text.section_title(dgettext("emails_booking", "Preparation reminders"))}
+      #{Text.bullet_list(organizer_prep_items(appointment_details))}
+
       #{MeetingComponents.actions_section(@intent, dgettext("emails_booking", "Need to make changes?"), [%{text: dgettext("emails_booking", "Reschedule"), url: Map.get(appointment_details, :reschedule_url), style: :secondary}, %{text: dgettext("emails_booking", "Cancel Appointment"), url: Map.get(appointment_details, :cancel_url), style: :danger}])}
       """
 
@@ -396,22 +399,37 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
     #{meeting_details}#{video_section}#{custom_answers}#{action_links}#{payment_section}
 
     #{dgettext("emails_booking", "PREPARATION REMINDERS:")}
-    #{dgettext("emails_booking", "- Review any relevant materials")}
-    #{dgettext("emails_booking", "- Prepare an agenda if needed")}
-    #{dgettext("emails_booking", "- Test video/audio setup if virtual")}
-    #{organizer_reminder_line(appointment_details)}
+    #{TextBodyHelper.format_bullets(organizer_prep_items(appointment_details))}
 
     #{dgettext("emails_booking", "Best,")}
     #{appointment_details.organizer_name}
     """
   end
 
-  defp organizer_reminder_line(appointment_details) do
+  @doc """
+  The organiser's preparation reminders, in their locale: the one list both
+  the HTML and the plain-text body of their confirmation render.
+  """
+  @spec organizer_prep_items(Tymeslot.Emails.EmailService.appointment_details()) :: [
+          String.t()
+        ]
+  def organizer_prep_items(appointment_details) do
+    Gettext.with_locale(TymeslotWeb.Gettext, organizer_locale(appointment_details), fn ->
+      [
+        dgettext("emails_booking", "Review any relevant materials"),
+        dgettext("emails_booking", "Prepare an agenda if needed"),
+        dgettext("emails_booking", "Test video/audio setup if virtual"),
+        organizer_reminder_item(appointment_details)
+      ]
+    end)
+  end
+
+  defp organizer_reminder_item(appointment_details) do
     if Map.get(appointment_details, :reminders_enabled) != false do
       reminder_time = format_reminder_for_organizer(appointment_details)
-      dgettext("emails_booking", "- Set a reminder %{time} before", time: reminder_time)
+      dgettext("emails_booking", "Set a reminder %{time} before", time: reminder_time)
     else
-      dgettext("emails_booking", "- No reminder emails are scheduled for this appointment")
+      dgettext("emails_booking", "No reminder emails are scheduled for this appointment")
     end
   end
 

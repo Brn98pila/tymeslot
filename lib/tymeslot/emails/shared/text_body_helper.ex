@@ -113,6 +113,14 @@ defmodule Tymeslot.Emails.Shared.TextBodyHelper do
   end
 
   @doc """
+  A list as plain-text bullet lines, one item each: the text counterpart of
+  `Tymeslot.Emails.Shared.Text.bullet_list/1`, which marks its items the
+  same way.
+  """
+  @spec format_bullets([String.t()]) :: String.t()
+  def format_bullets(items), do: Enum.map_join(items, "\n", &"• #{&1}")
+
+  @doc """
   The organiser's note to the guest, as a plain-text block, or `""` when the
   meeting carries none.
   """
