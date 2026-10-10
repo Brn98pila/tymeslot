@@ -199,10 +199,6 @@ defmodule Tymeslot.MeetingTypes do
 
   def location_venue_choices(_meeting_type), do: %{}
 
-  @doc "Of `user_ids`, those with at least one meeting type, active or not."
-  @spec user_ids_with_meeting_type([integer()]) :: [integer()]
-  defdelegate user_ids_with_meeting_type(user_ids), to: MeetingTypeQueries, as: :user_ids_with_any
-
   @doc """
   Gets all active meeting types for a user, creating defaults if none exist.
   """
@@ -470,6 +466,9 @@ defmodule Tymeslot.MeetingTypes do
   defdelegate list_using_venue(user_id, venue_id), to: MeetingTypeQueries
   defdelegate venue_usage_counts(user_id), to: MeetingTypeQueries
   defdelegate remove_venue_from_locations(user_id, venue_id), to: MeetingTypeQueries
+
+  # Which of `user_ids` have at least one meeting type, active or not.
+  defdelegate user_ids_with_meeting_type(user_ids), to: MeetingTypeQueries, as: :user_ids_with_any
 
   @doc """
   The owner's meeting types, by name, that deleting `venue_id` would leave
