@@ -104,4 +104,32 @@ defmodule Tymeslot.Emails.Shared.TextBodyHelperTest do
       assert text =~ "Duration: 3 days"
     end
   end
+
+  describe "format_action_links/2" do
+    test "lists every action the payload carries a URL for, in order" do
+      text =
+        TextBodyHelper.format_action_links(
+          %{
+            reschedule_url: "https://example.com/r",
+            cancel_url: "https://example.com/c",
+            dashboard_url: "https://example.com/d"
+          },
+          "en"
+        )
+
+      assert text =~
+               "ACTIONS:\nReschedule: https://example.com/r\nCancel: https://example.com/c\nOpen in dashboard: https://example.com/d"
+    end
+
+    test "leaves out an action with no URL" do
+      text = TextBodyHelper.format_action_links(%{reschedule_url: "https://example.com/r"}, "en")
+
+      assert text =~ "Reschedule: https://example.com/r"
+      refute text =~ "Cancel:"
+    end
+
+    test "is empty when there is no action" do
+      assert TextBodyHelper.format_action_links(%{}, "en") == ""
+    end
+  end
 end
