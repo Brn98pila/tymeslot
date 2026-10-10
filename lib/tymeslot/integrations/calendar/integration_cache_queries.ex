@@ -91,7 +91,11 @@ defmodule Tymeslot.Integrations.Calendar.IntegrationCacheQueries do
   @roles EventRole.all()
 
   @typedoc "Which of an integration's rows a full refresh replaces: all, or one role's."
-  @type scope :: :all | {:role, String.t()}
+  @type scope ::
+          :all
+          | {:role, String.t()}
+          | {:calendar, String.t(), String.t()}
+          | {:role_except_calendars, String.t(), [String.t()]}
 
   @doc """
   Takes the integration cache lock for `calendar_integration_id`, in the
@@ -186,7 +190,11 @@ defmodule Tymeslot.Integrations.Calendar.IntegrationCacheQueries do
 
   A full refresh is for a read that returns everything (a published feed).
   An integration with two read paths writing one role each (Exchange) must
-  scope it to `{:role, role}`, or each path would delete the other's rows.
+  scope it to `{:role, role}`, or each path would delete the other's rows,
+  and a read answering for one calendar alone (a CalDAV calendar shared as
+  busy times only) to `{:calendar, provider_calendar_id, role}`.
+  `{:role_except_calendars, role, provider_calendar_ids}` is the role's rows
+  of every calendar but those named.
   """
   @spec replace_cached_rows(pos_integer(), scope(), [map()]) ::
           {:ok, non_neg_integer()} | {:error, term()}
@@ -207,6 +215,18 @@ defmodule Tymeslot.Integrations.Calendar.IntegrationCacheQueries do
 
   defp where_scope(query, {:role, role}) when role in @roles,
     do: where(query, [e], e.role == ^role)
+
+  defp where_scope(query, {:calendar, provider_calendar_id, role}) when role in @roles,
+    do: where(query, [e], e.provider_calendar_id == ^provider_calendar_id and e.role == ^role)
+
+  defp where_scope(query, {:role_except_calendars, role, provider_calendar_ids})
+       when role in @roles and is_list(provider_calendar_ids),
+       do:
+         where(
+           query,
+           [e],
+           e.role == ^role and e.provider_calendar_id not in ^provider_calendar_ids
+         )
 
   @doc """
   Deletes cached events that ended before `cutoff`, timed events by `end_at`

@@ -28,6 +28,7 @@ defmodule Tymeslot.Integrations.Calendar do
 
   @behaviour Tymeslot.Security.EncryptedStorage
 
+  alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
@@ -168,6 +169,12 @@ defmodule Tymeslot.Integrations.Calendar do
         }
   defdelegate stuck_changes(user_id), to: OfflineQueue
 
+  @doc "Of `user_ids`, those with at least one active calendar integration."
+  @spec user_ids_with_active_calendar([user_id()]) :: [user_id()]
+  defdelegate user_ids_with_active_calendar(user_ids),
+    to: CalendarIntegrationQueries,
+    as: :user_ids_with_active
+
   @doc """
   Takes the integration cache lock's advisory step for every calendar the
   user has, as deleting the account must before it deletes the user row. Call
@@ -196,6 +203,27 @@ defmodule Tymeslot.Integrations.Calendar do
   def discover_calendars_for_integration(integration) do
     Discovery.discover_calendars_for_integration(integration)
   end
+
+  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.set_calendar_state/4`."
+  @spec set_calendar_state(user_id(), integration_id(), String.t(), Blocking.state()) ::
+          {:ok, integration()} | {:error, term()}
+  defdelegate set_calendar_state(user_id, integration_id, calendar_id, state), to: OwnerActions
+
+  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.set_calendar_shown/4`."
+  @spec set_calendar_shown(user_id(), integration_id(), String.t(), boolean()) ::
+          {:ok, integration()} | {:error, term()}
+  defdelegate set_calendar_shown(user_id, integration_id, calendar_id, shown?), to: OwnerActions
+
+  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.set_calendar_blocking/4`."
+  @spec set_calendar_blocking(user_id(), integration_id(), String.t(), boolean()) ::
+          {:ok, integration()} | {:error, term()}
+  defdelegate set_calendar_blocking(user_id, integration_id, calendar_id, blocks?),
+    to: OwnerActions
+
+  @doc "See `Tymeslot.Integrations.Calendar.Blocking.booking_calendar_ids_by_integration/2`."
+  @spec booking_calendar_ids_by_integration(user_id(), [integration()]) ::
+          %{integration_id() => [String.t()]}
+  defdelegate booking_calendar_ids_by_integration(user_id, integrations), to: Blocking
 
   @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.toggle_calendar_selection/3`."
   @spec toggle_calendar_selection(user_id(), integration_id(), String.t() | integer()) ::

@@ -123,6 +123,65 @@ defmodule Tymeslot.Payments.StripeTest do
     end
   end
 
+  describe "list_charges/1" do
+    setup do
+      Application.put_env(:tymeslot, :stripe_charge_mod, StripeChargeMock)
+      on_exit(fn -> Application.delete_env(:tymeslot, :stripe_charge_mod) end)
+    end
+
+    test "passes Stripe's filters through and returns the page" do
+      params = %{customer: "cus_1", expand: ["data.refunds"], limit: 100}
+
+      expect(StripeChargeMock, :list, fn ^params, opts ->
+        assert opts[:api_key] == "sk_test_fake"
+        {:ok, %{data: [%{id: "ch_1"}], has_more: false}}
+      end)
+
+      assert {:ok, %{data: [%{id: "ch_1"}]}} = Stripe.list_charges(params)
+    end
+  end
+
+  describe "list_invoices/1" do
+    setup do
+      Application.put_env(:tymeslot, :stripe_invoice_mod, StripeInvoiceMock)
+      on_exit(fn -> Application.delete_env(:tymeslot, :stripe_invoice_mod) end)
+    end
+
+    test "passes Stripe's filters through and returns the page" do
+      params = %{subscription: "sub_123", status: "paid", limit: 100}
+
+      expect(StripeInvoiceMock, :list, fn ^params, opts ->
+        assert opts[:api_key] == "sk_test_fake"
+        {:ok, %{data: [%{id: "in_1"}], has_more: false}}
+      end)
+
+      assert {:ok, %{data: [%{id: "in_1"}]}} = Stripe.list_invoices(params)
+    end
+  end
+
+  describe "update_subscription_automatic_tax/2" do
+    test "sets automatic tax to the given value" do
+      expect(StripeSubscriptionMock, :update, fn "sub_123", params, opts ->
+        assert params == %{automatic_tax: %{enabled: true}}
+        assert opts[:api_key] == "sk_test_fake"
+        refute Keyword.has_key?(opts, :idempotency_key)
+        {:ok, %{id: "sub_123", automatic_tax: params.automatic_tax}}
+      end)
+
+      assert {:ok, %{automatic_tax: %{enabled: true}}} =
+               Stripe.update_subscription_automatic_tax("sub_123", true)
+    end
+
+    test "passes a Stripe error back" do
+      expect(StripeSubscriptionMock, :update, fn "sub_123", _params, _opts ->
+        {:error, %{message: "No such subscription"}}
+      end)
+
+      assert {:error, %{message: "No such subscription"}} =
+               Stripe.update_subscription_automatic_tax("sub_123", false)
+    end
+  end
+
   describe "error handling" do
     test "returns error when API key is missing" do
       Application.delete_env(:tymeslot, :stripe_secret_key)

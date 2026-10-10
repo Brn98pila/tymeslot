@@ -6,6 +6,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   import Ecto.Query
 
   alias Ecto.Changeset
+  alias Tymeslot.Auth.UserSchema
   alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Profiles.ProfileSchema
@@ -24,6 +25,18 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
     CalendarIntegrationSchema
     |> where([c], c.user_id == ^user_id and c.is_active == true)
     |> order_by([c], asc: c.name)
+    |> Repo.all()
+  end
+
+  @doc "Of `user_ids`, those with at least one active calendar integration."
+  @spec user_ids_with_active([integer()]) :: [integer()]
+  def user_ids_with_active([]), do: []
+
+  def user_ids_with_active(user_ids) when is_list(user_ids) do
+    CalendarIntegrationSchema
+    |> where([c], c.user_id in ^user_ids and c.is_active == true)
+    |> distinct(true)
+    |> select([c], c.user_id)
     |> Repo.all()
   end
 
@@ -291,69 +304,6 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   end
 
   @doc """
-  Forgets every calendar path's CalDAV sync token, so the next sync of each
-  starts from a full fetch.
-  """
-  @spec clear_caldav_sync_tokens(CalendarIntegrationSchema.t()) :: :ok
-  def clear_caldav_sync_tokens(%CalendarIntegrationSchema{id: id}) do
-    query =
-      from(ci in CalendarIntegrationSchema,
-        where: ci.id == ^id,
-        update: [set: [caldav_sync_tokens: fragment("'{}'::jsonb")]]
-      )
-
-    Repo.update_all(query, [])
-
-    :ok
-  end
-
-  @doc """
-  Records one calendar path's CalDAV sync token, or forgets it when `token` is
-  `nil`.
-
-  A single atomic jsonb edit rather than a changeset over the whole map: a sync
-  run writes a token per path from the integration struct it loaded at the
-  start, so replacing the map would drop every token another path wrote
-  earlier in the same run.
-  """
-  @spec put_caldav_sync_token(CalendarIntegrationSchema.t(), String.t(), String.t() | nil) ::
-          :ok
-  def put_caldav_sync_token(%CalendarIntegrationSchema{id: id}, path, nil) do
-    query =
-      from(ci in CalendarIntegrationSchema,
-        where: ci.id == ^id,
-        update: [set: [caldav_sync_tokens: fragment("? - ?::text", ci.caldav_sync_tokens, ^path)]]
-      )
-
-    Repo.update_all(query, [])
-
-    :ok
-  end
-
-  def put_caldav_sync_token(%CalendarIntegrationSchema{id: id}, path, token)
-      when is_binary(token) do
-    query =
-      from(ci in CalendarIntegrationSchema,
-        where: ci.id == ^id,
-        update: [
-          set: [
-            caldav_sync_tokens:
-              fragment(
-                "COALESCE(?, '{}'::jsonb) || jsonb_build_object(?::text, ?::text)",
-                ci.caldav_sync_tokens,
-                ^path,
-                ^token
-              )
-          ]
-        ]
-      )
-
-    Repo.update_all(query, [])
-
-    :ok
-  end
-
-  @doc """
   Deletes a calendar integration.
   """
   @spec delete(CalendarIntegrationSchema.t()) ::
@@ -576,6 +526,26 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   end
 
   def owned_by?(_id, _user_id), do: false
+
+  @doc """
+  Whether the caller runs inside a transaction, so a write can leave what
+  must wait for the commit (dropping a cache) to the caller that commits.
+  """
+  @spec in_transaction?() :: boolean()
+  def in_transaction?, do: Repo.in_transaction?()
+
+  @doc """
+  Holds the user's row `FOR KEY SHARE` for the rest of the transaction, so the
+  account cannot be deleted under it: an account deletion locks that row
+  `FOR UPDATE` before its cascade reaches the user's calendars and meeting
+  types, and waits here, or this waits for it. `false` when the user is gone.
+
+  Must be called from inside a `Repo.transaction/1`.
+  """
+  @spec lock_owner(integer()) :: boolean()
+  def lock_owner(user_id) do
+    Repo.exists?(from(u in UserSchema, where: u.id == ^user_id, lock: "FOR KEY SHARE"))
+  end
 
   @doc """
   Locks the user's profile row, then every calendar integration row of theirs,

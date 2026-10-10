@@ -88,8 +88,9 @@ defmodule Tymeslot.Workers.MeetingNotificationJob do
   delivery does about it:
 
     * `:ok`: deliver.
-    * `{:revoked, reason}`: the plan no longer covers automations; the
-      integration is switched off rather than left to fail every event.
+    * `{:revoked, reason}`: the plan no longer covers automations; the job
+      is dropped and the integration left as it is, so it resumes by itself
+      once the plan covers automations again.
     * `{:discard, :feature_disabled}`: the instance has automations switched
       off; the job is dropped but the integration left as the user set it,
       since only the operator can switch the feature back on.

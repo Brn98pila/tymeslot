@@ -47,6 +47,26 @@ defmodule Tymeslot.OnboardingTest do
       assert re_completed_user.onboarding_completed_at ==
                completed_user.onboarding_completed_at
     end
+
+    test "keeps an earlier completion time, even when called with a stale struct" do
+      completed_at = ~U[2026-01-15 09:30:00Z]
+      user = insert(:user, onboarding_completed_at: completed_at)
+
+      # A concurrent caller that loaded the user before the first completion.
+      stale = %{user | onboarding_completed_at: nil}
+
+      assert {:ok, %{onboarding_completed_at: ^completed_at}} =
+               Onboarding.complete_onboarding(stale)
+
+      assert Repo.get!(UserSchema, user.id).onboarding_completed_at == completed_at
+    end
+
+    test "returns not found for a user that no longer exists" do
+      user = insert(:user, onboarding_completed_at: nil)
+      Repo.delete!(user)
+
+      assert {:error, :not_found} = Onboarding.mark_onboarding_complete(user)
+    end
   end
 
   describe "complete_onboarding/1 telemetry" do

@@ -704,3 +704,13 @@ msgstr "Pro silnější ochranu ověřujte podpis. Hlavička má tvar t=TIMESTAM
 #, elixir-autogen, elixir-format
 msgid "Request signature"
 msgstr "Podpis požadavku"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "Paused"
+msgstr "Pozastaveno"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "Paused: your plan doesn't include automations. Upgrading resumes it."
+msgstr "Pozastaveno: váš tarif nezahrnuje automatizace. Po přechodu na vyšší tarif se webhook sám obnoví."

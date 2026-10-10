@@ -223,6 +223,17 @@ defmodule Tymeslot.Webhooks do
   @test_connection_deadline_ms 20_000
 
   @doc """
+  Sends `webhook` a test payload (see `test_webhook_connection/2`). Refused,
+  sending nothing, while the owner's plan doesn't include automations.
+  """
+  @spec test_webhook(WebhookSchema.t()) ::
+          :ok | {:error, String.t() | Features.access_error()}
+  def test_webhook(%WebhookSchema{} = webhook) do
+    with :ok <- Features.check_access(webhook.user_id, :automations_allowed),
+         do: test_webhook_connection(webhook.url, webhook.webhook_token)
+  end
+
+  @doc """
   Tests a webhook connection by sending a test payload.
 
   The URL is validated once, here, and `HttpDelivery.post/4` is told to skip

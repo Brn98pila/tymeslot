@@ -17,6 +17,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   require Logger
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Integrations.Calendar.AvailabilityView
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Providers.ProviderAdapter
@@ -31,8 +32,10 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   @type client :: map()
 
   @doc """
-  Gets configured calendar clients for all calendars belonging to a user.
-  Returns a list of adapter clients, one for each configured calendar path.
+  The clients that read a user's calendars for availability: those of
+  `availability_sources/1`, without the ids of unreadable integrations. A
+  calendar set to show only gets none (see `AvailabilityView.of/1`);
+  for every calendar the user has, use `clients_for_integration/1`.
   """
   @spec clients(user_id() | nil) :: [client()]
   def clients(user_id) do
@@ -41,18 +44,29 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   end
 
   @doc """
-  The calendar clients `clients/1` returns, plus the ids of the user's active
-  integrations whose credentials no longer decrypt.
+  The clients that read the user's blocking calendars, plus the ids of the
+  active integrations with a blocking calendar whose credentials no longer
+  decrypt.
 
-  The availability check must count each of those as a calendar it could not
-  read rather than one with no events, so they are returned rather than
-  dropped.
+  Each integration is read through `AvailabilityView.of/1`, so a
+  calendar set to show only gets no client and can never refuse a slot, and
+  an integration with nothing blocking contributes none at all. The
+  availability check must count an undecryptable integration as a calendar
+  it could not read rather than one with no events, so those ids are
+  returned rather than dropped; its calendar list is stored unencrypted, so
+  one whose calendars all show only is left out instead.
   """
   @spec availability_sources(user_id() | nil) :: {[client()], [integration_id()]}
   def availability_sources(user_id) do
     case fetch_active_integrations(user_id) do
       {:ok, integrations, unreadable} ->
-        {Enum.flat_map(integrations, &clients_for_integration/1), Enum.map(unreadable, & &1.id)}
+        clients =
+          integrations
+          |> Enum.map(&AvailabilityView.of/1)
+          |> Enum.reject(&is_nil/1)
+          |> Enum.flat_map(&clients_for_integration/1)
+
+        {clients, for(i <- unreadable, AvailabilityView.of(i) != nil, do: i.id)}
 
       :not_found ->
         Logger.warning(

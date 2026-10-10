@@ -207,7 +207,43 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
   @spec full_refresh_for_role(CalendarIntegrationSchema.t(), String.t(), [CalendarEvent.t()]) ::
           {:ok, non_neg_integer()} | {:error, term()}
   def full_refresh_for_role(%CalendarIntegrationSchema{} = integration, role, calendar_events)
-      when is_binary(role) and is_list(calendar_events) do
+      when is_binary(role) and is_list(calendar_events),
+      do: full_refresh(integration, {:role, role}, role, calendar_events)
+
+  @doc """
+  `full_refresh_for_role/3` for the rows of one calendar alone: a read that
+  answers for that calendar and no other, such as the busy periods of a
+  CalDAV calendar shared as busy times only, replaces only its rows.
+  """
+  @spec full_refresh_for_calendar(
+          CalendarIntegrationSchema.t(),
+          String.t(),
+          String.t(),
+          [CalendarEvent.t()]
+        ) :: {:ok, non_neg_integer()} | {:error, term()}
+  def full_refresh_for_calendar(integration, provider_calendar_id, role, calendar_events)
+      when is_binary(provider_calendar_id) and is_binary(role) and is_list(calendar_events),
+      do:
+        full_refresh(
+          integration,
+          {:calendar, provider_calendar_id, role},
+          role,
+          calendar_events
+        )
+
+  @doc """
+  Drops the `role` rows of every calendar of the integration but
+  `provider_calendar_ids`: the rows a per-calendar read
+  (`full_refresh_for_calendar/4`) cached for a calendar it no longer reads.
+  """
+  @spec drop_role_except(CalendarIntegrationSchema.t(), String.t(), [String.t()]) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  def drop_role_except(integration, role, provider_calendar_ids)
+      when is_binary(role) and is_list(provider_calendar_ids),
+      do:
+        full_refresh(integration, {:role_except_calendars, role, provider_calendar_ids}, role, [])
+
+  defp full_refresh(integration, scope, role, calendar_events) do
     attrs =
       integration
       |> flag_tymeslot_owned(calendar_events)
@@ -217,7 +253,7 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
           |> Map.put(:role, role))
       )
 
-    IntegrationCacheQueries.replace_cached_rows(integration.id, {:role, role}, attrs)
+    IntegrationCacheQueries.replace_cached_rows(integration.id, scope, attrs)
   rescue
     e ->
       ErrorTracking.report_error(e, __STACKTRACE__, %{

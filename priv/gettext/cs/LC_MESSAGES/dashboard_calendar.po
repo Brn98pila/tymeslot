@@ -359,3 +359,8 @@ msgstr "%{count}/%{capacity} míst obsazeno"
 #, elixir-autogen, elixir-format
 msgid "Participants"
 msgstr "Účastníci"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/header/calendar_list_panel.ex
+#, elixir-autogen, elixir-format
+msgid "Doesn't block"
+msgstr "Neblokuje"

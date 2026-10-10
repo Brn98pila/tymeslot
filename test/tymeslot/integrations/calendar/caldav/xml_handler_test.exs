@@ -361,47 +361,6 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.XmlHandlerTest do
       assert cal.read_only == true
     end
 
-    # A free/busy-only share: the server answers a calendar-query REPORT on
-    # it with 403, so selecting it would leave the integration flagged for a
-    # reconnect that cannot help, and availability failing closed.
-    test "leaves out a calendar whose privilege set grants free/busy but not read" do
-      xml = """
-      <?xml version="1.0" encoding="UTF-8"?>
-      <D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
-        <D:response>
-          <D:href>/calendars/user/personal/</D:href>
-          <D:propstat>
-            <D:prop>
-              <D:displayname>Personal</D:displayname>
-              <D:resourcetype><D:collection/><C:calendar/></D:resourcetype>
-              <D:current-user-privilege-set>
-                <D:privilege><D:all/></D:privilege>
-              </D:current-user-privilege-set>
-            </D:prop>
-            <D:status>HTTP/1.1 200 OK</D:status>
-          </D:propstat>
-        </D:response>
-        <D:response>
-          <D:href>/calendars/colleague/availability/</D:href>
-          <D:propstat>
-            <D:prop>
-              <D:displayname>Colleague</D:displayname>
-              <D:resourcetype><D:collection/><C:calendar/></D:resourcetype>
-              <D:current-user-privilege-set>
-                <D:privilege><C:read-free-busy/></D:privilege>
-              </D:current-user-privilege-set>
-            </D:prop>
-            <D:status>HTTP/1.1 200 OK</D:status>
-          </D:propstat>
-        </D:response>
-      </D:multistatus>
-      """
-
-      assert {:ok, [cal]} = XmlHandler.parse_calendar_discovery(xml)
-      assert cal.path == "/calendars/user/personal/"
-      assert cal.read_only == false
-    end
-
     test "leaves a calendar writable when the privilege set includes write access" do
       xml = """
       <?xml version="1.0" encoding="UTF-8"?>

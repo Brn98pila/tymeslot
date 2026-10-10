@@ -14,6 +14,16 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.CrudHandlers do
   alias TymeslotWeb.Dashboard.Automation.Helpers, as: AutomationHelpers
   alias TymeslotWeb.Live.Shared.Flash
 
+  # Refusals from `Tymeslot.Features.check_access/2`, shown by
+  # `AutomationHelpers.handle_feature_access_error/2`.
+  @access_errors [
+    :insufficient_plan,
+    :feature_disabled,
+    :pro_required,
+    :stripe_required,
+    :feature_access_checker_failed
+  ]
+
   @spec handle_create(map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_create(%{"telegram" => params}, socket) do
@@ -112,6 +122,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.CrudHandlers do
 
   defp test_and_save_telegram(user_id, sanitized, socket) do
     test_integration = %TelegramIntegrationSchema{
+      user_id: user_id,
       bot_mode: "own",
       bot_token: sanitized[:bot_token],
       chat_id: sanitized[:chat_id]
@@ -120,6 +131,9 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.CrudHandlers do
     case Telegram.test_integration(test_integration) do
       :ok ->
         save_telegram(user_id, sanitized, socket)
+
+      {:error, reason} when reason in @access_errors ->
+        {:noreply, AutomationHelpers.handle_feature_access_error(socket, reason)}
 
       {:error, reason} ->
         Flash.error(

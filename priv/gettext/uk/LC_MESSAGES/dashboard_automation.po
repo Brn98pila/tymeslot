@@ -704,3 +704,13 @@ msgstr "Для надійнішого захисту перевіряйте пі
 #, elixir-autogen, elixir-format
 msgid "Request signature"
 msgstr "Підпис запиту"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "Paused"
+msgstr "Призупинено"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "Paused: your plan doesn't include automations. Upgrading resumes it."
+msgstr "Призупинено: ваш тариф не включає автоматизацію. Після переходу на вищий тариф вебхук відновиться автоматично."

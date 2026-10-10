@@ -77,5 +77,39 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FamilyReadWriteSplitTest do
       assert clients |> Enum.flat_map(& &1.client.calendar_paths) |> Enum.sort() ==
                ["/cal/bookings/", "/cal/rota/"]
     end
+
+    test "stops counting towards availability once set to show only, but stays readable", %{
+      user: user
+    } do
+      inserted =
+        insert(:calendar_integration,
+          user: user,
+          provider: "caldav",
+          base_url: "https://cal.example.com",
+          calendar_paths: ["/cal/bookings/", "/cal/rota/"],
+          calendar_list: [
+            %{id: "/cal/bookings/", path: "/cal/bookings/", name: "Bookings", selected: true},
+            %{
+              id: "/cal/rota/",
+              path: "/cal/rota/",
+              name: "Rota",
+              selected: true,
+              read_only: true,
+              blocks_availability: false
+            }
+          ]
+        )
+
+      {clients, []} = ClientManager.availability_sources(user.id)
+
+      assert Enum.flat_map(clients, & &1.client.calendar_paths) == ["/cal/bookings/"]
+
+      {:ok, integration} = CalendarManagement.fetch_integration_for_user(inserted.id, user.id)
+
+      assert integration
+             |> ClientManager.clients_for_integration()
+             |> Enum.flat_map(& &1.client.calendar_paths)
+             |> Enum.sort() == ["/cal/bookings/", "/cal/rota/"]
+    end
   end
 end

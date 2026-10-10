@@ -203,6 +203,47 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeQueries do
   end
 
   @doc """
+  The calendars of `calendar_integration_id` the user's meeting types name as
+  their booking calendar (`target_calendar_id`), each once.
+  """
+  @spec target_calendar_ids(integer(), integer()) :: [String.t()]
+  def target_calendar_ids(user_id, calendar_integration_id) do
+    Repo.all(
+      from(mt in MeetingTypeSchema,
+        where:
+          mt.user_id == ^user_id and mt.calendar_integration_id == ^calendar_integration_id and
+            not is_nil(mt.target_calendar_id),
+        distinct: true,
+        select: mt.target_calendar_id
+      )
+    )
+  end
+
+  @doc """
+  Whether the caller runs inside a transaction, so a write leaves what must
+  wait for the commit (dropping a cache) to the caller that commits.
+  """
+  @spec in_transaction?() :: boolean()
+  def in_transaction?, do: Repo.in_transaction?()
+
+  @doc """
+  Every `{calendar_integration_id, target_calendar_id}` pair the user's
+  meeting types name, each once.
+  """
+  @spec calendar_targets(integer()) :: [{integer(), String.t()}]
+  def calendar_targets(user_id) do
+    Repo.all(
+      from(mt in MeetingTypeSchema,
+        where:
+          mt.user_id == ^user_id and not is_nil(mt.calendar_integration_id) and
+            not is_nil(mt.target_calendar_id),
+        distinct: true,
+        select: {mt.calendar_integration_id, mt.target_calendar_id}
+      )
+    )
+  end
+
+  @doc """
   Clears calendar references (`calendar_integration_id` and `target_calendar_id`)
   on all meeting types pointing to the given calendar integration.
 
@@ -371,5 +412,17 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeQueries do
       )
 
     Map.new(rows, fn [venue_id, count] -> {venue_id, count} end)
+  end
+
+  @doc "Of `user_ids`, those with at least one meeting type."
+  @spec user_ids_with_any([integer()]) :: [integer()]
+  def user_ids_with_any([]), do: []
+
+  def user_ids_with_any(user_ids) when is_list(user_ids) do
+    MeetingTypeSchema
+    |> where([mt], mt.user_id in ^user_ids)
+    |> distinct(true)
+    |> select([mt], mt.user_id)
+    |> Repo.all()
   end
 end

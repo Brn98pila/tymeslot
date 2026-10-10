@@ -17,9 +17,7 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
 
   setup do
     # Ensure we are in standalone-like config for these tests
-    original_repo = Application.get_env(:tymeslot, :repo)
     original_manager = Application.get_env(:tymeslot, :subscription_manager)
-    Application.put_env(:tymeslot, :repo, Repo)
     # Standalone: no subscription manager at all, so subscription lookups
     # answer nil and the handlers take their standalone paths.
     Application.put_env(:tymeslot, :subscription_manager, nil)
@@ -29,7 +27,6 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
     Sandbox.mode(Repo, {:shared, self()})
 
     on_exit(fn ->
-      Application.put_env(:tymeslot, :repo, original_repo)
       Application.put_env(:tymeslot, :subscription_manager, original_manager)
     end)
 
@@ -40,36 +37,11 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
     defstruct [:user_id]
   end
 
-  defmodule TestUser do
-    defstruct [:id, :email, :name]
-  end
-
-  defmodule TestRepo do
-    @spec get_by(any(), any()) ::
-            Tymeslot.Payments.Webhooks.StandaloneHandlerTest.TestSubscriptionSchema
-    def get_by(_schema, _attrs),
-      do: %Tymeslot.Payments.Webhooks.StandaloneHandlerTest.TestSubscriptionSchema{user_id: 123}
-
-    @spec get(any(), any()) :: Tymeslot.Payments.Webhooks.StandaloneHandlerTest.TestUser
-    def get(_schema, _id),
-      do: %Tymeslot.Payments.Webhooks.StandaloneHandlerTest.TestUser{
-        id: 123,
-        email: "test@example.com",
-        name: "Test User"
-      }
-
-    # `deliver_user_email/5` preloads `:profile` before handing the user to a
-    # template. This stub's user carries its name directly, so there is nothing
-    # to load.
-    @spec preload(any(), any()) :: Tymeslot.Payments.Webhooks.StandaloneHandlerTest.TestUser
-    def preload(user, _assoc), do: user
-  end
-
-  # A subscription manager that records a subscription for user 123 under any
+  # A subscription manager that records a subscription for `user_id` under any
   # id. The module setup restores the standalone (nil) manager afterwards.
-  defp stub_recorded_subscription do
+  defp stub_recorded_subscription(user_id) do
     Application.put_env(:tymeslot, :subscription_manager, SubscriptionManagerMock)
-    subscription = %TestSubscriptionSchema{user_id: 123}
+    subscription = %TestSubscriptionSchema{user_id: user_id}
     stub(SubscriptionManagerMock, :get_subscription_by_customer_id, fn _id -> subscription end)
 
     stub(SubscriptionManagerMock, :get_subscription_by_subscription_id, fn _id -> subscription end)
@@ -77,16 +49,13 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
 
   defp with_object(event, object), do: Map.put(event, "data", %{"object" => object})
 
-  defp setup_test_configs do
-    original_repo = Application.get_env(:tymeslot, :repo)
+  defp setup_test_configs(user) do
     original_provider = Application.get_env(:tymeslot, :stripe_provider)
 
-    Application.put_env(:tymeslot, :repo, TestRepo)
     Application.put_env(:tymeslot, :stripe_provider, Tymeslot.Payments.StripeMock)
-    stub_recorded_subscription()
+    stub_recorded_subscription(user.id)
 
     on_exit(fn ->
-      Application.put_env(:tymeslot, :repo, original_repo)
       Application.put_env(:tymeslot, :stripe_provider, original_provider)
     end)
   end
@@ -160,14 +129,7 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
     end
 
     test "processes trial ending events when subscription exists" do
-      original_repo = Application.get_env(:tymeslot, :repo)
-
-      Application.put_env(:tymeslot, :repo, TestRepo)
-      stub_recorded_subscription()
-
-      on_exit(fn ->
-        Application.put_env(:tymeslot, :repo, original_repo)
-      end)
+      stub_recorded_subscription(insert(:user).id)
 
       trial_end = DateTime.add(DateTime.utc_now(), 2, :day)
 
@@ -216,8 +178,8 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
     end
 
     test "processes disputes even when evidence details are missing" do
-      setup_test_configs()
       user = insert(:user)
+      setup_test_configs(user)
 
       _transaction =
         insert(:payment_transaction,
@@ -245,8 +207,8 @@ defmodule Tymeslot.Payments.Webhooks.StandaloneHandlerTest do
     end
 
     test "processes disputes with invalid evidence due dates" do
-      setup_test_configs()
       user = insert(:user)
+      setup_test_configs(user)
 
       _transaction =
         insert(:payment_transaction,
