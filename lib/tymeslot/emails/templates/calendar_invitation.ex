@@ -96,6 +96,10 @@ defmodule Tymeslot.Emails.Templates.CalendarInvitation do
 
       MjmlEmail.base_email()
       |> to(attendee_email)
+      |> MjmlEmail.put_reply_to(
+        invitation_details.organizer_name,
+        invitation_details.organizer_email
+      )
       |> subject(Sanitise.sanitize_for_header(copy.subject))
       |> html_body(html_body)
       |> text_body(build_text_body(invitation_details, copy, locale))
