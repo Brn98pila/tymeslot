@@ -66,8 +66,8 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.RemovedCalendarsTest do
 
     {:ok, view, html} = live(conn, ~p"/dashboard/integrations?tab=calendars")
 
-    # The banner leads with the worse problem and counts the removal with it.
-    assert html =~ "2 connections need attention - Home server stopped syncing."
+    # The banner leads with the worse problem, and counts the connection once.
+    assert html =~ "1 connection needs attention - Home server stopped syncing."
 
     # The card shows both, one under the other, beside the Dismiss button.
     notices =

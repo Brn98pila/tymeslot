@@ -101,16 +101,23 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
   # ── Attention aggregation ─────────────────────────────────────────
 
   defp attention_items(calendars, videos, health_states, stuck_changes, payment_state) do
+    # Each item records the connection it is about, so the banner counts
+    # connections, however many items one of them has.
     items =
       integration_attention(calendars, health_states.calendar, stuck_changes, :calendars) ++
         integration_attention(videos, health_states.video, %{}, :video) ++
-        payment_attention(payment_state)
+        Enum.map(payment_attention(payment_state), &Map.put(&1, :source, :payments))
 
     Enum.sort_by(items, &severity_rank(&1.severity))
   end
 
-  defp integration_attention(integrations, health_states, stuck_changes, tab),
-    do: Enum.flat_map(integrations, &attention_for(&1, health_states, stuck_changes, tab))
+  defp integration_attention(integrations, health_states, stuck_changes, tab) do
+    Enum.flat_map(integrations, fn integration ->
+      integration
+      |> attention_for(health_states, stuck_changes, tab)
+      |> Enum.map(&Map.put(&1, :source, {tab, integration.id}))
+    end)
+  end
 
   # Delegates precedence (paused → needs_reauth → unhealthy → healthy) to the
   # canonical `HealthCheck.attention_status/2` classifier, the same one the
@@ -298,7 +305,7 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubComponent do
 
   # Items are sorted worst-first, so the head carries the target tab.
   defp attention_headline(attention) do
-    count = length(attention)
+    count = attention |> Enum.uniq_by(& &1.source) |> length()
 
     dngettext(
       "dashboard_integrations",
