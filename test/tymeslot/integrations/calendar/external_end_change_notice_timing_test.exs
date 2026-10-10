@@ -238,6 +238,78 @@ defmodule Tymeslot.Integrations.Calendar.ExternalEndChangeNoticeTimingTest do
     end
   end
 
+  # The host's notice says which end the change replaced. A first run that
+  # told the booker has moved their record on, so a retry must not read the
+  # end it replaced from there.
+  describe "the host's notice on a retry" do
+    test "keeps the end replaced when the booker was told and a guest was missed", ctx do
+      {:ok, _guests} = Guests.create_for_meeting(ctx.meeting.id, ["guest@example.com"])
+      change_end(ctx.meeting, ~T[11:30:00])
+      [job] = end_change_jobs()
+      use_mock_emails()
+
+      expect(EmailServiceMock, :send_end_change_to_attendee, fn _email, _details ->
+        {:ok, :sent}
+      end)
+
+      expect(EmailServiceMock, :send_guest_end_change, fn _email, _details ->
+        {:error, :timeout}
+      end)
+
+      assert {:error, _reason} = run(job)
+
+      expect(EmailServiceMock, :send_guest_end_change, fn _email, _details -> {:ok, :sent} end)
+      expect_host_notice()
+      assert :ok = run(job, attempt: 2)
+
+      assert_host_heard(at(ctx.meeting, ~T[10:30:00]))
+    end
+
+    test "keeps the end replaced when the host's own notice failed", ctx do
+      change_end(ctx.meeting, ~T[11:30:00])
+      [job] = end_change_jobs()
+      use_mock_emails()
+
+      expect(EmailServiceMock, :send_end_change_to_attendee, fn _email, _details ->
+        {:ok, :sent}
+      end)
+
+      expect(EmailServiceMock, :send_end_change_to_organizer, fn _meeting, _email, _notice ->
+        {:error, :timeout}
+      end)
+
+      assert {:error, _reason} = run(job)
+
+      expect_host_notice()
+      assert :ok = run(job, attempt: 2)
+
+      assert_host_heard(at(ctx.meeting, ~T[10:30:00]))
+    end
+
+    test "keeps the end replaced on a group meeting whose host notice failed", ctx do
+      meeting = group!(ctx.meeting)
+      insert(:participant, meeting: meeting, timezone: "Etc/UTC")
+      change_end(meeting, ~T[11:30:00])
+      [job] = end_change_jobs()
+      use_mock_emails()
+
+      expect(EmailServiceMock, :send_end_change_to_attendee, fn _email, _details ->
+        {:ok, :sent}
+      end)
+
+      expect(EmailServiceMock, :send_end_change_to_organizer, fn _meeting, _email, _notice ->
+        {:error, :timeout}
+      end)
+
+      assert {:error, _reason} = run(job)
+
+      expect_host_notice()
+      assert :ok = run(job, attempt: 2)
+
+      assert_host_heard(at(meeting, ~T[10:30:00]))
+    end
+  end
+
   describe "a booking that moved on before the notice ran" do
     test "a reschedule in the meantime announces the new time and no stale end", ctx do
       {:ok, _guests} = Guests.create_for_meeting(ctx.meeting.id, ["guest@example.com"])
@@ -337,6 +409,20 @@ defmodule Tymeslot.Integrations.Calendar.ExternalEndChangeNoticeTimingTest do
 
   defp use_mock_emails,
     do: Application.put_env(:tymeslot, :email_service_module, EmailServiceMock)
+
+  defp expect_host_notice do
+    test_pid = self()
+
+    expect(EmailServiceMock, :send_end_change_to_organizer, fn _meeting, _email, notice ->
+      send(test_pid, {:host_notice, notice})
+      {:ok, :sent}
+    end)
+  end
+
+  defp assert_host_heard(previous_end) do
+    assert_received {:host_notice, notice}
+    assert notice.previous_end_time == previous_end
+  end
 
   defp told(address) do
     assert_received {:email, %Swoosh.Email{to: [{_name, ^address}]} = email}

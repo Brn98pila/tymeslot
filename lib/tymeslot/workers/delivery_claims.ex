@@ -55,6 +55,32 @@ defmodule Tymeslot.Workers.DeliveryClaims do
   @type job_id :: integer() | nil
 
   @doc """
+  Keeps `value` on the job under `name` the first time it is asked, and
+  answers that first value on every later run, whatever `value` is then.
+
+  For what a job must say the same way however many times it runs, when the
+  run itself changes what it would compute: an email stating "the end it
+  was" must not, on a retry, read the end it already moved on. Kept as a
+  claim (`name=value`), so it lives and is pruned with the job's other
+  claims. A job with no id has no later runs and keeps nothing.
+  """
+  @spec remember(job_id(), String.t(), String.t()) :: String.t()
+  def remember(nil, _name, value), do: value
+
+  def remember(job_id, name, value) when is_integer(job_id) do
+    prefix = name <> "="
+
+    case DeliveryClaimQueries.find_key(job_id, prefix) do
+      nil ->
+        DeliveryClaimQueries.claim(job_id, prefix <> value)
+        value
+
+      key ->
+        String.replace_prefix(key, prefix, "")
+    end
+  end
+
+  @doc """
   Whether an earlier run of the job already performed the effect `key` names
   (its claim is held). A job with no id has no earlier runs.
   """

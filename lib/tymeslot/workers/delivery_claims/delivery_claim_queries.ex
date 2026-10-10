@@ -30,6 +30,16 @@ defmodule Tymeslot.Workers.DeliveryClaims.DeliveryClaimQueries do
     end
   end
 
+  @doc "The key of a claim the job holds that starts with `prefix`, or `nil`."
+  @spec find_key(integer(), String.t()) :: String.t() | nil
+  def find_key(oban_job_id, prefix) do
+    DeliveryClaimSchema
+    |> where([c], c.oban_job_id == ^oban_job_id and like(c.effect_key, ^(prefix <> "%")))
+    |> select([c], c.effect_key)
+    |> limit(1)
+    |> Repo.one()
+  end
+
   @doc "Drops a claim, so a later execution of the job may perform the effect."
   @spec release(integer(), String.t()) :: :ok
   def release(oban_job_id, effect_key) do

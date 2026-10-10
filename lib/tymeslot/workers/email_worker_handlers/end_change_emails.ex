@@ -124,6 +124,9 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails do
   defp host_leaving?(_meeting), do: false
 
   defp send_notices(meeting, job_id) do
+    # Taken before any seat is told: telling the booker moves the meeting's
+    # record on, and a retry must still give the host the end it replaced.
+    host_from = host_previous_end(job_id, meeting.notified_end_time)
     outcomes = attendee_outcomes(meeting, job_id) ++ guest_outcomes(meeting, job_id)
 
     cond do
@@ -134,7 +137,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails do
         {:error, "End change notices failed for some recipients"}
 
       Enum.any?(outcomes, &match?({:sent, _who, _told}, &1)) ->
-        notify_host(meeting, outcomes, job_id)
+        notify_host(meeting, outcomes, host_from, job_id)
 
       true ->
         Logger.warning("End change reached no attendee; the host is not told it did",
@@ -256,14 +259,15 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails do
   end
 
   # The host hears the end the attendees knew: the meeting's own record of
-  # it, which every change seeds, or failing that the end a reached seat
-  # knew. A group meeting has no booker seat, so its record is moved on here,
-  # once the participants have been told.
-  defp notify_host(meeting, outcomes, job_id) do
+  # it as the job's first run found it, which every change seeds, or failing
+  # that the end a reached seat knew. A group meeting has no booker seat, so
+  # its record is moved on here, once the host's notice has gone out or been
+  # refused for good: before that, a retry could find it already moved.
+  defp notify_host(meeting, outcomes, host_from, job_id) do
     reached = for {:sent, who, _known_end} <- outcomes, do: who
 
     notice = %{
-      previous_end_time: meeting.notified_end_time || first_known_end(outcomes),
+      previous_end_time: host_from || host_previous_end(job_id, first_known_end(outcomes)),
       attendees: for({kind, name} <- reached, kind != :guest, do: name),
       guests: Enum.count(reached, &match?({:guest, _name}, &1))
     }
@@ -277,13 +281,29 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails do
         )
       end)
 
-    if MeetingSchema.group?(meeting),
-      do: MeetingCalendarQueries.put_notified_end(meeting.id, meeting.end_time)
-
     case outcome(result, %{who: {:organizer, meeting.organizer_name}, known_end: nil}, meeting) do
-      {:failed, _who} -> {:error, "End change notice to the host failed"}
-      _sent_or_rejected -> :ok
+      {:failed, _who} ->
+        {:error, "End change notice to the host failed"}
+
+      _sent_or_rejected ->
+        if MeetingSchema.group?(meeting),
+          do: MeetingCalendarQueries.put_notified_end(meeting.id, meeting.end_time)
+
+        :ok
     end
+  end
+
+  # The first value a run of this job took, kept with its claims
+  # (`DeliveryClaims.remember/3`).
+  defp host_previous_end(_job_id, nil), do: nil
+
+  defp host_previous_end(job_id, %DateTime{} = known_end) do
+    {:ok, first, _offset} =
+      job_id
+      |> DeliveryClaims.remember("end_change:host_from", DateTime.to_iso8601(known_end))
+      |> DateTime.from_iso8601()
+
+    first
   end
 
   defp first_known_end(outcomes),
