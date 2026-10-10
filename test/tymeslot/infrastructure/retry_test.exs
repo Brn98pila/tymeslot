@@ -99,6 +99,41 @@ defmodule Tymeslot.Infrastructure.RetryTest do
     end
   end
 
+  describe "a rate limit that names its wait" do
+    test "is retried after that wait rather than the usual backoff" do
+      {fun, calls} = counting([{:error, {:rate_limited, 1}}, {:ok, :done}])
+
+      # The usual backoff here is no wait at all; the named second, capped.
+      {elapsed_us, result} =
+        :timer.tc(fn -> quietly(fn -> Retry.with_backoff(fun, @fast ++ [max_delay: 60]) end) end)
+
+      assert result == {:ok, :done}
+      assert calls.() == 2
+      assert div(elapsed_us, 1_000) >= 60
+    end
+
+    test "waits no longer than the cap however long the wait named" do
+      {fun, _calls} = counting([{:error, {:rate_limited, 3_600}}, {:ok, :done}])
+
+      {elapsed_us, {:ok, :done}} =
+        :timer.tc(fn -> quietly(fn -> Retry.with_backoff(fun, @fast ++ [max_delay: 10]) end) end)
+
+      assert div(elapsed_us, 1_000) < 1_000
+    end
+  end
+
+  describe "retry_after_seconds/1" do
+    test "reads a number of seconds, and nothing from a date or no header" do
+      assert Retry.retry_after_seconds(%{headers: %{"retry-after" => ["30"]}}) == 30
+
+      assert Retry.retry_after_seconds(%{
+               headers: %{"retry-after" => ["Wed, 21 Oct 2026 07:28:00 GMT"]}
+             }) == nil
+
+      assert Retry.retry_after_seconds(%{headers: %{}}) == nil
+    end
+  end
+
   describe "delay/2" do
     test "starts at the initial delay and doubles up to the cap" do
       opts = [initial_delay: 1_000, max_delay: 3_000, jitter: 0.0]

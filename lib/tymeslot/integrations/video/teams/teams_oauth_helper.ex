@@ -128,6 +128,11 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
               {:error, "Invalid JSON response from Microsoft profile API"}
           end
 
+        # Retried after the wait the provider names, when it names one.
+        {:ok, %Req.Response{status: 429} = response} ->
+          Logger.warning("Microsoft user profile request rate limited")
+          {:error, {:rate_limited, Retry.retry_after_seconds(response)}}
+
         {:ok, %Req.Response{status: status, body: body}} ->
           Logger.error("Failed to fetch Microsoft user profile",
             status: status,
@@ -146,6 +151,9 @@ defmodule Tymeslot.Integrations.Video.Teams.TeamsOAuthHelper do
 
   defp profile_error_message({:error, {:http_error, status, _body}}),
     do: {:error, "Failed to fetch user profile: HTTP #{status}"}
+
+  defp profile_error_message({:error, {:rate_limited, _seconds}}),
+    do: {:error, "Failed to fetch user profile: HTTP 429"}
 
   defp profile_error_message({:error, exception}) when is_exception(exception),
     do: {:error, "Network error fetching profile: #{Exception.message(exception)}"}

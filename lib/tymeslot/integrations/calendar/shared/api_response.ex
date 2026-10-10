@@ -27,6 +27,7 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ApiResponse do
   require Logger
 
   alias Tymeslot.Infrastructure.Logging.Redactor
+  alias Tymeslot.Infrastructure.Retry
   alias Tymeslot.Integrations.Calendar.HTTP
   alias Tymeslot.Integrations.Shared.OAuth.ErrorParser
   alias Tymeslot.Integrations.Shared.OAuth.TokenEndpoint
@@ -174,18 +175,9 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ApiResponse do
   """
   @spec rate_limited_message(map(), String.t()) :: String.t()
   def rate_limited_message(response, fallback) do
-    case retry_after(response) do
+    case Retry.retry_after_seconds(response) do
       seconds when is_integer(seconds) -> "retry_after:" <> Integer.to_string(seconds)
       nil -> fallback
-    end
-  end
-
-  defp retry_after(response) do
-    with [value | _rest] <- response |> Map.get(:headers, %{}) |> Map.get("retry-after"),
-         {seconds, _remainder} <- Integer.parse(value) do
-      seconds
-    else
-      _no_seconds -> nil
     end
   end
 

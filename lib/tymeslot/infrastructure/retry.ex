@@ -10,6 +10,10 @@ defmodule Tymeslot.Infrastructure.Retry do
   breakers count failures by. When the attempts run out, or the error is not
   retriable, the last `{:error, reason}` is returned, so the caller still
   knows what failed.
+
+  A rate limit that names its wait, `{:rate_limited, seconds}`, is retried
+  after that wait (capped at `:max_delay`) rather than the usual backoff.
+  `retry_after_seconds/1` reads the wait from a 429 response.
   """
 
   alias Tymeslot.Infrastructure.BreakerOutcome
@@ -67,6 +71,20 @@ defmodule Tymeslot.Infrastructure.Retry do
       else: capped
   end
 
+  @doc """
+  The wait a rate-limited `response` names in its `Retry-After` header, in
+  seconds, or `nil` when it names none (or names a date).
+  """
+  @spec retry_after_seconds(map()) :: non_neg_integer() | nil
+  def retry_after_seconds(response) do
+    with [value | _rest] <- response |> Map.get(:headers, %{}) |> Map.get("retry-after"),
+         {seconds, _remainder} when seconds >= 0 <- Integer.parse(value) do
+      seconds
+    else
+      _no_seconds -> nil
+    end
+  end
+
   defp run(fun, attempt, opts) do
     case fun.() do
       {:error, reason} = error -> retry_or_return(error, reason, fun, attempt, opts)
@@ -88,7 +106,7 @@ defmodule Tymeslot.Infrastructure.Retry do
         error
 
       true ->
-        delay = delay(attempt, opts)
+        delay = delay_for(reason, attempt, opts)
 
         Logger.info("Retrying after error",
           attempt: attempt,
@@ -101,4 +119,10 @@ defmodule Tymeslot.Infrastructure.Retry do
         run(fun, attempt + 1, opts)
     end
   end
+
+  defp delay_for({:rate_limited, seconds}, _attempt, opts)
+       when is_integer(seconds) and seconds >= 0,
+       do: min(seconds * 1_000, opts[:max_delay])
+
+  defp delay_for(_reason, attempt, opts), do: delay(attempt, opts)
 end
