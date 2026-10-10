@@ -9,11 +9,9 @@ defmodule Tymeslot.Notifications.Orchestrator do
   alias Tymeslot.Clock
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Meetings
   alias Tymeslot.Meetings.ApprovalJobs
 
   alias Tymeslot.Notifications.{
-    ContentBuilder,
     GuestNotifications,
     Recipients,
     ReminderSchedule,
@@ -173,13 +171,10 @@ defmodule Tymeslot.Notifications.Orchestrator do
   # error here rolls the booking back for a retry, which only an enqueue
   # that failed can be helped by.
   defp with_sendable(meeting, step, fun) do
-    recipients = Recipients.determine_recipients(meeting)
-    content = ContentBuilder.build_appointment_details(meeting)
+    case Recipients.validate(meeting) do
+      :ok ->
+        fun.()
 
-    with :ok <- Recipients.validate_recipients(recipients),
-         :ok <- ContentBuilder.validate_content(content, Meetings.group?(meeting)) do
-      fun.()
-    else
       {:error, reason} ->
         Logger.error("Meeting cannot be emailed, nothing scheduled",
           meeting_id: meeting.id,
@@ -262,9 +257,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
   @spec send_cancellation_notifications(%{atom() => term()}) ::
           {:ok, atom()} | {:error, term()}
   def send_cancellation_notifications(meeting) do
-    recipients = Recipients.determine_recipients(meeting)
-
-    with :ok <- Recipients.validate_recipients(recipients) do
+    with :ok <- Recipients.validate(meeting, :recipients) do
       worker_module = get_email_worker_module()
 
       case worker_module.schedule_cancellation_emails(meeting.id) do
@@ -345,11 +338,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
   @spec send_reschedule_notifications(%{atom() => term()}, %{atom() => term()}) ::
           {:ok, atom()} | {:error, term()}
   def send_reschedule_notifications(updated_meeting, original_meeting) do
-    recipients = Recipients.determine_recipients(updated_meeting)
-    content = ContentBuilder.build_reschedule_details(updated_meeting, original_meeting)
-
-    with :ok <- Recipients.validate_recipients(recipients),
-         :ok <- ContentBuilder.validate_content(content) do
+    with :ok <- Recipients.validate(updated_meeting) do
       GuestNotifications.reset_for_new_time(updated_meeting)
       schedule_reschedule_job(updated_meeting, original_meeting)
     end
@@ -379,11 +368,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
   def send_reapproval_notifications(%{first_announced_at: nil}), do: {:ok, :not_a_move}
 
   def send_reapproval_notifications(meeting) do
-    recipients = Recipients.determine_recipients(meeting)
-    content = ContentBuilder.build_reapproval_details(meeting)
-
-    with :ok <- Recipients.validate_recipients(recipients),
-         :ok <- ContentBuilder.validate_content(content) do
+    with :ok <- Recipients.validate(meeting) do
       schedule_reschedule_job(meeting, nil)
     end
   end

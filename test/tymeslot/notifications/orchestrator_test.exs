@@ -131,4 +131,42 @@ defmodule Tymeslot.Notifications.OrchestratorTest do
       assert all_enqueued(worker: EmailWorker) == []
     end
   end
+
+  describe "schedule_meeting_notifications/1" do
+    # A meeting missing what its emails need is checked on its own fields and
+    # gets nothing queued; the booking itself is not refused.
+    test "a meeting without an attendee address queues no confirmation and no reminder" do
+      start_time = DateTime.add(DateTime.utc_now(), 2, :day)
+
+      meeting =
+        insert(:meeting,
+          start_time: start_time,
+          end_time: DateTime.add(start_time, 1, :hour),
+          attendee_email: nil,
+          reminders: [%{"value" => 1, "unit" => "hours"}]
+        )
+
+      assert {:ok, :notifications_scheduled} =
+               Orchestrator.schedule_meeting_notifications(meeting)
+
+      assert all_enqueued(worker: EmailWorker) == []
+    end
+
+    test "a complete meeting queues its confirmation and its reminder" do
+      start_time = DateTime.add(DateTime.utc_now(), 2, :day)
+
+      meeting =
+        insert(:meeting,
+          start_time: start_time,
+          end_time: DateTime.add(start_time, 1, :hour),
+          reminders: [%{"value" => 1, "unit" => "hours"}]
+        )
+
+      assert {:ok, :notifications_scheduled} =
+               Orchestrator.schedule_meeting_notifications(meeting)
+
+      assert Enum.sort(Enum.map(all_enqueued(worker: EmailWorker), & &1.args["action"])) ==
+               ["send_confirmation_emails", "send_reminder_emails"]
+    end
+  end
 end
