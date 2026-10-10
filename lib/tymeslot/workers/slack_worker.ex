@@ -86,7 +86,7 @@ defmodule Tymeslot.Workers.SlackWorker do
     else
       {:error, :not_found} -> {:discard, @gone}
       {:error, :disabled} -> {:discard, @disabled}
-      {:revoked, _reason} -> handle_revoked_access(integration_id)
+      {:revoked, _reason} -> {:discard, @insufficient_plan}
       {:discard, :feature_disabled} -> {:discard, @feature_disabled}
       {:error, :feature_access_checker_failed} = error -> error
     end
@@ -139,11 +139,6 @@ defmodule Tymeslot.Workers.SlackWorker do
     if SlackIntegrationSchema.status(integration) == :active,
       do: :ok,
       else: {:error, :disabled}
-  end
-
-  defp handle_revoked_access(integration_id) do
-    {:ok, _disabled?} = Slack.disable_for_revoked_plan(integration_id)
-    {:discard, @insufficient_plan}
   end
 
   defp deliver(%SlackIntegrationSchema{app_mode: "oauth"} = integration, blocks) do

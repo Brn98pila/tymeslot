@@ -402,15 +402,6 @@ defmodule Tymeslot.Slack do
     end
   end
 
-  @doc """
-  Switches the integration off because its owner's plan no longer covers
-  automations. A paused or already disabled integration is left as it is,
-  keeping the user's choice or the earlier reason.
-  """
-  @spec disable_for_revoked_plan(integer()) :: {:ok, boolean()}
-  def disable_for_revoked_plan(integration_id),
-    do: SlackQueries.disable_if_active(integration_id, "plan_revoked")
-
   @spec auto_disable(SlackIntegrationSchema.t(), String.t()) ::
           {:ok, SlackIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
   def auto_disable(%SlackIntegrationSchema{} = integration, reason) do

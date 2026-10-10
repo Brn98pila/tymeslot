@@ -450,8 +450,8 @@ defmodule Tymeslot.Workers.WebhookWorker do
     end
   end
 
-  # Unlike the chat channels, a webhook is not switched off when the plan no
-  # longer covers automations: the job is discarded and the webhook kept.
+  # A plan that no longer covers automations discards the job and leaves the
+  # webhook as it is, so it resumes by itself once the plan does again.
   defp feature_gate(user_id, webhook_id, event_type) do
     case MeetingNotificationJob.feature_gate(user_id) do
       :ok ->

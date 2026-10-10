@@ -369,8 +369,9 @@ defmodule Tymeslot.Workers.WebhookWorkerTest do
                  "meeting_id" => meeting.id
                })
 
-      # Unlike the chat channels, the webhook itself is kept as it was.
-      assert Repo.get!(WebhookSchema, webhook.id).is_active
+      # Like the chat channels, the webhook is left on, to resume with the plan.
+      assert %{is_active: true, disabled_at: nil, disabled_reason: nil} =
+               Repo.get!(WebhookSchema, webhook.id)
     end
 
     test "discards the job when automations are switched off for the instance" do
