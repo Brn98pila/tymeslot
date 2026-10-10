@@ -4,6 +4,7 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
 
   import Mox
 
+  alias ExUnit.CaptureLog
   alias Tymeslot.Integrations.Shared.OAuth.State
   alias Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper
 
@@ -106,6 +107,95 @@ defmodule Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelperTest do
       assert tokens.refresh_token == "rt-123"
       assert tokens.provider_account_id == "zoom-user-123"
       assert tokens.provider_account_email == "alice@example.com"
+    end
+
+    # A profile request Zoom keeps failing is retried, and the error names the
+    # last status rather than only that the attempts ran out.
+    test "retries a failing profile request and reports its last status" do
+      %{resp_body: resp_body} = oauth_test_data()
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, _body, _headers, _opts ->
+        {:ok, %{status: 200, body: resp_body}}
+      end)
+
+      expect(Tymeslot.HTTPClientMock, :get, 3, fn _url, _headers, _opts ->
+        {:ok, %Req.Response{status: 503, body: "busy"}}
+      end)
+
+      assert {:error, "Failed to fetch user profile: HTTP 503"} =
+               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb",
+                 profile_retry: [initial_delay: 0]
+               )
+    end
+
+    # Zoom names how long to wait; waiting less only earns another 429.
+    test "retries a rate-limited profile request after the wait Zoom names" do
+      %{resp_body: resp_body} = oauth_test_data()
+      profile_body = Jason.encode!(%{"id" => "zoom-user-429", "email" => "alice@example.com"})
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, _body, _headers, _opts ->
+        {:ok, %{status: 200, body: resp_body}}
+      end)
+
+      expect(Tymeslot.HTTPClientMock, :get, fn _url, _headers, _opts ->
+        {:ok, %Req.Response{status: 429, headers: %{"retry-after" => ["1"]}, body: ""}}
+      end)
+
+      expect(Tymeslot.HTTPClientMock, :get, fn _url, _headers, _opts ->
+        {:ok, %Req.Response{status: 200, body: profile_body}}
+      end)
+
+      # The usual backoff here is no wait; the named second, capped at 60 ms.
+      {elapsed_us, result} =
+        :timer.tc(fn ->
+          CaptureLog.with_log(fn ->
+            ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb",
+              profile_retry: [initial_delay: 0, max_delay: 60, jitter: 0.0]
+            )
+          end)
+        end)
+
+      assert {{:ok, tokens}, _log} = result
+      assert tokens.provider_account_id == "zoom-user-429"
+      assert div(elapsed_us, 1_000) >= 60
+    end
+
+    # The owner is waiting on the callback page.
+    test "fails at once when Zoom asks for a longer wait than a page can hold" do
+      %{resp_body: resp_body} = oauth_test_data()
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, _body, _headers, _opts ->
+        {:ok, %{status: 200, body: resp_body}}
+      end)
+
+      expect(Tymeslot.HTTPClientMock, :get, 1, fn _url, _headers, _opts ->
+        {:ok, %Req.Response{status: 429, headers: %{"retry-after" => ["30"]}, body: ""}}
+      end)
+
+      {elapsed_us, {result, _log}} =
+        :timer.tc(fn ->
+          CaptureLog.with_log(fn ->
+            ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb")
+          end)
+        end)
+
+      assert result == {:error, :provider_rate_limited}
+      assert div(elapsed_us, 1_000) < 1_000
+    end
+
+    test "does not retry a profile request Zoom refuses" do
+      %{resp_body: resp_body} = oauth_test_data()
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :post, _url, _body, _headers, _opts ->
+        {:ok, %{status: 200, body: resp_body}}
+      end)
+
+      expect(Tymeslot.HTTPClientMock, :get, 1, fn _url, _headers, _opts ->
+        {:ok, %Req.Response{status: 401, body: "no"}}
+      end)
+
+      assert {:error, "Failed to fetch user profile: HTTP 401"} =
+               ZoomOAuthHelper.exchange_code_for_tokens("code", "https://example.com/cb")
     end
 
     test "fails when profile is missing id" do

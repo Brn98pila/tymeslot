@@ -11,7 +11,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommonPartialReadTest d
   @moduletag :calendar
   @moduletag :integrations
 
-  alias Tymeslot.Infrastructure.CalendarCircuitBreaker
+  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Infrastructure.ResponseTooLargeError
   alias Tymeslot.Integrations.Calendar.Providers.CaldavCommon
   alias Tymeslot.Integrations.Calendar.Shared.FetchAggregate.Outcome
@@ -23,7 +23,7 @@ defmodule Tymeslot.Integrations.Calendar.Providers.CaldavCommonPartialReadTest d
   @unreadable "/calendars/host/unreadable/"
 
   setup do
-    CalendarCircuitBreaker.reset_all_hosts()
+    ProviderBreakers.reset_all_hosts()
 
     client = %{
       base_url: "https://dav.example.com",

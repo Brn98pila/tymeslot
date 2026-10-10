@@ -5,6 +5,7 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
 
   import Ecto.Query
   alias Ecto.Changeset
+  alias Tymeslot.Clock
   alias Tymeslot.Integrations.Video.VideoIntegrationSchema
   alias Tymeslot.Repo
 
@@ -38,11 +39,20 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
   """
   @spec list_all_active() :: list(VideoIntegrationSchema.t())
   def list_all_active do
+    active_query()
+    |> order_by([v], asc: v.name)
+    |> Repo.all()
+  end
+
+  @doc """
+  The query for every active integration across all users: switched on and
+  not disconnected. For other queries modules to join against.
+  """
+  @spec active_query() :: Ecto.Query.t()
+  def active_query do
     VideoIntegrationSchema
     |> exclude_deleted()
     |> where([v], v.is_active == true)
-    |> order_by([v], asc: v.name)
-    |> Repo.all()
   end
 
   @doc """
@@ -354,7 +364,7 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
   clearing `needs_reauth`, the message explaining it, and any recorded room
   creation error.
 
-  `sync_error` is written alongside `needs_reauth` by `mark_needs_reauth/2` and
+  `sync_error` is written alongside `needs_reauth` by `flag_needs_reauth/2` and
   describes why the integration stopped working. Leaving it behind outlives the
   flag it belongs to, and the row then carries an explanation of a problem it no
   longer has: the dashboard reads it for the reconnect prompt's reason, and the
@@ -415,19 +425,35 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
   end
 
   @doc """
-  Flags an integration as needing reauthentication — used when the stored
-  credentials can no longer be decrypted. Also records a sync error so the
-  dashboard banner stays consistent.
+  Flags an integration as needing reauthentication and records `message` as
+  its sync error, so the dashboard banner stays consistent.
+
+  Whether this is a new flag is decided by the row, not by `integration`,
+  which may be stale: of two concurrent flaggers, exactly one sees
+  `newly_flagged?` true. `{:error, :not_found}` when the row is gone.
   """
-  @spec mark_needs_reauth(VideoIntegrationSchema.t(), String.t()) ::
-          {:ok, VideoIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
-  def mark_needs_reauth(%VideoIntegrationSchema{} = integration, error_message) do
-    integration
-    |> Changeset.change(%{
+  @spec flag_needs_reauth(VideoIntegrationSchema.t(), String.t()) ::
+          {:ok, VideoIntegrationSchema.t(), newly_flagged? :: boolean()}
+          | {:error, :not_found}
+  def flag_needs_reauth(%VideoIntegrationSchema{id: id} = integration, message) do
+    row = where(VideoIntegrationSchema, id: ^id)
+
+    flag = [
       needs_reauth: true,
-      sync_error: error_message
-    })
-    |> Repo.update()
+      sync_error: message,
+      updated_at: DateTime.truncate(Clock.utc_now(), :second)
+    ]
+
+    case Repo.update_all(where(row, needs_reauth: false), set: flag) do
+      {1, _rows} ->
+        {:ok, struct(integration, flag), true}
+
+      {0, _rows} ->
+        case Repo.update_all(row, set: flag) do
+          {1, _rows} -> {:ok, struct(integration, flag), false}
+          {0, _rows} -> {:error, :not_found}
+        end
+    end
   end
 
   @doc """

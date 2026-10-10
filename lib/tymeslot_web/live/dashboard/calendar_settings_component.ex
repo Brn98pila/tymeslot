@@ -13,7 +13,6 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.HealthCheck
-  alias Tymeslot.Integrations.HealthCheck.Monitor
   alias Tymeslot.Profiles
   alias TymeslotWeb.Dashboard.CalendarSettings.ComponentView
   alias TymeslotWeb.Helpers.IntegrationProviders
@@ -204,6 +203,19 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
          Tasks.with_context(fn -> Calendar.refresh_all_integrations(user_id) end)
        )}
     end
+  end
+
+  # The ids are those the card rendered, so a calendar recorded since stays.
+  def handle_event("dismiss_removed_calendars", %{"id" => id} = params, socket) do
+    shown_ids = shown_ids(params)
+    dismiss = &Calendar.dismiss_removed_calendars(&1, &2, shown_ids)
+
+    with_owned_integration(socket, id, dismiss, fn
+      {:ok, _cleared} ->
+        # The hub's banner lists the same calendars, from the parent's copy.
+        send(self(), {:integration_updated, :calendar})
+        {:noreply, load_integrations(socket)}
+    end)
   end
 
   def handle_event("retry_stuck_changes", %{"id" => id}, socket) do
@@ -445,11 +457,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
     user_id = socket.assigns.current_user.id
     integrations = Calendar.list_integrations(user_id)
 
-    health_states =
-      user_id
-      |> HealthCheck.list_unhealthy_for_user()
-      |> Enum.filter(&(&1.integration_type == "calendar"))
-      |> Map.new(fn s -> {s.integration_id, Monitor.from_db_record(s)} end)
+    health_states = HealthCheck.health_states_for_user(user_id).calendar
 
     socket
     |> assign(:integrations, integrations)
@@ -559,6 +567,16 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
   # detail of the picker rather than something the schema has to know about.
   defp palette_key("default"), do: nil
   defp palette_key(colour), do: colour
+
+  # A tampered or missing list dismisses nothing.
+  defp shown_ids(%{"shown" => shown}) when is_binary(shown) do
+    case Jason.decode(shown) do
+      {:ok, ids} when is_list(ids) -> Enum.filter(ids, &is_binary/1)
+      _invalid -> []
+    end
+  end
+
+  defp shown_ids(_params), do: []
 
   defp parse_int(id) when is_integer(id), do: {:ok, id}
 

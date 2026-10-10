@@ -103,6 +103,30 @@ defmodule Tymeslot.Workers.VideoRoomWorkerRecoveryTest do
       refute event.meta.cause =~ "tok_video_secret_987"
     end
 
+    test "a crash on the final attempt still enters recovery and announces the booking" do
+      %{meeting: meeting} = setup_future_meeting_scenario()
+
+      # The circuit breaker turns a raise or an exit inside the call into an
+      # error, so the crash is one nothing can catch: the creation task killed.
+      stub(Tymeslot.HTTPClientMock, :post, fn _url, _body, _headers, _opts ->
+        Process.exit(self(), :kill)
+      end)
+
+      LogCapture.with_capture([logger_level: :warning], fn ->
+        assert {:snooze, _seconds} =
+                 perform_job(
+                   VideoRoomWorker,
+                   %{"meeting_id" => meeting.id, "announce" => true},
+                   attempt: 5
+                 )
+      end)
+
+      assert all_enqueued(worker: EmailWorker) != []
+
+      event = LogCapture.await_log("Video room creation entering recovery")
+      assert event.meta.cause =~ "creation_crashed"
+    end
+
     test "exhausts recovery even when snoozes no longer advance the job's attempt" do
       %{meeting: meeting} = setup_future_meeting_scenario()
 

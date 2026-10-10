@@ -24,7 +24,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Discovery do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Infrastructure.CalendarCircuitBreaker
+  alias Tymeslot.Infrastructure.{CalendarCircuitBreaker, ProviderBreakers}
   alias Tymeslot.Integrations.Calendar.CalDAV.{Base, Http, UrlBuilder, XmlHandler}
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Security.SsrfGuard
@@ -103,7 +103,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Discovery do
       result =
         case Http.propfind(discovery_url, client.username, client.password,
                depth: "0",
-               max_retries: 0
+               max_attempts: 1
              ) do
           {:ok, %Req.Response{}} ->
             :ok
@@ -163,7 +163,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Discovery do
       with_discovery_breaker(client, opts, fn ->
         discovery_url = UrlBuilder.build_discovery_url(client)
 
-        case Http.propfind(discovery_url, client.username, client.password, max_retries: 0) do
+        case Http.propfind(discovery_url, client.username, client.password, max_attempts: 1) do
           {:ok, %Req.Response{body: body}} ->
             parse_calendar_discovery(body, client)
 
@@ -300,7 +300,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Discovery do
 
   defp with_discovery_breaker(client, opts, fun) when is_function(fun, 0) do
     provider = Map.get(client, :provider, :caldav)
-    host = Base.extract_host_from_url(client.base_url)
+    host = ProviderBreakers.host_from_base_url(client.base_url)
 
     opts =
       opts

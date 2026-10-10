@@ -20,6 +20,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   alias TymeslotWeb.Components.Dashboard.Integrations.Shared.ConnectionLabels
   alias TymeslotWeb.Components.Dashboard.Integrations.Shared.IntegrationCard
   alias TymeslotWeb.Components.Icons.ProviderIcon
+  alias TymeslotWeb.Dashboard.CalendarSettings.CardNotice
   alias TymeslotWeb.Dashboard.CalendarSettings.Helpers
   alias TymeslotWeb.Helpers.TimeAgo
 
@@ -285,7 +286,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
       title={@display_name}
       type_tag={if @read_only?, do: dgettext("dashboard_calendar_settings", "Read-only")}
       summary={@summary}
-      notice={ConnectionLabels.calendar_notice(@integration, @health_state) || stuck_notice(@stuck)}
+      notice={CardNotice.notice(@integration, @health_state, @stuck)}
       status={@status}
       active={@integration.is_active}
       toggle_event="toggle_integration"
@@ -354,6 +355,27 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
           <.icon name="hero-arrow-path" class="w-4 h-4" /> {dgettext(
             "dashboard_calendar_settings",
             "Retry changes"
+          )}
+        </button>
+        <button
+          :if={Map.get(@integration, :removed_calendars, []) != []}
+          phx-click="dismiss_removed_calendars"
+          phx-value-id={@integration.id}
+          phx-value-shown={
+            @integration |> Map.get(:removed_calendars, []) |> Enum.map(& &1.id) |> Jason.encode!()
+          }
+          phx-target={@myself}
+          class={tile_class(:neutral)}
+          title={
+            dgettext(
+              "dashboard_calendar_settings",
+              "Dismiss the notice about calendars no longer on the server"
+            )
+          }
+        >
+          <.icon name="hero-x-mark" class="w-4 h-4" /> {dgettext(
+            "dashboard_calendar_settings",
+            "Dismiss"
           )}
         </button>
         <%!-- A subscription has no Manage calendars modal, so whether its one
@@ -465,31 +487,6 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   # owner has to take, so it keeps its label there too.
   defp reconnect_label_class(:attention), do: nil
   defp reconnect_label_class(:normal), do: "max-sm:sr-only"
-
-  # A change the server kept refusing is no longer sent, so until the owner
-  # retries it the calendar differs from what the grid shows. The error is
-  # stored as an English msgid (a CalDAV error, or Tymeslot's own reason for
-  # skipping the change) and translated as it is shown.
-  defp stuck_notice(nil), do: nil
-
-  defp stuck_notice(%{count: count, last_error: nil}) do
-    dngettext(
-      "dashboard_calendar_settings",
-      "1 change made here was not saved to this calendar.",
-      "%{count} changes made here were not saved to this calendar.",
-      count
-    )
-  end
-
-  defp stuck_notice(%{count: count, last_error: error}) do
-    dngettext(
-      "dashboard_calendar_settings",
-      "1 change made here was not saved to this calendar. Last error: %{error}",
-      "%{count} changes made here were not saved to this calendar. Last error: %{error}",
-      count,
-      error: ConnectionLabels.translate_reason(error)
-    )
-  end
 
   # Retrying resets the changes for the next sync to send, so it is offered
   # only while syncs run: not while the calendar waits to be reconnected or

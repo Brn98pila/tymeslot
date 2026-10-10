@@ -306,7 +306,7 @@ msgstr "Excluir"
 msgid "Delete %{name}"
 msgstr "Excluir %{name}"
 
-#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#: lib/tymeslot_web/live/dashboard/calendar_settings/card_notice.ex
 #, elixir-autogen, elixir-format
 msgid "1 change made here was not saved to this calendar."
 msgid_plural "%{count} changes made here were not saved to this calendar."
@@ -333,7 +333,7 @@ msgstr "Reenviar as alterações recusadas pelo servidor deste calendário"
 msgid "Sending the changes again. This calendar will update shortly."
 msgstr "Reenviando as alterações. Este calendário será atualizado em breve."
 
-#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#: lib/tymeslot_web/live/dashboard/calendar_settings/card_notice.ex
 #, elixir-autogen, elixir-format
 msgid "1 change made here was not saved to this calendar. Last error: %{error}"
 msgid_plural "%{count} changes made here were not saved to this calendar. Last error: %{error}"
@@ -365,6 +365,28 @@ msgstr[1] "Última sincronização há %{count} minutos"
 #, elixir-autogen, elixir-format
 msgid "Last synced just now"
 msgstr "Última sincronização agora mesmo"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/card_notice.ex
+#, elixir-autogen, elixir-format
+msgid "%{count} calendar is no longer on your calendar server, so Tymeslot has stopped using it: %{calendars}"
+msgid_plural "%{count} calendars are no longer on your calendar server, so Tymeslot has stopped using them: %{calendars}"
+msgstr[0] "%{count} calendário não está mais no seu servidor de calendário, então o Tymeslot parou de usá-lo: %{calendars}"
+msgstr[1] "%{count} calendários não estão mais no seu servidor de calendário, então o Tymeslot parou de usá-los: %{calendars}"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Dismiss"
+msgstr "Dispensar"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Dismiss the notice about calendars no longer on the server"
+msgstr "Dispensar o aviso sobre calendários que não estão mais no servidor"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/card_notice.ex
+#, elixir-autogen, elixir-format
+msgid "“%{calendar}” is no longer on your calendar server, so Tymeslot has stopped using it."
+msgstr "O calendário “%{calendar}” não está mais no seu servidor de calendário, então o Tymeslot parou de usá-lo."
 
 #: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
 #, elixir-autogen, elixir-format

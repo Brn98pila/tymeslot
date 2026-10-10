@@ -379,9 +379,11 @@ NO_PROXY=localhost,127.0.0.1,*.internal.company.com,10.0.0.0/8
 - `HTTP_PROXY` / `http_proxy` - Proxy for HTTP requests
 - `NO_PROXY` / `no_proxy` - Comma-separated list of hosts/patterns to bypass proxy
 
-**NO_PROXY Patterns:**
-- Exact hostname: `internal.example.com`
-- Wildcard domain: `*.example.com` (matches any subdomain)
+**NO_PROXY Patterns** (matched as curl and most other tools match them, ignoring case):
+- Domain: `example.com` (matches the host and every subdomain, such as `api.example.com`)
+- Leading dot or wildcard: `.example.com` or `*.example.com` (the same as a bare domain)
+- Port: `example.com:8443` (the port is ignored; the host is what is matched)
+- IP address: `10.1.2.3`, `[::1]` (an address matches only itself; use CIDR notation for a range)
 - CIDR notation: `10.0.0.0/8`, `192.168.0.0/16`
 - Special: `*` (bypass proxy for all hosts)
 
@@ -404,6 +406,18 @@ No authentication:
 ```bash
 HTTPS_PROXY=http://proxy.company.com:8080
 NO_PROXY=localhost,*.internal.company.com
+```
+
+**Checking the proxy:** once the container is running, this sends a test request through the proxy and once around it, and reports whether the proxy carried it (add `quick: true` for a faster reachability check, or `test_url: "https://…"` to test against your own endpoint):
+
+```bash
+docker exec tymeslot bin/tymeslot eval 'Tymeslot.Release.verify_proxy()'
+```
+
+The last line it prints starts with `PASSED:` or `FAILED:`, and that line is the result: the command itself exits with status 0 either way. In a script, check the line:
+
+```bash
+docker exec tymeslot bin/tymeslot eval 'Tymeslot.Release.verify_proxy()' | tail -n 1 | grep -q '^PASSED:'
 ```
 
 **What Uses the Proxy:**

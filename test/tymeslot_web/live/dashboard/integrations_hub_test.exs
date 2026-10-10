@@ -12,7 +12,7 @@ defmodule TymeslotWeb.Dashboard.IntegrationsHubTest do
   setup :setup_dashboard_user
 
   # Persists an `unhealthy` health-state row for an active integration, the
-  # shape `list_unhealthy_for_user/1` (and therefore the hub banner) reads.
+  # shape `HealthCheck.health_states_for_user/1` (and therefore the hub banner) reads.
   defp mark_unhealthy(user, integration_id, type) do
     %IntegrationHealthStateSchema{}
     |> IntegrationHealthStateSchema.changeset(%{

@@ -29,7 +29,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Events do
   Callers receive parsed domain types — never raw HTTP responses, XML, or iCal.
   """
 
-  alias Tymeslot.Infrastructure.{CalendarCircuitBreaker, RetryLogic}
+  alias Tymeslot.Infrastructure.{CalendarCircuitBreaker, ProviderBreakers, Retry}
 
   alias Tymeslot.Integrations.Calendar.CalDAV.{
     Base,
@@ -94,14 +94,14 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Events do
       with_events_breaker(client, opts, fn ->
         url = UrlBuilder.build_calendar_url(client.base_url, calendar_path)
 
-        retry_opts = Keyword.get(opts, :retry_opts, Base.default_retry_opts())
+        retry_opts = Base.retry_opts(opts)
 
         report_opts =
           opts
           |> Keyword.put(:timeout, Keyword.get(opts, :timeout, Base.report_timeout_ms()))
           |> Keyword.put(:max_response_bytes, Base.max_report_bytes())
 
-        case RetryLogic.with_retry(
+        case Retry.with_backoff(
                fn ->
                  Http.report(url, client.username, client.password, report_body, report_opts)
                end,
@@ -631,7 +631,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Events do
 
   defp with_events_breaker(client, opts, fun) when is_function(fun, 0) do
     provider = Map.get(client, :provider, :caldav)
-    host = Base.extract_host_from_url(client.base_url)
+    host = ProviderBreakers.host_from_base_url(client.base_url)
     opts = Keyword.put(opts, :host, host)
     CalendarCircuitBreaker.with_breaker(provider, opts, fun)
   end

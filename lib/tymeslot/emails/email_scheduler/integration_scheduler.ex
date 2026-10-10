@@ -134,6 +134,52 @@ defmodule Tymeslot.Emails.EmailScheduler.IntegrationScheduler do
   end
 
   @doc """
+  Schedules the email telling an owner that the calendar server no longer has
+  `calendar_names`, so Tymeslot has stopped using them.
+
+  Carries no uniqueness of its own: it is inserted in the transaction that
+  deselects those calendars, which is the guarantee that one deselection
+  sends one email (a retried sync finds them already deselected).
+  """
+  @spec schedule_calendars_removed_notification(pos_integer(), pos_integer(), [String.t()]) ::
+          :ok | {:error, String.t()}
+  def schedule_calendars_removed_notification(
+        user_id,
+        integration_id,
+        [_first | _rest] = calendar_names
+      ) do
+    result =
+      %{
+        "action" => "send_calendars_removed_notification",
+        "user_id" => user_id,
+        "integration_id" => integration_id,
+        "calendar_names" => calendar_names
+      }
+      |> EmailWorker.new(queue: :emails, priority: 2)
+      |> Oban.insert()
+
+    case result do
+      {:ok, _job} ->
+        Logger.info("Calendars removed notification job scheduled",
+          user_id: user_id,
+          integration_id: integration_id,
+          count: length(calendar_names)
+        )
+
+        :ok
+
+      {:error, reason} ->
+        Logger.error("Failed to schedule calendars removed notification",
+          user_id: user_id,
+          integration_id: integration_id,
+          error: Helpers.format_insert_error(reason)
+        )
+
+        {:error, "Failed to schedule job"}
+    end
+  end
+
+  @doc """
   Schedules the email telling an owner that their video provider refuses to
   create rooms for an integration, with the refusal's `code`.
 

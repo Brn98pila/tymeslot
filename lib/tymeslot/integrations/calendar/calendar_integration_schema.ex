@@ -24,6 +24,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationSchema do
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.EventColour
   alias Tymeslot.Integrations.Calendar.ProviderConfig
+  alias Tymeslot.Integrations.Calendar.RemovedCalendar
   alias Tymeslot.Integrations.Calendar.Shared.PathUtils
   alias Tymeslot.Security.EncryptedString
   alias Tymeslot.Security.Encryption
@@ -50,6 +51,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationSchema do
           oauth_scope: String.t() | nil,
           calendar_paths: [String.t()],
           calendar_list: [CalendarEntry.t()],
+          removed_calendars: [RemovedCalendar.t()],
           default_booking_calendar_id: String.t() | nil,
           verify_ssl: boolean(),
           is_active: boolean(),
@@ -96,6 +98,9 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationSchema do
     field(:oauth_scope, :string)
     field(:calendar_paths, {:array, :string}, default: [])
     field(:calendar_list, {:array, CalendarEntry}, default: [])
+    # Calendars the server stopped listing, until the owner dismisses the
+    # notice. Written only by `RemovedCalendars`, never cast from a form.
+    embeds_many(:removed_calendars, RemovedCalendar, on_replace: :delete)
     field(:default_booking_calendar_id, :string)
     # Stored and threaded through the provider config maps, but no transport
     # reads it yet: no CalDAV request builds a TLS option from it, so

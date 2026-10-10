@@ -183,10 +183,19 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Sync.EventFetch do
       {:ok, _updated} ->
         :ok
 
-      {:error, changeset} ->
+      {:error, :not_found} ->
+        Logger.info("Integration gone before missing CalDAV calendar paths could be removed",
+          calendar_integration_id: integration.id
+        )
+
+        :ok
+
+      # Nothing was removed, so the next sync finds them missing again and
+      # tries once more.
+      {:error, reason} ->
         Logger.error("Failed to remove missing CalDAV calendar paths",
           calendar_integration_id: integration.id,
-          error: LogFormat.reason(changeset.errors)
+          error: LogFormat.reason(reason)
         )
 
         :ok

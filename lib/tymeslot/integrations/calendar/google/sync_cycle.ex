@@ -277,8 +277,10 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
         end
       end)
 
-    deselect_missing_calendars(integration, missing_ids)
-    if status == :ok, do: {:ok, listed}, else: status
+    case deselect_missing_calendars(integration, missing_ids) do
+      :ok -> if status == :ok, do: {:ok, listed}, else: status
+      gone -> gone
+    end
   end
 
   defp sync_one_secondary_calendar(integration, calendar_id, start_time, end_time) do
@@ -344,11 +346,16 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
       {:ok, _updated} ->
         :ok
 
-      {:error, changeset} ->
+      # Deleted while this cycle read it: the job is discarded, as any cycle
+      # whose integration went is.
+      {:error, :not_found} ->
+        {:error, :integration_gone}
+
+      {:error, reason} ->
         Logger.error("Failed to de-select missing Google calendars",
           calendar_integration_id: integration.id,
           calendar_ids: missing_ids,
-          error: LogFormat.reason(changeset.errors)
+          error: LogFormat.reason(reason)
         )
 
         :ok

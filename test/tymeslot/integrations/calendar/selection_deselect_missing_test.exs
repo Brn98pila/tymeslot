@@ -1,4 +1,4 @@
-defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueriesTest do
+defmodule Tymeslot.Integrations.Calendar.SelectionDeselectMissingTest do
   use Tymeslot.DataCase, async: true
   @moduletag :integrations
   @moduletag :calendar
@@ -6,10 +6,9 @@ defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueriesTest do
   import Tymeslot.Factory
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
-  alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.Selection
 
-  describe "deselect_calendars/2" do
+  describe "deselect_missing/2" do
     test "marks matching calendars as unselected and leaves others untouched" do
       integration =
         insert(:calendar_integration,
@@ -21,7 +20,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueriesTest do
         )
 
       {:ok, updated} =
-        CalendarSelectionQueries.deselect_calendars(integration, ["gone@example.com"])
+        Selection.deselect_missing(integration, ["gone@example.com"])
 
       assert Enum.find(updated.calendar_list, &(&1.id == "gone@example.com")).selected ==
                false
@@ -37,7 +36,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueriesTest do
         )
 
       {:ok, updated} =
-        CalendarSelectionQueries.deselect_calendars(integration, ["nonexistent@example.com"])
+        Selection.deselect_missing(integration, ["nonexistent@example.com"])
 
       assert updated.calendar_list == integration.calendar_list
     end
@@ -60,7 +59,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueriesTest do
         select_only(fresh, ["work", "gone@example.com"])
 
       {:ok, updated} =
-        CalendarSelectionQueries.deselect_calendars(integration, ["gone@example.com"])
+        Selection.deselect_missing(integration, ["gone@example.com"])
 
       assert Enum.find(updated.calendar_list, &(&1.id == "work")).selected == true
       assert Enum.find(updated.calendar_list, &(&1.id == "gone@example.com")).selected == false

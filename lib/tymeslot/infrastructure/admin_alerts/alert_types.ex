@@ -45,7 +45,8 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     account_deletion_held_last_admin: %{category: "Account", severity: :warning},
     analytics_tracking_anomaly: %{category: "Analytics", severity: :warning},
     recipient_email_rejected: %{category: "Email", severity: :warning},
-    user_registered_hook_failed: %{category: "System", severity: :error}
+    user_registered_hook_failed: %{category: "System", severity: :error},
+    group_meeting_release_failed: %{category: "Booking", severity: :error}
   }
 
   @doc "Returns the full registry map for enumeration and lookup."
@@ -490,6 +491,15 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
 
     "Registration hook failed on its final attempt for user #{user_id}; " <>
       "its record is missing (#{reason_text(metadata)})"
+  end
+
+  # The last seat of a group meeting was released but the meeting could not
+  # be cancelled, so it may still block the host's time as confirmed.
+  def format_message(:group_meeting_release_failed, metadata) do
+    meeting_id = Map.get(metadata, :meeting_id, "unknown")
+
+    "Group meeting #{meeting_id} lost its last participant but could not be cancelled, " <>
+      "so it may still show as confirmed (#{reason_text(metadata)})"
   end
 
   def format_message(type, _metadata) do

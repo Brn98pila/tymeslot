@@ -6,7 +6,7 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   separated from primary calendar logic and discovery operations.
   """
 
-  alias Tymeslot.Emails.EmailScheduler.IntegrationScheduler
+  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
@@ -275,17 +275,6 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   end
 
   @doc """
-  Flags an integration as needing reauthentication when its stored credentials
-  can no longer be decrypted. Also records the sync error so the dashboard
-  shows the same message the worker logged.
-  """
-  @spec mark_needs_reauth(CalendarIntegrationSchema.t(), String.t()) ::
-          {:ok, CalendarIntegrationSchema.t()} | {:error, Ecto.Changeset.t()}
-  def mark_needs_reauth(integration, error_message) do
-    CalendarIntegrationQueries.mark_needs_reauth(integration, error_message)
-  end
-
-  @doc """
   Entry point for the "credentials no longer decrypt" path, used by any
   worker or caller that receives `{:error, :requires_reencryption, integration}`
   from `CalendarIntegrationQueries.get/1`.
@@ -294,16 +283,18 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   when the integration needs reconnecting for a different reason, so the message
   recorded on `sync_error` describes what actually failed.
 
-  Returns an Oban return value: `{:discard, _}` on success (retrying won't
-  recover the credentials), or `{:error, _}` if the flag couldn't be persisted —
-  which causes Oban to retry the job and take another shot at recording the flag.
+  Returns an Oban return value: `{:discard, _}` once flagged (retrying won't
+  recover the credentials) or when the integration's row is gone, and
+  `{:error, _}` when the flag could not be recorded with its email, so Oban
+  retries the job and takes another shot.
   """
   @spec handle_reauth_required(CalendarIntegrationSchema.t(), keyword()) ::
           {:discard, String.t()} | {:error, String.t()}
   def handle_reauth_required(%CalendarIntegrationSchema{} = integration, opts \\ []) do
     case flag_for_reauth(integration, opts) do
       :ok -> {:discard, ReauthHandling.discard_reason()}
-      {:error, _changeset} -> {:error, "Failed to flag integration for reauth"}
+      {:error, :not_found} -> {:discard, "Integration no longer exists"}
+      {:error, :notification_failed} -> {:error, "Failed to flag integration for reauth"}
     end
   end
 
@@ -321,8 +312,9 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   Discarding rather than returning `{:error, _}` is the point. Retrying re-asks
   a question already answered, and an exhausted retry chain raises a
   permanent-failure admin alert about a condition no operator can fix.
-  A failed *flag write* is worth retrying, though: without it the owner is
-  never told why their calendar stopped syncing.
+  A flag that could not be recorded with its email is `{:error, _}` and is
+  retried, though: without it the owner is never told why their calendar
+  stopped syncing.
 
   The first flag also emails the owner a reconnection notice carrying
   `message`; re-flagging an integration already awaiting reconnection does not.
@@ -330,47 +322,18 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   @spec flag_for_reconnection(CalendarIntegrationSchema.t(), String.t(), String.t()) ::
           {:discard, String.t()} | {:error, String.t()}
   def flag_for_reconnection(%CalendarIntegrationSchema{} = integration, message, discard_reason) do
-    case flag_and_notify(integration, message) do
+    case ReauthHandling.flag_and_notify(:calendar, integration, message) do
       {:ok, _updated} -> {:discard, discard_reason}
-      {:error, _changeset} -> {:error, "Failed to flag integration: #{discard_reason}"}
+      {:error, :not_found} -> {:discard, "Integration no longer exists"}
+      {:error, :notification_failed} -> {:error, "Failed to flag integration: #{discard_reason}"}
     end
   end
 
-  # Only a false → true transition is news. Re-flagging an integration the owner
-  # has already been told about would email them again about a problem they are
-  # already looking at; the scheduler's uniqueness window is a backstop for
-  # that, not the place to decide it.
-  defp flag_and_notify(%{needs_reauth: true} = integration, message),
-    do: mark_needs_reauth(integration, message)
-
-  # The badge alone reaches only owners who open the dashboard. Everyone else
-  # discovers a dead calendar when a booking needs it, which is too late, so
-  # flagging and notifying are one step and cannot come apart.
-  defp flag_and_notify(integration, message) do
-    with {:ok, updated} = result <- mark_needs_reauth(integration, message) do
-      IntegrationScheduler.schedule_integration_reauth_notification(
-        %{id: updated.user_id},
-        updated,
-        :calendar
-      )
-
-      result
-    end
-  end
-
-  # Shared helper: delegates to ReauthHandling.flag/2 with calendar-specific
-  # opts. `mark_needs_reauth` is wired to `flag_and_notify/2` rather than the
-  # bare DB write, so that every path ending in "the owner has to reconnect",
-  # this one included and not just `flag_for_reconnection/3`, sends the reauth
-  # email on the false to true transition. See the deferred ticket this closed
-  # for why the two calendar entry points used to disagree on that.
   defp flag_for_reauth(integration, opts \\ []) do
     ReauthHandling.flag(
+      :calendar,
       integration,
-      Keyword.merge(
-        [mark_needs_reauth: &flag_and_notify/2, log_prefix: "Calendar"],
-        opts
-      )
+      Keyword.get(opts, :cause, :credentials_undecryptable)
     )
   end
 
@@ -438,6 +401,18 @@ defmodule Tymeslot.Integrations.CalendarManagement do
 
       {:error, %Ecto.Changeset{} = changeset} ->
         handle_booking_calendar_update_error(integration, changeset)
+
+      # Deleted, or no longer decrypting, between the insert and this write.
+      # The integration was still created, so it is kept without a default,
+      # as on a unique conflict; the owner can pick one from the dashboard.
+      {:error, reason} ->
+        Logger.warning("Could not set default booking calendar",
+          user_id: integration.user_id,
+          integration_id: integration.id,
+          error: LogFormat.reason(reason)
+        )
+
+        {:ok, integration}
     end
   end
 

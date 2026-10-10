@@ -186,6 +186,11 @@ defmodule Tymeslot.Integrations.Calendar do
     to: IntegrationCacheQueries,
     as: :lock_cache_class_for_user
 
+  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.dismiss_removed_calendars/3`."
+  @spec dismiss_removed_calendars(user_id(), integration_id(), [String.t()]) ::
+          {:ok, boolean()} | {:error, any()}
+  defdelegate dismiss_removed_calendars(user_id, integration_id, shown_ids), to: OwnerActions
+
   @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.retry_stuck_changes/2`."
   @spec retry_stuck_changes(user_id(), integration_id()) ::
           {:ok, non_neg_integer()} | {:error, any()}

@@ -36,9 +36,9 @@ defmodule Tymeslot.Application do
   alias Tymeslot.Infrastructure.ErrorTracking.SafeIntegrations
   alias Tymeslot.Infrastructure.ErrorTracking.Throttle
   alias Tymeslot.Infrastructure.Logging.{FileSink, LogFormat, MetadataRedactor}
-  alias Tymeslot.Integrations.{HealthCheck, Telemetry}
   alias Tymeslot.Integrations.HealthCheck.Alerting
   alias Tymeslot.Integrations.Shared.Lock
+  alias Tymeslot.Integrations.Telemetry
   alias Tymeslot.Mailer.HealthCheck, as: MailerHealthCheck
   alias Tymeslot.Payments.Webhooks.SecretCheck
   alias Tymeslot.Security.CredentialReencryption.KeyReport
@@ -51,7 +51,7 @@ defmodule Tymeslot.Application do
 
   # Children the test environment does without: periodic schedulers whose
   # timers would fire into unrelated tests.
-  @not_started_in_test [HealthCheck, PoolPressureMonitor]
+  @not_started_in_test [PoolPressureMonitor]
 
   @impl Application
   def start(_type, _args) do
@@ -108,6 +108,8 @@ defmodule Tymeslot.Application do
       {PubSub, name: Tymeslot.PubSub},
       # Start the Finch HTTP client (used by Req for all HTTP requests).
       {Finch, name: Tymeslot.Finch, pools: %{default: FinchPool.default_options()}},
+      # Stops the per-destination pools pinned requests leave behind
+      FinchPool.Janitor,
       # Start token refresh lock manager
       {Lock, []},
       # Task Supervisor for async operations
@@ -144,8 +146,6 @@ defmodule Tymeslot.Application do
           Tymeslot.Infrastructure.CircuitBreakerSupervisor,
           # Background jobs (manual testing mode in tests)
           {Oban, oban_config()},
-          # Schedules integration health checks, which it enqueues as jobs
-          HealthCheck,
           # Alert when queries keep waiting for a database connection
           PoolPressureMonitor
         ],

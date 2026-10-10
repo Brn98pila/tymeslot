@@ -44,9 +44,9 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Client do
   """
 
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
-  alias Tymeslot.Infrastructure.CircuitBreakerHelpers
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Infrastructure.ResponseTooLargeError
   alias Tymeslot.Integrations.Calendar.Exchange.ClientConfig
   alias Tymeslot.Integrations.Calendar.Exchange.Soap
@@ -153,7 +153,7 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Client do
   # `CalendarCircuitBreaker.with_breaker/3` answers with the provider-level
   # breaker rather than by running unprotected.
   defp with_breaker(url, skip_breaker, fun) do
-    host = CircuitBreakerHelpers.host_from_base_url(url)
+    host = ProviderBreakers.host_from_base_url(url)
 
     CalendarCircuitBreaker.with_breaker(:exchange, [host: host, skip_breaker: skip_breaker], fun)
   end

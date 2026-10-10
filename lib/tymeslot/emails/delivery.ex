@@ -47,14 +47,18 @@ defmodule Tymeslot.Emails.Delivery do
 
   Returns `{:error, {:recipient_rejected, reason}}` when the provider rejects
   the address permanently; callers should give up rather than retry.
+
+  `breaker:` names the circuit breaker to deliver through, the application's
+  email breaker by default; tests pass their own so that no other delivery
+  can change the counts they assert on.
   """
-  @spec deliver(Swoosh.Email.t()) :: {:ok, any()} | {:error, any()}
-  def deliver(email) do
+  @spec deliver(Swoosh.Email.t(), keyword()) :: {:ok, any()} | {:error, any()}
+  def deliver(email, opts \\ []) do
     with :ok <- check_text_body(email) do
       Logger.debug("Delivering email via Mailer", recipient_domains: recipient_domains(email))
 
       CircuitBreaker.call(
-        CircuitBreakerSupervisor.email_breaker_name(),
+        Keyword.get_lazy(opts, :breaker, &CircuitBreakerSupervisor.email_breaker_name/0),
         fn -> email |> deliver_within_deadline() |> handle_delivery_result(email) end,
         classify: &classify_outcome/1
       )

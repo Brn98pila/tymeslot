@@ -66,12 +66,16 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
   @task_await_timeout_ms 45_000
   @coalescer_call_timeout_ms 50_000
 
+  # One retry, half a second later. Only a failure the HTTP client has
+  # already named as transport or server-side is retried; a CalDAV 429 is not,
+  # and is left to the sync job's own backoff.
+  @retriable_errors [:network_error, :timeout, :server_error, :service_unavailable]
   @default_retry_opts [
-    max_retries: 1,
-    base_delay_ms: 500,
-    max_delay_ms: 2_000,
-    jitter_factor: 0.1,
-    retryable_errors: [:network_error, :timeout, :server_error, :service_unavailable]
+    max_attempts: 2,
+    initial_delay: 500,
+    max_delay: 2_000,
+    jitter: 0.1,
+    retriable?: &__MODULE__.retriable_error?/1
   ]
 
   @spec report_timeout_ms() :: non_neg_integer()
@@ -91,8 +95,17 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
   @spec coalescer_call_timeout_ms() :: non_neg_integer()
   def coalescer_call_timeout_ms, do: @coalescer_call_timeout_ms
 
-  @spec default_retry_opts() :: keyword()
-  def default_retry_opts, do: @default_retry_opts
+  @doc """
+  `Tymeslot.Infrastructure.Retry` options for a CalDAV request: the defaults,
+  with any `:retry_opts` in `opts` over them.
+  """
+  @spec retry_opts(keyword()) :: keyword()
+  def retry_opts(opts \\ []),
+    do: Keyword.merge(@default_retry_opts, Keyword.get(opts, :retry_opts, []))
+
+  @doc "Whether a CalDAV request that failed with `reason` is retried."
+  @spec retriable_error?(term()) :: boolean()
+  def retriable_error?(reason), do: reason in @retriable_errors
 
   @type client :: Tymeslot.Integrations.Calendar.CalDAV.Client.t()
 
@@ -125,15 +138,4 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
           | {:calendar_listing_too_large, String.t()}
           | {:unexpected_status, pos_integer()}
           | String.t()
-
-  @doc """
-  Extracts the host from a URL string.
-  """
-  @spec extract_host_from_url(String.t()) :: String.t() | nil
-  def extract_host_from_url(url) do
-    case URI.parse(url) do
-      %URI{host: host} when is_binary(host) -> host
-      _other -> nil
-    end
-  end
 end
