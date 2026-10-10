@@ -183,7 +183,7 @@ defmodule Tymeslot.Emails.Shared.FormattingTest do
       assert Formatting.format_duration(1, "en") == "1 minute"
       assert Formatting.format_duration(30, "en") == "30 minutes"
       assert Formatting.format_duration(60, "en") == "1 hour"
-      assert Formatting.format_duration(90, "en") == "1.5 hours"
+      assert Formatting.format_duration(90, "en") == "1 hour 30 minutes"
       assert Formatting.format_duration(120, "en") == "2 hours"
     end
 
@@ -191,6 +191,8 @@ defmodule Tymeslot.Emails.Shared.FormattingTest do
       assert Formatting.format_duration(1, "de") == "1 Minute"
       assert Formatting.format_duration(30, "de") == "30 Minuten"
       assert Formatting.format_duration(60, "de") == "1 Stunde"
+      # Never a decimal: "1.5" would be wrong in every locale that writes 1,5.
+      assert Formatting.format_duration(90, "de") == "1 Stunde 30 Minuten"
       assert Formatting.format_duration(120, "de") == "2 Stunden"
     end
 

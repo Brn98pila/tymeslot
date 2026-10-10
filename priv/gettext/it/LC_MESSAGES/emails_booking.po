@@ -389,6 +389,7 @@ msgstr "Se hai domande, rispondi a questa email e %{name} sarà felice di aiutar
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
 #: lib/tymeslot/emails/templates/appointment_reminder.ex
 #: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
 #, elixir-autogen, elixir-format
 msgid "Join Meeting"
 msgstr "Partecipa alla riunione"
@@ -426,6 +427,7 @@ msgstr "Attendo con piacere il nostro incontro!"
 #: lib/tymeslot/emails/templates/appointment_reminder.ex
 #: lib/tymeslot/emails/templates/event_update_notification.ex
 #: lib/tymeslot/emails/templates/external_booking_change.ex
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
 #: lib/tymeslot/emails/templates/seat_update_for_organizer.ex
 #, elixir-autogen, elixir-format
 msgid "MEETING DETAILS:"
@@ -479,6 +481,7 @@ msgstr "Appuntamento spostato"
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
 #: lib/tymeslot/emails/templates/appointment_reminder.ex
 #: lib/tymeslot/emails/templates/appointment_rescheduled.ex
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
 #, elixir-autogen, elixir-format
 msgid "Meeting with %{name}"
 msgstr "Riunione con %{name}"
@@ -853,6 +856,7 @@ msgid "Tymeslot platform fee: %{amount}"
 msgstr "Commissione della piattaforma Tymeslot: %{amount}"
 
 #: lib/tymeslot/emails/templates/event_update_notification.ex
+#: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
 msgid "Updated"
 msgstr "Aggiornato"
@@ -1268,3 +1272,79 @@ msgstr "La riunione di gruppo «%{title}» è stata riprogrammata nel tuo calend
 #, elixir-autogen, elixir-format
 msgid "This group meeting was <strong>rescheduled in your external calendar</strong>. Tymeslot still shows the original time above, and its participants still expect it. To keep the original time, move the event back in your calendar. To change it, send the participants a reschedule request from your dashboard, or cancel the meeting there so every participant is notified."
 msgstr "Questa riunione di gruppo è stata <strong>riprogrammata nel tuo calendario esterno</strong>. Tymeslot mostra ancora l'orario originale qui sopra, e i partecipanti si aspettano ancora quell'orario. Per mantenere l'orario originale, riporta l'evento al suo posto nel tuo calendario. Per cambiarlo, invia ai partecipanti una richiesta di riprogrammazione dalla tua dashboard, oppure annulla lì la riunione così che ogni partecipante venga avvisato."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "\"%{title}\" now ends at %{time} (%{date})"
+msgstr "\"%{title}\" ora termina alle %{time} (%{date})"
+
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
+#, elixir-autogen, elixir-format
+msgid "Hi %{guest} - the meeting with %{organizer} now ends at %{to} instead of %{from}. It still starts at the same time, so your answer stands."
+msgstr "Ciao %{guest}, la riunione con %{organizer} ora termina alle %{to} invece che alle %{from}. Inizia sempre alla stessa ora, quindi la tua risposta resta valida."
+
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
+#, elixir-autogen, elixir-format
+msgid "Hi %{name} - our meeting now ends at %{to} instead of %{from}. It still starts at the same time, and my calendar is already updated."
+msgstr "Ciao %{name} - il nostro appuntamento ora termina alle %{to} invece che alle %{from}. Inizia sempre alla stessa ora, e il mio calendario è già aggiornato."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting end updated from your calendar"
+msgstr "Fine della riunione aggiornata dal tuo calendario"
+
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
+#, elixir-autogen, elixir-format
+msgid "New end time"
+msgstr "Nuovo orario di fine"
+
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
+#, elixir-autogen, elixir-format
+msgid "New end time - %{date} with %{name}"
+msgstr "Nuovo orario di fine - %{date} con %{name}"
+
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
+#, elixir-autogen, elixir-format
+msgid "Previously ended at"
+msgstr "Fine prevista in origine alle"
+
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
+#, elixir-autogen, elixir-format
+msgid "Same link, new end time"
+msgstr "Stesso link, nuovo orario di fine"
+
+#: lib/tymeslot/emails/templates/meeting_end_changed.ex
+#, elixir-autogen, elixir-format
+msgid "The meeting now ends at %{time}."
+msgstr "La riunione ora termina alle %{time}."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "Their guest was emailed too."
+msgid_plural "Their %{count} guests were emailed too."
+msgstr[0] "Anche l'ospite è stato avvisato via email."
+msgstr[1] "Anche i %{count} ospiti sono stati avvisati via email."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "We emailed %{name} the new end time, with an updated calendar entry."
+msgstr "Abbiamo inviato a %{name} il nuovo orario di fine via email, con una voce di calendario aggiornata."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "You changed when \"%{title}\" ends in your external calendar, so Tymeslot updated the booking: it now ends at %{to} instead of %{from}."
+msgstr "Hai modificato la fine di \"%{title}\" nel tuo calendario esterno, quindi Tymeslot ha aggiornato la prenotazione: ora termina alle %{to} invece che alle %{from}."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "We emailed %{count} participant the new end time, with an updated calendar entry."
+msgid_plural "We emailed %{count} participants the new end time, with an updated calendar entry."
+msgstr[0] "Abbiamo inviato a %{count} partecipante il nuovo orario di fine via email, con una voce di calendario aggiornata."
+msgstr[1] "Abbiamo inviato a %{count} partecipanti il nuovo orario di fine via email, con una voce di calendario aggiornata."
+
+#: lib/tymeslot/emails/templates/external_booking_change.ex
+#, elixir-autogen, elixir-format
+msgid "We emailed the guest the new end time, with an updated calendar entry."
+msgid_plural "We emailed %{count} guests the new end time, with an updated calendar entry."
+msgstr[0] "Abbiamo inviato all'ospite il nuovo orario di fine via email, con una voce di calendario aggiornata."
+msgstr[1] "Abbiamo inviato ai %{count} ospiti il nuovo orario di fine via email, con una voce di calendario aggiornata."

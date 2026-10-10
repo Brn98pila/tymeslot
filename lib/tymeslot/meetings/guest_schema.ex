@@ -30,6 +30,7 @@ defmodule Tymeslot.Meetings.GuestSchema do
           confirmation_sent_at: DateTime.t() | nil,
           invited_by: inviter() | nil,
           reminders_sent: [map()] | nil,
+          notified_end_time: DateTime.t() | nil,
           meeting: MeetingSchema.t() | Ecto.Association.NotLoaded.t() | nil,
           inserted_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
@@ -54,6 +55,10 @@ defmodule Tymeslot.Meetings.GuestSchema do
     # Who put this guest on the meeting. Nil on rows from before the column,
     # which read as the booker (see `inviter/1`).
     field(:invited_by, Ecto.Enum, values: [:booker, :organizer])
+    # The end this guest was last told by an end change notice, or held before
+    # a change not yet announced; nil when it knows the meeting as booked or
+    # last rescheduled. Written only by the end change and reschedule paths.
+    field(:notified_end_time, :utc_datetime)
 
     belongs_to(:meeting, MeetingSchema, type: :binary_id)
     belongs_to(:participant, ParticipantSchema, type: :binary_id)

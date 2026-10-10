@@ -46,6 +46,7 @@ defmodule Tymeslot.Timezones do
 
   defdelegate format(timezone_id), to: Formatting
   defdelegate utc_offset(timezone_id), to: Formatting
+  defdelegate utc_offset(timezone_id, at), to: Formatting
 
   @fallback "Etc/UTC"
 
@@ -103,37 +104,4 @@ defmodule Tymeslot.Timezones do
   end
 
   defp invalid_message, do: dgettext("errors", "Invalid timezone")
-
-  @doc """
-  Validates a timezone string at the LiveView edge, returning it unchanged if valid
-  or `"Etc/UTC"` if invalid.
-
-  Validity is `valid?/1`, a real runtime time-zone database lookup, so any zone
-  IANA knows is kept as-is.
-
-  Emits one `Logger.warning` on fallback. Supply `metadata` (a keyword list) to
-  include contextual fields — e.g. `[user_id: user.id]` — so operators can surface
-  affected accounts from logs.
-
-  ## Examples
-
-      iex> Tymeslot.Timezones.validate_or_utc("Europe/London")
-      "Europe/London"
-
-      iex> Tymeslot.Timezones.validate_or_utc("Not/Real")
-      "Etc/UTC"
-  """
-  @spec validate_or_utc(String.t(), keyword()) :: String.t()
-  def validate_or_utc(timezone, metadata \\ []) when is_binary(timezone) do
-    if valid?(timezone) do
-      timezone
-    else
-      Logger.warning(
-        "Invalid user timezone; falling back to UTC for calendar rendering",
-        Keyword.merge([timezone: timezone], metadata)
-      )
-
-      @fallback
-    end
-  end
 end

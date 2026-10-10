@@ -5,7 +5,8 @@ defmodule Tymeslot.Emails.Templates.EmailChangeNotification do
   """
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Emails.Shared.{Callouts, Cards, Formatting, Greeting, TemplateHelper, Text}
+  alias Tymeslot.Emails.HostClock
+  alias Tymeslot.Emails.Shared.{Callouts, Cards, Greeting, TemplateHelper, Text}
 
   # A security-sensitive notification about a potentially unauthorised change.
   @intent :alert
@@ -23,7 +24,7 @@ defmodule Tymeslot.Emails.Templates.EmailChangeNotification do
     #{Callouts.alert_box(@intent,
     dgettext("emails_account", "Email change requested to: %{new_email}", new_email: new_email))}
 
-    #{Cards.contact_details_card(dgettext("emails_account", "Request details"), [%{label: dgettext("emails_account", "New email"), value: new_email}, %{label: dgettext("emails_account", "Current email"), value: user.email}, %{label: dgettext("emails_account", "Requested at"), value: format_time(request_time)}, %{label: dgettext("emails_account", "Status"), value: dgettext("emails_account", "Pending verification")}])}
+    #{Cards.contact_details_card(dgettext("emails_account", "Request details"), [%{label: dgettext("emails_account", "New email"), value: new_email}, %{label: dgettext("emails_account", "Current email"), value: user.email}, %{label: dgettext("emails_account", "Requested at"), value: format_time(request_time, user)}, %{label: dgettext("emails_account", "Status"), value: dgettext("emails_account", "Pending verification")}])}
 
     #{Text.section_title(dgettext("emails_account", "What happens next"), padding: "24px 0 8px 0")}
 
@@ -61,7 +62,7 @@ defmodule Tymeslot.Emails.Templates.EmailChangeNotification do
     #{dgettext("emails_account", "REQUEST DETAILS:")}
     #{dgettext("emails_account", "New email:")} #{new_email}
     #{dgettext("emails_account", "Current email:")} #{user.email}
-    #{dgettext("emails_account", "Requested at:")} #{format_time(request_time)}
+    #{dgettext("emails_account", "Requested at:")} #{format_time(request_time, user)}
     #{dgettext("emails_account", "Status:")} #{dgettext("emails_account", "Pending verification")}
 
     #{dgettext("emails_account", "WHAT HAPPENS NEXT:")}
@@ -74,9 +75,9 @@ defmodule Tymeslot.Emails.Templates.EmailChangeNotification do
     """
   end
 
-  defp format_time(nil), do: dgettext("emails_account", "Just now")
+  defp format_time(nil, _user), do: dgettext("emails_account", "Just now")
 
-  defp format_time(datetime) do
-    Formatting.format_datetime(datetime, Gettext.get_locale(TymeslotWeb.Gettext))
-  end
+  # A security notice is easier to act on in the user's own zone and clock.
+  defp format_time(datetime, user),
+    do: HostClock.format_datetime(datetime, user.id, Gettext.get_locale(TymeslotWeb.Gettext))
 end

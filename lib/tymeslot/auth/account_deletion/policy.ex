@@ -13,7 +13,7 @@ defmodule Tymeslot.Auth.AccountDeletion.Policy do
   a hot path.
   """
 
-  alias Tymeslot.Profiles.ProfileQueries
+  alias Tymeslot.Profiles
 
   @feedback_reasons ~w(too_expensive missing_features hard_to_use switched_tool no_longer_needed technical_problems other)
   @comment_max_length 500
@@ -49,18 +49,17 @@ defmodule Tymeslot.Auth.AccountDeletion.Policy do
 
   def local_date(%DateTime{} = at, _no_timezone), do: DateTime.to_date(at)
 
-  @doc "`local_date/2` in the timezone of the user's profile (UTC without one)."
+  @doc """
+  `local_date/2` in the user's own zone (`user_timezone/1`): the default
+  zone for a profile with none, or with one the time-zone database does not
+  know.
+  """
   @spec user_local_date(DateTime.t(), integer()) :: Date.t()
   def user_local_date(%DateTime{} = at, user_id), do: local_date(at, user_timezone(user_id))
 
-  @doc "The timezone of the user's profile, or `nil` without one."
-  @spec user_timezone(integer()) :: String.t() | nil
-  def user_timezone(user_id) do
-    case ProfileQueries.get_by_user_id(user_id) do
-      {:ok, profile} -> profile.timezone
-      {:error, :not_found} -> nil
-    end
-  end
+  @doc "The user's own clock, by the owner-zone rule (`Profiles.timezone/1`)."
+  @spec user_timezone(integer()) :: String.t()
+  def user_timezone(user_id), do: Profiles.get_user_timezone(user_id)
 
   @doc "Whether the deletion dialog asks for exit feedback."
   @spec collect_feedback?() :: boolean()

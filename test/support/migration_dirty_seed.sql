@@ -525,6 +525,16 @@ VALUES (gen_random_uuid(), 'seed-mtg-utm-6', 'Seed Meeting 6', NOW(), NOW() + IN
 INSERT INTO meetings (id, uid, title, start_time, end_time, organizer_name, organizer_email, attendee_name, attendee_email, organizer_user_id, video_room_id, video_room_enabled, meeting_url, organizer_video_url, attendee_video_url, inserted_at, updated_at)
 VALUES (gen_random_uuid(), 'seed-mtg-meet-1', 'Seed Meet Meeting', NOW() - INTERVAL '30 days', NOW() - INTERVAL '30 days' + INTERVAL '30 minutes', 'Seed Host', 'host-seed@example.com', 'Seed Attendee', 'att-seed-7@example.com', (SELECT id FROM users WHERE email = 'seed-user-1@example.com' LIMIT 1), 'abc-defg-hij', true, 'https://meet.google.com/abc-defg-hij', 'https://meet.google.com/abc-defg-hij?authuser=host-seed%40example.com&role=host&uname=Seed+Host', 'https://meet.google.com/abc-defg-hij?authuser=att-seed-7%40example.com&uname=Seed+Attendee', NOW(), NOW());
 
+-- Guests on a seeded booking. Every later migration that rewrites
+-- meeting_guests (the RSVP token encryption, the scoping to group
+-- participants) meets real rows, and 20261010000152_add_notified_end_time_to_
+-- meeting_seats must leave each existing seat, booker and guest alike, at
+-- NULL: none of them has been told of an end change.
+INSERT INTO meeting_guests (id, meeting_id, email, name, status, rsvp_token, inserted_at, updated_at)
+VALUES
+  (gen_random_uuid(), (SELECT id FROM meetings WHERE uid = 'seed-mtg-utm-1'), 'guest-seed-1@example.com', 'Seed Guest', 'pending', 'seed-rsvp-token-1', NOW(), NOW()),
+  (gen_random_uuid(), (SELECT id FROM meetings WHERE uid = 'seed-mtg-utm-1'), 'guest-seed-2@example.com', NULL, 'accepted', 'seed-rsvp-token-2', NOW(), NOW());
+
 -- ============================================================================
 -- PROFILE WITH NULL SCHEDULING POLICY
 -- ============================================================================

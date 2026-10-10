@@ -18,10 +18,13 @@ defmodule Tymeslot.Meetings.ExternalCalendarChanges do
   require Logger
 
   alias Tymeslot.Bookings.Cancel
+  alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Emails.EmailService
+  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Meetings.MeetingCalendarQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
   alias Tymeslot.Meetings.MeetingState
+  alias Tymeslot.Workers.VideoSyncWorker
 
   @type signal :: :deleted | :modified
 
@@ -63,6 +66,101 @@ defmodule Tymeslot.Meetings.ExternalCalendarChanges do
   @spec apply_change_to_meeting(Meeting.t(), signal()) :: :ok | {:error, term()}
   def apply_change_to_meeting(%Meeting{} = meeting, signal) do
     apply_status_change(meeting, status_for(signal), signal)
+  end
+
+  @doc """
+  Follows the host's calendar when they lengthened or shortened a meeting
+  there without moving its start: the meeting takes the new end.
+
+  The host made the change, so the new end is accepted even where it now
+  overlaps another booking. Availability follows at once, and so does the
+  meeting's video room; reminders are timed from the start and render the
+  meeting as it stands when they are sent, so they follow without a reschedule.
+  The booker, or every participant, and every guest are emailed the new end
+  with an updated calendar entry, and the host is told who was
+  (`Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails`).
+
+  An end at or before the start is no length a meeting can have; that event
+  is treated as an external modification for the host to look at.
+  """
+  @spec apply_end_change(Meeting.t(), DateTime.t()) :: :ok | {:error, term()}
+  def apply_end_change(%Meeting{} = meeting, %DateTime{} = end_time) do
+    cond do
+      not MeetingState.expects_calendar_event?(meeting) ->
+        ignore(meeting, :end_moved, "meeting has no expected calendar event")
+
+      slot_elapsed?(meeting) ->
+        ignore(meeting, :end_moved, "meeting slot has already elapsed")
+
+      not DateTime.after?(end_time, meeting.start_time) ->
+        apply_change_to_meeting(meeting, :modified)
+
+      true ->
+        write_end(meeting, end_time)
+    end
+  end
+
+  defp write_end(meeting, end_time) do
+    case MeetingCalendarQueries.update_end_time(meeting, end_time) do
+      {:ok, updated} ->
+        Logger.info("Meeting end follows the external calendar",
+          meeting_id: meeting.id,
+          previous_end_time: meeting.end_time,
+          end_time: updated.end_time
+        )
+
+        resolve_modification(updated)
+        AvailabilityCache.invalidate_for_user(updated.organizer_user_id)
+        sync_video_room(updated)
+        announce_end(updated)
+
+      # Rescheduled, cancelled, voided or deleted since the event was read:
+      # the end was compared against a meeting that no longer stands, so
+      # nothing is written and nothing follows from it.
+      {:error, :not_found} ->
+        Logger.info("External end change dropped: the meeting changed since it was read",
+          meeting_id: meeting.id
+        )
+
+        :ok
+    end
+  end
+
+  # Only from a write that landed, so a change that lost its race announces
+  # nothing. The notices wait a little and coalesce (see
+  # `EmailScheduler.schedule_end_change_emails/1`); chat channels and webhooks
+  # are not told, since the booking did not move.
+  defp announce_end(meeting) do
+    case EmailScheduler.schedule_end_change_emails(meeting) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("Failed to schedule the notices of an external end change",
+          meeting_id: meeting.id,
+          reason: reason
+        )
+
+        :ok
+    end
+  end
+
+  defp sync_video_room(%{video_room_id: nil}), do: :ok
+  defp sync_video_room(%{organizer_user_id: nil}), do: :ok
+
+  defp sync_video_room(meeting) do
+    case VideoSyncWorker.enqueue(meeting.id, "update") do
+      {:ok, _job} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("Failed to enqueue video room update after an external end change",
+          meeting_id: meeting.id,
+          reason: reason
+        )
+
+        :ok
+    end
   end
 
   @doc """
@@ -176,7 +274,7 @@ defmodule Tymeslot.Meetings.ExternalCalendarChanges do
 
   defp slot_elapsed?(_meeting), do: false
 
-  @spec ignore(Meeting.t(), signal(), String.t()) :: :ok
+  @spec ignore(Meeting.t(), signal() | :end_moved, String.t()) :: :ok
   defp ignore(meeting, signal, reason) do
     Logger.info("Ignoring external calendar signal",
       meeting_id: meeting.id,

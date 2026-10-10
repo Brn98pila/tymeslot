@@ -32,6 +32,7 @@ defmodule TymeslotWeb.DashboardLive do
   alias Tymeslot.Dashboard.DashboardContext
   alias Tymeslot.Meetings
   alias Tymeslot.Onboarding
+  alias Tymeslot.Profiles
   alias TymeslotWeb.Components.DashboardLayout
   alias TymeslotWeb.Components.TourOverlay
   alias TymeslotWeb.Dashboard.AutomationSettingsComponent
@@ -552,7 +553,7 @@ defmodule TymeslotWeb.DashboardLive do
   defp load_dashboard_data(socket) do
     user = socket.assigns[:current_user]
     action = socket.assigns[:live_action]
-    timezone = socket.assigns[:profile] && socket.assigns.profile.timezone
+    timezone = Profiles.timezone(socket.assigns[:profile])
 
     if user do
       dashboard_data = DashboardContext.get_dashboard_data_for_action(user, timezone, action)

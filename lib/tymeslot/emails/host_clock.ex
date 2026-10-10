@@ -1,7 +1,8 @@
 defmodule Tymeslot.Emails.HostClock do
   @moduledoc """
   The clock a host reads their booking emails by: their timezone and their
-  chosen 12- or 24-hour format.
+  chosen 12- or 24-hour format. A user's own account emails read by the same
+  clock (`for_user/2`, `format_datetime/3`).
 
   Resolved once per email from the meeting's organiser, for the
   host-addressed templates that render straight from a meeting rather than
@@ -12,7 +13,9 @@ defmodule Tymeslot.Emails.HostClock do
   """
 
   alias Tymeslot.CalendarGrid
+  alias Tymeslot.Emails.Shared.Formatting
   alias Tymeslot.Profiles
+  alias Tymeslot.Utils.DateTimeUtils
 
   @type t :: %{timezone: String.t(), time_format: String.t() | nil}
 
@@ -23,6 +26,26 @@ defmodule Tymeslot.Emails.HostClock do
   @spec for_meeting(map(), String.t()) :: t()
   def for_meeting(meeting, locale),
     do: %{timezone: timezone(meeting), time_format: time_format(meeting, locale)}
+
+  @doc """
+  The clock `user_id` reads their own account emails by: the same timezone and
+  12- or 24-hour choice as their booking emails.
+  """
+  @spec for_user(integer(), String.t()) :: t()
+  def for_user(user_id, locale), do: for_meeting(%{organizer_user_id: user_id}, locale)
+
+  @doc """
+  `datetime` as an email to `user_id` states a time: on their own clock, with
+  the zone named.
+  """
+  @spec format_datetime(DateTime.t(), integer(), String.t()) :: String.t()
+  def format_datetime(%DateTime{} = datetime, user_id, locale) do
+    clock = for_user(user_id, locale)
+
+    datetime
+    |> DateTimeUtils.convert_to_timezone(clock.timezone)
+    |> Formatting.format_datetime(locale, clock.time_format)
+  end
 
   @doc """
   The organiser's timezone alone, for a sender that needs no clock format.

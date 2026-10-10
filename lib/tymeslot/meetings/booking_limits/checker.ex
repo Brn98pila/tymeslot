@@ -123,7 +123,5 @@ defmodule Tymeslot.Meetings.BookingLimits.Checker do
     end
   end
 
-  defp host_timezone(profile_settings) do
-    (profile_settings && Map.get(profile_settings, :timezone)) || Profiles.get_default_timezone()
-  end
+  defp host_timezone(profile_settings), do: Profiles.timezone(profile_settings)
 end

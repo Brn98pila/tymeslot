@@ -7,6 +7,8 @@ defmodule Tymeslot.Emails.EmailScheduler do
 
   - `MeetingScheduler` — confirmation, cancellation, reminder, reschedule, and
     booking-approval emails
+  - `EndChangeScheduler`: the notices of a booking whose end the host moved
+    in their own calendar
   - `AuthScheduler` — email verification, password reset, and the account
     notices sent instead of an on-screen answer (no password to reset, a
     sign-up attempt with a registered address)
@@ -22,6 +24,7 @@ defmodule Tymeslot.Emails.EmailScheduler do
   alias Tymeslot.Emails.EmailScheduler.AccountScheduler
   alias Tymeslot.Emails.EmailScheduler.AuthScheduler
   alias Tymeslot.Emails.EmailScheduler.CalendarScheduler
+  alias Tymeslot.Emails.EmailScheduler.EndChangeScheduler
   alias Tymeslot.Emails.EmailScheduler.IntegrationScheduler
   alias Tymeslot.Emails.EmailScheduler.MeetingScheduler
 
@@ -31,6 +34,7 @@ defmodule Tymeslot.Emails.EmailScheduler do
   defdelegate schedule_seat_confirmation_emails(meeting_id, participant_id), to: MeetingScheduler
   defdelegate schedule_cancellation_emails(meeting_id), to: MeetingScheduler
   defdelegate schedule_reschedule_emails(meeting, original), to: MeetingScheduler
+  defdelegate schedule_end_change_emails(meeting), to: EndChangeScheduler
 
   defdelegate schedule_seat_cancellation_emails(meeting_id, participant_id, slot_freed?),
     to: MeetingScheduler
@@ -122,6 +126,7 @@ defmodule Tymeslot.Emails.EmailScheduler do
     "send_seat_confirmation_emails" => ["meeting_id", "participant_id"],
     "send_cancellation_emails" => ["meeting_id"],
     "send_reschedule_emails" => ["meeting_id"],
+    "send_end_change_emails" => ["meeting_id", "start_time"],
     "send_seat_cancellation_emails" => ["meeting_id", "participant_id", "slot_freed"],
     "send_seat_reschedule_emails" => ["meeting_id", "participant_id", "old_participant_id"],
     "send_reminder_emails" => ["meeting_id", "reminder_value", "reminder_unit"],

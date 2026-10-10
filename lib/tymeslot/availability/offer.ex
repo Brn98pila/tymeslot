@@ -402,7 +402,7 @@ defmodule Tymeslot.Availability.Offer do
     |> Map.merge(%{demo_mode: request[:demo_mode?] == true, meeting_type: request[:meeting_type]})
   end
 
-  defp owner_timezone(profile), do: profile.timezone || Profiles.get_default_timezone()
+  defp owner_timezone(profile), do: Profiles.timezone(profile)
 
   defp bounded_duration(minutes) when is_integer(minutes) and minutes > 0,
     do: min(minutes, max_duration_minutes())
