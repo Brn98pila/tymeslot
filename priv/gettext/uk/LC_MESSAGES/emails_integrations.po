@@ -195,7 +195,7 @@ msgid "%{count} calendar is no longer on your calendar server"
 msgid_plural "%{count} calendars are no longer on your calendar server"
 msgstr[0] "%{count} календар зник з вашого сервера календаря"
 msgstr[1] "%{count} календарі зникли з вашого сервера календаря"
-msgstr[2] "%{count} календарів зникло з вашого сервера календаря"
+msgstr[2] "%{count} календарів зникли з вашого сервера календаря"
 
 #: lib/tymeslot/emails/templates/calendars_removed.ex
 #, elixir-autogen, elixir-format
