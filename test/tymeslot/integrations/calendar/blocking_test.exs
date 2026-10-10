@@ -234,18 +234,26 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
 
       date = next_bookable_weekday()
 
-      stub(GoogleCalendarAPIMock, :list_events, fn _integration, "team", _from, _to ->
-        start = DateTime.new!(date, ~T[14:00:00], "Etc/UTC")
+      # Only the team calendar is busy at 2 PM; unticking it leaves the work
+      # calendar selected, so the account is still read calendar by calendar.
+      stub(GoogleCalendarAPIMock, :list_events, fn
+        _integration, "work", _from, _to ->
+          {:ok, []}
 
-        {:ok,
-         [
-           %{
-             "id" => "team-event",
-             "status" => "confirmed",
-             "start" => %{"dateTime" => DateTime.to_iso8601(start)},
-             "end" => %{"dateTime" => start |> DateTime.add(30, :minute) |> DateTime.to_iso8601()}
-           }
-         ]}
+        _integration, "team", _from, _to ->
+          start = DateTime.new!(date, ~T[14:00:00], "Etc/UTC")
+
+          {:ok,
+           [
+             %{
+               "id" => "team-event",
+               "status" => "confirmed",
+               "start" => %{"dateTime" => DateTime.to_iso8601(start)},
+               "end" => %{
+                 "dateTime" => start |> DateTime.add(30, :minute) |> DateTime.to_iso8601()
+               }
+             }
+           ]}
       end)
 
       integration =
@@ -253,7 +261,7 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
           user,
           [
             %{id: "team", name: "Team", selected: true},
-            %{id: "work", name: "Work", primary: true}
+            %{id: "work", name: "Work", selected: true, primary: true}
           ],
           default_booking_calendar_id: "work"
         )
