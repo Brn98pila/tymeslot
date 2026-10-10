@@ -27,8 +27,10 @@ defmodule Tymeslot.Availability.Audit do
   alias Tymeslot.Availability.TimeOffPeriodQueries
   alias Tymeslot.Availability.WeeklyAvailabilityQueries
   alias Tymeslot.Clock
+  alias Tymeslot.Integrations.Calendar.AvailabilityView
   alias Tymeslot.Integrations.Calendar.CalendarEventQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
+  alias Tymeslot.Profiles
   alias Tymeslot.Profiles.ProfileQueries
 
   @default_duration_minutes 30
@@ -89,12 +91,10 @@ defmodule Tymeslot.Availability.Audit do
     horizon_days = Keyword.get(opts, :horizon_days, @default_horizon_days)
     start_date = Keyword.get(opts, :start_date, Clock.utc_today())
     end_date = Date.add(start_date, horizon_days)
-    timezone = profile.timezone
+    timezone = Profiles.timezone(profile)
 
-    integration_ids =
-      profile.user_id
-      |> CalendarIntegrationQueries.list_active_for_user()
-      |> Enum.map(& &1.id)
+    integrations = CalendarIntegrationQueries.list_active_for_user(profile.user_id)
+    calendars = {Enum.map(integrations, & &1.id), AvailabilityView.rules(integrations)}
 
     # The audit reads the profile's default schedule, which is the one the public
     # booking page falls back to when a meeting type names no schedule of its own.
@@ -117,7 +117,7 @@ defmodule Tymeslot.Availability.Audit do
       |> Map.merge(%{duration_minutes: duration_minutes, owner_timezone: timezone})
       |> Map.merge(prefetched(schedule_id, read_from, read_to))
 
-    range_events = CalendarEventQueries.in_range(integration_ids, {read_from, read_to})
+    range_events = blocking_events(calendars, {read_from, read_to})
 
     {:ok, month_view} =
       Calculate.range_availability(start_date, end_date, timezone, timezone, range_events, config)
@@ -125,7 +125,7 @@ defmodule Tymeslot.Availability.Audit do
     disagreements =
       start_date
       |> Date.range(end_date)
-      |> Enum.flat_map(&compare_one_date(&1, month_view, integration_ids, config, timezone))
+      |> Enum.flat_map(&compare_one_date(&1, month_view, calendars, config, timezone))
 
     %{
       profile_id: profile.id,
@@ -162,10 +162,14 @@ defmodule Tymeslot.Availability.Audit do
     }
   end
 
-  defp compare_one_date(date, month_view, integration_ids, config, timezone) do
+  # Only calendars the owner lets block availability, as the booking page reads.
+  defp blocking_events({integration_ids, blocking_rules}, range),
+    do: CalendarEventQueries.in_range(integration_ids, range, blocking_rules)
+
+  defp compare_one_date(date, month_view, calendars, config, timezone) do
     month_says = Map.get(month_view, Date.to_iso8601(date), false)
 
-    day_events = CalendarEventQueries.in_range(integration_ids, padded(date, date))
+    day_events = blocking_events(calendars, padded(date, date))
 
     {:ok, slots} =
       Calculate.available_slots(

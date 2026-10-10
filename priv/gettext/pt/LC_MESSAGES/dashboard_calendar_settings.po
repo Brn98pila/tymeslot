@@ -387,3 +387,23 @@ msgstr "Dispensar o aviso sobre calendários que não estão mais no servidor"
 #, elixir-autogen, elixir-format
 msgid "“%{calendar}” is no longer on your calendar server, so Tymeslot has stopped using it."
 msgstr "O calendário “%{calendar}” não está mais no seu servidor de calendário, então o Tymeslot parou de usá-lo."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Block"
+msgstr "Bloquear"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Don't block"
+msgstr "Não bloquear"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid "Your booking calendar always blocks your availability."
+msgstr "Seu calendário de agendamento sempre bloqueia sua disponibilidade."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times of %{calendar}"
+msgstr "Horários ocupados de %{calendar}"

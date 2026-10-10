@@ -76,10 +76,23 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.IcsUrlConfig do
           />
         </div>
 
+        <.input
+          id="subscription_blocks_availability"
+          type="checkbox"
+          name="integration[blocks_availability]"
+          value={Map.get(@form_values, "blocks_availability", "true")}
+          label={
+            dgettext(
+              "dashboard_calendar_providers",
+              "Block times on my booking page when this calendar is busy"
+            )
+          }
+        />
+
         <.info_box variant={:info}>
           {dgettext(
             "dashboard_calendar_providers",
-            "This calendar stays read-only: it blocks the times you're already busy, and bookings are never written to it. Choose another calendar as your booking destination."
+            "This calendar stays read-only: bookings are never written to it. Choose another calendar as your booking destination."
           )}
         </.info_box>
 

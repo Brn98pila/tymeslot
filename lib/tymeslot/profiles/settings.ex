@@ -33,7 +33,7 @@ defmodule Tymeslot.Profiles.Settings do
     # Extract the form fields, providing defaults if not present
     full_name = Map.get(params, "full_name", profile.full_name || "")
     username = Map.get(params, "username", profile.username || "")
-    timezone = Map.get(params, "timezone", profile.timezone || "UTC")
+    timezone = Map.get(params, "timezone", Profiles.timezone(profile))
 
     # Skip update if this is just a timezone search event (contains "value" key)
     if Map.has_key?(params, "value") do

@@ -1255,3 +1255,8 @@ msgstr "W walucie konta Stripe (%{currency}) nie można już ustawiać cen. Wybi
 #, elixir-autogen, elixir-format
 msgid "The current price is %{amount}. Switching to a supported currency clears it, as it clears every paid meeting type's price."
 msgstr "Obecna cena to %{amount}. Po przejściu na obsługiwaną walutę zostanie usunięta, tak jak ceny wszystkich płatnych typów spotkań."
+
+#: lib/tymeslot/utils/form_helpers.ex
+#, elixir-autogen, elixir-format
+msgid "The calendar this meeting type books into is no longer available. Reload the page and try again."
+msgstr "Kalendarz, do którego trafiają rezerwacje tego typu spotkania, jest już niedostępny. Odśwież stronę i spróbuj ponownie."

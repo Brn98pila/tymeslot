@@ -36,6 +36,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Events do
     ConditionalWrite,
     ConflictResolution,
     EventProcessor,
+    FreeBusy,
     Http,
     Scheduling,
     SeriesWrites,
@@ -57,10 +58,41 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Events do
   @spec fetch_events(Base.client(), String.t(), DateTime.t(), DateTime.t(), keyword()) ::
           {:ok, list(XmlHandler.parsed_event())} | {:error, Base.error_reason()}
   def fetch_events(client, calendar_path, start_time, end_time, opts \\ []) do
+    report(
+      client,
+      calendar_path,
+      XmlHandler.build_calendar_query(start_time, end_time),
+      opts,
+      {207, &XmlHandler.parse_calendar_query/1}
+    )
+  end
+
+  @doc """
+  Fetches the busy periods of a calendar shared with the account as busy
+  times only, which answers `fetch_events/5`'s `calendar-query` with 403
+  (see `CalDAV.FreeBusy`). Retried, breaker-guarded and mapped exactly as
+  `fetch_events/5` is, so a refusal is an unreadable calendar as there.
+  """
+  @spec fetch_free_busy(Base.client(), String.t(), DateTime.t(), DateTime.t(), keyword()) ::
+          {:ok, list(XmlHandler.parsed_event())} | {:error, Base.error_reason()}
+  def fetch_free_busy(client, calendar_path, start_time, end_time, opts \\ []) do
+    report(
+      client,
+      calendar_path,
+      FreeBusy.build_query(start_time, end_time),
+      opts,
+      # Answered with the iCalendar document itself, not a Multi-Status.
+      {200, &FreeBusy.parse(&1, calendar_path)}
+    )
+  end
+
+  # The one REPORT read both fetches share: breaker, retry, size and time
+  # limits, and the status mapping, with `parse` applied to the body of any
+  # 2xx answer; a 2xx other than the `expected` one is logged.
+  defp report(client, calendar_path, report_body, opts, {expected, parse}) do
     result =
       with_events_breaker(client, opts, fn ->
         url = UrlBuilder.build_calendar_url(client.base_url, calendar_path)
-        report_body = XmlHandler.build_calendar_query(start_time, end_time)
 
         retry_opts = Base.retry_opts(opts)
 
@@ -75,19 +107,20 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Events do
                end,
                retry_opts
              ) do
-          {:ok, %Req.Response{status: 207, body: body}} ->
-            XmlHandler.parse_calendar_query(body)
+          {:ok, %Req.Response{status: ^expected, body: body}} ->
+            parse.(body)
 
           {:ok, %Req.Response{status: status, body: body}} when status in 200..299 ->
-            # Some servers return 200 instead of the CalDAV-mandated 207 Multi-Status
+            # Some servers return 200 instead of the CalDAV-mandated 207
+            # Multi-Status.
             Logger.warning("CalDAV REPORT returned unexpected status",
               status: status,
-              expected: 207,
+              expected: expected,
               url: url,
               provider: Map.get(client, :provider, :caldav)
             )
 
-            XmlHandler.parse_calendar_query(body)
+            parse.(body)
 
           {:error, :not_found} ->
             # A missing calendar collection is a per-resource condition, not a

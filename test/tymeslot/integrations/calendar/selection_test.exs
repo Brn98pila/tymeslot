@@ -5,6 +5,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
   import Ecto.Query, only: [from: 2]
 
   alias Tymeslot.Integrations.Calendar
+  alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
@@ -335,7 +336,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
 
   # A reconnect writes the selection its owner just made, from the
   # integration it read before discovery went to the network.
-  describe "Selection.replace_selection/2 from a stale copy" do
+  describe "Blocking.replace_selection/3 from a stale copy" do
     setup do
       integration =
         insert(:calendar_integration,
@@ -353,12 +354,9 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
     test "writes the owner's selection even where the copy already matched it", %{stale: stale} do
       # A discovery merge selects B while the owner is choosing A alone.
       {:ok, _elsewhere} =
-        Selection.update_calendar_selection(stale, %{
-          "selected_calendars" => ["/cal/a/", "/cal/b/"]
-        })
+        select_only(stale, ["/cal/a/", "/cal/b/"])
 
-      {:ok, updated} =
-        Selection.replace_selection(stale, Selection.calendar_list_attrs(stale.calendar_list))
+      {:ok, updated} = Blocking.replace_selection(stale, stale.calendar_list, %{})
 
       stored = Repo.reload!(stale)
       assert updated.calendar_paths == ["/cal/a/"]
@@ -379,7 +377,10 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
       )
 
       assert {:ok, _updated} =
-               Selection.replace_selection(stale, %{username: "alice", password: "fresh"})
+               Blocking.replace_selection(stale, stale.calendar_list, %{
+                 username: "alice",
+                 password: "fresh"
+               })
 
       assert {:ok, %{username: "alice", password: "fresh"}} =
                CalendarIntegrationQueries.get(stale.id)
@@ -395,6 +396,8 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
           user: insert(:user),
           provider: "caldav",
           is_active: true,
+          # Bookings go to C, so A is the owner's to switch off.
+          default_booking_calendar_id: "/cal/c/",
           calendar_list: [
             %{"id" => "/cal/a/", "path" => "/cal/a/", "name" => "A", "selected" => true},
             %{"id" => "/cal/b/", "path" => "/cal/b/", "name" => "B", "selected" => false},
@@ -408,9 +411,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
     test "keeps a choice made elsewhere since the copy was read", %{stale: stale} do
       # Another tab selects B as well.
       {:ok, _elsewhere} =
-        Selection.update_calendar_selection(stale, %{
-          "selected_calendars" => ["/cal/a/", "/cal/b/", "/cal/c/"]
-        })
+        select_only(stale, ["/cal/a/", "/cal/b/", "/cal/c/"])
 
       {:ok, updated} = Calendar.toggle_calendar_selection(stale.user_id, stale.id, "/cal/a/")
 
@@ -420,7 +421,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
     test "does not re-select a calendar deselected since the copy was read", %{stale: stale} do
       # C vanished from the server and the sync deselected it.
       {:ok, _elsewhere} =
-        Selection.update_calendar_selection(stale, %{"selected_calendars" => ["/cal/a/"]})
+        select_only(stale, ["/cal/a/"])
 
       {:ok, updated} = Calendar.toggle_calendar_selection(stale.user_id, stale.id, "/cal/b/")
 
@@ -432,92 +433,67 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
   end
 
   # =====================================
-  # update_calendar_selection/2
+  # Blocking.set_state/3, the live selection writer
   # =====================================
 
-  describe "update_calendar_selection/2" do
-    test "marks calendar as selected when submitted ID encoding differs from stored ID" do
-      user = insert(:user)
+  describe "Blocking.set_state/3" do
+    test "finds the calendar when the submitted id is encoded differently" do
       encoded_id = "/dav/user%40example.org/Calendar"
-      decoded_id = "/dav/user@example.org/Calendar"
 
       integration =
         insert(:calendar_integration,
-          user: user,
           provider: "caldav",
           is_active: true,
-          calendar_list: [
-            %{"id" => encoded_id, "name" => "Calendar", "selected" => false}
-          ]
+          default_booking_calendar_id: "/elsewhere/",
+          calendar_list: [%{"id" => encoded_id, "name" => "Calendar", "selected" => false}]
         )
 
-      {:ok, updated} =
-        Selection.update_calendar_selection(integration, %{
-          "selected_calendars" => [decoded_id]
-        })
+      {:ok, updated} = Blocking.set_state(integration, "/dav/user@example.org/Calendar", :block)
 
-      [cal] = updated.calendar_list
-      assert cal.selected == true
+      assert [%CalendarEntry{selected: true}] = updated.calendar_list
     end
 
-    test "rebuilds calendar_paths from the new selection so the sync worker stops touching un-toggled calendars" do
-      user = insert(:user)
-      kept_path = "/dav/user@example.org/Calendar/"
-      removed_path = "/dav/user@example.org/General/"
+    test "rebuilds calendar_paths, so the sync stops touching a calendar switched off" do
+      kept = "/dav/user@example.org/Calendar/"
+      removed = "/dav/user@example.org/General/"
 
       integration =
         insert(:calendar_integration,
-          user: user,
           provider: "caldav",
           is_active: true,
-          calendar_paths: [kept_path, removed_path],
+          default_booking_calendar_id: kept,
+          calendar_paths: [kept, removed],
           calendar_list: [
-            %{
-              "id" => kept_path,
-              "path" => kept_path,
-              "name" => "Calendar",
-              "selected" => true
-            },
-            %{
-              "id" => removed_path,
-              "path" => removed_path,
-              "name" => "General",
-              "selected" => true
-            }
+            %{"id" => kept, "path" => kept, "name" => "Calendar", "selected" => true},
+            %{"id" => removed, "path" => removed, "name" => "General", "selected" => true}
           ]
         )
 
-      {:ok, updated} =
-        Selection.update_calendar_selection(integration, %{
-          "selected_calendars" => [kept_path]
-        })
+      {:ok, updated} = Blocking.set_state(integration, removed, :off)
 
-      assert updated.calendar_paths == [kept_path]
-
-      assert Enum.find(updated.calendar_list, &(&1.id == kept_path)).selected == true
-      assert Enum.find(updated.calendar_list, &(&1.id == removed_path)).selected == false
+      assert updated.calendar_paths == [kept]
+      assert Enum.find(updated.calendar_list, &(&1.id == removed)).selected == false
     end
 
-    test "empties calendar_paths when every calendar is un-toggled" do
-      user = insert(:user)
+    test "empties calendar_paths when the last synced calendar is switched off" do
       path = "/dav/user@example.org/Calendar/"
+      other = "/dav/user@example.org/Bookings/"
 
       integration =
         insert(:calendar_integration,
-          user: user,
           provider: "caldav",
           is_active: true,
+          default_booking_calendar_id: other,
           calendar_paths: [path],
           calendar_list: [
-            %{"id" => path, "path" => path, "name" => "Calendar", "selected" => true}
+            %{"id" => path, "path" => path, "name" => "Calendar", "selected" => true},
+            %{"id" => other, "path" => other, "name" => "Bookings", "selected" => false}
           ]
         )
 
-      {:ok, updated} =
-        Selection.update_calendar_selection(integration, %{"selected_calendars" => []})
+      {:ok, updated} = Blocking.set_state(integration, path, :off)
 
       assert updated.calendar_paths == []
-      assert [%CalendarEntry{selected: false}] = updated.calendar_list
     end
   end
 
@@ -624,5 +600,16 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
 
       assert Selection.calendar_for_event(event, nil) == nil
     end
+  end
+
+  # Another writer's selection, landed on the row as it stands: only `ids`
+  # selected.
+  defp select_only(integration, ids) do
+    integration = Repo.reload!(integration)
+
+    Selection.persist_calendar_list(
+      integration,
+      Enum.map(integration.calendar_list, &%{&1 | selected: &1.id in ids})
+    )
   end
 end

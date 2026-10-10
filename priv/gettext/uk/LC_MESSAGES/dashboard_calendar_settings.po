@@ -395,3 +395,23 @@ msgstr "Закрити сповіщення про календарі, яких 
 #, elixir-autogen, elixir-format
 msgid "“%{calendar}” is no longer on your calendar server, so Tymeslot has stopped using it."
 msgstr "Календар «%{calendar}» зник з вашого сервера календаря, тому Tymeslot більше його не використовує."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Block"
+msgstr "Блокувати"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Don't block"
+msgstr "Не блокувати"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid "Your booking calendar always blocks your availability."
+msgstr "Календар для бронювань завжди блокує вашу доступність."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times of %{calendar}"
+msgstr "Зайнятий час календаря %{calendar}"

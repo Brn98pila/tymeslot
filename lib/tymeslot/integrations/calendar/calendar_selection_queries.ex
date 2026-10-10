@@ -44,15 +44,33 @@ defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueries do
     locked(id, &read_stored/1, fun)
   end
 
+  @doc """
+  Takes the same row lock as `with_locked_stored/2` inside the caller's
+  transaction and answers the row as stored, or `{:error, :not_found}` when it
+  is gone. Unlike `with_locked/2` it rolls nothing back, so a caller that
+  finds the row gone can go on with the rest of its transaction.
+
+  Must be called from inside a `Repo.transaction/1`.
+  """
+  @spec lock_stored(pos_integer()) :: {:ok, CalendarIntegrationSchema.t()} | {:error, :not_found}
+  def lock_stored(id) when is_integer(id) do
+    lock_row(id)
+    read_stored(id)
+  end
+
+  defp lock_row(id) do
+    Repo.one(
+      from(ci in CalendarIntegrationSchema,
+        where: ci.id == ^id,
+        select: ci.id,
+        lock: "FOR UPDATE"
+      )
+    )
+  end
+
   defp locked(id, read, fun) do
     Repo.transaction(fn ->
-      Repo.one(
-        from(ci in CalendarIntegrationSchema,
-          where: ci.id == ^id,
-          select: ci.id,
-          lock: "FOR UPDATE"
-        )
-      )
+      lock_row(id)
 
       with {:ok, fresh} <- read.(id),
            {:ok, value} <- fun.(fresh) do

@@ -1,5 +1,5 @@
 defmodule Tymeslot.Auth.AccountDeletion.PolicyTest do
-  use ExUnit.Case, async: false
+  use Tymeslot.DataCase, async: false
 
   @moduletag :auth
   @moduletag :unit
@@ -7,6 +7,7 @@ defmodule Tymeslot.Auth.AccountDeletion.PolicyTest do
   import Tymeslot.ConfigTestHelpers
 
   alias Tymeslot.Auth.AccountDeletion.Policy
+  alias Tymeslot.Profiles.ProfileSchema
 
   describe "local_date/2" do
     test "is the user's own calendar day, which can differ from the UTC one" do
@@ -21,6 +22,35 @@ defmodule Tymeslot.Auth.AccountDeletion.PolicyTest do
 
       assert Policy.local_date(at, nil) == ~D[2026-10-16]
       assert Policy.local_date(at, "Not/AZone") == ~D[2026-10-16]
+    end
+  end
+
+  describe "user_local_date/2" do
+    # 23:30 UTC is already the next day on the default zone, Europe/Tallinn.
+    @at ~U[2026-10-16 23:30:00Z]
+
+    test "reads the day on the profile's zone" do
+      profile = insert(:profile, timezone: "America/Los_Angeles")
+
+      assert Policy.user_local_date(@at, profile.user_id) == ~D[2026-10-16]
+    end
+
+    for {label, stored} <- [{"no", nil}, {"a blank", ""}, {"an unknown", "Not/AZone"}] do
+      test "reads the day on the default zone for a profile with #{label} timezone" do
+        profile = insert(:profile)
+
+        Repo.update_all(from(p in ProfileSchema, where: p.id == ^profile.id),
+          set: [timezone: unquote(stored)]
+        )
+
+        assert Policy.user_local_date(@at, profile.user_id) == ~D[2026-10-17]
+      end
+    end
+
+    test "reads the day on the default zone for a user with no profile" do
+      user = insert(:user)
+
+      assert Policy.user_local_date(@at, user.id) == ~D[2026-10-17]
     end
   end
 

@@ -30,6 +30,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
     {:ok,
      socket
      |> assign(:integrations, [])
+     |> assign(:booking_calendar_ids, %{})
      |> assign(:selected_provider, nil)
      |> assign(:is_refreshing, false)
      |> assign(:health_states, %{})
@@ -64,7 +65,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
          health_states: _health_states,
          stuck_changes: _stuck_changes
        }),
-       do: socket
+       do: assign_booking_calendars(socket)
 
   defp maybe_load_integrations(socket, _assigns), do: load_integrations(socket)
 
@@ -241,23 +242,47 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
     end)
   end
 
+  @calendar_states %{"off" => :off, "show" => :show, "block" => :block}
+
   def handle_event(
-        "toggle_calendar_selection",
-        %{"integration_id" => id, "calendar_id" => cal_id},
+        "set_calendar_state",
+        %{"integration_id" => id, "calendar_id" => cal_id, "state" => state},
         socket
-      ) do
+      )
+      when is_map_key(@calendar_states, state) do
     with_owned_integration(
       socket,
       id,
-      &Calendar.toggle_calendar_selection(&1, &2, cal_id),
-      fn
-        {:ok, _result} ->
-          {:noreply, load_integrations(socket)}
+      &Calendar.set_calendar_state(&1, &2, cal_id, Map.fetch!(@calendar_states, state)),
+      &calendar_choice_result(socket, &1)
+    )
+  end
 
-        _error ->
-          Flash.error(dgettext("dashboard_calendar_settings", "Failed to update selection"))
-          {:noreply, socket}
-      end
+  def handle_event(
+        "set_calendar_blocking",
+        %{"integration_id" => id, "calendar_id" => cal_id, "blocks" => blocks},
+        socket
+      )
+      when blocks in ["true", "false"] do
+    with_owned_integration(
+      socket,
+      id,
+      &Calendar.set_calendar_blocking(&1, &2, cal_id, blocks == "true"),
+      &calendar_choice_result(socket, &1)
+    )
+  end
+
+  def handle_event(
+        "set_calendar_shown",
+        %{"integration_id" => id, "calendar_id" => cal_id, "shown" => shown},
+        socket
+      )
+      when shown in ["true", "false"] do
+    with_owned_integration(
+      socket,
+      id,
+      &Calendar.set_calendar_shown(&1, &2, cal_id, shown == "true"),
+      &calendar_choice_result(socket, &1)
     )
   end
 
@@ -436,8 +461,40 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
 
     socket
     |> assign(:integrations, integrations)
+    |> assign_booking_calendars()
     |> assign(:health_states, health_states)
     |> load_stuck_changes()
+  end
+
+  # The calendars bookings go to, which the Manage calendars modal keeps
+  # showing and blocking.
+  defp assign_booking_calendars(socket) do
+    assign(
+      socket,
+      :booking_calendar_ids,
+      Calendar.booking_calendar_ids_by_integration(
+        socket.assigns.current_user.id,
+        socket.assigns.integrations
+      )
+    )
+  end
+
+  defp calendar_choice_result(socket, {:ok, _updated}), do: {:noreply, load_integrations(socket)}
+
+  defp calendar_choice_result(socket, {:error, :booking_calendar}) do
+    Flash.error(
+      dgettext(
+        "dashboard_calendar_settings",
+        "Your booking calendar always blocks your availability."
+      )
+    )
+
+    {:noreply, load_integrations(socket)}
+  end
+
+  defp calendar_choice_result(socket, _error) do
+    Flash.error(dgettext("dashboard_calendar_settings", "Failed to update selection"))
+    {:noreply, socket}
   end
 
   defp load_stuck_changes(socket),

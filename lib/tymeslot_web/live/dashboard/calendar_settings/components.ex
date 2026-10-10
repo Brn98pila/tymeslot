@@ -22,6 +22,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   alias TymeslotWeb.Components.Icons.ProviderIcon
   alias TymeslotWeb.Dashboard.CalendarSettings.CardNotice
   alias TymeslotWeb.Dashboard.CalendarSettings.Helpers
+  alias TymeslotWeb.Helpers.TimeAgo
 
   @doc """
   Renders the configuration view for a specific calendar provider.
@@ -272,6 +273,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
       |> assign(:summary, calendar_summary(integration))
       |> assign(:last_synced, last_synced(integration))
       |> assign(:subscription?, subscription?)
+      |> assign(:feed, subscription? && List.first(calendar_list))
       |> assign(:read_only?, read_only?)
       |> assign(
         :display_name,
@@ -376,6 +378,29 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
             "Dismiss"
           )}
         </button>
+        <%!-- A subscription has no Manage calendars modal, so whether its one
+             calendar blocks the booking page is chosen here. --%>
+        <.segmented_control
+          :if={@feed}
+          id={"calendar-#{@integration.id}-feed-busy"}
+          size={:sm}
+          value={to_string(@feed.blocks_availability)}
+          aria_label={
+            dgettext("dashboard_calendar_settings", "Busy times of %{calendar}",
+              calendar: @display_name
+            )
+          }
+          on_change={
+            JS.push("set_calendar_blocking",
+              value: %{integration_id: @integration.id, calendar_id: @feed.id},
+              target: @myself
+            )
+          }
+          param="blocks"
+        >
+          <:option value="true" label={dgettext("dashboard_calendar_settings", "Block")} />
+          <:option value="false" label={dgettext("dashboard_calendar_settings", "Don't block")} />
+        </.segmented_control>
         <%!-- Reconnecting a subscription means pasting a new feed URL, not
         re-entering credentials, so the CalDAV reconnect modal does not apply.
         A revoked feed is replaced by removing this row and subscribing again. --%>
@@ -568,19 +593,15 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
 
   # The card's last-activity line; nothing for a connection never synced.
   # `last_external_sync_at` is what every sync worker stamps and what the
-  # staleness banner reads.
-  # Whole sentences rather than "Last synced %{time}" around a relative
-  # phrase, so each language words the time as its own sentence needs.
+  # staleness banner reads. Whole sentences rather than "Last synced
+  # %{time}" around a relative phrase, so each language words the time as
+  # its own sentence needs.
   defp last_synced(%{last_external_sync_at: %DateTime{} = synced_at}) do
-    seconds = max(DateTime.diff(DateTime.utc_now(), synced_at), 0)
-
-    cond do
-      seconds < 60 ->
+    case TimeAgo.since(synced_at) do
+      :just_now ->
         dgettext("dashboard_calendar_settings", "Last synced just now")
 
-      seconds < 3600 ->
-        count = div(seconds, 60)
-
+      {:minutes, count} ->
         dngettext(
           "dashboard_calendar_settings",
           "Last synced %{count} minute ago",
@@ -588,9 +609,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
           count
         )
 
-      seconds < 86_400 ->
-        count = div(seconds, 3600)
-
+      {:hours, count} ->
         dngettext(
           "dashboard_calendar_settings",
           "Last synced %{count} hour ago",
@@ -598,9 +617,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
           count
         )
 
-      true ->
-        count = div(seconds, 86_400)
-
+      {:days, count} ->
         dngettext(
           "dashboard_calendar_settings",
           "Last synced %{count} day ago",

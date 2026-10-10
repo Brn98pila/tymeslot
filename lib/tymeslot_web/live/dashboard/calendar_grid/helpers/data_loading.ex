@@ -3,11 +3,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Helpers.DataLoading do
 
   import Phoenix.Component, only: [assign: 3]
 
+  require Logger
+
   alias Tymeslot.CalendarGrid
   alias Tymeslot.Integrations.Calendar.Appearance
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Meetings
+  alias Tymeslot.Profiles
   alias Tymeslot.Timezones
   alias TymeslotWeb.Dashboard.CalendarGrid.Helpers.PreferenceHelpers
 
@@ -123,8 +126,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Helpers.DataLoading do
   end
 
   @doc """
-  Resolves the profile's timezone (falling back to UTC when it is invalid) into
-  the `user_timezone` assigns.
+  Resolves the profile's timezone into the `user_timezone` assigns by the
+  owner-zone rule (`Profiles.timezone/1`), the clock the booking engine reads
+  the same host on. A stored zone the rule cannot use is logged once here, so
+  operators can find the account.
 
   Split from `precompute_derived/1` so the initial load can know the user's
   timezone before it picks the date the grid opens on.
@@ -132,15 +137,24 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Helpers.DataLoading do
   @spec assign_timezone(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def assign_timezone(socket) do
     assigns = socket.assigns
-    raw_tz = get_in(assigns, [:profile, Access.key(:timezone)]) || Timezones.fallback()
-    user_id = get_in(assigns, [:current_user, Access.key(:id)])
-    tz = Timezones.validate_or_utc(raw_tz, user_id: user_id)
+    tz = Profiles.timezone(assigns[:profile])
+    warn_unusable_zone(assigns[:profile], tz, get_in(assigns, [:current_user, Access.key(:id)]))
 
     socket
     |> assign(:user_timezone, tz)
     |> assign(:timezone_display, Timezones.format(tz))
     |> assign(:timezone_country_code, Timezones.country_code(tz))
   end
+
+  defp warn_unusable_zone(%{timezone: stored}, tz, user_id)
+       when is_binary(stored) and stored != tz do
+    Logger.warning("Invalid user timezone; the calendar shows the default zone",
+      timezone: stored,
+      user_id: user_id
+    )
+  end
+
+  defp warn_unusable_zone(_profile, _tz, _user_id), do: :ok
 
   @spec range_for_view(map()) :: {DateTime.t(), DateTime.t()}
   def range_for_view(%{view: :week, date: date} = assigns) do

@@ -20,10 +20,10 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
-  alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.Google.CacheSweep
   alias Tymeslot.Integrations.Calendar.Google.Provider, as: GoogleProvider
+  alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
 
@@ -340,7 +340,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
   defp deselect_missing_calendars(_integration, []), do: :ok
 
   defp deselect_missing_calendars(integration, missing_ids) do
-    case CalendarSelectionQueries.deselect_calendars(integration, missing_ids) do
+    case Selection.deselect_missing(integration, missing_ids) do
       {:ok, _updated} ->
         :ok
 

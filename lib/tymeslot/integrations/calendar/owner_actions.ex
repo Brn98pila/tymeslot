@@ -2,9 +2,9 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   @moduledoc """
   The changes an organiser makes to one of their own connected calendars from
   the dashboard: switching it on or off, renaming it, recolouring it, ticking
-  its calendars, refreshing it, retrying the changes its server kept
-  refusing, dismissing the notice about calendars its server stopped
-  listing, and deleting it.
+  its calendars and choosing which of them block availability, refreshing
+  it, retrying the changes its server kept refusing, dismissing the notice
+  about calendars its server stopped listing, and deleting it.
 
   Every function takes the acting user's id and the integration's id. It
   charges the user's budget first, then loads the integration scoped to that
@@ -21,13 +21,13 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
 
   alias Tymeslot.Dashboard.DashboardContext
   alias Tymeslot.Infrastructure.Tasks
+  alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.Deletion
   alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
   alias Tymeslot.Integrations.Calendar.ProviderConfig
-  alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Calendar.SyncSchedule
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.InputValidators
@@ -95,11 +95,46 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
     end)
   end
 
-  @doc "Ticks or unticks one of an integration's calendars."
+  @doc """
+  Ticks or unticks one of an integration's calendars, under the rules of
+  `Blocking.toggle/2`: a booking calendar is not switched off.
+  """
   @spec toggle_calendar_selection(pos_integer(), pos_integer(), String.t() | integer()) ::
-          {:ok, integration()} | {:error, refusal() | term()}
+          {:ok, integration()} | {:error, refusal() | Blocking.refusal() | term()}
   def toggle_calendar_selection(user_id, integration_id, calendar_id) do
-    with_owned(user_id, integration_id, :write, &Selection.toggle_calendar(&1, calendar_id))
+    with_owned(user_id, integration_id, :write, &Blocking.toggle(&1, calendar_id))
+  end
+
+  @doc """
+  Sets whether one of an integration's calendars is used, and whether it
+  blocks availability, in one change (see `Blocking.set_state/3`).
+  """
+  @spec set_calendar_state(pos_integer(), pos_integer(), String.t() | integer(), Blocking.state()) ::
+          {:ok, integration()}
+          | {:error, refusal() | :booking_calendar | :free_busy_only | term()}
+  def set_calendar_state(user_id, integration_id, calendar_id, state) do
+    with_owned(user_id, integration_id, :write, &Blocking.set_state(&1, calendar_id, state))
+  end
+
+  @doc """
+  Sets whether one of an integration's calendars is shown, leaving whether
+  it blocks as it is (see `Blocking.set_shown/3`).
+  """
+  @spec set_calendar_shown(pos_integer(), pos_integer(), String.t() | integer(), boolean()) ::
+          {:ok, integration()} | {:error, refusal() | term()}
+  def set_calendar_shown(user_id, integration_id, calendar_id, shown?) do
+    with_owned(user_id, integration_id, :write, &Blocking.set_shown(&1, calendar_id, shown?))
+  end
+
+  @doc """
+  Sets whether one of an integration's calendars blocks availability (see
+  `Blocking.set/3`). `{:error, :booking_calendar}` when asked to make a
+  calendar bookings go to show only.
+  """
+  @spec set_calendar_blocking(pos_integer(), pos_integer(), String.t() | integer(), boolean()) ::
+          {:ok, integration()} | {:error, refusal() | :booking_calendar | term()}
+  def set_calendar_blocking(user_id, integration_id, calendar_id, blocks?) do
+    with_owned(user_id, integration_id, :write, &Blocking.set(&1, calendar_id, blocks?))
   end
 
   @doc """

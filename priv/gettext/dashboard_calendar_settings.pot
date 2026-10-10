@@ -387,3 +387,23 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "“%{calendar}” is no longer on your calendar server, so Tymeslot has stopped using it."
 msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Block"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Don't block"
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid "Your booking calendar always blocks your availability."
+msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times of %{calendar}"
+msgstr ""

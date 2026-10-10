@@ -1251,3 +1251,8 @@ msgstr "Non è più possibile impostare prezzi nella valuta del tuo account Stri
 #, elixir-autogen, elixir-format
 msgid "The current price is %{amount}. Switching to a supported currency clears it, as it clears every paid meeting type's price."
 msgstr "Il prezzo attuale è %{amount}. Passando a una valuta supportata verrà azzerato, come il prezzo di ogni tipo di riunione a pagamento."
+
+#: lib/tymeslot/utils/form_helpers.ex
+#, elixir-autogen, elixir-format
+msgid "The calendar this meeting type books into is no longer available. Reload the page and try again."
+msgstr "Il calendario in cui questo tipo di riunione salva le prenotazioni non è più disponibile. Ricarica la pagina e riprova."

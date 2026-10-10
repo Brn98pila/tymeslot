@@ -11,10 +11,13 @@ defmodule Tymeslot.FreeBusy do
   """
 
   alias Tymeslot.Availability.{Events, TimeOff}
+  alias Tymeslot.Clock
+  alias Tymeslot.Integrations.Calendar.AvailabilityView
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.CalendarEventQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.FreebusyGenerator
+  alias Tymeslot.Profiles
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Security.Token
@@ -64,7 +67,7 @@ defmodule Tymeslot.FreeBusy do
   @spec feed(ProfileSchema.t(), keyword()) :: String.t()
   def feed(%ProfileSchema{} = profile, opts \\ []) do
     horizon_days = Keyword.get(opts, :horizon_days, @default_horizon_days)
-    window_start = DateTime.truncate(Keyword.get(opts, :now, DateTime.utc_now()), :second)
+    window_start = DateTime.truncate(Keyword.get_lazy(opts, :now, &Clock.utc_now/0), :second)
     window_end = DateTime.add(window_start, horizon_days, :day)
 
     FreebusyGenerator.generate(
@@ -84,19 +87,19 @@ defmodule Tymeslot.FreeBusy do
   @spec busy_intervals(ProfileSchema.t(), DateTime.t(), DateTime.t()) ::
           [FreebusyGenerator.interval()]
   def busy_intervals(%ProfileSchema{} = profile, window_start, window_end) do
-    integration_ids =
-      profile.user_id
-      |> CalendarIntegrationQueries.list_active_for_user()
-      |> Enum.map(& &1.id)
+    integrations = CalendarIntegrationQueries.list_active_for_user(profile.user_id)
 
     event_intervals =
-      integration_ids
-      |> CalendarEventQueries.in_range({window_start, window_end})
+      integrations
+      |> Enum.map(& &1.id)
+      |> CalendarEventQueries.in_range(
+        {window_start, window_end},
+        AvailabilityView.rules(integrations)
+      )
       |> Enum.filter(&CalendarEvent.blocking?/1)
-      |> Enum.flat_map(&event_interval(&1, profile.timezone || "Etc/UTC"))
+      |> Enum.flat_map(&event_interval(&1, Profiles.timezone(profile)))
 
-    event_intervals ++
-      TimeOff.busy_intervals(profile.id, profile.timezone, window_start, window_end)
+    event_intervals ++ TimeOff.busy_intervals(profile, window_start, window_end)
   end
 
   # An all-day event spans the owner's local day, as it does on the booking

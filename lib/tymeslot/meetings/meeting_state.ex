@@ -107,6 +107,20 @@ defmodule Tymeslot.Meetings.MeetingState do
     |> exclude_voided_slots()
   end
 
+  @doc """
+  Query-side counterpart of `expects_calendar_event?/1`: composes onto `query`
+  a filter matching only meetings that should have a provider event on the
+  organiser's calendar right now. A write that follows the calendar puts it
+  in its `WHERE`, so a meeting cancelled or voided after the provider event
+  was read is left as it is.
+  """
+  @spec where_expects_calendar_event(Ecto.Queryable.t()) :: Ecto.Query.t()
+  def where_expects_calendar_event(query) do
+    query
+    |> where([m], m.status in ^(@active_statuses -- ["reschedule_requested"]))
+    |> exclude_voided_slots()
+  end
+
   # Query-side counterpart of `awaiting_new_time?/1`: excludes meetings whose
   # slot is currently voided by a pending reschedule request.
   defp exclude_voided_slots(query) do

@@ -33,6 +33,7 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
   alias Tymeslot.Integrations.Calendar.ProviderCalendarSeriesQueries
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Meetings
+  alias Tymeslot.Profiles
 
   # How far back and forward a sync reads, for every provider alike, so the
   # dashboard calendar shows one range whichever calendar an event is on.
@@ -206,7 +207,43 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
   @spec full_refresh_for_role(CalendarIntegrationSchema.t(), String.t(), [CalendarEvent.t()]) ::
           {:ok, non_neg_integer()} | {:error, term()}
   def full_refresh_for_role(%CalendarIntegrationSchema{} = integration, role, calendar_events)
-      when is_binary(role) and is_list(calendar_events) do
+      when is_binary(role) and is_list(calendar_events),
+      do: full_refresh(integration, {:role, role}, role, calendar_events)
+
+  @doc """
+  `full_refresh_for_role/3` for the rows of one calendar alone: a read that
+  answers for that calendar and no other, such as the busy periods of a
+  CalDAV calendar shared as busy times only, replaces only its rows.
+  """
+  @spec full_refresh_for_calendar(
+          CalendarIntegrationSchema.t(),
+          String.t(),
+          String.t(),
+          [CalendarEvent.t()]
+        ) :: {:ok, non_neg_integer()} | {:error, term()}
+  def full_refresh_for_calendar(integration, provider_calendar_id, role, calendar_events)
+      when is_binary(provider_calendar_id) and is_binary(role) and is_list(calendar_events),
+      do:
+        full_refresh(
+          integration,
+          {:calendar, provider_calendar_id, role},
+          role,
+          calendar_events
+        )
+
+  @doc """
+  Drops the `role` rows of every calendar of the integration but
+  `provider_calendar_ids`: the rows a per-calendar read
+  (`full_refresh_for_calendar/4`) cached for a calendar it no longer reads.
+  """
+  @spec drop_role_except(CalendarIntegrationSchema.t(), String.t(), [String.t()]) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  def drop_role_except(integration, role, provider_calendar_ids)
+      when is_binary(role) and is_list(provider_calendar_ids),
+      do:
+        full_refresh(integration, {:role_except_calendars, role, provider_calendar_ids}, role, [])
+
+  defp full_refresh(integration, scope, role, calendar_events) do
     attrs =
       integration
       |> flag_tymeslot_owned(calendar_events)
@@ -216,7 +253,7 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
           |> Map.put(:role, role))
       )
 
-    IntegrationCacheQueries.replace_cached_rows(integration.id, {:role, role}, attrs)
+    IntegrationCacheQueries.replace_cached_rows(integration.id, scope, attrs)
   rescue
     e ->
       ErrorTracking.report_error(e, __STACKTRACE__, %{
@@ -358,9 +395,14 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
     meetings_by_identifier =
       Meetings.list_meetings_by_calendar_identifiers(integration.id, identifiers)
 
+    # Read once for the batch, and only when an all-day event needs it.
+    host_zone =
+      if Enum.any?(calendar_events, & &1.all_day),
+        do: Profiles.get_user_timezone(integration.user_id)
+
     Enum.each(
       calendar_events,
-      &maybe_reconcile_time_change(integration, &1, meetings_by_identifier)
+      &maybe_reconcile_time_change(integration, &1, meetings_by_identifier, host_zone)
     )
 
     :ok
@@ -369,21 +411,35 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
   defp maybe_reconcile_time_change(
          integration,
          %CalendarEvent{} = cal_event,
-         meetings_by_identifier
+         meetings_by_identifier,
+         host_zone
        ) do
     case linked_meeting(cal_event, meetings_by_identifier) do
       nil ->
         :ok
 
+      # A booking the host turned into a recurring series comes back as the
+      # series and its moved or cancelled occurrences, all carrying the
+      # booking's UID. Only the series row describes the booking itself; an
+      # occurrence elsewhere in the series would flag it, and the series row
+      # clear it again, on every sync.
+      _meeting when is_binary(cal_event.recurrence_id) or is_binary(cal_event.recurring_event_id) ->
+        :ok
+
       meeting ->
-        if time_changed?(meeting.start_time, cal_event) do
-          reconcile(integration.id, cal_event.provider_event_id, cal_event.uid, :modified)
-        else
-          # Agreement is a signal too. This pass cannot know whether an earlier
-          # one flagged the meeting, and nothing else retires the flag, so a
-          # divergence that has since resolved would otherwise leave the host
-          # with a badge and a notification that was never withdrawn.
-          Meetings.resolve_external_calendar_change(meeting)
+        case timing_change(meeting, cal_event, host_zone) do
+          :moved ->
+            reconcile(integration.id, cal_event.provider_event_id, cal_event.uid, :modified)
+
+          {:end_moved, end_time} ->
+            Meetings.apply_external_end_change(meeting, end_time)
+
+          :none ->
+            # Agreement is a signal too. This pass cannot know whether an earlier
+            # one flagged the meeting, and nothing else retires the flag, so a
+            # divergence that has since resolved would otherwise leave the host
+            # with a badge and a notification that was never withdrawn.
+            Meetings.resolve_external_calendar_change(meeting)
         end
     end
   end
@@ -396,22 +452,32 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
     |> Enum.find_value(&Map.get(meetings_by_identifier, &1))
   end
 
-  # All-day event: compare start_date and end_date only.
-  defp time_changed?(meeting_start_time, %CalendarEvent{all_day: true} = cal_event) do
-    meeting_start_date = DateTime.to_date(meeting_start_time)
-    cal_event.start_date != meeting_start_date
+  # How the provider event's timing differs from the meeting's. A moved start
+  # is for the host to look at; an end that moved alone is the host
+  # lengthening or shortening the meeting, which the meeting follows.
+  #
+  # An all-day event carries no hours, so only its first day is compared, on
+  # the host's calendar: the meeting's UTC date is the day before for a
+  # morning meeting east of UTC.
+  defp timing_change(meeting, %CalendarEvent{all_day: true} = cal_event, host_zone) do
+    meeting_day = meeting.start_time |> DateTime.shift_zone!(host_zone) |> DateTime.to_date()
+
+    if cal_event.start_date == meeting_day, do: :none, else: :moved
   end
 
   # Timed event with no start_at — should not occur for valid timed events, treat as unchanged.
-  defp time_changed?(_meeting_start_time, %CalendarEvent{all_day: false, start_at: nil}),
-    do: false
+  defp timing_change(_meeting, %CalendarEvent{start_at: nil}, _host_zone), do: :none
 
-  defp time_changed?(meeting_start_time, %CalendarEvent{all_day: false, start_at: event_start}) do
-    DateTime.compare(
-      DateTime.truncate(meeting_start_time, :second),
-      DateTime.truncate(event_start, :second)
-    ) != :eq
+  defp timing_change(meeting, %CalendarEvent{start_at: start_at, end_at: end_at}, _host_zone) do
+    cond do
+      not same_second?(meeting.start_time, start_at) -> :moved
+      is_nil(end_at) or same_second?(meeting.end_time, end_at) -> :none
+      true -> {:end_moved, DateTime.truncate(end_at, :second)}
+    end
   end
+
+  defp same_second?(a, b),
+    do: DateTime.compare(DateTime.truncate(a, :second), DateTime.truncate(b, :second)) == :eq
 
   @doc """
   Removes externally deleted provider events from the local cache and
