@@ -77,6 +77,27 @@ defmodule Tymeslot.Integrations.Calendar.RemovedCalendarsTest do
                {"team@example.com", "team@example.com", ~U[2026-10-10 09:30:15Z]}
              ]
     end
+
+    test "lists a calendar once when it is removed again under the other encoding of its path" do
+      existing = [
+        %RemovedCalendar{
+          id: "/dav/user@example.org/Rota/",
+          name: "Rota",
+          removed_at: ~U[2026-10-01 08:00:00Z]
+        }
+      ]
+
+      merged =
+        RemovedCalendars.merge(
+          existing,
+          [entry(path: "/dav/user%40example.org/Rota/", name: "Rota")],
+          @now
+        )
+
+      assert Enum.map(merged, &{&1.id, &1.removed_at}) == [
+               {"/dav/user%40example.org/Rota/", ~U[2026-10-10 09:30:15Z]}
+             ]
+    end
   end
 
   describe "notify/2" do
