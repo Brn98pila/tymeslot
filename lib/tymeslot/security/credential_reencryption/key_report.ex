@@ -105,18 +105,42 @@ defmodule Tymeslot.Security.CredentialReencryption.KeyReport do
           into: %{},
           do: {"#{table}.#{column}", count}
 
-    if unreadable != %{} do
-      listed = Enum.map_join(unreadable, ", ", fn {name, count} -> "#{name}: #{count}" end)
+    {email_links, stored} = Map.pop(unreadable, "oban_jobs.email_links")
 
+    if unreadable != %{} do
       Logger.error(
-        "LEGACY_KEY_RETIRED is set, but stored values no configured key opens remain " <>
-          "(#{listed}). If they were written under the legacy key they are not lost: " <>
-          "unset LEGACY_KEY_RETIRED, restart, run the re-encryption sweep, and retire " <>
-          "the key again once the key report shows no version 0 values.",
+        Enum.join(
+          [
+            "LEGACY_KEY_RETIRED is set, but values no configured key opens remain."
+            | retired_key_advice(stored, email_links)
+          ],
+          " "
+        ),
         event_type: "encryption_retired_key_values_remain",
         unreadable_values: unreadable
       )
     end
+  end
+
+  defp retired_key_advice(stored, email_links) do
+    stored_advice =
+      if stored != %{} do
+        listed = Enum.map_join(stored, ", ", fn {name, count} -> "#{name}: #{count}" end)
+
+        "Stored values (#{listed}): if they were written under the legacy key they are " <>
+          "not lost; unset LEGACY_KEY_RETIRED, restart, run the re-encryption sweep, and " <>
+          "retire the key again once the key report shows no version 0 values."
+      end
+
+    # The sweep never touches job args, so these clear only as the emails go out.
+    email_advice =
+      if email_links do
+        "Queued email links (oban_jobs.email_links: #{email_links}): unset " <>
+          "LEGACY_KEY_RETIRED and let those emails go out, or accept that their " <>
+          "recipients request the links again."
+      end
+
+    Enum.reject([stored_advice, email_advice], &is_nil/1)
   end
 
   defp log_check_incomplete do

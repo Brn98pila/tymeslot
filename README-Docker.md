@@ -673,7 +673,7 @@ recover is lost.
 The app refuses to start, with a message naming the variable, when:
 
 - `DATA_ENCRYPTION_KEY` (or an entry of `DATA_ENCRYPTION_KEYS`) is not valid Base64 or decodes to
-  fewer than 32 bytes. Replace it with a value from `openssl rand -base64 48`; an install with
+  fewer than 32 bytes. Replace it with a value from `openssl rand -base64 48 | tr -d '\n'`; an install with
   such a key could not store any credential under it.
 - `SECRET_KEY_BASE` is shorter than 64 bytes while `LEGACY_KEY_RETIRED` is not set. Replace it
   with a value from `openssl rand -base64 64 | tr -d '\n'`; this signs every user out once.

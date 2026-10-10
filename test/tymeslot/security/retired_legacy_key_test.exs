@@ -14,6 +14,7 @@ defmodule Tymeslot.Security.RetiredLegacyKeyTest do
   @moduletag :integration
   @moduletag :capture_log
 
+  alias Tymeslot.Emails.EmailScheduler.LinkArg
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.TokenRefreshJob
   alias Tymeslot.Integrations.CalendarManagement
@@ -24,6 +25,7 @@ defmodule Tymeslot.Security.RetiredLegacyKeyTest do
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Test.LogCapture
   alias Tymeslot.Webhooks.WebhookSchema
+  alias Tymeslot.Workers.EmailWorker
 
   @data_key Base.encode64(:crypto.strong_rand_bytes(48))
 
@@ -121,6 +123,34 @@ defmodule Tymeslot.Security.RetiredLegacyKeyTest do
       assert message =~ "calendar_integrations.username_encrypted: "
       refute message =~ calendar.username_encrypted
       refute message =~ Base.encode64(calendar.username_encrypted)
+    end
+
+    test "gives queued email links their own advice, not the sweep" do
+      %{"action" => "send_password_reset", "user_id" => 1}
+      |> LinkArg.put("reset_url", "https://app.example.com/reset/queued")
+      |> EmailWorker.new()
+      |> Oban.insert!()
+
+      put_keys(data_encryption_key: @data_key, legacy_key_retired: true)
+
+      KeyReport.warn_if_retired_key_holds_values()
+
+      assert_receive {:captured_log,
+                      %{
+                        level: :error,
+                        meta: %{event_type: "encryption_retired_key_values_remain"}
+                      } =
+                        event}
+
+      assert event.meta.unreadable_values["oban_jobs.email_links"] == 1
+
+      message = LogCapture.message_text(event.msg)
+
+      assert message =~
+               "Queued email links (oban_jobs.email_links: 1): unset LEGACY_KEY_RETIRED and let"
+
+      refute message =~ "oban_jobs.email_links: 1): unset LEGACY_KEY_RETIRED, restart, run"
+      assert message =~ "Stored values ("
     end
 
     test "stays silent when the legacy key is not retired" do

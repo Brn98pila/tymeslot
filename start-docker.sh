@@ -140,7 +140,8 @@ echo "✓ All required environment variables are set"
 # key to decouple the two secrets. Once set it MUST stay stable across restarts.
 # DATA_ENCRYPTION_KEYS alone is the state after a rotation retired key 1, so
 # either variable counts, as in config/runtime.exs.
-if [ -z "${DATA_ENCRYPTION_KEY:-}" ] && [ -z "${DATA_ENCRYPTION_KEYS:-}" ]; then
+# Whitespace-only counts as empty, as the keyring trims it.
+if [ -z "$(printf '%s%s' "${DATA_ENCRYPTION_KEY:-}" "${DATA_ENCRYPTION_KEYS:-}" | tr -d '[:space:]')" ]; then
     echo ""
     echo "⚠ DATA_ENCRYPTION_KEY is not set."
     echo "  Credentials at rest are encrypted with a key derived from SECRET_KEY_BASE,"

@@ -24,6 +24,12 @@ defmodule Tymeslot.Infrastructure.DockerStartDataKeyWarningTest do
     assert run(tmp_dir, [{"DATA_ENCRYPTION_KEY", ""}]) =~ "DATA_ENCRYPTION_KEY is not set"
   end
 
+  test "warns when the variables hold only whitespace", %{tmp_dir: tmp_dir} do
+    output = run(tmp_dir, [{"DATA_ENCRYPTION_KEY", "  "}, {"DATA_ENCRYPTION_KEYS", " \t"}])
+
+    assert output =~ "DATA_ENCRYPTION_KEY is not set"
+  end
+
   test "is satisfied by DATA_ENCRYPTION_KEYS alone, as after key 1 is retired",
        %{tmp_dir: tmp_dir} do
     output = run(tmp_dir, [{"DATA_ENCRYPTION_KEYS", "2:key"}])
