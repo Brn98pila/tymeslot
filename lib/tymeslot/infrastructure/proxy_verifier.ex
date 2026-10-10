@@ -473,7 +473,7 @@ defmodule Tymeslot.Infrastructure.ProxyVerifier do
   # Dispatched on shape rather than truthiness so a credential that reached here
   # as anything other than `ProxyConfig.load/0`'s normalised struct crashes
   # naming this function, instead of being reported as an unauthenticated proxy.
-  defp auth_indicator(%ProxyCredentials{}), do: "[auth]"
+  defp auth_indicator(%ProxyCredentials{}), do: "[auth]@"
   defp auth_indicator(nil), do: ""
 
   defp sanitize_config(config) do
