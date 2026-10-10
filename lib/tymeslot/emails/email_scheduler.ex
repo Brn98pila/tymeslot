@@ -110,6 +110,9 @@ defmodule Tymeslot.Emails.EmailScheduler do
   defdelegate schedule_video_room_creation_error_notification(user_id, integration_id, code),
     to: IntegrationScheduler
 
+  defdelegate schedule_calendars_removed_notification(user_id, integration_id, calendar_names),
+    to: IntegrationScheduler
+
   defdelegate schedule_admin_alert(recipient, category, severity, message, metadata, opts \\ []),
     to: IntegrationScheduler
 
@@ -163,6 +166,11 @@ defmodule Tymeslot.Emails.EmailScheduler do
       "user_id",
       "integration_id",
       "error_code"
+    ],
+    "send_calendars_removed_notification" => [
+      "user_id",
+      "integration_id",
+      "calendar_names"
     ],
     "send_calendar_invitation" => [
       "user_id",

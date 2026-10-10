@@ -11,6 +11,7 @@ defmodule Tymeslot.Emails.EmailService.IntegrationEmails do
   alias Tymeslot.Emails.Templates.{
     AdminAlert,
     AdminAlertDigest,
+    CalendarsRemoved,
     IntegrationPaused,
     IntegrationReauthRequired,
     IntegrationUnhealthy,
@@ -147,6 +148,35 @@ defmodule Tymeslot.Emails.EmailService.IntegrationEmails do
       MjmlEmail.base_email()
       |> Email.to({Map.get(user, :name) || user.email, user.email})
       |> Email.subject(VideoRoomCreationError.subject(integration))
+      |> Email.html_body(html_body)
+      |> Email.text_body(text_body)
+      |> Delivery.deliver()
+    end)
+  end
+
+  @doc """
+  Tells the owner of a calendar integration that the calendar server no
+  longer has `calendar_names`, so Tymeslot has stopped using them. Rendered
+  in the owner's locale.
+  """
+  @spec send_calendars_removed_notification(
+          Tymeslot.Emails.EmailService.user_map(),
+          map(),
+          [String.t()]
+        ) :: {:ok, any()} | {:error, any()}
+  def send_calendars_removed_notification(user, integration, calendar_names) do
+    Logger.info("Sending calendars removed notification",
+      user_id: user.id,
+      integration_id: integration.id,
+      count: length(calendar_names)
+    )
+
+    RecipientLocale.with_user_locale(user, fn ->
+      {html_body, text_body} = CalendarsRemoved.render_both(integration, calendar_names)
+
+      MjmlEmail.base_email()
+      |> Email.to({Map.get(user, :name) || user.email, user.email})
+      |> Email.subject(CalendarsRemoved.subject(calendar_names))
       |> Email.html_body(html_body)
       |> Email.text_body(text_body)
       |> Delivery.deliver()
