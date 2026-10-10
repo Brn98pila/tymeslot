@@ -24,14 +24,17 @@ defmodule Tymeslot.Release do
   start script runs it before the server starts:
 
       bin/tymeslot eval 'Tymeslot.Release.migrate()'
+
+  `run_opts` go to `Ecto.Migrator.run/4` beside `all: true`.
   """
-  @spec migrate(atom()) :: :ok
-  def migrate(app \\ :tymeslot) do
+  @spec migrate(atom(), keyword()) :: :ok
+  def migrate(app \\ :tymeslot, run_opts \\ []) do
     :ok = Application.ensure_loaded(app)
+    run_opts = Keyword.put(run_opts, :all, true)
 
     for repo <- Application.fetch_env!(app, :ecto_repos) do
       {:ok, _migrated, _apps} =
-        Migrator.with_repo(repo, &Migrator.run(&1, :up, all: true))
+        Migrator.with_repo(repo, &Migrator.run(&1, :up, run_opts))
     end
 
     :ok
@@ -151,8 +154,11 @@ defmodule Tymeslot.Release do
   # application there would boot a second copy beside the live node, so
   # they refuse instead. `rpc` and the mix tasks (after `app.start`) run
   # where the application is already up.
-  defp ensure_running! do
-    unless List.keymember?(Application.started_applications(), :tymeslot, 0) do
+  @doc false
+  # Public only so the refusal can be tested without stopping the application.
+  @spec ensure_running!([{atom(), charlist(), charlist()}]) :: :ok
+  def ensure_running!(started \\ Application.started_applications()) do
+    unless List.keymember?(started, :tymeslot, 0) do
       raise "Tymeslot.Release needs the running node: use `bin/tymeslot rpc`, not `eval`"
     end
 
