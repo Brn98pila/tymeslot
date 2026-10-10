@@ -146,6 +146,78 @@ defmodule Tymeslot.FreeBusyTest do
     end
   end
 
+  describe "busy_intervals/3 and the calendars the owner lets block" do
+    setup do
+      profile = insert(:profile)
+
+      integration =
+        insert(:calendar_integration,
+          user: profile.user,
+          provider: "google",
+          calendar_list: [
+            %{id: "work", selected: true},
+            %{id: "holidays", selected: true, blocks_availability: false},
+            %{id: "archive", selected: false}
+          ]
+        )
+
+      for {calendar_id, hour} <- [{"work", 9}, {"holidays", 11}, {"archive", 13}] do
+        start = DateTime.new!(~D[2030-06-03], Time.new!(hour, 0, 0), "Etc/UTC")
+
+        insert(:provider_calendar_event,
+          calendar_integration: integration,
+          provider_calendar_id: calendar_id,
+          start_at: start,
+          end_at: DateTime.add(start, 3600, :second)
+        )
+      end
+
+      %{profile: profile}
+    end
+
+    test "publishes a blocking calendar's events only", %{profile: profile} do
+      starts =
+        profile
+        |> FreeBusy.busy_intervals(~U[2030-06-01 00:00:00Z], ~U[2030-06-10 00:00:00Z])
+        |> Enum.map(fn {s, _e} -> DateTime.truncate(s, :second) end)
+
+      # 11:00 is a show-only calendar; 13:00 a deselected one whose rows a
+      # sync left behind.
+      assert starts == [~U[2030-06-03 09:00:00Z]]
+    end
+  end
+
+  describe "busy_intervals/3 for an Exchange mailbox" do
+    test "publishes its mailbox-wide busy time whatever folders are selected" do
+      profile = insert(:profile)
+
+      integration =
+        insert(:calendar_integration,
+          user: profile.user,
+          provider: "exchange",
+          calendar_list: [%{id: "folder-team", name: "Team", selected: true}]
+        )
+
+      insert(:provider_calendar_event,
+        calendar_integration: integration,
+        provider: "exchange",
+        provider_calendar_id: "mailbox",
+        role: "busy_only",
+        start_at: ~U[2030-06-03 09:00:00Z],
+        end_at: ~U[2030-06-03 10:00:00Z]
+      )
+
+      assert [{start, _end}] =
+               FreeBusy.busy_intervals(
+                 profile,
+                 ~U[2030-06-01 00:00:00Z],
+                 ~U[2030-06-10 00:00:00Z]
+               )
+
+      assert DateTime.truncate(start, :second) == ~U[2030-06-03 09:00:00Z]
+    end
+  end
+
   describe "feed/2" do
     test "renders a VFREEBUSY document with correct interval bounds and ORGANIZER" do
       profile = insert(:profile)

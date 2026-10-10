@@ -493,22 +493,30 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   the row.
   """
   @spec visibility_rules([map()]) :: %{integer() => visibility_rule()}
-  def visibility_rules(integrations),
-    do: rules(integrations, &selected_calendars/1)
+  def visibility_rules(integrations) do
+    Map.new(integrations, fn integration ->
+      {integration.id, integration_rule(integration, &selected_calendars/1)}
+    end)
+  end
 
   @doc """
   The availability counterpart of `visibility_rules/1`: per integration id,
   the `t:visibility_rule/0` that keeps only cached rows from calendars that
   block availability (see `blocking?/1`). Same shape, so the same query
   builder applies it; a calendar list with nothing blocking is `:none`.
+
+  An Exchange mailbox is `:all`, as `availability_view/1` passes it through
+  whole: its busy rows are cached mailbox-wide, under no folder's id.
   """
   @spec blocking_rules([map()]) :: %{integer() => visibility_rule()}
-  def blocking_rules(integrations),
-    do: rules(integrations, &blocking_calendars/1)
-
-  defp rules(integrations, pick) do
+  def blocking_rules(integrations) do
     Map.new(integrations, fn integration ->
-      {integration.id, integration_rule(integration, pick)}
+      rule =
+        if ProviderConfig.ews?(Map.get(integration, :provider)),
+          do: :all,
+          else: integration_rule(integration, &blocking_calendars/1)
+
+      {integration.id, rule}
     end)
   end
 

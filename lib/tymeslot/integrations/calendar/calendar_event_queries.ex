@@ -21,7 +21,9 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueries do
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.EventRole
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
+  alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries.Visibility
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
+  alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Repo
 
   # Bound at compile time from the module that owns the column's vocabulary, so
@@ -46,28 +48,43 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueries do
   Every provider but Exchange writes only `both` rows, so neither filter
   changes what they return.
 
-  The `DateTime` clause is `list_blocking_for_range/3` converted to structs, so
+  The `DateTime` clause is `list_blocking_for_range/4` converted to structs, so
   the role filter this read applies is defined once rather than once per shape.
+
+  `blocking_rules`, from `Selection.blocking_rules/1`, keeps only rows from
+  calendars the owner lets block availability; it also drops rows a sync left
+  behind for a calendar since deselected. Every availability read passes it;
+  `%{}` keeps every calendar's rows.
 
   Returns a list of `CalendarEvent` structs.
   """
-  @spec in_range([integer()], {DateTime.t(), DateTime.t()} | {Date.t(), Date.t()}) ::
-          [CalendarEvent.t()]
-  def in_range([], _range), do: []
+  @spec in_range(
+          [integer()],
+          {DateTime.t(), DateTime.t()} | {Date.t(), Date.t()},
+          %{integer() => Selection.visibility_rule()}
+        ) :: [CalendarEvent.t()]
+  def in_range(integration_ids, range, blocking_rules \\ %{})
 
-  def in_range(integration_ids, {%DateTime{} = range_start, %DateTime{} = range_end}) do
+  def in_range([], _range, _blocking_rules), do: []
+
+  def in_range(
+        integration_ids,
+        {%DateTime{} = range_start, %DateTime{} = range_end},
+        blocking_rules
+      ) do
     integration_ids
-    |> list_blocking_for_range(range_start, range_end)
+    |> list_blocking_for_range(range_start, range_end, blocking_rules)
     |> Enum.map(&ProviderCalendarEventSchema.to_calendar_event/1)
   end
 
-  def in_range(integration_ids, {%Date{} = range_start, %Date{} = range_end}) do
+  def in_range(integration_ids, {%Date{} = range_start, %Date{} = range_end}, blocking_rules) do
     range_start_dt = DateTime.new!(range_start, ~T[00:00:00], "Etc/UTC")
     range_end_dt = DateTime.new!(Date.add(range_end, 1), ~T[00:00:00], "Etc/UTC")
 
     ProviderCalendarEventSchema
     |> where([e], e.calendar_integration_id in ^integration_ids)
     |> where([e], e.role != ^@role_display_only)
+    |> where([e], ^Visibility.dynamic_for(blocking_rules))
     |> where(
       [e],
       (e.all_day == false and e.start_at < ^range_end_dt and e.end_at > ^range_start_dt) or
@@ -93,18 +110,25 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueries do
   block. Providers whose `list_events/2` reads the cache call this directly
   rather than `in_range/2`, because they must hand back the database's own
   string-valued `status`/`transparency`: that is the shape
-  `CalendarEvent.blocking?/1` matches on for plain maps, and the atoms a
   `CalendarEvent` carries would make every transparent or cancelled row block.
-  """
-  @spec list_blocking_for_range([integer()], DateTime.t(), DateTime.t()) :: [
-          ProviderCalendarEventSchema.t()
-        ]
-  def list_blocking_for_range([], _range_start, _range_end), do: []
 
-  def list_blocking_for_range(integration_ids, range_start, range_end) do
+  `blocking_rules` as for `in_range/3`.
+  """
+  @spec list_blocking_for_range(
+          [integer()],
+          DateTime.t(),
+          DateTime.t(),
+          %{integer() => Selection.visibility_rule()}
+        ) :: [ProviderCalendarEventSchema.t()]
+  def list_blocking_for_range(integration_ids, range_start, range_end, blocking_rules \\ %{})
+
+  def list_blocking_for_range([], _range_start, _range_end, _blocking_rules), do: []
+
+  def list_blocking_for_range(integration_ids, range_start, range_end, blocking_rules) do
     ProviderCalendarEventSchema
     |> where([e], e.calendar_integration_id in ^integration_ids)
     |> where([e], e.role != ^@role_display_only)
+    |> where([e], ^Visibility.dynamic_for(blocking_rules))
     |> ProviderCalendarEventQueries.where_overlapping_range(range_start, range_end)
     |> Repo.all()
   end
