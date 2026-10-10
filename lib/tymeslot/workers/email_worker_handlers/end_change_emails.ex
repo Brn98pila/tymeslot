@@ -63,6 +63,10 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails do
   @nothing_to_tell "Every seat knows the current end"
   @host_leaving "Host account pending deletion"
 
+  # What the host's notice states the change replaced, kept on the job
+  # (`DeliveryClaims.remember/3`).
+  @host_from "end_change:host_from"
+
   @doc """
   Whether `reason`, from a discard this module returned, is an expected end
   of the email job rather than a fault
@@ -295,15 +299,21 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails do
 
   # The first value a run of this job took, kept with its claims
   # (`DeliveryClaims.remember/3`).
-  defp host_previous_end(_job_id, nil), do: nil
+  # With nothing to offer, an earlier run's value still stands.
+  defp host_previous_end(job_id, nil),
+    do: job_id |> DeliveryClaims.recall(@host_from) |> parse_instant()
 
   defp host_previous_end(job_id, %DateTime{} = known_end) do
-    {:ok, first, _offset} =
-      job_id
-      |> DeliveryClaims.remember("end_change:host_from", DateTime.to_iso8601(known_end))
-      |> DateTime.from_iso8601()
+    job_id
+    |> DeliveryClaims.remember(@host_from, DateTime.to_iso8601(known_end))
+    |> parse_instant()
+  end
 
-    first
+  defp parse_instant(nil), do: nil
+
+  defp parse_instant(iso8601) do
+    {:ok, instant, _offset} = DateTime.from_iso8601(iso8601)
+    instant
   end
 
   defp first_known_end(outcomes),

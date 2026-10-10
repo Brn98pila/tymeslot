@@ -32,6 +32,7 @@ defmodule Tymeslot.Integrations.Calendar.ExternalEndChangeNoticeTimingTest do
   alias Tymeslot.Meetings.GuestQueries
   alias Tymeslot.Meetings.Guests
   alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.ParticipantSchema
   alias Tymeslot.TestMocks
   alias Tymeslot.Workers.EmailWorker
@@ -290,6 +291,42 @@ defmodule Tymeslot.Integrations.Calendar.ExternalEndChangeNoticeTimingTest do
       meeting = group!(ctx.meeting)
       insert(:participant, meeting: meeting, timezone: "Etc/UTC")
       change_end(meeting, ~T[11:30:00])
+      [job] = end_change_jobs()
+      use_mock_emails()
+
+      expect(EmailServiceMock, :send_end_change_to_attendee, fn _email, _details ->
+        {:ok, :sent}
+      end)
+
+      expect(EmailServiceMock, :send_end_change_to_organizer, fn _meeting, _email, _notice ->
+        {:error, :timeout}
+      end)
+
+      assert {:error, _reason} = run(job)
+
+      expect_host_notice()
+      assert :ok = run(job, attempt: 2)
+
+      assert_host_heard(at(meeting, ~T[10:30:00]))
+    end
+  end
+
+  describe "the host's notice on a retry, for a meeting with no end of its own kept" do
+    # A row from before the meeting kept its end: the first run takes the
+    # end a reached seat knew, and the retry, whose seats were all reached,
+    # must find that value again rather than have none.
+    test "keeps the end a seat knew on the first run", ctx do
+      meeting = group!(ctx.meeting)
+      participant = insert(:participant, meeting: meeting, timezone: "Etc/UTC")
+      change_end(meeting, ~T[11:30:00])
+
+      Repo.update_all(from(m in MeetingSchema, where: m.id == ^meeting.id),
+        set: [notified_end_time: nil]
+      )
+
+      assert Repo.get!(ParticipantSchema, participant.id).notified_end_time ==
+               at(meeting, ~T[10:30:00])
+
       [job] = end_change_jobs()
       use_mock_emails()
 
