@@ -11,6 +11,7 @@ defmodule Tymeslot.MeetingTypes do
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Meetings
+  alias Tymeslot.MeetingTypes.BookingCalendar
   alias Tymeslot.MeetingTypes.Duration
   alias Tymeslot.MeetingTypes.FormMapper
   alias Tymeslot.MeetingTypes.FormValidation
@@ -280,7 +281,20 @@ defmodule Tymeslot.MeetingTypes do
   @spec create_meeting_type(map(), keyword()) ::
           {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
   def create_meeting_type(attrs, opts \\ []) do
-    with {:ok, meeting_type} <- MeetingTypeQueries.create_meeting_type(attrs, opts) do
+    result =
+      Repo.transaction(fn ->
+        changeset = MeetingTypeSchema.changeset(%MeetingTypeSchema{}, attrs, opts)
+
+        with {:ok, promotion} <- BookingCalendar.promote(changeset),
+             {:ok, meeting_type} <- MeetingTypeQueries.create_meeting_type(attrs, opts) do
+          {meeting_type, promotion}
+        else
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end)
+
+    with {:ok, {meeting_type, promotion}} <- result do
+      if promotion == :promoted, do: AvailabilityCache.invalidate_for_user(meeting_type.user_id)
       Publication.maybe_publish(meeting_type.user_id)
       {:ok, meeting_type}
     end
@@ -309,15 +323,24 @@ defmodule Tymeslot.MeetingTypes do
   end
 
   defp do_update_meeting_type(meeting_type, attrs, opts) do
-    case MeetingTypeQueries.update_meeting_type(meeting_type, attrs, opts) do
-      {:ok, updated} ->
-        sync_group_capacity(meeting_type, updated)
-        updated
+    changeset = MeetingTypeSchema.changeset(meeting_type, attrs, opts)
 
-      {:error, reason} ->
-        Repo.rollback(reason)
+    with {:ok, _promotion} <- BookingCalendar.promote(changeset),
+         {:ok, updated} <- MeetingTypeQueries.update_meeting_type(meeting_type, attrs, opts) do
+      sync_group_capacity(meeting_type, updated)
+      updated
+    else
+      {:error, reason} -> Repo.rollback(reason)
     end
   end
+
+  @doc """
+  The calendars of the user's integration `calendar_integration_id` that
+  their meeting types name as the calendar they book into.
+  """
+  @spec booking_calendar_ids(integer(), integer()) :: [String.t()]
+  def booking_calendar_ids(user_id, calendar_integration_id),
+    do: MeetingTypeQueries.target_calendar_ids(user_id, calendar_integration_id)
 
   # Capacity follows the type: a new seat limit above one applies to the
   # type's future group meetings, in the same transaction as the type itself.

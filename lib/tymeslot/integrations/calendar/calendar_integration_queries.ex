@@ -6,6 +6,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   import Ecto.Query
 
   alias Ecto.Changeset
+  alias Tymeslot.Auth.UserSchema
   alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Profiles.ProfileSchema
@@ -576,6 +577,19 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   end
 
   def owned_by?(_id, _user_id), do: false
+
+  @doc """
+  Holds the user's row `FOR KEY SHARE` for the rest of the transaction, so the
+  account cannot be deleted under it: an account deletion locks that row
+  `FOR UPDATE` before its cascade reaches the user's calendars and meeting
+  types, and waits here, or this waits for it. `false` when the user is gone.
+
+  Must be called from inside a `Repo.transaction/1`.
+  """
+  @spec lock_owner(integer()) :: boolean()
+  def lock_owner(user_id) do
+    Repo.exists?(from(u in UserSchema, where: u.id == ^user_id, lock: "FOR KEY SHARE"))
+  end
 
   @doc """
   Locks the user's profile row, then every calendar integration row of theirs,

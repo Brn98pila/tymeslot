@@ -7,6 +7,7 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   """
 
   alias Tymeslot.Integrations.Calendar, as: CalendarContext
+  alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Defaults
@@ -92,9 +93,13 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
       Defaults.primary_id(eligible) || Defaults.selected_id(eligible) ||
         Defaults.first_id_from_list(eligible)
 
+    # The booking calendar must block availability (see `Blocking`).
     attrs =
       if default_calendar_id,
-        do: %{calendar_list: calendars, default_booking_calendar_id: default_calendar_id},
+        do: %{
+          calendar_list: Blocking.with_booking_calendar_blocking(calendars, default_calendar_id),
+          default_booking_calendar_id: default_calendar_id
+        },
         else: %{calendar_list: calendars}
 
     Selection.replace_selection(integration, attrs)
@@ -138,10 +143,7 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
     if is_nil(integration.default_booking_calendar_id) do
       with calendar_id when is_binary(calendar_id) <-
              Defaults.resolve_default_calendar_id(integration),
-           {:ok, updated} <-
-             CalendarManagement.update_calendar_integration(integration, %{
-               default_booking_calendar_id: calendar_id
-             }) do
+           {:ok, updated} <- Blocking.set_default_booking_calendar(integration, calendar_id) do
         updated
       else
         _error -> integration

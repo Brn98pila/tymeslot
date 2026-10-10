@@ -2,8 +2,8 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   @moduledoc """
   The changes an organiser makes to one of their own connected calendars from
   the dashboard: switching it on or off, renaming it, recolouring it, ticking
-  its calendars, refreshing it, retrying the changes its server kept
-  refusing, and deleting it.
+  its calendars and choosing which of them block availability, refreshing
+  it, retrying the changes its server kept refusing, and deleting it.
 
   Every function takes the acting user's id and the integration's id. It
   charges the user's budget first, then loads the integration scoped to that
@@ -19,7 +19,9 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   """
 
   alias Tymeslot.Dashboard.DashboardContext
+  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Infrastructure.Tasks
+  alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Deletion
@@ -86,11 +88,35 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
     end)
   end
 
-  @doc "Ticks or unticks one of an integration's calendars."
+  @doc """
+  Ticks or unticks one of an integration's calendars. A ticked calendar that
+  blocks availability takes slots at once, so the owner's cached availability
+  is dropped.
+  """
   @spec toggle_calendar_selection(pos_integer(), pos_integer(), String.t() | integer()) ::
           {:ok, integration()} | {:error, refusal() | term()}
   def toggle_calendar_selection(user_id, integration_id, calendar_id) do
-    with_owned(user_id, integration_id, :write, &Selection.toggle_calendar(&1, calendar_id))
+    with {:ok, _updated} = ok <-
+           with_owned(
+             user_id,
+             integration_id,
+             :write,
+             &Selection.toggle_calendar(&1, calendar_id)
+           ) do
+      AvailabilityCache.invalidate_for_user(user_id)
+      ok
+    end
+  end
+
+  @doc """
+  Sets whether one of an integration's calendars blocks availability (see
+  `Blocking.set/3`). `{:error, :booking_calendar}` when asked to make a
+  calendar bookings go to show only.
+  """
+  @spec set_calendar_blocking(pos_integer(), pos_integer(), String.t() | integer(), boolean()) ::
+          {:ok, integration()} | {:error, refusal() | :booking_calendar | term()}
+  def set_calendar_blocking(user_id, integration_id, calendar_id, blocks?) do
+    with_owned(user_id, integration_id, :write, &Blocking.set(&1, calendar_id, blocks?))
   end
 
   @doc """

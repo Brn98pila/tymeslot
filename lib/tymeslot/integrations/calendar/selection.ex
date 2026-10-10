@@ -4,6 +4,7 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   for persistence.
   """
 
+  alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
@@ -171,17 +172,32 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
            {Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t(), [CalendarEntry.t()]}}
           | {:error, any()}
   def persist_discovered(%{id: id}, discovered) do
-    CalendarSelectionQueries.with_locked(id, fn fresh ->
-      merged =
-        discovered
-        |> unify_discovered_with_existing(fresh.calendar_list)
-        |> keep_selection_if_emptied(fresh.calendar_list)
+    result =
+      CalendarSelectionQueries.with_locked(id, fn fresh ->
+        merged =
+          discovered
+          |> unify_discovered_with_existing(fresh.calendar_list)
+          |> keep_selection_if_emptied(fresh.calendar_list)
 
-      with {:ok, updated} <- persist_calendar_list(fresh, merged) do
+        with {:ok, updated} <- persist_calendar_list(fresh, merged) do
+          {:ok, {updated, merged, blocking_ids(fresh.calendar_list) != blocking_ids(merged)}}
+        end
+      end)
+
+    case result do
+      # A calendar that stopped blocking (gone from the provider) frees its
+      # slots at once rather than after the cache expires.
+      {:ok, {updated, merged, blocking_changed?}} ->
+        if blocking_changed?, do: AvailabilityCache.invalidate_for_user(updated.user_id)
         {:ok, {updated, merged}}
-      end
-    end)
+
+      error ->
+        error
+    end
   end
+
+  defp blocking_ids(calendar_list),
+    do: calendar_list |> blocking_calendars() |> Enum.map(& &1.id) |> Enum.sort()
 
   # `calendar_paths` is derived from the `selected` flags on `calendar_list`, so
   # a re-discovery that matches nothing — an empty result, or a server that

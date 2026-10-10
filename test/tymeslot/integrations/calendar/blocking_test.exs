@@ -1,0 +1,282 @@
+defmodule Tymeslot.Integrations.Calendar.BlockingTest do
+  @moduledoc """
+  The owner's choice whether a calendar blocks availability, and the rule
+  that a calendar bookings go to always does: refused when asked to make one
+  show only, made to block when chosen, never demoted again.
+  """
+
+  use Tymeslot.DataCase, async: false
+
+  @moduletag :calendar
+  @moduletag :integration
+
+  import Mox
+  import Tymeslot.AvailabilityTestHelpers
+
+  alias Tymeslot.Integrations.Calendar.Blocking
+  alias Tymeslot.Integrations.Calendar.CalendarEntry
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.OwnerActions
+  alias Tymeslot.Integrations.Calendar.Runtime.EventFetcher
+  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.CalendarPrimary
+  alias Tymeslot.MeetingTypes
+  alias Tymeslot.TestMocks
+
+  @moduletag :capture_log
+
+  setup :verify_on_exit!
+
+  setup do
+    TestMocks.setup_all_mocks()
+    %{user: user, profile: profile} = create_bookable_profile(timezone: "Etc/UTC")
+    %{user: user, profile: profile}
+  end
+
+  defp google_integration(user, calendar_list, attrs \\ []) do
+    insert(
+      :calendar_integration,
+      Keyword.merge(
+        [
+          user: user,
+          provider: "google",
+          is_active: true,
+          oauth_scope: "https://www.googleapis.com/auth/calendar",
+          calendar_list: calendar_list
+        ],
+        attrs
+      )
+    )
+  end
+
+  defp blocks?(integration, calendar_id) do
+    CalendarIntegrationSchema
+    |> Repo.get!(integration.id)
+    |> Map.fetch!(:calendar_list)
+    |> Enum.find(&(&1.id == calendar_id))
+    |> Map.fetch!(:blocks_availability)
+  end
+
+  defp calendars do
+    [
+      %{id: "work", name: "Work", selected: true, primary: true},
+      %{id: "team", name: "Team", selected: true},
+      %{id: "rota", name: "Rota", selected: true, blocks_availability: false}
+    ]
+  end
+
+  describe "OwnerActions.set_calendar_blocking/4" do
+    test "makes a calendar show only and blocking again", %{user: user} do
+      integration = google_integration(user, calendars(), default_booking_calendar_id: "work")
+
+      assert {:ok, _updated} =
+               OwnerActions.set_calendar_blocking(user.id, integration.id, "team", false)
+
+      refute blocks?(integration, "team")
+
+      assert {:ok, _updated} =
+               OwnerActions.set_calendar_blocking(user.id, integration.id, "team", true)
+
+      assert blocks?(integration, "team")
+    end
+
+    test "refuses to make the integration's booking calendar show only", %{user: user} do
+      integration = google_integration(user, calendars(), default_booking_calendar_id: "work")
+
+      assert {:error, :booking_calendar} =
+               OwnerActions.set_calendar_blocking(user.id, integration.id, "work", false)
+
+      assert blocks?(integration, "work")
+    end
+
+    test "refuses the provider's primary when no booking calendar is stored", %{user: user} do
+      integration = google_integration(user, calendars())
+
+      assert {:error, :booking_calendar} =
+               OwnerActions.set_calendar_blocking(user.id, integration.id, "work", false)
+    end
+
+    test "refuses a calendar a meeting type books into", %{user: user} do
+      integration = google_integration(user, calendars(), default_booking_calendar_id: "work")
+
+      insert(:meeting_type,
+        user: user,
+        calendar_integration_id: integration.id,
+        target_calendar_id: "team"
+      )
+
+      assert {:error, :booking_calendar} =
+               OwnerActions.set_calendar_blocking(user.id, integration.id, "team", false)
+
+      assert blocks?(integration, "team")
+    end
+
+    test "answers not found for another organiser's calendar and an unknown one", %{user: user} do
+      integration = google_integration(user, calendars())
+      stranger = insert(:user)
+
+      assert {:error, :not_found} =
+               OwnerActions.set_calendar_blocking(stranger.id, integration.id, "team", false)
+
+      assert {:error, :not_found} =
+               OwnerActions.set_calendar_blocking(user.id, integration.id, "nope", false)
+
+      assert blocks?(integration, "team")
+    end
+  end
+
+  describe "a meeting type naming a booking calendar" do
+    test "makes a show-only calendar block when created against it", %{user: user} do
+      integration = google_integration(user, calendars(), default_booking_calendar_id: "work")
+
+      assert {:ok, _meeting_type} =
+               MeetingTypes.create_meeting_type(%{
+                 user_id: user.id,
+                 name: "Rota call",
+                 duration_minutes: 30,
+                 calendar_integration_id: integration.id,
+                 target_calendar_id: "rota"
+               })
+
+      assert blocks?(integration, "rota")
+    end
+
+    test "makes it block when edited to book into it", %{user: user} do
+      integration = google_integration(user, calendars(), default_booking_calendar_id: "work")
+      meeting_type = insert(:meeting_type, user: user)
+
+      assert {:ok, _updated} =
+               MeetingTypes.update_meeting_type(meeting_type, %{
+                 calendar_integration_id: integration.id,
+                 target_calendar_id: "rota"
+               })
+
+      assert blocks?(integration, "rota")
+    end
+
+    test "leaves it blocking once the meeting type moves away or is deleted", %{user: user} do
+      integration = google_integration(user, calendars(), default_booking_calendar_id: "work")
+      meeting_type = insert(:meeting_type, user: user)
+
+      {:ok, meeting_type} =
+        MeetingTypes.update_meeting_type(meeting_type, %{
+          calendar_integration_id: integration.id,
+          target_calendar_id: "rota"
+        })
+
+      {:ok, meeting_type} =
+        MeetingTypes.update_meeting_type(meeting_type, %{target_calendar_id: "team"})
+
+      assert blocks?(integration, "rota")
+
+      Repo.delete!(meeting_type)
+      assert blocks?(integration, "rota")
+
+      assert {:ok, _updated} =
+               OwnerActions.set_calendar_blocking(user.id, integration.id, "rota", false)
+    end
+  end
+
+  describe "storing an integration's booking calendar" do
+    test "a new connection's booking calendar blocks", %{user: user} do
+      assert {:ok, integration} =
+               CalendarManagement.create_calendar_integration(%{
+                 user_id: user.id,
+                 provider: "google",
+                 name: "Google",
+                 base_url: "https://www.googleapis.com/calendar/v3",
+                 oauth_scope: "https://www.googleapis.com/auth/calendar",
+                 calendar_list: [
+                   %{
+                     id: "work",
+                     name: "Work",
+                     selected: true,
+                     primary: true,
+                     blocks_availability: false
+                   }
+                 ]
+               })
+
+      assert Repo.get!(CalendarIntegrationSchema, integration.id).default_booking_calendar_id ==
+               "work"
+
+      assert blocks?(integration, "work")
+    end
+
+    test "making a calendar the primary makes its booking calendar block", %{user: user} do
+      integration =
+        google_integration(user, [
+          %{id: "work", name: "Work", selected: true, primary: true, blocks_availability: false}
+        ])
+
+      assert {:ok, updated} =
+               CalendarPrimary.set_primary_calendar_integration(user.id, integration.id)
+
+      assert updated.default_booking_calendar_id == "work"
+      assert blocks?(integration, "work")
+    end
+
+    test "a list stored with its booking calendar has that calendar blocking" do
+      list = Enum.map(calendars(), &CalendarEntry.normalize/1)
+
+      assert [_work, _team, %{id: "rota", blocks_availability: true}] =
+               Blocking.with_booking_calendar_blocking(list, "rota")
+    end
+  end
+
+  describe "the booking page after a change" do
+    setup %{user: user} do
+      stub(
+        Tymeslot.CalendarMock,
+        :get_events_for_range_fresh,
+        &EventFetcher.get_events_for_range_fresh/3
+      )
+
+      date = next_bookable_weekday()
+
+      stub(GoogleCalendarAPIMock, :list_events, fn _integration, "team", _from, _to ->
+        start = DateTime.new!(date, ~T[14:00:00], "Etc/UTC")
+
+        {:ok,
+         [
+           %{
+             "id" => "team-event",
+             "status" => "confirmed",
+             "start" => %{"dateTime" => DateTime.to_iso8601(start)},
+             "end" => %{"dateTime" => start |> DateTime.add(30, :minute) |> DateTime.to_iso8601()}
+           }
+         ]}
+      end)
+
+      integration =
+        google_integration(
+          user,
+          [
+            %{id: "team", name: "Team", selected: true},
+            %{id: "work", name: "Work", primary: true}
+          ],
+          default_booking_calendar_id: "work"
+        )
+
+      %{date: date, integration: integration}
+    end
+
+    test "frees a calendar's times at once when it is set to show only", ctx do
+      refute "2:00 PM" in offered(ctx.profile, ctx.date, "30min")
+
+      {:ok, _updated} =
+        OwnerActions.set_calendar_blocking(ctx.user.id, ctx.integration.id, "team", false)
+
+      assert "2:00 PM" in offered(ctx.profile, ctx.date, "30min")
+    end
+
+    test "frees a calendar's times at once when it is unticked", ctx do
+      refute "2:00 PM" in offered(ctx.profile, ctx.date, "30min")
+
+      {:ok, _updated} =
+        OwnerActions.toggle_calendar_selection(ctx.user.id, ctx.integration.id, "team")
+
+      assert "2:00 PM" in offered(ctx.profile, ctx.date, "30min")
+    end
+  end
+end
