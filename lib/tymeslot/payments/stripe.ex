@@ -166,6 +166,26 @@ defmodule Tymeslot.Payments.Stripe do
   end
 
   @doc """
+  Turns Stripe Tax's automatic calculation on or off for a subscription, from
+  its next invoice on.
+
+  Sent without an idempotency key: setting the flag is idempotent by itself.
+  """
+  @impl StripeProvider
+  @spec update_subscription_automatic_tax(String.t(), boolean()) :: stripe_result()
+  def update_subscription_automatic_tax(subscription_id, enabled)
+      when is_binary(subscription_id) and is_boolean(enabled) do
+    Logger.info("Updating Stripe subscription automatic tax",
+      subscription_id: subscription_id,
+      enabled: enabled
+    )
+
+    with {:ok, opts} <- api_key_opts(),
+         do:
+           subscription_mod().update(subscription_id, %{automatic_tax: %{enabled: enabled}}, opts)
+  end
+
+  @doc """
   Deletes a Stripe customer. Stripe keeps the customer's invoices and charges
   for its own records; the customer object and its stored details go.
   """
