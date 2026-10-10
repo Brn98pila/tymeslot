@@ -1,7 +1,9 @@
 defmodule Tymeslot.Payments.Webhooks.WebhookUtilsDeliveryTest do
   @moduledoc """
-  A user email a payment webhook sends goes through `Tymeslot.Emails.Delivery`,
-  like every other email: headers cleaned, breaker and send deadline applied.
+  A user email a payment webhook sends goes out from a job through
+  `Tymeslot.Emails.Delivery`, like every other email: headers cleaned,
+  breaker and send deadline applied, and an open breaker waited out rather
+  than the email dropped.
   """
 
   # async: false: the template is global configuration, and so is the Swoosh
@@ -47,6 +49,9 @@ defmodule Tymeslot.Payments.Webhooks.WebhookUtilsDeliveryTest do
                [],
                []
              )
+
+    # From a job, which the mail outage that would refuse a send waits out.
+    assert %{success: 1} = Oban.drain_queue(queue: :emails)
 
     assert_received {:email, sent}
     assert sent.subject == "Your refund X-Injected: yes"

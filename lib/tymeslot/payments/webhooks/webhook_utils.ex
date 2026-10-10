@@ -4,49 +4,32 @@ defmodule Tymeslot.Payments.Webhooks.WebhookUtils do
   """
 
   require Logger
-  alias Tymeslot.Auth
-  alias Tymeslot.Emails.Delivery
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Workers.SendConfiguredEmail
 
   @doc """
-  Fetches a user and executes a template-based email delivery.
+  Enqueues the email `config_key`'s template builds with `template_fun` for
+  the user, followed by `args` (plain values and maps, carried in the job).
+  The email goes out from a job (`Tymeslot.Workers.SendConfiguredEmail`), so
+  a mail outage delays it rather than losing it; a template the deployment
+  has not configured sends nothing.
+
+  `opts` is kept for the callers' log messages; a failure to enqueue is
+  logged with `:error_msg`.
   """
   @spec deliver_user_email(integer(), atom(), atom(), list(), keyword()) :: :ok
   def deliver_user_email(user_id, config_key, template_fun, args, opts) do
-    # Every template reached from here greets the recipient by name, and
-    # `Profiles.user_display_name/1` raises rather than guessing when
-    # `:profile` is unloaded, so the user comes with the profile loaded.
-    case Auth.get_user_with_profile(user_id) do
-      {:error, :not_found} ->
-        Logger.warning("User not found", user_id: user_id)
+    case SendConfiguredEmail.enqueue(config_key, template_fun, {:user, user_id}, args) do
+      :ok ->
         :ok
 
-      {:ok, user} ->
-        template = Application.get_env(:tymeslot, config_key)
+      {:error, reason} ->
+        Logger.error(Keyword.get(opts, :error_msg, "Failed to enqueue email to user"),
+          user_id: user_id,
+          reason: LogFormat.reason(reason)
+        )
 
-        if template && Code.ensure_loaded?(template) do
-          email = apply(template, template_fun, [user | args])
-
-          case Delivery.deliver(email) do
-            {:ok, _metadata} ->
-              Logger.info(Keyword.get(opts, :success_msg, "Email sent to user #{user_id}"))
-              :ok
-
-            {:error, reason} ->
-              Logger.error(Keyword.get(opts, :error_msg, "Failed to send email to user"),
-                user_id: user_id,
-                reason: LogFormat.reason(reason)
-              )
-
-              :ok
-          end
-        else
-          Logger.debug(
-            Keyword.get(opts, :standalone_msg, "Template not configured (Standalone mode)")
-          )
-
-          :ok
-        end
+        :ok
     end
   end
 end

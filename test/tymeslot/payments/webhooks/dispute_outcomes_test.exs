@@ -7,6 +7,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
   import Mox
   import Tymeslot.Factory
 
+  alias Swoosh.Email
   alias Tymeslot.Payments.Webhooks.DisputeHandler
 
   setup :set_mox_from_context
@@ -65,6 +66,13 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
   end
 
   defp with_object(event, object), do: Map.put(event, "data", %{"object" => object})
+
+  defmodule DisputeTemplate do
+    @moduledoc false
+    @spec dispute_won_notification(String.t(), map()) :: Swoosh.Email.t()
+    def dispute_won_notification(address, _data),
+      do: Email.new(to: address, subject: "Won", text_body: "Won.")
+  end
 
   defmodule FailingHandler do
     @spec handle_payment_event(map()) :: {:error, term()}
@@ -253,6 +261,45 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
 
       assert {:ok, :dispute_closed} = DisputeHandler.handle(with_object(event, d))
       refute_received %{event: :dispute_closed, data: _}
+    end
+
+    # The won notice goes out from a job, so an open mail circuit delays it
+    # rather than dropping it.
+    test "one-time won dispute enqueues the won notice to the operator" do
+      Application.put_env(:tymeslot, :dispute_alert_template, DisputeTemplate)
+      Application.put_env(:tymeslot, :admin_alert_email, "ops@example.com")
+
+      on_exit(fn ->
+        Application.delete_env(:tymeslot, :dispute_alert_template)
+        Application.delete_env(:tymeslot, :admin_alert_email)
+      end)
+
+      user = insert(:user)
+
+      insert(:payment_transaction,
+        user: user,
+        status: "completed",
+        stripe_customer_id: "cus_won_notice"
+      )
+
+      expect(Tymeslot.Payments.StripeMock, :get_charge, fn _charge_id ->
+        {:ok, one_time_charge("cus_won_notice")}
+      end)
+
+      event = %{"id" => "evt_close_won_notice", "type" => "charge.dispute.closed"}
+      assert {:ok, :dispute_closed} = DisputeHandler.handle(with_object(event, dispute("won")))
+
+      assert [
+               %Oban.Job{
+                 args: %{"template_fun" => "dispute_won_notification", "recipient" => recipient}
+               }
+             ] =
+               Enum.filter(
+                 Repo.all(Oban.Job),
+                 &(&1.worker == "Tymeslot.Workers.SendConfiguredEmail")
+               )
+
+      assert recipient == %{"address" => "ops@example.com"}
     end
 
     test "Stripe API error triggers retry_later" do

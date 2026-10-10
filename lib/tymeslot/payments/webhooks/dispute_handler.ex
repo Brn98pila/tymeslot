@@ -15,12 +15,11 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
 
   require Logger
 
-  alias Tymeslot.Emails.Delivery
   alias Tymeslot.Infrastructure.AdminAlerts
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Payments.Behaviours.WebhookHandler
   alias Tymeslot.Payments.{Config, PaymentQueries, PubSub}
-  alias Tymeslot.Security.SecurityLogger
+  alias Tymeslot.Workers.SendConfiguredEmail
 
   @impl WebhookHandler
   def handle(
@@ -301,24 +300,20 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
         :ok
 
       true ->
-        do_deliver_dispute_email(template, template_fun, email, data)
+        do_deliver_dispute_email(template_fun, email, data)
     end
   end
 
-  defp do_deliver_dispute_email(template, template_fun, email, data) do
-    email_struct = apply(template, template_fun, [email, data])
-
-    case Delivery.deliver(email_struct) do
-      {:ok, _result} ->
-        Logger.info("Dispute email sent",
-          template: template_fun,
-          email_masked: SecurityLogger.mask_email(email)
-        )
-
+  # From a job, so a mail outage delays the alert rather than losing it.
+  defp do_deliver_dispute_email(template_fun, email, data) do
+    case SendConfiguredEmail.enqueue(:dispute_alert_template, template_fun, {:address, email}, [
+           data
+         ]) do
+      :ok ->
         :ok
 
       {:error, reason} ->
-        Logger.error("Failed to send dispute email",
+        Logger.error("Failed to enqueue dispute email",
           template: template_fun,
           reason: LogFormat.reason(reason)
         )
