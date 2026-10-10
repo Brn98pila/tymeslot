@@ -27,6 +27,7 @@ defmodule Tymeslot.Security.CredentialReencryption do
   alias Tymeslot.Polls
   alias Tymeslot.Profiles
   alias Tymeslot.Security.CredentialReencryption.KeyReport
+  alias Tymeslot.Security.CredentialReencryption.PlainOnlyReport
   alias Tymeslot.Security.CredentialReencryptionQueries, as: Queries
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Slack
@@ -108,6 +109,15 @@ defmodule Tymeslot.Security.CredentialReencryption do
   """
   @spec key_report(keyword()) :: KeyReport.report()
   defdelegate key_report(opts \\ []), to: KeyReport, as: :run
+
+  @doc """
+  Read-only pre-check for dropping the plain-text copies of secrets kept from
+  before they were encrypted: which rows still hold a plain value that is
+  missing from, or differs from, its encrypted counterpart. See
+  `Tymeslot.Security.CredentialReencryption.PlainOnlyReport`.
+  """
+  @spec plain_only_report() :: PlainOnlyReport.report()
+  defdelegate plain_only_report, to: PlainOnlyReport, as: :run
 
   @doc "The tables and encrypted columns the sweep covers."
   @spec covered_tables() :: [{String.t(), [atom()]}]

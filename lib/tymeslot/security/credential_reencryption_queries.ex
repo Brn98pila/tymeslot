@@ -15,12 +15,19 @@ defmodule Tymeslot.Security.CredentialReencryptionQueries do
   @doc """
   Fetches up to `limit` rows of the given table with `id > after_id` (every
   row from the start for a `nil` `after_id`), ordered by `id`, selecting only
-  the id and the requested encrypted columns. The id may be an integer or a
-  UUID, which comes back as its raw bytes and is passed back the same way.
+  the id and the requested columns. The id may be an integer or a UUID, which
+  comes back as its raw bytes and is passed back the same way.
+
+  Option `:present`: only rows where that column is not null.
   """
-  @spec fetch_batch(String.t(), [atom()], integer() | binary() | nil, pos_integer()) ::
-          [map()]
-  def fetch_batch(table, columns, after_id, limit) do
+  @spec fetch_batch(
+          String.t(),
+          [atom()],
+          integer() | binary() | nil,
+          pos_integer(),
+          keyword()
+        ) :: [map()]
+  def fetch_batch(table, columns, after_id, limit, opts \\ []) do
     fields = [:id | columns]
 
     query =
@@ -32,26 +39,31 @@ defmodule Tymeslot.Security.CredentialReencryptionQueries do
 
     query
     |> after_id(after_id)
+    |> present(opts[:present])
     |> Repo.all()
   end
 
   @doc """
-  Streams every row of the table as `fetch_batch/4` pages it, `batch_size`
-  rows per query, so a caller walks a whole table without loading it.
+  Streams every row of the table as `fetch_batch/5` pages it, `batch_size`
+  rows per query, so a caller walks a whole table without loading it. Takes
+  `fetch_batch/5`'s options.
   """
-  @spec stream_rows(String.t(), [atom()], pos_integer()) :: Enumerable.t()
-  def stream_rows(table, columns, batch_size) do
+  @spec stream_rows(String.t(), [atom()], pos_integer(), keyword()) :: Enumerable.t()
+  def stream_rows(table, columns, batch_size, opts \\ []) do
     # The first page starts from no id rather than 0, since some of the tables
     # are keyed by UUID.
     {:after, nil}
     |> Stream.unfold(fn {:after, after_id} ->
-      case fetch_batch(table, columns, after_id, batch_size) do
+      case fetch_batch(table, columns, after_id, batch_size, opts) do
         [] -> nil
         rows -> {rows, {:after, rows |> List.last() |> Map.fetch!(:id)}}
       end
     end)
     |> Stream.concat()
   end
+
+  defp present(query, nil), do: query
+  defp present(query, column), do: where(query, [r], not is_nil(field(r, ^column)))
 
   defp after_id(query, nil), do: query
   defp after_id(query, id), do: where(query, [r], r.id > ^id)

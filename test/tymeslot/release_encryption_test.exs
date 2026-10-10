@@ -26,6 +26,33 @@ defmodule Tymeslot.ReleaseEncryptionTest do
     end
   end
 
+  describe "plain_only_report/0" do
+    test "prints each column with sample ids and the verdict, never the value" do
+      webhook = insert(:webhook)
+
+      Repo.update_all(from(w in "webhooks", where: w.id == ^webhook.id),
+        set: [url: "https://hooks.example.com/rollback", url_encrypted: nil]
+      )
+
+      {report, output} = with_io(&ReleaseEncryption.plain_only_report/0)
+
+      refute report.clear?
+
+      assert output =~
+               "webhooks.url: plain only 1, differing 0, unreadable 0, matching 0 " <>
+                 "(sample ids plain_only: #{webhook.id})\n"
+
+      assert output =~ "NOT clear"
+      refute output =~ "hooks.example.com"
+    end
+
+    test "says clear when nothing blocks dropping the plain columns" do
+      {%{clear?: true}, output} = with_io(&ReleaseEncryption.plain_only_report/0)
+
+      assert output =~ ~r/^clear$/m
+    end
+  end
+
   describe "reencrypt_credentials/0" do
     test "migrates legacy values and prints the totals" do
       integration =
