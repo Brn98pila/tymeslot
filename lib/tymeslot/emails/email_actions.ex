@@ -84,7 +84,7 @@ defmodule Tymeslot.Emails.EmailActions do
        {GroupMeetingEmails, :handle_seat_reminder_emails}},
     # Booking requests
     "send_booking_request_emails" =>
-      {["meeting_id"], {BookingApprovalEmails, :handle_booking_request_emails}},
+      {["meeting_id"], {BookingApprovalEmails, :handle_booking_request_emails, :with_job_id}},
     "send_booking_approval_nudge" =>
       {["meeting_id"], {BookingApprovalEmails, :handle_booking_approval_nudge}},
     "send_booking_request_outcome" =>

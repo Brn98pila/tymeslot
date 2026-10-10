@@ -5,7 +5,6 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers do
 
   alias Tymeslot.Emails.EmailActions
   alias Tymeslot.Workers.EmailWorkerHandlers.AuthEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.BookingApprovalEmails
   alias Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails
   alias Tymeslot.Workers.EmailWorkerHandlers.GroupMeetingEmails
   alias Tymeslot.Workers.EmailWorkerHandlers.GuestEmails
@@ -19,7 +18,6 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers do
   # job. `AdminEmails` discards nothing of its own.
   @declaring_handlers [
     AuthEmails,
-    BookingApprovalEmails,
     EndChangeEmails,
     GroupMeetingEmails,
     GuestEmails,

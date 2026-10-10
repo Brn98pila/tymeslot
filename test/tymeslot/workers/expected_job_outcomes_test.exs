@@ -32,8 +32,7 @@ defmodule Tymeslot.Workers.ExpectedJobOutcomesTest do
        "Room creation error no longer recorded",
        "Event or user not found",
        "Cached event has no timing",
-       "Credentials require reauthentication",
-       "One booking request leg already sent; the other failed and was requeued: :timeout"
+       "Credentials require reauthentication"
      ],
      recorded: [
        "Email sending timed out",

@@ -52,30 +52,20 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   Schedules the pair of emails a held booking produces: the invitee's
   acknowledgement and the host's request to answer.
 
-  Both legs are attempted by the same job, but neither gates the other —
-  `BookingApprovalEmails.handle_booking_request_emails/1` always tries both
-  and requeues a single-leg follow-up here for whichever one failed.
-  `skip_attendee_ack: true` re-sends only the host's copy; `skip_host_request:
-  true` re-sends only the invitee's. Either flag means the other leg already
-  succeeded, so a whole-job Oban retry of the follow-up must not duplicate it.
+  Both legs are attempted by the same job, but neither gates the other:
+  `BookingApprovalEmails.handle_booking_request_emails/2` always tries both,
+  claims each, and fails the job for a retry when one did not go out.
+  `previous_start_time:` is the time a reschedule moved the booking from.
 
-  Restricted to `:incomplete` unique states minus `:executing`: a fast
-  reschedule that calls this again for the same meeting must not be
-  swallowed by the first pair's already-completed job, but a single-leg
-  follow-up is inserted from *inside* the job that is still executing when
-  it discovers one leg failed — matching `:executing` here would conflict
-  the follow-up against the very job inserting it, and Oban would silently
-  report that as a duplicate rather than creating the row.
+  Restricted to `:incomplete` unique states minus `:executing`, so a fast
+  reschedule that calls this again for the same meeting is neither
+  swallowed by the first pair's completed job nor by one still executing.
   """
   @spec schedule_request_emails(term(), keyword()) :: :ok | {:error, term()}
   def schedule_request_emails(meeting_id, opts \\ []) do
     args = %{"action" => "send_booking_request_emails", "meeting_id" => meeting_id}
 
-    args =
-      args
-      |> maybe_put_flag("skip_attendee_ack", Keyword.get(opts, :skip_attendee_ack, false))
-      |> maybe_put_flag("skip_host_request", Keyword.get(opts, :skip_host_request, false))
-      |> maybe_put_previous_start(Keyword.get(opts, :previous_start_time))
+    args = maybe_put_previous_start(args, Keyword.get(opts, :previous_start_time))
 
     args
     |> EmailWorker.new(
@@ -98,9 +88,6 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
     do: Map.put(args, "previous_start_time", DateTime.to_iso8601(previous))
 
   defp maybe_put_previous_start(args, _previous), do: args
-
-  defp maybe_put_flag(args, _key, false), do: args
-  defp maybe_put_flag(args, key, true), do: Map.put(args, key, true)
 
   @doc """
   Schedules the single reminder sent to a host who has not yet answered.

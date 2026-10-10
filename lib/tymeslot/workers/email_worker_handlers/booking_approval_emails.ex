@@ -8,7 +8,6 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.BookingApprovalEmails do
   require Logger
 
   alias Tymeslot.Bookings.MeetingLinks
-  alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.ErrorTracking
@@ -16,22 +15,8 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.BookingApprovalEmails do
   alias Tymeslot.Meetings.ApprovalToken
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingState
+  alias Tymeslot.Workers.DeliveryClaims
   alias Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails
-
-  # One leg of a booking request went out and the other was requeued, so
-  # nothing is lost.
-  @leg_requeued "One booking request leg already sent; the other failed and was requeued"
-
-  @doc """
-  Whether `reason`, from a discard this module returned, is an expected end
-  of the email job rather than a fault
-  (see `Tymeslot.Infrastructure.ExpectedJobOutcome`).
-  """
-  @spec expected_discard?(term()) :: boolean()
-  def expected_discard?(reason) when is_binary(reason),
-    do: String.starts_with?(reason, @leg_requeued <> ": ")
-
-  def expected_discard?(_reason), do: false
 
   @doc """
   Sends the invitee's acknowledgement and the host's request.
@@ -42,39 +27,49 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.BookingApprovalEmails do
   rejected or slow-to-retry invitee address must never leave the host
   unaware a booking request exists at all.
 
+  Each leg is claimed for the job (`DeliveryClaims.once/3`), so when one
+  fails the job fails and Oban retries it, and the retry sends only the leg
+  that has not gone out.
+
   Both are guarded on the meeting still being held. A request answered, or
   withdrawn by the invitee, between enqueue and execution must not produce an
   email telling either party it is still open.
 
-  `args["skip_attendee_ack"]` / `args["skip_host_request"]` are set only by
-  `retry_failed_leg/3` below, when one leg already went out and only the
-  other failed: it requeues a single-leg follow-up so a later Oban retry (of
-  either the original job or the follow-up) can never duplicate the leg that
-  already succeeded.
+  A follow-up job queued by older code carries `"skip_attendee_ack"` or
+  `"skip_host_request"`: the leg it names went out before, so it counts as
+  sent.
   """
-  @spec handle_booking_request_emails(%{String.t() => term()}) ::
+  @spec handle_booking_request_emails(%{String.t() => term()}, integer() | nil) ::
           :ok | {:error, term()} | {:discard, String.t()}
-  def handle_booking_request_emails(%{"meeting_id" => meeting_id} = args) do
+  def handle_booking_request_emails(%{"meeting_id" => meeting_id} = args, job_id) do
     with_held_request(meeting_id, "booking request emails", fn meeting ->
-      send_both_legs(meeting_id, meeting, args)
+      send_both_legs(meeting, args, job_id)
     end)
   end
 
-  defp send_both_legs(meeting_id, meeting, args) do
+  defp send_both_legs(meeting, args, job_id) do
     service = Config.email_service_module()
     email_opts = previous_start_opts(args)
 
-    attendee_status =
-      leg_status(Map.get(args, "skip_attendee_ack", false), fn ->
+    attendee =
+      leg(job_id, "booking_request:attendee_ack", args["skip_attendee_ack"], fn ->
         send_request_received(meeting, service, email_opts)
       end)
 
-    host_status =
-      leg_status(Map.get(args, "skip_host_request", false), fn ->
+    host =
+      leg(job_id, "booking_request:host_request", args["skip_host_request"], fn ->
         send_approval_request(:request, meeting, service, email_opts)
       end)
 
-    combine_leg_results(meeting_id, attendee_status, host_status, email_opts)
+    with :ok <- attendee, do: host
+  end
+
+  defp leg(_job_id, _key, true, _send), do: :ok
+
+  defp leg(job_id, key, _skip, send) do
+    DeliveryClaims.once(job_id, key, fn ->
+      with {:ok, _sent} <- send.(), do: :ok
+    end)
   end
 
   # Set by a reschedule that sent a confirmed booking back into the gate:
@@ -102,66 +97,6 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.BookingApprovalEmails do
 
   defp send_request_received(meeting, service, email_opts),
     do: service.send_booking_request_received(meeting, email_opts)
-
-  # `:skipped` means this leg already succeeded on a prior attempt and this
-  # execution deliberately did not re-send it — it must never be treated the
-  # same as a fresh failure or success for requeue purposes.
-  defp leg_status(true, _send_fun), do: :skipped
-
-  defp leg_status(false, send_fun) do
-    case send_fun.() do
-      {:ok, _sent} -> :sent
-      {:error, reason} -> {:failed, reason}
-    end
-  end
-
-  defp combine_leg_results(_meeting_id, attendee, host, _email_opts)
-       when attendee in [:sent, :skipped] and host in [:sent, :skipped],
-       do: :ok
-
-  defp combine_leg_results(meeting_id, :sent, {:failed, reason}, email_opts) do
-    # The invitee's copy just went; a plain whole-job retry would resend it,
-    # so requeue a host-only follow-up instead.
-    retry_failed_leg(meeting_id, [skip_attendee_ack: true] ++ email_opts, reason)
-  end
-
-  defp combine_leg_results(meeting_id, {:failed, reason}, :sent, email_opts) do
-    # Symmetric case: the host's request just went, only the invitee's
-    # acknowledgement failed.
-    retry_failed_leg(meeting_id, [skip_host_request: true] ++ email_opts, reason)
-  end
-
-  defp combine_leg_results(_meeting_id, {:failed, reason}, :skipped, _email_opts),
-    do: {:error, reason}
-
-  defp combine_leg_results(_meeting_id, :skipped, {:failed, reason}, _email_opts),
-    do: {:error, reason}
-
-  defp combine_leg_results(
-         _meeting_id,
-         {:failed, attendee_reason},
-         {:failed, _host_reason},
-         _email_opts
-       ) do
-    # Neither leg went out — nothing to protect from duplication, so an
-    # ordinary whole-job Oban retry (which reattempts both) is safe.
-    {:error, attendee_reason}
-  end
-
-  defp retry_failed_leg(meeting_id, skip_opts, reason) do
-    case EmailScheduler.schedule_request_emails(meeting_id, skip_opts) do
-      :ok ->
-        {:discard, "#{@leg_requeued}: #{inspect(reason)}"}
-
-      {:error, requeue_reason} ->
-        Logger.error("Failed to requeue booking request leg",
-          meeting_id: meeting_id,
-          error: requeue_reason
-        )
-
-        {:error, reason}
-    end
-  end
 
   @doc """
   Reminds a host who has not answered yet, once, partway through the window.
