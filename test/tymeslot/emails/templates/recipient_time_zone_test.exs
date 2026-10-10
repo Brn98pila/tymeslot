@@ -39,7 +39,6 @@ defmodule Tymeslot.Emails.Templates.RecipientTimeZoneTest do
           end_time: DateTime.add(@start, 60, :minute),
           start_time_owner_tz: DateTime.shift_zone!(@start, "Europe/Berlin"),
           start_time_attendee_tz: DateTime.shift_zone!(@start, "Asia/Kolkata"),
-          owner_timezone: "Europe/Berlin",
           attendee_timezone: "Asia/Kolkata",
           organizer_locale: "en",
           organizer_time_format: "24h",
@@ -122,7 +121,6 @@ defmodule Tymeslot.Emails.Templates.RecipientTimeZoneTest do
         end_time: DateTime.add(start, 60, :minute),
         start_time_owner_tz: DateTime.shift_zone!(start, "America/New_York"),
         start_time_attendee_tz: DateTime.shift_zone!(start, "Asia/Kolkata"),
-        owner_timezone: "America/New_York",
         attendee_timezone: "Asia/Kolkata"
       })
     end
@@ -156,7 +154,6 @@ defmodule Tymeslot.Emails.Templates.RecipientTimeZoneTest do
           across_midnight()
           | start_time_owner_tz: DateTime.shift_zone!(start, "Asia/Kolkata"),
             start_time_attendee_tz: DateTime.shift_zone!(start, "America/New_York"),
-            owner_timezone: "Asia/Kolkata",
             attendee_timezone: "America/New_York"
         }
 
@@ -182,8 +179,7 @@ defmodule Tymeslot.Emails.Templates.RecipientTimeZoneTest do
             date: ~D[2026-01-15],
             start_time: start,
             start_time_owner_tz: DateTime.shift_zone!(start, "America/New_York"),
-            start_time_attendee_tz: DateTime.shift_zone!(start, "Asia/Kolkata"),
-            owner_timezone: "America/New_York"
+            start_time_attendee_tz: DateTime.shift_zone!(start, "Asia/Kolkata")
           })
 
         for {role, day, not_day} <- [
@@ -226,8 +222,7 @@ defmodule Tymeslot.Emails.Templates.RecipientTimeZoneTest do
     test "reads the time without a zone name in brackets" do
       details =
         details(%{
-          start_time_owner_tz: DateTime.shift_zone!(@start, "Etc/UTC"),
-          owner_timezone: "Etc/UTC"
+          start_time_owner_tz: DateTime.shift_zone!(@start, "Etc/UTC")
         })
 
       email = AppointmentConfirmation.render(:organizer, "organizer@example.com", details)

@@ -148,7 +148,6 @@ defmodule Tymeslot.Emails.Shared.TemplateHelperTest do
           meeting_type: "Consultation",
           start_time_owner_tz: DateTime.shift_zone!(start, "Europe/Berlin"),
           start_time_attendee_tz: DateTime.shift_zone!(start, "Asia/Kolkata"),
-          owner_timezone: "Europe/Berlin",
           attendee_timezone: "Asia/Kolkata",
           organizer_time_format: "24h"
         },

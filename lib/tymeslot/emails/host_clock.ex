@@ -6,10 +6,11 @@ defmodule Tymeslot.Emails.HostClock do
 
   Resolved once per email from the meeting's organiser, for the
   host-addressed templates that render straight from a meeting rather than
-  from `Tymeslot.Emails.AppointmentBuilder`'s payload (which carries the same
-  two values as `:owner_timezone` and `:organizer_time_format`). An
-  organiser-less meeting reads in the platform default timezone and the
-  locale's own clock.
+  from `Tymeslot.Emails.AppointmentBuilder`'s payload. The payload resolves
+  the same clock when it is built: the start and end already shifted into
+  the host's zone (`:start_time_owner_tz`, `:end_time_owner_tz`) and their
+  chosen format as `:organizer_time_format`. An organiser-less meeting reads
+  in the platform default timezone and the locale's own clock.
   """
 
   alias Tymeslot.CalendarGrid
