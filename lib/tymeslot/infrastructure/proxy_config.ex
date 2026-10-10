@@ -7,11 +7,17 @@ defmodule Tymeslot.Infrastructure.ProxyConfig do
   - HTTPS_PROXY / https_proxy - Proxy for HTTPS requests
   - NO_PROXY / no_proxy - Comma-separated list of hosts to bypass proxy
 
-  NO_PROXY patterns:
-  - Exact hostname: `internal.example.com`
-  - Wildcard domain: `*.example.com` (matches any subdomain)
+  NO_PROXY patterns, matched as curl and most other tools match them, so a
+  value copied from the environment means the same here:
+  - Domain: `example.com` matches the host and every subdomain of it
+    (`api.example.com`), but not `notexample.com`
+  - Leading dot or wildcard: `.example.com` and `*.example.com` mean the same
+  - Port: `example.com:8443` is matched on the host alone; the port is ignored
+  - IP address: `10.1.2.3`, `::1` or `[::1]`
   - CIDR notation: `10.0.0.0/8`, `192.168.0.0/16`
   - Special: `*` (bypass proxy for all hosts)
+
+  Matching ignores case and a trailing dot on either side.
   """
 
   alias Tymeslot.Infrastructure.ProxyCredentials
@@ -184,19 +190,33 @@ defmodule Tymeslot.Infrastructure.ProxyConfig do
   def matches_no_proxy_pattern?(_host, "*"), do: true
 
   def matches_no_proxy_pattern?(host, pattern) do
-    cond do
-      # Wildcard domain pattern (*.example.com)
-      String.starts_with?(pattern, "*.") ->
-        domain = String.trim_leading(pattern, "*.")
-        host == domain || String.ends_with?(host, "." <> domain)
+    host = normalise_name(host)
 
-      # CIDR notation (e.g., 10.0.0.0/8)
-      String.contains?(pattern, "/") ->
-        matches_cidr?(host, pattern)
+    if String.contains?(pattern, "/") do
+      matches_cidr?(host, pattern)
+    else
+      domain = pattern |> strip_port() |> String.trim_leading("*") |> normalise_name()
+      domain != "" and (host == domain or String.ends_with?(host, "." <> domain))
+    end
+  end
 
-      # Exact hostname match
-      true ->
-        host == pattern
+  defp normalise_name(name) do
+    name
+    |> String.downcase(:ascii)
+    |> String.trim_leading(".")
+    |> String.trim_trailing(".")
+  end
+
+  # `[::1]:8080` and `example.com:8080` lose the port; a bare IPv6 address
+  # (more than one colon, no brackets) has none to lose.
+  defp strip_port("[" <> bracketed) do
+    bracketed |> String.split("]", parts: 2) |> hd()
+  end
+
+  defp strip_port(pattern) do
+    case String.split(pattern, ":") do
+      [name, port] -> if port =~ ~r/^\d+$/, do: name, else: pattern
+      _none_or_ipv6 -> pattern
     end
   end
 
