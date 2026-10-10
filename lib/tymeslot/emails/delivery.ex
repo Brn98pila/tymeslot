@@ -190,16 +190,17 @@ defmodule Tymeslot.Emails.Delivery do
   # once) asks for one retry through `with_ambiguous_timeouts/2`; everyone
   # else assumes delivery, as before.
   defp handle_delivery_error(:timeout, email, reason) do
-    with {:retry_once, on_ambiguous} <- Process.get(@ambiguous_policy) do
-      note_ambiguous(on_ambiguous)
+    case Process.get(@ambiguous_policy) do
+      {:retry_once, on_ambiguous} ->
+        note_ambiguous(on_ambiguous)
 
-      Logger.warning("Email delivery timed out and may have been sent; retrying it once",
-        recipient_domains: recipient_domains(email),
-        reason: LogFormat.reason(reason)
-      )
+        Logger.warning("Email delivery timed out and may have been sent; retrying it once",
+          recipient_domains: recipient_domains(email),
+          reason: LogFormat.reason(reason)
+        )
 
-      {:error, {:ambiguous, reason}}
-    else
+        {:error, {:ambiguous, reason}}
+
       _assume_delivered ->
         Logger.warning("Email delivery timed out; assuming delivered to avoid duplicate sends",
           recipient_domains: recipient_domains(email),
