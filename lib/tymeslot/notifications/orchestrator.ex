@@ -20,6 +20,8 @@ defmodule Tymeslot.Notifications.Orchestrator do
     SchedulingRules
   }
 
+  alias Tymeslot.Repo
+
   @doc """
   Schedules all notifications for a newly created meeting: the confirmation
   and the reminders.
@@ -190,36 +192,58 @@ defmodule Tymeslot.Notifications.Orchestrator do
   end
 
   @doc """
-  Schedules reminder notifications for a meeting, replacing any still pending.
+  Schedules reminder notifications for a meeting.
+
+  `replace: true`, for a meeting that moved, first clears the meeting's
+  pending reminder jobs, in one transaction with the new ones: a reminder now
+  too late for a meeting moved closer, or one no longer configured, is
+  skipped and must not fire at its old time, and a failed insert must not
+  leave the meeting with no reminder at all. A new meeting has nothing to
+  clear, so it skips that query.
   """
-  @spec schedule_reminder_notifications(%{atom() => term()}) ::
+  @spec schedule_reminder_notifications(%{atom() => term()}, keyword()) ::
           :ok | {:ok, atom()} | {:error, term()}
-  def schedule_reminder_notifications(meeting) do
+  def schedule_reminder_notifications(meeting, opts \\ []) do
     # `ReminderSchedule` is the single reader of the meeting's reminder column,
     # legacy shapes included, so what a surface shows a booking reminds with is
     # what is scheduled here.
     reminders = ReminderSchedule.configured(meeting)
 
-    # Pending reminders are cleared before the configured ones are pinned
-    # afresh: a reminder now too late for a meeting moved closer, or one no
-    # longer configured, is skipped below and must not fire at its old time.
     with_sendable(meeting, :reminders, fn ->
-      with :ok <- cancel_reminder_notifications(meeting) do
-        {result, scheduled_any?} = schedule_reminders(meeting, reminders)
-
-        case {result, scheduled_any?} do
-          {:ok, true} -> :ok
-          {:ok, false} -> {:ok, :reminder_not_scheduled}
-          {error, _scheduled} -> error
-        end
-      end
+      if Keyword.get(opts, :replace, false),
+        do: replace_reminders(meeting, reminders),
+        else: pin_reminders(meeting, reminders)
     end)
+  end
+
+  defp replace_reminders(meeting, reminders) do
+    transaction =
+      Repo.transaction(fn ->
+        result =
+          with :ok <- cancel_reminder_notifications(meeting),
+               do: pin_reminders(meeting, reminders)
+
+        with {:error, _reason} = error <- result, do: Repo.rollback(error)
+      end)
+
+    case transaction do
+      {:ok, result} -> result
+      {:error, error} -> error
+    end
+  end
+
+  defp pin_reminders(meeting, reminders) do
+    case schedule_reminders(meeting, reminders) do
+      {:ok, true} -> :ok
+      {:ok, false} -> {:ok, :reminder_not_scheduled}
+      {error, _scheduled} -> error
+    end
   end
 
   @doc """
   Cancels pending reminder-email jobs for a meeting.
 
-  The inverse of `schedule_reminder_notifications/1` — together the two
+  The inverse of `schedule_reminder_notifications/2` — together the two
   functions are the only place reminder jobs are created or removed. Every
   transition that changes whether a meeting has a valid future slot
   (cancellation, an organizer reschedule request, or rebooking after one)

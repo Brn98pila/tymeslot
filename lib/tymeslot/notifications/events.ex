@@ -514,7 +514,7 @@ defmodule Tymeslot.Notifications.Events do
   end
 
   defp schedule_reminders(meeting) do
-    case Orchestrator.schedule_reminder_notifications(meeting) do
+    case Orchestrator.schedule_reminder_notifications(meeting, replace: true) do
       :ok ->
         :ok
 

@@ -147,29 +147,23 @@ defmodule Tymeslot.Workers.EmailWorkerTest do
       assert DateTime.compare(DateTime.truncate(job.scheduled_at, :second), scheduled_at) == :eq
     end
 
-    test "reschedules reminder by replacing existing job" do
+    # Moving a meeting's reminder is the reschedule's job: it clears the
+    # pending reminders and pins the new ones together
+    # (`Orchestrator.schedule_reminder_notifications/2` with `replace: true`).
+    # Scheduling the same reminder again on its own only finds the one queued.
+    test "scheduling the same reminder again keeps the one already queued" do
       user = insert(:user)
       meeting = insert(:meeting, organizer_user: user)
       scheduled_at = DateTime.truncate(DateTime.add(DateTime.utc_now(), 30, :minute), :second)
-      new_scheduled_at = DateTime.truncate(DateTime.add(DateTime.utc_now(), 45, :minute), :second)
+      later = DateTime.truncate(DateTime.add(DateTime.utc_now(), 45, :minute), :second)
 
       assert :ok =
                EmailScheduler.schedule_reminder_emails(meeting.id, 30, "minutes", scheduled_at)
 
-      # The scheduler deletes the existing reminder job before inserting the new
-      # one, so the replacement must carry the new time — not the original.
-      assert :ok =
-               EmailScheduler.schedule_reminder_emails(
-                 meeting.id,
-                 30,
-                 "minutes",
-                 new_scheduled_at
-               )
+      assert :ok = EmailScheduler.schedule_reminder_emails(meeting.id, 30, "minutes", later)
 
       assert [job] = all_enqueued(worker: EmailWorker)
-
-      assert DateTime.compare(DateTime.truncate(job.scheduled_at, :second), new_scheduled_at) ==
-               :eq
+      assert DateTime.compare(DateTime.truncate(job.scheduled_at, :second), scheduled_at) == :eq
     end
   end
 

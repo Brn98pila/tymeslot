@@ -426,8 +426,6 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
         scheduled_at =
           scheduled_at || calculate_reminder_time(meeting_id, value, unit)
 
-        _deleted = delete_existing_reminder_jobs(meeting_id, value, unit)
-
         %{
           "action" => "send_reminder_emails",
           "meeting_id" => meeting_id,
@@ -441,13 +439,14 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
           scheduled_at: scheduled_at,
           unique: [
             # Prevent duplicate reminders across long lead times (10 years in seconds).
-            # Restricted to :incomplete states (excludes completed/cancelled/discarded) so
-            # that a reminder which already fired never blocks a reschedule from enqueueing
-            # a fresh one for the new time.
+            # Only jobs still waiting to run count: a reminder that already
+            # fired, or one executing right now for the old time (which a
+            # reschedule's clearing of pending reminders cannot delete), must
+            # never stop the reminder for the new time being pinned.
             period: 315_360_000,
             fields: [:args, :queue],
             keys: [:action, :meeting_id, :reminder_value, :reminder_unit],
-            states: :incomplete
+            states: [:suspended, :available, :scheduled, :retryable]
           ]
         )
         |> Helpers.insert(meeting_id: meeting_id, scheduled_at: scheduled_at)
@@ -521,13 +520,5 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
         # Fallback to current time if meeting not found
         DateTime.utc_now()
     end
-  end
-
-  defp delete_existing_reminder_jobs(meeting_id, reminder_value, reminder_unit) do
-    Jobs.delete_reminder_jobs_for_meeting(
-      meeting_id,
-      EmailWorker,
-      %{"reminder_value" => reminder_value, "reminder_unit" => reminder_unit}
-    )
   end
 end

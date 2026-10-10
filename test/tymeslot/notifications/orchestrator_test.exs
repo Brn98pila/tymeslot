@@ -96,7 +96,7 @@ defmodule Tymeslot.Notifications.OrchestratorTest do
           end_time: DateTime.add(now, 24, :hour)
       }
 
-      assert :ok = Orchestrator.schedule_reminder_notifications(moved)
+      assert :ok = Orchestrator.schedule_reminder_notifications(moved, replace: true)
 
       assert [%Oban.Job{args: %{"reminder_value" => 1, "reminder_unit" => "hours"}} = job] =
                all_enqueued(worker: EmailWorker)
@@ -112,7 +112,7 @@ defmodule Tymeslot.Notifications.OrchestratorTest do
       meeting = insert(:meeting, [reminders: reminders] ++ slot)
 
       assert :ok = Orchestrator.schedule_reminder_notifications(other)
-      assert :ok = Orchestrator.schedule_reminder_notifications(meeting)
+      assert :ok = Orchestrator.schedule_reminder_notifications(meeting, replace: true)
 
       assert all_enqueued(worker: EmailWorker) |> Enum.map(& &1.args["meeting_id"]) |> Enum.sort() ==
                Enum.sort([other.id, meeting.id])
