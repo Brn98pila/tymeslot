@@ -106,6 +106,8 @@ defmodule Tymeslot.Application do
       {PubSub, name: Tymeslot.PubSub},
       # Start the Finch HTTP client (used by Req for all HTTP requests).
       {Finch, name: Tymeslot.Finch, pools: %{default: FinchPool.default_options()}},
+      # Stops the per-destination pools pinned requests leave behind
+      FinchPool.Janitor,
       # Start token refresh lock manager
       {Lock, []},
       # Task Supervisor for async operations

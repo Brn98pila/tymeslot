@@ -14,15 +14,15 @@ defmodule Tymeslot.Infrastructure.FinchPoolTest do
   alias Finch.Pool
   alias Tymeslot.Infrastructure.FinchPool
 
-  describe "request_option/2" do
+  describe "with_pool/3" do
     test "asks for the shared pool by name when there is nothing to configure" do
-      assert FinchPool.request_option("https://hooks.example.com/notify", []) ==
+      assert request_option("https://hooks.example.com/notify", []) ==
                {:ok, [name: Tymeslot.Finch]}
     end
 
     test "keeps the request on the shared instance when there is" do
       assert {:ok, options} =
-               FinchPool.request_option("https://93.184.216.34/notify",
+               request_option("https://93.184.216.34/notify",
                  hostname: "hooks.example.com"
                )
 
@@ -37,13 +37,13 @@ defmodule Tymeslot.Infrastructure.FinchPoolTest do
       # One warm-up call first: the very first pool registration loads modules
       # and creates their atoms once, which is not what this is about.
       {:ok, _warm} =
-        FinchPool.request_option("https://93.184.216.99/notify", hostname: "warm.example.com")
+        request_option("https://93.184.216.99/notify", hostname: "warm.example.com")
 
       before = :erlang.system_info(:atom_count)
 
       for n <- 1..25 do
         {:ok, options} =
-          FinchPool.request_option("https://93.184.216.#{n}/notify",
+          request_option("https://93.184.216.#{n}/notify",
             hostname: "host#{n}.example.com"
           )
 
@@ -57,7 +57,7 @@ defmodule Tymeslot.Infrastructure.FinchPoolTest do
       url = "https://93.184.216.34:8443/notify"
       connect_options = [hostname: "pinned.example.com"]
 
-      assert {:ok, options} = FinchPool.request_option(url, connect_options)
+      assert {:ok, options} = request_option(url, connect_options)
 
       assert {:ok, pid} =
                Finch.find_pool(Tymeslot.Finch, Pool.new(url, tag: options[:pool_tag]))
@@ -68,8 +68,8 @@ defmodule Tymeslot.Infrastructure.FinchPoolTest do
     test "two requests wanting the same connection share one pool" do
       url = "https://93.184.216.35/notify"
 
-      assert {:ok, first} = FinchPool.request_option(url, hostname: "same.example.com")
-      assert {:ok, second} = FinchPool.request_option(url, hostname: "same.example.com")
+      assert {:ok, first} = request_option(url, hostname: "same.example.com")
+      assert {:ok, second} = request_option(url, hostname: "same.example.com")
 
       assert first[:pool_tag] == second[:pool_tag]
     end
@@ -78,8 +78,8 @@ defmodule Tymeslot.Infrastructure.FinchPoolTest do
       url = "https://93.184.216.36/notify"
       opts = [hostname: "ordered.example.com", transport_opts: [verify: :verify_none]]
 
-      assert {:ok, first} = FinchPool.request_option(url, opts)
-      assert {:ok, second} = FinchPool.request_option(url, Enum.reverse(opts))
+      assert {:ok, first} = request_option(url, opts)
+      assert {:ok, second} = request_option(url, Enum.reverse(opts))
 
       assert first[:pool_tag] == second[:pool_tag]
     end
@@ -87,10 +87,10 @@ defmodule Tymeslot.Infrastructure.FinchPoolTest do
     test "two requests wanting different connections do not collide" do
       url = "https://93.184.216.37/notify"
 
-      assert {:ok, verified} = FinchPool.request_option(url, hostname: "a.example.com")
+      assert {:ok, verified} = request_option(url, hostname: "a.example.com")
 
       assert {:ok, unverified} =
-               FinchPool.request_option(url,
+               request_option(url,
                  hostname: "a.example.com",
                  transport_opts: [verify: :verify_none]
                )
@@ -121,7 +121,7 @@ defmodule Tymeslot.Infrastructure.FinchPoolTest do
       url = "https://93.184.216.38/EWS/Exchange.asmx"
 
       {:ok, options} =
-        FinchPool.request_option(url,
+        request_option(url,
           hostname: "exchange.example.com",
           transport_opts: [verify: :verify_none]
         )
@@ -144,4 +144,8 @@ defmodule Tymeslot.Infrastructure.FinchPoolTest do
     %{state: %{opts: %{conn_opts: conn_opts}}} = :sys.get_state(pid)
     conn_opts
   end
+
+  # The Req option `with_pool/3` hands its function. The lease ends when it
+  # returns; the pool stays until the janitor finds it idle.
+  defp request_option(url, connect_options), do: FinchPool.with_pool(url, connect_options, & &1)
 end
