@@ -39,7 +39,7 @@ defmodule Tymeslot.Meetings.AttendeeNotifications do
   not itself know anything about Oban.
   """
 
-  alias Tymeslot.Emails.EmailScheduler.CalendarScheduler
+  alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Integrations.Calendar.Attendee
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Meetings.AttendeeNotifications.ChangeDetector
@@ -146,7 +146,7 @@ defmodule Tymeslot.Meetings.AttendeeNotifications do
       series: scope
     }
 
-    case CalendarScheduler.schedule_event_update_notification(params) do
+    case EmailScheduler.schedule_event_update_notification(params) do
       :ok -> {:ok, :sent}
       {:error, reason} -> {:error, reason}
     end
@@ -294,7 +294,7 @@ defmodule Tymeslot.Meetings.AttendeeNotifications do
 
     attendees
     |> Enum.map(fn attendee ->
-      CalendarScheduler.schedule_calendar_invitation(
+      EmailScheduler.schedule_calendar_invitation(
         timing
         |> Map.merge(%{
           user_id: user_id_for(event),

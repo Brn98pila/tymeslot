@@ -1,6 +1,7 @@
 defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   @moduledoc "Schedules meeting-related emails via Oban."
 
+  alias Tymeslot.Emails.EmailActions
   alias Tymeslot.Emails.EmailScheduler.Helpers
   alias Tymeslot.Jobs
   alias Tymeslot.Meetings.MeetingQueries
@@ -193,21 +194,9 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
     )
   end
 
-  # Canonical seat-email action names, declared once so the same six strings
-  # aren't retyped at each call site here, in `EmailWorkerHandlers`'s
-  # dispatch table, and in `Tymeslot.Emails.EmailScheduler`'s arg-validation
-  # table. `:seat_cancellation` (a seat's own cancellation) and
-  # `:seat_meeting_cancellation` (a live participant's copy of a *whole
-  # meeting's* cancellation) are deliberately similar strings for genuinely
-  # different actions — exactly the kind of near-collision a mistyped copy
-  # could silently miss, so callers key off the atom instead.
-  @spec seat_action(atom()) :: String.t()
-  def seat_action(:seat_confirmation), do: "send_seat_confirmation_emails"
-  def seat_action(:seat_cancellation), do: "send_seat_cancellation_emails"
-  def seat_action(:seat_meeting_cancellation), do: "send_seat_meeting_cancellation"
-  def seat_action(:seat_reschedule), do: "send_seat_reschedule_emails"
-  def seat_action(:seat_reschedule_request), do: "send_seat_reschedule_request"
-  def seat_action(:seat_reminder), do: "send_seat_reminder"
+  # The per-seat action names live in `Tymeslot.Emails.EmailActions` with
+  # every other action; call sites name them by atom.
+  defdelegate seat_action(seat_action), to: EmailActions
 
   @doc """
   Schedules a single-seat email job.

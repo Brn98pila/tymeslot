@@ -11,6 +11,7 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
 
   alias Ecto.UUID
   alias Tymeslot.Emails.EmailScheduler
+  alias Tymeslot.Emails.EmailScheduler.LinkArg
   alias Tymeslot.Infrastructure.CircuitBreakerSupervisor
   alias Tymeslot.Meetings.GuestQueries
   alias Tymeslot.Meetings.Guests
@@ -18,6 +19,11 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
   alias Tymeslot.Workers.EmailWorker
 
   setup :verify_on_exit!
+
+  # A job already in the queue is never rebuilt, so one whose args the
+  # current `EmailWorker.new/2` would refuse (inserted by older code) still
+  # reaches `perform/1`; `perform_job/2` would refuse it first.
+  defp perform_queued(args), do: EmailWorker.perform(%Oban.Job{args: args, attempt: 1})
 
   defp admin_alert_args do
     %{
@@ -258,16 +264,12 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
 
   describe "perform/1 error handling" do
     test "discards job with missing action parameter" do
-      assert {:discard, "Missing action parameter"} =
-               perform_job(EmailWorker, %{"meeting_id" => 123})
+      assert {:discard, "Missing action parameter"} = perform_queued(%{"meeting_id" => 123})
     end
 
     test "discards job with unknown action" do
       assert {:discard, reason} =
-               perform_job(EmailWorker, %{
-                 "action" => "unknown_action",
-                 "meeting_id" => 123
-               })
+               perform_queued(%{"action" => "unknown_action", "meeting_id" => 123})
 
       assert reason =~ "Unknown action"
     end
@@ -288,7 +290,9 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
       assert {:discard, "Meeting not found"} =
                perform_job(EmailWorker, %{
                  "action" => "send_reminder_emails",
-                 "meeting_id" => fake_id
+                 "meeting_id" => fake_id,
+                 "reminder_value" => 1,
+                 "reminder_unit" => "hours"
                })
     end
 
@@ -299,36 +303,51 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
       assert {:discard, "Meeting cancelled"} =
                perform_job(EmailWorker, %{
                  "action" => "send_reminder_emails",
-                 "meeting_id" => meeting.id
+                 "meeting_id" => meeting.id,
+                 "reminder_value" => 1,
+                 "reminder_unit" => "hours"
                })
     end
 
     test "discards job if user not found for email verification" do
       assert {:discard, "User not found"} =
-               perform_job(EmailWorker, %{
-                 "action" => "send_email_verification",
-                 "user_id" => 999_999,
-                 "verification_url" => "http://test.com"
-               })
+               perform_job(
+                 EmailWorker,
+                 LinkArg.put(
+                   %{"action" => "send_email_verification", "user_id" => 999_999},
+                   "verification_url",
+                   "http://test.com"
+                 )
+               )
     end
 
     test "discards job if user not found for password reset" do
       assert {:discard, "User not found"} =
-               perform_job(EmailWorker, %{
-                 "action" => "send_password_reset",
-                 "user_id" => 999_999,
-                 "reset_url" => "http://test.com"
-               })
+               perform_job(
+                 EmailWorker,
+                 LinkArg.put(
+                   %{"action" => "send_password_reset", "user_id" => 999_999},
+                   "reset_url",
+                   "http://test.com"
+                 )
+               )
     end
 
     test "discards send_email_change_verification job if user not found" do
       assert {:discard, "User not found"} =
-               perform_job(EmailWorker, %{
-                 "action" => "send_email_change_verification",
-                 "user_id" => 999_999,
-                 "new_email" => "new@example.com",
-                 "verification_url" => "https://example.com/verify/token"
-               })
+               perform_job(
+                 EmailWorker,
+                 LinkArg.put(
+                   %{
+                     "action" => "send_email_change_verification",
+                     "user_id" => 999_999,
+                     "new_email" => "new@example.com",
+                     "token_hash" => "hash"
+                   },
+                   "verification_url",
+                   "https://example.com/verify/token"
+                 )
+               )
     end
 
     test "discards send_email_change_notification job if user not found" do
@@ -423,11 +442,14 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
       end)
 
       assert {:discard, "Recipient permanently undeliverable"} =
-               perform_job(EmailWorker, %{
-                 "action" => "send_email_verification",
-                 "user_id" => user.id,
-                 "verification_url" => "https://example.com/verify/token"
-               })
+               perform_job(
+                 EmailWorker,
+                 LinkArg.put(
+                   %{"action" => "send_email_verification", "user_id" => user.id},
+                   "verification_url",
+                   "https://example.com/verify/token"
+                 )
+               )
     end
   end
 

@@ -378,12 +378,17 @@ defmodule Tymeslot.Workers.EmailWorkerTest do
         {:ok, :sent}
       end)
 
-      # No "token_hash" key — a job enqueued before hash tracking existed must still deliver.
+      # No "token_hash" key, and the link in plain text: a job enqueued before
+      # either existed must still deliver. It is run as the queued job it is,
+      # since `EmailWorker.new/2` would no longer build it.
       assert :ok =
-               perform_job(EmailWorker, %{
-                 "action" => "send_email_verification",
-                 "user_id" => user.id,
-                 "verification_url" => "https://example.com/verify"
+               EmailWorker.perform(%Oban.Job{
+                 attempt: 1,
+                 args: %{
+                   "action" => "send_email_verification",
+                   "user_id" => user.id,
+                   "verification_url" => "https://example.com/verify"
+                 }
                })
     end
 
@@ -395,10 +400,13 @@ defmodule Tymeslot.Workers.EmailWorkerTest do
       expect(Tymeslot.EmailServiceMock, :send_password_reset, fn _user, _url -> {:ok, :sent} end)
 
       assert :ok =
-               perform_job(EmailWorker, %{
-                 "action" => "send_password_reset",
-                 "user_id" => user.id,
-                 "reset_url" => "https://example.com/reset"
+               EmailWorker.perform(%Oban.Job{
+                 attempt: 1,
+                 args: %{
+                   "action" => "send_password_reset",
+                   "user_id" => user.id,
+                   "reset_url" => "https://example.com/reset"
+                 }
                })
     end
 

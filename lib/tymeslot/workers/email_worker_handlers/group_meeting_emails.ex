@@ -44,10 +44,11 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.GroupMeetingEmails do
 
   # Bounds how many per-seat `Oban.insert/1` calls `dispatch_seat_jobs/2` runs
   # concurrently. Sequential inserts for a meeting near `max_participants` (in
-  # the hundreds) can outrun `EmailWorker`'s 30-second timeout, which discards
-  # rather than retries, stranding every participant queued after the
-  # cut-off. Bounded concurrency keeps the wall-clock time well inside that
-  # budget without reaching for `Oban.insert_all/2`: only the paid Smart
+  # the hundreds) can outrun `EmailWorker`'s timeout (one send deadline per
+  # possible send, `(max_guests + 3) x 20 s` by default), which discards rather
+  # than retries, stranding every participant queued after the cut-off.
+  # Bounded concurrency keeps the wall-clock time well inside that budget
+  # without reaching for `Oban.insert_all/2`: only the paid Smart
   # Engine deduplicates a bulk insert, so on the engine this project runs, a
   # bulk insert would silently drop the per-seat uniqueness guarantee the
   # whole retry story depends on.

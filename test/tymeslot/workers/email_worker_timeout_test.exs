@@ -12,6 +12,7 @@ defmodule Tymeslot.Workers.EmailWorkerTimeoutTest do
   import Tymeslot.Factory
 
   alias ExUnit.CaptureLog
+  alias Tymeslot.Emails.EmailScheduler.LinkArg
   alias Tymeslot.EmailServiceMock
   alias Tymeslot.Meetings.Guests
   alias Tymeslot.Workers.EmailWorker
@@ -38,11 +39,7 @@ defmodule Tymeslot.Workers.EmailWorkerTimeoutTest do
       end)
 
       assert {:discard, "Email sending timed out"} =
-               perform_job(EmailWorker, %{
-                 "action" => "send_email_verification",
-                 "user_id" => user.id,
-                 "verification_url" => "https://example.com/verify"
-               })
+               perform_job(EmailWorker, verification_args(user))
     end
 
     # An admin alert is the one email where a duplicate costs nothing and a
@@ -78,11 +75,7 @@ defmodule Tymeslot.Workers.EmailWorkerTimeoutTest do
       log =
         CaptureLog.capture_log(fn ->
           assert {:error, message} =
-                   perform_job(EmailWorker, %{
-                     "action" => "send_email_verification",
-                     "user_id" => user.id,
-                     "verification_url" => "https://example.com/verify"
-                   })
+                   perform_job(EmailWorker, verification_args(user))
 
           assert message =~ "Email job crashed"
           refute message =~ "c2VjcmV0LXNtdHA"
@@ -141,5 +134,13 @@ defmodule Tymeslot.Workers.EmailWorkerTimeoutTest do
       assert waited_ms >= recipients * @send_deadline_ms,
              "gave up after #{waited_ms}ms, before #{recipients} sends of #{@send_deadline_ms}ms"
     end
+  end
+
+  defp verification_args(user) do
+    LinkArg.put(
+      %{"action" => "send_email_verification", "user_id" => user.id},
+      "verification_url",
+      "https://example.com/verify"
+    )
   end
 end

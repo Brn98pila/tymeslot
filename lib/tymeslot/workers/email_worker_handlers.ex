@@ -3,8 +3,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers do
   Internal handlers for EmailWorker actions.
   """
 
-  alias Tymeslot.Emails.EmailScheduler.MeetingScheduler
-  alias Tymeslot.Workers.EmailWorkerHandlers.AdminEmails
+  alias Tymeslot.Emails.EmailActions
   alias Tymeslot.Workers.EmailWorkerHandlers.AuthEmails
   alias Tymeslot.Workers.EmailWorkerHandlers.BookingApprovalEmails
   alias Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails
@@ -14,73 +13,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers do
   alias Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails
   alias Tymeslot.Workers.EmailWorkerHandlers.PollEmails
   alias Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails
-  alias Tymeslot.Workers.EmailWorkerHandlers.SeatEmails
   alias Tymeslot.Workers.EmailWorkerHandlers.SeatJobs
-
-  # Static dispatch table — keeps `execute_email_action/3` simple and lets
-  # adding a new email type be a one-line change. Each entry maps the
-  # serialised action name to the function that handles its args. An entry
-  # tagged `:with_job_id` also receives the Oban job id, which the handler
-  # passes to `Tymeslot.Workers.DeliveryClaims` so that a rescued job does not
-  # repeat a send it already made.
-  #
-  # The six seat-action keys come from `MeetingScheduler.seat_action/1`
-  # rather than retyped literals, so this table and the scheduling call sites
-  # that produce those same action strings can't drift apart on a typo — see
-  # that function's doc for why `:seat_cancellation` and
-  # `:seat_meeting_cancellation` are named that closely apart on purpose.
-  @action_handlers %{
-    "send_admin_alert" => {AdminEmails, :handle_admin_alert},
-    "send_admin_alert_digest" => {AdminEmails, :handle_admin_alert_digest},
-    "send_confirmation_emails" => {MeetingEmails, :handle_confirmation_emails},
-    MeetingScheduler.seat_action(:seat_confirmation) =>
-      {SeatEmails, :handle_seat_confirmation_emails},
-    "send_cancellation_emails" => {MeetingEmails, :handle_cancellation_emails, :with_job_id},
-    "send_reschedule_emails" => {RescheduleEmails, :handle_reschedule_emails, :with_job_id},
-    "send_end_change_emails" => {EndChangeEmails, :handle_end_change_emails, :with_job_id},
-    MeetingScheduler.seat_action(:seat_cancellation) =>
-      {SeatEmails, :handle_seat_cancellation_emails, :with_job_id},
-    MeetingScheduler.seat_action(:seat_meeting_cancellation) =>
-      {GroupMeetingEmails, :handle_seat_meeting_cancellation_emails},
-    MeetingScheduler.seat_action(:seat_reschedule) =>
-      {SeatEmails, :handle_seat_reschedule_emails, :with_job_id},
-    MeetingScheduler.seat_action(:seat_reschedule_request) =>
-      {GroupMeetingEmails, :handle_seat_reschedule_request},
-    "send_guest_invitations" => {GuestEmails, :handle_guest_invitations},
-    "send_reminder_emails" => {MeetingEmails, :handle_reminder_emails},
-    MeetingScheduler.seat_action(:seat_reminder) =>
-      {GroupMeetingEmails, :handle_seat_reminder_emails},
-    "send_reschedule_request" => {MeetingEmails, :handle_reschedule_request},
-    "send_booking_request_emails" => {BookingApprovalEmails, :handle_booking_request_emails},
-    "send_booking_approval_nudge" => {BookingApprovalEmails, :handle_booking_approval_nudge},
-    "send_booking_request_outcome" => {BookingApprovalEmails, :handle_booking_request_outcome},
-    "send_reschedule_request_expired" =>
-      {BookingApprovalEmails, :handle_reschedule_request_expired},
-    "send_poll_deadline_reminders" => {PollEmails, :handle_deadline_reminders, :with_job_id},
-    "send_poll_host_nudge" => {PollEmails, :handle_host_nudge, :with_job_id},
-    "send_email_change_confirmations" => {AuthEmails, :handle_email_change_confirmations},
-    "send_email_verification" => {AuthEmails, :handle_email_verification},
-    "send_password_reset" => {AuthEmails, :handle_password_reset},
-    "send_no_password_to_reset" => {AuthEmails, :handle_no_password_to_reset},
-    "send_signup_attempt_notice" => {AuthEmails, :handle_signup_attempt_notice},
-    "send_social_signup_confirmation" => {AuthEmails, :handle_social_signup_confirmation},
-    "send_account_deletion_notice" => {AuthEmails, :handle_account_deletion_notice},
-    "send_email_change_verification" => {AuthEmails, :handle_email_change_verification},
-    "send_email_change_notification" => {AuthEmails, :handle_email_change_notification},
-    "send_integration_unhealthy_notification" =>
-      {IntegrationEmails, :handle_integration_unhealthy_notification},
-    "send_integration_reauth_notification" =>
-      {IntegrationEmails, :handle_integration_reauth_notification},
-    "send_integration_paused_notification" =>
-      {IntegrationEmails, :handle_integration_paused_notification},
-    "send_video_room_creation_error_notification" =>
-      {IntegrationEmails, :handle_video_room_creation_error_notification},
-    "send_calendars_removed_notification" =>
-      {IntegrationEmails, :handle_calendars_removed_notification},
-    "send_calendar_invitation" => {IntegrationEmails, :handle_calendar_invitation},
-    "send_event_update_notification" =>
-      {IntegrationEmails, :handle_event_update_notification, :with_job_id}
-  }
 
   # The handlers that declare some of their discards an expected end of the
   # job. `AdminEmails` discards nothing of its own.
@@ -122,7 +55,7 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers do
   @spec execute_email_action(String.t(), %{String.t() => term()}, integer() | nil) ::
           :ok | {:error, term()} | {:discard, String.t()} | {:snooze, integer()}
   def execute_email_action(action, args, job_id \\ nil) do
-    case Map.fetch(@action_handlers, action) do
+    case EmailActions.handler(action) do
       {:ok, {module, fun}} -> apply(module, fun, [args])
       {:ok, {module, fun, :with_job_id}} -> apply(module, fun, [args, job_id])
       :error -> {:discard, "Unknown action: #{action}"}

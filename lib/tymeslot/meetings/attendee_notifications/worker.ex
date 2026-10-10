@@ -36,7 +36,7 @@ defmodule Tymeslot.Meetings.AttendeeNotifications.Worker do
 
   use Oban.Worker, queue: :emails, max_attempts: 5
 
-  alias Tymeslot.Emails.EmailScheduler.CalendarScheduler
+  alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
@@ -191,7 +191,7 @@ defmodule Tymeslot.Meetings.AttendeeNotifications.Worker do
   defp dispatch_to([], _event, _method, _sequence), do: :ok
 
   defp dispatch_to(recipient_emails, event, method, sequence) do
-    CalendarScheduler.schedule_event_update_notification(%{
+    EmailScheduler.schedule_event_update_notification(%{
       user_id: user_id_for(event),
       event_uid: event.uid,
       integration_id: integration_id_for(event),

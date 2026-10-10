@@ -18,7 +18,7 @@ defmodule Tymeslot.Emails.EmailScheduler.HelpersTest do
     end
 
     test "schedules a job, then reports the same job again as a duplicate" do
-      args = %{"action" => "send_password_reset", "user_id" => 1, "token_hash" => "h"}
+      args = %{"action" => "send_no_password_to_reset", "user_id" => 1}
 
       assert {:ok, :scheduled} = args |> unique_job() |> Helpers.insert(user_id: 1)
       assert {:ok, :duplicate} = args |> unique_job() |> Helpers.insert(user_id: 1)

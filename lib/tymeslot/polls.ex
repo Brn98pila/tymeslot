@@ -7,7 +7,7 @@ defmodule Tymeslot.Polls do
   @behaviour Tymeslot.Security.EncryptedStorage
 
   alias Tymeslot.Availability.TimeOff
-  alias Tymeslot.Emails.EmailScheduler.PollScheduler
+  alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.MeetingTypes
 
   alias Tymeslot.Polls.{
@@ -131,7 +131,7 @@ defmodule Tymeslot.Polls do
   def cancel_poll(id, user_id) do
     with_open_poll_locked(id, user_id, fn poll ->
       with {:ok, cancelled} <- PollQueries.update(PollSchema.cancel_changeset(poll)) do
-        :ok = PollScheduler.cancel_deadline_jobs(cancelled.id)
+        :ok = EmailScheduler.cancel_poll_deadline_jobs(cancelled.id)
         {:ok, cancelled}
       end
     end)
@@ -262,7 +262,7 @@ defmodule Tymeslot.Polls do
 
     case transaction do
       {:ok, poll} ->
-        :ok = PollScheduler.schedule_deadline_jobs(poll)
+        :ok = EmailScheduler.schedule_poll_deadline_jobs(poll)
         {:ok, PollQueries.get_for_user(poll.id, user_id)}
 
       {:error, reason} ->

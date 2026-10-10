@@ -21,7 +21,7 @@ defmodule Tymeslot.Workers.EmailWorker do
     priority: 1
 
   alias Tymeslot.Emails.Delivery
-  alias Tymeslot.Emails.EmailScheduler
+  alias Tymeslot.Emails.EmailActions
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Shared.ReauthHandling
@@ -69,6 +69,16 @@ defmodule Tymeslot.Workers.EmailWorker do
         EmailWorkerHandlers.expected_discard?(reason) or
         TransactionalEmailDelivery.recipient_rejected?(reason) or
         reason == ReauthHandling.discard_reason()
+
+  # Every job is checked against `EmailActions` as it is built, so an unknown
+  # action or a missing required arg fails the insert, where the caller can
+  # see it, rather than the job.
+  @impl Oban.Worker
+  def new(args, opts) when is_map(args) and is_list(opts) do
+    args
+    |> super(opts)
+    |> EmailActions.validate(args)
+  end
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"action" => action} = args, attempt: attempt} = job) do
@@ -244,9 +254,4 @@ defmodule Tymeslot.Workers.EmailWorker do
     # convert ms to seconds for Oban backoff
     div(calculate_backoff(attempt), 1_000)
   end
-
-  # Validate required fields based on action; delegates to EmailScheduler
-  # which owns the field definitions alongside the scheduling functions.
-  @spec changeset(Ecto.Changeset.t(), term()) :: Ecto.Changeset.t()
-  def changeset(changeset, args), do: EmailScheduler.validate_args(changeset, args)
 end
