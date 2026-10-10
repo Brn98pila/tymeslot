@@ -60,29 +60,31 @@ defmodule Tymeslot.Workers.ObanMaintenanceWorker do
     {:ok, %{stuck_cleaned: stuck_count, claims_pruned: claims_pruned}}
   end
 
+  @doc false
+  # Discards each of `stuck_jobs`, as found by the scan, and returns those it
+  # discarded. Public so a test can hand it a job that finished after the scan.
+  @spec discard_stuck_jobs([Oban.Job.t()]) :: [Oban.Job.t()]
+  def discard_stuck_jobs(stuck_jobs) do
+    Enum.filter(stuck_jobs, fn job ->
+      case transition_stuck_job_to_discarded(job) do
+        {:ok, _result} ->
+          true
+
+        # It finished between the scan and the discard: the race the
+        # guarded discard exists for, and nothing to clean.
+        {:error, :no_longer_executing} ->
+          Logger.info("Stuck job finished before it was cleaned", job_id: job.id)
+          false
+      end
+    end)
+  end
+
   # Private functions
 
   defp cleanup_stuck_jobs do
     threshold = DateTime.add(DateTime.utc_now(), -@stuck_job_threshold_hours, :hour)
 
-    # Find stuck executing jobs
-    stuck_jobs = Jobs.get_stuck_executing_jobs(threshold)
-
-    discarded =
-      Enum.filter(stuck_jobs, fn job ->
-        case transition_stuck_job_to_discarded(job) do
-          {:ok, _result} ->
-            true
-
-          {:error, reason} ->
-            Logger.error("Failed to clean stuck job",
-              job_id: job.id,
-              reason: reason
-            )
-
-            false
-        end
-      end)
+    discarded = threshold |> Jobs.get_stuck_executing_jobs() |> discard_stuck_jobs()
 
     cleaned_count = length(discarded)
 

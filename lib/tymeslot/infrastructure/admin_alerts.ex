@@ -34,6 +34,7 @@ defmodule Tymeslot.Infrastructure.AdminAlerts do
 
   alias Tymeslot.Infrastructure.AdminAlerts.AlertTypes
   alias Tymeslot.Infrastructure.AdminAlerts.ReasonNormaliser
+  alias Tymeslot.Infrastructure.Logging.LogFormat
 
   require Logger
 
@@ -76,8 +77,10 @@ defmodule Tymeslot.Infrastructure.AdminAlerts do
   @spec send_alert(alert_type(), map()) :: :ok | {:error, any()}
   def send_alert(type, metadata) do
     if is_nil(AlertTypes.get(type)) do
+      # Formatted, not raw: a caller can pass any term here, and the
+      # unregistered ones are exactly the ones nothing has vetted.
       Logger.warning("Admin alert type is not registered in AlertTypes",
-        alert_type: type
+        alert_type: LogFormat.reason(type)
       )
     end
 

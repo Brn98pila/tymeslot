@@ -174,9 +174,20 @@ defmodule Tymeslot.Workers.EmailWorker do
            fn -> EmailWorkerHandlers.execute_email_action(action, args, job.id) end,
            timeout_ms
          ) do
-      {:ok, result} -> handle_result(result, job)
-      {:exit, reason} -> {:error, "Email job crashed: #{LogFormat.reason(reason)}"}
-      :timeout -> handle_timeout(action, timeout_ms, job)
+      {:ok, result} ->
+        handle_result(result, job)
+
+      {:exit, reason} ->
+        Logger.error("Email job crashed",
+          action: action,
+          job_id: job.id,
+          reason: LogFormat.reason(reason)
+        )
+
+        {:error, "Email job crashed: #{LogFormat.reason(reason)}"}
+
+      :timeout ->
+        handle_timeout(action, timeout_ms, job)
     end
   end
 

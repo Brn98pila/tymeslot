@@ -279,10 +279,13 @@ defmodule Tymeslot.Workers.VideoRoomWorker do
       {:ok, other} ->
         to_oban_result(other, execution)
 
-      # As a crash in the job itself would: an error for Oban to retry, its
-      # reason redacted before Oban stores it.
+      # A failure like any other, so a crash on the last ordinary attempt
+      # still enters recovery and announces the booking; the reason is
+      # redacted before it is logged or Oban stores it.
       {:exit, reason} ->
-        {:error, "Video room creation crashed: #{LogFormat.reason(reason)}"}
+        {:creation_crashed, LogFormat.reason(reason)}
+        |> handle_failure(meeting_id, announcement, execution)
+        |> to_oban_result(execution)
 
       :timeout ->
         Logger.error("Video room creation timed out",
