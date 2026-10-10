@@ -126,7 +126,7 @@ defmodule Tymeslot.Emails.Templates.MeetingEndChanged do
 
     subject =
       dgettext("emails_booking", "New end time - %{date} with %{name}",
-        date: Formatting.format_date_short(appointment_details.date, locale),
+        date: Formatting.format_date_short(meeting_details.date, locale),
         name: appointment_details.organizer_name
       )
 

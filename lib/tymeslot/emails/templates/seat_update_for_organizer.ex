@@ -161,7 +161,11 @@ defmodule Tymeslot.Emails.Templates.SeatUpdateForOrganizer do
   end
 
   defp short_date(details),
-    do: Formatting.format_date_short(details.date, RecipientLocale.organizer_locale(details))
+    do:
+      Formatting.format_date_short(
+        TemplateHelper.organizer_meeting_details(details).date,
+        RecipientLocale.organizer_locale(details)
+      )
 
   # The time the spot moved from is unknown only when its seat row has since
   # gone (see `SeatEmails`), so the sentence then names the new time alone.

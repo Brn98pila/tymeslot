@@ -102,7 +102,11 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
 
       MjmlEmail.base_email()
       |> to({appointment_details.attendee_name, attendee_email})
-      |> subject(Sanitise.sanitize_for_header(attendee_subject(appointment_details, locale)))
+      |> subject(
+        Sanitise.sanitize_for_header(
+          attendee_subject(appointment_details, meeting_details.date, locale)
+        )
+      )
       |> html_body(html_body)
       |> text_body(build_attendee_text_body(appointment_details, meeting_details, locale))
       |> attachment(update_ics_attachment(appointment_details, locale))
@@ -153,7 +157,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
         )
 
       html_body = TemplateHelper.compile_template(mjml_content, organizer_details)
-      date_short = Formatting.format_date_short(appointment_details.date, locale)
+      date_short = Formatting.format_date_short(meeting_details.date, locale)
 
       MjmlEmail.base_email()
       |> to({guest_name, guest_email})
@@ -234,7 +238,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
         Sanitise.sanitize_for_header(
           dgettext("emails_booking", "Rescheduled: %{name} - %{date}",
             name: appointment_details.attendee_name,
-            date: Formatting.format_date_short(appointment_details.date, locale)
+            date: Formatting.format_date_short(meeting_details.date, locale)
           )
         )
       )
@@ -309,16 +313,16 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
   defp attendee_stage_title(_appointment_details),
     do: dgettext("emails_booking", "Your meeting has moved.")
 
-  defp attendee_subject(%{seat_move: true} = appointment_details, locale) do
+  defp attendee_subject(%{seat_move: true} = appointment_details, date, locale) do
     dgettext("emails_booking", "Spot moved - %{date} with %{name}",
-      date: Formatting.format_date_short(appointment_details.date, locale),
+      date: Formatting.format_date_short(date, locale),
       name: appointment_details.organizer_name
     )
   end
 
-  defp attendee_subject(appointment_details, locale) do
+  defp attendee_subject(appointment_details, date, locale) do
     dgettext("emails_booking", "Meeting Rescheduled - %{date} with %{name}",
-      date: Formatting.format_date_short(appointment_details.date, locale),
+      date: Formatting.format_date_short(date, locale),
       name: appointment_details.organizer_name
     )
   end

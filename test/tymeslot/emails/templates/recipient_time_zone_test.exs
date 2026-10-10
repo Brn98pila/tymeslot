@@ -166,4 +166,29 @@ defmodule Tymeslot.Emails.Templates.RecipientTimeZoneTest do
       end
     end
   end
+
+  describe "subject lines" do
+    # The reminder's subject names no date.
+    for template <- [AppointmentConfirmation, AppointmentCancellation, AppointmentRescheduled] do
+      test "#{inspect(template)} names each recipient's own day" do
+        start = ~U[2026-01-15 23:30:00Z]
+
+        details =
+          details(%{
+            date: ~D[2026-01-15],
+            start_time: start,
+            start_time_owner_tz: DateTime.shift_zone!(start, "Asia/Kolkata"),
+            start_time_attendee_tz: DateTime.shift_zone!(start, "Asia/Kolkata"),
+            owner_timezone: "Asia/Kolkata"
+          })
+
+        for role <- [:attendee, :organizer, :guest] do
+          email = unquote(template).render(role, "someone@example.com", details)
+
+          assert email.subject =~ "16 Jan", "#{role}: #{email.subject}"
+          refute email.subject =~ "15 Jan"
+        end
+      end
+    end
+  end
 end
