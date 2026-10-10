@@ -55,48 +55,44 @@ defmodule Tymeslot.Notifications.Email.IntegrationEmails do
         "integration_id" => integration_id,
         "integration_type" => integration_type
       }) do
-    with {:ok, user} <- UserQueries.get_user(user_id),
-         {:ok, integration} <- fetch_integration(integration_type, integration_id) do
-      type_atom = safe_integration_type_atom(integration_type)
+    with_user_and_integration(
+      {user_id, integration_type, integration_id},
+      "unhealthy notification",
+      fn
+        user, integration ->
+          type_atom = safe_integration_type_atom(integration_type)
 
-      case Config.email_service_module().send_integration_unhealthy_notification(
-             user,
-             integration,
-             type_atom
-           ) do
-        {:ok, _result} ->
-          Logger.info("Integration unhealthy notification sent",
-            user_id: user_id,
-            integration_id: integration_id,
-            type: integration_type
-          )
+          case Config.email_service_module().send_integration_unhealthy_notification(
+                 user,
+                 integration,
+                 type_atom
+               ) do
+            {:ok, _result} ->
+              Logger.info("Integration unhealthy notification sent",
+                user_id: user_id,
+                integration_id: integration_id,
+                type: integration_type
+              )
 
-          IntegrationHealthStateQueries.update_fields(
-            integration_type,
-            integration_id,
-            notification_sent_at: DateTime.utc_now()
-          )
+              IntegrationHealthStateQueries.update_fields(
+                integration_type,
+                integration_id,
+                notification_sent_at: DateTime.utc_now()
+              )
 
-          :ok
+              :ok
 
-        {:error, reason} ->
-          Logger.error("Failed to send integration unhealthy notification",
-            user_id: user_id,
-            integration_id: integration_id,
-            error: LogFormat.reason(reason)
-          )
+            {:error, reason} ->
+              Logger.error("Failed to send integration unhealthy notification",
+                user_id: user_id,
+                integration_id: integration_id,
+                error: LogFormat.reason(reason)
+              )
 
-          DeliveryOutcome.from_error(reason, "Failed to send notification")
+              DeliveryOutcome.from_error(reason, "Failed to send notification")
+          end
       end
-    else
-      {:error, :not_found} ->
-        Logger.warning("User or integration not found for unhealthy notification",
-          user_id: user_id,
-          integration_id: integration_id
-        )
-
-        {:discard, @gone}
-    end
+    )
   end
 
   @spec handle_integration_reauth_notification(%{String.t() => term()}) ::
@@ -106,18 +102,11 @@ defmodule Tymeslot.Notifications.Email.IntegrationEmails do
         "integration_id" => integration_id,
         "integration_type" => integration_type
       }) do
-    with {:ok, user} <- UserQueries.get_user(user_id),
-         {:ok, integration} <- fetch_integration(integration_type, integration_id) do
-      send_reauth_notification(user, integration, integration_type)
-    else
-      {:error, :not_found} ->
-        Logger.warning("User or integration not found for reauth notification",
-          user_id: user_id,
-          integration_id: integration_id
-        )
-
-        {:discard, @gone}
-    end
+    with_user_and_integration(
+      {user_id, integration_type, integration_id},
+      "reauth notification",
+      &send_reauth_notification(&1, &2, integration_type)
+    )
   end
 
   # The integration is re-read at send time rather than trusted from the job
@@ -168,43 +157,39 @@ defmodule Tymeslot.Notifications.Email.IntegrationEmails do
         "integration_type" => integration_type,
         "cutoff_days" => cutoff_days
       }) do
-    with {:ok, user} <- UserQueries.get_user(user_id),
-         {:ok, integration} <- fetch_integration(integration_type, integration_id) do
-      type_atom = safe_integration_type_atom(integration_type)
+    with_user_and_integration(
+      {user_id, integration_type, integration_id},
+      "paused notification",
+      fn
+        user, integration ->
+          type_atom = safe_integration_type_atom(integration_type)
 
-      case Config.email_service_module().send_integration_paused_notification(
-             user,
-             integration,
-             type_atom,
-             cutoff_days
-           ) do
-        {:ok, _result} ->
-          Logger.info("Integration paused notification sent",
-            user_id: user_id,
-            integration_id: integration_id,
-            type: integration_type
-          )
+          case Config.email_service_module().send_integration_paused_notification(
+                 user,
+                 integration,
+                 type_atom,
+                 cutoff_days
+               ) do
+            {:ok, _result} ->
+              Logger.info("Integration paused notification sent",
+                user_id: user_id,
+                integration_id: integration_id,
+                type: integration_type
+              )
 
-          :ok
+              :ok
 
-        {:error, reason} ->
-          Logger.error("Failed to send integration paused notification",
-            user_id: user_id,
-            integration_id: integration_id,
-            error: LogFormat.reason(reason)
-          )
+            {:error, reason} ->
+              Logger.error("Failed to send integration paused notification",
+                user_id: user_id,
+                integration_id: integration_id,
+                error: LogFormat.reason(reason)
+              )
 
-          DeliveryOutcome.from_error(reason, "Failed to send notification")
+              DeliveryOutcome.from_error(reason, "Failed to send notification")
+          end
       end
-    else
-      {:error, :not_found} ->
-        Logger.warning("User or integration not found for paused notification",
-          user_id: user_id,
-          integration_id: integration_id
-        )
-
-        {:discard, @gone}
-    end
+    )
   end
 
   @spec handle_video_room_creation_error_notification(%{String.t() => term()}) ::
@@ -214,12 +199,17 @@ defmodule Tymeslot.Notifications.Email.IntegrationEmails do
         "integration_id" => integration_id,
         "error_code" => error_code
       }) do
-    with {:ok, code} <- RoomCreationError.parse(error_code),
-         {:ok, user} <- UserQueries.get_user(user_id),
-         {:ok, integration} <- fetch_integration("video", integration_id),
-         :ok <- still_worth_sending(integration, code) do
-      deliver_room_creation_error_notification(user, integration, code)
-    else
+    case RoomCreationError.parse(error_code) do
+      {:ok, code} ->
+        with_user_and_integration(
+          {user_id, "video", integration_id},
+          "room creation error notification",
+          fn user, integration ->
+            with :ok <- still_worth_sending(integration, code),
+                 do: deliver_room_creation_error_notification(user, integration, code)
+          end
+        )
+
       :error ->
         Logger.warning("Unknown video room creation error code, discarding notification",
           integration_id: integration_id,
@@ -227,17 +217,6 @@ defmodule Tymeslot.Notifications.Email.IntegrationEmails do
         )
 
         {:discard, "Unknown room creation error code"}
-
-      {:error, :not_found} ->
-        Logger.warning("User or integration not found for room creation error notification",
-          user_id: user_id,
-          integration_id: integration_id
-        )
-
-        {:discard, @gone}
-
-      {:discard, _reason} = discard ->
-        discard
     end
   end
 
@@ -304,39 +283,35 @@ defmodule Tymeslot.Notifications.Email.IntegrationEmails do
         "integration_id" => integration_id,
         "calendar_names" => [_first | _rest] = calendar_names
       }) do
-    with {:ok, user} <- UserQueries.get_user(user_id),
-         {:ok, integration} <- fetch_integration("calendar", integration_id) do
-      case Config.email_service_module().send_calendars_removed_notification(
-             user,
-             integration,
-             calendar_names
-           ) do
-        {:ok, _result} ->
-          Logger.info("Calendars removed notification sent",
-            user_id: user_id,
-            integration_id: integration_id
-          )
+    with_user_and_integration(
+      {user_id, "calendar", integration_id},
+      "calendars removed notification",
+      fn
+        user, integration ->
+          case Config.email_service_module().send_calendars_removed_notification(
+                 user,
+                 integration,
+                 calendar_names
+               ) do
+            {:ok, _result} ->
+              Logger.info("Calendars removed notification sent",
+                user_id: user_id,
+                integration_id: integration_id
+              )
 
-          :ok
+              :ok
 
-        {:error, reason} ->
-          Logger.error("Failed to send calendars removed notification",
-            user_id: user_id,
-            integration_id: integration_id,
-            error: LogFormat.reason(reason)
-          )
+            {:error, reason} ->
+              Logger.error("Failed to send calendars removed notification",
+                user_id: user_id,
+                integration_id: integration_id,
+                error: LogFormat.reason(reason)
+              )
 
-          DeliveryOutcome.from_error(reason, "Failed to send notification")
+              DeliveryOutcome.from_error(reason, "Failed to send notification")
+          end
       end
-    else
-      {:error, :not_found} ->
-        Logger.warning("User or integration not found for calendars removed notification",
-          user_id: user_id,
-          integration_id: integration_id
-        )
-
-        {:discard, @gone}
-    end
+    )
   end
 
   @spec handle_calendar_invitation(%{String.t() => term()}) ::
@@ -453,6 +428,24 @@ defmodule Tymeslot.Notifications.Email.IntegrationEmails do
 
       {:discard,
        "Partial delivery failure: #{length(errors)} of #{length(attendee_emails)} failed"}
+    end
+  end
+
+  # The owner and the integration a notice is about, both re-read at send
+  # time; either one gone discards the job, as there is nobody left to tell.
+  defp with_user_and_integration({user_id, integration_type, integration_id}, label, fun) do
+    with {:ok, user} <- UserQueries.get_user(user_id),
+         {:ok, integration} <- fetch_integration(integration_type, integration_id) do
+      fun.(user, integration)
+    else
+      {:error, :not_found} ->
+        Logger.warning("User or integration not found for an integration notice",
+          notice: label,
+          user_id: user_id,
+          integration_id: integration_id
+        )
+
+        {:discard, @gone}
     end
   end
 
