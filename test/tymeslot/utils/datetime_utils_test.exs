@@ -67,6 +67,23 @@ defmodule Tymeslot.Utils.DateTimeUtilsTest do
     end
   end
 
+  describe "Duration.parse_minutes/1" do
+    test "reads the lengths booking links and forms write" do
+      assert Duration.parse_minutes("30min") == {:ok, 30}
+      assert Duration.parse_minutes(" 45 minutes ") == {:ok, 45}
+      assert Duration.parse_minutes("90-Min") == {:ok, 90}
+      assert Duration.parse_minutes("60") == {:ok, 60}
+      assert Duration.parse_minutes(Duration.format_for_url(15)) == {:ok, 15}
+    end
+
+    test "refuses anything that is not a length in minutes" do
+      assert Duration.parse_minutes("soon") == :error
+      assert Duration.parse_minutes("1h") == :error
+      assert Duration.parse_minutes("-30min") == :error
+      assert Duration.parse_minutes("") == :error
+    end
+  end
+
   describe "resolve_local/3" do
     test "resolves an ordinary wall-clock time" do
       assert {:ok, dt} =
