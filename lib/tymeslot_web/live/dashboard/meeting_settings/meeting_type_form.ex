@@ -15,6 +15,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm do
   alias Tymeslot.MeetingTypes
   alias Tymeslot.MeetingTypes.ApprovalWindow
   alias Tymeslot.MeetingTypes.InputValidation
+  alias Tymeslot.Validation.Constraints
   alias TymeslotWeb.Dashboard.MeetingSettings.Helpers
 
   alias TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.{
@@ -85,6 +86,8 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm do
      |> assign(:show_as_free, false)
      |> assign(:group_bookings_enabled, false)
      |> assign(:max_participants, to_string(Init.default_group_limit()))
+     |> assign(:show_seat_availability, true)
+     |> assign(:last_spots_threshold, nil)
      |> assign(:booking_limits, Init.get_booking_limits(nil))
      |> assign(:active_tab, "details")
      |> assign(:__initialized__, false)}
@@ -431,6 +434,46 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm do
            :form_errors,
            Map.put(socket.assigns.form_errors, :max_participants, message)
          )}
+    end
+  end
+
+  @impl Phoenix.LiveComponent
+  def handle_event("toggle_seat_availability", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_seat_availability, !socket.assigns.show_seat_availability)
+     |> Autosave.maybe_run()}
+  end
+
+  @impl Phoenix.LiveComponent
+  def handle_event("toggle_last_spots", _params, socket) do
+    threshold = if is_nil(socket.assigns.last_spots_threshold), do: Init.default_last_spots()
+
+    {:noreply,
+     socket
+     |> assign(:last_spots_threshold, threshold)
+     |> Autosave.maybe_run()}
+  end
+
+  # The input is bounded by its own min and max, so a value outside them is
+  # clamped rather than refused, and one that is not a number is ignored.
+  @impl Phoenix.LiveComponent
+  def handle_event(
+        "change_last_spots_threshold",
+        %{"meeting_type" => %{"last_spots_threshold_input" => value}},
+        socket
+      ) do
+    case Integer.parse(value) do
+      {count, ""} ->
+        range = Constraints.last_spots_threshold_range()
+
+        {:noreply,
+         socket
+         |> assign(:last_spots_threshold, count |> max(range.first) |> min(range.last))
+         |> Autosave.maybe_run()}
+
+      _not_a_number ->
+        {:noreply, socket}
     end
   end
 
