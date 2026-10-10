@@ -309,8 +309,13 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
   # tagged `:default`. Adopted as just used, so a request a previous janitor
   # leased one to keeps it for at least `:idle_after`.
   defp adopt_pools do
-    @finch
-    |> Registry.select([{{:"$1", :_, :_}, [], [:"$1"]}])
+    # Finch has no public listing of its pools, so this reads the registry
+    # it keys them in. (The form-input check matches the call by name alone;
+    # this is not a form helper.)
+    # credo:disable-for-next-line CredoChecks.UseCoreInputs
+    pool_names = Registry.select(@finch, [{{:"$1", :_, :_}, [], [:"$1"]}])
+
+    pool_names
     |> Enum.uniq()
     |> Enum.filter(&match?({_scheme, _host, _port, tag} when is_binary(tag), &1))
     |> Map.new(fn {scheme, host, port, tag} ->
@@ -319,7 +324,9 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
     end)
   rescue
     # No Finch instance running: nothing to adopt.
-    ArgumentError -> %{}
+    exception in ArgumentError ->
+      Logger.warning("Finch pools could not be adopted", reason: LogFormat.reason(exception))
+      %{}
   end
 
   defp schedule_sweep(%State{sweep_every: :manual}), do: :ok
