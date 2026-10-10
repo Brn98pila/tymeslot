@@ -72,7 +72,7 @@ defmodule Tymeslot.Workers.EmailWorkerAmbiguousTimeoutTest do
 
     setup_config(:tymeslot, :test_delivery_error, %{
       meeting.organizer_email => :timeout,
-      meeting.attendee_email => :raise
+      meeting.attendee_email => :exit
     })
 
     job = insert_job(%{"action" => "send_cancellation_emails", "meeting_id" => meeting.id})
@@ -100,6 +100,28 @@ defmodule Tymeslot.Workers.EmailWorkerAmbiguousTimeoutTest do
 
     assert attempts_to(meeting.organizer_email) == 2
     assert attempts_to(meeting.attendee_email) == 3
+  end
+
+  # The documented cost of a per-job record: once one copy has had its retry,
+  # another copy's first ambiguous timeout in the same job gets none.
+  test "a second copy's first ambiguous timeout in the same job is assumed sent without a retry" do
+    meeting = insert(:meeting, status: "cancelled")
+
+    setup_config(:tymeslot, :test_delivery_error, %{
+      meeting.organizer_email => :timeout,
+      meeting.attendee_email => :econnrefused
+    })
+
+    job = insert_job(%{"action" => "send_cancellation_emails", "meeting_id" => meeting.id})
+    assert {:error, _reason} = quietly(fn -> run(job) end)
+
+    # Run 2: the organiser's copy is assumed sent; the attendee's times out
+    # ambiguously for the first time, and is assumed sent too.
+    setup_config(:tymeslot, :test_delivery_error, :timeout)
+    assert :ok = quietly(fn -> run(job) end)
+    assert :ok = quietly(fn -> run(job) end)
+
+    assert attempts_to(meeting.attendee_email) == 2
   end
 
   # Only an ambiguous timeout spends the one retry; an ordinary failure
