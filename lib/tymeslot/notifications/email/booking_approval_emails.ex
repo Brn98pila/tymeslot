@@ -15,6 +15,7 @@ defmodule Tymeslot.Notifications.Email.BookingApprovalEmails do
   alias Tymeslot.Meetings.ApprovalToken
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingState
+  alias Tymeslot.Notifications.Email.DeliveryOutcome
   alias Tymeslot.Notifications.Email.MeetingEmails
   alias Tymeslot.Workers.DeliveryClaims
 
@@ -61,7 +62,9 @@ defmodule Tymeslot.Notifications.Email.BookingApprovalEmails do
         send_approval_request(:request, meeting, service, email_opts)
       end)
 
-    with :ok <- attendee, do: host
+    # A failure that a retry can fix outweighs a rejected address, so a
+    # suppressed invitee address never stops the host's retry.
+    DeliveryOutcome.combine("booking request", [meeting_id: meeting.id], [attendee, host])
   end
 
   defp leg(_job_id, _key, true, _send), do: :ok

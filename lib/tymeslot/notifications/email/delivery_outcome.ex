@@ -100,6 +100,26 @@ defmodule Tymeslot.Notifications.Email.DeliveryOutcome do
     end
   end
 
+  @doc """
+  One outcome for a job's several legs (the participants' copies, the
+  guests', a request's two emails), each already a job outcome in its own
+  right, so it runs every leg before deciding.
+
+  `:ok` when every leg succeeded; a single failing leg's outcome as it is;
+  several through `from_results/3`, where a failure a retry can fix
+  outweighs a rejected address, so one suppressed recipient never stops
+  another's retry.
+  """
+  @spec combine(String.t(), keyword(), [term()]) ::
+          :ok | {:error, term()} | {:discard, String.t()}
+  def combine(label, metadata, legs) do
+    case Enum.reject(legs, &succeeded?/1) do
+      [] -> :ok
+      [failure] -> failure
+      _failures -> from_results(label, metadata, legs)
+    end
+  end
+
   defp succeeded?(:ok), do: true
   defp succeeded?({:ok, _result}), do: true
   defp succeeded?(_result), do: false

@@ -143,6 +143,32 @@ defmodule Tymeslot.Workers.BookingRequestEmailsTest do
       refute_received {:host_email, _variant, _id}
     end
 
+    # A suppressed invitee address must not cost the host their retry.
+    test "a rejected invitee address alongside a failing host request still retries for the host" do
+      meeting = held_meeting()
+      job_id = System.unique_integer([:positive])
+      test_pid = self()
+
+      expect(Tymeslot.EmailServiceMock, :send_booking_request_received, 2, fn _sent ->
+        {:error, {:recipient_rejected, {422, %{"ErrorCode" => 406}}}}
+      end)
+
+      expect(Tymeslot.EmailServiceMock, :send_booking_approval_request, 2, fn :request,
+                                                                              _sent,
+                                                                              _urls,
+                                                                              _locale ->
+        send(test_pid, :host_email)
+        if Process.get(:host_failed), do: {:ok, :sent}, else: fail_once(:host_failed)
+      end)
+
+      assert {:error, reason} = run_request(meeting, job_id)
+      refute match?({:recipient_rejected, _}, reason)
+
+      assert {:error, {:recipient_rejected, _}} = run_request(meeting, job_id)
+      assert_received :host_email
+      assert_received :host_email
+    end
+
     test "hands a reschedule's previous time to both emails" do
       # A reschedule that sent a confirmed booking back into the gate knows
       # the time it was moved from; nothing else keeps it, so the job does.

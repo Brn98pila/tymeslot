@@ -199,7 +199,9 @@ defmodule Tymeslot.Notifications.Email.MeetingEmails do
         &DeliveryClaims.once(job_id, &1, &2)
       )
 
-    with :ok <- participants, do: guests
+    # A failure that a retry can fix outweighs a rejected address, so a
+    # suppressed attendee never stops a guest's retry.
+    DeliveryOutcome.combine("cancellation", [meeting_id: meeting.id], [participants, guests])
   end
 
   defp send_participant_cancellations(meeting, appointment_details, job_id) do

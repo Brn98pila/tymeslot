@@ -28,6 +28,7 @@ defmodule Tymeslot.Notifications.Email.RescheduleEmails do
   alias Tymeslot.Emails.AppointmentBuilder
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Meetings.MeetingState
+  alias Tymeslot.Notifications.Email.DeliveryOutcome
   alias Tymeslot.Notifications.Email.MeetingEmails
   alias Tymeslot.Notifications.Email.ParticipantLegs
   alias Tymeslot.Notifications.GuestNotifications
@@ -117,7 +118,9 @@ defmodule Tymeslot.Notifications.Email.RescheduleEmails do
 
     guests = notify_guests(meeting, content, original, &DeliveryClaims.once(job_id, &1, &2))
 
-    with :ok <- participants, do: guests
+    # Every copy was attempted; a failure that a retry can fix outweighs a
+    # rejected address, so a suppressed attendee never stops a guest's retry.
+    DeliveryOutcome.combine("reschedule", [meeting_id: meeting.id], [participants, guests])
   end
 
   defp notify_guests(meeting, content, nil, once),
