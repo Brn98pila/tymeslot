@@ -360,7 +360,8 @@ defmodule Tymeslot.Integrations.Calendar.ExternalEndChangeNoticeTimingTest do
 
       assert :ok = run(job)
       # The reschedule kept the lengthened meeting's 90 minutes.
-      assert told(ctx.meeting.attendee_email) =~ "now ends at 04:00 PM UTC instead of 03:30 PM UTC"
+      assert told(ctx.meeting.attendee_email) =~
+               "now ends at 04:00 PM UTC instead of 03:30 PM UTC"
     end
 
     for {label, reason, move_on} <- [
