@@ -91,10 +91,13 @@ defmodule Tymeslot.Workers.VideoRoom.Announcement do
   @doc """
   Raises the announcement for `meeting`, as it now stands.
 
-  `already_announced?` says the job's recovery has already sent this
+  `fallback_attempted?` says the job's recovery has already raised this
   announcement without a room. That settles it for a reschedule, which has no
-  claim of its own to consult; a booking's announcement consults its claim
-  instead, which also covers a job that stopped before recording anything.
+  claim of its own to consult: its fallback is raised once, and a failure
+  there is logged, not retried. A booking's announcement ignores it and
+  consults its claim instead, which is what actually happened: a fallback
+  that failed left the claim free, and a job that stopped before recording
+  anything is covered too.
 
   A reschedule is not announced either when the meeting no longer starts when
   this reschedule put it: a later reschedule has moved it since, and has told
@@ -105,9 +108,9 @@ defmodule Tymeslot.Workers.VideoRoom.Announcement do
   reschedule's failures are only logged, as before.
   """
   @spec deliver(t(), MeetingSchema.t(), boolean()) :: :ok | {:error, term()}
-  def deliver(:none, _meeting, _already_announced?), do: :ok
+  def deliver(:none, _meeting, _fallback_attempted?), do: :ok
 
-  def deliver(:created, meeting, _already_announced?) do
+  def deliver(:created, meeting, _fallback_attempted?) do
     Logger.info("Announcing the meeting now its room exists", meeting_id: meeting.id)
 
     with {:error, reason} <- Events.announce_video_room_outcome(meeting),

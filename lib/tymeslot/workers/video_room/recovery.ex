@@ -86,12 +86,18 @@ defmodule Tymeslot.Workers.VideoRoom.Recovery do
   def recovering?(execution, announce), do: announce and execution >= @fallback_attempt
 
   @doc """
-  Whether a job at this execution has already announced its meeting without a
-  room: recovery does so on entry, and only an execution that failed there can
-  be followed by another.
+  Whether a job at this execution has already raised its fallback
+  announcement, the one without a room: recovery does so on entry, at the
+  fallback attempt, so any later execution follows it.
+
+  It says the fallback was raised, not that it reached anyone. Only a
+  reschedule reads it (`Announcement.deliver/3`), and a reschedule's fallback
+  is raised once, its failure logged. A booking reads its announcement claim
+  instead, which a failed fallback leaves free, and retries it on every
+  recovery attempt until it goes out (`enter/4`).
   """
-  @spec announced_without_room?(pos_integer()) :: boolean()
-  def announced_without_room?(execution), do: execution > @fallback_attempt
+  @spec fallback_attempted?(pos_integer()) :: boolean()
+  def fallback_attempted?(execution), do: execution > @fallback_attempt
 
   @doc """
   Enters recovery for a meeting and returns the resulting Oban decision.
@@ -149,7 +155,7 @@ defmodule Tymeslot.Workers.VideoRoom.Recovery do
 
     case MeetingQueries.get_meeting(meeting_id) do
       {:ok, meeting} ->
-        Announcement.deliver(announcement, meeting, announced_without_room?(execution))
+        Announcement.deliver(announcement, meeting, fallback_attempted?(execution))
 
       {:error, _reason} ->
         Logger.error("Could not fetch meeting for fallback announcement",

@@ -330,7 +330,7 @@ defmodule Tymeslot.Workers.VideoRoomWorker do
     Announcement.deliver(
       announcement,
       meeting,
-      Recovery.announced_without_room?(execution)
+      Recovery.fallback_attempted?(execution)
     )
   end
 

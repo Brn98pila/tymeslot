@@ -395,12 +395,15 @@ defmodule Tymeslot.Bookings.Reschedule do
   # would be the only thing they ever heard about it.
   #
   # So this takes the approval side effects rather than the reschedule ones,
-  # through the very function `Approval.approve/1` uses
-  # (`Approval.activate_confirmed/1`): the request notifications are cancelled,
-  # the tentative calendar hold is flipped to a real event, and the meeting is
-  # activated with its video room. Sharing that function rather than repeating
-  # its three steps here is what keeps this path from drifting away from the
-  # approval it is standing in for.
+  # as `Approval.approve/1` does. The meeting was activated with its video
+  # room in the reschedule's own transaction (`activate_if_confirmed_outright/2`),
+  # so its confirmation and reminders committed with the new time or not at
+  # all; what is left runs here, through the very function approval uses
+  # after its commit (`Approval.activate_confirmed/2`): the request
+  # notifications are cancelled, the tentative calendar hold is flipped to a
+  # real event, and the integrations are told. Sharing it rather than
+  # repeating its steps here is what keeps this path from drifting away from
+  # the approval it is standing in for.
   #
   # The duplicate calendar "update" job this schedules on top of
   # `apply_time_update_and_schedule_job/3`'s own is harmless:
