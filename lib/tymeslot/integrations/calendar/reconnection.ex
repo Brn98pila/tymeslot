@@ -133,15 +133,12 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
        ) do
     %{credentials: creds, calendars: calendars} = payload
 
-    # The selection is the one just made; whether each calendar blocks is
-    # carried over from the stored list, so reconnecting does not undo it.
+    # The selection is the one just made.
     calendar_list =
-      calendars
-      |> Enum.map(fn cal ->
+      Enum.map(calendars, fn cal ->
         entry = CalendarEntry.normalize(cal)
         %{entry | selected: Enum.any?(selected_paths, &UriUtils.uri_safe_match?(entry.path, &1))}
       end)
-      |> Selection.carry_blocking_choices(integration.calendar_list)
 
     credential_attrs = %{
       base_url:
@@ -164,10 +161,17 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
     end
   end
 
-  # A booking calendar stays selected and blocking whatever was ticked
-  # (`Blocking.replace_selection/3`).
+  # Whether each calendar blocks is carried over from the row as it stands
+  # under its lock, not from `integration`, read before it: reconnecting
+  # undoes neither the owner's choices nor one made in between. A booking
+  # calendar stays selected and blocking whatever was ticked
+  # (`Blocking.replace_selection/2`).
   defp persist_account_change(integration, calendar_list, credential_attrs) do
-    case Blocking.replace_selection(integration, calendar_list, credential_attrs) do
+    build = fn stored ->
+      {Selection.carry_blocking_choices(calendar_list, stored.calendar_list), credential_attrs}
+    end
+
+    case Blocking.replace_selection(integration, build) do
       # Discovery has just reached the server with these credentials, so a
       # breaker its earlier failures opened is closed rather than left to
       # refuse the reconnected integration until it times out.

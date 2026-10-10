@@ -1,9 +1,12 @@
 defmodule TymeslotWeb.Dashboard.CalendarSettings.ReconnectBookingCalendarTest do
   @moduledoc """
-  The CalDAV reconnect form and a booking calendar: its box comes up ticked
-  and locked, as in the calendar settings, and the save keeps it selected and
-  blocking whatever the request names. Discovery runs over the real HTTP
-  client against `Tymeslot.Test.CalDAVDiscoveryStub`, hence `async: false`.
+  The CalDAV reconnect form and what decides whether a calendar blocks: a
+  booking calendar's box comes up ticked and locked, as in the calendar
+  settings, and the save keeps it selected and blocking whatever the request
+  names; any other calendar keeps the owner's choice as it stands when the
+  form is saved, not as it was when the form opened. Discovery runs over the
+  real HTTP client against `Tymeslot.Test.CalDAVDiscoveryStub`, hence
+  `async: false`.
   """
 
   use TymeslotWeb.LiveCase, async: false
@@ -18,6 +21,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ReconnectBookingCalendarTest do
   import Tymeslot.Factory
 
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
+  alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Repo
   alias Tymeslot.Security.Encryption
@@ -104,6 +108,57 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ReconnectBookingCalendarTest do
     reloaded = Repo.get!(CalendarIntegrationSchema, integration.id)
 
     assert %{selected: true, blocks_availability: true} =
+             Enum.find(reloaded.calendar_list, &(&1.path == "/calendars/alice/work/"))
+  end
+
+  test "a blocking choice changed while the form is open is kept", %{conn: conn, user: user} do
+    integration =
+      insert(:calendar_integration,
+        user: user,
+        name: "Bypass CalDAV",
+        provider: "caldav",
+        base_url: @base_url,
+        username_encrypted: Encryption.encrypt("alice"),
+        password_encrypted: Encryption.encrypt("oldpass"),
+        provider_account_id: "#{@base_url}||alice",
+        is_active: true,
+        calendar_paths: ["/calendars/alice/default/", "/calendars/alice/work/"],
+        default_booking_calendar_id: "/calendars/alice/default/",
+        calendar_list: [
+          %{id: "/calendars/alice/default/", path: "/calendars/alice/default/", selected: true},
+          %{id: "/calendars/alice/work/", path: "/calendars/alice/work/", selected: true}
+        ]
+      )
+
+    CalDAVDiscoveryStub.stub("alice:oldpass", "/principals/alice/", "/calendars/alice/", [
+      {"/calendars/alice/default/", "Default"},
+      {"/calendars/alice/work/", "Work"}
+    ])
+
+    {:ok, view, _html} = live(conn, ~p"/dashboard/integrations?tab=calendars")
+
+    view
+    |> element("button[phx-click='show_reconnect'][phx-value-id='#{integration.id}']")
+    |> render_click()
+
+    view
+    |> form("form[phx-submit='reconnect_caldav_discover']",
+      reconnect: %{url: integration.base_url, username: "alice", password: "oldpass"}
+    )
+    |> render_submit()
+
+    # From another tab, while this form waits to be saved.
+    {:ok, _updated} = Blocking.set(integration, "/calendars/alice/work/", false)
+
+    view
+    |> element("form[phx-submit='reconnect_caldav_submit']")
+    |> render_submit(%{
+      "selected_paths" => ["/calendars/alice/default/", "/calendars/alice/work/"]
+    })
+
+    reloaded = Repo.get!(CalendarIntegrationSchema, integration.id)
+
+    assert %{selected: true, blocks_availability: false} =
              Enum.find(reloaded.calendar_list, &(&1.path == "/calendars/alice/work/"))
   end
 end

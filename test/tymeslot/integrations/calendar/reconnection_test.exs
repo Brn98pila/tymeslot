@@ -7,6 +7,7 @@ defmodule Tymeslot.Integrations.Calendar.ReconnectionTest do
   alias Ecto.Changeset
   alias Tymeslot.Auth.UserSchema
   alias Tymeslot.Factory
+  alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Reconnection
@@ -362,6 +363,39 @@ defmodule Tymeslot.Integrations.Calendar.ReconnectionTest do
 
       assert %{selected: true, blocks_availability: true} =
                Enum.find(reloaded.calendar_list, &(&1.path == "/b/"))
+    end
+
+    # The integration is read before the write takes the row lock; a choice
+    # the owner made in between is the one the reconnect carries over.
+    test "carries the blocking choices of the row as it stands, not as it was read", %{
+      integration: integration
+    } do
+      {:ok, integration} =
+        integration
+        |> Changeset.change(
+          default_booking_calendar_id: "/a/",
+          calendar_list: [
+            %CalendarEntry{id: "/a/", path: "/a/", selected: true},
+            %CalendarEntry{id: "/b/", path: "/b/", selected: true}
+          ]
+        )
+        |> Repo.update()
+
+      {:ok, _updated} = Blocking.set(integration, "/b/", false)
+
+      payload = %{
+        credentials: %{url: "https://caldav.example.com", username: "alice", password: "new"},
+        calendars: [
+          %{"id" => "/a/", "path" => "/a/", "name" => "A", "type" => "calendar"},
+          %{"id" => "/b/", "path" => "/b/", "name" => "B", "type" => "calendar"}
+        ]
+      }
+
+      assert {:ok, updated} =
+               Reconnection.finalise_account_change(integration, payload, ["/a/", "/b/"])
+
+      list = Repo.get!(CalendarIntegrationSchema, updated.id).calendar_list
+      assert %{selected: true, blocks_availability: false} = Enum.find(list, &(&1.path == "/b/"))
     end
 
     test "matches a selected path that differs only by percent-encoding", %{
