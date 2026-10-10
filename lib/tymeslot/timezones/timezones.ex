@@ -104,5 +104,4 @@ defmodule Tymeslot.Timezones do
   end
 
   defp invalid_message, do: dgettext("errors", "Invalid timezone")
-
 end
