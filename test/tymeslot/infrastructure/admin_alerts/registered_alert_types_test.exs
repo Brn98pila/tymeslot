@@ -21,11 +21,13 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.RegisteredAlertTypesTest do
       "lib/**/*.ex"
       |> Path.wildcard()
       |> Enum.flat_map(&Regex.scan(@call, File.read!(&1), capture: :all_but_first))
-      |> Enum.map(fn [name] -> String.to_atom(name) end)
+      |> Enum.map(fn [name] -> name end)
       |> Enum.uniq()
 
+    registered = AlertTypes.registered_types() |> Map.keys() |> Enum.map(&Atom.to_string/1)
+
     assert raised != []
-    assert Enum.reject(raised, &AlertTypes.get/1) == []
+    assert raised -- registered == []
   end
 
   test "an unregistered type is logged as such" do

@@ -23,9 +23,9 @@ defmodule Tymeslot.Workers.EmailWorker do
   alias Tymeslot.Emails.Delivery
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
+  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Meetings.Guests
-  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Workers.Bounded
   alias Tymeslot.Workers.EmailWorker.AdminAlertScheduler
   alias Tymeslot.Workers.EmailWorkerHandlers

@@ -20,7 +20,7 @@ defmodule Tymeslot.Infrastructure.FinchPool.JanitorTest do
   @finch Tymeslot.Finch
 
   setup do
-    name = :"janitor_test_#{System.unique_integer([:positive])}"
+    name = {:global, {__MODULE__, System.unique_integer([:positive])}}
     start_supervised!({Janitor, name: name, idle_after: 0, sweep_every: :manual})
     %{janitor: name}
   end
@@ -62,7 +62,7 @@ defmodule Tymeslot.Infrastructure.FinchPool.JanitorTest do
   end
 
   test "keeps a pool idle for less than the threshold" do
-    name = :"janitor_patient_#{System.unique_integer([:positive])}"
+    name = {:global, {__MODULE__, :patient, System.unique_integer([:positive])}}
 
     start_supervised!({Janitor, name: name, idle_after: :timer.hours(1), sweep_every: :manual},
       id: name
@@ -108,10 +108,8 @@ defmodule Tymeslot.Infrastructure.FinchPool.JanitorTest do
     {url, tag, options} = destination()
     hostname = options[:conn_opts][:hostname]
 
-    sweeper =
-      Task.async(fn ->
-        Enum.reduce(1..300, 0, fn _n, stopped -> stopped + Janitor.sweep(janitor) end)
-      end)
+    # Sweeps for as long as the holders run, however long that is under load.
+    sweeper = Task.async(fn -> sweep_until_stopped(janitor, 0) end)
 
     observations =
       1..8
@@ -129,11 +127,20 @@ defmodule Tymeslot.Infrastructure.FinchPool.JanitorTest do
       )
       |> Enum.flat_map(fn {:ok, seen} -> seen end)
 
+    send(sweeper.pid, :stop)
     stopped = Task.await(sweeper, 30_000)
 
     assert length(observations) == 320
     assert Enum.reject(observations, & &1) == []
     # The sweeps did stop the pool between leases, so the leases raced them.
     assert stopped > 0
+  end
+
+  defp sweep_until_stopped(janitor, stopped) do
+    receive do
+      :stop -> stopped
+    after
+      0 -> sweep_until_stopped(janitor, stopped + Janitor.sweep(janitor))
+    end
   end
 end

@@ -33,10 +33,9 @@ defmodule Tymeslot.Infrastructure.AdminAlerts do
   @callback send_alert(alert_type(), map()) :: :ok | {:error, any()}
 
   alias Tymeslot.Infrastructure.AdminAlerts.AlertTypes
+  alias Tymeslot.Infrastructure.AdminAlerts.ReasonNormaliser
 
   require Logger
-
-  alias Tymeslot.Infrastructure.AdminAlerts.ReasonNormaliser
 
   @doc """
   Reports an administrative alert using the canonical call shape.
@@ -78,7 +77,7 @@ defmodule Tymeslot.Infrastructure.AdminAlerts do
   def send_alert(type, metadata) do
     if is_nil(AlertTypes.get(type)) do
       Logger.warning("Admin alert type is not registered in AlertTypes",
-        alert_type: inspect(type)
+        alert_type: type
       )
     end
 
