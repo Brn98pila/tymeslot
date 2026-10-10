@@ -23,7 +23,10 @@ defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueries do
   Runs `fun` with the integration `id` locked and freshly read (decrypted),
   inside a transaction, and returns what it returns. `fun` answers
   `{:ok, value}` or `{:error, reason}`; an error rolls the transaction back.
-  `{:error, :not_found}` when the row is gone or cannot be read.
+  `{:error, :not_found}` when the row is gone, and
+  `{:error, :requires_reencryption}` when its credentials cannot be
+  decrypted: the integration is still there, so a caller must not treat it
+  as removed.
   """
   @spec with_locked(pos_integer(), (CalendarIntegrationSchema.t() ->
                                       {:ok, term()} | {:error, term()})) ::
@@ -83,7 +86,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarSelectionQueries do
 
   defp read_decrypted(id) do
     case CalendarIntegrationQueries.get(id) do
-      {:error, :requires_reencryption, _stale} -> {:error, :not_found}
+      {:error, :requires_reencryption, _stale} -> {:error, :requires_reencryption}
       result -> result
     end
   end
