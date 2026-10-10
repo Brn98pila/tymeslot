@@ -65,10 +65,11 @@ defmodule Tymeslot.Emails.Templates.VideoRoomCreationError do
       button: dgettext("emails_integrations", "Open video settings"),
       settings_url: IntegrationLabels.settings_url(:video),
       footer:
-        dgettext(
+        dngettext(
           "emails_integrations",
-          "This is the only email you will get about this for now. If the same problem is still there in %{days} days, you will hear about it again. Your video settings show the notice for as long as it lasts.",
-          days: RoomCreationError.resend_after_days()
+          "This is the only email you will get about this for now. If the same problem is still there in %{count} day, you will hear about it again. Your video settings show the notice for as long as it lasts.",
+          "This is the only email you will get about this for now. If the same problem is still there in %{count} days, you will hear about it again. Your video settings show the notice for as long as it lasts.",
+          RoomCreationError.resend_after_days()
         )
     }
   end
