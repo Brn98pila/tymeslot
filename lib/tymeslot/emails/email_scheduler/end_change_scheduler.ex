@@ -12,9 +12,10 @@ defmodule Tymeslot.Emails.EmailScheduler.EndChangeScheduler do
   Schedules the notices of a booking whose end the host moved in their own
   calendar (`Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails`). One job
   waits per meeting; a change while it waits moves it back by the settling
-  delay. What each seat is told comes from the seat itself when the job runs,
-  not from the job; the job carries the start it was scheduled against, so a
-  meeting moved since is not told about its old end.
+  delay and gives it that change's start. What each seat is told comes from
+  the seat itself when the job runs, not from the job; the job carries the
+  start the latest change was written against, so a meeting moved since is
+  not told about its old end, and one moved and then changed again is.
   """
   @spec schedule_end_change_emails(MeetingSchema.t()) :: :ok | {:error, String.t()}
   def schedule_end_change_emails(%MeetingSchema{id: meeting_id, start_time: start_time}) do
@@ -33,7 +34,7 @@ defmodule Tymeslot.Emails.EmailScheduler.EndChangeScheduler do
         keys: [:action, :meeting_id],
         states: [:scheduled]
       ],
-      replace: [scheduled: [:scheduled_at]]
+      replace: [scheduled: [:scheduled_at, :args]]
     )
     |> Helpers.insert_job("End change emails", meeting_id)
   end

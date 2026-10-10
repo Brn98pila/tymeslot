@@ -335,6 +335,34 @@ defmodule Tymeslot.Integrations.Calendar.ExternalEndChangeNoticeTimingTest do
       refute_received {:email, _stale}
     end
 
+    # The waiting job takes the start of the change that joined it: the
+    # second change is announced, from the end the reschedule gave.
+    test "an end change after a reschedule in the meantime is still announced", ctx do
+      change_end(ctx.meeting, ~T[11:30:00])
+
+      stub(Tymeslot.CalendarMock, :get_events_for_range_fresh, fn _user, _from, _to ->
+        {:ok, []}
+      end)
+
+      params = %{
+        date: Date.to_string(Date.add(Date.utc_today(), 12)),
+        time: "2:00 PM",
+        duration: "60min",
+        user_timezone: "Etc/UTC"
+      }
+
+      assert {:ok, _rescheduled} = Reschedule.execute(ctx.meeting.uid, params, ctx.user.id)
+      {:ok, rescheduled} = MeetingQueries.get_meeting(ctx.meeting.id)
+      change_end(rescheduled, ~T[16:00:00])
+
+      assert [job] = end_change_jobs()
+      assert job.args["start_time"] == DateTime.to_iso8601(rescheduled.start_time)
+
+      assert :ok = run(job)
+      # The reschedule kept the lengthened meeting's 90 minutes.
+      assert told(ctx.meeting.attendee_email) =~ "now ends at 04:00 PM UTC instead of 03:30 PM UTC"
+    end
+
     for {label, reason, move_on} <- [
           {"cancelled", "Meeting not confirmed",
            quote(do: fn meeting -> Changeset.change(meeting, status: "cancelled") end)},
