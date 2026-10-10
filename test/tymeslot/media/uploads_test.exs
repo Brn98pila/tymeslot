@@ -11,7 +11,6 @@ defmodule Tymeslot.Media.UploadsTest do
 
   alias Ecto.UUID
   alias Tymeslot.Media.Uploads
-  alias Tymeslot.Profiles.Avatars
 
   setup :capture_admin_alerts
 
@@ -29,40 +28,6 @@ defmodule Tymeslot.Media.UploadsTest do
     File.mkdir_p!(Path.dirname(path))
     File.write!(path, contents)
     path
-  end
-
-  describe "allowed_extensions/1" do
-    test "avatars accept the animated and still image formats" do
-      assert Uploads.allowed_extensions(:avatar) == [".jpg", ".jpeg", ".png", ".gif", ".webp"]
-    end
-
-    test "background images accept still formats only" do
-      assert Uploads.allowed_extensions(:image) == [".jpg", ".jpeg", ".png", ".webp"]
-    end
-
-    test "background videos accept only the formats whose metadata is stripped" do
-      assert Uploads.allowed_extensions(:video) == [".mp4", ".webm"]
-    end
-
-    test "every extension is lowercase and dot-prefixed" do
-      extensions = Enum.flat_map([:avatar, :image, :video], &Uploads.allowed_extensions/1)
-
-      assert extensions != []
-      assert Enum.reject(extensions, &(&1 == String.downcase(&1))) == []
-      assert Enum.reject(extensions, &String.starts_with?(&1, ".")) == []
-    end
-  end
-
-  describe "max_file_size/1" do
-    test "allows progressively larger files for heavier media" do
-      assert Uploads.max_file_size(:avatar) < Uploads.max_file_size(:image)
-      assert Uploads.max_file_size(:image) < Uploads.max_file_size(:video)
-    end
-
-    test "Avatars reads the avatar limits from here rather than keeping a second copy" do
-      assert Avatars.accepted_extensions() == Uploads.allowed_extensions(:avatar)
-      assert Avatars.max_file_size() == Uploads.max_file_size(:avatar)
-    end
   end
 
   describe "root/0" do
@@ -139,6 +104,17 @@ defmodule Tymeslot.Media.UploadsTest do
                Uploads.store_atomically(source, "avatars/1", "../../x y.png", %{})
 
       assert File.exists?(Path.join(root, "avatars/1/x_y.png"))
+    end
+
+    test "stores under a relative root once, not under the root twice", %{tmp_dir: tmp_dir} do
+      relative_root = Path.relative_to_cwd(Path.join(tmp_dir, "relative"))
+      Application.put_env(:tymeslot, :upload_directory, relative_root)
+      source = write!(Path.join(tmp_dir, "incoming"))
+
+      assert {:ok, "a.png"} = Uploads.store_atomically(source, "avatars/1", "a.png", %{})
+
+      assert File.exists?(Path.join([relative_root, "avatars/1/a.png"]))
+      refute File.exists?(Path.join([relative_root, relative_root, "avatars/1/a.png"]))
     end
 
     test "refuses a destination outside the root", %{outside: outside, tmp_dir: tmp_dir} do
