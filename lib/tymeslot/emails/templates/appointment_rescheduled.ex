@@ -19,7 +19,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
   their spot moved, the meeting goes on at the old time for everyone else.
 
   The reschedule context (`:original_start_time` and friends) is supplied by
-  `Tymeslot.Notifications.ContentBuilder.build_reschedule_details/2`. Every key
+  `Tymeslot.Emails.AppointmentBuilder.for_reschedule/2`. Every key
   it adds is read defensively here: a payload without it still renders, minus
   the "previously" line or the note on whether the join link changed.
   """

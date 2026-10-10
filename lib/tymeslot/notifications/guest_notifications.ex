@@ -56,7 +56,7 @@ defmodule Tymeslot.Notifications.GuestNotifications do
   answers were reset when the booking moved (`reset_for_new_time/1`).
 
   `content` is the reschedule payload built by
-  `Tymeslot.Notifications.ContentBuilder.build_reschedule_details/2`. `once`
+  `Tymeslot.Emails.AppointmentBuilder.for_reschedule/2`. `once`
   wraps each guest's send as in `notify_cancelled/3`.
   """
   @spec notify_rescheduled(map(), map(), (String.t(), (-> term()) -> term())) :: result()

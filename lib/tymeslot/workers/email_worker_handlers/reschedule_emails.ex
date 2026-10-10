@@ -25,9 +25,9 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails do
   require Logger
 
   alias Tymeslot.Clock
+  alias Tymeslot.Emails.AppointmentBuilder
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Meetings.MeetingState
-  alias Tymeslot.Notifications.ContentBuilder
   alias Tymeslot.Notifications.GuestNotifications
   alias Tymeslot.Workers.DeliveryClaims
   alias Tymeslot.Workers.EmailWorkerHandlers.MeetingEmails
@@ -126,10 +126,10 @@ defmodule Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails do
   defp notify_guests(meeting, content, _original, once),
     do: GuestNotifications.notify_rescheduled(meeting, content, once)
 
-  defp content(meeting, nil), do: ContentBuilder.build_reapproval_details(meeting)
+  defp content(meeting, nil), do: AppointmentBuilder.for_reapproval(meeting)
 
   defp content(meeting, original) do
-    ContentBuilder.build_reschedule_details(meeting, %{
+    AppointmentBuilder.for_reschedule(meeting, %{
       start_time: parse_datetime(original["start_time"]),
       end_time: parse_datetime(original["end_time"]),
       attendee_video_url: original["attendee_video_url"]

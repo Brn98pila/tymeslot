@@ -1,12 +1,11 @@
 defmodule Tymeslot.Notifications.ContentBuilder do
   @moduledoc """
-  Builds notification content and email data structures.
-  Pure functions for converting meeting data into notification-ready formats.
+  The meeting details `Tymeslot.Meetings.CalendarExport` builds a calendar
+  file from. Emails are built by `Tymeslot.Emails.AppointmentBuilder`.
   """
 
   alias Tymeslot.Auth.UserQueries
   alias Tymeslot.Bookings.MeetingLinks
-  alias Tymeslot.Emails.AppointmentBuilder
   alias Tymeslot.Emails.RecipientLocale
   alias Tymeslot.Notifications.Recipients
   alias Tymeslot.Profiles
@@ -80,55 +79,6 @@ defmodule Tymeslot.Notifications.ContentBuilder do
       # Organizer contact info for email templates
       organizer_contact_info: build_organizer_contact_info(meeting)
     }
-  end
-
-  @doc """
-  Builds reschedule details for email notifications.
-
-  Unlike the other builders here, this payload is rendered by an email template
-  rather than handed to a worker that rebuilds it, so the base comes from
-  `Emails.AppointmentBuilder` — the shape every template is written against.
-  Building it from `build_appointment_details/1` instead omits keys the
-  templates read (`:reminders_summary`, `:location_type`, `:booking_payment`,
-  and a `:date` that is a `Date` rather than a `DateTime`), which crashes the
-  render mid-reschedule and takes the webhook dispatch down with it.
-  """
-  @spec build_reschedule_details(%{atom() => term()}, %{atom() => term()}) :: %{atom() => term()}
-  def build_reschedule_details(updated_meeting, original_meeting) do
-    organizer_timezone = Recipients.get_organizer_timezone(updated_meeting)
-
-    base_details = AppointmentBuilder.from_meeting(updated_meeting)
-    attendee_timezone = base_details.attendee_timezone
-
-    Map.merge(base_details, %{
-      # Original meeting details for comparison
-      original_date: DateTime.to_date(original_meeting.start_time),
-      original_start_time: original_meeting.start_time,
-      original_start_time_owner_tz:
-        convert_to_timezone(original_meeting.start_time, organizer_timezone),
-      original_start_time_attendee_tz:
-        convert_to_timezone(original_meeting.start_time, attendee_timezone),
-      original_end_time: original_meeting.end_time,
-      original_attendee_video_url: Map.get(original_meeting, :attendee_video_url),
-
-      # Reschedule context
-      is_rescheduled: true,
-      rescheduled_at: DateTime.utc_now()
-    })
-  end
-
-  @doc """
-  Builds reschedule details for a booking whose new time was approved after a
-  reschedule sent it back into the approval gate.
-
-  Unlike `build_reschedule_details/2` there is no original meeting to compare
-  with, so the templates leave out their "previously scheduled" line.
-  """
-  @spec build_reapproval_details(%{atom() => term()}) :: %{atom() => term()}
-  def build_reapproval_details(meeting) do
-    meeting
-    |> AppointmentBuilder.from_meeting()
-    |> Map.merge(%{is_rescheduled: true, rescheduled_at: DateTime.utc_now()})
   end
 
   # Private functions

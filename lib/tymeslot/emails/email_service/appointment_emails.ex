@@ -215,7 +215,7 @@ defmodule Tymeslot.Emails.EmailService.AppointmentEmails do
   Sends a reschedule notice to a meeting guest, asking again whether they can
   attend. `appointment_details` must carry `:guest_name`, `:guest_accept_url`
   and `:guest_decline_url`, plus the reschedule context of
-  `Tymeslot.Notifications.ContentBuilder.build_reschedule_details/2`.
+  `Tymeslot.Emails.AppointmentBuilder.for_reschedule/2`.
   """
   @spec send_guest_reschedule(String.t(), Tymeslot.Emails.EmailService.appointment_details()) ::
           {:ok, any()} | {:error, any()}
@@ -287,7 +287,7 @@ defmodule Tymeslot.Emails.EmailService.AppointmentEmails do
   Sends reschedule notices to both organizer and attendee.
 
   The payload must be built by
-  `Tymeslot.Notifications.ContentBuilder.build_reschedule_details/2`, which
+  `Tymeslot.Emails.AppointmentBuilder.for_reschedule/2`, which
   carries the previous slot alongside the new one.
   """
   @spec send_reschedule_emails(Tymeslot.Emails.EmailService.appointment_details()) ::
