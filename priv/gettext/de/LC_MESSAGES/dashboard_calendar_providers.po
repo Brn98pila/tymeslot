@@ -1283,11 +1283,6 @@ msgstr "Buchungskalender"
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
 #, elixir-autogen, elixir-format
-msgid "Busy times"
-msgstr "Belegte Zeiten"
-
-#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
-#, elixir-autogen, elixir-format
 msgid "Busy times only"
 msgstr "Nur belegte Zeiten"
 
@@ -1338,11 +1333,6 @@ msgstr "Anzeigen und blockieren"
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
 #, elixir-autogen, elixir-format
-msgid "Show on calendar"
-msgstr "Im Kalender anzeigen"
-
-#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
-#, elixir-autogen, elixir-format
 msgid "Show only"
 msgstr "Nur anzeigen"
 
@@ -1350,11 +1340,6 @@ msgstr "Nur anzeigen"
 #, elixir-autogen, elixir-format
 msgid "This calendar stays read-only: bookings are never written to it. Choose another calendar as your booking destination."
 msgstr "Dieser Kalender bleibt schreibgeschützt: Buchungen werden nie in ihn eingetragen. Wählen Sie einen anderen Kalender als Ziel für Ihre Buchungen."
-
-#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
-#, elixir-autogen, elixir-format
-msgid "Use of this calendar"
-msgstr "Verwendung dieses Kalenders"
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
 #, elixir-autogen, elixir-format
@@ -1367,3 +1352,43 @@ msgid "%{used} of %{count} calendar in use, %{blocking} blocking your availabili
 msgid_plural "%{used} of %{count} calendars in use, %{blocking} blocking your availability"
 msgstr[0] "%{used} von %{count} Kalender in Verwendung, davon blockieren Ihre Verfügbarkeit: %{blocking}"
 msgstr[1] "%{used} von %{count} Kalendern in Verwendung, davon blockieren Ihre Verfügbarkeit: %{blocking}"
+
+#: lib/tymeslot/integrations/calendar/caldav/errors.ex
+#, elixir-autogen, elixir-format
+msgid "A calendar shared with you as busy times only could not be read. Its last known busy times still block your booking page."
+msgstr "Ein nur mit belegten Zeiten für Sie freigegebener Kalender konnte nicht gelesen werden. Seine zuletzt bekannten belegten Zeiten blockieren Ihre Buchungsseite weiterhin."
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times block"
+msgstr "Blockiert belegte Zeiten"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times of %{calendar}"
+msgstr "Belegte Zeiten von %{calendar}"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Exchange reports busy times for your whole mailbox, and they block your booking page. Refresh this connection to list your main calendar and choose there whether they do."
+msgstr "Exchange meldet die belegten Zeiten Ihres gesamten Postfachs, und diese blockieren Ihre Buchungsseite. Aktualisieren Sie diese Verbindung, damit Ihr Hauptkalender in der Liste erscheint, und legen Sie dort fest, ob sie blockieren."
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Show %{calendar} on your calendar"
+msgstr "%{calendar} in Ihrem Kalender anzeigen"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "This folder's events are shown only; busy times come from your whole mailbox."
+msgstr "Die Ereignisse dieses Ordners werden nur angezeigt; die belegten Zeiten stammen aus Ihrem gesamten Postfach."
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Use of %{calendar}"
+msgstr "Verwendung von %{calendar}"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Whole mailbox"
+msgstr "Gesamtes Postfach"

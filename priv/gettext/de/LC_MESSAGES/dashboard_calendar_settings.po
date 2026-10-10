@@ -373,11 +373,6 @@ msgstr "Blockieren"
 
 #: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
 #, elixir-autogen, elixir-format
-msgid "Busy times"
-msgstr "Belegte Zeiten"
-
-#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
-#, elixir-autogen, elixir-format
 msgid "Don't block"
 msgstr "Nicht blockieren"
 
@@ -385,3 +380,8 @@ msgstr "Nicht blockieren"
 #, elixir-autogen, elixir-format
 msgid "Your booking calendar always blocks your availability."
 msgstr "Ihr Buchungskalender blockiert immer Ihre Verfügbarkeit."
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times of %{calendar}"
+msgstr "Belegte Zeiten von %{calendar}"

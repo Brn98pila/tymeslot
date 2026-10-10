@@ -1283,11 +1283,6 @@ msgstr "Календар для бронювань"
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
 #, elixir-autogen, elixir-format
-msgid "Busy times"
-msgstr "Зайнятий час"
-
-#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
-#, elixir-autogen, elixir-format
 msgid "Busy times only"
 msgstr "Лише зайнятий час"
 
@@ -1338,11 +1333,6 @@ msgstr "Показувати й блокувати"
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
 #, elixir-autogen, elixir-format
-msgid "Show on calendar"
-msgstr "Показувати в календарі"
-
-#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
-#, elixir-autogen, elixir-format
 msgid "Show only"
 msgstr "Лише показувати"
 
@@ -1350,11 +1340,6 @@ msgstr "Лише показувати"
 #, elixir-autogen, elixir-format
 msgid "This calendar stays read-only: bookings are never written to it. Choose another calendar as your booking destination."
 msgstr "Цей календар залишається лише для перегляду: бронювання в нього ніколи не записуються. Виберіть інший календар для збереження бронювань."
-
-#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
-#, elixir-autogen, elixir-format
-msgid "Use of this calendar"
-msgstr "Використання цього календаря"
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
 #, elixir-autogen, elixir-format
@@ -1368,3 +1353,43 @@ msgid_plural "%{used} of %{count} calendars in use, %{blocking} blocking your av
 msgstr[0] "Задіяно календарів: %{used} з %{count}, із них блокують вашу доступність: %{blocking}"
 msgstr[1] "Задіяно календарів: %{used} з %{count}, із них блокують вашу доступність: %{blocking}"
 msgstr[2] "Задіяно календарів: %{used} з %{count}, із них блокують вашу доступність: %{blocking}"
+
+#: lib/tymeslot/integrations/calendar/caldav/errors.ex
+#, elixir-autogen, elixir-format
+msgid "A calendar shared with you as busy times only could not be read. Its last known busy times still block your booking page."
+msgstr "Не вдалося прочитати календар, наданий вам лише як інформацію про зайнятість. Останній відомий зайнятий час із нього й далі блокує вашу сторінку бронювання."
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times block"
+msgstr "Блокує зайнятий час"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times of %{calendar}"
+msgstr "Зайнятий час календаря %{calendar}"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Exchange reports busy times for your whole mailbox, and they block your booking page. Refresh this connection to list your main calendar and choose there whether they do."
+msgstr "Exchange передає зайнятий час усієї вашої поштової скриньки, і він блокує вашу сторінку бронювання. Оновіть це підключення, щоб у списку з'явився ваш основний календар, і там виберіть, чи має він блокувати."
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Show %{calendar} on your calendar"
+msgstr "Показувати календар %{calendar} у вашому календарі"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "This folder's events are shown only; busy times come from your whole mailbox."
+msgstr "Події цієї папки лише показуються; зайнятий час береться з усієї вашої поштової скриньки."
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Use of %{calendar}"
+msgstr "Використання календаря %{calendar}"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Whole mailbox"
+msgstr "Уся поштова скринька"

@@ -1251,3 +1251,8 @@ msgstr "Il n’est plus possible de définir des prix dans la devise de votre co
 #, elixir-autogen, elixir-format
 msgid "The current price is %{amount}. Switching to a supported currency clears it, as it clears every paid meeting type's price."
 msgstr "Le prix actuel est de %{amount}. Passer à une devise prise en charge l’efface, tout comme le prix de chaque type de réunion payant."
+
+#: lib/tymeslot/utils/form_helpers.ex
+#, elixir-autogen, elixir-format
+msgid "The calendar this meeting type books into is no longer available. Reload the page and try again."
+msgstr "Le calendrier dans lequel ce type de réunion réserve n’est plus disponible. Rechargez la page et réessayez."

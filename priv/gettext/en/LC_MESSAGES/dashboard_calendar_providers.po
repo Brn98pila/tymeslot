@@ -1283,11 +1283,6 @@ msgstr ""
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
 #, elixir-autogen, elixir-format
-msgid "Busy times"
-msgstr ""
-
-#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
-#, elixir-autogen, elixir-format
 msgid "Busy times only"
 msgstr ""
 
@@ -1338,22 +1333,12 @@ msgstr ""
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
 #, elixir-autogen, elixir-format
-msgid "Show on calendar"
-msgstr ""
-
-#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
-#, elixir-autogen, elixir-format
 msgid "Show only"
 msgstr ""
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/ics_url_config.ex
 #, elixir-autogen, elixir-format
 msgid "This calendar stays read-only: bookings are never written to it. Choose another calendar as your booking destination."
-msgstr ""
-
-#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
-#, elixir-autogen, elixir-format
-msgid "Use of this calendar"
 msgstr ""
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
@@ -1367,3 +1352,43 @@ msgid "%{used} of %{count} calendar in use, %{blocking} blocking your availabili
 msgid_plural "%{used} of %{count} calendars in use, %{blocking} blocking your availability"
 msgstr[0] ""
 msgstr[1] ""
+
+#: lib/tymeslot/integrations/calendar/caldav/errors.ex
+#, elixir-autogen, elixir-format
+msgid "A calendar shared with you as busy times only could not be read. Its last known busy times still block your booking page."
+msgstr ""
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times block"
+msgstr ""
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times of %{calendar}"
+msgstr ""
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Exchange reports busy times for your whole mailbox, and they block your booking page. Refresh this connection to list your main calendar and choose there whether they do."
+msgstr ""
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Show %{calendar} on your calendar"
+msgstr ""
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "This folder's events are shown only; busy times come from your whole mailbox."
+msgstr ""
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Use of %{calendar}"
+msgstr ""
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Whole mailbox"
+msgstr ""

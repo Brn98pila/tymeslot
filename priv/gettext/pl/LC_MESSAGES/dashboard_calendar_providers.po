@@ -1279,11 +1279,6 @@ msgstr "Kalendarz rezerwacji"
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
 #, elixir-autogen, elixir-format
-msgid "Busy times"
-msgstr "Zajęte terminy"
-
-#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
-#, elixir-autogen, elixir-format
 msgid "Busy times only"
 msgstr "Tylko zajęte terminy"
 
@@ -1334,11 +1329,6 @@ msgstr "Pokazuj i blokuj"
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
 #, elixir-autogen, elixir-format
-msgid "Show on calendar"
-msgstr "Pokazuj w kalendarzu"
-
-#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
-#, elixir-autogen, elixir-format
 msgid "Show only"
 msgstr "Tylko pokazuj"
 
@@ -1346,11 +1336,6 @@ msgstr "Tylko pokazuj"
 #, elixir-autogen, elixir-format
 msgid "This calendar stays read-only: bookings are never written to it. Choose another calendar as your booking destination."
 msgstr "Ten kalendarz pozostaje tylko do odczytu: rezerwacje nigdy nie są w nim zapisywane. Wybierz inny kalendarz jako miejsce zapisu rezerwacji."
-
-#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
-#, elixir-autogen, elixir-format
-msgid "Use of this calendar"
-msgstr "Użycie tego kalendarza"
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
 #, elixir-autogen, elixir-format
@@ -1364,3 +1349,43 @@ msgid_plural "%{used} of %{count} calendars in use, %{blocking} blocking your av
 msgstr[0] "Używane kalendarze: %{used} z %{count}, blokujące twoją dostępność: %{blocking}"
 msgstr[1] "Używane kalendarze: %{used} z %{count}, blokujące twoją dostępność: %{blocking}"
 msgstr[2] "Używane kalendarze: %{used} z %{count}, blokujące twoją dostępność: %{blocking}"
+
+#: lib/tymeslot/integrations/calendar/caldav/errors.ex
+#, elixir-autogen, elixir-format
+msgid "A calendar shared with you as busy times only could not be read. Its last known busy times still block your booking page."
+msgstr "Nie udało się odczytać kalendarza udostępnionego ci tylko jako zajęte terminy. Jego ostatnio znane zajęte terminy nadal blokują twoją stronę rezerwacji."
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times block"
+msgstr "Blokuje zajęte terminy"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times of %{calendar}"
+msgstr "Zajęte terminy w kalendarzu %{calendar}"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Exchange reports busy times for your whole mailbox, and they block your booking page. Refresh this connection to list your main calendar and choose there whether they do."
+msgstr "Exchange podaje zajęte terminy całej skrzynki pocztowej i blokują one twoją stronę rezerwacji. Odśwież to połączenie, aby kalendarz główny pojawił się na liście, i tam zdecyduj, czy mają blokować."
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Show %{calendar} on your calendar"
+msgstr "Pokazuj kalendarz %{calendar} w swoim kalendarzu"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "This folder's events are shown only; busy times come from your whole mailbox."
+msgstr "Wydarzenia z tego folderu są tylko pokazywane; zajęte terminy pochodzą z całej skrzynki pocztowej."
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Use of %{calendar}"
+msgstr "Użycie kalendarza %{calendar}"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Whole mailbox"
+msgstr "Cała skrzynka pocztowa"

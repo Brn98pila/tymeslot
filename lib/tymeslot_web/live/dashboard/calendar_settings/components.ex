@@ -362,7 +362,11 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
           id={"calendar-#{@integration.id}-feed-busy"}
           size={:sm}
           value={to_string(@feed.blocks_availability)}
-          aria_label={dgettext("dashboard_calendar_settings", "Busy times")}
+          aria_label={
+            dgettext("dashboard_calendar_settings", "Busy times of %{calendar}",
+              calendar: @display_name
+            )
+          }
           on_change={
             JS.push("set_calendar_blocking",
               value: %{integration_id: @integration.id, calendar_id: @feed.id},

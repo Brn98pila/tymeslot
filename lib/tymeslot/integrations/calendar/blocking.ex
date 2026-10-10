@@ -189,13 +189,27 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   @doc """
   Whether `entry` of `integration` blocks the booking page, for a surface
   that says so. An Exchange mailbox blocks through its main calendar alone,
-  shown or not; any other calendar when it is used and set to block.
+  shown or not, and through the whole mailbox when it lists none (see
+  `AvailabilityView`); any other calendar when it is used and set to block.
   """
   @spec blocks?(%{provider: String.t() | atom()}, CalendarEntry.t()) :: boolean()
-  def blocks?(%{provider: provider}, %CalendarEntry{} = entry) do
-    if ProviderConfig.ews?(provider),
-      do: entry.primary and entry.blocks_availability,
-      else: Selection.blocking?(entry)
+  def blocks?(%{provider: provider} = integration, %CalendarEntry{} = entry) do
+    cond do
+      not ProviderConfig.ews?(provider) -> Selection.blocking?(entry)
+      mailbox_without_main?(integration) -> true
+      true -> entry.primary and entry.blocks_availability
+    end
+  end
+
+  @doc """
+  Whether `integration` is an Exchange mailbox that lists no main calendar:
+  its busy time is then read for the whole mailbox and blocks, with no
+  calendar to choose otherwise on.
+  """
+  @spec mailbox_without_main?(map()) :: boolean()
+  def mailbox_without_main?(%{provider: provider} = integration) do
+    ProviderConfig.ews?(provider) and
+      not Enum.any?(Map.get(integration, :calendar_list) || [], & &1.primary)
   end
 
   @doc """

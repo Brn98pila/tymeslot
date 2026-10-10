@@ -180,6 +180,108 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.CalendarBlockingTest do
     end
   end
 
+  describe "an Exchange mailbox that lists no main calendar" do
+    # Its busy time is read for the whole mailbox and blocks; the screen must
+    # say so rather than show every folder as not blocking.
+    setup %{user: user} do
+      integration =
+        insert(:calendar_integration,
+          user: user,
+          provider: "exchange",
+          calendar_list: [
+            %{id: "team", name: "Team", selected: true},
+            %{id: "rota", name: "Rota", selected: false}
+          ]
+        )
+
+      %{integration: integration}
+    end
+
+    test "is shown as blocking, as one mailbox", %{conn: conn, integration: integration} do
+      view = open_manage_modal(conn, integration)
+
+      assert has_element?(view, "#calendar-selection-mailbox", "Busy times block")
+      assert has_element?(view, "#calendar-selection-count", "1 blocking your availability")
+      assert has_element?(view, "#calendar-selection-calendar-0", "whole mailbox")
+      refute has_element?(view, "#calendar-selection-calendar-0", "main calendar only")
+    end
+
+    test "has no folder marked as not blocking on the grid", %{
+      user: user,
+      integration: integration
+    } do
+      {:ok, integration} = Calendar.get_integration(integration.id, user.id)
+
+      html =
+        render_component(&CalendarListPanel.calendar_list_panel/1,
+          integrations: [integration],
+          integration_colors: %{},
+          calendar_colour_keys: %{},
+          hidden_integration_ids: [],
+          hidden_calendar_keys: MapSet.new(),
+          myself: nil
+        )
+
+      refute html =~ "Doesn't block"
+    end
+  end
+
+  describe "each control's accessible name" do
+    test "names the calendar it sets", %{conn: conn, user: user} do
+      integration = google(user, [%{id: "work", name: "Work", primary: true, selected: true}])
+      view = open_manage_modal(conn, integration)
+
+      assert has_element?(view, "#calendar-selection-calendar-0-state[aria-label='Use of Work']")
+    end
+
+    test "names the calendar on an Exchange main calendar's two controls",
+         %{conn: conn, user: user} do
+      integration =
+        insert(:calendar_integration,
+          user: user,
+          provider: "exchange",
+          calendar_list: [%{id: "main", name: "Calendar", primary: true, selected: true}]
+        )
+
+      view = open_manage_modal(conn, integration)
+
+      assert has_element?(
+               view,
+               "#calendar-selection-calendar-0-shown[aria-label='Show Calendar on your calendar']"
+             )
+
+      assert has_element?(
+               view,
+               "#calendar-selection-calendar-0-busy[aria-label='Busy times of Calendar']"
+             )
+    end
+  end
+
+  describe "a booking calendar named in another encoding" do
+    test "is still locked to show and block", %{conn: conn, user: user} do
+      # A meeting type books into it under its decoded name.
+      integration =
+        google(
+          user,
+          [
+            %{id: "work", name: "Work", primary: true, selected: true},
+            %{id: "team%40example.org", name: "Team", selected: true}
+          ],
+          default_booking_calendar_id: "work"
+        )
+
+      insert(:meeting_type,
+        user: user,
+        calendar_integration_id: integration.id,
+        target_calendar_id: "team@example.org"
+      )
+
+      view = open_manage_modal(conn, integration)
+
+      assert has_element?(view, "#calendar-selection-calendar-1-state-show[disabled]")
+    end
+  end
+
   describe "a hand-crafted push the controls never send" do
     # A real control, its pushed values overridden as a hand-crafted client
     # would, so the push meets the same handler and context a click does.

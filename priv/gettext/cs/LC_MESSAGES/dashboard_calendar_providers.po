@@ -1283,11 +1283,6 @@ msgstr "Rezervační kalendář"
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
 #, elixir-autogen, elixir-format
-msgid "Busy times"
-msgstr "Obsazené časy"
-
-#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
-#, elixir-autogen, elixir-format
 msgid "Busy times only"
 msgstr "Jen obsazené časy"
 
@@ -1338,11 +1333,6 @@ msgstr "Zobrazit a blokovat"
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
 #, elixir-autogen, elixir-format
-msgid "Show on calendar"
-msgstr "Zobrazit v kalendáři"
-
-#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
-#, elixir-autogen, elixir-format
 msgid "Show only"
 msgstr "Jen zobrazit"
 
@@ -1350,11 +1340,6 @@ msgstr "Jen zobrazit"
 #, elixir-autogen, elixir-format
 msgid "This calendar stays read-only: bookings are never written to it. Choose another calendar as your booking destination."
 msgstr "Tento kalendář zůstává jen pro čtení: rezervace se do něj nikdy nezapisují. Jako cíl rezervací zvolte jiný kalendář."
-
-#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
-#, elixir-autogen, elixir-format
-msgid "Use of this calendar"
-msgstr "Použití tohoto kalendáře"
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
 #, elixir-autogen, elixir-format
@@ -1368,3 +1353,43 @@ msgid_plural "%{used} of %{count} calendars in use, %{blocking} blocking your av
 msgstr[0] "Používané kalendáře: %{used} z %{count}, z toho blokující vaši dostupnost: %{blocking}"
 msgstr[1] "Používané kalendáře: %{used} z %{count}, z toho blokující vaši dostupnost: %{blocking}"
 msgstr[2] "Používané kalendáře: %{used} z %{count}, z toho blokující vaši dostupnost: %{blocking}"
+
+#: lib/tymeslot/integrations/calendar/caldav/errors.ex
+#, elixir-autogen, elixir-format
+msgid "A calendar shared with you as busy times only could not be read. Its last known busy times still block your booking page."
+msgstr "Kalendář sdílený s vámi jen jako obsazené časy se nepodařilo načíst. Jeho poslední známé obsazené časy dál blokují vaši rezervační stránku."
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times block"
+msgstr "Blokuje obsazené časy"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Busy times of %{calendar}"
+msgstr "Obsazené časy kalendáře %{calendar}"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Exchange reports busy times for your whole mailbox, and they block your booking page. Refresh this connection to list your main calendar and choose there whether they do."
+msgstr "Exchange hlásí obsazené časy celé vaší poštovní schránky a ty blokují vaši rezervační stránku. Obnovte toto připojení, aby se v seznamu objevil váš hlavní kalendář, a tam zvolte, zda mají blokovat."
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Show %{calendar} on your calendar"
+msgstr "Zobrazit kalendář %{calendar} ve vašem kalendáři"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "This folder's events are shown only; busy times come from your whole mailbox."
+msgstr "Události této složky se jen zobrazují; obsazené časy pocházejí z celé vaší poštovní schránky."
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Use of %{calendar}"
+msgstr "Použití kalendáře %{calendar}"
+
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Whole mailbox"
+msgstr "Celá poštovní schránka"

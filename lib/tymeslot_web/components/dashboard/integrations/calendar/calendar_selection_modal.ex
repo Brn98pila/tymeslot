@@ -31,6 +31,7 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CalendarSelecti
   alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.DisplayHelpers
   alias Tymeslot.Integrations.Calendar.ProviderConfig
+  alias Tymeslot.Utils.UriUtils
   alias TymeslotWeb.Components.Dashboard.ColourSwatches
 
   attr :id, :string, required: true
@@ -48,14 +49,22 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CalendarSelecti
   def calendar_selection_modal(assigns) do
     calendar_list = (assigns.integration && assigns.integration.calendar_list) || []
     exchange? = assigns.integration && ProviderConfig.ews?(assigns.integration.provider)
+    whole_mailbox? = exchange? && Blocking.mailbox_without_main?(assigns.integration)
     rows = Enum.map(calendar_list, &{&1, kind(&1, exchange?, assigns.booking_calendar_ids)})
 
     assigns =
       assign(assigns,
         rows: Enum.with_index(rows),
+        whole_mailbox?: whole_mailbox?,
         total_count: length(calendar_list),
         used_count: Enum.count(calendar_list, & &1.selected),
-        blocking_count: Enum.count(calendar_list, &Blocking.blocks?(assigns.integration, &1))
+        # A mailbox listing no main calendar blocks as one, however many
+        # folders it lists.
+        blocking_count:
+          if(whole_mailbox?,
+            do: 1,
+            else: Enum.count(calendar_list, &Blocking.blocks?(assigns.integration, &1))
+          )
       )
 
     ~H"""
@@ -143,6 +152,27 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CalendarSelecti
             <div class="h-px flex-1 bg-tymeslot-100"></div>
           </div>
 
+          <div
+            :if={@whole_mailbox?}
+            id={"#{@id}-mailbox"}
+            class="mb-2.5 flex flex-col gap-2 rounded-token-xl border border-tymeslot-100 bg-white px-3.5 py-3"
+          >
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="text-token-sm font-bold text-tymeslot-800">
+                {dgettext("dashboard_calendar_providers", "Whole mailbox")}
+              </span>
+              <.calendar_badge>
+                {dgettext("dashboard_calendar_providers", "Busy times block")}
+              </.calendar_badge>
+            </div>
+            <p class="text-token-xs text-tymeslot-500">
+              {dgettext(
+                "dashboard_calendar_providers",
+                "Exchange reports busy times for your whole mailbox, and they block your booking page. Refresh this connection to list your main calendar and choose there whether they do."
+              )}
+            </p>
+          </div>
+
           <ul class="flex flex-col gap-2.5">
             <li
               :for={{{calendar, kind}, index} <- @rows}
@@ -180,11 +210,13 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CalendarSelecti
                   kind={kind}
                   integration_id={@integration.id}
                   target={@target}
-                  booking?={calendar.id in @booking_calendar_ids}
+                  booking?={booking_calendar?(calendar, @booking_calendar_ids)}
                 />
               </div>
 
-              <p :if={helper(kind)} class="text-token-xs text-tymeslot-500">{helper(kind)}</p>
+              <p :if={helper(kind, @whole_mailbox?)} class="text-token-xs text-tymeslot-500">
+                {helper(kind, @whole_mailbox?)}
+              </p>
             </li>
           </ul>
 
@@ -240,7 +272,11 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CalendarSelecti
         id={"#{@id}-shown"}
         size={:sm}
         value={to_string(@calendar.selected)}
-        aria_label={dgettext("dashboard_calendar_providers", "Show on calendar")}
+        aria_label={
+          dgettext("dashboard_calendar_providers", "Show %{calendar} on your calendar",
+            calendar: name(@calendar)
+          )
+        }
         on_change={push("set_calendar_shown", @integration_id, @calendar.id, @target)}
         param="shown"
       >
@@ -251,7 +287,11 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CalendarSelecti
         id={"#{@id}-busy"}
         size={:sm}
         value={to_string(@calendar.blocks_availability)}
-        aria_label={dgettext("dashboard_calendar_providers", "Busy times")}
+        aria_label={
+          dgettext("dashboard_calendar_providers", "Busy times of %{calendar}",
+            calendar: name(@calendar)
+          )
+        }
         on_change={push("set_calendar_blocking", @integration_id, @calendar.id, @target)}
         param="blocks"
       >
@@ -272,7 +312,9 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CalendarSelecti
       id={"#{@id}-state"}
       size={:sm}
       value={Blocking.state(@calendar)}
-      aria_label={dgettext("dashboard_calendar_providers", "Use of this calendar")}
+      aria_label={
+        dgettext("dashboard_calendar_providers", "Use of %{calendar}", calendar: name(@calendar))
+      }
       on_change={push("set_calendar_state", @integration_id, @calendar.id, @target)}
       param="state"
     >
@@ -307,43 +349,57 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CalendarSelecti
         target: target
       )
 
+  defp name(calendar), do: DisplayHelpers.extract_calendar_display_name(calendar)
+
+  # The same id matcher the context refuses by, so the options disabled here
+  # are exactly the ones it would refuse.
+  defp booking_calendar?(calendar, booking_calendar_ids),
+    do: Enum.any?(booking_calendar_ids, &UriUtils.uri_safe_match?(&1, calendar.id))
+
   defp kind(calendar, exchange?, booking_calendar_ids) do
     cond do
       exchange? and calendar.primary -> :exchange_main
       exchange? -> :exchange_folder
-      calendar.id in booking_calendar_ids -> :booking
+      booking_calendar?(calendar, booking_calendar_ids) -> :booking
       calendar.free_busy_only -> :free_busy_only
       true -> :other
     end
   end
 
-  defp helper(:booking),
+  defp helper(:booking, _whole_mailbox?),
     do:
       dgettext(
         "dashboard_calendar_providers",
         "Your booking calendar always blocks your availability."
       )
 
-  defp helper(:free_busy_only),
+  defp helper(:free_busy_only, _whole_mailbox?),
     do:
       dgettext(
         "dashboard_calendar_providers",
         "Shared with you as busy times only. Tymeslot can block these times but cannot show the events."
       )
 
-  defp helper(:exchange_main),
+  defp helper(:exchange_main, _whole_mailbox?),
     do:
       dgettext(
         "dashboard_calendar_providers",
         "Exchange reports busy times for your whole mailbox from your main calendar, so this choice works whether or not the calendar is shown."
       )
 
-  defp helper(:exchange_folder),
+  defp helper(:exchange_folder, true),
+    do:
+      dgettext(
+        "dashboard_calendar_providers",
+        "This folder's events are shown only; busy times come from your whole mailbox."
+      )
+
+  defp helper(:exchange_folder, false),
     do:
       dgettext(
         "dashboard_calendar_providers",
         "Exchange reports busy times for your main calendar only."
       )
 
-  defp helper(:other), do: nil
+  defp helper(:other, _whole_mailbox?), do: nil
 end
