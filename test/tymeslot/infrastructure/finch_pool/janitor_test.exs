@@ -6,8 +6,9 @@ defmodule Tymeslot.Infrastructure.FinchPool.JanitorTest do
   without the pinned hostname, and every HTTPS request to that destination
   then fails certificate verification.
 
-  Each test runs its own janitor (manual sweeps, no idle grace) on the shared
-  Finch instance, over destinations no other test uses.
+  Each test runs its own janitor (manual sweeps, no idle grace, adopting
+  nothing) on the shared Finch instance, over destinations no other test
+  uses.
   """
 
   use ExUnit.Case, async: false
@@ -23,7 +24,7 @@ defmodule Tymeslot.Infrastructure.FinchPool.JanitorTest do
 
   setup do
     name = {:global, {__MODULE__, System.unique_integer([:positive])}}
-    start_supervised!({Janitor, name: name, idle_after: 0, sweep_every: :manual})
+    start_supervised!({Janitor, name: name, idle_after: 0, sweep_every: :manual, adopt: false})
     %{janitor: name}
   end
 
@@ -69,6 +70,23 @@ defmodule Tymeslot.Infrastructure.FinchPool.JanitorTest do
 
   defp deadline, do: System.monotonic_time(:millisecond) + 2_000
 
+  defp start_unleased!(url, tag, options) do
+    :ok = Finch.start_pool(@finch, Pool.new(url, tag: tag), options)
+  end
+
+  # Finch's registries forget a stopped pool in their own time.
+  defp await_lease(url, options, tag, janitor, deadline \\ deadline()) do
+    case Janitor.lease(url, options, tag, janitor) do
+      {:ok, lease} ->
+        lease
+
+      :error ->
+        if System.monotonic_time(:millisecond) > deadline,
+          do: flunk("the draining pool was never leased again"),
+          else: await_lease(url, options, tag, janitor, deadline)
+    end
+  end
+
   test "stops a pool once its last lease has ended and it has sat idle", %{janitor: janitor} do
     {url, tag, options} = destination()
 
@@ -107,7 +125,8 @@ defmodule Tymeslot.Infrastructure.FinchPool.JanitorTest do
   test "keeps a pool idle for less than the threshold" do
     name = {:global, {__MODULE__, :patient, System.unique_integer([:positive])}}
 
-    start_supervised!({Janitor, name: name, idle_after: :timer.hours(1), sweep_every: :manual},
+    start_supervised!(
+      {Janitor, name: name, idle_after: :timer.hours(1), sweep_every: :manual, adopt: false},
       id: name
     )
 
@@ -156,6 +175,66 @@ defmodule Tymeslot.Infrastructure.FinchPool.JanitorTest do
     assert Janitor.sweep(janitor) == 0
     release!(held, janitor)
     assert Janitor.sweep(janitor) == 1
+  end
+
+  test "a URL Finch cannot pool refuses the lease and keeps the janitor", %{janitor: janitor} do
+    {url, tag, options} = destination()
+    held = lease!(url, options, tag, janitor)
+    pid = GenServer.whereis(janitor)
+
+    assert Janitor.lease("ftp://192.0.2.1/hook", options, "bad-scheme", janitor) == :error
+    assert Janitor.lease("192.0.2.1/hook", options, "no-scheme", janitor) == :error
+
+    assert GenServer.whereis(janitor) == pid
+    assert Janitor.sweep(janitor) == 0
+    release!(held, janitor)
+  end
+
+  # The caller gave up, so nothing will release the lease it was granted
+  # late but the caller itself.
+  test "a lease that timed out is ended once the janitor catches up", %{janitor: janitor} do
+    {url, tag, options} = destination()
+    :ok = :sys.suspend(janitor)
+
+    assert Janitor.lease(url, options, tag, janitor, 50) == :error
+
+    :ok = :sys.resume(janitor)
+    assert %{leases: leases} = :sys.get_state(janitor)
+    assert leases == %{}
+    assert Janitor.sweep(janitor) == 1
+    refute pool_alive?(url, tag)
+  end
+
+  # A pool Finch has not finished forgetting would hand a lease dead pids.
+  test "a draining pool is refused until Finch has forgotten it", %{janitor: janitor} do
+    {url, tag, options} = destination()
+    pool = Pool.new(url, tag: tag)
+    :sys.replace_state(janitor, &%{&1 | draining: MapSet.put(&1.draining, pool)})
+
+    # Still registered: the lease is refused, and no pool is started.
+    start_unleased!(url, tag, options)
+    assert Janitor.lease(url, options, tag, janitor) == :error
+
+    # Gone: the next lease starts it afresh.
+    :ok = Finch.stop_pool(@finch, pool)
+    assert lease = await_lease(url, options, tag, janitor)
+    assert pool_alive?(url, tag)
+    assert %{draining: draining} = :sys.get_state(janitor)
+    refute MapSet.member?(draining, pool)
+    release!(lease, janitor)
+  end
+
+  test "a restarted janitor adopts the pools its predecessor left", %{janitor: janitor} do
+    {url, tag, options} = destination()
+    release!(lease!(url, options, tag, janitor), janitor)
+    :ok = stop_supervised(Janitor)
+    assert pool_alive?(url, tag)
+
+    name = {:global, {__MODULE__, :adopter, System.unique_integer([:positive])}}
+    start_supervised!({Janitor, name: name, idle_after: 0, sweep_every: :manual}, id: name)
+
+    assert Janitor.sweep(name) >= 1
+    refute pool_alive?(url, tag)
   end
 
   test "a janitor that is not running refuses leases without failing the caller" do

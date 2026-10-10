@@ -22,6 +22,12 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
       waits for Finch to forget each before handling anything else;
     * a lease ends with `release/2`, or when its holder exits (monitored), so
       a crashed request cannot keep its pool forever.
+
+  A pool Finch has not finished forgetting within `@unregister_timeout` is
+  *draining*: a lease on it is refused, so its request goes without a pool,
+  until a later lease or sweep finds it gone. A restarted janitor adopts the
+  tagged pools its predecessor left on the instance, so they are stopped once
+  idle rather than kept until something leases them again.
   """
 
   use GenServer
@@ -45,17 +51,23 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
           }
     @type t :: %__MODULE__{
             pools: %{Finch.Pool.t() => pool_entry()},
-            leases: %{reference() => Finch.Pool.t()},
+            leases: %{reference() => {Finch.Pool.t(), reference()}},
+            draining: MapSet.t(Finch.Pool.t()),
             idle_after: non_neg_integer(),
             sweep_every: pos_integer() | :manual
           }
-    defstruct pools: %{}, leases: %{}, idle_after: 0, sweep_every: :manual
+    defstruct pools: %{},
+              leases: %{},
+              draining: MapSet.new(),
+              idle_after: 0,
+              sweep_every: :manual
   end
 
   @doc """
   Options: `:idle_after` (ms a pool may sit unused before it is stopped,
-  default five minutes) and `:sweep_every` (ms between sweeps, default one
-  minute, or `:manual` to sweep only through `sweep/1`).
+  default five minutes), `:sweep_every` (ms between sweeps, default one
+  minute, or `:manual` to sweep only through `sweep/1`) and `:adopt` (whether
+  to take over the tagged pools already on the instance, default true).
   """
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
@@ -70,18 +82,36 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
   Ensures a pool tagged `tag` for `url` exists with `pool_options`, and
   leases it to the calling process until `release/2` or the caller's exit.
 
-  `:error` when the pool cannot be started or the janitor does not answer
-  (down, restarting, or busy past the timeout); the caller should then go
-  without a pool rather than fail the request.
+  `:error` when the pool cannot be started, is still draining, or the
+  janitor does not answer (down, restarting, or busy past `timeout`); the
+  caller should then go without a pool rather than fail the request.
   """
-  @spec lease(String.t(), keyword(), String.t(), GenServer.server()) ::
+  @spec lease(String.t(), keyword(), String.t(), GenServer.server(), timeout()) ::
           {:ok, reference()} | :error
-  def lease(url, pool_options, tag, server \\ __MODULE__) do
-    GenServer.call(server, {:lease, url, pool_options, tag}, @lease_timeout)
+  def lease(url, pool_options, tag, server \\ __MODULE__, timeout \\ @lease_timeout) do
+    # The caller names the lease, so that it can end one it never heard
+    # granted: a call that timed out is still queued, and the janitor would
+    # otherwise hold that lease, and its pool, for the caller's lifetime.
+    lease = make_ref()
+
+    case call_lease(server, {:lease, lease, url, pool_options, tag}, timeout) do
+      :ok ->
+        {:ok, lease}
+
+      :error ->
+        :error
+
+      {:exit, reason} ->
+        release(lease, server)
+        Logger.warning("Finch pool lease unavailable", reason: LogFormat.reason(reason))
+        :error
+    end
+  end
+
+  defp call_lease(server, request, timeout) do
+    GenServer.call(server, request, timeout)
   catch
-    :exit, reason ->
-      Logger.warning("Finch pool lease unavailable", reason: LogFormat.reason(reason))
-      :error
+    :exit, reason -> {:exit, reason}
   end
 
   @doc """
@@ -100,6 +130,7 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
   @impl GenServer
   def init(opts) do
     state = %State{
+      pools: if(Keyword.get(opts, :adopt, true), do: adopt_pools(), else: %{}),
       idle_after: Keyword.get(opts, :idle_after, @default_idle_after),
       sweep_every: Keyword.get(opts, :sweep_every, @default_sweep_every)
     }
@@ -109,29 +140,14 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
   end
 
   @impl GenServer
-  def handle_call({:lease, url, pool_options, tag}, {holder, _tag}, state) do
-    # Finch keys a pool by scheme, host, port and tag, and a pinned URL names
-    # the resolved address, so one tag can cover several pools (a hostname
-    # whose DNS rotates). Each is tracked, and stopped, on its own.
-    pool = Pool.new(url, tag: tag)
-
-    case start_pool(pool, pool_options) do
-      :ok ->
-        # The monitor's reference doubles as the lease: a holder that exits
-        # releases it through its :DOWN message.
-        lease = Process.monitor(holder)
-
-        entry =
-          state.pools
-          |> Map.get(pool, %{leases: MapSet.new(), last_used: now()})
-          |> Map.update!(:leases, &MapSet.put(&1, lease))
-
-        {:reply, {:ok, lease},
-         %{
-           state
-           | pools: Map.put(state.pools, pool, entry),
-             leases: Map.put(state.leases, lease, pool)
-         }}
+  def handle_call({:lease, lease, url, pool_options, tag}, {holder, _tag}, state) do
+    with {:ok, pool} <- pool_for(url, tag),
+         {:ok, state} <- drained(state, pool),
+         :ok <- start_pool(pool, pool_options) do
+      {:reply, :ok, grant(state, pool, lease, holder)}
+    else
+      :draining ->
+        {:reply, :error, state}
 
       {:error, reason} ->
         Logger.warning("Finch pool could not be started", reason: LogFormat.reason(reason))
@@ -146,18 +162,58 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
 
   @impl GenServer
   def handle_cast({:release, lease}, state) do
-    Process.demonitor(lease, [:flush])
+    case Map.get(state.leases, lease) do
+      {_pool, monitor} -> Process.demonitor(monitor, [:flush])
+      nil -> :ok
+    end
+
     {:noreply, end_lease(state, lease)}
   end
 
   @impl GenServer
-  def handle_info({:DOWN, lease, :process, _holder, _reason}, state),
+  def handle_info({{:holder_down, lease}, _monitor, :process, _holder, _reason}, state),
     do: {:noreply, end_lease(state, lease)}
 
   def handle_info(:sweep, state) do
     {_stopped, state} = stop_idle(state)
     schedule_sweep(state)
     {:noreply, state}
+  end
+
+  # Finch keys a pool by scheme, host, port and tag, and a pinned URL names
+  # the resolved address, so one tag can cover several pools (a hostname
+  # whose DNS rotates). Each is tracked, and stopped, on its own. A URL Finch
+  # cannot pool (no scheme, or one other than http and https) raises.
+  defp pool_for(url, tag) do
+    {:ok, Pool.new(url, tag: tag)}
+  rescue
+    exception -> {:error, exception}
+  end
+
+  # A draining pool can be leased again once Finch has forgotten it.
+  defp drained(state, pool) do
+    cond do
+      not MapSet.member?(state.draining, pool) -> {:ok, state}
+      unregistered?(pool) -> {:ok, %{state | draining: MapSet.delete(state.draining, pool)}}
+      true -> :draining
+    end
+  end
+
+  # The holder's monitor carries the lease, so a holder that exits releases
+  # it through its :DOWN message.
+  defp grant(state, pool, lease, holder) do
+    monitor = :erlang.monitor(:process, holder, tag: {:holder_down, lease})
+
+    entry =
+      state.pools
+      |> Map.get(pool, %{leases: MapSet.new(), last_used: now()})
+      |> Map.update!(:leases, &MapSet.put(&1, lease))
+
+    %{
+      state
+      | pools: Map.put(state.pools, pool, entry),
+        leases: Map.put(state.leases, lease, {pool, monitor})
+    }
   end
 
   # Finch raises on invalid options and on an instance that is not running,
@@ -177,7 +233,7 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
       {nil, _leases} ->
         state
 
-      {pool, leases} ->
+      {{pool, _monitor}, leases} ->
         pools =
           Map.update!(state.pools, pool, fn entry ->
             %{entry | leases: MapSet.delete(entry.leases, lease), last_used: now()}
@@ -195,11 +251,20 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
         MapSet.size(entry.leases) == 0 and entry.last_used <= cutoff
       end)
 
-    Enum.each(idle, fn {pool, _entry} -> stop_pool(pool) end)
-    {length(idle), %{state | pools: Map.new(in_use)}}
+    stuck = for {pool, _entry} <- idle, stop_pool(pool) == :draining, do: pool
+
+    draining =
+      state.draining
+      |> Enum.reject(&unregistered?/1)
+      |> MapSet.new()
+      |> MapSet.union(MapSet.new(stuck))
+
+    {length(idle), %{state | pools: Map.new(in_use), draining: draining}}
   end
 
   # A pool already gone (its supervisor restarted, say) needs no stopping.
+  # One whose stop exits, or that Finch has not forgotten in time, is left
+  # draining.
   defp stop_pool(pool) do
     case Finch.stop_pool(@finch, pool) do
       :ok -> :ok
@@ -208,7 +273,7 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
 
     await_unregistered(pool, System.monotonic_time(:millisecond) + @unregister_timeout)
   catch
-    :exit, _reason -> :ok
+    :exit, _reason -> :draining
   end
 
   # Finch's registries drop a stopped pool's entries only once they process
@@ -221,7 +286,10 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
         :ok
 
       System.monotonic_time(:millisecond) >= deadline ->
-        Logger.warning("Stopped Finch pool still registered", tag: pool.tag)
+        # The tag is a digest of the pool's options, proxy credentials
+        # included, so it is not logged.
+        Logger.warning("Stopped Finch pool still registered", host: pool.host)
+        :draining
 
       true ->
         Process.sleep(1)
@@ -235,6 +303,23 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
   catch
     # The pool supervisor's entry outlived its process.
     :exit, _reason -> false
+  end
+
+  # Only pinned pools carry a binary tag; the instance's default pool is
+  # tagged `:default`. Adopted as just used, so a request a previous janitor
+  # leased one to keeps it for at least `:idle_after`.
+  defp adopt_pools do
+    @finch
+    |> Registry.select([{{:"$1", :_, :_}, [], [:"$1"]}])
+    |> Enum.uniq()
+    |> Enum.filter(&match?({_scheme, _host, _port, tag} when is_binary(tag), &1))
+    |> Map.new(fn {scheme, host, port, tag} ->
+      {%Pool{scheme: scheme, host: host, port: port, tag: tag},
+       %{leases: MapSet.new(), last_used: now()}}
+    end)
+  rescue
+    # No Finch instance running: nothing to adopt.
+    ArgumentError -> %{}
   end
 
   defp schedule_sweep(%State{sweep_every: :manual}), do: :ok
