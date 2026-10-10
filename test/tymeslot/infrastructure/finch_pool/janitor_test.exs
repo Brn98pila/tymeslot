@@ -224,6 +224,20 @@ defmodule Tymeslot.Infrastructure.FinchPool.JanitorTest do
     release!(lease, janitor)
   end
 
+  # Its last stop may have exited before it took.
+  test "a draining pool is stopped again on the next sweep", %{janitor: janitor} do
+    {url, tag, options} = destination()
+    pool = Pool.new(url, tag: tag)
+    start_unleased!(url, tag, options)
+    :sys.replace_state(janitor, &%{&1 | draining: MapSet.put(&1.draining, pool)})
+
+    Janitor.sweep(janitor)
+
+    refute pool_alive?(url, tag)
+    assert %{draining: draining} = :sys.get_state(janitor)
+    refute MapSet.member?(draining, pool)
+  end
+
   test "a restarted janitor adopts the pools its predecessor left", %{janitor: janitor} do
     {url, tag, options} = destination()
     release!(lease!(url, options, tag, janitor), janitor)

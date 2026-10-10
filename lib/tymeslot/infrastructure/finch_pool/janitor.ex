@@ -266,13 +266,13 @@ defmodule Tymeslot.Infrastructure.FinchPool.Janitor do
         MapSet.size(entry.leases) == 0 and entry.last_used <= cutoff and not kept?(entry)
       end)
 
-    stuck = for {pool, _entry} <- idle, stop_pool(pool) == :draining, do: pool
-
+    # A draining pool is stopped again: its last stop may have exited before
+    # it took. No lease can hold one, so stopping it is always safe.
     draining =
-      state.draining
-      |> Enum.reject(&unregistered?/1)
-      |> MapSet.new()
-      |> MapSet.union(MapSet.new(stuck))
+      for pool <- Enum.concat(Enum.map(idle, &elem(&1, 0)), state.draining),
+          stop_pool(pool) == :draining,
+          into: MapSet.new(),
+          do: pool
 
     {length(idle), %{state | pools: Map.new(in_use), draining: draining}}
   end
