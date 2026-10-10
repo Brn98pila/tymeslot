@@ -33,8 +33,12 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementCrossTenantTest do
   setup :verify_on_exit!
 
   setup %{conn: conn} do
-    stub(Tymeslot.EmailServiceMock, :send_cancellation_emails, fn _client ->
-      {{:ok, nil}, {:ok, nil}}
+    stub(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, fn _email, _details ->
+      {:ok, nil}
+    end)
+
+    stub(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, fn _email, _details ->
+      {:ok, nil}
     end)
 
     stub(Tymeslot.EmailServiceMock, :send_reschedule_request, fn _client -> {:ok, nil} end)

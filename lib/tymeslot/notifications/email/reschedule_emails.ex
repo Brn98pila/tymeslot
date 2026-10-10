@@ -13,13 +13,12 @@ defmodule Tymeslot.Notifications.Email.RescheduleEmails do
       moved from is gone by then, so these notices carry the new time alone,
       and only the guests who had been invited are written to.
 
-  Sends are claimed on the job (`DeliveryClaims`), as for a cancellation: one
-  claim for the organiser and attendee pair, which the email service sends
-  in one call, and one per guest, so a rescued run repeats nothing already
-  sent. When both participant emails fail the job retries, and an open mail
-  circuit snoozes it, as for every other booking email; a partial send is
-  discarded rather than duplicated. A failed guest send retries the job too,
-  which then writes only to the guests not yet reached.
+  Each copy is claimed on the job (`DeliveryClaims`), as for a cancellation:
+  the organiser's and the attendee's (`ParticipantLegs`) and each guest's,
+  so a rescued run repeats nothing already sent. Every copy is attempted on
+  each run; a failed one retries the job, which then writes only to whoever
+  was missed, and an open mail circuit snoozes it, as for every other
+  booking email.
   """
 
   require Logger

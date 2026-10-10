@@ -42,8 +42,6 @@ defmodule Tymeslot.Emails.EmailServiceBehaviour do
               {:ok, any()} | {:error, any()}
   @callback send_reschedule_email_to_attendee(String.t(), appointment_details()) ::
               {:ok, any()} | {:error, any()}
-  @callback send_reschedule_emails(appointment_details()) ::
-              {{:ok, any()} | {:error, any()}, {:ok, any()} | {:error, any()}}
   @callback send_end_change_to_attendee(String.t(), appointment_details()) ::
               {:ok, any()} | {:error, any()}
   @callback send_guest_end_change(String.t(), appointment_details()) ::
@@ -57,8 +55,6 @@ defmodule Tymeslot.Emails.EmailServiceBehaviour do
   @callback send_appointment_reminder_to_attendee(String.t(), appointment_details()) ::
               {:ok, any()} | {:error, any()}
   @callback send_appointment_reminders(appointment_details(), String.t()) ::
-              {{:ok, any()} | {:error, any()}, {:ok, any()} | {:error, any()}}
-  @callback send_cancellation_emails(appointment_details()) ::
               {{:ok, any()} | {:error, any()}, {:ok, any()} | {:error, any()}}
   @callback send_cancellation_email_to_attendee(String.t(), appointment_details()) ::
               {:ok, any()} | {:error, any()}

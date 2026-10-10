@@ -72,14 +72,15 @@ defmodule Tymeslot.Emails.EmailServiceTest do
     end
   end
 
-  describe "send_cancellation_emails/1" do
+  describe "send_cancellation_email_to_organizer/2 and send_cancellation_email_to_attendee/2" do
     test "tells each party the meeting is cancelled, naming the other one" do
       details = build_appointment_details()
 
-      {org_result, att_result} = EmailService.send_cancellation_emails(details)
+      assert {:ok, _response} =
+               EmailService.send_cancellation_email_to_organizer(details.organizer_email, details)
 
-      assert {:ok, _response} = org_result
-      assert {:ok, _response} = att_result
+      assert {:ok, _response} =
+               EmailService.send_cancellation_email_to_attendee(details.attendee_email, details)
 
       organizer = next_email()
       assert organizer.to == [{"John Organizer", "organizer@example.com"}]

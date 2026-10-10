@@ -19,9 +19,8 @@ defmodule Tymeslot.Notifications.Email.DeliveryOutcome do
   `Tymeslot.Workers.EmailWorker`, so handlers that already return their raw
   delivery reason get the same treatment without passing through here.
 
-  `from_dual_send/4` applies the same rule to the organiser/attendee pair the
-  meeting handlers send, which additionally has a partial-success outcome the
-  single-recipient case cannot produce.
+  `from_results/3` and `combine/3` apply the same rule to a job that sends to
+  several recipients, each claimed or stamped as it goes out.
   """
 
   require Logger
@@ -35,43 +34,6 @@ defmodule Tymeslot.Notifications.Email.DeliveryOutcome do
     do: {:error, rejection}
 
   def from_error(_reason, message), do: {:error, message}
-
-  @doc """
-  The job outcome for a paired organiser/attendee send.
-
-  `:ok` once both succeeded, `{:discard, _}` on a partial send so a retry
-  cannot duplicate the email that already went out, and `{:error, _}` when
-  neither did — preserving an actionable reason where one is present, exactly
-  as `from_error/2` does for a single recipient. `label` names the email in
-  the log line and the outcome message (e.g. "seat confirmation"); `metadata`
-  is the keyword list of identifiers to log alongside it.
-  """
-  @spec from_dual_send(String.t(), keyword(), term(), term()) ::
-          :ok | {:error, term()} | {:discard, String.t()}
-  def from_dual_send(label, metadata, organizer_result, attendee_result)
-
-  def from_dual_send(_label, _metadata, {:ok, _organizer}, {:ok, _attendee}), do: :ok
-
-  def from_dual_send(label, metadata, organizer_result, attendee_result) do
-    Logger.warning(
-      "Some emails may have failed",
-      metadata ++
-        [
-          label: label,
-          organizer_result: LogFormat.reason(organizer_result),
-          attendee_result: LogFormat.reason(attendee_result)
-        ]
-    )
-
-    if delivered?(organizer_result) or delivered?(attendee_result) do
-      {:discard, "Partial #{label} failure: retry would duplicate"}
-    else
-      from_error(
-        first_actionable([organizer_result, attendee_result]),
-        "Failed to send #{label} emails"
-      )
-    end
-  end
 
   @doc """
   The job outcome for a send to several recipients whose deliveries are each
@@ -123,13 +85,6 @@ defmodule Tymeslot.Notifications.Email.DeliveryOutcome do
   defp succeeded?(:ok), do: true
   defp succeeded?({:ok, _result}), do: true
   defp succeeded?(_result), do: false
-
-  # `{:ok, :skipped}` means a recipient was deliberately not sent to (e.g. the
-  # half of a confirmation or reminder pair an earlier attempt already
-  # stamped as sent), not that this attempt sent something. Counting it as delivered here would make a
-  # genuine single-recipient failure look like a partial success, discarding
-  # a job a retry could still fix instead of retrying it.
-  defp delivered?(result), do: match?({:ok, outcome} when outcome != :skipped, result)
 
   @doc """
   The list form of the same contract, for a handler that sends to more than

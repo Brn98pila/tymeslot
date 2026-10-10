@@ -1,7 +1,7 @@
 defmodule Tymeslot.Notifications.Email.MeetingEmails do
   @moduledoc """
-  Handles meeting-related email actions: confirmations, cancellations, reminders, and
-  reschedule requests.
+  Handles meeting-related email actions: confirmations, cancellations and
+  reminders. Reschedule requests are `RescheduleRequestEmails`'.
   """
 
   require Logger
@@ -24,8 +24,8 @@ defmodule Tymeslot.Notifications.Email.MeetingEmails do
   alias Tymeslot.Utils.ReminderUtils
   alias Tymeslot.Workers.DeliveryClaims
 
-  # The meeting is gone, started, or changed state since the email was
-  # scheduled. A partial cancellation delivery is recorded.
+  # The meeting is gone, started, cancelled or moved since the email was
+  # scheduled.
   @meeting_started "Meeting already started"
   @meeting_cancelled "Meeting cancelled"
   @meeting_not_cancelled "Meeting not cancelled"

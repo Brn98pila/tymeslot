@@ -284,38 +284,6 @@ defmodule Tymeslot.Emails.EmailService.AppointmentEmails do
   end
 
   @doc """
-  Sends reschedule notices to both organizer and attendee.
-
-  The payload must be built by
-  `Tymeslot.Emails.AppointmentBuilder.for_reschedule/2`, which
-  carries the previous slot alongside the new one.
-  """
-  @spec send_reschedule_emails(Tymeslot.Emails.EmailService.appointment_details()) ::
-          {{:ok, any()} | {:error, any()}, {:ok, any()} | {:error, any()}}
-  def send_reschedule_emails(appointment_details) do
-    Logger.info("Sending reschedule notices")
-
-    organizer_result =
-      send_reschedule_email_to_organizer(
-        appointment_details.organizer_email,
-        appointment_details
-      )
-
-    attendee_result =
-      send_reschedule_email_to_attendee(
-        appointment_details.attendee_email,
-        appointment_details
-      )
-
-    Logger.info("Reschedule notices sent",
-      organizer_sent: match?({:ok, _}, organizer_result),
-      attendee_sent: match?({:ok, _}, attendee_result)
-    )
-
-    {organizer_result, attendee_result}
-  end
-
-  @doc """
   Sends an appointment reminder email to the organizer.
   """
   @spec send_appointment_reminder_to_organizer(
@@ -429,33 +397,5 @@ defmodule Tymeslot.Emails.EmailService.AppointmentEmails do
     )
 
     result
-  end
-
-  @doc """
-  Sends cancellation emails to both organizer and attendee.
-  """
-  @spec send_cancellation_emails(Tymeslot.Emails.EmailService.appointment_details()) ::
-          {{:ok, any()} | {:error, any()}, {:ok, any()} | {:error, any()}}
-  def send_cancellation_emails(appointment_details) do
-    Logger.info("Sending appointment cancellations")
-
-    organizer_result =
-      send_cancellation_email_to_organizer(
-        appointment_details.organizer_email,
-        appointment_details
-      )
-
-    attendee_result =
-      send_cancellation_email_to_attendee(
-        appointment_details.attendee_email,
-        appointment_details
-      )
-
-    Logger.info("Appointment cancellations sent",
-      organizer_sent: match?({:ok, _}, organizer_result),
-      attendee_sent: match?({:ok, _}, attendee_result)
-    )
-
-    {organizer_result, attendee_result}
   end
 end
