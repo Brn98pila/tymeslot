@@ -7,7 +7,10 @@ defmodule Tymeslot.Integrations.Calendar.Shared.MultiCalendarFetch do
 
   Calendars that return `:not_found` (deleted on the provider side) are
   de-selected as a best-effort side effect so they are not fetched — and
-  404 — again on every subsequent availability check.
+  404 — again on every subsequent availability check. The default booking
+  calendar is the exception: deselecting it would leave the integration
+  booking into a calendar that is gone, so its 404 is reported as a
+  `:booking_calendar_missing` failure instead, as the sync paths report it.
   """
 
   require Logger
@@ -19,6 +22,7 @@ defmodule Tymeslot.Integrations.Calendar.Shared.MultiCalendarFetch do
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Calendar.Shared.FetchAggregate
   alias Tymeslot.Integrations.Calendar.Shared.FetchAggregate.Outcome
+  alias Tymeslot.Utils.UriUtils
 
   @max_concurrency 20
 
@@ -59,6 +63,7 @@ defmodule Tymeslot.Integrations.Calendar.Shared.MultiCalendarFetch do
             on_timeout: :kill_task
           )
           |> Enum.zip(selected)
+          |> Enum.map(&booking_calendar_missing(&1, integration))
 
         deselect_missing_calendars(integration, results)
         collect_events(results)
@@ -131,6 +136,19 @@ defmodule Tymeslot.Integrations.Calendar.Shared.MultiCalendarFetch do
 
   defp to_result(%Outcome{failed: []} = outcome), do: {:ok, outcome.events}
   defp to_result(%Outcome{} = outcome), do: {:error, outcome}
+
+  # Never deselected: the booking page would go on offering times whose
+  # bookings then fail to write. As a failure, it fails the read closed.
+  defp booking_calendar_missing(
+         {{:ok, {:error, :not_found, _message}}, calendar} = result,
+         integration
+       ) do
+    if UriUtils.uri_safe_match?(calendar.id, Map.get(integration, :default_booking_calendar_id)),
+      do: {{:ok, {:error, :booking_calendar_missing}}, calendar},
+      else: result
+  end
+
+  defp booking_calendar_missing(result, _integration), do: result
 
   defp deselect_missing_calendars(integration, results) do
     missing_ids =
