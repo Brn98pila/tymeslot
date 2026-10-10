@@ -81,12 +81,17 @@ defmodule Tymeslot.Emails.Delivery do
   so the caller retries it, which only a caller that records the retry can
   bound; `:assume_delivered` reports it as `{:ok, :assumed_delivered}`, the
   default outside this function.
+
+  `on_ambiguous:` is called once, at the first ambiguous timeout under
+  `:retry_once`, before that delivery returns: the caller records the retry
+  there, so the record stands even if something later in `fun` crashes.
   """
-  @spec with_ambiguous_timeouts(:retry_once | :assume_delivered, (-> result)) ::
+  @spec with_ambiguous_timeouts(:retry_once | :assume_delivered, (-> result), keyword()) ::
           {result, boolean()}
         when result: term()
-  def with_ambiguous_timeouts(policy, fun) when policy in [:retry_once, :assume_delivered] do
-    Process.put(@ambiguous_policy, policy)
+  def with_ambiguous_timeouts(policy, fun, opts \\ [])
+      when policy in [:retry_once, :assume_delivered] do
+    Process.put(@ambiguous_policy, {policy, Keyword.get(opts, :on_ambiguous)})
     Process.delete(@ambiguous_seen)
 
     try do
@@ -185,8 +190,8 @@ defmodule Tymeslot.Emails.Delivery do
   # once) asks for one retry through `with_ambiguous_timeouts/2`; everyone
   # else assumes delivery, as before.
   defp handle_delivery_error(:timeout, email, reason) do
-    if Process.get(@ambiguous_policy) == :retry_once do
-      Process.put(@ambiguous_seen, true)
+    with {:retry_once, on_ambiguous} <- Process.get(@ambiguous_policy) do
+      note_ambiguous(on_ambiguous)
 
       Logger.warning("Email delivery timed out and may have been sent; retrying it once",
         recipient_domains: recipient_domains(email),
@@ -195,12 +200,13 @@ defmodule Tymeslot.Emails.Delivery do
 
       {:error, {:ambiguous, reason}}
     else
-      Logger.warning("Email delivery timed out; assuming delivered to avoid duplicate sends",
-        recipient_domains: recipient_domains(email),
-        reason: LogFormat.reason(reason)
-      )
+      _assume_delivered ->
+        Logger.warning("Email delivery timed out; assuming delivered to avoid duplicate sends",
+          recipient_domains: recipient_domains(email),
+          reason: LogFormat.reason(reason)
+        )
 
-      {:ok, :assumed_delivered}
+        {:ok, :assumed_delivered}
     end
   end
 
@@ -211,6 +217,13 @@ defmodule Tymeslot.Emails.Delivery do
     )
 
     {:error, reason}
+  end
+
+  defp note_ambiguous(on_ambiguous) do
+    unless Process.get(@ambiguous_seen, false) do
+      Process.put(@ambiguous_seen, true)
+      if is_function(on_ambiguous, 0), do: on_ambiguous.()
+    end
   end
 
   defp classify(reason) do
@@ -252,9 +265,11 @@ defmodule Tymeslot.Emails.Delivery do
 
     * our own send deadline (`{:send_deadline_exceeded, _}`) and a bare
       `:timeout`: the adapter was mid-send, ambiguous;
-    * gen_smtp timing out, or the connection closing, after the session
-      opened (`{:send, {:network_failure, _host, {:error, :timeout | :closed}}}`):
-      the message may already have been sent, ambiguous;
+    * gen_smtp timing out after the session opened
+      (`{:send, {:network_failure, _host, {:error, :timeout}}}`): ambiguous.
+      A connection it lost there (`{:error, :closed}`) is not: gen_smtp
+      reports it alike for MAIL FROM, RCPT TO and DATA, so it cannot say
+      whether anything was sent, and a duplicate is preferred to a loss;
     * gen_smtp failing while opening the session (`{:retries_exceeded, _}`,
       `{:no_more_hosts, _}`): before any message data, so certainly not sent,
       and retryable. Treating it as delivered is how an unreachable relay
@@ -274,9 +289,7 @@ defmodule Tymeslot.Emails.Delivery do
   def timeout_error?(:timeout), do: true
   def timeout_error?({:send_deadline_exceeded, _deadline_ms}), do: true
 
-  def timeout_error?({:send, {:network_failure, _host, {:error, reason}}})
-      when reason in [:timeout, :closed],
-      do: true
+  def timeout_error?({:send, {:network_failure, _host, {:error, :timeout}}}), do: true
 
   def timeout_error?(%Finch.TransportError{reason: :timeout}), do: true
   def timeout_error?(%Mint.TransportError{reason: :timeout}), do: true

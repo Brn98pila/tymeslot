@@ -329,8 +329,11 @@ defmodule Tymeslot.Emails.DeliveryTest do
       assert Delivery.timeout_error?(%Finch.TransportError{reason: :timeout})
     end
 
-    test "treats a connection gen_smtp lost after the session opened as possibly sent" do
-      assert Delivery.timeout_error?({:send, {:network_failure, ~c"host", {:error, :closed}}})
+    # gen_smtp reports a lost connection alike for MAIL FROM, RCPT TO and
+    # DATA, so it cannot say whether anything was sent: retried, as a
+    # duplicate is preferred to a loss.
+    test "retries a connection gen_smtp lost after the session opened" do
+      refute Delivery.timeout_error?({:send, {:network_failure, ~c"host", {:error, :closed}}})
     end
 
     test "retries other transport errors and HTTP statuses" do
