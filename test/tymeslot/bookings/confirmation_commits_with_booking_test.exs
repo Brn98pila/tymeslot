@@ -38,6 +38,16 @@ defmodule Tymeslot.Bookings.ConfirmationCommitsWithBookingTest do
 
   setup do
     TestMocks.stub_no_calendar_events()
+
+    # The real email service, so each retry is shown to send the confirmation.
+    Application.put_env(:swoosh, :shared_test_process, self())
+    Application.put_env(:tymeslot, :email_service_module, Tymeslot.Emails.EmailService)
+
+    on_exit(fn ->
+      Application.delete_env(:swoosh, :shared_test_process)
+      Application.put_env(:tymeslot, :email_service_module, Tymeslot.EmailServiceMock)
+    end)
+
     :ok
   end
 
@@ -213,6 +223,8 @@ defmodule Tymeslot.Bookings.ConfirmationCommitsWithBookingTest do
 
   defp reload(meeting), do: Repo.get!(MeetingSchema, meeting.id)
 
+  # One confirmation job, and draining it emails the attendee and the
+  # organiser once each: nothing the failed attempt queued survived it.
   defp assert_one_confirmation(meeting) do
     assert [_one] =
              all_enqueued(
@@ -220,7 +232,20 @@ defmodule Tymeslot.Bookings.ConfirmationCommitsWithBookingTest do
                args: %{"action" => "send_confirmation_emails", "meeting_id" => meeting.id}
              )
 
-    assert %{announced_at: %DateTime{}} = reload(meeting)
+    meeting = reload(meeting)
+    assert %DateTime{} = meeting.announced_at
+
+    assert %{failure: 0} = Oban.drain_queue(queue: :emails)
+
+    assert Enum.sort(sent_to()) == Enum.sort([meeting.attendee_email, meeting.organizer_email])
+  end
+
+  defp sent_to do
+    receive do
+      {:email, email} -> Enum.map(email.to, fn {_name, address} -> address end) ++ sent_to()
+    after
+      0 -> []
+    end
   end
 
   defp quietly(fun) do
