@@ -4,7 +4,6 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationQueries do
   """
   import Ecto.Query, warn: false
 
-  alias Ecto.Changeset
   alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Repo
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
@@ -57,22 +56,26 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationQueries do
   end
 
   @doc """
-  Updates the video processing status for a theme customization.
-  Returns :ok on success or if the record doesn't exist,
-  {:error, :status_update_failed} on update failure.
-  """
-  @spec update_video_processing_status(integer(), String.t()) ::
-          :ok | {:error, :status_update_failed}
-  def update_video_processing_status(id, status) do
-    case Repo.get(ThemeCustomizationSchema, id) do
-      nil ->
-        :ok
+  Sets the video processing status, but only while `video_path` is still the
+  row's background video. A transcode of a video that has since been replaced
+  or removed must not report its outcome against the row.
 
-      record ->
-        case record |> Changeset.change(%{video_processing: status}) |> Repo.update() do
-          {:ok, _updated} -> :ok
-          {:error, _changeset} -> {:error, :status_update_failed}
-        end
+  Returns `{:error, :replaced}` when the row no longer holds that video, or no
+  longer exists.
+  """
+  @spec update_video_processing_status_for(integer(), String.t(), String.t()) ::
+          :ok | {:error, :replaced}
+  def update_video_processing_status_for(id, video_path, status) do
+    query =
+      from(c in ThemeCustomizationSchema,
+        where: c.id == ^id and c.background_video_path == ^video_path
+      )
+
+    case Repo.update_all(query,
+           set: [video_processing: status, updated_at: DateTime.utc_now(:second)]
+         ) do
+      {1, _rows} -> :ok
+      {0, _rows} -> {:error, :replaced}
     end
   end
 end
