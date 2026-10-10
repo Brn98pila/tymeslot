@@ -379,9 +379,11 @@ NO_PROXY=localhost,127.0.0.1,*.internal.company.com,10.0.0.0/8
 - `HTTP_PROXY` / `http_proxy` - Proxy for HTTP requests
 - `NO_PROXY` / `no_proxy` - Comma-separated list of hosts/patterns to bypass proxy
 
-**NO_PROXY Patterns:**
-- Exact hostname: `internal.example.com`
-- Wildcard domain: `*.example.com` (matches any subdomain)
+**NO_PROXY Patterns** (matched as curl and most other tools match them, ignoring case):
+- Domain: `example.com` (matches the host and every subdomain, such as `api.example.com`)
+- Leading dot or wildcard: `.example.com` or `*.example.com` (the same as a bare domain)
+- Port: `example.com:8443` (the port is ignored; the host is what is matched)
+- IP address: `10.1.2.3`, `[::1]`
 - CIDR notation: `10.0.0.0/8`, `192.168.0.0/16`
 - Special: `*` (bypass proxy for all hosts)
 
