@@ -152,6 +152,10 @@ defmodule Tymeslot.Emails.Shared.IntegrationNotice do
 
   defp next_text(paragraph), do: prose_text(paragraph)
 
+  # An empty emphasis has nothing to set in bold, and String.replace/4 would
+  # put an empty tag in front of the sentence.
+  defp prose_html({sentence, ""}), do: prose_html(sentence)
+
   defp prose_html({sentence, emphasis}) do
     safe_emphasis = Sanitise.sanitize_for_email(emphasis)
 
