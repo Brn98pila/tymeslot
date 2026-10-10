@@ -44,53 +44,54 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm do
   @impl Phoenix.LiveComponent
   def mount(socket) do
     {:ok,
-     socket
-     |> assign(:form_errors, %{})
-     |> assign(:form_data, %{})
-     |> assign(:selected_icon, "none")
-     |> assign(:locations, [])
-     |> assign(:venues, [])
-     |> assign(:selected_calendar_integration_id, nil)
-     |> assign(:selected_target_calendar_id, nil)
-     |> assign(:selected_availability_schedule_id, nil)
-     |> assign(:schedules, [])
-     |> assign(:default_schedule_name, Schedules.default_schedule_name())
-     |> assign(:available_calendars, [])
-     |> assign(:no_writable_calendars, false)
-     |> assign(:target_calendar_status, :ok)
-     |> assign(:refreshing_calendars, false)
-     |> assign(:reminders, [])
-     |> assign(:max_reminders, MeetingTypes.max_reminders())
-     |> assign(:new_reminder_value, "")
-     |> assign(:new_reminder_unit, "minutes")
-     |> assign(:reminder_error, nil)
-     |> assign(:show_custom_reminder, false)
-     |> assign(:reminder_confirmation, nil)
-     |> assign(:custom_fields, [])
-     |> assign(:save_status, :saved)
-     |> assign(:editing_question, nil)
-     |> assign(:editing_question_mode, :add)
-     |> assign(:editing_location, nil)
-     |> assign(:editing_location_mode, :add)
-     |> assign(:custom_questions_allowed, true)
-     |> assign(:group_bookings_allowed, true)
-     |> assign(:payments_feature_enabled, false)
-     |> assign(:payments_charges_enabled, false)
-     |> assign(:payment_currency, "usd")
-     |> assign(:payment_currency_minimum_cents, 50)
-     |> assign(:payment_required, false)
-     |> assign(:payment_price, "")
-     |> assign(:allow_guests, false)
-     |> assign(:requires_approval, false)
-     |> assign(:approval_window_hours, nil)
-     |> assign(:show_as_free, false)
-     |> assign(:group_bookings_enabled, false)
-     |> assign(:max_participants, to_string(Init.default_group_limit()))
-     |> assign(:show_seat_availability, true)
-     |> assign(:last_spots_threshold, nil)
-     |> assign(:booking_limits, Init.get_booking_limits(nil))
-     |> assign(:active_tab, "details")
-     |> assign(:__initialized__, false)}
+     assign(socket,
+       form_errors: %{},
+       form_data: %{},
+       selected_icon: "none",
+       locations: [],
+       venues: [],
+       selected_calendar_integration_id: nil,
+       selected_target_calendar_id: nil,
+       selected_availability_schedule_id: nil,
+       schedules: [],
+       default_schedule_name: Schedules.default_schedule_name(),
+       available_calendars: [],
+       no_writable_calendars: false,
+       target_calendar_status: :ok,
+       refreshing_calendars: false,
+       reminders: [],
+       max_reminders: MeetingTypes.max_reminders(),
+       new_reminder_value: "",
+       new_reminder_unit: "minutes",
+       reminder_error: nil,
+       show_custom_reminder: false,
+       reminder_confirmation: nil,
+       custom_fields: [],
+       save_status: :saved,
+       editing_question: nil,
+       editing_question_mode: :add,
+       editing_location: nil,
+       editing_location_mode: :add,
+       custom_questions_allowed: true,
+       group_bookings_allowed: true,
+       payments_feature_enabled: false,
+       payments_charges_enabled: false,
+       payment_currency: "usd",
+       payment_currency_minimum_cents: 50,
+       payment_required: false,
+       payment_price: "",
+       allow_guests: false,
+       requires_approval: false,
+       approval_window_hours: nil,
+       show_as_free: false,
+       group_bookings_enabled: false,
+       max_participants: to_string(Init.default_group_limit()),
+       show_seat_availability: true,
+       last_spots_threshold: nil,
+       booking_limits: Init.get_booking_limits(nil),
+       active_tab: "details",
+       __initialized__: false
+     )}
   end
 
   @impl Phoenix.LiveComponent
