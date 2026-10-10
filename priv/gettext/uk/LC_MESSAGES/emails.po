@@ -100,7 +100,7 @@ msgstr "Повідомлення від %{name}:"
 #: lib/tymeslot/emails/shared/text_body_helper.ex
 #, elixir-autogen, elixir-format
 msgid "Name:"
-msgstr "Ім'я:"
+msgstr "Ім’я:"
 
 #: lib/tymeslot/emails/appointment_builder.ex
 #, elixir-autogen, elixir-format
@@ -204,7 +204,7 @@ msgstr "%{name} запросив(-ла) вас на подію."
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format
 msgid "Calendar Invitation - %{title} on %{date}"
-msgstr "Запрошення до календаря - %{title}, %{date}"
+msgstr "Запрошення до календаря – %{title}, %{date}"
 
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format
@@ -244,7 +244,7 @@ msgstr "Електронна пошта"
 #: lib/tymeslot/emails/shared/formatting.ex
 #, elixir-autogen, elixir-format
 msgid "Friday"
-msgstr "п'ятниця"
+msgstr "п’ятниця"
 
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format
@@ -269,7 +269,7 @@ msgstr "понеділок"
 #: lib/tymeslot/emails/shared/meeting/attendee.ex
 #, elixir-autogen, elixir-format
 msgid "Name"
-msgstr "Ім'я"
+msgstr "Ім’я"
 
 #: lib/tymeslot/emails/shared/meeting/attendee.ex
 #, elixir-autogen, elixir-format
@@ -355,7 +355,7 @@ msgstr "Власник календаря"
 #: lib/tymeslot/emails/email_service/calendar_emails.ex
 #, elixir-autogen, elixir-format
 msgid "⚠️ Calendar Sync Error - Manual Action Required"
-msgstr "⚠️ Помилка синхронізації календаря - потрібні дії з вашого боку"
+msgstr "⚠️ Помилка синхронізації календаря – потрібні дії з вашого боку"
 
 #: lib/tymeslot/emails/appointment_builder.ex
 #, elixir-autogen, elixir-format
@@ -473,12 +473,12 @@ msgstr "Скасовано"
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format
 msgid "Cancelled - %{title} (every occurrence)"
-msgstr "Скасовано - %{title} (усі повторення)"
+msgstr "Скасовано – %{title} (усі повторення)"
 
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format
 msgid "Cancelled - %{title} on %{date}"
-msgstr "Скасовано - %{title}, %{date}"
+msgstr "Скасовано – %{title}, %{date}"
 
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format

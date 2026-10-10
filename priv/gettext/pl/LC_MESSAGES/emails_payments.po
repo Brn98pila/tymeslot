@@ -14,12 +14,12 @@ msgstr ""
 #: lib/tymeslot/emails/templates/charge_dispute_opened.ex
 #, elixir-autogen, elixir-format
 msgid "%{amount} disputed by the cardholder"
-msgstr "%{amount} zakwestionowane przez posiadacza karty"
+msgstr "Posiadacz karty zakwestionował kwotę %{amount}"
 
 #: lib/tymeslot/emails/templates/charge_dispute_opened.ex
 #, elixir-autogen, elixir-format
 msgid "A cardholder has disputed one of your booking payments."
-msgstr "Posiadacz karty zakwestionował jedną z płatności za Twoje rezerwacje."
+msgstr "Posiadacz karty zakwestionował jedną z płatności za twoje rezerwacje."
 
 #: lib/tymeslot/emails/templates/charge_dispute_opened.ex
 #, elixir-autogen, elixir-format
@@ -80,7 +80,7 @@ msgstr "Kwota sporu:"
 #: lib/tymeslot/emails/templates/charge_dispute_opened.ex
 #, elixir-autogen, elixir-format
 msgid "If the dispute is closed in your favour, the booking will reconcile automatically. If lost, the booking is marked refunded."
-msgstr "Jeśli spór zostanie rozstrzygnięty na Twoją korzyść, rezerwacja zostanie rozliczona automatycznie. Jeśli go przegrasz, rezerwacja zostanie oznaczona jako zwrócona."
+msgstr "Jeśli spór zostanie rozstrzygnięty na twoją korzyść, rezerwacja zostanie rozliczona automatycznie. Jeśli go przegrasz, rezerwacja zostanie oznaczona jako zwrócona."
 
 #: lib/tymeslot/emails/templates/charge_dispute_opened.ex
 #, elixir-autogen, elixir-format
@@ -90,7 +90,7 @@ msgstr "Spotkanie:"
 #: lib/tymeslot/emails/templates/connect_account_restricted.ex
 #, elixir-autogen, elixir-format
 msgid "Once Stripe is satisfied, your account state updates automatically. Nothing more is needed on Tymeslot's side."
-msgstr "Gdy Stripe uzna sprawę za wyjaśnioną, status Twojego konta zaktualizuje się automatycznie. Po stronie Tymeslot nie trzeba nic więcej robić."
+msgstr "Gdy Stripe uzna sprawę za wyjaśnioną, status twojego konta zaktualizuje się automatycznie. Po stronie Tymeslot nie trzeba nic więcej robić."
 
 #: lib/tymeslot/emails/templates/charge_dispute_opened.ex
 #: lib/tymeslot/emails/templates/connect_account_restricted.ex
@@ -101,12 +101,12 @@ msgstr "Otwórz panel Stripe"
 #: lib/tymeslot/emails/templates/connect_account_restricted.ex
 #, elixir-autogen, elixir-format
 msgid "Open the Stripe dashboard to see exactly what Stripe needs from you and complete any outstanding requirements."
-msgstr "Otwórz panel Stripe, aby zobaczyć, czego dokładnie Stripe od Ciebie potrzebuje, i uzupełnić wszystkie zaległe wymagania."
+msgstr "Otwórz panel Stripe, aby zobaczyć, czego dokładnie Stripe od ciebie potrzebuje, i uzupełnić wszystkie zaległe wymagania."
 
 #: lib/tymeslot/emails/templates/connect_account_restricted.ex
 #, elixir-autogen, elixir-format
 msgid "Open the Stripe dashboard to see what Stripe needs from you:"
-msgstr "Otwórz panel Stripe, aby zobaczyć, czego Stripe od Ciebie potrzebuje:"
+msgstr "Otwórz panel Stripe, aby zobaczyć, czego Stripe od ciebie potrzebuje:"
 
 #: lib/tymeslot/emails/templates/connect_account_restricted.ex
 #, elixir-autogen, elixir-format
@@ -171,17 +171,17 @@ msgstr "Otwarto spór w Stripe: %{amount}"
 #: lib/tymeslot/emails/templates/connect_account_restricted.ex
 #, elixir-autogen, elixir-format
 msgid "Stripe has flagged your connected account as restricted. New paid bookings will continue to work only while charges remain enabled, so please act on this promptly."
-msgstr "Stripe oznaczył Twoje połączone konto jako ograniczone. Nowe płatne rezerwacje będą działać tylko dopóki płatności pozostają włączone, dlatego zareaguj jak najszybciej."
+msgstr "Stripe oznaczył twoje połączone konto jako ograniczone. Nowe płatne rezerwacje będą działać tylko dopóki płatności pozostają włączone, dlatego zareaguj jak najszybciej."
 
 #: lib/tymeslot/emails/templates/charge_dispute_opened.ex
 #, elixir-autogen, elixir-format
 msgid "Stripe has opened a dispute on a %{amount} payment for one of your bookings."
-msgstr "Stripe otworzył spór dotyczący płatności %{amount} za jedną z Twoich rezerwacji."
+msgstr "Stripe otworzył spór dotyczący płatności %{amount} za jedną z twoich rezerwacji."
 
 #: lib/tymeslot/emails/templates/charge_dispute_opened.ex
 #, elixir-autogen, elixir-format
 msgid "Stripe needs evidence from you within their stated deadline to challenge the dispute. Open the dispute in the Stripe dashboard to upload evidence or accept the dispute."
-msgstr "Aby podjąć obronę w sporze, Stripe potrzebuje od Ciebie dowodów w podanym terminie. Otwórz spór w panelu Stripe, aby przesłać dowody lub uznać spór."
+msgstr "Aby podjąć obronę w sporze, Stripe potrzebuje od ciebie dowodów w podanym terminie. Otwórz spór w panelu Stripe, aby przesłać dowody lub uznać spór."
 
 #: lib/tymeslot/emails/templates/charge_dispute_opened.ex
 #, elixir-autogen, elixir-format

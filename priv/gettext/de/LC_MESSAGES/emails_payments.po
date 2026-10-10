@@ -45,7 +45,7 @@ msgstr "Kontostatus"
 #: lib/tymeslot/emails/templates/connect_account_restricted.ex
 #, elixir-autogen, elixir-format
 msgid "Action required"
-msgstr "Aktion erforderlich"
+msgstr "Handlungsbedarf"
 
 #: lib/tymeslot/emails/templates/charge_dispute_opened.ex
 #, elixir-autogen, elixir-format

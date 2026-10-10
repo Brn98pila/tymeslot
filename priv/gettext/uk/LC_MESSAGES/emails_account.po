@@ -19,7 +19,7 @@ msgstr "Надійшов запит на зміну у вашому обліко
 #: lib/tymeslot/emails/templates/password_reset.ex
 #, elixir-autogen, elixir-format
 msgid "A fresh password and you're back in."
-msgstr "Новий пароль - і ви знову в системі."
+msgstr "Новий пароль – і ви знову в системі."
 
 #: lib/tymeslot/emails/templates/email_change_notification.ex
 #, elixir-autogen, elixir-format
@@ -142,7 +142,7 @@ msgstr "Не очікували цього?"
 #: lib/tymeslot/emails/templates/email_change_verification.ex
 #, elixir-autogen, elixir-format
 msgid "Didn't request this change? You can safely ignore this email - nothing will happen to your account."
-msgstr "Не запитували цю зміну? Ви можете безпечно проігнорувати цей лист - з вашим обліковим записом нічого не станеться."
+msgstr "Не запитували цю зміну? Ви можете безпечно проігнорувати цей лист – з вашим обліковим записом нічого не станеться."
 
 #: lib/tymeslot/emails/templates/email_change_notification.ex
 #, elixir-autogen, elixir-format
@@ -217,7 +217,7 @@ msgstr "Якщо ви не просили скинути пароль, прос�
 #: lib/tymeslot/emails/templates/password_reset.ex
 #, elixir-autogen, elixir-format
 msgid "If you didn't request this change, your account is still secure - you can simply delete this email."
-msgstr "Якщо ви не запитували цю зміну, ваш обліковий запис у безпеці - ви можете просто видалити цей лист."
+msgstr "Якщо ви не запитували цю зміну, ваш обліковий запис у безпеці – ви можете просто видалити цей лист."
 
 #: lib/tymeslot/emails/templates/password_reset.ex
 #, elixir-autogen, elixir-format
@@ -270,7 +270,7 @@ msgstr "Немає пароля для скидання"
 #: lib/tymeslot/emails/templates/email_change_verification.ex
 #, elixir-autogen, elixir-format
 msgid "One click and the switch is done."
-msgstr "Один клік - і зміну завершено."
+msgstr "Один клік – і зміну завершено."
 
 #: lib/tymeslot/emails/templates/social_signup_confirmation.ex
 #, elixir-autogen, elixir-format
@@ -412,12 +412,12 @@ msgstr "Посилання для підтвердження дійсне 24 г�
 #: lib/tymeslot/emails/templates/email_change_confirmed.ex
 #, elixir-autogen, elixir-format
 msgid "This is a confirmation of changes made to your account. If you have any questions, please contact support."
-msgstr "Це підтвердження змін, внесених до вашого облікового запису. Якщо маєте запитання, будь ласка, зв'яжіться з підтримкою."
+msgstr "Це підтвердження змін, внесених до вашого облікового запису. Якщо маєте запитання, будь ласка, зв’яжіться з підтримкою."
 
 #: lib/tymeslot/emails/templates/email_change_notification.ex
 #, elixir-autogen, elixir-format
 msgid "This is a security notification sent to protect your account. If you have concerns, please contact support immediately."
-msgstr "Це сповіщення про безпеку, надіслане для захисту вашого облікового запису. Якщо у вас є занепокоєння, будь ласка, негайно зв'яжіться з підтримкою."
+msgstr "Це сповіщення про безпеку, надіслане для захисту вашого облікового запису. Якщо у вас є занепокоєння, будь ласка, негайно зв’яжіться з підтримкою."
 
 #: lib/tymeslot/emails/templates/social_signup_confirmation.ex
 #, elixir-autogen, elixir-format
@@ -477,7 +477,7 @@ msgstr "Ми раді вітати вас! Щоб почати плануват�
 #: lib/tymeslot/emails/templates/email_verification.ex
 #, elixir-autogen, elixir-format
 msgid "We're glad you're here. One quick step and your calendar will be ready to go - please confirm your email below."
-msgstr "Раді бачити вас тут. Ще один швидкий крок - і ваш календар готовий до роботи. Будь ласка, підтвердьте свою електронну пошту нижче."
+msgstr "Раді бачити вас тут. Ще один швидкий крок – і ваш календар готовий до роботи. Будь ласка, підтвердьте свою електронну пошту нижче."
 
 #: lib/tymeslot/emails/templates/email_change_notification.ex
 #, elixir-autogen, elixir-format
@@ -498,7 +498,7 @@ msgstr "Ласкаво просимо до Tymeslot"
 #: lib/tymeslot/emails/templates/email_verification.ex
 #, elixir-autogen, elixir-format
 msgid "Welcome to Tymeslot - please verify your email."
-msgstr "Ласкаво просимо до Tymeslot - будь ласка, підтвердьте свою електронну пошту."
+msgstr "Ласкаво просимо до Tymeslot – будь ласка, підтвердьте свою електронну пошту."
 
 #: lib/tymeslot/emails/templates/email_verification.ex
 #, elixir-autogen, elixir-format
@@ -608,7 +608,7 @@ msgstr "Весь його вміст видалено."
 #: lib/tymeslot/emails/templates/account_deletion_notice.ex
 #, elixir-autogen, elixir-format
 msgid "If you did not ask for this, contact whoever runs this Tymeslot service straight away."
-msgstr "Якщо ви цього не просили, негайно зв'яжіться з тим, хто підтримує цей сервіс Tymeslot."
+msgstr "Якщо ви цього не просили, негайно зв’яжіться з тим, хто підтримує цей сервіс Tymeslot."
 
 #: lib/tymeslot/emails/templates/account_deletion_notice.ex
 #, elixir-autogen, elixir-format
@@ -643,12 +643,12 @@ msgstr "Ваш обліковий запис заплановано до вид�
 #: lib/tymeslot/emails/templates/account_deletion_notice.ex
 #, elixir-autogen, elixir-format
 msgid "Your upcoming bookings have been deleted from Tymeslot. Your guests were not notified. Calendar events and video links that already exist have been left as they are. If a meeting will not take place, please contact your guests yourself."
-msgstr "Ваші майбутні бронювання видалено з Tymeslot. Ваших гостей не повідомлено. Наявні події календаря та відеопосилання залишено без змін. Якщо зустріч не відбудеться, зв'яжіться зі своїми гостями самостійно."
+msgstr "Ваші майбутні бронювання видалено з Tymeslot. Ваших гостей не повідомлено. Наявні події календаря та відеопосилання залишено без змін. Якщо зустріч не відбудеться, зв’яжіться зі своїми гостями самостійно."
 
 #: lib/tymeslot/emails/templates/account_deletion_notice.ex
 #, elixir-autogen, elixir-format
 msgid "Your upcoming bookings will be deleted from Tymeslot with your account. Your guests will not be notified. Calendar events and video links that already exist will stay as they are. If a meeting will not take place, please contact your guests yourself."
-msgstr "Ваші майбутні бронювання буде видалено з Tymeslot разом з обліковим записом. Ваших гостей не буде повідомлено. Наявні події календаря та відеопосилання залишаться без змін. Якщо зустріч не відбудеться, зв'яжіться зі своїми гостями самостійно."
+msgstr "Ваші майбутні бронювання буде видалено з Tymeslot разом з обліковим записом. Ваших гостей не буде повідомлено. Наявні події календаря та відеопосилання залишаться без змін. Якщо зустріч не відбудеться, зв’яжіться зі своїми гостями самостійно."
 
 #: lib/tymeslot/emails/templates/signup_attempt_notice.ex
 #, elixir-autogen, elixir-format
@@ -663,7 +663,7 @@ msgstr "Підтвердьте пошту, щоб завершити реєст�
 #: lib/tymeslot/emails/templates/email_change_confirmed.ex
 #, elixir-autogen, elixir-format
 msgid "Email Address Changed - Tymeslot Account"
-msgstr "Електронну адресу змінено - обліковий запис Tymeslot"
+msgstr "Електронну адресу змінено – обліковий запис Tymeslot"
 
 #: lib/tymeslot/emails/templates/email_change_confirmed.ex
 #, elixir-autogen, elixir-format
@@ -698,4 +698,4 @@ msgstr "Ваш обліковий запис Tymeslot заплановано д�
 #: lib/tymeslot/emails/templates/email_change_notification.ex
 #, elixir-autogen, elixir-format
 msgid "⚠️ Email Change Request - Security Alert"
-msgstr "⚠️ Запит на зміну електронної адреси - сповіщення безпеки"
+msgstr "⚠️ Запит на зміну електронної адреси – сповіщення безпеки"

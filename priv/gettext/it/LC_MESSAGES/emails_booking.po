@@ -376,7 +376,7 @@ msgstr "Partecipa alla riunione video"
 #: lib/tymeslot/emails/templates/appointment_rescheduled.ex
 #, elixir-autogen, elixir-format
 msgid "Join when you're ready"
-msgstr "Partecipa quando sei pronto"
+msgstr "Partecipa quando vuoi"
 
 #: lib/tymeslot/emails/templates/event_update_notification.ex
 #, elixir-autogen, elixir-format
@@ -965,7 +965,7 @@ msgstr "Hai ricevuto un invito!"
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
 #, elixir-autogen, elixir-format
 msgid "You've been added as a guest"
-msgstr "Sei stato aggiunto come ospite"
+msgstr "Sei tra gli ospiti"
 
 #: lib/tymeslot/emails/templates/appointment_rescheduled.ex
 #, elixir-autogen, elixir-format

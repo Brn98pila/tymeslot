@@ -446,12 +446,12 @@ msgstr "il single sign-on"
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format
 msgid "%{name} has cancelled a recurring event you were invited to. Every occurrence is cancelled."
-msgstr "%{name} ha annullato un evento ricorrente a cui eri invitato. Tutte le ricorrenze sono annullate."
+msgstr "%{name} ha annullato un evento ricorrente per cui avevi ricevuto un invito. Tutte le ricorrenze sono annullate."
 
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format
 msgid "%{name} has cancelled an event you were invited to."
-msgstr "%{name} ha annullato un evento a cui eri invitato."
+msgstr "%{name} ha annullato un evento per cui avevi ricevuto un invito."
 
 #: lib/tymeslot/emails/templates/calendar_invitation.ex
 #, elixir-autogen, elixir-format

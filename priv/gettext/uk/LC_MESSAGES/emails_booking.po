@@ -94,7 +94,7 @@ msgstr "Після"
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
 #, elixir-autogen, elixir-format
 msgid "Appointment Confirmed - %{date} with %{name}"
-msgstr "Зустріч підтверджено - %{date} з %{name}"
+msgstr "Зустріч підтверджено – %{date} з %{name}"
 
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
 #, elixir-autogen, elixir-format
@@ -232,7 +232,7 @@ msgstr "Кошти надійдуть за вашим звичайним гра�
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
 #, elixir-autogen, elixir-format
 msgid "Hi %{guest} - %{booker} has invited you as a guest to this meeting with %{organizer}."
-msgstr "Вітаю, %{guest} - %{booker} запрошує вас як гостя на цю зустріч із %{organizer}."
+msgstr "Вітаю, %{guest} – %{booker} запрошує вас як гостя на цю зустріч із %{organizer}."
 
 #: lib/tymeslot/emails/templates/appointment_cancellation.ex
 #, elixir-autogen, elixir-format
@@ -260,27 +260,27 @@ msgstr "Вітаю, %{guest}!"
 #: lib/tymeslot/emails/templates/booking_payment_refunded.ex
 #, elixir-autogen, elixir-format
 msgid "Hi %{name} - %{amount} of your %{original} payment has been refunded."
-msgstr "Вітаю, %{name} - %{amount} з вашого початкового платежу на суму %{original} було повернуто."
+msgstr "Вітаю, %{name} – %{amount} з вашого початкового платежу на суму %{original} було повернуто."
 
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
 #, elixir-autogen, elixir-format
 msgid "Hi %{name} - I've blocked the time on my calendar and I'm looking forward to our meeting."
-msgstr "Вітаю, %{name} - я заблокував(-ла) час у своєму календарі й з нетерпінням чекаю на нашу зустріч."
+msgstr "Вітаю, %{name} – я заблокував(-ла) час у своєму календарі й з нетерпінням чекаю на нашу зустріч."
 
 #: lib/tymeslot/emails/templates/appointment_cancellation.ex
 #, elixir-autogen, elixir-format
 msgid "Hi %{name} - our appointment has been cancelled. I'm sorry for the inconvenience."
-msgstr "Вітаю, %{name} - нашу зустріч скасовано. Перепрошую за незручності."
+msgstr "Вітаю, %{name} – нашу зустріч скасовано. Перепрошую за незручності."
 
 #: lib/tymeslot/emails/templates/appointment_rescheduled.ex
 #, elixir-autogen, elixir-format
 msgid "Hi %{name} - our appointment has been moved. Here's the new time, and my calendar is already updated."
-msgstr "Вітаю, %{name} - нашу зустріч перенесено. Ось новий час, мій календар уже оновлено."
+msgstr "Вітаю, %{name} – нашу зустріч перенесено. Ось новий час, мій календар уже оновлено."
 
 #: lib/tymeslot/emails/templates/booking_payment_refunded.ex
 #, elixir-autogen, elixir-format
 msgid "Hi %{name} - your payment of %{amount} has been refunded in full."
-msgstr "Вітаю, %{name} - ваш платіж на суму %{amount} було повністю повернуто."
+msgstr "Вітаю, %{name} – ваш платіж на суму %{amount} було повністю повернуто."
 
 #: lib/tymeslot/emails/templates/appointment_cancellation.ex
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
@@ -303,12 +303,12 @@ msgstr "Вітаю, %{name}! Ваш платіж на суму %{amount} бул�
 #: lib/tymeslot/emails/templates/booking_payment_refunded.ex
 #, elixir-autogen, elixir-format
 msgid "Hi - %{amount} of your %{original} payment has been refunded."
-msgstr "Вітаю - %{amount} з вашого початкового платежу на суму %{original} було повернуто."
+msgstr "Вітаю – %{amount} з вашого початкового платежу на суму %{original} було повернуто."
 
 #: lib/tymeslot/emails/templates/booking_payment_refunded.ex
 #, elixir-autogen, elixir-format
 msgid "Hi - your payment of %{amount} has been refunded in full."
-msgstr "Вітаю - ваш платіж на суму %{amount} було повністю повернуто."
+msgstr "Вітаю – ваш платіж на суму %{amount} було повністю повернуто."
 
 #: lib/tymeslot/emails/templates/booking_payment_refunded.ex
 #, elixir-autogen, elixir-format
@@ -417,7 +417,7 @@ msgstr "Зустріч скасовано"
 #: lib/tymeslot/emails/templates/appointment_cancellation.ex
 #, elixir-autogen, elixir-format
 msgid "Meeting Cancelled - %{date} with %{name}"
-msgstr "Зустріч скасовано - %{date} з %{name}"
+msgstr "Зустріч скасовано – %{date} з %{name}"
 
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
@@ -432,7 +432,7 @@ msgstr "Зустріч перенесено"
 #: lib/tymeslot/emails/templates/appointment_rescheduled.ex
 #, elixir-autogen, elixir-format
 msgid "Meeting Rescheduled - %{date} with %{name}"
-msgstr "Зустріч перенесено - %{date} з %{name}"
+msgstr "Зустріч перенесено – %{date} з %{name}"
 
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
@@ -492,7 +492,7 @@ msgstr "Заброньовано нову зустріч!"
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
 #, elixir-autogen, elixir-format
 msgid "New Appointment: %{name} - %{date}"
-msgstr "Нова зустріч: %{name} - %{date}"
+msgstr "Нова зустріч: %{name} – %{date}"
 
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
 #: lib/tymeslot/emails/templates/seat_update_for_organizer.ex
@@ -553,7 +553,7 @@ msgstr "НАГАДУВАННЯ ЩОДО ПІДГОТОВКИ:"
 #: lib/tymeslot/emails/templates/booking_payment_refunded.ex
 #, elixir-autogen, elixir-format
 msgid "Partial Refund Issued - %{amount}"
-msgstr "Часткове повернення коштів - %{amount}"
+msgstr "Часткове повернення коштів – %{amount}"
 
 #: lib/tymeslot/emails/templates/appointment_confirmation/payment_blocks.ex
 #, elixir-autogen, elixir-format
@@ -628,7 +628,7 @@ msgstr "Код операції: %{ref}"
 #: lib/tymeslot/emails/templates/booking_payment_refunded.ex
 #, elixir-autogen, elixir-format
 msgid "Refund Issued - %{amount}"
-msgstr "Кошти повернуто - %{amount}"
+msgstr "Кошти повернуто – %{amount}"
 
 #: lib/tymeslot/emails/templates/booking_payment_refunded.ex
 #, elixir-autogen, elixir-format
@@ -687,7 +687,7 @@ msgstr "Перенесено"
 #: lib/tymeslot/emails/templates/appointment_rescheduled.ex
 #, elixir-autogen, elixir-format
 msgid "Rescheduled: %{name} - %{date}"
-msgstr "Перенесено: %{name} - %{date}"
+msgstr "Перенесено: %{name} – %{date}"
 
 #: lib/tymeslot/emails/templates/appointment_reminder.ex
 #, elixir-autogen, elixir-format
@@ -749,12 +749,12 @@ msgstr "Зустріч «%{title}» видалено з вашого зовні�
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
 msgid "The meeting \"%{title}\" was deleted from your external calendar. Tymeslot still has this booking on record - please review and cancel it here if the meeting is no longer taking place."
-msgstr "Зустріч «%{title}» видалено з вашого зовнішнього календаря. Tymeslot усе ще зберігає це бронювання - будь ласка, перегляньте його й скасуйте тут, якщо зустріч більше не відбудеться."
+msgstr "Зустріч «%{title}» видалено з вашого зовнішнього календаря. Tymeslot усе ще зберігає це бронювання – будь ласка, перегляньте його й скасуйте тут, якщо зустріч більше не відбудеться."
 
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
 msgid "The meeting \"%{title}\" was rescheduled in your external calendar. Tymeslot still holds the original booking - please review the details and update or cancel it accordingly."
-msgstr "Зустріч «%{title}» перенесено у вашому зовнішньому календарі. У Tymeslot усе ще збережено початкове бронювання - будь ласка, перегляньте деталі та оновіть або скасуйте його відповідно."
+msgstr "Зустріч «%{title}» перенесено у вашому зовнішньому календарі. У Tymeslot усе ще збережено початкове бронювання – будь ласка, перегляньте деталі та оновіть або скасуйте його відповідно."
 
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
@@ -835,7 +835,7 @@ msgstr "Оновлено"
 #: lib/tymeslot/emails/templates/event_update_notification.ex
 #, elixir-autogen, elixir-format
 msgid "Updated: %{title} - %{date}"
-msgstr "Оновлено: %{title} - %{date}"
+msgstr "Оновлено: %{title} – %{date}"
 
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
@@ -955,7 +955,7 @@ msgstr "Вас запрошено"
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
 #, elixir-autogen, elixir-format
 msgid "You're invited - %{date} with %{name}"
-msgstr "Вас запрошено - %{date} з %{name}"
+msgstr "Вас запрошено – %{date} з %{name}"
 
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
 #, elixir-autogen, elixir-format
@@ -1025,7 +1025,7 @@ msgstr "%{organizer} запрошує вас як гостя на цю зуст�
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
 #, elixir-autogen, elixir-format
 msgid "Hi %{guest} - %{organizer} has invited you as a guest to this meeting."
-msgstr "Вітаю, %{guest} - %{organizer} запрошує вас як гостя на цю зустріч."
+msgstr "Вітаю, %{guest} – %{organizer} запрошує вас як гостя на цю зустріч."
 
 #: lib/tymeslot/emails/templates/appointment_cancellation.ex
 #, elixir-autogen, elixir-format
@@ -1094,17 +1094,17 @@ msgstr "Відкрити в панелі керування"
 #: lib/tymeslot/emails/templates/seat_update_for_organizer.ex
 #, elixir-autogen, elixir-format
 msgid "Spot booked: %{name} - %{date}"
-msgstr "Місце заброньовано: %{name} - %{date}"
+msgstr "Місце заброньовано: %{name} – %{date}"
 
 #: lib/tymeslot/emails/templates/seat_update_for_organizer.ex
 #, elixir-autogen, elixir-format
 msgid "Spot cancelled: %{name} - %{date}"
-msgstr "Місце скасовано: %{name} - %{date}"
+msgstr "Місце скасовано: %{name} – %{date}"
 
 #: lib/tymeslot/emails/templates/seat_update_for_organizer.ex
 #, elixir-autogen, elixir-format
 msgid "Spot moved: %{name} - %{date}"
-msgstr "Місце перенесено: %{name} - %{date}"
+msgstr "Місце перенесено: %{name} – %{date}"
 
 #: lib/tymeslot/emails/templates/seat_update_for_organizer.ex
 #, elixir-autogen, elixir-format
@@ -1124,7 +1124,7 @@ msgstr "На попередній час більше нікого не лиши
 #: lib/tymeslot/emails/templates/seat_update_for_organizer.ex
 #, elixir-autogen, elixir-format
 msgid "Slot freed: %{name} cancelled - %{date}"
-msgstr "Слот звільнено: %{name} скасував(-ла) - %{date}"
+msgstr "Слот звільнено: %{name} скасував(-ла) – %{date}"
 
 #: lib/tymeslot/emails/templates/seat_update_for_organizer.ex
 #, elixir-autogen, elixir-format
@@ -1169,12 +1169,12 @@ msgstr "Місце скасовано"
 #: lib/tymeslot/emails/templates/appointment_cancellation.ex
 #, elixir-autogen, elixir-format
 msgid "Spot cancelled - %{date} with %{name}"
-msgstr "Місце скасовано - %{date} з %{name}"
+msgstr "Місце скасовано – %{date} з %{name}"
 
 #: lib/tymeslot/emails/templates/appointment_rescheduled.ex
 #, elixir-autogen, elixir-format
 msgid "Spot moved - %{date} with %{name}"
-msgstr "Місце перенесено - %{date} з %{name}"
+msgstr "Місце перенесено – %{date} з %{name}"
 
 #: lib/tymeslot/emails/templates/appointment_cancellation.ex
 #, elixir-autogen, elixir-format
@@ -1234,7 +1234,7 @@ msgstr "Вітаю, %{guest}! Зустріч з %{organizer} тепер закі
 #: lib/tymeslot/emails/templates/meeting_end_changed.ex
 #, elixir-autogen, elixir-format
 msgid "Hi %{name} - our meeting now ends at %{to} instead of %{from}. It still starts at the same time, and my calendar is already updated."
-msgstr "Вітаю, %{name} - наша зустріч тепер закінчується о %{to} замість %{from}. Вона починається в той самий час, мій календар уже оновлено."
+msgstr "Вітаю, %{name} – наша зустріч тепер закінчується о %{to} замість %{from}. Вона починається в той самий час, мій календар уже оновлено."
 
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format
@@ -1249,7 +1249,7 @@ msgstr "Новий час завершення"
 #: lib/tymeslot/emails/templates/meeting_end_changed.ex
 #, elixir-autogen, elixir-format
 msgid "New end time - %{date} with %{name}"
-msgstr "Новий час завершення - %{date} з %{name}"
+msgstr "Новий час завершення – %{date} з %{name}"
 
 #: lib/tymeslot/emails/templates/meeting_end_changed.ex
 #, elixir-autogen, elixir-format

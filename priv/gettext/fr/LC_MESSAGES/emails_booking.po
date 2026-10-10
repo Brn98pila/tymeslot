@@ -247,7 +247,7 @@ msgstr "Bonjour %{guest} - le rendez-vous avec %{organizer} auquel %{booker} vou
 #: lib/tymeslot/emails/templates/appointment_reminder.ex
 #, elixir-autogen, elixir-format
 msgid "Hi %{guest} - the meeting with %{organizer} that %{booker} invited you to is coming up."
-msgstr "Bonjour %{guest}, la réunion avec %{organizer} à laquelle %{booker} vous a invité approche."
+msgstr "Bonjour %{guest}, la réunion avec %{organizer} à laquelle %{booker} vous a invité(e) approche."
 
 #: lib/tymeslot/emails/templates/appointment_cancellation.ex
 #: lib/tymeslot/emails/templates/appointment_confirmation.ex
@@ -784,7 +784,7 @@ msgstr "Le rendez-vous avec %{organizer} auquel %{booker} vous a invité(e) a é
 #: lib/tymeslot/emails/templates/appointment_reminder.ex
 #, elixir-autogen, elixir-format
 msgid "The meeting with %{organizer} that %{booker} invited you to is coming up."
-msgstr "La réunion avec %{organizer} à laquelle %{booker} vous a invité approche."
+msgstr "La réunion avec %{organizer} à laquelle %{booker} vous a invité(e) approche."
 
 #: lib/tymeslot/emails/templates/external_booking_change.ex
 #, elixir-autogen, elixir-format

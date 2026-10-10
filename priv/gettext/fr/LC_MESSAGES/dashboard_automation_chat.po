@@ -868,4 +868,4 @@ msgstr "Le bot Telegram partagé n’est pas configuré"
 #: lib/tymeslot_web/live/dashboard/automation/telegram_card.ex
 #, elixir-autogen, elixir-format
 msgid "Paused: your plan doesn't include automations. Upgrading resumes it."
-msgstr "En pause : votre forfait n'inclut pas les automatisations. Une mise à niveau la réactive automatiquement."
+msgstr "En pause : votre forfait n’inclut pas les automatisations. Une mise à niveau la réactive automatiquement."
