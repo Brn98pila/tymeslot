@@ -230,14 +230,14 @@ defmodule Tymeslot.Workers.EmailWorker.AdminAlertSchedulerTest do
       assert Enum.sum(backoffs) < 86_400
     end
 
-    test "other email jobs keep five attempts and the seconds-scale backoff" do
+    test "other email jobs keep the ordinary ten attempts and minute-scale backoff" do
       job = %Oban.Job{args: %{"action" => "send_confirmation_emails", "meeting_id" => 1}}
 
       changeset = EmailWorker.new(job.args)
-      assert Changeset.get_field(changeset, :max_attempts) == 5
+      assert Changeset.get_field(changeset, :max_attempts) == 10
 
-      assert Enum.map(1..6, &EmailWorker.backoff(%{job | attempt: &1})) ==
-               [1, 2, 4, 8, 16, 16]
+      assert Enum.map(1..9, &EmailWorker.backoff(%{job | attempt: &1})) ==
+               [1, 2, 4, 8, 16, 32, 64, 120, 120]
     end
 
     test "a repeat of an alert that is still retrying is deduplicated" do

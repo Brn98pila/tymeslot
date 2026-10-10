@@ -502,9 +502,8 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
       :ok
     end
 
-    # The exponential backoff tops out at 16 seconds, so before this the five
-    # attempts were spent inside the first twenty seconds of a five-minute
-    # outage and the job discarded while the provider was merely paused.
+    # Snoozing spends no attempt, so the attempts are kept for failures the
+    # breaker does not cover, and a paused provider is waited out instead.
     test "snoozes for at least the breaker's recovery window" do
       assert {:snooze, seconds} = perform_job(EmailWorker, admin_alert_args())
 
@@ -550,17 +549,21 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
   end
 
   describe "backoff/1" do
-    test "calculates exponential backoff: 1s, 2s, 4s, 8s, 16s" do
-      assert EmailWorker.backoff(%Oban.Job{attempt: 1}) == 1
-      assert EmailWorker.backoff(%Oban.Job{attempt: 2}) == 2
-      assert EmailWorker.backoff(%Oban.Job{attempt: 3}) == 4
-      assert EmailWorker.backoff(%Oban.Job{attempt: 4}) == 8
-      assert EmailWorker.backoff(%Oban.Job{attempt: 5}) == 16
+    test "doubles from one second" do
+      assert Enum.map(1..7, &EmailWorker.backoff(%Oban.Job{attempt: &1})) ==
+               [1, 2, 4, 8, 16, 32, 64]
     end
 
-    test "caps backoff at 16 seconds" do
-      assert EmailWorker.backoff(%Oban.Job{attempt: 6}) == 16
-      assert EmailWorker.backoff(%Oban.Job{attempt: 10}) == 16
+    test "caps at two minutes" do
+      assert EmailWorker.backoff(%Oban.Job{attempt: 8}) == 120
+      assert EmailWorker.backoff(%Oban.Job{attempt: 10}) == 120
+    end
+
+    # A job's copies share its attempts, so its retries have to outlast a
+    # short provider outage, not just a blip.
+    test "ten attempts span several minutes of a failing provider" do
+      total = Enum.sum(Enum.map(1..9, &EmailWorker.backoff(%Oban.Job{attempt: &1})))
+      assert total >= 5 * 60
     end
   end
 
@@ -575,7 +578,7 @@ defmodule Tymeslot.Workers.EmailWorkerExecutionTest do
 
       job = List.first(all_enqueued(worker: EmailWorker))
       assert job.queue == "emails"
-      assert job.max_attempts == 5
+      assert job.max_attempts == 10
     end
 
     test "confirmation emails have priority 0 (highest)" do

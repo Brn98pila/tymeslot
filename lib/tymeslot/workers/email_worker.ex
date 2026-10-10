@@ -16,7 +16,9 @@ defmodule Tymeslot.Workers.EmailWorker do
 
   use Oban.Worker,
     queue: :emails,
-    max_attempts: 5,
+    # With the backoff below, ten attempts ride out about six minutes of a
+    # failing provider. An open mail circuit snoozes instead and spends none.
+    max_attempts: 10,
     # Higher priority (0-3, lower number = higher priority)
     priority: 1
 
@@ -44,6 +46,7 @@ defmodule Tymeslot.Workers.EmailWorker do
   @sends_beyond_guests 2
   @headroom_deadlines 1
   # 1 second base for exponential backoff
+  @backoff_cap_ms 120_000
   @backoff_base_ms 1_000
   # The actions that deliver admin alerts (`AdminAlertScheduler.actions/0`),
   # as a literal for use in guards.
@@ -232,9 +235,11 @@ defmodule Tymeslot.Workers.EmailWorker do
         Delivery.send_deadline_ms()
   end
 
+  # 1 s, 2 s, 4 s ... capped at 2 minutes: about six minutes over the ten
+  # attempts. A job's legs share those attempts, each retry sending only the
+  # copies not yet sent, so a short outage costs a delay rather than a copy.
   defp calculate_backoff(attempt) do
-    # Exponential backoff: 1s, 2s, 4s, 8s, 16s
-    round(min(@backoff_base_ms * :math.pow(2, attempt - 1), 16_000))
+    round(min(@backoff_base_ms * :math.pow(2, attempt - 1), @backoff_cap_ms))
   end
 
   # Admin alerts and their daily digest retry on their own, much longer
