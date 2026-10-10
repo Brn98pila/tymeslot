@@ -458,13 +458,14 @@ defmodule Tymeslot.Emails.Templates.BookingApprovalEmailsTest do
       assert email.html_body =~ @escaped
     end
 
-    test "BookingRequestReceived validates the withdraw link's href and keeps markup out of the msgid" do
-      html =
-        BookingRequestReceived.render(meeting(%{uid: nil, cancel_url: "javascript:alert(1)"})).html_body
+    test "BookingRequestReceived leaves out a withdraw link whose href is not safe" do
+      email =
+        BookingRequestReceived.render(meeting(%{uid: nil, cancel_url: "javascript:alert(1)"}))
 
-      assert html =~ "withdraw your request"
-      refute html =~ "javascript:alert(1)"
-      assert html =~ ~s(href="#")
+      refute email.html_body =~ "withdraw your request"
+      refute email.html_body =~ "javascript:alert(1)"
+      refute email.html_body =~ ~s(href="#")
+      refute email.text_body =~ "javascript:alert(1)"
     end
   end
 

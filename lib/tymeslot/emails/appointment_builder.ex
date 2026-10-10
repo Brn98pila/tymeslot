@@ -254,9 +254,11 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
     links = MeetingLinks.for_meeting(meeting, organizer_profile)
 
     %{
-      view_url: links.view_url || "#",
-      reschedule_url: links.reschedule_url || "#",
-      cancel_url: links.cancel_url || "#",
+      # nil when the meeting has no such link: the templates leave an action
+      # without a URL out rather than linking it to nowhere.
+      view_url: links.view_url,
+      reschedule_url: links.reschedule_url,
+      cancel_url: links.cancel_url,
       # The host's public booking page, resolved at send time rather than read
       # from the meeting row. Unlike the per-meeting action URLs it is not
       # persisted, so it always reflects the host's current username.

@@ -446,11 +446,11 @@ defmodule Tymeslot.Emails.AppointmentBuilderTest do
 
       result = AppointmentBuilder.from_meeting(meeting)
 
-      # Should have fallback values; the view link is the host's dashboard
-      # view, which a group meeting has like any other.
+      # No link stands in for a missing one; the view link is the host's
+      # dashboard view, which a group meeting has like any other.
       assert result.view_url == "#{Endpoint.url()}/dashboard/meetings?meeting=#{meeting.id}"
-      assert result.reschedule_url == "#"
-      assert result.cancel_url == "#"
+      assert result.reschedule_url == nil
+      assert result.cancel_url == nil
     end
 
     test "builds the links from the host's current username, ignoring the stored copy" do

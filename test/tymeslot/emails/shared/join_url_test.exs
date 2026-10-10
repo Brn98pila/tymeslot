@@ -19,27 +19,30 @@ defmodule Tymeslot.Emails.Shared.JoinUrlTest do
       assert JoinUrl.for(:guest, @details) == @details.guest_video_url
     end
 
-    test "falls back to the room URL for the organiser and guests only" do
+    test "falls back to the room URL for every role" do
       details = %{meeting_url: "https://meet.example.com/room"}
 
       assert JoinUrl.for(:organizer, details) == "https://meet.example.com/room"
+      assert JoinUrl.for(:attendee, details) == "https://meet.example.com/room"
       assert JoinUrl.for(:guest, details) == "https://meet.example.com/room"
-      assert JoinUrl.for(:attendee, details) == nil
-    end
-  end
-
-  describe "with_room_fallback/2" do
-    test "prefers the role's own link" do
-      assert JoinUrl.with_room_fallback(:attendee, @details) == @details.attendee_video_url
-    end
-
-    test "falls back to the room URL when the role has no link" do
-      assert JoinUrl.with_room_fallback(:attendee, %{meeting_url: "https://meet.example.com/room"}) ==
-               "https://meet.example.com/room"
     end
 
     test "is nil when there is no room at all" do
-      assert JoinUrl.with_room_fallback(:attendee, %{}) == nil
+      assert JoinUrl.for(:organizer, %{}) == nil
+      assert JoinUrl.for(:attendee, %{}) == nil
+      assert JoinUrl.for(:guest, %{}) == nil
+    end
+
+    test "treats an empty own link as absent, so the room URL applies" do
+      details = %{meeting_url: "https://meet.example.com/room"}
+
+      for {role, key} <- [
+            organizer: :organizer_video_url,
+            attendee: :attendee_video_url,
+            guest: :guest_video_url
+          ] do
+        assert JoinUrl.for(role, Map.put(details, key, "")) == "https://meet.example.com/room"
+      end
     end
   end
 end

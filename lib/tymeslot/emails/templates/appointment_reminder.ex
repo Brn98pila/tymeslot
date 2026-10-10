@@ -33,15 +33,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
     locale = RecipientLocale.attendee_locale(appointment_details)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
-      meeting_details = %{
-        date: appointment_details.date,
-        start_time: appointment_details.start_time_attendee_tz,
-        duration: appointment_details.duration,
-        location: appointment_details.location,
-        location_type: Map.get(appointment_details, :location_type),
-        meeting_type: appointment_details.meeting_type,
-        timezone: appointment_details.attendee_timezone
-      }
+      meeting_details = TemplateHelper.attendee_meeting_details(appointment_details, :attendee)
 
       mjml_content = """
       #{MeetingComponents.time_alert_badge(@intent, appointment_details.time_until)}
@@ -52,15 +44,13 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
 
       #{MeetingComponents.custom_answers_section(appointment_details)}
 
-      #{if attendee_video_url = JoinUrl.with_room_fallback(:attendee, appointment_details) do
+      #{if attendee_video_url = JoinUrl.for(:attendee, appointment_details) do
         MeetingComponents.video_meeting_section(@intent, attendee_video_url,
         title: dgettext("emails_booking", "Join when you're ready"),
         button_text: dgettext("emails_booking", "Join Meeting"))
       end}
 
-      #{Text.section_title(dgettext("emails_booking", "Need to change plans?"))}
-
-      #{MeetingComponents.meeting_actions_bar(@intent, [%{text: dgettext("emails_booking", "Reschedule"), url: Map.get(appointment_details, :reschedule_url, "#"), style: :secondary}, %{text: dgettext("emails_booking", "Cancel"), url: Map.get(appointment_details, :cancel_url, "#"), style: :danger}])}
+      #{MeetingComponents.actions_section(@intent, dgettext("emails_booking", "Need to change plans?"), [%{text: dgettext("emails_booking", "Reschedule"), url: Map.get(appointment_details, :reschedule_url), style: :secondary}, %{text: dgettext("emails_booking", "Cancel"), url: Map.get(appointment_details, :cancel_url), style: :danger}])}
 
       #{Text.centered_text(dgettext("emails_booking", "See you %{time_until}!", time_until: appointment_details.time_until_friendly || dgettext("emails_booking", "soon")), padding: "18px 0 0 0", font_size: "15px")}
       """
@@ -88,13 +78,11 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
         )
       )
       |> html_body(html_body)
-      |> text_body(build_attendee_text_body(appointment_details, locale))
+      |> text_body(build_attendee_text_body(appointment_details, meeting_details, locale))
     end)
   end
 
   def render(:guest, guest_email, appointment_details) do
-    appointment_details = TemplateHelper.as_guest_view(appointment_details)
-
     # Guests inherit the booker's locale, as their invitation does.
     locale = RecipientLocale.attendee_locale(appointment_details)
 
@@ -102,16 +90,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
       guest_name = Map.get(appointment_details, :guest_name) || guest_email
       guest_video_url = JoinUrl.for(:guest, appointment_details)
 
-      meeting_details = %{
-        date: appointment_details.date,
-        start_time: appointment_details.start_time_attendee_tz,
-        duration: appointment_details.duration,
-        location: appointment_details.location,
-        location_type: Map.get(appointment_details, :location_type),
-        meeting_type: appointment_details.meeting_type,
-        timezone: Map.get(appointment_details, :attendee_timezone),
-        audience: :guest
-      }
+      meeting_details = TemplateHelper.attendee_meeting_details(appointment_details, :guest)
 
       intro_copy =
         dgettext(
@@ -137,9 +116,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
         button_text: dgettext("emails_booking", "Join Meeting"))
       end}
 
-      #{Text.section_title(dgettext("emails_booking", "Can you still make it?"))}
-
-      #{MeetingComponents.meeting_actions_bar(@intent, [%{text: dgettext("emails_booking", "Yes, I'll attend"), url: Map.get(appointment_details, :guest_accept_url, "#"), style: :secondary}, %{text: dgettext("emails_booking", "Can't make it"), url: Map.get(appointment_details, :guest_decline_url, "#"), style: :danger}])}
+      #{MeetingComponents.actions_section(@intent, dgettext("emails_booking", "Can you still make it?"), TemplateHelper.guest_answer_actions(appointment_details))}
 
       #{Text.centered_text(dgettext("emails_booking", "Only %{booker} can move or cancel the meeting itself.", booker: appointment_details.attendee_name), font_size: "14px", padding: "16px 0 0 0")}
       """
@@ -168,7 +145,9 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
         )
       )
       |> html_body(html_body)
-      |> text_body(build_guest_text_body(appointment_details, guest_name, locale))
+      |> text_body(
+        build_guest_text_body(appointment_details, meeting_details, guest_name, locale)
+      )
     end)
   end
 
@@ -194,9 +173,10 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
         button_text: dgettext("emails_booking", "Start Meeting"))
       end}
 
-      #{Text.section_title(dgettext("emails_booking", "Quick actions"))}
+      #{Text.section_title(dgettext("emails_booking", "Quick prep"))}
+      #{Text.bullet_list(organizer_prep_items(appointment_details))}
 
-      #{MeetingComponents.meeting_actions_bar(@intent, organizer_actions(appointment_details))}
+      #{MeetingComponents.actions_section(@intent, dgettext("emails_booking", "Quick actions"), organizer_actions(appointment_details))}
       """
 
       organizer_details =
@@ -226,37 +206,41 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
         )
       )
       |> html_body(html_body)
-      |> text_body(build_organizer_text_body(appointment_details))
+      |> text_body(build_organizer_text_body(appointment_details, meeting_details))
     end)
   end
 
-  # A group meeting's reminder (`AppointmentBuilder.for_organizer_of_group/3`)
-  # points the organiser at their dashboard: the public links to reschedule
-  # or cancel a booking are refused for a group meeting.
-  defp organizer_actions(%{dashboard_url: url}) when is_binary(url),
-    do: [%{text: dgettext("emails_booking", "Open in dashboard"), url: url, style: :primary}]
-
+  # Every action the payload has a link for; the bar leaves out the rest. A
+  # group meeting's reminder (`AppointmentBuilder.for_organizer_of_group/3`)
+  # carries only the dashboard link, since the public links to reschedule or
+  # cancel a booking are refused for a group meeting; a one-to-one booking
+  # carries those two and no dashboard link.
   defp organizer_actions(appointment_details) do
     [
       %{
+        text: dgettext("emails_booking", "Open in dashboard"),
+        url: Map.get(appointment_details, :dashboard_url),
+        style: :primary
+      },
+      %{
         text: dgettext("emails_booking", "Reschedule"),
-        url: Map.get(appointment_details, :reschedule_url, "#"),
+        url: Map.get(appointment_details, :reschedule_url),
         style: :secondary
       },
       %{
         text: dgettext("emails_booking", "Cancel"),
-        url: Map.get(appointment_details, :cancel_url, "#"),
+        url: Map.get(appointment_details, :cancel_url),
         style: :danger
       }
     ]
   end
 
-  defp build_attendee_text_body(appointment_details, locale) do
-    meeting_details = TextBodyHelper.format_meeting_details(appointment_details, locale)
+  defp build_attendee_text_body(appointment_details, meeting_details, locale) do
+    meeting_details = TextBodyHelper.format_meeting_details(meeting_details, locale)
 
     video_section =
       TextBodyHelper.format_video_section(
-        JoinUrl.with_room_fallback(:attendee, appointment_details),
+        JoinUrl.for(:attendee, appointment_details),
         locale
       )
 
@@ -272,7 +256,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
 
     #{dgettext("emails_booking", "DETAILS:")}
     #{meeting_details}#{TextBodyHelper.format_organizer_note(appointment_details, locale)}#{video_section}#{custom_answers}
-    #{dgettext("emails_booking", "Need to change plans?")}#{action_links}
+    #{if action_links != "", do: dgettext("emails_booking", "Need to change plans?") <> action_links}
 
     #{dgettext("emails_booking", "See you %{time_until}!", time_until: appointment_details.time_until_friendly || dgettext("emails_booking", "soon"))}
 
@@ -281,8 +265,8 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
     """
   end
 
-  defp build_guest_text_body(appointment_details, guest_name, locale) do
-    meeting_details = TextBodyHelper.format_meeting_details(appointment_details, locale)
+  defp build_guest_text_body(appointment_details, meeting_details, guest_name, locale) do
+    meeting_details = TextBodyHelper.format_meeting_details(meeting_details, locale)
 
     video_section =
       TextBodyHelper.format_video_section(JoinUrl.for(:guest, appointment_details), locale)
@@ -295,22 +279,16 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
     #{dgettext("emails_booking", "The meeting with %{organizer} that %{booker} invited you to is coming up.", organizer: appointment_details.organizer_name, booker: appointment_details.attendee_name)}
 
     #{dgettext("emails_booking", "DETAILS:")}
-    #{meeting_details}#{TextBodyHelper.format_organizer_note(appointment_details, locale)}#{video_section}
-
-    #{dgettext("emails_booking", "CAN YOU STILL MAKE IT?")}
-    #{dgettext("emails_booking", "Yes, I'll attend: %{url}", url: Map.get(appointment_details, :guest_accept_url, "#"))}
-    #{dgettext("emails_booking", "Can't make it: %{url}", url: Map.get(appointment_details, :guest_decline_url, "#"))}
+    #{meeting_details}#{TextBodyHelper.format_organizer_note(appointment_details, locale)}#{video_section}#{TextBodyHelper.format_guest_answers(appointment_details, dgettext("emails_booking", "CAN YOU STILL MAKE IT?"))}
 
     #{dgettext("emails_booking", "Only %{booker} can move or cancel the meeting itself.", booker: appointment_details.attendee_name)}
     """
   end
 
-  defp build_organizer_text_body(appointment_details) do
-    appointment_details = TemplateHelper.as_organizer_view(appointment_details)
-
+  defp build_organizer_text_body(appointment_details, meeting_details) do
     meeting_details =
       TextBodyHelper.format_meeting_details(
-        appointment_details,
+        meeting_details,
         organizer_locale(appointment_details)
       )
 
@@ -347,13 +325,32 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminder do
     #{meeting_details}#{video_section}#{attendee_info}#{custom_answers}
 
     #{dgettext("emails_booking", "QUICK PREP:")}
-    #{if JoinUrl.for(:organizer, appointment_details), do: dgettext("emails_booking", "• Camera & mic ready"), else: dgettext("emails_booking", "• Location confirmed")}
-    #{dgettext("emails_booking", "• Materials prepared")}
-    #{dgettext("emails_booking", "• Agenda ready")}#{action_links}
+    #{TextBodyHelper.format_bullets(organizer_prep_items(appointment_details))}#{action_links}
 
     #{dgettext("emails_booking", "Best,")}
     #{appointment_details.organizer_name}
     """
+  end
+
+  @doc """
+  The organiser's quick preparation list, in their locale: the one list both
+  the HTML and the plain-text body of their reminder render. A video meeting
+  asks for the camera and microphone, any other for the location.
+  """
+  @spec organizer_prep_items(Tymeslot.Emails.EmailService.appointment_details()) :: [
+          String.t()
+        ]
+  def organizer_prep_items(appointment_details) do
+    Gettext.with_locale(TymeslotWeb.Gettext, organizer_locale(appointment_details), fn ->
+      [
+        if(Sanitise.safe_web_url?(JoinUrl.for(:organizer, appointment_details)),
+          do: dgettext("emails_booking", "Camera & mic ready"),
+          else: dgettext("emails_booking", "Location confirmed")
+        ),
+        dgettext("emails_booking", "Materials prepared"),
+        dgettext("emails_booking", "Agenda ready")
+      ]
+    end)
   end
 
   # The payload's `time_until` is already formatted in the attendee's

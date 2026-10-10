@@ -255,10 +255,9 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminderTest do
 
     test "includes timezone-aware time display" do
       # start_time is 14:00 UTC; the attendee sits in America/Los_Angeles
-      # (UTC-8 in January), so their local start is 06:00 — represented here
-      # by a distinct DateTime so the two are told apart in the output.
+      # (UTC-8 in January), so their local start is 06:00.
       utc_start = ~U[2026-01-15 14:00:00Z]
-      attendee_local_start = %{utc_start | hour: 6}
+      attendee_local_start = DateTime.shift_zone!(utc_start, "America/Los_Angeles")
 
       details =
         build_appointment_details(%{

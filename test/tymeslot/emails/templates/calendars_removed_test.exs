@@ -10,10 +10,15 @@ defmodule Tymeslot.Emails.Templates.CalendarsRemovedTest do
   alias Tymeslot.Emails.Templates.CalendarsRemoved
 
   @integration %{id: 1, name: "Work Nextcloud"}
+  @user %{id: 1, email: "owner@example.com", name: "Olivia"}
 
-  describe "render_both/2" do
+  describe "render/3" do
     test "names the one calendar in the reason and links to the calendar settings" do
-      {html, text} = CalendarsRemoved.render_both(@integration, ["Projects"])
+      email = CalendarsRemoved.render(@user, @integration, ["Projects"])
+      %{html_body: html, text_body: text} = email
+
+      assert email.to == [{"Olivia", "owner@example.com"}]
+      assert email.subject == "“Projects” is no longer on your calendar server"
 
       for body <- [html, text] do
         assert body =~ "is no longer on your calendar server, so Tymeslot has stopped using it."
@@ -27,7 +32,10 @@ defmodule Tymeslot.Emails.Templates.CalendarsRemovedTest do
     end
 
     test "lists every calendar when several were removed at once" do
-      {html, text} = CalendarsRemoved.render_both(@integration, ["Projects", "Team"])
+      email = CalendarsRemoved.render(@user, @integration, ["Projects", "Team"])
+      %{html_body: html, text_body: text} = email
+
+      assert email.subject == "2 calendars are no longer on your calendar server"
 
       assert text =~ "These calendars are no longer on your calendar server"
       assert text =~ "- Projects\n- Team"
@@ -37,21 +45,18 @@ defmodule Tymeslot.Emails.Templates.CalendarsRemovedTest do
 
     # The names come from the calendar server.
     test "escapes a calendar name in the markup" do
-      {html, _text} = CalendarsRemoved.render_both(@integration, ["<b>x</b>", "Team"])
+      %{html_body: html} = CalendarsRemoved.render(@user, @integration, ["<b>x</b>", "Team"])
 
       refute html =~ "<b>x</b>"
       assert html =~ "&lt;b&gt;x&lt;/b&gt;"
     end
   end
 
-  describe "subject/1" do
-    test "names one calendar, and counts several" do
-      assert CalendarsRemoved.subject(["Projects"]) ==
-               "“Projects” is no longer on your calendar server"
+  # The name comes from the calendar server and lands in a header.
+  test "keeps a line break in a calendar's name out of the subject" do
+    email = CalendarsRemoved.render(@user, @integration, ["Projects\r\nBcc: x@example.com"])
 
-      assert CalendarsRemoved.subject(["Projects", "Team"]) ==
-               "2 calendars are no longer on your calendar server"
-    end
+    assert email.subject == "“Projects Bcc: x@example.com” is no longer on your calendar server"
   end
 
   describe "sending" do
