@@ -16,9 +16,6 @@ defmodule Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries do
 
   alias Tymeslot.Repo
 
-  # A new integration starts at the healthy check interval.
-  @initial_backoff_ms 1_800_000
-
   @doc """
   Retrieves the health state record for a specific integration.
   Returns `{:ok, record}` or `{:error, :not_found}`.
@@ -62,7 +59,7 @@ defmodule Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries do
           consecutive_hard_failures: 0,
           consecutive_sync_failures: 0,
           successes: 0,
-          backoff_ms: ^@initial_backoff_ms,
+          backoff_ms: ^IntegrationHealthStateSchema.check_interval_ms(),
           inserted_at: ^now,
           updated_at: ^now
         }
@@ -130,7 +127,7 @@ defmodule Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries do
       consecutive_hard_failures: 0,
       consecutive_sync_failures: 0,
       successes: 0,
-      backoff_ms: @initial_backoff_ms
+      backoff_ms: IntegrationHealthStateSchema.check_interval_ms()
     }
 
     %IntegrationHealthStateSchema{}
@@ -226,7 +223,7 @@ defmodule Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries do
       consecutive_hard_failures: 0,
       consecutive_sync_failures: 0,
       successes: 0,
-      backoff_ms: 1_800_000,
+      backoff_ms: IntegrationHealthStateSchema.check_interval_ms(),
       last_check_at: Clock.utc_now(),
       last_error_class: nil,
       became_unhealthy_at: nil,
