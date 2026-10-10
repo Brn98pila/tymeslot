@@ -189,6 +189,16 @@ defmodule Tymeslot.Integrations.Calendar.SelectionFiltersTest do
       assert Selection.availability_view(integration) == nil
     end
 
+    test "leaves an integration with nothing selected unchanged, as it was read before" do
+      # Google and Outlook read the account's primary calendar then.
+      integration = %{
+        id: 1,
+        calendar_list: entries([%{id: "work", selected: false, blocks_availability: false}])
+      }
+
+      assert Selection.availability_view(integration) == integration
+    end
+
     test "leaves an integration that predates calendar selection unchanged" do
       for list <- [nil, []] do
         integration = %{id: 1, calendar_list: list, calendar_paths: ["/cal/a/"]}
@@ -220,8 +230,10 @@ defmodule Tymeslot.Integrations.Calendar.SelectionFiltersTest do
         calendar_list: entries([%{id: "a", selected: true, blocks_availability: false}])
       }
 
-      assert Selection.blocking_rules([show_only, %{id: 2, calendar_list: nil}]) ==
-               %{1 => :none, 2 => :all}
+      nothing_selected = %{id: 3, calendar_list: entries([%{id: "b", selected: false}])}
+
+      assert Selection.blocking_rules([show_only, %{id: 2, calendar_list: nil}, nothing_selected]) ==
+               %{1 => :none, 2 => :all, 3 => :all}
     end
   end
 

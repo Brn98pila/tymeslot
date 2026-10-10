@@ -204,6 +204,19 @@ defmodule Tymeslot.Availability.CalendarBlockingOfferTest do
     assert :ok = probe(user, date, ~T[11:00:00])
   end
 
+  test "an account whose owner unticked every calendar still blocks through its primary", %{
+    user: user,
+    profile: profile,
+    date: date
+  } do
+    stub_google(date)
+    google_integration(user, [%{id: "work", selected: false, primary: true}])
+
+    refute "12:00 PM" in offered(profile, date, "30min")
+    assert_received {:read, "primary"}
+    assert {:error, :slot_unavailable} = probe(user, date, ~T[12:00:00])
+  end
+
   test "an account connected before calendar selection still blocks through its primary", %{
     user: user,
     profile: profile,

@@ -115,6 +115,23 @@ defmodule Tymeslot.Integrations.Calendar.UndecryptableCredentialsTest do
       assert reload(stale).needs_reauth
     end
 
+    test "fails closed when the unreadable integration has nothing selected" do
+      # Read as before the blocking choice: Google and Outlook read the
+      # primary calendar of such an integration.
+      user = insert(:user)
+      insert_readable_feed(user)
+
+      insert_undecryptable(
+        user: user,
+        calendar_list: [%{id: "/cal/a/", selected: false, blocks_availability: false}]
+      )
+
+      today = Date.utc_today()
+
+      assert {:error, :some_calendars_unavailable} =
+               EventFetcher.get_events_for_range_fresh(user.id, today, Date.add(today, 7))
+    end
+
     test "fails closed when the unreadable integration has a blocking calendar" do
       user = insert(:user)
       insert_readable_feed(user)
