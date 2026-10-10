@@ -8,6 +8,7 @@ defmodule Tymeslot.Emails.Delivery do
 
   require Logger
 
+  alias Tymeslot.Emails.Shared.Sanitise
   alias Tymeslot.Infrastructure.CircuitBreaker
   alias Tymeslot.Infrastructure.CircuitBreakerSupervisor
   alias Tymeslot.Infrastructure.Logging.LogFormat
@@ -42,8 +43,10 @@ defmodule Tymeslot.Emails.Delivery do
 
   Retries are delegated to Oban (a single retry authority) rather than retried
   here — re-sending the same message on a flaky transport is what produces
-  duplicate emails. A client-side timeout is treated as delivered for the same
-  reason (see `timeout_error?/1`).
+  duplicate emails. A timeout that may have come after the message was
+  handed over is treated as delivered for the same reason (see
+  `timeout_error?/1`). Display names and the subject are stripped of control
+  characters before the adapter sees them.
 
   Returns `{:error, {:recipient_rejected, reason}}` when the provider rejects
   the address permanently; callers should give up rather than retry.
@@ -54,6 +57,8 @@ defmodule Tymeslot.Emails.Delivery do
   """
   @spec deliver(Swoosh.Email.t(), keyword()) :: {:ok, any()} | {:error, any()}
   def deliver(email, opts \\ []) do
+    email = sanitise_headers(email)
+
     with :ok <- check_text_body(email) do
       Logger.debug("Delivering email via Mailer", recipient_domains: recipient_domains(email))
 
@@ -153,7 +158,7 @@ defmodule Tymeslot.Emails.Delivery do
   defp handle_delivery_error(:transient, email, reason) do
     Logger.error("Failed to deliver email",
       recipient_domains: recipient_domains(email),
-      reason: reason
+      reason: LogFormat.reason(reason)
     )
 
     {:error, reason}
@@ -191,31 +196,54 @@ defmodule Tymeslot.Emails.Delivery do
   def permanent_rejection?(_reason), do: false
 
   @doc """
-  Returns true when a delivery error reason is a client-side timeout that may
-  have happened after the message was handed over.
+  Returns true when a delivery error reason is a timeout that may have come
+  after the message was handed over, so the email may have gone out.
 
-  Only such a timeout is ambiguous. gen_smtp reports failures while opening
-  the session (connecting, greeting, TLS, authentication) as
-  `{:retries_exceeded, _}` or `{:no_more_hosts, _}`, before any message data
-  is sent, so a timeout there means the email certainly did not leave and
-  must stay retryable. Treating it as delivered is how an unreachable relay
-  silently swallowed every email.
+  Each adapter's shape is matched explicitly:
 
-  Other reason shapes are matched by inspecting the term, so new adapter
-  error shapes don't silently slip through as retriable failures.
+    * our own send deadline (`{:send_deadline_exceeded, _}`) and a bare
+      `:timeout`: the adapter was mid-send, ambiguous;
+    * gen_smtp timing out after the session opened
+      (`{:send, {:network_failure, _host, {:error, :timeout}}}`): ambiguous;
+    * gen_smtp failing while opening the session (`{:retries_exceeded, _}`,
+      `{:no_more_hosts, _}`): before any message data, so certainly not sent,
+      and retryable. Treating it as delivered is how an unreachable relay
+      once silently swallowed every email;
+    * an API adapter's `%Mint.TransportError{reason: :timeout}`, which Finch
+      reports alike for a connect and a receive timeout, and a gateway's 504:
+      ambiguous;
+    * anything else, including other HTTP statuses and transport errors:
+      not a timeout, so retryable.
+
+  A reason that only mentions a timeout somewhere in its text is not one.
   """
   @spec timeout_error?(term()) :: boolean()
-  def timeout_error?({phase, _failure}) when phase in [:retries_exceeded, :no_more_hosts],
-    do: false
-
+  def timeout_error?(:timeout), do: true
   def timeout_error?({:send_deadline_exceeded, _deadline_ms}), do: true
+  def timeout_error?({:send, {:network_failure, _host, {:error, :timeout}}}), do: true
+  def timeout_error?(%Mint.TransportError{reason: :timeout}), do: true
+  def timeout_error?({504, _body}), do: true
+  def timeout_error?(_reason), do: false
 
-  def timeout_error?(reason) do
-    reason
-    |> inspect()
-    |> String.downcase()
-    |> String.contains?("timeout")
+  # Header values reach the adapter's header encoding as they are. A CR or LF
+  # in a display name or subject (an attendee's name, a meeting title) is
+  # replaced here, once, rather than by each template remembering to.
+  defp sanitise_headers(%Swoosh.Email{} = email) do
+    %{
+      email
+      | subject: Sanitise.sanitize_for_header(email.subject),
+        from: clean_address(email.from),
+        reply_to: clean_address(email.reply_to),
+        to: Enum.map(email.to, &clean_address/1),
+        cc: Enum.map(email.cc, &clean_address/1),
+        bcc: Enum.map(email.bcc, &clean_address/1)
+    }
   end
+
+  defp clean_address({name, address}) when is_binary(name),
+    do: {Sanitise.sanitize_for_header(name), address}
+
+  defp clean_address(address), do: address
 
   defp check_text_body(%Swoosh.Email{text_body: body, subject: subject}) when body in [nil, ""] do
     Logger.error("Refusing to deliver email without a plain-text body")

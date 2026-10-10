@@ -211,6 +211,39 @@ defmodule Tymeslot.Emails.DeliveryTest do
     end
   end
 
+  describe "deliver/2 header values" do
+    setup do
+      Application.put_env(:swoosh, :shared_test_process, self())
+      on_exit(fn -> Application.delete_env(:swoosh, :shared_test_process) end)
+    end
+
+    # A CR or LF in a display name or a subject must never reach the
+    # adapter's header encoding, whichever template built the email.
+    test "strips line breaks from display names and the subject, keeping the addresses" do
+      email = %{
+        valid_email()
+        | to: [{"Ada\r\nBcc: victim@example.com", "ada@example.com"}],
+          cc: [{"Grace\n", "grace@example.com"}],
+          subject: "Meeting\r\nX-Injected: yes"
+      }
+
+      assert {:ok, _receipt} = Delivery.deliver(email)
+      assert_received {:email, sent}
+
+      assert sent.to == [{"Ada Bcc: victim@example.com", "ada@example.com"}]
+      assert sent.cc == [{"Grace", "grace@example.com"}]
+      assert sent.from == {"Tymeslot", "noreply@example.com"}
+      assert sent.subject == "Meeting X-Injected: yes"
+    end
+
+    test "keeps the email's private data, which carries tracking" do
+      email = Email.put_private(valid_email(), :tracking, %{"campaign" => "x"})
+
+      assert {:ok, _receipt} = Delivery.deliver(email)
+      assert_received {:email, %{private: %{tracking: %{"campaign" => "x"}}}}
+    end
+  end
+
   describe "permanent_rejection?/1 for SMTP replies" do
     test "recognises an enhanced status code describing the address itself" do
       for code <- ["5.1.1", "5.1.2", "5.1.3", "5.1.10", "5.2.1"] do
@@ -245,8 +278,21 @@ defmodule Tymeslot.Emails.DeliveryTest do
       assert Delivery.timeout_error?(:timeout)
     end
 
-    test "recognises a string mentioning a timeout, case-insensitively" do
-      assert Delivery.timeout_error?("connection Timeout while sending")
+    # A reason is judged by its shape; one that merely mentions a timeout in
+    # its text (a provider's error body, say) is retried, not assumed sent.
+    test "does not treat a reason that only mentions a timeout as one" do
+      refute Delivery.timeout_error?("connection Timeout while sending")
+      refute Delivery.timeout_error?({422, %{"Message" => "Request timeout"}})
+    end
+
+    test "recognises an API adapter's transport timeout and a gateway timeout" do
+      assert Delivery.timeout_error?(%Mint.TransportError{reason: :timeout})
+      assert Delivery.timeout_error?({504, "Gateway Timeout"})
+    end
+
+    test "retries other transport errors and HTTP statuses" do
+      refute Delivery.timeout_error?(%Mint.TransportError{reason: :closed})
+      refute Delivery.timeout_error?({503, "Service Unavailable"})
     end
 
     test "recognises a timeout gen_smtp reports mid-transaction, when the message may have left" do
