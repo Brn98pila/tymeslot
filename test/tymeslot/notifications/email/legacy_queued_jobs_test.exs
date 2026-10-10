@@ -16,8 +16,8 @@ defmodule Tymeslot.Notifications.Email.LegacyQueuedJobsTest do
   @moduletag :notifications
   @moduletag :emails
 
-  alias Tymeslot.Meetings.Guests
   alias Tymeslot.Meetings.GuestQueries
+  alias Tymeslot.Meetings.Guests
   alias Tymeslot.Workers.DeliveryClaims
   alias Tymeslot.Workers.EmailWorker
 
