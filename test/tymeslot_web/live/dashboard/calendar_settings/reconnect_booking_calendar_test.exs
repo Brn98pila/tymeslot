@@ -21,6 +21,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ReconnectBookingCalendarTest do
   import Tymeslot.Factory
 
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
+  alias Tymeslot.Infrastructure.ProviderBreakers
   alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Repo
@@ -37,7 +38,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ReconnectBookingCalendarTest do
     with_config(:tymeslot, :req_test_plug, {Req.Test, :tymeslot_http})
     with_config(:tymeslot, :allow_private_ips_for_calendar, true)
     CalendarCircuitBreaker.reset(:caldav)
-    CalendarCircuitBreaker.reset_for_url(:caldav, @base_url)
+    CalendarCircuitBreaker.reset(:caldav, ProviderBreakers.host_from_base_url(@base_url))
     RateLimiter.clear_all()
     :ok
   end
