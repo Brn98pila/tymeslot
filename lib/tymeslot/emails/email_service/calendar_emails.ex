@@ -21,8 +21,7 @@ defmodule Tymeslot.Emails.EmailService.CalendarEmails do
   """
   @spec send_calendar_sync_error(map(), any()) :: {:ok, any()} | {:error, any()}
   def send_calendar_sync_error(meeting, error_reason) do
-    email = CalendarSyncError.render(meeting, error_reason)
-    [{_name, owner_email}] = email.to
+    owner_email = CalendarSyncError.recipient_email(meeting)
 
     Logger.info("Sending calendar sync error notification",
       meeting_id: meeting.id,
@@ -39,7 +38,11 @@ defmodule Tymeslot.Emails.EmailService.CalendarEmails do
       }
     )
 
-    Delivery.deliver(email)
+    # The operator is alerted before the email is rendered, so a template
+    # that fails to render cannot swallow the alert.
+    meeting
+    |> CalendarSyncError.render(error_reason)
+    |> Delivery.deliver()
   end
 
   @doc """

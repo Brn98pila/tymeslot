@@ -65,9 +65,17 @@ defmodule Tymeslot.Emails.Templates.CalendarSyncError do
     end)
   end
 
+  @doc """
+  The address the email goes to: the meeting's organiser, or the instance's
+  sender address when the meeting has none.
+  """
+  @spec recipient_email(meeting_map()) :: String.t()
+  def recipient_email(meeting),
+    do: meeting.organizer_email || Application.get_env(:tymeslot, :email)[:from_email]
+
   defp recipient(meeting) do
     {meeting.organizer_name || dgettext("emails_integrations", "Calendar Owner"),
-     meeting.organizer_email || Application.get_env(:tymeslot, :email)[:from_email]}
+     recipient_email(meeting)}
   end
 
   defp do_render_html(error_details, {owner_start_time, clock}, meeting, locale) do
