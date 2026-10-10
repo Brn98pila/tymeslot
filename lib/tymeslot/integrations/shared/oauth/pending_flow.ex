@@ -20,11 +20,19 @@ defmodule Tymeslot.Integrations.Shared.OAuth.PendingFlow do
 
   alias Tymeslot.Clock
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlowQueries
+  alias Tymeslot.Integrations.Shared.OAuth.PendingFlowSchema
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Security.Token
 
+  @behaviour Tymeslot.Security.EncryptedStorage
+
   # As long as the signed state itself is valid (`State`'s default TTL).
   @ttl_seconds 3600
+
+  # The code verifiers of flows still open, so a key rotation finishes with
+  # none of them left on the old key.
+  @impl Tymeslot.Security.EncryptedStorage
+  def encrypted_storage, do: {PendingFlowSchema.__schema__(:source), [:code_verifier_encrypted]}
 
   @typedoc "What a started flow hands the authorisation URL."
   @type started :: %{nonce: String.t(), code_challenge: String.t()}

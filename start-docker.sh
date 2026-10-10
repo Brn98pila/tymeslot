@@ -138,7 +138,10 @@ echo "✓ All required environment variables are set"
 # with a key derived from SECRET_KEY_BASE (the historical behaviour) — which
 # means rotating SECRET_KEY_BASE would make them undecryptable. Set a dedicated
 # key to decouple the two secrets. Once set it MUST stay stable across restarts.
-if [ -z "${DATA_ENCRYPTION_KEY:-}" ]; then
+# DATA_ENCRYPTION_KEYS alone is the state after a rotation retired key 1, so
+# either variable counts, as in config/runtime.exs.
+# Whitespace-only counts as empty, as the keyring trims it.
+if [ -z "$(printf '%s%s' "${DATA_ENCRYPTION_KEY:-}" "${DATA_ENCRYPTION_KEYS:-}" | tr -d '[:space:]')" ]; then
     echo ""
     echo "⚠ DATA_ENCRYPTION_KEY is not set."
     echo "  Credentials at rest are encrypted with a key derived from SECRET_KEY_BASE,"
@@ -147,8 +150,9 @@ if [ -z "${DATA_ENCRYPTION_KEY:-}" ]; then
     echo "    DATA_ENCRYPTION_KEY=\$(openssl rand -base64 48 | tr -d '\\n')"
     echo "  Then migrate existing rows (see README-Docker.md, 'Data-at-rest encryption')."
 else
-    echo "✓ DATA_ENCRYPTION_KEY is set (data-at-rest key decoupled from SECRET_KEY_BASE)"
+    echo "✓ Data encryption key set (data-at-rest key decoupled from SECRET_KEY_BASE)"
 fi
+# End of data encryption key check
 
 echo ""
 echo "========================================"
