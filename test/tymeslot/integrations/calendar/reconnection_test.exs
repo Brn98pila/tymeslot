@@ -5,6 +5,7 @@ defmodule Tymeslot.Integrations.Calendar.ReconnectionTest do
   @moduletag :calendar
 
   alias Ecto.Changeset
+  alias Tymeslot.Auth.UserSchema
   alias Tymeslot.Factory
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
@@ -286,6 +287,46 @@ defmodule Tymeslot.Integrations.Calendar.ReconnectionTest do
       list = Repo.get!(CalendarIntegrationSchema, updated.id).calendar_list
       assert Enum.find(list, &(&1.path == "/b/")).blocks_availability == false
       assert Enum.find(list, &(&1.path == "/a/")).blocks_availability == true
+    end
+
+    test "a booking calendar left unticked stays selected and blocking", %{
+      integration: integration
+    } do
+      {:ok, integration} =
+        integration
+        |> Changeset.change(
+          default_booking_calendar_id: "/a/",
+          calendar_list: [
+            %CalendarEntry{id: "/a/", path: "/a/", selected: true},
+            %CalendarEntry{id: "/b/", path: "/b/", selected: true, blocks_availability: false}
+          ]
+        )
+        |> Repo.update()
+
+      Factory.insert(:meeting_type,
+        user: Repo.get!(UserSchema, integration.user_id),
+        calendar_integration_id: integration.id,
+        target_calendar_id: "/b/"
+      )
+
+      payload = %{
+        credentials: %{url: "https://caldav.example.com", username: "alice", password: "new"},
+        calendars: [
+          %{"id" => "/a/", "path" => "/a/", "name" => "A", "type" => "calendar"},
+          %{"id" => "/b/", "path" => "/b/", "name" => "B", "type" => "calendar"},
+          %{"id" => "/c/", "path" => "/c/", "name" => "C", "type" => "calendar"}
+        ]
+      }
+
+      assert {:ok, updated} = Reconnection.finalise_account_change(integration, payload, ["/c/"])
+
+      reloaded = Repo.get!(CalendarIntegrationSchema, updated.id)
+      assert Enum.sort(reloaded.calendar_paths) == ["/a/", "/b/", "/c/"]
+
+      for path <- ["/a/", "/b/"] do
+        assert %{selected: true, blocks_availability: true} =
+                 Enum.find(reloaded.calendar_list, &(&1.path == path))
+      end
     end
 
     test "matches a selected path that differs only by percent-encoding", %{

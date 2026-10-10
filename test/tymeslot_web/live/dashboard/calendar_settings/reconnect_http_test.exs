@@ -24,6 +24,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ReconnectHttpTest do
   import Tymeslot.DashboardTestHelpers
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
   alias Plug.Conn
   alias Req.Test, as: ReqTest
   alias Tymeslot.Infrastructure.CalendarCircuitBreaker
@@ -195,6 +196,71 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ReconnectHttpTest do
 
       assert Enum.sort(reloaded.calendar_paths) ==
                Enum.sort(["/calendars/alice/default/", "/calendars/alice/work/"])
+    end
+
+    test "a booking calendar's box is locked ticked, and saving keeps it blocking",
+         %{conn: conn, integration: integration, user: user} do
+      integration =
+        integration
+        |> Changeset.change(
+          calendar_paths: ["/calendars/alice/default/", "/calendars/alice/work/"],
+          default_booking_calendar_id: "/calendars/alice/default/",
+          calendar_list: [
+            %{id: "/calendars/alice/default/", path: "/calendars/alice/default/", selected: true},
+            %{
+              id: "/calendars/alice/work/",
+              path: "/calendars/alice/work/",
+              selected: true,
+              blocks_availability: false
+            }
+          ]
+        )
+        |> Repo.update!()
+
+      insert(:meeting_type,
+        user: user,
+        calendar_integration_id: integration.id,
+        target_calendar_id: "/calendars/alice/work/"
+      )
+
+      stub_two_calendar_discovery_server(
+        accept: "alice:oldpass",
+        principal_path: "/principals/alice/",
+        home_set_path: "/calendars/alice/",
+        calendars: [
+          {"/calendars/alice/default/", "Default"},
+          {"/calendars/alice/work/", "Work"}
+        ]
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/integrations?tab=calendars")
+
+      view
+      |> element("button[phx-click='show_reconnect'][phx-value-id='#{integration.id}']")
+      |> render_click()
+
+      view
+      |> form("form[phx-submit='reconnect_caldav_discover']",
+        reconnect: %{url: integration.base_url, username: "alice", password: "oldpass"}
+      )
+      |> render_submit()
+
+      assert has_element?(
+               view,
+               "input[type=checkbox][checked][disabled][value='/calendars/alice/work/']"
+             )
+
+      assert has_element?(view, "input[type=hidden][value='/calendars/alice/work/']")
+
+      # A request naming the other calendar alone, as a forged one could.
+      view
+      |> element("form[phx-submit='reconnect_caldav_submit']")
+      |> render_submit(%{"selected_paths" => ["/calendars/alice/default/"]})
+
+      reloaded = Repo.get!(CalendarIntegrationSchema, integration.id)
+
+      assert %{selected: true, blocks_availability: true} =
+               Enum.find(reloaded.calendar_list, &(&1.path == "/calendars/alice/work/"))
     end
 
     test "invalid password: error shown on credentials phase, record unchanged", %{

@@ -229,11 +229,44 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   whatever it is set to.
   """
   @spec booking_calendar?(integration(), String.t()) :: boolean()
-  def booking_calendar?(integration, calendar_id) do
+  def booking_calendar?(integration, calendar_id),
+    do: booking_calendar?(integration, booking_calendar_ids(integration), calendar_id)
+
+  defp booking_calendar?(integration, booking_ids, calendar_id) do
     held_to_rule?(integration, calendar_id) and
-      integration
-      |> booking_calendar_ids()
-      |> Enum.any?(&UriUtils.uri_safe_match?(&1, calendar_id))
+      Enum.any?(booking_ids, &UriUtils.uri_safe_match?(&1, calendar_id))
+  end
+
+  @doc """
+  Writes a reconnect's `calendar_list`, with the credentials and any other
+  `attrs` that go with it, to the row as stored and under its lock
+  (`CalendarSelectionQueries.with_locked_stored/2`), replacing the selection
+  rather than merging it.
+
+  A calendar of the list that is a booking calendar of the stored integration
+  (`booking_calendar?/2`) is kept selected and blocking whatever was ticked:
+  bookings still go to it, so its busy time must keep taking slots.
+  """
+  @spec replace_selection(integration(), [CalendarEntry.t()], map()) ::
+          {:ok, integration()} | {:error, Ecto.Changeset.t() | :not_found}
+  def replace_selection(%{id: id}, calendar_list, attrs) when is_map(attrs) do
+    id
+    |> CalendarSelectionQueries.with_locked_stored(fn stored ->
+      booking_ids = booking_calendar_ids(stored)
+
+      held =
+        Enum.map(calendar_list, fn entry ->
+          if booking_calendar?(stored, booking_ids, entry.id),
+            do: %{entry | selected: true, blocks_availability: true},
+            else: entry
+        end)
+
+      CalendarManagement.update_calendar_integration(
+        stored,
+        Map.merge(attrs, Selection.calendar_list_attrs(held))
+      )
+    end)
+    |> invalidate_on_success()
   end
 
   defp held_to_rule?(integration, calendar_id) do

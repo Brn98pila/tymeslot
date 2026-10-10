@@ -25,6 +25,7 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CaldavReconnect
   alias Tymeslot.Integrations.Calendar.DisplayHelpers
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Utils.ChangesetUtils
+  alias Tymeslot.Utils.UriUtils
 
   alias TymeslotWeb.Components.Dashboard.Integrations.Calendar.SharedFormComponents,
     as: SharedForm
@@ -75,11 +76,17 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CaldavReconnect
       {:ok, :needs_calendar_selection, payload} ->
         selected_paths = Enum.filter(integration.calendar_paths || [], &is_binary/1)
 
+        booking_paths =
+          user_id
+          |> Calendar.booking_calendar_ids_by_integration([integration])
+          |> Map.get(integration.id, [])
+
         {:noreply,
          socket
          |> assign(:phase, :calendar_selection)
          |> assign(:discovery_payload, payload)
          |> assign(:selected_paths, selected_paths)
+         |> assign(:booking_paths, booking_paths)
          |> assign(:form_errors, %{})
          |> assign(:is_submitting, false)}
 
@@ -200,6 +207,7 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CaldavReconnect
             <.calendar_selection
               payload={@discovery_payload}
               selected_paths={@selected_paths}
+              booking_paths={@booking_paths}
               form_errors={@form_errors}
               is_submitting={@is_submitting}
               target={@myself}
@@ -308,6 +316,11 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CaldavReconnect
 
   attr :payload, :map, required: true
   attr :selected_paths, :list, required: true
+
+  attr :booking_paths, :list,
+    required: true,
+    doc: "paths of the calendars bookings go to, which stay ticked and blocking"
+
   attr :form_errors, :map, required: true
   attr :is_submitting, :boolean, required: true
   attr :target, :any, required: true
@@ -350,12 +363,16 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CaldavReconnect
             <%= for calendar <- @payload.calendars do %>
               <% path = calendar.path %>
               <% name = calendar.name || path %>
+              <% booking? = booking_path?(path, @booking_paths) %>
               <div class="flex items-center space-x-3 p-3 rounded-token-lg hover:bg-white/20 transition-colors">
+                <%!-- A disabled box is not submitted; the hidden input sends its path. --%>
+                <input :if={booking?} type="hidden" name="selected_paths[]" value={path} />
                 <.input
                   type="checkbox"
                   name="selected_paths[]"
                   value={path}
-                  checked={path in @selected_paths}
+                  checked={booking? or path in @selected_paths}
+                  disabled={booking?}
                   id={"reconnect-calendar-#{String.replace(path, "/", "-")}"}
                 />
                 <label
@@ -364,6 +381,12 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CaldavReconnect
                 >
                   <div class="font-semibold text-tymeslot-800">{name}</div>
                   <div class="text-sm text-tymeslot-600">{path}</div>
+                  <div :if={booking?} class="text-token-xs text-tymeslot-500">
+                    {dgettext(
+                      "dashboard_calendar_providers",
+                      "Your booking calendar always blocks your availability."
+                    )}
+                  </div>
                 </label>
               </div>
             <% end %>
@@ -405,6 +428,7 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CaldavReconnect
     })
     |> assign(:discovery_payload, nil)
     |> assign(:selected_paths, [])
+    |> assign(:booking_paths, [])
     |> assign(:is_submitting, false)
   end
 
@@ -418,8 +442,13 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CaldavReconnect
     |> assign(:form_errors, %{})
     |> assign(:discovery_payload, nil)
     |> assign(:selected_paths, [])
+    |> assign(:booking_paths, [])
     |> assign(:is_submitting, false)
   end
+
+  # The same id matcher the context holds booking calendars by.
+  defp booking_path?(path, booking_paths),
+    do: Enum.any?(booking_paths, &UriUtils.uri_safe_match?(&1, path))
 
   defp parse_int(id) when is_integer(id), do: {:ok, id}
 
