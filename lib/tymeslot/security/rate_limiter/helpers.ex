@@ -273,12 +273,16 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
 
   Refuses in the same shape as `check_with_logging/6`, and for the same
   reason: a person who is over a limit needs to know which limit and for how
-  long, not that something went wrong.
+  long, not that something went wrong. `log: false` refuses without the log
+  line, as `check_window/4` does.
   """
-  @spec check_multi_bucket_limits([bucket()]) :: :ok | {:error, :rate_limited, String.t()}
-  def check_multi_bucket_limits(buckets) do
+  @spec check_multi_bucket_limits([bucket()], keyword()) ::
+          :ok | {:error, :rate_limited, String.t()}
+  def check_multi_bucket_limits(buckets, opts \\ []) do
+    log? = Keyword.get(opts, :log, true)
+
     Enum.reduce_while(buckets, :ok, fn {bucket_base, limits, operation, action}, _acc ->
-      case apply_limits(bucket_base, limits, operation, action) do
+      case apply_limits(bucket_base, limits, operation, action, log?) do
         :ok -> {:cont, :ok}
         error -> {:halt, error}
       end
@@ -290,13 +294,17 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
   # the walk is the tightest one that tripped, and its limit and window are
   # what the sentence names: telling someone about the daily cap when the
   # per-minute one stopped them would send them away for a day.
-  @spec apply_limits(bucket_key(), [tier()], String.t(), String.t()) ::
+  @spec apply_limits(bucket_key(), [tier()], String.t(), String.t(), boolean()) ::
           :ok | {:error, :rate_limited, String.t()}
-  defp apply_limits(bucket_base, limits, operation, action) do
+  defp apply_limits(bucket_base, limits, operation, action, log?) do
     Enum.reduce_while(limits, :ok, fn {label, limit, window_ms}, _acc ->
       case check_rate("#{bucket_base}:#{label}", window_ms, limit) do
         {:allow, _count} ->
           {:cont, :ok}
+
+        {:deny, retry_after_ms} when not log? ->
+          {:halt,
+           {:error, :rate_limited, refusal_message(limit, window_ms, retry_after_ms, action)}}
 
         {:deny, retry_after_ms} ->
           # No identifier here: these bucket bases embed one (an email address

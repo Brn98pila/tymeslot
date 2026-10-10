@@ -22,6 +22,7 @@ defmodule Tymeslot.Auth.OAuth.SignupConfirmation do
   require Logger
 
   alias Tymeslot.Auth.OAuth.{Providers, UserRegistration}
+  alias Tymeslot.Auth.RateLimit
   alias Tymeslot.Auth.UserQueries
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Infrastructure.Config
@@ -43,7 +44,9 @@ defmodule Tymeslot.Auth.OAuth.SignupConfirmation do
   """
   @spec request(provider(), map(), map(), String.t() | nil) :: :sent | :rate_limited
   def request(provider, oauth_data, profile_params, ip) do
-    case RateLimiter.check(:verification_ip, ip) do
+    limit = RateLimiter.check(:verification_ip, ip)
+
+    case RateLimit.check(limit, event: "email_verification", identifier: nil, ip: ip) do
       :ok ->
         send_link(provider, oauth_data, profile_params)
         :sent

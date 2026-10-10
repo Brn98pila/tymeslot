@@ -218,8 +218,10 @@ defmodule Tymeslot.Security.RateLimiterAuthTest do
     end
   end
 
+  # The login flow logs a refusal once, as a rate_limit_violation security
+  # event with the address masked; the limiter adds no line of its own.
   describe "rate-limit rejection logging" do
-    test "the rejection line masks the email and drops the bucket key that embeds it" do
+    test "an account-bucket rejection writes no line of its own" do
       email = "log-mask-#{System.unique_integer([:positive])}@example.com"
 
       for _i <- 1..10 do
@@ -230,16 +232,10 @@ defmodule Tymeslot.Security.RateLimiterAuthTest do
         assert {:error, :rate_limited, _msg} = RateLimiter.check_auth_rate_limit(email, nil)
       end)
 
-      event = LogCapture.await_log("Rate limit exceeded")
-      meta = LogCapture.user_metadata(event)
-
-      assert meta.identifier_masked == "l***@example.com"
-      assert meta.operation == "authentication"
-      refute Map.has_key?(meta, :bucket)
-      refute LogCapture.dump(event) =~ email
+      assert LogCapture.drain() == []
     end
 
-    test "an IP-bucket rejection keeps the address readable" do
+    test "an IP-bucket rejection writes no line of its own" do
       ip = "203.0.113.#{Enum.random(1..250)}"
       run = System.unique_integer([:positive])
 
@@ -254,10 +250,7 @@ defmodule Tymeslot.Security.RateLimiterAuthTest do
                  RateLimiter.check_auth_rate_limit("ip-bucket-#{run}-last@example.com", ip)
       end)
 
-      meta = "Rate limit exceeded" |> LogCapture.await_log() |> LogCapture.user_metadata()
-
-      assert meta.operation == "authentication (ip)"
-      assert meta.identifier_masked == ip
+      assert LogCapture.drain() == []
     end
   end
 

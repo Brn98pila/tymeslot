@@ -99,9 +99,10 @@ defmodule Tymeslot.Security.RateLimiter do
         )
 
       tiers ->
-        Helpers.check_multi_bucket_limits([
-          {bucket_key, tiers, entry[:operation], action(entry)}
-        ])
+        Helpers.check_multi_bucket_limits(
+          [{bucket_key, tiers, entry[:operation], action(entry)}],
+          log: Keyword.get(entry, :log, true)
+        )
     end
   end
 

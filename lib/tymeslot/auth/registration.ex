@@ -116,7 +116,7 @@ defmodule Tymeslot.Auth.Registration do
     case via(opts) do
       :signup_form ->
         _discarded = Password.hash_password(validated_params["password"])
-        _allowance = RateLimiter.check(:verification_ip, opts[:ip])
+        _allowance = spend_verification_allowance(opts[:ip])
         {:existing_account, success_message()}
 
       :provisioning ->
@@ -160,7 +160,7 @@ defmodule Tymeslot.Auth.Registration do
   # Spends the address's verification allowance as a real sign-up's email
   # does, so the resend budget left afterwards matches too.
   defp answer_honeypot(ip) do
-    _allowance = RateLimiter.check(:verification_ip, ip)
+    _allowance = spend_verification_allowance(ip)
     {:honeypot, success_message()}
   end
 
@@ -280,7 +280,7 @@ defmodule Tymeslot.Auth.Registration do
     # The source's allowance first: a source over its own limit must spend
     # nothing of the owner's notice budget, or it could exhaust that budget
     # and silence the notice for the genuine attempts that follow.
-    case RateLimiter.check(:verification_ip, ip) do
+    case spend_verification_allowance(ip) do
       :ok ->
         notify_owner_of_attempt(existing)
         :sent
@@ -288,6 +288,16 @@ defmodule Tymeslot.Auth.Registration do
       {:error, :rate_limited, _message} ->
         :rate_limited
     end
+  end
+
+  # The source's verification allowance, spent as a new account's email
+  # would spend it; a refusal is audited once, like every auth limit.
+  defp spend_verification_allowance(ip) do
+    RateLimit.check(RateLimiter.check(:verification_ip, ip),
+      event: "email_verification",
+      identifier: nil,
+      ip: ip
+    )
   end
 
   # Capped per recipient so the sign-up form cannot be used to flood an

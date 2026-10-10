@@ -118,20 +118,22 @@ defmodule Tymeslot.Security.RateLimiterMultiBucketRefusalTest do
     test "the log line stays English while the sentence is translated" do
       LogCapture.attach()
 
-      ip = "203.0.113.94"
+      # A tiered limit that logs its own refusals (the auth ones leave that to
+      # the auth flows' security event).
+      email = "tiers-#{System.unique_integer([:positive])}@example.com"
 
       Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
-        for _i <- 1..5, do: RateLimiter.check(:signup_ip, ip)
-        assert {:error, :rate_limited, _message} = RateLimiter.check(:signup_ip, ip)
+        for _i <- 1..5, do: RateLimiter.check(:booking_recipient, email)
+        assert {:error, :rate_limited, _message} = RateLimiter.check(:booking_recipient, email)
       end)
 
       assert_receive {:captured_log, %{level: :warning, meta: %{operation: operation} = meta}}
 
       # `operation` is what a log search is keyed on, so it must not follow the
       # reader's locale the way the sentence does.
-      assert operation == "signup"
+      assert operation == "booking"
       assert meta.limit == 5
-      assert meta.window_minutes == 10
+      assert meta.window_minutes == 60
     end
   end
 

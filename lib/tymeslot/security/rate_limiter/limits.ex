@@ -28,10 +28,12 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
   - `:operation`: the English bucket name the log line carries.
   - `:action`: optional, the localised plural the refusal says out loud
     ("the limit of 5 signup attempts"), stored as a msgid.
-  - `:log`: `false` where a refusal writes no log line: the flood caps on
-    machine-to-machine endpoints, whose refusals would otherwise write one
-    warning per request under a flood, and limits whose refusal has never
-    been logged (form keystrokes, public poll voting, settings edits).
+  - `:log`: `false` where a refusal writes no log line here: the flood caps
+    on machine-to-machine endpoints, whose refusals would otherwise write one
+    warning per request under a flood; limits whose refusal has never been
+    logged (form keystrokes, public poll voting, settings edits); and the
+    auth limits, whose refusals the auth flows log once as a
+    `rate_limit_violation` security event (`Tymeslot.Auth.RateLimit`).
   """
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -75,28 +77,32 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
       scope: :source,
       tiers: @signup_tiers,
       operation: "signup",
-      action: dgettext_noop("errors", "signup attempts")
+      action: dgettext_noop("errors", "signup attempts"),
+      log: false
     ],
     signup_email: [
       prefix: "signup:email",
       scope: :email,
       tiers: @signup_tiers,
       operation: "signup",
-      action: dgettext_noop("errors", "signup attempts")
+      action: dgettext_noop("errors", "signup attempts"),
+      log: false
     ],
     verification_ip: [
       prefix: "email_verification:ip",
       scope: :source,
       tiers: @source_email_tiers,
       operation: "email verification",
-      action: dgettext_noop("errors", "verification emails")
+      action: dgettext_noop("errors", "verification emails"),
+      log: false
     ],
     verification_user: [
       prefix: "email_verification:user",
       scope: :key,
       tiers: @recipient_email_tiers,
       operation: "email verification",
-      action: dgettext_noop("errors", "verification emails")
+      action: dgettext_noop("errors", "verification emails"),
+      log: false
     ],
     # Its own bucket, so that an attempt against an unverified account never
     # spends that account's own resend allowance.
@@ -105,35 +111,40 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
       scope: :key,
       tiers: @recipient_email_tiers,
       operation: "signup attempt notice",
-      action: dgettext_noop("errors", "verification emails")
+      action: dgettext_noop("errors", "verification emails"),
+      log: false
     ],
     social_signup_confirmation: [
       prefix: "social_signup_confirmation:email",
       scope: :email,
       tiers: @recipient_email_tiers,
       operation: "social signup confirmation",
-      action: dgettext_noop("errors", "verification emails")
+      action: dgettext_noop("errors", "verification emails"),
+      log: false
     ],
     password_reset_ip: [
       prefix: "password_reset:ip",
       scope: :source,
       tiers: @source_email_tiers,
       operation: "password reset",
-      action: dgettext_noop("errors", "password reset requests")
+      action: dgettext_noop("errors", "password reset requests"),
+      log: false
     ],
     password_reset_email: [
       prefix: "password_reset:email",
       scope: :email,
       tiers: @recipient_email_tiers,
       operation: "password reset",
-      action: dgettext_noop("errors", "password reset requests")
+      action: dgettext_noop("errors", "password reset requests"),
+      log: false
     ],
     email_change_verify: [
       prefix: "email_change_verify",
       scope: :source,
       limit: 30,
       window_ms: @minute,
-      operation: "email change verification"
+      operation: "email change verification",
+      log: false
     ],
     # The reset token is the only secret on that form, and each attempt pays
     # for a bcrypt hash.
@@ -142,14 +153,16 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
       scope: :source,
       limit: 30,
       window_ms: @minute,
-      operation: "password reset submission"
+      operation: "password reset submission",
+      log: false
     ],
     verification_link: [
       prefix: "verification_link",
       scope: :source,
       limit: 30,
       window_ms: @minute,
-      operation: "email verification link"
+      operation: "email verification link",
+      log: false
     ],
 
     # OAuth sign-in
@@ -158,21 +171,24 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
       scope: :source,
       limit: 10,
       window_ms: 10 * @minute,
-      operation: "OAuth initiation"
+      operation: "OAuth initiation",
+      log: false
     ],
     oauth_callback: [
       prefix: "oauth_callback",
       scope: :source,
       limit: 20,
       window_ms: 2 * @minute,
-      operation: "OAuth callback"
+      operation: "OAuth callback",
+      log: false
     ],
     oauth_completion: [
       prefix: "oauth_completion",
       scope: :source,
       limit: 6,
       window_ms: 20 * @minute,
-      operation: "OAuth completion"
+      operation: "OAuth completion",
+      log: false
     ],
 
     # Bookings and the public booking links

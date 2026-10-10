@@ -38,6 +38,8 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
   @failed_login_window_ms 3_600_000
 
   @spec check_auth(String.t(), String.t() | nil) :: :ok | {:error, :rate_limited, String.t()}
+  # Refuses without a log line of its own: the auth flows log a refusal once,
+  # as a rate_limit_violation security event.
   def check_auth(email, ip) do
     # Normalise so whitespace-padded and case-variant emails share one bucket,
     # preventing " User@X.com " / "user@x.com" bypasses of the login limit.
@@ -46,20 +48,19 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
 
     with :ok <- check_failed_logins(pair),
          :ok <-
-           Helpers.check_with_logging(
-             "login:#{pair}",
-             @login_pair_limit,
-             @login_window_ms,
-             "authentication",
-             downcased_email
+           Helpers.check_window("login:#{pair}", @login_pair_limit, @login_window_ms,
+             operation: "authentication",
+             identifier: downcased_email,
+             log: false
            ),
          :ok <-
-           Helpers.check_with_logging(
+           Helpers.check_window(
              "login:#{downcased_email}",
              @login_email_ceiling,
              @login_window_ms,
-             "authentication (account)",
-             downcased_email
+             operation: "authentication (account)",
+             identifier: downcased_email,
+             log: false
            ) do
       check_auth_ip_bucket(ip)
     end
@@ -111,12 +112,10 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
     do: "#{downcased_email}|#{Helpers.source_key(ip)}"
 
   defp check_auth_ip_bucket(ip) when is_binary(ip) and ip != "" do
-    Helpers.check_with_logging(
-      "login_ip:#{Helpers.source_key(ip)}",
-      50,
-      1_800_000,
-      "authentication (ip)",
-      ip
+    Helpers.check_window("login_ip:#{Helpers.source_key(ip)}", 50, 1_800_000,
+      operation: "authentication (ip)",
+      identifier: ip,
+      log: false
     )
   end
 
