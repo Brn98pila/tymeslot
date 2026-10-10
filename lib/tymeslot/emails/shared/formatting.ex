@@ -234,6 +234,27 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   def format_meeting_time(_details, _locale), do: nil
 
   @doc """
+  A meeting's date and start time as one phrase, the time worded exactly as
+  `format_meeting_time/2` words it (the recipient's clock, the zone named),
+  for a time stated outside the details card, such as the one a rescheduled
+  meeting moved from. Reads `:start_time` and `:time_format` only.
+
+  Example (en): "14 January 2026 at 01:30 PM IST (Asia/Kolkata)"
+  """
+  @spec format_meeting_datetime(map(), String.t()) :: String.t()
+  def format_meeting_datetime(%{start_time: %DateTime{} = start_time} = details, locale) do
+    time =
+      format_meeting_time(
+        %{start_time: start_time, time_format: Map.get(details, :time_format)},
+        locale
+      )
+
+    Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
+      dgettext("emails", "%{date} at %{time}", date: format_date(start_time, locale), time: time)
+    end)
+  end
+
+  @doc """
   The duration of a meeting-details map: minutes for a timed meeting, the
   number of days an all-day event covers. Shared by the HTML card and the
   plain-text body, as `format_meeting_time/2` is.

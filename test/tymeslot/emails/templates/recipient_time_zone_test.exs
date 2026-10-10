@@ -191,4 +191,46 @@ defmodule Tymeslot.Emails.Templates.RecipientTimeZoneTest do
       end
     end
   end
+
+  describe "the time a rescheduled meeting moved from" do
+    # Previously 08:00 UTC on 14 January: 09:00 in Berlin, 13:30 in Kolkata.
+    defp moved do
+      previous = ~U[2026-01-14 08:00:00Z]
+
+      details(%{
+        original_start_time: previous,
+        original_start_time_owner_tz: DateTime.shift_zone!(previous, "Europe/Berlin"),
+        original_start_time_attendee_tz: DateTime.shift_zone!(previous, "Asia/Kolkata")
+      })
+    end
+
+    test "reads on the organiser's own clock, zone named, in both parts" do
+      email = AppointmentRescheduled.render(:organizer, "organizer@example.com", moved())
+      previously = "14 January 2026 at 09:00 CET (Europe/Berlin)"
+
+      assert email.html_body =~ previously
+      assert email.text_body =~ "Previously scheduled for: #{previously}"
+    end
+
+    test "reads on the booker's clock, zone named, in both parts" do
+      email = AppointmentRescheduled.render(:attendee, "attendee@example.com", moved())
+      previously = "14 January 2026 at 01:30 PM IST (Asia/Kolkata)"
+
+      assert email.html_body =~ previously
+      assert email.text_body =~ "Previously scheduled for: #{previously}"
+    end
+
+    test "names both ends of a moved spot with their zone" do
+      email =
+        AppointmentRescheduled.render(
+          :attendee,
+          "attendee@example.com",
+          Map.put(moved(), :seat_move, true)
+        )
+
+      assert email.text_body =~
+               "from 14 January 2026 at 01:30 PM IST (Asia/Kolkata) to 15 January 2026 at 02:30 PM IST (Asia/Kolkata)"
+    end
+  end
 end
+

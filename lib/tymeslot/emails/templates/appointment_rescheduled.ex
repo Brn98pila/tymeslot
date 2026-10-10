@@ -291,12 +291,10 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
   # The time the spot left is unknown only when its seat row has since gone
   # (see `Tymeslot.Workers.EmailWorkerHandlers.SeatEmails`).
   defp seat_move_times(appointment_details, locale) do
-    to = Formatting.format_datetime(appointment_details.start_time_attendee_tz, locale)
+    to =
+      moment(appointment_details.start_time_attendee_tz, appointment_details, :attendee, locale)
 
-    case previous_start_time(appointment_details, :attendee) do
-      %DateTime{} = previous -> {Formatting.format_datetime(previous, locale), to}
-      _unknown -> {nil, to}
-    end
+    {previous_moment(appointment_details, :attendee, locale), to}
   end
 
   defp attendee_stage_title(%{seat_move: true}),
@@ -323,26 +321,44 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
   # timezone. Returns "" when the payload carries no reschedule context, so the
   # template degrades to a plain "new details" email instead of raising.
   defp previous_time_callout(appointment_details, recipient, locale) do
-    case previous_start_time(appointment_details, recipient) do
+    case previous_moment(appointment_details, recipient, locale) do
       nil ->
         ""
 
-      previous ->
-        Callouts.alert_box(@intent, Formatting.format_datetime(previous, locale),
+      previously ->
+        Callouts.alert_box(@intent, previously,
           title: dgettext("emails_booking", "Previously scheduled for")
         )
     end
   end
 
   defp previous_time_line(appointment_details, recipient, locale) do
-    case previous_start_time(appointment_details, recipient) do
-      nil ->
-        ""
-
-      previous ->
-        "\n#{dgettext("emails_booking", "Previously scheduled for")}: #{Formatting.format_datetime(previous, locale)}\n"
+    case previous_moment(appointment_details, recipient, locale) do
+      nil -> ""
+      previously -> "\n#{dgettext("emails_booking", "Previously scheduled for")}: #{previously}\n"
     end
   end
+
+  # The previous start, stated as the new one is: on the recipient's clock,
+  # with the zone it is in named.
+  defp previous_moment(appointment_details, recipient, locale) do
+    case previous_start_time(appointment_details, recipient) do
+      %DateTime{} = previous -> moment(previous, appointment_details, recipient, locale)
+      _unknown -> nil
+    end
+  end
+
+  defp moment(start_time, appointment_details, recipient, locale) do
+    Formatting.format_meeting_datetime(
+      %{start_time: start_time, time_format: recipient_clock(appointment_details, recipient)},
+      locale
+    )
+  end
+
+  defp recipient_clock(appointment_details, :organizer),
+    do: Map.get(appointment_details, :organizer_time_format)
+
+  defp recipient_clock(_appointment_details, :attendee), do: nil
 
   defp previous_start_time(appointment_details, :attendee) do
     Map.get(appointment_details, :original_start_time_attendee_tz) ||
