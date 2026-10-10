@@ -333,7 +333,9 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   end
 
   defp invalidate_on_success({:ok, %{user_id: user_id}} = ok) do
-    unless CalendarIntegrationQueries.in_transaction?(), do: AvailabilityCache.invalidate_for_user(user_id)
+    unless CalendarIntegrationQueries.in_transaction?(),
+      do: AvailabilityCache.invalidate_for_user(user_id)
+
     ok
   end
 

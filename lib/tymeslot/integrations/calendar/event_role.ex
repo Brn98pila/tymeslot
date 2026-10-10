@@ -25,8 +25,8 @@ defmodule Tymeslot.Integrations.Calendar.EventRole do
 
   It is also not the owner's choice whether a calendar blocks: that is
   `CalendarEntry.blocks_availability`, a filter on whole calendars applied
-  before this one (`Selection.availability_view/1` for live reads,
-  `Selection.blocking_rules/1` for cached ones). `role` answers whether the
+  before this one (`AvailabilityView.of/1` for live reads,
+  `AvailabilityView.rules/1` for cached ones). `role` answers whether the
   provider's data for a row can be trusted to block at all; a row passes
   both before it blocks, and a calendar set to show only blocks nothing
   whatever its rows' roles.

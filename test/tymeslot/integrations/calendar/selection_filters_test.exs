@@ -2,6 +2,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionFiltersTest do
   use ExUnit.Case, async: true
   @moduletag :calendar
 
+  alias Tymeslot.Integrations.Calendar.AvailabilityView
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.Selection
 
@@ -155,7 +156,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionFiltersTest do
     end
   end
 
-  describe "availability_view/1" do
+  describe "AvailabilityView.of/1" do
     test "narrows the list and the paths to the blocking calendars" do
       integration = %{
         id: 1,
@@ -172,7 +173,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionFiltersTest do
           ])
       }
 
-      view = Selection.availability_view(integration)
+      view = AvailabilityView.of(integration)
 
       assert Enum.map(view.calendar_list, & &1.id) == ["/cal/work/"]
       assert view.calendar_paths == ["/cal/work/"]
@@ -186,7 +187,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionFiltersTest do
         calendar_list: entries([%{id: "work", selected: true, blocks_availability: false}])
       }
 
-      assert Selection.availability_view(integration) == nil
+      assert AvailabilityView.of(integration) == nil
     end
 
     test "leaves an integration with nothing selected unchanged, as it was read before" do
@@ -196,18 +197,54 @@ defmodule Tymeslot.Integrations.Calendar.SelectionFiltersTest do
         calendar_list: entries([%{id: "work", selected: false, blocks_availability: false}])
       }
 
-      assert Selection.availability_view(integration) == integration
+      assert AvailabilityView.of(integration) == integration
     end
 
     test "leaves an integration that predates calendar selection unchanged" do
       for list <- [nil, []] do
         integration = %{id: 1, calendar_list: list, calendar_paths: ["/cal/a/"]}
-        assert Selection.availability_view(integration) == integration
+        assert AvailabilityView.of(integration) == integration
       end
     end
   end
 
-  describe "blocking_rules/1" do
+  describe "AvailabilityView for an Exchange mailbox" do
+    test "reads it whole unless its main calendar is set not to block" do
+      mailbox = fn main ->
+        %{
+          id: 9,
+          provider: "exchange",
+          calendar_list:
+            entries([
+              Map.merge(%{id: "main", primary: true}, main),
+              %{id: "team", selected: true, blocks_availability: false}
+            ])
+        }
+      end
+
+      for main <- [%{selected: false}, %{selected: false, blocks_availability: true}] do
+        integration = mailbox.(main)
+        assert AvailabilityView.of(integration) == integration
+        assert AvailabilityView.rules([integration]) == %{9 => :all}
+      end
+
+      show_only = mailbox.(%{selected: true, blocks_availability: false})
+      assert AvailabilityView.of(show_only) == nil
+      assert AvailabilityView.rules([show_only]) == %{9 => :none}
+    end
+
+    test "reads a mailbox that names no main calendar whole" do
+      integration = %{
+        id: 9,
+        provider: "exchange",
+        calendar_list: entries([%{id: "team", selected: true, blocks_availability: false}])
+      }
+
+      assert AvailabilityView.of(integration) == integration
+    end
+  end
+
+  describe "AvailabilityView.rules/1" do
     test "matches only the blocking calendars, beside the wider visibility rule" do
       integration = %{
         id: 7,
@@ -218,7 +255,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionFiltersTest do
           ])
       }
 
-      assert Selection.blocking_rules([integration]) ==
+      assert AvailabilityView.rules([integration]) ==
                %{7 => {:selected, [%{id: "work", prefix: "work"}]}}
 
       assert %{7 => {:selected, [_work, _holidays]}} = Selection.visibility_rules([integration])
@@ -232,7 +269,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionFiltersTest do
 
       nothing_selected = %{id: 3, calendar_list: entries([%{id: "b", selected: false}])}
 
-      assert Selection.blocking_rules([show_only, %{id: 2, calendar_list: nil}, nothing_selected]) ==
+      assert AvailabilityView.rules([show_only, %{id: 2, calendar_list: nil}, nothing_selected]) ==
                %{1 => :none, 2 => :all, 3 => :all}
     end
   end

@@ -17,12 +17,12 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   require Logger
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Integrations.Calendar.AvailabilityView
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Providers.ProviderAdapter
   alias Tymeslot.Integrations.Calendar.Runtime.BookingIntegrationResolver
   alias Tymeslot.Integrations.Calendar.Runtime.CalendarPathResolver
-  alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
@@ -34,7 +34,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   @doc """
   The clients that read a user's calendars for availability: those of
   `availability_sources/1`, without the ids of unreadable integrations. A
-  calendar set to show only gets none (see `Selection.availability_view/1`);
+  calendar set to show only gets none (see `AvailabilityView.of/1`);
   for every calendar the user has, use `clients_for_integration/1`.
   """
   @spec clients(user_id() | nil) :: [client()]
@@ -48,7 +48,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   active integrations with a blocking calendar whose credentials no longer
   decrypt.
 
-  Each integration is read through `Selection.availability_view/1`, so a
+  Each integration is read through `AvailabilityView.of/1`, so a
   calendar set to show only gets no client and can never refuse a slot, and
   an integration with nothing blocking contributes none at all. The
   availability check must count an undecryptable integration as a calendar
@@ -62,11 +62,11 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
       {:ok, integrations, unreadable} ->
         clients =
           integrations
-          |> Enum.map(&Selection.availability_view/1)
+          |> Enum.map(&AvailabilityView.of/1)
           |> Enum.reject(&is_nil/1)
           |> Enum.flat_map(&clients_for_integration/1)
 
-        {clients, for(i <- unreadable, Selection.availability_view(i) != nil, do: i.id)}
+        {clients, for(i <- unreadable, AvailabilityView.of(i) != nil, do: i.id)}
 
       :not_found ->
         Logger.warning(

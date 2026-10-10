@@ -4,6 +4,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueriesTest do
   @moduletag :integrations
   @moduletag :queries
 
+  alias Tymeslot.Integrations.Calendar.AvailabilityView
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.CalendarEventQueries
   alias Tymeslot.Integrations.Calendar.Selection
@@ -29,7 +30,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueriesTest do
         )
       end
 
-      %{integration: integration, rules: Selection.blocking_rules([integration])}
+      %{integration: integration, rules: AvailabilityView.rules([integration])}
     end
 
     test "keeps only blocking calendars' rows, for either range shape", %{

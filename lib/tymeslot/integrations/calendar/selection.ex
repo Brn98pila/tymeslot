@@ -347,48 +347,6 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
     do: calendar_list |> Enum.map(&CalendarEntry.normalize/1) |> Enum.filter(&blocking?/1)
 
   @doc """
-  The integration as the availability read must see it: `calendar_list`
-  narrowed to its blocking calendars, with `calendar_paths` to match, or
-  `nil` when calendars are selected and none of them blocks.
-
-  Availability reads blocking calendars only, so a calendar set to show only
-  is never read for it and can never refuse a slot. Dropping an integration
-  whose selected calendars all show only, rather than passing it on with an
-  empty list, is load-bearing: Google and Outlook read the account's primary
-  calendar when no calendar is selected.
-
-  Returned unchanged, and so read as before the choice existed: an
-  integration with no calendar list (it predates selection), one with
-  nothing selected (Google and Outlook read the primary then), and an
-  Exchange mailbox, whose busy time is cached mailbox-wide rather than per
-  folder.
-  """
-  @spec availability_view(map()) :: map() | nil
-  def availability_view(%{calendar_list: list} = integration) do
-    if read_whole?(integration),
-      do: integration,
-      else: narrow_to_blocking(integration, blocking_calendars(list))
-  end
-
-  # The integrations `availability_view/1` and `blocking_rules/1` read as they
-  # were read before the blocking choice existed.
-  defp read_whole?(%{calendar_list: list}) when list in [nil, []], do: true
-
-  defp read_whole?(%{calendar_list: list} = integration) do
-    ProviderConfig.ews?(Map.get(integration, :provider)) or
-      not Enum.any?(list, &CalendarEntry.normalize(&1).selected)
-  end
-
-  defp narrow_to_blocking(_integration, []), do: nil
-
-  defp narrow_to_blocking(integration, blocking) do
-    Map.merge(integration, %{
-      calendar_list: blocking,
-      calendar_paths: derive_selected_paths(blocking)
-    })
-  end
-
-  @doc """
   Returns the selected entries from a `calendar_list` that are also
   writable — the calendars available as booking/sync targets. Read-only
   calendars can still be selected for conflict-checking visibility (see
@@ -542,36 +500,20 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
     end)
   end
 
-  @doc """
-  The availability counterpart of `visibility_rules/1`: per integration id,
-  the `t:visibility_rule/0` that keeps only cached rows from calendars that
-  block availability (see `blocking?/1`). Same shape, so the same query
-  builder applies it; a calendar list with nothing blocking is `:none`.
-
-  An integration `availability_view/1` passes through whole is `:all`: an
-  Exchange mailbox, whose busy rows are cached mailbox-wide under no
-  folder's id, and one with nothing selected.
-  """
-  @spec blocking_rules([map()]) :: %{integer() => visibility_rule()}
-  def blocking_rules(integrations) do
-    Map.new(integrations, fn integration ->
-      rule =
-        if read_whole?(integration),
-          do: :all,
-          else: integration_rule(integration, &blocking_calendars/1)
-
-      {integration.id, rule}
-    end)
-  end
-
   defp integration_rule(%{calendar_list: list}, _pick) when list in [nil, []], do: :all
 
-  defp integration_rule(%{calendar_list: calendar_list}, pick) do
-    case pick.(calendar_list) do
-      [] -> :none
-      entries -> {:selected, Enum.map(entries, &%{id: &1.id, prefix: &1.path || &1.id})}
-    end
-  end
+  defp integration_rule(%{calendar_list: calendar_list}, pick),
+    do: entries_rule(pick.(calendar_list))
+
+  @doc """
+  The `t:visibility_rule/0` matching cached rows from `entries`: `:none`
+  for no entries.
+  """
+  @spec entries_rule([CalendarEntry.t()]) :: visibility_rule()
+  def entries_rule([]), do: :none
+
+  def entries_rule(entries),
+    do: {:selected, Enum.map(entries, &%{id: &1.id, prefix: &1.path || &1.id})}
 
   @doc """
   Resolves the entry in `calendar_list` that `event` came from, or `nil` when

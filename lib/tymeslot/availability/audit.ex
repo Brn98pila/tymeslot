@@ -27,9 +27,9 @@ defmodule Tymeslot.Availability.Audit do
   alias Tymeslot.Availability.TimeOffPeriodQueries
   alias Tymeslot.Availability.WeeklyAvailabilityQueries
   alias Tymeslot.Clock
+  alias Tymeslot.Integrations.Calendar.AvailabilityView
   alias Tymeslot.Integrations.Calendar.CalendarEventQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
-  alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Profiles.ProfileQueries
 
   @default_duration_minutes 30
@@ -93,7 +93,7 @@ defmodule Tymeslot.Availability.Audit do
     timezone = profile.timezone
 
     integrations = CalendarIntegrationQueries.list_active_for_user(profile.user_id)
-    calendars = {Enum.map(integrations, & &1.id), Selection.blocking_rules(integrations)}
+    calendars = {Enum.map(integrations, & &1.id), AvailabilityView.rules(integrations)}
 
     # The audit reads the profile's default schedule, which is the one the public
     # booking page falls back to when a meeting type names no schedule of its own.

@@ -11,11 +11,11 @@ defmodule Tymeslot.FreeBusy do
   """
 
   alias Tymeslot.Availability.{Events, TimeOff}
+  alias Tymeslot.Integrations.Calendar.AvailabilityView
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.CalendarEventQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.FreebusyGenerator
-  alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Security.Token
@@ -92,7 +92,7 @@ defmodule Tymeslot.FreeBusy do
       |> Enum.map(& &1.id)
       |> CalendarEventQueries.in_range(
         {window_start, window_end},
-        Selection.blocking_rules(integrations)
+        AvailabilityView.rules(integrations)
       )
       |> Enum.filter(&CalendarEvent.blocking?/1)
       |> Enum.flat_map(&event_interval(&1, profile.timezone || "Etc/UTC"))

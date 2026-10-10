@@ -51,7 +51,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarEventQueries do
   The `DateTime` clause is `list_blocking_for_range/4` converted to structs, so
   the role filter this read applies is defined once rather than once per shape.
 
-  `blocking_rules`, from `Selection.blocking_rules/1`, keeps only rows from
+  `blocking_rules`, from `AvailabilityView.rules/1`, keeps only rows from
   calendars the owner lets block availability; it also drops rows a sync left
   behind for a calendar since deselected. Every availability read passes it;
   `%{}` keeps every calendar's rows.
