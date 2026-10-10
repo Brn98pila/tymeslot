@@ -141,6 +141,20 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
   end
 
   @doc """
+  The args of every incomplete job of `worker` (Oban's `:incomplete` group:
+  waiting, scheduled, retrying, executing and suspended).
+  """
+  @spec incomplete_job_args(module() | String.t()) :: [map()]
+  def incomplete_job_args(worker) do
+    worker_name = normalize_worker_name(worker)
+    states = Enum.map(Job.unique_states(:incomplete), &Atom.to_string/1)
+
+    Repo.all(
+      from(j in Job, where: j.worker == ^worker_name and j.state in ^states, select: j.args)
+    )
+  end
+
+  @doc """
   Narrows `query` to the rows of the binding named `binding` (an `id` column)
   that have no incomplete job of `worker` whose `args["user_id"]` is that id.
 
