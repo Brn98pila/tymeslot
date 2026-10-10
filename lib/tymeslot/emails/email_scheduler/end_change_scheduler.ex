@@ -2,6 +2,7 @@ defmodule Tymeslot.Emails.EmailScheduler.EndChangeScheduler do
   @moduledoc "Schedules the notices of a booking whose end the host moved in their own calendar."
 
   alias Tymeslot.Emails.EmailScheduler.Helpers
+  alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Workers.EmailWorker
 
   # A host dragging an end several times sends one notice, with the last end.
@@ -10,15 +11,17 @@ defmodule Tymeslot.Emails.EmailScheduler.EndChangeScheduler do
   @doc """
   Schedules the notices of a booking whose end the host moved in their own
   calendar (`Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails`). One job
-  waits per meeting; a change while it waits keeps its `previous_end` (the
-  end the attendees last heard of) and moves it back by the settling delay.
+  waits per meeting; a change while it waits moves it back by the settling
+  delay. What each seat is told comes from the seat itself when the job runs,
+  not from the job; the job carries the start it was scheduled against, so a
+  meeting moved since is not told about its old end.
   """
-  @spec schedule_end_change_emails(String.t(), DateTime.t()) :: :ok | {:error, String.t()}
-  def schedule_end_change_emails(meeting_id, %DateTime{} = previous_end) do
+  @spec schedule_end_change_emails(MeetingSchema.t()) :: :ok | {:error, String.t()}
+  def schedule_end_change_emails(%MeetingSchema{id: meeting_id, start_time: start_time}) do
     %{
       "action" => "send_end_change_emails",
       "meeting_id" => meeting_id,
-      "previous_end" => DateTime.to_iso8601(previous_end)
+      "start_time" => DateTime.to_iso8601(start_time)
     }
     |> EmailWorker.new(
       queue: :emails,

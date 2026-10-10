@@ -58,7 +58,7 @@ defmodule Tymeslot.Workers.DeliveryClaims.DeliveryClaimQueries do
     count
   end
 
-  @doc "Whether the claim is held. For tests and diagnostics."
+  @doc "Whether the claim is held."
   @spec claimed?(integer(), String.t()) :: boolean()
   def claimed?(oban_job_id, effect_key) do
     DeliveryClaimSchema

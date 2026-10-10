@@ -80,7 +80,7 @@ defmodule Tymeslot.Integrations.Calendar.ExternalEndChangeEmailsTest do
       assert job.args == %{
                "action" => "send_end_change_emails",
                "meeting_id" => ctx.meeting.id,
-               "previous_end" => DateTime.to_iso8601(ctx.meeting.end_time)
+               "start_time" => DateTime.to_iso8601(ctx.meeting.start_time)
              }
 
       assert :ok = perform_job(EmailWorker, job.args)
@@ -112,7 +112,6 @@ defmodule Tymeslot.Integrations.Calendar.ExternalEndChangeEmailsTest do
       sync(ctx, ~T[12:00:00])
 
       assert [job] = all_enqueued(worker: EmailWorker)
-      assert job.args["previous_end"] == DateTime.to_iso8601(ctx.meeting.end_time)
 
       assert :ok = perform_job(EmailWorker, job.args)
 

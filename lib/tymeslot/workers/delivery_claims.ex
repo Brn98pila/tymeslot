@@ -55,6 +55,16 @@ defmodule Tymeslot.Workers.DeliveryClaims do
   @type job_id :: integer() | nil
 
   @doc """
+  Whether an earlier run of the job already performed the effect `key` names
+  (its claim is held). A job with no id has no earlier runs.
+  """
+  @spec claimed?(job_id(), String.t()) :: boolean()
+  def claimed?(nil, _key), do: false
+
+  def claimed?(job_id, key) when is_integer(job_id),
+    do: DeliveryClaimQueries.claimed?(job_id, key)
+
+  @doc """
   Runs `effect` unless an earlier execution of the same job already claimed
   `key`, in which case it returns `:ok` without running it: from the job's
   point of view that effect is done.

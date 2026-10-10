@@ -112,7 +112,7 @@ defmodule Tymeslot.Meetings.ExternalCalendarChanges do
         resolve_modification(updated)
         AvailabilityCache.invalidate_for_user(updated.organizer_user_id)
         sync_video_room(updated)
-        announce_end(updated, meeting.end_time)
+        announce_end(updated)
 
       # Rescheduled, cancelled, voided or deleted since the event was read:
       # the end was compared against a meeting that no longer stands, so
@@ -128,10 +128,10 @@ defmodule Tymeslot.Meetings.ExternalCalendarChanges do
 
   # Only from a write that landed, so a change that lost its race announces
   # nothing. The notices wait a little and coalesce (see
-  # `EmailScheduler.schedule_end_change_emails/2`); chat channels and webhooks
+  # `EmailScheduler.schedule_end_change_emails/1`); chat channels and webhooks
   # are not told, since the booking did not move.
-  defp announce_end(meeting, previous_end) do
-    case EmailScheduler.schedule_end_change_emails(meeting.id, previous_end) do
+  defp announce_end(meeting) do
+    case EmailScheduler.schedule_end_change_emails(meeting) do
       :ok ->
         :ok
 
