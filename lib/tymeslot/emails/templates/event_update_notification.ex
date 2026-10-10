@@ -116,6 +116,7 @@ defmodule Tymeslot.Emails.Templates.EventUpdateNotification do
 
       MjmlEmail.base_email()
       |> to(attendee_email)
+      |> MjmlEmail.put_reply_to(details.organizer_name, details.organizer_email)
       |> subject(
         Sanitise.sanitize_for_header(
           dgettext("emails_booking", "Updated: %{title} - %{date}",
