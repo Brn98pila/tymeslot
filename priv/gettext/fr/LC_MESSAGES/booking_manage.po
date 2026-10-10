@@ -245,6 +245,7 @@ msgid "Not set"
 msgstr "Non défini"
 
 #: lib/tymeslot_web/components/shared/token_page.ex
+#: lib/tymeslot_web/live/meeting_request_live.ex
 #, elixir-autogen, elixir-format
 msgid "Please wait a moment and try again."
 msgstr "Veuillez patienter un instant avant de réessayer."
