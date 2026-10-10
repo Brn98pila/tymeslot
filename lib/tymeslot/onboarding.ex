@@ -32,10 +32,11 @@ defmodule Tymeslot.Onboarding do
   end
 
   @doc """
-  Marks a user's onboarding as complete.
+  Marks a user's onboarding as complete. A user who has already completed it
+  keeps the original completion time.
   """
   @spec mark_onboarding_complete(Ecto.Schema.t()) ::
-          {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, Ecto.Schema.t()} | {:error, :not_found}
   def mark_onboarding_complete(user) do
     OnboardingQueries.mark_onboarding_complete(user)
   end

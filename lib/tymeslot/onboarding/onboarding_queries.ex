@@ -12,16 +12,32 @@ defmodule Tymeslot.Onboarding.OnboardingQueries do
   alias Tymeslot.Repo
 
   @doc """
-  Marks a user's onboarding as complete.
+  Marks a user's onboarding as complete, keeping the original completion time
+  when it is already set. The write is conditional on the column being null,
+  so concurrent calls cannot both stamp it; the loser reads the winner's row.
   """
   @spec mark_onboarding_complete(UserSchema.t()) ::
-          {:ok, UserSchema.t()} | {:error, Changeset.t()}
-  def mark_onboarding_complete(%UserSchema{} = user) do
-    user
-    |> Changeset.change(%{
-      onboarding_completed_at: DateTime.utc_now(:second)
-    })
-    |> Repo.update()
+          {:ok, UserSchema.t()} | {:error, :not_found}
+  def mark_onboarding_complete(%UserSchema{id: user_id}) do
+    now = DateTime.utc_now(:second)
+
+    query =
+      from(u in UserSchema,
+        where: u.id == ^user_id and is_nil(u.onboarding_completed_at),
+        select: u
+      )
+
+    case Repo.update_all(query, set: [onboarding_completed_at: now, updated_at: now]) do
+      {1, [updated]} -> {:ok, updated}
+      {0, []} -> fetch_user(user_id)
+    end
+  end
+
+  defp fetch_user(user_id) do
+    case Repo.get(UserSchema, user_id) do
+      nil -> {:error, :not_found}
+      user -> {:ok, user}
+    end
   end
 
   @doc """
