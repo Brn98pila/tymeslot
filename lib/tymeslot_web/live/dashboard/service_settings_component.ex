@@ -148,7 +148,7 @@ defmodule TymeslotWeb.Dashboard.ServiceSettingsComponent do
     if socket.assigns.toggling_type_id == type_id do
       {:noreply, socket}
     else
-      with_rate_limit(RateLimiter.check_meeting_type_write_rate_limit(user_id), socket, fn ->
+      with_rate_limit(RateLimiter.check(:meeting_type_write, user_id), socket, fn ->
         socket
         |> assign(:toggling_type_id, type_id)
         |> do_toggle_type(type_id, user_id)
@@ -160,7 +160,7 @@ defmodule TymeslotWeb.Dashboard.ServiceSettingsComponent do
     user_id = socket.assigns.current_user.id
     type_id = String.to_integer(id)
 
-    with_rate_limit(RateLimiter.check_meeting_type_write_rate_limit(user_id), socket, fn ->
+    with_rate_limit(RateLimiter.check(:meeting_type_write, user_id), socket, fn ->
       do_toggle_private(socket, type_id, user_id)
     end)
   end
@@ -195,7 +195,7 @@ defmodule TymeslotWeb.Dashboard.ServiceSettingsComponent do
   def handle_event("confirm_slug_change", _params, socket) do
     user_id = socket.assigns.current_user.id
 
-    with_rate_limit(RateLimiter.check_meeting_type_write_rate_limit(user_id), socket, fn ->
+    with_rate_limit(RateLimiter.check(:meeting_type_write, user_id), socket, fn ->
       do_confirm_slug_change(socket, user_id)
     end)
   end
@@ -219,7 +219,7 @@ defmodule TymeslotWeb.Dashboard.ServiceSettingsComponent do
   def handle_event("confirm_delete_meeting_type", _params, socket) do
     user_id = socket.assigns.current_user.id
 
-    with_rate_limit(RateLimiter.check_meeting_type_write_rate_limit(user_id), socket, fn ->
+    with_rate_limit(RateLimiter.check(:meeting_type_write, user_id), socket, fn ->
       ModalHook.with_modal_data(socket, :delete_meeting_type, fn type ->
         case MeetingTypes.delete_meeting_type(type) do
           {:ok, _result} ->
@@ -238,7 +238,7 @@ defmodule TymeslotWeb.Dashboard.ServiceSettingsComponent do
   def handle_event("reorder_meeting_types", %{"ids" => ids}, socket) when is_list(ids) do
     user_id = socket.assigns.current_user.id
 
-    with_rate_limit(RateLimiter.check_meeting_type_write_rate_limit(user_id), socket, fn ->
+    with_rate_limit(RateLimiter.check(:meeting_type_write, user_id), socket, fn ->
       # Convert to integers safely
       meeting_type_ids =
         ids

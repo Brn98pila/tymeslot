@@ -385,3 +385,8 @@ msgid "If you delete your account, it is frozen for %{count} day, then deleted. 
 msgid_plural "If you delete your account, it is frozen for %{count} days, then deleted. Sign in during that time to restore it."
 msgstr[0] "Wenn Sie Ihr Konto löschen, ist es %{count} Tag lang eingefroren und wird dann gelöscht. Wenn Sie sich in dieser Zeit anmelden, können Sie es wiederherstellen."
 msgstr[1] "Wenn Sie Ihr Konto löschen, ist es %{count} Tage lang eingefroren und wird dann gelöscht. Wenn Sie sich in dieser Zeit anmelden, können Sie es wiederherstellen."
+
+#: lib/tymeslot/auth/account_deletion/request.ex
+#, elixir-autogen, elixir-format
+msgid "You are the only admin who can sign in, so this account cannot be deleted yet. Make another account an admin first, or ask the server operator to delete it from the release shell."
+msgstr "Sie sind der einzige Administrator, der sich anmelden kann, daher kann dieses Konto noch nicht gelöscht werden. Machen Sie zuerst ein anderes Konto zum Administrator oder bitten Sie den Serverbetreiber, es über die Release-Shell zu löschen."

@@ -20,7 +20,6 @@ defmodule Tymeslot.Analytics do
   alias Tymeslot.Features
   alias Tymeslot.Meetings
   alias Tymeslot.Security.RateLimiter
-  alias Tymeslot.Security.RateLimiter.Analytics, as: AnalyticsLimiter
 
   @type input :: %{
           required(:path) => String.t(),
@@ -84,11 +83,11 @@ defmodule Tymeslot.Analytics do
   defp insert_if_allowed(input, ua) do
     visitor_hash = Fingerprint.hash(input.ip, ua, input.session_id)
 
-    with {:allow, _count} <- check_ip_rate(input.ip),
-         {:allow, _count} <- AnalyticsLimiter.check(visitor_hash) do
+    with :ok <- check_ip_rate(input.ip),
+         :ok <- RateLimiter.check(:analytics_visitor, visitor_hash) do
       do_insert(input, visitor_hash)
     else
-      {:deny, _count} -> {:ok, :filtered_rate_limit}
+      {:error, :rate_limited, _message} -> {:ok, :filtered_rate_limit}
     end
   end
 
@@ -107,20 +106,10 @@ defmodule Tymeslot.Analytics do
   @spec launch_date() :: Date.t() | nil
   def launch_date, do: Application.get_env(:tymeslot, :booking_analytics_launch_date)
 
-  # Secondary per-IP gate: 300 events per minute regardless of fingerprint.
-  # Guards against clients that cycle user-agents to defeat fingerprinting.
-  @ip_rate_window_ms 60_000
-  @ip_rate_limit 300
-
-  defp check_ip_rate(nil), do: {:allow, 0}
-
-  defp check_ip_rate(ip) do
-    AnalyticsLimiter.check_ip(
-      "analytics:ip:" <> RateLimiter.source_key(ip),
-      @ip_rate_window_ms,
-      @ip_rate_limit
-    )
-  end
+  # Secondary per-IP gate, regardless of fingerprint: guards against clients
+  # that cycle user-agents to defeat fingerprinting.
+  defp check_ip_rate(nil), do: :ok
+  defp check_ip_rate(ip), do: RateLimiter.check(:analytics_ip, ip)
 
   @doc """
   Computes the conversion rate as a formatted percentage string.

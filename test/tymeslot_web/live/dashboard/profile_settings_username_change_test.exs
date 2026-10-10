@@ -107,7 +107,7 @@ defmodule TymeslotWeb.Dashboard.ProfileSettingsUsernameChangeTest do
       # The confirmation step must not become a way around the limit: the
       # modal is a warning, not an authorisation.
       for _attempt <- 1..6 do
-        RateLimiter.check_username_change_rate_limit("user:#{user.id}")
+        RateLimiter.check(:username_change, "user:#{user.id}")
       end
 
       {:ok, view, _html} = live(conn, ~p"/dashboard/settings")

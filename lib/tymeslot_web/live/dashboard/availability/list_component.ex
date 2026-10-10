@@ -131,7 +131,7 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
     metadata = DashboardHelpers.get_security_metadata(socket)
 
     with {:ok, day} <- BreakHelpers.parse_day(day_str),
-         :ok <- check_rate_limit(socket, "availability:add_break", 8, 60_000),
+         :ok <- check_rate_limit(socket, :availability_add_break),
          %{} = day_availability <-
            AvailabilityActions.get_day_from_schedule(socket.assigns.weekly_schedule, day),
          {:ok, sanitized_params} <-
@@ -230,7 +230,7 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
     metadata = DashboardHelpers.get_security_metadata(socket)
 
     with {:ok, day} <- BreakHelpers.parse_day(day_str),
-         :ok <- check_rate_limit(socket, "availability:quick_break", 8, 60_000),
+         :ok <- check_rate_limit(socket, :availability_quick_break),
          %{} = day_availability <-
            AvailabilityActions.get_day_from_schedule(socket.assigns.weekly_schedule, day),
          {:ok, sanitized_params} <-
@@ -334,7 +334,7 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
 
   defp do_update_day_hours(params, socket, metadata) do
     with {:ok, day} <- BreakHelpers.parse_day(params),
-         :ok <- check_rate_limit(socket, "availability:update_hours", 10, 10_000),
+         :ok <- check_rate_limit(socket, :availability_update_hours),
          %{} = day_availability <-
            AvailabilityActions.get_day_from_schedule(socket.assigns.weekly_schedule, day),
          strings <- resolve_day_strings(params, day_availability),
@@ -452,14 +452,12 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
   # Small helpers to reduce duplication
   defp schedule_id(socket), do: socket.assigns.selected_schedule.id
 
-  defp check_rate_limit(socket, action_prefix, limit, window_ms) do
-    key = "#{action_prefix}:#{schedule_id(socket)}"
-
-    case RateLimiter.check_rate_limit(key, limit, window_ms) do
+  defp check_rate_limit(socket, limit) do
+    case RateLimiter.check(limit, schedule_id(socket)) do
       :ok ->
         :ok
 
-      {:error, :rate_limited} ->
+      {:error, :rate_limited, _message} ->
         Flash.error(
           dgettext(
             "dashboard_availability",

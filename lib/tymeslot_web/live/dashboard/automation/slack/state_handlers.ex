@@ -47,7 +47,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Slack.StateHandlers do
   def handle_test(%{"id" => id}, socket) do
     user_id = socket.assigns.current_user.id
 
-    case RateLimiter.check_webhook_test_rate_limit(user_id) do
+    case RateLimiter.check(:webhook_test, user_id) do
       {:error, :rate_limited, message} ->
         Flash.error(message)
         {:noreply, socket}

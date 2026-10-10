@@ -74,7 +74,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.StuckChangesTest do
   defp stuck_at_cap(row), do: Repo.update!(Changeset.change(row, sync_attempts: @cap))
 
   defp exhaust_refresh_budget(user_id) do
-    fn -> RateLimiter.check_calendar_refresh_rate_limit(user_id) end
+    fn -> RateLimiter.check(:calendar_refresh, user_id) end
     |> Stream.repeatedly()
     |> Enum.find(&match?({:error, :rate_limited, _message}, &1))
   end

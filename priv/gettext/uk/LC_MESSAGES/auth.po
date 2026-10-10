@@ -667,11 +667,6 @@ msgstr "Поточний пароль неправильний"
 
 #: lib/tymeslot/auth/email_change.ex
 #, elixir-autogen, elixir-format
-msgid "Email address is already in use"
-msgstr "Ця електронна адреса вже використовується"
-
-#: lib/tymeslot/auth/email_change.ex
-#, elixir-autogen, elixir-format
 msgid "Email changed successfully. Please sign in with your new email."
 msgstr "Електронну адресу успішно змінено. Увійдіть, використовуючи нову адресу."
 
@@ -684,11 +679,6 @@ msgstr "Токен скидання пароля недійсний або те�
 #, elixir-autogen, elixir-format
 msgid "Invalid or expired verification link"
 msgstr "Посилання для підтвердження недійсне або термін його дії минув"
-
-#: lib/tymeslot/auth/email_change.ex
-#, elixir-autogen, elixir-format
-msgid "New email must be different from current email"
-msgstr "Нова електронна адреса має відрізнятися від поточної"
 
 #: lib/tymeslot/auth/password_update.ex
 #, elixir-autogen, elixir-format

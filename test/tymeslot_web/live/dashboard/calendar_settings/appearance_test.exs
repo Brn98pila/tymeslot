@@ -239,7 +239,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.AppearanceTest do
         view |> swatch(integration, "grape") |> render_click()
       end
 
-      assert :ok = RateLimiter.check_integration_appearance_rate_limit(user.id)
+      assert :ok = RateLimiter.check(:integration_appearance, user.id)
       assert reload(integration, user).colour == "grape"
       refute render(view) =~ "limit"
     end
@@ -252,7 +252,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.AppearanceTest do
         view |> swatch(integration, "default") |> render_click()
       end
 
-      assert :ok = RateLimiter.check_integration_appearance_rate_limit(user.id)
+      assert :ok = RateLimiter.check(:integration_appearance, user.id)
       assert reload(integration, user).colour == nil
     end
   end
@@ -269,10 +269,10 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.AppearanceTest do
 
   # Spends a per-user bucket so the next draw on it is refused.
   defp exhaust_write_limit(user),
-    do: exhaust(fn -> RateLimiter.check_integration_write_rate_limit(user.id) end)
+    do: exhaust(fn -> RateLimiter.check(:integration_write, user.id) end)
 
   defp exhaust_appearance_limit(user),
-    do: exhaust(fn -> RateLimiter.check_integration_appearance_rate_limit(user.id) end)
+    do: exhaust(fn -> RateLimiter.check(:integration_appearance, user.id) end)
 
   defp exhaust(check) do
     Enum.reduce_while(1..1000, :ok, fn _i, _acc ->

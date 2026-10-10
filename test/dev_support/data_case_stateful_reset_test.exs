@@ -32,7 +32,14 @@ defmodule Tymeslot.DataCaseAsyncStatefulResetTest do
 
   defp prime_bucket(label) do
     bucket_key = "#{label}-reset-#{System.unique_integer([:positive])}"
-    {:allow, _count} = RateLimiter.check_rate(bucket_key, :timer.minutes(5), 10)
+
+    :ok =
+      RateLimiter.check_bucket(bucket_key,
+        limit: 10,
+        window_ms: :timer.minutes(5),
+        operation: "test"
+      )
+
     bucket_key
   end
 end
@@ -50,7 +57,14 @@ defmodule Tymeslot.DataCaseSyncStatefulResetTest do
 
   setup_all do
     bucket_key = "sync-reset-#{System.unique_integer([:positive])}"
-    {:allow, _count} = RateLimiter.check_rate(bucket_key, :timer.minutes(5), 10)
+
+    :ok =
+      RateLimiter.check_bucket(bucket_key,
+        limit: 10,
+        window_ms: :timer.minutes(5),
+        operation: "test"
+      )
+
     {:ok, bucket_key: bucket_key}
   end
 
