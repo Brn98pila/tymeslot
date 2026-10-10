@@ -264,6 +264,8 @@ defmodule TymeslotWeb.DashboardLive do
               custom_questions_allowed={@custom_questions_allowed}
               group_bookings_allowed={@group_bookings_allowed}
               payments_allowed={@payments_allowed}
+              automations_allowed={@automations_allowed}
+              feature_placeholder_components={@feature_placeholder_components}
             />
           <% else %>
             <ComponentDispatch.feature_placeholder

@@ -706,5 +706,10 @@ msgstr "Signature de la requête"
 
 #: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
 #, elixir-autogen, elixir-format
-msgid "your plan no longer includes automations"
-msgstr "votre forfait n’inclut plus les automatisations"
+msgid "Paused"
+msgstr "En pause"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "Paused: your plan doesn't include automations. Upgrading resumes it."
+msgstr "En pause : votre forfait n'inclut pas les automatisations. Une mise à niveau le réactive automatiquement."

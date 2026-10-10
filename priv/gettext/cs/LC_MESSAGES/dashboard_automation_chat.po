@@ -867,5 +867,5 @@ msgstr "Sdílený bot Telegram není nastaven."
 #: lib/tymeslot_web/live/dashboard/automation/slack_card.ex
 #: lib/tymeslot_web/live/dashboard/automation/telegram_card.ex
 #, elixir-autogen, elixir-format
-msgid "your plan no longer includes automations"
-msgstr "váš tarif už nezahrnuje automatizace"
+msgid "Paused: your plan doesn't include automations. Upgrading resumes it."
+msgstr "Pozastaveno: váš tarif nezahrnuje automatizace. Po přechodu na vyšší tarif se integrace sama obnoví."

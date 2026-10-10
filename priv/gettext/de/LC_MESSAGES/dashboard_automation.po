@@ -706,5 +706,10 @@ msgstr "Anfragesignatur"
 
 #: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
 #, elixir-autogen, elixir-format
-msgid "your plan no longer includes automations"
-msgstr "Ihr Tarif umfasst keine Automatisierungen mehr"
+msgid "Paused"
+msgstr "Pausiert"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "Paused: your plan doesn't include automations. Upgrading resumes it."
+msgstr "Pausiert: Ihr Tarif umfasst keine Automatisierungen. Nach einem Upgrade läuft der Webhook automatisch weiter."

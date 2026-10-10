@@ -707,5 +707,10 @@ msgstr "Підпис запиту"
 
 #: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
 #, elixir-autogen, elixir-format
-msgid "your plan no longer includes automations"
-msgstr "ваш тариф більше не включає автоматизації"
+msgid "Paused"
+msgstr "Призупинено"
+
+#: lib/tymeslot_web/live/dashboard/automation/webhook_card.ex
+#, elixir-autogen, elixir-format
+msgid "Paused: your plan doesn't include automations. Upgrading resumes it."
+msgstr "Призупинено: ваш тариф не включає автоматизацію. Після переходу на вищий тариф вебхук відновиться автоматично."

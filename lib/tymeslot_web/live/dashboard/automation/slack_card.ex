@@ -22,10 +22,14 @@ defmodule TymeslotWeb.Dashboard.Automation.SlackCard do
   attr :on_disconnect, :any, default: nil
   attr :on_reconnect, :any, default: nil
 
+  attr :paused, :boolean,
+    default: false,
+    doc: "The owner's plan doesn't include automations: shown as paused, controls inert"
+
   @spec slack_card(map()) :: Phoenix.LiveView.Rendered.t()
   def slack_card(assigns) do
     status = SlackIntegrationSchema.status(assigns.integration)
-    {tone, pulse, label} = status_presentation(status)
+    {tone, pulse, label} = status_presentation(status, assigns.paused)
 
     assigns = assign(assigns, status: status, tone: tone, pulse: pulse, label: label)
 
@@ -39,10 +43,11 @@ defmodule TymeslotWeb.Dashboard.Automation.SlackCard do
       active={@status != :paused and @status != :auto_disabled}
       toggle_event={if(@status in [:active, :paused], do: @on_toggle)}
       toggle_id={"slack-toggle-#{@integration.id}"}
+      toggle_disabled={@paused}
       target={@target}
       tags={@integration.events}
-      notice={notice(@status, @integration)}
-      notice_tone={(@status == :auto_disabled && :danger) || :warning}
+      notice={notice(@status, @integration, @paused)}
+      notice_tone={notice_tone(@status, @paused)}
     >
       <:icon><IconComponents.icon name={:slack} class="w-6 h-6" /></:icon>
       <:last_activity :if={@status != :pending_oauth && @integration.last_triggered_at}>
@@ -57,7 +62,8 @@ defmodule TymeslotWeb.Dashboard.Automation.SlackCard do
         <.action_button
           :if={@status == :pending_oauth && @on_pick_channel}
           size={:sm}
-          phx-click={@on_pick_channel}
+          disabled={@paused}
+          phx-click={!@paused && @on_pick_channel}
         >
           {dgettext("dashboard_automation_chat", "Pick a channel")}
         </.action_button>
@@ -67,7 +73,8 @@ defmodule TymeslotWeb.Dashboard.Automation.SlackCard do
           variant={:secondary}
           size={:sm}
           icon="hero-arrow-path"
-          phx-click={@on_reconnect}
+          disabled={@paused}
+          phx-click={!@paused && @on_reconnect}
         >
           {dgettext("dashboard_automation_chat", "Reconnect")}
         </.action_button>
@@ -78,15 +85,16 @@ defmodule TymeslotWeb.Dashboard.Automation.SlackCard do
           icon="hero-bolt"
           loading={@testing}
           loading_text={dgettext("dashboard_automation_chat", "Testing")}
-          disabled={@status != :active}
-          phx-click={@on_test}
+          disabled={@paused or @status != :active}
+          phx-click={!@paused && @on_test}
         >
           {dgettext("dashboard_automation_chat", "Test")}
         </.loading_button>
         <.action_button
           :if={@status == :auto_disabled && @on_reenable}
           size={:sm}
-          phx-click={@on_reenable}
+          disabled={@paused}
+          phx-click={!@paused && @on_reenable}
         >
           {dgettext("dashboard_automation_chat", "Re-enable")}
         </.action_button>
@@ -105,7 +113,8 @@ defmodule TymeslotWeb.Dashboard.Automation.SlackCard do
           :if={@status != :pending_oauth}
           icon="hero-pencil-square"
           label={dgettext("dashboard_automation_chat", "Edit")}
-          phx-click={@on_edit}
+          disabled={@paused}
+          phx-click={!@paused && @on_edit}
         />
         <%!-- OAuth installs only, once a channel is set. --%>
         <.icon_button
@@ -113,7 +122,8 @@ defmodule TymeslotWeb.Dashboard.Automation.SlackCard do
           icon="hero-no-symbol"
           variant={:warning}
           label={dgettext("dashboard_automation_chat", "Disconnect Slack")}
-          phx-click={@on_disconnect}
+          disabled={@paused}
+          phx-click={!@paused && @on_disconnect}
         />
         <.icon_button
           icon="hero-trash"
@@ -127,6 +137,12 @@ defmodule TymeslotWeb.Dashboard.Automation.SlackCard do
     """
   end
 
+  # A plan without automations pauses every integration, whatever its own state.
+  defp status_presentation(_status, true),
+    do: {:neutral, false, dgettext("dashboard_automation_chat", "Paused")}
+
+  defp status_presentation(status, false), do: status_presentation(status)
+
   defp status_presentation(:pending_oauth),
     do: {:warning, true, dgettext("dashboard_automation_chat", "Channel needed")}
 
@@ -139,6 +155,15 @@ defmodule TymeslotWeb.Dashboard.Automation.SlackCard do
   defp status_presentation(:auto_disabled),
     do: {:danger, false, dgettext("dashboard_automation_chat", "Disabled")}
 
+  defp notice(_status, _integration, true),
+    do:
+      dgettext(
+        "dashboard_automation_chat",
+        "Paused: your plan doesn't include automations. Upgrading resumes it."
+      )
+
+  defp notice(status, integration, false), do: notice(status, integration)
+
   defp notice(:pending_oauth, _integration),
     do: dgettext("dashboard_automation_chat", "Pick a channel to finish setup.")
 
@@ -149,6 +174,10 @@ defmodule TymeslotWeb.Dashboard.Automation.SlackCard do
       )
 
   defp notice(_status, _integration), do: nil
+
+  defp notice_tone(_status, true), do: :neutral
+  defp notice_tone(:auto_disabled, false), do: :danger
+  defp notice_tone(_status, false), do: :warning
 
   # Renders the human-readable destination for the integration: workspace and
   # channel for OAuth installs, or "Custom webhook" with channel hint for
@@ -187,12 +216,6 @@ defmodule TymeslotWeb.Dashboard.Automation.SlackCard do
 
   defp disabled_reason_label(nil), do: dgettext("dashboard_automation_chat", "auto-disabled")
   defp disabled_reason_label(""), do: dgettext("dashboard_automation_chat", "auto-disabled")
-
-  # Recorded as "plan_revoked"; integrations switched off before that code
-  # carry the English sentence instead.
-  defp disabled_reason_label(reason)
-       when reason in ["plan_revoked", "Plan no longer permits automations"],
-       do: dgettext("dashboard_automation_chat", "your plan no longer includes automations")
 
   defp disabled_reason_label("webhook_url_revoked"),
     do: dgettext("dashboard_automation_chat", "webhook URL was revoked in Slack")

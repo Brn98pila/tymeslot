@@ -867,5 +867,5 @@ msgstr "Der gemeinsame Telegram-Bot ist nicht konfiguriert"
 #: lib/tymeslot_web/live/dashboard/automation/slack_card.ex
 #: lib/tymeslot_web/live/dashboard/automation/telegram_card.ex
 #, elixir-autogen, elixir-format
-msgid "your plan no longer includes automations"
-msgstr "Ihr Tarif umfasst keine Automatisierungen mehr"
+msgid "Paused: your plan doesn't include automations. Upgrading resumes it."
+msgstr "Pausiert: Ihr Tarif umfasst keine Automatisierungen. Nach einem Upgrade läuft die Integration automatisch weiter."
