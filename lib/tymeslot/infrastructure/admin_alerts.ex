@@ -23,38 +23,16 @@ defmodule Tymeslot.Infrastructure.AdminAlerts do
   or to share with the project — see `CONTRIBUTING.md` for details.
   """
 
-  @type alert_type ::
-          :unlinked_refund
-          | :refund_processed
-          | :unhandled_webhook
-          | :calendar_sync_error
-          | :integration_health_failure
-          | :integration_health_recovery
-          | :oban_queue_stuck
-          | :oban_jobs_accumulating
-          | :oban_jobs_force_discarded
-          | :circuit_breaker_open
-          | :database_pool_pressure
-          | :stripe_webhook_secret_missing
-          | :new_error
-          | :error_regression
-          | :dispute_created
-          | :dispute_lost
-          | :reconciliation_discrepancies
-          | :reconciliation_incomplete
-          | :subscription_not_in_database
-          | :payment_event_enqueue_failed
-          | :payment_event_orphaned
-          | :dunning_stalled
-          | :late_payment_refund_failed
-          | :account_deletion_billing_sync_failed
-          | :account_deletion_stalled
-          | :account_deletion_held_last_admin
-          | :analytics_tracking_anomaly
-          | :user_registered_hook_failed
-          | atom()
+  @typedoc """
+  An alert type registered in `Tymeslot.Infrastructure.AdminAlerts.AlertTypes`,
+  which holds each one's category and severity. An unregistered type is
+  still sent, as a generic warning, and logged as unregistered.
+  """
+  @type alert_type :: atom()
 
   @callback send_alert(alert_type(), map()) :: :ok | {:error, any()}
+
+  alias Tymeslot.Infrastructure.AdminAlerts.AlertTypes
 
   require Logger
 
@@ -98,6 +76,12 @@ defmodule Tymeslot.Infrastructure.AdminAlerts do
   """
   @spec send_alert(alert_type(), map()) :: :ok | {:error, any()}
   def send_alert(type, metadata) do
+    if is_nil(AlertTypes.get(type)) do
+      Logger.warning("Admin alert type is not registered in AlertTypes",
+        alert_type: inspect(type)
+      )
+    end
+
     impl().send_alert(type, metadata)
   rescue
     exception ->
