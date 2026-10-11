@@ -273,3 +273,8 @@ msgstr "Este nome de usuário é reservado"
 #, elixir-autogen, elixir-format
 msgid "Delete avatar"
 msgstr "Excluir foto de perfil"
+
+#: lib/tymeslot_web/live/dashboard/profile_settings/username_form_component.ex
+#, elixir-autogen, elixir-format
+msgid "Username"
+msgstr "Nome de usuário"

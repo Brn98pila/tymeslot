@@ -124,8 +124,8 @@ defmodule Tymeslot.Auth.ErrorFormatterTest do
     end
   end
 
-  describe "first_error/1" do
-    test "names the first field alphabetically with its first message, interpolated" do
+  describe "first_error/2" do
+    test "is the first field's first message alone, interpolated" do
       changeset = %Changeset{
         data: %{},
         errors: [
@@ -137,7 +137,10 @@ defmodule Tymeslot.Auth.ErrorFormatterTest do
         ]
       }
 
-      assert ErrorFormatter.first_error(changeset) == "Email can't be blank"
+      assert ErrorFormatter.first_error(changeset) == "can't be blank"
+
+      assert ErrorFormatter.first_error(changeset, %{email: "Email address"}) ==
+               "Email address: can't be blank"
     end
 
     test "translates the message into the current locale" do
@@ -152,7 +155,7 @@ defmodule Tymeslot.Auth.ErrorFormatterTest do
 
       assert Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
                ErrorFormatter.first_error(changeset)
-             end) == "New password sollte mindestens 8 Zeichen lang sein"
+             end) == "sollte mindestens 8 Zeichen lang sein"
     end
 
     test "is nil without errors" do
@@ -165,7 +168,7 @@ defmodule Tymeslot.Auth.ErrorFormatterTest do
         |> Changeset.cast(%{items: [%{title: "fine"}, %{title: ""}]}, [])
         |> Changeset.cast_embed(:items, with: &Item.changeset/2)
 
-      assert ErrorFormatter.first_error(changeset) == "Items can't be blank"
+      assert ErrorFormatter.first_error(changeset) == "can't be blank"
     end
   end
 

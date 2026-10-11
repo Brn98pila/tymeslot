@@ -972,3 +972,8 @@ msgstr "Váš účet se právě maže (naplánováno na %{date}). Pokud ho chcet
 #, elixir-autogen, elixir-format
 msgid "The verification email could not be sent. Please try again."
 msgstr "Ověřovací e-mail se nepodařilo odeslat. Zkuste to prosím znovu."
+
+#: lib/tymeslot/auth/email_change.ex
+#, elixir-autogen, elixir-format
+msgid "Email address"
+msgstr "E-mailová adresa"

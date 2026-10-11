@@ -1183,3 +1183,8 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "select at least one event"
 msgstr ""
+
+#: lib/tymeslot/utils/changeset_errors.ex
+#, elixir-autogen, elixir-format
+msgid "%{field}: %{message}"
+msgstr ""

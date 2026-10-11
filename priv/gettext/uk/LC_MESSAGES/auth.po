@@ -972,3 +972,8 @@ msgstr "Ваш обліковий запис видаляється (запла�
 #, elixir-autogen, elixir-format
 msgid "The verification email could not be sent. Please try again."
 msgstr "Не вдалося надіслати лист для підтвердження. Спробуйте ще раз."
+
+#: lib/tymeslot/auth/email_change.ex
+#, elixir-autogen, elixir-format
+msgid "Email address"
+msgstr "Адреса електронної пошти"

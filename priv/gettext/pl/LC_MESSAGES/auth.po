@@ -968,3 +968,8 @@ msgstr "Konto jest w trakcie usuwania (zaplanowano na %{date}). Jeśli chcesz je
 #, elixir-autogen, elixir-format
 msgid "The verification email could not be sent. Please try again."
 msgstr "Nie udało się wysłać e-maila potwierdzającego. Spróbuj ponownie."
+
+#: lib/tymeslot/auth/email_change.ex
+#, elixir-autogen, elixir-format
+msgid "Email address"
+msgstr "Adres e-mail"

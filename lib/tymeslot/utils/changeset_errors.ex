@@ -40,16 +40,27 @@ defmodule Tymeslot.Utils.ChangesetErrors do
   end
 
   @doc """
-  The first field alphabetically, humanised, followed by its first message;
+  The first error of the first field alphabetically, for one line of text;
   `nil` when the changeset has no errors.
+
+  Shown next to its field, the message stands alone. Shown anywhere else (a
+  flash), the caller passes `labels`, translated names for the fields it can
+  refuse, and a labelled field reads "Label: message". A field without a
+  label gives the message alone: a field name is never made up from the
+  atom, and translated text is never re-cased.
   """
-  @spec first(Changeset.t(), translate()) :: String.t() | nil
-  def first(%Changeset{} = changeset, translate) do
+  @spec first(Changeset.t(), translate(), %{atom() => String.t()}) :: String.t() | nil
+  def first(%Changeset{} = changeset, translate, labels \\ %{}) do
     case changeset |> Changeset.traverse_errors(translate) |> Enum.sort_by(&elem(&1, 0)) do
-      [{field, errors} | _others] -> "#{humanize(field)} #{first_message(errors)}"
+      [{field, errors} | _others] -> labelled(Map.get(labels, field), first_message(errors))
       [] -> nil
     end
   end
+
+  defp labelled(nil, message), do: message
+
+  defp labelled(label, message),
+    do: dgettext("errors", "%{field}: %{message}", field: label, message: message)
 
   @doc """
   The first message in one field's traversed errors. An embedded or
@@ -64,7 +75,4 @@ defmodule Tymeslot.Utils.ChangesetErrors do
     do: nested |> Enum.sort_by(&elem(&1, 0)) |> Enum.find_value(&first_message(elem(&1, 1)))
 
   def first_message(_none), do: nil
-
-  defp humanize(field),
-    do: field |> to_string() |> String.replace("_", " ") |> String.capitalize()
 end

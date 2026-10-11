@@ -355,7 +355,7 @@ defmodule TymeslotWeb.Dashboard.VideoSettingsComponent do
   defp handle_create_result({:error, %Ecto.Changeset{} = changeset}, _provider, socket) do
     {:noreply,
      socket
-     |> assign(:form_errors, %{base: FormErrors.first(changeset)})
+     |> assign(:form_errors, %{base: FormErrors.first(changeset, field_labels())})
      |> assign(:saving, false)}
   end
 
@@ -614,5 +614,13 @@ defmodule TymeslotWeb.Dashboard.VideoSettingsComponent do
       nil -> ""
       integration -> integration.provider
     end
+  end
+
+  # Shown as one notice away from the fields, so a refused field is named.
+  defp field_labels do
+    %{
+      base_url: dgettext("dashboard_video", "Server URL"),
+      api_key: dgettext("dashboard_video", "API Key")
+    }
   end
 end

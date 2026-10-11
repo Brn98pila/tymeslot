@@ -117,13 +117,14 @@ defmodule Tymeslot.Auth.ErrorFormatter do
   end
 
   @doc """
-  A changeset's first error as one line: the first field alphabetically,
-  humanised, followed by its first message. `nil` when the changeset has no
-  errors.
+  A changeset's first error as one line, in the current locale, prefixed
+  "Label: " when `labels` names its field (for a flash, away from the
+  field). `nil` when the changeset has no errors. See
+  `Tymeslot.Utils.ChangesetErrors.first/3`.
   """
-  @spec first_error(Changeset.t()) :: String.t() | nil
-  def first_error(%Changeset{} = changeset),
-    do: ChangesetErrors.first(changeset, &ChangesetErrors.translate/1)
+  @spec first_error(Changeset.t(), %{atom() => String.t()}) :: String.t() | nil
+  def first_error(%Changeset{} = changeset, labels \\ %{}),
+    do: ChangesetErrors.first(changeset, &ChangesetErrors.translate/1, labels)
 
   # Formats a single field error: the field name, humanised, followed by its
   # error messages.

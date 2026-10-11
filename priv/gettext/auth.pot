@@ -970,3 +970,8 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "The verification email could not be sent. Please try again."
 msgstr ""
+
+#: lib/tymeslot/auth/email_change.ex
+#, elixir-autogen, elixir-format
+msgid "Email address"
+msgstr ""

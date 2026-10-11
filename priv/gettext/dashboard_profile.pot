@@ -273,3 +273,8 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Delete avatar"
 msgstr ""
+
+#: lib/tymeslot_web/live/dashboard/profile_settings/username_form_component.ex
+#, elixir-autogen, elixir-format
+msgid "Username"
+msgstr ""

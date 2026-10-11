@@ -174,7 +174,10 @@ defmodule TymeslotWeb.Dashboard.ProfileSettings.UsernameFormComponent do
   defp explain_refused_changeset(socket, changeset) do
     case Profiles.username_error(changeset) do
       nil ->
-        Flash.error(FormErrors.first(changeset))
+        Flash.error(
+          FormErrors.first(changeset, %{username: dgettext("dashboard_profile", "Username")})
+        )
+
         socket
 
       reason ->

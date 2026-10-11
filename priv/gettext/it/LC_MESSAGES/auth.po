@@ -970,3 +970,8 @@ msgstr "Il tuo account è in fase di eliminazione (programmata per il %{date}). 
 #, elixir-autogen, elixir-format
 msgid "The verification email could not be sent. Please try again."
 msgstr "Non è stato possibile inviare l'email di verifica. Riprova."
+
+#: lib/tymeslot/auth/email_change.ex
+#, elixir-autogen, elixir-format
+msgid "Email address"
+msgstr "Indirizzo email"

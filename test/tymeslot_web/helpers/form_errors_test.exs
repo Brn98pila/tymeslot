@@ -135,15 +135,25 @@ defmodule TymeslotWeb.Helpers.FormErrorsTest do
     end
   end
 
-  describe "first/1" do
-    test "names the first field alphabetically, humanised" do
-      assert FormErrors.first(changeset(%{name: "ab", count: 0})) ==
-               "Count must be greater than 0"
+  describe "first/2" do
+    # Shown next to its field, the message stands alone: no field name made
+    # up from the atom in English.
+    test "is the first field's first message alone, without labels" do
+      assert FormErrors.first(changeset(%{name: "ab", count: 0})) == "must be greater than 0"
+      assert in_locale("de", fn -> FormErrors.first(changeset(%{})) end) == "darf nicht leer sein"
     end
 
-    test "translates the message" do
-      assert in_locale("de", fn -> FormErrors.first(changeset(%{})) end) ==
-               "Title darf nicht leer sein"
+    # For a flash, away from the field, the caller names it in the reader's
+    # language.
+    test "is prefixed with the field's label when the caller passes one" do
+      message =
+        in_locale("de", fn ->
+          FormErrors.first(changeset(%{}), %{
+            title: Gettext.dgettext(TymeslotWeb.Gettext, "dashboard_common", "Title")
+          })
+        end)
+
+      assert message == "Titel: darf nicht leer sein"
     end
 
     test "reaches a message nested under an embedded field" do
@@ -152,7 +162,7 @@ defmodule TymeslotWeb.Helpers.FormErrorsTest do
         |> cast(%{label: "ok", items: [%{title: "fine"}, %{title: ""}]}, [:label])
         |> cast_embed(:items, with: &Item.changeset/2)
 
-      assert FormErrors.first(cs) == "Items can't be blank"
+      assert FormErrors.first(cs) == "can't be blank"
     end
 
     test "is nil for a valid changeset" do

@@ -281,7 +281,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ConfigViewComponent do
   defp handle_create_integration_result({:error, {:changeset, changeset}}, socket) do
     {:noreply,
      assign(socket,
-       form_errors: %{generic: [FormErrors.first(changeset)]},
+       form_errors: %{generic: [FormErrors.first(changeset, field_labels())]},
        is_saving: false
      )}
   end
@@ -408,4 +408,15 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ConfigViewComponent do
   end
 
   defp normalize_provider(_other_provider), do: :caldav
+
+  # The generic error sits above the form, away from its field, so the
+  # field is named.
+  defp field_labels do
+    %{
+      name: dgettext("dashboard_calendar_providers", "Name"),
+      base_url: dgettext("dashboard_calendar_providers", "Server URL"),
+      username: dgettext("dashboard_calendar_providers", "Username"),
+      password: dgettext("dashboard_calendar_providers", "Password")
+    }
+  end
 end

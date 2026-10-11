@@ -391,7 +391,7 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Video.EditVideoIntegrati
         "#{label} #{Forms.translate_error(error)}"
 
       _other ->
-        FormErrors.first(changeset) || update_error_message(:unknown, provider)
+        FormErrors.first(changeset, field_labels()) || update_error_message(:unknown, provider)
     end
   end
 
@@ -452,4 +452,12 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Video.EditVideoIntegrati
   defp map_field_to_atom("api_key"), do: :api_key
   defp map_field_to_atom("custom_meeting_url"), do: :custom_meeting_url
   defp map_field_to_atom(_other), do: :unknown
+
+  # Shown as one notice away from the fields, so a refused field is named.
+  defp field_labels do
+    %{
+      base_url: dgettext("dashboard_video", "Server URL"),
+      api_key: dgettext("dashboard_video", "API Key")
+    }
+  end
 end

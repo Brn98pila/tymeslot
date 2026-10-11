@@ -29,11 +29,12 @@ defmodule TymeslotWeb.Helpers.FormErrors do
       end)
 
   @doc """
-  One error for a flash or a single-line notice: the first field
-  alphabetically, humanised, followed by its first message. `nil` when the
-  changeset has no errors.
+  One error for a single line of text: the first field's first message,
+  prefixed "Label: " when `labels` (translated field names) names that field,
+  for a flash where the field is not in view. `nil` when the changeset has no
+  errors. See `Tymeslot.Utils.ChangesetErrors.first/3`.
   """
-  @spec first(Changeset.t()) :: String.t() | nil
-  def first(%Changeset{} = changeset),
-    do: ChangesetErrors.first(changeset, &Forms.translate_error/1)
+  @spec first(Changeset.t(), %{atom() => String.t()}) :: String.t() | nil
+  def first(%Changeset{} = changeset, labels \\ %{}),
+    do: ChangesetErrors.first(changeset, &Forms.translate_error/1, labels)
 end

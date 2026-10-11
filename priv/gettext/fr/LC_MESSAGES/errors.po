@@ -1177,3 +1177,8 @@ msgstr "choisissez un canal"
 #, elixir-autogen, elixir-format
 msgid "select at least one event"
 msgstr "sélectionnez au moins un événement"
+
+#: lib/tymeslot/utils/changeset_errors.ex
+#, elixir-autogen, elixir-format
+msgid "%{field}: %{message}"
+msgstr "%{field} : %{message}"

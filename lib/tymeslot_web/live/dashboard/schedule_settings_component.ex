@@ -468,7 +468,9 @@ defmodule TymeslotWeb.Dashboard.ScheduleSettingsComponent do
   defp custom_policy_flash(:min_advance_hours),
     do: dgettext("dashboard_availability", "Minimum notice set to custom value")
 
-  defp failure_message(%Changeset{} = changeset), do: FormErrors.first(changeset)
+  defp failure_message(%Changeset{} = changeset),
+    do: FormErrors.first(changeset, %{name: dgettext("dashboard_availability", "Schedule name")})
+
   defp failure_message(message) when is_binary(message), do: message
 
   defp failure_message(:schedule_limit_reached),

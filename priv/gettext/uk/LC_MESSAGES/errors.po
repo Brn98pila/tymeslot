@@ -1197,3 +1197,8 @@ msgstr "виберіть канал"
 #, elixir-autogen, elixir-format
 msgid "select at least one event"
 msgstr "виберіть щонайменше одну подію"
+
+#: lib/tymeslot/utils/changeset_errors.ex
+#, elixir-autogen, elixir-format
+msgid "%{field}: %{message}"
+msgstr "%{field}: %{message}"

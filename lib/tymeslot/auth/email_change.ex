@@ -248,7 +248,7 @@ defmodule Tymeslot.Auth.EmailChange do
         {:error, {:token_expired, dgettext("auth", "Verification link has expired")}}
 
       {:error, %Changeset{} = changeset} ->
-        {:error, {:changeset_error, format_changeset_error(changeset)}}
+        {:error, {:changeset_error, flashed_changeset_error(changeset)}}
     end
   end
 
@@ -264,7 +264,7 @@ defmodule Tymeslot.Auth.EmailChange do
         {:ok, updated_user, dgettext("auth", "Email change request cancelled")}
 
       {:error, %Changeset{} = changeset} ->
-        {:error, {:changeset_error, format_changeset_error(changeset)}}
+        {:error, {:changeset_error, flashed_changeset_error(changeset)}}
     end
   end
 
@@ -304,7 +304,14 @@ defmodule Tymeslot.Auth.EmailChange do
     end
   end
 
+  # Shown under the new-address field, so the message stands alone.
   defp format_changeset_error(%Changeset{} = changeset) do
     ErrorFormatter.first_error(changeset)
+  end
+
+  # Verifying or cancelling answers with a flash, away from any field.
+  defp flashed_changeset_error(%Changeset{} = changeset) do
+    address = dgettext("auth", "Email address")
+    ErrorFormatter.first_error(changeset, %{email: address, pending_email: address})
   end
 end
