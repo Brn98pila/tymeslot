@@ -77,7 +77,7 @@ defmodule Tymeslot.Profiles.ProfileQueries do
     end
   end
 
-  @doc "Updates the host's name, username or time zone."
+  @doc "Updates the host's name or time zone."
   @spec update_basic(ProfileSchema.t(), map()) ::
           {:ok, ProfileSchema.t()} | {:error, Ecto.Changeset.t()}
   def update_basic(%ProfileSchema{} = profile, attrs),
@@ -202,7 +202,7 @@ defmodule Tymeslot.Profiles.ProfileQueries do
   @spec update_username(ProfileSchema.t(), String.t()) ::
           {:ok, ProfileSchema.t()} | {:error, Ecto.Changeset.t()}
   def update_username(%ProfileSchema{} = profile, username),
-    do: update_basic(profile, %{username: username})
+    do: profile |> ProfileSchema.username_changeset(%{username: username}) |> Repo.update()
 
   @doc """
   Gets a profile by user ID within a transaction.

@@ -114,15 +114,26 @@ defmodule Tymeslot.Profiles.ProfileSchema do
   # change: no update path can reassign `user_id` or the published stamp, and
   # an unrelated save never re-runs another field's validation.
 
-  @doc "The host's name, username and time zone."
+  @doc "The host's name and time zone."
   @spec basic_changeset(t(), map()) :: Ecto.Changeset.t()
   def basic_changeset(profile, attrs) do
     profile
-    |> cast(attrs, [:full_name, :username, :timezone])
+    |> cast(attrs, [:full_name, :timezone])
     # The column is a varchar(255); a longer name must fail here, not at insert.
     |> validate_length(:full_name, max: 255)
-    |> validate_username()
     |> validate_timezone()
+  end
+
+  @doc """
+  The username, apart from the other basic fields so that only
+  `Tymeslot.Profiles.change_username/3` (validation, rate limit, publish)
+  can write it.
+  """
+  @spec username_changeset(t(), map()) :: Ecto.Changeset.t()
+  def username_changeset(profile, attrs) do
+    profile
+    |> cast(attrs, [:username])
+    |> validate_username()
     |> unique_constraint(:username)
   end
 

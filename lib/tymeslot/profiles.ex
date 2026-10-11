@@ -177,8 +177,8 @@ defmodule Tymeslot.Profiles do
   # --- Profile Updates ---
 
   @doc """
-  Updates the host's name, username and time zone together, as the
-  onboarding form submits them.
+  Updates the host's name and time zone together, as the onboarding form
+  submits them. The username is written by `change_username/3` alone.
   """
   @spec update_basic_details(profile, map()) :: result(profile)
   def update_basic_details(%ProfileSchema{} = profile, attrs),

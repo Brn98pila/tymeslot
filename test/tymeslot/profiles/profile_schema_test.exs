@@ -256,11 +256,24 @@ defmodule Tymeslot.Profiles.ProfileSchemaTest do
       changeset =
         ProfileSchema.basic_changeset(%ProfileSchema{}, %{
           timezone: "Europe/Kyiv",
-          username: "testuser",
           full_name: "Test User"
         })
 
       assert changeset.valid?
+    end
+
+    # Only change_username/3 writes the username, through its own changeset.
+    test "does not cast the username" do
+      assert ProfileSchema.basic_changeset(insert(:profile), %{username: "sneaky"}).changes == %{}
+    end
+  end
+
+  describe "username_changeset/2" do
+    test "casts only the username" do
+      changeset =
+        ProfileSchema.username_changeset(insert(:profile), %{username: "new-host", full_name: "X"})
+
+      assert changeset.changes == %{username: "new-host"}
     end
   end
 
@@ -279,6 +292,7 @@ defmodule Tymeslot.Profiles.ProfileSchemaTest do
       profile = insert(:profile)
 
       assert ProfileSchema.basic_changeset(profile, foreign).changes == %{}
+      assert ProfileSchema.username_changeset(profile, foreign).changes == %{}
 
       assert ProfileSchema.create_changeset(%ProfileSchema{}, Map.delete(foreign, :user_id)).changes ==
                %{}

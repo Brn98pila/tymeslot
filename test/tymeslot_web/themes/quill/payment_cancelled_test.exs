@@ -36,7 +36,7 @@ defmodule TymeslotWeb.Themes.Quill.PaymentCancelledTest do
 
   test "offers a rebook link to the meeting type's booking page", %{conn: conn, user: user} do
     {:ok, profile} = Profiles.get_profile_by_user_id(user.id)
-    {:ok, _profile} = Profiles.update_basic_details(profile, %{username: "hosttester"})
+    {:ok, _profile} = Profiles.change_username(profile, "hosttester", skip_rate_limit: true)
 
     meeting_type = insert(:meeting_type, user: user, name: "Paid Consultation")
 
@@ -59,7 +59,7 @@ defmodule TymeslotWeb.Themes.Quill.PaymentCancelledTest do
     user: user
   } do
     {:ok, profile} = Profiles.get_profile_by_user_id(user.id)
-    {:ok, _profile} = Profiles.update_basic_details(profile, %{username: "hosttester"})
+    {:ok, _profile} = Profiles.change_username(profile, "hosttester", skip_rate_limit: true)
 
     # The name-derived slug would be "paid-consultation"; the custom slug
     # overrides it in the rebook path.

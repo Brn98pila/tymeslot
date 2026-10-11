@@ -20,7 +20,7 @@ defmodule Tymeslot.Profiles.ProfileSchemaUsernameTest do
 
       for username <- valid_usernames do
         changeset =
-          ProfileSchema.basic_changeset(%ProfileSchema{}, %{
+          ProfileSchema.username_changeset(%ProfileSchema{}, %{
             username: username,
             timezone: "Europe/Kyiv"
           })
@@ -47,7 +47,7 @@ defmodule Tymeslot.Profiles.ProfileSchemaUsernameTest do
 
       for {username, expected_error} <- invalid_usernames do
         changeset =
-          ProfileSchema.basic_changeset(%ProfileSchema{}, %{
+          ProfileSchema.username_changeset(%ProfileSchema{}, %{
             username: username,
             timezone: "Europe/Kyiv"
           })
@@ -99,7 +99,7 @@ defmodule Tymeslot.Profiles.ProfileSchemaUsernameTest do
 
       for username <- reserved do
         changeset =
-          ProfileSchema.basic_changeset(%ProfileSchema{}, %{
+          ProfileSchema.username_changeset(%ProfileSchema{}, %{
             username: username,
             timezone: "Europe/Kyiv"
           })
@@ -117,7 +117,7 @@ defmodule Tymeslot.Profiles.ProfileSchemaUsernameTest do
       # matched in its lowercase spelling.
       for username <- ["jesus-christ", "christ-sake"] do
         changeset =
-          ProfileSchema.basic_changeset(%ProfileSchema{}, %{
+          ProfileSchema.username_changeset(%ProfileSchema{}, %{
             username: username,
             timezone: "Europe/Kyiv"
           })
