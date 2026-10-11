@@ -35,8 +35,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.SeatLockedEventsTest do
   import Tymeslot.Factory
   import Tymeslot.Test.ClockHelpers, only: [freeze_clock_midweek: 0]
 
-  alias Tymeslot.Clock
   alias Phoenix.HTML
+  alias Tymeslot.Clock
   alias Tymeslot.Repo
   alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.NotificationFlows
 

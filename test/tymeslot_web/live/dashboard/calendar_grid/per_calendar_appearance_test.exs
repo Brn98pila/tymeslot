@@ -20,8 +20,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.PerCalendarAppearanceTest do
   import Tymeslot.Factory
   import Tymeslot.Test.ClockHelpers, only: [freeze_clock_midweek: 0]
 
-  alias Tymeslot.Clock
   alias Tymeslot.CalendarGrid
+  alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.Appearance
 
   # The grid opens on the week that holds today in the host's zone (Tallinn
