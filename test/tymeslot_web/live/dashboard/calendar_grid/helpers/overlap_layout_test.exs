@@ -58,4 +58,18 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Helpers.OverlapLayoutTest do
       assert length(visible) == 3
     end
   end
+
+  # Santiago moves its clocks from 00:00 to 01:00 on 6 September 2026, so
+  # that day has no midnight and begins at 01:00 (-03).
+  describe "day_boundary_utc/2" do
+    test "starts a day whose midnight the clocks skip where it begins" do
+      assert OverlapLayout.day_boundary_utc(~D[2026-09-06], "America/Santiago") ==
+               {~U[2026-09-06 04:00:00Z], ~U[2026-09-07 03:00:00Z]}
+    end
+
+    test "ends the day before at that same instant" do
+      assert {_start, ~U[2026-09-06 04:00:00Z]} =
+               OverlapLayout.day_boundary_utc(~D[2026-09-05], "America/Santiago")
+    end
+  end
 end

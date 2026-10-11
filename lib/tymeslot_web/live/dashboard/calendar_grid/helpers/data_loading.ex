@@ -172,9 +172,13 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Helpers.DataLoading do
     {local_midnight(List.first(days), tz), local_midnight(Date.add(List.last(days), 1), tz)}
   end
 
-  # A zone that moves its clocks at midnight has no 00:00 on that date (the day
-  # starts at 01:00), or two of them; the day starts at the first instant either way.
-  defp local_midnight(date, tz) do
+  @doc """
+  The UTC instant `date` begins in `tz`. A zone that moves its clocks at
+  midnight has no 00:00 on that date (the day starts at 01:00), or two of
+  them; the day starts at the first instant either way.
+  """
+  @spec local_midnight(Date.t(), String.t()) :: DateTime.t()
+  def local_midnight(date, tz) do
     instant =
       case DateTime.new(date, ~T[00:00:00], tz) do
         {:ok, midnight} -> midnight

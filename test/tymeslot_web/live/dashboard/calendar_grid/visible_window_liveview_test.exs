@@ -135,6 +135,34 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.VisibleWindowLiveViewTest do
     end
   end
 
+  # Santiago's clocks skip from 00:00 to 01:00 on Sunday 6 September 2026.
+  describe "a host whose clocks skip a midnight" do
+    setup %{conn: conn} do
+      {conn, integration} = sign_in(conn, "America/Santiago")
+      freeze_at(~D[2026-09-06], ~T[12:00:00], "America/Santiago")
+      {:ok, conn: conn, integration: integration}
+    end
+
+    test "sees that day's events in the week and the day", %{conn: conn, integration: i} do
+      event = insert_event(i, ~D[2026-09-06], ~T[09:00:00], "America/Santiago")
+
+      {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+      assert on_grid?(lv, event)
+
+      grid_hook(lv, "set_view", %{"view" => "day"})
+      assert on_grid?(lv, event)
+    end
+
+    test "sees that day's events in the agenda", %{conn: conn, integration: i} do
+      event = insert_event(i, ~D[2026-09-06], ~T[09:00:00], "America/Santiago")
+
+      {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+      grid_hook(lv, "set_view", %{"view" => "agenda"})
+
+      assert has_element?(lv, "#agenda-event-#{event.id}-2026-09-06")
+    end
+  end
+
   # The grid loads only the days it shows, so a preference that changes which
   # days those are has to load the new ones.
   describe "a preference that changes the days shown" do
