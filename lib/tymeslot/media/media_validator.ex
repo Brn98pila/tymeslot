@@ -1,4 +1,4 @@
-defmodule Tymeslot.Utils.MediaValidator do
+defmodule Tymeslot.Media.MediaValidator do
   @moduledoc """
   Utility for validating media files (images and videos) using magic bytes.
   """

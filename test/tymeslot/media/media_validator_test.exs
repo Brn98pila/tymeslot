@@ -1,9 +1,9 @@
-defmodule Tymeslot.Utils.MediaValidatorTest do
+defmodule Tymeslot.Media.MediaValidatorTest do
   use Tymeslot.DataCase, async: true
 
   @moduletag :utils
 
-  alias Tymeslot.Utils.MediaValidator
+  alias Tymeslot.Media.MediaValidator
 
   describe "valid_image?/1" do
     test "returns true for valid PNG" do

@@ -29,9 +29,9 @@ defmodule Tymeslot.Emails.Branding do
 
   alias Tymeslot.AppSettings
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Media.MediaValidator
   alias Tymeslot.Media.Uploads
   alias Tymeslot.Utils.Colour
-  alias Tymeslot.Utils.MediaValidator
 
   require Logger
 
