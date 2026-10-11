@@ -19,6 +19,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.VisibleWindowLiveViewTest do
   import Tymeslot.Test.ClockHelpers
 
   alias Plug.Test
+  alias Tymeslot.CalendarGrid
 
   # A Sunday that ends a month: the week shown is Monday 22 to Sunday 28
   # February, and the agenda runs from the 28th to 30 March.
@@ -53,6 +54,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.VisibleWindowLiveViewTest do
   end
 
   defp on_grid?(lv, event), do: has_element?(lv, "[id^='event-#{event.id}-']")
+
+  defp grid_hook(lv, event, params \\ %{}),
+    do: lv |> element("#calendar-grid") |> render_hook(event, params)
 
   describe "a frozen clock" do
     test "is the one the mounted grid opens on", %{conn: conn} do
@@ -129,5 +133,79 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.VisibleWindowLiveViewTest do
       assert on_grid?(lv, first_morning)
       refute on_grid?(lv, night_before)
     end
+  end
+
+  # The grid loads only the days it shows, so a preference that changes which
+  # days those are has to load the new ones.
+  describe "a preference that changes the days shown" do
+    setup %{conn: conn} do
+      {conn, integration} = sign_in(conn, "America/New_York")
+      # Wednesday 24 February 2027: the Monday week is 22-28 February.
+      freeze_at(~D[2027-02-24], ~T[12:00:00], "America/New_York")
+      {:ok, conn: conn, integration: integration}
+    end
+
+    test "turning weekends on shows the weekend's events", %{conn: conn, integration: i} do
+      user_id = i.user_id
+      {:ok, _prefs} = CalendarGrid.save_preferences(user_id, %{show_weekends: false})
+      saturday = insert_event(i, ~D[2027-02-27], ~T[14:00:00], "America/New_York")
+
+      {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+      refute on_grid?(lv, saturday)
+
+      grid_hook(lv, "toggle_weekends")
+
+      assert on_grid?(lv, saturday)
+    end
+
+    test "starting the week on Sunday shows that Sunday's events", %{conn: conn, integration: i} do
+      sunday = insert_event(i, ~D[2027-02-21], ~T[14:00:00], "America/New_York")
+
+      {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+      refute on_grid?(lv, sunday)
+
+      grid_hook(lv, "update_week_start", %{"option" => "sunday"})
+
+      assert has_element?(lv, "[data-day-col='2027-02-21']")
+      assert on_grid?(lv, sunday)
+    end
+
+    test "starting the week on Sunday shows the month's new first cell", %{
+      conn: conn,
+      integration: i
+    } do
+      # February 2027 starts on a Monday, so a Sunday start adds 31 January.
+      cell = insert_event(i, ~D[2027-01-31], ~T[14:00:00], "America/New_York")
+
+      {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+      grid_hook(lv, "set_view", %{"view" => "month"})
+      refute on_grid?(lv, cell)
+
+      grid_hook(lv, "update_week_start", %{"option" => "sunday"})
+
+      assert on_grid?(lv, cell)
+    end
+  end
+
+  test "an event with no length at the first day's midnight is shown", %{conn: conn} do
+    {conn, integration} = sign_in(conn, "America/New_York")
+    freeze_at(@sunday, ~T[17:00:00], "America/New_York")
+    start_at = local(~D[2027-02-22], ~T[00:00:00], "America/New_York")
+
+    marker =
+      insert(:provider_calendar_event,
+        calendar_integration: integration,
+        summary: "Marker",
+        start_at: start_at,
+        end_at: start_at,
+        all_day: false,
+        recurrence_rule: nil,
+        recurring_event_id: nil,
+        sync_state: "synced"
+      )
+
+    {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+
+    assert on_grid?(lv, marker)
   end
 end

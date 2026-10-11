@@ -74,6 +74,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Helpers.DataLoading do
 
   @spec load_events(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def load_events(socket) do
+    # The window is the viewer's days in the viewer's zone, so a zone that
+    # just changed has to be assigned before it is computed.
+    socket = assign_timezone(socket)
     integrations = socket.assigns.integrations
     integration_ids = Enum.map(integrations, & &1.id)
     {start_dt, end_dt} = range_for_view(socket.assigns)
@@ -103,12 +106,13 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Helpers.DataLoading do
     socket
     |> assign(:events, events)
     |> assign(:group_booking_uids, group_booking_uids)
-    |> precompute_derived()
+    |> derive()
   end
 
   @spec precompute_derived(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
-  def precompute_derived(socket) do
-    socket = assign_timezone(socket)
+  def precompute_derived(socket), do: socket |> assign_timezone() |> derive()
+
+  defp derive(socket) do
     assigns = socket.assigns
 
     v_events =
