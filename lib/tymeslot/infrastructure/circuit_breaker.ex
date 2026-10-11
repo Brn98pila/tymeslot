@@ -196,6 +196,16 @@ defmodule Tymeslot.Infrastructure.CircuitBreaker do
   end
 
   @doc """
+  True while a call made now would be refused: the breaker is open and its
+  recovery timeout has not yet elapsed. Reads the state without changing it,
+  so a caller can skip work that only makes sense if the call goes ahead.
+  """
+  @spec refusing?(GenServer.server()) :: boolean()
+  def refusing?(breaker_name) do
+    GenServer.call(breaker_name, :refusing?, 5_000)
+  end
+
+  @doc """
   Resets the circuit breaker to closed state.
 
   Clears the persisted ETS snapshot directly (not just via the cast) so a
@@ -238,6 +248,14 @@ defmodule Tymeslot.Infrastructure.CircuitBreaker do
     {reply, new_state} = grant_permission(state)
     persist_state(new_state)
     {:reply, reply, new_state, new_state.idle_timeout}
+  end
+
+  @impl GenServer
+  def handle_call(:refusing?, _from, state) do
+    refusing =
+      state.status == :open and not recovered?(state, System.monotonic_time(:millisecond))
+
+    {:reply, refusing, state, state.idle_timeout}
   end
 
   @impl GenServer
@@ -292,7 +310,7 @@ defmodule Tymeslot.Infrastructure.CircuitBreaker do
   defp grant_permission(%State{status: :open} = state) do
     now = System.monotonic_time(:millisecond)
 
-    if now - (state.last_failure_time || now) >= state.config.recovery_timeout do
+    if recovered?(state, now) do
       Logger.info("Circuit breaker transitioning to half-open", name: state.name)
       Metrics.track_circuit_breaker_state(state.name, :open, :half_open)
 
@@ -323,6 +341,9 @@ defmodule Tymeslot.Infrastructure.CircuitBreaker do
         {{:error, :circuit_open}, state}
     end
   end
+
+  defp recovered?(state, now),
+    do: now - (state.last_failure_time || now) >= state.config.recovery_timeout
 
   defp start_half_open_round(state, now) do
     %{state | half_open_attempts: 1, half_open_successes: 0, half_open_started_at: now}

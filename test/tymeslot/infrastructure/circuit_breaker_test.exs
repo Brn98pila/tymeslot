@@ -156,6 +156,28 @@ defmodule Tymeslot.Infrastructure.CircuitBreakerTest do
     end
   end
 
+  describe "refusing?/1" do
+    test "is true only while a call would be refused, and changes nothing" do
+      name = start_breaker(config: %{failure_threshold: 1, recovery_timeout: 60_000})
+      refute CircuitBreaker.refusing?(name)
+
+      CircuitBreaker.call(name, fn -> {:provider_error, :fail} end)
+
+      assert CircuitBreaker.refusing?(name)
+      assert %{status: :open} = CircuitBreaker.status(name)
+    end
+
+    test "is false once the recovery timeout has elapsed, though the breaker still reads open" do
+      name = start_breaker(config: %{failure_threshold: 1, recovery_timeout: 0})
+
+      CircuitBreaker.call(name, fn -> {:provider_error, :fail} end)
+
+      refute CircuitBreaker.refusing?(name)
+      assert %{status: :open} = CircuitBreaker.status(name)
+      assert {:ok, :trial} = CircuitBreaker.call(name, fn -> {:ok, :trial} end)
+    end
+  end
+
   describe "open -> half-open transition" do
     test "transitions to half-open after recovery_timeout" do
       name =
