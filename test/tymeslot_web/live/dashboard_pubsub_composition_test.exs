@@ -48,7 +48,6 @@ defmodule TymeslotWeb.DashboardPubsubCompositionTest do
 
   alias Tymeslot.Infrastructure.DashboardCache
   alias Tymeslot.Integrations.Calendar
-  alias Tymeslot.Integrations.CalendarManagement
 
   setup_all do
     case Process.whereis(DashboardCache) do

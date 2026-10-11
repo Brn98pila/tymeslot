@@ -149,46 +149,56 @@ defmodule Tymeslot.Emails.DeliveryTest do
   end
 
   describe "deliver/1 — permanent recipient rejection" do
+    # Each test delivers through a breaker of its own, so no other delivery
+    # in the suite can move the counts it asserts on.
     setup do
       setup_config(:tymeslot, Tymeslot.Mailer, adapter: FailingMailerAdapter)
-      CircuitBreaker.reset(CircuitBreakerSupervisor.email_breaker_name())
-      on_exit(fn -> CircuitBreaker.reset(CircuitBreakerSupervisor.email_breaker_name()) end)
-      :ok
+      # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+      breaker = :"delivery_test_breaker_#{System.unique_integer([:positive])}"
+
+      start_supervised!(
+        {CircuitBreaker, name: breaker, config: CircuitBreakerSupervisor.email_breaker_config()}
+      )
+
+      %{breaker: breaker}
     end
 
-    test "returns a rejection the caller can distinguish from a transient failure" do
+    test "returns a rejection the caller can distinguish from a transient failure", %{
+      breaker: breaker
+    } do
       setup_config(:tymeslot, :test_delivery_error, @suppressed_recipient)
 
       assert {:error, {:recipient_rejected, @suppressed_recipient}} =
-               Delivery.deliver(valid_email())
+               Delivery.deliver(valid_email(), breaker: breaker)
     end
 
     # The incident this guards against: three notifications to one hard-bounced
     # address opened the breaker, which then failed every unrelated email —
     # including the admin alert reporting the failure — for five minutes.
-    test "does not count towards the circuit breaker, however many addresses are dead" do
+    test "does not count towards the circuit breaker, however many addresses are dead", %{
+      breaker: breaker
+    } do
       setup_config(:tymeslot, :test_delivery_error, @suppressed_recipient)
-      breaker = CircuitBreakerSupervisor.email_breaker_name()
       threshold = CircuitBreaker.status(breaker).config.failure_threshold
 
       for _attempt <- 1..(threshold * 2) do
-        assert {:error, {:recipient_rejected, _reason}} = Delivery.deliver(valid_email())
+        assert {:error, {:recipient_rejected, _reason}} =
+                 Delivery.deliver(valid_email(), breaker: breaker)
       end
 
       assert CircuitBreaker.status(breaker).status == :closed
     end
 
-    test "a transient provider failure still opens the breaker" do
+    test "a transient provider failure still opens the breaker", %{breaker: breaker} do
       setup_config(:tymeslot, :test_delivery_error, :econnrefused)
-      breaker = CircuitBreakerSupervisor.email_breaker_name()
       threshold = CircuitBreaker.status(breaker).config.failure_threshold
 
       for _attempt <- 1..threshold do
-        assert {:error, :econnrefused} = Delivery.deliver(valid_email())
+        assert {:error, :econnrefused} = Delivery.deliver(valid_email(), breaker: breaker)
       end
 
       assert CircuitBreaker.status(breaker).status == :open
-      assert {:error, :circuit_open} = Delivery.deliver(valid_email())
+      assert {:error, :circuit_open} = Delivery.deliver(valid_email(), breaker: breaker)
     end
 
     # A hung SMTP/API connection is the common shape of a mail outage, and is
@@ -197,17 +207,18 @@ defmodule Tymeslot.Emails.DeliveryTest do
     # also hide the outage from the breaker, or the breaker never opens and
     # every subsequent send is spent inside the outage instead of snoozing
     # past it.
-    test "a timeout still opens the breaker, even though the caller sees assumed delivery" do
+    test "a timeout still opens the breaker, even though the caller sees assumed delivery", %{
+      breaker: breaker
+    } do
       setup_config(:tymeslot, :test_delivery_error, :timeout)
-      breaker = CircuitBreakerSupervisor.email_breaker_name()
       threshold = CircuitBreaker.status(breaker).config.failure_threshold
 
       for _attempt <- 1..threshold do
-        assert {:ok, :assumed_delivered} = Delivery.deliver(valid_email())
+        assert {:ok, :assumed_delivered} = Delivery.deliver(valid_email(), breaker: breaker)
       end
 
       assert CircuitBreaker.status(breaker).status == :open
-      assert {:error, :circuit_open} = Delivery.deliver(valid_email())
+      assert {:error, :circuit_open} = Delivery.deliver(valid_email(), breaker: breaker)
     end
   end
 

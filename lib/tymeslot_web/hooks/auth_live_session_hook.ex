@@ -37,6 +37,7 @@ defmodule TymeslotWeb.Hooks.AuthLiveSessionHook do
 
   alias Tymeslot.Auth
   alias Tymeslot.Infrastructure.Config
+  alias TymeslotWeb.Plugs.ReturnTo
   alias TymeslotWeb.UserAuth
 
   @type hook ::
@@ -54,7 +55,7 @@ defmodule TymeslotWeb.Hooks.AuthLiveSessionHook do
         {:halt,
          socket
          |> put_flash(:error, unauthenticated_message(session))
-         |> redirect(to: login_path())}
+         |> redirect(to: ReturnTo.login_path(requested_path(socket), login_path()))}
 
       user ->
         if Auth.deletion_pending?(user),
@@ -134,6 +135,24 @@ defmodule TymeslotWeb.Hooks.AuthLiveSessionHook do
 
   defp email_verified?(%{verified_at: %DateTime{}}), do: true
   defp email_verified?(_user), do: false
+
+  # The page being mounted, so signing in can end there (see
+  # `TymeslotWeb.Plugs.ReturnTo`), on the dead render only. A dead render
+  # rarely gets this far without a user, the pipeline's plug having
+  # redirected it already. A connected mount (a live navigation, or the
+  # reconnect after a session lapsed) cannot name its page: `:uri` is then
+  # the websocket's own address, `/live/websocket` with its CSRF token in
+  # the query, and the mount has no other source for the page before
+  # `handle_params/3`, which a halted mount never reaches. It goes to the
+  # plain login page instead.
+  defp requested_path(socket) do
+    with false <- connected?(socket),
+         %URI{path: path} = uri when is_binary(path) <- get_connect_info(socket, :uri) do
+      if uri.query, do: path <> "?" <> uri.query, else: path
+    else
+      _connected_or_unknown -> nil
+    end
+  end
 
   # A token that no longer resolves is an expired or revoked session; no token
   # at all means the visitor never signed in.

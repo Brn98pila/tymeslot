@@ -237,8 +237,35 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema do
     cache_event
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
+    |> validate_timing()
     |> foreign_key_constraint(:calendar_integration_id)
     |> unique_constraint([:calendar_integration_id, :uid])
+  end
+
+  @doc """
+  Whether a row's timing is complete for its kind: both instants for a timed
+  event, both dates for an all-day one. The columns are all nullable, and the
+  grid cannot place a timed event without an end or an all-day one without
+  its last day. Takes the row, or a map of its fields with atom keys.
+  """
+  @spec timing_complete?(map()) :: boolean()
+  def timing_complete?(%{all_day: true} = row),
+    do: match?(%Date{}, row[:start_date]) and match?(%Date{}, row[:end_date])
+
+  def timing_complete?(%{all_day: false} = row),
+    do: match?(%DateTime{}, row[:start_at]) and match?(%DateTime{}, row[:end_at])
+
+  def timing_complete?(_row), do: false
+
+  @doc "Adds an error unless the timing the changeset leaves is `timing_complete?/1`."
+  @spec validate_timing(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  def validate_timing(changeset) do
+    timing =
+      Map.new(~w(all_day start_at end_at start_date end_date)a, &{&1, get_field(changeset, &1)})
+
+    if timing_complete?(timing),
+      do: changeset,
+      else: add_error(changeset, :all_day, "is missing the start or end its kind needs")
   end
 
   @doc """

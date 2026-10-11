@@ -54,7 +54,7 @@ defmodule TymeslotWeb.SlackOAuthControllerTest do
 
     test "redirects unauthenticated requests to the login page", %{conn: conn} do
       conn = get(conn, ~p"/api/slack/oauth/start")
-      assert redirected_to(conn) == "/auth/login"
+      assert redirected_to(conn) == "/auth/login?redirect_to=%2Fapi%2Fslack%2Foauth%2Fstart"
     end
 
     test "flashes a friendly message instead of 500ing when OAuth is unavailable",

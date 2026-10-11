@@ -45,7 +45,15 @@ Tymeslot.Test.SuiteConfig.setup_log_capture()
 
 ExUnit.start()
 
-base_config = [capture_log: true, exclude: Tymeslot.Test.SuiteConfig.default_exclude_tags()]
+# A bare `assert_receive` waits ExUnit's default 100 ms, too little on a loaded
+# machine for a message from another process; a passing assertion returns as
+# soon as its message arrives, so a longer bound costs nothing. Absence checks
+# (`refute_receive`) keep their own short default.
+base_config = [
+  capture_log: true,
+  exclude: Tymeslot.Test.SuiteConfig.default_exclude_tags(),
+  assert_receive_timeout: 1_000
+]
 
 exunit_config =
   case Tymeslot.Test.SuiteConfig.max_cases() do

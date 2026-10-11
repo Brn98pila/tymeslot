@@ -19,8 +19,8 @@ defmodule Tymeslot.AuthTest do
   alias Tymeslot.Infrastructure.PubSub
   alias Tymeslot.Security.Password
   alias Tymeslot.Security.Token
-  alias TymeslotWeb.Helpers.ClientIP
 
+  import Tymeslot.AuthTestHelpers, only: [isolated_request_opts: 0]
   import Tymeslot.Factory
 
   describe "authenticate_user/3" do
@@ -35,7 +35,7 @@ defmodule Tymeslot.AuthTest do
                Auth.authenticate_user(
                  user.email,
                  "WrongPassword",
-                 ClientIP.request_opts(%Plug.Conn{})
+                 isolated_request_opts()
                )
 
       # Non-existent user
@@ -43,7 +43,7 @@ defmodule Tymeslot.AuthTest do
                Auth.authenticate_user(
                  "fake@example.com",
                  "Password123!",
-                 ClientIP.request_opts(%Plug.Conn{})
+                 isolated_request_opts()
                )
     end
   end
@@ -61,7 +61,7 @@ defmodule Tymeslot.AuthTest do
                  user,
                  "new@example.com",
                  "WrongPassword",
-                 ClientIP.request_opts(%Plug.Conn{})
+                 isolated_request_opts()
                )
 
       # A registered address gets the answer a free one does
@@ -72,7 +72,7 @@ defmodule Tymeslot.AuthTest do
                  user,
                  "taken@example.com",
                  "CurrentPassword123!",
-                 ClientIP.request_opts(%Plug.Conn{})
+                 isolated_request_opts()
                )
     end
   end
@@ -94,7 +94,7 @@ defmodule Tymeslot.AuthTest do
           "CurrentPassword123!",
           "NewPassword123!",
           "NewPassword123!",
-          ClientIP.request_opts(%Plug.Conn{})
+          isolated_request_opts()
         )
 
       # The pre-change session is revoked, so the old cookie no longer resolves
@@ -107,7 +107,7 @@ defmodule Tymeslot.AuthTest do
                Auth.authenticate_user(
                  user.email,
                  "NewPassword123!",
-                 ClientIP.request_opts(%Plug.Conn{})
+                 isolated_request_opts()
                )
     end
   end
@@ -126,7 +126,7 @@ defmodule Tymeslot.AuthTest do
 
       # Answered exactly as a free address would be; no second account.
       assert {:existing_account, _message} =
-               Auth.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+               Auth.register_user(params, isolated_request_opts())
     end
   end
 

@@ -24,12 +24,16 @@ defmodule Tymeslot.Integrations.Calendar.ICalNormaliser do
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Utils.MapKeys
 
+  @duration_defaulted "unreadable DURATION, kept with the default length"
+
   @doc """
   Expands and normalises `raw_events` into `CalendarEvent` structs.
 
   Events that fail validation are skipped, logged, and recorded with
   `InvalidEventReport`, so one malformed entry never costs a whole sync and the
-  sync run raises one operator alert for all of them.
+  sync run raises one operator alert for all of them. An event whose DURATION
+  could not be read is kept with the parser's default length, and logged and
+  recorded the same way.
   """
   @spec normalise_events([map()], map(), atom()) :: {:ok, [CalendarEvent.t()]}
   def normalise_events(raw_events, context, provider) do
@@ -38,23 +42,32 @@ defmodule Tymeslot.Integrations.Calendar.ICalNormaliser do
     # calendar grid and availability checks read back.
     {range_start, range_end} = Sync.window()
 
-    events =
+    {events, defaulted} =
       raw_events
       |> expand_all(range_start, range_end)
-      |> Enum.reduce([], fn raw, acc ->
+      |> Enum.reduce({[], %{}}, fn raw, {acc, defaulted} ->
         case build_calendar_event(raw, context, provider) do
           {:ok, event} ->
-            [event | acc]
+            {[event | acc], note_default(defaulted, raw)}
 
           {:error, reason} ->
             record_skip(raw, context, provider, reason)
-            acc
+            {acc, defaulted}
         end
       end)
-      |> Enum.reverse()
 
-    {:ok, events}
+    defaulted |> Map.values() |> Enum.each(&record_default(&1, context, provider))
+
+    {:ok, Enum.reverse(events)}
   end
+
+  # A VEVENT kept with a default duration is reported once, however many
+  # occurrences it expands to, and only when it was kept: one skipped for
+  # another reason is reported as skipped alone.
+  defp note_default(defaulted, %{duration_defaulted: true} = raw),
+    do: Map.put_new(defaulted, {raw[:uid], raw[:recurrence_id]}, raw)
+
+  defp note_default(defaulted, _raw), do: defaulted
 
   defp record_skip(raw, context, provider, reason) do
     Logger.warning("Skipping invalid calendar event",
@@ -65,6 +78,17 @@ defmodule Tymeslot.Integrations.Calendar.ICalNormaliser do
     )
 
     InvalidEventReport.record(provider, context, raw[:uid], reason)
+  end
+
+  defp record_default(raw, context, provider) do
+    Logger.warning("Calendar event kept with a default duration",
+      provider: provider,
+      reason: @duration_defaulted,
+      event_uid: raw[:uid],
+      calendar_integration_id: context.calendar_integration_id
+    )
+
+    InvalidEventReport.record_default(provider, context, raw[:uid], @duration_defaulted)
   end
 
   @doc """
@@ -269,7 +293,8 @@ defmodule Tymeslot.Integrations.Calendar.ICalNormaliser do
             :_occ_start,
             :_occ_end,
             :_recurring,
-            :_uid_suffix
+            :_uid_suffix,
+            :duration_defaulted
           ]),
         raw_ical: raw[:raw_ical],
         created_by_tymeslot: tymeslot_origin?(raw)
@@ -384,6 +409,9 @@ defmodule Tymeslot.Integrations.Calendar.ICalNormaliser do
   end
 
   defp end_datetime(other, _timezone), do: other
+
+  # A moment at midnight (DTSTART with no end) is not a whole day.
+  defp radicale_all_day?(same, same), do: false
 
   defp radicale_all_day?(
          %DateTime{hour: 0, minute: 0, second: 0, time_zone: "Etc/UTC"},

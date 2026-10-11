@@ -32,6 +32,8 @@ defmodule TymeslotWeb.Endpoint do
   socket "/live", Phoenix.LiveView.Socket,
     websocket: [
       connect_info: [
+        # The page a mount asked for, so a sign-in it is sent to can end there.
+        :uri,
         :peer_data,
         :x_headers,
         :user_agent,

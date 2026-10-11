@@ -14,6 +14,8 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries do
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Repo
 
+  require Logger
+
   # Bound at compile time from the module that owns the column's vocabulary, so
   # a rename cannot leave a stale literal behind in a `where` clause that would
   # then silently match nothing.
@@ -167,6 +169,14 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries do
           ilike(e.location, ^pattern)
       )
       |> where([e, _i], ^Visibility.dynamic_for(rules))
+      # A row with half its timing (stored before the cache's writers checked
+      # it) has nowhere to be shown; leaving it out here, rather than after
+      # the limit, keeps a page of results full.
+      |> where(
+        [e, _i],
+        (e.all_day == true and not is_nil(e.start_date) and not is_nil(e.end_date)) or
+          (e.all_day == false and not is_nil(e.start_at) and not is_nil(e.end_at))
+      )
       |> order_by([e, _i],
         asc: coalesce(e.start_at, type(e.start_date, :utc_datetime_usec)),
         asc: e.id
@@ -189,6 +199,12 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries do
   The `id` and `inserted_at` columns are never touched.
 
   Returns `{:ok, count}` on success or `{:error, reason}` on failure.
+
+  `insert_all` runs no changeset, so an entry whose timing is incomplete for
+  its kind (`ProviderCalendarEventSchema.timing_complete?/1`) is left out
+  here and logged:
+  the sync paths have already refused such events, and the dashboard's own
+  writers must not store one either.
   """
   # Rows are inserted in chunks so a single `insert_all` never exceeds
   # PostgreSQL's 65,535 bind-parameter limit. The schema has ~30 insertable
@@ -209,6 +225,9 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries do
     # command, so we keep the last entry per (calendar_integration_id, uid).
     count =
       events_attrs
+      # `all_day` is optional to callers, as the column's default is false.
+      |> Enum.map(&Map.put_new(&1, :all_day, false))
+      |> Enum.filter(&timing_valid?/1)
       |> Enum.map(fn attrs ->
         attrs
         |> Map.put_new(:inserted_at, now)
@@ -222,6 +241,19 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries do
       |> Enum.reduce(0, fn chunk, acc -> acc + upsert_chunk(chunk) end)
 
     {:ok, count}
+  end
+
+  defp timing_valid?(attrs) do
+    complete? = ProviderCalendarEventSchema.timing_complete?(attrs)
+
+    unless complete? do
+      Logger.warning("Not caching a calendar event with incomplete timing",
+        calendar_integration_id: attrs[:calendar_integration_id],
+        all_day: attrs[:all_day]
+      )
+    end
+
+    complete?
   end
 
   defp upsert_chunk(entries) do
@@ -305,7 +337,12 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries do
     |> Repo.one()
   end
 
-  @doc "Applies a where clause filtering events that overlap the given DateTime range."
+  @doc """
+  Applies a where clause filtering events that overlap the given DateTime range,
+  `[range_start, range_end)`. A zero-length timed event overlaps it when it
+  starts inside it, including at `range_start` exactly, which a strict
+  `end_at > range_start` alone would leave out.
+  """
   @spec where_overlapping_range(Ecto.Query.t(), DateTime.t(), DateTime.t()) :: Ecto.Query.t()
   def where_overlapping_range(query, range_start, range_end) do
     range_start_date = DateTime.to_date(range_start)
@@ -314,7 +351,8 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries do
     where(
       query,
       [e],
-      (e.all_day == false and e.start_at < ^range_end and e.end_at > ^range_start) or
+      (e.all_day == false and e.start_at < ^range_end and
+         (e.end_at > ^range_start or e.start_at >= ^range_start)) or
         (e.all_day == true and e.start_date <= ^range_end_date and e.end_date > ^range_start_date)
     )
   end
@@ -432,6 +470,7 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries do
       :status,
       :transparency
     ])
+    |> ProviderCalendarEventSchema.validate_timing()
     |> Repo.update()
   end
 
@@ -449,6 +488,7 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries do
     with {:ok, event} <- get_by_uid(calendar_integration_id, uid) do
       event
       |> Changeset.cast(attrs, @local_edit_fields)
+      |> ProviderCalendarEventSchema.validate_timing()
       |> Changeset.foreign_key_constraint(:video_integration_id)
       |> Repo.update()
     end

@@ -19,6 +19,7 @@ defmodule Tymeslot.CalendarGrid.IcsImportTest do
   alias Tymeslot.CalendarGrid.IcsImport
   alias Tymeslot.Infrastructure.AvailabilityCache
   alias Tymeslot.Integrations.Calendar.CreatedEvent
+  alias Tymeslot.Integrations.Calendar.Utils.EventValidator
   alias Tymeslot.Workers.SyncCalDavCalendarWorker
 
   setup :verify_on_exit!
@@ -289,6 +290,50 @@ defmodule Tymeslot.CalendarGrid.IcsImportTest do
       assert IcsImport.target(user.id, integration.id, "/cal/holidays/") == {:error, :not_found}
       assert IcsImport.target(user.id, integration.id, "/cal/elsewhere/") == {:error, :not_found}
       assert IcsImport.target(user.id, integration.id, nil) == {:error, :not_found}
+    end
+  end
+
+  # The parser reads a timed DTSTART with no end as a moment, which a calendar
+  # write refuses; an import writes a real event, so it takes an hour.
+  describe "a timed event with no usable end" do
+    setup do
+      user = insert(:user)
+      integration = insert(:calendar_integration, user: user, calendar_list: calendars())
+      {:ok, target} = IcsImport.target(user.id, integration.id, "/cal/home/")
+
+      plan =
+        plan!(
+          ics([
+            vevent(["UID:bare@x", "SUMMARY:Bare start", "DTSTART:20261105T090000Z"]),
+            vevent([
+              "UID:back@x",
+              "SUMMARY:Ends before it starts",
+              "DTSTART:20261106T090000Z",
+              "DTEND:20261106T080000Z"
+            ])
+          ])
+        )
+
+      %{target: target, plan: plan}
+    end
+
+    test "is planned to last an hour", %{plan: plan} do
+      assert Enum.map(plan.events, &{&1.summary, &1.end_time}) == [
+               {"Bare start", ~U[2026-11-05 10:00:00Z]},
+               {"Ends before it starts", ~U[2026-11-06 10:00:00Z]}
+             ]
+    end
+
+    # The provider write validates its event as `Calendar.Operations` does.
+    test "imports, rather than failing the write", ctx do
+      expect(Tymeslot.CalendarMock, :create_event, 2, fn data, _context ->
+        case EventValidator.validate(data) do
+          {:ok, _data} -> {:ok, CreatedEvent.new(data.uid)}
+          {:error, _changeset} = refused -> refused
+        end
+      end)
+
+      assert %{total: 2, created: 2, failed: 0, halted: nil} = IcsImport.run(ctx.target, ctx.plan)
     end
   end
 

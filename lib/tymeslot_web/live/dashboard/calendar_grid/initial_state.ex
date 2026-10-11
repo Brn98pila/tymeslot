@@ -10,6 +10,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.InitialState do
   """
 
   alias Tymeslot.CalendarGrid.WriteQueue
+  alias Tymeslot.Clock
   alias Tymeslot.Timezones
 
   @doc "The default assigns applied in the component's `mount/1`."
@@ -17,7 +18,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.InitialState do
   def defaults do
     %{
       view: :week,
-      date: Date.utc_today(),
+      date: Clock.utc_today(),
       events: [],
       integrations: [],
       integration_colors: %{},
@@ -25,7 +26,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.InitialState do
       selected_event: nil,
       selected_booking: nil,
       agenda_lens: :all,
-      current_time: DateTime.utc_now(),
+      current_time: Clock.utc_now(),
       hidden_integration_ids: [],
       # Seeded empty so the first static render, which happens before
       # `load_integrations/1` has run, has the same assign shape as every render

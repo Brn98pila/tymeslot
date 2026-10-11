@@ -22,6 +22,7 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
   require Logger
 
   alias Tymeslot.Availability
+  alias Tymeslot.Clock
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarEvent
@@ -58,7 +59,7 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
   many days forward.
   """
   @spec window(DateTime.t()) :: {DateTime.t(), DateTime.t()}
-  def window(now \\ DateTime.utc_now()),
+  def window(now \\ Clock.utc_now()),
     do:
       {DateTime.add(now, -@window_past_days, :day), DateTime.add(now, @window_future_days, :day)}
 

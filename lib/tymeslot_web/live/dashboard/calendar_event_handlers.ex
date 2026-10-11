@@ -12,6 +12,7 @@ defmodule TymeslotWeb.Dashboard.CalendarEventHandlers do
   import Phoenix.LiveView, only: [clear_flash: 2, put_flash: 3, send_update: 2]
 
   alias Tymeslot.CalendarGrid
+  alias Tymeslot.Clock
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Video.RoomCreationError
@@ -32,7 +33,7 @@ defmodule TymeslotWeb.Dashboard.CalendarEventHandlers do
 
       send_update(CalendarGridComponent,
         id: "calendar",
-        current_time: DateTime.utc_now()
+        current_time: Clock.utc_now()
       )
     end
 

@@ -5,6 +5,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.UpdateHandlers do
   import Phoenix.LiveView, only: [connected?: 1]
 
   alias Tymeslot.CalendarGrid
+  alias Tymeslot.Clock
   alias TymeslotWeb.Dashboard.CalendarGrid.DesktopReminderFeed
   alias TymeslotWeb.Dashboard.CalendarGrid.EditWorkflow
   alias TymeslotWeb.Dashboard.CalendarGrid.EventWrites
@@ -356,7 +357,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.UpdateHandlers do
     prefs = socket.assigns[:preferences]
 
     if (connected?(socket) and prefs) && prefs.desktop_reminders_enabled do
-      now = socket.assigns[:current_time] || DateTime.utc_now()
+      now = socket.assigns[:current_time] || Clock.utc_now()
       timezone = socket.assigns[:user_timezone] || "Etc/UTC"
       time_format = Helpers.time_format(socket.assigns)
 

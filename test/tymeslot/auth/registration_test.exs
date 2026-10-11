@@ -9,12 +9,12 @@ defmodule Tymeslot.Auth.RegistrationTest do
   alias Tymeslot.Auth.{Registration, UserSchema, UserTokenQueries}
   alias Tymeslot.Repo
   alias Tymeslot.Security.Token
-  alias TymeslotWeb.Helpers.ClientIP
+  import Tymeslot.AuthTestHelpers, only: [isolated_request_opts: 0]
   import Tymeslot.Factory
 
   describe "registration security" do
     test "enforces strong password requirements" do
-      conn = ClientIP.request_opts(%Plug.Conn{})
+      conn = isolated_request_opts()
 
       weak_passwords = [
         # Too short
@@ -40,7 +40,7 @@ defmodule Tymeslot.Auth.RegistrationTest do
     end
 
     test "prevents duplicate accounts (case-insensitive)" do
-      conn = ClientIP.request_opts(%Plug.Conn{})
+      conn = isolated_request_opts()
       insert(:user, email: "existing@example.com")
 
       params = %{
@@ -57,7 +57,7 @@ defmodule Tymeslot.Auth.RegistrationTest do
     end
 
     test "new accounts require email verification" do
-      conn = ClientIP.request_opts(%Plug.Conn{})
+      conn = isolated_request_opts()
 
       params = %{
         "email" => "new@example.com",
@@ -85,7 +85,7 @@ defmodule Tymeslot.Auth.RegistrationTest do
       }
 
       assert {:existing_account, _message} =
-               Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+               Registration.register_user(params, isolated_request_opts())
 
       assert Repo.aggregate(UserSchema, :count, :id) == 1
     end
@@ -107,7 +107,7 @@ defmodule Tymeslot.Auth.RegistrationTest do
       }
 
       {:ok, user, _session} =
-        Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+        Registration.register_user(params, isolated_request_opts())
 
       assert user.email == "safe@example.com"
       assert is_nil(user.name)
@@ -130,7 +130,7 @@ defmodule Tymeslot.Auth.RegistrationTest do
         }
 
         assert {:ok, user, _session} =
-                 Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+                 Registration.register_user(params, isolated_request_opts())
 
         assert user.email == address
         assert Repo.get!(UserSchema, user.id).email == address
@@ -148,7 +148,7 @@ defmodule Tymeslot.Auth.RegistrationTest do
       }
 
       assert {:ok, user, _session} =
-               Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+               Registration.register_user(params, isolated_request_opts())
 
       refute user.id == stranger.id
       assert user.email == "crypto0xabc@example.com"
@@ -169,7 +169,7 @@ defmodule Tymeslot.Auth.RegistrationTest do
         }
 
         assert {:error, :input, _errors} =
-                 Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+                 Registration.register_user(params, isolated_request_opts())
 
         assert Repo.aggregate(UserSchema, :count) == 0
       end
@@ -201,7 +201,7 @@ defmodule Tymeslot.Auth.RegistrationTest do
       }
 
       assert {:ok, user, _session} =
-               Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+               Registration.register_user(params, isolated_request_opts())
 
       assert user.email == "parked@example.com"
     end
@@ -211,7 +211,7 @@ defmodule Tymeslot.Auth.RegistrationTest do
     setup :reopen_admin_bootstrap
 
     test "the first registered user is promoted to admin" do
-      conn = ClientIP.request_opts(%Plug.Conn{})
+      conn = isolated_request_opts()
 
       params = %{
         "email" => "first@example.com",
@@ -226,7 +226,7 @@ defmodule Tymeslot.Auth.RegistrationTest do
     end
 
     test "a second registered user is not promoted to admin" do
-      conn = ClientIP.request_opts(%Plug.Conn{})
+      conn = isolated_request_opts()
 
       first_params = %{
         "email" => "first2@example.com",
@@ -264,7 +264,7 @@ defmodule Tymeslot.Auth.RegistrationTest do
       }
 
       {:ok, user, _session} =
-        Registration.register_user(params, ClientIP.request_opts(%Plug.Conn{}))
+        Registration.register_user(params, isolated_request_opts())
 
       # Never store plaintext
       refute user.password_hash == plain

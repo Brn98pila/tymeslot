@@ -173,6 +173,10 @@ defmodule Tymeslot.Emails.SMTPDeliveryTest do
     } do
       use_relay(FakeSmtpRelay.start())
       assert {:ok, _receipt} = Delivery.deliver(email("Warm-up"), breaker: breaker)
+      # A warm-up slow enough to hit the send deadline is assumed delivered,
+      # which the breaker counts as a failure; say so here rather than as a
+      # wrong count below.
+      assert CircuitBreaker.status(breaker).failure_count == 0
       flush_relay_messages()
 
       relay = FakeSmtpRelay.start(after_data: :silent)

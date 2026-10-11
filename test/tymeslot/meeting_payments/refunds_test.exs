@@ -20,7 +20,7 @@ defmodule Tymeslot.MeetingPayments.RefundsTest do
   # Helpers shared across unit tests (no DB needed)
   # ---------------------------------------------------------------------------
 
-  defp payment_stub(attrs \\ %{}) do
+  defp payment_stub(attrs) do
     defaults = %{
       amount_cents: 5000,
       currency: "eur",

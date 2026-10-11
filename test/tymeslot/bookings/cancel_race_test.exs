@@ -14,7 +14,6 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
   use Tymeslot.DataCase, async: false
   use Oban.Testing, repo: Tymeslot.Repo
 
-  import ExUnit.CaptureLog
   import Mox
   import Tymeslot.AvailabilityTestHelpers
   import Tymeslot.MeetingTestHelpers
@@ -26,6 +25,7 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
   alias Tymeslot.Bookings.Cancel
   alias Tymeslot.Bookings.Reschedule
   alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Test.LogCapture
   alias Tymeslot.TestMocks
   alias Tymeslot.Workers.CalendarEventWorker
   alias Tymeslot.Workers.EmailWorker
@@ -108,12 +108,13 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
     test "the invitee's withdrawal reports the request as already cancelled", %{meeting: meeting} do
       release_behind_the_caller(meeting, "cancelled")
 
-      log =
-        capture_log([level: :error], fn ->
+      errors =
+        LogCapture.with_capture([level: :error], fn ->
           assert {:error, :already_cancelled} = Cancel.execute(meeting)
+          LogCapture.drain()
         end)
 
-      refute log =~ "Failed to withdraw"
+      assert errors_about(errors, meeting) == []
       assert {:ok, %{status: "cancelled"}} = MeetingQueries.get_meeting(meeting.id)
     end
 
@@ -121,12 +122,13 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
          %{meeting: meeting} do
       release_behind_the_caller(meeting, "expired")
 
-      log =
-        capture_log([level: :error], fn ->
+      errors =
+        LogCapture.with_capture([level: :error], fn ->
           assert {:error, :already_cancelled} = Cancel.execute_external(meeting)
+          LogCapture.drain()
         end)
 
-      refute log =~ "Failed to auto-withdraw"
+      assert errors_about(errors, meeting) == []
       assert {:ok, %{status: "expired"}} = MeetingQueries.get_meeting(meeting.id)
     end
   end
@@ -187,6 +189,11 @@ defmodule Tymeslot.Bookings.CancelRaceTest do
       assert {:ok, %{ical_sequence: 4}} = MeetingQueries.get_meeting(meeting.id)
     end
   end
+
+  # The capture handler is VM-wide, so a failure logged by another test's
+  # process arrives too; only one about this meeting counts.
+  defp errors_about(events, meeting),
+    do: Enum.filter(events, &(&1.meta[:meeting_id] == meeting.id))
 
   defp booking(requires_approval) do
     %{user: user} = create_always_bookable_profile()

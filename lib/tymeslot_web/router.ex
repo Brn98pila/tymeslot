@@ -146,23 +146,28 @@ defmodule TymeslotWeb.Router do
 
     # LiveView authentication routes with route bundle loading. A signed-in
     # user is sent on from the login and sign-up screens; the emailed-link
-    # screens (password reset, email verification) stay reachable.
-    live_session :auth,
-      session: {TymeslotWeb.Plugs.LocalePlug, :live_session_data, []},
-      on_mount: [
-        TymeslotWeb.Hooks.LocaleHook,
-        {TymeslotWeb.Hooks.AuthLiveSessionHook,
-         {:redirect_if_authenticated, actions: [:login, :signup], events: ["submit_signup"]}},
-        TymeslotWeb.Hooks.RouteBundleHook
-      ] do
-      live "/auth/login", AuthLive, :login
-      live "/auth/signup", AuthLive, :signup
-      live "/auth/verify-email", AuthLive, :verify_email
-      live "/auth/reset-password", AuthLive, :reset_password
-      live "/auth/reset-password-sent", AuthLive, :reset_password_sent
-      live "/auth/reset-password/:token", AuthLive, :reset_password_form
-      live "/auth/complete-registration", AuthLive, :complete_registration
-      live "/auth/password-reset-success", AuthLive, :password_reset_success
+    # screens (password reset, email verification) stay reachable. A page a
+    # guarded route sent the visitor from is kept for after sign-in.
+    scope "/" do
+      pipe_through TymeslotWeb.Plugs.ReturnTo
+
+      live_session :auth,
+        session: {TymeslotWeb.Plugs.LocalePlug, :live_session_data, []},
+        on_mount: [
+          TymeslotWeb.Hooks.LocaleHook,
+          {TymeslotWeb.Hooks.AuthLiveSessionHook,
+           {:redirect_if_authenticated, actions: [:login, :signup], events: ["submit_signup"]}},
+          TymeslotWeb.Hooks.RouteBundleHook
+        ] do
+        live "/auth/login", AuthLive, :login
+        live "/auth/signup", AuthLive, :signup
+        live "/auth/verify-email", AuthLive, :verify_email
+        live "/auth/reset-password", AuthLive, :reset_password
+        live "/auth/reset-password-sent", AuthLive, :reset_password_sent
+        live "/auth/reset-password/:token", AuthLive, :reset_password_form
+        live "/auth/complete-registration", AuthLive, :complete_registration
+        live "/auth/password-reset-success", AuthLive, :password_reset_success
+      end
     end
 
     # Convenience redirects for mistyped auth slugs. Defined before the

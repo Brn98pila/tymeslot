@@ -5,11 +5,10 @@ defmodule Tymeslot.Workers.EmailWorker.AdminAlertSchedulerTest do
   @moduletag :workers
   @moduletag :unit
 
-  import ExUnit.CaptureLog
-
   alias Ecto.Changeset
   alias Tymeslot.Emails.EmailScheduler.Helpers
   alias Tymeslot.Repo
+  alias Tymeslot.Test.LogCapture
   alias Tymeslot.Workers.EmailWorker
   alias Tymeslot.Workers.EmailWorker.AdminAlertScheduler
 
@@ -127,45 +126,19 @@ defmodule Tymeslot.Workers.EmailWorker.AdminAlertSchedulerTest do
       Logger.put_module_level(Helpers, :debug)
       on_exit(fn -> Logger.delete_module_level(Helpers) end)
 
-      assert :ok =
-               AdminAlertScheduler.schedule(
-                 "ops@example.com",
-                 "Queue",
-                 :error,
-                 "Repeat alert",
-                 %{},
-                 dedup_key: "new_error:41"
-               )
+      # Other tests schedule email concurrently and the capture handler sees
+      # every process, so only this alert's lines, found by its hash, count.
+      dedup_key = "debug-log:#{System.unique_integer([:positive])}"
+      alert_hash = AdminAlertScheduler.alert_hash("Queue", dedup_key)
+      schedule = fn -> schedule_repeat_alert(dedup_key) end
 
-      log =
-        capture_log([level: :debug], fn ->
-          assert :ok =
-                   AdminAlertScheduler.schedule(
-                     "ops@example.com",
-                     "Queue",
-                     :error,
-                     "Repeat alert",
-                     %{},
-                     dedup_key: "new_error:41"
-                   )
-        end)
+      assert :ok = schedule.()
 
-      assert log =~ "already queued"
-      refute log =~ "Email job scheduled"
+      debug = alert_log(alert_hash, :debug, schedule)
+      assert Enum.any?(debug, &(&1 =~ "already queued"))
+      refute Enum.any?(debug, &(&1 =~ "Email job scheduled"))
 
-      info_log =
-        capture_log([level: :info], fn ->
-          AdminAlertScheduler.schedule(
-            "ops@example.com",
-            "Queue",
-            :error,
-            "Repeat alert",
-            %{},
-            dedup_key: "new_error:41"
-          )
-        end)
-
-      refute info_log =~ "already queued"
+      refute Enum.any?(alert_log(alert_hash, :info, schedule), &(&1 =~ "already queued"))
     end
 
     # Oban's default unique states stop at :completed, so an alert job that
@@ -278,5 +251,23 @@ defmodule Tymeslot.Workers.EmailWorker.AdminAlertSchedulerTest do
 
       assert Map.has_key?(args["metadata"], "my_key")
     end
+  end
+
+  defp schedule_repeat_alert(dedup_key) do
+    AdminAlertScheduler.schedule("ops@example.com", "Queue", :error, "Repeat alert", %{},
+      dedup_key: dedup_key
+    )
+  end
+
+  # The messages logged at `level` or above about the alert with this hash
+  # while `fun` runs.
+  defp alert_log(alert_hash, level, fun) do
+    [level: level]
+    |> LogCapture.with_capture(fn ->
+      fun.()
+      LogCapture.drain()
+    end)
+    |> Enum.filter(&(&1.meta[:alert_hash] == alert_hash))
+    |> Enum.map(&LogCapture.message_text(&1.msg))
   end
 end

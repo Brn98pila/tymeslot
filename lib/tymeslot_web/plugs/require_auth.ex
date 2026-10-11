@@ -8,6 +8,10 @@ defmodule TymeslotWeb.Plugs.RequireAuthPlug do
   `{TymeslotWeb.Hooks.AuthLiveSessionHook, :ensure_authenticated}`, since a
   live navigation does not pass through the plug pipeline.
 
+  A GET names the page it asked for in the login link (see
+  `TymeslotWeb.Plugs.ReturnTo`), so signing in ends there; any other method
+  is a form submitted from a page that has gone, and goes to the plain login.
+
   An account pending deletion is frozen: it is sent to `/auth/restore`
   instead, the one signed-in page it can reach.
   """
@@ -22,6 +26,7 @@ defmodule TymeslotWeb.Plugs.RequireAuthPlug do
 
   alias Phoenix.Controller
   alias Tymeslot.Auth
+  alias TymeslotWeb.Plugs.ReturnTo
 
   @spec init(any()) :: any()
   def init(opts), do: opts
@@ -35,7 +40,7 @@ defmodule TymeslotWeb.Plugs.RequireAuthPlug do
           :error,
           dgettext("auth", "You must be logged in to access this page.")
         )
-        |> Controller.redirect(to: ~p"/auth/login")
+        |> Controller.redirect(to: login_path(conn))
         |> halt()
 
       user ->
@@ -44,4 +49,9 @@ defmodule TymeslotWeb.Plugs.RequireAuthPlug do
           else: conn
     end
   end
+
+  defp login_path(%Plug.Conn{method: "GET"} = conn),
+    do: conn |> ReturnTo.requested_path() |> ReturnTo.login_path()
+
+  defp login_path(_conn), do: ~p"/auth/login"
 end

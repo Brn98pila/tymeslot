@@ -41,6 +41,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.VisibilityTest do
         flash: %{},
         current_user: user,
         profile: profile,
+        user_timezone: profile.timezone,
         preferences: preferences,
         integrations: [integration],
         events: [],

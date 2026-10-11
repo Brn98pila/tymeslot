@@ -30,10 +30,12 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
   import Phoenix.LiveViewTest
   import Tymeslot.AuthTestHelpers
   import Tymeslot.Factory
+  import Tymeslot.Test.ClockHelpers, only: [freeze_clock_midweek: 0]
   import Tymeslot.TestHelpers.Eventually
 
   alias Ecto.Changeset
   alias Plug.Test
+  alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.Google.CalendarAPI, as: GoogleAPI
   alias Tymeslot.Integrations.Calendar.ICalBuilder.LineFolder
   alias Tymeslot.Integrations.Calendar.Operations
@@ -41,6 +43,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Repo
   alias Tymeslot.Workers.SyncCalDavCalendarWorker
+
+  # Events are built from "today" and read in the organiser's zone, which is
+  # not UTC: near midnight UTC on a Sunday, "today" is last week there.
+  setup do: freeze_clock_midweek()
 
   setup :set_mox_global
   setup :verify_on_exit!
@@ -73,7 +79,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
 
   # The series started two weeks ago, so today's occurrence is not its first,
   # whose "this and following" would be "all events".
-  defp today, do: Date.utc_today()
+  defp today, do: Clock.utc_today()
   defp first_day, do: Date.add(today(), -14)
 
   describe "an occurrence of a CalDAV series" do

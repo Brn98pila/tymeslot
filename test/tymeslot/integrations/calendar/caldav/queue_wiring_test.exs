@@ -330,6 +330,30 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.QueueWiringTest do
       assert row.end_at == ~U[2026-05-01 11:00:00.000000Z]
       assert row.summary == "Round-tripped"
     end
+
+    # The queue row is upserted directly, past the cache's timing check, so a
+    # change carrying a start with no usable end must not write a timed row
+    # with no end; it leaves the row's timing as it was.
+    test "a start without a usable end leaves the row's timing alone" do
+      integration = caldav_integration()
+      meeting = build_meeting(integration, "no-end")
+      assert :ok = QueueWiring.tag(meeting, :create, event_data())
+
+      for end_time <- [nil, ~D[2026-05-01], "not a time"] do
+        assert :ok =
+                 QueueWiring.tag(meeting, :update, %{
+                   summary: "Moved",
+                   start_time: ~U[2026-05-01 12:00:00Z],
+                   end_time: end_time
+                 })
+
+        {:ok, row} = ProviderCalendarEventQueries.get_by_uid(integration.id, "no-end")
+
+        assert row.summary == "Moved"
+        assert row.start_at == ~U[2026-05-01 10:00:00.000000Z]
+        assert row.end_at == ~U[2026-05-01 11:00:00.000000Z]
+      end
+    end
   end
 
   describe "clear/2" do

@@ -20,6 +20,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
 
   alias Ecto.Changeset
   alias Plug.Test
+  alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.Google.EventMapper, as: GoogleEventMapper
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Profiles
@@ -102,7 +103,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
       lv |> element("#calendar-grid") |> render_hook("toggle_event_all_day", %{})
 
       payload = await_provider_update(lv)
-      today = Date.utc_today()
+      today = Clock.utc_today()
       assert payload.start_time == today
       assert payload.end_time == Date.add(today, 1)
       assert payload.attendees == @attendees
@@ -113,7 +114,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
       conn: conn,
       integration: integration
     } do
-      today = Date.utc_today()
+      today = Clock.utc_today()
 
       event =
         insert_timed_event(integration, %{
@@ -138,9 +139,13 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
       conn: conn,
       integration: integration
     } do
+      # Relative to today: a fixed date would end the series before the
+      # event the test opens, once the suite runs past it.
+      until = Clock.utc_today() |> Date.add(60) |> Calendar.strftime("%Y%m%d")
+
       event =
         insert_timed_event(integration, %{
-          recurrence_rule: "FREQ=WEEKLY;BYDAY=MO;UNTIL=20261231T235959Z"
+          recurrence_rule: "FREQ=WEEKLY;BYDAY=MO;UNTIL=#{until}T235959Z"
         })
 
       expect_provider_update(:ok)
@@ -150,10 +155,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
       lv |> element("#calendar-grid") |> render_hook("toggle_event_all_day", %{})
 
       payload = await_provider_update(lv)
-      assert payload.recurrence_rule == "FREQ=WEEKLY;BYDAY=MO;UNTIL=20261231"
+      assert payload.recurrence_rule == "FREQ=WEEKLY;BYDAY=MO;UNTIL=#{until}"
 
       {:ok, row} = ProviderCalendarEventQueries.get_by_uid(integration.id, event.uid)
-      assert row.recurrence_rule == "FREQ=WEEKLY;BYDAY=MO;UNTIL=20261231"
+      assert row.recurrence_rule == "FREQ=WEEKLY;BYDAY=MO;UNTIL=#{until}"
     end
   end
 
@@ -172,7 +177,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
       lv |> element("#calendar-grid") |> render_hook("toggle_event_all_day", %{})
 
       payload = await_provider_update(lv)
-      assert payload.start_time == Date.utc_today()
+      assert payload.start_time == Clock.utc_today()
     end
 
     test "opens the repeat editor for its series", %{conn: conn, integration: integration} do
@@ -201,7 +206,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
       |> Changeset.change(timezone: "America/New_York")
       |> Repo.update!()
 
-      %{today: DateTime.to_date(DateTime.now!("America/New_York"))}
+      %{today: Clock.utc_now() |> DateTime.shift_zone!("America/New_York") |> DateTime.to_date()}
     end
 
     # 22:00 in New York is already tomorrow in Berlin, the event's own zone.
@@ -263,7 +268,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
       conn: conn,
       integration: integration
     } do
-      today = Date.utc_today()
+      today = Clock.utc_today()
 
       event =
         insert(:provider_calendar_event,
@@ -301,8 +306,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
           calendar_integration: integration,
           provider: "google",
           summary: "Sprint review",
-          start_at: DateTime.new!(Date.utc_today(), ~T[14:00:00], "Etc/UTC"),
-          end_at: DateTime.new!(Date.utc_today(), ~T[15:00:00], "Etc/UTC"),
+          start_at: DateTime.new!(Clock.utc_today(), ~T[14:00:00], "Etc/UTC"),
+          end_at: DateTime.new!(Clock.utc_today(), ~T[15:00:00], "Etc/UTC"),
           all_day: false,
           attendees: [
             %{
@@ -477,7 +482,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
   end
 
   defp insert_timed_event(integration, attrs \\ %{}) do
-    today = Date.utc_today()
+    today = Clock.utc_today()
 
     defaults = %{
       calendar_integration: integration,
