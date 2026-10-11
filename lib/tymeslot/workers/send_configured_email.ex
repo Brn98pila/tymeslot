@@ -29,6 +29,7 @@ defmodule Tymeslot.Workers.SendConfiguredEmail do
   require Logger
 
   alias Tymeslot.Auth
+  alias Tymeslot.Infrastructure.AdminAlerts
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Workers.DeliveryClaims
   alias Tymeslot.Workers.TransactionalEmailDelivery
@@ -91,14 +92,46 @@ defmodule Tymeslot.Workers.SendConfiguredEmail do
     with {:ok, template_key, template_fun} <- allowed_pair(key, fun),
          {:ok, template} <- fetch_template(template_key),
          {:ok, first_arg} <- resolve_recipient(recipient) do
-      DeliveryClaims.once(job, "email", fn ->
-        template
-        |> apply(template_fun, [first_arg | args["template_args"]])
-        |> TransactionalEmailDelivery.deliver(job, "Configured email delivery failed",
-          template: template_key
-        )
-      end)
+      email_args = [first_arg | args["template_args"]]
+
+      case deliver(job, template, template_key, template_fun, email_args) do
+        {:error, reason} = error ->
+          if final_attempt?(job), do: alert_exhausted(job, template_key, template_fun, reason)
+          error
+
+        result ->
+          result
+      end
     end
+  end
+
+  # A raise (a template bug) on the final attempt loses the email as surely
+  # as an error does, so it alerts too, then re-raises for Oban to record.
+  defp deliver(job, template, template_key, template_fun, email_args) do
+    DeliveryClaims.once(job, "email", fn ->
+      template
+      |> apply(template_fun, email_args)
+      |> TransactionalEmailDelivery.deliver(job, "Configured email delivery failed",
+        template: template_key
+      )
+    end)
+  rescue
+    exception ->
+      if final_attempt?(job), do: alert_exhausted(job, template_key, template_fun, exception)
+      reraise exception, __STACKTRACE__
+  end
+
+  defp final_attempt?(job), do: job.attempt >= job.max_attempts
+
+  # The email is lost for good once Oban stops retrying, and a caller that
+  # recorded it as sent will not queue it again, so an operator has to act
+  # on it by hand.
+  defp alert_exhausted(job, template_key, template_fun, reason) do
+    AdminAlerts.report(:configured_email_exhausted,
+      summary: "Configured email not sent after its final attempt",
+      reason: reason,
+      context: %{template: "#{template_key}.#{template_fun}", job_id: job.id}
+    )
   end
 
   defp insert(template_key, template_fun, recipient, template_args) do

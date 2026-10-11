@@ -242,6 +242,53 @@ defmodule Tymeslot.Workers.SendConfiguredEmailTest do
     assert CircuitBreaker.status(breaker).status == :open
   end
 
+  test "a send that fails its final attempt alerts the operator; earlier failures do not" do
+    capture_admin_alerts()
+    setup_config(:tymeslot, Tymeslot.Mailer, adapter: FailingMailerAdapter)
+    setup_config(:tymeslot, :test_delivery_error, :econnrefused)
+
+    :ok =
+      SendConfiguredEmail.enqueue(
+        :test_configured_notice_template,
+        :notice,
+        {:address, "ops@example.com"},
+        [%{"amount" => 5}]
+      )
+
+    [job] = all_enqueued(worker: SendConfiguredEmail)
+
+    assert {:error, _reason} = quietly(fn -> SendConfiguredEmail.perform(job) end)
+    refute_received {:send_alert, :configured_email_exhausted, _payload}
+
+    final = %{job | attempt: job.max_attempts}
+    assert {:error, _reason} = quietly(fn -> SendConfiguredEmail.perform(final) end)
+
+    assert_receive {:send_alert, :configured_email_exhausted, payload}
+    assert payload.template == "test_configured_notice_template.notice"
+    assert payload.job_id == job.id
+  end
+
+  test "a template that raises on the final attempt alerts the operator" do
+    capture_admin_alerts()
+
+    :ok =
+      SendConfiguredEmail.enqueue(
+        :test_configured_notice_template,
+        :flaky,
+        {:address, "ops@example.com"},
+        [%{"amount" => 5}]
+      )
+
+    [job] = all_enqueued(worker: SendConfiguredEmail)
+
+    assert_raise RuntimeError, fn ->
+      SendConfiguredEmail.perform(%{job | attempt: job.max_attempts})
+    end
+
+    assert_receive {:send_alert, :configured_email_exhausted,
+                    %{template: "test_configured_notice_template.flaky"}}
+  end
+
   defp job_for(args) do
     %Oban.Job{
       attempt: 1,

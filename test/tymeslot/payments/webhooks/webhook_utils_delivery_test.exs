@@ -37,6 +37,7 @@ defmodule Tymeslot.Payments.Webhooks.WebhookUtilsDeliveryTest do
     setup_config(:tymeslot, :extra_configured_email_templates, %{
       test_payment_notice_template: [:notice]
     })
+
     Application.put_env(:swoosh, :shared_test_process, self())
     on_exit(fn -> Application.delete_env(:swoosh, :shared_test_process) end)
   end

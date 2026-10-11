@@ -45,6 +45,7 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     account_deletion_held_last_admin: %{category: "Account", severity: :warning},
     analytics_tracking_anomaly: %{category: "Analytics", severity: :warning},
     recipient_email_rejected: %{category: "Email", severity: :warning},
+    configured_email_exhausted: %{category: "Email", severity: :error},
     user_registered_hook_failed: %{category: "System", severity: :error},
     group_meeting_release_failed: %{category: "Booking", severity: :error}
   }
@@ -482,6 +483,17 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
       nil -> "#{summary}: #{reason}"
       identifier -> "#{summary} (#{identifier}): #{reason}"
     end
+  end
+
+  # A configured email (a payment notice, say) is lost once Oban stops
+  # retrying; the job id is what the operator needs to find and resend it.
+  # Keyed by the job, so each lost email raises its own alert.
+  def format_message(:configured_email_exhausted, metadata) do
+    template = Map.get(metadata, :template, "unknown")
+    job_id = Map.get(metadata, :job_id, "unknown")
+
+    "Email from template #{template} was not sent after its final attempt (job #{job_id}); " <>
+      "it will not be retried (#{reason_text(metadata)})"
   end
 
   # The hook's record of the sign-up (terms acceptance, say) is lost once
