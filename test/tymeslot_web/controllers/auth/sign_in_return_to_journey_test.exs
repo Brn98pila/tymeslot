@@ -2,8 +2,8 @@ defmodule TymeslotWeb.SignInReturnToJourneyTest do
   @moduledoc """
   A signed-out host who follows a link to one booking signs in and lands on
   that booking, by every way of signing in: the password form, a social
-  provider, and the emailed verification link that signs a new account
-  in. A session that lapses while a page is open
+  provider, the end of a social sign-up, and the emailed verification link
+  that signs a new account in. A session that lapses while a page is open
   goes to the plain login page instead, since the open page cannot name
   itself. Driven through the router, with only the providers' HTTP stubbed.
   """
@@ -21,6 +21,7 @@ defmodule TymeslotWeb.SignInReturnToJourneyTest do
   alias Ecto.Changeset
   alias Phoenix.Flash
   alias Tymeslot.Auth.Session
+  alias Tymeslot.Auth.UserSchema
   alias Tymeslot.Auth.UserTokenQueries
   alias Tymeslot.Repo
   alias Tymeslot.Security.Password
@@ -128,6 +129,27 @@ defmodule TymeslotWeb.SignInReturnToJourneyTest do
       conn = conn |> follow_signed_out(link) |> recycle() |> sign_in("github")
 
       assert redirected_to(conn) == link
+    end
+  end
+
+  describe "a social sign-up" do
+    test "lands on the linked page once the registration form is complete", %{conn: conn} do
+      link = "/dashboard/calendar"
+
+      stub_github(%{"id" => 7002, "name" => "New Host", "email" => nil}, [
+        %{"email" => "new-host@example.com", "primary" => true, "verified" => true}
+      ])
+
+      conn = conn |> follow_signed_out(link) |> recycle() |> sign_in("github")
+      assert redirected_to(conn) == "/auth/complete-registration"
+
+      conn =
+        conn
+        |> recycle()
+        |> post(~p"/auth/complete", %{"auth" => %{}, "profile" => %{"full_name" => "New Host"}})
+
+      assert redirected_to(conn) == link
+      assert Repo.get_by!(UserSchema, github_user_id: "7002")
     end
   end
 
