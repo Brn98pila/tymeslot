@@ -3,6 +3,8 @@ defmodule Tymeslot.Availability.Breaks do
   Context for managing availability breaks.
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   require Logger
 
   alias Ecto.Changeset
@@ -123,7 +125,7 @@ defmodule Tymeslot.Availability.Breaks do
   defp require_work_hours(changeset, %{}), do: changeset
 
   defp require_work_hours(changeset, nil),
-    do: Changeset.add_error(changeset, :base, "Work hours not found")
+    do: Changeset.add_error(changeset, :base, dgettext_noop("errors", "Work hours not found"))
 
   defp validate_no_break_overlap(changeset, weekly_availability_id, window) do
     start_time = Changeset.get_field(changeset, :start_time)
@@ -134,7 +136,11 @@ defmodule Tymeslot.Availability.Breaks do
         AvailabilityBreakQueries.get_existing_breaks_for_validation(weekly_availability_id)
 
       if has_overlap?(window, {start_time, end_time}, existing_breaks) do
-        Changeset.add_error(changeset, :base, "Break times overlap with existing break")
+        Changeset.add_error(
+          changeset,
+          :base,
+          dgettext_noop("errors", "Break times overlap with existing break")
+        )
       else
         changeset
       end

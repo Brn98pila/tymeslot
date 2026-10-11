@@ -6,6 +6,8 @@ defmodule Tymeslot.MeetingTypes.ReminderValidation do
   settings attached to meeting types.
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   import Ecto.Changeset, only: [add_error: 3, add_error: 4, get_change: 2]
 
   alias Tymeslot.MeetingTypes.Reminders
@@ -141,7 +143,11 @@ defmodule Tymeslot.MeetingTypes.ReminderValidation do
         validate_reminder_list(changeset, reminders)
 
       _other ->
-        add_error(changeset, :reminder_config, "must be a list of reminder settings")
+        add_error(
+          changeset,
+          :reminder_config,
+          dgettext_noop("errors", "must be a list of reminder settings")
+        )
     end
   end
 
@@ -177,11 +183,26 @@ defmodule Tymeslot.MeetingTypes.ReminderValidation do
       )
 
   defp add_reminder_error(changeset, :invalid),
-    do: add_error(changeset, :reminder_config, "contains invalid reminder settings")
+    do:
+      add_error(
+        changeset,
+        :reminder_config,
+        dgettext_noop("errors", "contains invalid reminder settings")
+      )
 
   defp add_reminder_error(changeset, :duplicate),
-    do: add_error(changeset, :reminder_config, "contains duplicate reminders")
+    do:
+      add_error(
+        changeset,
+        :reminder_config,
+        dgettext_noop("errors", "contains duplicate reminders")
+      )
 
   defp add_reminder_error(changeset, :exceeds_max),
-    do: add_error(changeset, :reminder_config, "cannot be set for more than 1 year in advance")
+    do:
+      add_error(
+        changeset,
+        :reminder_config,
+        dgettext_noop("errors", "cannot be set for more than 1 year in advance")
+      )
 end

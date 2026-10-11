@@ -4,6 +4,7 @@ defmodule TymeslotWeb.Helpers.FormErrorsTest do
 
   import Ecto.Changeset
 
+  alias Tymeslot.Availability.AvailabilityBreakSchema
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
   alias TymeslotWeb.Helpers.FormErrors
 
@@ -72,6 +73,50 @@ defmodule TymeslotWeb.Helpers.FormErrorsTest do
       errors = in_locale("de", fn -> FormErrors.to_map(changeset) end)
 
       assert "Gruppenbuchungen können keine Bestätigung erfordern" in errors.max_participants
+    end
+
+    # The domain's own messages (here a break outside the day's hours) are
+    # registered in the errors domain like Ecto's, so they translate too.
+    test "translates the domain's own changeset messages" do
+      changeset =
+        AvailabilityBreakSchema.changeset(
+          %AvailabilityBreakSchema{},
+          %{weekly_availability_id: 1, start_time: ~T[08:00:00], end_time: ~T[09:30:00]},
+          work_hours: %{start_time: ~T[09:00:00], end_time: ~T[17:00:00], ends_next_day: false}
+        )
+
+      errors = in_locale("de", fn -> FormErrors.to_map(changeset) end)
+
+      assert errors.start_time == ["muss innerhalb der Arbeitszeiten liegen"]
+    end
+
+    # A message translated where it is built (a length that carries its own
+    # number) and a registered plural both reach the form translated.
+    test "translates build-time messages and plurals" do
+      Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+        label =
+          AvailabilityBreakSchema.changeset(%AvailabilityBreakSchema{}, %{
+            weekly_availability_id: 1,
+            start_time: ~T[12:00:00],
+            end_time: ~T[13:00:00],
+            label: String.duplicate("x", 200)
+          })
+
+        assert [length_message] = FormErrors.to_map(label).label
+        assert length_message =~ ~r/^darf höchstens \d+ Zeichen lang sein$/
+
+        reminders =
+          MeetingTypeSchema.changeset(%MeetingTypeSchema{}, %{
+            name: "Call",
+            duration_minutes: 30,
+            user_id: 1,
+            reminder_config: for(m <- [5, 10, 15, 20], do: %{value: m, unit: "minutes"})
+          })
+
+        assert FormErrors.to_map(reminders).reminder_config == [
+                 "darf nicht mehr als 3 Erinnerungen enthalten"
+               ]
+      end)
     end
 
     test "is empty for a valid changeset" do

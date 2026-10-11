@@ -2,6 +2,7 @@ defmodule Tymeslot.Auth.UserSchema do
   @moduledoc """
   Schema for user accounts in the Tymeslot system.
   """
+  use Gettext, backend: TymeslotWeb.Gettext
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -116,7 +117,7 @@ defmodule Tymeslot.Auth.UserSchema do
     |> cast(attrs, [:locale])
     |> update_change(:locale, fn locale -> if locale in ["", nil], do: nil, else: locale end)
     |> validate_inclusion(:locale, Locales.supported_codes(),
-      message: "is not a supported locale"
+      message: dgettext_noop("errors", "is not a supported locale")
     )
   end
 
@@ -234,7 +235,9 @@ defmodule Tymeslot.Auth.UserSchema do
     |> validate_required([:pending_email, :email_change_token_hash])
     |> update_change(:pending_email, &String.downcase/1)
     |> EmailChangeset.validate_email(:pending_email)
-    |> unsafe_validate_unique(:pending_email, Tymeslot.Repo, message: "is already registered")
+    |> unsafe_validate_unique(:pending_email, Tymeslot.Repo,
+      message: dgettext_noop("errors", "is already registered")
+    )
     |> unique_constraint(:pending_email)
     |> unique_constraint(:email_change_token_hash)
     |> put_change(:email_change_sent_at, DateTime.utc_now(:second))

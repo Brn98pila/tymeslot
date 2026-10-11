@@ -8,6 +8,7 @@ defmodule Tymeslot.Meetings.GuestSchema do
   on the organiser's dashboard.
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -100,11 +101,11 @@ defmodule Tymeslot.Meetings.GuestSchema do
     # colleague is fine, and used to fail the second booking outright.
     |> unique_constraint([:meeting_id, :email],
       name: :meeting_guests_meeting_id_email_solo_index,
-      message: "has already been added"
+      message: dgettext_noop("errors", "has already been added")
     )
     |> unique_constraint([:meeting_id, :participant_id, :email],
       name: :meeting_guests_participant_id_email_index,
-      message: "has already been added"
+      message: dgettext_noop("errors", "has already been added")
     )
     |> foreign_key_constraint(:meeting_id)
     |> foreign_key_constraint(:participant_id)

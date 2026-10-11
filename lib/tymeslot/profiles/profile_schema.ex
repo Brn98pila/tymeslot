@@ -2,6 +2,7 @@ defmodule Tymeslot.Profiles.ProfileSchema do
   @moduledoc """
   Schema for user profiles containing calendar and appointment settings.
   """
+  use Gettext, backend: TymeslotWeb.Gettext
   use Ecto.Schema
   import Ecto.Changeset
   import Tymeslot.ChangesetValidators.BookingLimits, only: [validate_booking_limits: 2]
@@ -228,7 +229,7 @@ defmodule Tymeslot.Profiles.ProfileSchema do
         if Timezones.valid?(timezone) do
           changeset
         else
-          add_error(changeset, :timezone, "is not a valid timezone")
+          add_error(changeset, :timezone, dgettext_noop("errors", "is not a valid timezone"))
         end
     end
   end
@@ -237,7 +238,7 @@ defmodule Tymeslot.Profiles.ProfileSchema do
     valid_theme_ids = Catalog.valid_ids()
 
     validate_inclusion(changeset, :booking_theme, valid_theme_ids,
-      message: "must be a valid theme"
+      message: dgettext_noop("errors", "must be a valid theme")
     )
   end
 
@@ -253,7 +254,10 @@ defmodule Tymeslot.Profiles.ProfileSchema do
           add_error(
             changeset,
             :allowed_embed_domains,
-            "cannot have more than #{max_domains} domains (currently #{length(domains)})"
+            dgettext("errors", "cannot have more than %{max} domains (currently %{current})",
+              max: max_domains,
+              current: length(domains)
+            )
           )
         else
           case Security.validate_domains(domains) do
@@ -269,7 +273,11 @@ defmodule Tymeslot.Profiles.ProfileSchema do
         end
 
       _other ->
-        add_error(changeset, :allowed_embed_domains, "must be a list of domains")
+        add_error(
+          changeset,
+          :allowed_embed_domains,
+          dgettext_noop("errors", "must be a list of domains")
+        )
     end
   end
 

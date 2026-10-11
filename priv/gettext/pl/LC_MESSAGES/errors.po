@@ -223,6 +223,7 @@ msgid "is not a valid colour"
 msgstr "nie jest prawidłowym kolorem"
 
 #: lib/tymeslot/availability/time_off_period_schema.ex
+#: lib/tymeslot/polls/poll_time_slot_schema.ex
 #, elixir-autogen, elixir-format
 msgid "must be after the start time"
 msgstr "musi być po godzinie rozpoczęcia"
@@ -893,3 +894,264 @@ msgstr "Niektóre domeny przekraczają maksymalną długość (maks. 255 znaków
 #, elixir-autogen, elixir-format
 msgid "must be a multiple of %{step} minutes"
 msgstr "musi być wielokrotnością %{step} minut"
+
+#: lib/tymeslot/availability/breaks.ex
+#, elixir-autogen, elixir-format
+msgid "Break times overlap with existing break"
+msgstr "Godziny przerwy nakładają się na istniejącą przerwę"
+
+#: lib/tymeslot/security/url_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Enter a full address starting with https://, for example https://example.com"
+msgstr "Podaj pełny adres zaczynający się od https://, na przykład https://example.com"
+
+#: lib/tymeslot/security/url_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Must be a valid HTTP or HTTPS URL (e.g., https://example.com)"
+msgstr "Musi to być prawidłowy adres HTTP lub HTTPS (np. https://example.com)"
+
+#: lib/tymeslot/security/url_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Only HTTP and HTTPS URLs are allowed"
+msgstr "Dozwolone są tylko adresy HTTP i HTTPS"
+
+#: lib/tymeslot/security/url_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Private or local network addresses are not allowed"
+msgstr "Adresy z sieci prywatnych lub lokalnych są niedozwolone"
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "Stripe must be connected"
+msgstr "Stripe musi być podłączony"
+
+#: lib/tymeslot/security/url_validation.ex
+#, elixir-autogen, elixir-format
+msgid "URL must be %{max} characters or less"
+msgstr "Adres URL przekracza maksymalną liczbę znaków (%{max})"
+
+#: lib/tymeslot/security/url_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Use HTTPS for non-local servers"
+msgstr "W przypadku zdalnych serwerów używaj HTTPS"
+
+#: lib/tymeslot/availability/breaks.ex
+#, elixir-autogen, elixir-format
+msgid "Work hours not found"
+msgstr "Nie znaleziono godzin pracy"
+
+#: lib/tymeslot/meetings/meeting_schema.ex
+#, elixir-autogen, elixir-format
+msgid "You already have a confirmed meeting at this time."
+msgstr "Masz już potwierdzone spotkanie w tym terminie."
+
+#: lib/tymeslot/meetings/participant_schema.ex
+#, elixir-autogen, elixir-format
+msgid "already has a spot at this time"
+msgstr "ma już miejsce w tym terminie"
+
+#: lib/tymeslot/availability/availability_override_schema.ex
+#, elixir-autogen, elixir-format
+msgid "are required for custom hours"
+msgstr "są wymagane przy niestandardowych godzinach"
+
+#: lib/tymeslot/availability/weekly_availability_schema.ex
+#, elixir-autogen, elixir-format
+msgid "are required when day is available"
+msgstr "są wymagane, gdy dzień jest dostępny"
+
+#: lib/tymeslot/meeting_types/reminder_validation.ex
+#, elixir-autogen, elixir-format
+msgid "cannot be set for more than 1 year in advance"
+msgstr "nie może wyprzedzać terminu o więcej niż 1 rok"
+
+#: lib/tymeslot_web/gettext/ecto_error_msgids.ex
+#, elixir-autogen, elixir-format
+msgid "cannot have more than %{count} reminders"
+msgid_plural "cannot have more than %{count} reminders"
+msgstr[0] "nie może zawierać więcej niż %{count} przypomnienie"
+msgstr[1] "nie może zawierać więcej niż %{count} przypomnienia"
+msgstr[2] "nie może zawierać więcej niż %{count} przypomnień"
+
+#: lib/tymeslot/profiles/profile_schema.ex
+#, elixir-autogen, elixir-format
+msgid "cannot have more than %{max} domains (currently %{current})"
+msgstr "przekracza maksymalną liczbę domen: %{max} (obecnie %{current})"
+
+#: lib/tymeslot/meeting_types/reminder_validation.ex
+#, elixir-autogen, elixir-format
+msgid "contains duplicate reminders"
+msgstr "zawiera zduplikowane przypomnienia"
+
+#: lib/tymeslot/webhooks/webhook_schema.ex
+#, elixir-autogen, elixir-format
+msgid "contains invalid events: %{events}"
+msgstr "zawiera nieprawidłowe zdarzenia: %{events}"
+
+#: lib/tymeslot/meeting_types/reminder_validation.ex
+#, elixir-autogen, elixir-format
+msgid "contains invalid reminder settings"
+msgstr "zawiera nieprawidłowe ustawienia przypomnień"
+
+#: lib/tymeslot/meetings/guest_schema.ex
+#, elixir-autogen, elixir-format
+msgid "has already been added"
+msgstr "zostało już dodane"
+
+#: lib/tymeslot/auth/user_schema.ex
+#, elixir-autogen, elixir-format
+msgid "is already registered"
+msgstr "jest już zarejestrowane"
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "is already taken"
+msgstr "jest już zajęte"
+
+#: lib/tymeslot/integrations/calendar/calendar_appearance_schema.ex
+#, elixir-autogen, elixir-format
+msgid "is not a palette colour"
+msgstr "nie jest kolorem z palety"
+
+#: lib/tymeslot/app_settings/app_settings_schema.ex
+#, elixir-autogen, elixir-format
+msgid "is not a supported language"
+msgstr "nie jest obsługiwanym językiem"
+
+#: lib/tymeslot/auth/user_schema.ex
+#: lib/tymeslot/meetings/meeting_schema.ex
+#: lib/tymeslot/meetings/participant_schema.ex
+#, elixir-autogen, elixir-format
+msgid "is not a supported locale"
+msgstr "nie jest obsługiwanym językiem"
+
+#: lib/tymeslot/integrations/calendar/colour_override.ex
+#, elixir-autogen, elixir-format
+msgid "is not a valid palette key"
+msgstr "nie jest prawidłowym kluczem palety"
+
+#: lib/tymeslot/profiles/profile_schema.ex
+#, elixir-autogen, elixir-format
+msgid "is not a valid timezone"
+msgstr "nie jest prawidłową strefą czasową"
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "is required when a calendar integration is selected"
+msgstr "jest wymagane, gdy wybrano integrację kalendarza"
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "is required when a target calendar is selected"
+msgstr "jest wymagane, gdy wybrano kalendarz docelowy"
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "is required when video meetings are enabled"
+msgstr "jest wymagane, gdy spotkania wideo są włączone"
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "is too long"
+msgstr "jest za długie"
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "may only contain lowercase letters, numbers and hyphens"
+msgstr "może zawierać tylko małe litery, cyfry i myślniki"
+
+#: lib/tymeslot/availability/availability_break_schema.ex
+#: lib/tymeslot/availability/availability_override_schema.ex
+#, elixir-autogen, elixir-format
+msgid "must be %{max} characters or less"
+msgstr "przekracza maksymalną liczbę znaków (%{max})"
+
+#: lib/tymeslot/slack/slack_integration_schema.ex
+#, elixir-autogen, elixir-format
+msgid "must be a Slack webhook URL (https://hooks.slack.com/services/...)"
+msgstr "musi być adresem URL webhooka Slack (https://hooks.slack.com/services/...)"
+
+#: lib/tymeslot/app_settings/app_settings_schema.ex
+#, elixir-autogen, elixir-format
+msgid "must be a hex colour such as #14b8a6"
+msgstr "musi być kolorem szesnastkowym, np. #14b8a6"
+
+#: lib/tymeslot/profiles/profile_schema.ex
+#, elixir-autogen, elixir-format
+msgid "must be a list of domains"
+msgstr "musi być listą domen"
+
+#: lib/tymeslot/meeting_types/reminder_validation.ex
+#, elixir-autogen, elixir-format
+msgid "must be a list of reminder settings"
+msgstr "musi być listą ustawień przypomnień"
+
+#: lib/tymeslot/profiles/profile_schema.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid theme"
+msgstr "musi być prawidłowym motywem"
+
+#: lib/tymeslot/availability/availability_break_schema.ex
+#: lib/tymeslot/changeset_validators/availability_window.ex
+#: lib/tymeslot/changeset_validators/time_order.ex
+#, elixir-autogen, elixir-format
+msgid "must be after start time"
+msgstr "musi być po godzinie rozpoczęcia"
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "must be at least %{minimum}"
+msgstr "musi wynosić co najmniej %{minimum}"
+
+#: lib/tymeslot/changeset_validators/availability_window.ex
+#, elixir-autogen, elixir-format
+msgid "must be at or before the start time when the hours end the next day"
+msgstr "nie może przypadać po godzinie rozpoczęcia, gdy godziny pracy kończą się następnego dnia"
+
+#: lib/tymeslot/availability/weekly_availability_schema.ex
+#, elixir-autogen, elixir-format
+msgid "must be between 1 (Monday) and 7 (Sunday)"
+msgstr "musi mieścić się w zakresie od 1 (poniedziałek) do 7 (niedziela)"
+
+#: lib/tymeslot/custom_fields/field_definition.ex
+#, elixir-autogen, elixir-format
+msgid "must be greater than or equal to min"
+msgstr "musi być większe lub równe wartości minimalnej"
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "must be one of the available icons"
+msgstr "musi być jedną z dostępnych ikon"
+
+#: lib/tymeslot/availability/availability_break_schema.ex
+#, elixir-autogen, elixir-format
+msgid "must be within work hours"
+msgstr "musi mieścić się w godzinach pracy"
+
+#: lib/tymeslot/custom_fields/field_definition.ex
+#, elixir-autogen, elixir-format
+msgid "must have at least %{count} option"
+msgid_plural "must have at least %{count} options"
+msgstr[0] "musi zawierać co najmniej %{count} opcję"
+msgstr[1] "musi zawierać co najmniej %{count} opcje"
+msgstr[2] "musi zawierać co najmniej %{count} opcji"
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "must include at least one location"
+msgstr "musi zawierać co najmniej jedną lokalizację"
+
+#: lib/tymeslot/custom_fields/field_definition.ex
+#, elixir-autogen, elixir-format
+msgid "must not contain duplicate keys"
+msgstr "nie może zawierać zduplikowanych kluczy"
+
+#: lib/tymeslot/webhooks/webhook_schema.ex
+#, elixir-autogen, elixir-format
+msgid "must select at least one event"
+msgstr "musi obejmować co najmniej jedno zdarzenie"
+
+#: lib/tymeslot/slack/slack_integration_schema.ex
+#, elixir-autogen, elixir-format
+msgid "workspace already connected"
+msgstr "przestrzeń robocza jest już podłączona"

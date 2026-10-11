@@ -2,6 +2,7 @@ defmodule Tymeslot.Availability.AvailabilityBreakSchema do
   @moduledoc """
   Schema for breaks within a day's availability.
   """
+  use Gettext, backend: TymeslotWeb.Gettext
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -60,9 +61,9 @@ defmodule Tymeslot.Availability.AvailabilityBreakSchema do
       span = Window.span_seconds(window)
 
       changeset
-      |> add_error_if(from >= to, :end_time, "must be after start time")
-      |> add_error_if(from < 0, :start_time, "must be within work hours")
-      |> add_error_if(to > span, :end_time, "must be within work hours")
+      |> add_error_if(from >= to, :end_time, dgettext_noop("errors", "must be after start time"))
+      |> add_error_if(from < 0, :start_time, dgettext_noop("errors", "must be within work hours"))
+      |> add_error_if(to > span, :end_time, dgettext_noop("errors", "must be within work hours"))
     else
       _no_window -> TimeOrder.validate_time_order(changeset, :start_time, :end_time)
     end
@@ -73,6 +74,10 @@ defmodule Tymeslot.Availability.AvailabilityBreakSchema do
 
   defp validate_label(changeset) do
     max = Constraints.break_label_max_length()
-    validate_length(changeset, :label, max: max, message: "must be #{max} characters or less")
+
+    validate_length(changeset, :label,
+      max: max,
+      message: dgettext("errors", "must be %{max} characters or less", max: max)
+    )
   end
 end

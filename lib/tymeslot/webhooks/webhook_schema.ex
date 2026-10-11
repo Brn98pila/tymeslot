@@ -6,6 +6,7 @@ defmodule Tymeslot.Webhooks.WebhookSchema do
   when specific booking events occur (created, cancelled, rescheduled, etc.).
   Enables integration with automation tools like n8n, Zapier, Make.com.
   """
+  use Gettext, backend: TymeslotWeb.Gettext
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -213,7 +214,7 @@ defmodule Tymeslot.Webhooks.WebhookSchema do
   """
   @spec validate_events_list([String.t()]) :: :ok | {:error, String.t()}
   def validate_events_list([]) do
-    {:error, "must select at least one event"}
+    {:error, dgettext("errors", "must select at least one event")}
   end
 
   def validate_events_list(events) when is_list(events) do
@@ -222,7 +223,10 @@ defmodule Tymeslot.Webhooks.WebhookSchema do
     if Enum.empty?(invalid_events) do
       :ok
     else
-      {:error, "contains invalid events: #{Enum.join(invalid_events, ", ")}"}
+      {:error,
+       dgettext("errors", "contains invalid events: %{events}",
+         events: Enum.join(invalid_events, ", ")
+       )}
     end
   end
 

@@ -194,7 +194,9 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
     |> validate_number(:max_participants, Constraints.max_participants_opts())
     |> validate_number(:approval_window_hours, Constraints.approval_window_hours_opts())
     |> validate_booking_limits(:meeting_types)
-    |> validate_inclusion(:icon, @valid_icons, message: "must be one of the available icons")
+    |> validate_inclusion(:icon, @valid_icons,
+      message: dgettext_noop("errors", "must be one of the available icons")
+    )
     |> normalize_slug()
     |> validate_slug()
     |> validate_video_integration()
@@ -208,7 +210,7 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
     )
     |> unique_constraint([:user_id, :slug],
       name: :meeting_types_user_id_slug_index,
-      message: "is already taken"
+      message: dgettext_noop("errors", "is already taken")
     )
     |> foreign_key_constraint(:user_id)
     |> foreign_key_constraint(:video_integration_id)
@@ -293,7 +295,7 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
     |> validate_slug()
     |> unique_constraint([:user_id, :slug],
       name: :meeting_types_user_id_slug_index,
-      message: "is already taken"
+      message: dgettext_noop("errors", "is already taken")
     )
   end
 
@@ -334,13 +336,17 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
       slug ->
         cond do
           String.length(slug) > @slug_max_length ->
-            add_error(changeset, :slug, "is too long")
+            add_error(changeset, :slug, dgettext_noop("errors", "is too long"))
 
           Regex.match?(@reserved_slug_format, slug) or slug in @reserved_slugs ->
             add_error(changeset, :slug, "is reserved")
 
           not Regex.match?(@slug_format, slug) ->
-            add_error(changeset, :slug, "may only contain lowercase letters, numbers and hyphens")
+            add_error(
+              changeset,
+              :slug,
+              dgettext_noop("errors", "may only contain lowercase letters, numbers and hyphens")
+            )
 
           true ->
             changeset
@@ -361,7 +367,11 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
     supplied? = Map.has_key?(changeset.params || %{}, "locations")
 
     if supplied? and get_field(changeset, :locations) == [] do
-      add_error(changeset, :locations, "must include at least one location")
+      add_error(
+        changeset,
+        :locations,
+        dgettext_noop("errors", "must include at least one location")
+      )
     else
       changeset
     end
@@ -402,7 +412,11 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
     video_integration_id = get_field(changeset, :video_integration_id)
 
     if allow_video && is_nil(video_integration_id) do
-      add_error(changeset, :video_integration_id, "is required when video meetings are enabled")
+      add_error(
+        changeset,
+        :video_integration_id,
+        dgettext_noop("errors", "is required when video meetings are enabled")
+      )
     else
       changeset
     end
@@ -418,14 +432,14 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
         add_error(
           changeset,
           :target_calendar_id,
-          "is required when a calendar integration is selected"
+          dgettext_noop("errors", "is required when a calendar integration is selected")
         )
 
       {nil, tid} when is_binary(tid) ->
         add_error(
           changeset,
           :calendar_integration_id,
-          "is required when a target calendar is selected"
+          dgettext_noop("errors", "is required when a target calendar is selected")
         )
 
       _other ->
@@ -452,9 +466,18 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
   # must be connected", on a field the form cannot render in that state.
   defp validate_charges_enabled(changeset, opts) do
     cond do
-      Keyword.get(opts, :host_charges_enabled, false) -> changeset
-      get_change(changeset, :payment_required) != true -> changeset
-      true -> add_error(changeset, :payment_required, "Stripe must be connected")
+      Keyword.get(opts, :host_charges_enabled, false) ->
+        changeset
+
+      get_change(changeset, :payment_required) != true ->
+        changeset
+
+      true ->
+        add_error(
+          changeset,
+          :payment_required,
+          dgettext_noop("errors", "Stripe must be connected")
+        )
     end
   end
 
@@ -464,7 +487,10 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
 
     validate_number(changeset, :price_cents,
       greater_than_or_equal_to: minimum,
-      message: "must be at least #{Money.format(minimum, currency)}"
+      message:
+        dgettext("errors", "must be at least %{minimum}",
+          minimum: Money.format(minimum, currency)
+        )
     )
   end
 
