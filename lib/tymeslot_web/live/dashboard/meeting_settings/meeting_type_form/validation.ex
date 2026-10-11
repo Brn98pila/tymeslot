@@ -4,8 +4,8 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Validation do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.MeetingTypes.InputValidation, as: MeetingSettingsInputValidation
+  alias Tymeslot.MeetingTypes.Reminders
   alias Tymeslot.MeetingTypes.ReminderValidation
-  alias Tymeslot.Utils.ReminderUtils
 
   @doc "Validates a single named field and returns the updated `{data, errors}` tuple."
   @spec validate_and_update_field(String.t(), any(), map(), map(), map()) :: {map(), map()}
@@ -65,14 +65,14 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Validation do
       is_nil(value) or value == "" ->
         {:error, dgettext("dashboard_meeting_form", "Reminder value is required")}
 
-      match?({:error, _reason}, ReminderUtils.validate_reminder_value(value)) ->
+      match?({:error, _reason}, Reminders.validate_reminder_value(value)) ->
         {:error, dgettext("dashboard_meeting_form", "Reminder value must be a positive number")}
 
       unit not in ["minutes", "hours", "days"] ->
         {:error, dgettext("dashboard_meeting_form", "Select a valid reminder unit")}
 
       true ->
-        reminder = %{value: ReminderUtils.parse_reminder_value(value), unit: unit}
+        reminder = %{value: Reminders.parse_reminder_value(value), unit: unit}
 
         case ReminderValidation.check_policy(reminders ++ [reminder], reminders) do
           :ok -> {:ok, reminder}

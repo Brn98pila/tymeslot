@@ -5,6 +5,8 @@ defmodule Tymeslot.Slack.InputValidation do
   before it reaches the database or the Slack API.
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   alias Tymeslot.Security.UniversalSanitizer
   alias Tymeslot.Slack.SlackIntegrationSchema
   alias Tymeslot.Validation.Constraints
@@ -78,10 +80,10 @@ defmodule Tymeslot.Slack.InputValidation do
   def validate_name("", errors, false, _stored_name), do: {nil, errors}
 
   def validate_name(nil, errors, true, _stored_name),
-    do: {nil, Map.put(errors, :name, "is required")}
+    do: {nil, Map.put(errors, :name, dgettext("errors", "is required"))}
 
   def validate_name("", errors, true, _stored_name),
-    do: {nil, Map.put(errors, :name, "is required")}
+    do: {nil, Map.put(errors, :name, dgettext("errors", "is required"))}
 
   def validate_name(name, errors, _required, stored_name) when is_binary(name) do
     case UniversalSanitizer.sanitize_and_validate(name,
@@ -89,22 +91,22 @@ defmodule Tymeslot.Slack.InputValidation do
          ) do
       {:ok, sanitized} ->
         if String.length(sanitized) < 1 do
-          {nil, Map.put(errors, :name, "is required")}
+          {nil, Map.put(errors, :name, dgettext("errors", "is required"))}
         else
           {sanitized, errors}
         end
 
       {:error, _error} ->
-        {nil, Map.put(errors, :name, "is invalid")}
+        {nil, Map.put(errors, :name, dgettext("errors", "is invalid"))}
     end
   end
 
   @spec validate_events([String.t()] | nil, map()) :: {[String.t()] | nil, map()}
   def validate_events(nil, errors),
-    do: {nil, Map.put(errors, :events, "select at least one event")}
+    do: {nil, Map.put(errors, :events, dgettext("errors", "select at least one event"))}
 
   def validate_events([], errors),
-    do: {nil, Map.put(errors, :events, "select at least one event")}
+    do: {nil, Map.put(errors, :events, dgettext("errors", "select at least one event"))}
 
   def validate_events(events, errors) when is_list(events) do
     valid = SlackIntegrationSchema.valid_events()
@@ -113,16 +115,16 @@ defmodule Tymeslot.Slack.InputValidation do
     if Enum.empty?(invalid) do
       {events, errors}
     else
-      {nil, Map.put(errors, :events, "contains invalid events")}
+      {nil, Map.put(errors, :events, dgettext("errors", "contains invalid events"))}
     end
   end
 
   @spec validate_webhook_url(String.t() | nil, map()) :: {String.t() | nil, map()}
   def validate_webhook_url(nil, errors),
-    do: {nil, Map.put(errors, :webhook_url, "is required")}
+    do: {nil, Map.put(errors, :webhook_url, dgettext("errors", "is required"))}
 
   def validate_webhook_url("", errors),
-    do: {nil, Map.put(errors, :webhook_url, "is required")}
+    do: {nil, Map.put(errors, :webhook_url, dgettext("errors", "is required"))}
 
   def validate_webhook_url(url, errors) when is_binary(url) do
     trimmed = String.trim(url)
@@ -130,7 +132,12 @@ defmodule Tymeslot.Slack.InputValidation do
     if SlackIntegrationSchema.webhook_url_format?(trimmed) do
       {trimmed, errors}
     else
-      {nil, Map.put(errors, :webhook_url, "must look like https://hooks.slack.com/services/...")}
+      {nil,
+       Map.put(
+         errors,
+         :webhook_url,
+         dgettext("errors", "must look like https://hooks.slack.com/services/...")
+       )}
     end
   end
 
@@ -155,17 +162,20 @@ defmodule Tymeslot.Slack.InputValidation do
 
   def validate_channel_hint(hint, errors) when is_binary(hint) do
     case UniversalSanitizer.sanitize_and_validate(hint, max_length: 80) do
-      {:ok, sanitized} -> {sanitized, errors}
-      {:error, _err} -> {nil, Map.put(errors, :webhook_channel_hint, "is invalid")}
+      {:ok, sanitized} ->
+        {sanitized, errors}
+
+      {:error, _err} ->
+        {nil, Map.put(errors, :webhook_channel_hint, dgettext("errors", "is invalid"))}
     end
   end
 
   @spec validate_channel_id(String.t() | nil, map()) :: {String.t() | nil, map()}
   def validate_channel_id(nil, errors),
-    do: {nil, Map.put(errors, :channel_id, "pick a channel")}
+    do: {nil, Map.put(errors, :channel_id, dgettext("errors", "pick a channel"))}
 
   def validate_channel_id("", errors),
-    do: {nil, Map.put(errors, :channel_id, "pick a channel")}
+    do: {nil, Map.put(errors, :channel_id, dgettext("errors", "pick a channel"))}
 
   def validate_channel_id(id, errors) when is_binary(id), do: {String.trim(id), errors}
 

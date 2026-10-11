@@ -89,22 +89,4 @@ defmodule TymeslotWeb.Dashboard.Automation.HelpersTest do
       assert_received {:flash, {:error, "Unable to perform this action. Please try again."}}
     end
   end
-
-  describe "format_changeset_errors/1" do
-    test "formats changeset errors into a flat map" do
-      import Ecto.Changeset
-      data = %{}
-      types = %{name: :string, url: :string}
-
-      changeset =
-        {data, types}
-        |> cast(%{name: "", url: "invalid"}, [:name, :url])
-        |> validate_required([:name])
-        |> add_error(:url, "is invalid")
-
-      errors = Helpers.format_changeset_errors(changeset)
-      assert errors.name == "can't be blank"
-      assert errors.url == "is invalid"
-    end
-  end
 end

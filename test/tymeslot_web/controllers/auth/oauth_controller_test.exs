@@ -10,7 +10,6 @@ defmodule TymeslotWeb.OAuthControllerTest do
   alias Plug.Test
   alias Req.Test, as: ReqTest
   alias Tymeslot.Auth.Session
-  alias Tymeslot.Infrastructure.DashboardCache
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Test.LogCapture
 
@@ -24,12 +23,6 @@ defmodule TymeslotWeb.OAuthControllerTest do
     end
 
     :meck.new(RateLimiter, [:passthrough])
-
-    # Ensure dashboard cache is running for invalidate_integration_status
-    case Process.whereis(DashboardCache) do
-      nil -> DashboardCache.start_link([])
-      _pid -> :ok
-    end
 
     on_exit(fn ->
       try do

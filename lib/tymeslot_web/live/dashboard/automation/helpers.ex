@@ -15,7 +15,6 @@ defmodule TymeslotWeb.Dashboard.Automation.Helpers do
   alias Tymeslot.Slack
   alias Tymeslot.Telegram
   alias Tymeslot.Utils.DateTimeUtils.TimeFormat
-  alias Tymeslot.Utils.FormHelpers
   alias Tymeslot.Webhooks
   alias Tymeslot.Webhooks.InputValidation, as: WebhookInputValidation
   alias TymeslotWeb.Helpers.LocaleFormat
@@ -111,16 +110,6 @@ defmodule TymeslotWeb.Dashboard.Automation.Helpers do
       {int, _value} -> int
       _other -> 0
     end
-  end
-
-  @doc """
-  Formats changeset errors into a flat map.
-  """
-  @spec format_changeset_errors(Ecto.Changeset.t()) :: map()
-  def format_changeset_errors(changeset) do
-    FormHelpers.format_changeset_errors(changeset)
-    |> Enum.map(fn {k, v} -> {k, List.first(v)} end)
-    |> Map.new()
   end
 
   @doc """

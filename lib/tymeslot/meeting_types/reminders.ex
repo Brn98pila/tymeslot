@@ -1,4 +1,4 @@
-defmodule Tymeslot.Utils.ReminderUtils do
+defmodule Tymeslot.MeetingTypes.Reminders do
   @moduledoc """
   Utility functions for meeting reminders.
   """

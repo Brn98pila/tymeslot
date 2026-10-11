@@ -42,7 +42,7 @@ defmodule Tymeslot.MeetingPayments.CheckoutSessionsTest do
 
     user = insert(:user)
     {:ok, profile} = Profiles.get_or_create_profile(user.id)
-    {:ok, _profile} = Profiles.update_profile(profile, %{booking_theme: "1"})
+    {:ok, _profile} = Profiles.update_booking_theme(profile, "1")
 
     insert(:connect_account,
       user: user,

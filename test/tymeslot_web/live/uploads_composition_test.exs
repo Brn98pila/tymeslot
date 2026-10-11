@@ -5,7 +5,7 @@ defmodule TymeslotWeb.UploadsCompositionTest do
   Size limit + extension allow-list are enforced by Phoenix LiveView at the
   framework level via `allow_upload/3`. The server-side guards in
   `Tymeslot.Profiles.Avatars.validate_upload/1` and
-  `Tymeslot.Utils.MediaValidator.valid_image?/1` are the defence-in-depth
+  `Tymeslot.Media.MediaValidator.valid_image?/1` are the defence-in-depth
   layer: they protect the disk/DB even if the framework allow-list is ever
   reconfigured. These tests pin both layers at their user-observable
   surface — an error rendered into the page and no mutation to the
@@ -36,9 +36,9 @@ defmodule TymeslotWeb.UploadsCompositionTest do
 
   import Tymeslot.DashboardTestHelpers
 
+  alias Tymeslot.Media.MediaValidator
   alias Tymeslot.Profiles.Avatars
   alias Tymeslot.Repo
-  alias Tymeslot.Utils.MediaValidator
 
   setup :setup_dashboard_user
 

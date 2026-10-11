@@ -9,6 +9,7 @@ defmodule Tymeslot.Meetings.ParticipantSchema do
   `cancelled_at` so freed seats become bookable again.
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -107,7 +108,9 @@ defmodule Tymeslot.Meetings.ParticipantSchema do
     |> update_change(:email, &normalize_email/1)
     |> validate_required([:meeting_id, :name, :email, :timezone, :locale])
     |> EmailChangeset.validate_email(:email)
-    |> validate_inclusion(:locale, supported_locale_codes(), message: "is not a supported locale")
+    |> validate_inclusion(:locale, supported_locale_codes(),
+      message: dgettext_noop("errors", "is not a supported locale")
+    )
     |> ensure_management_token()
     |> Token.put_hash(:management_token, :management_token_hash)
     |> unique_constraint(:management_token_hash)
@@ -116,7 +119,7 @@ defmodule Tymeslot.Meetings.ParticipantSchema do
     # tokens, so cancelling "the" booking only frees half of it.
     |> unique_constraint([:meeting_id, :email],
       name: :meeting_participants_live_email_index,
-      message: "already has a spot at this time"
+      message: dgettext_noop("errors", "already has a spot at this time")
     )
     |> foreign_key_constraint(:meeting_id)
   end

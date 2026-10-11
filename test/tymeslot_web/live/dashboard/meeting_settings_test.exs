@@ -39,12 +39,14 @@ defmodule TymeslotWeb.Dashboard.MeetingSettingsTest do
              |> Enum.count() == 1
     end
 
-    test "auto-creates and shows default meeting types for a new user", %{conn: conn} do
+    # Defaults are seeded once, with the profile; a host without any (here
+    # a profile made directly by the factory) sees the empty state, and
+    # visiting the page creates nothing.
+    test "shows the empty state to a host with no meeting types", %{conn: conn, user: user} do
       {:ok, view, _html} = live(conn, ~p"/dashboard/meeting-settings")
 
-      # Default meeting types are auto-created when a user has none; the empty
-      # state should therefore never be visible on first visit.
-      refute render(view) =~ "No meeting types configured yet"
+      assert render(view) =~ "No meeting types configured yet"
+      assert MeetingTypes.get_all_meeting_types(user.id) == []
     end
   end
 

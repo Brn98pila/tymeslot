@@ -211,6 +211,7 @@ msgstr "Wählen Sie die Kalender aus, die Sie für Verfügbarkeitsprüfungen syn
 
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/caldav_reconnect_modal.ex
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/shared_form_components.ex
+#: lib/tymeslot_web/live/dashboard/calendar_settings/config_view_component.ex
 #, elixir-autogen, elixir-format
 msgid "Server URL"
 msgstr "Server-URL"
@@ -272,6 +273,7 @@ msgstr "Unbenannter Kalender"
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/caldav_reconnect_modal.ex
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/exchange_config.ex
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/shared_form_components.ex
+#: lib/tymeslot_web/live/dashboard/calendar_settings/config_view_component.ex
 #, elixir-autogen, elixir-format
 msgid "Username"
 msgstr "Nutzername"
@@ -286,8 +288,10 @@ msgstr "App-spezifisches Passwort"
 msgid "My Calendar"
 msgstr "Mein Kalender"
 
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/caldav_reconnect_modal.ex
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/exchange_config.ex
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/shared_form_components.ex
+#: lib/tymeslot_web/live/dashboard/calendar_settings/config_view_component.ex
 #, elixir-autogen, elixir-format
 msgid "Password"
 msgstr "Passwort"
@@ -1004,7 +1008,9 @@ msgstr "Farbe"
 msgid "How this calendar's events are shown in your Tymeslot calendar."
 msgstr "So werden die Ereignisse dieses Kalenders in Ihrem Tymeslot-Kalender angezeigt."
 
+#: lib/tymeslot_web/components/dashboard/integrations/calendar/caldav_reconnect_modal.ex
 #: lib/tymeslot_web/components/dashboard/integrations/calendar/calendar_selection_modal.ex
+#: lib/tymeslot_web/live/dashboard/calendar_settings/config_view_component.ex
 #, elixir-autogen, elixir-format
 msgid "Name"
 msgstr "Name"

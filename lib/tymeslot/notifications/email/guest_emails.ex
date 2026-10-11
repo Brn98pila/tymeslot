@@ -20,10 +20,10 @@ defmodule Tymeslot.Notifications.Email.GuestEmails do
   alias Tymeslot.Meetings.Guests
   alias Tymeslot.Meetings.GuestSchema
   alias Tymeslot.Meetings.MeetingSchema
+  alias Tymeslot.MeetingTypes.Reminders
   alias Tymeslot.Notifications.Email.DeliveryOutcome
   alias Tymeslot.Notifications.Email.MeetingEmails
   alias Tymeslot.Notifications.GuestNotifications
-  alias Tymeslot.Utils.ReminderUtils
 
   # The meeting was cancelled, moved or started after the guests were added.
   @meeting_closed "Meeting no longer open to guests"
@@ -140,8 +140,8 @@ defmodule Tymeslot.Notifications.Email.GuestEmails do
   """
   @spec send_reminders(MeetingSchema.t(), map(), term(), term()) :: :ok
   def send_reminders(meeting, appointment_details, reminder_value, reminder_unit) do
-    value = ReminderUtils.parse_reminder_value(reminder_value)
-    unit = ReminderUtils.normalize_reminder_unit(reminder_unit)
+    value = Reminders.parse_reminder_value(reminder_value)
+    unit = Reminders.normalize_reminder_unit(reminder_unit)
     email_service = Config.email_service_module()
 
     meeting.id

@@ -16,12 +16,12 @@ defmodule Tymeslot.Notifications.Email.MeetingEmails do
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.MeetingState
   alias Tymeslot.Meetings.ReminderEntry
+  alias Tymeslot.MeetingTypes.Reminders
   alias Tymeslot.Notifications.Email.DeliveryOutcome
   alias Tymeslot.Notifications.Email.GroupMeetingEmails
   alias Tymeslot.Notifications.Email.GuestEmails
   alias Tymeslot.Notifications.Email.ParticipantLegs
   alias Tymeslot.Notifications.GuestNotifications
-  alias Tymeslot.Utils.ReminderUtils
   alias Tymeslot.Workers.DeliveryClaims
 
   # The meeting is gone, started, cancelled or moved since the email was
@@ -97,10 +97,10 @@ defmodule Tymeslot.Notifications.Email.MeetingEmails do
 
         true ->
           # Normalised once, so the sent-mark is written as it is read.
-          reminder_value = ReminderUtils.parse_reminder_value(Map.get(args, "reminder_value", 30))
+          reminder_value = Reminders.parse_reminder_value(Map.get(args, "reminder_value", 30))
 
           reminder_unit =
-            ReminderUtils.normalize_reminder_unit(Map.get(args, "reminder_unit", "minutes"))
+            Reminders.normalize_reminder_unit(Map.get(args, "reminder_unit", "minutes"))
 
           if reminder_already_sent?(meeting, reminder_value, reminder_unit) do
             Logger.info("Skipping reminder emails - already sent",
@@ -579,8 +579,8 @@ defmodule Tymeslot.Notifications.Email.MeetingEmails do
   defp reminder_sent_status(meeting, reminder_value, reminder_unit) do
     ReminderEntry.status(
       meeting.reminders_sent,
-      ReminderUtils.parse_reminder_value(reminder_value),
-      ReminderUtils.normalize_reminder_unit(reminder_unit)
+      Reminders.parse_reminder_value(reminder_value),
+      Reminders.normalize_reminder_unit(reminder_unit)
     )
   end
 end

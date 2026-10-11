@@ -24,7 +24,6 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CaldavReconnect
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.DisplayHelpers
   alias Tymeslot.Integrations.Calendar.ProviderConfig
-  alias Tymeslot.Utils.ChangesetUtils
   alias Tymeslot.Utils.UriUtils
 
   alias TymeslotWeb.Components.Dashboard.Integrations.Calendar.SharedFormComponents,
@@ -32,6 +31,7 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CaldavReconnect
 
   alias TymeslotWeb.Components.Dashboard.Integrations.Shared.UIComponents
   alias TymeslotWeb.Dashboard.CalendarSettingsComponent
+  alias TymeslotWeb.Helpers.FormErrors
   alias TymeslotWeb.Live.Shared.Flash
   alias TymeslotWeb.Live.Shared.FormValidationHelpers
 
@@ -156,7 +156,7 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CaldavReconnect
       {:error, {:changeset, cs}} ->
         Flash.error(
           dgettext("dashboard_calendar_providers", "Could not save: %{reason}",
-            reason: ChangesetUtils.get_first_error(cs)
+            reason: FormErrors.first(cs, field_labels())
           )
         )
 
@@ -481,4 +481,14 @@ defmodule TymeslotWeb.Components.Dashboard.Integrations.Calendar.CaldavReconnect
 
   defp normalize_error_message(_other),
     do: dgettext("dashboard_calendar_providers", "Something went wrong. Please try again.")
+
+  # The flash is away from the form, so a refused field is named.
+  defp field_labels do
+    %{
+      name: dgettext("dashboard_calendar_providers", "Name"),
+      base_url: dgettext("dashboard_calendar_providers", "Server URL"),
+      username: dgettext("dashboard_calendar_providers", "Username"),
+      password: dgettext("dashboard_calendar_providers", "Password")
+    }
+  end
 end

@@ -82,6 +82,7 @@ defmodule Tymeslot.Integrations.Calendar.ProviderConfig do
 
   # Providers whose module refuses every write. See `read_only?/1`.
   @read_only_providers [:ics_url]
+  @read_only_provider_strings Enum.map(@read_only_providers, &Atom.to_string/1)
 
   @caldav_based_providers Families.members(@provider_families, :caldav)
   @caldav_based_provider_strings Families.member_strings(@provider_families, :caldav)
@@ -218,6 +219,13 @@ defmodule Tymeslot.Integrations.Calendar.ProviderConfig do
       {:error, :unknown} -> false
     end
   end
+
+  @doc """
+  The providers `read_only?/1` is true for, in the string form they are
+  stored in, for a query that must leave them out.
+  """
+  @spec read_only_provider_strings() :: [String.t()]
+  def read_only_provider_strings, do: @read_only_provider_strings
 
   @doc """
   Returns EWS-based providers.

@@ -210,17 +210,26 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchemaTest do
       assert "You already have a meeting type with this name" in errors_on(changeset).name
     end
 
-    test "schema allows non-divisible-by-5 durations (form layer enforces this)" do
+    test "refuses a duration that is not a multiple of five minutes" do
       user = insert(:user)
-
-      attrs = %{
-        name: "Odd Duration",
-        duration_minutes: 7,
-        user_id: user.id
-      }
+      attrs = %{name: "Odd Duration", duration_minutes: 7, user_id: user.id}
 
       changeset = MeetingTypeSchema.changeset(%MeetingTypeSchema{}, attrs)
-      assert changeset.valid?
+
+      assert errors_on(changeset).duration_minutes == ["must be a multiple of 5 minutes"]
+    end
+
+    # A type saved before the rule keeps saving its other fields; the rule
+    # applies once its duration is edited.
+    test "lets a legacy odd duration stand until the duration is edited" do
+      legacy = insert(:meeting_type, duration_minutes: 7)
+
+      assert MeetingTypeSchema.changeset(legacy, %{name: "Renamed"}).valid?
+
+      assert errors_on(MeetingTypeSchema.changeset(legacy, %{duration_minutes: 8})).duration_minutes ==
+               ["must be a multiple of 5 minutes"]
+
+      assert MeetingTypeSchema.changeset(legacy, %{duration_minutes: 10}).valid?
     end
 
     test "prevents more than three reminders" do

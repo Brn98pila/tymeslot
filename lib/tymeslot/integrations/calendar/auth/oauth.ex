@@ -3,7 +3,6 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
   OAuth helper functions for calendar providers (Google, Outlook).
   """
 
-  alias Tymeslot.Dashboard.DashboardContext
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Google.OAuthHelper, as: GoogleOAuthHelper
@@ -74,10 +73,6 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
   the code with that flow's PKCE verifier, and creates or updates their
   calendar integration. Nothing is sent to the provider until the state and
   the flow have both checked out.
-
-  On success the user's cached dashboard integration status is invalidated, so
-  the dashboard reflects the new connection straight away rather than after the
-  cache expires.
   """
   @spec complete(provider(), String.t(), String.t(), user_id()) ::
           {:ok, CalendarIntegrationSchema.t()} | {:error, term()}
@@ -85,15 +80,12 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
     %{config: config, helper: helper} = Map.fetch!(@providers, provider)
 
     with {:ok, validated} <- State.verify(state, config, user_id),
-         {:ok, code_verifier} <- PendingFlow.consume(validated.nonce, user_id, provider),
-         {:ok, integration} <-
-           helper.handle_callback(
-             code,
-             redirect_uri(provider),
-             Map.put(validated, :code_verifier, code_verifier)
-           ) do
-      DashboardContext.invalidate_integration_status(integration.user_id)
-      {:ok, integration}
+         {:ok, code_verifier} <- PendingFlow.consume(validated.nonce, user_id, provider) do
+      helper.handle_callback(
+        code,
+        redirect_uri(provider),
+        Map.put(validated, :code_verifier, code_verifier)
+      )
     end
   end
 

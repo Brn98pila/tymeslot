@@ -148,7 +148,9 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Provider do
   (`Tymeslot.Integrations.Calendar.Discovery`), not this provider's.
   """
   @impl Tymeslot.Integrations.Calendar.Provider
-  @spec discover_calendars(map()) :: {:ok, [CalendarEntry.t()]} | {:error, String.t()}
+  @spec discover_calendars(map()) ::
+          {:ok, [CalendarEntry.t()]}
+          | {:error, Tymeslot.Integrations.Calendar.CalDAV.Base.error_reason()}
   def discover_calendars(client) do
     CaldavCommon.discover_calendars(client)
   end

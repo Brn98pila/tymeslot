@@ -543,7 +543,6 @@ defmodule TymeslotWeb.DashboardLive do
   @spec refresh_dashboard_data(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp refresh_dashboard_data(socket) do
     if user = socket.assigns[:current_user] do
-      DashboardContext.invalidate_integration_status(user.id)
       integration_status = DashboardContext.get_integration_status(user.id)
       assign(socket, :integration_status, integration_status)
     else

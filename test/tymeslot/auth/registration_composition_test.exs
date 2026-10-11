@@ -33,6 +33,7 @@ defmodule Tymeslot.Auth.RegistrationCompositionTest do
   alias Tymeslot.Auth.UserSchema
   alias Tymeslot.Availability.Schedules
   alias Tymeslot.Availability.WeeklyAvailabilitySchema
+  alias Tymeslot.MeetingTypes
   alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
@@ -104,6 +105,10 @@ defmodule Tymeslot.Auth.RegistrationCompositionTest do
 
       assert length(weekly_rows) == 7
       assert Enum.map(weekly_rows, & &1.day_of_week) == Enum.to_list(1..7)
+
+      # The two default meeting types are seeded with the profile, once.
+      assert user.id |> MeetingTypes.get_all_meeting_types() |> Enum.map(& &1.name) |> Enum.sort() ==
+               ["15 Minutes", "30 Minutes"]
 
       # Weekdays are available by default; weekends are not.
       weekday_rows = Enum.filter(weekly_rows, &(&1.day_of_week in 1..5))

@@ -4,9 +4,9 @@ defmodule Tymeslot.Media.VideoMetadataTest do
   @moduletag :security
   @moduletag :unit
 
+  alias Tymeslot.Media.MediaValidator
   alias Tymeslot.Media.VideoMetadata
   alias Tymeslot.Test.MediaFixtures
-  alias Tymeslot.Utils.MediaValidator
 
   describe "MP4" do
     test "removes the location, title and device details a phone records" do

@@ -6,9 +6,7 @@ defmodule Tymeslot.MeetingTypes do
   alias Tymeslot.Availability
   alias Tymeslot.BookingPage.Publication
   alias Tymeslot.Clock
-  alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Integrations.Calendar.CalendarEntry
-  alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Meetings
   alias Tymeslot.MeetingTypes.BookingCalendar
@@ -25,7 +23,6 @@ defmodule Tymeslot.MeetingTypes do
   alias Tymeslot.Repo
   alias Tymeslot.Utils.UriUtils
   alias Tymeslot.Venues
-  require Logger
 
   @doc """
   The locations this meeting type offers, in the host's order.
@@ -200,31 +197,28 @@ defmodule Tymeslot.MeetingTypes do
   def location_venue_choices(_meeting_type), do: %{}
 
   @doc """
-  Gets all active meeting types for a user, creating defaults if none exist.
+  Gets all active meeting types for a user. A pure read: a host may have
+  none (the defaults are seeded once, with the profile; see
+  `seed_default_meeting_types/2`).
   """
   @spec get_active_meeting_types(integer()) :: [Ecto.Schema.t()]
-  def get_active_meeting_types(user_id) do
-    list_seeding_defaults(user_id, &MeetingTypeQueries.list_active_meeting_types/1)
-  end
+  def get_active_meeting_types(user_id),
+    do: MeetingTypeQueries.list_active_meeting_types(user_id)
 
   @doc """
-  Gets all meeting types for a user (active and inactive).
+  Gets all meeting types for a user (active and inactive). A pure read, like
+  `get_active_meeting_types/1`.
   """
   @spec get_all_meeting_types(integer()) :: [Ecto.Schema.t()]
-  def get_all_meeting_types(user_id) do
-    list_seeding_defaults(user_id, &MeetingTypeQueries.list_all_meeting_types/1)
-  end
+  def get_all_meeting_types(user_id), do: MeetingTypeQueries.list_all_meeting_types(user_id)
 
   @doc """
   Gets the publicly listed meeting types for a user (active and not private).
   This feeds the public booking overview; private types are excluded and
   reachable only by their direct link.
 
-  Deliberately a pure read: unlike the two owner-facing listings above it never
-  seeds the default meeting types. An anonymous page view must not write to the
-  host's account, and a host with no meeting types must show the booking page's
-  empty state rather than be given two bookable durations they never created
-  (which would also silently resurrect defaults a host had deleted on purpose).
+  A pure read, like the two owner-facing listings above: a host with no
+  meeting types shows the booking page's empty state.
 
   A paused group type (`Tymeslot.MeetingTypes.GroupAccess`) is left out, as an
   inactive one is: it takes no new bookings, so the page must not offer it.
@@ -234,27 +228,6 @@ defmodule Tymeslot.MeetingTypes do
     user_id
     |> MeetingTypeQueries.list_public_meeting_types()
     |> GroupAccess.reject_paused()
-  end
-
-  # The two owner-facing listings above differ only in which query they run;
-  # each seeds the user's default meeting types first if they have none yet.
-  # The public listing deliberately does not go through here.
-  defp list_seeding_defaults(user_id, list_fun) do
-    ensure_default_meeting_types(user_id)
-    list_fun.(user_id)
-  end
-
-  defp ensure_default_meeting_types(user_id) do
-    if MeetingTypeQueries.has_meeting_types?(user_id) do
-      :ok
-    else
-      Logger.info("Creating default meeting types for user", user_id: user_id)
-
-      case create_default_meeting_types(user_id) do
-        {:ok, _meeting_types} -> :ok
-        {:error, reason} -> ErrorTracking.report_error(reason, nil, %{user_id: user_id})
-      end
-    end
   end
 
   @doc """
@@ -551,45 +524,27 @@ defmodule Tymeslot.MeetingTypes do
   end
 
   @doc """
-  Creates default meeting types for a new user.
-  Fetches the user's primary calendar integration, builds default templates,
-  deduplicates against existing names, then bulk-inserts.
+  Seeds the two default meeting types for a new user, once, as the profile is
+  created (`Tymeslot.Profiles.create_profile/1` and the OAuth sign-up, which
+  passes its transaction's `repo`). A host who later deletes them keeps none:
+  nothing seeds them again.
+
+  A new account has no calendar and no username yet, so the defaults carry
+  no booking calendar and there is no booking page to publish. A seed that
+  meets types already there (a retried sign-up) inserts nothing.
   """
-  @spec create_default_meeting_types(integer()) ::
-          {:ok, [MeetingTypeSchema.t()]} | {:error, term()}
-  def create_default_meeting_types(user_id) when is_integer(user_id) do
-    {calendar_integration_id, target_calendar_id} = resolve_primary_calendar(user_id)
-    existing = MeetingTypeQueries.existing_names(user_id)
+  @spec seed_default_meeting_types(integer(), Ecto.Repo.t()) :: :ok
+  def seed_default_meeting_types(user_id, repo \\ Repo) when is_integer(user_id) do
     now = DateTime.utc_now(:second)
 
-    result =
-      user_id
-      |> default_meeting_type_templates(calendar_integration_id, target_calendar_id, now)
-      |> Enum.reject(fn type -> MapSet.member?(existing, type.name) end)
-      |> MeetingTypeQueries.bulk_insert_meeting_types()
+    user_id
+    |> default_meeting_type_templates(nil, nil, now)
+    |> MeetingTypeQueries.insert_defaults(repo)
 
-    with {:ok, _meeting_types} <- result do
-      Publication.maybe_publish(user_id)
-    end
-
-    result
+    :ok
   end
-
-  @spec create_default_meeting_types(term()) :: {:error, :invalid_user_id}
-  def create_default_meeting_types(_invalid_user_id), do: {:error, :invalid_user_id}
 
   # Private functions
-
-  defp resolve_primary_calendar(user_id) do
-    case CalendarPrimary.get_primary_calendar_integration(user_id) do
-      {:ok, %{default_booking_calendar_id: cal_id} = integration}
-      when is_binary(cal_id) ->
-        {integration.id, cal_id}
-
-      _other ->
-        {nil, nil}
-    end
-  end
 
   defp default_meeting_type_templates(
          user_id,

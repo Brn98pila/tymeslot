@@ -28,7 +28,9 @@ msgstr "É preciso um ID de reunião para criar uma sala de vídeo"
 msgid "A video integration with this configuration already exists"
 msgstr "Já existe uma integração de vídeo com esta configuração"
 
+#: lib/tymeslot_web/components/dashboard/integrations/video/edit_video_integration_modal.ex
 #: lib/tymeslot_web/components/dashboard/integrations/video/shared_form_components.ex
+#: lib/tymeslot_web/live/dashboard/video_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "API Key"
 msgstr "Chave de API"
@@ -777,6 +779,7 @@ msgstr "Videoconferência auto-hospedada"
 #: lib/tymeslot_web/components/dashboard/integrations/video/mirotalk_config.ex
 #: lib/tymeslot_web/components/dashboard/integrations/video/nextcloud_talk_config.ex
 #: lib/tymeslot_web/components/dashboard/integrations/video/shared_form_components.ex
+#: lib/tymeslot_web/live/dashboard/video_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "Server URL"
 msgstr "URL do servidor"

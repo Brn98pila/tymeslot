@@ -2,6 +2,7 @@ defmodule Tymeslot.Profiles.ProfileSchema do
   @moduledoc """
   Schema for user profiles containing calendar and appointment settings.
   """
+  use Gettext, backend: TymeslotWeb.Gettext
   use Ecto.Schema
   import Ecto.Changeset
   import Tymeslot.ChangesetValidators.BookingLimits, only: [validate_booking_limits: 2]
@@ -94,35 +95,92 @@ defmodule Tymeslot.Profiles.ProfileSchema do
     timestamps(type: :utc_datetime)
   end
 
-  @doc false
-  @spec changeset(t(), map()) :: Ecto.Changeset.t()
-  def changeset(profile, attrs) do
+  @doc """
+  Changeset for inserting a user's profile. A second profile for the same
+  user, or one for a user deleted meanwhile, comes back as a changeset error
+  on `:user_id` rather than raising.
+  """
+  @spec create_changeset(t(), map()) :: Ecto.Changeset.t()
+  def create_changeset(profile, attrs) do
     profile
-    |> cast(attrs, [
-      :user_id,
-      :username,
-      :full_name,
-      :timezone,
-      :max_bookings_per_day,
-      :max_bookings_per_week,
-      :max_bookings_per_month,
-      :avatar,
-      :booking_theme,
-      :has_custom_theme,
-      :allowed_embed_domains,
-      :booking_page_published_at,
-      :primary_calendar_integration_id
-    ])
+    |> cast(attrs, [:user_id, :full_name])
     |> validate_required([:user_id])
+    |> validate_length(:full_name, max: 255)
+    |> unique_constraint(:user_id)
+    |> foreign_key_constraint(:user_id)
+  end
+
+  # One changeset per kind of write, so each casts only what that write may
+  # change: no update path can reassign `user_id` or the published stamp, and
+  # an unrelated save never re-runs another field's validation.
+
+  @doc "The host's name and time zone."
+  @spec basic_changeset(t(), map()) :: Ecto.Changeset.t()
+  def basic_changeset(profile, attrs) do
+    profile
+    |> cast(attrs, [:full_name, :timezone])
     # The column is a varchar(255); a longer name must fail here, not at insert.
     |> validate_length(:full_name, max: 255)
-    |> validate_username()
     |> validate_timezone()
-    |> validate_booking_theme()
-    |> validate_embed_domains()
-    |> validate_booking_limits(:profiles)
+  end
+
+  @doc """
+  The username, apart from the other basic fields so that only
+  `Tymeslot.Profiles.change_username/3` (validation, rate limit, publish)
+  can write it.
+  """
+  @spec username_changeset(t(), map()) :: Ecto.Changeset.t()
+  def username_changeset(profile, attrs) do
+    profile
+    |> cast(attrs, [:username])
+    |> validate_username()
     |> unique_constraint(:username)
+  end
+
+  @doc "The stored avatar file name, or `nil` to remove it."
+  @spec avatar_changeset(t(), map()) :: Ecto.Changeset.t()
+  def avatar_changeset(profile, attrs), do: cast(profile, attrs, [:avatar])
+
+  @doc """
+  The name and avatar together, for an account provisioned with both at once.
+  """
+  @spec identity_changeset(t(), map()) :: Ecto.Changeset.t()
+  def identity_changeset(profile, attrs) do
+    profile
+    |> cast(attrs, [:full_name, :avatar])
+    |> validate_length(:full_name, max: 255)
+  end
+
+  @doc "The booking page theme and whether it carries a customisation."
+  @spec theme_changeset(t(), map()) :: Ecto.Changeset.t()
+  def theme_changeset(profile, attrs) do
+    profile
+    |> cast(attrs, [:booking_theme, :has_custom_theme])
+    |> validate_booking_theme()
+  end
+
+  @doc "The sites allowed to embed the booking page."
+  @spec embed_domains_changeset(t(), map()) :: Ecto.Changeset.t()
+  def embed_domains_changeset(profile, attrs) do
+    profile
+    |> cast(attrs, [:allowed_embed_domains])
+    |> validate_embed_domains()
+  end
+
+  @doc "The calendar integration bookings are written to by default."
+  @spec primary_calendar_changeset(t(), map()) :: Ecto.Changeset.t()
+  def primary_calendar_changeset(profile, attrs) do
+    profile
+    |> cast(attrs, [:primary_calendar_integration_id])
     |> foreign_key_constraint(:primary_calendar_integration_id)
+  end
+
+  @doc "The account-wide caps on bookings per day, week and month."
+  @spec booking_limits_changeset(t(), map()) :: Ecto.Changeset.t()
+  def booking_limits_changeset(profile, attrs) do
+    profile
+    |> cast(attrs, [:max_bookings_per_day, :max_bookings_per_week, :max_bookings_per_month])
+    |> validate_booking_limits(:profiles)
   end
 
   @doc """
@@ -228,7 +286,7 @@ defmodule Tymeslot.Profiles.ProfileSchema do
         if Timezones.valid?(timezone) do
           changeset
         else
-          add_error(changeset, :timezone, "is not a valid timezone")
+          add_error(changeset, :timezone, dgettext_noop("errors", "is not a valid timezone"))
         end
     end
   end
@@ -237,7 +295,7 @@ defmodule Tymeslot.Profiles.ProfileSchema do
     valid_theme_ids = Catalog.valid_ids()
 
     validate_inclusion(changeset, :booking_theme, valid_theme_ids,
-      message: "must be a valid theme"
+      message: dgettext_noop("errors", "must be a valid theme")
     )
   end
 
@@ -253,12 +311,15 @@ defmodule Tymeslot.Profiles.ProfileSchema do
           add_error(
             changeset,
             :allowed_embed_domains,
-            "cannot have more than #{max_domains} domains (currently #{length(domains)})"
+            dgettext("errors", "cannot have more than %{max} domains (currently %{current})",
+              max: max_domains,
+              current: length(domains)
+            )
           )
         else
           case Security.validate_domains(domains) do
             {:ok, validated} ->
-              put_change(changeset, :allowed_embed_domains, validated)
+              put_change(changeset, :allowed_embed_domains, Enum.uniq(validated))
 
             {:error, messages} ->
               # add_error/3 prepends, so add them last first to keep their order.
@@ -269,7 +330,11 @@ defmodule Tymeslot.Profiles.ProfileSchema do
         end
 
       _other ->
-        add_error(changeset, :allowed_embed_domains, "must be a list of domains")
+        add_error(
+          changeset,
+          :allowed_embed_domains,
+          dgettext_noop("errors", "must be a list of domains")
+        )
     end
   end
 

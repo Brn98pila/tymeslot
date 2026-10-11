@@ -4,6 +4,7 @@ defmodule Tymeslot.Meetings.MeetingSchema do
   video conferencing, and meeting lifecycle management.
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -506,7 +507,7 @@ defmodule Tymeslot.Meetings.MeetingSchema do
     |> validate_inclusion(:status, @valid_statuses)
     |> unique_constraint([:organizer_user_id, :start_time],
       name: @unique_slot_constraint,
-      message: "You already have a confirmed meeting at this time."
+      message: dgettext_noop("errors", "You already have a confirmed meeting at this time.")
     )
   end
 
@@ -524,7 +525,7 @@ defmodule Tymeslot.Meetings.MeetingSchema do
     |> validate_inclusion(:status, @valid_statuses)
     |> validate_required([:attendee_locale])
     |> validate_inclusion(:attendee_locale, supported_locale_codes(),
-      message: "is not a supported locale"
+      message: dgettext_noop("errors", "is not a supported locale")
     )
     |> validate_number(:capacity, greater_than: 0)
     |> TimeOrder.validate_time_order(:start_time, :end_time)
@@ -545,7 +546,7 @@ defmodule Tymeslot.Meetings.MeetingSchema do
     |> unique_constraint(:calendar_uid)
     |> unique_constraint([:organizer_user_id, :start_time],
       name: @unique_slot_constraint,
-      message: "You already have a confirmed meeting at this time."
+      message: dgettext_noop("errors", "You already have a confirmed meeting at this time.")
     )
     |> check_constraint(:end_time, name: :meetings_end_after_start)
     |> foreign_key_constraint(:venue_id)

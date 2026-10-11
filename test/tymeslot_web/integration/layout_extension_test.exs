@@ -7,6 +7,7 @@ defmodule TymeslotWeb.Integration.LayoutExtensionTest do
   import Tymeslot.Factory
   import Mox
   alias Tymeslot.ConfigTestHelpers
+  alias Tymeslot.Profiles
   alias Tymeslot.Profiles.ProfileQueries
 
   setup do
@@ -39,10 +40,8 @@ defmodule TymeslotWeb.Integration.LayoutExtensionTest do
 
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
 
-      ProfileQueries.update_profile(profile, %{
-        username: "coreuser",
-        full_name: "Core User"
-      })
+      {:ok, profile} = Profiles.change_username(profile, "coreuser", skip_rate_limit: true)
+      {:ok, _profile} = Profiles.update_full_name(profile, "Core User")
 
       insert(:calendar_integration, user: user)
 
@@ -71,7 +70,7 @@ defmodule TymeslotWeb.Integration.LayoutExtensionTest do
 
       user = create_user_fixture(%{username: "extensionuser"})
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
-      ProfileQueries.update_profile(profile, %{username: "extensionuser"})
+      {:ok, _profile} = Profiles.change_username(profile, "extensionuser", skip_rate_limit: true)
       insert(:calendar_integration, user: user)
 
       # Action
@@ -93,10 +92,8 @@ defmodule TymeslotWeb.Integration.LayoutExtensionTest do
       user = create_user_fixture(%{username: "safetytest"})
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
 
-      ProfileQueries.update_profile(profile, %{
-        username: "safetytest",
-        full_name: "Safety Test User"
-      })
+      {:ok, profile} = Profiles.change_username(profile, "safetytest", skip_rate_limit: true)
+      {:ok, _profile} = Profiles.update_full_name(profile, "Safety Test User")
 
       insert(:calendar_integration, user: user)
 
@@ -133,7 +130,7 @@ defmodule TymeslotWeb.Integration.LayoutExtensionTest do
 
       user = create_user_fixture(%{username: "multiext"})
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
-      ProfileQueries.update_profile(profile, %{username: "multiext"})
+      {:ok, _profile} = Profiles.change_username(profile, "multiext", skip_rate_limit: true)
       insert(:calendar_integration, user: user)
 
       # Action
@@ -162,10 +159,8 @@ defmodule TymeslotWeb.Integration.LayoutExtensionTest do
       user = create_user_fixture(%{username: "garbagetest"})
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
 
-      ProfileQueries.update_profile(profile, %{
-        username: "garbagetest",
-        full_name: "Garbage Test User"
-      })
+      {:ok, profile} = Profiles.change_username(profile, "garbagetest", skip_rate_limit: true)
+      {:ok, _profile} = Profiles.update_full_name(profile, "Garbage Test User")
 
       insert(:calendar_integration, user: user)
 

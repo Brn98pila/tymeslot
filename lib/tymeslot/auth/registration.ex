@@ -245,14 +245,14 @@ defmodule Tymeslot.Auth.Registration do
       {:error, :registration_hook, _message} = error ->
         error
 
-      {:error, :auth, reason} ->
+      {:error, :auth, %Ecto.Changeset{} = changeset} ->
         AccountLogging.log_operation_failure(
           "registration",
           validated_params["email"],
-          reason
+          changeset.errors |> Keyword.keys() |> Enum.uniq() |> Enum.join(",")
         )
 
-        {:error, :auth, ErrorFormatter.format_user_friendly_error("registration", reason)}
+        {:error, :auth, ErrorFormatter.format_user_friendly_error("registration", changeset)}
     end
   end
 
@@ -432,7 +432,7 @@ defmodule Tymeslot.Auth.Registration do
       errors: LogFormat.reason(constraint_errors)
     )
 
-    {:error, :auth, ErrorFormatter.format_changeset_errors(changeset)}
+    {:error, :auth, changeset}
   end
 
   # Helper function to safely extract constraint errors without sensitive data

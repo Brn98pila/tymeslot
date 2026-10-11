@@ -12,8 +12,8 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Init do
   alias Tymeslot.MeetingPayments.Money
   alias Tymeslot.MeetingTypes
   alias Tymeslot.MeetingTypes.LocationOption
+  alias Tymeslot.MeetingTypes.Reminders
   alias Tymeslot.Profiles
-  alias Tymeslot.Utils.ReminderUtils
   alias TymeslotWeb.CustomInputModeHelper
 
   @doc """
@@ -390,7 +390,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Init do
 
   def get_reminders(%{reminder_config: reminders}) when is_list(reminders) do
     Enum.flat_map(reminders, fn r ->
-      case ReminderUtils.normalize_reminder(r) do
+      case Reminders.normalize_reminder(r) do
         {:ok, reminder} -> [reminder]
         _other -> []
       end

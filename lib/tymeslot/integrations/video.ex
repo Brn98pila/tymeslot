@@ -53,6 +53,19 @@ defmodule Tymeslot.Integrations.Video do
     VideoIntegrationQueries.list_all_for_user(user_id)
   end
 
+  @doc """
+  The user's active video integrations, ordered by name, credentials left
+  encrypted: for listings that need the id, name and provider.
+  """
+  @spec list_active_integrations(pos_integer()) :: [VideoIntegrationSchema.t()]
+  def list_active_integrations(user_id) when is_integer(user_id),
+    do: VideoIntegrationQueries.list_active_for_user(user_id)
+
+  @doc "Whether the user has an active video integration."
+  @spec has_active_integration?(pos_integer()) :: boolean()
+  def has_active_integration?(user_id) when is_integer(user_id),
+    do: VideoIntegrationQueries.active_exists_for_user?(user_id)
+
   @doc "See `Tymeslot.Integrations.Video.MeetingLinkTemplate.invalid?/1`."
   @spec meeting_link_template_invalid?(map()) :: boolean()
   defdelegate meeting_link_template_invalid?(integration), to: MeetingLinkTemplate, as: :invalid?
@@ -438,8 +451,7 @@ defmodule Tymeslot.Integrations.Video do
 
   @doc """
   Completes a Google Meet, Teams or Zoom OAuth callback and connects the
-  integration, invalidating the user's cached dashboard integration status on
-  success. See `Tymeslot.Integrations.Video.OAuthCallback.complete/4`.
+  integration. See `Tymeslot.Integrations.Video.OAuthCallback.complete/4`.
   """
   @spec complete_oauth(OAuth.provider(), String.t(), String.t(), pos_integer()) ::
           {:ok, VideoIntegrationSchema.t()} | {:error, term()}

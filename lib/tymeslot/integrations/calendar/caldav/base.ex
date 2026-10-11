@@ -132,6 +132,9 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Base do
           # Neither a server-supplied href nor a calendar path and UID were
           # available, so the event names no resource to act on.
           | :unaddressable
+          # The server address is, or resolves to, a private one while private
+          # addresses are not allowed (`CalDAV.Discovery`).
+          | :private_address
           # Credentials were accepted but no calendar collection could be
           # reached; carries the server URL to show the account owner.
           | {:calendar_home_not_found, String.t()}
