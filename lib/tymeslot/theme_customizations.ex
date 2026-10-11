@@ -125,7 +125,7 @@ defmodule Tymeslot.ThemeCustomizations do
     # Perform the atomic database update, then cleanup replaced files on success
     case ThemeCustomizationQueries.update(customization, attrs) do
       {:ok, updated} ->
-        FileLifecycle.cleanup_replaced_files(customization, attrs)
+        FileLifecycle.cleanup_replaced_files(customization, updated)
         {:ok, updated}
 
       error ->
@@ -316,19 +316,15 @@ defmodule Tymeslot.ThemeCustomizations do
     presets = Presets.get_all_presets()
 
     with :ok <- Validation.validate_background_selection(type, value, presets),
-         :ok <- validate_theme_capability(theme_id, %{"background_type" => type}),
-         new_customization <-
-           Backgrounds.apply_background_selection(current_customization, type, value),
-         cleanup_files <-
-           Backgrounds.determine_cleanup_files(current_customization, new_customization),
-         save_attrs <- DataTransform.extract_save_attributes(new_customization),
-         {:ok, saved} <-
-           profile_id
-           |> upsert_theme_customization(theme_id, save_attrs)
-           |> format_persistence_error() do
-      Enum.each(cleanup_files, &FileLifecycle.cleanup_old_backgrounds/1)
+         :ok <- validate_theme_capability(theme_id, %{"background_type" => type}) do
+      save_attrs =
+        current_customization
+        |> Backgrounds.apply_background_selection(type, value)
+        |> DataTransform.extract_save_attributes()
 
-      {:ok, saved}
+      profile_id
+      |> upsert_theme_customization(theme_id, save_attrs)
+      |> format_persistence_error()
     end
   end
 

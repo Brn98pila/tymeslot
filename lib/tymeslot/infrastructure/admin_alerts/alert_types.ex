@@ -47,7 +47,9 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     recipient_email_rejected: %{category: "Email", severity: :warning},
     configured_email_exhausted: %{category: "Email", severity: :error},
     user_registered_hook_failed: %{category: "System", severity: :error},
-    group_meeting_release_failed: %{category: "Booking", severity: :error}
+    group_meeting_release_failed: %{category: "Booking", severity: :error},
+    upload_delete_failed: %{category: "System", severity: :warning},
+    account_files_delete_failed: %{category: "Account", severity: :error}
   }
 
   @doc "Returns the full registry map for enumeration and lookup."
@@ -229,6 +231,13 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
   # per payment, whatever the reason text says.
   def dedup_key(:late_payment_refund_failed, metadata) do
     "late_payment_refund_failed:#{Map.get(metadata, :booking_payment_id, "unknown")}"
+  end
+
+  # A volume that refuses deletes fails every one of them for the same reason,
+  # so key on the reason rather than the path: one alert per cause, naming the
+  # first file it hit.
+  def dedup_key(:upload_delete_failed, metadata) do
+    "upload_delete_failed:#{Map.get(metadata, :reason_code, "unknown")}"
   end
 
   def dedup_key(:stripe_webhook_secret_missing, metadata) do
@@ -512,6 +521,32 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
 
     "Group meeting #{meeting_id} lost its last participant but could not be cancelled, " <>
       "so it may still show as confirmed (#{reason_text(metadata)})"
+  end
+
+  # A path outside the upload directory was refused, not attempted: the row
+  # that named it is what needs a look, and the file must not be deleted.
+  def format_message(:upload_delete_failed, %{reason_code: :path_traversal_attempt} = metadata) do
+    path = Map.get(metadata, :file_path, "unknown")
+
+    "Deleting uploaded file #{path} was refused: the path is outside the upload directory; " <>
+      "check the record that points at it"
+  end
+
+  # A replaced or removed upload is still on disk, unreferenced.
+  def format_message(:upload_delete_failed, metadata) do
+    path = Map.get(metadata, :file_path, "unknown")
+
+    "Uploaded file #{path} could not be deleted and is still on disk; " <>
+      "remove it by hand (#{reason_text(metadata)})"
+  end
+
+  # Every retry is spent: personal files outlive the account they belonged to.
+  def format_message(:account_files_delete_failed, metadata) do
+    profile_id = Map.get(metadata, :profile_id, "unknown")
+    paths = Map.get(metadata, :paths, "unknown")
+
+    "Uploaded files of deleted profile #{profile_id} could not be removed after every retry; " <>
+      "delete #{paths} by hand (#{reason_text(metadata)})"
   end
 
   def format_message(type, _metadata) do
