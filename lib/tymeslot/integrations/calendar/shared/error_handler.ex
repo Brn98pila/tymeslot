@@ -123,6 +123,12 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ErrorHandler do
     ErrorMessages.specific_message(:tls_error, provider)
   end
 
+  # Discovery refuses a server address that is, or resolves to, a private one
+  # with this reason; the owner has to know it was the address.
+  def sanitize_error_message(:private_address, provider) do
+    ErrorMessages.specific_message(:private_address, provider)
+  end
+
   def sanitize_error_message(:forbidden, :mailbox_org) do
     dgettext(
       "dashboard_calendar_providers",

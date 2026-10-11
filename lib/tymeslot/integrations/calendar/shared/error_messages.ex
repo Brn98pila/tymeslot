@@ -190,11 +190,11 @@ defmodule Tymeslot.Integrations.Calendar.Shared.ErrorMessages do
   end
 
   # Discovery refuses a server address that is, or resolves to, a private
-  # one with `UrlValidation`'s own untranslated sentence. A self-hosted
-  # server on a LAN hostname meets it, and a generic "unable to connect"
-  # would send its owner looking at the URL rather than at the address it
-  # resolves to, so the refusal keeps its meaning, in the owner's locale.
-  def specific_message("Private or local network addresses are not allowed", _provider) do
+  # one with this reason. A self-hosted server on a LAN hostname meets it,
+  # and a generic "unable to connect" would send its owner looking at the URL
+  # rather than at the address it resolves to, so the refusal keeps its
+  # meaning, in the owner's locale.
+  def specific_message(:private_address, _provider) do
     dgettext("dashboard_calendar_providers", "Private or local network addresses are not allowed")
   end
 

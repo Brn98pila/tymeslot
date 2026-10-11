@@ -98,7 +98,9 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FamilyProvider do
       Discovers the calendars available on the account.
       """
       @impl Provider
-      @spec discover_calendars(map()) :: {:ok, [CalendarEntry.t()]} | {:error, String.t()}
+      @spec discover_calendars(map()) ::
+              {:ok, [CalendarEntry.t()]}
+              | {:error, Tymeslot.Integrations.Calendar.CalDAV.Base.error_reason()}
       def discover_calendars(client) do
         # The provider picks the discovery paths to try.
         client

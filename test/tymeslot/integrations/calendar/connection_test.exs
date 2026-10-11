@@ -24,6 +24,28 @@ defmodule Tymeslot.Integrations.Calendar.ConnectionTest do
       assert {:error, _reason} = result
     end
 
+    # The owner learns it was the address, in their language: the reason
+    # comes back from discovery as :private_address, not as a sentence.
+    test "names a private server address in the owner's language" do
+      user = insert(:user)
+
+      integration = %{
+        user_id: user.id,
+        provider: "caldav",
+        base_url: "https://10.0.0.5",
+        username: "user",
+        password: "pass",
+        calendar_paths: []
+      }
+
+      assert {:error, message} =
+               Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+                 Connection.test_connection(integration)
+               end)
+
+      assert message == "Private oder lokale Netzwerkadressen sind nicht zulässig"
+    end
+
     test "tests Google Calendar provider connection" do
       user = insert(:user)
 

@@ -23,6 +23,13 @@ defmodule Tymeslot.Security.UrlValidation do
   reserved. `http_to_internal_name?/1` tells the SSRF guard which requests
   passed on that claim, so it can confirm at request time that the address it
   connects to really is private before any credentials are sent.
+
+  ## Refusals
+
+  A refusal is a sentence in the current locale. A caller that maps refusals
+  to its own guidance passes an atom in place of a message option (for
+  example `private_ip_error_message: :private_address`) and gets that atom
+  back, so it never has to match on translated text.
   """
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -42,7 +49,7 @@ defmodule Tymeslot.Security.UrlValidation do
   @disallowed_protocols ["javascript:", "data:", "file:", "ftp:"]
   @internal_suffixes [".local", ".lan", ".internal", ".home.arpa"]
 
-  @spec validate_http_url(String.t(), keyword()) :: :ok | {:error, String.t()}
+  @spec validate_http_url(String.t(), keyword()) :: :ok | {:error, String.t() | atom()}
   def validate_http_url(url, opts \\ [])
 
   def validate_http_url(url, opts) when is_binary(url) do
