@@ -873,3 +873,38 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Delete schedule"
 msgstr ""
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "%{setting} cannot be more than %{max}"
+msgstr ""
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "%{setting} must be a whole number"
+msgstr ""
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "%{setting} must be at least %{min}"
+msgstr ""
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Advance booking days"
+msgstr ""
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Buffer after"
+msgstr ""
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Buffer before"
+msgstr ""
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Minimum advance hours"
+msgstr ""

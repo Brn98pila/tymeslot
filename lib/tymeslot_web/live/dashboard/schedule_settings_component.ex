@@ -15,11 +15,11 @@ defmodule TymeslotWeb.Dashboard.ScheduleSettingsComponent do
 
   alias Tymeslot.Availability.{
     AvailabilityActions,
+    PolicyValidation,
     Schedules,
     WeeklySchedule
   }
 
-  alias Tymeslot.MeetingTypes.InputValidation, as: MeetingSettingsInputValidation
   alias Tymeslot.Validation.Constraints
   alias TymeslotWeb.Components.Dashboard.Availability.{DeleteScheduleModal, ScheduleFormModal}
   alias TymeslotWeb.CustomInputModeHelper
@@ -363,7 +363,7 @@ defmodule TymeslotWeb.Dashboard.ScheduleSettingsComponent do
 
     metadata = DashboardHelpers.get_security_metadata(socket)
 
-    with {:ok, value} <- validate_policy(field, submitted, metadata: metadata),
+    with {:ok, value} <- PolicyValidation.validate(field, submitted, metadata: metadata),
          {:ok, schedule} <-
            Schedules.update_policy(socket.assigns.selected_schedule, %{field => value}) do
       Flash.info(policy_flash(field, Map.fetch!(schedule, field)))
@@ -426,18 +426,6 @@ defmodule TymeslotWeb.Dashboard.ScheduleSettingsComponent do
   defp policy_default(field) do
     Constraints.scheduling_policy_defaults() |> Map.fetch!(field) |> to_string()
   end
-
-  defp validate_policy(:buffer_before_minutes, value, opts),
-    do: MeetingSettingsInputValidation.validate_buffer_before_minutes(value, opts)
-
-  defp validate_policy(:buffer_after_minutes, value, opts),
-    do: MeetingSettingsInputValidation.validate_buffer_after_minutes(value, opts)
-
-  defp validate_policy(:advance_booking_days, value, opts),
-    do: MeetingSettingsInputValidation.validate_advance_booking_days(value, opts)
-
-  defp validate_policy(:min_advance_hours, value, opts),
-    do: MeetingSettingsInputValidation.validate_min_advance_hours(value, opts)
 
   defp policy_flash(:buffer_before_minutes, value),
     do:

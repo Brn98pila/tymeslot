@@ -872,3 +872,38 @@ msgstr "Usuń przerwę"
 #, elixir-autogen, elixir-format
 msgid "Delete schedule"
 msgstr "Usuń harmonogram"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "%{setting} cannot be more than %{max}"
+msgstr "%{setting} nie może przekraczać %{max}"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "%{setting} must be a whole number"
+msgstr "%{setting} musi być liczbą całkowitą"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "%{setting} must be at least %{min}"
+msgstr "%{setting} musi wynosić co najmniej %{min}"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Advance booking days"
+msgstr "Maksymalne wyprzedzenie w dniach"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Buffer after"
+msgstr "Bufor po spotkaniach"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Buffer before"
+msgstr "Bufor przed spotkaniami"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Minimum advance hours"
+msgstr "Minimalne wyprzedzenie w godzinach"

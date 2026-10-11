@@ -875,3 +875,38 @@ msgstr "Pause löschen"
 #, elixir-autogen, elixir-format
 msgid "Delete schedule"
 msgstr "Zeitplan löschen"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "%{setting} cannot be more than %{max}"
+msgstr "%{setting} darf höchstens %{max} betragen"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "%{setting} must be a whole number"
+msgstr "%{setting} muss eine ganze Zahl sein"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "%{setting} must be at least %{min}"
+msgstr "%{setting} muss mindestens %{min} betragen"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Advance booking days"
+msgstr "Vorausbuchungszeitraum in Tagen"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Buffer after"
+msgstr "Puffer nach Terminen"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Buffer before"
+msgstr "Puffer vor Terminen"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Minimum advance hours"
+msgstr "Mindestvorlaufzeit in Stunden"

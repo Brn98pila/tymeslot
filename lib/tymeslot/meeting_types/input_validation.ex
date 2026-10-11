@@ -2,8 +2,8 @@ defmodule Tymeslot.MeetingTypes.InputValidation do
   @moduledoc """
   Meeting settings input validation and sanitisation.
 
-  Provides specialised validation for meeting settings forms including
-  meeting type creation/editing and scheduling settings configuration.
+  Provides specialised validation for the meeting type form. A schedule's
+  booking policy is validated by `Tymeslot.Availability.PolicyValidation`.
   """
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -102,83 +102,6 @@ defmodule Tymeslot.MeetingTypes.InputValidation do
 
   def validate_field(_other_field, _value, _metadata),
     do: {:error, %{base: "Invalid field"}}
-
-  @doc """
-  Validates the buffer kept free before each booking.
-
-  ## Parameters
-  - `value_str` - String containing the buffer in minutes
-  - `opts` - Options including metadata for logging
-
-  ## Returns
-  - `{:ok, validated_integer}` | `{:error, validation_error}`
-  """
-  @spec validate_buffer_before_minutes(String.t(), keyword()) ::
-          {:ok, integer()} | {:error, String.t()}
-  def validate_buffer_before_minutes(value_str, opts \\ []),
-    do: validate_buffer(value_str, "Buffer before", "buffer_before_minutes", opts)
-
-  @doc """
-  Validates the buffer kept free after each booking. Same rule and return
-  shape as `validate_buffer_before_minutes/2`.
-  """
-  @spec validate_buffer_after_minutes(String.t(), keyword()) ::
-          {:ok, integer()} | {:error, String.t()}
-  def validate_buffer_after_minutes(value_str, opts \\ []),
-    do: validate_buffer(value_str, "Buffer after", "buffer_after_minutes", opts)
-
-  # Both buffers share one range, read from `Constraints` so this check and
-  # the schema's cannot disagree.
-  defp validate_buffer(value_str, label, event_name, opts) do
-    range = Constraints.buffer_minutes_range()
-    validate_numeric_setting(value_str, range.first, range.last, label, event_name, opts)
-  end
-
-  @doc """
-  Validates advance booking days setting input.
-
-  ## Parameters
-  - `days_str` - String containing advance booking days value
-  - `opts` - Options including metadata for logging
-
-  ## Returns
-  - `{:ok, validated_integer}` | `{:error, validation_error}`
-  """
-  @spec validate_advance_booking_days(String.t(), keyword()) ::
-          {:ok, integer()} | {:error, String.t()}
-  def validate_advance_booking_days(days_str, opts \\ []) do
-    validate_numeric_setting(
-      days_str,
-      1,
-      365,
-      "Advance booking days",
-      "advance_booking_days",
-      opts
-    )
-  end
-
-  @doc """
-  Validates minimum advance hours setting input.
-
-  ## Parameters
-  - `hours_str` - String containing minimum advance hours value
-  - `opts` - Options including metadata for logging
-
-  ## Returns
-  - `{:ok, validated_integer}` | `{:error, validation_error}`
-  """
-  @spec validate_min_advance_hours(String.t(), keyword()) ::
-          {:ok, integer()} | {:error, String.t()}
-  def validate_min_advance_hours(hours_str, opts \\ []) do
-    validate_numeric_setting(
-      hours_str,
-      0,
-      168,
-      "Minimum advance hours",
-      "min_advance_hours",
-      opts
-    )
-  end
 
   # --- Private helpers ---
 

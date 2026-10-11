@@ -878,3 +878,38 @@ msgstr "Smazat přestávku"
 #, elixir-autogen, elixir-format
 msgid "Delete schedule"
 msgstr "Smazat rozvrh"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "%{setting} cannot be more than %{max}"
+msgstr "%{setting} nesmí být větší než %{max}"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "%{setting} must be a whole number"
+msgstr "%{setting} musí být celé číslo"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "%{setting} must be at least %{min}"
+msgstr "%{setting} musí být alespoň %{min}"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Advance booking days"
+msgstr "Období pro rezervace ve dnech"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Buffer after"
+msgstr "Časová rezerva po schůzkách"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Buffer before"
+msgstr "Časová rezerva před schůzkami"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Minimum advance hours"
+msgstr "Minimální předstih v hodinách"

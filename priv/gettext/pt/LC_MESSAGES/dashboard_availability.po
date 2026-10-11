@@ -873,3 +873,38 @@ msgstr "Excluir pausa"
 #, elixir-autogen, elixir-format
 msgid "Delete schedule"
 msgstr "Excluir agenda"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "%{setting} cannot be more than %{max}"
+msgstr "%{setting} não pode ser maior que %{max}"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "%{setting} must be a whole number"
+msgstr "%{setting} deve ser um número inteiro"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "%{setting} must be at least %{min}"
+msgstr "%{setting} deve ser de pelo menos %{min}"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Advance booking days"
+msgstr "Janela de antecedência em dias"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Buffer after"
+msgstr "Folga depois das reuniões"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Buffer before"
+msgstr "Folga antes das reuniões"
+
+#: lib/tymeslot/availability/policy_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Minimum advance hours"
+msgstr "Antecedência mínima em horas"
