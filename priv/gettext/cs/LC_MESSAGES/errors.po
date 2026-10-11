@@ -989,11 +989,6 @@ msgstr "překračuje maximální počet domén: %{max} (nyní %{current})"
 msgid "contains duplicate reminders"
 msgstr "obsahuje duplicitní připomínky"
 
-#: lib/tymeslot/webhooks/webhook_schema.ex
-#, elixir-autogen, elixir-format
-msgid "contains invalid events: %{events}"
-msgstr "obsahuje neplatné události: %{events}"
-
 #: lib/tymeslot/meeting_types/reminder_validation.ex
 #, elixir-autogen, elixir-format
 msgid "contains invalid reminder settings"
@@ -1152,11 +1147,6 @@ msgstr "musí obsahovat alespoň jedno místo"
 msgid "must not contain duplicate keys"
 msgstr "nesmí obsahovat duplicitní klíče"
 
-#: lib/tymeslot/webhooks/webhook_schema.ex
-#, elixir-autogen, elixir-format
-msgid "must select at least one event"
-msgstr "musí obsahovat alespoň jednu událost"
-
 #: lib/tymeslot/slack/slack_integration_schema.ex
 #, elixir-autogen, elixir-format
 msgid "workspace already connected"
@@ -1209,3 +1199,13 @@ msgstr "vyberte alespoň jednu událost"
 #, elixir-autogen, elixir-format
 msgid "%{field}: %{message}"
 msgstr "%{field}: %{message}"
+
+#: lib/tymeslot/webhooks/webhook_schema.ex
+#, elixir-autogen, elixir-format
+msgid "Contains invalid events: %{events}"
+msgstr "Obsahuje neplatné události: %{events}"
+
+#: lib/tymeslot/webhooks/webhook_schema.ex
+#, elixir-autogen, elixir-format
+msgid "Must select at least one event"
+msgstr "Je třeba vybrat alespoň jednu událost"

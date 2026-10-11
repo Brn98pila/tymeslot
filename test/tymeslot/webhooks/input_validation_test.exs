@@ -102,7 +102,14 @@ defmodule Tymeslot.Webhooks.InputValidationTest do
                end)
 
       assert errors.name == "Der Name darf nicht leer sein"
-      assert errors.events == "enthält ungültige Ereignisse: invalid.event"
+      assert errors.events == "Enthält ungültige Ereignisse: invalid.event"
+    end
+
+    test "words the events refusal as an English sentence" do
+      params = %{"name" => "Hook", "url" => "https://example.com/hook", "events" => ["no.such"]}
+
+      assert {:error, %{events: "Contains invalid events: no.such"}} =
+               InputValidation.validate_webhook_form(params)
     end
 
     test "preserves angle-bracket and quote characters in name verbatim" do

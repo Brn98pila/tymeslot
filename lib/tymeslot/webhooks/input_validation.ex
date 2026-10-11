@@ -102,7 +102,7 @@ defmodule Tymeslot.Webhooks.InputValidation do
     validate_change(changeset, :events, fn :events, events ->
       case WebhookSchema.validate_events_list(events) do
         :ok -> []
-        {:error, message} -> [events: message]
+        {:error, error} -> [events: error]
       end
     end)
   end

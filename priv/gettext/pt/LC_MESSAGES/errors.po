@@ -970,11 +970,6 @@ msgstr "não pode ter mais de %{max} domínios (atualmente %{current})"
 msgid "contains duplicate reminders"
 msgstr "contém lembretes duplicados"
 
-#: lib/tymeslot/webhooks/webhook_schema.ex
-#, elixir-autogen, elixir-format
-msgid "contains invalid events: %{events}"
-msgstr "contém eventos inválidos: %{events}"
-
 #: lib/tymeslot/meeting_types/reminder_validation.ex
 #, elixir-autogen, elixir-format
 msgid "contains invalid reminder settings"
@@ -1132,11 +1127,6 @@ msgstr "precisa incluir pelo menos um local"
 msgid "must not contain duplicate keys"
 msgstr "não pode ter chaves duplicadas"
 
-#: lib/tymeslot/webhooks/webhook_schema.ex
-#, elixir-autogen, elixir-format
-msgid "must select at least one event"
-msgstr "precisa incluir pelo menos um evento"
-
 #: lib/tymeslot/slack/slack_integration_schema.ex
 #, elixir-autogen, elixir-format
 msgid "workspace already connected"
@@ -1189,3 +1179,13 @@ msgstr "selecione pelo menos um evento"
 #, elixir-autogen, elixir-format
 msgid "%{field}: %{message}"
 msgstr "%{field}: %{message}"
+
+#: lib/tymeslot/webhooks/webhook_schema.ex
+#, elixir-autogen, elixir-format
+msgid "Contains invalid events: %{events}"
+msgstr "Contém eventos inválidos: %{events}"
+
+#: lib/tymeslot/webhooks/webhook_schema.ex
+#, elixir-autogen, elixir-format
+msgid "Must select at least one event"
+msgstr "Selecione pelo menos um evento"

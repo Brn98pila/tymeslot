@@ -203,30 +203,28 @@ defmodule Tymeslot.Webhooks.WebhookSchema do
       events ->
         case validate_events_list(events) do
           :ok -> changeset
-          {:error, msg} -> add_error(changeset, :events, msg)
+          {:error, {message, opts}} -> add_error(changeset, :events, message, opts)
         end
     end
   end
 
   @doc """
-  Validates a list of event types.
-  Returns :ok or {:error, message}
+  Validates a list of event types. A refusal is a changeset error,
+  `{msgid, opts}`, translated where it is shown like any other.
   """
-  @spec validate_events_list([String.t()]) :: :ok | {:error, String.t()}
-  def validate_events_list([]) do
-    {:error, dgettext("errors", "must select at least one event")}
-  end
+  @spec validate_events_list([String.t()]) :: :ok | {:error, {String.t(), keyword()}}
+  def validate_events_list([]),
+    do: {:error, {dgettext_noop("errors", "Must select at least one event"), []}}
 
   def validate_events_list(events) when is_list(events) do
-    invalid_events = Enum.reject(events, &(&1 in @valid_events))
+    case Enum.reject(events, &(&1 in @valid_events)) do
+      [] ->
+        :ok
 
-    if Enum.empty?(invalid_events) do
-      :ok
-    else
-      {:error,
-       dgettext("errors", "contains invalid events: %{events}",
-         events: Enum.join(invalid_events, ", ")
-       )}
+      invalid_events ->
+        {:error,
+         {dgettext_noop("errors", "Contains invalid events: %{events}"),
+          [events: Enum.join(invalid_events, ", ")]}}
     end
   end
 
