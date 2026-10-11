@@ -110,7 +110,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
               alert_admin_dispute_created(dispute_id, user_id, amount, reason)
 
               # Send email to admin
-              send_dispute_created_alert(dispute)
+              send_dispute_created_alert(alert_data(dispute, user_id))
 
               {:ok, :dispute_created}
           end
@@ -184,11 +184,11 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
               dispute["reason"]
             )
 
-            send_dispute_lost_alert(dispute)
+            send_dispute_lost_alert(alert_data(dispute, nil))
           end
 
           if status == "won" do
-            send_dispute_won_notification(dispute)
+            send_dispute_won_notification(alert_data(dispute, nil))
           end
 
           {:ok, :dispute_closed}
@@ -268,6 +268,29 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
       }
     )
   end
+
+  # The alert job stores its arguments as JSON, so it carries only what the
+  # alert shows, never the dispute itself (its evidence holds the customer's
+  # name and addresses).
+  defp alert_data(dispute, user_id) do
+    %{
+      "stripe_dispute_id" => dispute["id"],
+      "user_id" => user_id,
+      "amount" => dispute["amount"],
+      "currency" => dispute["currency"],
+      "reason" => dispute["reason"],
+      "evidence_due_by" => evidence_due_by(dispute)
+    }
+  end
+
+  defp evidence_due_by(%{"evidence_details" => %{"due_by" => due_by}}) when is_integer(due_by) do
+    case DateTime.from_unix(due_by) do
+      {:ok, datetime} -> datetime |> DateTime.to_date() |> Date.to_iso8601()
+      {:error, _reason} -> nil
+    end
+  end
+
+  defp evidence_due_by(_dispute), do: nil
 
   defp send_dispute_created_alert(dispute_data) do
     deliver_dispute_email(:dispute_created_alert, dispute_data)

@@ -264,7 +264,9 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
     end
 
     # The won notice goes out from a job, so an open mail circuit delays it
-    # rather than dropping it.
+    # rather than dropping it. The job carries only what the notice shows:
+    # the dispute's evidence (the customer's name and addresses) stays out of
+    # the job table.
     test "one-time won dispute enqueues the won notice to the operator" do
       Application.put_env(:tymeslot, :dispute_alert_template, DisputeTemplate)
       Application.put_env(:tymeslot, :admin_alert_email, "ops@example.com")
@@ -286,12 +288,24 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
         {:ok, one_time_charge("cus_won_notice")}
       end)
 
+      won =
+        dispute("won", %{
+          "id" => "dp_won_notice",
+          "currency" => "eur",
+          "evidence" => %{"customer_name" => "Jane Payer", "customer_email_address" => "j@x.test"},
+          "evidence_details" => %{"due_by" => 1_767_225_600}
+        })
+
       event = %{"id" => "evt_close_won_notice", "type" => "charge.dispute.closed"}
-      assert {:ok, :dispute_closed} = DisputeHandler.handle(with_object(event, dispute("won")))
+      assert {:ok, :dispute_closed} = DisputeHandler.handle(with_object(event, won))
 
       assert [
                %Oban.Job{
-                 args: %{"template_fun" => "dispute_won_notification", "recipient" => recipient}
+                 args: %{
+                   "template_fun" => "dispute_won_notification",
+                   "recipient" => recipient,
+                   "template_args" => [data]
+                 }
                }
              ] =
                Enum.filter(
@@ -300,6 +314,15 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
                )
 
       assert recipient == %{"address" => "ops@example.com"}
+
+      assert data == %{
+               "stripe_dispute_id" => "dp_won_notice",
+               "user_id" => nil,
+               "amount" => 1000,
+               "currency" => "eur",
+               "reason" => "fraudulent",
+               "evidence_due_by" => "2026-01-01"
+             }
     end
 
     test "Stripe API error triggers retry_later" do

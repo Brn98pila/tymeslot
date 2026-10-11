@@ -58,6 +58,10 @@ config :tymeslot,
   trial_ending_reminder_template: nil,
   refund_processed_template: nil,
   dispute_alert_template: nil,
+  # Further templates `Tymeslot.Workers.SendConfiguredEmail` may send, as
+  # `%{config_key => [template_function, ...]}`; the payment templates above
+  # are always allowed.
+  extra_configured_email_templates: %{},
 
   # Theme protection plugs - empty by default (external layers can add restrictions)
   extra_theme_protection_plugs: [],
