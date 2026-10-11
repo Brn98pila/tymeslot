@@ -121,9 +121,9 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
 
   # Handles successful booking creation: processes a successful booking
   # response and updates the socket with the appropriate success state.
-  @spec handle_booking_success(Phoenix.LiveView.Socket.t(), map(), map()) ::
+  @spec handle_booking_success(Phoenix.LiveView.Socket.t(), map(), map(), module()) ::
           {:ok, Phoenix.LiveView.Socket.t()}
-  defp handle_booking_success(socket, meeting, validated_data) do
+  defp handle_booking_success(socket, meeting, validated_data, orchestrator) do
     success_message =
       cond do
         Demo.demo_mode?(socket) and socket.assigns[:is_rescheduling] ->
@@ -148,7 +148,7 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
     socket =
       socket
       |> assign(:submitting, false)
-      |> assign_booked_identity(meeting)
+      |> assign_booked_identity(meeting, orchestrator)
       |> assign(:meeting_status, meeting.status)
       |> BookingLocation.assign_booked(meeting)
       |> assign(:name, validated_data["name"])
@@ -165,7 +165,16 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
   # is the seat's, under its management token. The meeting uid of a group
   # meeting names the shared slot, which a booker must never be handed: it
   # opens the slot's public cancel and reschedule pages.
-  defp assign_booked_identity(socket, meeting) do
+  #
+  # A simulated booking (`DemoOrchestrator`) stores no meeting, so there is
+  # no calendar file to download and the confirmation offers none.
+  defp assign_booked_identity(socket, _meeting, DemoOrchestrator) do
+    socket
+    |> assign(:meeting_uid, nil)
+    |> assign(:seat_calendar_url, nil)
+  end
+
+  defp assign_booked_identity(socket, meeting, _orchestrator) do
     {meeting_uid, seat_calendar_url} =
       case Meetings.booker_calendar(meeting) do
         {:meeting, uid} -> {uid, nil}
@@ -258,17 +267,22 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingSubmissionHandlerComponent
         handle_expired_preview(socket)
 
       orchestrator ->
-        handle_submit_result(socket, orchestrator.submit_booking(params, opts), sanitized_params)
+        handle_submit_result(
+          socket,
+          orchestrator.submit_booking(params, opts),
+          sanitized_params,
+          orchestrator
+        )
     end
   end
 
-  defp handle_submit_result(socket, result, sanitized_params) do
+  defp handle_submit_result(socket, result, sanitized_params, orchestrator) do
     case result do
       {:ok, :payment_required, %{meeting: meeting, checkout_url: url}} ->
         handle_payment_required(socket, meeting, url, sanitized_params)
 
       {:ok, meeting} ->
-        handle_booking_success(socket, meeting, sanitized_params)
+        handle_booking_success(socket, meeting, sanitized_params, orchestrator)
 
       {:error, :slot_taken} ->
         handle_slot_taken(socket)
