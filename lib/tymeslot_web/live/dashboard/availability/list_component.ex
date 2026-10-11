@@ -14,6 +14,7 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
   alias TymeslotWeb.Dashboard.Availability.DayCardComponent
   alias TymeslotWeb.Dashboard.Availability.Helpers
   alias TymeslotWeb.Dashboard.Availability.ListComponent.BreakHelpers
+  alias TymeslotWeb.Helpers.LocaleFormat
 
   # UI Helper Functions
 
@@ -64,9 +65,7 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
         self(),
         {:flash,
          {:info,
-          dgettext("dashboard_availability", "%{day} availability updated",
-            day: AvailabilityActions.day_name(day)
-          )}}
+          dgettext("dashboard_availability", "%{day} availability updated", day: day_name(day))}}
       )
 
       updated_schedule =
@@ -286,7 +285,7 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
              from_day,
              to_days
            ) do
-      day_names = Enum.map_join(to_days, ", ", &AvailabilityActions.day_name/1)
+      day_names = Enum.map_join(to_days, ", ", &day_name/1)
 
       Flash.info(
         dgettext("dashboard_availability", "Settings copied to %{day_names}",
@@ -311,7 +310,7 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
   def handle_event("show_clear_day_modal", %{"day" => day_str}, socket) do
     case BreakHelpers.parse_day(day_str) do
       {:ok, day} ->
-        day_name = AvailabilityActions.day_name(day)
+        day_name = day_name(day)
 
         {:noreply,
          socket
@@ -417,11 +416,7 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
   defp handle_update_day_hours_result(day, result, socket) do
     case result do
       {:ok, _updated} ->
-        Flash.info(
-          dgettext("dashboard_availability", "%{day} hours updated",
-            day: AvailabilityActions.day_name(day)
-          )
-        )
+        Flash.info(dgettext("dashboard_availability", "%{day} hours updated", day: day_name(day)))
 
         send(self(), {:reload_schedule})
 
@@ -473,6 +468,9 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
   defp schedule_id(socket), do: socket.assigns.selected_schedule.id
   defp profile_id(socket), do: socket.assigns.profile.id
 
+  defp day_name(day),
+    do: LocaleFormat.format_weekday_name(day, Gettext.get_locale(TymeslotWeb.Gettext), :full)
+
   defp check_rate_limit(socket, limit) do
     case RateLimiter.check(limit, schedule_id(socket)) do
       :ok ->
@@ -506,7 +504,7 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
         <%= for day_availability <- @weekly_schedule do %>
           <DayCardComponent.day_card
             day_availability={day_availability}
-            day_name={AvailabilityActions.day_name(day_availability.day_of_week)}
+            day_name={day_name(day_availability.day_of_week)}
             break_duration_presets={@break_duration_presets}
             form_errors={@form_errors}
             hours_errors={@hours_errors}

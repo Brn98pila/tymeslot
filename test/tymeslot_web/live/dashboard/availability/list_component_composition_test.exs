@@ -69,6 +69,7 @@ defmodule TymeslotWeb.Live.Dashboard.Availability.ListComponentCompositionTest d
   import Tymeslot.DashboardTestHelpers
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
   alias Tymeslot.Availability.AvailabilityBreakSchema
   alias Tymeslot.Availability.WeeklySchedule
   alias Tymeslot.Repo
@@ -242,6 +243,24 @@ defmodule TymeslotWeb.Live.Dashboard.Availability.ListComponentCompositionTest d
       assert html =~ "This break overlaps an existing break"
 
       assert [%{label: "Lunch"}] = breaks_for_day(day.id)
+    end
+  end
+
+  describe "day names" do
+    # The day labels and the messages naming a day come from the locale, not
+    # an English lookup.
+    test "are shown in the host's language", %{conn: conn, user: user} do
+      user |> Changeset.change(locale: "de") |> Repo.update!()
+
+      {:ok, view, html} = live(conn, ~p"/dashboard/availability")
+      assert html =~ "Montag"
+      refute html =~ "Monday"
+
+      view
+      |> element("button[phx-click='toggle_day_available'][phx-value-day='1']")
+      |> render_click()
+
+      assert render(view) =~ "Verfügbarkeit für Montag aktualisiert"
     end
   end
 end

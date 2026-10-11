@@ -173,19 +173,6 @@ defmodule Tymeslot.Availability.AvailabilityActions do
     Enum.find(schedule, &(&1.day_of_week == day))
   end
 
-  @doc """
-  Gets the display name for a day of the week.
-  """
-  @spec day_name(integer()) :: String.t()
-  def day_name(1), do: "Monday"
-  def day_name(2), do: "Tuesday"
-  def day_name(3), do: "Wednesday"
-  def day_name(4), do: "Thursday"
-  def day_name(5), do: "Friday"
-  def day_name(6), do: "Saturday"
-  def day_name(7), do: "Sunday"
-  def day_name(_day), do: "Unknown"
-
   # Private Helper Functions
 
   # Runs `fun` only for a schedule the profile owns, then refreshes that

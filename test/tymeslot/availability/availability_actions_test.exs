@@ -551,25 +551,6 @@ defmodule Tymeslot.Availability.AvailabilityActionsTest do
     end
   end
 
-  describe "when getting day names" do
-    test "returns correct name for each day" do
-      assert AvailabilityActions.day_name(1) == "Monday"
-      assert AvailabilityActions.day_name(2) == "Tuesday"
-      assert AvailabilityActions.day_name(3) == "Wednesday"
-      assert AvailabilityActions.day_name(4) == "Thursday"
-      assert AvailabilityActions.day_name(5) == "Friday"
-      assert AvailabilityActions.day_name(6) == "Saturday"
-      assert AvailabilityActions.day_name(7) == "Sunday"
-    end
-  end
-
-  describe "when getting day name for invalid day" do
-    test "returns Unknown for out-of-range day" do
-      assert AvailabilityActions.day_name(0) == "Unknown"
-      assert AvailabilityActions.day_name(8) == "Unknown"
-    end
-  end
-
   defp breaks_for_day(day_id),
     do: Repo.all_by(AvailabilityBreakSchema, weekly_availability_id: day_id)
 end
