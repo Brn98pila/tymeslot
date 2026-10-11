@@ -12,10 +12,10 @@ defmodule Tymeslot.Availability.Schedules do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Availability
-  alias Tymeslot.Availability.AvailabilityBreakQueries
   alias Tymeslot.Availability.AvailabilityOverrideQueries
   alias Tymeslot.Availability.AvailabilityScheduleQueries
   alias Tymeslot.Availability.AvailabilityScheduleSchema
+  alias Tymeslot.Availability.Breaks
   alias Tymeslot.Availability.WeeklyAvailabilityQueries
   alias Tymeslot.Profiles
   alias Tymeslot.Profiles.ProfileQueries
@@ -412,23 +412,10 @@ defmodule Tymeslot.Availability.Schedules do
           ends_next_day: day.ends_next_day
         })
 
-      copy_breaks(day.breaks, copy.id)
+      with {:error, changeset} <- Breaks.replace_breaks(copy, day.breaks || []),
+           do: Repo.rollback(changeset)
     end)
   end
-
-  defp copy_breaks(breaks, weekly_availability_id) when is_list(breaks) do
-    Enum.each(breaks, fn break ->
-      AvailabilityBreakQueries.create_break(%{
-        weekly_availability_id: weekly_availability_id,
-        start_time: break.start_time,
-        end_time: break.end_time,
-        label: break.label,
-        sort_order: break.sort_order
-      })
-    end)
-  end
-
-  defp copy_breaks(_breaks, _weekly_availability_id), do: :ok
 
   # The UI submits string-keyed params while internal callers use atoms; the
   # merges above need one consistent key type.

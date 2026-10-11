@@ -216,7 +216,7 @@ defmodule TymeslotWeb.Dashboard.ScheduleSettingsComponent do
     |> assign(:selected_schedule, selected)
     |> assign(:selected_schedule_id, selected && selected.id)
     |> assign(:meeting_type_names, meeting_type_names_for(selected))
-    |> assign(:weekly_schedule, weekly_schedule_for(selected))
+    |> assign(:weekly_schedule, weekly_schedule_for(socket.assigns.profile.id, selected))
     |> assign(:saving, false)
   end
 
@@ -250,12 +250,11 @@ defmodule TymeslotWeb.Dashboard.ScheduleSettingsComponent do
   defp pick_selected([first | _rest] = schedules, id),
     do: Enum.find(schedules, first, &(&1.id == id))
 
-  defp weekly_schedule_for(nil), do: []
+  defp weekly_schedule_for(_profile_id, nil), do: []
 
-  defp weekly_schedule_for(schedule) do
-    schedule.id
-    |> WeeklySchedule.get_weekly_schedule()
-    |> AvailabilityActions.ensure_complete_schedule(schedule.id)
+  defp weekly_schedule_for(profile_id, schedule) do
+    weekly_schedule = WeeklySchedule.get_weekly_schedule(schedule.id)
+    AvailabilityActions.ensure_complete_schedule(profile_id, weekly_schedule, schedule.id)
   end
 
   defp close_menu(socket), do: assign(socket, :schedule_menu_open, false)

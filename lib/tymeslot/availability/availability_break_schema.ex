@@ -5,7 +5,6 @@ defmodule Tymeslot.Availability.AvailabilityBreakSchema do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Tymeslot.Availability.AvailabilityBreakQueries
   alias Tymeslot.Availability.WeeklyAvailabilitySchema
   alias Tymeslot.Availability.Window
   alias Tymeslot.ChangesetValidators.TimeOrder
@@ -35,9 +34,10 @@ defmodule Tymeslot.Availability.AvailabilityBreakSchema do
   end
 
   @doc false
-  # `work_hours:` passes the day's hours (as `AvailabilityBreakQueries.get_work_hours/1`
-  # returns them) when the caller has already read them; otherwise they are
-  # read here.
+  # `work_hours:` passes the day's hours (`start_time`, `end_time`,
+  # `ends_next_day`); `Tymeslot.Availability.Breaks` reads them and owns the
+  # within-hours rule. Without them only the order of start and end is checked,
+  # so the changeset itself never queries.
   @spec changeset(t(), map(), keyword()) :: Ecto.Changeset.t()
   def changeset(break, attrs, opts \\ []) do
     break
@@ -53,13 +53,9 @@ defmodule Tymeslot.Availability.AvailabilityBreakSchema do
   # an overnight window the order is read through midnight, so 23:30 to 00:30
   # is a valid break.
   defp validate_against_window(changeset, opts) do
-    with id when is_integer(id) <- get_field(changeset, :weekly_availability_id),
-         %Time{} = start_time <- get_field(changeset, :start_time),
+    with %Time{} = start_time <- get_field(changeset, :start_time),
          %Time{} = end_time <- get_field(changeset, :end_time),
-         %{start_time: %Time{}, end_time: %Time{}} = window <-
-           Keyword.get_lazy(opts, :work_hours, fn ->
-             AvailabilityBreakQueries.get_work_hours(id)
-           end) do
+         %{start_time: %Time{}, end_time: %Time{}} = window <- Keyword.get(opts, :work_hours) do
       {from, to} = Window.break_offsets(window, start_time, end_time)
       span = Window.span_seconds(window)
 

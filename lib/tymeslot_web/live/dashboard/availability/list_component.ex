@@ -55,6 +55,7 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
            AvailabilityActions.get_day_from_schedule(socket.assigns.weekly_schedule, day),
          {:ok, updated_day} <-
            AvailabilityActions.toggle_day_availability(
+             profile_id(socket),
              schedule_id(socket),
              day,
              current_availability.is_available
@@ -139,8 +140,9 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
              %{"start" => start_str, "end" => end_str, "label" => label},
              metadata: metadata
            ) do
-      day_availability.id
+      profile_id(socket)
       |> AvailabilityActions.add_break(
+        day_availability.id,
         sanitized_params["start"],
         sanitized_params["end"],
         sanitized_params["label"]
@@ -208,7 +210,11 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
 
   def handle_event("confirm_delete_break", _params, socket) do
     ModalHook.with_modal_data(socket, :delete_break, fn break_data ->
-      case AvailabilityActions.delete_break(break_data.id, schedule_id(socket)) do
+      case AvailabilityActions.delete_break(
+             profile_id(socket),
+             break_data.id,
+             schedule_id(socket)
+           ) do
         {:ok, _break} ->
           Flash.info(dgettext("dashboard_availability", "Break deleted"))
           send(self(), {:reload_schedule})
@@ -240,8 +246,12 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
            ) do
       duration = String.to_integer(sanitized_params["duration"])
 
-      day_availability.id
-      |> AvailabilityActions.add_quick_break(sanitized_params["start"], duration)
+      profile_id(socket)
+      |> AvailabilityActions.add_quick_break(
+        day_availability.id,
+        sanitized_params["start"],
+        duration
+      )
       |> handle_break_result(socket, dgettext("dashboard_availability", "Quick break added"))
     else
       nil ->
@@ -270,7 +280,12 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
          {:ok, to_days} <-
            AvailabilityInputValidation.validate_day_selections(to_days_str, metadata: metadata),
          {:ok, _result} <-
-           AvailabilityActions.copy_day_settings(schedule_id(socket), from_day, to_days) do
+           AvailabilityActions.copy_day_settings(
+             profile_id(socket),
+             schedule_id(socket),
+             from_day,
+             to_days
+           ) do
       day_names = Enum.map_join(to_days, ", ", &AvailabilityActions.day_name/1)
 
       Flash.info(
@@ -311,7 +326,11 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
 
   def handle_event("confirm_clear_day", _params, socket) do
     ModalHook.with_modal_data(socket, :clear_day, fn day_data ->
-      case AvailabilityActions.clear_day_settings(schedule_id(socket), day_data.day) do
+      case AvailabilityActions.clear_day_settings(
+             profile_id(socket),
+             schedule_id(socket),
+             day_data.day
+           ) do
         {:ok, _result} ->
           Flash.info(
             dgettext("dashboard_availability", "%{day_name} settings cleared",
@@ -342,6 +361,7 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
            AvailabilityInputValidation.validate_day_hours(strings, metadata: metadata),
          result <-
            AvailabilityActions.update_day_hours(
+             profile_id(socket),
              schedule_id(socket),
              day,
              sanitized_params["start"],
@@ -451,6 +471,7 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
 
   # Small helpers to reduce duplication
   defp schedule_id(socket), do: socket.assigns.selected_schedule.id
+  defp profile_id(socket), do: socket.assigns.profile.id
 
   defp check_rate_limit(socket, limit) do
     case RateLimiter.check(limit, schedule_id(socket)) do

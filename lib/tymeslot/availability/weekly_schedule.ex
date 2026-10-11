@@ -3,6 +3,7 @@ defmodule Tymeslot.Availability.WeeklySchedule do
   Context for managing weekly availability schedules.
   """
 
+  alias Tymeslot.Availability.Breaks
   alias Tymeslot.Availability.WeeklyAvailabilityQueries
   alias Tymeslot.Availability.WeeklyAvailabilitySchema
   alias Tymeslot.Repo
@@ -85,18 +86,12 @@ defmodule Tymeslot.Availability.WeeklySchedule do
       ends_next_day: source.ends_next_day
     }
 
-    case upsert_day_availability(schedule_id, to_day, attrs) do
-      {:ok, target_availability} ->
-        # Copy breaks
-        copy_breaks(source.breaks, target_availability.id)
-
-      {:error, _changeset} = error ->
-        Repo.rollback(error)
+    with {:ok, target_availability} <- upsert_day_availability(schedule_id, to_day, attrs),
+         :ok <- Breaks.replace_breaks(target_availability, source.breaks) do
+      :ok
+    else
+      {:error, _changeset} = error -> Repo.rollback(error)
     end
-  end
-
-  defp copy_breaks(breaks, target_weekly_availability_id) do
-    WeeklyAvailabilityQueries.replace_breaks(target_weekly_availability_id, breaks)
   end
 
   @doc """
