@@ -217,6 +217,8 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries do
     # command, so we keep the last entry per (calendar_integration_id, uid).
     count =
       events_attrs
+      # `all_day` is optional to callers, as the column's default is false.
+      |> Enum.map(&Map.put_new(&1, :all_day, false))
       |> Enum.filter(&timing_valid?/1)
       |> Enum.map(fn attrs ->
         attrs

@@ -61,6 +61,31 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventTimingTest do
 
       assert {:error, :not_found} = ProviderCalendarEventQueries.get_by_uid(i.id, half.uid)
     end
+
+    # Some all-day writers also carry the instants their dates came from; the
+    # dates are what an all-day row is placed by, so the row is kept.
+    test "stores an all-day row whose start and end instants are also set", %{integration: i} do
+      row =
+        timed_attrs(i, %{
+          all_day: true,
+          start_date: ~D[2027-02-22],
+          end_date: ~D[2027-02-23]
+        })
+
+      assert {:ok, 1} = ProviderCalendarEventQueries.upsert_batch([row])
+      assert {:ok, %{all_day: true}} = ProviderCalendarEventQueries.get_by_uid(i.id, row.uid)
+    end
+  end
+
+  test "the dashboard's create path caches a timed event that leaves out all_day", %{
+    integration: i
+  } do
+    row = Map.delete(timed_attrs(i, %{}), :all_day)
+
+    CalendarGrid.cache_created_event(row)
+
+    assert {:ok, %{all_day: false, end_at: %DateTime{}}} =
+             ProviderCalendarEventQueries.get_by_uid(i.id, row.uid)
   end
 
   test "the dashboard's create path does not cache an event without an end", %{integration: i} do
