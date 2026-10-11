@@ -93,21 +93,28 @@ defmodule Tymeslot.Migrations.DirtySeedMigrationTest do
       Keyword.merge(suite_config,
         database: "#{suite_config[:database]}_dirty_seed",
         pool: DBConnection.ConnectionPool,
-        pool_size: 2
+        pool_size: 2,
+        # Drops it even if a session is still attached.
+        force_drop: true
       )
 
-    :ok = Supervisor.terminate_child(Tymeslot.Supervisor, Oban)
-
+    # Registered before anything it undoes, and the suite is restored before
+    # the scratch database is dropped: dropping is the one step that may fail,
+    # and failing must not leave Oban down or the sandbox out of manual mode.
     on_exit(fn ->
       restart_repo!(suite_config)
-      drop_scratch!(scratch_config)
-      {:ok, _oban} = Supervisor.restart_child(Tymeslot.Supervisor, Oban)
+      restart_oban()
 
       # `test_helper.exs` puts the sandbox in manual mode once, at boot.
       # Restarting the repo resets the pool to its default mode, so put it back
       # before the next test module tries to check a connection out.
       Sandbox.mode(Tymeslot.Repo, :manual)
+
+      # Left behind, the next run drops it before it starts.
+      _dropped = Postgres.storage_down(scratch_config)
     end)
+
+    :ok = Supervisor.terminate_child(Tymeslot.Supervisor, Oban)
 
     # A run killed part-way leaves its scratch database behind; start clean.
     drop_scratch!(scratch_config)
@@ -466,6 +473,14 @@ defmodule Tymeslot.Migrations.DirtySeedMigrationTest do
     :ok = Supervisor.terminate_child(Tymeslot.Supervisor, Tymeslot.Repo)
     Application.put_env(:tymeslot, Tymeslot.Repo, config)
     {:ok, _repo} = Supervisor.restart_child(Tymeslot.Supervisor, Tymeslot.Repo)
+  end
+
+  # Already running when the test was killed before it stopped Oban.
+  defp restart_oban do
+    case Supervisor.restart_child(Tymeslot.Supervisor, Oban) do
+      {:ok, _oban} -> :ok
+      {:error, :running} -> :ok
+    end
   end
 
   defp drop_scratch!(config) do
