@@ -331,6 +331,30 @@ defmodule Tymeslot.Integrations.Calendar.ICalParserTest do
       assert event.end_time == event.start_time
     end
 
+    test "keeps an hour for an unreadable DURATION, and says it did" do
+      ical_content = """
+      BEGIN:VCALENDAR
+      VERSION:2.0
+      BEGIN:VEVENT
+      UID:odd-duration@example.com
+      DTSTART:20300115T100000Z
+      DURATION:about an hour
+      END:VEVENT
+      BEGIN:VEVENT
+      UID:read-duration@example.com
+      DTSTART:20300115T100000Z
+      DURATION:PT30M
+      END:VEVENT
+      END:VCALENDAR
+      """
+
+      assert {:ok, [odd, read]} = ICalParser.parse(ical_content)
+      assert odd.end_time == ~U[2030-01-15 11:00:00Z]
+      assert odd.duration_defaulted
+      assert read.end_time == ~U[2030-01-15 10:30:00Z]
+      refute read.duration_defaulted
+    end
+
     # The same section: a DATE DTSTART with neither takes up that day.
     test "gives an all-day event one day when neither DTEND nor DURATION is given" do
       ical_content = """

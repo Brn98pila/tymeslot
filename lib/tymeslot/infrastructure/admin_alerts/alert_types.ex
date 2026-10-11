@@ -471,8 +471,11 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     integration_id = Map.get(metadata, :calendar_integration_id, "unknown")
     samples = Map.get(metadata, :sample_events, "unknown")
 
-    "#{count} invalid #{provider} calendar event(s) skipped for integration #{integration_id} " <>
-      "(most common reason: #{reason_text(metadata)}). First skipped: #{samples}"
+    summary =
+      Map.get(metadata, :summary, "#{count} invalid #{provider} calendar event(s) skipped")
+
+    "#{summary} for integration #{integration_id} " <>
+      "(most common reason: #{reason_text(metadata)}). First affected: #{samples}"
   end
 
   def format_message(:invalid_calendar_event, metadata) do

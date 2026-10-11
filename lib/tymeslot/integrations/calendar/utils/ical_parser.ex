@@ -117,9 +117,11 @@ defmodule Tymeslot.Integrations.Calendar.ICalParser do
 
     start_time = parse_datetime_property(dtstart, vtimezones)
 
-    end_time =
-      parse_datetime_property(dtend, vtimezones) ||
-        calculate_end_time(start_time, extract_property(lines, "DURATION"))
+    {end_time, duration_defaulted} =
+      case parse_datetime_property(dtend, vtimezones) do
+        nil -> calculate_end_time(start_time, extract_property(lines, "DURATION"))
+        dtend_time -> {dtend_time, false}
+      end
 
     if uid && start_time do
       %{
@@ -140,6 +142,10 @@ defmodule Tymeslot.Integrations.Calendar.ICalParser do
         exdates: exdates,
         start_time: start_time,
         end_time: end_time,
+        # A DURATION that could not be read, so `end_time` is the default
+        # length instead: an hour for a timed event, a day for an all-day one.
+        # The normaliser reports it, as it reports the events it skips.
+        duration_defaulted: duration_defaulted,
         # The DTSTART TZID as written on the wire, already sanitised to an IANA
         # name. `start_time`/`end_time` above are converted to UTC, which throws
         # the zone away — recurring events need it back to expand occurrences in
@@ -396,19 +402,21 @@ defmodule Tymeslot.Integrations.Calendar.ICalParser do
     end
   end
 
-  defp calculate_end_time(nil, _duration), do: nil
+  # The end an event's DTSTART and DURATION give when it has no DTEND, and
+  # whether DURATION was unreadable so the default length stands in for it.
+  defp calculate_end_time(nil, _duration), do: {nil, false}
 
   # RFC 5545 §3.6.1: with neither DTEND nor DURATION, a DATE-TIME DTSTART
   # ends where it starts, and a DATE one takes up that whole day.
-  defp calculate_end_time(%DateTime{} = start_time, nil), do: start_time
+  defp calculate_end_time(%DateTime{} = start_time, nil), do: {start_time, false}
 
-  defp calculate_end_time(%Date{} = start_time, nil), do: Date.add(start_time, 1)
+  defp calculate_end_time(%Date{} = start_time, nil), do: {Date.add(start_time, 1), false}
 
   defp calculate_end_time(%DateTime{} = start_time, duration_str) do
     # Parse ISO 8601 duration (simplified - only handles basic cases)
     case Duration.parse(duration_str) do
-      {:ok, seconds} -> DateTime.add(start_time, seconds, :second)
-      {:error, _reason} -> DateTime.add(start_time, 3600, :second)
+      {:ok, seconds} -> {DateTime.add(start_time, seconds, :second), false}
+      {:error, _reason} -> {DateTime.add(start_time, 3600, :second), true}
     end
   end
 
@@ -419,11 +427,11 @@ defmodule Tymeslot.Integrations.Calendar.ICalParser do
       {:ok, seconds} ->
         # Convert seconds to days, rounding up to at least 1 day
         days = div(seconds, 86_400)
-        Date.add(start_time, max(days, 1))
+        {Date.add(start_time, max(days, 1)), false}
 
       {:error, _reason} ->
         # Fallback to 1 day
-        Date.add(start_time, 1)
+        {Date.add(start_time, 1), true}
     end
   end
 

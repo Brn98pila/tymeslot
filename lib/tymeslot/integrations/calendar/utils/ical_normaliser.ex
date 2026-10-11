@@ -24,12 +24,16 @@ defmodule Tymeslot.Integrations.Calendar.ICalNormaliser do
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Utils.MapKeys
 
+  @duration_defaulted "unreadable DURATION, kept with the default length"
+
   @doc """
   Expands and normalises `raw_events` into `CalendarEvent` structs.
 
   Events that fail validation are skipped, logged, and recorded with
   `InvalidEventReport`, so one malformed entry never costs a whole sync and the
-  sync run raises one operator alert for all of them.
+  sync run raises one operator alert for all of them. An event whose DURATION
+  could not be read is kept with the parser's default length, and logged and
+  recorded the same way.
   """
   @spec normalise_events([map()], map(), atom()) :: {:ok, [CalendarEvent.t()]}
   def normalise_events(raw_events, context, provider) do
@@ -37,6 +41,10 @@ defmodule Tymeslot.Integrations.Calendar.ICalNormaliser do
     # reads, so a stored occurrence never falls outside the range the
     # calendar grid and availability checks read back.
     {range_start, range_end} = Sync.window()
+
+    raw_events
+    |> Enum.filter(&(&1[:duration_defaulted] == true))
+    |> Enum.each(&record_default(&1, context, provider))
 
     events =
       raw_events
@@ -65,6 +73,18 @@ defmodule Tymeslot.Integrations.Calendar.ICalNormaliser do
     )
 
     InvalidEventReport.record(provider, context, raw[:uid], reason)
+  end
+
+  # Recorded once per VEVENT, before a series is expanded into occurrences.
+  defp record_default(raw, context, provider) do
+    Logger.warning("Calendar event kept with a default duration",
+      provider: provider,
+      reason: @duration_defaulted,
+      event_uid: raw[:uid],
+      calendar_integration_id: context.calendar_integration_id
+    )
+
+    InvalidEventReport.record_default(provider, context, raw[:uid], @duration_defaulted)
   end
 
   @doc """
@@ -269,7 +289,8 @@ defmodule Tymeslot.Integrations.Calendar.ICalNormaliser do
             :_occ_start,
             :_occ_end,
             :_recurring,
-            :_uid_suffix
+            :_uid_suffix,
+            :duration_defaulted
           ]),
         raw_ical: raw[:raw_ical],
         created_by_tymeslot: tymeslot_origin?(raw)
