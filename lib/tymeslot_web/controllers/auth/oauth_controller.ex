@@ -12,12 +12,12 @@ defmodule TymeslotWeb.OAuthController do
   alias Tymeslot.Auth.OAuth.Providers
   alias Tymeslot.Infrastructure.Config
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Security.RedirectPath
   alias TymeslotWeb.AuthControllerHelpers
   alias TymeslotWeb.EmailLinkConfirmHTML
-  alias Tymeslot.Security.RedirectPath
   alias TymeslotWeb.Helpers.ClientIP
-  alias TymeslotWeb.Plugs.ReturnTo
   alias TymeslotWeb.OAuthFlow
+  alias TymeslotWeb.Plugs.ReturnTo
 
   @type provider :: Providers.provider()
 
