@@ -398,9 +398,9 @@ defmodule Tymeslot.Integrations.Calendar.ICalParser do
 
   defp calculate_end_time(nil, _duration), do: nil
 
-  # Default 1 hour for DateTime, 1 day for Date
-  defp calculate_end_time(%DateTime{} = start_time, nil),
-    do: DateTime.add(start_time, 3600, :second)
+  # RFC 5545 §3.6.1: with neither DTEND nor DURATION, a DATE-TIME DTSTART
+  # ends where it starts, and a DATE one takes up that whole day.
+  defp calculate_end_time(%DateTime{} = start_time, nil), do: start_time
 
   defp calculate_end_time(%Date{} = start_time, nil), do: Date.add(start_time, 1)
 

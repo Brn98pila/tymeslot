@@ -385,6 +385,9 @@ defmodule Tymeslot.Integrations.Calendar.ICalNormaliser do
 
   defp end_datetime(other, _timezone), do: other
 
+  # A moment at midnight (DTSTART with no end) is not a whole day.
+  defp radicale_all_day?(same, same), do: false
+
   defp radicale_all_day?(
          %DateTime{hour: 0, minute: 0, second: 0, time_zone: "Etc/UTC"},
          %DateTime{hour: 0, minute: 0, second: 0, time_zone: "Etc/UTC"}

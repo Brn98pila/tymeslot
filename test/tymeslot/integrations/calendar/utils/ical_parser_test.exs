@@ -312,31 +312,41 @@ defmodule Tymeslot.Integrations.Calendar.ICalParserTest do
       assert duration_seconds == 3600
     end
 
-    test "defaults to 1 hour when neither DTEND nor DURATION provided" do
-      future_time = DateTime.add(DateTime.utc_now(), 86_400, :second)
-
-      future_start =
-        DateTime.to_iso8601(future_time)
-        |> String.replace(~r/[-:]/, "")
-        |> String.replace("Z", "Z")
-
+    # RFC 5545 §3.6.1: a DATE-TIME DTSTART with neither DTEND nor DURATION
+    # ends where it starts.
+    test "ends a timed event at its start when neither DTEND nor DURATION is given" do
       ical_content = """
       BEGIN:VCALENDAR
       VERSION:2.0
       BEGIN:VEVENT
       UID:test@example.com
-      DTSTART:#{future_start}
+      DTSTART:20300115T101500Z
       SUMMARY:Event Without End
       END:VEVENT
       END:VCALENDAR
       """
 
       assert {:ok, [event]} = ICalParser.parse(ical_content)
-      assert %DateTime{} = event.end_time
+      assert event.start_time == ~U[2030-01-15 10:15:00Z]
+      assert event.end_time == event.start_time
+    end
 
-      # Should default to 1 hour duration
-      duration_seconds = DateTime.diff(event.end_time, event.start_time)
-      assert duration_seconds == 3600
+    # The same section: a DATE DTSTART with neither takes up that day.
+    test "gives an all-day event one day when neither DTEND nor DURATION is given" do
+      ical_content = """
+      BEGIN:VCALENDAR
+      VERSION:2.0
+      BEGIN:VEVENT
+      UID:allday-no-end@example.com
+      DTSTART;VALUE=DATE:20300115
+      SUMMARY:Day Without End
+      END:VEVENT
+      END:VCALENDAR
+      """
+
+      assert {:ok, [event]} = ICalParser.parse(ical_content)
+      assert event.start_time == ~D[2030-01-15]
+      assert event.end_time == ~D[2030-01-16]
     end
 
     test "handles all-day events (DATE format)" do

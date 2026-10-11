@@ -210,6 +210,23 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.EventProcessorTest do
       assert event.end_at == nil
     end
 
+    # A DATE-TIME DTSTART with no end ends where it starts (RFC 5545 §3.6.1),
+    # so a moment at midnight UTC has a midnight end too; it is not a day.
+    test "keeps a moment at midnight UTC a timed event" do
+      raw = %{
+        uid: "midnight-moment@example.com",
+        summary: "Deadline",
+        dtstart: ~U[2030-03-15 00:00:00Z],
+        dtend: ~U[2030-03-15 00:00:00Z]
+      }
+
+      assert {:ok, [%CalendarEvent{} = event]} = EventProcessor.normalise_events([raw], @context)
+
+      assert event.all_day == false
+      assert event.start_at == ~U[2030-03-15 00:00:00Z]
+      assert event.end_at == ~U[2030-03-15 00:00:00Z]
+    end
+
     test "all-day event with only DTSTART and no DTEND defaults end_date to start_date + 1" do
       # RFC 5545 §3.8.2.2 — DTEND is optional for DATE-valued events; the
       # default duration is P1D (one calendar day).
