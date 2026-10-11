@@ -14,7 +14,7 @@ defmodule Tymeslot.Workers.AccountFilesPurgeWorker do
   use Oban.Worker,
     queue: :maintenance,
     max_attempts: 5,
-    unique: [keys: [:profile_id], states: :incomplete]
+    unique: [period: :infinity, keys: [:profile_id], states: :incomplete]
 
   require Logger
 
@@ -44,9 +44,17 @@ defmodule Tymeslot.Workers.AccountFilesPurgeWorker do
     if failures == [], do: :ok, else: {:error, failures}
   end
 
-  @doc "Queues another attempt at `purge/1` for a deleted profile."
+  @doc """
+  Queues another attempt at `purge/1` for a deleted profile. A database
+  failure is returned rather than raised: the account is already deleted, and
+  the caller alerts the operator instead.
+  """
   @spec enqueue(pos_integer()) :: {:ok, Oban.Job.t()} | {:error, term()}
-  def enqueue(profile_id), do: %{profile_id: profile_id} |> new() |> Oban.insert()
+  def enqueue(profile_id) do
+    %{profile_id: profile_id} |> new() |> Oban.insert()
+  rescue
+    error in [DBConnection.ConnectionError, Postgrex.Error] -> {:error, error}
+  end
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"profile_id" => profile_id}} = job) do
