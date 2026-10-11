@@ -61,7 +61,7 @@ defmodule Tymeslot.Profiles.Settings do
       timezone: timezone
     }
 
-    Profiles.update_profile(profile, attrs)
+    Profiles.update_basic_details(profile, attrs)
   end
 
   @doc """

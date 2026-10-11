@@ -27,8 +27,11 @@ defmodule Tymeslot.Profiles.Scheduling do
   def update_booking_limit(%ProfileSchema{} = profile, field, value)
       when field in @booking_limit_fields do
     case parse_booking_limit(value) do
-      {:ok, limit} -> profile |> ProfileQueries.update_profile(%{field => limit}) |> changed()
-      :error -> {:error, :invalid_booking_limit}
+      {:ok, limit} ->
+        profile |> ProfileQueries.update_booking_limits(%{field => limit}) |> changed()
+
+      :error ->
+        {:error, :invalid_booking_limit}
     end
   end
 

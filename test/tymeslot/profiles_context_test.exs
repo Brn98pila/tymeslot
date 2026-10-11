@@ -92,16 +92,14 @@ defmodule Tymeslot.ProfilesContextTest do
       assert settings.max_bookings_per_month == 40
     end
 
-    test "update_profile updates multiple fields", %{profile: profile} do
-      attrs = %{
-        timezone: "Asia/Tokyo",
-        max_bookings_per_day: 5,
-        full_name: "Test User"
-      }
+    test "basic details and booking limits update together", %{profile: profile} do
+      attrs = %{timezone: "Asia/Tokyo", full_name: "Test User"}
+      assert {:ok, profile} = Profiles.update_basic_details(profile, attrs)
 
-      assert {:ok, updated} = Profiles.update_profile(profile, attrs)
-      assert updated.timezone == "Asia/Tokyo"
-      assert updated.max_bookings_per_day == 5
+      assert {:ok, updated} =
+               ProfileQueries.update_booking_limits(profile, %{max_bookings_per_day: 5})
+
+      assert {updated.timezone, updated.max_bookings_per_day} == {"Asia/Tokyo", 5}
       assert updated.full_name == "Test User"
     end
   end
@@ -639,9 +637,13 @@ defmodule Tymeslot.ProfilesContextTest do
     end
   end
 
-  # Helper to update settings directly in DB for testing retrieval
   defp update_profile_settings(user_id, attrs) do
     {:ok, profile} = ProfileQueries.get_by_user_id(user_id)
-    ProfileQueries.update_profile(profile, attrs)
+
+    limit_keys = [:max_bookings_per_day, :max_bookings_per_week, :max_bookings_per_month]
+    {limits, basic} = Map.split(attrs, limit_keys)
+
+    with {:ok, profile} <- ProfileQueries.update_basic(profile, basic),
+         do: ProfileQueries.update_booking_limits(profile, limits)
   end
 end

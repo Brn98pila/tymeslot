@@ -24,7 +24,7 @@ defmodule TymeslotWeb.Themes.Rhythm.PaymentProcessingTest do
   setup do
     user = insert(:user)
     {:ok, profile} = Profiles.get_or_create_profile(user.id)
-    {:ok, profile} = Profiles.update_profile(profile, %{booking_theme: "2"})
+    {:ok, profile} = Profiles.update_booking_theme(profile, "2")
     %{user: user, profile: profile}
   end
 
@@ -329,7 +329,7 @@ defmodule TymeslotWeb.Themes.Rhythm.PaymentProcessingTest do
 
   test "rejects request when host uses Quill (theme mismatch)", %{conn: conn, user: user} do
     {:ok, profile} = Profiles.get_profile_by_user_id(user.id)
-    {:ok, _profile} = Profiles.update_profile(profile, %{booking_theme: "1"})
+    {:ok, _profile} = Profiles.update_booking_theme(profile, "1")
 
     meeting = insert(:meeting, organizer_user_id: user.id, status: "awaiting_payment")
 

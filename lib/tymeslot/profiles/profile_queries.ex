@@ -77,16 +77,38 @@ defmodule Tymeslot.Profiles.ProfileQueries do
     end
   end
 
-  @doc """
-  Updates a profile.
-  """
-  @spec update_profile(ProfileSchema.t(), map()) ::
+  @doc "Updates the host's name, username or time zone."
+  @spec update_basic(ProfileSchema.t(), map()) ::
           {:ok, ProfileSchema.t()} | {:error, Ecto.Changeset.t()}
-  def update_profile(%ProfileSchema{} = profile, attrs) do
-    profile
-    |> ProfileSchema.changeset(attrs)
-    |> Repo.update()
-  end
+  def update_basic(%ProfileSchema{} = profile, attrs),
+    do: profile |> ProfileSchema.basic_changeset(attrs) |> Repo.update()
+
+  @doc "Updates the name and avatar together."
+  @spec update_identity(ProfileSchema.t(), map()) ::
+          {:ok, ProfileSchema.t()} | {:error, Ecto.Changeset.t()}
+  def update_identity(%ProfileSchema{} = profile, attrs),
+    do: profile |> ProfileSchema.identity_changeset(attrs) |> Repo.update()
+
+  @doc "Updates the booking theme fields."
+  @spec update_theme(ProfileSchema.t(), map()) ::
+          {:ok, ProfileSchema.t()} | {:error, Ecto.Changeset.t()}
+  def update_theme(%ProfileSchema{} = profile, attrs),
+    do: profile |> ProfileSchema.theme_changeset(attrs) |> Repo.update()
+
+  @doc "Replaces the sites allowed to embed the booking page."
+  @spec update_embed_domains(ProfileSchema.t(), [String.t()]) ::
+          {:ok, ProfileSchema.t()} | {:error, Ecto.Changeset.t()}
+  def update_embed_domains(%ProfileSchema{} = profile, domains),
+    do:
+      profile
+      |> ProfileSchema.embed_domains_changeset(%{allowed_embed_domains: domains})
+      |> Repo.update()
+
+  @doc "Updates the account-wide booking limits."
+  @spec update_booking_limits(ProfileSchema.t(), map()) ::
+          {:ok, ProfileSchema.t()} | {:error, Ecto.Changeset.t()}
+  def update_booking_limits(%ProfileSchema{} = profile, attrs),
+    do: profile |> ProfileSchema.booking_limits_changeset(attrs) |> Repo.update()
 
   @doc """
   Atomically stamps `booking_page_published_at` for a profile, but only when it
@@ -179,9 +201,8 @@ defmodule Tymeslot.Profiles.ProfileQueries do
   """
   @spec update_username(ProfileSchema.t(), String.t()) ::
           {:ok, ProfileSchema.t()} | {:error, Ecto.Changeset.t()}
-  def update_username(%ProfileSchema{} = profile, username) do
-    update_profile(profile, %{username: username})
-  end
+  def update_username(%ProfileSchema{} = profile, username),
+    do: update_basic(profile, %{username: username})
 
   @doc """
   Gets a profile by user ID within a transaction.
@@ -237,8 +258,7 @@ defmodule Tymeslot.Profiles.ProfileQueries do
   @spec update_avatar(ProfileSchema.t(), String.t()) ::
           {:ok, ProfileSchema.t()} | {:error, Ecto.Changeset.t()}
   def update_avatar(%ProfileSchema{} = profile, filename) do
-    changeset = ProfileSchema.changeset(profile, %{avatar: filename})
-    Repo.update(changeset)
+    profile |> ProfileSchema.avatar_changeset(%{avatar: filename}) |> Repo.update()
   end
 
   @doc """
@@ -247,8 +267,7 @@ defmodule Tymeslot.Profiles.ProfileQueries do
   @spec remove_avatar(ProfileSchema.t()) ::
           {:ok, ProfileSchema.t()} | {:error, Ecto.Changeset.t()}
   def remove_avatar(%ProfileSchema{} = profile) do
-    changeset = ProfileSchema.changeset(profile, %{avatar: nil})
-    Repo.update(changeset)
+    profile |> ProfileSchema.avatar_changeset(%{avatar: nil}) |> Repo.update()
   end
 
   @doc """
@@ -273,7 +292,7 @@ defmodule Tymeslot.Profiles.ProfileQueries do
   def set_primary_calendar_integration(user_id, integration_id) do
     case get_by_user_id(user_id) do
       {:ok, profile} ->
-        update_profile(profile, %{primary_calendar_integration_id: integration_id})
+        update_primary_calendar(profile, integration_id)
 
       error ->
         error
@@ -288,11 +307,19 @@ defmodule Tymeslot.Profiles.ProfileQueries do
   def clear_primary_calendar_integration(user_id) do
     case get_by_user_id(user_id) do
       {:ok, profile} ->
-        update_profile(profile, %{primary_calendar_integration_id: nil})
+        update_primary_calendar(profile, nil)
 
       error ->
         error
     end
+  end
+
+  defp update_primary_calendar(profile, integration_id) do
+    profile
+    |> ProfileSchema.primary_calendar_changeset(%{
+      primary_calendar_integration_id: integration_id
+    })
+    |> Repo.update()
   end
 
   # A host whose account waits to be deleted is frozen: every public lookup

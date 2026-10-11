@@ -39,7 +39,7 @@ defmodule TymeslotWeb.Integration.LayoutExtensionTest do
 
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
 
-      ProfileQueries.update_profile(profile, %{
+      ProfileQueries.update_basic(profile, %{
         username: "coreuser",
         full_name: "Core User"
       })
@@ -71,7 +71,7 @@ defmodule TymeslotWeb.Integration.LayoutExtensionTest do
 
       user = create_user_fixture(%{username: "extensionuser"})
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
-      ProfileQueries.update_profile(profile, %{username: "extensionuser"})
+      ProfileQueries.update_basic(profile, %{username: "extensionuser"})
       insert(:calendar_integration, user: user)
 
       # Action
@@ -93,7 +93,7 @@ defmodule TymeslotWeb.Integration.LayoutExtensionTest do
       user = create_user_fixture(%{username: "safetytest"})
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
 
-      ProfileQueries.update_profile(profile, %{
+      ProfileQueries.update_basic(profile, %{
         username: "safetytest",
         full_name: "Safety Test User"
       })
@@ -133,7 +133,7 @@ defmodule TymeslotWeb.Integration.LayoutExtensionTest do
 
       user = create_user_fixture(%{username: "multiext"})
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
-      ProfileQueries.update_profile(profile, %{username: "multiext"})
+      ProfileQueries.update_basic(profile, %{username: "multiext"})
       insert(:calendar_integration, user: user)
 
       # Action
@@ -162,7 +162,7 @@ defmodule TymeslotWeb.Integration.LayoutExtensionTest do
       user = create_user_fixture(%{username: "garbagetest"})
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
 
-      ProfileQueries.update_profile(profile, %{
+      ProfileQueries.update_basic(profile, %{
         username: "garbagetest",
         full_name: "Garbage Test User"
       })

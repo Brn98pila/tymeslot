@@ -188,26 +188,36 @@ defmodule Tymeslot.Profiles do
   # --- Profile Updates ---
 
   @doc """
-  Updates a user's profile settings.
+  Updates the host's name, username and time zone together, as the
+  onboarding form submits them.
   """
-  @spec update_profile(profile, map()) :: result(profile)
-  def update_profile(%ProfileSchema{} = profile, attrs) do
-    case ProfileQueries.update_profile(profile, attrs) do
-      {:ok, updated_profile} = result ->
-        # The timezone is what the booking page lays the host's hours out in.
-        Availability.changed(updated_profile)
+  @spec update_basic_details(profile, map()) :: result(profile)
+  def update_basic_details(%ProfileSchema{} = profile, attrs),
+    do: profile |> ProfileQueries.update_basic(attrs) |> changed()
 
-        Logger.info("Profile updated successfully",
-          user_id: updated_profile.user_id,
-          timezone: updated_profile.timezone
-        )
+  @doc """
+  Sets the name and avatar of an account provisioned with both at once.
+  """
+  @spec provision_identity(profile, %{full_name: String.t(), avatar: String.t() | nil}) ::
+          result(profile)
+  def provision_identity(%ProfileSchema{} = profile, attrs),
+    do: ProfileQueries.update_identity(profile, attrs)
 
-        result
+  @doc """
+  Records whether the profile's booking page carries a theme customisation.
+  """
+  @spec set_custom_theme(profile, boolean()) :: result(profile)
+  def set_custom_theme(%ProfileSchema{} = profile, custom?) when is_boolean(custom?),
+    do: ProfileQueries.update_theme(profile, %{has_custom_theme: custom?})
 
-      error ->
-        error
-    end
+  # The booking page lays the host's hours out in their time zone and hides a
+  # slot past their booking limits, so either change refreshes what it offers.
+  defp changed({:ok, profile} = result) do
+    Availability.changed(profile)
+    result
   end
+
+  defp changed(error), do: error
 
   @doc """
   Updates the booking page's introductory text and its on/off switch.
@@ -221,7 +231,7 @@ defmodule Tymeslot.Profiles do
   """
   @spec update_full_name(profile, String.t()) :: result(profile)
   def update_full_name(%ProfileSchema{} = profile, full_name),
-    do: update_profile(profile, %{full_name: full_name})
+    do: ProfileQueries.update_basic(profile, %{full_name: full_name})
 
   # --- Timezone Management ---
 
@@ -307,7 +317,7 @@ defmodule Tymeslot.Profiles do
   """
   @spec update_timezone(profile, timezone) :: result(profile)
   def update_timezone(%ProfileSchema{} = profile, timezone),
-    do: update_profile(profile, %{timezone: timezone})
+    do: profile |> ProfileQueries.update_basic(%{timezone: timezone}) |> changed()
 
   # --- Username Management ---
 
@@ -576,7 +586,7 @@ defmodule Tymeslot.Profiles do
   @spec update_booking_theme(profile, term()) :: result(profile)
   def update_booking_theme(%ProfileSchema{} = profile, theme_id) do
     if Catalog.valid_id?(to_string(theme_id)),
-      do: update_profile(profile, %{booking_theme: theme_id}),
+      do: ProfileQueries.update_theme(profile, %{booking_theme: theme_id}),
       else: {:error, "Invalid theme ID"}
   end
 
@@ -593,11 +603,8 @@ defmodule Tymeslot.Profiles do
   Updates the allowed embed domains for a profile.
   """
   @spec update_allowed_embed_domains(profile, String.t() | [String.t()]) :: result(profile)
-  def update_allowed_embed_domains(%ProfileSchema{} = profile, domains) do
-    with {:ok, attrs} <- EmbedDomains.validate_and_normalize(profile, domains) do
-      update_profile(profile, attrs)
-    end
-  end
+  def update_allowed_embed_domains(%ProfileSchema{} = profile, domains),
+    do: ProfileQueries.update_embed_domains(profile, EmbedDomains.normalize(domains))
 
   # --- Organizer Context ---
 
