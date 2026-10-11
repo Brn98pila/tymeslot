@@ -34,4 +34,11 @@ defmodule Tymeslot.Integrations.Calendar.BookingEligibility do
   """
   @spec filter_bookable([integration()]) :: [integration()]
   def filter_bookable(integrations), do: Enum.filter(integrations, &bookable?/1)
+
+  @doc """
+  The stored provider names `bookable?/1` refuses, for a query that must
+  leave them out.
+  """
+  @spec unbookable_providers() :: [String.t()]
+  def unbookable_providers, do: ProviderConfig.read_only_provider_strings()
 end

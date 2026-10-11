@@ -19,7 +19,6 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   changes is too: it asks for a sync.
   """
 
-  alias Tymeslot.Dashboard.DashboardContext
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue
@@ -167,16 +166,13 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
 
   @doc """
   Deletes an integration, handing the primary calendar on when it was the
-  primary (see `Tymeslot.Integrations.Calendar.Deletion`), and refreshes the
-  dashboard's integration status.
+  primary (see `Tymeslot.Integrations.Calendar.Deletion`).
   """
   @spec delete_integration(pos_integer(), pos_integer()) ::
           {:ok, term()} | {:error, {:rate_limited, String.t()} | :not_found | term()}
   def delete_integration(user_id, integration_id) do
-    with :ok <- charge(:write, user_id),
-         {:ok, result} <- Deletion.delete_with_primary_reassignment(user_id, integration_id) do
-      DashboardContext.invalidate_integration_status(user_id)
-      {:ok, result}
+    with :ok <- charge(:write, user_id) do
+      Deletion.delete_with_primary_reassignment(user_id, integration_id)
     end
   end
 
