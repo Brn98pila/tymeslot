@@ -49,7 +49,7 @@ defmodule TymeslotWeb.DashboardRoutesTest do
     test "dashboard requires login", %{conn: conn} do
       conn = get(conn, ~p"/dashboard")
 
-      assert redirected_to(conn) == "/auth/login"
+      assert redirected_to(conn) == "/auth/login?redirect_to=%2Fdashboard"
       assert Flash.get(conn.assigns.flash, :error) =~ "You must be logged in"
     end
   end

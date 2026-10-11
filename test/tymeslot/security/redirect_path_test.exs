@@ -1,69 +1,69 @@
-defmodule TymeslotWeb.Helpers.RedirectSanitizerTest do
+defmodule Tymeslot.Security.RedirectPathTest do
   use ExUnit.Case, async: true
   use ExUnitProperties
-  @moduletag :utils
+  @moduletag :security
 
-  alias TymeslotWeb.Helpers.RedirectSanitizer
+  alias Tymeslot.Security.RedirectPath
 
   @default "/fallback"
 
   describe "sanitize/2" do
     test "accepts a simple relative path" do
-      assert RedirectSanitizer.sanitize("/dashboard", @default) == "/dashboard"
+      assert RedirectPath.sanitize("/dashboard", @default) == "/dashboard"
     end
 
     test "accepts a relative path with query string" do
-      assert RedirectSanitizer.sanitize("/dashboard?tab=settings", @default) ==
+      assert RedirectPath.sanitize("/dashboard?tab=settings", @default) ==
                "/dashboard?tab=settings"
     end
 
     test "accepts a relative path with fragment" do
-      assert RedirectSanitizer.sanitize("/page#section", @default) == "/page#section"
+      assert RedirectPath.sanitize("/page#section", @default) == "/page#section"
     end
 
     test "accepts root path" do
-      assert RedirectSanitizer.sanitize("/", @default) == "/"
+      assert RedirectPath.sanitize("/", @default) == "/"
     end
 
     test "returns default for nil" do
-      assert RedirectSanitizer.sanitize(nil, @default) == @default
+      assert RedirectPath.sanitize(nil, @default) == @default
     end
 
     test "returns default for non-string" do
-      assert RedirectSanitizer.sanitize(42, @default) == @default
+      assert RedirectPath.sanitize(42, @default) == @default
     end
 
     test "returns default for absolute URL with scheme" do
-      assert RedirectSanitizer.sanitize("https://evil.com", @default) == @default
+      assert RedirectPath.sanitize("https://evil.com", @default) == @default
     end
 
     test "returns default for path containing scheme separator" do
-      assert RedirectSanitizer.sanitize("/foo://evil.com", @default) == @default
+      assert RedirectPath.sanitize("/foo://evil.com", @default) == @default
     end
 
     test "returns default for protocol-relative URL" do
-      assert RedirectSanitizer.sanitize("//evil.com/path", @default) == @default
+      assert RedirectPath.sanitize("//evil.com/path", @default) == @default
     end
 
     test "returns default for URL-encoded protocol-relative path" do
-      assert RedirectSanitizer.sanitize("/%2Fevil.com", @default) == @default
+      assert RedirectPath.sanitize("/%2Fevil.com", @default) == @default
     end
 
     test "returns default for path with backslash (path confusion)" do
-      assert RedirectSanitizer.sanitize("/\\evil.com", @default) == @default
+      assert RedirectPath.sanitize("/\\evil.com", @default) == @default
     end
 
     test "allows URL-encoded backslash (relative path, same origin after decode)" do
       # /%5Cevil.com decodes to /\evil.com — still a relative path, safe for redirect
-      assert RedirectSanitizer.sanitize("/%5Cevil.com", @default) == "/%5Cevil.com"
+      assert RedirectPath.sanitize("/%5Cevil.com", @default) == "/%5Cevil.com"
     end
 
     test "returns default for empty string" do
-      assert RedirectSanitizer.sanitize("", @default) == @default
+      assert RedirectPath.sanitize("", @default) == @default
     end
 
     test "accepts deeply nested relative path" do
-      assert RedirectSanitizer.sanitize("/a/b/c/d", @default) == "/a/b/c/d"
+      assert RedirectPath.sanitize("/a/b/c/d", @default) == "/a/b/c/d"
     end
   end
 
@@ -76,7 +76,7 @@ defmodule TymeslotWeb.Helpers.RedirectSanitizerTest do
       # Phoenix escapes headers on write, so this is not a header-smuggling
       # vector — but CR/LF must still be rejected, because browsers strip them
       # from the URL before parsing (see the tab/LF/CR tests below).
-      result = RedirectSanitizer.sanitize(path, @default)
+      result = RedirectPath.sanitize(path, @default)
       assert_safe(result)
     end
 
@@ -85,27 +85,27 @@ defmodule TymeslotWeb.Helpers.RedirectSanitizerTest do
     # This is the same class as CVE-2026-64941 in Phoenix LiveView.
     test "returns default for tab/LF/CR smuggled protocol-relative payloads" do
       for c <- ["\t", "\n", "\r"] do
-        assert RedirectSanitizer.sanitize("/#{c}/evil.com", @default) == @default
-        assert RedirectSanitizer.sanitize("/#{c}#{c}evil.com", @default) == @default
-        assert RedirectSanitizer.sanitize("#{c}//evil.com", @default) == @default
+        assert RedirectPath.sanitize("/#{c}/evil.com", @default) == @default
+        assert RedirectPath.sanitize("/#{c}#{c}evil.com", @default) == @default
+        assert RedirectPath.sanitize("#{c}//evil.com", @default) == @default
       end
     end
 
     test "returns default for URL-encoded tab/LF/CR payloads" do
       # A client decoding before stripping rebuilds `//evil.com` from these.
       for c <- ["%09", "%0A", "%0D"] do
-        assert RedirectSanitizer.sanitize("/#{c}/evil.com", @default) == @default
+        assert RedirectPath.sanitize("/#{c}/evil.com", @default) == @default
       end
     end
 
     test "still accepts ordinary paths that merely contain the letters t, n, r" do
       # Guards against over-eager matching on the escape sequences themselves.
-      assert RedirectSanitizer.sanitize("/tenant/reports", @default) == "/tenant/reports"
+      assert RedirectPath.sanitize("/tenant/reports", @default) == "/tenant/reports"
     end
 
     test "rejects null byte injection" do
-      assert_safe(RedirectSanitizer.sanitize("/foo\u0000evil.com", @default))
-      assert_safe(RedirectSanitizer.sanitize("/\u0000//evil.com", @default))
+      assert_safe(RedirectPath.sanitize("/foo\u0000evil.com", @default))
+      assert_safe(RedirectPath.sanitize("/\u0000//evil.com", @default))
     end
 
     test "rejects unicode slash look-alikes in the authority-opening position" do
@@ -113,34 +113,34 @@ defmodule TymeslotWeb.Helpers.RedirectSanitizerTest do
       # but are not treated as path separators by the parser, so they should
       # be classified as a relative path (safe) or rejected, never as
       # protocol-relative.
-      assert_safe(RedirectSanitizer.sanitize("/\u2215\u2215evil.com", @default))
-      assert_safe(RedirectSanitizer.sanitize("/\uFF0F\uFF0Fevil.com", @default))
+      assert_safe(RedirectPath.sanitize("/\u2215\u2215evil.com", @default))
+      assert_safe(RedirectPath.sanitize("/\uFF0F\uFF0Fevil.com", @default))
       # As the leading character (not preceded by `/`) these must fall back.
-      assert RedirectSanitizer.sanitize("\u2215\u2215evil.com", @default) == @default
-      assert RedirectSanitizer.sanitize("\uFF0F\uFF0Fevil.com", @default) == @default
+      assert RedirectPath.sanitize("\u2215\u2215evil.com", @default) == @default
+      assert RedirectPath.sanitize("\uFF0F\uFF0Fevil.com", @default) == @default
     end
 
     test "rejects double-encoded scheme and protocol-relative payloads" do
       # %2525 → %25 → `%`. Double-encoded colons and slashes are rebuilt by
       # clients that decode twice. The sanitiser must not accept them as
       # relative paths that later decode to absolute URLs.
-      assert_safe(RedirectSanitizer.sanitize("/%2525protocol%253A//evil.com", @default))
+      assert_safe(RedirectPath.sanitize("/%2525protocol%253A//evil.com", @default))
       # /%252F%252Fevil.com → /%2F%2Fevil.com → //evil.com after two decodes.
       # The sanitiser rejects this at source; callers receive the default.
-      assert RedirectSanitizer.sanitize("/%252F%252Fevil.com", @default) == @default
+      assert RedirectPath.sanitize("/%252F%252Fevil.com", @default) == @default
     end
 
     test "rejects IDN homograph hosts in absolute URLs" do
       # Cyrillic small letter 'е' (U+0435) in 'evil.com' — visually identical
       # to ASCII 'e'. The scheme + homograph host combination must reach the
       # default, never be returned.
-      assert RedirectSanitizer.sanitize("https://\u0435vil.com/path", @default) == @default
-      assert RedirectSanitizer.sanitize("//\u0435vil.com/path", @default) == @default
+      assert RedirectPath.sanitize("https://\u0435vil.com/path", @default) == @default
+      assert RedirectPath.sanitize("//\u0435vil.com/path", @default) == @default
     end
 
     test "rejects mixed-case scheme separator" do
-      assert RedirectSanitizer.sanitize("HTTPS://evil.com/path", @default) == @default
-      assert RedirectSanitizer.sanitize("jAvAsCrIpT://alert(1)", @default) == @default
+      assert RedirectPath.sanitize("HTTPS://evil.com/path", @default) == @default
+      assert RedirectPath.sanitize("jAvAsCrIpT://alert(1)", @default) == @default
     end
   end
 
@@ -150,7 +150,7 @@ defmodule TymeslotWeb.Helpers.RedirectSanitizerTest do
   describe "sanitize/2 — property: output is never an absolute URL" do
     property "arbitrary unicode input never produces a schemed or protocol-relative redirect" do
       check all(input <- fuzz_input(), max_runs: 500) do
-        result = RedirectSanitizer.sanitize(input, @default)
+        result = RedirectPath.sanitize(input, @default)
         assert_safe(result)
       end
     end

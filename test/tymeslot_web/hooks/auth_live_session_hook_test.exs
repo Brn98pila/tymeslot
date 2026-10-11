@@ -11,10 +11,12 @@ defmodule TymeslotWeb.Hooks.AuthLiveSessionHookTest do
   alias Phoenix.LiveView.Socket
   alias TymeslotWeb.Hooks.AuthLiveSessionHook
 
-  defp build_socket(assigns \\ %{}) do
+  # Mounted at `uri`, as `get_connect_info/2` reports it during a mount.
+  defp build_socket(assigns \\ %{}, uri \\ "http://localhost/dashboard") do
     %Socket{
       assigns: Map.merge(%{__changed__: %{}, flash: %{}}, assigns),
-      endpoint: TymeslotWeb.Endpoint
+      endpoint: TymeslotWeb.Endpoint,
+      private: Map.put(%Socket{}.private, :connect_info, %{uri: URI.parse(uri)})
     }
   end
 
@@ -25,7 +27,22 @@ defmodule TymeslotWeb.Hooks.AuthLiveSessionHookTest do
       assert {:halt, updated_socket} =
                AuthLiveSessionHook.on_mount(:ensure_authenticated, %{}, %{}, socket)
 
-      assert updated_socket.redirected == {:redirect, %{to: "/auth/login", status: 302}}
+      assert updated_socket.redirected ==
+               {:redirect, %{to: "/auth/login?redirect_to=%2Fdashboard", status: 302}}
+    end
+
+    test "names the page being mounted, query included, in the login link" do
+      socket = build_socket(%{}, "http://localhost/dashboard/meetings?meeting=12")
+
+      assert {:halt, updated_socket} =
+               AuthLiveSessionHook.on_mount(:ensure_authenticated, %{}, %{}, socket)
+
+      assert updated_socket.redirected ==
+               {:redirect,
+                %{
+                  to: "/auth/login?redirect_to=%2Fdashboard%2Fmeetings%3Fmeeting%3D12",
+                  status: 302
+                }}
     end
 
     test "redirects when token exists but session expired" do
@@ -35,7 +52,8 @@ defmodule TymeslotWeb.Hooks.AuthLiveSessionHookTest do
       assert {:halt, updated_socket} =
                AuthLiveSessionHook.on_mount(:ensure_authenticated, %{}, session, socket)
 
-      assert updated_socket.redirected == {:redirect, %{to: "/auth/login", status: 302}}
+      assert updated_socket.redirected ==
+               {:redirect, %{to: "/auth/login?redirect_to=%2Fdashboard", status: 302}}
     end
 
     test "assigns current_user and is_email_verified on valid token" do

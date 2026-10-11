@@ -37,6 +37,7 @@ defmodule TymeslotWeb.Hooks.AuthLiveSessionHook do
 
   alias Tymeslot.Auth
   alias Tymeslot.Infrastructure.Config
+  alias TymeslotWeb.Plugs.ReturnTo
   alias TymeslotWeb.UserAuth
 
   @type hook ::
@@ -54,7 +55,7 @@ defmodule TymeslotWeb.Hooks.AuthLiveSessionHook do
         {:halt,
          socket
          |> put_flash(:error, unauthenticated_message(session))
-         |> redirect(to: login_path())}
+         |> redirect(to: ReturnTo.login_path(requested_path(socket), login_path()))}
 
       user ->
         if Auth.deletion_pending?(user),
@@ -134,6 +135,18 @@ defmodule TymeslotWeb.Hooks.AuthLiveSessionHook do
 
   defp email_verified?(%{verified_at: %DateTime{}}), do: true
   defp email_verified?(_user), do: false
+
+  # The page being mounted, so signing in can end there (see
+  # `TymeslotWeb.Plugs.ReturnTo`). A dead render never gets this far without a
+  # user, the pipeline's plug having redirected it already; this is the live
+  # navigation or the reconnect after a session lapsed.
+  defp requested_path(socket) do
+    case get_connect_info(socket, :uri) do
+      %URI{path: path, query: nil} -> path
+      %URI{path: path, query: query} -> path <> "?" <> query
+      _unknown -> nil
+    end
+  end
 
   # A token that no longer resolves is an expired or revoked session; no token
   # at all means the visitor never signed in.
