@@ -472,6 +472,13 @@ defmodule Tymeslot.Profiles do
   def avatar_url(profile, version \\ :original), do: Avatars.avatar_url(profile, version)
 
   @doc """
+  The generated fallback avatar as a data URI, for a profile or profile-shaped
+  map without an uploaded image. See `Avatars.fallback_data_uri/2`.
+  """
+  @spec fallback_avatar_data_uri(map() | nil, non_neg_integer()) :: String.t()
+  def fallback_avatar_data_uri(profile, size \\ 300), do: Avatars.fallback_data_uri(profile, size)
+
+  @doc """
   Returns the public path to a profile's uploaded avatar image, or `nil` when
   none has been uploaded. Never returns a data URI (see `Avatars.uploaded_avatar_path/1`).
   """

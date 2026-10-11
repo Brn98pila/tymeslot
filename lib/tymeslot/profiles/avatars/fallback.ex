@@ -1,6 +1,7 @@
-defmodule Tymeslot.Utils.AvatarUtils do
+defmodule Tymeslot.Profiles.Avatars.Fallback do
   @moduledoc """
-  Utilities for generating fallback avatars.
+  Generated fallback avatars for profiles without an uploaded image. Callers
+  outside `Profiles` go through `Tymeslot.Profiles.fallback_avatar_data_uri/2`.
   """
 
   require Logger

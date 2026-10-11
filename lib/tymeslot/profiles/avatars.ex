@@ -8,9 +8,9 @@ defmodule Tymeslot.Profiles.Avatars do
   alias Tymeslot.Media.MediaValidator
   alias Tymeslot.Media.Uploads
   alias Tymeslot.Profiles
+  alias Tymeslot.Profiles.Avatars.Fallback
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Profiles.ProfileSchema
-  alias Tymeslot.Utils.AvatarUtils
   alias Tymeslot.Utils.UrlBuilder
 
   @type profile :: ProfileSchema.t()
@@ -127,15 +127,25 @@ defmodule Tymeslot.Profiles.Avatars do
   end
 
   @doc """
+  The generated fallback avatar (initials on a colour derived from the
+  profile) as a data URI, for a profile or profile-shaped map without an
+  uploaded image. `nil` gives a generic avatar.
+  """
+  @spec fallback_data_uri(map() | nil, non_neg_integer()) :: String.t()
+  defdelegate fallback_data_uri(profile, size \\ 300),
+    to: Fallback,
+    as: :generate_fallback_data_uri
+
+  @doc """
   Gets the avatar URL for a profile.
   """
   @spec avatar_url(profile | nil, atom()) :: String.t()
   def avatar_url(profile, version \\ :original)
-  def avatar_url(nil, _version), do: AvatarUtils.generate_fallback_data_uri(nil)
+  def avatar_url(nil, _version), do: Fallback.generate_fallback_data_uri(nil)
 
   def avatar_url(%ProfileSchema{} = profile, _version) do
     case uploaded_avatar_path(profile) do
-      nil -> AvatarUtils.generate_fallback_data_uri(profile)
+      nil -> Fallback.generate_fallback_data_uri(profile)
       path -> path
     end
   end
