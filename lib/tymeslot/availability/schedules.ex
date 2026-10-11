@@ -167,7 +167,8 @@ defmodule Tymeslot.Availability.Schedules do
   Returns `{:error, :schedule_limit_reached}` once the profile owns
   `max_schedules/0` of them.
   """
-  @spec duplicate(schedule()) :: result()
+  @spec duplicate(schedule()) ::
+          result() | {:error, {:break_outside_hours, map(), map()}}
   def duplicate(%AvailabilityScheduleSchema{} = source) do
     copy =
       Repo.transaction(fn ->
@@ -412,8 +413,8 @@ defmodule Tymeslot.Availability.Schedules do
           ends_next_day: day.ends_next_day
         })
 
-      with {:error, changeset} <- Breaks.replace_breaks(copy, day.breaks || []),
-           do: Repo.rollback(changeset)
+      with {:error, reason} <- Breaks.replace_breaks(copy, day.breaks || []),
+           do: Repo.rollback(reason)
     end)
   end
 

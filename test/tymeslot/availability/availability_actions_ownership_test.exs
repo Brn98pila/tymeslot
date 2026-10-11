@@ -37,7 +37,7 @@ defmodule Tymeslot.Availability.AvailabilityActionsOwnershipTest do
       assert breaks_for_day(their_day.id) == []
     end
 
-    test "schedule actions refuse another profile's schedule", %{mine: mine, theirs: theirs} do
+    test "update_day_hours refuses another profile's schedule", %{mine: mine, theirs: theirs} do
       assert {:error, :not_found} =
                AvailabilityActions.update_day_hours(
                  mine.profile_id,
@@ -47,17 +47,29 @@ defmodule Tymeslot.Availability.AvailabilityActionsOwnershipTest do
                  "07:00"
                )
 
+      assert %{start_time: ~T[09:00:00]} = WeeklySchedule.get_day_availability(theirs.id, 1)
+    end
+
+    test "toggle_day_availability refuses another profile's schedule", %{
+      mine: mine,
+      theirs: theirs
+    } do
       assert {:error, :not_found} =
                AvailabilityActions.toggle_day_availability(mine.profile_id, theirs.id, 1, true)
 
+      assert %{is_available: true} = WeeklySchedule.get_day_availability(theirs.id, 1)
+    end
+
+    test "clear_day_settings refuses another profile's schedule", %{mine: mine, theirs: theirs} do
       assert {:error, :not_found} =
                AvailabilityActions.clear_day_settings(mine.profile_id, theirs.id, 1)
 
+      assert %{is_available: true} = WeeklySchedule.get_day_availability(theirs.id, 1)
+    end
+
+    test "copy_day_settings refuses another profile's schedule", %{mine: mine, theirs: theirs} do
       assert {:error, :not_found} =
                AvailabilityActions.copy_day_settings(mine.profile_id, theirs.id, 1, [2])
-
-      assert %{is_available: true, start_time: ~T[09:00:00]} =
-               WeeklySchedule.get_day_availability(theirs.id, 1)
 
       assert WeeklySchedule.get_day_availability(theirs.id, 2) == nil
     end

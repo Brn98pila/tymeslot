@@ -263,4 +263,54 @@ defmodule TymeslotWeb.Live.Dashboard.Availability.ListComponentCompositionTest d
       assert render(view) =~ "Verfügbarkeit für Montag aktualisiert"
     end
   end
+
+  describe "a break that falls outside its day's hours" do
+    test "narrowing the hours past it is refused with the break named",
+         %{conn: conn, schedule: schedule} do
+      day = WeeklySchedule.get_day_availability(schedule.id, 1)
+
+      insert(:availability_break,
+        weekly_availability: day,
+        start_time: ~T[16:00:00],
+        end_time: ~T[16:30:00]
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/availability")
+
+      view
+      |> with_target("#availability-list")
+      |> render_change("update_day_hours", %{"day" => "1", "start" => "09:00", "end" => "12:00"})
+
+      assert view
+             |> element("#day-hours-errors-1")
+             |> render() =~
+               "The 4:00 PM - 4:30 PM break no longer fits these hours. Move or delete it first."
+
+      assert %{end_time: ~T[17:00:00]} = WeeklySchedule.get_day_availability(schedule.id, 1)
+    end
+
+    test "copying a day with one is stopped with the day and break named",
+         %{conn: conn, schedule: schedule} do
+      day = WeeklySchedule.get_day_availability(schedule.id, 1)
+
+      insert(:availability_break,
+        weekly_availability: day,
+        start_time: ~T[18:00:00],
+        end_time: ~T[18:30:00]
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/availability")
+
+      view
+      |> with_target("#availability-list")
+      |> render_click("copy_to_days", %{"from_day" => "1", "to_days" => "6"})
+
+      assert view
+             |> element("#app-flash-group-error")
+             |> render() =~
+               "The 6:00 PM - 6:30 PM break on Monday falls outside that day&#39;s hours."
+
+      assert %{is_available: false} = WeeklySchedule.get_day_availability(schedule.id, 6)
+    end
+  end
 end

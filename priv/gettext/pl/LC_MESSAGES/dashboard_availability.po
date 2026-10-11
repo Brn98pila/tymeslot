@@ -907,3 +907,13 @@ msgstr "Bufor przed spotkaniami"
 #, elixir-autogen, elixir-format
 msgid "Minimum advance hours"
 msgstr "Minimalne wyprzedzenie w godzinach"
+
+#: lib/tymeslot_web/live/dashboard/availability/list_component.ex
+#, elixir-autogen, elixir-format
+msgid "The %{break} break no longer fits these hours. Move or delete it first."
+msgstr "Przerwa %{break} nie mieści się już w tych godzinach. Najpierw ją przesuń lub usuń."
+
+#: lib/tymeslot_web/live/dashboard/availability/list_component/break_helpers.ex
+#, elixir-autogen, elixir-format
+msgid "The %{break} break on %{day} falls outside that day's hours. Move or delete it, then try again."
+msgstr "Przerwa %{break} (%{day}) wykracza poza godziny tego dnia. Przesuń ją lub usuń, a potem spróbuj ponownie."

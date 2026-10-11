@@ -31,6 +31,7 @@ defmodule TymeslotWeb.Dashboard.ScheduleSettingsComponent do
     TimeOffCard
   }
 
+  alias TymeslotWeb.Dashboard.Availability.ListComponent.BreakHelpers
   alias TymeslotWeb.Helpers.FormErrors
 
   # The policy settings differ only in which schedule field they write, so the
@@ -143,6 +144,10 @@ defmodule TymeslotWeb.Dashboard.ScheduleSettingsComponent do
         {:ok, copy} ->
           Flash.info(duplicate_message(schedule))
           {:noreply, select_and_reload(socket, copy.id)}
+
+        {:error, {:break_outside_hours, day, break}} ->
+          Flash.error(BreakHelpers.stale_break_message(day, break, socket.assigns.time_format))
+          {:noreply, socket}
 
         {:error, reason} ->
           Flash.error(failure_message(reason))

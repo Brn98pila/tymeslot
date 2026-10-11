@@ -301,6 +301,14 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
         Flash.error(validation_error)
         {:noreply, socket}
 
+      # The refusal names the source day: the break lives there.
+      {:error, {:break_outside_hours, source_day, break}} ->
+        Flash.error(
+          BreakHelpers.stale_break_message(source_day, break, socket.assigns.time_format)
+        )
+
+        {:noreply, socket}
+
       {:error, _reason} ->
         Flash.error(dgettext("dashboard_availability", "Failed to copy settings"))
         {:noreply, socket}
@@ -366,7 +374,7 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
              sanitized_params["start"],
              sanitized_params["end"]
            ) do
-      handle_update_day_hours_result(day, result, socket)
+      handle_update_day_hours_result(day, result, socket, params)
     else
       nil ->
         {:noreply, socket}
@@ -413,7 +421,7 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
   defp present(value) when value in [nil, ""], do: nil
   defp present(value), do: value
 
-  defp handle_update_day_hours_result(day, result, socket) do
+  defp handle_update_day_hours_result(day, result, socket, params) do
     case result do
       {:ok, _updated} ->
         Flash.info(dgettext("dashboard_availability", "%{day} hours updated", day: day_name(day)))
@@ -425,6 +433,22 @@ defmodule TymeslotWeb.Dashboard.Availability.ListComponent do
       {:error, :invalid_time_format} ->
         Flash.error(dgettext("dashboard_availability", "Invalid time format"))
         {:noreply, socket}
+
+      # Shown under the day's hours with the refused times kept, like any
+      # other refused hours, so the selects do not look saved.
+      {:error, {:breaks_outside_hours, [break | _others]}} ->
+        day_availability =
+          AvailabilityActions.get_day_from_schedule(socket.assigns.weekly_schedule, day)
+
+        message =
+          dgettext(
+            "dashboard_availability",
+            "The %{break} break no longer fits these hours. Move or delete it first.",
+            break:
+              BreakHelpers.break_time_label(day_availability, break, socket.assigns.time_format)
+          )
+
+        {:noreply, assign_refused_hours(socket, params, %{breaks: message})}
 
       {:error, _reason} ->
         Flash.error(dgettext("dashboard_availability", "Failed to update availability"))

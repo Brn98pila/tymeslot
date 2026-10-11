@@ -912,3 +912,13 @@ msgstr "Буферний час перед зустрічами"
 #, elixir-autogen, elixir-format
 msgid "Minimum advance hours"
 msgstr "Мінімальний час до бронювання (у годинах)"
+
+#: lib/tymeslot_web/live/dashboard/availability/list_component.ex
+#, elixir-autogen, elixir-format
+msgid "The %{break} break no longer fits these hours. Move or delete it first."
+msgstr "Перерва %{break} більше не вкладається в ці години. Спочатку перемістіть або видаліть її."
+
+#: lib/tymeslot_web/live/dashboard/availability/list_component/break_helpers.ex
+#, elixir-autogen, elixir-format
+msgid "The %{break} break on %{day} falls outside that day's hours. Move or delete it, then try again."
+msgstr "Перерва %{break} (%{day}) виходить за межі годин цього дня. Перемістіть або видаліть її, а потім спробуйте ще раз."

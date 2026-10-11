@@ -31,6 +31,31 @@ defmodule Tymeslot.Availability.BreaksTest do
     end
   end
 
+  describe "outside_hours/2" do
+    test "keeps the breaks that leave the hours, at either end or across midnight" do
+      hours = %{start_time: ~T[09:00:00], end_time: ~T[12:00:00], ends_next_day: false}
+      inside = %{start_time: ~T[10:00:00], end_time: ~T[10:30:00]}
+      early = %{start_time: ~T[08:30:00], end_time: ~T[09:30:00]}
+      late = %{start_time: ~T[11:45:00], end_time: ~T[12:15:00]}
+
+      assert Breaks.outside_hours([inside, early, late], hours) == [early, late]
+    end
+
+    test "reads hours that end the next day through midnight" do
+      hours = %{start_time: ~T[22:00:00], end_time: ~T[02:00:00], ends_next_day: true}
+      across = %{start_time: ~T[23:30:00], end_time: ~T[00:30:00]}
+
+      assert Breaks.outside_hours([across], hours) == []
+    end
+
+    test "a day without hours has nothing outside them" do
+      assert Breaks.outside_hours([%{start_time: ~T[10:00:00], end_time: ~T[11:00:00]}], %{
+               start_time: nil,
+               end_time: nil
+             }) == []
+    end
+  end
+
   describe "replace_breaks/2" do
     test "replaces the day's breaks with the copies", %{day: day} do
       insert(:availability_break, weekly_availability: day, label: "Old")
@@ -53,8 +78,10 @@ defmodule Tymeslot.Availability.BreaksTest do
     test "refuses a copy outside the day's hours", %{day: day} do
       copies = [%{start_time: ~T[18:00:00], end_time: ~T[18:30:00], label: nil, sort_order: 0}]
 
-      assert {:error, changeset} = Breaks.replace_breaks(day, copies)
-      assert errors_on(changeset).end_time == ["must be within work hours"]
+      assert {:error, {:break_outside_hours, %{id: day_id}, %{start_time: ~T[18:00:00]}}} =
+               Breaks.replace_breaks(day, copies)
+
+      assert day_id == day.id
     end
   end
 

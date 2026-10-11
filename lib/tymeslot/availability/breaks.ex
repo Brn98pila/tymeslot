@@ -40,16 +40,44 @@ defmodule Tymeslot.Availability.Breaks do
   end
 
   @doc """
+  The breaks among `breaks` that would fall outside `work_hours` (a day's
+  `start_time`, `end_time` and `ends_next_day`), in the order given. A day
+  without hours has nothing to fall outside of.
+  """
+  @spec outside_hours([map()], map()) :: [map()]
+  def outside_hours(breaks, %{start_time: %Time{}, end_time: %Time{}} = work_hours) do
+    # `break_within?/3` also refuses a break whose end reads as before its
+    # start in these hours: one that crossed midnight in overnight hours that
+    # no longer run past midnight.
+    Enum.reject(breaks, &Window.break_within?(work_hours, &1.start_time, &1.end_time))
+  end
+
+  def outside_hours(_breaks, _no_hours), do: []
+
+  @doc """
   Replaces a day's breaks with copies of `breaks` (anything carrying
   `start_time`, `end_time`, `label` and `sort_order`), each validated against
   that day's hours like a break added by hand.
 
   Run it inside the caller's transaction: on the first refused copy it returns
-  `{:error, changeset}` and leaves the rollback to the caller.
+  `{:error, {:break_outside_hours, day, break}}` (the copy falls outside the
+  day's hours, as a break saved before its day's hours were narrowed can) or
+  `{:error, changeset}`, and leaves the rollback to the caller. Copies are
+  checked against the day's hours, not against each other: they come from a
+  day whose breaks were already checked for overlap.
   """
-  @spec replace_breaks(map(), [map()]) :: :ok | {:error, Ecto.Changeset.t()}
-  def replace_breaks(%{id: weekly_availability_id} = day, breaks) when is_list(breaks) do
+  @spec replace_breaks(map(), [map()]) ::
+          :ok | {:error, {:break_outside_hours, map(), map()} | Ecto.Changeset.t()}
+  def replace_breaks(%{id: _id} = day, breaks) when is_list(breaks) do
     work_hours = Map.take(day, [:start_time, :end_time, :ends_next_day])
+
+    case outside_hours(breaks, work_hours) do
+      [] -> insert_copies(day, breaks, work_hours)
+      [break | _others] -> {:error, {:break_outside_hours, day, break}}
+    end
+  end
+
+  defp insert_copies(%{id: weekly_availability_id}, breaks, work_hours) do
     AvailabilityBreakQueries.delete_for_day(weekly_availability_id)
 
     Enum.reduce_while(breaks, :ok, fn break, :ok ->

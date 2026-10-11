@@ -910,3 +910,13 @@ msgstr "Marge avant les réunions"
 #, elixir-autogen, elixir-format
 msgid "Minimum advance hours"
 msgstr "Préavis minimum en heures"
+
+#: lib/tymeslot_web/live/dashboard/availability/list_component.ex
+#, elixir-autogen, elixir-format
+msgid "The %{break} break no longer fits these hours. Move or delete it first."
+msgstr "La pause %{break} ne tient plus dans ces horaires. Déplacez-la ou supprimez-la d’abord."
+
+#: lib/tymeslot_web/live/dashboard/availability/list_component/break_helpers.ex
+#, elixir-autogen, elixir-format
+msgid "The %{break} break on %{day} falls outside that day's hours. Move or delete it, then try again."
+msgstr "La pause %{break} du %{day} se trouve en dehors des horaires de ce jour. Déplacez-la ou supprimez-la, puis réessayez."

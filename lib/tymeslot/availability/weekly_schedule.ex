@@ -60,7 +60,8 @@ defmodule Tymeslot.Availability.WeeklySchedule do
   Copies settings from one day to multiple other days.
   """
   @spec copy_day_settings(integer(), integer(), list(integer())) ::
-          {:ok, term()} | {:error, String.t()}
+          {:ok, term()}
+          | {:error, String.t() | {:break_outside_hours, map(), map()} | Ecto.Changeset.t()}
   def copy_day_settings(schedule_id, from_day, to_days) when is_list(to_days) do
     case get_day_availability(schedule_id, from_day) do
       nil ->
@@ -90,7 +91,13 @@ defmodule Tymeslot.Availability.WeeklySchedule do
          :ok <- Breaks.replace_breaks(target_availability, source.breaks) do
       :ok
     else
-      {:error, _changeset} = error -> Repo.rollback(error)
+      # The copy carries the source day's hours, so a break that does not fit
+      # them is the source day's to fix: name that day.
+      {:error, {:break_outside_hours, _target, break}} ->
+        Repo.rollback({:break_outside_hours, source, break})
+
+      {:error, reason} ->
+        Repo.rollback(reason)
     end
   end
 

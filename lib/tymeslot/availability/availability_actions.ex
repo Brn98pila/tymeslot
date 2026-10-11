@@ -69,21 +69,44 @@ defmodule Tymeslot.Availability.AvailabilityActions do
   (`Tymeslot.Availability.Window.parse_end/1`).
   """
   @spec update_day_hours(integer(), integer(), integer(), String.t(), String.t()) ::
-          {:ok, term()} | {:error, :invalid_time_format | :not_found | Ecto.Changeset.t()}
+          {:ok, term()}
+          | {:error,
+             :invalid_time_format
+             | :not_found
+             | {:breaks_outside_hours, [map()]}
+             | Ecto.Changeset.t()}
   def update_day_hours(profile_id, schedule_id, day, start_str, end_str) do
     with_owned_schedule(profile_id, schedule_id, fn ->
       with {:ok, start_time} <- DateTimeUtils.parse_hhmm(start_str),
            {:ok, {end_time, ends_next_day}} <- Window.parse_end(end_str) do
-        WeeklySchedule.upsert_day_availability(schedule_id, day, %{
-          is_available: true,
-          start_time: start_time,
-          end_time: end_time,
-          ends_next_day: ends_next_day
-        })
+        hours = %{start_time: start_time, end_time: end_time, ends_next_day: ends_next_day}
+
+        with :ok <- breaks_fit(schedule_id, day, hours) do
+          WeeklySchedule.upsert_day_availability(
+            schedule_id,
+            day,
+            Map.put(hours, :is_available, true)
+          )
+        end
       else
         _error -> {:error, :invalid_time_format}
       end
     end)
+  end
+
+  # Narrowing a day's hours past one of its breaks is refused, naming the
+  # breaks: removing them would delete what the host entered without asking.
+  defp breaks_fit(schedule_id, day, hours) do
+    breaks =
+      case WeeklySchedule.get_day_availability(schedule_id, day) do
+        %{breaks: breaks} when is_list(breaks) -> breaks
+        _no_day -> []
+      end
+
+    case Breaks.outside_hours(breaks, hours) do
+      [] -> :ok
+      stranded -> {:error, {:breaks_outside_hours, stranded}}
+    end
   end
 
   # Break Management Actions
