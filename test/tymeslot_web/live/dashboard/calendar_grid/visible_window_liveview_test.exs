@@ -237,6 +237,33 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.VisibleWindowLiveViewTest do
     assert on_grid?(lv, marker)
   end
 
+  test "the agenda lists an event with no length at a day's midnight, on that day", %{
+    conn: conn
+  } do
+    {conn, integration} = sign_in(conn, "America/New_York")
+    freeze_at(@sunday, ~T[17:00:00], "America/New_York")
+    day = Date.add(@sunday, 2)
+    start_at = local(day, ~T[00:00:00], "America/New_York")
+
+    marker =
+      insert(:provider_calendar_event,
+        calendar_integration: integration,
+        summary: "Marker",
+        start_at: start_at,
+        end_at: start_at,
+        all_day: false,
+        recurrence_rule: nil,
+        recurring_event_id: nil,
+        sync_state: "synced"
+      )
+
+    {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+    grid_hook(lv, "set_view", %{"view" => "agenda"})
+
+    assert has_element?(lv, "#agenda-event-#{marker.id}-#{Date.to_iso8601(day)}")
+    refute has_element?(lv, "#agenda-event-#{marker.id}-#{Date.to_iso8601(Date.add(day, -1))}")
+  end
+
   test "a stored event with no end does not stop the rest of the week showing", %{conn: conn} do
     {conn, integration} = sign_in(conn, "America/New_York")
     freeze_at(@sunday, ~T[17:00:00], "America/New_York")

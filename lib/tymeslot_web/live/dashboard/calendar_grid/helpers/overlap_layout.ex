@@ -73,10 +73,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Helpers.OverlapLayout do
   def day_boundary_utc(date, tz),
     do: {DataLoading.local_midnight(date, tz), DataLoading.local_midnight(Date.add(date, 1), tz)}
 
-  # Does this event overlap with the given calendar day (in the user's timezone)?
-  # Overlap with `[day_start, day_end)`, as the event query matches it: an
-  # event with no length belongs to the day it starts on, midnight included.
-  defp event_spans_day?(event, date, tz) do
+  @doc """
+  Whether a timed event falls on `date` in `tz`: overlap with
+  `[day_start, day_end)`, as the event query matches it. An event with no
+  length belongs to the day it starts on, midnight included; one that ends
+  exactly as the day starts does not.
+  """
+  @spec event_spans_day?(map(), Date.t(), String.t()) :: boolean()
+  def event_spans_day?(event, date, tz) do
     {day_start, day_end} = day_boundary_utc(date, tz)
 
     DateTime.compare(event.start_at, day_end) == :lt and

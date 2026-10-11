@@ -72,4 +72,34 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Helpers.OverlapLayoutTest do
                OverlapLayout.day_boundary_utc(~D[2026-09-05], "America/Santiago")
     end
   end
+
+  # 6 March 2027 in New York (-05:00) runs from 05:00Z to 05:00Z the next day.
+  describe "event_spans_day?/3" do
+    @tz "America/New_York"
+    @day ~D[2027-03-06]
+    @midnight ~U[2027-03-06 05:00:00Z]
+
+    defp timed(start_at, end_at), do: %{start_at: start_at, end_at: end_at}
+
+    test "puts an event with no length at the day's midnight in that day only" do
+      moment = timed(@midnight, @midnight)
+
+      assert OverlapLayout.event_spans_day?(moment, @day, @tz)
+      refute OverlapLayout.event_spans_day?(moment, Date.add(@day, -1), @tz)
+    end
+
+    test "leaves out of the day an event ending exactly as it starts" do
+      before = timed(DateTime.add(@midnight, -1, :hour), @midnight)
+
+      refute OverlapLayout.event_spans_day?(before, @day, @tz)
+      assert OverlapLayout.event_spans_day?(before, Date.add(@day, -1), @tz)
+    end
+
+    test "puts an event running across midnight in both days" do
+      across = timed(DateTime.add(@midnight, -1, :hour), DateTime.add(@midnight, 1, :hour))
+
+      assert OverlapLayout.event_spans_day?(across, @day, @tz)
+      assert OverlapLayout.event_spans_day?(across, Date.add(@day, -1), @tz)
+    end
+  end
 end
