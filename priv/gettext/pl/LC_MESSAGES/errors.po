@@ -963,7 +963,7 @@ msgstr "są wymagane, gdy dzień jest dostępny"
 #: lib/tymeslot/meeting_types/reminder_validation.ex
 #, elixir-autogen, elixir-format
 msgid "cannot be set for more than 1 year in advance"
-msgstr "nie może wyprzedzać terminu o więcej niż 1 rok"
+msgstr "nie może być ustawione na więcej niż 1 rok naprzód"
 
 #: lib/tymeslot_web/gettext/ecto_error_msgids.ex
 #, elixir-autogen, elixir-format

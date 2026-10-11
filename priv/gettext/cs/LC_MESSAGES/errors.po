@@ -902,7 +902,7 @@ msgstr "musí být násobkem %{step} minut"
 #: lib/tymeslot/availability/breaks.ex
 #, elixir-autogen, elixir-format
 msgid "Break times overlap with existing break"
-msgstr "Časy přestávky se překrývají s již existující přestávkou"
+msgstr "Časy přestávky se překrývají s existující přestávkou"
 
 #: lib/tymeslot/security/url_validation.ex
 #, elixir-autogen, elixir-format
@@ -1010,7 +1010,7 @@ msgstr "už je zaregistrován"
 #: lib/tymeslot/meeting_types/meeting_type_schema.ex
 #, elixir-autogen, elixir-format
 msgid "is already taken"
-msgstr "je již obsazená hodnota"
+msgstr "už je obsazené"
 
 #: lib/tymeslot/integrations/calendar/calendar_appearance_schema.ex
 #, elixir-autogen, elixir-format
@@ -1158,4 +1158,4 @@ msgstr "musí obsahovat alespoň jednu událost"
 #: lib/tymeslot/slack/slack_integration_schema.ex
 #, elixir-autogen, elixir-format
 msgid "workspace already connected"
-msgstr "pracovní prostor je již připojen"
+msgstr "pracovní prostor už je připojen"

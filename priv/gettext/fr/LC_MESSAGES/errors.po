@@ -7,12 +7,12 @@ msgstr ""
 #: lib/tymeslot_web/themes/shared/components/error_component.ex
 #, elixir-autogen
 msgid "We can't show this scheduling page yet"
-msgstr "Configuration du calendrier requise"
+msgstr "Nous ne pouvons pas encore afficher cette page de réservation"
 
 #: lib/tymeslot_web/themes/shared/components/error_component.ex
 #, elixir-autogen
 msgid "If you are the organizer, please connect a calendar in your dashboard."
-msgstr "Veuillez d’abord connecter votre calendrier"
+msgstr "Si vous êtes l’organisateur, veuillez connecter un calendrier depuis votre tableau de bord."
 
 #: lib/tymeslot_web/gettext/ecto_error_msgids.ex
 #, elixir-autogen, elixir-format
@@ -214,7 +214,7 @@ msgstr "n’est pas une couleur valide"
 #: lib/tymeslot/polls/poll_time_slot_schema.ex
 #, elixir-autogen, elixir-format
 msgid "must be after the start time"
-msgstr "doit être après l'heure de début"
+msgstr "doit être après l’heure de début"
 
 #: lib/tymeslot/availability/time_off_period_schema.ex
 #, elixir-autogen, elixir-format
@@ -387,17 +387,17 @@ msgstr "un type de réunion de groupe doit proposer exactement un lieu"
 #: lib/tymeslot/meeting_types/meeting_type_schema.ex
 #, elixir-autogen, elixir-format
 msgid "a group meeting type's in-person location must name a venue"
-msgstr "le lieu en personne d'un type de réunion de groupe doit indiquer une adresse"
+msgstr "le lieu en personne d’un type de réunion de groupe doit indiquer une adresse"
 
 #: lib/tymeslot/meeting_types/meeting_type_schema.ex
 #, elixir-autogen, elixir-format
 msgid "a group meeting type's in-person location must name exactly one venue"
-msgstr "le lieu en personne d'un type de réunion de groupe doit indiquer exactement une adresse"
+msgstr "le lieu en personne d’un type de réunion de groupe doit indiquer exactement une adresse"
 
 #: lib/tymeslot/meeting_types/meeting_type_schema.ex
 #, elixir-autogen, elixir-format
 msgid "a group meeting type's video call must use exactly one provider"
-msgstr "l'appel vidéo d'un type de réunion de groupe doit utiliser exactement un fournisseur"
+msgstr "l’appel vidéo d’un type de réunion de groupe doit utiliser exactement un fournisseur"
 
 #: lib/tymeslot/meeting_types/meeting_type_schema.ex
 #, elixir-autogen, elixir-format
@@ -1074,7 +1074,7 @@ msgstr "doit être un thème valide"
 #: lib/tymeslot/changeset_validators/time_order.ex
 #, elixir-autogen, elixir-format
 msgid "must be after start time"
-msgstr "doit être après l'heure de début"
+msgstr "doit être après l’heure de début"
 
 #: lib/tymeslot/meeting_types/meeting_type_schema.ex
 #, elixir-autogen, elixir-format

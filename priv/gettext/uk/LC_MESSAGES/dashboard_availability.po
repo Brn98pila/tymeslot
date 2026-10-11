@@ -400,7 +400,7 @@ msgstr "Новий розклад"
 #: lib/tymeslot_web/live/dashboard/availability/policy_card.ex
 #, elixir-autogen, elixir-format
 msgid "No buffer"
-msgstr "Без перерви"
+msgstr "Без буферного часу"
 
 #: lib/tymeslot_web/components/dashboard/availability/delete_schedule_modal.ex
 #, elixir-autogen, elixir-format
@@ -806,27 +806,27 @@ msgstr "Розклади"
 #: lib/tymeslot_web/live/dashboard/availability/policy_card.ex
 #, elixir-autogen, elixir-format
 msgid "Buffer Time"
-msgstr "Перерви"
+msgstr "Буферний час"
 
 #: lib/tymeslot_web/live/dashboard/schedule_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "Buffer after meetings set to custom value"
-msgstr "Для перерви після зустрічей встановлено власне значення"
+msgstr "Для буферного часу після зустрічей встановлено власне значення"
 
 #: lib/tymeslot_web/live/dashboard/schedule_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "Buffer after meetings updated to %{minutes} minutes"
-msgstr "Перерву після зустрічей оновлено: %{minutes} хв"
+msgstr "Буферний час після зустрічей оновлено: %{minutes} хв"
 
 #: lib/tymeslot_web/live/dashboard/schedule_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "Buffer before meetings set to custom value"
-msgstr "Для перерви перед зустрічами встановлено власне значення"
+msgstr "Для буферного часу перед зустрічами встановлено власне значення"
 
 #: lib/tymeslot_web/live/dashboard/schedule_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "Buffer before meetings updated to %{minutes} minutes"
-msgstr "Перерву перед зустрічами оновлено: %{minutes} хв"
+msgstr "Буферний час перед зустрічами оновлено: %{minutes} хв"
 
 #: lib/tymeslot_web/live/dashboard/availability/policy_card.ex
 #, elixir-autogen, elixir-format
@@ -901,12 +901,12 @@ msgstr "Вікно завчасного бронювання (у днях)"
 #: lib/tymeslot/availability/policy_validation.ex
 #, elixir-autogen, elixir-format
 msgid "Buffer after"
-msgstr "Перерва після зустрічей"
+msgstr "Буферний час після зустрічей"
 
 #: lib/tymeslot/availability/policy_validation.ex
 #, elixir-autogen, elixir-format
 msgid "Buffer before"
-msgstr "Перерва перед зустрічами"
+msgstr "Буферний час перед зустрічами"
 
 #: lib/tymeslot/availability/policy_validation.ex
 #, elixir-autogen, elixir-format
