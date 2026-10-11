@@ -15,6 +15,9 @@ defmodule TymeslotWeb.Plugs.ReturnTo do
   cannot jump to a page asked for long ago, and one kept but never used
   expires after an hour. A plain visit to the login page
   leaves it alone, so a failed attempt that comes back there keeps it.
+
+  A page longer than 2048 bytes is not kept: the session is a cookie,
+  and one that outgrows the cookie's limit fails the whole response.
   """
 
   import Plug.Conn
@@ -26,6 +29,7 @@ defmodule TymeslotWeb.Plugs.ReturnTo do
   @param "redirect_to"
   @session_key "return_to"
   @max_age_seconds 3600
+  @max_path_bytes 2048
 
   @impl Plug
   def init(opts), do: opts
@@ -39,7 +43,7 @@ defmodule TymeslotWeb.Plugs.ReturnTo do
         conn
 
       path ->
-        if RedirectPath.safe?(path),
+        if keepable?(path),
           do: put_session(conn, @session_key, %{"path" => path, "at" => now()}),
           else: conn
     end
@@ -53,7 +57,7 @@ defmodule TymeslotWeb.Plugs.ReturnTo do
   """
   @spec login_path(String.t() | nil, String.t()) :: String.t()
   def login_path(path, login \\ "/auth/login") do
-    if RedirectPath.safe?(path),
+    if keepable?(path),
       do: login <> "?" <> URI.encode_query(%{@param => path}),
       else: login
   end
@@ -74,7 +78,7 @@ defmodule TymeslotWeb.Plugs.ReturnTo do
     path =
       case get_session(conn, @session_key) do
         %{"path" => path, "at" => at} when is_integer(at) ->
-          if now() - at <= @max_age_seconds and RedirectPath.safe?(path), do: path
+          if now() - at <= @max_age_seconds and keepable?(path), do: path
 
         _none ->
           nil
@@ -82,6 +86,9 @@ defmodule TymeslotWeb.Plugs.ReturnTo do
 
     {path, delete_session(conn, @session_key)}
   end
+
+  defp keepable?(path),
+    do: is_binary(path) and byte_size(path) <= @max_path_bytes and RedirectPath.safe?(path)
 
   defp now, do: System.system_time(:second)
 end

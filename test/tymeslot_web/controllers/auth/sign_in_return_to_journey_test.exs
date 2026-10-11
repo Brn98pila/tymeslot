@@ -108,6 +108,16 @@ defmodule TymeslotWeb.SignInReturnToJourneyTest do
       assert redirected_to(conn) == "/dashboard"
     end
 
+    test "a page too long to keep still opens the login page, and ends on the dashboard",
+         %{conn: conn, host: host} do
+      target = "/dashboard/meetings?q=" <> String.duplicate("a", 8_000)
+
+      conn = get(conn, "/auth/login?" <> URI.encode_query(%{"redirect_to" => target}))
+      assert html_response(conn, 200)
+
+      assert redirected_to(password_sign_in(conn, host.email)) == "/dashboard"
+    end
+
     for target <- ["https://evil.example/phish", "//evil.example/phish", "/\\evil.example"] do
       test "ignores a page off the site: #{target}", %{conn: conn, host: host} do
         conn =

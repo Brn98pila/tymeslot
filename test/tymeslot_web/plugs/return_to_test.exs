@@ -30,6 +30,19 @@ defmodule TymeslotWeb.Plugs.ReturnToTest do
       assert {nil, _conn} = ReturnTo.pop(conn)
     end
 
+    # The session is a cookie; a page that would overflow it is not kept.
+    test "keeps a page of up to 2048 bytes, and nothing longer" do
+      longest = "/dashboard?q=" <> String.duplicate("a", 2048 - 13)
+      too_long = longest <> "a"
+
+      conn = request(:get, "/auth/login?" <> URI.encode_query(%{"redirect_to" => longest}))
+      assert {^longest, _conn} = ReturnTo.pop(conn)
+
+      conn = request(:get, "/auth/login?" <> URI.encode_query(%{"redirect_to" => too_long}))
+      assert {nil, _conn} = ReturnTo.pop(conn)
+      assert ReturnTo.login_path(too_long) == "/auth/login"
+    end
+
     test "leaves a kept page alone on a plain visit, and on a POST" do
       session = kept("/dashboard/meetings", now())
 
