@@ -42,7 +42,7 @@ defmodule TymeslotWeb.Plugs.RequireAuthPlugTest do
       assert "/auth/login" <> _query = redirected_to(conn)
     end
 
-    test "names the page a GET asked for in the login link", %{conn: conn} do
+    test "names the page a GET asked for in the login link", %{conn: _conn} do
       conn =
         :get
         |> build_conn("/dashboard/meetings?meeting=12")

@@ -160,9 +160,9 @@ defmodule TymeslotWeb.OnboardingLive.CaldavDiscoveryTest do
 
       # A successful discovery makes several real PROPFIND round-trips (guessed
       # path plus the RFC 4791 principal chain) before creating and persisting
-      # the integration, which comfortably exceeds render_async/1's 100ms
-      # default (tuned for a single mocked call) even though every call is
-      # instantly stubbed.
+      # the integration, which can outlast render_async/1's default (the
+      # suite's one-second assert_receive_timeout) on a loaded machine even
+      # though every call is instantly stubbed.
       render_async(view, 2000)
       html = render(view)
 
