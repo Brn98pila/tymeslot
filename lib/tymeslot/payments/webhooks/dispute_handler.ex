@@ -175,20 +175,24 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
             :dispute_closed
           )
         else
+          # A one-time charge resolves to its user as on creation: by the
+          # charge's customer, through their local transaction.
+          user_id = find_user_by_customer(get_charge_customer_id(charge))
+
           # We still alert admin in Core for visibility
           if status == "lost" do
             alert_admin_dispute_lost(
               dispute_id,
-              nil,
+              user_id,
               dispute["amount"],
               dispute["reason"]
             )
 
-            send_dispute_lost_alert(alert_data(dispute, nil))
+            send_dispute_lost_alert(alert_data(dispute, user_id))
           end
 
           if status == "won" do
-            send_dispute_won_notification(alert_data(dispute, nil))
+            send_dispute_won_notification(alert_data(dispute, user_id))
           end
 
           {:ok, :dispute_closed}

@@ -317,7 +317,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeOutcomesTest do
 
       assert data == %{
                "stripe_dispute_id" => "dp_won_notice",
-               "user_id" => nil,
+               "user_id" => user.id,
                "amount" => 1000,
                "currency" => "eur",
                "reason" => "fraudulent",
