@@ -37,7 +37,7 @@ defmodule Tymeslot.MeetingTypes.InputValidationPropertyTest do
               n <- integer(5..1440),
               rem(n, 5) != 0
             ) do
-        assert {:error, %{duration: "Duration must be divisible by 5 minutes"}} =
+        assert {:error, %{duration: "Duration must be a multiple of 5 minutes"}} =
                  InputValidation.validate_field(:duration, to_string(n), %{})
       end
     end

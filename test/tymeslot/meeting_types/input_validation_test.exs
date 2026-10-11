@@ -21,6 +21,23 @@ defmodule Tymeslot.MeetingTypes.InputValidationTest do
       assert sanitized["icon"] == "hero-bolt"
     end
 
+    # The placeholders carry the limits, in the host's language.
+    test "refuses durations in the current locale, with their limits" do
+      in_de = fn duration ->
+        Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+          InputValidation.validate_field(:duration, duration, %{})
+        end)
+      end
+
+      assert {:error, %{duration: "Die Dauer muss mindestens 5 Minuten betragen"}} = in_de.("1")
+
+      assert {:error, %{duration: "Die Dauer darf 24 Stunden (1440 Minuten) nicht überschreiten"}} =
+               in_de.("1445")
+
+      assert {:error, %{duration: "Die Dauer muss ein Vielfaches von 5 Minuten sein"}} =
+               in_de.("17")
+    end
+
     test "returns error for missing name" do
       params = %{"duration" => "30", "icon" => "hero-bolt", "meeting_mode" => "personal"}
       assert {:error, errors} = InputValidation.validate_meeting_type_form(params)

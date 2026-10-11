@@ -1256,3 +1256,118 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "The calendar this meeting type books into is no longer available. Reload the page and try again."
 msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Description must be %{max} characters or less"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Description must be text"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration cannot exceed 24 hours (%{max} minutes)"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration is required"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration must be a multiple of %{step} minutes"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration must be a number"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration must be a valid number of minutes"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration must be at least %{min} minutes"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid calendar account format"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid calendar account selected"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid field"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid icon format"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid icon selected"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid target calendar format"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting name is required"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting name must be 100 characters or less"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting name must be at least 2 characters"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting name must be text"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting name must contain at least one letter or number"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Slot interval cannot exceed %{max} minutes"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Slot interval must be a number"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Slot interval must be a valid number of minutes"
+msgstr ""
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Slot interval must be at least %{min} minutes"
+msgstr ""

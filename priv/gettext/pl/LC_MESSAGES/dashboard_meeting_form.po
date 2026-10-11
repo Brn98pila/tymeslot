@@ -1260,3 +1260,118 @@ msgstr "Obecna cena to %{amount}. Po przejściu na obsługiwaną walutę zostani
 #, elixir-autogen, elixir-format
 msgid "The calendar this meeting type books into is no longer available. Reload the page and try again."
 msgstr "Kalendarz, do którego trafiają rezerwacje tego typu spotkania, jest już niedostępny. Odśwież stronę i spróbuj ponownie."
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Description must be %{max} characters or less"
+msgstr "Opis może mieć najwyżej %{max} znaków"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Description must be text"
+msgstr "Opis musi być tekstem"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration cannot exceed 24 hours (%{max} minutes)"
+msgstr "Czas trwania nie może przekraczać 24 godzin (%{max} min)"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration is required"
+msgstr "Czas trwania jest wymagany"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration must be a multiple of %{step} minutes"
+msgstr "Czas trwania musi być wielokrotnością %{step} min"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration must be a number"
+msgstr "Czas trwania musi być liczbą"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration must be a valid number of minutes"
+msgstr "Czas trwania musi być prawidłową liczbą minut"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration must be at least %{min} minutes"
+msgstr "Czas trwania musi wynosić co najmniej %{min} min"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid calendar account format"
+msgstr "Nieprawidłowy format konta kalendarza"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid calendar account selected"
+msgstr "Wybrano nieprawidłowe konto kalendarza"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid field"
+msgstr "Nieprawidłowe pole"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid icon format"
+msgstr "Nieprawidłowy format ikony"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid icon selected"
+msgstr "Wybrano nieprawidłową ikonę"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid target calendar format"
+msgstr "Nieprawidłowy format kalendarza docelowego"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting name is required"
+msgstr "Nazwa typu spotkania jest wymagana"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting name must be 100 characters or less"
+msgstr "Nazwa typu spotkania może mieć najwyżej 100 znaków"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting name must be at least 2 characters"
+msgstr "Nazwa typu spotkania musi mieć co najmniej 2 znaki"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting name must be text"
+msgstr "Nazwa typu spotkania musi być tekstem"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting name must contain at least one letter or number"
+msgstr "Nazwa typu spotkania musi zawierać co najmniej jedną literę lub cyfrę"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Slot interval cannot exceed %{max} minutes"
+msgstr "Odstęp między terminami nie może przekraczać %{max} min"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Slot interval must be a number"
+msgstr "Odstęp między terminami musi być liczbą"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Slot interval must be a valid number of minutes"
+msgstr "Odstęp między terminami musi być prawidłową liczbą minut"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Slot interval must be at least %{min} minutes"
+msgstr "Odstęp między terminami musi wynosić co najmniej %{min} min"
