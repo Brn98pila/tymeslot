@@ -14,8 +14,8 @@ defmodule Tymeslot.Integrations.Calendar.InvalidEventReportTest do
 
   alias Tymeslot.Infrastructure.AdminAlerts.AlertTypes
   alias Tymeslot.Integrations.Calendar.Google.EventNormaliser, as: GoogleNormaliser
-  alias Tymeslot.Integrations.Calendar.ICalParser
   alias Tymeslot.Integrations.Calendar.ICalNormaliser
+  alias Tymeslot.Integrations.Calendar.ICalParser
   alias Tymeslot.Integrations.Calendar.InvalidEventReport
   alias Tymeslot.Integrations.Calendar.Outlook.EventNormaliser, as: OutlookNormaliser
 
