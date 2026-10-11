@@ -42,27 +42,32 @@ defmodule Tymeslot.Integrations.Calendar.ICalNormaliser do
     # calendar grid and availability checks read back.
     {range_start, range_end} = Sync.window()
 
-    raw_events
-    |> Enum.filter(&(&1[:duration_defaulted] == true))
-    |> Enum.each(&record_default(&1, context, provider))
-
-    events =
+    {events, defaulted} =
       raw_events
       |> expand_all(range_start, range_end)
-      |> Enum.reduce([], fn raw, acc ->
+      |> Enum.reduce({[], %{}}, fn raw, {acc, defaulted} ->
         case build_calendar_event(raw, context, provider) do
           {:ok, event} ->
-            [event | acc]
+            {[event | acc], note_default(defaulted, raw)}
 
           {:error, reason} ->
             record_skip(raw, context, provider, reason)
-            acc
+            {acc, defaulted}
         end
       end)
-      |> Enum.reverse()
 
-    {:ok, events}
+    defaulted |> Map.values() |> Enum.each(&record_default(&1, context, provider))
+
+    {:ok, Enum.reverse(events)}
   end
+
+  # A VEVENT kept with a default duration is reported once, however many
+  # occurrences it expands to, and only when it was kept: one skipped for
+  # another reason is reported as skipped alone.
+  defp note_default(defaulted, %{duration_defaulted: true} = raw),
+    do: Map.put_new(defaulted, {raw[:uid], raw[:recurrence_id]}, raw)
+
+  defp note_default(defaulted, _raw), do: defaulted
 
   defp record_skip(raw, context, provider, reason) do
     Logger.warning("Skipping invalid calendar event",
@@ -75,7 +80,6 @@ defmodule Tymeslot.Integrations.Calendar.ICalNormaliser do
     InvalidEventReport.record(provider, context, raw[:uid], reason)
   end
 
-  # Recorded once per VEVENT, before a series is expanded into occurrences.
   defp record_default(raw, context, provider) do
     Logger.warning("Calendar event kept with a default duration",
       provider: provider,

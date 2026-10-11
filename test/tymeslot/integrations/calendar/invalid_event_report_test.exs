@@ -190,6 +190,37 @@ defmodule Tymeslot.Integrations.Calendar.InvalidEventReportTest do
       assert payload.summary == "1 caldav calendar event(s) kept with a default duration"
     end
 
+    test "counts an event skipped for another reason as skipped, not also defaulted" do
+      raw = Map.put(ical_invalid("odd-and-bad"), :duration_defaulted, true)
+
+      {:ok, []} = InvalidEventReport.collect(fn -> normalise_ical([raw]) end)
+
+      assert_received {:send_alert, :invalid_calendar_event, payload}
+      assert payload.count == 1
+      assert payload.defaulted == 0
+      assert payload.summary == "1 invalid caldav calendar event(s) skipped"
+    end
+
+    test "counts a series kept with a default duration once, not once per occurrence" do
+      # Inside the sync window the series is expanded over.
+      start = DateTime.utc_now() |> DateTime.add(1, :day) |> DateTime.truncate(:second)
+
+      raw = %{
+        uid: "odd-series",
+        summary: "Odd series",
+        dtstart: start,
+        dtend: DateTime.add(start, 1, :hour),
+        rrule: "FREQ=DAILY;COUNT=3",
+        duration_defaulted: true
+      }
+
+      {:ok, events} = InvalidEventReport.collect(fn -> normalise_ical([raw]) end)
+      assert length(events) == 3
+
+      assert_received {:send_alert, :invalid_calendar_event, payload}
+      assert payload.defaulted == 1
+    end
+
     test "returns the run's result and raises nothing for a clean run" do
       assert {:ok, [_event]} =
                InvalidEventReport.collect(fn -> normalise_ical([ical_valid("good")]) end)
