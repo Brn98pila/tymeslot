@@ -53,6 +53,19 @@ defmodule Tymeslot.Bookings.RescheduleRemindersTest do
       do: raise(DBConnection.ConnectionError, "connection refused")
   end
 
+  # An email scheduler that clears reminders but returns an error, rather
+  # than raising, when it cannot pin new ones.
+  defmodule RefusingReminders do
+    @moduledoc false
+    alias Tymeslot.Emails.EmailScheduler
+
+    defdelegate cancel_reminder_emails(meeting_id), to: EmailScheduler
+
+    @spec schedule_reminder_emails(term(), term(), term(), term()) :: {:error, term()}
+    def schedule_reminder_emails(_meeting_id, _value, _unit, _scheduled_at),
+      do: {:error, :insert_failed}
+  end
+
   defp restore_email_worker(nil), do: Application.delete_env(:tymeslot, :email_worker_module)
 
   defp restore_email_worker(worker),
@@ -123,6 +136,38 @@ defmodule Tymeslot.Bookings.RescheduleRemindersTest do
 
       original_worker = Application.get_env(:tymeslot, :email_worker_module)
       Application.put_env(:tymeslot, :email_worker_module, UnpinnableReminders)
+
+      try do
+        assert {:error, :failed_to_update_meeting} =
+                 Reschedule.execute(meeting.uid, params, meeting.organizer_user_id)
+      after
+        restore_email_worker(original_worker)
+      end
+
+      assert DateTime.compare(reload(meeting).start_time, meeting.start_time) == :eq
+
+      assert [%{id: id}] =
+               all_enqueued(worker: EmailWorker, args: %{"action" => "send_reminder_emails"})
+
+      assert id == old.id
+
+      assert {:ok, moved} = Reschedule.execute(meeting.uid, params, meeting.organizer_user_id)
+
+      assert [pinned] =
+               all_enqueued(worker: EmailWorker, args: %{"action" => "send_reminder_emails"})
+
+      assert pinned.args["start_time"] == DateTime.to_iso8601(moved.start_time)
+    end
+
+    # The same refusal when the pin fails by returning an error: the nested
+    # rollback must still undo the move and the cleared reminder together.
+    test "an ordinary move whose reminders return an error is refused, and a retry re-pins them" do
+      %{meeting: meeting, params: params} = gated_booking(false)
+      :ok = EmailScheduler.schedule_reminder_emails(meeting.id, 30, "minutes")
+      [old] = all_enqueued(worker: EmailWorker, args: %{"action" => "send_reminder_emails"})
+
+      original_worker = Application.get_env(:tymeslot, :email_worker_module)
+      Application.put_env(:tymeslot, :email_worker_module, RefusingReminders)
 
       try do
         assert {:error, :failed_to_update_meeting} =
