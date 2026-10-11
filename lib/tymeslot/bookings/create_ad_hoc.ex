@@ -187,7 +187,8 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
         # Add, or a poll the host confirmed), and their invitation says so.
         with {:ok, meeting} <- create_meeting(meeting_attrs),
              {:ok, _guests} <- Guests.create_for_meeting(meeting.id, guest_emails, :organizer),
-             {:ok, _job} <- schedule_calendar_job(meeting) do
+             {:ok, _job} <- schedule_calendar_job(meeting),
+             {:ok, pending} <- Activation.activate_in_transaction(meeting, with_video_room: true) do
           # The video-room-then-emails-then-webhooks sequence itself lives in
           # `Bookings.Activation`, shared with every other confirmed-booking path so
           # the ordering (room before emails, so the join link is in the
@@ -205,8 +206,8 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
           # worker, never on create. The baseline stays empty here exactly as it does
           # for every other booking path, which `LastNotifiedState.to_event/2` is built
           # to handle: the people on the event are the people this path already
-          # invited.
-          {meeting, Activation.activate_in_transaction(meeting, with_video_room: true)}
+          # invited. A booking whose emails cannot be queued rolls back with them.
+          {meeting, pending}
         else
           {:error, reason} -> Repo.rollback(reason)
         end

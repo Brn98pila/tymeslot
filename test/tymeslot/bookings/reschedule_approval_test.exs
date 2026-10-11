@@ -249,9 +249,14 @@ defmodule Tymeslot.Bookings.RescheduleApprovalTest do
 
       {:ok, rescheduled} = Reschedule.execute(meeting.uid, params, meeting.organizer_user_id)
 
-      expect(Tymeslot.EmailServiceMock, :send_reschedule_emails, fn details ->
+      expect(Tymeslot.EmailServiceMock, :send_reschedule_email_to_organizer, fn _email,
+                                                                                _details ->
+        {:ok, :sent}
+      end)
+
+      expect(Tymeslot.EmailServiceMock, :send_reschedule_email_to_attendee, fn _email, details ->
         send(test_pid, {:reschedule_emails, details})
-        {{:ok, :sent}, {:ok, :sent}}
+        {:ok, :sent}
       end)
 
       assert {:ok, _confirmed} = Approval.approve(reload(meeting))

@@ -342,13 +342,15 @@ defmodule Tymeslot.Bookings.Create do
 
   defp run_meeting_transaction(meeting_attrs, booking_data, opts) do
     Repo.transaction(fn ->
+      # The emails, reminders and room job commit with the meeting, so a
+      # booking that loses its slot leaves none behind, and a booking whose
+      # emails cannot be queued is not made; the integration fan-out waits
+      # for the commit (`Activation.activate_in_transaction/2`).
       with {:ok, meeting} <- create_meeting(meeting_attrs),
            {:ok, _guests} <- create_guests(meeting, booking_data),
-           {:ok, _result} <- schedule_calendar_job(meeting) do
-        # The emails, reminders and room job commit with the meeting, so a
-        # booking that loses its slot leaves none behind; the integration
-        # fan-out waits for the commit (`Activation.activate_in_transaction/2`).
-        {meeting, Activation.activate_in_transaction(meeting, opts)}
+           {:ok, _result} <- schedule_calendar_job(meeting),
+           {:ok, pending} <- Activation.activate_in_transaction(meeting, opts) do
+        {meeting, pending}
       else
         {:error, reason} ->
           Repo.rollback(reason)

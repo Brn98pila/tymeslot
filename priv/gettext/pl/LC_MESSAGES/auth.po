@@ -963,3 +963,8 @@ msgstr "Konto jest usuwane i nie można go już przywrócić."
 #, elixir-autogen, elixir-format
 msgid "Your account is in the process of being deleted (scheduled for %{date}). If you want to keep it, restore it here."
 msgstr "Konto jest w trakcie usuwania (zaplanowano na %{date}). Jeśli chcesz je zachować, przywróć je tutaj."
+
+#: lib/tymeslot/auth/email_change.ex
+#, elixir-autogen, elixir-format
+msgid "The verification email could not be sent. Please try again."
+msgstr "Nie udało się wysłać e-maila potwierdzającego. Spróbuj ponownie."

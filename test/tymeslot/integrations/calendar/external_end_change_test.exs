@@ -25,8 +25,8 @@ defmodule Tymeslot.Integrations.Calendar.ExternalEndChangeTest do
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema
+  alias Tymeslot.Notifications.EmailHandlers
   alias Tymeslot.TestMocks
-  alias Tymeslot.Workers.EmailWorkerHandlers
   alias Tymeslot.Workers.SyncGoogleCalendarWorker
   alias Tymeslot.Workers.VideoSyncWorker
 
@@ -87,7 +87,7 @@ defmodule Tymeslot.Integrations.Calendar.ExternalEndChangeTest do
       end)
 
       assert :ok =
-               EmailWorkerHandlers.execute_email_action("send_reminder_emails", %{
+               EmailHandlers.execute_email_action("send_reminder_emails", %{
                  "meeting_id" => ctx.meeting.id
                })
 

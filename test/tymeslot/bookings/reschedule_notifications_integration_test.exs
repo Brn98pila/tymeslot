@@ -30,13 +30,15 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
   alias Oban.Job
   alias Tymeslot.Availability.WeeklySchedule
   alias Tymeslot.Bookings.Reschedule
+  alias Tymeslot.Meetings.Guests
   alias Tymeslot.Meetings.MeetingSchema
+  alias Tymeslot.Notifications.EmailHandlers
   alias Tymeslot.Notifications.Orchestrator
   alias Tymeslot.Repo
   alias Tymeslot.TestMocks
+  alias Tymeslot.Workers.DeliveryClaims
   alias Tymeslot.Workers.DeliveryClaims.DeliveryClaimQueries
   alias Tymeslot.Workers.EmailWorker
-  alias Tymeslot.Workers.EmailWorkerHandlers
   alias Tymeslot.Workers.TelegramWorker
   alias Tymeslot.Workers.WebhookWorker
 
@@ -46,8 +48,13 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
   # raises rather than returning `{:error, _}`, which is what made issue #76
   # take the other channels down with it.
   defmodule RaisingEmailService do
-    @spec send_reschedule_emails(map()) :: no_return()
-    def send_reschedule_emails(_content) do
+    @spec send_reschedule_email_to_organizer(String.t(), map()) :: no_return()
+    def send_reschedule_email_to_organizer(_email, _content) do
+      raise KeyError, key: :reminders_summary, term: %{}
+    end
+
+    @spec send_reschedule_email_to_attendee(String.t(), map()) :: no_return()
+    def send_reschedule_email_to_attendee(_email, _content) do
       raise KeyError, key: :reminders_summary, term: %{}
     end
   end
@@ -364,11 +371,51 @@ defmodule Tymeslot.Bookings.RescheduleNotificationsIntegrationTest do
       [job] = all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"})
 
       assert_raise KeyError, fn ->
-        EmailWorkerHandlers.execute_email_action("send_reschedule_emails", job.args, job.id)
+        EmailHandlers.execute_email_action("send_reschedule_emails", job.args, job.id)
       end
 
-      refute DeliveryClaimQueries.claimed?(job.id, "reschedule:participants")
+      refute DeliveryClaimQueries.claimed?(job.id, "reschedule:organizer")
+      refute DeliveryClaimQueries.claimed?(job.id, "reschedule:attendee")
       refute_received {:email, _email}
+    end
+
+    # Jobs queued by older code claimed the pair as one. Such a job's copies
+    # went out already, so neither is sent again.
+    test "a job holding the legacy participants claim sends no participant copy but tells an unclaimed guest",
+         %{user: user, meeting: meeting} do
+      Application.put_env(:tymeslot, :email_service_module, Tymeslot.EmailServiceMock)
+      TestMocks.setup_email_mocks()
+
+      {:ok, [_guest]} = Guests.create_for_meeting(meeting.id, ["guest@example.com"])
+
+      new_params = reschedule_params_for(future_datetime(8, :day))
+      assert {:ok, _updated} = Reschedule.execute(meeting.uid, new_params, user.id)
+
+      [job] = all_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"})
+
+      :ok = DeliveryClaims.once(job.id, "reschedule:participants", fn -> :ok end)
+
+      expect(Tymeslot.EmailServiceMock, :send_reschedule_email_to_organizer, 0, fn _email,
+                                                                                   _details ->
+        {:ok, :sent}
+      end)
+
+      expect(Tymeslot.EmailServiceMock, :send_reschedule_email_to_attendee, 0, fn _email,
+                                                                                  _details ->
+        {:ok, :sent}
+      end)
+
+      expect(Tymeslot.EmailServiceMock, :send_guest_reschedule, 1, fn "guest@example.com",
+                                                                      _details ->
+        {:ok, :sent}
+      end)
+
+      assert :ok =
+               EmailHandlers.execute_email_action(
+                 "send_reschedule_emails",
+                 job.args,
+                 job.id
+               )
     end
 
     test "still persists the new meeting time", %{user: user, meeting: meeting} do

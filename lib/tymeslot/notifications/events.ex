@@ -15,6 +15,7 @@ defmodule Tymeslot.Notifications.Events do
   alias Tymeslot.Notifications.ChannelFanout
   alias Tymeslot.Notifications.DispatchInTransactionError
   alias Tymeslot.Notifications.Orchestrator
+  alias Tymeslot.Repo
 
   @doc """
   Handles meeting creation event.
@@ -27,9 +28,13 @@ defmodule Tymeslot.Notifications.Events do
   channel subscribed to it.
 
   The claim is taken before the fan-out rather than after it, so two callers
-  racing cannot both dispatch. A fan-out that then fails keeps the claim: every
-  channel here is best-effort and none of the callers retry the event, so
-  releasing it would buy nothing and would risk announcing twice instead.
+  racing cannot both dispatch. The claim, the confirmation emails and the
+  reminders commit together or not at all: here they run in one transaction,
+  so an email or reminder that cannot be enqueued releases the claim and
+  returns the error for the caller (the video room job) to retry. The
+  integration fan-out runs only once they have committed, so a retry can
+  never announce the booking twice to webhooks, Telegram or Slack, and a
+  failing integration never releases the claim: each channel is best-effort.
 
   A booking can win the claim a second time in one case: a reschedule sent it
   back into the approval gate, which frees the claim so the host's approval of
@@ -42,9 +47,18 @@ defmodule Tymeslot.Notifications.Events do
   """
   @spec meeting_created(term()) :: {:ok, term()} | {:error, term()}
   def meeting_created(meeting) do
-    {result, pending} = meeting_created_deferred(meeting)
-    :ok = dispatch_deferred(pending)
-    result
+    announcement =
+      Repo.transaction(fn ->
+        case meeting_created_deferred(meeting) do
+          {{:error, reason}, _pending} -> Repo.rollback(reason)
+          announced -> announced
+        end
+      end)
+
+    with {:ok, {result, pending}} <- announcement do
+      :ok = dispatch_deferred(pending)
+      result
+    end
   end
 
   @typedoc """
@@ -62,8 +76,11 @@ defmodule Tymeslot.Notifications.Events do
   to `dispatch_deferred/1` once the transaction has committed.
 
   The emails and reminders are jobs, written in the caller's transaction, so
-  they commit with the booking or not at all. The integrations are kept out
-  of it because a database error inside a dispatcher, rescued here as
+  they commit with the booking or not at all. On `{:error, _}` the caller
+  must roll its transaction back, which releases the claim with it, and
+  `pending` is empty: nothing is announced to the integrations for a booking
+  whose emails were never queued. The integrations are kept out of the
+  transaction because a database error inside a dispatcher, rescued here as
   best-effort, would still leave the caller's transaction unable to commit.
   """
   @spec meeting_created_deferred(term()) :: {{:ok, term()} | {:error, term()}, pending()}
@@ -130,12 +147,54 @@ defmodule Tymeslot.Notifications.Events do
   # and reminder fan-out is the same for both announcements.
   defp announce_meeting_created(meeting, channel_event) do
     result =
-      send_notifications(:meeting_created, meeting, fn ->
+      :meeting_created
+      |> send_notifications(meeting, fn ->
         Orchestrator.schedule_meeting_notifications(meeting)
       end)
+      |> retryable_only(:meeting_created, meeting)
 
-    {result, [{channel_event, meeting, :per_seat}]}
+    case result do
+      {:error, _reason} = error -> {error, []}
+      result -> {result, [{channel_event, meeting, :per_seat}]}
+    end
   end
+
+  # An announcement's caller rolls the booking back on an error, for a retry.
+  # Only a failing queue or database can be helped by one: a fault composing
+  # the emails (a bug, an odd legacy row) fails the same way every time, and
+  # rolling back would refuse the booking for good, or answer a paid
+  # checkout's webhook with a 503 for days. Such a fault is reported where it
+  # was rescued (`send_notifications/3`) and the booking goes ahead without
+  # its emails, as one that cannot be emailed does (`{:ok, :not_sendable}`).
+  defp retryable_only({:error, {:notifications_failed, exception}} = error, event, meeting) do
+    if storage_failure?(exception) do
+      error
+    else
+      Logger.error("Announcing without emails: composing them failed",
+        event: event,
+        meeting_id: Map.get(meeting, :id),
+        error: LogFormat.reason(exception)
+      )
+
+      {:ok, :not_sendable}
+    end
+  end
+
+  defp retryable_only(result, _event, _meeting), do: result
+
+  # The database refused or dropped the write; in a transaction, Postgres has
+  # also aborted it, so nothing could commit anyway.
+  defp storage_failure?(%struct{})
+       when struct in [
+              DBConnection.ConnectionError,
+              DBConnection.OwnershipError,
+              Postgrex.Error,
+              Ecto.ConstraintError,
+              Ecto.StaleEntryError
+            ],
+       do: true
+
+  defp storage_failure?(_exception), do: false
 
   @doc """
   Handles a seat being booked on a group meeting.
@@ -169,7 +228,13 @@ defmodule Tymeslot.Notifications.Events do
       if Keyword.get(opts, :defer_emails?, false) do
         {:ok, :deferred_to_video_room}
       else
-        Orchestrator.schedule_seat_confirmation(meeting, participant)
+        # As for a solo booking: only a storage failure rolls the seat back;
+        # a fault composing its emails would refuse the seat on every retry.
+        :seat_booked
+        |> send_notifications(meeting, fn ->
+          Orchestrator.schedule_seat_confirmation(meeting, participant)
+        end)
+        |> retryable_only(:seat_booked, meeting)
       end
 
     {result, [{:meeting_created, meeting, {:seat, participant}}]}
@@ -201,9 +266,11 @@ defmodule Tymeslot.Notifications.Events do
           {{:ok, term()} | {:error, term()}, pending()}
   def meeting_requested_deferred(meeting, opts \\ []) do
     result =
-      send_notifications(:meeting_requested, meeting, fn ->
+      :meeting_requested
+      |> send_notifications(meeting, fn ->
         Orchestrator.schedule_request_notifications(meeting, opts)
       end)
+      |> retryable_only(:meeting_requested, meeting)
 
     {result, [{:meeting_requested, meeting, :once}]}
   end
@@ -227,16 +294,17 @@ defmodule Tymeslot.Notifications.Events do
   enqueues is uniqued on `(meeting_id, participant_id)`, and should a late
   release enqueue one anyway, the seat's own sent markers
   (`confirmation_sent_at`, `organizer_notified_at`) stop it sending again.
+
+  Returns `{:error, reason}` when a solo meeting's emails could not be
+  queued; nothing was announced, so the job retries.
   """
-  @spec announce_video_room_outcome(term()) :: :ok
+  @spec announce_video_room_outcome(term()) :: :ok | {:error, term()}
   def announce_video_room_outcome(meeting) do
     if MeetingSchema.group?(meeting) do
       release_seat_confirmations(meeting)
     else
-      meeting_created(meeting)
+      with {:ok, _result} <- meeting_created(meeting), do: :ok
     end
-
-    :ok
   end
 
   # A room job that finishes after the host cancelled the meeting has no
@@ -380,11 +448,8 @@ defmodule Tymeslot.Notifications.Events do
         Orchestrator.send_reschedule_notifications(updated_meeting, original_meeting)
       end)
 
-    # Re-pin reminders to the new meeting time. This replaces reminder jobs
-    # still aimed at the old time and recreates the ones deleted when an
-    # organizer reschedule request voided the original slot. Failures are
-    # logged but never fail the reschedule itself.
-    schedule_reminders(updated_meeting)
+    # Reminders were re-pinned to the new time in the reschedule's own
+    # transaction (`Tymeslot.Bookings.Reschedule`), so they committed with it.
 
     # Webhooks, Telegram and Slack; none of them fails the reschedule.
     dispatch_integrations(:meeting_rescheduled, updated_meeting)
@@ -487,29 +552,6 @@ defmodule Tymeslot.Notifications.Events do
 
       {:error, reason} ->
         Logger.warning("Failed to cancel reminder jobs",
-          meeting_id: meeting.id,
-          reason: LogFormat.reason(reason)
-        )
-
-        :ok
-    end
-  end
-
-  defp schedule_reminders(meeting) do
-    case Orchestrator.schedule_reminder_notifications(meeting) do
-      :ok ->
-        :ok
-
-      {:ok, _result} ->
-        :ok
-
-      {:error, reason} ->
-        # The legitimate "nothing to schedule" case (meeting starts too soon
-        # for any configured reminder) is `{:ok, :reminder_not_scheduled}`,
-        # matched above, not an error. Anything reaching here is a real
-        # defect that silently deprives a meeting of its reminders, so it is
-        # logged loudly rather than as a routine warning.
-        Logger.error("Failed to schedule reminder jobs",
           meeting_id: meeting.id,
           reason: LogFormat.reason(reason)
         )

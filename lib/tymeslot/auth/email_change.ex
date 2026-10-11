@@ -40,7 +40,10 @@ defmodule Tymeslot.Auth.EmailChange do
 
   A failure is `{:error, %{field => message}}`, keyed by the form field each
   message belongs to (`:current_password`, `:new_email`). Malformed input is
-  reported for every field at once, before the password is checked.
+  reported for every field at once, before the password is checked. Emails
+  that cannot be queued are reported against `:new_email`; the change stays
+  pending, unconfirmable without its link, and lapses or is replaced by the
+  next request.
 
   `user` only identifies the account: it is re-read under a row lock, so the
   password is checked against the current hash and the request serialises
@@ -80,8 +83,8 @@ defmodule Tymeslot.Auth.EmailChange do
   defp do_request_email_change(user, new_email, current_password) do
     with {:ok, new_email} <- validate_input(new_email, current_password),
          {:ok, updated_user, delivery} <-
-           issue_in_transaction(user.id, new_email, current_password) do
-      deliver(delivery, updated_user, new_email)
+           issue_in_transaction(user.id, new_email, current_password),
+         :ok <- deliver(delivery, updated_user, new_email) do
       {:ok, updated_user, request_sent_message(new_email)}
     else
       {:error, :pending_elsewhere} ->
@@ -98,28 +101,41 @@ defmodule Tymeslot.Auth.EmailChange do
 
       {:error, %Changeset{} = changeset} ->
         {:error, %{new_email: format_changeset_error(changeset)}}
+
+      # The change is recorded but its emails could not be queued. Saying the
+      # link was sent would leave the user waiting on an email that is never
+      # coming; asking again issues a fresh link, and the unsent one lapses.
+      {:error, :not_sent} ->
+        {:error,
+         %{
+           new_email:
+             dgettext("auth", "The verification email could not be sent. Please try again.")
+         }}
     end
   end
 
-  # Queue emails via Oban; do not fail the request if scheduling fails.
+  # Both branches answer a failure the same way, so a taken address still
+  # cannot be told from a free one.
   defp deliver({:send, token}, user, new_email) do
-    _result =
-      EmailScheduler.schedule_email_change_emails(
-        user.id,
-        new_email,
-        UrlBuilder.email_change_url(token),
-        Token.hash_token(token)
-      )
-
-    :ok
+    user.id
+    |> EmailScheduler.schedule_email_change_emails(
+      new_email,
+      UrlBuilder.email_change_url(token),
+      Token.hash_token(token)
+    )
+    |> sent()
   end
 
   # The current address hears of the change either way, as it would for a
   # free address; only the link is withheld.
   defp deliver(:withhold, user, new_email) do
-    _result = EmailScheduler.schedule_email_change_notification(user.id, new_email)
-    :ok
+    user.id
+    |> EmailScheduler.schedule_email_change_notification(new_email)
+    |> sent()
   end
+
+  defp sent(:ok), do: :ok
+  defp sent({:error, _reason}), do: {:error, :not_sent}
 
   defp request_sent_message(new_email),
     do: dgettext("auth", "Verification email sent to %{email}", email: new_email)

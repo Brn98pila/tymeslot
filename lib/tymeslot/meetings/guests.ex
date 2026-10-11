@@ -21,7 +21,7 @@ defmodule Tymeslot.Meetings.Guests do
 
   alias Tymeslot.Auth
   alias Tymeslot.Clock
-  alias Tymeslot.Emails.EmailScheduler.MeetingScheduler
+  alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Meetings.GuestQueries
   alias Tymeslot.Meetings.GuestSchema
   alias Tymeslot.Meetings.MeetingQueries
@@ -199,7 +199,7 @@ defmodule Tymeslot.Meetings.Guests do
   defp schedule_invitations(_meeting, []), do: :ok
 
   defp schedule_invitations(meeting, added),
-    do: MeetingScheduler.schedule_guest_invitations(meeting.id, Enum.map(added, & &1.id))
+    do: EmailScheduler.schedule_guest_invitations(meeting.id, Enum.map(added, & &1.id))
 
   @doc """
   Looks up the open invitation behind an RSVP token without mutating anything.

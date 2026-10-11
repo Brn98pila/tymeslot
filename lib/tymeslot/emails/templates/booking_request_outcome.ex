@@ -94,12 +94,10 @@ defmodule Tymeslot.Emails.Templates.BookingRequestOutcome do
       |> to({meeting.attendee_name, meeting.attendee_email})
       |> from({meeting.organizer_name, MjmlEmail.fetch_from_email()})
       |> subject(
-        Sanitise.sanitize_for_header(
-          subject_line(
-            {variant, kind},
-            meeting,
-            Formatting.format_date_short(attendee_time, locale)
-          )
+        subject_line(
+          {variant, kind},
+          meeting,
+          Formatting.format_date_short(attendee_time, locale)
         )
       )
       |> html_body(html_body)

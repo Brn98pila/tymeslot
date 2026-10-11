@@ -19,7 +19,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
   their spot moved, the meeting goes on at the old time for everyone else.
 
   The reschedule context (`:original_start_time` and friends) is supplied by
-  `Tymeslot.Notifications.ContentBuilder.build_reschedule_details/2`. Every key
+  `Tymeslot.Emails.AppointmentBuilder.for_reschedule/2`. Every key
   it adds is read defensively here: a payload without it still renders, minus
   the "previously" line or the note on whether the join link changed.
   """
@@ -36,7 +36,6 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
     JoinUrl,
     MeetingComponents,
     MjmlEmail,
-    Sanitise,
     TemplateHelper,
     Text,
     TextBodyHelper
@@ -100,11 +99,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
 
       MjmlEmail.base_email()
       |> to({appointment_details.attendee_name, attendee_email})
-      |> subject(
-        Sanitise.sanitize_for_header(
-          attendee_subject(appointment_details, meeting_details.date, locale)
-        )
-      )
+      |> subject(attendee_subject(appointment_details, meeting_details.date, locale))
       |> html_body(html_body)
       |> text_body(build_attendee_text_body(appointment_details, meeting_details, locale))
       |> attachment(update_ics_attachment(appointment_details, locale))
@@ -156,11 +151,9 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
       MjmlEmail.base_email()
       |> to({guest_name, guest_email})
       |> subject(
-        Sanitise.sanitize_for_header(
-          dgettext("emails_booking", "Meeting Rescheduled - %{date} with %{name}",
-            date: date_short,
-            name: appointment_details.organizer_name
-          )
+        dgettext("emails_booking", "Meeting Rescheduled - %{date} with %{name}",
+          date: date_short,
+          name: appointment_details.organizer_name
         )
       )
       |> html_body(html_body)
@@ -227,11 +220,9 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
       MjmlEmail.base_email()
       |> to({appointment_details.organizer_name, organizer_email})
       |> subject(
-        Sanitise.sanitize_for_header(
-          dgettext("emails_booking", "Rescheduled: %{name} - %{date}",
-            name: appointment_details.attendee_name,
-            date: Formatting.format_date_short(meeting_details.date, locale)
-          )
+        dgettext("emails_booking", "Rescheduled: %{name} - %{date}",
+          name: appointment_details.attendee_name,
+          date: Formatting.format_date_short(meeting_details.date, locale)
         )
       )
       |> html_body(html_body)
@@ -289,7 +280,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
   end
 
   # The time the spot left is unknown only when its seat row has since gone
-  # (see `Tymeslot.Workers.EmailWorkerHandlers.SeatEmails`).
+  # (see `Tymeslot.Notifications.Email.SeatEmails`).
   defp seat_move_times(appointment_details, locale) do
     to =
       moment(appointment_details.start_time_attendee_tz, appointment_details, :attendee, locale)

@@ -2,6 +2,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminderTest do
   use Tymeslot.DataCase, async: true
   @moduletag :emails
 
+  alias Tymeslot.Emails.Delivery
   alias Tymeslot.Emails.Shared.Formatting
   alias Tymeslot.Emails.Templates.AppointmentReminder
   import Tymeslot.EmailTestHelpers
@@ -133,6 +134,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentReminderTest do
 
       email = AppointmentReminder.render(:organizer, "organizer@example.com", details)
 
+      email = Delivery.sanitise_headers(email)
       refute email.subject =~ "\r"
       refute email.subject =~ "\n"
     end

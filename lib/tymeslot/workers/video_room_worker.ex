@@ -185,19 +185,21 @@ defmodule Tymeslot.Workers.VideoRoomWorker do
     |> handle_insert(meeting_id, announcement)
   end
 
-  defp handle_insert({:ok, _job}, meeting_id, announcement) do
-    Logger.info("Video room creation job scheduled",
-      meeting_id: meeting_id,
-      announce: Announcement.owed?(announcement)
+  # The uniqueness window did its job; the existing job will create the room.
+  # Oban reports that as the existing job with `conflict?: true`, never as a
+  # changeset error.
+  defp handle_insert({:ok, %Oban.Job{conflict?: true}}, meeting_id, _announcement) do
+    Logger.info("Video room creation job already exists, skipping duplicate",
+      meeting_id: meeting_id
     )
 
     :ok
   end
 
-  # The uniqueness window did its job; the existing job will create the room.
-  defp handle_insert({:error, %Changeset{errors: [unique: _details]}}, meeting_id, _announce) do
-    Logger.info("Video room creation job already exists, skipping duplicate",
-      meeting_id: meeting_id
+  defp handle_insert({:ok, _job}, meeting_id, announcement) do
+    Logger.info("Video room creation job scheduled",
+      meeting_id: meeting_id,
+      announce: Announcement.owed?(announcement)
     )
 
     :ok
@@ -328,7 +330,7 @@ defmodule Tymeslot.Workers.VideoRoomWorker do
     Announcement.deliver(
       announcement,
       meeting,
-      Recovery.announced_without_room?(execution)
+      Recovery.fallback_attempted?(execution)
     )
   end
 
@@ -342,11 +344,12 @@ defmodule Tymeslot.Workers.VideoRoomWorker do
       # no amount of retrying will produce a link, so give up now and announce
       # the booking without one. Reaching `Recovery` instead would spend ten
       # attempts and a permanent-failure alert to arrive at the same place.
+      #
+      # An announcement that fails retries the job instead, so the booking is
+      # still announced once its emails can be queued.
       categorized in @announce_without_room ->
-        if Announcement.owed?(announcement),
-          do: Recovery.send_fallback_notifications(meeting_id, announcement, execution)
-
-        {:discard, ErrorPolicy.discard_reason(categorized)}
+        with :ok <- announce_without_room(meeting_id, announcement, execution),
+             do: {:discard, ErrorPolicy.discard_reason(categorized)}
 
       Recovery.recovering?(execution, Announcement.owed?(announcement)) ->
         Recovery.enter(
@@ -359,6 +362,12 @@ defmodule Tymeslot.Workers.VideoRoomWorker do
       true ->
         {:error, categorized}
     end
+  end
+
+  defp announce_without_room(meeting_id, announcement, execution) do
+    if Announcement.owed?(announcement),
+      do: Recovery.send_fallback_notifications(meeting_id, announcement, execution),
+      else: :ok
   end
 
   defp log_failure(reason, meeting_id),

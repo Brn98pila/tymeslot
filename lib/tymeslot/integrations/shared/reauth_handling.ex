@@ -24,7 +24,7 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandling do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Emails.EmailScheduler.IntegrationScheduler
+  alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Infrastructure.BreakerOutcome
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Integrations.Shared.IntegrationTypes
@@ -211,7 +211,7 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandling do
   # A uniqueness conflict is reported as :ok: an email for this flag is
   # already queued.
   defp notify(kind, updated) do
-    case IntegrationScheduler.schedule_integration_reauth_notification(
+    case EmailScheduler.schedule_integration_reauth_notification(
            %{id: updated.user_id},
            updated,
            kind

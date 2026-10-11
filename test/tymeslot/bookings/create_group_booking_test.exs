@@ -209,7 +209,7 @@ defmodule Tymeslot.Bookings.CreateGroupBookingTest do
     # A group meeting type with an auto-creating video provider used to never
     # send the first booker a confirmation: the room worker released a
     # solo-shaped `meeting.created` event against a meeting with no
-    # `attendee_*` fields of its own, which `ContentBuilder.validate_content/2`
+    # `attendee_*` fields of its own, which the content check of the time
     # then refused as missing fields. Running the real job end to end is the
     # point — a hand-called helper would not have caught that.
     test "the first booker's confirmation reaches them once the room worker runs for real", ctx do
@@ -330,6 +330,8 @@ defmodule Tymeslot.Bookings.CreateGroupBookingTest do
 
       defdelegate schedule_reminder_emails(meeting_id, value, unit, scheduled_at),
         to: EmailScheduler
+
+      defdelegate cancel_reminder_emails(meeting_id), to: EmailScheduler
     end
 
     defp fail_seat_confirmations do

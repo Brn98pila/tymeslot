@@ -3,6 +3,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentCancellationTest do
   @moduletag :emails
 
   alias Tymeslot.Emails.AppointmentBuilder
+  alias Tymeslot.Emails.Delivery
   alias Tymeslot.Emails.Shared.Formatting
   alias Tymeslot.Emails.Templates.AppointmentCancellation
   alias TymeslotWeb.Endpoint
@@ -538,6 +539,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentCancellationTest do
 
       email = AppointmentCancellation.render(:attendee, "attendee@example.com", details)
 
+      email = Delivery.sanitise_headers(email)
       refute email.subject =~ "\r"
       refute email.subject =~ "\n"
     end
@@ -550,6 +552,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentCancellationTest do
 
       email = AppointmentCancellation.render(:organizer, "organizer@example.com", details)
 
+      email = Delivery.sanitise_headers(email)
       refute email.subject =~ "\r"
       refute email.subject =~ "\n"
     end

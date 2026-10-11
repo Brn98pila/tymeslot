@@ -147,29 +147,23 @@ defmodule Tymeslot.Workers.EmailWorkerTest do
       assert DateTime.compare(DateTime.truncate(job.scheduled_at, :second), scheduled_at) == :eq
     end
 
-    test "reschedules reminder by replacing existing job" do
+    # Moving a meeting's reminder is the reschedule's job: it clears the
+    # pending reminders and pins the new ones together
+    # (`Orchestrator.schedule_reminder_notifications/2` with `replace: true`).
+    # Scheduling the same reminder again on its own only finds the one queued.
+    test "scheduling the same reminder again keeps the one already queued" do
       user = insert(:user)
       meeting = insert(:meeting, organizer_user: user)
       scheduled_at = DateTime.truncate(DateTime.add(DateTime.utc_now(), 30, :minute), :second)
-      new_scheduled_at = DateTime.truncate(DateTime.add(DateTime.utc_now(), 45, :minute), :second)
+      later = DateTime.truncate(DateTime.add(DateTime.utc_now(), 45, :minute), :second)
 
       assert :ok =
                EmailScheduler.schedule_reminder_emails(meeting.id, 30, "minutes", scheduled_at)
 
-      # The scheduler deletes the existing reminder job before inserting the new
-      # one, so the replacement must carry the new time — not the original.
-      assert :ok =
-               EmailScheduler.schedule_reminder_emails(
-                 meeting.id,
-                 30,
-                 "minutes",
-                 new_scheduled_at
-               )
+      assert :ok = EmailScheduler.schedule_reminder_emails(meeting.id, 30, "minutes", later)
 
       assert [job] = all_enqueued(worker: EmailWorker)
-
-      assert DateTime.compare(DateTime.truncate(job.scheduled_at, :second), new_scheduled_at) ==
-               :eq
+      assert DateTime.compare(DateTime.truncate(job.scheduled_at, :second), scheduled_at) == :eq
     end
   end
 
@@ -378,12 +372,17 @@ defmodule Tymeslot.Workers.EmailWorkerTest do
         {:ok, :sent}
       end)
 
-      # No "token_hash" key — a job enqueued before hash tracking existed must still deliver.
+      # No "token_hash" key, and the link in plain text: a job enqueued before
+      # either existed must still deliver. It is run as the queued job it is,
+      # since `EmailWorker.new/2` would no longer build it.
       assert :ok =
-               perform_job(EmailWorker, %{
-                 "action" => "send_email_verification",
-                 "user_id" => user.id,
-                 "verification_url" => "https://example.com/verify"
+               EmailWorker.perform(%Oban.Job{
+                 attempt: 1,
+                 args: %{
+                   "action" => "send_email_verification",
+                   "user_id" => user.id,
+                   "verification_url" => "https://example.com/verify"
+                 }
                })
     end
 
@@ -395,10 +394,13 @@ defmodule Tymeslot.Workers.EmailWorkerTest do
       expect(Tymeslot.EmailServiceMock, :send_password_reset, fn _user, _url -> {:ok, :sent} end)
 
       assert :ok =
-               perform_job(EmailWorker, %{
-                 "action" => "send_password_reset",
-                 "user_id" => user.id,
-                 "reset_url" => "https://example.com/reset"
+               EmailWorker.perform(%Oban.Job{
+                 attempt: 1,
+                 args: %{
+                   "action" => "send_password_reset",
+                   "user_id" => user.id,
+                   "reset_url" => "https://example.com/reset"
+                 }
                })
     end
 

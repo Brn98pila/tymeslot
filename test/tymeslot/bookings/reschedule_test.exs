@@ -14,9 +14,9 @@ defmodule Tymeslot.Bookings.RescheduleTest do
   alias Tymeslot.Bookings.Validation
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Notifications.EmailHandlers
   alias Tymeslot.TestMocks
   alias Tymeslot.Workers.EmailWorker
-  alias Tymeslot.Workers.EmailWorkerHandlers
   import Tymeslot.AvailabilityTestHelpers
   import Tymeslot.Test.ClockHelpers
   import Tymeslot.MeetingTestHelpers
@@ -218,6 +218,28 @@ defmodule Tymeslot.Bookings.RescheduleTest do
       assert DateTime.compare(DateTime.truncate(job.scheduled_at, :second), expected_at) == :eq
     end
 
+    # A reminder too early for the new time is skipped, so its job at the old
+    # time must not survive to fire anyway.
+    test "drops a reminder the new time is too close for" do
+      %{meeting: meeting, new_params: new_params} = setup_reschedule_test()
+
+      :ok =
+        EmailScheduler.schedule_reminder_emails(
+          meeting.id,
+          4,
+          "days",
+          DateTime.add(DateTime.utc_now(), 3, :hour)
+        )
+
+      assert {:ok, _updated_meeting} =
+               Reschedule.execute(meeting.uid, new_params, meeting.organizer_user_id)
+
+      assert all_enqueued(
+               worker: EmailWorker,
+               args: %{"action" => "send_reminder_emails", "reminder_unit" => "days"}
+             ) == []
+    end
+
     test "resets reminder sent-tracking so the re-pinned reminder is not silently suppressed" do
       %{meeting: meeting, new_params: new_params} = setup_reschedule_test()
 
@@ -256,7 +278,7 @@ defmodule Tymeslot.Bookings.RescheduleTest do
         {:ok, "sent"}
       end)
 
-      assert :ok = EmailWorkerHandlers.execute_email_action(job.args["action"], job.args)
+      assert :ok = EmailHandlers.execute_email_action(job.args["action"], job.args)
 
       {:ok, after_send} = MeetingQueries.get_meeting(meeting.id)
 

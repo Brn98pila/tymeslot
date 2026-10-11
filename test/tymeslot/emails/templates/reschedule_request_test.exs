@@ -2,6 +2,7 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestTest do
   use Tymeslot.DataCase, async: true
   @moduletag :emails
 
+  alias Tymeslot.Emails.Delivery
   alias Tymeslot.Emails.Templates.RescheduleRequest
   alias TymeslotWeb.Endpoint
 
@@ -232,6 +233,7 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestTest do
       meeting = insert(:meeting, title: "Demo\r\nBcc: attacker@evil.com")
       email = RescheduleRequest.render(meeting)
 
+      email = Delivery.sanitise_headers(email)
       refute email.subject =~ "\r"
       refute email.subject =~ "\n"
     end

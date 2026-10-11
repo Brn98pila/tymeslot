@@ -79,11 +79,7 @@ defmodule Tymeslot.Emails.Templates.ChargeDisputeOpened do
 
       MjmlEmail.base_email()
       |> to(recipient(context.host_name, context.host_email))
-      |> subject(
-        Sanitise.sanitize_for_header(
-          dgettext("emails_payments", "Stripe dispute opened: %{amount}", amount: amount)
-        )
-      )
+      |> subject(dgettext("emails_payments", "Stripe dispute opened: %{amount}", amount: amount))
       |> header("X-Priority", "1")
       |> html_body(html(host, amount, details))
       |> text_body(text(host, amount, details))

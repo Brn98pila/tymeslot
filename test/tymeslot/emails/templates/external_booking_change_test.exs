@@ -5,6 +5,7 @@ defmodule Tymeslot.Emails.ExternalBookingChangeTest do
 
   alias Ecto.UUID
   alias Tymeslot.Bookings.MeetingLinks
+  alias Tymeslot.Emails.Delivery
   alias Tymeslot.Emails.EmailService
   alias Tymeslot.Emails.Templates.ExternalBookingChange
   alias Tymeslot.Meetings.MeetingSchema
@@ -180,6 +181,7 @@ defmodule Tymeslot.Emails.ExternalBookingChangeTest do
           "Europe/London"
         )
 
+      email = Delivery.sanitise_headers(email)
       refute email.subject =~ "\r"
       refute email.subject =~ "\n"
     end

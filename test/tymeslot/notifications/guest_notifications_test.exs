@@ -13,9 +13,9 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
   alias Tymeslot.Meetings.Approval
   alias Tymeslot.Meetings.GuestQueries
   alias Tymeslot.Meetings.Guests
+  alias Tymeslot.Notifications.EmailHandlers
   alias Tymeslot.Notifications.GuestNotifications
   alias Tymeslot.Workers.EmailWorker
-  alias Tymeslot.Workers.EmailWorkerHandlers
 
   setup :verify_on_exit!
 
@@ -128,8 +128,12 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
     test "the reschedule job retries, and the retry writes only to the guest missed" do
       %{meeting: meeting} = meeting_with_guests(moved())
 
-      expect(EmailServiceMock, :send_reschedule_emails, 1, fn _details ->
-        {{:ok, :sent}, {:ok, :sent}}
+      expect(EmailServiceMock, :send_reschedule_email_to_organizer, 1, fn _email, _details ->
+        {:ok, :sent}
+      end)
+
+      expect(EmailServiceMock, :send_reschedule_email_to_attendee, 1, fn _email, _details ->
+        {:ok, :sent}
       end)
 
       fail_once_for("no@example.com", :send_guest_reschedule)
@@ -152,8 +156,12 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
     test "the cancellation job retries, and the retry writes only to the guest missed" do
       %{meeting: meeting} = meeting_with_guests(moved(%{status: "cancelled"}))
 
-      expect(EmailServiceMock, :send_cancellation_emails, 1, fn _details ->
-        {{:ok, :sent}, {:ok, :sent}}
+      expect(EmailServiceMock, :send_cancellation_email_to_organizer, 1, fn _email, _details ->
+        {:ok, :sent}
+      end)
+
+      expect(EmailServiceMock, :send_cancellation_email_to_attendee, 1, fn _email, _details ->
+        {:ok, :sent}
       end)
 
       fail_once_for("yes@example.com", :send_guest_cancellation)
@@ -167,6 +175,81 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
       assert :ok = run_job("send_cancellation_emails")
       assert_received {:guest_send, "yes@example.com"}
       refute_received {:guest_send, _email}
+    end
+  end
+
+  # An attendee whose address the provider suppressed must not cost the
+  # guests their retry: every copy is attempted, and a failure a retry can
+  # fix outweighs the rejection.
+  describe "a rejected attendee alongside a guest that failed" do
+    @rejected {:error, {:recipient_rejected, {422, %{"ErrorCode" => 406}}}}
+
+    for {notice, action, guest_fun, organizer_fun, attendee_fun} <- [
+          {"reschedule", "send_reschedule_emails", :send_guest_reschedule,
+           :send_reschedule_email_to_organizer, :send_reschedule_email_to_attendee},
+          {"cancellation", "send_cancellation_emails", :send_guest_cancellation,
+           :send_cancellation_email_to_organizer, :send_cancellation_email_to_attendee}
+        ] do
+      test "the #{notice} job retries for the guest, and then gives up on the attendee alone" do
+        start_time = DateTime.add(DateTime.utc_now(:second), 3, :day)
+        status = if unquote(notice) == "cancellation", do: "cancelled", else: "confirmed"
+
+        %{meeting: meeting} =
+          meeting_with_guests(%{
+            start_time: start_time,
+            end_time: DateTime.add(start_time, 30, :minute),
+            status: status
+          })
+
+        expect(EmailServiceMock, unquote(organizer_fun), 1, fn _email, _details ->
+          {:ok, :sent}
+        end)
+
+        expect(EmailServiceMock, unquote(attendee_fun), 2, fn _email, _details -> @rejected end)
+        fail_guest_once("yes@example.com", unquote(guest_fun))
+
+        schedule(unquote(notice), meeting)
+
+        assert {:error, reason} = run_queued(unquote(action))
+        refute match?({:recipient_rejected, _rejection}, reason)
+
+        # The retry reaches the guest it missed; only the rejected attendee is
+        # left, which no retry can help.
+        assert {:discard, _reason} = run_queued(unquote(action))
+        assert_received {:guest_send, "yes@example.com"}
+        assert_received {:guest_send, "no@example.com"}
+        assert_received {:guest_send, "yes@example.com"}
+        refute_received {:guest_send, _email}
+      end
+    end
+
+    defp schedule("reschedule", meeting) do
+      :ok =
+        EmailScheduler.schedule_reschedule_emails(meeting, %{
+          start_time: DateTime.add(meeting.start_time, -1, :day),
+          end_time: DateTime.add(meeting.end_time, -1, :day)
+        })
+    end
+
+    defp schedule("cancellation", meeting),
+      do: :ok = EmailScheduler.schedule_cancellation_emails(meeting.id)
+
+    defp run_queued(action) do
+      [job] = all_enqueued(worker: EmailWorker, args: %{"action" => action})
+      EmailWorker.perform(%{job | attempt: job.attempt + 1})
+    end
+
+    defp fail_guest_once(address, fun) do
+      test_pid = self()
+      failed = :atomics.new(1, [])
+
+      stub(EmailServiceMock, fun, fn email, _details ->
+        send(test_pid, {:guest_send, email})
+
+        if email == address and :atomics.compare_exchange(failed, 1, 0, 1) == :ok,
+          do: {:error, :smtp_down},
+          else: {:ok, :sent}
+      end)
     end
   end
 
@@ -203,8 +286,12 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
       %{meeting: meeting} = meeting_with_guests(held(%{}))
       GuestNotifications.reset_for_new_time(meeting)
 
-      expect(EmailServiceMock, :send_reschedule_emails, fn _details ->
-        {{:ok, :sent}, {:ok, :sent}}
+      expect(EmailServiceMock, :send_reschedule_email_to_organizer, fn _email, _details ->
+        {:ok, :sent}
+      end)
+
+      expect(EmailServiceMock, :send_reschedule_email_to_attendee, fn _email, _details ->
+        {:ok, :sent}
       end)
 
       expect(EmailServiceMock, :send_guest_reschedule, 2, fn _email, details ->
@@ -281,8 +368,12 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
     test "the cancellation email job tells the guests alongside host and booker" do
       %{meeting: meeting} = meeting_with_guests(%{status: "cancelled"})
 
-      expect(EmailServiceMock, :send_cancellation_emails, fn _details ->
-        {{:ok, :sent}, {:ok, :sent}}
+      expect(EmailServiceMock, :send_cancellation_email_to_organizer, fn _email, _details ->
+        {:ok, :sent}
+      end)
+
+      expect(EmailServiceMock, :send_cancellation_email_to_attendee, fn _email, _details ->
+        {:ok, :sent}
       end)
 
       expect(EmailServiceMock, :send_guest_cancellation, 2, fn _email, _details ->
@@ -290,7 +381,7 @@ defmodule Tymeslot.Notifications.GuestNotificationsTest do
       end)
 
       assert :ok =
-               EmailWorkerHandlers.execute_email_action("send_cancellation_emails", %{
+               EmailHandlers.execute_email_action("send_cancellation_emails", %{
                  "meeting_id" => meeting.id
                })
     end

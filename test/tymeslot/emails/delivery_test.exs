@@ -211,6 +211,74 @@ defmodule Tymeslot.Emails.DeliveryTest do
     end
   end
 
+  describe "deliver/2 header values" do
+    setup do
+      Application.put_env(:swoosh, :shared_test_process, self())
+      on_exit(fn -> Application.delete_env(:swoosh, :shared_test_process) end)
+    end
+
+    # A CR or LF in a display name or a subject must never reach the
+    # adapter's header encoding, whichever template built the email.
+    test "strips line breaks from display names and the subject, keeping the addresses" do
+      email = %{
+        valid_email()
+        | to: [{"Ada\r\nBcc: victim@example.com", "ada@example.com"}],
+          cc: [{"Grace\n", "grace@example.com"}],
+          subject: "Meeting\r\nX-Injected: yes"
+      }
+
+      assert {:ok, _receipt} = Delivery.deliver(email)
+      assert_received {:email, sent}
+
+      assert sent.to == [{"Ada Bcc: victim@example.com", "ada@example.com"}]
+      assert sent.cc == [{"Grace", "grace@example.com"}]
+      assert sent.from == {"Tymeslot", "noreply@example.com"}
+      assert sent.subject == "Meeting X-Injected: yes"
+    end
+
+    test "keeps the email's private data, which carries tracking" do
+      email = Email.put_private(valid_email(), :tracking, %{"campaign" => "x"})
+
+      assert {:ok, _receipt} = Delivery.deliver(email)
+      assert_received {:email, %{private: %{tracking: %{"campaign" => "x"}}}}
+    end
+  end
+
+  describe "deliver/2 and ambiguous timeouts" do
+    setup do
+      setup_config(:tymeslot, Tymeslot.Mailer, adapter: FailingMailerAdapter)
+      setup_config(:tymeslot, :test_delivery_error, :timeout)
+      breaker = CircuitBreakerSupervisor.email_breaker_name()
+      CircuitBreaker.reset(breaker)
+      on_exit(fn -> CircuitBreaker.reset(breaker) end)
+    end
+
+    test "are assumed delivered unless the caller asks for the bounded retry" do
+      assert {:ok, :assumed_delivered} = Delivery.deliver(valid_email())
+
+      assert {{:ok, :assumed_delivered}, false} =
+               Delivery.with_ambiguous_timeouts(:assume_delivered, fn ->
+                 Delivery.deliver(valid_email())
+               end)
+    end
+
+    test "under :retry_once come back as an error to retry, and say they happened" do
+      assert {{:error, {:ambiguous, :timeout}}, true} =
+               Delivery.with_ambiguous_timeouts(:retry_once, fn ->
+                 Delivery.deliver(valid_email())
+               end)
+
+      # The policy ends with the call.
+      assert {:ok, :assumed_delivered} = Delivery.deliver(valid_email())
+    end
+
+    # AhaSend's 202 Accepted can arrive with a body its adapter cannot parse.
+    test "a 202 the adapter could not parse is a message the provider took" do
+      setup_config(:tymeslot, :test_delivery_error, {202, "not json"})
+      assert {:ok, :accepted} = Delivery.deliver(valid_email())
+    end
+  end
+
   describe "permanent_rejection?/1 for SMTP replies" do
     test "recognises an enhanced status code describing the address itself" do
       for code <- ["5.1.1", "5.1.2", "5.1.3", "5.1.10", "5.2.1"] do
@@ -245,8 +313,32 @@ defmodule Tymeslot.Emails.DeliveryTest do
       assert Delivery.timeout_error?(:timeout)
     end
 
-    test "recognises a string mentioning a timeout, case-insensitively" do
-      assert Delivery.timeout_error?("connection Timeout while sending")
+    # A reason is judged by its shape; one that merely mentions a timeout in
+    # its text (a provider's error body, say) is retried, not assumed sent.
+    test "does not treat a reason that only mentions a timeout as one" do
+      refute Delivery.timeout_error?("connection Timeout while sending")
+      refute Delivery.timeout_error?({422, %{"Message" => "Request timeout"}})
+    end
+
+    test "recognises an API adapter's transport timeout and a gateway timeout" do
+      assert Delivery.timeout_error?(%Mint.TransportError{reason: :timeout})
+      assert Delivery.timeout_error?({504, "Gateway Timeout"})
+    end
+
+    test "recognises Finch's transport timeout, connect or receive alike" do
+      assert Delivery.timeout_error?(%Finch.TransportError{reason: :timeout})
+    end
+
+    # gen_smtp reports a lost connection alike for MAIL FROM, RCPT TO and
+    # DATA, so it cannot say whether anything was sent: retried, as a
+    # duplicate is preferred to a loss.
+    test "retries a connection gen_smtp lost after the session opened" do
+      refute Delivery.timeout_error?({:send, {:network_failure, ~c"host", {:error, :closed}}})
+    end
+
+    test "retries other transport errors and HTTP statuses" do
+      refute Delivery.timeout_error?(%Mint.TransportError{reason: :closed})
+      refute Delivery.timeout_error?({503, "Service Unavailable"})
     end
 
     test "recognises a timeout gen_smtp reports mid-transaction, when the message may have left" do

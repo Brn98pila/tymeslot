@@ -48,7 +48,7 @@ defmodule Tymeslot.Payments.Webhooks.TrialWillEndHandler do
                stripe_subscription_id: subscription_id,
                trial_ends_at: trial_ends_at
              }) do
-          :ok -> notify_trial_ending(subscription_id)
+          :ok -> notify_trial_ending(subscription_id, trial_ends_at)
           {:error, reason} -> {:error, :retry_later, {:hand_off_failed, reason}}
         end
 
@@ -64,7 +64,7 @@ defmodule Tymeslot.Payments.Webhooks.TrialWillEndHandler do
 
   def handle(_event), do: {:error, :permanent, :missing_fields}
 
-  defp notify_trial_ending(subscription_id) do
+  defp notify_trial_ending(subscription_id, trial_ends_at) do
     # Find subscription in our database for local notifications
     case CustomerLookup.get_subscription_by_subscription_id(subscription_id) do
       nil ->
@@ -76,7 +76,7 @@ defmodule Tymeslot.Payments.Webhooks.TrialWillEndHandler do
 
       subscription ->
         # Send reminder email
-        send_trial_ending_email(subscription)
+        send_trial_ending_email(subscription, trial_ends_at)
 
         {:ok, :trial_ending_notified}
     end
@@ -84,12 +84,14 @@ defmodule Tymeslot.Payments.Webhooks.TrialWillEndHandler do
 
   # Private functions
 
-  defp send_trial_ending_email(subscription) do
+  # The template takes the trial's end (from the event, as ISO 8601), not the
+  # subscription: the job stores its arguments as JSON.
+  defp send_trial_ending_email(subscription, trial_ends_at) do
     WebhookUtils.deliver_user_email(
       subscription.user_id,
       :trial_ending_reminder_template,
       :trial_ending_reminder_email,
-      [subscription],
+      [DateTime.to_iso8601(trial_ends_at)],
       success_msg: "Trial ending reminder sent to user #{subscription.user_id}",
       error_msg: "Failed to send trial ending reminder: ",
       standalone_msg: "Trial ending reminder template not configured (Standalone mode)"

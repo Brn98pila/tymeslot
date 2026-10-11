@@ -10,6 +10,7 @@ defmodule Tymeslot.Workers.VideoRoomWorkerTest do
 
   alias Ecto.Changeset
   alias Ecto.UUID
+  alias ExUnit.CaptureLog
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Webhooks
   alias Tymeslot.Workers.CalendarEventWorker
@@ -525,6 +526,25 @@ defmodule Tymeslot.Workers.VideoRoomWorkerTest do
         worker: VideoRoomWorker,
         args: %{"meeting_id" => "123", "announce" => false}
       )
+    end
+
+    # Oban answers a uniqueness conflict with the existing job, flagged
+    # `conflict?: true`, so a duplicate must be logged as one rather than as
+    # a fresh schedule.
+    test "a duplicate request logs as a duplicate and queues nothing more" do
+      Logger.put_module_level(VideoRoomWorker, :info)
+      on_exit(fn -> Logger.delete_module_level(VideoRoomWorker) end)
+
+      assert :ok = VideoRoomWorker.schedule_video_room_creation("123")
+
+      log =
+        CaptureLog.capture_log([level: :info], fn ->
+          assert :ok = VideoRoomWorker.schedule_video_room_creation("123")
+        end)
+
+      assert log =~ "Video room creation job already exists, skipping duplicate"
+      refute log =~ "Video room creation job scheduled"
+      assert [_one] = all_enqueued(worker: VideoRoomWorker)
     end
 
     test "schedule_video_room_creation_with_announcement/1 enqueues job" do

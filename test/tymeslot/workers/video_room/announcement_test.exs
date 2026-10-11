@@ -38,9 +38,13 @@ defmodule Tymeslot.Workers.VideoRoom.AnnouncementTest do
 
       test_pid = self()
 
-      stub(EmailServiceMock, :send_reschedule_emails, fn details ->
+      stub(EmailServiceMock, :send_reschedule_email_to_organizer, fn _email, _details ->
+        {:ok, :sent}
+      end)
+
+      stub(EmailServiceMock, :send_reschedule_email_to_attendee, fn _email, details ->
         send(test_pid, {:reschedule_emails, details})
-        {{:ok, :sent}, {:ok, :sent}}
+        {:ok, :sent}
       end)
 
       Map.put(scenario, :original, moved_back(scenario.meeting))

@@ -9,27 +9,25 @@ defmodule Tymeslot.Notifications.Orchestrator do
   alias Tymeslot.Clock
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Meetings
   alias Tymeslot.Meetings.ApprovalJobs
 
   alias Tymeslot.Notifications.{
-    ContentBuilder,
     GuestNotifications,
     Recipients,
     ReminderSchedule,
     SchedulingRules
   }
 
+  alias Tymeslot.Repo
+
   @doc """
   Schedules all notifications for a newly created meeting: the confirmation
   and the reminders.
 
-  The two are scheduled independently, like the steps of
-  `schedule_request_notifications/2`: the meeting's announcement is claimed
-  before this runs and nothing retries it, so a failure to schedule the
-  confirmation must not leave the booking without its reminders too. Both
-  always run and each failure is logged; any failure is returned, keyed by
-  the step that failed.
+  Both always run and each failure is logged; any failure is returned, keyed
+  by the step that failed. The caller runs this in the transaction that
+  claims the meeting's announcement and rolls it back on an error, so the
+  booking is announced with both or with neither, and is retried whole.
   """
   @spec schedule_meeting_notifications(%{atom() => term()}) ::
           {:ok, :notifications_scheduled} | {:error, term()}
@@ -158,50 +156,89 @@ defmodule Tymeslot.Notifications.Orchestrator do
 
   # Schedules confirmation notifications for a meeting.
   defp schedule_confirmation_notifications(meeting) do
-    recipients = Recipients.determine_recipients(meeting)
-    content = ContentBuilder.build_appointment_details(meeting)
-
-    with :ok <- Recipients.validate_recipients(recipients),
-         :ok <- ContentBuilder.validate_content(content, Meetings.group?(meeting)),
-         result <- schedule_confirmation_job(meeting.id) do
-      case result do
+    with_sendable(meeting, :confirmation, fn ->
+      case schedule_confirmation_job(meeting.id) do
         :ok -> :ok
         {:ok, _result} -> :ok
         error -> error
       end
+    end)
+  end
+
+  # A meeting missing what its emails need (a legacy row without an attendee
+  # name, say) can never be emailed, however often it is retried, so it is
+  # logged and reported as `{:ok, :not_sendable}` rather than as an error: an
+  # error here rolls the booking back for a retry, which only an enqueue
+  # that failed can be helped by.
+  defp with_sendable(meeting, step, fun) do
+    case Recipients.validate(meeting) do
+      :ok ->
+        fun.()
+
+      {:error, reason} ->
+        Logger.error("Meeting cannot be emailed, nothing scheduled",
+          meeting_id: meeting.id,
+          step: step,
+          reason: reason
+        )
+
+        {:ok, :not_sendable}
     end
   end
 
   @doc """
   Schedules reminder notifications for a meeting.
+
+  `replace: true`, for a meeting that moved, first clears the meeting's
+  pending reminder jobs, in one transaction with the new ones: a reminder now
+  too late for a meeting moved closer, or one no longer configured, is
+  skipped and must not fire at its old time, and a failed insert must not
+  leave the meeting with no reminder at all. A new meeting has nothing to
+  clear, so it skips that query.
   """
-  @spec schedule_reminder_notifications(%{atom() => term()}) ::
+  @spec schedule_reminder_notifications(%{atom() => term()}, keyword()) ::
           :ok | {:ok, atom()} | {:error, term()}
-  def schedule_reminder_notifications(meeting) do
+  def schedule_reminder_notifications(meeting, opts \\ []) do
     # `ReminderSchedule` is the single reader of the meeting's reminder column,
     # legacy shapes included, so what a surface shows a booking reminds with is
     # what is scheduled here.
     reminders = ReminderSchedule.configured(meeting)
 
-    recipients = Recipients.determine_recipients(meeting)
-    content = ContentBuilder.build_appointment_details(meeting)
+    with_sendable(meeting, :reminders, fn ->
+      if Keyword.get(opts, :replace, false),
+        do: replace_reminders(meeting, reminders),
+        else: pin_reminders(meeting, reminders)
+    end)
+  end
 
-    with :ok <- Recipients.validate_recipients(recipients),
-         :ok <- ContentBuilder.validate_content(content, Meetings.group?(meeting)) do
-      {result, scheduled_any?} = schedule_reminders(meeting, reminders)
+  defp replace_reminders(meeting, reminders) do
+    transaction =
+      Repo.transaction(fn ->
+        result =
+          with :ok <- cancel_reminder_notifications(meeting),
+               do: pin_reminders(meeting, reminders)
 
-      case {result, scheduled_any?} do
-        {:ok, true} -> :ok
-        {:ok, false} -> {:ok, :reminder_not_scheduled}
-        {error, _scheduled} -> error
-      end
+        with {:error, _reason} = error <- result, do: Repo.rollback(error)
+      end)
+
+    case transaction do
+      {:ok, result} -> result
+      {:error, error} -> error
+    end
+  end
+
+  defp pin_reminders(meeting, reminders) do
+    case schedule_reminders(meeting, reminders) do
+      {:ok, true} -> :ok
+      {:ok, false} -> {:ok, :reminder_not_scheduled}
+      {error, _scheduled} -> error
     end
   end
 
   @doc """
   Cancels pending reminder-email jobs for a meeting.
 
-  The inverse of `schedule_reminder_notifications/1` — together the two
+  The inverse of `schedule_reminder_notifications/2` — together the two
   functions are the only place reminder jobs are created or removed. Every
   transition that changes whether a meeting has a valid future slot
   (cancellation, an organizer reschedule request, or rebooking after one)
@@ -220,9 +257,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
   @spec send_cancellation_notifications(%{atom() => term()}) ::
           {:ok, atom()} | {:error, term()}
   def send_cancellation_notifications(meeting) do
-    recipients = Recipients.determine_recipients(meeting)
-
-    with :ok <- Recipients.validate_recipients(recipients) do
+    with :ok <- Recipients.validate(meeting, :recipients) do
       worker_module = get_email_worker_module()
 
       case worker_module.schedule_cancellation_emails(meeting.id) do
@@ -295,7 +330,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
   time.
 
   The notices go out from a retrying email job
-  (`Tymeslot.Workers.EmailWorkerHandlers.RescheduleEmails`), like every other
+  (`Tymeslot.Notifications.Email.RescheduleEmails`), like every other
   booking email, so a mail outage delays them rather than losing them, and
   the reschedule does not wait on the mail provider. The job carries the time
   the booking moved from, which the meeting row no longer holds.
@@ -303,11 +338,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
   @spec send_reschedule_notifications(%{atom() => term()}, %{atom() => term()}) ::
           {:ok, atom()} | {:error, term()}
   def send_reschedule_notifications(updated_meeting, original_meeting) do
-    recipients = Recipients.determine_recipients(updated_meeting)
-    content = ContentBuilder.build_reschedule_details(updated_meeting, original_meeting)
-
-    with :ok <- Recipients.validate_recipients(recipients),
-         :ok <- ContentBuilder.validate_content(content) do
+    with :ok <- Recipients.validate(updated_meeting) do
       GuestNotifications.reset_for_new_time(updated_meeting)
       schedule_reschedule_job(updated_meeting, original_meeting)
     end
@@ -337,11 +368,7 @@ defmodule Tymeslot.Notifications.Orchestrator do
   def send_reapproval_notifications(%{first_announced_at: nil}), do: {:ok, :not_a_move}
 
   def send_reapproval_notifications(meeting) do
-    recipients = Recipients.determine_recipients(meeting)
-    content = ContentBuilder.build_reapproval_details(meeting)
-
-    with :ok <- Recipients.validate_recipients(recipients),
-         :ok <- ContentBuilder.validate_content(content) do
+    with :ok <- Recipients.validate(meeting) do
       schedule_reschedule_job(meeting, nil)
     end
   end

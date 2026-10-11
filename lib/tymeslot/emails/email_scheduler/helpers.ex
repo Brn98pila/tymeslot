@@ -17,42 +17,60 @@ defmodule Tymeslot.Emails.EmailScheduler.Helpers do
   def format_insert_error(other), do: LogFormat.reason(other)
 
   @doc """
-  Inserts an email job and logs the outcome. A unique-conflict is success:
-  the job we wanted already exists. Oban signals that by returning the
-  existing job with `conflict?: true`, not a changeset error; a unique
-  constraint never reaches the changeset
-  because Oban resolves it with an upsert, so matching on
-  `{:error, %Ecto.Changeset{errors: [unique: _]}}` is unreachable and would
-  silently misreport a dedup as a fresh schedule.
+  Inserts an email job and logs the outcome under the job's action, the one
+  insert every scheduler goes through.
+
+  A unique conflict is not a failure: the job wanted already exists, and is
+  reported as `{:ok, :duplicate}`. Oban signals it by returning the existing
+  job with `conflict?: true`; a unique constraint never reaches the
+  changeset, because Oban resolves it with an upsert, so an
+  `{:error, %Ecto.Changeset{errors: [unique: _]}}` clause would be
+  unreachable and would misreport a duplicate as a fresh schedule.
+
+  `metadata` is added to each log line (the meeting, the recipient, the
+  scheduled time). A failure is returned as Oban gave it.
+
+  `quiet_duplicates: true` logs a duplicate at debug level, for a scheduler
+  whose callers re-raise the same email in a loop (admin alerts) and would
+  otherwise log one line per cycle for an email that is not being sent.
   """
-  @spec insert_job(Ecto.Changeset.t(), String.t(), term(), keyword()) ::
-          :ok | {:error, String.t()}
-  def insert_job(changeset, label, meeting_id, extra_meta \\ []) do
+  @spec insert(Changeset.t(), keyword(), keyword()) ::
+          {:ok, :scheduled | :duplicate} | {:error, term()}
+  def insert(%Changeset{} = changeset, metadata \\ [], opts \\ []) do
+    metadata = [action: action(changeset)] ++ metadata
+
     case Oban.insert(changeset) do
       {:ok, %Oban.Job{conflict?: true}} ->
-        Logger.info(
-          "Approval email job already exists, skipping duplicate",
-          [meeting_id: meeting_id, email_job: label] ++ extra_meta
-        )
-
-        :ok
+        level = if Keyword.get(opts, :quiet_duplicates, false), do: :debug, else: :info
+        Logger.log(level, "Email job already queued, not scheduling it twice", metadata)
+        {:ok, :duplicate}
 
       {:ok, _job} ->
-        Logger.info(
-          "Approval email job scheduled",
-          [meeting_id: meeting_id, email_job: label] ++ extra_meta
-        )
+        Logger.info("Email job scheduled", metadata)
+        {:ok, :scheduled}
 
-        :ok
-
-      {:error, reason} ->
+      {:error, reason} = error ->
         Logger.error(
-          "Failed to schedule approval email job",
-          [meeting_id: meeting_id, email_job: label, error: format_insert_error(reason)] ++
-            extra_meta
+          "Failed to schedule email job",
+          [error: format_insert_error(reason)] ++ metadata
         )
 
-        {:error, "Failed to schedule job"}
+        error
+    end
+  end
+
+  @doc """
+  `insert/2`'s result for a scheduler whose contract is `:ok | {:error, _}`:
+  a duplicate is as good as a fresh schedule.
+  """
+  @spec ok({:ok, :scheduled | :duplicate} | {:error, term()}) :: :ok | {:error, term()}
+  def ok({:ok, _scheduled_or_duplicate}), do: :ok
+  def ok({:error, _reason} = error), do: error
+
+  defp action(changeset) do
+    case Changeset.get_field(changeset, :args) do
+      %{"action" => action} -> action
+      _args -> nil
     end
   end
 end

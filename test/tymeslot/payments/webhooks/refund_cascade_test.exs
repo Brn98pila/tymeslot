@@ -128,6 +128,8 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
 
       user_id = user.id
       # Email quotes this refund's amount and says access was revoked
+      # The notice goes out from a job.
+      Oban.drain_queue(queue: :emails)
       assert_received {:refund_email, ^user_id, 10_000, "eur", true}
     end
 
@@ -147,6 +149,8 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
 
       user_id = user.id
       # Email is sent without revocation copy, quoting this refund's amount
+      # The notice goes out from a job.
+      Oban.drain_queue(queue: :emails)
       assert_received {:refund_email, ^user_id, 5_000, "eur", false}
     end
 
@@ -199,6 +203,8 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
                RefundHandler.handle(with_object(refunded_event(), charge))
 
       user_id = user.id
+      # The notice goes out from a job.
+      Oban.drain_queue(queue: :emails)
       assert_received {:refund_email, ^user_id, 10_000, "eur", false}
     end
 
@@ -217,6 +223,8 @@ defmodule Tymeslot.Payments.Webhooks.RefundCascadeTest do
                RefundHandler.handle(with_object(refunded_event(), charge))
 
       user_id = user.id
+      # The notice goes out from a job.
+      Oban.drain_queue(queue: :emails)
       assert_received {:refund_email, ^user_id, 10_000, "eur", false}
     end
 

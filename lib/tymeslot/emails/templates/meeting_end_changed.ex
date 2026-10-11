@@ -4,7 +4,7 @@ defmodule Tymeslot.Emails.Templates.MeetingEndChanged do
   calendar: it still starts when it did, and now ends at another time.
   Role-dispatched via `render/3`.
 
-  Sent by `Tymeslot.Workers.EmailWorkerHandlers.EndChangeEmails` to the
+  Sent by `Tymeslot.Notifications.Email.EndChangeEmails` to the
   booker or each group participant (`:attendee`, the meeting as that person
   sees it) and to each guest (`:guest`). Both state the new end beside the
   one it replaces, read in the recipient's zone, and attach an updated
@@ -26,7 +26,6 @@ defmodule Tymeslot.Emails.Templates.MeetingEndChanged do
     JoinUrl,
     MeetingComponents,
     MjmlEmail,
-    Sanitise,
     TemplateHelper,
     Text,
     TextBodyHelper
@@ -132,7 +131,7 @@ defmodule Tymeslot.Emails.Templates.MeetingEndChanged do
 
     MjmlEmail.base_email()
     |> to(recipient)
-    |> subject(Sanitise.sanitize_for_header(subject))
+    |> subject(subject)
     |> html_body(TemplateHelper.compile_template(mjml_content, header))
     |> text_body(
       text_body(appointment_details, meeting_details, intro, {to, from}, video_url, locale)

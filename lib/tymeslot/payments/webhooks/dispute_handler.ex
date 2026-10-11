@@ -17,10 +17,9 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
 
   alias Tymeslot.Infrastructure.AdminAlerts
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Mailer
   alias Tymeslot.Payments.Behaviours.WebhookHandler
   alias Tymeslot.Payments.{Config, PaymentQueries, PubSub}
-  alias Tymeslot.Security.SecurityLogger
+  alias Tymeslot.Workers.SendConfiguredEmail
 
   @impl WebhookHandler
   def handle(
@@ -111,7 +110,7 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
               alert_admin_dispute_created(dispute_id, user_id, amount, reason)
 
               # Send email to admin
-              send_dispute_created_alert(dispute)
+              send_dispute_created_alert(alert_data(dispute, user_id))
 
               {:ok, :dispute_created}
           end
@@ -176,20 +175,24 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
             :dispute_closed
           )
         else
+          # A one-time charge resolves to its user as on creation: by the
+          # charge's customer, through their local transaction.
+          user_id = find_user_by_customer(get_charge_customer_id(charge))
+
           # We still alert admin in Core for visibility
           if status == "lost" do
             alert_admin_dispute_lost(
               dispute_id,
-              nil,
+              user_id,
               dispute["amount"],
               dispute["reason"]
             )
 
-            send_dispute_lost_alert(dispute)
+            send_dispute_lost_alert(alert_data(dispute, user_id))
           end
 
           if status == "won" do
-            send_dispute_won_notification(dispute)
+            send_dispute_won_notification(alert_data(dispute, user_id))
           end
 
           {:ok, :dispute_closed}
@@ -270,6 +273,29 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
     )
   end
 
+  # The alert job stores its arguments as JSON, so it carries only what the
+  # alert shows, never the dispute itself (its evidence holds the customer's
+  # name and addresses).
+  defp alert_data(dispute, user_id) do
+    %{
+      "stripe_dispute_id" => dispute["id"],
+      "user_id" => user_id,
+      "amount" => dispute["amount"],
+      "currency" => dispute["currency"],
+      "reason" => dispute["reason"],
+      "evidence_due_by" => evidence_due_by(dispute)
+    }
+  end
+
+  defp evidence_due_by(%{"evidence_details" => %{"due_by" => due_by}}) when is_integer(due_by) do
+    case DateTime.from_unix(due_by) do
+      {:ok, datetime} -> datetime |> DateTime.to_date() |> Date.to_iso8601()
+      {:error, _reason} -> nil
+    end
+  end
+
+  defp evidence_due_by(_dispute), do: nil
+
   defp send_dispute_created_alert(dispute_data) do
     deliver_dispute_email(:dispute_created_alert, dispute_data)
   end
@@ -301,24 +327,20 @@ defmodule Tymeslot.Payments.Webhooks.DisputeHandler do
         :ok
 
       true ->
-        do_deliver_dispute_email(template, template_fun, email, data)
+        do_deliver_dispute_email(template_fun, email, data)
     end
   end
 
-  defp do_deliver_dispute_email(template, template_fun, email, data) do
-    email_struct = apply(template, template_fun, [email, data])
-
-    case Mailer.deliver(email_struct) do
-      {:ok, _result} ->
-        Logger.info("Dispute email sent",
-          template: template_fun,
-          email_masked: SecurityLogger.mask_email(email)
-        )
-
+  # From a job, so a mail outage delays the alert rather than losing it.
+  defp do_deliver_dispute_email(template_fun, email, data) do
+    case SendConfiguredEmail.enqueue(:dispute_alert_template, template_fun, {:address, email}, [
+           data
+         ]) do
+      :ok ->
         :ok
 
       {:error, reason} ->
-        Logger.error("Failed to send dispute email",
+        Logger.error("Failed to enqueue dispute email",
           template: template_fun,
           reason: LogFormat.reason(reason)
         )

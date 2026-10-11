@@ -18,7 +18,7 @@ defmodule CredoChecks.AttendeeNotificationsBoundary do
   - `lib/tymeslot/meetings/attendee_notifications.ex` and its submodules
   - The `CalendarScheduler` module itself
   - Worker handler modules under
-    `lib/tymeslot/workers/email_worker_handlers/` — these are downstream
+    `lib/tymeslot/notifications/email/` — these are downstream
     of the scheduler, not callers of it
   - Tests (`*_test.exs`)
   - Migrations (`priv/repo/migrations/`)
@@ -78,7 +78,7 @@ defmodule CredoChecks.AttendeeNotificationsBoundary do
   end
 
   defp worker_handler_file?(filename) do
-    String.contains?(filename, "/workers/email_worker_handlers/")
+    String.contains?(filename, "/notifications/email/")
   end
 
   defp test_file?(filename) do

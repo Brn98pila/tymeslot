@@ -25,8 +25,12 @@ defmodule TymeslotWeb.Dashboard.BookingsManagementCancelRaceTest do
     user = insert(:user, onboarding_completed_at: DateTime.utc_now())
     insert(:profile, user: user)
 
-    stub(Tymeslot.EmailServiceMock, :send_cancellation_emails, fn _client ->
-      {{:ok, nil}, {:ok, nil}}
+    stub(Tymeslot.EmailServiceMock, :send_cancellation_email_to_organizer, fn _email, _details ->
+      {:ok, nil}
+    end)
+
+    stub(Tymeslot.EmailServiceMock, :send_cancellation_email_to_attendee, fn _email, _details ->
+      {:ok, nil}
     end)
 
     meeting =

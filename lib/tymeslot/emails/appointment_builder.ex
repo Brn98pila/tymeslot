@@ -46,6 +46,44 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
   end
 
   @doc """
+  Appointment details for a meeting moved from `original`, which carries the
+  previous `start_time`, `end_time` and `attendee_video_url` (the meeting
+  row no longer holds them), for the reschedule templates to show where the
+  meeting moved from, in each party's timezone.
+  """
+  @spec for_reschedule(MeetingSchema.t(), map()) ::
+          Tymeslot.Emails.EmailService.appointment_details()
+  def for_reschedule(%MeetingSchema{} = meeting, original) do
+    details = build(meeting, nil)
+
+    Map.merge(details, %{
+      original_date: DateTime.to_date(original.start_time),
+      original_start_time: original.start_time,
+      original_start_time_owner_tz:
+        DateTimeUtils.convert_to_timezone(original.start_time, owner_timezone(meeting)),
+      original_start_time_attendee_tz:
+        DateTimeUtils.convert_to_timezone(original.start_time, details.attendee_timezone),
+      original_end_time: original.end_time,
+      original_attendee_video_url: Map.get(original, :attendee_video_url),
+      is_rescheduled: true,
+      rescheduled_at: DateTime.utc_now()
+    })
+  end
+
+  @doc """
+  Appointment details for a booking whose new time was approved after a
+  reschedule sent it back into the approval gate. There is no previous time
+  to compare with, so the templates leave out their "previously scheduled"
+  line.
+  """
+  @spec for_reapproval(MeetingSchema.t()) :: Tymeslot.Emails.EmailService.appointment_details()
+  def for_reapproval(%MeetingSchema{} = meeting) do
+    meeting
+    |> build(nil)
+    |> Map.merge(%{is_rescheduled: true, rescheduled_at: DateTime.utc_now()})
+  end
+
+  @doc """
   The organiser's copy of an email about one seat of a group meeting.
 
   Built from the seat's participant, so the organiser is told who booked,

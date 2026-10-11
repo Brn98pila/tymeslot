@@ -14,7 +14,7 @@ defmodule Tymeslot.Polls.Confirm do
   alias Tymeslot.Availability.TimeOff
   alias Tymeslot.Bookings.Activation
   alias Tymeslot.Bookings.CreateAdHoc
-  alias Tymeslot.Emails.EmailScheduler.PollScheduler
+  alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes
@@ -81,7 +81,7 @@ defmodule Tymeslot.Polls.Confirm do
          {:ok, meeting, pending} <- create_meeting(poll, slot, primary),
          {:ok, _poll} <-
            PollQueries.update(PollSchema.confirm_changeset(poll, confirm_attrs(meeting))) do
-      PollScheduler.cancel_deadline_jobs(poll.id)
+      EmailScheduler.cancel_poll_deadline_jobs(poll.id)
       {meeting, pending}
     else
       # Nothing here may query: a failing booking has already rolled back the

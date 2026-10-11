@@ -10,7 +10,7 @@ defmodule Tymeslot.Polls.Voting do
   """
 
   alias Tymeslot.Auth
-  alias Tymeslot.Emails.EmailScheduler.PollScheduler
+  alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Polls
 
   alias Tymeslot.Polls.{
@@ -251,7 +251,7 @@ defmodule Tymeslot.Polls.Voting do
   # transaction above.
   defp maybe_notify_all_voted(poll) do
     if all_participants_voted?(poll) do
-      PollScheduler.schedule_all_voted_nudge(poll)
+      EmailScheduler.schedule_poll_all_voted_nudge(poll)
     end
 
     :ok

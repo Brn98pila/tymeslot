@@ -64,9 +64,13 @@ defmodule Tymeslot.Bookings.TeamsDoubleRescheduleTest do
 
     test_pid = self()
 
-    stub(Tymeslot.EmailServiceMock, :send_reschedule_emails, fn details ->
+    stub(Tymeslot.EmailServiceMock, :send_reschedule_email_to_organizer, fn _email, _details ->
+      {:ok, :sent}
+    end)
+
+    stub(Tymeslot.EmailServiceMock, :send_reschedule_email_to_attendee, fn _email, details ->
       send(test_pid, {:reschedule_email, details})
-      {{:ok, :organizer}, {:ok, :attendee}}
+      {:ok, :sent}
     end)
 
     %{user: user} = create_always_bookable_profile()

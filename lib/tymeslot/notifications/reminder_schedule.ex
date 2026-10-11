@@ -19,6 +19,7 @@ defmodule Tymeslot.Notifications.ReminderSchedule do
   alias Tymeslot.Clock
   alias Tymeslot.Jobs
   alias Tymeslot.Meetings.MeetingState
+  alias Tymeslot.Meetings.ReminderEntry
   alias Tymeslot.Notifications.SchedulingRules
   alias Tymeslot.Utils.ReminderUtils
   alias Tymeslot.Workers.EmailWorker
@@ -146,33 +147,9 @@ defmodule Tymeslot.Notifications.ReminderSchedule do
     }
   end
 
+  # Sent once either recipient has it (`ReminderEntry`).
   defp sent?(entries, %{value: value, unit: unit}) do
-    case Enum.find(entries, &entry_match?(&1, value, unit)) do
-      nil ->
-        false
-
-      entry ->
-        flag(entry, "organizer_sent", :organizer_sent) or
-          flag(entry, "attendee_sent", :attendee_sent)
-    end
-  end
-
-  defp entry_match?(entry, value, unit) do
-    case entry do
-      %{"value" => v, "unit" => u} -> v == value and u == unit
-      %{value: v, unit: u} -> v == value and u == unit
-      _other -> false
-    end
-  end
-
-  # A pre-upsert entry carries no per-recipient flags. It is read as sent
-  # rather than guessed at, the same way the reminder worker reads it: the
-  # entry exists because the reminder fired.
-  defp flag(entry, string_key, atom_key) do
-    case entry do
-      %{^string_key => sent} when is_boolean(sent) -> sent
-      %{^atom_key => sent} when is_boolean(sent) -> sent
-      _other -> true
-    end
+    status = ReminderEntry.status(entries, value, unit)
+    status.organizer or status.attendee
   end
 end

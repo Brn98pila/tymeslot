@@ -35,7 +35,7 @@ defmodule Tymeslot.Emails.Templates.AdminAlert do
   def render(recipient, category, severity, message, metadata) do
     MjmlEmail.base_email()
     |> Email.to({"Tymeslot Operator", recipient})
-    |> Email.subject(Sanitise.sanitize_for_header(subject(category, severity)))
+    |> Email.subject(subject(category, severity))
     |> Email.html_body(html_body(category, severity, message, metadata))
     |> Email.text_body(text_body(category, severity, message, metadata))
   end

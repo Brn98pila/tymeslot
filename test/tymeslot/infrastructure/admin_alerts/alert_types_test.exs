@@ -28,6 +28,21 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypesTest do
   end
 
   describe "format_message/2 — per-type output" do
+    test ":configured_email_exhausted is an error naming the template, the job and the reason" do
+      assert %{severity: :error} = AlertTypes.get(:configured_email_exhausted)
+
+      msg =
+        AlertTypes.format_message(:configured_email_exhausted, %{
+          template: "refund_processed_template.refund_processed_email",
+          job_id: 81,
+          reason_code: :econnrefused
+        })
+
+      assert msg =~ "refund_processed_template.refund_processed_email"
+      assert msg =~ "job 81"
+      assert msg =~ "econnrefused"
+    end
+
     test ":user_registered_hook_failed is an error naming the user and the reason" do
       assert %{severity: :error} = AlertTypes.get(:user_registered_hook_failed)
 
