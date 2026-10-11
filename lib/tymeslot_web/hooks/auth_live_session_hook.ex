@@ -137,14 +137,20 @@ defmodule TymeslotWeb.Hooks.AuthLiveSessionHook do
   defp email_verified?(_user), do: false
 
   # The page being mounted, so signing in can end there (see
-  # `TymeslotWeb.Plugs.ReturnTo`). A dead render never gets this far without a
-  # user, the pipeline's plug having redirected it already; this is the live
-  # navigation or the reconnect after a session lapsed.
+  # `TymeslotWeb.Plugs.ReturnTo`), on the dead render only. A dead render
+  # rarely gets this far without a user, the pipeline's plug having
+  # redirected it already. A connected mount (a live navigation, or the
+  # reconnect after a session lapsed) cannot name its page: `:uri` is then
+  # the websocket's own address, `/live/websocket` with its CSRF token in
+  # the query, and the mount has no other source for the page before
+  # `handle_params/3`, which a halted mount never reaches. It goes to the
+  # plain login page instead.
   defp requested_path(socket) do
-    case get_connect_info(socket, :uri) do
-      %URI{path: path, query: nil} -> path
-      %URI{path: path, query: query} -> path <> "?" <> query
-      _unknown -> nil
+    with false <- connected?(socket),
+         %URI{path: path} = uri when is_binary(path) <- get_connect_info(socket, :uri) do
+      if uri.query, do: path <> "?" <> uri.query, else: path
+    else
+      _connected_or_unknown -> nil
     end
   end
 

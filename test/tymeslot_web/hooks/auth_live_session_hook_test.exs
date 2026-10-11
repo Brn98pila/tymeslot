@@ -45,6 +45,25 @@ defmodule TymeslotWeb.Hooks.AuthLiveSessionHookTest do
                 }}
     end
 
+    # Once connected, `:uri` is the websocket's address, CSRF token and all,
+    # not the page; naming it would send the user there after signing in.
+    test "a connected mount sends the user to the plain login page" do
+      socket = %{
+        build_socket(
+          %{},
+          "http://localhost/live/websocket?_csrf_token=secret-token&vsn=2.0.0"
+        )
+        | transport_pid: self()
+      }
+
+      session = %{"user_token" => "expired-nonexistent-token"}
+
+      assert {:halt, updated_socket} =
+               AuthLiveSessionHook.on_mount(:ensure_authenticated, %{}, session, socket)
+
+      assert updated_socket.redirected == {:redirect, %{to: "/auth/login", status: 302}}
+    end
+
     test "redirects when token exists but session expired" do
       socket = build_socket()
       session = %{"user_token" => "expired-nonexistent-token"}

@@ -2,8 +2,10 @@ defmodule TymeslotWeb.SignInReturnToJourneyTest do
   @moduledoc """
   A signed-out host who follows a link to one booking signs in and lands on
   that booking, by every way of signing in: the password form, a social
-  provider, and the emailed verification link that signs a new account in.
-  Driven through the router, with only the providers' HTTP stubbed.
+  provider, and the emailed verification link that signs a new account
+  in. A session that lapses while a page is open
+  goes to the plain login page instead, since the open page cannot name
+  itself. Driven through the router, with only the providers' HTTP stubbed.
   """
 
   use TymeslotWeb.ConnCase, async: false
@@ -18,6 +20,7 @@ defmodule TymeslotWeb.SignInReturnToJourneyTest do
 
   alias Ecto.Changeset
   alias Phoenix.Flash
+  alias Tymeslot.Auth.Session
   alias Tymeslot.Auth.UserTokenQueries
   alias Tymeslot.Repo
   alias Tymeslot.Security.Password
@@ -125,6 +128,24 @@ defmodule TymeslotWeb.SignInReturnToJourneyTest do
       conn = conn |> follow_signed_out(link) |> recycle() |> sign_in("github")
 
       assert redirected_to(conn) == link
+    end
+  end
+
+  describe "a session that lapses while a page is open" do
+    test "leaves for the plain login page, and signing in goes to the dashboard", %{
+      conn: conn,
+      host: host,
+      link: link
+    } do
+      conn = conn |> get(~p"/auth/login") |> password_sign_in(host.email)
+      {:ok, view, _html} = conn |> recycle() |> live(~p"/dashboard")
+
+      _deleted = Session.delete_session_rows(host.id)
+
+      assert {:error, {:redirect, %{to: "/auth/login"}}} = live_redirect(view, to: link)
+
+      conn = conn |> recycle() |> get(~p"/auth/login") |> password_sign_in(host.email)
+      assert redirected_to(conn) == "/dashboard"
     end
   end
 
