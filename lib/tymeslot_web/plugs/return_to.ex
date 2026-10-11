@@ -58,7 +58,11 @@ defmodule TymeslotWeb.Plugs.ReturnTo do
   @spec login_path(String.t() | nil, String.t()) :: String.t()
   def login_path(path, login \\ "/auth/login") do
     if keepable?(path),
-      do: login <> "?" <> URI.encode_query(%{@param => path}),
+      do:
+        login
+        |> URI.parse()
+        |> URI.append_query(URI.encode_query(%{@param => path}))
+        |> URI.to_string(),
       else: login
   end
 

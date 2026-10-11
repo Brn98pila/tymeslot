@@ -76,5 +76,10 @@ defmodule TymeslotWeb.Plugs.ReturnToTest do
       assert ReturnTo.login_path("https://evil.example") == "/auth/login"
       assert ReturnTo.login_path(nil, "/custom/login") == "/custom/login"
     end
+
+    test "adds the page to a login page that carries a query of its own" do
+      assert ReturnTo.login_path("/dashboard", "/auth/login?auth=login") ==
+               "/auth/login?auth=login&redirect_to=%2Fdashboard"
+    end
   end
 end
