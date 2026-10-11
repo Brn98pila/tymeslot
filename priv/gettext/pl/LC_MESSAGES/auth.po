@@ -210,6 +210,7 @@ msgstr "Logowanie OAuth nie powiodło się – brak dostawcy."
 msgid "Or continue with"
 msgstr "Lub kontynuuj przez"
 
+#: lib/tymeslot/auth/error_formatter.ex
 #: lib/tymeslot_web/components/auth/registration/signup_component.ex
 #: lib/tymeslot_web/components/auth/session/login_component.ex
 #, elixir-autogen, elixir-format
@@ -683,16 +684,6 @@ msgstr "Nowe hasło musi różnić się od obecnego"
 
 #: lib/tymeslot/auth/error_formatter.ex
 #, elixir-autogen, elixir-format
-msgid "Password must be at least 8 characters long."
-msgstr "Hasło musi mieć co najmniej 8 znaków."
-
-#: lib/tymeslot/auth/error_formatter.ex
-#, elixir-autogen, elixir-format
-msgid "Please enter a valid email address."
-msgstr "Podaj poprawny adres e-mail."
-
-#: lib/tymeslot/auth/error_formatter.ex
-#, elixir-autogen, elixir-format
 msgid "Registration"
 msgstr "Rejestracja"
 
@@ -970,6 +961,7 @@ msgid "The verification email could not be sent. Please try again."
 msgstr "Nie udało się wysłać e-maila potwierdzającego. Spróbuj ponownie."
 
 #: lib/tymeslot/auth/email_change.ex
+#: lib/tymeslot/auth/error_formatter.ex
 #, elixir-autogen, elixir-format
 msgid "Email address"
 msgstr "Adres e-mail"

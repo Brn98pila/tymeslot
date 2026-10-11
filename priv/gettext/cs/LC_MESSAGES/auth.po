@@ -214,6 +214,7 @@ msgstr "Ověření OAuth se nezdařilo – chybí poskytovatel."
 msgid "Or continue with"
 msgstr "Nebo pokračujte přes"
 
+#: lib/tymeslot/auth/error_formatter.ex
 #: lib/tymeslot_web/components/auth/registration/signup_component.ex
 #: lib/tymeslot_web/components/auth/session/login_component.ex
 #, elixir-autogen, elixir-format
@@ -687,16 +688,6 @@ msgstr "Nové heslo se musí lišit od současného"
 
 #: lib/tymeslot/auth/error_formatter.ex
 #, elixir-autogen, elixir-format
-msgid "Password must be at least 8 characters long."
-msgstr "Heslo musí mít alespoň 8 znaků."
-
-#: lib/tymeslot/auth/error_formatter.ex
-#, elixir-autogen, elixir-format
-msgid "Please enter a valid email address."
-msgstr "Zadejte prosím platnou e-mailovou adresu."
-
-#: lib/tymeslot/auth/error_formatter.ex
-#, elixir-autogen, elixir-format
 msgid "Registration"
 msgstr "Registrace"
 
@@ -974,6 +965,7 @@ msgid "The verification email could not be sent. Please try again."
 msgstr "Ověřovací e-mail se nepodařilo odeslat. Zkuste to prosím znovu."
 
 #: lib/tymeslot/auth/email_change.ex
+#: lib/tymeslot/auth/error_formatter.ex
 #, elixir-autogen, elixir-format
 msgid "Email address"
 msgstr "E-mailová adresa"

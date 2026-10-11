@@ -1185,7 +1185,7 @@ msgstr "має бути числовим ID або @username"
 #: lib/tymeslot/slack/input_validation.ex
 #, elixir-autogen, elixir-format
 msgid "must look like https://hooks.slack.com/services/..."
-msgstr "має мати вигляд https://hooks.slack.com/services/..."
+msgstr "має бути у форматі https://hooks.slack.com/services/..."
 
 #: lib/tymeslot/slack/input_validation.ex
 #, elixir-autogen, elixir-format
