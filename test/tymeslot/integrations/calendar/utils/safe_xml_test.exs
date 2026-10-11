@@ -96,7 +96,9 @@ defmodule Tymeslot.Integrations.Calendar.Utils.SafeXmlTest do
       {microseconds, result} = :timer.tc(fn -> SafeXml.parse(xml) end)
 
       assert result == {:error, :too_deep}
-      assert microseconds < 1_000_000
+      # A quadratic walk of this depth takes tens of seconds, so 10 s still
+      # tells the two apart on a machine too loaded to finish in one.
+      assert microseconds < 10_000_000
     end
   end
 

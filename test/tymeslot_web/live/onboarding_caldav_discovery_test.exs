@@ -272,7 +272,7 @@ defmodule TymeslotWeb.OnboardingLive.CaldavDiscoveryTest do
       |> render_submit()
 
       # See the success test above for why this exceeds render_async/1's
-      # 100ms default: a real (stubbed) PROPFIND chain runs before the
+      # 1 s default: a real (stubbed) PROPFIND chain runs before the
       # duplicate-account check fails.
       render_async(view, 2000)
       html = render(view)
@@ -308,7 +308,7 @@ defmodule TymeslotWeb.OnboardingLive.CaldavDiscoveryTest do
       |> render_submit()
 
       # See the success test above for why this exceeds render_async/1's
-      # 100ms default.
+      # 1 s default.
       render_async(view, 2000)
       html = render(view)
 
@@ -347,7 +347,7 @@ defmodule TymeslotWeb.OnboardingLive.CaldavDiscoveryTest do
       |> render_submit()
 
       # See the success test above for why this exceeds render_async/1's
-      # 100ms default.
+      # 1 s default.
       render_async(view, 2000)
 
       # Only one integration exists, and it was created with the FIRST

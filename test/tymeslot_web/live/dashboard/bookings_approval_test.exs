@@ -232,7 +232,7 @@ defmodule TymeslotWeb.Dashboard.BookingsApprovalTest do
     # `answer/4` runs the transition off the socket's process
     # (`start_async/3`), so every outcome here is only visible after
     # `render_async/2` observes the task finish. The default
-    # `assert_receive_timeout` (100ms) is too tight for a cold DB
+    # `assert_receive_timeout` (1 s, see test_helper.exs) is too tight for a cold DB
     # connection plus the calendar/video/notification fan-out the first
     # time this process touches them, so every call here is given an
     # explicit, more generous budget rather than relying on the default.

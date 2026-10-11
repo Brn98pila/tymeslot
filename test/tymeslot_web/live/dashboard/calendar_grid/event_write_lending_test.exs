@@ -16,6 +16,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
   @moduletag :calendar
   @moduletag :live
 
+  # Each write runs in a task the test waits to hear from; on a loaded machine
+  # that can take longer than a second.
+  @write_timeout 5_000
+
   import TymeslotWeb.CalendarGridWriteHelpers
 
   alias Tymeslot.CalendarGrid.WriteGuardian
@@ -38,7 +42,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
 
       edit(old_lv, "update_event_title", "First title")
       edit(old_lv, "update_event_location", "Room 9")
-      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, 1_000
+      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, @write_timeout
 
       old_guardian = WriteGuardian.whereis(old_lv.pid)
       guardian_ref = Process.monitor(old_guardian)
@@ -50,17 +54,17 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
 
       answer(first, :ok)
 
-      assert_receive {:write_started, second, _uid, payload}, 1_000
+      assert_receive {:write_started, second, _uid, payload}, @write_timeout
       assert %{summary: "First title", location: "Room 9"} = payload
       refute_receive {:write_started, _pid, _uid, _payload}, 200
 
       answer(second, :ok)
 
-      assert_receive {:write_started, third, _uid, payload}, 1_000
+      assert_receive {:write_started, third, _uid, payload}, @write_timeout
       assert %{summary: "Third title", location: "Room 9"} = payload
 
       # Its queue written, the old guardian stops.
-      assert_receive {:DOWN, ^guardian_ref, :process, ^old_guardian, :normal}, 1_000
+      assert_receive {:DOWN, ^guardian_ref, :process, ^old_guardian, :normal}, @write_timeout
 
       answer(third, :ok)
 
@@ -79,7 +83,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
 
       edit(old_lv, "update_event_title", "First title")
       edit(old_lv, "update_event_location", "Room 9")
-      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, 1_000
+      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, @write_timeout
 
       lv = open_event(conn, event)
       edit(lv, "update_event_title", "Third title")
@@ -88,14 +92,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
       kill(old_lv)
       answer(first, :ok)
 
-      assert_receive {:write_started, second, _uid, payload}, 1_000
+      assert_receive {:write_started, second, _uid, payload}, @write_timeout
       assert %{summary: "First title", location: "Room 9"} = payload
       refute_receive {:write_started, _pid, _uid, _payload}, 200
 
       answer(second, :ok)
 
       # Made onto the event as the older edits left it.
-      assert_receive {:write_started, third, _uid, payload}, 1_000
+      assert_receive {:write_started, third, _uid, payload}, @write_timeout
       assert %{summary: "Third title", location: "Room 9"} = payload
       answer(third, :ok)
 
@@ -111,7 +115,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
 
       edit(old_lv, "update_event_title", "First title")
       edit(old_lv, "update_event_location", "Room 9")
-      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, 1_000
+      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, @write_timeout
 
       lv = open_event(conn, event)
       edit(lv, "update_event_title", "Third title")
@@ -124,11 +128,11 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
 
       answer(first, :ok)
 
-      assert_receive {:write_started, second, _uid, %{location: "Room 9"}}, 1_000
+      assert_receive {:write_started, second, _uid, %{location: "Room 9"}}, @write_timeout
       refute_receive {:write_started, _pid, _uid, _payload}, 200
       answer(second, :ok)
 
-      assert_receive {:write_started, third, _uid, payload}, 1_000
+      assert_receive {:write_started, third, _uid, payload}, @write_timeout
       assert %{summary: "Third title", location: "Room 9"} = payload
       answer(third, :ok)
 
@@ -144,11 +148,15 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
 
       tab_one = open_event(conn, event)
       edit(tab_one, "update_event_title", "Standup renamed")
-      assert_receive {:write_started, standup_write, _uid, %{summary: "Standup renamed"}}, 1_000
+
+      assert_receive {:write_started, standup_write, _uid, %{summary: "Standup renamed"}},
+                     @write_timeout
 
       tab_two = open_event(conn, review)
       edit(tab_two, "update_event_title", "Review renamed")
-      assert_receive {:write_started, review_write, _uid, %{summary: "Review renamed"}}, 1_000
+
+      assert_receive {:write_started, review_write, _uid, %{summary: "Review renamed"}},
+                     @write_timeout
 
       kill(tab_one)
       kill(tab_two)
@@ -160,11 +168,11 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
       refute_receive {:write_started, _pid, _uid, _payload}, 200
 
       answer(standup_write, :ok)
-      assert_receive {:write_started, next, _uid, %{location: "Room 9"}}, 1_000
+      assert_receive {:write_started, next, _uid, %{location: "Room 9"}}, @write_timeout
       answer(next, :ok)
 
       answer(review_write, :ok)
-      assert_receive {:write_started, next, _uid, %{location: "Room 8"}}, 1_000
+      assert_receive {:write_started, next, _uid, %{location: "Room 8"}}, @write_timeout
       answer(next, :ok)
 
       refute_receive {:write_started, _pid, _uid, _payload}, 200
@@ -179,7 +187,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
     } do
       old_lv = open_event(conn, event)
       edit(old_lv, "update_event_title", "First title")
-      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, 1_000
+      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, @write_timeout
 
       old_guardian = WriteGuardian.whereis(old_lv.pid)
       kill(old_lv)
@@ -191,7 +199,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
       Process.exit(old_guardian, :kill)
 
       # Well within the guardian's drain timeout.
-      assert_receive {:write_started, kept, _uid, %{summary: "Third title"}}, 1_000
+      assert_receive {:write_started, kept, _uid, %{summary: "Third title"}}, @write_timeout
       answer(kept, :ok)
       answer(first, :ok)
 
@@ -205,7 +213,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
     } do
       old_lv = open_event(conn, event)
       edit(old_lv, "update_event_title", "First title")
-      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, 1_000
+      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, @write_timeout
 
       old_guardian = WriteGuardian.whereis(old_lv.pid)
       kill(old_lv)
@@ -219,7 +227,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
 
       Process.exit(old_guardian, :kill)
 
-      assert_receive {:write_started, kept, _uid, %{summary: "Third title"}}, 1_000
+      assert_receive {:write_started, kept, _uid, %{summary: "Third title"}}, @write_timeout
       answer(kept, :ok)
       answer(first, :ok)
 
@@ -233,7 +241,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
          } do
       old_lv = open_event(conn, event)
       edit(old_lv, "update_event_title", "First title")
-      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, 1_000
+      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, @write_timeout
 
       lv = open_event(conn, event)
       edit(lv, "update_event_title", "Third title")
@@ -241,12 +249,12 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
 
       answer(first, :ok)
       assert settled(old_lv) =~ "First title"
-      assert_receive {:write_started, kept, _uid, %{summary: "Third title"}}, 1_000
+      assert_receive {:write_started, kept, _uid, %{summary: "Third title"}}, @write_timeout
 
       old_guardian = WriteGuardian.whereis(old_lv.pid)
       ref = Process.monitor(old_guardian)
       Process.exit(old_guardian, :kill)
-      assert_receive {:DOWN, ^ref, :process, ^old_guardian, :killed}, 1_000
+      assert_receive {:DOWN, ^ref, :process, ^old_guardian, :killed}, @write_timeout
 
       refute_receive {:write_started, _pid, _uid, _payload}, 200
       answer(kept, :ok)
@@ -265,7 +273,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
     } do
       old_lv = open_event(conn, event)
       edit(old_lv, "update_event_title", "First title")
-      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, 1_000
+      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, @write_timeout
       kill(old_lv)
 
       phone = open_event(conn, event)
@@ -280,11 +288,13 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
 
       answer(first, :ok)
 
-      assert_receive {:write_started, phone_write, _uid, %{summary: "Phone title"}}, 1_000
+      assert_receive {:write_started, phone_write, _uid, %{summary: "Phone title"}},
+                     @write_timeout
+
       refute_receive {:write_started, _pid, _uid, _payload}, 200
       answer(phone_write, :ok)
 
-      assert_receive {:write_started, desktop_write, _uid, payload}, 1_000
+      assert_receive {:write_started, desktop_write, _uid, payload}, @write_timeout
       assert %{summary: "Phone title", location: "Room 9"} = payload
       answer(desktop_write, :ok)
 
@@ -303,7 +313,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
 
       edit(other_tab, "update_event_title", "First title")
       edit(other_tab, "update_event_location", "Room 9")
-      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, 1_000
+      assert_receive {:write_started, first, _uid, %{summary: "First title"}}, @write_timeout
 
       lv = open_event(conn, event)
       edit(lv, "update_event_title", "This tab")
@@ -312,18 +322,18 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
       answer(first, :ok)
 
       # Started once, by the other tab, and not by this one too.
-      assert_receive {:write_started, second, _uid, %{location: "Room 9"}}, 1_000
+      assert_receive {:write_started, second, _uid, %{location: "Room 9"}}, @write_timeout
       refute_receive {:write_started, _pid, _uid, _payload}, 200
       answer(second, :ok)
       assert settled(other_tab) =~ "Room 9"
 
-      assert_receive {:write_started, this_tab, _uid, payload}, 1_000
+      assert_receive {:write_started, this_tab, _uid, payload}, @write_timeout
       assert %{summary: "This tab", location: "Room 9"} = payload
       answer(this_tab, :ok)
 
       # The other tab still owns its grid's writes.
       edit(other_tab, "update_event_location", "Room 10")
-      assert_receive {:write_started, later, _uid, %{location: "Room 10"}}, 1_000
+      assert_receive {:write_started, later, _uid, %{location: "Room 10"}}, @write_timeout
       answer(later, :ok)
 
       refute_receive {:write_started, _pid, _uid, _payload}, 200

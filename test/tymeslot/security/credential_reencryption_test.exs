@@ -20,6 +20,12 @@ defmodule Tymeslot.Security.CredentialReencryptionTest do
     Repo.get!(schema, id).bot_token_encrypted
   end
 
+  setup_all do
+    {:ok, modules} = :application.get_key(:tymeslot, :modules)
+    Enum.each(modules, &Code.ensure_loaded!/1)
+    %{modules: modules}
+  end
+
   describe "run/1" do
     test "migrates legacy v0 values to the current version and leaves current values untouched" do
       legacy =
@@ -182,12 +188,9 @@ defmodule Tymeslot.Security.CredentialReencryptionTest do
     # Derived from the compiled application rather than kept by hand, so a new
     # schema, context or encrypted column is checked the moment it exists.
     # `:application.get_key/2` lists every module, loaded or not, which is
-    # what a release (loading modules lazily) needs too.
-    setup do
-      {:ok, modules} = :application.get_key(:tymeslot, :modules)
-      Enum.each(modules, &Code.ensure_loaded!/1)
-      %{modules: modules}
-    end
+    # what a release (loading modules lazily) needs too. Loading them all can
+    # outlast a test's 60 s timeout on a loaded machine, so it is done once,
+    # in `setup_all`, which the timeout does not cover.
 
     test "sweeps every encrypted column of every schema", %{modules: modules} do
       expected = MapSet.new(encrypted_columns(modules))

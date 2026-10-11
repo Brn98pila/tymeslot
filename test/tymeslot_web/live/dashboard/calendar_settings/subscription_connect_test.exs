@@ -66,7 +66,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.SubscriptionConnectTest do
 
     # `add_subscription` runs the feed probe off the socket's process (see
     # `ConfigViewComponent.handle_event/3`), which comfortably exceeds
-    # `render_async/1`'s 100ms default under load.
+    # `render_async/1`'s 1 s default under load.
     render_async(view, 5000)
   end
 
