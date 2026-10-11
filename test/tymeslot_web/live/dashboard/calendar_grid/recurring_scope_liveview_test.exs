@@ -30,10 +30,12 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeLiveViewTest do
   import Phoenix.LiveViewTest
   import Tymeslot.AuthTestHelpers
   import Tymeslot.Factory
+  import Tymeslot.Test.ClockHelpers, only: [freeze_clock_midweek: 0]
   import Tymeslot.TestHelpers.Eventually
 
   alias Ecto.Changeset
   alias Plug.Test
+  alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.Google.CalendarAPI, as: GoogleAPI
   alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookAPI
@@ -41,6 +43,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeLiveViewTest do
   alias Tymeslot.Repo
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Workers.SyncGoogleCalendarWorker
+
+  # Events are built from "today" and read in the organiser's zone, which is
+  # not UTC: near midnight UTC on a Sunday, "today" is last week there.
+  setup do: freeze_clock_midweek()
 
   setup :set_mox_global
   setup :verify_on_exit!
@@ -73,7 +79,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeLiveViewTest do
 
   # The series started two weeks ago, so today's occurrence is not its first,
   # whose "this and following" would be "all events".
-  defp today, do: Date.utc_today()
+  defp today, do: Clock.utc_today()
   defp first_day, do: Date.add(today(), -14)
   defp at_today(hour), do: DateTime.new!(today(), Time.new!(hour, 0, 0), "Etc/UTC")
 
@@ -309,7 +315,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeLiveViewTest do
       provider: provider,
       access_token_encrypted: Encryption.encrypt("valid_token"),
       refresh_token_encrypted: Encryption.encrypt("refresh_token"),
-      token_expires_at: DateTime.add(DateTime.utc_now(), 3600),
+      token_expires_at: DateTime.add(Clock.utc_now(), 3600),
       oauth_scope: scope
     )
   end

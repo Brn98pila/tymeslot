@@ -16,11 +16,17 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.OneOffRuleUnsentLiveViewTest do
   import Phoenix.LiveViewTest
   import Tymeslot.AuthTestHelpers
   import Tymeslot.Factory
+  import Tymeslot.Test.ClockHelpers, only: [freeze_clock_midweek: 0]
   import Tymeslot.TestHelpers.Eventually
 
   alias Plug.Test
+  alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Repo
+
+  # Events are built from "today" and read in the organiser's zone, which is
+  # not UTC: near midnight UTC on a Sunday, "today" is last week there.
+  setup do: freeze_clock_midweek()
 
   setup :set_mox_global
   setup :verify_on_exit!
@@ -47,7 +53,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.OneOffRuleUnsentLiveViewTest do
         calendar_paths: ["/cal/"]
       )
 
-    start_at = DateTime.new!(Date.utc_today(), ~T[09:00:00], "Etc/UTC")
+    start_at = DateTime.new!(Clock.utc_today(), ~T[09:00:00], "Etc/UTC")
 
     event =
       insert(:provider_calendar_event,
