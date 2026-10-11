@@ -31,6 +31,7 @@ defmodule Tymeslot.Workers.SendConfiguredEmail do
   alias Tymeslot.Auth
   alias Tymeslot.Infrastructure.AdminAlerts
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
+  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Workers.DeliveryClaims
   alias Tymeslot.Workers.TransactionalEmailDelivery
 
@@ -69,19 +70,21 @@ defmodule Tymeslot.Workers.SendConfiguredEmail do
   @spec enqueue(atom(), atom(), recipient(), list()) :: :ok | {:error, term()}
   def enqueue(template_key, template_fun, recipient, template_args)
       when is_atom(template_key) and is_atom(template_fun) and is_list(template_args) do
-    cond do
-      template_fun not in Map.get(allowed_templates(), template_key, []) ->
-        {:error, {:template_not_allowed, template_key, template_fun}}
+    with {:ok, allowed} <- allowed_templates() do
+      cond do
+        template_fun not in Map.get(allowed, template_key, []) ->
+          {:error, {:template_not_allowed, template_key, template_fun}}
 
-      not json?(template_args) ->
-        {:error, :template_args_not_json}
+        not json?(template_args) ->
+          {:error, :template_args_not_json}
 
-      configured_template(template_key) ->
-        insert(template_key, template_fun, recipient, template_args)
+        configured_template(template_key) ->
+          insert(template_key, template_fun, recipient, template_args)
 
-      true ->
-        Logger.debug("Email template not configured, nothing sent", template: template_key)
-        :ok
+        true ->
+          Logger.debug("Email template not configured, nothing sent", template: template_key)
+          :ok
+      end
     end
   end
 
@@ -149,21 +152,48 @@ defmodule Tymeslot.Workers.SendConfiguredEmail do
     end
   end
 
+  # The deployment's extra templates must be `%{key => [function, ...]}` of
+  # atoms, and must not name a payment template's key: merged over it, the
+  # entry would be silently dropped or would widen what that key may run.
   defp allowed_templates do
-    :tymeslot
-    |> Application.get_env(:extra_configured_email_templates, %{})
-    |> Map.merge(@payment_templates)
+    extra = Application.get_env(:tymeslot, :extra_configured_email_templates, %{})
+
+    cond do
+      not valid_extra?(extra) ->
+        misconfigured(:extra_configured_email_templates_malformed)
+
+      key = Enum.find(Map.keys(extra), &Map.has_key?(@payment_templates, &1)) ->
+        misconfigured({:extra_configured_email_template_is_built_in, key})
+
+      true ->
+        {:ok, Map.merge(extra, @payment_templates)}
+    end
+  end
+
+  defp valid_extra?(extra) when is_map(extra) do
+    Enum.all?(extra, fn {key, funs} ->
+      is_atom(key) and is_list(funs) and Enum.all?(funs, &is_atom/1)
+    end)
+  end
+
+  defp valid_extra?(_extra), do: false
+
+  defp misconfigured(reason) do
+    Logger.error("Configured email templates are misconfigured", reason: LogFormat.reason(reason))
+    {:error, reason}
   end
 
   # Matched as strings, so a job row naming an unknown atom is discarded
   # rather than creating one or raising.
   defp allowed_pair(key, fun) do
-    allowed = allowed_templates()
-
-    with {:ok, template_key} <- find_named(Map.keys(allowed), key),
+    with {:ok, allowed} <- allowed_templates(),
+         {:ok, template_key} <- find_named(Map.keys(allowed), key),
          {:ok, template_fun} <- find_named(Map.fetch!(allowed, template_key), fun) do
       {:ok, template_key, template_fun}
     else
+      {:error, _misconfigured} ->
+        {:discard, @not_allowed}
+
       :error ->
         Logger.error("Configured email job names a template that is not allowed",
           template: key,
@@ -181,16 +211,21 @@ defmodule Tymeslot.Workers.SendConfiguredEmail do
     end
   end
 
-  defp json?(value)
-       when is_binary(value) or is_number(value) or is_boolean(value) or is_nil(value),
-       do: true
+  defp json?(value) when is_binary(value), do: json_string?(value)
+
+  defp json?(value) when is_number(value) or is_boolean(value) or is_nil(value), do: true
 
   defp json?(list) when is_list(list), do: Enum.all?(list, &json?/1)
 
   defp json?(map) when is_map(map) and not is_struct(map),
-    do: Enum.all?(map, fn {key, value} -> is_binary(key) and json?(value) end)
+    do:
+      Enum.all?(map, fn {key, value} -> is_binary(key) and json_string?(key) and json?(value) end)
 
   defp json?(_other), do: false
+
+  # PostgreSQL's jsonb refuses invalid UTF-8 and the NUL character, which
+  # would otherwise raise at insert, in the webhook that enqueued.
+  defp json_string?(string), do: String.valid?(string) and not String.contains?(string, "\u0000")
 
   defp configured_template(key) do
     template = Application.get_env(:tymeslot, key)

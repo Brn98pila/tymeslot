@@ -151,7 +151,15 @@ defmodule Tymeslot.Workers.SendConfiguredEmailTest do
   end
 
   test "arguments that are not plain JSON are refused at enqueue" do
-    for args <- [[~D[2026-01-01]], [%{amount: 1}], [%{"user" => %Email{}}], [:stage]] do
+    for args <- [
+          [~D[2026-01-01]],
+          [%{amount: 1}],
+          [%{"user" => %Email{}}],
+          [:stage],
+          [<<0xFF, 0xFE>>],
+          ["nul \u0000 byte"],
+          [%{<<0xFF>> => 1}]
+        ] do
       assert {:error, :template_args_not_json} =
                SendConfiguredEmail.enqueue(
                  :test_configured_notice_template,
@@ -162,6 +170,44 @@ defmodule Tymeslot.Workers.SendConfiguredEmailTest do
     end
 
     assert all_enqueued(worker: SendConfiguredEmail) == []
+  end
+
+  test "a malformed extra template entry is a clean error, at enqueue and in the job" do
+    for extra <- [%{test_configured_notice_template: :notice}, [notice: [:notice]]] do
+      setup_config(:tymeslot, :extra_configured_email_templates, extra)
+
+      assert {:error, :extra_configured_email_templates_malformed} =
+               quietly(fn ->
+                 SendConfiguredEmail.enqueue(
+                   :test_configured_notice_template,
+                   :notice,
+                   {:address, "ops@example.com"},
+                   []
+                 )
+               end)
+
+      job =
+        job_for(%{
+          "template_key" => "test_configured_notice_template",
+          "template_fun" => "notice"
+        })
+
+      assert {:discard, "template not allowed"} =
+               quietly(fn -> SendConfiguredEmail.perform(job) end)
+    end
+
+    assert all_enqueued(worker: SendConfiguredEmail) == []
+  end
+
+  test "an extra entry naming a built-in template key is refused, not merged" do
+    setup_config(:tymeslot, :extra_configured_email_templates, %{
+      refund_processed_template: [:refund_processed_email, :halt]
+    })
+
+    assert {:error, {:extra_configured_email_template_is_built_in, :refund_processed_template}} =
+             quietly(fn ->
+               SendConfiguredEmail.enqueue(:refund_processed_template, :halt, {:user, 1}, [])
+             end)
   end
 
   test "a user deleted before the job runs discards it" do
