@@ -92,8 +92,12 @@ defmodule Tymeslot.Profiles do
   @doc """
   Gets or creates a profile for a user.
   Creates default weekly schedule for newly created profiles.
+
+  Safe to call concurrently for the same user: whichever call loses the race
+  to insert returns the winner's profile. Returns `{:error, :user_not_found}`
+  when the user no longer exists.
   """
-  @spec get_or_create_profile(user_id) :: result(profile)
+  @spec get_or_create_profile(user_id) :: result(profile) | {:error, :user_not_found}
   def get_or_create_profile(user_id) do
     case ProfileQueries.get_by_user_id(user_id) do
       {:ok, profile} ->
@@ -106,19 +110,39 @@ defmodule Tymeslot.Profiles do
 
   @doc """
   Creates a profile for a user with default weekly schedule.
+
+  A profile created concurrently for the same user is returned as if this
+  call had created it; a user deleted meanwhile gives
+  `{:error, :user_not_found}`.
   """
-  @spec create_profile(user_id) :: result(profile)
+  @spec create_profile(user_id) :: result(profile) | {:error, :user_not_found}
   def create_profile(user_id) do
-    Repo.transaction(fn ->
-      with {:ok, profile} <- ProfileQueries.insert_profile(user_id),
-           {:ok, _schedule} <- Schedules.create_default(profile.id) do
-        profile
-      else
-        {:error, %Ecto.Changeset{} = changeset} -> Repo.rollback(changeset)
-        {:error, _reason} -> Repo.rollback(:failed_to_create_schedule)
-      end
-    end)
+    result =
+      Repo.transaction(fn ->
+        with {:ok, profile} <- ProfileQueries.insert_profile(user_id),
+             {:ok, _schedule} <- Schedules.create_default(profile.id) do
+          profile
+        else
+          {:error, %Ecto.Changeset{} = changeset} -> Repo.rollback(changeset)
+          {:error, _reason} -> Repo.rollback(:failed_to_create_schedule)
+        end
+      end)
+
+    settle_insert_race(result, user_id)
   end
+
+  defp settle_insert_race({:error, %Ecto.Changeset{errors: errors}} = error, user_id) do
+    case errors[:user_id] do
+      {_message, opts} -> user_id_refusal(opts[:constraint], user_id, error)
+      nil -> error
+    end
+  end
+
+  defp settle_insert_race(result, _user_id), do: result
+
+  defp user_id_refusal(:unique, user_id, _error), do: ProfileQueries.get_by_user_id(user_id)
+  defp user_id_refusal(:foreign, _user_id, _error), do: {:error, :user_not_found}
+  defp user_id_refusal(_other, _user_id, error), do: error
 
   @doc """
   Gets a profile by username.

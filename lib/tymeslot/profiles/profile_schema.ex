@@ -95,6 +95,21 @@ defmodule Tymeslot.Profiles.ProfileSchema do
     timestamps(type: :utc_datetime)
   end
 
+  @doc """
+  Changeset for inserting a user's profile. A second profile for the same
+  user, or one for a user deleted meanwhile, comes back as a changeset error
+  on `:user_id` rather than raising.
+  """
+  @spec create_changeset(t(), map()) :: Ecto.Changeset.t()
+  def create_changeset(profile, attrs) do
+    profile
+    |> cast(attrs, [:user_id, :full_name])
+    |> validate_required([:user_id])
+    |> validate_length(:full_name, max: 255)
+    |> unique_constraint(:user_id)
+    |> foreign_key_constraint(:user_id)
+  end
+
   @doc false
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(profile, attrs) do

@@ -15,8 +15,8 @@ defmodule Tymeslot.Profiles.ProfileQueries do
   @spec insert_profile(integer()) :: {:ok, ProfileSchema.t()} | {:error, Ecto.Changeset.t()}
   def insert_profile(user_id) do
     result =
-      %ProfileSchema{user_id: user_id}
-      |> ProfileSchema.changeset(%{})
+      %ProfileSchema{}
+      |> ProfileSchema.create_changeset(%{user_id: user_id})
       |> Repo.insert()
 
     case result do
@@ -219,7 +219,7 @@ defmodule Tymeslot.Profiles.ProfileQueries do
           {:ok, ProfileSchema.t()} | {:error, Ecto.Changeset.t()}
   def create_profile_in_transaction(repo, attrs) when is_map(attrs) do
     %ProfileSchema{}
-    |> ProfileSchema.changeset(attrs)
+    |> ProfileSchema.create_changeset(attrs)
     |> repo.insert()
   end
 
