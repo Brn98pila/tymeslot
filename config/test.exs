@@ -3,6 +3,9 @@ import Config
 # Configure environment
 config :tymeslot, environment: :test, video_room_backoff_base_ms: 0
 
+# Lets a test freeze the clock a mounted LiveView reads (see Tymeslot.Clock).
+config :tymeslot, :clock_follows_callers, true
+
 # Reduce bcrypt cost for tests — default log_rounds (12) adds ~200-400ms per
 # password hash, which compounds across hundreds of factory user inserts.
 config :bcrypt_elixir, log_rounds: 4
