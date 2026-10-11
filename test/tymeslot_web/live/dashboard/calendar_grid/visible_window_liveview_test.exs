@@ -285,4 +285,28 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.VisibleWindowLiveViewTest do
 
     assert on_grid?(lv, whole)
   end
+
+  test "searching past a stored event with no end lists the rest", %{conn: conn} do
+    {conn, integration} = sign_in(conn, "America/New_York")
+    freeze_at(@sunday, ~T[17:00:00], "America/New_York")
+    _whole = insert_event(integration, ~D[2027-02-24], ~T[10:00:00], "America/New_York")
+
+    insert(:provider_calendar_event,
+      calendar_integration: integration,
+      summary: "Late half",
+      start_at: local(~D[2027-02-24], ~T[12:00:00], "America/New_York"),
+      end_at: nil,
+      all_day: false,
+      recurrence_rule: nil,
+      recurring_event_id: nil,
+      sync_state: "synced"
+    )
+
+    {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+    lv |> form("#calendar-search-form", %{term: "Late"}) |> render_change()
+
+    results = lv |> element("#calendar-search-results") |> render()
+    assert results =~ "Late call"
+    refute results =~ "Late half"
+  end
 end

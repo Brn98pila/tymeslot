@@ -117,6 +117,18 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventTimingTest do
              ProviderCalendarEventQueries.get_by_uid(i.id, event.uid)
   end
 
+  test "search leaves out a stored row without an end", %{integration: i} do
+    whole = insert(:provider_calendar_event, calendar_integration: i, summary: "Review")
+
+    _half =
+      insert(:provider_calendar_event, calendar_integration: i, summary: "Review", end_at: nil)
+
+    capture_log(fn ->
+      assert [%{id: id}] = CalendarGrid.search_events(i.user_id, "review", [i])
+      assert id == whole.id
+    end)
+  end
+
   test "the grid skips a stored row without an end, and logs it", %{integration: i} do
     start_at = ~U[2027-02-22 10:00:00.000000Z]
     whole = insert(:provider_calendar_event, calendar_integration: i, start_at: start_at)

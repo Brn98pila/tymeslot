@@ -56,9 +56,9 @@ defmodule Tymeslot.CalendarGrid do
     |> Enum.map(&normalise_event_reminders/1)
   end
 
-  # Every writer of the cache now refuses a half-timed row, but one stored
-  # before that would crash the grid's layout (a timed event without an end has
-  # nowhere to stop), so it is left off the grid and logged instead.
+  # The cache's writers refuse a half-timed row, but one stored before they
+  # did would crash the grid's layout and the search results (a timed event
+  # without an end has nowhere to stop), so it is left out and logged instead.
   defp placeable?(%ProviderCalendarEventSchema{} = row) do
     complete? = ProviderCalendarEventSchema.timing_complete?(Map.from_struct(row))
 
@@ -164,11 +164,9 @@ defmodule Tymeslot.CalendarGrid do
   def search_events(user_id, term, integrations, opts \\ []) do
     rules = Calendar.visibility_rules(integrations)
 
-    ProviderCalendarEventQueries.search(
-      user_id,
-      term,
-      Keyword.put(opts, :visibility_rules, rules)
-    )
+    user_id
+    |> ProviderCalendarEventQueries.search(term, Keyword.put(opts, :visibility_rules, rules))
+    |> Enum.filter(&placeable?/1)
   end
 
   @doc "Enqueues a sync of each of the user's active integrations. See `Freshness.refresh_events/1`."
