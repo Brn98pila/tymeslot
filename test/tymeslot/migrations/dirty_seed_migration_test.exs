@@ -101,17 +101,25 @@ defmodule Tymeslot.Migrations.DirtySeedMigrationTest do
     # Registered before anything it undoes, and the suite is restored before
     # the scratch database is dropped: dropping is the one step that may fail,
     # and failing must not leave Oban down or the sandbox out of manual mode.
+    # Each step runs whether or not the one before it raised, so a repo that
+    # fails to come back still gets Oban restarted and the scratch database
+    # dropped; the first error is the one reported.
     on_exit(fn ->
-      restart_repo!(suite_config)
-      restart_oban()
+      try do
+        restart_repo!(suite_config)
+      after
+        try do
+          restart_oban()
 
-      # `test_helper.exs` puts the sandbox in manual mode once, at boot.
-      # Restarting the repo resets the pool to its default mode, so put it back
-      # before the next test module tries to check a connection out.
-      Sandbox.mode(Tymeslot.Repo, :manual)
-
-      # Left behind, the next run drops it before it starts.
-      _dropped = Postgres.storage_down(scratch_config)
+          # `test_helper.exs` puts the sandbox in manual mode once, at boot.
+          # Restarting the repo resets the pool to its default mode, so put it
+          # back before the next test module tries to check a connection out.
+          Sandbox.mode(Tymeslot.Repo, :manual)
+        after
+          # Left behind, the next run drops it before it starts.
+          _dropped = Postgres.storage_down(scratch_config)
+        end
+      end
     end)
 
     :ok = Supervisor.terminate_child(Tymeslot.Supervisor, Oban)
