@@ -35,6 +35,8 @@ defmodule Tymeslot.CalendarGrid do
   alias Tymeslot.Integrations.Video.ProviderConfig, as: VideoProviderConfig
   alias Tymeslot.Utils.DateTimeUtils.TimeFormat
 
+  require Logger
+
   @doc """
   Returns all cached calendar events for the given integration IDs within a time range.
 
@@ -50,7 +52,25 @@ defmodule Tymeslot.CalendarGrid do
   def list_events_for_range(integration_ids, start_dt, end_dt, opts \\ []) do
     integration_ids
     |> ProviderCalendarEventQueries.list_for_range(start_dt, end_dt, opts)
+    |> Enum.filter(&placeable?/1)
     |> Enum.map(&normalise_event_reminders/1)
+  end
+
+  # Every writer of the cache now refuses a half-timed row, but one stored
+  # before that would crash the grid's layout (a timed event without an end has
+  # nowhere to stop), so it is left off the grid and logged instead.
+  defp placeable?(%ProviderCalendarEventSchema{} = row) do
+    complete? = ProviderCalendarEventSchema.timing_complete?(Map.from_struct(row))
+
+    unless complete? do
+      Logger.warning("Calendar grid skipped a cached event with incomplete timing",
+        provider_calendar_event_id: row.id,
+        calendar_integration_id: row.calendar_integration_id,
+        all_day: row.all_day
+      )
+    end
+
+    complete?
   end
 
   @doc """

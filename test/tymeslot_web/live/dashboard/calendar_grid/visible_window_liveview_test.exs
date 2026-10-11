@@ -208,4 +208,26 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.VisibleWindowLiveViewTest do
 
     assert on_grid?(lv, marker)
   end
+
+  test "a stored event with no end does not stop the rest of the week showing", %{conn: conn} do
+    {conn, integration} = sign_in(conn, "America/New_York")
+    freeze_at(@sunday, ~T[17:00:00], "America/New_York")
+    whole = insert_event(integration, ~D[2027-02-24], ~T[10:00:00], "America/New_York")
+
+    # Written before the cache's writers checked timing; the factory, like
+    # `insert_all`, runs no changeset.
+    insert(:provider_calendar_event,
+      calendar_integration: integration,
+      start_at: local(~D[2027-02-24], ~T[12:00:00], "America/New_York"),
+      end_at: nil,
+      all_day: false,
+      recurrence_rule: nil,
+      recurring_event_id: nil,
+      sync_state: "synced"
+    )
+
+    {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+
+    assert on_grid?(lv, whole)
+  end
 end
