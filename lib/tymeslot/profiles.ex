@@ -15,6 +15,7 @@ defmodule Tymeslot.Profiles do
   alias Tymeslot.Availability.Schedules
   alias Tymeslot.BookingPage.Publication
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.MeetingTypes
   alias Tymeslot.Profiles.Avatars
   alias Tymeslot.Profiles.EmbedDomains
   alias Tymeslot.Profiles.OrganizerContext
@@ -95,7 +96,8 @@ defmodule Tymeslot.Profiles do
   end
 
   @doc """
-  Creates a profile for a user with default weekly schedule.
+  Creates a profile for a user with its default weekly schedule and the
+  default meeting types, which are seeded here, once.
 
   A profile created concurrently for the same user is returned as if this
   call had created it; a user deleted meanwhile gives
@@ -107,6 +109,7 @@ defmodule Tymeslot.Profiles do
       Repo.transaction(fn ->
         with {:ok, profile} <- ProfileQueries.insert_profile(user_id),
              {:ok, _schedule} <- Schedules.create_default(profile.id) do
+          :ok = MeetingTypes.seed_default_meeting_types(user_id)
           profile
         else
           {:error, %Ecto.Changeset{} = changeset} -> Repo.rollback(changeset)

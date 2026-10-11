@@ -17,6 +17,7 @@ defmodule Tymeslot.Auth.OAuth.TransactionalUserCreation do
   alias Tymeslot.Auth.OAuth.Providers
   alias Tymeslot.Availability.Schedules
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.MeetingTypes
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Repo
 
@@ -114,7 +115,8 @@ defmodule Tymeslot.Auth.OAuth.TransactionalUserCreation do
   end
 
   # Both signup paths (standard registration and OAuth) must create a default
-  # weekly schedule immediately after the profile. Keep these in sync;
+  # weekly schedule and seed the default meeting types immediately after the
+  # profile. Keep these in sync;
   # see Task 1 in the composition test plan for drift regression.
   defp create_profile(repo, user, profile_params) do
     # Use the repo passed in to ensure we're in the same transaction
@@ -131,7 +133,8 @@ defmodule Tymeslot.Auth.OAuth.TransactionalUserCreation do
       end
 
     with {:ok, profile} <- ProfileQueries.create_profile_in_transaction(repo, profile_attrs),
-         {:ok, _schedule} <- Schedules.create_default(profile.id, repo) do
+         {:ok, _schedule} <- Schedules.create_default(profile.id, repo),
+         :ok <- MeetingTypes.seed_default_meeting_types(user.id, repo) do
       Logger.info("Created profile", user_id: user.id)
       {:ok, profile}
     else

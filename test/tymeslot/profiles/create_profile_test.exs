@@ -3,6 +3,7 @@ defmodule Tymeslot.Profiles.CreateProfileTest do
 
   @moduletag :profiles
 
+  alias Tymeslot.MeetingTypes
   alias Tymeslot.Profiles
 
   describe "create_profile/1" do
@@ -21,6 +22,15 @@ defmodule Tymeslot.Profiles.CreateProfileTest do
       Repo.delete!(user)
 
       assert {:error, :user_not_found} = Profiles.create_profile(user.id)
+    end
+
+    # The defaults are seeded here, once; nothing seeds them again.
+    test "seeds the two default meeting types" do
+      user = insert(:user)
+      {:ok, _profile} = Profiles.create_profile(user.id)
+
+      assert user.id |> MeetingTypes.get_all_meeting_types() |> Enum.map(& &1.name) |> Enum.sort() ==
+               ["15 Minutes", "30 Minutes"]
     end
   end
 
