@@ -150,15 +150,30 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
                Storage.store_background_image(1, "1", %{path: temp_file, filename: "bg.png"})
     end
 
-    # The code default, "uploads", is relative to the working directory.
+    # The code default, "uploads", is relative to the working directory. The
+    # row stores the returned path relative to the root, so the file must be
+    # there, not under the root twice.
     @tag :tmp_dir
     test "store_background_video/3 stores under a relative upload root at the path it returns",
          %{tmp_dir: tmp_dir} do
       Application.put_env(:tymeslot, :upload_directory, Path.relative_to_cwd(tmp_dir))
       temp_file = MediaFixtures.temp_copy!("gps.mp4")
 
-      assert {:ok, stored_path} =
+      assert {:ok, "themes/1/1/videos/" <> _name = stored_path} =
                Storage.store_background_video(1, "1", %{path: temp_file, filename: "clip.mp4"})
+
+      assert File.exists?(Path.join(tmp_dir, stored_path))
+      refute File.exists?(Path.join([tmp_dir, Path.relative_to_cwd(tmp_dir), stored_path]))
+    end
+
+    @tag :tmp_dir
+    test "store_background_image/3 stores under a relative upload root at the path it returns",
+         %{tmp_dir: tmp_dir} do
+      Application.put_env(:tymeslot, :upload_directory, Path.relative_to_cwd(tmp_dir))
+      temp_file = MediaFixtures.temp_copy!("gps.webp")
+
+      assert {:ok, "themes/1/1/images/" <> _name = stored_path} =
+               Storage.store_background_image(1, "1", %{path: temp_file, filename: "bg.webp"})
 
       assert File.exists?(Path.join(tmp_dir, stored_path))
       refute File.exists?(Path.join([tmp_dir, Path.relative_to_cwd(tmp_dir), stored_path]))

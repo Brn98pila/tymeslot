@@ -109,7 +109,9 @@ defmodule Tymeslot.Profiles.AvatarValidationTest do
   end
 
   describe "consume_avatar_upload/4 - a store that fails" do
-    test "leaves the current avatar in place and no partial file behind" do
+    # That a failed write leaves no partial file is pinned where the write
+    # happens, in `ImageMetadataTest`.
+    test "leaves the current avatar in place" do
       profile = insert(:profile, avatar: "current.png")
       dir = Path.join([Uploads.root(), "avatars", to_string(profile.id)])
       File.mkdir_p!(dir)

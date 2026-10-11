@@ -171,6 +171,34 @@ defmodule Tymeslot.Media.ImageMetadataTest do
     assert File.ls!(tmp_dir) == ["upload"]
   end
 
+  # The stripped image is written beside the destination and renamed over it,
+  # so a reader never sees a half-written file. Renaming needs no write
+  # permission on the old file; writing into it does.
+  @tag :tmp_dir
+  test "replaces the destination whole rather than writing into it", %{tmp_dir: tmp_dir} do
+    dest = Path.join(tmp_dir, "avatar.webp")
+    File.write!(dest, "current")
+    File.chmod!(dest, 0o400)
+
+    assert :ok = ImageMetadata.strip(MediaFixtures.path("gps.webp"), dest, ".webp")
+
+    assert MediaFixtures.image_metadata_fields(File.read!(dest)) == []
+    assert File.ls!(tmp_dir) == ["avatar.webp"]
+  end
+
+  @tag :tmp_dir
+  test "a write that fails part-way leaves no partial file and the destination untouched",
+       %{tmp_dir: tmp_dir} do
+    # The stripped image is written, then cannot replace a directory.
+    dest = Path.join(tmp_dir, "avatar.webp")
+    File.mkdir_p!(Path.join(dest, "kept"))
+
+    assert {:error, _reason} = ImageMetadata.strip(MediaFixtures.path("gps.webp"), dest, ".webp")
+
+    assert File.ls!(tmp_dir) == ["avatar.webp"]
+    assert File.ls!(dest) == ["kept"]
+  end
+
   @tag :tmp_dir
   test "encodes in the format the extension names", %{tmp_dir: tmp_dir} do
     dest = Path.join(tmp_dir, "avatar.png")
