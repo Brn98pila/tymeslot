@@ -197,7 +197,7 @@ msgstr "Hotovo"
 msgid "Duration (minutes)"
 msgstr "Délka (minuty)"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/creation.ex
 #, elixir-autogen, elixir-format
 msgid "Duration must be a valid number"
@@ -399,7 +399,7 @@ msgstr "Platby"
 msgid "Phone"
 msgstr "Telefon"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/creation.ex
 #, elixir-autogen, elixir-format
 msgid "Please select a video provider for video meetings"
@@ -592,7 +592,7 @@ msgstr "Zobrazuje se pod otázkou – využijte ji k upřesnění dotazu nebo p
 msgid "Too many changes - saving shortly…"
 msgstr "Příliš mnoho změn – uložíme za okamžik…"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Enter a valid price"
 msgstr "Zadejte platnou cenu"
@@ -602,32 +602,32 @@ msgstr "Zadejte platnou cenu"
 msgid "None of the calendars you selected for this account can accept bookings."
 msgstr "Žádný z kalendářů, které jste pro tento účet vybrali, nemůže přijímat rezervace."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "None of the calendars you selected for this account can accept bookings. Update your calendar selection in Integration settings, or choose a different account."
 msgstr "Žádný z kalendářů, které jste pro tento účet vybrali, nemůže přijímat rezervace. Upravte výběr kalendářů v nastavení integrací nebo zvolte jiný účet."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Please select a calendar account"
 msgstr "Vyberte prosím účet kalendáře"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Please select a target calendar"
 msgstr "Vyberte prosím cílový kalendář"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected calendar account is invalid"
 msgstr "Vybraný účet kalendáře je neplatný"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected calendar is not available for this account"
 msgstr "Vybraný kalendář není pro tento účet dostupný"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected video provider is invalid or inactive"
 msgstr "Vybraný poskytovatel videa je neplatný nebo neaktivní"
@@ -737,7 +737,7 @@ msgstr "Rozvrh"
 msgid "Schedule updated and saved"
 msgstr "Rozvrh aktualizován a uložen"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected schedule is not one of yours"
 msgstr "Vybraný rozvrh vám nepatří"
@@ -767,7 +767,7 @@ msgstr "Pokud neodpovíte včas, žádost propadne, termín se uvolní a host bu
 msgid "Invitees get a \"request received\" email instead of a confirmation, and the slot is held so nobody else can take it. They get the confirmation and the calendar invite once you accept."
 msgstr "Hosté místo potvrzení dostanou e-mail „žádost přijata“ a termín se zarezervuje, aby ho nikdo jiný nezabral. Potvrzení a pozvánku do kalendáře dostanou, jakmile souhlasíte."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form.ex
 #, elixir-autogen, elixir-format
 msgid "Enter a whole number of hours, or leave blank to use the default."
@@ -1027,7 +1027,7 @@ msgstr[0] "%{count} minutu"
 msgstr[1] "%{count} minuty"
 msgstr[2] "%{count} minut"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "A selected location is not one of yours"
 msgstr "Jedno z vybraných míst vám nepatří"
@@ -1127,7 +1127,7 @@ msgstr "Vypněte skupinové rezervace, chcete-li vyžadovat platbu."
 msgid "Turn off payments to enable group bookings."
 msgstr "Vypněte platby, chcete-li povolit skupinové rezervace."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Group bookings are not included in your current plan."
 msgstr "Skupinové rezervace nejsou součástí vašeho aktuálního tarifu."
@@ -1260,7 +1260,7 @@ msgstr "V měně vašeho účtu Stripe, %{currency}, už nelze nastavovat ceny. 
 msgid "The current price is %{amount}. Switching to a supported currency clears it, as it clears every paid meeting type's price."
 msgstr "Současná cena je %{amount}. Přechodem na podporovanou měnu se smaže, stejně jako ceny všech placených typů schůzek."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "The calendar this meeting type books into is no longer available. Reload the page and try again."
 msgstr "Kalendář, do kterého tento typ schůzky rezervuje, už není k dispozici. Obnovte stránku a zkuste to znovu."

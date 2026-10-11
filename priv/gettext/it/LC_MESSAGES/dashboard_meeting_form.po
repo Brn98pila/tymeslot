@@ -197,7 +197,7 @@ msgstr "Fatto"
 msgid "Duration (minutes)"
 msgstr "Durata (minuti)"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/creation.ex
 #, elixir-autogen, elixir-format
 msgid "Duration must be a valid number"
@@ -399,7 +399,7 @@ msgstr "Pagamenti"
 msgid "Phone"
 msgstr "Telefono"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/creation.ex
 #, elixir-autogen, elixir-format
 msgid "Please select a video provider for video meetings"
@@ -592,7 +592,7 @@ msgstr "Mostrato sotto la domanda: usalo per chiarire cosa stai chiedendo o per 
 msgid "Too many changes - saving shortly…"
 msgstr "Troppe modifiche: salvataggio a breve…"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Enter a valid price"
 msgstr "Inserisci un prezzo valido"
@@ -602,32 +602,32 @@ msgstr "Inserisci un prezzo valido"
 msgid "None of the calendars you selected for this account can accept bookings."
 msgstr "Nessuno dei calendari selezionati per questo account può accettare prenotazioni."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "None of the calendars you selected for this account can accept bookings. Update your calendar selection in Integration settings, or choose a different account."
 msgstr "Nessuno dei calendari selezionati per questo account può accettare prenotazioni. Aggiorna la selezione dei calendari nelle impostazioni delle integrazioni oppure scegli un altro account."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Please select a calendar account"
 msgstr "Seleziona un account di calendario"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Please select a target calendar"
 msgstr "Seleziona un calendario di destinazione"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected calendar account is invalid"
 msgstr "L'account di calendario selezionato non è valido"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected calendar is not available for this account"
 msgstr "Il calendario selezionato non è disponibile per questo account"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected video provider is invalid or inactive"
 msgstr "Il provider video selezionato non è valido o non è attivo"
@@ -737,7 +737,7 @@ msgstr "Pianificazione"
 msgid "Schedule updated and saved"
 msgstr "Pianificazione aggiornata e salvata"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected schedule is not one of yours"
 msgstr "La pianificazione selezionata non è tua"
@@ -767,7 +767,7 @@ msgstr "Se non rispondi in tempo la richiesta decade, l'orario viene liberato e 
 msgid "Invitees get a \"request received\" email instead of a confirmation, and the slot is held so nobody else can take it. They get the confirmation and the calendar invite once you accept."
 msgstr "Gli invitati ricevono un'email di « richiesta ricevuta » invece di una conferma, e l'orario viene riservato così nessun altro può prenderlo. Ricevono la conferma e l'invito al calendario appena accetti."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form.ex
 #, elixir-autogen, elixir-format
 msgid "Enter a whole number of hours, or leave blank to use the default."
@@ -1020,7 +1020,7 @@ msgid_plural "%{count} minutes"
 msgstr[0] "%{count} minuto"
 msgstr[1] "%{count} minuti"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "A selected location is not one of yours"
 msgstr "Una sede selezionata non è tua"
@@ -1120,7 +1120,7 @@ msgstr "Disattiva le prenotazioni di gruppo per richiedere il pagamento."
 msgid "Turn off payments to enable group bookings."
 msgstr "Disattiva i pagamenti per abilitare le prenotazioni di gruppo."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Group bookings are not included in your current plan."
 msgstr "Le prenotazioni di gruppo non sono incluse nel tuo piano attuale."
@@ -1252,7 +1252,7 @@ msgstr "Non è più possibile impostare prezzi nella valuta del tuo account Stri
 msgid "The current price is %{amount}. Switching to a supported currency clears it, as it clears every paid meeting type's price."
 msgstr "Il prezzo attuale è %{amount}. Passando a una valuta supportata verrà azzerato, come il prezzo di ogni tipo di riunione a pagamento."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "The calendar this meeting type books into is no longer available. Reload the page and try again."
 msgstr "Il calendario in cui questo tipo di riunione salva le prenotazioni non è più disponibile. Ricarica la pagina e riprova."

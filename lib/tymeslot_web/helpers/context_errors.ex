@@ -1,6 +1,7 @@
-defmodule Tymeslot.Utils.FormHelpers do
+defmodule TymeslotWeb.Helpers.ContextErrors do
   @moduledoc """
-  Utilities for handling form data and errors.
+  Form copy for the error atoms a context returns: each maps to the field the
+  form shows it against.
   """
 
   use Gettext, backend: TymeslotWeb.Gettext

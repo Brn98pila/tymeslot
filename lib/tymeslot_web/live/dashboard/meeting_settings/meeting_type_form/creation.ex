@@ -22,11 +22,11 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Creation do
   alias Phoenix.Component
   alias Phoenix.LiveView
   alias Tymeslot.Security.RateLimiter
-  alias Tymeslot.Utils.FormHelpers
   alias TymeslotWeb.Dashboard.MeetingSettings.Helpers
   alias TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.FormView
   alias TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.SlotIntervalField
   alias TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Submission
+  alias TymeslotWeb.Helpers.ContextErrors
   alias TymeslotWeb.Helpers.FormErrors
   alias TymeslotWeb.Live.Shared.Flash
 
@@ -125,7 +125,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Creation do
 
   def apply_result({:error, reason}, socket) do
     Flash.error(error_message(reason))
-    Component.assign(socket, :form_errors, FormHelpers.format_context_error(reason))
+    Component.assign(socket, :form_errors, ContextErrors.format_context_error(reason))
   end
 
   defp error_message(:video_integration_required),
@@ -138,7 +138,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Creation do
     do: dgettext("dashboard_meeting_form", "Enter a valid price for this meeting type")
 
   defp error_message(:group_bookings_not_allowed),
-    do: FormHelpers.group_bookings_not_allowed_message()
+    do: ContextErrors.group_bookings_not_allowed_message()
 
   defp error_message(:insufficient_plan),
     do: dgettext("dashboard_meeting_form", "Custom booking questions are available on Pro plans.")

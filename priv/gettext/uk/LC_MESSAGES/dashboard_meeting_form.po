@@ -197,7 +197,7 @@ msgstr "Готово"
 msgid "Duration (minutes)"
 msgstr "Тривалість (у хвилинах)"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/creation.ex
 #, elixir-autogen, elixir-format
 msgid "Duration must be a valid number"
@@ -399,7 +399,7 @@ msgstr "Платежі"
 msgid "Phone"
 msgstr "Телефон"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/creation.ex
 #, elixir-autogen, elixir-format
 msgid "Please select a video provider for video meetings"
@@ -592,7 +592,7 @@ msgstr "Відображається під запитанням - викори�
 msgid "Too many changes - saving shortly…"
 msgstr "Забагато змін - збереження за мить…"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Enter a valid price"
 msgstr "Введіть коректну ціну"
@@ -602,32 +602,32 @@ msgstr "Введіть коректну ціну"
 msgid "None of the calendars you selected for this account can accept bookings."
 msgstr "Жоден із календарів, вибраних для цього облікового запису, не може приймати бронювання."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "None of the calendars you selected for this account can accept bookings. Update your calendar selection in Integration settings, or choose a different account."
 msgstr "Жоден із календарів, вибраних для цього облікового запису, не може приймати бронювання. Змініть вибір календарів у налаштуваннях інтеграцій або виберіть інший обліковий запис."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Please select a calendar account"
 msgstr "Виберіть обліковий запис календаря"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Please select a target calendar"
 msgstr "Виберіть цільовий календар"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected calendar account is invalid"
 msgstr "Вибраний обліковий запис календаря недійсний"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected calendar is not available for this account"
 msgstr "Вибраний календар недоступний для цього облікового запису"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected video provider is invalid or inactive"
 msgstr "Вибраний провайдер відеозв'язку недійсний або неактивний"
@@ -737,7 +737,7 @@ msgstr "Розклад"
 msgid "Schedule updated and saved"
 msgstr "Розклад оновлено та збережено"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected schedule is not one of yours"
 msgstr "Обраний розклад вам не належить"
@@ -767,7 +767,7 @@ msgstr "Якщо ви не відповісте вчасно, запит втр�
 msgid "Invitees get a \"request received\" email instead of a confirmation, and the slot is held so nobody else can take it. They get the confirmation and the calendar invite once you accept."
 msgstr "Замість підтвердження гості отримують лист «запит отримано», а час резервується, щоб його ніхто інший не зайняв. Підтвердження та запрошення в календар надходять, щойно ви погодитесь."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form.ex
 #, elixir-autogen, elixir-format
 msgid "Enter a whole number of hours, or leave blank to use the default."
@@ -1027,7 +1027,7 @@ msgstr[0] "%{count} хвилину"
 msgstr[1] "%{count} хвилини"
 msgstr[2] "%{count} хвилин"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "A selected location is not one of yours"
 msgstr "Одне з вибраних місць вам не належить"
@@ -1127,7 +1127,7 @@ msgstr "Вимкніть групові бронювання, щоб вимаг�
 msgid "Turn off payments to enable group bookings."
 msgstr "Вимкніть оплату, щоб увімкнути групові бронювання."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Group bookings are not included in your current plan."
 msgstr "Групові бронювання не входять до вашого поточного тарифу."
@@ -1260,7 +1260,7 @@ msgstr "У валюті вашого облікового запису Stripe (%
 msgid "The current price is %{amount}. Switching to a supported currency clears it, as it clears every paid meeting type's price."
 msgstr "Поточна ціна: %{amount}. Після переходу на підтримувану валюту її буде скинуто, як і ціни всіх платних типів зустрічей."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "The calendar this meeting type books into is no longer available. Reload the page and try again."
 msgstr "Календар, у який цей тип зустрічі додає записи, більше недоступний. Перезавантажте сторінку й спробуйте ще раз."

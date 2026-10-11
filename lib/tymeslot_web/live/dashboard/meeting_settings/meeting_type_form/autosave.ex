@@ -38,10 +38,10 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Autosave do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.MeetingTypes
   alias Tymeslot.Security.RateLimiter
-  alias Tymeslot.Utils.FormHelpers
   alias Tymeslot.Venues
   alias TymeslotWeb.Dashboard.MeetingSettings.Helpers
   alias TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Submission
+  alias TymeslotWeb.Helpers.ContextErrors
   alias TymeslotWeb.Helpers.FormErrors
 
   # Backoff before a throttled save is retried (milliseconds).
@@ -164,7 +164,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Autosave do
     )
 
     socket
-    |> assign(:form_errors, FormHelpers.format_context_error(reason))
+    |> assign(:form_errors, ContextErrors.format_context_error(reason))
     |> assign(:save_status, :error)
   end
 
