@@ -19,7 +19,6 @@ defmodule Tymeslot.AuthTestHelpers do
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Security.Token
   alias TymeslotWeb.Helpers.ClientIP
-  alias TymeslotWeb.Helpers.ClientIP
   alias TymeslotWeb.UserAuth
 
   @doc """
