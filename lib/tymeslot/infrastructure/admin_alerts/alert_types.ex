@@ -232,6 +232,13 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
     "late_payment_refund_failed:#{Map.get(metadata, :booking_payment_id, "unknown")}"
   end
 
+  # A volume that refuses deletes fails every one of them for the same reason,
+  # so key on the reason rather than the path: one alert per cause, naming the
+  # first file it hit.
+  def dedup_key(:upload_delete_failed, metadata) do
+    "upload_delete_failed:#{Map.get(metadata, :reason_code, "unknown")}"
+  end
+
   def dedup_key(:stripe_webhook_secret_missing, metadata) do
     "stripe_webhook_secret_missing:#{Map.get(metadata, :env_var)}"
   end
@@ -504,8 +511,16 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypes do
       "so it may still show as confirmed (#{reason_text(metadata)})"
   end
 
-  # A replaced or removed upload is still on disk, unreferenced; a refused
-  # path outside the upload directory is the same alert, and worth a look.
+  # A path outside the upload directory was refused, not attempted: the row
+  # that named it is what needs a look, and the file must not be deleted.
+  def format_message(:upload_delete_failed, %{reason_code: :path_traversal_attempt} = metadata) do
+    path = Map.get(metadata, :file_path, "unknown")
+
+    "Deleting uploaded file #{path} was refused: the path is outside the upload directory; " <>
+      "check the record that points at it"
+  end
+
+  # A replaced or removed upload is still on disk, unreferenced.
   def format_message(:upload_delete_failed, metadata) do
     path = Map.get(metadata, :file_path, "unknown")
 
