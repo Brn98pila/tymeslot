@@ -5,6 +5,27 @@ defmodule Tymeslot.Auth.ErrorFormatterTest do
   alias Ecto.Changeset
   alias Tymeslot.Auth.ErrorFormatter
 
+  defmodule Item do
+    use Ecto.Schema
+
+    @primary_key false
+    embedded_schema do
+      field :title, :string
+    end
+
+    @spec changeset(%__MODULE__{}, map()) :: Changeset.t()
+    def changeset(item, attrs),
+      do: item |> Changeset.cast(attrs, [:title]) |> Changeset.validate_required([:title])
+  end
+
+  defmodule Parent do
+    use Ecto.Schema
+
+    embedded_schema do
+      embeds_many :items, Item
+    end
+  end
+
   describe "format_auth_error/1" do
     test "answers every failed-credentials reason with one generic message" do
       for reason <- [:not_found, :invalid_password] do
@@ -100,6 +121,51 @@ defmodule Tymeslot.Auth.ErrorFormatterTest do
 
       assert ErrorFormatter.format_changeset_errors(changeset) ==
                "Password should be at least 8 characters"
+    end
+  end
+
+  describe "first_error/1" do
+    test "names the first field alphabetically with its first message, interpolated" do
+      changeset = %Changeset{
+        data: %{},
+        errors: [
+          password:
+            {"should be at least %{count} character(s)",
+             [count: 8, validation: :length, kind: :min]},
+          email: {"can't be blank", [validation: :required]},
+          email: {"has invalid format", [validation: :format]}
+        ]
+      }
+
+      assert ErrorFormatter.first_error(changeset) == "Email can't be blank"
+    end
+
+    test "translates the message into the current locale" do
+      changeset = %Changeset{
+        data: %{},
+        errors: [
+          new_password:
+            {"should be at least %{count} character(s)",
+             [count: 8, validation: :length, kind: :min]}
+        ]
+      }
+
+      assert Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+               ErrorFormatter.first_error(changeset)
+             end) == "New password sollte mindestens 8 Zeichen lang sein"
+    end
+
+    test "is nil without errors" do
+      assert ErrorFormatter.first_error(%Changeset{data: %{}, errors: []}) == nil
+    end
+
+    test "reaches a message nested under an embedded field" do
+      changeset =
+        %Parent{}
+        |> Changeset.cast(%{items: [%{title: "fine"}, %{title: ""}]}, [])
+        |> Changeset.cast_embed(:items, with: &Item.changeset/2)
+
+      assert ErrorFormatter.first_error(changeset) == "Items can't be blank"
     end
   end
 

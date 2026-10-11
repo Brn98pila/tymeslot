@@ -12,6 +12,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.CrudHandlers do
   alias Tymeslot.Telegram.InputValidation, as: TelegramInputValidation
   alias Tymeslot.Telegram.TelegramIntegrationSchema
   alias TymeslotWeb.Dashboard.Automation.Helpers, as: AutomationHelpers
+  alias TymeslotWeb.Helpers.FormErrors
   alias TymeslotWeb.Live.Shared.Flash
 
   # Refusals from `Tymeslot.Features.check_access/2`, shown by
@@ -60,7 +61,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.CrudHandlers do
                |> AutomationHelpers.maybe_load_telegram()}
 
             {:error, %Ecto.Changeset{} = changeset} ->
-              errors = AutomationHelpers.format_changeset_errors(changeset)
+              errors = FormErrors.first_per_field(changeset)
               Flash.error(dgettext("dashboard_automation_chat", "Failed to update integration"))
               {:noreply, assign(socket, :telegram_form_errors, errors)}
 
@@ -160,7 +161,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.CrudHandlers do
          |> AutomationHelpers.maybe_load_telegram()}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        errors = AutomationHelpers.format_changeset_errors(changeset)
+        errors = FormErrors.first_per_field(changeset)
         Flash.error(dgettext("dashboard_automation_chat", "Failed to create integration"))
         {:noreply, assign(socket, :telegram_form_errors, errors)}
 
@@ -200,7 +201,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.CrudHandlers do
              |> AutomationHelpers.maybe_load_telegram()}
 
           {:error, %Ecto.Changeset{} = changeset} ->
-            errors = AutomationHelpers.format_changeset_errors(changeset)
+            errors = FormErrors.first_per_field(changeset)
             Flash.error(dgettext("dashboard_automation_chat", "Failed to save integration"))
             {:noreply, assign(socket, :telegram_form_errors, errors)}
 

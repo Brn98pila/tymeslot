@@ -27,6 +27,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Creation do
   alias TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.FormView
   alias TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.SlotIntervalField
   alias TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Submission
+  alias TymeslotWeb.Helpers.FormErrors
   alias TymeslotWeb.Live.Shared.Flash
 
   # The Details fields the create submit posts. Each input already reports its
@@ -112,7 +113,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Creation do
   end
 
   def apply_result({:error, %Ecto.Changeset{} = changeset}, socket) do
-    Component.assign(socket, :form_errors, Helpers.changeset_form_errors(changeset))
+    Component.assign(socket, :form_errors, FormErrors.to_map(changeset))
   end
 
   # Gated features refuse the whole save without naming a field.

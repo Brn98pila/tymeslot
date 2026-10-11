@@ -18,6 +18,7 @@ defmodule Tymeslot.Auth.EmailChange do
 
   alias Tymeslot.Auth.{
     AccountTokens,
+    ErrorFormatter,
     RateLimit,
     Session,
     UserQueries,
@@ -28,7 +29,7 @@ defmodule Tymeslot.Auth.EmailChange do
   alias Tymeslot.Emails.EmailScheduler
   alias Tymeslot.Repo
   alias Tymeslot.Security.{InputProcessor, RateLimiter, Token}
-  alias Tymeslot.Utils.{ChangesetUtils, UrlBuilder}
+  alias Tymeslot.Utils.UrlBuilder
 
   require Logger
 
@@ -304,6 +305,6 @@ defmodule Tymeslot.Auth.EmailChange do
   end
 
   defp format_changeset_error(%Changeset{} = changeset) do
-    ChangesetUtils.get_first_error(changeset)
+    ErrorFormatter.first_error(changeset)
   end
 end

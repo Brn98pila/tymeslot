@@ -16,6 +16,7 @@ defmodule Tymeslot.Auth.ErrorFormatter do
 
   alias Ecto.Changeset
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Utils.ChangesetErrors
 
   @doc """
   The message shown for a failed sign-in, sign-up or password-flow policy
@@ -125,6 +126,15 @@ defmodule Tymeslot.Auth.ErrorFormatter do
   def format_changeset_errors(changeset) do
     format_validation_errors(changeset)
   end
+
+  @doc """
+  A changeset's first error as one line: the first field alphabetically,
+  humanised, followed by its first message. `nil` when the changeset has no
+  errors.
+  """
+  @spec first_error(Changeset.t()) :: String.t() | nil
+  def first_error(%Changeset{} = changeset),
+    do: ChangesetErrors.first(changeset, &translate_changeset_error/1)
 
   # Formats a single field error: the field name, humanised, followed by its
   # error messages.

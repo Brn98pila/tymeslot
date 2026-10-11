@@ -11,10 +11,10 @@ defmodule TymeslotWeb.Dashboard.ProfileSettings.UsernameFormComponent do
   alias Tymeslot.Security.FieldValidators.UsernameValidator
   alias Tymeslot.Security.InputProcessor
   alias Tymeslot.Security.RateLimiter
-  alias Tymeslot.Utils.ChangesetUtils
   alias Tymeslot.Utils.UrlBuilder
   alias Tymeslot.Validation.Constraints
   alias TymeslotWeb.Dashboard.ProfileSettings.UsernameChangeModal
+  alias TymeslotWeb.Helpers.FormErrors
   alias TymeslotWeb.Live.Shared.FormValidationHelpers
 
   import UsernameChangeModal, only: [username_change_modal: 1]
@@ -174,7 +174,7 @@ defmodule TymeslotWeb.Dashboard.ProfileSettings.UsernameFormComponent do
   defp explain_refused_changeset(socket, changeset) do
     case Profiles.username_error(changeset) do
       nil ->
-        Flash.error(ChangesetUtils.get_first_error(changeset))
+        Flash.error(FormErrors.first(changeset))
         socket
 
       reason ->

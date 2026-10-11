@@ -13,9 +13,9 @@ defmodule TymeslotWeb.Dashboard.VideoSettingsComponent do
   alias Tymeslot.Integrations.Video.InputValidation, as: VideoInputValidation
   alias Tymeslot.Integrations.Video.ProviderConfig
   alias Tymeslot.Security.RateLimiter
-  alias Tymeslot.Utils.ChangesetUtils
   alias TymeslotWeb.Dashboard.VideoSettings.ComponentView
   alias TymeslotWeb.Dashboard.VideoSettings.FormInput
+  alias TymeslotWeb.Helpers.FormErrors
   alias TymeslotWeb.Helpers.IntegrationProviders
   alias TymeslotWeb.Live.Dashboard.Shared.DashboardHelpers
 
@@ -355,7 +355,7 @@ defmodule TymeslotWeb.Dashboard.VideoSettingsComponent do
   defp handle_create_result({:error, %Ecto.Changeset{} = changeset}, _provider, socket) do
     {:noreply,
      socket
-     |> assign(:form_errors, %{base: ChangesetUtils.get_first_error(changeset)})
+     |> assign(:form_errors, %{base: FormErrors.first(changeset)})
      |> assign(:saving, false)}
   end
 

@@ -9,7 +9,7 @@ defmodule TymeslotWeb.Dashboard.ProfileSettings.AvatarUploadComponent do
   alias Tymeslot.Profiles
   alias Tymeslot.Profiles.Avatars
   alias Tymeslot.Security.RateLimiter
-  alias Tymeslot.Utils.ChangesetUtils
+  alias TymeslotWeb.Helpers.FormErrors
   alias TymeslotWeb.Helpers.ImageUploadErrors
   alias TymeslotWeb.Helpers.UploadHandler
 
@@ -113,7 +113,7 @@ defmodule TymeslotWeb.Dashboard.ProfileSettings.AvatarUploadComponent do
   end
 
   defp handle_avatar_upload_error({:error, %Ecto.Changeset{} = changeset}, socket) do
-    Flash.error(ChangesetUtils.get_first_error(changeset))
+    Flash.error(FormErrors.first(changeset))
     socket
   end
 

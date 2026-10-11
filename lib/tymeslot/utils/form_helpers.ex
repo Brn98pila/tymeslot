@@ -5,20 +5,6 @@ defmodule Tymeslot.Utils.FormHelpers do
 
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Ecto.Changeset
-
-  @doc """
-  Formats changeset errors into a map of field -> list of error messages.
-  """
-  @spec format_changeset_errors(Changeset.t()) :: map()
-  def format_changeset_errors(%Changeset{} = changeset) do
-    Changeset.traverse_errors(changeset, fn {msg, opts} ->
-      Regex.replace(~r"%{(\w+)}", msg, fn _full_match, key ->
-        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
-      end)
-    end)
-  end
-
   @doc """
   Converts context error atoms to user-friendly error messages.
   """

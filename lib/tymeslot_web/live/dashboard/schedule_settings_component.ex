@@ -20,7 +20,6 @@ defmodule TymeslotWeb.Dashboard.ScheduleSettingsComponent do
   }
 
   alias Tymeslot.MeetingTypes.InputValidation, as: MeetingSettingsInputValidation
-  alias Tymeslot.Utils.ChangesetUtils
   alias Tymeslot.Validation.Constraints
   alias TymeslotWeb.Components.Dashboard.Availability.{DeleteScheduleModal, ScheduleFormModal}
   alias TymeslotWeb.CustomInputModeHelper
@@ -31,6 +30,8 @@ defmodule TymeslotWeb.Dashboard.ScheduleSettingsComponent do
     ScheduleSwitcher,
     TimeOffCard
   }
+
+  alias TymeslotWeb.Helpers.FormErrors
 
   # The policy settings differ only in which schedule field they write, so the
   # handlers below route through one pair of helpers driven by these tables.
@@ -475,7 +476,7 @@ defmodule TymeslotWeb.Dashboard.ScheduleSettingsComponent do
   defp custom_policy_flash(:min_advance_hours),
     do: dgettext("dashboard_availability", "Minimum notice set to custom value")
 
-  defp failure_message(%Changeset{} = changeset), do: ChangesetUtils.get_first_error(changeset)
+  defp failure_message(%Changeset{} = changeset), do: FormErrors.first(changeset)
   defp failure_message(message) when is_binary(message), do: message
 
   defp failure_message(:schedule_limit_reached),

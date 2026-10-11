@@ -12,6 +12,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
   alias Tymeslot.Webhooks
   alias Tymeslot.Webhooks.InputValidation, as: WebhookInputValidation
   alias TymeslotWeb.Dashboard.Automation.Helpers, as: AutomationHelpers
+  alias TymeslotWeb.Helpers.FormErrors
   alias TymeslotWeb.Hooks.ModalHook
   alias TymeslotWeb.Live.Shared.Flash
   alias TymeslotWeb.Live.Shared.FormValidationHelpers
@@ -310,7 +311,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
             {:noreply, socket |> close_webhook_form() |> AutomationHelpers.load_webhooks()}
 
           {:error, %Ecto.Changeset{} = changeset} ->
-            errors = AutomationHelpers.format_changeset_errors(changeset)
+            errors = FormErrors.first_per_field(changeset)
             Flash.error(webhook_write_failure_message(verb))
             {:noreply, assign(socket, :form_errors, errors)}
 
