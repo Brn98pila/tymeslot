@@ -169,6 +169,14 @@ defmodule Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries do
           ilike(e.location, ^pattern)
       )
       |> where([e, _i], ^Visibility.dynamic_for(rules))
+      # A row with half its timing (stored before the cache's writers checked
+      # it) has nowhere to be shown; leaving it out here, rather than after
+      # the limit, keeps a page of results full.
+      |> where(
+        [e, _i],
+        (e.all_day == true and not is_nil(e.start_date) and not is_nil(e.end_date)) or
+          (e.all_day == false and not is_nil(e.start_at) and not is_nil(e.end_at))
+      )
       |> order_by([e, _i],
         asc: coalesce(e.start_at, type(e.start_date, :utc_datetime_usec)),
         asc: e.id
