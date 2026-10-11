@@ -24,10 +24,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [allow_upload: 3, send_update: 3]
 
+  alias Tymeslot.Media.Uploads
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.ThemeCustomizations
   alias TymeslotWeb.Helpers.ThemeUploadHelper
-  alias TymeslotWeb.Helpers.UploadConstraints
   alias TymeslotWeb.Live.Shared.Flash
 
   @kinds %{
@@ -51,9 +51,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.BackgroundUploads do
     else
       Enum.reduce(@kinds, socket, fn {kind, config}, acc ->
         allow_upload(acc, config.upload_key,
-          accept: UploadConstraints.allowed_extensions(config.constraint),
+          accept: Uploads.allowed_extensions(config.constraint),
           max_entries: 1,
-          max_file_size: UploadConstraints.max_file_size(config.constraint),
+          max_file_size: Uploads.max_file_size(config.constraint),
           auto_upload: true,
           progress: progress_callback(component, kind)
         )

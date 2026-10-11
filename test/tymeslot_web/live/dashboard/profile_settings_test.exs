@@ -7,6 +7,7 @@ defmodule TymeslotWeb.Dashboard.ProfileSettingsTest do
   import Tymeslot.DashboardTestHelpers
   import Tymeslot.Factory
 
+  alias Tymeslot.Media.Uploads
   alias Tymeslot.Profiles
   alias Tymeslot.Profiles.Avatars
   alias Tymeslot.Repo
@@ -132,6 +133,42 @@ defmodule TymeslotWeb.Dashboard.ProfileSettingsTest do
       assert MediaFixtures.image_metadata_fields(response.resp_body) == []
       refute response.resp_body =~ "SN12345"
       assert MediaFixtures.image_dimensions(response.resp_body) == {16, 32}
+    end
+
+    test "stores a PNG sent under a .jpg name as a stripped PNG and deletes the replaced avatar",
+         %{conn: conn, profile: profile} do
+      {:ok, view, _html} = live(conn, ~p"/dashboard/settings")
+
+      upload = fn name, content ->
+        entry = %{
+          last_modified: System.system_time(:millisecond),
+          name: name,
+          content: content,
+          type: "image/jpeg"
+        }
+
+        view
+        |> file_input("#avatar-upload-form", :avatar, [entry])
+        |> render_upload(name)
+
+        Repo.reload!(profile)
+      end
+
+      first = upload.("selfie.jpg", MediaFixtures.read!("gps_portrait.jpg"))
+      first_path = Path.join([Uploads.root(), "avatars", to_string(profile.id), first.avatar])
+      assert File.exists?(first_path)
+
+      second = upload.("photo.jpg", MediaFixtures.read!("gps.png"))
+
+      assert second.avatar =~ ~r/\A[0-9a-f-]{36}\.png\z/
+      refute File.exists?(first_path)
+
+      response = get(build_conn(), Avatars.avatar_url(second))
+      assert response.status == 200
+      assert [content_type] = get_resp_header(response, "content-type")
+      assert content_type =~ "image/png"
+      assert <<137, 80, 78, 71, _rest::binary>> = response.resp_body
+      assert MediaFixtures.image_metadata_fields(response.resp_body) == []
     end
 
     test "refuses an image over 40 megapixels and says how large it may be", %{

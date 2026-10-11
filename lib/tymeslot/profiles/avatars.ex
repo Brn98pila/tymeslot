@@ -5,25 +5,24 @@ defmodule Tymeslot.Profiles.Avatars do
   """
 
   alias Tymeslot.Media.ImageMetadata
+  alias Tymeslot.Media.Uploads
   alias Tymeslot.Profiles
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Utils.AvatarUtils
   alias Tymeslot.Utils.MediaValidator
   alias Tymeslot.Utils.UrlBuilder
-  alias TymeslotWeb.Helpers.UploadConstraints
-  alias TymeslotWeb.Helpers.UploadHandler
 
   @type profile :: ProfileSchema.t()
   @type uploaded_entry :: %{
-          required(:client_name) => String.t(),
+          optional(:client_name) => String.t(),
           required(:path) => String.t(),
           optional(atom()) => term()
         }
   @type result(t) :: {:ok, t} | {:error, any()}
 
-  @accepted_extensions UploadConstraints.allowed_extensions(:avatar)
-  @max_file_size UploadConstraints.max_file_size(:avatar)
+  @accepted_extensions Uploads.allowed_extensions(:avatar)
+  @max_file_size Uploads.max_file_size(:avatar)
 
   @doc "Returns the list of accepted avatar file extensions."
   @spec accepted_extensions() :: [String.t()]
@@ -34,16 +33,16 @@ defmodule Tymeslot.Profiles.Avatars do
   def max_file_size, do: @max_file_size
 
   @doc """
-  Validates an avatar upload's file type, size, and name.
+  Validates an avatar upload's file type and size.
 
-  Expects a map with string keys: `"client_name"`, `"size"`, and `"path"`.
+  Expects a map with string keys: `"client_name"` and `"path"`. The size is
+  read from the uploaded file itself, not from what the client reported.
   Returns `{:ok, file_params}` on success or `{:error, reason}` on failure.
   """
   @spec validate_upload(map()) :: {:ok, map()} | {:error, String.t()}
   def validate_upload(file_params) do
     with :ok <- validate_file_type(file_params),
-         :ok <- validate_file_size(file_params),
-         :ok <- validate_file_name(file_params) do
+         :ok <- validate_file_size(file_params) do
       {:ok, file_params}
     end
   end
@@ -66,46 +65,16 @@ defmodule Tymeslot.Profiles.Avatars do
     end
   end
 
-  # Validates the file size against the maximum allowed.
   @spec validate_file_size(map()) :: :ok | {:error, String.t()}
-  defp validate_file_size(file_params) do
-    case Map.get(file_params, "size") do
-      nil ->
-        :ok
-
-      size when is_integer(size) ->
-        if size <= @max_file_size,
-          do: :ok,
-          else: {:error, "File too large. Maximum size is 10MB"}
-
-      _other ->
-        {:error, "Invalid file size"}
+  defp validate_file_size(%{"path" => path}) when is_binary(path) do
+    case File.stat(path) do
+      {:ok, %File.Stat{size: size}} when size <= @max_file_size -> :ok
+      {:ok, %File.Stat{}} -> {:error, "File too large. Maximum size is 10MB"}
+      {:error, _reason} -> {:error, "Invalid file size"}
     end
   end
 
-  @doc "Validates the file name for path traversal and illegal characters."
-  @spec validate_file_name(map()) :: :ok | {:error, String.t()}
-  def validate_file_name(file_params) do
-    case Map.get(file_params, "client_name") do
-      nil ->
-        {:error, "No file name provided"}
-
-      filename ->
-        cond do
-          String.contains?(filename, ["../", "..\\", "\0"]) ->
-            {:error, "Invalid file name"}
-
-          String.match?(filename, ~r/[<>:"\\|?*]/) ->
-            {:error, "Invalid file name"}
-
-          String.length(filename) > 255 ->
-            {:error, "File name too long"}
-
-          true ->
-            :ok
-        end
-    end
-  end
+  defp validate_file_size(_file_params), do: {:error, "Invalid file size"}
 
   @doc """
   Updates a user's avatar file and database record.
@@ -135,7 +104,7 @@ defmodule Tymeslot.Profiles.Avatars do
       {:ok, updated_profile} ->
         if profile.avatar do
           file_path = build_avatar_path(profile.avatar, profile)
-          UploadHandler.delete_file_safely(file_path, context)
+          Uploads.delete_safely(file_path, context)
         end
 
         {:ok, updated_profile}
@@ -152,7 +121,7 @@ defmodule Tymeslot.Profiles.Avatars do
   """
   @spec delete_all_files(pos_integer()) :: :ok | {:error, File.posix(), Path.t()}
   def delete_all_files(profile_id) when is_integer(profile_id) do
-    [get_upload_directory(), "avatars", Integer.to_string(profile_id)]
+    [Uploads.root(), "avatars", Integer.to_string(profile_id)]
     |> Path.join()
     |> remove_directory()
   end
@@ -220,26 +189,22 @@ defmodule Tymeslot.Profiles.Avatars do
 
   # Private helpers
 
+  # The stored name and format come from the bytes, never from the client's
+  # file name: a PNG sent as `photo.jpg` is stored and served as a PNG.
   defp store_avatar_file(uploaded_entry, profile) do
-    timestamp = System.system_time(:second)
-    unique_suffix = System.unique_integer([:positive])
-    extension = String.downcase(Path.extname(uploaded_entry.client_name))
-    filename = "#{profile.id}_avatar_#{timestamp}_#{unique_suffix}#{extension}"
-
-    upload_dir = get_upload_directory()
-    profile_dir = Path.join([upload_dir, "avatars", to_string(profile.id)])
+    profile_dir = Path.join([Uploads.root(), "avatars", to_string(profile.id)])
 
     # The avatar is public: it appears on the booking page, in embeds and in
     # email. Re-encoding drops the EXIF location and device details a phone
     # photo carries, and runs only once the content has passed the check.
-    with :ok <- File.mkdir_p(profile_dir),
-         {:ok, binary} <- File.read(uploaded_entry.path),
+    with {:ok, binary} <- File.read(uploaded_entry.path),
          :ok <- validate_image_binary(binary),
+         {:ok, extension} <- ImageMetadata.extension(uploaded_entry.path),
+         :ok <- File.mkdir_p(profile_dir),
+         filename = Uploads.stored_name(extension),
          :ok <-
            ImageMetadata.strip(uploaded_entry.path, Path.join(profile_dir, filename), extension) do
       {:ok, filename}
-    else
-      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -255,12 +220,11 @@ defmodule Tymeslot.Profiles.Avatars do
 
   defp maybe_delete_old_avatar(old_avatar, profile, context) do
     old_file_path = build_avatar_path(old_avatar, profile)
-    UploadHandler.delete_file_safely(old_file_path, Map.put(context, :file_type, "old_avatar"))
+    Uploads.delete_safely(old_file_path, Map.put(context, :file_type, "old_avatar"))
   end
 
   defp build_avatar_path(filename, profile) do
-    upload_dir = get_upload_directory()
-    Path.join([upload_dir, "avatars", to_string(profile.id), filename])
+    Path.join(["avatars", to_string(profile.id), filename])
   end
 
   defp remove_directory(path) do
@@ -268,9 +232,5 @@ defmodule Tymeslot.Profiles.Avatars do
       {:ok, _removed} -> :ok
       {:error, reason, failed_path} -> {:error, reason, failed_path}
     end
-  end
-
-  defp get_upload_directory do
-    Application.get_env(:tymeslot, :upload_directory, "uploads")
   end
 end

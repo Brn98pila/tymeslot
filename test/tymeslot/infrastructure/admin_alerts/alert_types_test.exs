@@ -295,6 +295,42 @@ defmodule Tymeslot.Infrastructure.AdminAlerts.AlertTypesTest do
                })
     end
 
+    test ":upload_delete_failed asks for the file to be removed by hand" do
+      msg =
+        AlertTypes.format_message(:upload_delete_failed, %{
+          file_path: "avatars/12/a.png",
+          reason_code: :eacces,
+          reason_message: "eacces"
+        })
+
+      assert msg =~ "avatars/12/a.png"
+      assert msg =~ "remove it by hand (eacces)"
+    end
+
+    # The path was never touched, and may not be an upload at all.
+    test ":upload_delete_failed for a path outside the upload directory never says to delete it" do
+      msg =
+        AlertTypes.format_message(:upload_delete_failed, %{
+          file_path: "/etc/passwd",
+          reason_code: :path_traversal_attempt,
+          reason_message: "path_traversal_attempt"
+        })
+
+      assert msg =~ "/etc/passwd"
+      assert msg =~ "outside the upload directory"
+      refute msg =~ "by hand"
+    end
+
+    # A volume refusing every delete is one incident, not one alert per file.
+    test ":upload_delete_failed dedups on the reason, whatever the file" do
+      key = fn path, code ->
+        AlertTypes.dedup_key(:upload_delete_failed, %{file_path: path, reason_code: code})
+      end
+
+      assert key.("avatars/1/a.png", :eacces) == key.("themes/2/1/images/b.jpg", :eacces)
+      refute key.("avatars/1/a.png", :eacces) == key.("avatars/1/a.png", :erofs)
+    end
+
     test ":late_payment_refund_failed names the payment, the job and how to settle it" do
       metadata = %{booking_payment_id: "bp_late_1", oban_job_id: 4242, reason: :stripe_down}
       msg = AlertTypes.format_message(:late_payment_refund_failed, metadata)

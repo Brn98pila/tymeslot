@@ -109,6 +109,98 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
     end
   end
 
+  describe "partial updates keep the files the row still references" do
+    setup %{profile: profile} do
+      image_rel = "themes/#{profile.id}/1/images/kept.jpg"
+      video_rel = "themes/#{profile.id}/1/videos/kept.mp4"
+
+      {:ok, customization} =
+        ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "background_type" => "video",
+          "background_value" => "custom",
+          "background_image_path" => image_rel,
+          "background_video_path" => video_rel
+        })
+
+      %{
+        customization: customization,
+        image_rel: image_rel,
+        image_abs: touch_stored(image_rel),
+        video_abs: touch_stored(video_rel),
+        variant_abs: video_rel |> Transcoder.derive_variant_paths() |> Enum.map(&touch_stored/1)
+      }
+    end
+
+    test "an image upload leaves the stored video and its variants", ctx do
+      new_image_rel = "themes/#{ctx.profile.id}/1/images/new.jpg"
+      touch_stored(new_image_rel)
+
+      assert {:ok, updated} =
+               ThemeCustomizations.update_theme_customization(ctx.customization, %{
+                 "background_type" => "image",
+                 "background_value" => "custom",
+                 "background_image_path" => new_image_rel
+               })
+
+      assert updated.background_video_path == ctx.customization.background_video_path
+      assert File.exists?(ctx.video_abs)
+      assert Enum.all?(ctx.variant_abs, &File.exists?/1)
+      refute File.exists?(ctx.image_abs)
+    end
+
+    test "marking the video failed leaves the video just stored", ctx do
+      assert {:ok, _updated} =
+               ThemeCustomizations.update_theme_customization(ctx.customization, %{
+                 "video_processing" => "failed"
+               })
+
+      assert File.exists?(ctx.video_abs)
+      assert File.exists?(ctx.image_abs)
+    end
+
+    test "an explicit nil clears the path and deletes its file", ctx do
+      assert {:ok, updated} =
+               ThemeCustomizations.update_theme_customization(ctx.customization, %{
+                 "background_image_path" => nil
+               })
+
+      assert updated.background_image_path == nil
+      refute File.exists?(ctx.image_abs)
+      assert File.exists?(ctx.video_abs)
+    end
+
+    test "switching to the uploaded video keeps the uploaded image on disk", ctx do
+      assert {:ok, updated} =
+               ThemeCustomizations.apply_background_change(
+                 ctx.profile.id,
+                 "1",
+                 ctx.customization,
+                 "video",
+                 "custom"
+               )
+
+      assert updated.background_image_path == ctx.image_rel
+      assert File.exists?(ctx.image_abs)
+      assert File.exists?(ctx.video_abs)
+    end
+
+    test "switching to a gradient clears both paths and deletes both files", ctx do
+      assert {:ok, updated} =
+               ThemeCustomizations.apply_background_change(
+                 ctx.profile.id,
+                 "1",
+                 ctx.customization,
+                 "gradient",
+                 "gradient_2"
+               )
+
+      assert {updated.background_image_path, updated.background_video_path} == {nil, nil}
+      refute File.exists?(ctx.image_abs)
+      refute File.exists?(ctx.video_abs)
+      refute Enum.any?(ctx.variant_abs, &File.exists?/1)
+    end
+  end
+
   describe "delete_theme_customization/1 file cleanup" do
     test "removes the image file on delete", %{profile: profile} do
       rel = "themes/#{profile.id}/1/images/bg.jpg"

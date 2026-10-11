@@ -11,6 +11,7 @@ defmodule TymeslotWeb.Endpoint do
 
   alias Plug.Static
   alias Tymeslot.Infrastructure.StaticCompressors
+  alias Tymeslot.Media.Uploads
   alias TymeslotWeb.Helpers.ClientIP
 
   # The session will be stored in the cookie and signed,
@@ -153,7 +154,7 @@ defmodule TymeslotWeb.Endpoint do
         opts =
           Static.init(
             at: "/uploads",
-            from: Application.get_env(:tymeslot, :upload_directory, "uploads"),
+            from: Uploads.root(),
             gzip: false
           )
 

@@ -321,7 +321,11 @@ defmodule Tymeslot.ProfilesContextTest do
       }
 
       assert {:ok, updated_profile} = Avatars.update_avatar(profile, entry)
-      assert updated_profile.avatar =~ "_avatar_"
+      assert updated_profile.avatar =~ ~r/\A[0-9a-f-]{36}\.png\z/
+
+      assert File.exists?(
+               Path.join([upload_dir, "avatars", to_string(profile.id), updated_profile.avatar])
+             )
     end
 
     test "delete_avatar removes the avatar from the profile" do
