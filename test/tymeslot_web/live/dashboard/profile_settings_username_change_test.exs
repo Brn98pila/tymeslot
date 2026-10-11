@@ -152,7 +152,7 @@ defmodule TymeslotWeb.Dashboard.ProfileSettingsUsernameChangeTest do
     end
 
     test "refused attempts do not use up the change allowance",
-         %{conn: conn, user: user, profile: profile} do
+         %{conn: conn, profile: profile} do
       {:ok, view, _html} = live(conn, ~p"/dashboard/settings")
 
       for username <- ~w(admin taken-name admin taken-name admin taken-name) do
@@ -170,7 +170,7 @@ defmodule TymeslotWeb.Dashboard.ProfileSettingsUsernameChangeTest do
       # The whole allowance of six changes is still there.
       Enum.reduce(1..6, profile, fn attempt, current ->
         assert {:ok, updated} =
-                 Profiles.update_username(current, "sarah-#{attempt}", user.id)
+                 Profiles.change_username(current, "sarah-#{attempt}")
 
         updated
       end)

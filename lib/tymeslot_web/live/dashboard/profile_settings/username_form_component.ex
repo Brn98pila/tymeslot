@@ -121,14 +121,13 @@ defmodule TymeslotWeb.Dashboard.ProfileSettings.UsernameFormComponent do
 
   defp perform_username_update(socket, username, _metadata) do
     profile = socket.assigns.profile
-    user_id = socket.assigns.current_user.id
 
     socket = assign(socket, :saving, true)
 
     with {:ok, sanitized_username} <-
            InputProcessor.validate_field(String.trim(username), :username),
          {:ok, updated_profile} <-
-           Profiles.update_username(profile, sanitized_username, user_id) do
+           Profiles.change_username(profile, sanitized_username) do
       handle_successful_username_update(socket, updated_profile, sanitized_username)
     else
       error -> handle_username_update_error(socket, error)

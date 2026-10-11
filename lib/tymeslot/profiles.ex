@@ -70,20 +70,6 @@ defmodule Tymeslot.Profiles do
   def get_profile_by_user_id(user_id), do: ProfileQueries.get_by_user_id(user_id)
 
   @doc """
-  Assigns a system-generated default username to a profile, bypassing rate limiting.
-
-  This is intended for system use only (e.g. assigning a username during onboarding
-  completion when the user has not chosen one themselves).
-  """
-  @spec assign_default_username(profile(), username()) :: result(profile())
-  def assign_default_username(%ProfileSchema{} = profile, username) do
-    with {:ok, updated_profile} <- ProfileQueries.update_username(profile, username) do
-      Publication.maybe_publish(updated_profile.user_id)
-      {:ok, updated_profile}
-    end
-  end
-
-  @doc """
   Gets a profile by its database ID.
   """
   @spec get_profile_by_id(integer()) :: profile | nil
@@ -401,16 +387,25 @@ defmodule Tymeslot.Profiles do
   end
 
   @doc """
-  Updates a user's username with validation and rate limiting.
+  Changes a profile's username: the one path every username write takes, so
+  each is validated (format and the reserved list), rate limited and can
+  publish the booking page (`Tymeslot.BookingPage.Publication`).
 
+  Submitting the profile's current username writes nothing and costs nothing.
   A username refused by validation does not count towards the change rate
-  limit; only an attempt that reaches the database does.
+  limit; only an attempt that reaches the database does. `skip_rate_limit:
+  true` is for system writes, such as the default username given when
+  onboarding finishes without one.
   """
-  @spec update_username(profile(), username(), user_id()) :: result(profile())
-  def update_username(%ProfileSchema{} = profile, username, user_id) do
+  @spec change_username(profile(), username(), keyword()) :: result(profile())
+  def change_username(profile, username, opts \\ [])
+
+  def change_username(%ProfileSchema{username: username} = profile, username, _opts),
+    do: {:ok, profile}
+
+  def change_username(%ProfileSchema{} = profile, username, opts) do
     with :ok <- UsernameValidator.validate(username, reserved_words: ReservedPaths.list()),
-         :ok <-
-           RateLimiter.check(:username_change, "user:" <> Integer.to_string(user_id)),
+         :ok <- username_rate_limit(profile, opts),
          {:ok, updated_profile} <- ProfileQueries.update_username(profile, username) do
       Publication.maybe_publish(updated_profile.user_id)
       {:ok, updated_profile}
@@ -425,6 +420,12 @@ defmodule Tymeslot.Profiles do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp username_rate_limit(profile, opts) do
+    if Keyword.get(opts, :skip_rate_limit, false),
+      do: :ok,
+      else: RateLimiter.check(:username_change, "user:" <> Integer.to_string(profile.user_id))
   end
 
   @doc """

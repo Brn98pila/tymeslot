@@ -32,7 +32,7 @@ defmodule Tymeslot.Bookings.MeetingLinksTest do
   end
 
   defp rename!(profile, username) do
-    {:ok, profile} = Profiles.update_username(profile, username, profile.user_id)
+    {:ok, profile} = Profiles.change_username(profile, username)
     profile
   end
 
