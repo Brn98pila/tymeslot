@@ -4,6 +4,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.EventProcessorTest do
   @moduletag :unit
 
   import ExUnit.CaptureLog
+  import Tymeslot.Test.ClockHelpers, only: [freeze_clock: 1]
 
   alias Tymeslot.Integrations.Calendar.CalDAV.EventProcessor
   alias Tymeslot.Integrations.Calendar.CalendarEvent
@@ -137,6 +138,11 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.EventProcessorTest do
       provider_calendar_id: "default",
       synced_at: ~U[2026-04-08 12:00:00Z]
     }
+
+    # The series below start on fixed dates and are expanded over the sync's
+    # window, a year either side of now: pinned to the day they were synced,
+    # so the window keeps them once the suite runs a year past it.
+    setup do: freeze_clock(@context.synced_at)
 
     test "normalises a standard timed VEVENT into a CalendarEvent" do
       raw = %{
