@@ -609,6 +609,11 @@ defmodule Tymeslot.Integrations.Calendar.ICalBuilder.SeriesEditMasterTest do
       uids = Enum.map(events, & &1.uid)
       uid = &"weekly-sync@example.com_#{stamp(&1)}T110000"
 
+      # The bound took: every Monday from the first to the last, less the one
+      # excluded, the override standing in for its own.
+      assert document =~ "RRULE:FREQ=WEEKLY;UNTIL=#{utc_stamp(until)}"
+      mondays = div(Date.diff(Date.add(overridden, 7), winter), 7) + 1
+      assert length(before) == mondays - 1
       assert length(events) == length(before)
       assert Enum.uniq(uids) == uids
       refute Enum.any?(uids, &String.ends_with?(&1, "T100000"))
