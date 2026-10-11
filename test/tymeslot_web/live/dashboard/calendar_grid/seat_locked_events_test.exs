@@ -33,11 +33,17 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.SeatLockedEventsTest do
 
   import Tymeslot.DashboardTestHelpers
   import Tymeslot.Factory
+  import Tymeslot.Test.ClockHelpers, only: [freeze_clock_midweek: 0]
 
+  alias Tymeslot.Clock
   alias Phoenix.HTML
   alias Tymeslot.Repo
   alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.NotificationFlows
 
+  # The grid opens on the week that holds today in the host's zone (Tallinn
+  # by default), and these events sit on today in UTC; late on a Sunday the
+  # two are different weeks. Midweek they are always the same one.
+  setup do: freeze_clock_midweek()
   setup :setup_dashboard_user
 
   setup %{user: user} do
@@ -46,7 +52,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.SeatLockedEventsTest do
 
   # A meeting plus the provider event Tymeslot wrote for it, linked by uid.
   defp booked_event(user, integration, opts) do
-    today = Date.utc_today()
+    today = Clock.utc_today()
 
     meeting =
       insert(:meeting,
@@ -79,7 +85,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.SeatLockedEventsTest do
   defp drop_params(event) do
     %{
       "event-id" => to_string(event.id),
-      "new-date" => Date.to_iso8601(Date.utc_today()),
+      "new-date" => Date.to_iso8601(Clock.utc_today()),
       "new-hour" => "14",
       "new-minute" => "0",
       "new-end-hour" => "15",
@@ -138,7 +144,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.SeatLockedEventsTest do
       |> element("#calendar-grid")
       |> render_hook("event_resized", %{
         "event-id" => to_string(ctx.event.id),
-        "event-date" => Date.to_iso8601(Date.utc_today()),
+        "event-date" => Date.to_iso8601(Clock.utc_today()),
         "new-end-hour" => "13",
         "new-end-minute" => "0"
       })
@@ -155,9 +161,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.SeatLockedEventsTest do
       lv
       |> element("#calendar-grid")
       |> render_hook("update_event_time", %{
-        "start-date" => Date.to_iso8601(Date.utc_today()),
+        "start-date" => Date.to_iso8601(Clock.utc_today()),
         "start-time" => "14:00",
-        "end-date" => Date.to_iso8601(Date.utc_today()),
+        "end-date" => Date.to_iso8601(Clock.utc_today()),
         "end-time" => "15:00"
       })
 
