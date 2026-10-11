@@ -47,6 +47,7 @@ defmodule Tymeslot.Migrations.DirtySeedMigrationTest do
   alias Ecto.Adapters.SQL
   alias Ecto.Adapters.SQL.Sandbox
   alias Ecto.Migrator
+  alias Tymeslot.Test.AdminBootstrapHelpers
   alias Tymeslot.Test.SuiteConfig
 
   @seed_path Path.expand("../../support/migration_dirty_seed.sql", __DIR__)
@@ -84,6 +85,11 @@ defmodule Tymeslot.Migrations.DirtySeedMigrationTest do
       # Recycling the pool one last time hands it on with an empty cache.
       restart_repo!()
       {:ok, _oban} = Supervisor.restart_child(Tymeslot.Supervisor, Oban)
+
+      # The rebuilt database has no settings row, so its admin bootstrap is
+      # open again. Close it as `test_helper.exs` did, while the pool is still
+      # outside the sandbox, or every later sign-up test runs as a first user.
+      AdminBootstrapHelpers.close!()
 
       # `test_helper.exs` puts the sandbox in manual mode once, at boot.
       # Restarting the repo resets the pool to its default mode, so put it back
