@@ -19,6 +19,7 @@ defmodule Tymeslot.AuthTestHelpers do
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Security.Token
   alias TymeslotWeb.Helpers.ClientIP
+  alias TymeslotWeb.Helpers.ClientIP
   alias TymeslotWeb.UserAuth
 
   @doc """
@@ -136,6 +137,19 @@ defmodule Tymeslot.AuthTestHelpers do
   @spec create_generic_oauth_user(map()) :: term()
   def create_generic_oauth_user(attrs \\ %{}) do
     create_oauth_user("oauth", attrs)
+  end
+
+  @doc """
+  Request options from an address no other test uses. The signup and login
+  rate limits are kept per address in global state, so async tests sharing
+  `%Plug.Conn{}`'s 127.0.0.1 count against one bucket and run each other
+  out of attempts.
+  """
+  @spec isolated_request_opts() :: keyword()
+  def isolated_request_opts do
+    n = System.unique_integer([:positive])
+    ip = {10, rem(div(n, 65_536), 256), rem(div(n, 256), 256), rem(n, 256)}
+    ClientIP.request_opts(%Conn{remote_ip: ip})
   end
 
   @doc """
