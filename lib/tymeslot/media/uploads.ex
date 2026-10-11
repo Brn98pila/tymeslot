@@ -23,8 +23,9 @@ defmodule Tymeslot.Media.Uploads do
     video: 100_000_000
   }
 
-  # QuickTime (`.mov`) is no longer accepted: phones record their location
-  # into it, and only MP4 and WebM have their metadata stripped on upload.
+  # Background videos are MP4 or WebM, the formats every browser plays.
+  # QuickTime bytes that arrive under an accepted name are stored as `.mp4`
+  # and stripped like any other MP4 (see `MediaValidator.valid_video?/1`).
   @extensions %{
     avatar: [".jpg", ".jpeg", ".png", ".gif", ".webp"],
     image: [".jpg", ".jpeg", ".png", ".webp"],
@@ -101,7 +102,7 @@ defmodule Tymeslot.Media.Uploads do
   @spec delete_safely(Path.t(), map()) :: :ok | {:error, term()}
   def delete_safely(path, context) do
     with {:ok, absolute} <- resolve(path),
-         :ok <- remove(absolute) do
+         :ok <- File.rm(absolute) do
       Logger.info("Upload deleted", file_path: absolute, context: context)
       :ok
     else
@@ -118,13 +119,6 @@ defmodule Tymeslot.Media.Uploads do
         )
 
         {:error, reason}
-    end
-  end
-
-  defp remove(absolute) do
-    case File.rm(absolute) do
-      {:error, :enoent} = gone -> gone
-      result -> result
     end
   end
 
