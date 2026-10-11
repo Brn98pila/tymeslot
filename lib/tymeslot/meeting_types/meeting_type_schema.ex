@@ -314,8 +314,6 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
     end)
   end
 
-  # Only a newly supplied (non-nil) slug needs format checking — clearing it to
-  # NULL or leaving it untouched is always valid.
   # Only on a changed duration, so a type saved before the rule keeps saving.
   defp validate_duration_step(changeset) do
     step = Constraints.duration_step_minutes()
@@ -328,6 +326,8 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
     end)
   end
 
+  # Only a newly supplied (non-nil) slug needs format checking — clearing it to
+  # NULL or leaving it untouched is always valid.
   defp validate_slug(changeset) do
     case get_change(changeset, :slug) do
       nil ->

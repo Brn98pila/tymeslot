@@ -2,7 +2,7 @@ defmodule Tymeslot.Integrations.Calendar.BookingEligibility do
   @moduledoc """
   The single answer to "can a booking be written to this integration?".
 
-  A read-only provider (a subscribed feed, an Exchange mailbox) blocks
+  A read-only provider (a subscribed ICS feed) blocks
   availability perfectly well but refuses every write, so it must never be
   chosen as, promoted to, or accepted as a booking target: doing so leaves the
   user with a primary calendar that fails every booking, retries, and emails

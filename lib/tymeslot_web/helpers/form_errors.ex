@@ -10,9 +10,11 @@ defmodule TymeslotWeb.Helpers.FormErrors do
   alias TymeslotWeb.Components.CoreComponents.Forms
 
   @doc """
-  Every error, keyed by field: `%{field => [message]}`.
+  Every error, keyed by field: `%{field => [message]}`, or for an embedded
+  or associated field the nested map (or list of maps) `traverse_errors/2`
+  builds.
   """
-  @spec to_map(Changeset.t()) :: %{atom() => [String.t()]}
+  @spec to_map(Changeset.t()) :: %{atom() => [String.t()] | map() | [map()]}
   def to_map(%Changeset{} = changeset),
     do: Changeset.traverse_errors(changeset, &Forms.translate_error/1)
 
