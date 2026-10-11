@@ -244,7 +244,8 @@ defmodule Tymeslot.MeetingTypes.InputValidation do
     {:error, %{duration: "Duration cannot exceed 24 hours (#{@max_duration} minutes)"}}
   end
 
-  defp validate_duration_constraints(duration) when rem(duration, 5) != 0 do
+  defp validate_duration_constraints(duration)
+       when rem(duration, unquote(Constraints.duration_step_minutes())) != 0 do
     {:error, %{duration: "Duration must be divisible by 5 minutes"}}
   end
 

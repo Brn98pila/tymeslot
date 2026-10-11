@@ -867,3 +867,8 @@ msgstr "Fuseau horaire invalide"
 #, elixir-autogen, elixir-format
 msgid "Some domains exceed maximum length (max 255 characters)"
 msgstr "Certains domaines dépassent la longueur maximale (255 caractères max.)"
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "must be a multiple of %{step} minutes"
+msgstr "doit être un multiple de %{step} minutes"

@@ -189,6 +189,7 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
     |> validate_length(:name, Constraints.name_length_opts())
     |> validate_length(:description, max: Constraints.description_max_length())
     |> validate_number(:duration_minutes, Constraints.duration_minutes_opts())
+    |> validate_duration_step()
     |> validate_number(:slot_interval_minutes, Constraints.slot_interval_minutes_opts())
     |> validate_number(:sort_order, greater_than_or_equal_to: 0)
     |> validate_number(:max_participants, Constraints.max_participants_opts())
@@ -314,6 +315,18 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
 
   # Only a newly supplied (non-nil) slug needs format checking — clearing it to
   # NULL or leaving it untouched is always valid.
+  # Only on a changed duration, so a type saved before the rule keeps saving.
+  defp validate_duration_step(changeset) do
+    step = Constraints.duration_step_minutes()
+    message = {dgettext_noop("errors", "must be a multiple of %{step} minutes"), step: step}
+
+    validate_change(changeset, :duration_minutes, fn :duration_minutes, minutes ->
+      if is_integer(minutes) and rem(minutes, step) != 0,
+        do: [duration_minutes: message],
+        else: []
+    end)
+  end
+
   defp validate_slug(changeset) do
     case get_change(changeset, :slug) do
       nil ->

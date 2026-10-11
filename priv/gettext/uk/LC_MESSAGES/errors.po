@@ -885,3 +885,8 @@ msgstr "Некоректний часовий пояс"
 #, elixir-autogen, elixir-format
 msgid "Some domains exceed maximum length (max 255 characters)"
 msgstr "Деякі домени перевищують максимальну довжину (макс. 255 символів)"
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "must be a multiple of %{step} minutes"
+msgstr "має бути кратним %{step} хв"

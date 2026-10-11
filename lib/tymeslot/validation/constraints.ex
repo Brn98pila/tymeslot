@@ -67,6 +67,14 @@ defmodule Tymeslot.Validation.Constraints do
   def duration_minutes_range, do: 5..1440
 
   @doc """
+  The step a meeting type's duration moves in, in minutes: every duration is
+  a whole multiple of it, matching the five-minute grid the slot intervals
+  are drawn on.
+  """
+  @spec duration_step_minutes() :: pos_integer()
+  def duration_step_minutes, do: 5
+
+  @doc """
   How long a poll's proposed meeting may be, in minutes.
 
   Same floor and ceiling as `duration_minutes_range/0`, and for the same

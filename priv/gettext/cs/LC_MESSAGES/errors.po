@@ -892,3 +892,8 @@ msgstr "Neplatné časové pásmo"
 #, elixir-autogen, elixir-format
 msgid "Some domains exceed maximum length (max 255 characters)"
 msgstr "Některé domény překračují maximální délku (max. 255 znaků)"
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "must be a multiple of %{step} minutes"
+msgstr "musí být násobkem %{step} minut"

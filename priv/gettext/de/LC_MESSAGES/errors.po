@@ -867,3 +867,8 @@ msgstr "Ungültige Zeitzone"
 #, elixir-autogen, elixir-format
 msgid "Some domains exceed maximum length (max 255 characters)"
 msgstr "Einige Domains überschreiten die maximale Länge (max. 255 Zeichen)"
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "must be a multiple of %{step} minutes"
+msgstr "muss ein Vielfaches von %{step} Minuten sein"
