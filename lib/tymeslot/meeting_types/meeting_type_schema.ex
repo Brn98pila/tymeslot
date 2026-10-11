@@ -12,8 +12,8 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
   alias Tymeslot.MeetingTypes.GroupLocationRule
   alias Tymeslot.MeetingTypes.LocationOption
   alias Tymeslot.MeetingTypes.MeetingTypeAttachment
+  alias Tymeslot.MeetingTypes.Reminders
   alias Tymeslot.MeetingTypes.ReminderValidation
-  alias Tymeslot.Utils.ReminderUtils
   alias Tymeslot.Validation.Constraints
 
   @type t :: %__MODULE__{
@@ -437,7 +437,7 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
   # The count is checked before the entries, so an oversized list reports that
   # rather than whichever of its entries happens to be malformed.
   defp validate_reminder_list(changeset, reminders) do
-    normalized = Enum.map(reminders, &ReminderUtils.normalize_reminder/1)
+    normalized = Enum.map(reminders, &Reminders.normalize_reminder/1)
 
     result =
       cond do
@@ -451,7 +451,7 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
           normalized
           |> Enum.map(fn {:ok, reminder} -> reminder end)
           |> ReminderValidation.check_policy(
-            ReminderUtils.normalize_reminders(changeset.data.reminder_config)
+            Reminders.normalize_reminders(changeset.data.reminder_config)
           )
       end
 

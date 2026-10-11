@@ -19,7 +19,7 @@ defmodule Tymeslot.MeetingTypes.FormMapper do
   alias Tymeslot.MeetingPayments
   alias Tymeslot.MeetingPayments.Money
   alias Tymeslot.MeetingTypes.ApprovalWindow
-  alias Tymeslot.Utils.ReminderUtils
+  alias Tymeslot.MeetingTypes.Reminders
   alias Tymeslot.Validation.Constraints
 
   @typedoc "Why form input could not be mapped onto schema attributes."
@@ -228,7 +228,7 @@ defmodule Tymeslot.MeetingTypes.FormMapper do
   defp normalize_reminder_config(""), do: {:ok, nil}
 
   defp normalize_reminder_config(reminders) when is_list(reminders) do
-    normalized = Enum.map(reminders, &ReminderUtils.normalize_reminder_string_keys/1)
+    normalized = Enum.map(reminders, &Reminders.normalize_reminder_string_keys/1)
 
     if Enum.any?(normalized, &match?({:error, _error_reason}, &1)) do
       {:error, :invalid_reminder_config}

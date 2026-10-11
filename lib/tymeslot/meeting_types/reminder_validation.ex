@@ -6,7 +6,7 @@ defmodule Tymeslot.MeetingTypes.ReminderValidation do
   settings attached to meeting types.
   """
 
-  alias Tymeslot.Utils.ReminderUtils
+  alias Tymeslot.MeetingTypes.Reminders
 
   @max_reminders 3
   @max_reminder_seconds 365 * 24 * 60 * 60
@@ -35,7 +35,7 @@ defmodule Tymeslot.MeetingTypes.ReminderValidation do
   Parses and normalises reminder input into a list of reminder maps.
 
   Accepts a JSON string, a map (keyed by index), or a list of reminder
-  maps. Each reminder is normalised via `ReminderUtils.normalize_reminder_string_keys/1`.
+  maps. Each reminder is normalised via `Reminders.normalize_reminder_string_keys/1`.
   """
   @spec parse_and_normalize_reminders(any()) :: {:ok, list()} | {:error, String.t()}
   def parse_and_normalize_reminders(reminders) when is_binary(reminders) do
@@ -52,7 +52,7 @@ defmodule Tymeslot.MeetingTypes.ReminderValidation do
   end
 
   def parse_and_normalize_reminders(reminders) when is_list(reminders) do
-    results = Enum.map(reminders, &ReminderUtils.normalize_reminder_string_keys/1)
+    results = Enum.map(reminders, &Reminders.normalize_reminder_string_keys/1)
 
     if Enum.any?(results, &match?({:error, _reason}, &1)) do
       {:error, "Reminder settings must include valid values and units"}
@@ -87,7 +87,7 @@ defmodule Tymeslot.MeetingTypes.ReminderValidation do
       when is_list(reminders) and is_list(already_held) do
     cond do
       length(reminders) > @max_reminders -> {:error, :too_many}
-      ReminderUtils.duplicate_reminders?(reminders) -> {:error, :duplicate}
+      Reminders.duplicate_reminders?(reminders) -> {:error, :duplicate}
       Enum.any?(reminders -- already_held, &reminder_exceeds_max?/1) -> {:error, :exceeds_max}
       true -> :ok
     end
@@ -120,7 +120,7 @@ defmodule Tymeslot.MeetingTypes.ReminderValidation do
   """
   @spec reminder_exceeds_max?(map()) :: boolean()
   def reminder_exceeds_max?(%{value: v, unit: u}) do
-    seconds = ReminderUtils.reminder_interval_seconds(v, u)
+    seconds = Reminders.reminder_interval_seconds(v, u)
     seconds > @max_reminder_seconds
   end
 end

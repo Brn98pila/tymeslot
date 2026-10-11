@@ -20,8 +20,8 @@ defmodule Tymeslot.Notifications.ReminderSchedule do
   alias Tymeslot.Jobs
   alias Tymeslot.Meetings.MeetingState
   alias Tymeslot.Meetings.ReminderEntry
+  alias Tymeslot.MeetingTypes.Reminders
   alias Tymeslot.Notifications.SchedulingRules
-  alias Tymeslot.Utils.ReminderUtils
   alias Tymeslot.Workers.EmailWorker
 
   @legacy_default "30 minutes"
@@ -49,7 +49,7 @@ defmodule Tymeslot.Notifications.ReminderSchedule do
   def configured(meeting) do
     case Map.get(meeting, :reminders) do
       nil -> [legacy_reminder(meeting)]
-      reminders -> ReminderUtils.normalize_reminders(reminders)
+      reminders -> Reminders.normalize_reminders(reminders)
     end
   end
 
@@ -130,7 +130,7 @@ defmodule Tymeslot.Notifications.ReminderSchedule do
   # Args written by an older scheduler, or by hand, that do not normalise are
   # a job this module cannot match to a reminder, so they are left out.
   defp scheduled_entry({meeting_id, value, unit}) do
-    case ReminderUtils.normalize_reminder(%{value: value, unit: unit}) do
+    case Reminders.normalize_reminder(%{value: value, unit: unit}) do
       {:ok, %{value: value, unit: unit}} -> [{meeting_id, {value, unit}}]
       _invalid -> []
     end
@@ -142,8 +142,8 @@ defmodule Tymeslot.Notifications.ReminderSchedule do
         @legacy_default
 
     %{
-      value: ReminderUtils.parse_reminder_value(label),
-      unit: ReminderUtils.normalize_reminder_unit(label)
+      value: Reminders.parse_reminder_value(label),
+      unit: Reminders.normalize_reminder_unit(label)
     }
   end
 

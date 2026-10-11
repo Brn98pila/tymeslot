@@ -19,9 +19,9 @@ defmodule Tymeslot.Bookings.MeetingAttributes do
   alias Tymeslot.Locales
   alias Tymeslot.Meetings.Approval
   alias Tymeslot.MeetingTypes
+  alias Tymeslot.MeetingTypes.Reminders
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Timezones
-  alias Tymeslot.Utils.ReminderUtils
 
   @typedoc "A single reminder entry with a numeric value and a unit string (e.g. \"minutes\")."
   @type reminder :: %{required(:value) => integer(), required(:unit) => String.t()}
@@ -296,7 +296,7 @@ defmodule Tymeslot.Bookings.MeetingAttributes do
   defp get_meeting_reminders(meeting_type_record) do
     case meeting_type_record do
       %{reminder_config: reminder_config} when is_list(reminder_config) ->
-        ReminderUtils.normalize_reminders(reminder_config)
+        Reminders.normalize_reminders(reminder_config)
 
       _other ->
         [%{value: 30, unit: "minutes"}]

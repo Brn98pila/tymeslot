@@ -16,9 +16,9 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
   alias Tymeslot.Meetings.Recipient
   alias Tymeslot.Meetings.Seats
   alias Tymeslot.Meetings.VideoRooms
+  alias Tymeslot.MeetingTypes.Reminders
   alias Tymeslot.Profiles
   alias Tymeslot.Utils.DateTimeUtils
-  alias Tymeslot.Utils.ReminderUtils
   alias Tymeslot.Utils.UrlBuilder
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -324,14 +324,14 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
   end
 
   defp reminder_details(meeting, reminder_interval) do
-    case ReminderUtils.normalize_reminder(reminder_interval) do
+    case Reminders.normalize_reminder(reminder_interval) do
       {:ok, reminder} ->
         build_reminder_details_from_interval(reminder)
 
       _error ->
         meeting
         |> Map.get(:reminders)
-        |> ReminderUtils.normalize_reminders()
+        |> Reminders.normalize_reminders()
         |> handle_normalized_reminders(meeting)
     end
   end
@@ -357,7 +357,7 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
   defp handle_normalized_reminders([], meeting) do
     label = legacy_reminder_label(meeting)
 
-    case ReminderUtils.parse_label(label) do
+    case Reminders.parse_label(label) do
       {:ok, reminder} -> handle_normalized_reminders([reminder], meeting)
       :error -> legacy_reminder_details(label)
     end
@@ -383,7 +383,7 @@ defmodule Tymeslot.Emails.AppointmentBuilder do
   defp handle_normalized_reminders(reminder_list, _meeting) do
     closest =
       Enum.min_by(reminder_list, fn %{value: value, unit: unit} ->
-        ReminderUtils.reminder_interval_seconds(value, unit)
+        Reminders.reminder_interval_seconds(value, unit)
       end)
 
     reminder_label = localized_reminder_label(closest.value, closest.unit)

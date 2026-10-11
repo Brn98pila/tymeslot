@@ -19,9 +19,9 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   """
 
   alias Tymeslot.MeetingPayments.Money
+  alias Tymeslot.MeetingTypes.Reminders
   alias Tymeslot.Utils.DateTimeUtils.Duration
   alias Tymeslot.Utils.DateTimeUtils.TimeFormat
-  alias Tymeslot.Utils.ReminderUtils
   alias TymeslotWeb.Helpers.LocaleFormat
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -313,11 +313,11 @@ defmodule Tymeslot.Emails.Shared.Formatting do
   """
   @spec format_reminder_label(%{value: term(), unit: term()}, String.t()) :: String.t()
   def format_reminder_label(%{value: value, unit: unit}, locale) do
-    value = ReminderUtils.parse_reminder_value(value)
+    value = Reminders.parse_reminder_value(value)
 
     Gettext.with_locale(TymeslotWeb.Gettext, locale, fn ->
       unit_word =
-        case ReminderUtils.normalize_reminder_unit(unit) do
+        case Reminders.normalize_reminder_unit(unit) do
           "hours" -> dpngettext("emails", "time until", "hour", "hours", value)
           "days" -> dpngettext("emails", "time until", "day", "days", value)
           _minutes -> dpngettext("emails", "time until", "minute", "minutes", value)
