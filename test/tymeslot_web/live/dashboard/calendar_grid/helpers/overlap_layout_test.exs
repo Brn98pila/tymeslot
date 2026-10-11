@@ -71,6 +71,16 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Helpers.OverlapLayoutTest do
       assert {_start, ~U[2026-09-06 04:00:00Z]} =
                OverlapLayout.day_boundary_utc(~D[2026-09-05], "America/Santiago")
     end
+
+    # Havana moves its clocks back from 01:00 to 00:00 on 1 November 2026, so
+    # that day has two midnights; it begins at the first (-04) and runs 25 hours.
+    test "starts a day with two midnights at the first" do
+      assert OverlapLayout.day_boundary_utc(~D[2026-11-01], "America/Havana") ==
+               {~U[2026-11-01 04:00:00Z], ~U[2026-11-02 05:00:00Z]}
+
+      assert {_start, ~U[2026-11-01 04:00:00Z]} =
+               OverlapLayout.day_boundary_utc(~D[2026-10-31], "America/Havana")
+    end
   end
 
   # 6 March 2027 in New York (-05:00) runs from 05:00Z to 05:00Z the next day.
