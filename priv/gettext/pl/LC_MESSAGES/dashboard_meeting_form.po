@@ -193,7 +193,7 @@ msgstr "Gotowe"
 msgid "Duration (minutes)"
 msgstr "Czas trwania (minuty)"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/creation.ex
 #, elixir-autogen, elixir-format
 msgid "Duration must be a valid number"
@@ -395,7 +395,7 @@ msgstr "Płatności"
 msgid "Phone"
 msgstr "Telefon"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/creation.ex
 #, elixir-autogen, elixir-format
 msgid "Please select a video provider for video meetings"
@@ -588,7 +588,7 @@ msgstr "Wyświetlany pod pytaniem – doprecyzuj w nim, o co pytasz, albo podaj 
 msgid "Too many changes - saving shortly…"
 msgstr "Za dużo zmian – zapis za chwilę…"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Enter a valid price"
 msgstr "Podaj prawidłową cenę"
@@ -598,32 +598,32 @@ msgstr "Podaj prawidłową cenę"
 msgid "None of the calendars you selected for this account can accept bookings."
 msgstr "Żaden z kalendarzy wybranych dla tego konta nie może przyjmować rezerwacji."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "None of the calendars you selected for this account can accept bookings. Update your calendar selection in Integration settings, or choose a different account."
 msgstr "Żaden z kalendarzy wybranych dla tego konta nie może przyjmować rezerwacji. Zmień wybór kalendarzy w ustawieniach integracji albo wybierz inne konto."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Please select a calendar account"
 msgstr "Wybierz konto kalendarza"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Please select a target calendar"
 msgstr "Wybierz kalendarz docelowy"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected calendar account is invalid"
 msgstr "Wybrane konto kalendarza jest nieprawidłowe"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected calendar is not available for this account"
 msgstr "Wybrany kalendarz nie jest dostępny dla tego konta"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected video provider is invalid or inactive"
 msgstr "Wybrany dostawca wideo jest nieprawidłowy lub nieaktywny"
@@ -733,7 +733,7 @@ msgstr "Harmonogram"
 msgid "Schedule updated and saved"
 msgstr "Harmonogram zmieniony i zapisany"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Selected schedule is not one of yours"
 msgstr "Wybrany harmonogram nie należy do ciebie"
@@ -763,7 +763,7 @@ msgstr "Jeśli nie odpowiesz na czas, prośba wygasa, termin zostaje zwolniony, 
 msgid "Invitees get a \"request received\" email instead of a confirmation, and the slot is held so nobody else can take it. They get the confirmation and the calendar invite once you accept."
 msgstr "Zamiast potwierdzenia zaproszeni dostają e-mail z informacją, że prośba dotarła, a termin jest zablokowany, żeby nikt inny go nie zajął. Potwierdzenie i zaproszenie do kalendarza otrzymają, gdy zatwierdzisz rezerwację."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form.ex
 #, elixir-autogen, elixir-format
 msgid "Enter a whole number of hours, or leave blank to use the default."
@@ -1023,7 +1023,7 @@ msgstr[0] "%{count} minuta"
 msgstr[1] "%{count} minuty"
 msgstr[2] "%{count} minut"
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "A selected location is not one of yours"
 msgstr "Wybrana lokalizacja nie należy do twojego konta"
@@ -1123,7 +1123,7 @@ msgstr "Wyłącz rezerwacje grupowe, aby wymagać płatności."
 msgid "Turn off payments to enable group bookings."
 msgstr "Wyłącz płatności, aby włączyć rezerwacje grupowe."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "Group bookings are not included in your current plan."
 msgstr "Rezerwacje grupowe nie są dostępne w Twoim obecnym planie."
@@ -1256,7 +1256,122 @@ msgstr "W walucie konta Stripe (%{currency}) nie można już ustawiać cen. Wybi
 msgid "The current price is %{amount}. Switching to a supported currency clears it, as it clears every paid meeting type's price."
 msgstr "Obecna cena to %{amount}. Po przejściu na obsługiwaną walutę zostanie usunięta, tak jak ceny wszystkich płatnych typów spotkań."
 
-#: lib/tymeslot/utils/form_helpers.ex
+#: lib/tymeslot_web/helpers/context_errors.ex
 #, elixir-autogen, elixir-format
 msgid "The calendar this meeting type books into is no longer available. Reload the page and try again."
 msgstr "Kalendarz, do którego trafiają rezerwacje tego typu spotkania, jest już niedostępny. Odśwież stronę i spróbuj ponownie."
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Description must be %{max} characters or less"
+msgstr "Opis może mieć najwyżej %{max} znaków"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Description must be text"
+msgstr "Opis musi być tekstem"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration cannot exceed 24 hours (%{max} minutes)"
+msgstr "Czas trwania nie może przekraczać 24 godzin (%{max} min)"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration is required"
+msgstr "Czas trwania jest wymagany"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration must be a multiple of %{step} minutes"
+msgstr "Czas trwania musi być wielokrotnością %{step} min"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration must be a number"
+msgstr "Czas trwania musi być liczbą"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration must be a valid number of minutes"
+msgstr "Czas trwania musi być prawidłową liczbą minut"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Duration must be at least %{min} minutes"
+msgstr "Czas trwania musi wynosić co najmniej %{min} min"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid calendar account format"
+msgstr "Nieprawidłowy format konta kalendarza"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid calendar account selected"
+msgstr "Wybrano nieprawidłowe konto kalendarza"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid field"
+msgstr "Nieprawidłowe pole"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid icon format"
+msgstr "Nieprawidłowy format ikony"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid icon selected"
+msgstr "Wybrano nieprawidłową ikonę"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Invalid target calendar format"
+msgstr "Nieprawidłowy format kalendarza docelowego"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting name is required"
+msgstr "Nazwa typu spotkania jest wymagana"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting name must be 100 characters or less"
+msgstr "Nazwa typu spotkania może mieć najwyżej 100 znaków"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting name must be at least 2 characters"
+msgstr "Nazwa typu spotkania musi mieć co najmniej 2 znaki"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting name must be text"
+msgstr "Nazwa typu spotkania musi być tekstem"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Meeting name must contain at least one letter or number"
+msgstr "Nazwa typu spotkania musi zawierać co najmniej jedną literę lub cyfrę"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Slot interval cannot exceed %{max} minutes"
+msgstr "Odstęp między terminami nie może przekraczać %{max} min"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Slot interval must be a number"
+msgstr "Odstęp między terminami musi być liczbą"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Slot interval must be a valid number of minutes"
+msgstr "Odstęp między terminami musi być prawidłową liczbą minut"
+
+#: lib/tymeslot/meeting_types/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Slot interval must be at least %{min} minutes"
+msgstr "Odstęp między terminami musi wynosić co najmniej %{min} min"

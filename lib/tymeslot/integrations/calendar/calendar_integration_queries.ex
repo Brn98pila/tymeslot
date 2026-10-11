@@ -28,6 +28,18 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
     |> Repo.all()
   end
 
+  @doc """
+  Whether the user has an active calendar integration whose provider is not
+  one of `excluded_providers`.
+  """
+  @spec active_exists_except?(integer(), [String.t()]) :: boolean()
+  def active_exists_except?(user_id, excluded_providers) do
+    CalendarIntegrationSchema
+    |> where([c], c.user_id == ^user_id and c.is_active == true)
+    |> where([c], c.provider not in ^excluded_providers)
+    |> Repo.exists?()
+  end
+
   @doc "Of `user_ids`, those with at least one active calendar integration."
   @spec user_ids_with_active([integer()]) :: [integer()]
   def user_ids_with_active([]), do: []

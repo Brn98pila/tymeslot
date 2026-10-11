@@ -161,13 +161,14 @@ defmodule Tymeslot.Integrations.Calendar.UndecryptableCredentialsTest do
                user.id |> Calendar.list_integrations() |> Enum.map(& &1.id) |> Enum.sort()
     end
 
+    # The status never decrypts credentials, so an unreadable integration
+    # still counts as connected (it needs reconnecting, which the calendar
+    # page says) rather than raising or reading as "connect a calendar".
     test "the sidebar status counts the unreadable integration" do
       user = insert(:user)
-      insert(:calendar_integration, user: user)
       insert_undecryptable(user: user)
 
-      assert %{calendar_count: 2, has_calendar: true} =
-               DashboardContext.get_integration_status(user.id)
+      assert %{has_calendar: true} = DashboardContext.get_integration_status(user.id)
     end
   end
 

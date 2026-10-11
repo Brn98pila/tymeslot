@@ -22,6 +22,15 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationQueries do
     |> Repo.all()
   end
 
+  @doc "Whether the user has an active video integration."
+  @spec active_exists_for_user?(integer()) :: boolean()
+  def active_exists_for_user?(user_id) do
+    VideoIntegrationSchema
+    |> exclude_deleted()
+    |> where([v], v.user_id == ^user_id and v.is_active == true)
+    |> Repo.exists?()
+  end
+
   # Soft-deleted rows exist only so background cleanup can still authenticate
   # against the provider. They are never part of the user's integration surface,
   # so every listing and every by-provider or by-account lookup excludes them.

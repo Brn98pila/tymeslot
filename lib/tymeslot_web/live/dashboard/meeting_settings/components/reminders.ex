@@ -6,7 +6,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.Components.Reminders do
   use TymeslotWeb.Components.CoreComponents
 
   alias Phoenix.LiveView.JS
-  alias Tymeslot.Utils.ReminderUtils
+  alias Tymeslot.MeetingTypes.Reminders, as: MeetingTypeReminders
   alias TymeslotWeb.Dashboard.MeetingSettings.Helpers
   alias TymeslotWeb.Live.Shared.FormValidationHelpers
 
@@ -188,9 +188,9 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.Components.Reminders do
   """
   @spec reminder_label(integer() | String.t(), String.t()) :: String.t()
   def reminder_label(value, unit) do
-    value = ReminderUtils.parse_reminder_value(value)
+    value = MeetingTypeReminders.parse_reminder_value(value)
 
-    case ReminderUtils.normalize_reminder_unit(unit) do
+    case MeetingTypeReminders.normalize_reminder_unit(unit) do
       "hours" ->
         dngettext("dashboard_meeting_form", "%{count} hour", "%{count} hours", value)
 

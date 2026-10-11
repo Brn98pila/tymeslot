@@ -3,6 +3,8 @@ defmodule Tymeslot.Telegram.InputValidation do
   Input validation for Telegram integration fields.
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   alias Tymeslot.Security.UniversalSanitizer
   alias Tymeslot.Telegram.TelegramIntegrationSchema
   alias Tymeslot.Validation.Constraints
@@ -57,8 +59,11 @@ defmodule Tymeslot.Telegram.InputValidation do
   defp validate_bot_token_optional(token, errors), do: validate_bot_token(token, errors)
 
   @spec validate_bot_token(String.t() | nil, map()) :: {String.t() | nil, map()}
-  def validate_bot_token(nil, errors), do: {nil, Map.put(errors, :bot_token, "is required")}
-  def validate_bot_token("", errors), do: {nil, Map.put(errors, :bot_token, "is required")}
+  def validate_bot_token(nil, errors),
+    do: {nil, Map.put(errors, :bot_token, dgettext("errors", "is required"))}
+
+  def validate_bot_token("", errors),
+    do: {nil, Map.put(errors, :bot_token, dgettext("errors", "is required"))}
 
   def validate_bot_token(token, errors) when is_binary(token) do
     cleaned = strip_bot_api_url(String.trim(token))
@@ -66,13 +71,21 @@ defmodule Tymeslot.Telegram.InputValidation do
     if Regex.match?(@bot_token_regex, cleaned) do
       {cleaned, errors}
     else
-      {nil, Map.put(errors, :bot_token, "invalid format (expected: 123456789:ABCdef...)")}
+      {nil,
+       Map.put(
+         errors,
+         :bot_token,
+         dgettext("errors", "invalid format (expected: 123456789:ABCdef...)")
+       )}
     end
   end
 
   @spec validate_chat_id(String.t() | nil, map()) :: {String.t() | nil, map()}
-  def validate_chat_id(nil, errors), do: {nil, Map.put(errors, :chat_id, "is required")}
-  def validate_chat_id("", errors), do: {nil, Map.put(errors, :chat_id, "is required")}
+  def validate_chat_id(nil, errors),
+    do: {nil, Map.put(errors, :chat_id, dgettext("errors", "is required"))}
+
+  def validate_chat_id("", errors),
+    do: {nil, Map.put(errors, :chat_id, dgettext("errors", "is required"))}
 
   def validate_chat_id(chat_id, errors) when is_binary(chat_id) do
     trimmed = String.trim(chat_id)
@@ -81,7 +94,7 @@ defmodule Tymeslot.Telegram.InputValidation do
          Regex.match?(@chat_id_username_regex, trimmed) do
       {trimmed, errors}
     else
-      {nil, Map.put(errors, :chat_id, "must be a numeric ID or @username")}
+      {nil, Map.put(errors, :chat_id, dgettext("errors", "must be a numeric ID or @username"))}
     end
   end
 
@@ -91,8 +104,12 @@ defmodule Tymeslot.Telegram.InputValidation do
   """
   @spec validate_name(String.t() | nil, map(), String.t() | nil) :: {String.t() | nil, map()}
   def validate_name(name, errors, stored_name \\ nil)
-  def validate_name(nil, errors, _stored_name), do: {nil, Map.put(errors, :name, "is required")}
-  def validate_name("", errors, _stored_name), do: {nil, Map.put(errors, :name, "is required")}
+
+  def validate_name(nil, errors, _stored_name),
+    do: {nil, Map.put(errors, :name, dgettext("errors", "is required"))}
+
+  def validate_name("", errors, _stored_name),
+    do: {nil, Map.put(errors, :name, dgettext("errors", "is required"))}
 
   def validate_name(name, errors, stored_name) when is_binary(name) do
     case UniversalSanitizer.sanitize_and_validate(name,
@@ -101,22 +118,22 @@ defmodule Tymeslot.Telegram.InputValidation do
          ) do
       {:ok, sanitized} ->
         if String.length(sanitized) < 1 do
-          {nil, Map.put(errors, :name, "is required")}
+          {nil, Map.put(errors, :name, dgettext("errors", "is required"))}
         else
           {sanitized, errors}
         end
 
       {:error, _error} ->
-        {nil, Map.put(errors, :name, "is invalid")}
+        {nil, Map.put(errors, :name, dgettext("errors", "is invalid"))}
     end
   end
 
   @spec validate_events([String.t()] | nil, map()) :: {[String.t()] | nil, map()}
   def validate_events(nil, errors),
-    do: {nil, Map.put(errors, :events, "select at least one event")}
+    do: {nil, Map.put(errors, :events, dgettext("errors", "select at least one event"))}
 
   def validate_events([], errors),
-    do: {nil, Map.put(errors, :events, "select at least one event")}
+    do: {nil, Map.put(errors, :events, dgettext("errors", "select at least one event"))}
 
   def validate_events(events, errors) when is_list(events) do
     valid = TelegramIntegrationSchema.valid_events()
@@ -125,7 +142,7 @@ defmodule Tymeslot.Telegram.InputValidation do
     if Enum.empty?(invalid) do
       {events, errors}
     else
-      {nil, Map.put(errors, :events, "contains invalid events")}
+      {nil, Map.put(errors, :events, dgettext("errors", "contains invalid events"))}
     end
   end
 

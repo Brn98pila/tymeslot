@@ -5,7 +5,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   alias Tymeslot.Emails.EmailScheduler.Helpers
   alias Tymeslot.Jobs
   alias Tymeslot.Meetings.MeetingQueries
-  alias Tymeslot.Utils.ReminderUtils
+  alias Tymeslot.MeetingTypes.Reminders
   alias Tymeslot.Workers.EmailWorker
 
   require Logger
@@ -408,7 +408,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   @spec schedule_reminder_emails(term(), term(), term(), DateTime.t() | nil) ::
           :ok | {:error, term()}
   def schedule_reminder_emails(meeting_id, reminder_value, reminder_unit, scheduled_at \\ nil) do
-    case ReminderUtils.normalize_reminder(%{value: reminder_value, unit: reminder_unit}) do
+    case Reminders.normalize_reminder(%{value: reminder_value, unit: reminder_unit}) do
       {:ok, %{value: value, unit: unit}} ->
         scheduled_at =
           scheduled_at || calculate_reminder_time(meeting_id, value, unit)
@@ -419,7 +419,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
         pinned_start =
           DateTime.add(
             scheduled_at,
-            ReminderUtils.reminder_interval_seconds(value, unit),
+            Reminders.reminder_interval_seconds(value, unit),
             :second
           )
 
@@ -511,7 +511,7 @@ defmodule Tymeslot.Emails.EmailScheduler.MeetingScheduler do
   defp calculate_reminder_time(meeting_id, reminder_value, reminder_unit) do
     case MeetingQueries.get_meeting(meeting_id) do
       {:ok, meeting} ->
-        seconds = ReminderUtils.reminder_interval_seconds(reminder_value, reminder_unit)
+        seconds = Reminders.reminder_interval_seconds(reminder_value, reminder_unit)
         DateTime.add(meeting.start_time, -seconds, :second)
 
       {:error, :not_found} ->

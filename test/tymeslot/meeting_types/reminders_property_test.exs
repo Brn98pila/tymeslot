@@ -1,12 +1,12 @@
-defmodule Tymeslot.Utils.ReminderUtilsPropertyTest do
+defmodule Tymeslot.MeetingTypes.RemindersPropertyTest do
   @moduledoc """
-  Property-based tests for ReminderUtils.
+  Property-based tests for Reminders.
   """
   use ExUnit.Case, async: true
   @moduletag :utils
   use ExUnitProperties
 
-  alias Tymeslot.Utils.ReminderUtils
+  alias Tymeslot.MeetingTypes.Reminders
 
   describe "normalize_reminder/1" do
     property "is idempotent for valid reminders" do
@@ -14,8 +14,8 @@ defmodule Tymeslot.Utils.ReminderUtilsPropertyTest do
               value <- integer(1..1000),
               unit <- member_of(["minutes", "hours", "days"])
             ) do
-        {:ok, first} = ReminderUtils.normalize_reminder(%{value: value, unit: unit})
-        {:ok, second} = ReminderUtils.normalize_reminder(first)
+        {:ok, first} = Reminders.normalize_reminder(%{value: value, unit: unit})
+        {:ok, second} = Reminders.normalize_reminder(first)
 
         assert first == second
       end
@@ -26,8 +26,8 @@ defmodule Tymeslot.Utils.ReminderUtilsPropertyTest do
               value <- integer(1..1000),
               unit <- member_of(["minutes", "hours", "days"])
             ) do
-        {:ok, from_atom} = ReminderUtils.normalize_reminder(%{value: value, unit: unit})
-        {:ok, from_string} = ReminderUtils.normalize_reminder(%{"value" => value, "unit" => unit})
+        {:ok, from_atom} = Reminders.normalize_reminder(%{value: value, unit: unit})
+        {:ok, from_string} = Reminders.normalize_reminder(%{"value" => value, "unit" => unit})
 
         assert from_atom == from_string
       end
@@ -40,7 +40,7 @@ defmodule Tymeslot.Utils.ReminderUtilsPropertyTest do
               unit not in ["minutes", "hours", "days"]
             ) do
         assert {:error, :invalid_reminder} =
-                 ReminderUtils.normalize_reminder(%{value: value, unit: unit})
+                 Reminders.normalize_reminder(%{value: value, unit: unit})
       end
     end
   end
@@ -53,7 +53,7 @@ defmodule Tymeslot.Utils.ReminderUtilsPropertyTest do
           %{value: hours * 60, unit: "minutes"}
         ]
 
-        assert ReminderUtils.duplicate_reminders?(reminders)
+        assert Reminders.duplicate_reminders?(reminders)
       end
     end
 
@@ -64,7 +64,7 @@ defmodule Tymeslot.Utils.ReminderUtilsPropertyTest do
           %{value: days * 24, unit: "hours"}
         ]
 
-        assert ReminderUtils.duplicate_reminders?(reminders)
+        assert Reminders.duplicate_reminders?(reminders)
       end
     end
 
@@ -79,7 +79,7 @@ defmodule Tymeslot.Utils.ReminderUtilsPropertyTest do
           %{value: v2, unit: "minutes"}
         ]
 
-        refute ReminderUtils.duplicate_reminders?(reminders)
+        refute Reminders.duplicate_reminders?(reminders)
       end
     end
   end
@@ -87,19 +87,19 @@ defmodule Tymeslot.Utils.ReminderUtilsPropertyTest do
   describe "reminder_interval_seconds/2" do
     property "minutes conversion is exact" do
       check all(value <- integer(1..1000)) do
-        assert ReminderUtils.reminder_interval_seconds(value, "minutes") == value * 60
+        assert Reminders.reminder_interval_seconds(value, "minutes") == value * 60
       end
     end
 
     property "hours conversion is exact" do
       check all(value <- integer(1..1000)) do
-        assert ReminderUtils.reminder_interval_seconds(value, "hours") == value * 3600
+        assert Reminders.reminder_interval_seconds(value, "hours") == value * 3600
       end
     end
 
     property "days conversion is exact" do
       check all(value <- integer(1..365)) do
-        assert ReminderUtils.reminder_interval_seconds(value, "days") == value * 86_400
+        assert Reminders.reminder_interval_seconds(value, "days") == value * 86_400
       end
     end
 
@@ -108,8 +108,8 @@ defmodule Tymeslot.Utils.ReminderUtilsPropertyTest do
               value <- integer(1..1000),
               unit <- member_of(["minutes", "hours", "days"])
             ) do
-        assert ReminderUtils.reminder_interval_seconds(value, unit) ==
-                 ReminderUtils.reminder_interval_seconds(to_string(value), unit)
+        assert Reminders.reminder_interval_seconds(value, unit) ==
+                 Reminders.reminder_interval_seconds(to_string(value), unit)
       end
     end
   end
@@ -117,13 +117,13 @@ defmodule Tymeslot.Utils.ReminderUtilsPropertyTest do
   describe "parse_reminder_value/1" do
     property "integers pass through unchanged" do
       check all(value <- integer(1..10_000)) do
-        assert ReminderUtils.parse_reminder_value(value) == value
+        assert Reminders.parse_reminder_value(value) == value
       end
     end
 
     property "string integers parse correctly" do
       check all(value <- integer(1..10_000)) do
-        assert ReminderUtils.parse_reminder_value(to_string(value)) == value
+        assert Reminders.parse_reminder_value(to_string(value)) == value
       end
     end
 
@@ -132,13 +132,13 @@ defmodule Tymeslot.Utils.ReminderUtilsPropertyTest do
               value <- integer(1..1000),
               suffix <- string(:alphanumeric, min_length: 1, max_length: 10)
             ) do
-        assert ReminderUtils.parse_reminder_value("#{value} #{suffix}") == value
+        assert Reminders.parse_reminder_value("#{value} #{suffix}") == value
       end
     end
 
     property "non-positive integers default to 30" do
       check all(value <- integer(-1000..0)) do
-        assert ReminderUtils.parse_reminder_value(value) == 30
+        assert Reminders.parse_reminder_value(value) == 30
       end
     end
   end

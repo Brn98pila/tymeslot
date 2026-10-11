@@ -181,7 +181,7 @@ defmodule TymeslotWeb.OnboardingLive.ThemeHandlers do
       _blank ->
         default = Profiles.generate_default_username(profile.user_id)
 
-        case Profiles.assign_default_username(profile, default) do
+        case Profiles.change_username(profile, default, skip_rate_limit: true) do
           {:ok, updated} -> {:ok, Component.assign(socket, :profile, updated), updated.username}
           {:error, _reason} -> {:error, socket}
         end

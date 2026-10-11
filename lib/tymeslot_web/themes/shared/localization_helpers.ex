@@ -7,7 +7,6 @@ defmodule TymeslotWeb.Themes.Shared.LocalizationHelpers do
   alias Calendar
   alias Tymeslot.Availability.TimeSlots
   alias Tymeslot.Utils.DateTimeUtils
-  alias Tymeslot.Utils.DateTimeUtils.Display
   alias TymeslotWeb.Helpers.LocaleFormat
 
   @doc """
@@ -16,15 +15,27 @@ defmodule TymeslotWeb.Themes.Shared.LocalizationHelpers do
   """
   @spec group_slots_by_period([map()]) :: [{String.t(), [map()]}]
   def group_slots_by_period(slots) do
-    grouped = Enum.group_by(slots, &Display.get_time_period(&1.time))
+    grouped = Enum.group_by(slots, &time_period(&1.time))
 
     [
-      {dgettext("booking", "Early Morning"), sorted_period(grouped, "Early Morning")},
-      {dgettext("booking", "Morning"), sorted_period(grouped, "Morning")},
-      {dgettext("booking", "Afternoon"), sorted_period(grouped, "Afternoon")},
-      {dgettext("booking", "Evening"), sorted_period(grouped, "Evening")},
-      {dgettext("booking", "Late Night"), sorted_period(grouped, "Late Night")}
+      {dgettext("booking", "Early Morning"), sorted_period(grouped, :early_morning)},
+      {dgettext("booking", "Morning"), sorted_period(grouped, :morning)},
+      {dgettext("booking", "Afternoon"), sorted_period(grouped, :afternoon)},
+      {dgettext("booking", "Evening"), sorted_period(grouped, :evening)},
+      {dgettext("booking", "Late Night"), sorted_period(grouped, :late_night)}
     ]
+  end
+
+  # A slot whose time does not parse falls in no period and is not shown.
+  defp time_period(slot_time) do
+    case DateTimeUtils.parse_time_string(slot_time) do
+      {:ok, %Time{hour: hour}} when hour < 5 -> :early_morning
+      {:ok, %Time{hour: hour}} when hour < 12 -> :morning
+      {:ok, %Time{hour: hour}} when hour < 17 -> :afternoon
+      {:ok, %Time{hour: hour}} when hour < 21 -> :evening
+      {:ok, %Time{}} -> :late_night
+      {:error, _parse_error} -> :unknown
+    end
   end
 
   defp sorted_period(grouped, period) do

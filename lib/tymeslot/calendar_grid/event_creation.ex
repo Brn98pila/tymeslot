@@ -102,6 +102,8 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
     plan =
       MeetingProvisioning.plan(creating.integration_id, creating[:video_integration_id], user_id)
 
+    warn_unusable_video(plan, creating[:video_integration_id], user_id)
+
     # What recording a room made for this event needs: the event's identity in
     # the calendar and its timing (see `EventVideoRooms.record/2`).
     grid_event = %{
@@ -293,6 +295,18 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
     do: %{all_day: true, start_date: start_date, end_date: end_date}
 
   defp notify_timing(_creating, start_at, end_at), do: %{start_at: start_at, end_at: end_at}
+
+  # A video integration was asked for but is not one the user can use
+  # (another user's, switched off, disconnected): the event is written without
+  # a room, as before, and the refusal is still logged.
+  defp warn_unusable_video(:none, video_id, user_id) when is_integer(video_id) do
+    Logger.warning("Video integration not usable; event created without a video room",
+      user_id: user_id,
+      video_integration_id: video_id
+    )
+  end
+
+  defp warn_unusable_video(_plan, _video_id, _user_id), do: :ok
 
   defp provision_video_room_for_plan(:none, _event_details, _grid_event), do: %{}
 

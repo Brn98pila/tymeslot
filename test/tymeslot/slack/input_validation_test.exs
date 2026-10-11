@@ -299,4 +299,16 @@ defmodule Tymeslot.Slack.InputValidationTest do
       assert sanitized.webhook_url =~ "hooks.slack.com"
     end
   end
+
+  # The form shows these under their field as they come back, so they are in
+  # the host's language.
+  test "refuses in the current locale" do
+    Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+      assert {nil, %{events: "enthält ungültige Ereignisse"}} =
+               InputValidation.validate_events(["no.such.event"], %{})
+
+      assert {nil, %{events: "bitte mindestens ein Ereignis auswählen"}} =
+               InputValidation.validate_events([], %{})
+    end)
+  end
 end

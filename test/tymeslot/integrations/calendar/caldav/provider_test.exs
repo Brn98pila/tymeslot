@@ -304,7 +304,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.ProviderTest do
       }
 
       assert Provider.perform_connection_test(integration) ==
-               {:error, "Private or local network addresses are not allowed"}
+               {:error, :private_address}
     end
 
     test "is pure I/O — takes only the integration, no caller options" do

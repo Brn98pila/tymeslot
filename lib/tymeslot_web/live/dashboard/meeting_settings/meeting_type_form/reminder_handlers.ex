@@ -13,7 +13,7 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.ReminderHandlers
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Utils.ReminderUtils
+  alias Tymeslot.MeetingTypes.Reminders, as: MeetingTypeReminders
   alias TymeslotWeb.Dashboard.MeetingSettings.Components.Reminders
   alias TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.{Autosave, Validation}
 
@@ -110,7 +110,8 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.ReminderHandlers
 
     reminders =
       Enum.reject(socket.assigns.reminders, fn reminder ->
-        reminder.value == ReminderUtils.parse_reminder_value(value) and reminder.unit == unit
+        reminder.value == MeetingTypeReminders.parse_reminder_value(value) and
+          reminder.unit == unit
       end)
 
     socket

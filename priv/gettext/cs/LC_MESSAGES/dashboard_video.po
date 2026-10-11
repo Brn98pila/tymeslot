@@ -28,7 +28,9 @@ msgstr "K vytvoření videomístnosti je potřeba ID schůzky"
 msgid "A video integration with this configuration already exists"
 msgstr "Videointegrace s tímto nastavením už existuje."
 
+#: lib/tymeslot_web/components/dashboard/integrations/video/edit_video_integration_modal.ex
 #: lib/tymeslot_web/components/dashboard/integrations/video/shared_form_components.ex
+#: lib/tymeslot_web/live/dashboard/video_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "API Key"
 msgstr "API klíč"
@@ -777,6 +779,7 @@ msgstr "Videokonference na vlastním serveru"
 #: lib/tymeslot_web/components/dashboard/integrations/video/mirotalk_config.ex
 #: lib/tymeslot_web/components/dashboard/integrations/video/nextcloud_talk_config.ex
 #: lib/tymeslot_web/components/dashboard/integrations/video/shared_form_components.ex
+#: lib/tymeslot_web/live/dashboard/video_settings_component.ex
 #, elixir-autogen, elixir-format
 msgid "Server URL"
 msgstr "Adresa serveru"

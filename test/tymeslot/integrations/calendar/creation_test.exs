@@ -185,6 +185,26 @@ defmodule Tymeslot.Integrations.Calendar.CreationTest do
       assert Creation.prevalidate_config(attrs) == {:ok, attrs}
     end
 
+    # The provider's own refusal is already in the user's language; it is
+    # shown as it is, not reworded by the English keyword sanitiser.
+    test "shows a refused config in the user's language, untouched" do
+      attrs = %{
+        provider: "caldav",
+        user_id: 1,
+        base_url: "http://localhost:5232",
+        username: "user",
+        password: "pass",
+        calendar_paths: []
+      }
+
+      assert {:error, %{discovery: message}} =
+               Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+                 Creation.prevalidate_config(attrs)
+               end)
+
+      assert message == "Private oder lokale Netzwerkadressen sind nicht zulässig"
+    end
+
     test "skips validation for OAuth providers" do
       attrs = %{
         provider: "google",

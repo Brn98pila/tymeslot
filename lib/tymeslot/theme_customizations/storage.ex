@@ -5,9 +5,9 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
   """
 
   alias Tymeslot.Media.ImageMetadata
+  alias Tymeslot.Media.MediaValidator
   alias Tymeslot.Media.Uploads
   alias Tymeslot.Media.VideoMetadata
-  alias Tymeslot.Utils.MediaValidator
 
   @type file_upload :: %{required(:path) => Path.t(), optional(:filename) => String.t()}
 

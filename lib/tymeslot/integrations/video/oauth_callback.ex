@@ -13,7 +13,6 @@ defmodule Tymeslot.Integrations.Video.OAuthCallback do
 
   require Logger
 
-  alias Tymeslot.Dashboard.DashboardContext
   alias Tymeslot.Integrations.Shared.OAuth.AccountMatch
   alias Tymeslot.Integrations.Shared.OAuth.GoogleOAuthHelper
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
@@ -43,9 +42,7 @@ defmodule Tymeslot.Integrations.Video.OAuthCallback do
   the code with that flow's PKCE verifier, checks the grant, and creates or
   reconnects their integration for `provider`.
 
-  On success the user's cached dashboard integration status is invalidated, so
-  the dashboard reflects the new connection straight away rather than after the
-  cache expires. Besides the helpers' own errors, fails with
+  Besides the helpers' own errors, fails with
   `:missing_teams_fields` or `:missing_zoom_account_id` when a Teams or Zoom
   grant lacks the account details the provider's API calls need.
   """
@@ -61,10 +58,8 @@ defmodule Tymeslot.Integrations.Video.OAuthCallback do
              code_verifier: code_verifier
            ),
          tokens = Map.merge(tokens, Map.take(validated, [:user_id, :integration_id])),
-         :ok <- validate_tokens(provider, tokens),
-         {:ok, integration} <- persist(provider, tokens) do
-      DashboardContext.invalidate_integration_status(user_id)
-      {:ok, integration}
+         :ok <- validate_tokens(provider, tokens) do
+      persist(provider, tokens)
     end
   end
 

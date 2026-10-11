@@ -482,6 +482,9 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
         {:error, :unattributable} ->
           {:error, :unattributable}
 
+        {:error, {:invalid_config, message}} ->
+          {:error, %{discovery: message}}
+
         # Reported against `:discovery`, the key both CalDAV forms already use
         # for "the connection attempt itself failed". A probe failure is never
         # attributable to one input: the reason arrives as a sanitised sentence,
@@ -515,11 +518,19 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
   # probe already-persisted integrations, which must not be re-validated against
   # current input rules (see `Connection.probe/3`). Validating first also means a
   # malformed submission is rejected without ever charging a rate-limit token.
+  # A `validate_config/1` refusal is already a sentence in the user's
+  # language, so it is tagged and shown as it is: run through the sanitiser,
+  # whose keyword matching only knows English, it would lose its meaning.
   defp test_config(provider_atom, config, user_id) do
     with {:ok, provider_module} <- ProviderRegistry.get_provider(provider_atom),
-         :ok <- provider_module.validate_config(config),
+         :ok <- tag_config_refusal(provider_module.validate_config(config)),
          {:ok, _message} <- Connection.probe(provider_atom, config, {:user, user_id}) do
       :ok
     end
   end
+
+  defp tag_config_refusal({:error, message}) when is_binary(message),
+    do: {:error, {:invalid_config, message}}
+
+  defp tag_config_refusal(result), do: result
 end

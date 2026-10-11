@@ -5,6 +5,7 @@ defmodule Tymeslot.Integrations.Calendar.CrossProviderTest do
   import Tymeslot.CrossProviderTestHelpers
   alias Tymeslot.Integrations.Calendar.CalDAV.Family
   alias Tymeslot.Integrations.Calendar.Providers.ProviderRegistry
+  alias Tymeslot.Integrations.Calendar.Shared.ErrorMessages
 
   @moduledoc """
   Cross-provider consistency tests for calendar integrations.
@@ -45,7 +46,9 @@ defmodule Tymeslot.Integrations.Calendar.CrossProviderTest do
 
   # The private-address refusal reads the same from every provider, whatever
   # formatter words its other failures: a self-hosted server on a LAN
-  # hostname meets it, and the owner has to know it was the address.
+  # hostname meets it, and the owner has to know it was the address. A
+  # provider either words it itself or hands back discovery's
+  # `:private_address`, which the connection test words the same way.
   @private_address_refusal "Private or local network addresses are not allowed"
 
   # Get production providers from registry (exclude debug/demo)
@@ -215,8 +218,9 @@ defmodule Tymeslot.Integrations.Calendar.CrossProviderTest do
           provider: provider_type
         }
 
-        assert provider_module.perform_connection_test(invalid_config) ==
-                 {:error, @private_address_refusal}
+        assert invalid_config
+               |> provider_module.perform_connection_test()
+               |> presented(provider_type) == @private_address_refusal
       end)
     end
   end
@@ -230,4 +234,9 @@ defmodule Tymeslot.Integrations.Calendar.CrossProviderTest do
       assert_provider_metadata_accessible(ProviderRegistry, @production_providers)
     end
   end
+
+  defp presented({:error, message}, _provider) when is_binary(message), do: message
+
+  defp presented({:error, reason}, provider),
+    do: ErrorMessages.specific_message(reason, provider)
 end

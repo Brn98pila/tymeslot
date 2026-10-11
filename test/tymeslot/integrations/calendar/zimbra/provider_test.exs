@@ -246,7 +246,7 @@ defmodule Tymeslot.Integrations.Calendar.Zimbra.ProviderTest do
       }
 
       assert Provider.discover_calendars(client) ==
-               {:error, "Private or local network addresses are not allowed"}
+               {:error, :private_address}
     end
   end
 

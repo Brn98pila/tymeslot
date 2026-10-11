@@ -29,6 +29,7 @@ defmodule Tymeslot.Integrations.Calendar do
   @behaviour Tymeslot.Security.EncryptedStorage
 
   alias Tymeslot.Integrations.Calendar.Blocking
+  alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
@@ -79,6 +80,18 @@ defmodule Tymeslot.Integrations.Calendar do
   # ---------------------------
   # Public API: Listing/CRUD
   # ---------------------------
+
+  @doc """
+  Whether the user has an active calendar integration a booking can be
+  written to (see `Tymeslot.Integrations.Calendar.BookingEligibility`).
+  """
+  @spec has_bookable_integration?(user_id()) :: boolean()
+  def has_bookable_integration?(user_id) when is_integer(user_id),
+    do:
+      CalendarIntegrationQueries.active_exists_except?(
+        user_id,
+        BookingEligibility.unbookable_providers()
+      )
 
   @doc """
   Lists calendar integrations for a user and annotates the primary one.
@@ -456,8 +469,7 @@ defmodule Tymeslot.Integrations.Calendar do
   defdelegate initiate_oauth(provider, user_id, opts \\ []), to: OAuth, as: :initiate
 
   @doc """
-  Completes a Google or Outlook OAuth callback and connects the calendar,
-  invalidating the user's cached dashboard integration status on success.
+  Completes a Google or Outlook OAuth callback and connects the calendar.
   """
   @spec complete_oauth(OAuth.provider(), String.t(), String.t(), pos_integer()) ::
           {:ok, integration()} | {:error, term()}

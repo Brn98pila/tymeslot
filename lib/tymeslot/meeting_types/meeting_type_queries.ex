@@ -153,35 +153,19 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeQueries do
   end
 
   @doc """
-  Bulk-inserts meeting types from a list of attribute maps.
-  Each map must include all required fields including timestamps.
-  Returns `{:ok, meeting_types}` on success.
+  Inserts a user's default meeting types, skipping any whose name the user
+  already holds, so a repeated seed inserts nothing rather than failing.
+  Takes the repo so it can run in its caller's transaction.
   """
-  @spec bulk_insert_meeting_types([map()]) :: {:ok, [MeetingTypeSchema.t()]} | {:error, term()}
-  def bulk_insert_meeting_types([]), do: {:ok, []}
-
-  def bulk_insert_meeting_types(attrs_list) when is_list(attrs_list) do
-    case Repo.insert_all(MeetingTypeSchema, attrs_list, returning: true) do
-      {_count, meeting_types} ->
-        {:ok, meeting_types}
-    end
-  rescue
-    error -> {:error, error}
-  end
-
-  @doc """
-  Returns the names of all existing meeting types for a user as a MapSet.
-  """
-  @spec existing_names(integer()) :: MapSet.t()
-  def existing_names(user_id) do
-    MapSet.new(
-      Repo.all(
-        from(mt in MeetingTypeSchema,
-          where: mt.user_id == ^user_id,
-          select: mt.name
-        )
+  @spec insert_defaults([map()], Ecto.Repo.t()) :: non_neg_integer()
+  def insert_defaults(attrs_list, repo \\ Repo) when is_list(attrs_list) do
+    {count, _rows} =
+      repo.insert_all(MeetingTypeSchema, attrs_list,
+        on_conflict: :nothing,
+        conflict_target: [:user_id, :name]
       )
-    )
+
+    count
   end
 
   @doc """
@@ -263,25 +247,6 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeQueries do
         updated_at: DateTime.utc_now(:second)
       ]
     )
-  end
-
-  @doc """
-  Checks if a user has any meeting types.
-  """
-  @spec has_meeting_types?(integer()) :: boolean()
-  def has_meeting_types?(user_id) do
-    result =
-      Repo.one(
-        from(mt in MeetingTypeSchema,
-          where: mt.user_id == ^user_id,
-          select: count(mt.id)
-        )
-      )
-
-    case result do
-      0 -> false
-      _other -> true
-    end
   end
 
   @doc """

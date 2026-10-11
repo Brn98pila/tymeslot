@@ -41,7 +41,7 @@ defmodule Tymeslot.Workers.VideoRoom.Recovery do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings.{MeetingQueries, MeetingSchema}
   alias Tymeslot.MeetingTypes.MeetingTypeQueries
-  alias Tymeslot.Utils.ReminderUtils
+  alias Tymeslot.MeetingTypes.Reminders
   alias Tymeslot.Workers.VideoRoom.Announcement
   alias Tymeslot.Workers.VideoRoom.ErrorPolicy
 
@@ -242,7 +242,7 @@ defmodule Tymeslot.Workers.VideoRoom.Recovery do
     unit = Map.get(reminder, :unit) || Map.get(reminder, "unit")
 
     try do
-      ReminderUtils.reminder_interval_seconds(value, unit)
+      Reminders.reminder_interval_seconds(value, unit)
     rescue
       exception ->
         Logger.warning("Ignoring unreadable reminder interval",

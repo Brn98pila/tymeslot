@@ -18,10 +18,10 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ConfigViewComponent do
   alias Tymeslot.Integrations.Calendar.Exchange.Creation, as: ExchangeCreation
   alias Tymeslot.Integrations.Calendar.InputValidation, as: CalendarInputValidation
   alias Tymeslot.Integrations.Calendar.ProviderConfig
-  alias Tymeslot.Utils.ChangesetUtils
   alias Tymeslot.Utils.SanitizeMerge
   alias TymeslotWeb.Dashboard.CalendarSettings.Components
   alias TymeslotWeb.Dashboard.CalendarSettingsComponent
+  alias TymeslotWeb.Helpers.FormErrors
   alias TymeslotWeb.Helpers.IntegrationProviders
   alias TymeslotWeb.Live.Shared.Flash
   alias TymeslotWeb.Live.Shared.FormValidationHelpers
@@ -281,7 +281,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ConfigViewComponent do
   defp handle_create_integration_result({:error, {:changeset, changeset}}, socket) do
     {:noreply,
      assign(socket,
-       form_errors: %{generic: [ChangesetUtils.get_first_error(changeset)]},
+       form_errors: %{generic: [FormErrors.first(changeset, field_labels())]},
        is_saving: false
      )}
   end
@@ -408,4 +408,15 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.ConfigViewComponent do
   end
 
   defp normalize_provider(_other_provider), do: :caldav
+
+  # The generic error sits above the form, away from its field, so the
+  # field is named.
+  defp field_labels do
+    %{
+      name: dgettext("dashboard_calendar_providers", "Name"),
+      base_url: dgettext("dashboard_calendar_providers", "Server URL"),
+      username: dgettext("dashboard_calendar_providers", "Username"),
+      password: dgettext("dashboard_calendar_providers", "Password")
+    }
+  end
 end

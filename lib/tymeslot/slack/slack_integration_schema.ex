@@ -8,6 +8,7 @@ defmodule Tymeslot.Slack.SlackIntegrationSchema do
   using `Tymeslot.Security.Encryption`. Plaintext access is exposed via the
   `bot_token/1` and `webhook_url/1` helpers.
   """
+  use Gettext, backend: TymeslotWeb.Gettext
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -106,7 +107,7 @@ defmodule Tymeslot.Slack.SlackIntegrationSchema do
     |> foreign_key_constraint(:user_id)
     |> unique_constraint([:user_id, :team_id],
       name: :slack_integrations_user_team_unique_index,
-      message: "workspace already connected"
+      message: dgettext_noop("errors", "workspace already connected")
     )
   end
 
@@ -154,7 +155,7 @@ defmodule Tymeslot.Slack.SlackIntegrationSchema do
     |> foreign_key_constraint(:user_id)
     |> unique_constraint([:user_id, :team_id],
       name: :slack_integrations_user_team_unique_index,
-      message: "workspace already connected"
+      message: dgettext_noop("errors", "workspace already connected")
     )
   end
 
@@ -218,7 +219,11 @@ defmodule Tymeslot.Slack.SlackIntegrationSchema do
         changeset
         |> validate_webhook_url_present()
         |> validate_format(:webhook_url, @webhook_url_regex,
-          message: "must be a Slack webhook URL (https://hooks.slack.com/services/...)"
+          message:
+            dgettext_noop(
+              "errors",
+              "must be a Slack webhook URL (https://hooks.slack.com/services/...)"
+            )
         )
 
       _mode ->

@@ -11,10 +11,10 @@ defmodule TymeslotWeb.Dashboard.ProfileSettings.UsernameFormComponent do
   alias Tymeslot.Security.FieldValidators.UsernameValidator
   alias Tymeslot.Security.InputProcessor
   alias Tymeslot.Security.RateLimiter
-  alias Tymeslot.Utils.ChangesetUtils
   alias Tymeslot.Utils.UrlBuilder
   alias Tymeslot.Validation.Constraints
   alias TymeslotWeb.Dashboard.ProfileSettings.UsernameChangeModal
+  alias TymeslotWeb.Helpers.FormErrors
   alias TymeslotWeb.Live.Shared.FormValidationHelpers
 
   import UsernameChangeModal, only: [username_change_modal: 1]
@@ -121,14 +121,13 @@ defmodule TymeslotWeb.Dashboard.ProfileSettings.UsernameFormComponent do
 
   defp perform_username_update(socket, username, _metadata) do
     profile = socket.assigns.profile
-    user_id = socket.assigns.current_user.id
 
     socket = assign(socket, :saving, true)
 
     with {:ok, sanitized_username} <-
            InputProcessor.validate_field(String.trim(username), :username),
          {:ok, updated_profile} <-
-           Profiles.update_username(profile, sanitized_username, user_id) do
+           Profiles.change_username(profile, sanitized_username) do
       handle_successful_username_update(socket, updated_profile, sanitized_username)
     else
       error -> handle_username_update_error(socket, error)
@@ -174,7 +173,10 @@ defmodule TymeslotWeb.Dashboard.ProfileSettings.UsernameFormComponent do
   defp explain_refused_changeset(socket, changeset) do
     case Profiles.username_error(changeset) do
       nil ->
-        Flash.error(ChangesetUtils.get_first_error(changeset))
+        Flash.error(
+          FormErrors.first(changeset, %{username: dgettext("dashboard_profile", "Username")})
+        )
+
         socket
 
       reason ->

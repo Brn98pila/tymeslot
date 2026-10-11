@@ -214,6 +214,7 @@ msgstr "Помилка автентифікації OAuth: відсутній п
 msgid "Or continue with"
 msgstr "Або продовжте через"
 
+#: lib/tymeslot/auth/error_formatter.ex
 #: lib/tymeslot_web/components/auth/registration/signup_component.ex
 #: lib/tymeslot_web/components/auth/session/login_component.ex
 #, elixir-autogen, elixir-format
@@ -687,16 +688,6 @@ msgstr "Новий пароль має відрізнятися від пото�
 
 #: lib/tymeslot/auth/error_formatter.ex
 #, elixir-autogen, elixir-format
-msgid "Password must be at least 8 characters long."
-msgstr "Пароль має містити щонайменше 8 символів."
-
-#: lib/tymeslot/auth/error_formatter.ex
-#, elixir-autogen, elixir-format
-msgid "Please enter a valid email address."
-msgstr "Введіть коректну електронну адресу."
-
-#: lib/tymeslot/auth/error_formatter.ex
-#, elixir-autogen, elixir-format
 msgid "Registration"
 msgstr "Реєстрація"
 
@@ -972,3 +963,9 @@ msgstr "Ваш обліковий запис видаляється (запла�
 #, elixir-autogen, elixir-format
 msgid "The verification email could not be sent. Please try again."
 msgstr "Не вдалося надіслати лист для підтвердження. Спробуйте ще раз."
+
+#: lib/tymeslot/auth/email_change.ex
+#: lib/tymeslot/auth/error_formatter.ex
+#, elixir-autogen, elixir-format
+msgid "Email address"
+msgstr "Адреса електронної пошти"

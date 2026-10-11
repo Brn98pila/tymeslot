@@ -70,7 +70,14 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.Discovery do
   # request originating from a user-supplied URL — the only path that matters
   # for SSRF — keeps the same posture as persistence.
   defp url_validation_opts(opts) do
-    base = [enforce_https_for_public: true, block_private_ips: true]
+    # A private address comes back as a reason, not a sentence, so the
+    # connection test can name it in the owner's language
+    # (`ErrorMessages.specific_message/2`).
+    base = [
+      enforce_https_for_public: true,
+      block_private_ips: true,
+      private_ip_error_message: :private_address
+    ]
 
     allow_private = Keyword.get(opts, :allow_private_ips, SsrfGuard.allow_private_for_calendar?())
 
