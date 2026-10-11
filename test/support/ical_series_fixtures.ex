@@ -9,6 +9,7 @@ defmodule Tymeslot.Test.ICalSeriesFixtures do
 
   import ExUnit.Assertions
 
+  alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.CalDAV.EventProcessor
   alias Tymeslot.Integrations.Calendar.ICalBuilder.LineFolder
   alias Tymeslot.Integrations.Calendar.ICalNormaliser
@@ -127,7 +128,7 @@ defmodule Tymeslot.Test.ICalSeriesFixtures do
   """
   @spec winter_and_summer_mondays() :: {Date.t(), Date.t()}
   def winter_and_summer_mondays do
-    today = Date.utc_today()
+    today = Clock.utc_today()
     july = Date.new!(today.year, 7, 15)
     july = if Date.compare(july, today) == :lt, do: Date.new!(today.year + 1, 7, 15), else: july
     summer = Date.beginning_of_week(july)

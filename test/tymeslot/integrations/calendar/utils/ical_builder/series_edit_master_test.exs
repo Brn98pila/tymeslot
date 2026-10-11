@@ -574,13 +574,21 @@ defmodule Tymeslot.Integrations.Calendar.ICalBuilder.SeriesEditMasterTest do
       {winter, summer} = winter_and_summer_mondays()
       excluded = Date.add(summer, -7)
       overridden = Date.add(summer, 7)
+      # Bounded, as above: unbounded, its last occurrence sits at the edge of
+      # the sync's window, a year from now, and on the hour between the old
+      # and the new start the moved series would have one fewer.
+      until = berlin_instant(Date.add(overridden, 7), ~T[10:00:00])
 
       document =
         calendar(
           @vtimezone <>
-            master(
-              "DTSTART;TZID=Europe/Berlin:#{stamp(winter)}T100000",
-              "EXDATE;TZID=Europe/Berlin:#{stamp(excluded)}T100000\n"
+            String.replace(
+              master(
+                "DTSTART;TZID=Europe/Berlin:#{stamp(winter)}T100000",
+                "EXDATE;TZID=Europe/Berlin:#{stamp(excluded)}T100000\n"
+              ),
+              "RRULE:FREQ=WEEKLY",
+              "RRULE:FREQ=WEEKLY;UNTIL=#{utc_stamp(until)}"
             ) <>
             """
             BEGIN:VEVENT
