@@ -325,8 +325,12 @@ defmodule Tymeslot.CalendarGrid.IcsImport do
   defp known_zone(_zone), do: nil
 
   # A DTEND must share its DTSTART's value type, but files in the wild mix
-  # them, and every provider's builder assumes they match. An end that is not
-  # after the start falls back to the length the parser gives a bare start.
+  # them, and every provider's builder assumes they match. An import writes a
+  # real event into the host's calendar, which cannot be zero length, so an
+  # end that is missing or not after the start falls back to a default
+  # length: a day for an all-day event, an hour for a timed one. The parser
+  # reads a timed DTSTART with no end as a moment (RFC 5545 §3.6.1), which a
+  # feed can show but a calendar write refuses.
   defp end_time(%Date{} = start, end_value, zone) do
     case end_value && to_date(end_value, zone) do
       %Date{} = end_date ->
@@ -339,8 +343,11 @@ defmodule Tymeslot.CalendarGrid.IcsImport do
 
   defp end_time(%DateTime{} = start, end_value, zone) do
     case end_value && to_datetime(end_value, zone) do
-      %DateTime{} = end_at -> if DateTime.after?(end_at, start), do: end_at, else: start
-      nil -> start
+      %DateTime{} = end_at ->
+        if DateTime.after?(end_at, start), do: end_at, else: DateTime.add(start, 1, :hour)
+
+      nil ->
+        DateTime.add(start, 1, :hour)
     end
   end
 
