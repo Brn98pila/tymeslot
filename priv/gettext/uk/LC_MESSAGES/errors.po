@@ -1152,3 +1152,8 @@ msgstr "має містити щонайменше одну подію"
 #, elixir-autogen, elixir-format
 msgid "workspace already connected"
 msgstr "робочий простір уже підключено"
+
+#: lib/tymeslot/webhooks/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Name cannot be empty"
+msgstr "Назва не може бути порожньою"

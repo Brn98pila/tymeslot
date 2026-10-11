@@ -6,11 +6,12 @@ defmodule Tymeslot.Webhooks.InputValidation do
   Uses Ecto embedded schema for structured validation.
   """
   use Ecto.Schema
+  use Gettext, backend: TymeslotWeb.Gettext
   import Ecto.Changeset
 
-  alias Ecto.Changeset
   alias Tymeslot.ChangesetValidators.URL, as: URLValidator
   alias Tymeslot.Security.{RateLimiter, UniversalSanitizer}
+  alias Tymeslot.Utils.ChangesetErrors
   alias Tymeslot.Validation.Constraints
   alias Tymeslot.Webhooks.{SsrfValidator, WebhookSchema}
 
@@ -70,7 +71,7 @@ defmodule Tymeslot.Webhooks.InputValidation do
   end
 
   defp handle_webhook_validation_result({:error, changeset}) do
-    {:error, translate_errors(changeset)}
+    {:error, ChangesetErrors.first_per_field(changeset)}
   end
 
   defp perform_webhook_validation(params, stored_name) do
@@ -78,7 +79,7 @@ defmodule Tymeslot.Webhooks.InputValidation do
 
     %__MODULE__{}
     |> cast(params, [:name, :url, :events])
-    |> validate_required([:name], message: "Name cannot be empty")
+    |> validate_required([:name], message: dgettext_noop("errors", "Name cannot be empty"))
     |> validate_required([:url])
     |> validate_length(:name,
       min: name_range.first,
@@ -101,7 +102,7 @@ defmodule Tymeslot.Webhooks.InputValidation do
     validate_change(changeset, :events, fn :events, events ->
       case WebhookSchema.validate_events_list(events) do
         :ok -> []
-        {:error, msg} -> [{:events, String.capitalize(msg)}]
+        {:error, message} -> [events: message]
       end
     end)
   end
@@ -125,16 +126,6 @@ defmodule Tymeslot.Webhooks.InputValidation do
   # %{}, so a caller that omits it (every current one supplies it) shares one
   # bucket with every other such caller rather than crashing.
   defp actor(_metadata), do: "unknown"
-
-  defp translate_errors(changeset) do
-    Changeset.traverse_errors(changeset, fn {msg, opts} ->
-      Regex.replace(~r/%{(\w+)}/, msg, fn _arg1, key ->
-        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
-      end)
-    end)
-    |> Enum.map(fn {k, v} -> {k, List.first(v)} end)
-    |> Map.new()
-  end
 
   defp sanitize_text_fields(params, metadata) do
     with {:ok, sanitized_name} <- sanitize_field_for_form(params["name"], :name, metadata),

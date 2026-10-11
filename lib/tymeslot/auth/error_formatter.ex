@@ -94,23 +94,12 @@ defmodule Tymeslot.Auth.ErrorFormatter do
   @spec format_validation_errors(Changeset.t() | map()) :: String.t()
   def format_validation_errors(%Changeset{} = changeset) do
     changeset
-    |> Changeset.traverse_errors(&translate_changeset_error/1)
+    |> Changeset.traverse_errors(&ChangesetErrors.translate/1)
     |> format_error_map()
   end
 
   def format_validation_errors(errors) when is_map(errors) do
     format_error_map(errors)
-  end
-
-  # Mirrors `CoreComponents.Forms.translate_error/1`: the message is a runtime
-  # variable, so the msgids live in `TymeslotWeb.Gettext.EctoErrorMsgids` for
-  # the extractor to find.
-  defp translate_changeset_error({msg, opts}) do
-    if count = opts[:count] do
-      Gettext.dngettext(TymeslotWeb.Gettext, "errors", msg, msg, count, opts)
-    else
-      Gettext.dgettext(TymeslotWeb.Gettext, "errors", msg, opts)
-    end
   end
 
   @doc """
@@ -134,7 +123,7 @@ defmodule Tymeslot.Auth.ErrorFormatter do
   """
   @spec first_error(Changeset.t()) :: String.t() | nil
   def first_error(%Changeset{} = changeset),
-    do: ChangesetErrors.first(changeset, &translate_changeset_error/1)
+    do: ChangesetErrors.first(changeset, &ChangesetErrors.translate/1)
 
   # Formats a single field error: the field name, humanised, followed by its
   # error messages.

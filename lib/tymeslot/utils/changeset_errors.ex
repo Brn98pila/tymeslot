@@ -1,14 +1,43 @@
 defmodule Tymeslot.Utils.ChangesetErrors do
   @moduledoc """
-  Picks one error out of a changeset for a single-line message, the same way
-  for the web layer's form errors and the domain's own formatters. The caller
-  passes the function that turns `{message, opts}` into text, so this module
-  translates nothing itself.
+  Changeset errors as text, the same way for the web layer's form errors and
+  the domain's own formatters.
+
+  `translate/1` is the domain's copy of `Forms.translate_error/1` (the domain
+  may not call the web layer): both look a message up in the `errors` domain,
+  where every changeset message is registered. `first/2` takes the translate
+  function as an argument, so either side can pick a single-line error.
   """
+
+  use Gettext, backend: TymeslotWeb.Gettext
 
   alias Ecto.Changeset
 
   @type translate :: ({String.t(), keyword()} -> String.t())
+
+  @doc """
+  One `{message, opts}` error in the current locale. The message is a
+  runtime value, so its msgid is registered where it is written
+  (`dgettext_noop/2`) or in `TymeslotWeb.Gettext.EctoErrorMsgids`.
+  """
+  @spec translate({String.t(), keyword()}) :: String.t()
+  def translate({message, opts}) do
+    if count = opts[:count] do
+      Gettext.dngettext(TymeslotWeb.Gettext, "errors", message, message, count, opts)
+    else
+      Gettext.dgettext(TymeslotWeb.Gettext, "errors", message, opts)
+    end
+  end
+
+  @doc """
+  Each field's first error in the current locale: `%{field => message}`.
+  """
+  @spec first_per_field(Changeset.t()) :: %{atom() => String.t()}
+  def first_per_field(%Changeset{} = changeset) do
+    changeset
+    |> Changeset.traverse_errors(&translate/1)
+    |> Map.new(fn {field, errors} -> {field, first_message(errors)} end)
+  end
 
   @doc """
   The first field alphabetically, humanised, followed by its first message;

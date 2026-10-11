@@ -1159,3 +1159,8 @@ msgstr "musí obsahovat alespoň jednu událost"
 #, elixir-autogen, elixir-format
 msgid "workspace already connected"
 msgstr "pracovní prostor už je připojen"
+
+#: lib/tymeslot/webhooks/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Name cannot be empty"
+msgstr "Název nesmí být prázdný"

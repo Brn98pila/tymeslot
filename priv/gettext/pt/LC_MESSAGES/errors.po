@@ -1139,3 +1139,8 @@ msgstr "precisa incluir pelo menos um evento"
 #, elixir-autogen, elixir-format
 msgid "workspace already connected"
 msgstr "espaço de trabalho já conectado"
+
+#: lib/tymeslot/webhooks/input_validation.ex
+#, elixir-autogen, elixir-format
+msgid "Name cannot be empty"
+msgstr "O nome não pode ficar em branco"
