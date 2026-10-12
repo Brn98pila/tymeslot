@@ -27,8 +27,7 @@ defmodule Tymeslot.Polls.PollSchema do
     field(:duration_minutes, :integer)
     # The poll's public voting link, which the host copies from the
     # dashboard again whenever they like, so it is encrypted rather than only
-    # hashed; it is looked up by `token_hash`. The plain `token` column
-    # predates this and is no longer read or written.
+    # hashed; it is looked up by `token_hash`.
     field(:token, EncryptedString, source: :token_encrypted, redact: true)
     field(:token_hash, :string)
     field(:status, Ecto.Enum, values: [:open, :confirmed, :cancelled], default: :open)

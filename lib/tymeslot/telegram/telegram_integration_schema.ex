@@ -47,9 +47,7 @@ defmodule Tymeslot.Telegram.TelegramIntegrationSchema do
     field(:chat_id, :string)
     # The one-time `/start` token of the shared bot's deep link. It is only
     # ever compared once issued, so the row keeps its hash; the virtual field
-    # carries the token itself on the integration it was just issued to. The
-    # plain `link_token` column predates this and is no longer read or
-    # written.
+    # carries the token itself on the integration it was just issued to.
     field(:link_token, :string, virtual: true, redact: true)
     field(:link_token_hash, :string)
     field(:link_token_issued_at, :utc_datetime)
