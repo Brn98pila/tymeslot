@@ -144,6 +144,33 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.ItemDiscoveryTest do
       assert ItemDiscovery.fetch_items(config(), ids) ==
                {:error, {:response_code, "ErrorAccessDenied"}}
     end
+
+    # A server that ignored `t:AdditionalProperties` would answer bare ids under
+    # `NoError`, every item would then fail normalisation, and the read would
+    # look like an empty calendar.
+    test "refuses a read whose items came back without the requested properties" do
+      answer_get_item_with(fn ids -> Enum.map(ids, &{:ok, id: &1, id_only: true}) end)
+
+      ids = for n <- 1..3, do: {"item-#{n}", "ck-#{n}"}
+
+      assert ItemDiscovery.fetch_items(config(), ids) == {:error, :item_properties_missing}
+    end
+
+    # One unusable item is not the ignored-properties signature: it is
+    # skipped and reported on its own when the items are normalised.
+    test "answers a read in which only some items lack the requested properties" do
+      answer_get_item_with(fn ids ->
+        Enum.map(ids, fn
+          "item-2" = id -> {:ok, id: id, id_only: true}
+          id -> {:ok, id: id}
+        end)
+      end)
+
+      ids = for n <- 1..3, do: {"item-#{n}", "ck-#{n}"}
+
+      assert {:ok, items} = ItemDiscovery.fetch_items(config(), ids)
+      assert Enum.map(items, &Soap.text(&1, ~x"./t:ItemId/@Id")) == Enum.map(ids, &elem(&1, 0))
+    end
   end
 
   # Answers each `GetItem` with the messages `entries_for` builds from the ids

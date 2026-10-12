@@ -73,15 +73,22 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.ItemDiscovery do
   Answers the raw `t:CalendarItem` elements, which
   `Exchange.EventNormaliser.normalise_events/2` turns into `CalendarEvent`
   structs. The batch-level guard is applied first, so a response in which
-  every message failed is an error rather than an empty calendar.
+  every message failed is an error rather than an empty calendar, and so is
+  one in which no item came back with the properties the request asked for.
   """
   @spec fetch_items(Client.config(), [id_pair()]) :: {:ok, [Soap.document()]} | {:error, term()}
   def fetch_items(_config, []), do: {:ok, []}
 
   def fetch_items(config, ids) do
     with {:ok, docs} <- fetch_batches(config, Enum.chunk_every(ids, @get_item_batch_size)),
-         :ok <- EventNormaliser.require_readable_batch(docs) do
-      {:ok, Enum.flat_map(docs, &EventNormaliser.parse_items/1)}
+         :ok <- EventNormaliser.require_readable_batch(docs),
+         items = Enum.flat_map(docs, &EventNormaliser.parse_items/1),
+         :ok <-
+           EventNormaliser.require_requested_properties(
+             items,
+             Map.get(config, :calendar_integration_id)
+           ) do
+      {:ok, items}
     end
   end
 
