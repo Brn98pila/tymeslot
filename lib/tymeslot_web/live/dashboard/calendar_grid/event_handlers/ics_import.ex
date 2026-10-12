@@ -230,23 +230,23 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.IcsImport do
   @doc "The flash an import's result is reported with."
   @spec result_flash({:ok, IcsImport.summary()} | {:error, term()}) ::
           {:info | :warning | :error, String.t()}
-  def result_flash({:ok, %{failed: 0, exclusions_dropped: 0} = summary}),
+  def result_flash({:ok, %{failed: 0, exclusions_dropped: 0, rules_refused: 0} = summary}),
     do: {:info, created_message(summary.created)}
 
   # Nothing was written, so there is no import to report, only why.
   def result_flash({:ok, %{created: 0, halted: nil} = summary}),
-    do: {:error, failed_message(summary)}
+    do: {:error, summary |> not_imported_messages() |> Enum.join(" ")}
 
   def result_flash({:ok, %{created: 0, halted: reason}}), do: {:error, halted_message(reason)}
 
   def result_flash({:ok, summary}) do
     parts =
-      [
-        created_message(summary.created),
-        summary.failed > 0 && failed_message(summary),
-        summary.halted && halted_message(summary.halted),
-        summary.exclusions_dropped > 0 && exclusions_message(summary.exclusions_dropped)
-      ]
+      [created_message(summary.created)] ++
+        not_imported_messages(summary) ++
+        [
+          summary.halted && halted_message(summary.halted),
+          summary.exclusions_dropped > 0 && exclusions_message(summary.exclusions_dropped)
+        ]
 
     {:warning, parts |> Enum.filter(&is_binary/1) |> Enum.join(" ")}
   end
@@ -431,6 +431,27 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.IcsImport do
         "dashboard_calendar_events",
         "Imported 1 event.",
         "Imported %{count} events.",
+        count
+      )
+
+  # Why events were not imported: the calendar refused or failed them, or
+  # Outlook has no pattern for how they repeat.
+  defp not_imported_messages(summary) do
+    Enum.filter(
+      [
+        summary.failed > 0 && failed_message(summary),
+        summary.rules_refused > 0 && rules_refused_message(summary.rules_refused)
+      ],
+      &is_binary/1
+    )
+  end
+
+  defp rules_refused_message(count),
+    do:
+      dngettext(
+        "dashboard_calendar_events",
+        "1 event repeats in a way Outlook can't store, so it was not imported.",
+        "%{count} events repeat in a way Outlook can't store, so they were not imported.",
         count
       )
 

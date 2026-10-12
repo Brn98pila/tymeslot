@@ -222,6 +222,76 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPITest do
     end
   end
 
+  describe "a repeat rule counted within the month" do
+    setup do
+      integration =
+        insert(:calendar_integration,
+          user: insert(:user),
+          provider: "outlook",
+          access_token_encrypted: Encryption.encrypt("valid_token"),
+          token_expires_at: DateTime.add(DateTime.utc_now(), 3600)
+        )
+
+      # Tuesday 13 January 2026 is the second Tuesday of January.
+      event_data = %{
+        summary: "Board meeting",
+        start_time: ~U[2026-01-13 09:00:00Z],
+        end_time: ~U[2026-01-13 10:00:00Z],
+        timezone: "Etc/UTC",
+        recurrence_rule: "FREQ=MONTHLY;BYDAY=2TU"
+      }
+
+      {:ok, integration: integration, event_data: event_data}
+    end
+
+    # A series master the grid created carries its rule until the first sync,
+    # so an edit of it sends the rule again.
+    test "is written as the second Tuesday, not the start's day of the month", %{
+      integration: integration,
+      event_data: event_data
+    } do
+      expect(Tymeslot.HTTPClientMock, :request, fn :patch, _url, body, _headers, _opts ->
+        assert %{"pattern" => pattern, "range" => range} = Jason.decode!(body)["recurrence"]
+
+        assert pattern == %{
+                 "type" => "relativeMonthly",
+                 "daysOfWeek" => ["tuesday"],
+                 "index" => "second",
+                 "interval" => 1
+               }
+
+        assert range == %{"type" => "noEnd", "startDate" => "2026-01-13"}
+
+        {:ok,
+         %Req.Response{
+           status: 200,
+           body:
+             Jason.encode!(%{
+               "id" => "master-1",
+               "start" => %{"dateTime" => "2026-01-13T09:00:00"},
+               "end" => %{"dateTime" => "2026-01-13T10:00:00"}
+             })
+         }}
+      end)
+
+      assert {:ok, %{id: "master-1"}} =
+               CalendarAPI.update_event(integration, "primary", "master-1", event_data)
+    end
+
+    test "that Outlook cannot hold is refused before any request", %{
+      integration: integration,
+      event_data: event_data
+    } do
+      event_data = %{event_data | recurrence_rule: "FREQ=MONTHLY;BYDAY=2TU,4TU"}
+
+      assert CalendarAPI.create_event(integration, "primary", event_data) ==
+               {:error, :rule_not_supported_by_outlook}
+
+      assert CalendarAPI.update_event(integration, "primary", "master-1", event_data) ==
+               {:error, :rule_not_supported_by_outlook}
+    end
+  end
+
   describe "delete_event/3" do
     test "sends DELETE request to Outlook API" do
       user = insert(:user)

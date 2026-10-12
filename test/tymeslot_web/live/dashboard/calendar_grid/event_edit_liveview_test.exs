@@ -454,6 +454,34 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
       assert row.sync_state == "synced"
     end
 
+    test "a repeat rule Outlook refuses is reverted and says the pattern cannot be saved there",
+         %{conn: conn, user: user} do
+      integration =
+        insert(:calendar_integration, user: user, is_active: true, provider: "outlook")
+
+      event =
+        insert_timed_event(integration, %{
+          provider: "outlook",
+          recurrence_rule: "FREQ=MONTHLY;BYDAY=2TU,-1FR"
+        })
+
+      expect_provider_update({:error, :rule_not_supported_by_outlook})
+
+      {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+      lv |> element("[id^='event-#{event.id}-']") |> render_click()
+
+      lv
+      |> element("#calendar-grid")
+      |> render_hook("update_event_title", %{"value" => "Renamed"})
+
+      await_provider_update(lv)
+      html = render(lv)
+
+      assert html =~ "This repeat pattern can&#39;t be saved to Outlook."
+      refute html =~ "changes reverted"
+      refute html =~ "Renamed"
+    end
+
     test "a write that crashes is reverted instead of left on screen", %{
       conn: conn,
       integration: integration

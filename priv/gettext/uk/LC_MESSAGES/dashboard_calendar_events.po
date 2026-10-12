@@ -1504,3 +1504,16 @@ msgstr "Надіслати скасування"
 #, elixir-autogen, elixir-format
 msgid "You already have a meeting at this time. Please choose a different time."
 msgstr "На цей час у вас уже є зустріч. Виберіть, будь ласка, інший час."
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/ics_import.ex
+#, elixir-autogen, elixir-format
+msgid "1 event repeats in a way Outlook can't store, so it was not imported."
+msgid_plural "%{count} events repeat in a way Outlook can't store, so they were not imported."
+msgstr[0] "%{count} подія повторюється так, що Outlook не може її зберегти, тому її не імпортовано."
+msgstr[1] "%{count} події повторюються так, що Outlook не може їх зберегти, тому їх не імпортовано."
+msgstr[2] "%{count} подій повторюються так, що Outlook не може їх зберегти, тому їх не імпортовано."
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/edit_workflow.ex
+#, elixir-autogen, elixir-format
+msgid "This repeat pattern can't be saved to Outlook."
+msgstr "Цей шаблон повторення не можна зберегти в Outlook."

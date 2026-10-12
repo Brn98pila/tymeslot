@@ -18,6 +18,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.IcsImportLiveviewTest do
   alias Plug.Test
   alias Tymeslot.Integrations.Calendar.CreatedEvent
   alias Tymeslot.Security.RateLimiter
+  alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.IcsImport, as: IcsImportHandler
 
   setup :set_mox_global
   setup :verify_on_exit!
@@ -441,6 +442,54 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.IcsImportLiveviewTest do
       assert html =~ "Imported 1 event."
       assert html =~ "1 event could not be imported. (Dentist)"
     end
+
+    test "says which events repeat in a way Outlook cannot store", %{conn: conn} do
+      test_pid = self()
+
+      stub(Tymeslot.CalendarMock, :create_event, fn
+        %{summary: "Standup"}, _context ->
+          send(test_pid, {:task, self()})
+          {:error, :rule_not_supported_by_outlook}
+
+        data, _context ->
+          {:ok, CreatedEvent.new(data.uid)}
+      end)
+
+      {:ok, lv, _html} = live(conn, ~p"/dashboard")
+      open_import(lv)
+      upload(lv, @two_events)
+      start_import(lv)
+
+      assert_receive {:task, task}, @task_timeout
+      ref = Process.monitor(task)
+      assert_receive {:DOWN, ^ref, :process, ^task, _reason}, @task_timeout
+
+      text = lv |> settle() |> Floki.parse_document!() |> Floki.text()
+      assert text =~ "Imported 1 event."
+      assert text =~ "1 event repeats in a way Outlook can't store, so it was not imported."
+      refute text =~ "could not be imported"
+    end
+  end
+
+  describe "the import's result flash" do
+    test "is an error naming the refusal when every event's rule was refused" do
+      assert IcsImportHandler.result_flash({:ok, summary(%{rules_refused: 1})}) ==
+               {:error, "1 event repeats in a way Outlook can't store, so it was not imported."}
+    end
+
+    test "is a warning reporting both the import and the refusal when some were written" do
+      assert IcsImportHandler.result_flash({:ok, summary(%{created: 1, rules_refused: 1})}) ==
+               {:warning,
+                "Imported 1 event. 1 event repeats in a way Outlook can't store, so it was not imported."}
+    end
+
+    test "counts several refused series in the plural" do
+      assert {:warning, message} =
+               IcsImportHandler.result_flash({:ok, summary(%{created: 3, rules_refused: 2})})
+
+      assert message =~
+               "2 events repeat in a way Outlook can't store, so they were not imported."
+    end
   end
 
   test "asks for a writable calendar first when there is none", %{conn: conn, user: user} do
@@ -451,5 +500,21 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.IcsImportLiveviewTest do
 
     assert html =~ "Connect a calendar Tymeslot can write to before importing events."
     refute has_element?(lv, "#import-ics-panel")
+  end
+
+  # An import summary with nothing written, failed or refused but `counts`.
+  defp summary(counts) do
+    Map.merge(
+      %{
+        total: 0,
+        created: 0,
+        failed: 0,
+        failed_titles: [],
+        exclusions_dropped: 0,
+        rules_refused: 0,
+        halted: nil
+      },
+      counts
+    )
   end
 end

@@ -408,6 +408,20 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventAsyncResultsTest do
       assert html =~ "Failed to create event"
       refute html =~ "queued to retry"
     end
+
+    test "a repeat rule Outlook refused says the pattern cannot be saved there", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+
+      send(
+        lv.pid,
+        {:create_event_result,
+         {:error, %{reason: :rule_not_supported_by_outlook, retry: :not_queued}}}
+      )
+
+      html = render(lv)
+      assert html =~ "This repeat pattern can&#39;t be saved to Outlook."
+      refute html =~ "Failed to create event"
+    end
   end
 
   defp insert_event(integration, attrs) do

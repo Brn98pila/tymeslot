@@ -94,7 +94,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesPatch do
 
   defp fields(changes) do
     changed = Map.take(changes, Map.keys(@field_keys))
-    formatted = EventMapper.format_event_data(changed)
+    # Plain fields only, so no repeat rule to refuse.
+    {:ok, formatted} = EventMapper.format_event_data(changed)
 
     changed
     |> Enum.flat_map(fn {field, _value} -> Map.fetch!(@field_keys, field) end)
@@ -219,12 +220,15 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesPatch do
 
   defp with_rule(recurrence, rule, start_date, days, zone) do
     case RecurrenceConverter.rrule_to_outlook(rule, start_date, zone) do
-      nil ->
+      {:ok, nil} ->
         {:error, :unsupported_rule}
 
-      built ->
+      {:ok, built} ->
         with {:ok, range} <- range(built, recurrence, rule, {start_date, days}, zone),
              do: {:ok, %{built | "range" => range}}
+
+      {:error, _unsupported} = refused ->
+        refused
     end
   end
 
@@ -251,7 +255,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesPatch do
     with {:ok, rule} <- pattern_rule(pattern, range),
          {:ok, "RRULE:" <> turned} <-
            RuleShift.follow("RRULE:" <> rule, move.shift, move.days, keep_until: true),
-         %{"pattern" => turned_pattern} <-
+         {:ok, %{"pattern" => turned_pattern}} <-
            RecurrenceConverter.rrule_to_outlook(turned, start_date, zone),
          {:ok, range} <- move_range(range, move.days, start_date) do
       {:ok, %{"pattern" => Map.merge(pattern, turned_pattern), "range" => range}}
@@ -286,8 +290,10 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesPatch do
   The pattern and range of a Graph `recurrence` as an RRULE, with the week
   start Graph counts an every-other-week pattern from (Sunday unless
   stated), so that a turn or a count that would cross it can be refused. A
-  relative pattern (the second Monday of the month) has no RRULE form here
-  and pins its occurrences (`{:error, :rule_pins_occurrences}`).
+  relative pattern (the second Monday of the month) reads as a counted
+  weekday (`BYDAY=2MO`), which `RuleShift` refuses to move to another date;
+  a pattern with no RRULE form here pins its occurrences
+  (`{:error, :rule_pins_occurrences}`).
   """
   @spec pattern_rule(map(), map()) :: {:ok, String.t()} | {:error, :rule_pins_occurrences}
   def pattern_rule(pattern, range) do

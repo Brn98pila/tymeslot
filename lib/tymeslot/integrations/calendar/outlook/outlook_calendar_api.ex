@@ -93,19 +93,16 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
   @spec create_event(CalendarIntegrationSchema.t(), map()) ::
           {:ok, calendar_event()} | api_error()
   def create_event(%CalendarIntegrationSchema{} = integration, event_data) do
-    body =
-      event_data
-      |> EventMapper.format_event_data()
-      |> EventMapper.add_tymeslot_fingerprint()
-
-    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
-      with {:ok, response} <-
-             make_request_with_body(:post, "/me/events", token, body,
-               headers: @silent_event_headers
-             ) do
-        {:ok, List.first(convert_to_common_format([response]))}
-      end
-    end)
+    with {:ok, body} <- event_body(event_data) do
+      Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+        with {:ok, response} <-
+               make_request_with_body(:post, "/me/events", token, body,
+                 headers: @silent_event_headers
+               ) do
+          {:ok, List.first(convert_to_common_format([response]))}
+        end
+      end)
+    end
   end
 
   @doc """
@@ -115,19 +112,16 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
   @spec create_event(CalendarIntegrationSchema.t(), String.t(), map()) ::
           {:ok, calendar_event()} | api_error()
   def create_event(%CalendarIntegrationSchema{} = integration, calendar_id, event_data) do
-    body =
-      event_data
-      |> EventMapper.format_event_data()
-      |> EventMapper.add_tymeslot_fingerprint()
-
-    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
-      with {:ok, response} <-
-             make_request_with_body(:post, calendar_path(calendar_id, "/events"), token, body,
-               headers: @silent_event_headers
-             ) do
-        {:ok, List.first(convert_to_common_format([response]))}
-      end
-    end)
+    with {:ok, body} <- event_body(event_data) do
+      Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+        with {:ok, response} <-
+               make_request_with_body(:post, calendar_path(calendar_id, "/events"), token, body,
+                 headers: @silent_event_headers
+               ) do
+          {:ok, List.first(convert_to_common_format([response]))}
+        end
+      end)
+    end
   end
 
   @doc """
@@ -137,19 +131,16 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
   @spec update_event(CalendarIntegrationSchema.t(), String.t(), map()) ::
           {:ok, calendar_event()} | api_error()
   def update_event(%CalendarIntegrationSchema{} = integration, event_id, event_data) do
-    body =
-      event_data
-      |> EventMapper.format_event_data()
-      |> EventMapper.add_tymeslot_fingerprint()
-
-    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
-      with {:ok, response} <-
-             make_request_with_body(:patch, event_path(event_id), token, body,
-               headers: @silent_event_headers
-             ) do
-        {:ok, List.first(convert_to_common_format([response]))}
-      end
-    end)
+    with {:ok, body} <- event_body(event_data) do
+      Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+        with {:ok, response} <-
+               make_request_with_body(:patch, event_path(event_id), token, body,
+                 headers: @silent_event_headers
+               ) do
+          {:ok, List.first(convert_to_common_format([response]))}
+        end
+      end)
+    end
   end
 
   @doc """
@@ -159,23 +150,20 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
   @spec update_event(CalendarIntegrationSchema.t(), String.t(), String.t(), map()) ::
           {:ok, calendar_event()} | api_error()
   def update_event(%CalendarIntegrationSchema{} = integration, calendar_id, event_id, event_data) do
-    body =
-      event_data
-      |> EventMapper.format_event_data()
-      |> EventMapper.add_tymeslot_fingerprint()
-
-    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
-      with {:ok, response} <-
-             make_request_with_body(
-               :patch,
-               calendar_path(calendar_id, "/events/#{HTTP.segment(event_id)}"),
-               token,
-               body,
-               headers: @silent_event_headers
-             ) do
-        {:ok, List.first(convert_to_common_format([response]))}
-      end
-    end)
+    with {:ok, body} <- event_body(event_data) do
+      Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+        with {:ok, response} <-
+               make_request_with_body(
+                 :patch,
+                 calendar_path(calendar_id, "/events/#{HTTP.segment(event_id)}"),
+                 token,
+                 body,
+                 headers: @silent_event_headers
+               ) do
+          {:ok, List.first(convert_to_common_format([response]))}
+        end
+      end)
+    end
   end
 
   @doc """
@@ -527,5 +515,12 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
         response_status: get_in(event, ["responseStatus", "response"])
       }
     end)
+  end
+
+  # The Graph body of an event Tymeslot writes, refused before any request
+  # when its repeat rule has no Graph pattern.
+  defp event_body(event_data) do
+    with {:ok, body} <- EventMapper.format_event_data(event_data),
+         do: {:ok, EventMapper.add_tymeslot_fingerprint(body)}
   end
 end

@@ -311,6 +311,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.CreateExecution do
   defp create_failed_message(%{retry: :queued}),
     do: dgettext("dashboard_calendar_events", "Create failed - queued to retry on next sync")
 
+  defp create_failed_message(%{reason: :rule_not_supported_by_outlook}),
+    do: EditWorkflow.rule_not_supported_by_outlook_message()
+
   defp create_failed_message(_failure),
     do: dgettext("dashboard_calendar_events", "Failed to create event")
 

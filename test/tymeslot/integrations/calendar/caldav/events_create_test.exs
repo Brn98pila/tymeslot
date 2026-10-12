@@ -195,6 +195,31 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.EventsCreateTest do
       assert href == "/calendars/user/personal/fixed-uid.ics"
     end
 
+    # Outlook refuses some ordinal rules it has no pattern for; a CalDAV
+    # server stores the RRULE itself, so the same rules reach it unchanged.
+    test "writes an ordinal monthly rule into the VEVENT as given" do
+      test_pid = self()
+
+      ReqTest.stub(:tymeslot_http, fn conn ->
+        {:ok, body, conn} = Conn.read_body(conn)
+        send(test_pid, {:put_body, body})
+        Conn.send_resp(conn, 201, "")
+      end)
+
+      for rule <- ["FREQ=MONTHLY;BYDAY=2TU", "FREQ=MONTHLY;BYDAY=-1FR"] do
+        assert {:ok, %CreatedEvent{}} =
+                 Events.create_calendar_event(
+                   @caldav_client,
+                   "/calendars/user/personal/",
+                   Map.put(event_payload(), :recurrence_rule, rule),
+                   skip_breaker: true
+                 )
+
+        assert_received {:put_body, body}
+        assert ("RRULE:" <> rule) in String.split(body, "\r\n")
+      end
+    end
+
     defp event_payload do
       %{
         summary: "Team meeting",
