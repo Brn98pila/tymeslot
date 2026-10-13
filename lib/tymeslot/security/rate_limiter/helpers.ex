@@ -14,7 +14,7 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
   @day_minutes 24 * @hour_minutes
 
   @type bucket_key :: String.t()
-  @type rate_check_result :: {:allow, pos_integer()} | {:deny, pos_integer()}
+  @type rate_check_result :: {:allow, non_neg_integer()} | {:deny, non_neg_integer()}
 
   @typedoc "One tier of a multi-bucket limit: its key suffix, its budget, and the window it spans."
   @type tier :: {String.t(), pos_integer(), pos_integer()}
@@ -260,14 +260,22 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
   @spec check_multi_bucket_limits([bucket()], keyword()) ::
           :ok | {:error, :rate_limited, String.t()}
   def check_multi_bucket_limits(buckets, opts \\ []) do
-    log? = Keyword.get(opts, :log, true)
+    case first_refusal(buckets) do
+      nil ->
+        :ok
 
-    Enum.reduce_while(buckets, :ok, fn {bucket_base, limits, operation, action}, _acc ->
-      case apply_limits(bucket_base, limits, operation, action, log?) do
-        :ok -> {:cont, :ok}
-        error -> {:halt, error}
-      end
-    end)
+      {limit, window_ms, operation, action} ->
+        retry_after_ms = retry_after(buckets)
+
+        if Keyword.get(opts, :log, true) do
+          # No identifier here: these bucket bases embed one (an email address
+          # on the signup, password-reset and booking-recipient buckets), so
+          # the operation name is all that can go to the log line safely.
+          refuse(limit, window_ms, retry_after_ms, action, operation: operation)
+        else
+          {:error, :rate_limited, refusal_message(limit, window_ms, retry_after_ms, action)}
+        end
+    end
   end
 
   # The tiers are walked in list order and the walk halts on the first
@@ -275,24 +283,34 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
   # the walk is the tightest one that tripped, and its limit and window are
   # what the sentence names: telling someone about the daily cap when the
   # per-minute one stopped them would send them away for a day.
-  @spec apply_limits(bucket_key(), [tier()], String.t(), String.t(), boolean()) ::
-          :ok | {:error, :rate_limited, String.t()}
-  defp apply_limits(bucket_base, limits, operation, action, log?) do
-    Enum.reduce_while(limits, :ok, fn {label, limit, window_ms}, _acc ->
-      case check_rate("#{bucket_base}:#{label}", window_ms, limit) do
-        {:allow, _count} ->
-          {:cont, :ok}
-
-        {:deny, retry_after_ms} when not log? ->
-          {:halt,
-           {:error, :rate_limited, refusal_message(limit, window_ms, retry_after_ms, action)}}
-
-        {:deny, retry_after_ms} ->
-          # No identifier here: these bucket bases embed one (an email address
-          # on the signup, password-reset and booking-recipient buckets), so
-          # the operation name is all that can go to the log line safely.
-          {:halt, refuse(limit, window_ms, retry_after_ms, action, operation: operation)}
+  defp first_refusal(buckets) do
+    Enum.reduce_while(buckets, nil, fn {bucket_base, limits, operation, action}, nil ->
+      case refusing_tier(bucket_base, limits) do
+        nil -> {:cont, nil}
+        {limit, window_ms} -> {:halt, {limit, window_ms, operation, action}}
       end
     end)
+  end
+
+  defp refusing_tier(bucket_base, limits) do
+    Enum.reduce_while(limits, nil, fn {label, limit, window_ms}, nil ->
+      case check_rate("#{bucket_base}:#{label}", window_ms, limit) do
+        {:allow, _count} -> {:cont, nil}
+        {:deny, _retry_after_ms} -> {:halt, {limit, window_ms}}
+      end
+    end)
+  end
+
+  # The wait the refusal names is until a retry would pass every tier, not
+  # just the one that refused: the walk charged the tiers before it, and the
+  # ones after it may already be full, so a retry timed by the refusing tier
+  # alone could be refused again by another. Worked out without charging.
+  defp retry_after(buckets) do
+    buckets
+    |> Enum.flat_map(fn {bucket_base, limits, _operation, _action} ->
+      for {label, limit, _window_ms} <- limits,
+          do: RateLimit.retry_after("#{bucket_base}:#{label}", limit)
+    end)
+    |> Enum.max()
   end
 end

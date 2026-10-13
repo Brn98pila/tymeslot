@@ -64,6 +64,28 @@ defmodule Tymeslot.Security.RateLimitTest do
     end
   end
 
+  describe "retry_after/2" do
+    test "names the same wait a refusal does, without charging", %{key: key, t0: t0} do
+      RateLimit.hit(key, 60_000, 1, t0)
+      assert {:deny, wait} = RateLimit.hit(key, 60_000, 1, t0)
+
+      assert RateLimit.retry_after(key, 1) in (wait - 1)..wait
+      assert length(RateLimit.entries(key)) == 2
+    end
+
+    # A bucket cleared between a refusal's count and its read of the rows
+    # leaves nothing to wait for; the refusal shares this path.
+    test "is nothing for an empty bucket, whatever the limit", %{key: key} do
+      assert RateLimit.retry_after(key, 3) == 0
+      assert RateLimit.retry_after(key, 0) == 0
+    end
+
+    test "is nothing while a hit would still fit", %{key: key} do
+      RateLimit.hit(key, 60_000, 3)
+      assert RateLimit.retry_after(key, 3) == 0
+    end
+  end
+
   describe "a flood past the limit" do
     test "stays refused while it lasts, holding no more than limit + 1 hits", %{key: key, t0: t0} do
       # One hit every 100 ms for five seconds against 3 per second: had refused

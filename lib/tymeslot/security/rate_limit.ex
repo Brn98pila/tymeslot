@@ -17,8 +17,8 @@ defmodule Tymeslot.Security.RateLimit do
   its bucket's rows, so a bucket keeps only its newest `limit + 1` hits: enough
   to stay over the limit while a flood lasts, and a flood cannot make one
   bucket's checks grow without bound. Once the hits stop, the refusal ends
-  when the oldest kept hit expires, which for a flood is one window after it
-  stopped.
+  as soon as enough kept hits have expired for one more to fit, which for a
+  flood is about one window after it stopped.
 
   A refusal says how long until a retry would be allowed: until enough kept
   hits expire that the bucket, with the retry's own hit added, holds no more
@@ -76,6 +76,18 @@ defmodule Tymeslot.Security.RateLimit do
   @spec get(key(), pos_integer()) :: non_neg_integer()
   def get(key, _window_ms) when is_binary(key) do
     guarded(0, fn -> :ets.select_count(@table, live(key, now(), true)) end)
+  end
+
+  @doc """
+  How long until one more hit on `key` would be allowed under `limit`,
+  without charging it: 0 when it would be allowed now.
+  """
+  @spec retry_after(key(), non_neg_integer()) :: non_neg_integer()
+  def retry_after(key, limit) when is_binary(key) do
+    guarded(0, fn ->
+      now = now()
+      @table |> :ets.select(live(key, now, :"$1")) |> wait_ms(now, limit)
+    end)
   end
 
   @doc "Drops every hit `key` holds."
@@ -163,6 +175,7 @@ defmodule Tymeslot.Security.RateLimit do
     @table
     |> :ets.select(live(key, now, :"$_"))
     |> trim(limit + 1)
+    |> Enum.map(&elem(&1, 3))
     |> wait_ms(now, limit)
   end
 
@@ -189,25 +202,34 @@ defmodule Tymeslot.Security.RateLimit do
   end
 
   # A retry adds a hit of its own, so it is allowed once no more than
-  # `limit - 1` kept hits are live: the earliest `length - limit + 1` expiries
-  # have to have passed. With at most `limit + 1` kept, that is the first or
-  # the second to expire. A hit counts until its expiry and not at it, and the
-  # wait rounds up, so a retry exactly when told is allowed and one a
-  # millisecond sooner is not.
-  defp wait_ms(kept, now, limit) do
-    {first, second} = two_earliest(Enum.map(kept, &elem(&1, 3)))
-    expiry = if length(kept) > limit and second, do: second, else: first
-    max(ceil((expiry - now) / 1000), 0)
+  # `limit - 1` hits are live: the earliest `length - limit + 1` expiries have
+  # to have passed. A capped bucket holds at most `limit + 1`, so that is the
+  # first or the second to expire. A hit counts until its expiry and not at
+  # it, and the wait rounds up, so a retry exactly when told is allowed and
+  # one a millisecond sooner is not. An empty bucket (cleared between the
+  # count and the read) waits for nothing.
+  defp wait_ms(expiries, now, limit) do
+    case length(expiries) - limit do
+      excess when excess < 0 or expiries == [] -> 0
+      excess -> max(ceil((nth_earliest(expiries, excess) - now) / 1000), 0)
+    end
   end
 
-  defp two_earliest(expiries) do
-    Enum.reduce(expiries, {nil, nil}, fn
-      expiry, {nil, nil} -> {expiry, nil}
-      expiry, {first, _second} when expiry < first -> {expiry, first}
-      expiry, {first, second} when is_nil(second) or expiry < second -> {first, expiry}
-      _expiry, acc -> acc
-    end)
+  defp nth_earliest(expiries, 0), do: Enum.min(expiries)
+
+  defp nth_earliest(expiries, 1) do
+    {first, second} =
+      Enum.reduce(expiries, {nil, nil}, fn
+        expiry, {nil, nil} -> {expiry, nil}
+        expiry, {first, _second} when expiry < first -> {expiry, first}
+        expiry, {first, second} when is_nil(second) or expiry < second -> {first, expiry}
+        _expiry, acc -> acc
+      end)
+
+    second || first
   end
+
+  defp nth_earliest(expiries, n), do: expiries |> Enum.sort() |> Enum.at(n)
 
   # A missing table is the restart gap, answered with `gap_answer`. An
   # ArgumentError with the table present means it was replaced while the

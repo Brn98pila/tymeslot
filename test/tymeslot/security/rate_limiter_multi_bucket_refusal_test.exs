@@ -16,6 +16,7 @@ defmodule Tymeslot.Security.RateLimiterMultiBucketRefusalTest do
   @moduletag :security
   @moduletag :i18n
 
+  alias Tymeslot.Security.RateLimit
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Security.RateLimiter.Helpers
   alias Tymeslot.Test.LogCapture
@@ -166,6 +167,28 @@ defmodule Tymeslot.Security.RateLimiterMultiBucketRefusalTest do
       assert {:error, :rate_limited, message} = charge(bucket, reversed)
 
       assert message =~ "per day"
+    end
+  end
+
+  describe "the wait" do
+    # The walk halts on the tier that refused, but a retry walks every tier
+    # again: a wait timed by the refusing tier alone would send someone back
+    # into a longer tier that is still full.
+    test "covers a longer tier that a retry would still trip" do
+      bucket = fresh_bucket()
+      tiers = [{"1m", 2, 60_000}, {"1h", 3, 60 * 60_000}]
+
+      for _i <- 1..2, do: RateLimit.hit("#{bucket}:1m", 60_000, 2)
+      for _i <- 1..3, do: RateLimit.hit("#{bucket}:1h", 60 * 60_000, 3)
+
+      assert {:error, :rate_limited, message} = charge(bucket, tiers)
+
+      assert message ==
+               "You've reached the limit of 2 widgets per minute. " <>
+                 "Please try again in 1 hour."
+
+      # Working the wait out charged nothing past the refusing tier.
+      assert length(RateLimit.entries("#{bucket}:1h")) == 3
     end
   end
 
