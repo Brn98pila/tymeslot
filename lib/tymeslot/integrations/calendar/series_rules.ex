@@ -21,8 +21,82 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRules do
   so none of this applies to them.
   """
 
+  alias Tymeslot.Clock
+  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.SeriesRuleQueries
+
+  require Logger
+
+  # A run reads at most this many masters, one GET each, so a calendar with
+  # many series fills over several runs rather than holding one sync up.
+  @max_reads_per_run 50
+
+  # A master not named by a change is read again once its rule is this old.
+  @fresh_for_seconds 24 * 60 * 60
+
+  @typedoc """
+  Reads one master: its rule (nil when it is not a series) and first start,
+  `:gone` when the provider no longer has it, or `{:stop, reason}` when no
+  further master should be read this run (throttled, refused, unreachable).
+  """
+  @type read ::
+          (String.t() ->
+             {:ok, %{rule: String.t() | nil, master_start: DateTime.t() | nil}}
+             | :gone
+             | {:stop, term()})
+
+  @doc """
+  Reads the masters `calendar_events` name, then those of the series the
+  cache holds whose rule was never read or is stale, at most
+  #{@max_reads_per_run} in all, and stores what each read found. Called
+  before the events are cached, so they are stamped with what it found.
+
+  A named master is read even when its rule is fresh: its occurrences are in
+  the batch because something about the series changed. Never fails: a read
+  that cannot be made stops the rest for this run, and the occurrences are
+  cached as they would be without it.
+  """
+  @spec refresh(integer(), [map()], read()) :: :ok
+  def refresh(integration_id, calendar_events, read) do
+    named = master_ids(calendar_events)
+
+    stale_before =
+      DateTime.add(DateTime.truncate(Clock.utc_now(), :second), -@fresh_for_seconds, :second)
+
+    room = max(@max_reads_per_run - length(named), 0)
+
+    (named ++ SeriesRuleQueries.masters_to_refresh(integration_id, stale_before, named, room))
+    |> Enum.take(@max_reads_per_run)
+    |> Enum.reduce_while(:ok, fn master_id, :ok ->
+      case read.(master_id) do
+        {:ok, found} ->
+          store(integration_id, master_id, found)
+          {:cont, :ok}
+
+        :gone ->
+          store(integration_id, master_id, %{rule: nil, master_start: nil})
+          {:cont, :ok}
+
+        {:stop, reason} ->
+          Logger.warning("Stopped reading series rules for this sync run",
+            calendar_integration_id: integration_id,
+            reason: LogFormat.reason(reason)
+          )
+
+          {:halt, :ok}
+      end
+    end)
+  end
+
+  defp store(integration_id, master_id, found) do
+    {:ok, _row} =
+      SeriesRuleQueries.put(
+        integration_id,
+        master_id,
+        Map.put(found, :fetched_at, DateTime.truncate(Clock.utc_now(), :second))
+      )
+  end
 
   @doc """
   Gives every occurrence in `calendar_events` that names a master with a

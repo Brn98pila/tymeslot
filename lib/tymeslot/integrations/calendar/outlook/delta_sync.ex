@@ -24,6 +24,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
   alias Tymeslot.Integrations.Calendar.Outlook.FeedCalendar
   alias Tymeslot.Integrations.Calendar.Outlook.Paging
   alias Tymeslot.Integrations.Calendar.Outlook.Provider, as: OutlookProvider
+  alias Tymeslot.Integrations.Calendar.Outlook.SeriesMaster
+  alias Tymeslot.Integrations.Calendar.SeriesRules
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Integrations.Calendar.Tokens
@@ -171,6 +173,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
     {removed, changed} = Enum.split_with(events, &Map.has_key?(&1, "@removed"))
     calendar_events = build_calendar_events(changed, integration)
     removed_uids = process_removed(removed, integration)
+    :ok = SeriesRules.refresh(integration.id, calendar_events, SeriesMaster.reader(integration))
 
     # Writes through `Sync.upsert_cache/2` rather than straight to the queries
     # module so this path gets ownership flagging like every other. A booking

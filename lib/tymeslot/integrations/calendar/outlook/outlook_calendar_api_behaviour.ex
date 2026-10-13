@@ -33,6 +33,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPIBehaviour do
   @callback get_event(CalendarIntegrationSchema.t(), String.t()) :: {:ok, map()} | api_error()
   @callback get_event(CalendarIntegrationSchema.t(), String.t(), keyword()) ::
               {:ok, map()} | api_error()
+  @callback get_series_master(CalendarIntegrationSchema.t(), String.t()) ::
+              {:ok, map()} | api_error() | {:error, term()}
   @callback get_series_exceptions(CalendarIntegrationSchema.t(), String.t()) ::
               {:ok, map()} | api_error()
   @callback list_instances(CalendarIntegrationSchema.t(), String.t(), DateTime.t(), DateTime.t()) ::

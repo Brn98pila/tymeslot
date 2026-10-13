@@ -21,6 +21,33 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRuleQueries do
     |> Map.new(&{&1.provider_master_id, &1})
   end
 
+  @doc """
+  Up to `limit` masters the integration's cache holds occurrences of whose
+  rule was never read, or last read before `stale_before`, leaving out
+  `except`.
+  """
+  @spec masters_to_refresh(integer(), DateTime.t(), [String.t()], non_neg_integer()) ::
+          [String.t()]
+  def masters_to_refresh(_integration_id, _stale_before, _except, 0), do: []
+
+  def masters_to_refresh(integration_id, stale_before, except, limit) do
+    query =
+      from(e in ProviderCalendarEventSchema,
+        left_join: r in SeriesRuleSchema,
+        on:
+          r.calendar_integration_id == e.calendar_integration_id and
+            r.provider_master_id == e.recurring_event_id,
+        where: e.calendar_integration_id == ^integration_id,
+        where: not is_nil(e.recurring_event_id) and e.recurring_event_id not in ^except,
+        where: is_nil(r.id) or r.fetched_at < ^stale_before,
+        distinct: true,
+        select: e.recurring_event_id,
+        limit: ^limit
+      )
+
+    Repo.all(query)
+  end
+
   @doc "One series' stored row, or nil."
   @spec get(integer(), String.t()) :: SeriesRuleSchema.t() | nil
   def get(integration_id, master_id) do
@@ -35,7 +62,7 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRuleQueries do
   stored for it.
   """
   @spec put(integer(), String.t(), %{
-          rule: String.t(),
+          rule: String.t() | nil,
           master_start: DateTime.t() | nil,
           fetched_at: DateTime.t()
         }) ::
