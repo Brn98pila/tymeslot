@@ -100,6 +100,35 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverterTest do
       end
     end
 
+    # The day named by BYMONTHDAY or BYMONTH, not the start's, is the one a
+    # month may lack.
+    for {rrule, start_date} <- [
+          {"FREQ=MONTHLY;BYMONTHDAY=31", ~D[2026-01-15]},
+          {"FREQ=YEARLY;BYMONTH=4", ~D[2026-01-31]},
+          {"FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=29", ~D[2028-01-10]}
+        ] do
+      test "refuses #{rrule} from #{start_date}" do
+        assert RecurrenceConverter.rrule_to_outlook(
+                 unquote(rrule),
+                 unquote(Macro.escape(start_date))
+               ) ==
+                 {:error, :day_missing_in_some_months}
+      end
+    end
+
+    test "writes a 29 February BYMONTHDAY series that ends in its leap year" do
+      assert {:ok, %{"pattern" => %{"dayOfMonth" => 29, "month" => 2}}} =
+               RecurrenceConverter.rrule_to_outlook(
+                 "FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=29;COUNT=1",
+                 ~D[2028-01-10]
+               )
+    end
+
+    test "writes a BYMONTHDAY series on a day every month has" do
+      assert {:ok, %{"pattern" => %{"dayOfMonth" => 28}}} =
+               RecurrenceConverter.rrule_to_outlook("FREQ=MONTHLY;BYMONTHDAY=28", ~D[2026-01-31])
+    end
+
     test "refuses a series whose UNTIL reaches the last day of a short month" do
       assert RecurrenceConverter.rrule_to_outlook("FREQ=MONTHLY;UNTIL=20260930", ~D[2026-08-31]) ==
                {:error, :day_missing_in_some_months}
