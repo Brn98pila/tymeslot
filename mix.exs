@@ -145,7 +145,6 @@ defmodule Tymeslot.MixProject do
       # deliberately as a guard against a future dependency reintroducing a
       # lower requirement and silently downgrading hackney underneath it.
       {:hackney, "~> 4.0", override: true},
-      {:hammer, "~> 7.1"},
       {:html_sanitize_ex, "~> 1.4"},
       {:gen_smtp, "~> 1.2"},
       {:castore, "~> 1.0"},
