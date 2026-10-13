@@ -28,6 +28,12 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomTimes do
   `5FR`) or with any part the grid's recurrence editor does not write is treated
   as having no end, and so is an occurrence row with no rule.
 
+  A `COUNT` is counted from the series' first start. A Google or Outlook
+  occurrence row carries its series' rule but starts where it falls in the
+  series, so the caller gives it the series' first start as `:series_start`
+  (`Tymeslot.Integrations.Calendar.SeriesRules.with_series_start/1`); without
+  one the event's own start is used, which can only put the end later.
+
   One occurrence says nothing about the whole series, so for a series a change
   only ever opens the lobby earlier and only ever moves the end later.
   """
@@ -60,7 +66,14 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomTimes do
 
     if recurring?(event) do
       {:series, lobby(all_day, start),
-       rule && series_end(rule, all_day, start, finish, series_zone(event, all_day))}
+       rule &&
+         series_end(
+           rule,
+           all_day,
+           {start, finish},
+           series_start(event),
+           series_zone(event, all_day)
+         )}
     else
       {:exact, lobby(all_day, start), one_off_end(all_day, finish)}
     end
@@ -125,12 +138,13 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomTimes do
   defp one_off_end(false, %DateTime{} = finish), do: truncate(finish)
   defp one_off_end(_all_day, _finish), do: nil
 
-  defp series_end(rule, all_day, start, finish, zone) do
+  defp series_end(rule, all_day, {start, finish}, series_start, zone) do
     with {:ok, parsed} <- RRule.parse(rule),
          true <- bounded_rule?(parsed),
          %DateTime{} = start_dt <- to_datetime(start),
          %DateTime{} = end_dt <- to_datetime(finish),
-         %DateTime{} = last_start <- last_start_bound(parsed, start_dt, all_day, zone) do
+         first_dt = to_datetime(series_start) || start_dt,
+         %DateTime{} = last_start <- last_start_bound(parsed, first_dt, all_day, zone) do
       duration = max(DateTime.diff(end_dt, start_dt, :second), 0)
 
       last_start
@@ -195,6 +209,8 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomTimes do
 
   defp day_limit(day, true), do: day + 1
   defp day_limit(day, false), do: day
+
+  defp series_start(event), do: Map.get(event, :series_start)
 
   # The zone the series' UNTIL is read in, as the expander reads it: the
   # event's own for a timed series, UTC (the zone an all-day series is

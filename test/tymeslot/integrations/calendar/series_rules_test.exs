@@ -13,6 +13,7 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.SeriesRuleQueries
+  alias Tymeslot.Integrations.Calendar.SeriesRules
   alias Tymeslot.Integrations.Calendar.Sync
 
   setup do
@@ -90,6 +91,25 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
 
       assert SeriesRuleQueries.get(integration.id, "master-1") == nil
       assert %{rule: "FREQ=DAILY"} = SeriesRuleQueries.get(integration.id, "master-2")
+    end
+  end
+
+  describe "with_series_start/1" do
+    test "gives an occurrence its series' first start, and nothing else", %{
+      integration: integration
+    } do
+      put_rule(integration, "master-1", "FREQ=WEEKLY;COUNT=5")
+
+      [stamped, single, unknown] =
+        SeriesRules.with_series_start([
+          %{calendar_integration_id: integration.id, recurring_event_id: "master-1"},
+          %{calendar_integration_id: integration.id, recurring_event_id: nil},
+          %{calendar_integration_id: nil, recurring_event_id: "master-1"}
+        ])
+
+      assert stamped.series_start == ~U[2026-10-05 07:00:00Z]
+      refute Map.has_key?(single, :series_start)
+      refute Map.has_key?(unknown, :series_start)
     end
   end
 

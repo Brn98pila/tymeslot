@@ -54,11 +54,47 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRules do
     :ok
   end
 
+  @doc """
+  Gives each event in `events` (or the one event) that names a master with a
+  stored rule its series' first start, as `:series_start`, which is what a
+  `COUNT` is counted from (`Tymeslot.CalendarGrid.EventVideoRoomTimes`). One
+  read for the list; an event without one is returned as it was.
+  """
+  @spec with_series_start([map()]) :: [map()]
+  @spec with_series_start(map()) :: map()
+  def with_series_start(events) when is_list(events) do
+    starts =
+      events
+      |> Enum.group_by(&Map.get(&1, :calendar_integration_id))
+      |> Enum.flat_map(fn
+        {nil, _not_cached} -> []
+        {integration_id, of_integration} -> series_starts(integration_id, of_integration)
+      end)
+      |> Map.new()
+
+    Enum.map(events, fn event ->
+      key = {Map.get(event, :calendar_integration_id), Map.get(event, :recurring_event_id)}
+
+      case Map.get(starts, key) do
+        %DateTime{} = series_start -> Map.put(event, :series_start, series_start)
+        nil -> event
+      end
+    end)
+  end
+
+  def with_series_start(event), do: [event] |> with_series_start() |> hd()
+
+  defp series_starts(integration_id, events) do
+    integration_id
+    |> SeriesRuleQueries.list_by_master(master_ids(events))
+    |> Enum.map(fn {master_id, row} -> {{integration_id, master_id}, row.master_start} end)
+  end
+
   @doc "The distinct masters `calendar_events` name."
   @spec master_ids([map()]) :: [String.t()]
   def master_ids(calendar_events) do
     calendar_events
-    |> Enum.map(& &1.recurring_event_id)
+    |> Enum.map(&Map.get(&1, :recurring_event_id))
     |> Enum.filter(&(is_binary(&1) and &1 != ""))
     |> Enum.uniq()
   end
