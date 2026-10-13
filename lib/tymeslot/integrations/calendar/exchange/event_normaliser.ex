@@ -107,6 +107,43 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.EventNormaliser do
 
   def require_readable_batch(doc), do: require_readable_batch([doc])
 
+  @doc """
+  States whether the server answered the properties `Requests.get_item/1`
+  asked for at all.
+
+  The request names its properties one by one on top of `BaseShape=IdOnly`, so
+  a server that ignored `t:AdditionalProperties` would answer bare item ids
+  under `NoError`. Every one of those items fails `CalendarEvent.new/1` for
+  want of a start, and a read made of them would look like an empty calendar.
+  Start and end are the two properties every calendar item has, so a read in
+  which *every* item lacks one is refused: the cache keeps what it holds and
+  the failure is logged for operators.
+
+  A read in which only some items are bare is not that signature, and is
+  answered: each bare item is skipped and reported by `normalise_events/2`
+  like any other unusable item, for the reason `require_readable_batch/1`
+  gives for not failing a window over one item.
+  """
+  @spec require_requested_properties([Soap.document()], integer() | nil) ::
+          :ok | {:error, :item_properties_missing}
+  def require_requested_properties(items, calendar_integration_id) when is_list(items) do
+    if items != [] and Enum.all?(items, &bare?/1) do
+      Logger.error("Exchange GetItem answered no item with the requested properties",
+        provider: :exchange,
+        calendar_integration_id: calendar_integration_id,
+        item_count: length(items)
+      )
+
+      {:error, :item_properties_missing}
+    else
+      :ok
+    end
+  end
+
+  defp bare?(item) do
+    is_nil(Soap.text(item, ~x"./t:Start/text()")) or is_nil(Soap.text(item, ~x"./t:End/text()"))
+  end
+
   defp classify_batch(_messages, []), do: :ok
 
   defp classify_batch(messages, failed) when length(failed) == length(messages),

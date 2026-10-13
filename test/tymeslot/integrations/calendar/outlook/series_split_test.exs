@@ -302,6 +302,39 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesSplitTest do
     end
   end
 
+  describe "a relative monthly series" do
+    # The first Monday of every month, from Monday 1 June; 2 November is
+    # the first Monday of November.
+    @first_monday %{
+      "type" => "relativeMonthly",
+      "interval" => 1,
+      "daysOfWeek" => ["monday"],
+      "index" => "first",
+      "firstDayOfWeek" => "sunday"
+    }
+
+    test "with no end is split, the tail repeating as the series did" do
+      master =
+        @master
+        |> put_in(["recurrence", "pattern"], @first_monday)
+        |> put_in(["recurrence", "range"], %{"type" => "noEnd", "startDate" => "2026-06-01"})
+
+      assert {:ok, %{tail: tail, head: head}} = SeriesSplit.build(master, edit())
+
+      assert tail["recurrence"]["pattern"] == @first_monday
+      assert tail["recurrence"]["range"] == %{"type" => "noEnd", "startDate" => "2026-11-02"}
+      assert head["recurrence"]["range"]["endDate"] == "2026-11-01"
+    end
+
+    # The occurrences before the split are not counted over a counted
+    # weekday (`RecurrenceExpander.countable?/1`).
+    test "with a number of occurrences is refused" do
+      master = put_in(@master, ["recurrence", "pattern"], @first_monday)
+
+      assert SeriesSplit.build(master, edit()) == {:error, :unsupported_rule}
+    end
+  end
+
   describe "what is not split" do
     test "the first occurrence is an edit of every occurrence" do
       assert SeriesSplit.build(@master, edit(%{}, ~U[2026-06-01 07:00:00Z])) ==

@@ -36,7 +36,15 @@ defmodule Tymeslot.Integrations.Calendar.Events do
   # connecting one, and a meeting booked before then never had an event.
   @no_calendar_errors [:no_calendar_client, :no_calendar_integration]
 
-  @non_queueable_errors [:unauthorized, :not_found, :meeting_not_found, :rate_limited] ++
+  # A repeat rule the provider has no pattern for is refused the same way
+  # every time.
+  @non_queueable_errors [
+                          :unauthorized,
+                          :not_found,
+                          :meeting_not_found,
+                          :rate_limited,
+                          :rule_not_supported_by_outlook
+                        ] ++
                           @no_calendar_errors
 
   # A meeting booked on the last bookable date can run for up to a day past

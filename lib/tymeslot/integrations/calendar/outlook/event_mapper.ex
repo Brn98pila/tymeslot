@@ -13,8 +13,11 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventMapper do
 
   @doc """
   Converts Tymeslot event data into the Microsoft Graph event format.
+
+  A repeat rule Graph has no pattern for is refused rather than written as
+  another (see `Outlook.RecurrenceConverter`).
   """
-  @spec format_event_data(map()) :: map()
+  @spec format_event_data(map()) :: {:ok, map()} | {:error, :rule_not_supported_by_outlook}
   def format_event_data(event_data) do
     base = %{
       "subject" => extract_field(event_data, :summary, "summary"),
@@ -32,11 +35,14 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventMapper do
         do: Map.put(base, "isAllDay", true),
         else: base
 
-    base
-    |> add_reminder(event_data)
-    |> add_recurrence(event_data)
-    |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
-    |> Map.new()
+    with {:ok, recurrence} <- recurrence(event_data) do
+      {:ok,
+       base
+       |> add_reminder(event_data)
+       |> Map.put("recurrence", recurrence)
+       |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
+       |> Map.new()}
+    end
   end
 
   @doc """
@@ -205,18 +211,15 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventMapper do
   # `recurrence_rule` field. The range needs the event's start date, derived from
   # `start_time` (a Date for all-day events, otherwise a DateTime). Omitted when
   # no rule is present or the start date cannot be determined.
-  defp add_recurrence(base, event_data) do
+  defp recurrence(event_data) do
     rrule = extract_field(event_data, :recurrence_rule, "recurrence_rule")
-
     timezone = extract_field(event_data, :timezone, "timezone")
 
     with rrule when is_binary(rrule) and rrule != "" <- rrule,
-         %Date{} = start_date <- recurrence_start_date(event_data, timezone),
-         recurrence when is_map(recurrence) <-
-           RecurrenceConverter.rrule_to_outlook(rrule, start_date, timezone) do
-      Map.put(base, "recurrence", recurrence)
+         %Date{} = start_date <- recurrence_start_date(event_data, timezone) do
+      RecurrenceConverter.rrule_to_outlook(rrule, start_date, timezone)
     else
-      _none -> base
+      _none -> {:ok, nil}
     end
   end
 

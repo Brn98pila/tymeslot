@@ -22,7 +22,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
 
   import TymeslotWeb.CalendarGridWriteHelpers
 
+  alias Ecto.Changeset
   alias Tymeslot.CalendarGrid.WriteGuardian
+  alias Tymeslot.Repo
 
   setup :hold_writes
 
@@ -336,6 +338,65 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventWriteLendingTest do
       assert_receive {:write_started, later, _uid, %{location: "Room 10"}}, @write_timeout
       answer(later, :ok)
 
+      refute_receive {:write_started, _pid, _uid, _payload}, 200
+    end
+  end
+
+  describe "when another tab is writing one occurrence of a series" do
+    setup %{integration: integration} do
+      [event, other] =
+        for time <- [~T[09:00:00], ~T[15:00:00]] do
+          integration
+          |> standup("Weekly", "Room 1", time)
+          |> Changeset.change(provider: "google", recurring_event_id: "weekly-master")
+          |> Repo.update!()
+        end
+
+      {:ok, event: event, other: other}
+    end
+
+    # The other tab's write, and this tab's edit kept behind it, were made on
+    # the occurrence as it was; a write to all events made alongside them
+    # would be partly undone when they land after it.
+    test "a write to all events is refused here until that write has saved", %{
+      conn: conn,
+      event: event,
+      other: other
+    } do
+      other_tab = open_event(conn, other)
+      edit(other_tab, "update_event_title", "Their title")
+      assert_receive {:write_started, first, _uid, %{summary: "Their title"}}, @write_timeout
+
+      lv = open_event(conn, other)
+      edit(lv, "update_event_title", "This tab")
+      refute_receive {:write_started, _pid, _uid, _payload}, 200
+
+      # Moves the other occurrence to 14:00 today, for all events.
+      lv
+      |> element("#calendar-grid")
+      |> render_hook("event_dropped", %{
+        "event-id" => to_string(event.id),
+        "new-date" => Date.to_iso8601(Date.utc_today()),
+        "new-hour" => "14",
+        "new-minute" => "0",
+        "new-end-hour" => "15",
+        "new-end-minute" => "0"
+      })
+
+      lv
+      |> element("#recurrence-prompt-modal [phx-value-scope='all']")
+      |> render_click()
+
+      assert render(lv) =~
+               "A change to this series is still saving. Please make this change once it has saved."
+
+      refute has_element?(lv, "#recurrence-prompt-modal")
+      refute_receive {:write_started, _pid, _uid, _payload}, 200
+
+      answer(first, :ok)
+
+      assert_receive {:write_started, kept, _uid, %{summary: "This tab"}}, @write_timeout
+      answer(kept, :ok)
       refute_receive {:write_started, _pid, _uid, _payload}, 200
     end
   end

@@ -91,6 +91,7 @@ defmodule Tymeslot.CalendarGrid.IcsImport do
           failed: non_neg_integer(),
           failed_titles: [String.t()],
           exclusions_dropped: non_neg_integer(),
+          rules_refused: non_neg_integer(),
           halted: atom() | nil
         }
 
@@ -187,6 +188,7 @@ defmodule Tymeslot.CalendarGrid.IcsImport do
       failed: 0,
       failed_titles: [],
       exclusions_dropped: 0,
+      rules_refused: 0,
       halted: nil,
       failed_in_a_row: 0
     }
@@ -397,6 +399,11 @@ defmodule Tymeslot.CalendarGrid.IcsImport do
             failed_in_a_row: 0,
             exclusions_dropped: acc.exclusions_dropped + dropped_exclusions(event, integration)
         }
+
+      # The calendar answered, so it says nothing about whether the next
+      # event can be written.
+      {:error, :rule_not_supported_by_outlook} ->
+        %{acc | rules_refused: acc.rules_refused + 1}
 
       {:error, reason} ->
         in_a_row = acc.failed_in_a_row + 1

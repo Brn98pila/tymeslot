@@ -189,6 +189,7 @@ defmodule Tymeslot.Integrations.Calendar.EventsTest do
           not_found: false,
           meeting_not_found: false,
           rate_limited: false,
+          rule_not_supported_by_outlook: false,
           timeout: true,
           network_error: true,
           server_error: true

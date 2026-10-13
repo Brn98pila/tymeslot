@@ -1484,3 +1484,15 @@ msgstr "Absage senden"
 #, elixir-autogen, elixir-format
 msgid "You already have a meeting at this time. Please choose a different time."
 msgstr "Zu dieser Zeit haben Sie bereits einen Termin. Bitte wählen Sie eine andere Uhrzeit."
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/ics_import.ex
+#, elixir-autogen, elixir-format
+msgid "1 event repeats in a way Outlook can't store, so it was not imported."
+msgid_plural "%{count} events repeat in a way Outlook can't store, so they were not imported."
+msgstr[0] "1 Ereignis wiederholt sich auf eine Weise, die Outlook nicht speichern kann, und wurde daher nicht importiert."
+msgstr[1] "%{count} Ereignisse wiederholen sich auf eine Weise, die Outlook nicht speichern kann, und wurden daher nicht importiert."
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/edit_workflow.ex
+#, elixir-autogen, elixir-format
+msgid "This repeat pattern can't be saved to Outlook."
+msgstr "Dieses Wiederholungsmuster kann nicht in Outlook gespeichert werden."

@@ -207,6 +207,9 @@ defmodule TymeslotWeb.Dashboard.CalendarEventHandlers do
     )
   end
 
+  defp update_failed_message(:rule_not_supported_by_outlook),
+    do: EditWorkflow.rule_not_supported_by_outlook_message()
+
   defp update_failed_message(:not_organiser), do: EditWorkflow.not_organiser_message()
 
   defp update_failed_message(reason)
