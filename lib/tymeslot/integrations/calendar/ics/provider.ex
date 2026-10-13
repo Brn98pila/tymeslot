@@ -54,6 +54,7 @@ defmodule Tymeslot.Integrations.Calendar.Ics.Provider do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Integrations.Calendar.CalendarEntry
+  alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.ICalNormaliser
   alias Tymeslot.Integrations.Calendar.Ics.Feed
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
@@ -242,7 +243,7 @@ defmodule Tymeslot.Integrations.Calendar.Ics.Provider do
 
   # --- Private helpers ---
 
-  defp maybe_all_busy(events, true), do: Enum.map(events, &Map.put(&1, :transparency, "opaque"))
+  defp maybe_all_busy(events, true), do: Enum.map(events, &CalendarEvent.as_busy/1)
   defp maybe_all_busy(events, _all_events_busy), do: events
 
   defp synthetic_calendar(feed_url) do

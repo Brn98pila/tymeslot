@@ -109,7 +109,8 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationSchema do
     field(:is_active, :boolean, default: true)
     # A subscription (`ics_url`) whose events all block availability, even
     # those its feed marks free: holiday feeds mark every event that way. Read
-    # by `Ics.Provider.list_events/2`; no other provider honours it.
+    # by `Ics.Provider.list_events/2` and by `FreeBusy`, which reads the event
+    # cache directly; no other provider honours it.
     field(:all_events_busy, :boolean, default: false)
     field(:needs_reauth, :boolean, default: false)
     # When `needs_reauth` last went from false to true. Deliberately left in
