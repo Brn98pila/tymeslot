@@ -111,6 +111,7 @@ defmodule Tymeslot.Emails.Templates.EventUpdateNotification do
         description: details.description,
         organizer_name: details.organizer_name,
         organizer_email: details.organizer_email,
+        organizer_user_id: Map.get(details, :organizer_user_id),
         attendee_email: attendee_email
       }
 

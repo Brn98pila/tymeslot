@@ -84,6 +84,10 @@ config :tymeslot,
   # This should remain false in the standalone open-source version.
   show_branding: false,
 
+  # Link appended to the description of every .ics Tymeslot sends while
+  # branding is shown for the organiser. nil leaves the footer off.
+  ics_branding_url: nil,
+
   # Demo provider - no-op by default (can be provided by external layers)
   demo_provider: Tymeslot.Demo.NoOp,
 
