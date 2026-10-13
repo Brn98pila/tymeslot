@@ -1,11 +1,13 @@
 defmodule Tymeslot.CalendarGrid.OccurrenceWriteRuleTest do
   @moduledoc """
-  An edit of one occurrence of a Google or Outlook series, down to the HTTP
-  client, from a cached row that carries its series' rule.
+  Edits of a Google or Outlook series made from a cached occurrence that
+  carries its series' rule, down to the HTTP client.
 
-  Google and Outlook address an occurrence by its own instance id, so the
-  write must say nothing about recurrence: a rule sent to an instance asks
-  the provider to make that one occurrence a series of its own.
+  Google and Outlook address an occurrence by its own instance id, so a
+  write of that one occurrence must say nothing about recurrence: a rule
+  sent to an instance asks the provider to make that one occurrence a series
+  of its own. A new rule for the whole series replaces only the master's
+  rule, and keeps the dates the series excludes or adds.
   """
   use Tymeslot.DataCase, async: false
 
@@ -72,6 +74,44 @@ defmodule Tymeslot.CalendarGrid.OccurrenceWriteRuleTest do
     assert [body] = written_bodies("AAMkOccurrence")
     assert body["subject"] == "Renamed"
     refute Map.has_key?(body, "recurrence")
+  end
+
+  test "a new rule for a whole Google series keeps the dates its master excludes", %{
+    user: user
+  } do
+    integration = integration(user, "google", "https://www.googleapis.com/auth/calendar")
+
+    event =
+      occurrence(integration, "google", %{
+        uid: "master1@google.com_20261019T070000Z",
+        provider_event_id: "master1_20261019T070000Z",
+        recurring_event_id: "master1"
+      })
+
+    master = %{
+      "id" => "master1",
+      "status" => "confirmed",
+      "start" => %{"dateTime" => "2026-10-05T09:00:00+02:00", "timeZone" => "Europe/Berlin"},
+      "end" => %{"dateTime" => "2026-10-05T09:30:00+02:00", "timeZone" => "Europe/Berlin"},
+      "recurrence" => ["RRULE:FREQ=WEEKLY;BYDAY=MO", "EXDATE;TZID=Europe/Berlin:20261012T090000"]
+    }
+
+    serve(master)
+
+    assert {:ok, _updated} =
+             CalendarGrid.update_event(
+               user.id,
+               event,
+               %{recurrence_rule: "FREQ=WEEKLY;BYDAY=MO;COUNT=10"},
+               recurrence_scope: :all
+             )
+
+    assert [body] = written_bodies("master1")
+
+    assert body["recurrence"] == [
+             "RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=10",
+             "EXDATE;TZID=Europe/Berlin:20261012T090000"
+           ]
   end
 
   defp put_module(key, module) do
