@@ -214,7 +214,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventNormaliserTest do
         })
 
       assert {:ok, [event]} = EventNormaliser.normalise_events([raw], @context)
-      assert event.recurrence_rule == "FREQ=WEEKLY;BYDAY=MO,WE"
+      assert event.recurrence_rule == "FREQ=WEEKLY;BYDAY=MO,WE;WKST=SU"
     end
 
     test "invalid event is skipped" do

@@ -30,6 +30,17 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverter do
 
   Absolute monthly and yearly patterns read back without a `BYMONTHDAY` or
   `BYMONTH` part, since the event's start date anchors them.
+
+  ## Week start
+
+  An every-other-week series on several days fires in alternate weeks, and
+  which days share a week depends on the day the week starts on: `WKST` in
+  the rule (Monday unless stated), `firstDayOfWeek` in a Graph pattern
+  (Sunday unless stated). A weekly pattern is written with the rule's week
+  start, and read back with `WKST` whenever it starts on another day than
+  Monday, so a Sunday-and-Monday fortnightly series keeps its Sundays in the
+  same weeks both ways. No other pattern depends on it, so no other pattern
+  carries it.
   """
 
   alias Tymeslot.Integrations.Calendar.Recurrence.RRule
@@ -77,7 +88,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverter do
          {:ok, pattern} <- pattern(rule, start_date) do
       {:ok,
        %{
-         "pattern" => Map.put(pattern, "interval", rule.interval),
+         "pattern" =>
+           pattern |> Map.put("interval", rule.interval) |> put_first_day_of_week(rule),
          "range" => build_range(RRule.options(rule, timezone: timezone), start_date)
        }}
     else
@@ -96,7 +108,12 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverter do
       when is_map(pattern) and is_map(range) do
     with %{} = opts <- build_opts(pattern, range),
          {:ok, parts} <- relative_parts(pattern) do
-      opts |> RRule.build() |> put_parts(parts)
+      {:ok, rule} = opts |> RRule.build() |> RRule.parse()
+
+      rule
+      |> put_parts(parts)
+      |> Map.put(:week_start, week_start(pattern))
+      |> RRule.format()
     else
       _unreadable -> nil
     end
@@ -204,6 +221,11 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverter do
 
   defp refused, do: {:error, :rule_not_supported_by_outlook}
 
+  defp put_first_day_of_week(%{"type" => "weekly"} = pattern, rule),
+    do: Map.put(pattern, "firstDayOfWeek", weekday_index_to_graph(rule.week_start || 1))
+
+  defp put_first_day_of_week(pattern, _rule), do: pattern
+
   # Date.day_of_week/1 returns 1 (Monday) .. 7 (Sunday).
   @graph_weekdays_by_index {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
                             "sunday"}
@@ -296,24 +318,33 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverter do
 
   defp relative_parts(_pattern), do: {:ok, nil}
 
-  defp put_parts(rrule, nil), do: rrule
+  defp put_parts(rule, nil), do: rule
 
-  defp put_parts(rrule, %{by_day: weekdays, ordinal: ordinal, month: month}) do
-    {:ok, rule} = RRule.parse(rrule)
-
+  defp put_parts(rule, %{by_day: weekdays, ordinal: ordinal, month: month}) do
     {by_day, by_set_pos} =
       case weekdays do
         [weekday] -> {[{ordinal, weekday}], nil}
         several -> {Enum.map(several, &{nil, &1}), [ordinal]}
       end
 
-    RRule.format(%{
+    %{
       rule
       | by_day: by_day,
         by_set_pos: by_set_pos,
         by_month: if(month == :none, do: nil, else: [month])
-    })
+    }
   end
+
+  # Graph's own default is Sunday; Monday is the RRULE default, so it is left
+  # unstated. A day Graph does not name is left unstated too.
+  defp week_start(%{"type" => "weekly"} = pattern) do
+    case graph_to_iso(Map.get(pattern, "firstDayOfWeek") || "sunday") do
+      1 -> nil
+      iso -> iso
+    end
+  end
+
+  defp week_start(_pattern), do: nil
 
   defp graph_to_iso(name) when is_binary(name) do
     case Map.get(@graph_to_weekday, String.downcase(name)) do

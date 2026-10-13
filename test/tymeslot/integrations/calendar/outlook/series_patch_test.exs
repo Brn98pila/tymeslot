@@ -307,5 +307,25 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesPatchTest do
       assert {:ok, %{"recurrence" => %{"range" => range}}} = SeriesPatch.build(@master, edit)
       assert range["endDate"] == "2026-12-07"
     end
+
+    # Rules cached before the week start was read from Graph state none; the
+    # master's Sunday start decides which Sundays a fortnightly series keeps.
+    test "that states no week start keeps the series' own" do
+      rule = "FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO"
+
+      assert {:ok, %{"recurrence" => %{"pattern" => pattern}}} =
+               SeriesPatch.build(@master, edit(%{recurrence_rule: rule}))
+
+      assert pattern["firstDayOfWeek"] == "sunday"
+    end
+
+    test "that states a week start writes it over the series' own" do
+      rule = "FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=MO"
+
+      assert {:ok, %{"recurrence" => %{"pattern" => pattern}}} =
+               SeriesPatch.build(@master, edit(%{recurrence_rule: rule}))
+
+      assert pattern["firstDayOfWeek"] == "monday"
+    end
   end
 end

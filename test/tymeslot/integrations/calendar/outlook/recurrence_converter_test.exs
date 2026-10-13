@@ -5,6 +5,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverterTest do
 
   alias Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverter
   alias Tymeslot.Integrations.Calendar.Recurrence.RRule
+  alias Tymeslot.Integrations.Calendar.RecurrenceExpander
 
   @start_date ~D[2026-06-15]
 
@@ -101,7 +102,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverterTest do
         "range" => %{"type" => "noEnd"}
       }
 
-      assert RecurrenceConverter.outlook_to_rrule(recurrence) == "FREQ=WEEKLY;BYDAY=MO,WE,FR"
+      assert RecurrenceConverter.outlook_to_rrule(recurrence) ==
+               "FREQ=WEEKLY;BYDAY=MO,WE,FR;WKST=SU"
     end
 
     test "converts absoluteMonthly to MONTHLY" do
@@ -138,7 +140,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverterTest do
       }
 
       assert RecurrenceConverter.outlook_to_rrule(recurrence) ==
-               "FREQ=WEEKLY;BYDAY=TU;UNTIL=20261231T235959Z"
+               "FREQ=WEEKLY;BYDAY=TU;WKST=SU;UNTIL=20261231T235959Z"
     end
 
     test "returns nil for an unrecognised map" do
@@ -159,6 +161,65 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverterTest do
         outlook = to_outlook(rrule, ~D[2026-06-16])
         assert RecurrenceConverter.outlook_to_rrule(outlook) == rrule
       end
+    end
+  end
+
+  # Which days of an every-other-week series share a week depends on the day
+  # the week starts on: Monday for an RRULE without WKST, Sunday for a Graph
+  # pattern without firstDayOfWeek.
+  describe "week start" do
+    for {rrule, first_day} <- [
+          {"FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO", "monday"},
+          {"FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=SU", "sunday"}
+        ] do
+      test "writes #{rrule} starting its weeks on #{first_day}, and reads it back" do
+        rrule = unquote(rrule)
+        outlook = to_outlook(rrule, @start_date)
+
+        assert outlook["pattern"]["firstDayOfWeek"] == unquote(first_day)
+        assert RecurrenceConverter.outlook_to_rrule(outlook) == rrule
+      end
+    end
+
+    # 15 June 2026 is a Monday. In weeks starting on Sunday its fortnight
+    # resumes on Sunday 28 June; in weeks starting on Monday, the Sunday
+    # after it belongs to its own week.
+    test "reads a pattern back so that its Sundays fall in the weeks Graph puts them in" do
+      assert expand_read_back("sunday") ==
+               [~D[2026-06-15], ~D[2026-06-28], ~D[2026-06-29], ~D[2026-07-12], ~D[2026-07-13]]
+
+      assert expand_read_back("monday") ==
+               [~D[2026-06-15], ~D[2026-06-21], ~D[2026-06-29], ~D[2026-07-05], ~D[2026-07-13]]
+    end
+
+    test "reads a weekly pattern stating no week start as starting on Sunday" do
+      recurrence = %{
+        "pattern" => %{"type" => "weekly", "interval" => 2, "daysOfWeek" => ["monday"]},
+        "range" => %{"type" => "noEnd", "startDate" => "2026-06-15"}
+      }
+
+      assert RecurrenceConverter.outlook_to_rrule(recurrence) ==
+               "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO;WKST=SU"
+    end
+
+    test "leaves it off every pattern but a weekly one" do
+      refute Map.has_key?(
+               to_outlook("FREQ=MONTHLY;BYDAY=2TU;WKST=SU", @start_date)["pattern"],
+               "firstDayOfWeek"
+             )
+
+      recurrence = %{
+        "pattern" => %{
+          "type" => "relativeMonthly",
+          "interval" => 1,
+          "daysOfWeek" => ["tuesday"],
+          "index" => "second",
+          "firstDayOfWeek" => "sunday"
+        },
+        "range" => %{"type" => "noEnd", "startDate" => "2026-06-09"}
+      }
+
+      assert RecurrenceConverter.outlook_to_rrule(recurrence) == "FREQ=MONTHLY;BYDAY=2TU"
     end
   end
 
@@ -353,6 +414,29 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverterTest do
         assert range["endDate"] == "2026-12-31", "wrong endDate for #{inspect(timezone)}"
       end
     end
+  end
+
+  # The dates up to 14 July 2026 of a Sunday-and-Monday fortnightly Graph
+  # pattern starting on Monday 15 June, read back as an RRULE.
+  defp expand_read_back(first_day_of_week) do
+    rule =
+      RecurrenceConverter.outlook_to_rrule(%{
+        "pattern" => %{
+          "type" => "weekly",
+          "interval" => 2,
+          "daysOfWeek" => ["sunday", "monday"],
+          "firstDayOfWeek" => first_day_of_week
+        },
+        "range" => %{"type" => "noEnd", "startDate" => "2026-06-15"}
+      })
+
+    %{
+      start_time: ~U[2026-06-15 09:00:00Z],
+      end_time: ~U[2026-06-15 10:00:00Z],
+      recurrence_rule: rule
+    }
+    |> RecurrenceExpander.expand(~U[2026-06-15 00:00:00Z], ~U[2026-07-14 23:59:59Z])
+    |> Enum.map(&DateTime.to_date(&1.start_time))
   end
 
   # Every rule here has a Graph pattern; refusals are asserted directly.
