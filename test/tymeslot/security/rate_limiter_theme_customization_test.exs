@@ -147,7 +147,7 @@ defmodule Tymeslot.Security.RateLimiterThemeCustomizationTest do
     test "denies every concurrent hit once the window is already full" do
       user_id = 99_999
 
-      # Fill the window sequentially first. Hammer's lock-free ETS sliding
+      # Fill the window sequentially first. The rate limiter's lock-free ETS sliding
       # window inserts a hit before it counts the window, so how many of a
       # concurrent burst slip past the limit depends on how the inserts and
       # reads interleave: asserting on that split asserts on the scheduler,

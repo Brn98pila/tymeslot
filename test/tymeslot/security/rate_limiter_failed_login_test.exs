@@ -26,14 +26,11 @@ defmodule Tymeslot.Security.RateLimiterFailedLoginTest do
     end
   end
 
-  # Every row the rate limiter holds for one failed-login key, as
-  # `{expires_at_microseconds}`.
+  # The expiry, in microseconds, of every hit the rate limiter holds for one
+  # failed-login key.
   defp failure_rows(email, ip) do
-    key = "login_fail:#{email}|#{ip}"
-
-    :ets.select(RateLimit, [
-      {{{:"$1", :_}, :"$2"}, [{:"=:=", {:const, key}, :"$1"}], [:"$2"]}
-    ])
+    for {_inserted_at, expires_at} <- RateLimit.entries("login_fail:#{email}|#{ip}"),
+        do: expires_at
   end
 
   describe "per-key state" do

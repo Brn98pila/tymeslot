@@ -162,13 +162,6 @@ defmodule Tymeslot.Security.RateLimiterKeysTest do
   defp charged(fun) do
     fun.()
 
-    RateLimit
-    |> :ets.tab2list()
-    |> Enum.flat_map(fn
-      {{key, _inserted_at}, _expires_at} when is_binary(key) -> [key]
-      _other -> []
-    end)
-    |> Enum.uniq()
-    |> Enum.sort()
+    Enum.sort(RateLimit.keys())
   end
 end

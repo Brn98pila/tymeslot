@@ -22,7 +22,7 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
     - `:key`: a string the caller has already built (an id, a hash, an actor).
   - Either `:limit` and `:window_ms` for one window, or `:tiers`, a list of
     `{label, limit, window_ms}` ordered shortest window first, each charged as
-    `"<bucket>:<label>"`. No window runs past a day: Hammer keeps its counters
+    `"<bucket>:<label>"`. No window runs past a day: the limiter keeps its hits
     in node-local ETS, which every deploy clears, so a longer one promised a
     policy nobody enforced while holding one row per hit for its whole span.
   - `:operation`: the English bucket name the log line carries.
