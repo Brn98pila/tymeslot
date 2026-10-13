@@ -20,10 +20,19 @@ defmodule Tymeslot.Security.RateLimit do
   when the oldest kept hit expires, which for a flood is one window after it
   stopped.
 
+  A refusal says how long until a retry would be allowed: until enough kept
+  hits expire that the bucket, with the retry's own hit added, holds no more
+  than `limit`.
+
+  Windows run on monotonic time, so a step in the wall clock neither stretches
+  nor cuts short a live window; the table lives in memory and dies with the
+  node, so nothing reads its timestamps as wall time.
+
   Checks run in the caller's process against the table. This process only
   owns the table and sweeps expired rows every `:clean_period`. If it restarts,
-  its table goes with it; a check in that gap is allowed and logged once,
-  since every bucket starts empty afterwards anyway.
+  its table goes with it; a check or clear in that gap is allowed and logged
+  once, since every bucket starts empty afterwards anyway. A check that fails
+  because the table was replaced under it is retried once against the new one.
   """
 
   use GenServer
@@ -42,7 +51,7 @@ defmodule Tymeslot.Security.RateLimit do
   @doc """
   Charges one hit to `key` and answers whether it is within `limit` hits per
   `window_ms`: `{:allow, count}` with the hits now in the window, or
-  `{:deny, wait_ms}` with the time until the oldest kept hit expires.
+  `{:deny, wait_ms}` with the time until a retry would be allowed.
   """
   @spec hit(key(), pos_integer(), non_neg_integer()) ::
           {:allow, non_neg_integer()} | {:deny, non_neg_integer()}
@@ -52,31 +61,30 @@ defmodule Tymeslot.Security.RateLimit do
   @spec hit(key(), pos_integer(), non_neg_integer(), integer()) ::
           {:allow, non_neg_integer()} | {:deny, non_neg_integer()}
   def hit(key, window_ms, limit, now) when is_binary(key) do
-    :ets.select_delete(@table, expired(key, now))
-    :ets.insert(@table, {key, seq(), now, now + window_ms * 1000})
+    guarded({:allow, 0}, fn ->
+      :ets.select_delete(@table, expired(key, now))
+      :ets.insert(@table, {key, seq(), now, now + window_ms * 1000})
 
-    live = :ets.select(@table, live(key, now))
-    count = length(live)
-    kept = trim(live, count, limit + 1)
-
-    if count <= limit, do: {:allow, count}, else: {:deny, wait_ms(kept, now)}
-  rescue
-    error in ArgumentError -> table_gap(error, __STACKTRACE__, {:allow, 0})
+      case :ets.select_count(@table, live(key, now, true)) do
+        count when count <= limit -> {:allow, count}
+        _over -> {:deny, refuse(key, now, limit)}
+      end
+    end)
   end
 
   @doc "How many hits `key` holds inside its window, without charging it."
   @spec get(key(), pos_integer()) :: non_neg_integer()
   def get(key, _window_ms) when is_binary(key) do
-    :ets.select_count(@table, [{{key, :_, :_, :"$1"}, [{:>, :"$1", now()}], [true]}])
-  rescue
-    error in ArgumentError -> table_gap(error, __STACKTRACE__, 0)
+    guarded(0, fn -> :ets.select_count(@table, live(key, now(), true)) end)
   end
 
   @doc "Drops every hit `key` holds."
   @spec clear(key()) :: :ok
   def clear(key) when is_binary(key) do
-    :ets.delete(@table, key)
-    :ok
+    guarded(:ok, fn ->
+      :ets.delete(@table, key)
+      :ok
+    end)
   end
 
   @doc "Drops every hit in every bucket."
@@ -113,6 +121,11 @@ defmodule Tymeslot.Security.RateLimit do
     :ets.select_delete(@table, [{{:_, :_, :_, :"$1"}, [{:"=<", :"$1", now}], [true]}])
   end
 
+  @doc false
+  # The limiter's clock, for tests that pass their own `now`.
+  @spec now() :: integer()
+  def now, do: System.monotonic_time(:microsecond)
+
   @impl GenServer
   def init(opts) do
     :ets.new(@table, [
@@ -142,28 +155,76 @@ defmodule Tymeslot.Security.RateLimit do
   # Keys are binaries, so they are safe as literals in a match-spec head; a
   # bound key lets ETS go straight to the bucket instead of scanning the table.
   defp expired(key, now), do: [{{key, :_, :_, :"$1"}, [{:"=<", :"$1", now}], [true]}]
-  defp live(key, now), do: [{{key, :_, :_, :"$1"}, [{:>, :"$1", now}], [:"$_"]}]
+  defp live(key, now, result), do: [{{key, :_, :_, :"$1"}, [{:>, :"$1", now}], [result]}]
 
-  # Drops the oldest rows past `cap`, returning the rows kept. Concurrent
-  # callers trimming the same bucket each drop a prefix of the same order, so
-  # together they never leave fewer than `cap` rows.
-  defp trim(live, count, cap) when count <= cap, do: live
-
-  defp trim(live, count, cap) do
-    {dropped, kept} = live |> Enum.sort_by(&elem(&1, 1)) |> Enum.split(count - cap)
-    Enum.each(dropped, &:ets.delete_object(@table, &1))
-    kept
+  # Only a refused hit reads the bucket's rows: it trims them to the newest
+  # `limit + 1` and works out the wait from what is kept.
+  defp refuse(key, now, limit) do
+    @table
+    |> :ets.select(live(key, now, :"$_"))
+    |> trim(limit + 1)
+    |> wait_ms(now, limit)
   end
 
-  defp wait_ms(rows, now) do
-    earliest = rows |> Enum.map(&elem(&1, 3)) |> Enum.min()
-    round((earliest - now) / 1000)
+  # Drops the oldest rows past `cap`, returning the rows kept. A bucket held
+  # `cap` rows before this hit, so one row is the usual excess; more only when
+  # concurrent hits landed together. Concurrent callers trimming the same
+  # bucket each drop the oldest by `seq`, so together they never leave fewer
+  # than `cap` rows.
+  defp trim(rows, cap) do
+    case length(rows) - cap do
+      excess when excess <= 0 ->
+        rows
+
+      1 ->
+        oldest = Enum.min_by(rows, &elem(&1, 1))
+        :ets.delete_object(@table, oldest)
+        List.delete(rows, oldest)
+
+      excess ->
+        {dropped, kept} = rows |> Enum.sort_by(&elem(&1, 1)) |> Enum.split(excess)
+        Enum.each(dropped, &:ets.delete_object(@table, &1))
+        kept
+    end
   end
 
-  # Only a missing table is the restart gap; any other ArgumentError is a bug.
-  defp table_gap(error, stacktrace, answer) do
-    if :ets.whereis(@table) != :undefined, do: reraise(error, stacktrace)
+  # A retry adds a hit of its own, so it is allowed once no more than
+  # `limit - 1` kept hits are live: the earliest `length - limit + 1` expiries
+  # have to have passed. With at most `limit + 1` kept, that is the first or
+  # the second to expire. A hit counts until its expiry and not at it, and the
+  # wait rounds up, so a retry exactly when told is allowed and one a
+  # millisecond sooner is not.
+  defp wait_ms(kept, now, limit) do
+    {first, second} = two_earliest(Enum.map(kept, &elem(&1, 3)))
+    expiry = if length(kept) > limit and second, do: second, else: first
+    max(ceil((expiry - now) / 1000), 0)
+  end
 
+  defp two_earliest(expiries) do
+    Enum.reduce(expiries, {nil, nil}, fn
+      expiry, {nil, nil} -> {expiry, nil}
+      expiry, {first, _second} when expiry < first -> {expiry, first}
+      expiry, {first, second} when is_nil(second) or expiry < second -> {first, expiry}
+      _expiry, acc -> acc
+    end)
+  end
+
+  # A missing table is the restart gap, answered with `gap_answer`. An
+  # ArgumentError with the table present means it was replaced while the
+  # operation ran, so the operation runs once more against the new one; a
+  # second failure with the table present is a bug and is raised.
+  defp guarded(gap_answer, operation, attempts \\ 2) do
+    operation.()
+  rescue
+    error in ArgumentError ->
+      cond do
+        :ets.whereis(@table) == :undefined -> table_gap(gap_answer)
+        attempts > 1 -> guarded(gap_answer, operation, attempts - 1)
+        true -> reraise error, __STACKTRACE__
+      end
+  end
+
+  defp table_gap(answer) do
     unless :persistent_term.get(@gap_logged, false) do
       :persistent_term.put(@gap_logged, true)
       Logger.warning("Rate limit table missing; allowing checks until it restarts")
@@ -173,6 +234,4 @@ defmodule Tymeslot.Security.RateLimit do
   end
 
   defp seq, do: System.unique_integer([:monotonic, :positive])
-
-  defp now, do: System.system_time(:microsecond)
 end

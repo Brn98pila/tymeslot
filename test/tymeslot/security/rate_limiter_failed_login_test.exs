@@ -42,7 +42,7 @@ defmodule Tymeslot.Security.RateLimiterFailedLoginTest do
     test "failures across many distinct pairs all expire within the window" do
       run = System.unique_integer([:positive])
       emails = for i <- 1..50, do: "stuffing-#{run}-#{i}@example.com"
-      horizon = System.system_time(:microsecond) + @window_ms * 1000
+      horizon = RateLimit.now() + @window_ms * 1000
 
       Enum.each(emails, &fail/1)
 

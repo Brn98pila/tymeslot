@@ -43,9 +43,24 @@ defmodule Tymeslot.Security.RateLimitTest do
       assert {:deny, _wait} = RateLimit.hit(key, 1_000, 1, t0 + @second - 1)
     end
 
-    test "a refusal says how long until the oldest kept hit expires", %{key: key, t0: t0} do
-      assert RateLimit.hit(key, 60_000, 1, t0) == {:allow, 1}
-      assert RateLimit.hit(key, 60_000, 1, t0 + 10 * @second) == {:deny, 50_000}
+    test "a refusal says how long until a retry is allowed", %{key: key, t0: t0} do
+      fill = fn key ->
+        for step <- 0..2,
+            do: {:allow, _count} = RateLimit.hit(key, 60_000, 3, t0 + step * @second)
+
+        RateLimit.hit(key, 60_000, 3, t0 + 3 * @second)
+      end
+
+      # Four kept hits expire at 60, 61, 62 and 63 s; a retry brings its own,
+      # so two of them must have gone: the retry is allowed from 61 s.
+      assert fill.(key) == {:deny, 58_000}
+      refused_at = t0 + 3 * @second
+
+      assert RateLimit.hit(key, 60_000, 3, refused_at + 58_000 * 1000) == {:allow, 3}
+
+      sooner = key <> ":sooner"
+      assert fill.(sooner) == {:deny, 58_000}
+      assert {:deny, _wait} = RateLimit.hit(sooner, 60_000, 3, refused_at + 57_999 * 1000)
     end
   end
 
@@ -101,7 +116,7 @@ defmodule Tymeslot.Security.RateLimitTest do
   end
 
   describe "when the table's owner restarts" do
-    test "checks are allowed in the gap and buckets work again after it", %{key: key} do
+    test "checks and clears succeed in the gap and buckets work again after it", %{key: key} do
       supervisor = Process.whereis(Tymeslot.Supervisor)
       owner = Process.whereis(RateLimit)
       ref = Process.monitor(owner)
@@ -119,6 +134,7 @@ defmodule Tymeslot.Security.RateLimitTest do
             assert RateLimit.hit(key, 60_000, 1) == {:allow, 0}
             assert RateLimit.hit(key, 60_000, 1) == {:allow, 0}
             assert RateLimit.get(key, 60_000) == 0
+            assert RateLimit.clear(key) == :ok
           end)
         after
           :sys.resume(supervisor)
@@ -137,5 +153,5 @@ defmodule Tymeslot.Security.RateLimitTest do
     end
   end
 
-  defp now, do: System.system_time(:microsecond)
+  defp now, do: RateLimit.now()
 end
