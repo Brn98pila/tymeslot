@@ -352,6 +352,39 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
       assert stored_rule(integration, "master-2").rule == "FREQ=DAILY"
     end
 
+    # Failed reads spend the budget as stored ones do: a run of reads whose
+    # results cannot be stored makes no more GETs than a run that succeeds.
+    test "reads at most 50 masters even when no read can be stored", %{integration: integration} do
+      batch = fn range ->
+        for n <- range, do: occurrence(integration, "occ-#{n}", "master-#{n}")
+      end
+
+      read = reader(Map.new(1..60, &{"master-#{&1}", {:ok, %{rule: 123, master_start: nil}}}))
+
+      capture_log(fn ->
+        SeriesRules.refresh(integration.id, batch.(1..30), read, changed: true)
+        SeriesRules.refresh(integration.id, batch.(31..60), read, changed: true)
+      end)
+
+      assert length(received_reads()) == 50
+    end
+
+    # A throttled read stops its call, but a cycle makes many calls.
+    test "reads at most 50 masters across calls each stopped by its first read", %{
+      integration: integration
+    } do
+      read = reader(Map.new(1..60, &{"master-#{&1}", {:stop, :rate_limited}}))
+
+      capture_log(fn ->
+        for n <- 1..60 do
+          event = occurrence(integration, "occ-#{n}", "master-#{n}")
+          SeriesRules.refresh(integration.id, [event], read, changed: true)
+        end
+      end)
+
+      assert length(received_reads()) == 50
+    end
+
     # Throttled, refused or unreachable: every later read would fail alike.
     test "stops reading at the first read that says to stop", %{integration: integration} do
       read =

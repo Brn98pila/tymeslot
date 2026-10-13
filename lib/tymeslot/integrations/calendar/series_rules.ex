@@ -28,20 +28,17 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRules do
   alias Tymeslot.Integrations.Calendar.ProviderCalendarSeriesQueries
   alias Tymeslot.Integrations.Calendar.SeriesRuleQueries
   alias Tymeslot.Repo
+  alias Tymeslot.Security.RateLimiter
 
   require Logger
 
-  # At most this many masters are read in a budget window, one GET each, so
-  # a calendar with many series fills over several runs rather than holding
-  # one sync up.
+  # The most masters one call reads. Every read is also charged to the
+  # integration's `:series_rule_read` limit (50 in ten minutes), which is
+  # what holds a whole sync cycle, and concurrent ones, to that many.
   @max_reads_per_window 50
 
   # A master not named by a change is read again once its rule is this old.
   @fresh_for_seconds 24 * 60 * 60
-
-  # The span the read budget is counted over: a sync cycle with all its
-  # calls, comfortably.
-  @budget_window_seconds 10 * 60
 
   @typedoc """
   Reads one master, given its id and the calendar an occurrence of it is in
@@ -65,42 +62,31 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRules do
   and only masters whose rule was never read or is a day old are read. Then
   the masters of cached series in that state.
 
-  An integration's masters are read at most #{@max_reads_per_window} times in
-  #{div(@budget_window_seconds, 60)} minutes, counted from the reads stored,
-  so the budget holds across every call a sync cycle makes, and across
-  concurrent syncs. Never fails: a read that cannot be made stops the rest
-  for this run, and the occurrences are cached as they would be without it.
+  Each read is charged to the integration's `:series_rule_read` rate limit
+  before it is made, whatever it then answers, so an integration's masters
+  are read at most 50 times in ten minutes across every call a sync cycle
+  makes, and across concurrent syncs, failed reads included. Never fails: a
+  read that cannot be made, or the spent budget, stops the rest for this
+  run, and the occurrences are cached as they would be without it.
   """
   @spec refresh(integer(), [map()], read(), keyword()) :: :ok
   def refresh(integration_id, calendar_events, read, opts \\ []) do
     now = DateTime.truncate(Clock.utc_now(), :second)
     stale_before = DateTime.add(now, -@fresh_for_seconds, :second)
 
-    read_lately =
-      SeriesRuleQueries.count_read_since(
-        integration_id,
-        DateTime.add(now, -@budget_window_seconds, :second)
-      )
-
-    budget = max(@max_reads_per_window - read_lately, 0)
-
     named = named_masters(calendar_events)
     due = due_named(integration_id, named, stale_before, Keyword.get(opts, :changed, false))
     due_ids = Enum.map(due, &elem(&1, 0))
-    room = max(budget - length(due), 0)
+    room = max(@max_reads_per_window - length(due), 0)
 
     (due ++ SeriesRuleQueries.masters_to_refresh(integration_id, stale_before, due_ids, room))
-    |> Enum.take(budget)
+    |> Enum.take(@max_reads_per_window)
     |> Enum.reduce_while(:ok, fn {master_id, calendar_id}, :ok ->
-      case read.(master_id, calendar_id) do
-        {:ok, found} ->
-          store(integration_id, master_id, found)
-          {:cont, :ok}
-
-        :gone ->
-          store(integration_id, master_id, %{rule: nil, master_start: nil})
-          {:cont, :ok}
-
+      with :ok <- charge(integration_id),
+           result = read.(master_id, calendar_id),
+           :ok <- stored(integration_id, master_id, result) do
+        {:cont, :ok}
+      else
         {:stop, reason} ->
           Logger.warning("Stopped reading series rules for this sync run",
             calendar_integration_id: integration_id,
@@ -111,6 +97,24 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRules do
       end
     end)
   end
+
+  # Every read is charged before it is made, whatever it then answers, so
+  # failures spend the budget as successes do.
+  defp charge(integration_id) do
+    case RateLimiter.check(:series_rule_read, integration_id) do
+      :ok -> :ok
+      {:error, _limited, _message} -> {:stop, :read_budget_spent}
+      {:error, reason} -> {:stop, reason}
+    end
+  end
+
+  defp stored(integration_id, master_id, {:ok, found}),
+    do: store(integration_id, master_id, found)
+
+  defp stored(integration_id, master_id, :gone),
+    do: store(integration_id, master_id, %{rule: nil, master_start: nil})
+
+  defp stored(_integration_id, _master_id, {:stop, _reason} = stop), do: stop
 
   defp due_named(_integration_id, named, _stale_before, true = _changed), do: named
 

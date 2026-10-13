@@ -81,6 +81,7 @@ defmodule Tymeslot.Security.RateLimiterKeysTest do
     webhook_form_validate: {"ip:203.0.113.9", ["webhook_form_validate:ip:203.0.113.9"]},
     calendar_refresh: {42, ["calendar_refresh:42"]},
     integration_write: {42, ["integration_write:42"]},
+    series_rule_read: {42, ["series_rule_read:42"]},
     integration_appearance: {42, ["integration_appearance:42"]},
     calendar_visibility: {42, ["calendar_visibility:42"]},
     calendar_event_edit: {42, ["calendar_event_edit:42"]},
