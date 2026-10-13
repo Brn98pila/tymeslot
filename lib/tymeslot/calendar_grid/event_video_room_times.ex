@@ -67,13 +67,9 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomTimes do
     if recurring?(event) do
       {:series, lobby(all_day, start),
        rule &&
-         series_end(
-           rule,
-           all_day,
-           {start, finish},
-           series_start(event),
-           series_zone(event, all_day)
-         )}
+         rule
+         |> series_end(all_day, {start, finish}, series_start(event), series_zone(event, all_day))
+         |> later_than_own(one_off_end(all_day, finish))}
     else
       {:exact, lobby(all_day, start), one_off_end(all_day, finish)}
     end
@@ -211,6 +207,13 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomTimes do
   defp day_limit(day, false), do: day
 
   defp series_start(event), do: Map.get(event, :series_start)
+
+  # An occurrence moved on its own can end after the last start its series'
+  # rule allows, and its room is still needed until it ends. Nil (no known
+  # end) stays nil.
+  defp later_than_own(nil, _own_end), do: nil
+  defp later_than_own(rule_end, nil), do: rule_end
+  defp later_than_own(rule_end, own_end), do: later_end(rule_end, own_end)
 
   # The zone the series' UNTIL is read in, as the expander reads it: the
   # event's own for a timed series, UTC (the zone an all-day series is

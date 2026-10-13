@@ -158,6 +158,23 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomTimesTest do
                EventVideoRoomTimes.for_event(occurrence)
     end
 
+    # Its series' rule bounds the series at 17 November, but this occurrence
+    # was moved on its own to 1 December.
+    test "an occurrence moved past its series' last start keeps its room until it ends" do
+      occurrence =
+        "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=3"
+        |> timed()
+        |> Map.merge(%{
+          start_at: ~U[2026-12-01 09:00:00Z],
+          end_at: ~U[2026-12-01 10:00:00Z],
+          recurring_event_id: "parent-event",
+          series_start: ~U[2026-10-05 09:00:00Z]
+        })
+
+      assert {:series, _lobby, ~U[2026-12-01 10:00:00Z]} =
+               EventVideoRoomTimes.for_event(occurrence)
+    end
+
     # An occurrence of a series whose rule is not cached.
     test "an occurrence row naming its parent is a series with no known end" do
       event = Map.put(timed(nil), :recurring_event_id, "parent-event")
