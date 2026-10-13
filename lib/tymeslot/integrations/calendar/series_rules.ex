@@ -24,7 +24,10 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRules do
   alias Tymeslot.Clock
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarEvent
+  alias Tymeslot.Integrations.Calendar.IntegrationCacheQueries
+  alias Tymeslot.Integrations.Calendar.ProviderCalendarSeriesQueries
   alias Tymeslot.Integrations.Calendar.SeriesRuleQueries
+  alias Tymeslot.Repo
 
   require Logger
 
@@ -136,9 +139,26 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRules do
   defp store(integration_id, master_id, found) do
     attrs = Map.put(found, :fetched_at, DateTime.truncate(Clock.utc_now(), :second))
 
-    case SeriesRuleQueries.put(integration_id, master_id, attrs) do
-      {:ok, _row} -> :ok
-      {:error, changeset} -> log_store_failure(integration_id, changeset.errors)
+    # Under the cache lock, so the occurrences cached since the last read get
+    # the rule without racing an upsert of them.
+    result =
+      IntegrationCacheQueries.under_lock(integration_id, fn ->
+        case SeriesRuleQueries.put(integration_id, master_id, attrs) do
+          {:ok, _row} ->
+            ProviderCalendarSeriesQueries.put_occurrence_rule(
+              integration_id,
+              master_id,
+              found.rule
+            )
+
+          {:error, changeset} ->
+            Repo.rollback(changeset.errors)
+        end
+      end)
+
+    case result do
+      {:ok, _count} -> :ok
+      {:error, reason} -> log_store_failure(integration_id, reason)
     end
   rescue
     exception -> log_store_failure(integration_id, exception)

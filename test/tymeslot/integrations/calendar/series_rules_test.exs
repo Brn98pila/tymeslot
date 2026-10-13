@@ -182,6 +182,55 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
 
       assert_received {:read, "stale-master"}
       refute_received {:read, "fresh-master"}
+
+      # The occurrence the provider did not send again gets the rule read.
+      assert rule_of(integration, "occ-1") == "FREQ=WEEKLY"
+    end
+
+    # A busy calendar's bootstrap names more series than one run reads, and a
+    # throttled run stops early: their occurrences are cached without a rule.
+    test "gives an occurrence cached while its rule was unread that rule, once read", %{
+      integration: integration
+    } do
+      {:ok, 1} = Sync.upsert_cache(integration, [occurrence(integration, "occ-1", "master-1")])
+      assert rule_of(integration, "occ-1") == nil
+
+      SeriesRules.refresh(integration.id, [], reader(%{"master-1" => {:ok, found("FREQ=DAILY")}}))
+
+      assert rule_of(integration, "occ-1") == "FREQ=DAILY"
+    end
+
+    test "gives a changed rule to the occurrences a change did not send again", %{
+      integration: integration
+    } do
+      put_rule(integration, "master-1", "FREQ=DAILY")
+
+      {:ok, 2} =
+        Sync.upsert_cache(integration, [
+          occurrence(integration, "occ-1", "master-1"),
+          occurrence(integration, "occ-2", "master-1")
+        ])
+
+      read = reader(%{"master-1" => {:ok, found("FREQ=WEEKLY;BYDAY=MO")}})
+      events = [occurrence(integration, "occ-1", "master-1")]
+
+      SeriesRules.refresh(integration.id, events, read, changed: true)
+
+      assert rule_of(integration, "occ-2") == "FREQ=WEEKLY;BYDAY=MO"
+    end
+
+    test "takes the rule off the occurrences of a master found gone", %{integration: integration} do
+      put_rule(integration, "master-1", "FREQ=DAILY")
+      {:ok, 1} = Sync.upsert_cache(integration, [occurrence(integration, "occ-1", "master-1")])
+
+      SeriesRules.refresh(
+        integration.id,
+        [occurrence(integration, "occ-1", "master-1")],
+        reader(%{"master-1" => :gone}),
+        changed: true
+      )
+
+      assert rule_of(integration, "occ-1") == nil
     end
 
     test "reads at most 50 masters a run", %{integration: integration} do
