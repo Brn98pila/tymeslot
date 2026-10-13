@@ -280,7 +280,10 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Provider do
   """
   @spec item_client_configs(CalendarIntegrationSchema.t() | map()) :: [ClientConfig.t()]
   def item_client_configs(integration) do
-    config = ClientConfig.new(integration)
+    config = %{
+      ClientConfig.new(integration)
+      | calendar_integration_id: integration_id(integration)
+    }
 
     case selected_calendar_ids(integration) do
       [] -> [%{config | calendar_id: :calendar}]
