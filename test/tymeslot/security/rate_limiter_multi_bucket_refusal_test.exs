@@ -138,42 +138,46 @@ defmodule Tymeslot.Security.RateLimiterMultiBucketRefusalTest do
     end
   end
 
-  describe "tier order" do
-    # Both tiers carry the same budget, so after three charges either one would
-    # refuse. The walk is ordered shortest window first and halts on the first
-    # refusal, so the minute-long tier is the one that must speak: sending
-    # somebody away for a day when a minute would do is the failure this pins.
+  describe "which tier speaks" do
+    # The refusal names the tier a retry has to wait longest for, so that the
+    # limit, the window and the wait in one sentence agree. This used to be
+    # the first tier in list order to refuse, the shortest window, which with
+    # a longer tier also full told people to come back in a minute when a
+    # retry then would be refused again for a day.
     @same_budget_tiers [{"1m", 3, 60_000}, {"1d", 3, 24 * 60 * 60_000}]
 
-    test "the tightest tier that tripped is the one the message names" do
+    test "a longer tier that is also full is the one the message names" do
       bucket = fresh_bucket()
 
       for _i <- 1..3, do: assert(:ok = charge(bucket, @same_budget_tiers))
 
       assert {:error, :rate_limited, message} = charge(bucket, @same_budget_tiers)
 
-      assert message =~ "per minute"
-      refute message =~ "per day"
+      assert message ==
+               "You've reached the limit of 3 widgets per day. " <>
+                 "Please try again in 1 day."
     end
 
-    test "list order, not window length, is what decides that" do
-      # The anchor for the test above: the same two tiers the other way round
-      # refuse on the day-long one, so the assertion there can genuinely fail.
-      reversed = Enum.reverse(@same_budget_tiers)
+    test "the shorter tier speaks when a retry after its wait would pass" do
+      # The anchor for the test above: with room left in the day, a minute
+      # does do, and sending somebody away for a day is the failure this pins.
+      tiers = [{"1m", 3, 60_000}, {"1d", 10, 24 * 60 * 60_000}]
       bucket = fresh_bucket()
 
-      for _i <- 1..3, do: assert(:ok = charge(bucket, reversed))
+      for _i <- 1..3, do: assert(:ok = charge(bucket, tiers))
 
-      assert {:error, :rate_limited, message} = charge(bucket, reversed)
+      assert {:error, :rate_limited, message} = charge(bucket, tiers)
 
-      assert message =~ "per day"
+      assert message ==
+               "You've reached the limit of 3 widgets per minute. " <>
+                 "Please try again in 1 minute."
     end
   end
 
   describe "the wait" do
-    # The walk halts on the tier that refused, but a retry walks every tier
-    # again: a wait timed by the refusing tier alone would send someone back
-    # into a longer tier that is still full.
+    # The walk halts on the minute tier, but a retry walks every tier again:
+    # a wait timed by the refusing tier alone would send someone back into
+    # the hour tier, which is still full, so that is the tier that speaks.
     test "covers a longer tier that a retry would still trip" do
       bucket = fresh_bucket()
       tiers = [{"1m", 2, 60_000}, {"1h", 3, 60 * 60_000}]
@@ -184,7 +188,7 @@ defmodule Tymeslot.Security.RateLimiterMultiBucketRefusalTest do
       assert {:error, :rate_limited, message} = charge(bucket, tiers)
 
       assert message ==
-               "You've reached the limit of 2 widgets per minute. " <>
+               "You've reached the limit of 3 widgets per hour. " <>
                  "Please try again in 1 hour."
 
       # Working the wait out charged nothing past the refusing tier.

@@ -264,8 +264,8 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
       nil ->
         :ok
 
-      {limit, window_ms, operation, action} ->
-        retry_after_ms = retry_after(buckets)
+      refusal ->
+        {limit, window_ms, operation, action, retry_after_ms} = binding_tier(buckets, refusal)
 
         if Keyword.get(opts, :log, true) do
           # No identifier here: these bucket bases embed one (an email address
@@ -278,11 +278,8 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
     end
   end
 
-  # The tiers are walked in list order and the walk halts on the first
-  # refusal. They are ordered shortest window first, so the tier that halts
-  # the walk is the tightest one that tripped, and its limit and window are
-  # what the sentence names: telling someone about the daily cap when the
-  # per-minute one stopped them would send them away for a day.
+  # The tiers are walked in list order, shortest window first, and the walk
+  # halts on the first refusal.
   defp first_refusal(buckets) do
     Enum.reduce_while(buckets, nil, fn {bucket_base, limits, operation, action}, nil ->
       case refusing_tier(bucket_base, limits) do
@@ -301,16 +298,26 @@ defmodule Tymeslot.Security.RateLimiter.Helpers do
     end)
   end
 
-  # The wait the refusal names is until a retry would pass every tier, not
-  # just the one that refused: the walk charged the tiers before it, and the
-  # ones after it may already be full, so a retry timed by the refusing tier
-  # alone could be refused again by another. Worked out without charging.
-  defp retry_after(buckets) do
-    buckets
-    |> Enum.flat_map(fn {bucket_base, limits, _operation, _action} ->
-      for {label, limit, _window_ms} <- limits,
-          do: RateLimit.retry_after("#{bucket_base}:#{label}", limit)
-    end)
-    |> Enum.max()
+  # The refusal names the tier that binds: the one a retry has to wait
+  # longest for, worked out without charging anything. A retry walks every
+  # tier again, so the walk charged the tiers before the refusing one and the
+  # ones after it may already be full; a wait timed by the refusing tier alone
+  # could send someone straight into another refusal. Naming the binding
+  # tier keeps the limit, window and wait in the sentence in agreement. On a
+  # tie the shorter window speaks: sending somebody away for a day when a
+  # minute would do is the failure that guards against. With nothing to wait
+  # for (the bucket was cleared meanwhile), the refusing tier speaks.
+  defp binding_tier(buckets, refusing) do
+    waits =
+      for {bucket_base, limits, operation, action} <- buckets,
+          {label, limit, window_ms} <- limits do
+        {RateLimit.retry_after("#{bucket_base}:#{label}", limit), -window_ms,
+         {limit, window_ms, operation, action}}
+      end
+
+    case Enum.max_by(waits, fn {wait, shorter, _tier} -> {wait, shorter} end) do
+      {0, _shorter, _tier} -> Tuple.insert_at(refusing, 4, 0)
+      {wait, _shorter, tier} -> Tuple.insert_at(tier, 4, wait)
+    end
   end
 end
