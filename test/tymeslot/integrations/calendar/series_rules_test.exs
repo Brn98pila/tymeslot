@@ -10,6 +10,8 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
   @moduletag :calendar
   @moduletag :integrations
 
+  import ExUnit.CaptureLog
+
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.SeriesRuleQueries
@@ -176,6 +178,37 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
 
       SeriesRules.refresh(integration.id, [], read)
       refute_received {:read, "master-1"}
+    end
+
+    # Graph and Google ids run past 255 bytes.
+    test "stores the rule of a master whose id is longer than 255 bytes", %{
+      integration: integration
+    } do
+      master_id = String.duplicate("A", 300)
+      read = reader(%{master_id => {:ok, found("FREQ=DAILY")}})
+
+      SeriesRules.refresh(integration.id, [occurrence(integration, "occ-1", master_id)], read)
+
+      assert SeriesRuleQueries.get(integration.id, master_id).rule == "FREQ=DAILY"
+    end
+
+    test "skips a read it cannot store and goes on to the next", %{integration: integration} do
+      read =
+        reader(%{
+          "master-1" => {:ok, %{rule: 123, master_start: nil}},
+          "master-2" => {:ok, found("FREQ=DAILY")}
+        })
+
+      events = [
+        occurrence(integration, "occ-1", "master-1"),
+        occurrence(integration, "occ-2", "master-2")
+      ]
+
+      log = capture_log(fn -> assert :ok = SeriesRules.refresh(integration.id, events, read) end)
+
+      assert log =~ "could not be stored"
+      assert SeriesRuleQueries.get(integration.id, "master-1") == nil
+      assert SeriesRuleQueries.get(integration.id, "master-2").rule == "FREQ=DAILY"
     end
 
     # Throttled, refused or unreachable: every later read would fail alike.

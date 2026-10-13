@@ -23,7 +23,9 @@ defmodule Tymeslot.Repo.Migrations.CreateCalendarSeriesRules do
       add :calendar_integration_id, references(:calendar_integrations, on_delete: :delete_all),
         null: false
 
-      add :provider_master_id, :string, null: false
+      # Text, as `provider_calendar_events.recurring_event_id` is: provider
+      # ids run past 255 bytes.
+      add :provider_master_id, :text, null: false
       # Nil once the master was read and found to be gone or not a series,
       # which spares asking again until the read is stale.
       add :rule, :text
@@ -35,13 +37,16 @@ defmodule Tymeslot.Repo.Migrations.CreateCalendarSeriesRules do
 
     create unique_index(:calendar_series_rules, [:calendar_integration_id, :provider_master_id])
 
-    # Why these resets are safe: neither deletes anything. A Google
+    # Why these resets are safe: neither deletes anything itself. A Google
     # integration without a sync token makes a full list on its next run, and
     # an Outlook one without a full-sync time makes a fresh delta bootstrap;
     # both upsert the rows they read by the same uids the incremental reads
-    # use, so the cache keeps every row and only gains the rules. Each costs
-    # one full read per integration, once. The update touches one small row
-    # per integration, so it runs inside the migration's transaction.
+    # use, so the rows they return are kept and gain their rules. The only
+    # rows that go are the ones a full read removes on any day: Google's
+    # full list sweeps cached rows it no longer returns, as it does whenever
+    # it lists in full. Each reset costs one full read per integration, once.
+    # The update touches one small row per integration, so it runs inside the
+    # migration's transaction.
     # excellent_migrations:safety-assured-for-next-line raw_sql_executed
     execute("""
     UPDATE calendar_integrations SET google_sync_token = NULL

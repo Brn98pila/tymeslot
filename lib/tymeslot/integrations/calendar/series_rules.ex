@@ -100,13 +100,26 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRules do
     |> Enum.map(&{&1.recurring_event_id, &1.provider_calendar_id})
   end
 
+  # A read that cannot be stored is skipped, like one that cannot be made: a
+  # rule read never fails the sync it runs in.
   defp store(integration_id, master_id, found) do
-    {:ok, _row} =
-      SeriesRuleQueries.put(
-        integration_id,
-        master_id,
-        Map.put(found, :fetched_at, DateTime.truncate(Clock.utc_now(), :second))
-      )
+    attrs = Map.put(found, :fetched_at, DateTime.truncate(Clock.utc_now(), :second))
+
+    case SeriesRuleQueries.put(integration_id, master_id, attrs) do
+      {:ok, _row} -> :ok
+      {:error, changeset} -> log_store_failure(integration_id, changeset.errors)
+    end
+  rescue
+    exception -> log_store_failure(integration_id, exception)
+  end
+
+  defp log_store_failure(integration_id, reason) do
+    Logger.error("A series rule read could not be stored",
+      calendar_integration_id: integration_id,
+      reason: LogFormat.reason(reason)
+    )
+
+    :ok
   end
 
   @doc """
