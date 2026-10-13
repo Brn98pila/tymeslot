@@ -23,8 +23,7 @@ defmodule Tymeslot.Polls.PollParticipantSchema do
     field(:email, :string)
     # The per-person `?p=` token. Registering again with the same address
     # resumes the participant and hands their link back, so the token is
-    # encrypted rather than only hashed; it is looked up by `token_hash`. The
-    # plain `token` column predates this and is no longer read or written.
+    # encrypted rather than only hashed; it is looked up by `token_hash`.
     field(:token, EncryptedString, source: :token_encrypted, redact: true)
     field(:token_hash, :string)
     field(:timezone, :string)

@@ -46,8 +46,7 @@ defmodule Tymeslot.Meetings.GuestSchema do
     field(:status, :string, default: "pending")
     # Every email a guest is sent (confirmation, reminders, reschedules)
     # rebuilds their RSVP links from this token, so it is encrypted rather
-    # than only hashed, and looked up by `rsvp_token_hash`. The plain
-    # `rsvp_token` column predates this and is no longer read or written.
+    # than only hashed, and looked up by `rsvp_token_hash`.
     field(:rsvp_token, EncryptedString, source: :rsvp_token_encrypted, redact: true)
     field(:rsvp_token_hash, :string)
     field(:responded_at, :utc_datetime)

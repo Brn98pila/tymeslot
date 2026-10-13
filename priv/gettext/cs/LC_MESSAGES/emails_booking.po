@@ -932,11 +932,6 @@ msgstr "Nemusíte nic dělat. Pokud jste si schůzku přidali do kalendáře, p�
 msgid "You received %{amount}"
 msgstr "Náleží vám %{amount}"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation/payment_blocks.ex
-#, elixir-autogen, elixir-format
-msgid "You received: %{amount} (less Stripe processing fees)"
-msgstr "Náleží vám: %{amount} (po odečtení poplatků za zpracování Stripe)"
-
 #: lib/tymeslot/emails/templates/appointment_cancellation/refund_notice.ex
 #, elixir-autogen, elixir-format
 msgid "You still hold %{amount} for this booking."
@@ -1354,3 +1349,8 @@ msgstr "Nastavte si připomínku: %{time} předem"
 #, elixir-autogen, elixir-format
 msgid "Test video/audio setup if virtual"
 msgstr "Vyzkoušejte zvuk a video, pokud jde o videohovor"
+
+#: lib/tymeslot/emails/templates/appointment_confirmation/payment_blocks.ex
+#, elixir-autogen, elixir-format
+msgid "You received: %{amount} (before Stripe processing fees)"
+msgstr "Obdrželi jste: %{amount} (před odečtením poplatků Stripe za zpracování plateb)"

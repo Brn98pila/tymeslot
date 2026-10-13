@@ -767,23 +767,6 @@ what the new one writes in that window. Run the helpers over SSH, for example
 Dockerfile build (the Railpack build keeps the release at
 `/app/_build/prod/rel/tymeslot/bin/tymeslot`).
 
-### Before dropping the plain-text copies
-
-Upgrading to the release that encrypted webhook URLs, custom meeting links, push-channel secrets
-and link tokens kept their old plain-text columns, so that an image rolled back across it still
-works. A later release removes them. Before it does, this read-only check lists the rows that
-still need attention:
-
-```bash
-docker exec tymeslot /app/bin/tymeslot eval "Tymeslot.Release.Encryption.plain_only_report()"
-```
-
-For each plain column it counts rows whose value is missing from the encrypted copy (`plain only`,
-written by a rolled-back image), differs from it (`differing`), or cannot be compared because no
-key opens the copy (`unreadable`), with sample row ids, and ends with `clear` once none remain.
-Telegram link tokens are only counted (`short-lived`): they last ten minutes and are never
-restored, so they never hold the removal back.
-
 ---
 
 ## Common Commands

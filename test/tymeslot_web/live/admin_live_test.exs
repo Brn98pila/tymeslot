@@ -131,7 +131,8 @@ defmodule TymeslotWeb.AdminLiveTest do
 
       assert Application.get_env(:tymeslot, :registration_enabled) == false
       assert %{registration_enabled: false} = AppSettings.get!()
-      assert html =~ "Registration enabled disabled."
+      assert html =~ "Registration turned off."
+      refute html =~ "Registration enabled disabled."
     end
 
     test "clicking the Enabled tag persists and takes effect immediately", %{conn: conn} do
@@ -147,7 +148,7 @@ defmodule TymeslotWeb.AdminLiveTest do
 
       assert Application.get_env(:tymeslot, :registration_enabled) == true
       assert %{registration_enabled: true} = AppSettings.get!()
-      assert html =~ "Registration enabled enabled."
+      assert html =~ "Registration turned on."
     end
 
     test "toggling booking analytics persists and flips Analytics.enabled?/0", %{conn: conn} do
@@ -163,7 +164,7 @@ defmodule TymeslotWeb.AdminLiveTest do
       assert Application.get_env(:tymeslot, :booking_analytics_enabled) == false
       assert %{booking_analytics_enabled: false} = AppSettings.get!()
       refute Analytics.enabled?()
-      assert html =~ "Booking analytics disabled."
+      assert html =~ "Booking analytics turned off."
     end
 
     test "the tag matching the effective value is disabled so re-clicks are no-ops", %{conn: conn} do
