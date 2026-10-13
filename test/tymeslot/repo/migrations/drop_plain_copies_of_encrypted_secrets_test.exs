@@ -123,7 +123,7 @@ defmodule Tymeslot.Repo.Migrations.DropPlainCopiesOfEncryptedSecretsTest do
                "channel-secret-from-rollback"
     end
 
-    test "heals every row of a column longer than one page" do
+    test "heals and restores every row of a column longer than one page" do
       webhook = insert(:webhook)
       clone_rows("webhooks", webhook.id, @page_size)
       MigrationRunner.down!(@version)
@@ -140,6 +140,14 @@ defmodule Tymeslot.Repo.Migrations.DropPlainCopiesOfEncryptedSecretsTest do
       assert Enum.reject(rows, fn [id, ciphertext] ->
                Encryption.decrypt(ciphertext) == "https://hooks.example.com/#{id}"
              end) == []
+
+      MigrationRunner.down!(@version)
+
+      %{rows: restored} = Repo.query!("SELECT id, url FROM webhooks")
+      assert length(restored) == @page_size + 1
+
+      assert Enum.reject(restored, fn [id, url] -> url == "https://hooks.example.com/#{id}" end) ==
+               []
     end
 
     test "a free/busy token issued by a rolled-back image resolves through the feed lookup" do
