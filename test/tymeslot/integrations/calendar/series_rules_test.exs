@@ -12,11 +12,17 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
 
   import ExUnit.CaptureLog
 
+  alias Ecto.Changeset
+  alias Tymeslot.CalendarGrid.EventDeletion
   alias Tymeslot.Integrations.Calendar.CalendarEvent
+  alias Tymeslot.Integrations.Calendar.Google.CacheSweep
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
+  alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Integrations.Calendar.SeriesRuleQueries
   alias Tymeslot.Integrations.Calendar.SeriesRules
   alias Tymeslot.Integrations.Calendar.Sync
+  alias Tymeslot.Repo
+  alias Tymeslot.Workers.CalendarCachePruneWorker
 
   setup do
     %{integration: insert(:calendar_integration, provider: "outlook")}
@@ -91,8 +97,65 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
 
       :ok = Sync.reconcile_deletions(integration, [%{provider_event_id: "occ-1", uid: "occ-1"}])
 
-      assert SeriesRuleQueries.get(integration.id, "master-1") == nil
-      assert %{rule: "FREQ=DAILY"} = SeriesRuleQueries.get(integration.id, "master-2")
+      assert stored_rule(integration, "master-1") == nil
+      assert %{rule: "FREQ=DAILY"} = stored_rule(integration, "master-2")
+    end
+  end
+
+  describe "every path that deletes occurrences" do
+    setup %{integration: integration} do
+      put_rule(integration, "gone-master", "FREQ=DAILY")
+      put_rule(integration, "kept-master", "FREQ=WEEKLY")
+
+      {:ok, 2} =
+        Sync.upsert_cache(integration, [
+          occurrence(integration, "gone-occ", "gone-master"),
+          occurrence(integration, "kept-occ", "kept-master")
+        ])
+
+      :ok
+    end
+
+    test "a Google sweep of a listing forgets the rules of the series it emptied", %{
+      integration: integration
+    } do
+      # The listing returned the kept series again; the other is gone from it.
+      Repo.update_all(ProviderCalendarEventSchema,
+        set: [updated_at: ~U[2026-01-01 00:00:00.000000Z]]
+      )
+
+      {:ok, kept} = ProviderCalendarEventQueries.get_by_uid(integration.id, "kept-occ")
+      Repo.update!(Changeset.change(kept, updated_at: DateTime.utc_now()))
+
+      :ok =
+        CacheSweep.sweep(
+          integration,
+          [{"calendar-1", {~U[2026-10-01 00:00:00Z], ~U[2026-11-30 00:00:00Z]}}],
+          DateTime.add(DateTime.utc_now(:second), -60, :second)
+        )
+
+      assert stored_rule(integration, "gone-master") == nil
+      assert stored_rule(integration, "kept-master")
+    end
+
+    test "the cache prune forgets the rules of the series it emptied", %{
+      integration: integration
+    } do
+      ProviderCalendarEventQueries.delete_by_uids(integration.id, ["gone-occ"])
+
+      assert :ok = CalendarCachePruneWorker.perform(%Oban.Job{})
+
+      assert stored_rule(integration, "gone-master") == nil
+      assert stored_rule(integration, "kept-master")
+    end
+
+    test "deleting a whole series' rows from the grid forgets its rule", %{
+      integration: integration
+    } do
+      :ok = EventDeletion.delete_series_rows(integration.id, {:master, "gone-master"})
+
+      assert stored_rule(integration, "gone-master") == nil
+      assert stored_rule(integration, "kept-master")
     end
   end
 
@@ -112,7 +175,7 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
       assert_received {:read, "master-1"}
 
       assert %{rule: "FREQ=WEEKLY;BYDAY=MO", master_start: ~U[2026-10-05 07:00:00Z]} =
-               SeriesRuleQueries.get(integration.id, "master-1")
+               stored_rule(integration, "master-1")
     end
 
     test "reads a master a change names again however fresh its rule is", %{
@@ -124,7 +187,7 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
 
       SeriesRules.refresh(integration.id, events, read, changed: true)
 
-      assert SeriesRuleQueries.get(integration.id, "master-1").rule == "FREQ=WEEKLY;BYDAY=MO"
+      assert stored_rule(integration, "master-1").rule == "FREQ=WEEKLY;BYDAY=MO"
     end
 
     # A listing says nothing changed: a sync run that lists a calendar every
@@ -251,7 +314,7 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
       assert_received {:read, "master-1"}
       {:ok, 1} = Sync.upsert_cache(integration, [occurrence(integration, "occ-1", "master-1")])
 
-      assert %{rule: nil} = SeriesRuleQueries.get(integration.id, "master-1")
+      assert %{rule: nil} = stored_rule(integration, "master-1")
       assert rule_of(integration, "occ-1") == nil
 
       SeriesRules.refresh(integration.id, [], read)
@@ -267,7 +330,7 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
 
       SeriesRules.refresh(integration.id, [occurrence(integration, "occ-1", master_id)], read)
 
-      assert SeriesRuleQueries.get(integration.id, master_id).rule == "FREQ=DAILY"
+      assert stored_rule(integration, master_id).rule == "FREQ=DAILY"
     end
 
     test "skips a read it cannot store and goes on to the next", %{integration: integration} do
@@ -285,8 +348,8 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
       log = capture_log(fn -> assert :ok = SeriesRules.refresh(integration.id, events, read) end)
 
       assert log =~ "could not be stored"
-      assert SeriesRuleQueries.get(integration.id, "master-1") == nil
-      assert SeriesRuleQueries.get(integration.id, "master-2").rule == "FREQ=DAILY"
+      assert stored_rule(integration, "master-1") == nil
+      assert stored_rule(integration, "master-2").rule == "FREQ=DAILY"
     end
 
     # Throttled, refused or unreachable: every later read would fail alike.
@@ -305,7 +368,7 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
       assert :ok = SeriesRules.refresh(integration.id, events, read)
 
       assert received_reads() == ["master-1"]
-      assert SeriesRuleQueries.get(integration.id, "master-2") == nil
+      assert stored_rule(integration, "master-2") == nil
     end
   end
 
@@ -377,4 +440,8 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
     {:ok, row} = ProviderCalendarEventQueries.get_by_uid(integration.id, uid)
     row.recurrence_rule
   end
+
+  # The series' stored row, or nil.
+  defp stored_rule(integration, master_id),
+    do: Map.get(SeriesRuleQueries.list_by_master(integration.id, [master_id]), master_id)
 end

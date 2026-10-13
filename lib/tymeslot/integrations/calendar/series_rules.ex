@@ -239,6 +239,16 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRules do
     |> Enum.map(fn {master_id, row} -> {{integration_id, master_id}, row.master_start} end)
   end
 
+  @doc """
+  `forget_orphans/1` for every integration, after a prune of the cache that
+  spans them all.
+  """
+  @spec forget_all_orphans() :: :ok
+  def forget_all_orphans do
+    SeriesRuleQueries.delete_all_orphans()
+    :ok
+  end
+
   @doc "The distinct masters `calendar_events` name."
   @spec master_ids([map()]) :: [String.t()]
   def master_ids(calendar_events) do

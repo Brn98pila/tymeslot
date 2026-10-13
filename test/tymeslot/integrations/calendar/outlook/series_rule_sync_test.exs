@@ -72,7 +72,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesRuleSyncTest do
       assert rule_of(integration, "occ-1") == "FREQ=WEEKLY;BYDAY=MO"
 
       assert %{master_start: ~U[2026-10-05 07:00:00Z]} =
-               SeriesRuleQueries.get(integration.id, "master-1")
+               stored_rule(integration, "master-1")
     end
 
     test "caches the occurrences without a rule when the master is gone", %{
@@ -83,7 +83,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesRuleSyncTest do
       assert :ok = DeltaSync.fetch_and_apply(integration)
 
       assert rule_of(integration, "occ-1") == nil
-      assert %{rule: nil} = SeriesRuleQueries.get(integration.id, "master-1")
+      assert %{rule: nil} = stored_rule(integration, "master-1")
     end
 
     test "reads no further master once Graph throttles, and still caches every occurrence", %{
@@ -115,12 +115,12 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesRuleSyncTest do
     } do
       serve(delta: [occurrence("occ-1", "master-1")], masters: %{"master-1" => master()})
       :ok = DeltaSync.fetch_and_apply(integration)
-      assert %{rule: "FREQ=WEEKLY;BYDAY=MO"} = SeriesRuleQueries.get(integration.id, "master-1")
+      assert %{rule: "FREQ=WEEKLY;BYDAY=MO"} = stored_rule(integration, "master-1")
 
       serve(delta: [%{"id" => "occ-1", "@removed" => %{"reason" => "deleted"}}], masters: %{})
       :ok = DeltaSync.fetch_and_apply(integration)
 
-      assert SeriesRuleQueries.get(integration.id, "master-1") == nil
+      assert stored_rule(integration, "master-1") == nil
     end
   end
 
@@ -244,4 +244,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesRuleSyncTest do
 
     row.recurrence_rule
   end
+
+  # The series' stored row, or nil.
+  defp stored_rule(integration, master_id),
+    do: Map.get(SeriesRuleQueries.list_by_master(integration.id, [master_id]), master_id)
 end

@@ -57,15 +57,6 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRuleQueries do
     Repo.all(query)
   end
 
-  @doc "One series' stored row, or nil."
-  @spec get(integer(), String.t()) :: SeriesRuleSchema.t() | nil
-  def get(integration_id, master_id) do
-    Repo.get_by(SeriesRuleSchema,
-      calendar_integration_id: integration_id,
-      provider_master_id: master_id
-    )
-  end
-
   @doc """
   Records what a read of the master `master_id` found, replacing what was
   stored for it.
@@ -87,36 +78,42 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRuleQueries do
     )
   end
 
-  @doc "Forgets the series `master_id`, once its master is gone or has no rule."
-  @spec delete(integer(), String.t()) :: :ok
-  def delete(integration_id, master_id) do
-    SeriesRuleSchema
-    |> where([r], r.calendar_integration_id == ^integration_id)
-    |> where([r], r.provider_master_id == ^master_id)
-    |> Repo.delete_all()
-
-    :ok
-  end
-
   @doc """
   Forgets every series of the integration the cache no longer holds an
   occurrence of. Answers how many were forgotten.
   """
   @spec delete_orphans(integer()) :: non_neg_integer()
   def delete_orphans(integration_id) do
-    held =
-      from(e in ProviderCalendarEventSchema,
-        where: e.calendar_integration_id == ^integration_id,
-        where: not is_nil(e.recurring_event_id),
-        select: e.recurring_event_id
+    query =
+      from(r in SeriesRuleSchema,
+        as: :rule,
+        where: r.calendar_integration_id == ^integration_id and not exists(occurrences())
       )
 
-    {count, _rows} =
-      SeriesRuleSchema
-      |> where([r], r.calendar_integration_id == ^integration_id)
-      |> where([r], r.provider_master_id not in subquery(held))
-      |> Repo.delete_all()
+    {count, _rows} = Repo.delete_all(query)
 
     count
+  end
+
+  @doc """
+  `delete_orphans/1` for every integration at once, after a prune of the
+  cache that spans them all.
+  """
+  @spec delete_all_orphans() :: non_neg_integer()
+  def delete_all_orphans do
+    {count, _rows} =
+      Repo.delete_all(from(r in SeriesRuleSchema, as: :rule, where: not exists(occurrences())))
+
+    count
+  end
+
+  # The cached occurrences of the series the `:rule` row stands for.
+  defp occurrences do
+    from(e in ProviderCalendarEventSchema,
+      where:
+        e.calendar_integration_id == parent_as(:rule).calendar_integration_id and
+          e.recurring_event_id == parent_as(:rule).provider_master_id,
+      select: 1
+    )
   end
 end

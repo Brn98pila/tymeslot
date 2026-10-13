@@ -71,7 +71,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.SeriesRuleSyncTest do
              Enum.filter(rows, &(&1.calendar_integration_id == integration.id))
 
     assert %{master_start: ~U[2026-10-05 07:00:00Z]} =
-             SeriesRuleQueries.get(integration.id, "master1")
+             stored_rule(integration, "master1")
   end
 
   describe "a sync cycle" do
@@ -283,4 +283,8 @@ defmodule Tymeslot.Integrations.Calendar.Google.SeriesRuleSyncTest do
       {:ok, %Req.Response{status: status, body: Jason.encode!(body)}}
     end)
   end
+
+  # The series' stored row, or nil.
+  defp stored_rule(integration, master_id),
+    do: Map.get(SeriesRuleQueries.list_by_master(integration.id, [master_id]), master_id)
 end

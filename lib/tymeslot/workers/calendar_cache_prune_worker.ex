@@ -30,6 +30,7 @@ defmodule Tymeslot.Workers.CalendarCachePruneWorker do
   require Logger
 
   alias Tymeslot.Integrations.Calendar.IntegrationCacheQueries
+  alias Tymeslot.Integrations.Calendar.SeriesRules
   alias Tymeslot.Integrations.Calendar.Sync
 
   @grace_days 30
@@ -41,6 +42,7 @@ defmodule Tymeslot.Workers.CalendarCachePruneWorker do
 
     old_count = IntegrationCacheQueries.prune_ended_before(cutoff)
     inactive_count = IntegrationCacheQueries.prune_inactive_integrations()
+    SeriesRules.forget_all_orphans()
 
     Logger.info("Calendar cache prune completed",
       old_events_pruned: old_count,
