@@ -141,7 +141,7 @@ defmodule Tymeslot.Application do
           Tymeslot.Analytics.MetricsCache,
           Tymeslot.Integrations.Calendar.Shared.DiscoveryCache,
           Tymeslot.Integrations.Calendar.RequestCoalescer,
-          # Hammer-backed rate limiter (ETS sliding window)
+          # Rate limiter (sliding log in ETS)
           {Tymeslot.Security.RateLimit, clean_period: :timer.minutes(5)},
           Tymeslot.Infrastructure.CircuitBreakerSupervisor,
           # Background jobs (manual testing mode in tests)

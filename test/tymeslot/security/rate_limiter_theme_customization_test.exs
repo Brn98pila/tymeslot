@@ -147,13 +147,12 @@ defmodule Tymeslot.Security.RateLimiterThemeCustomizationTest do
     test "denies every concurrent hit once the window is already full" do
       user_id = 99_999
 
-      # Fill the window sequentially first. Hammer's lock-free ETS sliding
-      # window inserts a hit before it counts the window, so how many of a
-      # concurrent burst slip past the limit depends on how the inserts and
-      # reads interleave: asserting on that split asserts on the scheduler,
-      # and it does not hold on a CI runner. Past the limit there is no race
-      # left to lose, because every further hit is denied whichever order
-      # they land in.
+      # Fill the window sequentially first. Every hit counts, so a concurrent
+      # burst never gets past the limit, but the limiter records a hit before
+      # it counts the window, so two hits racing for the last slot can both be
+      # refused: how many of a burst into a part-full window get through
+      # depends on the scheduler. Past the limit there is no race left, and
+      # every further hit is refused whichever order they land in.
       for _i <- 1..150 do
         assert :ok = RateLimiter.check(:theme_customization, user_id)
       end

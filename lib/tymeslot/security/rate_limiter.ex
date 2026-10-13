@@ -1,6 +1,6 @@
 defmodule Tymeslot.Security.RateLimiter do
   @moduledoc """
-  Rate limiting backed by Hammer (ETS sliding window).
+  Rate limiting over `Tymeslot.Security.RateLimit`'s sliding log.
 
   Every named limit lives in `Tymeslot.Security.RateLimiter.Limits`, and
   `check/2` charges one of them:
@@ -120,15 +120,10 @@ defmodule Tymeslot.Security.RateLimiter do
   defdelegate clear_bucket(bucket_key), to: Helpers
 
   @doc """
-  Clear all rate limit data.
-
-  Test-only — bypasses Hammer's internal state management.
+  Clear all rate limit data. Test-only.
   """
   @spec clear_all() :: :ok
-  def clear_all do
-    :ets.delete_all_objects(RateLimit)
-    :ok
-  end
+  defdelegate clear_all, to: RateLimit
 
   @doc "The key a per-IP bucket counts as one client: IPv4 as it is, IPv6 by its /64."
   @spec source_key(nil | :inet.ip_address() | String.t()) :: String.t()

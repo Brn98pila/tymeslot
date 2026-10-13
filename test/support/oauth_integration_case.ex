@@ -30,7 +30,7 @@ defmodule TymeslotWeb.OAuthIntegrationCase do
   setup tags do
     DataCase.setup_sandbox(tags)
 
-    # RateLimit (Hammer ETS) is always started in the supervision tree.
+    # RateLimit (an ETS table) is always started in the supervision tree.
     # Clear its state for test isolation.
     RateLimiter.clear_all()
 

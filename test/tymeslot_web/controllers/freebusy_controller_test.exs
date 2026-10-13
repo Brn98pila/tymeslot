@@ -1,5 +1,5 @@
 defmodule TymeslotWeb.FreebusyControllerTest do
-  # async: false — the rate-limit test relies on the shared Hammer ETS bucket,
+  # async: false — the rate-limit test relies on the shared rate-limit ETS bucket,
   # which other async tests clear via RateLimiter's test-only reset. Matches the
   # convention of the other rate-limited controller tests (session, guest_rsvp).
   use TymeslotWeb.ConnCase, async: false

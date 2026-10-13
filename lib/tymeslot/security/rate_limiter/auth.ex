@@ -24,7 +24,7 @@ defmodule Tymeslot.Security.RateLimiter.Auth do
 
   # The failed-login throttle, per email and client address: once a pair has
   # ten failures inside the last hour, `check_auth/2` refuses it until the
-  # oldest age out. It is a Hammer bucket charged only on failure and cleared
+  # oldest age out. It is a limiter bucket charged only on failure and cleared
   # on success, so every row it leaves expires with its window and the
   # limiter's periodic clean drops it, whatever the traffic.
   #

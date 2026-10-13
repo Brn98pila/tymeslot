@@ -44,8 +44,7 @@ defmodule Tymeslot.ApplicationTest do
     end
 
     test "security services are started" do
-      # RateLimit (Hammer ETS) is not a named process; a first hit against a
-      # fresh bucket proves its table is up.
+      # A first hit against a fresh bucket proves the limiter's table is up.
       bucket = "application-test:#{System.unique_integer([:positive])}"
       assert RateLimit.hit(bucket, 60_000, 5) == {:allow, 1}
     end

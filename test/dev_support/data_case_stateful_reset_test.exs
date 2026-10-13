@@ -16,18 +16,18 @@ defmodule Tymeslot.DataCaseAsyncStatefulResetTest do
   test "an async module's setup leaves the shared rate-limiter table alone", %{
     bucket_key: bucket_key
   } do
-    assert :ets.match_object(RateLimit, {{bucket_key, :_}, :_}) != [],
+    assert RateLimit.entries(bucket_key) != [],
            "the per-test setup cleared a bucket primed before it, which is a " <>
              "table-wide delete racing every other async test in the VM"
   end
 
   test "an async test can still scope a reset to its own bucket" do
     bucket_key = prime_bucket("async-scoped")
-    assert :ets.match_object(RateLimit, {{bucket_key, :_}, :_}) != []
+    assert RateLimit.entries(bucket_key) != []
 
     RateLimiter.clear_bucket(bucket_key)
 
-    assert :ets.match_object(RateLimit, {{bucket_key, :_}, :_}) == []
+    assert RateLimit.entries(bucket_key) == []
   end
 
   defp prime_bucket(label) do
@@ -71,6 +71,6 @@ defmodule Tymeslot.DataCaseSyncStatefulResetTest do
   test "a sync module's setup still clears the shared rate-limiter table", %{
     bucket_key: bucket_key
   } do
-    assert :ets.match_object(RateLimit, {{bucket_key, :_}, :_}) == []
+    assert RateLimit.entries(bucket_key) == []
   end
 end
