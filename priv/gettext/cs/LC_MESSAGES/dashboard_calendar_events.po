@@ -1503,3 +1503,16 @@ msgstr "Odeslat oznámení o zrušení"
 #, elixir-autogen, elixir-format
 msgid "You already have a meeting at this time. Please choose a different time."
 msgstr "V tuto dobu už máte schůzku. Vyberte prosím jiný čas."
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/ics_import.ex
+#, elixir-autogen, elixir-format
+msgid "1 event repeats in a way Outlook can't store, so it was not imported."
+msgid_plural "%{count} events repeat in a way Outlook can't store, so they were not imported."
+msgstr[0] "1 událost se opakuje způsobem, který Outlook neumí uložit, a proto nebyla importována."
+msgstr[1] "%{count} události se opakují způsobem, který Outlook neumí uložit, a proto nebyly importovány."
+msgstr[2] "%{count} událostí se opakuje způsobem, který Outlook neumí uložit, a proto nebylo importováno."
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/edit_workflow.ex
+#, elixir-autogen, elixir-format
+msgid "This repeat pattern can't be saved to Outlook."
+msgstr "Tento způsob opakování nelze uložit do Outlooku."

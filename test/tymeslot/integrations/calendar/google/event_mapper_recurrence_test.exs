@@ -49,6 +49,33 @@ defmodule Tymeslot.Integrations.Calendar.Google.EventMapperRecurrenceTest do
     end
   end
 
+  # Outlook refuses some ordinal rules it has no pattern for; Google stores
+  # the RRULE itself, so the same rules reach it unchanged.
+  describe "an ordinal monthly rule" do
+    for rule <- [
+          "FREQ=MONTHLY;BYDAY=2TU",
+          "FREQ=MONTHLY;BYDAY=-1FR",
+          "FREQ=MONTHLY;BYDAY=2TU,-1FR"
+        ] do
+      test "#{rule} is written as its RRULE, on create and on edit" do
+        event_data = %{
+          summary: "Review",
+          start_time: ~U[2026-04-14 10:00:00Z],
+          end_time: ~U[2026-04-14 11:00:00Z],
+          recurrence_rule: unquote(rule)
+        }
+
+        assert EventMapper.format_new_event_data(event_data)["recurrence"] == [
+                 "RRULE:" <> unquote(rule)
+               ]
+
+        assert EventMapper.format_event_data(event_data)["recurrence"] == [
+                 "RRULE:" <> unquote(rule)
+               ]
+      end
+    end
+  end
+
   describe "format_new_event_data/1 — recurrence" do
     test "follows a new series' rule with its excluded occurrences" do
       event_data = %{

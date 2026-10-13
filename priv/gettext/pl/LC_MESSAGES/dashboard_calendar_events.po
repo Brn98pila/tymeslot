@@ -1499,3 +1499,16 @@ msgstr "Wyślij odwołanie"
 #, elixir-autogen, elixir-format
 msgid "You already have a meeting at this time. Please choose a different time."
 msgstr "Masz już spotkanie o tej porze. Wybierz inną godzinę."
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/ics_import.ex
+#, elixir-autogen, elixir-format
+msgid "1 event repeats in a way Outlook can't store, so it was not imported."
+msgid_plural "%{count} events repeat in a way Outlook can't store, so they were not imported."
+msgstr[0] "1 wydarzenie powtarza się w sposób, którego Outlook nie potrafi zapisać, więc go nie zaimportowano."
+msgstr[1] "%{count} wydarzenia powtarzają się w sposób, którego Outlook nie potrafi zapisać, więc ich nie zaimportowano."
+msgstr[2] "%{count} wydarzeń powtarza się w sposób, którego Outlook nie potrafi zapisać, więc ich nie zaimportowano."
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/edit_workflow.ex
+#, elixir-autogen, elixir-format
+msgid "This repeat pattern can't be saved to Outlook."
+msgstr "Tego schematu powtarzania nie można zapisać w kalendarzu Outlook."

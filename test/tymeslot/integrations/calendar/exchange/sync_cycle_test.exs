@@ -7,6 +7,8 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.SyncCycleTest do
 
   use Tymeslot.DataCase, async: false
 
+  import ExUnit.CaptureLog
+  import Tymeslot.AdminAlertsCaptureHelpers
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.ExchangeSyncStubs
   import Tymeslot.Factory
@@ -17,6 +19,7 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.SyncCycleTest do
   alias Plug.Conn
   alias Req.Test, as: ReqTest
   alias Tymeslot.ExchangeCase
+  alias Tymeslot.ExchangeFixtures
   alias Tymeslot.Integrations.Calendar.CalendarEventQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.Exchange.SyncCycle
@@ -99,5 +102,44 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.SyncCycleTest do
              SyncCycle.run(integration)
 
     assert rows(integration, "busy_only")
+  end
+
+  # The calendar that silently empties: a server answering bare ids would have
+  # every item rejected by the normaliser, and a full read of nothing would
+  # replace the grid's rows.
+  test "items answered without their properties keep the cached grid", %{
+    integration: integration
+  } do
+    stub_full_sync()
+    assert :ok = SyncCycle.run(integration)
+    assert rows(integration, "display_only")
+
+    stub_full_sync(get_item: ExchangeFixtures.get_item_response(id_only: true))
+
+    assert {:error, :item_properties_missing} = SyncCycle.run(integration)
+    assert rows(integration, "display_only")
+  end
+
+  describe "one item answered without its properties" do
+    setup :capture_admin_alerts
+
+    test "is skipped and reported, and the rest of the read is cached", %{
+      integration: integration
+    } do
+      stub_full_sync(
+        find_item: ExchangeFixtures.find_item_response([{"item-1", "ck-1"}, {"item-2", "ck-2"}]),
+        get_item:
+          ExchangeFixtures.get_item_batch_response([
+            {:ok, id: "item-1", uid: "uid-1"},
+            {:ok, id: "item-2", id_only: true}
+          ])
+      )
+
+      capture_log(fn -> assert :ok = run(integration) end)
+
+      assert Enum.map(grid_rows(integration), & &1.provider_event_id) == ["item-1"]
+
+      assert_received {:send_alert, :invalid_calendar_event, %{count: 1, provider: :exchange}}
+    end
   end
 end

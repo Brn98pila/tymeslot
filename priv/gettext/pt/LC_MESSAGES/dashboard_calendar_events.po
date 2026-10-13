@@ -1483,3 +1483,15 @@ msgstr "Enviar cancelamento"
 #, elixir-autogen, elixir-format
 msgid "You already have a meeting at this time. Please choose a different time."
 msgstr "Você já tem uma reunião marcada nesse horário. Escolha outro."
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/ics_import.ex
+#, elixir-autogen, elixir-format
+msgid "1 event repeats in a way Outlook can't store, so it was not imported."
+msgid_plural "%{count} events repeat in a way Outlook can't store, so they were not imported."
+msgstr[0] "1 evento se repete de uma forma que o Outlook não consegue salvar, então não foi importado."
+msgstr[1] "%{count} eventos se repetem de uma forma que o Outlook não consegue salvar, então não foram importados."
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/edit_workflow.ex
+#, elixir-autogen, elixir-format
+msgid "This repeat pattern can't be saved to Outlook."
+msgstr "Este padrão de repetição não pode ser salvo no Outlook."
