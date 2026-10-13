@@ -5,7 +5,8 @@ defmodule Tymeslot.Integrations.Calendar.IcsGeneratorBrandingTest do
   organiser's subscription calls for it.
   """
 
-  # Swaps the global `:show_branding` and `:ics_branding_url` settings.
+  # Swaps the global `:show_branding`, `:ics_branding_url` and
+  # `:subscription_manager` settings.
   use Tymeslot.DataCase, async: false
   @moduletag :integrations
   @moduletag :payments
@@ -25,12 +26,20 @@ defmodule Tymeslot.Integrations.Calendar.IcsGeneratorBrandingTest do
   setup do
     previous_url = Application.get_env(:tymeslot, :ics_branding_url)
     previous_flag = Application.get_env(:tymeslot, :show_branding)
+    previous_manager = Application.get_env(:tymeslot, :subscription_manager)
     Application.put_env(:tymeslot, :ics_branding_url, @url)
     Application.put_env(:tymeslot, :show_branding, true)
+    # Pinned rather than inherited: other modules swap or delete it.
+    Application.put_env(
+      :tymeslot,
+      :subscription_manager,
+      Tymeslot.Payments.SubscriptionManagerMock
+    )
 
     on_exit(fn ->
       Application.put_env(:tymeslot, :ics_branding_url, previous_url)
       Application.put_env(:tymeslot, :show_branding, previous_flag)
+      Application.put_env(:tymeslot, :subscription_manager, previous_manager)
     end)
 
     # Only user 42 is on the free tier.
@@ -85,18 +94,20 @@ defmodule Tymeslot.Integrations.Calendar.IcsGeneratorBrandingTest do
   end
 
   test "the footer follows the attendee's language" do
-    assert IcsGenerator.generate_ics(
-             %{
-               title: "Intro call",
-               start_time: ~U[2026-11-02 14:00:00Z],
-               end_time: ~U[2026-11-02 14:30:00Z],
-               organizer_email: "host@example.com",
-               organizer_name: "Host",
-               organizer_user_id: 42
-             },
-             "de"
-           )
-           |> unfold() =~ "Geplant mit Tymeslot: #{@url}"
+    ics =
+      IcsGenerator.generate_ics(
+        %{
+          title: "Intro call",
+          start_time: ~U[2026-11-02 14:00:00Z],
+          end_time: ~U[2026-11-02 14:30:00Z],
+          organizer_email: "host@example.com",
+          organizer_name: "Host",
+          organizer_user_id: 42
+        },
+        "de"
+      )
+
+    assert unfold(ics) =~ "Geplant mit Tymeslot: #{@url}"
   end
 
   test "a dashboard event's invitation email carries its organiser's footer" do
