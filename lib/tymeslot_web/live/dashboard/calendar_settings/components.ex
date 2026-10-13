@@ -380,7 +380,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
           )}
         </button>
         <FeedControls.feed_controls
-          :if={@feed}
+          :if={@subscription?}
           integration={@integration}
           feed={@feed}
           display_name={@display_name}

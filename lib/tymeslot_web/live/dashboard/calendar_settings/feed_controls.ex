@@ -3,7 +3,9 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.FeedControls do
   The settings of a subscribed calendar, shown on its card: a subscription
   has no Manage calendars modal, so whether its one calendar blocks the
   booking page, and whether every event in the feed counts as busy, are
-  chosen here.
+  chosen here. Every subscription gets the busy toggle; the blocking choice
+  needs the feed's calendar entry, which a subscription without a calendar
+  list lacks.
   """
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
@@ -12,7 +14,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.FeedControls do
 
   @doc "The subscription's busy-time controls, for its card's footer."
   attr :integration, :map, required: true
-  attr :feed, :map, required: true
+  attr :feed, :map, default: nil
   attr :display_name, :string, required: true
   attr :myself, :any, required: true
 
@@ -20,6 +22,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.FeedControls do
   def feed_controls(assigns) do
     ~H"""
     <.segmented_control
+      :if={@feed}
       id={"calendar-#{@integration.id}-feed-busy"}
       size={:sm}
       value={to_string(@feed.blocks_availability)}
