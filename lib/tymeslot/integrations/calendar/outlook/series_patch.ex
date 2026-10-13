@@ -238,10 +238,11 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesPatch do
   # A rule that states no week start keeps the series' own. Rules cached
   # before the week start was read from Graph carry no WKST, and writing
   # them as Monday would move the Sundays of a Sunday-start fortnightly
-  # series into the other weeks.
+  # series into the other weeks. Only a weekly master has a week start of
+  # its own: Graph answers its default on every other pattern too.
   defp week_start(
          %{"firstDayOfWeek" => _written} = pattern,
-         %{"pattern" => %{"firstDayOfWeek" => own}},
+         %{"pattern" => %{"type" => "weekly", "firstDayOfWeek" => own}},
          rule
        )
        when is_binary(own) do

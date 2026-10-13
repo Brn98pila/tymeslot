@@ -319,6 +319,23 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesPatchTest do
       assert pattern["firstDayOfWeek"] == "sunday"
     end
 
+    # Graph answers firstDayOfWeek on a daily pattern too, as its default.
+    test "that states no week start, for a series that was not weekly, starts on Monday" do
+      master =
+        put_in(@master, ["recurrence", "pattern"], %{
+          "type" => "daily",
+          "interval" => 1,
+          "firstDayOfWeek" => "sunday"
+        })
+
+      rule = "FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO"
+
+      assert {:ok, %{"recurrence" => %{"pattern" => pattern}}} =
+               SeriesPatch.build(master, edit(%{recurrence_rule: rule}))
+
+      assert pattern["firstDayOfWeek"] == "monday"
+    end
+
     test "that states a week start writes it over the series' own" do
       rule = "FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=MO"
 
