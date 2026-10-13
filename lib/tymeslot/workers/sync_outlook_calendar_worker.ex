@@ -209,7 +209,9 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
     case OutlookProvider.normalise_events([event], context) do
       {:ok, [_cal_event | _rest] = calendar_events} ->
         :ok =
-          SeriesRules.refresh(integration.id, calendar_events, SeriesMaster.reader(integration))
+          SeriesRules.refresh(integration.id, calendar_events, SeriesMaster.reader(integration),
+            changed: true
+          )
 
         # A cache write that failed is a cycle that did not sync: the job
         # retries and health state counts it, rather than the sync being

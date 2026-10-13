@@ -173,7 +173,11 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.DeltaSync do
     {removed, changed} = Enum.split_with(events, &Map.has_key?(&1, "@removed"))
     calendar_events = build_calendar_events(changed, integration)
     removed_uids = process_removed(removed, integration)
-    :ok = SeriesRules.refresh(integration.id, calendar_events, SeriesMaster.reader(integration))
+
+    :ok =
+      SeriesRules.refresh(integration.id, calendar_events, SeriesMaster.reader(integration),
+        changed: true
+      )
 
     # Writes through `Sync.upsert_cache/2` rather than straight to the queries
     # module so this path gets ownership flagging like every other. A booking

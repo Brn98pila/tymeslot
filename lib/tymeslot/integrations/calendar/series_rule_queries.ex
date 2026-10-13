@@ -21,6 +21,14 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRuleQueries do
     |> Map.new(&{&1.provider_master_id, &1})
   end
 
+  @doc "How many of the integration's masters were read at or after `since`."
+  @spec count_read_since(integer(), DateTime.t()) :: non_neg_integer()
+  def count_read_since(integration_id, since) do
+    SeriesRuleSchema
+    |> where([r], r.calendar_integration_id == ^integration_id and r.fetched_at >= ^since)
+    |> Repo.aggregate(:count)
+  end
+
   @doc """
   Up to `limit` masters the integration's cache holds occurrences of whose
   rule was never read, or last read before `stale_before`, leaving out

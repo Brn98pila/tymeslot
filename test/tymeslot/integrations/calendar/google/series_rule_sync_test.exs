@@ -74,6 +74,91 @@ defmodule Tymeslot.Integrations.Calendar.Google.SeriesRuleSyncTest do
              SeriesRuleQueries.get(integration.id, "master1")
   end
 
+  describe "a sync cycle" do
+    setup do
+      integration =
+        insert(:calendar_integration,
+          provider: "google",
+          google_sync_token: "valid-token",
+          default_booking_calendar_id: nil,
+          calendar_list: [
+            %{"id" => "primary", "selected" => true, "name" => "Primary"},
+            %{"id" => "work@example.com", "selected" => true, "name" => "Work"}
+          ]
+        )
+
+      test_pid = self()
+
+      stub(GoogleCalendarAPIMock, :get_series_master, fn _integration, _calendar, master_id ->
+        send(test_pid, {:master_read, master_id})
+        {:ok, %{"recurrence" => ["RRULE:FREQ=DAILY"], "start" => %{"date" => "2026-10-05"}}}
+      end)
+
+      %{integration: integration}
+    end
+
+    # The other calendar is listed in full every run; its series' rules are
+    # fresh after the first.
+    test "reads no master again on a second run that changes nothing", %{
+      integration: integration
+    } do
+      for _run <- 1..2 do
+        expect(GoogleCalendarAPIMock, :list_events_incremental, fn _integration ->
+          {:ok, %{events: [], next_sync_token: "next"}}
+        end)
+
+        expect(GoogleCalendarAPIMock, :list_events, fn _integration,
+                                                       "work@example.com",
+                                                       _from,
+                                                       _to ->
+          {:ok, [series_instance("work-master", "2026-10-19")]}
+        end)
+
+        assert :ok =
+                 perform_job(SyncGoogleCalendarWorker, %{
+                   "calendar_integration_id" => integration.id
+                 })
+      end
+
+      assert master_reads() == ["work-master"]
+    end
+
+    test "reads at most 50 masters across the booking and other calendars", %{
+      integration: integration
+    } do
+      changed = for n <- 1..30, do: series_instance("booking-#{n}", "2026-10-19")
+      listed = for n <- 1..30, do: series_instance("work-#{n}", "2026-10-19")
+
+      expect(GoogleCalendarAPIMock, :list_events_incremental, fn _integration ->
+        {:ok, %{events: changed, next_sync_token: "next"}}
+      end)
+
+      stub(GoogleCalendarAPIMock, :list_instances, fn _integration,
+                                                      _calendar,
+                                                      master_id,
+                                                      _from,
+                                                      _to ->
+        {:ok, Enum.filter(changed, &(&1["recurringEventId"] == master_id))}
+      end)
+
+      expect(GoogleCalendarAPIMock, :list_events, fn _integration,
+                                                     "work@example.com",
+                                                     _from,
+                                                     _to ->
+        {:ok, listed}
+      end)
+
+      assert :ok =
+               perform_job(SyncGoogleCalendarWorker, %{
+                 "calendar_integration_id" => integration.id
+               })
+
+      reads = master_reads()
+      assert length(reads) == 50
+      assert Enum.uniq(reads) == reads
+    end
+  end
+
   describe "reading a recurring event" do
     setup do
       previous = Application.get_env(:tymeslot, :google_calendar_api_module)
@@ -170,6 +255,27 @@ defmodule Tymeslot.Integrations.Calendar.Google.SeriesRuleSyncTest do
       "start" => %{"dateTime" => "2026-10-19T09:00:00+02:00", "timeZone" => "Europe/Berlin"},
       "end" => %{"dateTime" => "2026-10-19T09:30:00+02:00", "timeZone" => "Europe/Berlin"}
     }
+  end
+
+  defp series_instance(master_id, date) do
+    %{
+      "id" => "#{master_id}_#{String.replace(date, "-", "")}",
+      "iCalUID" => "#{master_id}@google.com",
+      "recurringEventId" => master_id,
+      "originalStartTime" => %{"date" => date},
+      "status" => "confirmed",
+      "summary" => "Series #{master_id}",
+      "start" => %{"date" => date},
+      "end" => %{"date" => Date.from_iso8601!(date) |> Date.add(1) |> Date.to_iso8601()}
+    }
+  end
+
+  defp master_reads do
+    receive do
+      {:master_read, master_id} -> [master_id | master_reads()]
+    after
+      0 -> []
+    end
   end
 
   defp serve(status, body) do

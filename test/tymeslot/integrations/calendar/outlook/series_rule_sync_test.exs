@@ -133,6 +133,19 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesRuleSyncTest do
     assert rule_of(integration, "occ-1") == "FREQ=WEEKLY;BYDAY=MO"
   end
 
+  # A bootstrap is a listing: it changes nothing a fresh rule needs reading
+  # again for.
+  test "a second bootstrap reads no master whose rule is fresh", %{integration: integration} do
+    serve(delta: [occurrence("occ-1", "master-1")], masters: %{"master-1" => master()})
+
+    for _run <- 1..2 do
+      assert {:ok, _integration} =
+               GraphSubscription.bootstrap_sync(%{integration | graph_delta_link: nil})
+    end
+
+    assert master_reads() == ["master-1"]
+  end
+
   test "a webhook fetch gives the occurrence its series' rule", %{integration: integration} do
     serve(
       events: %{"occ-1" => occurrence("occ-1", "master-1")},

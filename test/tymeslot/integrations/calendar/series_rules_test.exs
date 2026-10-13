@@ -115,13 +115,42 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
                SeriesRuleQueries.get(integration.id, "master-1")
     end
 
-    test "reads a named master again however fresh its rule is", %{integration: integration} do
+    test "reads a master a change names again however fresh its rule is", %{
+      integration: integration
+    } do
+      put_rule(integration, "master-1", "FREQ=DAILY")
+      read = reader(%{"master-1" => {:ok, found("FREQ=WEEKLY;BYDAY=MO")}})
+      events = [occurrence(integration, "occ-1", "master-1")]
+
+      SeriesRules.refresh(integration.id, events, read, changed: true)
+
+      assert SeriesRuleQueries.get(integration.id, "master-1").rule == "FREQ=WEEKLY;BYDAY=MO"
+    end
+
+    # A listing says nothing changed: a sync run that lists a calendar every
+    # time must not read every series it holds every time.
+    test "reads no master a listing names while its rule is fresh", %{integration: integration} do
       put_rule(integration, "master-1", "FREQ=DAILY")
       read = reader(%{"master-1" => {:ok, found("FREQ=WEEKLY;BYDAY=MO")}})
 
       SeriesRules.refresh(integration.id, [occurrence(integration, "occ-1", "master-1")], read)
 
-      assert SeriesRuleQueries.get(integration.id, "master-1").rule == "FREQ=WEEKLY;BYDAY=MO"
+      assert received_reads() == []
+    end
+
+    # A sync cycle calls refresh once per batch it caches: the delta, the
+    # series it relists, each other calendar.
+    test "reads at most 50 masters across the calls of one cycle", %{integration: integration} do
+      batch = fn range ->
+        for n <- range, do: occurrence(integration, "occ-#{n}", "master-#{n}")
+      end
+
+      read = reader(Map.new(1..60, &{"master-#{&1}", {:ok, found("FREQ=DAILY")}}))
+
+      SeriesRules.refresh(integration.id, batch.(1..30), read, changed: true)
+      SeriesRules.refresh(integration.id, batch.(31..60), read, changed: true)
+
+      assert length(received_reads()) == 50
     end
 
     # A series the cache already holds, whose occurrences did not change.

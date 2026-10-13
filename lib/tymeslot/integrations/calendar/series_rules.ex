@@ -28,12 +28,17 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRules do
 
   require Logger
 
-  # A run reads at most this many masters, one GET each, so a calendar with
-  # many series fills over several runs rather than holding one sync up.
-  @max_reads_per_run 50
+  # At most this many masters are read in a budget window, one GET each, so
+  # a calendar with many series fills over several runs rather than holding
+  # one sync up.
+  @max_reads_per_window 50
 
   # A master not named by a change is read again once its rule is this old.
   @fresh_for_seconds 24 * 60 * 60
+
+  # The span the read budget is counted over: a sync cycle with all its
+  # calls, comfortably.
+  @budget_window_seconds 10 * 60
 
   @typedoc """
   Reads one master, given its id and the calendar an occurrence of it is in
@@ -48,28 +53,41 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRules do
              | {:stop, term()})
 
   @doc """
-  Reads the masters `calendar_events` name, then those of the series the
-  cache holds whose rule was never read or is stale, at most
-  #{@max_reads_per_run} in all, and stores what each read found. Called
-  before the events are cached, so they are stamped with what it found.
+  Reads the series' masters a sync needs and stores what each read found.
+  Called before `calendar_events` are cached, so they are stamped with it.
 
-  A named master is read even when its rule is fresh: its occurrences are in
-  the batch because something about the series changed. Never fails: a read
-  that cannot be made stops the rest for this run, and the occurrences are
-  cached as they would be without it.
+  With `changed: true` the events are a batch of changes (a delta, a pushed
+  change), so every master they name is read, however fresh its rule: its
+  series changed. Otherwise they are a listing, which says nothing changed,
+  and only masters whose rule was never read or is a day old are read. Then
+  the masters of cached series in that state.
+
+  An integration's masters are read at most #{@max_reads_per_window} times in
+  #{div(@budget_window_seconds, 60)} minutes, counted from the reads stored,
+  so the budget holds across every call a sync cycle makes, and across
+  concurrent syncs. Never fails: a read that cannot be made stops the rest
+  for this run, and the occurrences are cached as they would be without it.
   """
-  @spec refresh(integer(), [map()], read()) :: :ok
-  def refresh(integration_id, calendar_events, read) do
+  @spec refresh(integer(), [map()], read(), keyword()) :: :ok
+  def refresh(integration_id, calendar_events, read, opts \\ []) do
+    now = DateTime.truncate(Clock.utc_now(), :second)
+    stale_before = DateTime.add(now, -@fresh_for_seconds, :second)
+
+    read_lately =
+      SeriesRuleQueries.count_read_since(
+        integration_id,
+        DateTime.add(now, -@budget_window_seconds, :second)
+      )
+
+    budget = max(@max_reads_per_window - read_lately, 0)
+
     named = named_masters(calendar_events)
-    named_ids = Enum.map(named, &elem(&1, 0))
+    due = due_named(integration_id, named, stale_before, Keyword.get(opts, :changed, false))
+    due_ids = Enum.map(due, &elem(&1, 0))
+    room = max(budget - length(due), 0)
 
-    stale_before =
-      DateTime.add(DateTime.truncate(Clock.utc_now(), :second), -@fresh_for_seconds, :second)
-
-    room = max(@max_reads_per_run - length(named), 0)
-
-    (named ++ SeriesRuleQueries.masters_to_refresh(integration_id, stale_before, named_ids, room))
-    |> Enum.take(@max_reads_per_run)
+    (due ++ SeriesRuleQueries.masters_to_refresh(integration_id, stale_before, due_ids, room))
+    |> Enum.take(budget)
     |> Enum.reduce_while(:ok, fn {master_id, calendar_id}, :ok ->
       case read.(master_id, calendar_id) do
         {:ok, found} ->
@@ -87,6 +105,19 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRules do
           )
 
           {:halt, :ok}
+      end
+    end)
+  end
+
+  defp due_named(_integration_id, named, _stale_before, true = _changed), do: named
+
+  defp due_named(integration_id, named, stale_before, false = _changed) do
+    stored = SeriesRuleQueries.list_by_master(integration_id, Enum.map(named, &elem(&1, 0)))
+
+    Enum.filter(named, fn {master_id, _calendar_id} ->
+      case Map.fetch(stored, master_id) do
+        {:ok, row} -> DateTime.before?(row.fetched_at, stale_before)
+        :error -> true
       end
     end)
   end
