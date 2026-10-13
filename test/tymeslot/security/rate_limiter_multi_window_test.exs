@@ -2,6 +2,7 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
   use Tymeslot.DataCase, async: false
   @moduletag :security
 
+  alias Tymeslot.Security.RateLimit
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Security.RateLimiter.Limits
 
@@ -165,7 +166,7 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
   end
 
   describe "window lengths" do
-    # Hammer keeps its counters in node-local ETS, which every deploy clears,
+    # The limiter keeps its hits in node-local ETS, which every deploy clears,
     # so a window past a day promised a policy nobody enforced while holding a
     # row per hit for its whole span.
     test "no limit keeps a count for longer than a day" do
@@ -184,19 +185,18 @@ defmodule Tymeslot.Security.RateLimiterMultiWindowTest do
   defp sample_key(:key), do: "window-key"
   defp sample_key(scope) when scope in [:user, :id], do: 4_242
 
-  # The span of every live entry Hammer's sliding window holds under the tiers
-  # of `bucket`: each entry is `{{key, inserted_at_us}, expires_at_us}`.
+  # The span of every hit the limiter holds under the tiers of `bucket`.
   defp windows_ms(bucket) do
-    for {{key, inserted_at}, expires_at} <- :ets.tab2list(Tymeslot.Security.RateLimit),
-        is_binary(key),
-        String.starts_with?(key, bucket <> ":") do
-      div(expires_at - inserted_at, 1000)
-    end
+    for key <- RateLimit.keys(),
+        String.starts_with?(key, bucket <> ":"),
+        span <- spans(key),
+        do: span
   end
 
-  defp all_windows_ms do
-    for {{key, inserted_at}, expires_at} <- :ets.tab2list(Tymeslot.Security.RateLimit),
-        is_binary(key),
+  defp all_windows_ms, do: Enum.flat_map(RateLimit.keys(), &spans/1)
+
+  defp spans(key) do
+    for {inserted_at, expires_at} <- RateLimit.entries(key),
         do: div(expires_at - inserted_at, 1000)
   end
 end

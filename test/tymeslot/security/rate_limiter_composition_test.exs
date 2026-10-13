@@ -113,12 +113,12 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
   end
 
   describe "concurrent access at the limit boundary" do
-    # Hammer's `:sliding_window` algorithm inserts a timestamped entry per call
-    # and counts live entries via a separate `ets.select_count` — this is not
-    # atomic. The guarantee this test pins is weaker than "exactly one allow /
-    # one deny": at most one caller may bypass the limit, and at least one must
-    # be denied. Serves as a regression guard against a backend swap that
-    # relaxes the limit further (e.g. losing even the non-atomic count check).
+    # The limiter records a hit before it counts the window, and the two steps
+    # are not one atomic operation, so two callers racing for the last slot
+    # may both count both hits and both be refused. What must never happen is
+    # both being allowed: that is what a hit going uncounted looks like (rows
+    # once collapsed when two hits on a bucket landed in the same
+    # microsecond). So the test pins at most one allow and at least one deny.
     test "two concurrent requests at the boundary are both served without double-bypass" do
       ip = unique_ip("concurrent-boundary")
 
@@ -126,10 +126,8 @@ defmodule Tymeslot.Security.RateLimiterCompositionTest do
       # hit is the one that flips the bucket over the limit.
       for _i <- 1..9, do: RateLimiter.check(:booking_submit, ip)
 
-      # Two concurrent calls race for the last slot. Because the sliding-window
-      # backend is non-atomic, both callers may insert before either reads the
-      # updated count, meaning both could see :deny. The invariant we can
-      # guarantee: no more than one caller bypasses the limit.
+      # Two concurrent calls race for the last slot. Both may record their hit
+      # before either counts, so both may be refused; neither may go uncounted.
       tasks = [
         Task.Supervisor.async(Tymeslot.TaskSupervisor, fn ->
           RateLimiter.check(:booking_submit, ip)

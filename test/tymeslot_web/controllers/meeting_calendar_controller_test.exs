@@ -6,7 +6,7 @@ defmodule TymeslotWeb.MeetingCalendarControllerTest do
   cancelled-meeting 404s, `.ics` body content correctness, and the per-IP
   rate limit.
   """
-  # async: false — the rate-limit test relies on the shared Hammer ETS
+  # async: false — the rate-limit test relies on the shared rate-limit ETS
   # bucket, which other async tests clear via RateLimiter's test-only reset.
   # Matches the convention of the other rate-limited controller tests
   # (freebusy, session, guest_rsvp).

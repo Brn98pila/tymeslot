@@ -5,7 +5,7 @@ defmodule TymeslotWeb.AuthLiveSignupRateLimitTest do
 
   `SignupSecurity.gate/2` calls
   `Tymeslot.Security.RateLimiter.check(:signup_ip, ip)`, which is a
-  counting Hammer hit rather than a read-only peek. If anything else on the
+  counting rate-limit hit rather than a read-only peek. If anything else on the
   path ever charged the same LiveView submission too, the effective budget
   would be halved and legitimate signups from a shared IP would be locked
   out early.
