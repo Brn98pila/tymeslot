@@ -64,9 +64,17 @@ defmodule Tymeslot.Repo.Migrations.DropPlainCopiesOfEncryptedSecrets do
   # emptying a column before dropping it has no DSL form.
   # excellent_migrations:safety-assured-for-this-file raw_sql_executed
   # The columns have been unread since the encryption release, which is no
-  # longer a supported rollback target. Migrations run offline (start.sh runs
-  # them in a one-shot VM before Phoenix starts), so no request holds the
-  # tables while the columns go.
+  # longer a supported rollback target. Where migrations run before the new
+  # image serves (start.sh runs them in a one-shot VM before Phoenix starts),
+  # nothing touches the columns while they go. A deployment that keeps the
+  # previous image serving while the new one starts (Railway's zero-downtime
+  # overlap) is different: that image never selects these columns (its
+  # fields are `load_in_query: false`), so its reads are safe, but it writes
+  # NULL to a plain column whenever a changeset sets or changes its
+  # encrypted twin, so creating or changing a webhook URL, a free/busy
+  # token, a custom video link or a calendar push secret fails with "column
+  # does not exist" until the old image stops. That window is short and the
+  # user can retry; it is accepted rather than spread over another release.
   # excellent_migrations:safety-assured-for-this-file column_removed
   # Only `down/0` creates indexes, recreating the ones `up/0` dropped on small
   # tables, before the release that looks tokens up by them serves a request.
@@ -97,7 +105,7 @@ defmodule Tymeslot.Repo.Migrations.DropPlainCopiesOfEncryptedSecrets do
   @plain_columns Enum.map(@encrypted, fn {table, column, _id, _hash} -> {table, column} end) ++
                    [{"telegram_integrations", "link_token"}]
 
-  @batch_size 500
+  @page_size 1_000
 
   def up do
     execute(fn ->
@@ -141,29 +149,31 @@ defmodule Tymeslot.Repo.Migrations.DropPlainCopiesOfEncryptedSecrets do
   end
 
   defp heal_column({table, column, id_type, hash_column}) do
-    %{rows: rows} =
-      repo().query!("""
-      SELECT id, #{column}, #{column}_encrypted FROM #{table}
-      WHERE #{column} IS NOT NULL AND #{column} <> ''
-      ORDER BY id
-      """)
+    {healed, healed_unreadable} =
+      reduce_pages(
+        {table, id_type},
+        "#{column}, #{column}_encrypted",
+        "#{column} IS NOT NULL AND #{column} <> ''",
+        {0, 0},
+        fn rows, {healed, healed_unreadable} ->
+          stale =
+            for [id, plain, ciphertext] <- rows,
+                (state = compare(plain, ciphertext)) != :matching,
+                do: {state, id, plain}
 
-    stale =
-      Enum.flat_map(rows, fn [id, plain, ciphertext] ->
-        case compare(plain, ciphertext) do
-          :matching -> []
-          state -> [{state, id, plain}]
+          stale
+          |> Enum.map(fn {_state, id, plain} -> [id, Encryption.encrypt(plain)] end)
+          |> write_encrypted(table, column, id_type, hash_column)
+
+          {healed + length(stale),
+           healed_unreadable + Enum.count(stale, &match?({:unreadable, _id, _plain}, &1))}
         end
-      end)
-
-    stale
-    |> Enum.map(fn {_state, id, plain} -> [id, Encryption.encrypt(plain)] end)
-    |> write_encrypted(table, column, id_type, hash_column)
+      )
 
     Logger.info("Re-encrypted plain-only secrets before dropping their plain column",
       column: "#{table}.#{column}",
-      healed: length(stale),
-      healed_unreadable: Enum.count(stale, &match?({:unreadable, _id, _plain}, &1))
+      healed: healed,
+      healed_unreadable: healed_unreadable
     )
   end
 
@@ -181,26 +191,48 @@ defmodule Tymeslot.Repo.Migrations.DropPlainCopiesOfEncryptedSecrets do
   # The hash is computed from the plain column of the same row, exactly as
   # the expand migration computed it (lower-case hex SHA-256, the format of
   # `Tymeslot.Security.Token.hash_token/1`).
+  defp write_encrypted([], _table, _column, _id_type, _hash_column), do: :ok
+
   defp write_encrypted(rows, table, column, id_type, hash_column) do
     set_hash =
       if hash_column,
         do: ", #{hash_column} = encode(sha256(convert_to(t.#{column}, 'UTF8')), 'hex')",
         else: ""
 
-    rows
-    |> Enum.chunk_every(@batch_size)
-    |> Enum.each(fn batch ->
-      [ids, values] = Enum.zip_with(batch, & &1)
+    [ids, values] = Enum.zip_with(rows, & &1)
 
+    repo().query!(
+      """
+      UPDATE #{table} AS t SET #{column}_encrypted = d.value#{set_hash}
+      FROM unnest($1::#{id_type}[], $2::bytea[]) AS d(id, value)
+      WHERE t.id = d.id
+      """,
+      [ids, values]
+    )
+  end
+
+  # Folds `fun` over the rows matching `where`, one page of up to
+  # @page_size rows at a time in primary-key order, so memory stays bounded
+  # however large the table is. Each row comes back as [id | columns].
+  defp reduce_pages({table, id_type} = source, columns, where, acc, fun, after_id \\ nil) do
+    %{rows: rows} =
       repo().query!(
         """
-        UPDATE #{table} AS t SET #{column}_encrypted = d.value#{set_hash}
-        FROM unnest($1::#{id_type}[], $2::bytea[]) AS d(id, value)
-        WHERE t.id = d.id
+        SELECT id, #{columns} FROM #{table}
+        WHERE #{where} AND ($1::#{id_type} IS NULL OR id > $1::#{id_type})
+        ORDER BY id
+        LIMIT #{@page_size}
         """,
-        [ids, values]
+        [after_id]
       )
-    end)
+
+    case rows do
+      [] ->
+        acc
+
+      rows ->
+        reduce_pages(source, columns, where, fun.(rows, acc), fun, rows |> List.last() |> hd())
+    end
   end
 
   defp log_telegram_tokens_dropped do
@@ -216,32 +248,38 @@ defmodule Tymeslot.Repo.Migrations.DropPlainCopiesOfEncryptedSecrets do
   end
 
   defp restore_column({table, column, id_type, _hash_column}) do
-    %{rows: rows} =
-      repo().query!("""
-      SELECT id, #{column}_encrypted FROM #{table}
-      WHERE #{column}_encrypted IS NOT NULL
-      ORDER BY id
-      """)
-
-    rows
-    |> Enum.flat_map(fn [id, ciphertext] ->
-      case Encryption.decrypt_with_status(ciphertext) do
-        {:ok, value} when is_binary(value) -> [[id, value]]
-        _unreadable -> []
+    reduce_pages(
+      {table, id_type},
+      "#{column}_encrypted",
+      "#{column}_encrypted IS NOT NULL",
+      :ok,
+      fn rows, :ok ->
+        rows
+        |> Enum.flat_map(fn [id, ciphertext] ->
+          case Encryption.decrypt_with_status(ciphertext) do
+            {:ok, value} when is_binary(value) -> [[id, value]]
+            _unreadable -> []
+          end
+        end)
+        |> write_restored(table, column, id_type)
       end
-    end)
-    |> Enum.chunk_every(@batch_size)
-    |> Enum.each(fn batch ->
-      [ids, values] = Enum.zip_with(batch, & &1)
+    )
+  end
 
-      repo().query!(
-        """
-        UPDATE #{table} AS t SET #{column} = d.value
-        FROM unnest($1::#{id_type}[], $2::text[]) AS d(id, value)
-        WHERE t.id = d.id
-        """,
-        [ids, values]
-      )
-    end)
+  defp write_restored([], _table, _column, _id_type), do: :ok
+
+  defp write_restored(rows, table, column, id_type) do
+    [ids, values] = Enum.zip_with(rows, & &1)
+
+    repo().query!(
+      """
+      UPDATE #{table} AS t SET #{column} = d.value
+      FROM unnest($1::#{id_type}[], $2::text[]) AS d(id, value)
+      WHERE t.id = d.id
+      """,
+      [ids, values]
+    )
+
+    :ok
   end
 end
