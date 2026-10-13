@@ -932,11 +932,6 @@ msgstr "Вам нічого не потрібно робити. Якщо ви д
 msgid "You received %{amount}"
 msgstr "Ви отримали %{amount}"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation/payment_blocks.ex
-#, elixir-autogen, elixir-format
-msgid "You received: %{amount} (less Stripe processing fees)"
-msgstr "Ви отримали: %{amount} (без урахування комісії Stripe за обробку платежу)"
-
 #: lib/tymeslot/emails/templates/appointment_cancellation/refund_notice.ex
 #, elixir-autogen, elixir-format
 msgid "You still hold %{amount} for this booking."
@@ -1354,3 +1349,8 @@ msgstr "Налаштуйте нагадування за %{time} до почат
 #, elixir-autogen, elixir-format
 msgid "Test video/audio setup if virtual"
 msgstr "Перевірте налаштування відео/аудіо, якщо зустріч онлайн"
+
+#: lib/tymeslot/emails/templates/appointment_confirmation/payment_blocks.ex
+#, elixir-autogen, elixir-format
+msgid "You received: %{amount} (before Stripe processing fees)"
+msgstr "Ви отримали: %{amount} (до вирахування комісії Stripe за обробку платежу)"

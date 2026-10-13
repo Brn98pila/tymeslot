@@ -5,7 +5,6 @@ defmodule Tymeslot.Release.Encryption do
 
       bin/tymeslot eval "Tymeslot.Release.Encryption.key_report()"
       bin/tymeslot eval "Tymeslot.Release.Encryption.reencrypt_credentials()"
-      bin/tymeslot eval "Tymeslot.Release.Encryption.plain_only_report()"
 
   `eval` runs in a one-shot VM that starts only the database connection;
   `bin/tymeslot rpc` with the same call runs inside the live node instead. Each
@@ -60,44 +59,6 @@ defmodule Tymeslot.Release.Encryption do
       error ->
         error
     end
-  end
-
-  @doc """
-  The pre-check before the plain-text copies of secrets are dropped: for each
-  plain column, how many rows hold a value missing from (`plain only`) or
-  different from (`differing`) its encrypted copy, or whose encrypted copy no
-  key opens (`unreadable`), with sample row ids. Read-only. Drop the columns
-  only once it reports `clear`.
-  """
-  @spec plain_only_report() :: CredentialReencryption.PlainOnlyReport.report()
-  def plain_only_report do
-    report = with_repo(&CredentialReencryption.plain_only_report/0)
-
-    for {column, counts} <- Enum.sort(report.columns) do
-      IO.puts(
-        "#{column}: plain only #{counts.plain_only}, differing #{counts.differing}, " <>
-          "unreadable #{counts.unreadable}, matching #{counts.matching}, " <>
-          "short-lived #{counts.short_lived}" <>
-          format_samples(counts.sample_ids)
-      )
-    end
-
-    IO.puts(
-      if report.clear?, do: "clear", else: "NOT clear: backfill or resolve the rows above first"
-    )
-
-    report
-  end
-
-  defp format_samples(samples) when samples == %{}, do: ""
-
-  defp format_samples(samples) do
-    listed =
-      Enum.map_join(Enum.sort(samples), "; ", fn {category, ids} ->
-        "#{category}: #{Enum.join(ids, ", ")}"
-      end)
-
-    " (sample ids #{listed})"
   end
 
   defp format_counts(counts) when counts == %{}, do: "no values"

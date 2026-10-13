@@ -10,7 +10,6 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationSchema do
   alias Tymeslot.Integrations.Video.ProviderConfig
   alias Tymeslot.Security.EncryptedString
   alias Tymeslot.Security.Encryption
-  alias Tymeslot.Security.LegacyPlainColumn
   alias Tymeslot.Security.SsrfGuard
 
   require Logger
@@ -75,17 +74,9 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationSchema do
     field(:tenant_id_encrypted, :binary)
     field(:teams_user_id_encrypted, :binary)
     # A personal meeting room link often carries its passcode (`?pwd=`), so it
-    # is encrypted at rest. The plain `custom_meeting_url` column predates
-    # this and is no longer read; it is only emptied when the link changes
-    # (see `Tymeslot.Security.LegacyPlainColumn`).
+    # is encrypted at rest.
     field(:custom_meeting_url, EncryptedString,
       source: :custom_meeting_url_encrypted,
-      redact: true
-    )
-
-    field(:legacy_custom_meeting_url, :string,
-      source: :custom_meeting_url,
-      load_in_query: false,
       redact: true
     )
 
@@ -187,7 +178,6 @@ defmodule Tymeslot.Integrations.Video.VideoIntegrationSchema do
     |> validate_provider_specific_fields()
     |> clear_deleted_at_on_reactivation()
     |> encrypt_credentials()
-    |> LegacyPlainColumn.clear_on_change(custom_meeting_url: :legacy_custom_meeting_url)
     |> foreign_key_constraint(:user_id)
     |> apply_active_uniqueness_constraints()
   end

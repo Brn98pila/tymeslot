@@ -68,8 +68,9 @@ defmodule TymeslotWeb.AdminLive do
   @impl Phoenix.LiveView
   def handle_event("set_setting", %{"key" => key, "state" => state}, socket) do
     with {:ok, atom_key} <- parse_setting_key(key),
+         :boolean <- Formatters.kind(atom_key),
          {:ok, parsed} <- parse_setting_value(state) do
-      handle_setting_update(socket, atom_key, parsed, state)
+      handle_setting_update(socket, atom_key, parsed)
     else
       _other ->
         {:noreply,
@@ -226,12 +227,12 @@ defmodule TymeslotWeb.AdminLive do
     end
   end
 
-  defp handle_setting_update(socket, atom_key, parsed, state) do
+  defp handle_setting_update(socket, atom_key, parsed) do
     case AppSettings.update(%{atom_key => parsed}) do
       {:ok, _settings} ->
         {:noreply,
          socket
-         |> put_flash(:info, setting_change_message(atom_key, state))
+         |> put_flash(:info, Formatters.toggled(atom_key, parsed))
          |> load_data()}
 
       {:error, :would_lock_out} ->
@@ -262,12 +263,6 @@ defmodule TymeslotWeb.AdminLive do
   defp parse_setting_value("true"), do: {:ok, true}
   defp parse_setting_value("false"), do: {:ok, false}
   defp parse_setting_value(_other), do: :error
-
-  defp setting_change_message(key, "true"),
-    do: dgettext("dashboard_admin", "%{name} enabled.", name: Formatters.humanise(key))
-
-  defp setting_change_message(key, "false"),
-    do: dgettext("dashboard_admin", "%{name} disabled.", name: Formatters.humanise(key))
 
   defp handle_typed_setting_update(socket, key, value) do
     case AppSettings.update(%{key => value}) do

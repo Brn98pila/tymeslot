@@ -932,11 +932,6 @@ msgstr "Non devi fare nulla. Se hai aggiunto l'appuntamento al tuo calendario, i
 msgid "You received %{amount}"
 msgstr "Hai ricevuto %{amount}"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation/payment_blocks.ex
-#, elixir-autogen, elixir-format
-msgid "You received: %{amount} (less Stripe processing fees)"
-msgstr "Hai ricevuto: %{amount} (al netto delle commissioni di elaborazione Stripe)"
-
 #: lib/tymeslot/emails/templates/appointment_cancellation/refund_notice.ex
 #, elixir-autogen, elixir-format
 msgid "You still hold %{amount} for this booking."
@@ -1350,3 +1345,8 @@ msgstr "Imposta un promemoria %{time} prima"
 #, elixir-autogen, elixir-format
 msgid "Test video/audio setup if virtual"
 msgstr "Verifica le impostazioni audio e video, se la riunione è virtuale"
+
+#: lib/tymeslot/emails/templates/appointment_confirmation/payment_blocks.ex
+#, elixir-autogen, elixir-format
+msgid "You received: %{amount} (before Stripe processing fees)"
+msgstr "Hai ricevuto: %{amount} (al lordo delle commissioni di elaborazione Stripe)"

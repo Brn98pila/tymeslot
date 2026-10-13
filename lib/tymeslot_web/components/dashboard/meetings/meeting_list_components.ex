@@ -29,17 +29,17 @@ defmodule TymeslotWeb.Components.Dashboard.Meetings.MeetingListComponents do
     >
       <:option
         value="upcoming"
-        label={dgettext("dashboard_bookings", "Upcoming")}
+        label={dpgettext("dashboard_bookings", "filter tab", "Upcoming")}
         icon="hero-clock"
       />
       <:option
         value="past"
-        label={dgettext("dashboard_bookings", "Past")}
+        label={dpgettext("dashboard_bookings", "filter tab", "Past")}
         icon="hero-calendar-days"
       />
       <:option
         value="cancelled"
-        label={dgettext("dashboard_bookings", "Cancelled")}
+        label={dpgettext("dashboard_bookings", "filter tab", "Cancelled")}
         icon="hero-x-mark"
       />
       <%!-- Only shown once there is something to answer: a host who requires no

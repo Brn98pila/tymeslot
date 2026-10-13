@@ -932,11 +932,6 @@ msgstr "Nie musisz nic robić. Jeśli spotkanie jest w twoim kalendarzu, załąc
 msgid "You received %{amount}"
 msgstr "Otrzymano %{amount}"
 
-#: lib/tymeslot/emails/templates/appointment_confirmation/payment_blocks.ex
-#, elixir-autogen, elixir-format
-msgid "You received: %{amount} (less Stripe processing fees)"
-msgstr "Otrzymano: %{amount} (po odliczeniu opłat Stripe)"
-
 #: lib/tymeslot/emails/templates/appointment_cancellation/refund_notice.ex
 #, elixir-autogen, elixir-format
 msgid "You still hold %{amount} for this booking."
@@ -1354,3 +1349,8 @@ msgstr "Ustaw przypomnienie %{time} wcześniej"
 #, elixir-autogen, elixir-format
 msgid "Test video/audio setup if virtual"
 msgstr "Sprawdź obraz i dźwięk, jeśli spotkanie jest online"
+
+#: lib/tymeslot/emails/templates/appointment_confirmation/payment_blocks.ex
+#, elixir-autogen, elixir-format
+msgid "You received: %{amount} (before Stripe processing fees)"
+msgstr "Otrzymano: %{amount} (przed odliczeniem opłat Stripe)"
