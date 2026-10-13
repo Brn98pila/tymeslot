@@ -154,6 +154,13 @@ defmodule Tymeslot.CalendarGrid.SeriesEdit do
   # The cache fields an edit moves an occurrence or resizes it by.
   @timing_fields [:start_at, :end_at, :start_date, :end_date]
 
+  # What an occurrence's cached row carries of its series, which a write to
+  # that one occurrence (a row naming its master) must not send: Google and Outlook address an
+  # instance by its own id, and a rule sent with it would ask the provider
+  # to make the instance a series of its own. The zone goes with the rule,
+  # as `ProviderPayload.put_series_zone/2` adds it only for one.
+  @series_only_fields [:recurrence_rule, :recurrence_exceptions, :series_timezone, :timezone]
+
   @typedoc """
   Something an edit of this and every following occurrence does not carry,
   which the organiser is told before choosing that scope:
@@ -227,11 +234,28 @@ defmodule Tymeslot.CalendarGrid.SeriesEdit do
   end
 
   def update_event(user_id, event, stored, _family, :this_only, changes, opts),
-    do: EventEdit.write_edit(user_id, event, stored, changes, opts, :never_queue)
+    do:
+      EventEdit.write_edit(
+        user_id,
+        event,
+        stored,
+        changes,
+        opts,
+        :never_queue,
+        &{:ok, instance_payload(&1, stored)}
+      )
 
   def update_event(_user_id, _event, _stored, _family, scope, _changes, _opts)
       when scope in [:following, :all],
       do: refuse(:unsupported_scope)
+
+  # A row naming its master is one instance of it; a master's own row (a
+  # series Tymeslot created) is the series, and keeps its rule.
+  defp instance_payload(payload, %{recurring_event_id: master_id})
+       when is_binary(master_id) and master_id != "",
+       do: Map.drop(payload, @series_only_fields)
+
+  defp instance_payload(payload, _stored), do: payload
 
   defp ensure_series_edit(%{} = stored, scope, changes) do
     cond do

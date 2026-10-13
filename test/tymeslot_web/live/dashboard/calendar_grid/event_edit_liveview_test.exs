@@ -70,7 +70,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
       conn: conn,
       integration: integration
     } do
-      event = insert_timed_event(integration)
+      event = insert_timed_event(integration, %{recurring_event_id: "series-1"})
       expect_provider_update(:ok)
 
       {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
@@ -509,6 +509,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
     end
   end
 
+  # A series master's own row, which a write sends with its rule.
   defp insert_timed_event(integration, attrs \\ %{}) do
     today = Clock.utc_today()
 
@@ -522,7 +523,6 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
       reminders: [%{"method" => "popup", "minutes_before" => 15}],
       recurrence_rule: @rrule,
       colour: "tomato",
-      recurring_event_id: "series-1",
       etag: "\"etag-1\"",
       sync_state: "synced"
     }
