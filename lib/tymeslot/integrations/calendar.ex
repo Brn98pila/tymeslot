@@ -2,9 +2,8 @@ defmodule Tymeslot.Integrations.Calendar do
   @moduledoc """
   Integration management for calendar providers.
 
-  Owns CRUD, primary selection, discovery, validation, OAuth helpers,
-  and the higher-level orchestration wrappers used by LiveViews and
-  controllers.
+  Owns CRUD, primary selection, discovery, validation, OAuth helpers and the
+  higher-level orchestration wrappers used by LiveViews and controllers.
 
   Related sibling modules — public surface of the calendar domain, not detail
   behind this facade. Each is a sanctioned entry point covered by Core's own
@@ -208,6 +207,11 @@ defmodule Tymeslot.Integrations.Calendar do
   @spec retry_stuck_changes(user_id(), integration_id()) ::
           {:ok, non_neg_integer()} | {:error, any()}
   defdelegate retry_stuck_changes(user_id, integration_id), to: OwnerActions
+
+  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.set_all_events_busy/3`."
+  @spec set_all_events_busy(user_id(), integration_id(), boolean()) ::
+          {:ok, integration()} | {:error, OwnerActions.refusal() | term()}
+  defdelegate set_all_events_busy(user_id, integration_id, busy?), to: OwnerActions
 
   # ---------------------------
   # Public API: Discovery/Selection

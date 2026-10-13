@@ -469,6 +469,33 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.IcsImportLiveviewTest do
       assert text =~ "1 event repeats in a way Outlook can't store, so it was not imported."
       refute text =~ "could not be imported"
     end
+
+    test "says why Outlook refused a month-end series", %{conn: conn} do
+      test_pid = self()
+
+      stub(Tymeslot.CalendarMock, :create_event, fn
+        %{summary: "Dentist"}, _context ->
+          send(test_pid, {:task, self()})
+          {:error, :day_missing_in_some_months}
+
+        data, _context ->
+          {:ok, CreatedEvent.new(data.uid)}
+      end)
+
+      {:ok, lv, _html} = live(conn, ~p"/dashboard")
+      open_import(lv)
+      upload(lv, @two_events)
+      start_import(lv)
+
+      assert_receive {:task, task}, @task_timeout
+      ref = Process.monitor(task)
+      assert_receive {:DOWN, ^ref, :process, ^task, _reason}, @task_timeout
+
+      html = settle(lv)
+
+      assert html =~
+               "1 event could not be imported. (Dentist) 1 of them repeats on a day some months"
+    end
   end
 
   describe "the import's result flash" do
@@ -512,6 +539,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.IcsImportLiveviewTest do
         failed_titles: [],
         exclusions_dropped: 0,
         rules_refused: 0,
+        month_end_refused: 0,
         halted: nil
       },
       counts

@@ -21,6 +21,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   alias TymeslotWeb.Components.Dashboard.Integrations.Shared.IntegrationCard
   alias TymeslotWeb.Components.Icons.ProviderIcon
   alias TymeslotWeb.Dashboard.CalendarSettings.CardNotice
+  alias TymeslotWeb.Dashboard.CalendarSettings.FeedControls
   alias TymeslotWeb.Dashboard.CalendarSettings.Helpers
   alias TymeslotWeb.Helpers.TimeAgo
 
@@ -307,7 +308,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
           phx-click="upgrade_google_scope"
           phx-value-id={@integration.id}
           phx-target={@myself}
-          class={tile_class(:warning)}
+          class={Helpers.tile_class(:warning)}
           title={dgettext("dashboard_calendar_settings", "Upgrade Google Calendar permissions")}
         >
           <.icon name="hero-bolt" class="w-4 h-4" /> {dgettext(
@@ -325,7 +326,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
           phx-click="manage_calendars"
           phx-value-id={@integration.id}
           phx-target={@myself}
-          class={tile_class(:neutral)}
+          class={Helpers.tile_class(:neutral)}
           title={
             dgettext(
               "dashboard_calendar_settings",
@@ -344,7 +345,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
           phx-click="retry_stuck_changes"
           phx-value-id={@integration.id}
           phx-target={@myself}
-          class={tile_class(:warning)}
+          class={Helpers.tile_class(:warning)}
           title={
             dgettext(
               "dashboard_calendar_settings",
@@ -365,7 +366,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
             @integration |> Map.get(:removed_calendars, []) |> Enum.map(& &1.id) |> Jason.encode!()
           }
           phx-target={@myself}
-          class={tile_class(:neutral)}
+          class={Helpers.tile_class(:neutral)}
           title={
             dgettext(
               "dashboard_calendar_settings",
@@ -378,29 +379,13 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
             "Dismiss"
           )}
         </button>
-        <%!-- A subscription has no Manage calendars modal, so whether its one
-             calendar blocks the booking page is chosen here. --%>
-        <.segmented_control
+        <FeedControls.feed_controls
           :if={@feed}
-          id={"calendar-#{@integration.id}-feed-busy"}
-          size={:sm}
-          value={to_string(@feed.blocks_availability)}
-          aria_label={
-            dgettext("dashboard_calendar_settings", "Busy times of %{calendar}",
-              calendar: @display_name
-            )
-          }
-          on_change={
-            JS.push("set_calendar_blocking",
-              value: %{integration_id: @integration.id, calendar_id: @feed.id},
-              target: @myself
-            )
-          }
-          param="blocks"
-        >
-          <:option value="true" label={dgettext("dashboard_calendar_settings", "Block")} />
-          <:option value="false" label={dgettext("dashboard_calendar_settings", "Don't block")} />
-        </.segmented_control>
+          integration={@integration}
+          feed={@feed}
+          display_name={@display_name}
+          myself={@myself}
+        />
         <%!-- Reconnecting a subscription means pasting a new feed URL, not
         re-entering credentials, so the CalDAV reconnect modal does not apply.
         A revoked feed is replaced by removing this row and subscribing again. --%>
@@ -477,10 +462,10 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
 
   # The promoted (:attention) style is the amber warning tile; the subtle
   # (:normal) one is the neutral tile.
-  defp reconnect_button_class(:attention), do: tile_class(:warning)
+  defp reconnect_button_class(:attention), do: Helpers.tile_class(:warning)
 
   defp reconnect_button_class(:normal),
-    do: [tile_class(:neutral), "max-sm:h-9 max-sm:w-9 max-sm:px-0 max-sm:py-0"]
+    do: [Helpers.tile_class(:neutral), "max-sm:h-9 max-sm:w-9 max-sm:px-0 max-sm:py-0"]
 
   # On a phone the routine Reconnect shrinks to its icon so Manage calendars,
   # Reconnect and Delete share one row; a promoted Reconnect is the action the
@@ -494,14 +479,6 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
   defp retry_offered?(%{needs_reauth: true}, _stuck), do: false
   defp retry_offered?(%{is_active: false}, _stuck), do: false
   defp retry_offered?(_integration, stuck), do: stuck != nil
-
-  # Card actions that carry a text label as well as an icon, so they cannot be
-  # `icon_button/1`, take its tile look (the `.icon-button` colour rules set no
-  # size or padding) and the small action button's size, so they sit level
-  # with the icon buttons in the card's footer and keep their label at every
-  # width.
-  defp tile_class(variant),
-    do: ["icon-button", "icon-button--#{variant}", "gap-1.5 px-3 py-1.5 text-token-sm font-bold"]
 
   @doc """
   Builds a one-line human summary for a calendar integration: account
@@ -568,7 +545,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
         read_only_target_segment(integration)
 
       :none ->
-        if BookingEligibility.bookable?(integration), do: nil, else: feed_segment()
+        if BookingEligibility.bookable?(integration), do: nil, else: feed_segment(integration)
     end
   end
 
@@ -584,11 +561,18 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.Components do
     if BookingEligibility.bookable?(integration) do
       dgettext("dashboard_calendar_settings", "booking target can no longer accept bookings")
     else
-      feed_segment()
+      feed_segment(integration)
     end
   end
 
-  defp feed_segment,
+  defp feed_segment(%{all_events_busy: true}),
+    do:
+      dgettext(
+        "dashboard_calendar_settings",
+        "read-only, every event blocks time, also those marked free"
+      )
+
+  defp feed_segment(_integration),
     do: dgettext("dashboard_calendar_settings", "read-only, blocks time but takes no bookings")
 
   # The card's last-activity line; nothing for a connection never synced.

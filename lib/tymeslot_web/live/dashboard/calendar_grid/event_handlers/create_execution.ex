@@ -314,6 +314,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.CreateExecution do
   defp create_failed_message(%{reason: :rule_not_supported_by_outlook}),
     do: EditWorkflow.rule_not_supported_by_outlook_message()
 
+  defp create_failed_message(%{reason: :day_missing_in_some_months}),
+    do: EditWorkflow.month_end_refused_message()
+
   defp create_failed_message(_failure),
     do: dgettext("dashboard_calendar_events", "Failed to create event")
 

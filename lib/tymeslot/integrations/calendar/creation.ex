@@ -205,7 +205,8 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
       provider_account_id: subscription_account_id(url),
       calendar_paths: [],
       calendar_list: [subscription_calendar(params)],
-      is_active: true
+      is_active: true,
+      all_events_busy: Map.get(params, "all_events_busy", false)
     }
   end
 

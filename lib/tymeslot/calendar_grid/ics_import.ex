@@ -92,6 +92,7 @@ defmodule Tymeslot.CalendarGrid.IcsImport do
           failed_titles: [String.t()],
           exclusions_dropped: non_neg_integer(),
           rules_refused: non_neg_integer(),
+          month_end_refused: non_neg_integer(),
           halted: atom() | nil
         }
 
@@ -173,6 +174,11 @@ defmodule Tymeslot.CalendarGrid.IcsImport do
   in which case it stops and names the reason under `:halted`. After
   #{@max_failures_in_a_row} failures in a row it stops as `:unavailable`.
 
+  A series Outlook would move onto months' last days is refused
+  (`Outlook.RecurrenceConverter`). It is failed, and also counted under
+  `:month_end_refused` so the organiser can be told why, but not towards the
+  failures in a row: the calendar answered nothing.
+
   Options:
 
     * `:on_progress` - called with the number of events handled so far after
@@ -189,6 +195,7 @@ defmodule Tymeslot.CalendarGrid.IcsImport do
       failed_titles: [],
       exclusions_dropped: 0,
       rules_refused: 0,
+      month_end_refused: 0,
       halted: nil,
       failed_in_a_row: 0
     }
@@ -404,6 +411,14 @@ defmodule Tymeslot.CalendarGrid.IcsImport do
       # event can be written.
       {:error, :rule_not_supported_by_outlook} ->
         %{acc | rules_refused: acc.rules_refused + 1}
+
+      {:error, :day_missing_in_some_months} ->
+        %{
+          acc
+          | failed: acc.failed + 1,
+            month_end_refused: acc.month_end_refused + 1,
+            failed_titles: sample_title(acc.failed_titles, event.summary)
+        }
 
       {:error, reason} ->
         in_a_row = acc.failed_in_a_row + 1

@@ -203,7 +203,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.EventCreateTest do
       integration =
         insert(:calendar_integration, user: user, provider: "outlook", is_active: true)
 
-      expect(Tymeslot.CalendarMock, :create_event, fn _event_data, _context ->
+      # Refused before anything is written, so no video room is made either.
+      expect(Tymeslot.CalendarMock, :create_event, 0, fn _event_data, _context ->
         {:error, :rule_not_supported_by_outlook}
       end)
 

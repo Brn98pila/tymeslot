@@ -98,6 +98,7 @@ defmodule Tymeslot.Emails.Templates.BookingRequestReceived do
       MjmlEmail.base_email()
       |> to({meeting.attendee_name, meeting.attendee_email})
       |> from({meeting.organizer_name, MjmlEmail.fetch_from_email()})
+      |> MjmlEmail.put_reply_to(meeting.organizer_name, meeting.organizer_email)
       |> subject(subject_line(kind, meeting, Formatting.format_date_short(attendee_time, locale)))
       |> html_body(html_body)
       |> text_body(text_body_for({meeting, kind}, details, previous, locale))

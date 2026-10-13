@@ -183,6 +183,12 @@ defmodule Tymeslot.Meetings.MeetingState do
   @spec released_status?(String.t() | nil) :: boolean()
   def released_status?(status), do: status in @released_statuses
 
+  @doc "Query-side counterpart of `released_status?/1`: keeps only meetings not released."
+  @spec where_not_released(Ecto.Queryable.t()) :: Ecto.Query.t()
+  def where_not_released(query) do
+    where(query, [m], m.status not in ^@released_statuses)
+  end
+
   @doc """
   Whether the meeting is over, one way or another (cancelled, completed or
   expired), so nothing may cancel, move or confirm it again. Struct-side

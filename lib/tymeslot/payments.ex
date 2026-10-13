@@ -9,6 +9,7 @@ defmodule Tymeslot.Payments do
   alias Tymeslot.Payments.PaymentTransactionSchema, as: PaymentTransaction
 
   alias Tymeslot.Payments.{
+    Config,
     CustomerLookup,
     DatabaseOperations,
     PaymentQueries,
@@ -176,4 +177,20 @@ defmodule Tymeslot.Payments do
   """
   @spec mark_abandoned_checkouts_handled(pos_integer(), keyword()) :: non_neg_integer()
   defdelegate mark_abandoned_checkouts_handled(user_id, opts), to: PaymentQueries
+
+  @doc """
+  Whether `user_id`'s outgoing material carries the free-tier "Tymeslot"
+  branding. Off unless the instance enables `:show_branding` and a
+  subscription manager is configured to answer for the user; an unknown user
+  never gets it, so a paying customer cannot be branded by a missing id.
+  """
+  @spec show_branding?(pos_integer() | nil) :: boolean()
+  def show_branding?(user_id) when is_integer(user_id) do
+    manager = Config.subscription_manager()
+
+    Application.get_env(:tymeslot, :show_branding, false) == true and
+      not is_nil(manager) and manager.should_show_branding?(user_id) == true
+  end
+
+  def show_branding?(_user_id), do: false
 end

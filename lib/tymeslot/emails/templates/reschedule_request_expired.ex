@@ -69,6 +69,7 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequestExpired do
 
       MjmlEmail.base_email()
       |> to({meeting.organizer_name, meeting.organizer_email})
+      |> MjmlEmail.put_reply_to(meeting.attendee_name, meeting.attendee_email)
       |> subject(
         dgettext(
           "emails_booking_requests",

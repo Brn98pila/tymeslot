@@ -137,6 +137,26 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
     {:noreply, assign(socket, :managing_calendar_id, nil)}
   end
 
+  def handle_event("toggle_all_events_busy", %{"id" => id}, socket) do
+    user_id = socket.assigns.current_user.id
+
+    with {:ok, int_id} <- parse_int(id),
+         %{} = integration <- Enum.find(socket.assigns.integrations, &(&1.id == int_id)),
+         {:ok, updated} <-
+           Calendar.set_all_events_busy(user_id, int_id, not integration.all_events_busy) do
+      Flash.info(all_events_busy_message(updated.all_events_busy))
+      send(self(), {:integration_updated, :calendar})
+      {:noreply, load_integrations(socket)}
+    else
+      {:error, {:rate_limited, message}} ->
+        Flash.error(message)
+        {:noreply, socket}
+
+      _not_changed ->
+        {:noreply, socket}
+    end
+  end
+
   def handle_event("toggle_integration", %{"id" => id}, socket) do
     with_owned_integration(socket, id, &Calendar.toggle_integration/2, fn
       {:ok, _result} ->
@@ -591,4 +611,14 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsComponent do
 
   @impl Phoenix.LiveComponent
   def render(assigns), do: ComponentView.settings(assigns)
+
+  defp all_events_busy_message(true),
+    do: dgettext("dashboard_calendar_settings", "Every event in this calendar now blocks time")
+
+  defp all_events_busy_message(false),
+    do:
+      dgettext(
+        "dashboard_calendar_settings",
+        "Events this calendar marks as free no longer block time"
+      )
 end

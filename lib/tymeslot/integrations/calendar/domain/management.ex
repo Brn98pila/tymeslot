@@ -6,6 +6,7 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   separated from primary calendar logic and discovery operations.
   """
 
+  alias Tymeslot.Availability
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
@@ -14,6 +15,7 @@ defmodule Tymeslot.Integrations.CalendarManagement do
   alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.Discovery
   alias Tymeslot.Integrations.Calendar.PrimaryElection
+  alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.HealthCheck
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Repo
@@ -272,6 +274,43 @@ defmodule Tymeslot.Integrations.CalendarManagement do
       HealthCheck.mark_user_recovered(:calendar, updated.id)
       ok
     end
+  end
+
+  @doc """
+  Sets whether a subscription counts every event in its feed as busy, even
+  those the feed marks free (`all_events_busy`; see `Ics.Provider`). Only a
+  subscription honours the flag, so any other connection is refused. The
+  user's cached availability is dropped, so the next booking page load
+  already reflects the change.
+  """
+  @spec set_all_events_busy(integer(), integer(), boolean()) ::
+          {:ok, CalendarIntegrationSchema.t()}
+          | {:error, :not_found | :not_a_subscription | Ecto.Changeset.t()}
+  def set_all_events_busy(integration_id, user_id, busy?) when is_boolean(busy?) do
+    with {:ok, integration} <- get_calendar_integration(integration_id, user_id),
+         do: put_all_events_busy(integration, busy?)
+  end
+
+  @doc """
+  `set_all_events_busy/3` for an integration already loaded for its owner
+  (`OwnerActions.set_all_events_busy/3`, which charges the owner's budget
+  first).
+  """
+  @spec put_all_events_busy(CalendarIntegrationSchema.t(), boolean()) ::
+          {:ok, CalendarIntegrationSchema.t()}
+          | {:error, :not_a_subscription | Ecto.Changeset.t()}
+  def put_all_events_busy(%CalendarIntegrationSchema{} = integration, busy?)
+      when is_boolean(busy?) do
+    with :ok <- subscription_only(integration),
+         {:ok, updated} <-
+           CalendarIntegrationQueries.update(integration, %{all_events_busy: busy?}) do
+      Availability.changed(updated.user_id)
+      {:ok, updated}
+    end
+  end
+
+  defp subscription_only(%{provider: provider}) do
+    if ProviderConfig.subscription?(provider), do: :ok, else: {:error, :not_a_subscription}
   end
 
   @doc """

@@ -14,10 +14,13 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventMapper do
   @doc """
   Converts Tymeslot event data into the Microsoft Graph event format.
 
-  A repeat rule Graph has no pattern for is refused rather than written as
-  another (see `Outlook.RecurrenceConverter`).
+  A repeat rule Graph has no pattern for, or one Graph would write with
+  other dates (`{:error, :day_missing_in_some_months}`), is refused rather
+  than written as another (see `Outlook.RecurrenceConverter`).
   """
-  @spec format_event_data(map()) :: {:ok, map()} | {:error, :rule_not_supported_by_outlook}
+  @spec format_event_data(map()) ::
+          {:ok, map()}
+          | {:error, :rule_not_supported_by_outlook | :day_missing_in_some_months}
   def format_event_data(event_data) do
     base = %{
       "subject" => extract_field(event_data, :summary, "summary"),

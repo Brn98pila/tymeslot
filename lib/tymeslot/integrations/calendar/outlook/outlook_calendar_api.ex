@@ -91,7 +91,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
   """
   @impl CalendarAPIBehaviour
   @spec create_event(CalendarIntegrationSchema.t(), map()) ::
-          {:ok, calendar_event()} | api_error()
+          {:ok, calendar_event()} | api_error() | CalendarAPIBehaviour.write_refusal()
   def create_event(%CalendarIntegrationSchema{} = integration, event_data) do
     with {:ok, body} <- event_body(event_data) do
       Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
@@ -110,7 +110,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
   """
   @impl CalendarAPIBehaviour
   @spec create_event(CalendarIntegrationSchema.t(), String.t(), map()) ::
-          {:ok, calendar_event()} | api_error()
+          {:ok, calendar_event()} | api_error() | CalendarAPIBehaviour.write_refusal()
   def create_event(%CalendarIntegrationSchema{} = integration, calendar_id, event_data) do
     with {:ok, body} <- event_body(event_data) do
       Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
@@ -129,7 +129,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
   """
   @impl CalendarAPIBehaviour
   @spec update_event(CalendarIntegrationSchema.t(), String.t(), map()) ::
-          {:ok, calendar_event()} | api_error()
+          {:ok, calendar_event()} | api_error() | CalendarAPIBehaviour.write_refusal()
   def update_event(%CalendarIntegrationSchema{} = integration, event_id, event_data) do
     with {:ok, body} <- event_body(event_data) do
       Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
@@ -148,7 +148,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
   """
   @impl CalendarAPIBehaviour
   @spec update_event(CalendarIntegrationSchema.t(), String.t(), String.t(), map()) ::
-          {:ok, calendar_event()} | api_error()
+          {:ok, calendar_event()} | api_error() | CalendarAPIBehaviour.write_refusal()
   def update_event(%CalendarIntegrationSchema{} = integration, calendar_id, event_id, event_data) do
     with {:ok, body} <- event_body(event_data) do
       Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->

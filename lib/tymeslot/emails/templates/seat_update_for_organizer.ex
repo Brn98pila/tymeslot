@@ -76,6 +76,7 @@ defmodule Tymeslot.Emails.Templates.SeatUpdateForOrganizer do
 
       MjmlEmail.base_email()
       |> to({details.organizer_name, organizer_email})
+      |> MjmlEmail.put_reply_to(details.attendee_name, details.attendee_email)
       |> subject(copy.subject)
       |> html_body(TemplateHelper.compile_template(mjml_content, stage))
       |> text_body(text_body(details, meeting_details, copy, locale))
