@@ -339,12 +339,12 @@ msgstr "reCAPTCHA"
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
 msgid "reCAPTCHA on booking"
-msgstr "reCAPTCHA sulla prenotazione"
+msgstr "reCAPTCHA per la prenotazione"
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
 msgid "reCAPTCHA on signup"
-msgstr "reCAPTCHA sulla registrazione"
+msgstr "reCAPTCHA per la registrazione"
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
@@ -775,19 +775,19 @@ msgstr "Registrazione attivata."
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
 msgid "reCAPTCHA on booking turned off."
-msgstr "reCAPTCHA disattivato sulla prenotazione."
+msgstr "reCAPTCHA disattivato per la prenotazione."
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
 msgid "reCAPTCHA on booking turned on."
-msgstr "reCAPTCHA attivato sulla prenotazione."
+msgstr "reCAPTCHA attivato per la prenotazione."
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
 msgid "reCAPTCHA on signup turned off."
-msgstr "reCAPTCHA disattivato sulla registrazione."
+msgstr "reCAPTCHA disattivato per la registrazione."
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
 msgid "reCAPTCHA on signup turned on."
-msgstr "reCAPTCHA attivato sulla registrazione."
+msgstr "reCAPTCHA attivato per la registrazione."

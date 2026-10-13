@@ -173,7 +173,7 @@ msgstr "Podaj prawidłowy adres e-mail."
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
 msgid "Generic OIDC login"
-msgstr "Logowanie przez OIDC"
+msgstr "Ogólne logowanie przez OIDC"
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
@@ -711,12 +711,12 @@ msgstr "Statystyki rezerwacji włączone."
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
 msgid "Generic OIDC login turned off."
-msgstr "Logowanie przez OIDC wyłączone."
+msgstr "Ogólne logowanie przez OIDC wyłączone."
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
 msgid "Generic OIDC login turned on."
-msgstr "Logowanie przez OIDC włączone."
+msgstr "Ogólne logowanie przez OIDC włączone."
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
