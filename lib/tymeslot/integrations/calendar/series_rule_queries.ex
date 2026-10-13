@@ -24,10 +24,10 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRuleQueries do
   @doc """
   Up to `limit` masters the integration's cache holds occurrences of whose
   rule was never read, or last read before `stale_before`, leaving out
-  `except`.
+  `except`, each with the calendar an occurrence of it is in.
   """
   @spec masters_to_refresh(integer(), DateTime.t(), [String.t()], non_neg_integer()) ::
-          [String.t()]
+          [{String.t(), String.t() | nil}]
   def masters_to_refresh(_integration_id, _stale_before, _except, 0), do: []
 
   def masters_to_refresh(integration_id, stale_before, except, limit) do
@@ -40,8 +40,9 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRuleQueries do
         where: e.calendar_integration_id == ^integration_id,
         where: not is_nil(e.recurring_event_id) and e.recurring_event_id not in ^except,
         where: is_nil(r.id) or r.fetched_at < ^stale_before,
-        distinct: true,
-        select: e.recurring_event_id,
+        distinct: e.recurring_event_id,
+        order_by: e.recurring_event_id,
+        select: {e.recurring_event_id, e.provider_calendar_id},
         limit: ^limit
       )
 

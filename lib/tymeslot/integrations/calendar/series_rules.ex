@@ -36,12 +36,13 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRules do
   @fresh_for_seconds 24 * 60 * 60
 
   @typedoc """
-  Reads one master: its rule (nil when it is not a series) and first start,
+  Reads one master, given its id and the calendar an occurrence of it is in
+  (nil when not known): its rule (nil when it is not a series) and first start,
   `:gone` when the provider no longer has it, or `{:stop, reason}` when no
   further master should be read this run (throttled, refused, unreachable).
   """
   @type read ::
-          (String.t() ->
+          (String.t(), String.t() | nil ->
              {:ok, %{rule: String.t() | nil, master_start: DateTime.t() | nil}}
              | :gone
              | {:stop, term()})
@@ -59,17 +60,18 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRules do
   """
   @spec refresh(integer(), [map()], read()) :: :ok
   def refresh(integration_id, calendar_events, read) do
-    named = master_ids(calendar_events)
+    named = named_masters(calendar_events)
+    named_ids = Enum.map(named, &elem(&1, 0))
 
     stale_before =
       DateTime.add(DateTime.truncate(Clock.utc_now(), :second), -@fresh_for_seconds, :second)
 
     room = max(@max_reads_per_run - length(named), 0)
 
-    (named ++ SeriesRuleQueries.masters_to_refresh(integration_id, stale_before, named, room))
+    (named ++ SeriesRuleQueries.masters_to_refresh(integration_id, stale_before, named_ids, room))
     |> Enum.take(@max_reads_per_run)
-    |> Enum.reduce_while(:ok, fn master_id, :ok ->
-      case read.(master_id) do
+    |> Enum.reduce_while(:ok, fn {master_id, calendar_id}, :ok ->
+      case read.(master_id, calendar_id) do
         {:ok, found} ->
           store(integration_id, master_id, found)
           {:cont, :ok}
@@ -87,6 +89,15 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRules do
           {:halt, :ok}
       end
     end)
+  end
+
+  # Each master the events name, with the calendar its first named
+  # occurrence is in.
+  defp named_masters(calendar_events) do
+    calendar_events
+    |> Enum.filter(&(is_binary(&1.recurring_event_id) and &1.recurring_event_id != ""))
+    |> Enum.uniq_by(& &1.recurring_event_id)
+    |> Enum.map(&{&1.recurring_event_id, &1.provider_calendar_id})
   end
 
   defp store(integration_id, master_id, found) do

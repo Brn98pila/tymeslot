@@ -13,7 +13,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesMaster do
 
   @doc "The reader `SeriesRules.refresh/3` takes, for `integration`."
   @spec reader(CalendarIntegrationSchema.t()) :: SeriesRules.read()
-  def reader(%CalendarIntegrationSchema{} = integration), do: &read(integration, &1)
+  def reader(%CalendarIntegrationSchema{} = integration),
+    do: fn master_id, _calendar_id -> read(integration, master_id) end
 
   @doc """
   Reads one master. A master that is not a series has no rule; one Graph no

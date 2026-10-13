@@ -23,7 +23,9 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
   alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.Google.CacheSweep
   alias Tymeslot.Integrations.Calendar.Google.Provider, as: GoogleProvider
+  alias Tymeslot.Integrations.Calendar.Google.SeriesMaster
   alias Tymeslot.Integrations.Calendar.Selection
+  alias Tymeslot.Integrations.Calendar.SeriesRules
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
 
@@ -374,6 +376,9 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
     context = normalisation_context(integration, calendar_id)
 
     with {:ok, calendar_events} <- GoogleProvider.normalise_events(active, context) do
+      :ok =
+        SeriesRules.refresh(integration.id, calendar_events, SeriesMaster.reader(integration))
+
       Sync.persist_normalised_events(integration, calendar_events)
     end
   rescue

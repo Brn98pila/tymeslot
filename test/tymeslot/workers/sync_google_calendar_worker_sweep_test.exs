@@ -21,6 +21,16 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorkerSweepTest do
 
   setup :verify_on_exit!
 
+  # A series' rule is read from its recurring event, which these tests leave
+  # out.
+  setup do
+    stub(GoogleCalendarAPIMock, :get_series_master, fn _integration, _calendar, _master ->
+      {:error, :not_found, "Not found"}
+    end)
+
+    :ok
+  end
+
   @work "work@example.com"
 
   setup do

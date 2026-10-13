@@ -232,7 +232,7 @@ defmodule Tymeslot.Integrations.Calendar.SeriesRulesTest do
   defp reader(answers) do
     test_pid = self()
 
-    fn master_id ->
+    fn master_id, _calendar_id ->
       send(test_pid, {:read, master_id})
       Map.fetch!(answers, master_id)
     end

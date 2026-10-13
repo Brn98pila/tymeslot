@@ -6,6 +6,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
 
   @behaviour Tymeslot.Integrations.Calendar.Google.CalendarAPIBehaviour
 
+  alias Tymeslot.Infrastructure.CalendarCircuitBreaker
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.EventColour
@@ -278,6 +279,26 @@ defmodule Tymeslot.Integrations.Calendar.Google.CalendarAPI do
     Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       google_event_id = EventMapper.uuid_to_google_event_id(event_id)
       make_request(:get, event_path(calendar_id, google_event_id), token)
+    end)
+  end
+
+  @doc """
+  The recurring event `master_id` in `calendar_id`, with only what its repeat
+  rule is read from: its recurrence lines and first start. Through the
+  circuit breaker, which counts only failures that say Google is unwell, so
+  a master that is gone (404, 410) does not trip it; an open breaker answers
+  `{:error, :circuit_open}`.
+  """
+  @impl CalendarAPIBehaviour
+  @spec get_series_master(CalendarIntegrationSchema.t(), String.t(), String.t()) ::
+          {:ok, map()} | api_error() | {:error, term()}
+  def get_series_master(%CalendarIntegrationSchema{} = integration, calendar_id, master_id) do
+    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+      CalendarCircuitBreaker.call(:google, fn ->
+        make_request(:get, event_path(calendar_id, master_id), token, %{
+          "fields" => "id,recurrence,start"
+        })
+      end)
     end)
   end
 
