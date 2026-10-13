@@ -5,8 +5,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.EventDetailModal do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Phoenix.LiveView.JS
+  alias Tymeslot.CalendarGrid
   alias Tymeslot.Integrations.Calendar.Attendee
-  alias Tymeslot.Integrations.Calendar.Recurrence.RRule
   alias TymeslotWeb.Components.Dashboard.ColourSwatches
   alias TymeslotWeb.Components.UI.StatusSwitch
   alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared
@@ -314,18 +314,19 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.EventDetailModal do
         />
       </.detail_line>
 
-      <%!-- Repeat --%>
-      <div :if={@editable and not @time_locked} class="mb-3">
+      <%!-- Repeat: a rule is edited only where the grid can write one. --%>
+      <div :if={@editable and not @time_locked and repeatable?(@selected_event)} class="mb-3">
         <RecurrenceEditor.recurrence_editor
           recurrence_rule={Map.get(@selected_event, :recurrence_rule)}
           timezone={Shared.recurrence_timezone(@selected_event, @user_timezone)}
+          start={Shared.recurrence_start(@selected_event, @user_timezone)}
           myself={@myself}
           change_event="update_event_recurrence"
         />
       </div>
       <.detail_line
         :if={
-          (!@editable or @time_locked) and
+          (!@editable or @time_locked or not repeatable?(@selected_event)) and
             recurrence_summary(@selected_event, @user_timezone) != nil
         }
         variant={:compact}
@@ -417,14 +418,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.EventDetailModal do
   defp recurrence_summary(event, user_timezone) do
     case Map.get(event, :recurrence_rule) do
       rule when is_binary(rule) and rule != "" ->
-        rule
-        |> RRule.options(timezone: Shared.recurrence_timezone(event, user_timezone))
-        |> RecurrenceEditor.summary()
+        RecurrenceEditor.summary(rule, Shared.recurrence_start(event, user_timezone))
 
       _none ->
         nil
     end
   end
+
+  defp repeatable?(event), do: CalendarGrid.repeatable_provider?(Map.get(event, :provider))
 
   # Cached attendees come back from JSONB string-keyed, while one the organiser
   # has just added is still atom-keyed in memory, so the editor reads them all

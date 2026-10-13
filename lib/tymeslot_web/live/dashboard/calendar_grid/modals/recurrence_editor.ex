@@ -2,52 +2,85 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
   @moduledoc """
   Reusable "Repeat" control for the calendar create/detail modals.
 
-  Renders a frequency selector (Does not repeat / Daily / Weekly / Monthly /
-  Yearly). Choosing a repeating frequency reveals the recurrence detail row:
-  an interval ("every N"), weekday toggles (weekly only), and an end condition
-  (never / after N occurrences / on a date). A human-readable summary of the
-  current rule is shown beneath the controls.
+  Builds every pattern `Tymeslot.Integrations.Calendar.Recurrence.Pattern`
+  covers: a frequency (Does not repeat / Daily / Weekly / Monthly / Yearly),
+  an interval ("every N"), weekday toggles for a weekly pattern, a choice of
+  day for a monthly or yearly one (on the start's day, or on a position the
+  start is, such as the second Tuesday or the last weekday), and an end
+  (never / after N occurrences / on a date). A summary of the current rule
+  sits beneath the controls.
+
+  The patterns are anchored to the event's start (`start`): a monthly or
+  yearly pattern offers only the positions the start is, and a hint says to
+  move the event to repeat on another day.
+
+  A stored rule no pattern matches (`Pattern.read/2` answers `:custom`) is
+  shown as a summary with a "Replace repeat rule" action and no controls, so
+  it is never rewritten by accident. The action reveals the controls on the
+  client, prefilled from the rule's frequency, interval and end; nothing is
+  written until one of them changes.
 
   Every control change dispatches `change_event` back to the owning
   LiveComponent via `phx-target`, carrying the raw form fields (`freq`,
-  `interval`, `by_day[]`, `end_type`, `count`, `until`). The owner composes the
-  canonical RRULE string from those fields via
-  `Tymeslot.Integrations.Calendar.Recurrence.RRule.build/1` and threads it
-  through its state — keeping this component stateless and free of RRULE logic.
+  `interval`, `by_day[]`, `on`, `end_type`, `count`, `until`). The owner
+  composes the rule from them (`Shared.compose_recurrence_rule/2`).
 
-  `recurrence_rule` is the current canonical RRULE string (or nil); it is parsed
-  only to seed the control values for display. Parsing takes `timezone` because
-  a timed rule's `UNTIL` is a UTC instant, and the date to put back in the date
-  input is the one that instant falls on where the organiser is.
+  `timezone` reads a timed rule's `UNTIL`, an instant, as the date the
+  organiser sees.
   """
 
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias Tymeslot.Integrations.Calendar.Recurrence.RRule
-  alias TymeslotWeb.Helpers.LocaleFormat
+  alias Phoenix.LiveView.JS
+  alias Tymeslot.Integrations.Calendar.Recurrence.Pattern
+  alias TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceSummary
 
   attr :recurrence_rule, :string, default: nil
   attr :timezone, :string, default: nil
+
+  attr :start, :any,
+    required: true,
+    doc: "the event's start: a `Date` for an all-day event, else a `DateTime` in `timezone`"
+
   attr :myself, :any, required: true
   attr :change_event, :string, required: true
 
   @spec recurrence_editor(map()) :: Phoenix.LiveView.Rendered.t()
   def recurrence_editor(assigns) do
-    parsed = RRule.options(assigns.recurrence_rule || "", timezone: assigns.timezone)
+    start_date = start_date(assigns.start)
+    read = Pattern.read(assigns.recurrence_rule, assigns.start)
+
+    pattern =
+      case read do
+        {:ok, pattern} -> pattern || %{}
+        :custom -> Pattern.closest(assigns.recurrence_rule, assigns.start)
+      end
+
+    freq = pattern[:freq]
 
     assigns =
-      assigns
-      |> assign(:parsed, parsed)
-      |> assign(:freq, parsed[:freq])
-      |> assign(:interval, parsed[:interval] || 1)
-      |> assign(:by_day, parsed[:by_day] || [])
-      |> assign(:end_type, end_type(parsed))
-      |> assign(:count, parsed[:count] || 10)
-      |> assign(:until, until_value(parsed[:until]))
-      |> assign(:weekdays, weekdays())
-      |> assign(:freq_options, freq_options())
-      |> assign(:summary, summary(parsed))
+      assign(assigns,
+        custom: read == :custom,
+        freq: freq,
+        interval: pattern[:interval] || 1,
+        by_day: pattern[:by_day] || [start_weekday(start_date)],
+        start_weekday: start_weekday(start_date),
+        on: Map.get(pattern, :on, :day),
+        on_options: on_options(freq, start_date),
+        end_type: end_type(pattern),
+        count: pattern[:count] || 10,
+        until: until_value(pattern[:until]),
+        weekdays: weekdays(),
+        freq_options: freq_options(),
+        summary:
+          RecurrenceSummary.summary(
+            if(read == :custom, do: :custom, else: elem(read, 1)),
+            start_date
+          ),
+        form_id: "recurrence-editor-form-#{assigns.change_event}",
+        custom_id: "recurrence-custom-#{assigns.change_event}"
+      )
 
     ~H"""
     <.detail_line
@@ -55,14 +88,26 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
       icon="hero-arrow-path"
       label={dgettext("dashboard_calendar_repeat", "Repeat")}
     >
+      <div :if={@custom} id={@custom_id} class="space-y-2">
+        <p class="text-token-sm text-tymeslot-600 leading-snug">{@summary}</p>
+        <.action_button
+          variant={:secondary}
+          size={:sm}
+          phx-click={JS.hide(to: "##{@custom_id}") |> JS.show(to: "##{@form_id}")}
+        >
+          {dgettext("dashboard_calendar_repeat", "Replace repeat rule")}
+        </.action_button>
+      </div>
+
       <form
-        id={"recurrence-editor-form-#{@change_event}"}
+        id={@form_id}
         phx-change={@change_event}
         phx-target={@myself}
-        class="space-y-2"
+        class={["space-y-2", @custom && "hidden"]}
       >
         <select
           name="freq"
+          aria-label={dgettext("dashboard_calendar_repeat", "Repeat")}
           class="w-full rounded-token-md border-tymeslot-300 text-token-xs text-tymeslot-700 focus:border-turquoise-500 focus:ring-turquoise-500 py-1"
         >
           <option
@@ -107,11 +152,33 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
                 type="checkbox"
                 name="by_day[]"
                 value={day}
-                checked={day in @by_day}
+                checked={day in @by_day or day == @start_weekday}
                 class="sr-only"
               />
               {label}
             </label>
+          </div>
+
+          <div :if={@freq in [:monthly, :yearly]} class="space-y-1">
+            <select
+              name="on"
+              aria-label={dgettext("dashboard_calendar_repeat", "Repeats on")}
+              class="w-full rounded-token-md border-tymeslot-300 text-token-xs text-tymeslot-700 focus:border-turquoise-500 focus:ring-turquoise-500 py-1"
+            >
+              <option
+                :for={{value, label, on} <- @on_options}
+                value={value}
+                selected={on == @on}
+              >
+                {label}
+              </option>
+            </select>
+            <p class="text-token-xs text-tymeslot-400">
+              {dgettext(
+                "dashboard_calendar_repeat",
+                "To repeat on another day, move the event to that day."
+              )}
+            </p>
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
@@ -158,7 +225,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
         </div>
       </form>
 
-      <p :if={@summary != nil} class="text-token-xs text-tymeslot-400 mt-1.5">
+      <p :if={@summary != nil and not @custom} class="text-token-xs text-tymeslot-400 mt-1.5">
         {@summary}
       </p>
     </.detail_line>
@@ -166,103 +233,40 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
   end
 
   @doc """
-  Returns a human-readable summary of an RRULE option map, e.g.
-  "Repeats weekly on Mon, Wed". Returns `nil` for a non-recurring rule.
-
-  Rendered in the process's Gettext locale, the end date included, so it
-  must be called from the LiveView process rather than from a task.
+  The summary of `rule` for an event starting at `start` (see the `start`
+  attr), as the editor shows it; nil for no rule.
   """
-  @spec summary(map()) :: String.t() | nil
-  def summary(%{freq: freq} = parsed) do
-    [base_phrase(freq, parsed), by_day_phrase(parsed), end_phrase(parsed)]
-    |> Enum.reject(&is_nil/1)
-    |> Enum.join(" ")
+  @spec summary(String.t() | nil, Date.t() | DateTime.t()) :: String.t() | nil
+  def summary(rule, start) do
+    read =
+      case Pattern.read(rule, start) do
+        {:ok, pattern} -> pattern
+        :custom -> :custom
+      end
+
+    RecurrenceSummary.summary(read, start_date(start))
   end
 
-  def summary(_parsed), do: nil
-
-  defp base_phrase(freq, parsed) do
-    interval = Map.get(parsed, :interval, 1)
-
-    if interval > 1 do
-      interval_phrase(freq, interval)
-    else
-      freq_adverb_phrase(freq)
-    end
+  # The day choices a monthly or yearly pattern offers for this start, each
+  # as `{field value, label, on}`.
+  defp on_options(freq, start_date) when freq in [:monthly, :yearly] do
+    for on <- Pattern.choices(start_date),
+        do: {on_value(on), RecurrenceSummary.on_phrase(on, freq, start_date), on}
   end
 
-  defp interval_phrase(:daily, interval),
-    do:
-      dngettext(
-        "dashboard_calendar_repeat",
-        "Repeats every %{count} day",
-        "Repeats every %{count} days",
-        interval
-      )
+  defp on_options(_freq, _start_date), do: []
 
-  defp interval_phrase(:weekly, interval),
-    do:
-      dngettext(
-        "dashboard_calendar_repeat",
-        "Repeats every %{count} week",
-        "Repeats every %{count} weeks",
-        interval
-      )
+  defp on_value(:day), do: "day"
+  defp on_value({ordinal, kind}), do: "#{ordinal}:#{kind}"
 
-  defp interval_phrase(:monthly, interval),
-    do:
-      dngettext(
-        "dashboard_calendar_repeat",
-        "Repeats every %{count} month",
-        "Repeats every %{count} months",
-        interval
-      )
+  defp start_date(%DateTime{} = start), do: DateTime.to_date(start)
+  defp start_date(%Date{} = start), do: start
 
-  defp interval_phrase(:yearly, interval),
-    do:
-      dngettext(
-        "dashboard_calendar_repeat",
-        "Repeats every %{count} year",
-        "Repeats every %{count} years",
-        interval
-      )
-
-  defp freq_adverb_phrase(:daily), do: dgettext("dashboard_calendar_repeat", "Repeats daily")
-  defp freq_adverb_phrase(:weekly), do: dgettext("dashboard_calendar_repeat", "Repeats weekly")
-  defp freq_adverb_phrase(:monthly), do: dgettext("dashboard_calendar_repeat", "Repeats monthly")
-  defp freq_adverb_phrase(:yearly), do: dgettext("dashboard_calendar_repeat", "Repeats yearly")
-
-  defp by_day_phrase(%{freq: :weekly, by_day: [_first | _rest] = days}) do
-    days_label = Enum.map_join(days, ", ", &weekday_label/1)
-    dgettext("dashboard_calendar_repeat", "on %{days}", days: days_label)
-  end
-
-  defp by_day_phrase(_parsed), do: nil
-
-  defp end_phrase(%{count: count}) when is_integer(count),
-    do:
-      dngettext(
-        "dashboard_calendar_repeat",
-        "for %{count} occurrence",
-        "for %{count} occurrences",
-        count
-      )
-
-  defp end_phrase(%{until: %Date{} = until}) do
-    date = LocaleFormat.format_date(until, Gettext.get_locale(TymeslotWeb.Gettext))
-    dgettext("dashboard_calendar_repeat", "until %{date}", date: date)
-  end
-
-  defp end_phrase(_parsed), do: nil
-
-  defp weekday_label(day) do
-    {_atom, label} = Enum.find(weekdays(), fn {atom, _label} -> atom == day end)
-    label
-  end
+  defp start_weekday(date), do: Enum.at(~w(mo tu we th fr sa su)a, Date.day_of_week(date) - 1)
 
   defp end_type(%{count: count}) when is_integer(count), do: "count"
   defp end_type(%{until: %Date{}}), do: "until"
-  defp end_type(_parsed), do: "never"
+  defp end_type(_pattern), do: "never"
 
   defp until_value(%Date{} = date), do: Date.to_iso8601(date)
   defp until_value(_other), do: ""
@@ -273,17 +277,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
   defp interval_unit(:yearly), do: dgettext("dashboard_calendar_repeat", "year(s)")
   defp interval_unit(_other), do: ""
 
-  defp weekdays do
-    [
-      {:mo, dgettext("dashboard_calendar_repeat", "Mon")},
-      {:tu, dgettext("dashboard_calendar_repeat", "Tue")},
-      {:we, dgettext("dashboard_calendar_repeat", "Wed")},
-      {:th, dgettext("dashboard_calendar_repeat", "Thu")},
-      {:fr, dgettext("dashboard_calendar_repeat", "Fri")},
-      {:sa, dgettext("dashboard_calendar_repeat", "Sat")},
-      {:su, dgettext("dashboard_calendar_repeat", "Sun")}
-    ]
-  end
+  defp weekdays,
+    do: for(day <- ~w(mo tu we th fr sa su)a, do: {day, RecurrenceSummary.weekday_label(day)})
 
   defp freq_options do
     [

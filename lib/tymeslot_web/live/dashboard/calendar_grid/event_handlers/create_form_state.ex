@@ -373,6 +373,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.CreateFormState do
           |> maybe_update_date(params["end-date"], :end_date)
           |> maybe_update_time(params["start-time"], :start_hour, :start_minute)
           |> maybe_update_time(params["end-time"], :end_hour, :end_minute)
+          |> recompose_recurrence(socket.assigns.user_timezone)
 
         {:noreply, assign(socket, :creating_event, updated)}
     end
@@ -386,7 +387,12 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.CreateFormState do
         {:noreply, socket}
 
       creating ->
-        {:noreply, assign(socket, :creating_event, toggle_all_day(creating))}
+        updated =
+          creating
+          |> toggle_all_day()
+          |> recompose_recurrence(socket.assigns.user_timezone)
+
+        {:noreply, assign(socket, :creating_event, updated)}
     end
   end
 
@@ -449,15 +455,43 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.CreateFormState do
         {:noreply, socket}
 
       creating ->
-        # The event's all-day flag and start date can still change before the
-        # form is saved, so only the timezone is fixed enough to compose with;
-        # `CreateExecution` refits the rest to the event that is saved.
-        rule =
-          Shared.compose_recurrence_rule(params, %{timezone: socket.assigns.user_timezone})
+        updated =
+          creating
+          |> Map.put(:recurrence_params, params)
+          |> recompose_recurrence(socket.assigns.user_timezone)
 
-        {:noreply, assign(socket, :creating_event, Map.put(creating, :recurrence_rule, rule))}
+        {:noreply, assign(socket, :creating_event, updated)}
     end
   end
+
+  # A repeat pattern is anchored to the event's start (`Pattern`), and the
+  # start date and all-day flag can still change after a pattern is picked,
+  # so the rule is composed again from the editor's fields whenever they do.
+  # A position the new date is not (it is no longer the second Tuesday)
+  # falls back to the date's own day, which the editor then shows.
+  # `CreateExecution` still refits the rule's end to the event it saves.
+  defp recompose_recurrence(%{recurrence_params: params} = creating, timezone) do
+    context = %{
+      timezone: timezone,
+      all_day: Map.get(creating, :all_day, false),
+      start_date: parse_date(creating.date),
+      # An end before the start is reported when the event is saved.
+      check_until: false
+    }
+
+    Map.put(creating, :recurrence_rule, Shared.compose_recurrence_rule(params, context))
+  end
+
+  defp recompose_recurrence(creating, _timezone), do: creating
+
+  defp parse_date(value) when is_binary(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> date
+      {:error, _reason} -> nil
+    end
+  end
+
+  defp parse_date(_value), do: nil
 
   @spec handle_update_create_integration(map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}

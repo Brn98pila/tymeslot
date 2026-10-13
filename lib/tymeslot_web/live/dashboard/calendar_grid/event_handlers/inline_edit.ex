@@ -9,6 +9,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.InlineEdit do
   alias Tymeslot.CalendarGrid.AllDay
   alias Tymeslot.CalendarGrid.EventEdit
   alias Tymeslot.CalendarGrid.SeriesEdit
+  alias Tymeslot.Integrations.Calendar.Recurrence.Pattern
   alias Tymeslot.Meetings.AttendeeNotifications
   alias Tymeslot.Security.UniversalSanitizer
   alias TymeslotWeb.Dashboard.CalendarGrid.EditWorkflow
@@ -246,37 +247,56 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.InlineEdit do
         {:noreply, socket}
 
       event ->
-        timezone = Shared.recurrence_timezone(event, socket.assigns.user_timezone)
+        # The editor is not shown for a calendar the grid writes no rule to.
+        if rule_writable?(event),
+          do: change_recurrence(socket, event, params),
+          else: {:noreply, socket}
+    end
+  end
 
-        event_context = %{
-          all_day: Map.get(event, :all_day, false),
-          start_date: AllDay.start_date(event, timezone),
-          timezone: timezone,
-          rule: event.recurrence_rule
-        }
+  defp rule_writable?(event) do
+    case Map.get(event, :provider) do
+      nil -> true
+      provider -> CalendarGrid.repeatable_provider?(provider)
+    end
+  end
 
-        case Shared.compose_recurrence_rule(params, event_context) do
-          {:error, :until_before_start} = error ->
-            Shared.flash_guard_error(socket, error)
+  defp change_recurrence(socket, event, params) do
+    timezone = Shared.recurrence_timezone(event, socket.assigns.user_timezone)
 
-          new_rule ->
-            if new_rule == event.recurrence_rule do
-              {:noreply, socket}
-            else
-              with :ok <- EditWorkflow.assert_event_writable(socket, event),
-                   :ok <- Shared.check_seat_lock(socket, event),
-                   :ok <- Shared.check_edit_rate_limit(socket) do
-                push_recurrence_change(socket, event, new_rule)
-              else
-                {:error, reason} = error
-                when reason in [:unauthorized, :read_only, :group_booking] ->
-                  Shared.flash_guard_error(socket, error)
+    event_context = %{
+      all_day: Map.get(event, :all_day, false),
+      start_date: AllDay.start_date(event, timezone),
+      timezone: timezone,
+      rule: event.recurrence_rule
+    }
 
-                {:error, :rate_limited, _message} = error ->
-                  Shared.flash_guard_error(socket, error)
-              end
-            end
-        end
+    case Shared.compose_recurrence_rule(params, event_context) do
+      {:error, :until_before_start} = error ->
+        Shared.flash_guard_error(socket, error)
+
+      new_rule ->
+        # By meaning: a rule another calendar wrote (an UNTIL as a date, days
+        # in another order) is not changed by being read back.
+        start = Shared.recurrence_start(event, socket.assigns.user_timezone)
+
+        if Pattern.equivalent?(new_rule, event.recurrence_rule, start),
+          do: {:noreply, socket},
+          else: write_recurrence_change(socket, event, new_rule)
+    end
+  end
+
+  defp write_recurrence_change(socket, event, new_rule) do
+    with :ok <- EditWorkflow.assert_event_writable(socket, event),
+         :ok <- Shared.check_seat_lock(socket, event),
+         :ok <- Shared.check_edit_rate_limit(socket) do
+      push_recurrence_change(socket, event, new_rule)
+    else
+      {:error, reason} = error when reason in [:unauthorized, :read_only, :group_booking] ->
+        Shared.flash_guard_error(socket, error)
+
+      {:error, :rate_limited, _message} = error ->
+        Shared.flash_guard_error(socket, error)
     end
   end
 

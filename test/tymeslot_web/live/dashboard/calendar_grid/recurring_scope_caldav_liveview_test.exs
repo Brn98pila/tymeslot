@@ -369,8 +369,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
   end
 
   describe "a rule change to a series with parts the editor does not show" do
-    # An imported "second Monday" rule with a BYHOUR the expander does not
-    # follow: the editor shows only its frequency, interval and end.
+    # An imported "second Monday" rule with a BYHOUR the editor cannot build:
+    # it is shown, not edited, until the organiser replaces it.
     @imported_rule "FREQ=MONTHLY;BYDAY=2MO;BYHOUR=9"
 
     setup %{user: user} do
@@ -411,7 +411,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
       %{event: event}
     end
 
-    test "a new interval for all events keeps them", %{conn: conn, event: event} do
+    test "replacing it for all events writes the rule the editor built", %{
+      conn: conn,
+      event: event
+    } do
       expect_puts(1)
       {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
 
@@ -430,7 +433,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
       confirm_scope(lv, "all")
 
       assert [{_url, body, _headers}] = await_puts(1)
-      assert "RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=2MO;BYHOUR=9" in LineFolder.unfold_lines(body)
+      assert "RRULE:FREQ=MONTHLY;INTERVAL=2" in LineFolder.unfold_lines(body)
     end
   end
 

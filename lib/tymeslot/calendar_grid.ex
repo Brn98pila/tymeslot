@@ -29,6 +29,7 @@ defmodule Tymeslot.CalendarGrid do
   alias Tymeslot.Integrations.Calendar.EventColour
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
+  alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Reminder
   alias Tymeslot.Integrations.Calendar.SyncSchedule
   alias Tymeslot.Integrations.CalendarManagement
@@ -383,6 +384,13 @@ defmodule Tymeslot.CalendarGrid do
   """
   @spec edit_scopes(map()) :: {:ok, :single | :this_only | :series}
   defdelegate edit_scopes(event), to: EventEdit
+
+  @doc """
+  Whether the grid can give an event of `provider` a repeat rule, or change
+  the one it has (see `ProviderConfig.writes_repeat_rules?/1`).
+  """
+  @spec repeatable_provider?(atom() | String.t() | nil) :: boolean()
+  defdelegate repeatable_provider?(provider), to: ProviderConfig, as: :writes_repeat_rules?
 
   @doc "Fetches a single cached event by integration ID and UID."
   @spec get_cached_event(integer(), String.t()) ::

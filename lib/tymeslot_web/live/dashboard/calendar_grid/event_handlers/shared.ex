@@ -7,6 +7,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
 
   alias Tymeslot.Integrations.Calendar.EventColour
   alias Tymeslot.Integrations.Calendar.ICalBuilder.TimeZoneComponent
+  alias Tymeslot.Integrations.Calendar.Recurrence.Pattern
   alias Tymeslot.Integrations.Calendar.Recurrence.RRule
   alias Tymeslot.Integrations.Calendar.Recurrence.Series
   alias Tymeslot.Meetings
@@ -25,6 +26,13 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
     "sa" => :sa,
     "su" => :su
   }
+
+  # What an `on` field's kind may name (`Pattern.kind/0`).
+  @on_kinds Map.merge(@weekday_atoms, %{
+              "day" => :day,
+              "weekday" => :weekday,
+              "weekend_day" => :weekend_day
+            })
 
   @spec parse_int(binary()) :: {:ok, integer()} | :error
   @spec parse_int(term()) :: :error
@@ -222,6 +230,24 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
   end
 
   @doc """
+  The start a repeat pattern of `event` is read against
+  (`Tymeslot.Integrations.Calendar.Recurrence.Pattern`): the day of an
+  all-day event, else its start on the wall clock of the zone the series
+  repeats in (`recurrence_timezone/2`).
+  """
+  @spec recurrence_start(map(), String.t()) :: Date.t() | DateTime.t()
+  def recurrence_start(%{all_day: true, start_date: %Date{} = date}, _user_timezone), do: date
+
+  def recurrence_start(event, user_timezone) do
+    zone = recurrence_timezone(event, user_timezone)
+
+    case event do
+      %{start_at: %DateTime{} = start_at} -> DateTime.shift_zone!(start_at, zone)
+      _no_start -> DateTime.now!(zone)
+    end
+  end
+
+  @doc """
   The zone an event's days are read in when it is toggled to or from all-day:
   for a series, the zone it repeats in (`recurrence_timezone/2`), so its
   first occurrence keeps its calendar's day; for a one-off, the viewer's, so
@@ -240,7 +266,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
 
   @doc """
   Composes a canonical RRULE string from the recurrence editor's raw form
-  fields (`freq`, `interval`, `by_day[]`, `end_type`, `count`, `until`).
+  fields (`freq`, `interval`, `by_day[]`, `on`, `end_type`, `count`, `until`).
 
   Returns `nil` when no frequency is chosen ("Does not repeat") or the fields do
   not describe a valid rule. Unrecognised frequencies and malformed end
@@ -257,10 +283,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
       `recurrence_timezone/2`. A timed event's UNTIL is an instant, so the date
       the form supplies has to end its day in a zone rather than in UTC, or the
       series ends a day early west of UTC and a day late east of it.
-    - `:rule` — the rule being edited, if any. The parts of it the form does
-      not show (an ordinal `BYDAY`, `BYMONTHDAY`, `WKST`, ...) are kept, so
-      changing the interval of an imported "second Tuesday" rule does not
-      turn it into a plain monthly one (`RRule.build/2`'s `:keep`).
+    - `:rule` — the rule being edited, if any. Its `WKST` is kept.
+    - `:check_until` — `false` to leave an `until` before `:start_date` for
+      the caller to refuse later; default `true`.
+
+  With a `:start_date` the rule is one of the editor's patterns
+  (`Pattern.build/3`), anchored to that date: a weekly rule includes its
+  weekday, and `on` (`day`, or `ordinal:kind` such as `2:tu`) is taken only
+  when the date is that day (`Pattern.choices/1`), otherwise the start's day.
 
   Returns `{:error, :until_before_start}` when `until` precedes `:start_date`.
   """
@@ -271,10 +301,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
         nil
 
       freq ->
+        start_date = Map.get(event_context, :start_date)
+
         opts =
           %{freq: freq}
           |> put_interval(params["interval"])
           |> put_by_day(freq, params["by_day"])
+          |> put_start_day(freq, start_date)
+          |> put_on(freq, params["on"], start_date)
           |> put_end_condition(params["end_type"], params)
 
         # `build/2` and `retarget/2` are handed the same value-type options, so
@@ -283,10 +317,15 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
         fit_opts = [
           all_day: Map.get(event_context, :all_day, false),
           timezone: Map.get(event_context, :timezone),
-          start_date: Map.get(event_context, :start_date)
+          start_date: if(Map.get(event_context, :check_until, true), do: start_date)
         ]
 
-        rule = RRule.build(opts, [keep: Map.get(event_context, :rule)] ++ fit_opts)
+        build_opts = [keep: Map.get(event_context, :rule)] ++ fit_opts
+
+        rule =
+          if start_date,
+            do: Pattern.build(opts, start_date, build_opts),
+            else: RRule.build(opts, build_opts)
 
         case RRule.retarget(rule, fit_opts) do
           {:ok, rule} -> rule
@@ -318,6 +357,34 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
   end
 
   defp put_by_day(opts, _freq, _days), do: opts
+
+  # A weekly series repeats on its start's weekday whatever else is ticked.
+  # With nothing ticked the rule names no day, which means that one.
+  defp put_start_day(%{by_day: [_first | _rest] = days} = opts, :weekly, %Date{} = start_date) do
+    day = Enum.at(~w(mo tu we th fr sa su)a, Date.day_of_week(start_date) - 1)
+    if day in days, do: opts, else: Map.put(opts, :by_day, days ++ [day])
+  end
+
+  defp put_start_day(opts, _freq, _start_date), do: opts
+
+  defp put_on(opts, freq, value, %Date{} = start_date) when freq in [:monthly, :yearly] do
+    on = parse_on(value)
+    if on in Pattern.choices(start_date), do: Map.put(opts, :on, on), else: opts
+  end
+
+  defp put_on(opts, _freq, _value, _start_date), do: opts
+
+  defp parse_on(value) when is_binary(value) do
+    with [ordinal, kind] <- String.split(value, ":", parts: 2),
+         {ordinal, ""} when ordinal in [1, 2, 3, 4, -1] <- Integer.parse(ordinal),
+         {:ok, kind} <- Map.fetch(@on_kinds, kind) do
+      {ordinal, kind}
+    else
+      _day_or_unknown -> :day
+    end
+  end
+
+  defp parse_on(_value), do: :day
 
   defp put_end_condition(opts, "count", params) do
     case parse_int(params["count"] || "") do
