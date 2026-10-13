@@ -4,9 +4,10 @@ defmodule Tymeslot.Security.RateLimiterRefusalLoggingTest do
 
   Most do. The silent ones are flood caps on machine-to-machine endpoints,
   limits whose refusal was never logged (form keystrokes, public poll voting,
-  settings edits), and the auth limits, whose refusal the auth flows log
-  once as a security event; a second line per refusal would bury the ones
-  worth reading.
+  settings edits), the auth limits, whose refusal the auth flows log once
+  as a security event, and the series rule read budget, whose refusal ends
+  the sync run's reads with one line of its own; a second line per refusal
+  would bury the ones worth reading.
   """
 
   use ExUnit.Case, async: false
@@ -33,7 +34,11 @@ defmodule Tymeslot.Security.RateLimiterRefusalLoggingTest do
     verification_ip verification_link verification_user
   )a
 
-  @silent @quiet ++ @audited_by_auth
+  # A sync run stops reading series rules on the first refusal and logs
+  # that once.
+  @logged_by_sync ~w(series_rule_read)a
+
+  @silent @quiet ++ @audited_by_auth ++ @logged_by_sync
 
   setup do
     RateLimiter.clear_all()
