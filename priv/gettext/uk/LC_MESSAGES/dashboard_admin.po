@@ -177,7 +177,7 @@ msgstr "Введіть дійсну адресу електронної пошт
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
 msgid "Generic OIDC login"
-msgstr "Вхід через OIDC"
+msgstr "Вхід через загальний OIDC"
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
@@ -715,12 +715,12 @@ msgstr "Аналітику бронювань увімкнено."
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
 msgid "Generic OIDC login turned off."
-msgstr "Вхід через OIDC вимкнено."
+msgstr "Вхід через загальний OIDC вимкнено."
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
 msgid "Generic OIDC login turned on."
-msgstr "Вхід через OIDC увімкнено."
+msgstr "Вхід через загальний OIDC увімкнено."
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
