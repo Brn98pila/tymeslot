@@ -118,7 +118,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
 
   @doc """
   Sets whether a subscription counts every event in its feed as busy, also
-  those the feed marks free (see `CalendarManagement.set_all_events_busy/3`).
+  those the feed marks free (see `CalendarManagement.put_all_events_busy/2`).
   Any other connection is refused with `{:error, :not_a_subscription}`.
   """
   @spec set_all_events_busy(pos_integer(), pos_integer(), boolean()) ::

@@ -278,23 +278,13 @@ defmodule Tymeslot.Integrations.CalendarManagement do
 
   @doc """
   Sets whether a subscription counts every event in its feed as busy, even
-  those the feed marks free (`all_events_busy`; see `Ics.Provider`). Only a
-  subscription honours the flag, so any other connection is refused. The
-  user's cached availability is dropped, so the next booking page load
-  already reflects the change.
-  """
-  @spec set_all_events_busy(integer(), integer(), boolean()) ::
-          {:ok, CalendarIntegrationSchema.t()}
-          | {:error, :not_found | :not_a_subscription | Ecto.Changeset.t()}
-  def set_all_events_busy(integration_id, user_id, busy?) when is_boolean(busy?) do
-    with {:ok, integration} <- get_calendar_integration(integration_id, user_id),
-         do: put_all_events_busy(integration, busy?)
-  end
+  those the feed marks free (`all_events_busy`; see `Ics.Provider`), for an
+  integration already loaded for its owner. Only a subscription honours the
+  flag, so any other connection is refused. The owner's cached availability
+  is dropped, so the next booking page load already reflects the change.
 
-  @doc """
-  `set_all_events_busy/3` for an integration already loaded for its owner
-  (`OwnerActions.set_all_events_busy/3`, which charges the owner's budget
-  first).
+  The owner reaches it through `OwnerActions.set_all_events_busy/3`, which
+  charges their write budget first.
   """
   @spec put_all_events_busy(CalendarIntegrationSchema.t(), boolean()) ::
           {:ok, CalendarIntegrationSchema.t()}
