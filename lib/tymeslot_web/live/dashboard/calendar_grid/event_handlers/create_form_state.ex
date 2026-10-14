@@ -13,6 +13,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.CreateFormState do
   alias Tymeslot.Security.UniversalSanitizer
   alias TymeslotWeb.Components.Shared.ReminderPickerState
   alias TymeslotWeb.Dashboard.CalendarGrid.EditWorkflow
+  alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.CreateRecurrence
   alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared
   alias TymeslotWeb.Dashboard.CalendarGrid.Helpers
 
@@ -378,7 +379,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.CreateFormState do
           |> maybe_update_date(params["end-date"], :end_date)
           |> maybe_update_time(params["start-time"], :start_hour, :start_minute)
           |> maybe_update_time(params["end-time"], :end_hour, :end_minute)
-          |> recompose_recurrence(socket.assigns.user_timezone)
+          |> CreateRecurrence.recompose(socket.assigns.user_timezone)
 
         {:noreply, assign(socket, :creating_event, updated)}
     end
@@ -395,7 +396,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.CreateFormState do
         updated =
           creating
           |> toggle_all_day()
-          |> recompose_recurrence(socket.assigns.user_timezone)
+          |> CreateRecurrence.recompose(socket.assigns.user_timezone)
 
         {:noreply, assign(socket, :creating_event, updated)}
     end
@@ -490,52 +491,6 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.CreateFormState do
         end
     end
   end
-
-  @spec handle_update_create_recurrence(map(), Phoenix.LiveView.Socket.t()) ::
-          {:noreply, Phoenix.LiveView.Socket.t()}
-  def handle_update_create_recurrence(params, socket) do
-    case socket.assigns.creating_event do
-      nil ->
-        {:noreply, socket}
-
-      creating ->
-        updated =
-          creating
-          |> Map.put(:recurrence_params, params)
-          |> recompose_recurrence(socket.assigns.user_timezone)
-
-        {:noreply, assign(socket, :creating_event, updated)}
-    end
-  end
-
-  # A repeat pattern is anchored to the event's start (`Pattern`), and the
-  # start date and all-day flag can still change after a pattern is picked,
-  # so the rule is composed again from the editor's fields whenever they do.
-  # A position the new date is not (it is no longer the second Tuesday)
-  # falls back to the date's own day, which the editor then shows.
-  # `CreateExecution` still refits the rule's end to the event it saves.
-  defp recompose_recurrence(%{recurrence_params: params} = creating, timezone) do
-    context = %{
-      timezone: timezone,
-      all_day: Map.get(creating, :all_day, false),
-      start_date: parse_date(creating.date),
-      # An end before the start is reported when the event is saved.
-      check_until: false
-    }
-
-    Map.put(creating, :recurrence_rule, Shared.compose_recurrence_rule(params, context))
-  end
-
-  defp recompose_recurrence(creating, _timezone), do: creating
-
-  defp parse_date(value) when is_binary(value) do
-    case Date.from_iso8601(value) do
-      {:ok, date} -> date
-      {:error, _reason} -> nil
-    end
-  end
-
-  defp parse_date(_value), do: nil
 
   @spec handle_update_create_integration(map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
