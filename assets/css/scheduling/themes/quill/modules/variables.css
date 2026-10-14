@@ -188,7 +188,7 @@
   --seat-neutral: currentColor;
   --seat-neutral-bg: color-mix(in srgb, currentColor 12%, transparent);
   /* A selected slot sits on the primary gradient, whose text colour is
-     --theme-on-primary: the badge takes that colour on a faint wash of it,
+     --theme-on-primary, so the badge takes that colour on a faint wash of it,
      so a custom palette's contrast pair carries over to the badge. */
   --seat-selected: var(--theme-on-primary);
   --seat-selected-bg: color-mix(in srgb, var(--theme-on-primary) 14%, transparent);

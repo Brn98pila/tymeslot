@@ -14,9 +14,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   use TymeslotWeb.LiveCase, async: false
   use Oban.Testing, repo: Tymeslot.Repo
 
-  alias Tymeslot.Test.MediaFixtures
-  alias Tymeslot.ThemeCustomizations
-
   @moduletag :themes
   @moduletag :live
 
@@ -26,6 +23,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   alias Ecto.Changeset
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
+  alias Tymeslot.Test.MediaFixtures
+  alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.Specs
   alias Tymeslot.ThemeCustomizations.Storage
