@@ -54,7 +54,7 @@ msgstr "Endet nie"
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #, elixir-autogen, elixir-format
 msgid "On date"
-msgstr "Am Datum"
+msgstr "An einem Datum"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #, elixir-autogen, elixir-format
@@ -144,22 +144,12 @@ msgstr "Wöchentlich"
 msgid "Yearly"
 msgstr "Jährlich"
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "day(s)"
-msgstr "Tag(e)"
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
 msgid "for %{count} occurrence"
 msgid_plural "for %{count} occurrences"
 msgstr[0] "für %{count} Vorkommen"
 msgstr[1] "für %{count} Vorkommen"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "month(s)"
-msgstr "Monat(e)"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #, elixir-autogen, elixir-format
@@ -177,16 +167,6 @@ msgstr "jeweils %{days}"
 #, elixir-autogen, elixir-format
 msgid "until %{date}"
 msgstr "bis %{date}"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "week(s)"
-msgstr "Woche(n)"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "year(s)"
-msgstr "Jahr(e)"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #, elixir-autogen, elixir-format
@@ -370,11 +350,6 @@ msgstr "am ersten Mittwoch"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
-msgid "on the first day"
-msgstr "am ersten Tag"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
-#, elixir-autogen, elixir-format
 msgid "on the first weekday"
 msgstr "am ersten Arbeitstag"
 
@@ -417,11 +392,6 @@ msgstr "am vierten Dienstag"
 #, elixir-autogen, elixir-format
 msgid "on the fourth Wednesday"
 msgstr "am vierten Mittwoch"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
-#, elixir-autogen, elixir-format
-msgid "on the fourth day"
-msgstr "am vierten Tag"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
@@ -520,11 +490,6 @@ msgstr "am zweiten Mittwoch"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
-msgid "on the second day"
-msgstr "am zweiten Tag"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
-#, elixir-autogen, elixir-format
 msgid "on the second weekday"
 msgstr "am zweiten Arbeitstag"
 
@@ -570,11 +535,6 @@ msgstr "am dritten Mittwoch"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
-msgid "on the third day"
-msgstr "am dritten Tag"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
-#, elixir-autogen, elixir-format
 msgid "on the third weekday"
 msgstr "am dritten Arbeitstag"
 
@@ -582,3 +542,31 @@ msgstr "am dritten Arbeitstag"
 #, elixir-autogen, elixir-format
 msgid "on the third weekend day"
 msgstr "am dritten Wochenendtag"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "day"
+msgid_plural "days"
+msgstr[0] "Tag"
+msgstr[1] "Tage"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "month"
+msgid_plural "months"
+msgstr[0] "Monat"
+msgstr[1] "Monate"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "week"
+msgid_plural "weeks"
+msgstr[0] "Woche"
+msgstr[1] "Wochen"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "year"
+msgid_plural "years"
+msgstr[0] "Jahr"
+msgstr[1] "Jahre"

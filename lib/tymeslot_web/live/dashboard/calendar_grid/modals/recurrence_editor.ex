@@ -10,9 +10,15 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
   (never / after N occurrences / on a date). A summary of the current rule
   sits beneath the controls.
 
-  The patterns are anchored to the event's start (`start`): a monthly or
-  yearly pattern offers only the positions the start is, and a hint says to
-  move the event to repeat on another day.
+  The patterns are anchored to the event's start (`start`): a weekly pattern
+  always includes the start's weekday, a monthly or yearly one offers only
+  the positions the start is, and a hint says to move the event to repeat on
+  another day.
+
+  An end picked before its number or date is given starts from a default
+  (`Pattern.default_count/0`, `Pattern.default_until/2`), since its field
+  appears only once it is picked. The number fields send on blur, so a
+  series is not rewritten at every keystroke.
 
   A stored rule no pattern matches (`Pattern.read/2` answers `:custom`) is
   shown as a summary with a "Replace repeat rule" action and no controls, so
@@ -69,7 +75,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
         on: Map.get(pattern, :on, :day),
         on_options: on_options(freq, start_date),
         end_type: end_type(pattern),
-        count: pattern[:count] || 10,
+        count: pattern[:count] || Pattern.default_count(),
         until: until_value(pattern[:until]),
         weekdays: weekdays(),
         freq_options: freq_options(),
@@ -131,21 +137,31 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
               min="1"
               max="999"
               value={@interval}
+              phx-debounce="blur"
               class="w-16 rounded-token-md border-tymeslot-300 text-token-xs text-tymeslot-700 focus:border-turquoise-500 focus:ring-turquoise-500 py-1"
             />
-            <span class="text-token-xs text-tymeslot-600">{interval_unit(@freq)}</span>
+            <span class="text-token-xs text-tymeslot-600">{interval_unit(@freq, @interval)}</span>
           </div>
 
           <div :if={@freq == :weekly} class="flex flex-wrap gap-1">
+            <%!-- The start's weekday is always one of a weekly pattern's
+                 days (`Pattern`), so it cannot be unticked, and is sent
+                 beside its disabled box. --%>
+            <input type="hidden" name="by_day[]" value={@start_weekday} />
             <label
               :for={{day, label} <- @weekdays}
               class={[
-                "px-2 py-1 rounded-token-md border text-token-xs cursor-pointer transition-all select-none",
-                if(day in @by_day,
-                  do: "border-turquoise-400 bg-turquoise-50 text-turquoise-800 font-semibold",
-                  else:
-                    "border-tymeslot-200 text-tymeslot-600 hover:border-tymeslot-300 hover:bg-tymeslot-50"
-                )
+                "px-2 py-1 rounded-token-md border text-token-xs transition-all select-none",
+                cond do
+                  day == @start_weekday ->
+                    "border-turquoise-400 bg-turquoise-50 text-turquoise-800 font-semibold cursor-not-allowed"
+
+                  day in @by_day ->
+                    "border-turquoise-400 bg-turquoise-50 text-turquoise-800 font-semibold cursor-pointer"
+
+                  true ->
+                    "border-tymeslot-200 text-tymeslot-600 hover:border-tymeslot-300 hover:bg-tymeslot-50 cursor-pointer"
+                end
               ]}
             >
               <input
@@ -153,13 +169,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
                 name="by_day[]"
                 value={day}
                 checked={day in @by_day or day == @start_weekday}
+                disabled={day == @start_weekday}
                 class="sr-only"
               />
               {label}
             </label>
           </div>
 
-          <div :if={@freq in [:monthly, :yearly]} class="space-y-1">
+          <div :if={@freq in [:monthly, :yearly]}>
             <select
               name="on"
               aria-label={dgettext("dashboard_calendar_repeat", "Repeats on")}
@@ -173,13 +190,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
                 {label}
               </option>
             </select>
-            <p class="text-token-xs text-tymeslot-400">
-              {dgettext(
-                "dashboard_calendar_repeat",
-                "To repeat on another day, move the event to that day."
-              )}
-            </p>
           </div>
+
+          <p :if={@freq in [:weekly, :monthly, :yearly]} class="text-token-xs text-tymeslot-400">
+            {dgettext(
+              "dashboard_calendar_repeat",
+              "To repeat on another day, move the event to that day."
+            )}
+          </p>
 
           <div class="flex flex-wrap items-center gap-2">
             <select
@@ -204,6 +222,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
                 min="1"
                 max="999"
                 value={@count}
+                phx-debounce="blur"
                 class="w-16 rounded-token-md border-tymeslot-300 text-token-xs text-tymeslot-700 focus:border-turquoise-500 focus:ring-turquoise-500 py-1"
               />
               <span class="text-token-xs text-tymeslot-600">{dngettext(
@@ -271,11 +290,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
   defp until_value(%Date{} = date), do: Date.to_iso8601(date)
   defp until_value(_other), do: ""
 
-  defp interval_unit(:daily), do: dgettext("dashboard_calendar_repeat", "day(s)")
-  defp interval_unit(:weekly), do: dgettext("dashboard_calendar_repeat", "week(s)")
-  defp interval_unit(:monthly), do: dgettext("dashboard_calendar_repeat", "month(s)")
-  defp interval_unit(:yearly), do: dgettext("dashboard_calendar_repeat", "year(s)")
-  defp interval_unit(_other), do: ""
+  # "Every 2 weeks": the unit agrees with the interval in front of it.
+  defp interval_unit(:daily, n), do: dngettext("dashboard_calendar_repeat", "day", "days", n)
+  defp interval_unit(:weekly, n), do: dngettext("dashboard_calendar_repeat", "week", "weeks", n)
+
+  defp interval_unit(:monthly, n),
+    do: dngettext("dashboard_calendar_repeat", "month", "months", n)
+
+  defp interval_unit(:yearly, n), do: dngettext("dashboard_calendar_repeat", "year", "years", n)
 
   defp weekdays,
     do: for(day <- ~w(mo tu we th fr sa su)a, do: {day, RecurrenceSummary.weekday_label(day)})

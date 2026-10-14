@@ -81,7 +81,11 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceSummary do
 
   defp qualifier(_pattern, _start_date), do: nil
 
-  for {ordinal, ordinal_word} <- @ordinals, {kind, kind_word} <- @kinds do
+  # A first to fourth day of the month is a day of the month ("on day 2"),
+  # so of the plain days only the last is a position (`Pattern.choices/1`).
+  for {ordinal, ordinal_word} <- @ordinals,
+      {kind, kind_word} <- @kinds,
+      kind != :day or ordinal == -1 do
     defp position_phrase({unquote(ordinal), unquote(kind)}),
       do: dgettext("dashboard_calendar_repeat", unquote("on the #{ordinal_word} #{kind_word}"))
   end

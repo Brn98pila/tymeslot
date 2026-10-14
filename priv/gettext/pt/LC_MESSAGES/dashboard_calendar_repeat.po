@@ -144,22 +144,12 @@ msgstr "Semanalmente"
 msgid "Yearly"
 msgstr "Anualmente"
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "day(s)"
-msgstr "dia(s)"
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
 msgid "for %{count} occurrence"
 msgid_plural "for %{count} occurrences"
 msgstr[0] "por %{count} ocorrência"
 msgstr[1] "por %{count} ocorrências"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "month(s)"
-msgstr "mês(es)"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #, elixir-autogen, elixir-format
@@ -177,16 +167,6 @@ msgstr "em %{days}"
 #, elixir-autogen, elixir-format
 msgid "until %{date}"
 msgstr "até %{date}"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "week(s)"
-msgstr "semana(s)"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "year(s)"
-msgstr "ano(s)"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #, elixir-autogen, elixir-format
@@ -370,11 +350,6 @@ msgstr "na primeira quarta-feira"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
-msgid "on the first day"
-msgstr "no primeiro dia"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
-#, elixir-autogen, elixir-format
 msgid "on the first weekday"
 msgstr "no primeiro dia útil"
 
@@ -417,11 +392,6 @@ msgstr "na quarta terça-feira"
 #, elixir-autogen, elixir-format
 msgid "on the fourth Wednesday"
 msgstr "na quarta quarta-feira"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
-#, elixir-autogen, elixir-format
-msgid "on the fourth day"
-msgstr "no quarto dia"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
@@ -520,11 +490,6 @@ msgstr "na segunda quarta-feira"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
-msgid "on the second day"
-msgstr "no segundo dia"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
-#, elixir-autogen, elixir-format
 msgid "on the second weekday"
 msgstr "no segundo dia útil"
 
@@ -570,11 +535,6 @@ msgstr "na terceira quarta-feira"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
-msgid "on the third day"
-msgstr "no terceiro dia"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
-#, elixir-autogen, elixir-format
 msgid "on the third weekday"
 msgstr "no terceiro dia útil"
 
@@ -582,3 +542,31 @@ msgstr "no terceiro dia útil"
 #, elixir-autogen, elixir-format
 msgid "on the third weekend day"
 msgstr "no terceiro dia de fim de semana"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "day"
+msgid_plural "days"
+msgstr[0] "dia"
+msgstr[1] "dias"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "month"
+msgid_plural "months"
+msgstr[0] "mês"
+msgstr[1] "meses"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "week"
+msgid_plural "weeks"
+msgstr[0] "semana"
+msgstr[1] "semanas"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "year"
+msgid_plural "years"
+msgstr[0] "ano"
+msgstr[1] "anos"

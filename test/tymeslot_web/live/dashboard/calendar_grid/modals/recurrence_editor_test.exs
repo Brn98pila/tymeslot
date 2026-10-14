@@ -13,7 +13,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditorTest do
   # Tuesday 13 October 2026, the month's second Tuesday.
   @second_tuesday ~U[2026-10-13 09:00:00Z]
 
-  defp base_assigns(overrides \\ %{}) do
+  defp base_assigns(overrides) do
     Map.merge(
       %{
         recurrence_rule: nil,

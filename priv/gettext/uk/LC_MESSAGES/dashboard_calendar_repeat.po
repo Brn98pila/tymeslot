@@ -70,7 +70,7 @@ msgstr "Повторюється щодня"
 #, elixir-autogen, elixir-format
 msgid "Repeats every %{count} day"
 msgid_plural "Repeats every %{count} days"
-msgstr[0] "Повторюється кожен %{count} день"
+msgstr[0] "Повторюється кожні %{count} день"
 msgstr[1] "Повторюється кожні %{count} дні"
 msgstr[2] "Повторюється кожні %{count} днів"
 
@@ -78,7 +78,7 @@ msgstr[2] "Повторюється кожні %{count} днів"
 #, elixir-autogen, elixir-format
 msgid "Repeats every %{count} month"
 msgid_plural "Repeats every %{count} months"
-msgstr[0] "Повторюється кожен %{count} місяць"
+msgstr[0] "Повторюється кожні %{count} місяць"
 msgstr[1] "Повторюється кожні %{count} місяці"
 msgstr[2] "Повторюється кожні %{count} місяців"
 
@@ -86,7 +86,7 @@ msgstr[2] "Повторюється кожні %{count} місяців"
 #, elixir-autogen, elixir-format
 msgid "Repeats every %{count} week"
 msgid_plural "Repeats every %{count} weeks"
-msgstr[0] "Повторюється кожен %{count} тиждень"
+msgstr[0] "Повторюється кожні %{count} тиждень"
 msgstr[1] "Повторюється кожні %{count} тижні"
 msgstr[2] "Повторюється кожні %{count} тижнів"
 
@@ -94,7 +94,7 @@ msgstr[2] "Повторюється кожні %{count} тижнів"
 #, elixir-autogen, elixir-format
 msgid "Repeats every %{count} year"
 msgid_plural "Repeats every %{count} years"
-msgstr[0] "Повторюється кожен %{count} рік"
+msgstr[0] "Повторюється кожні %{count} рік"
 msgstr[1] "Повторюється кожні %{count} роки"
 msgstr[2] "Повторюється кожні %{count} років"
 
@@ -148,30 +148,20 @@ msgstr "Щотижня"
 msgid "Yearly"
 msgstr "Щороку"
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "day(s)"
-msgstr "дн."
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
 msgid "for %{count} occurrence"
 msgid_plural "for %{count} occurrences"
-msgstr[0] "для %{count} повторення"
-msgstr[1] "для %{count} повторень"
-msgstr[2] "для %{count} повторень"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "month(s)"
-msgstr "міс."
+msgstr[0] "усього %{count} повторення"
+msgstr[1] "усього %{count} повторення"
+msgstr[2] "усього %{count} повторень"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #, elixir-autogen, elixir-format
 msgid "occurrence"
 msgid_plural "occurrences"
 msgstr[0] "повторення"
-msgstr[1] "повторення"
+msgstr[1] "повторень"
 msgstr[2] "повторень"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
@@ -183,16 +173,6 @@ msgstr "у %{days}"
 #, elixir-autogen, elixir-format
 msgid "until %{date}"
 msgstr "до %{date}"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "week(s)"
-msgstr "тиж."
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "year(s)"
-msgstr "р."
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #, elixir-autogen, elixir-format
@@ -376,11 +356,6 @@ msgstr "у першу середу"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
-msgid "on the first day"
-msgstr "у перший день"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
-#, elixir-autogen, elixir-format
 msgid "on the first weekday"
 msgstr "у перший робочий день"
 
@@ -423,11 +398,6 @@ msgstr "у четвертий вівторок"
 #, elixir-autogen, elixir-format
 msgid "on the fourth Wednesday"
 msgstr "у четверту середу"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
-#, elixir-autogen, elixir-format
-msgid "on the fourth day"
-msgstr "у четвертий день"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
@@ -526,11 +496,6 @@ msgstr "у другу середу"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
-msgid "on the second day"
-msgstr "у другий день"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
-#, elixir-autogen, elixir-format
 msgid "on the second weekday"
 msgstr "у другий робочий день"
 
@@ -576,11 +541,6 @@ msgstr "у третю середу"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
-msgid "on the third day"
-msgstr "у третій день"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
-#, elixir-autogen, elixir-format
 msgid "on the third weekday"
 msgstr "у третій робочий день"
 
@@ -588,3 +548,35 @@ msgstr "у третій робочий день"
 #, elixir-autogen, elixir-format
 msgid "on the third weekend day"
 msgstr "у третій вихідний день"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "day"
+msgid_plural "days"
+msgstr[0] "день"
+msgstr[1] "дні"
+msgstr[2] "днів"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "month"
+msgid_plural "months"
+msgstr[0] "місяць"
+msgstr[1] "місяці"
+msgstr[2] "місяців"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "week"
+msgid_plural "weeks"
+msgstr[0] "тиждень"
+msgstr[1] "тижні"
+msgstr[2] "тижнів"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "year"
+msgid_plural "years"
+msgstr[0] "рік"
+msgstr[1] "роки"
+msgstr[2] "років"
