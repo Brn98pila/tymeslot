@@ -39,6 +39,78 @@ defmodule Tymeslot.CalendarGrid.SeriesStart do
     end
   end
 
+  @doc """
+  Where the series put `event`, an occurrence of it: its original start,
+  where a change of this and the following occurrences splits the series
+  whether or not the occurrence was moved on its own since. A `Date` for an
+  all-day series, a UTC `DateTime` otherwise; for an event of no series its
+  own start; `nil` when it cannot be told.
+
+  Google and Outlook state it (`Occurrence.original_start/1`); a CalDAV
+  occurrence is cached under the key of its `RECURRENCE-ID`, a wall clock in
+  the series' zone (`Occurrence.occurrence_key/1`).
+  """
+  @spec slot(map()) :: Date.t() | DateTime.t() | nil
+  def slot(event) do
+    case Occurrence.series_family(event) do
+      :single -> own_start(event)
+      :caldav -> event |> Occurrence.cached_row() |> caldav_slot()
+      :provider_ids -> provider_slot(Occurrence.cached_row(event))
+      :unsupported -> nil
+    end
+  end
+
+  defp provider_slot(row) do
+    case Occurrence.original_start(row) do
+      {:ok, start} -> fit(start, row)
+      {:error, _unaddressable} -> nil
+    end
+  end
+
+  defp caldav_slot(row) do
+    with {:ok, key} <- Occurrence.occurrence_key(row),
+         {:ok, wall} <- parse_key(key) do
+      case wall do
+        %Date{} = date -> date
+        %NaiveDateTime{} = naive -> naive |> in_zone(series_zone(row)) |> fit(row)
+      end
+    else
+      _unaddressable -> nil
+    end
+  end
+
+  defp parse_key(<<date::binary-size(8)>>), do: Date.from_iso8601(iso_date(date))
+
+  defp parse_key(<<date::binary-size(8), "T", time::binary-size(6), _rest::binary>>) do
+    <<hh::binary-size(2), mm::binary-size(2), ss::binary-size(2)>> = time
+    NaiveDateTime.from_iso8601("#{iso_date(date)}T#{hh}:#{mm}:#{ss}")
+  end
+
+  defp parse_key(_key), do: :error
+
+  defp iso_date(<<y::binary-size(4), m::binary-size(2), d::binary-size(2)>>), do: "#{y}-#{m}-#{d}"
+
+  # The zone the series' master names, which its keys are wall clocks in.
+  defp series_zone(%{raw_ical: document}) when is_binary(document) do
+    with {:ok, events} <- ICalParser.parse(document),
+         %{timezone: zone} when is_binary(zone) <- Enum.find(events, &master?/1) do
+      zone
+    else
+      _utc -> "Etc/UTC"
+    end
+  end
+
+  defp series_zone(_row), do: "Etc/UTC"
+
+  defp in_zone(naive, zone) do
+    case DateTime.from_naive(naive, zone) do
+      {:ok, at} -> at
+      {:ambiguous, first, _second} -> first
+      {:gap, _before, after_gap} -> after_gap
+      {:error, _reason} -> DateTime.from_naive!(naive, "Etc/UTC")
+    end
+  end
+
   # A Google or Outlook master's own row carries the rule and is its first
   # start; an occurrence names its master in `recurring_event_id`.
   defp provider_start(event) do

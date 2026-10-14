@@ -32,6 +32,7 @@ defmodule Tymeslot.CalendarGrid do
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Integrations.Calendar.ProviderConfig
+  alias Tymeslot.Integrations.Calendar.RecurrenceExpander
   alias Tymeslot.Integrations.Calendar.Reminder
   alias Tymeslot.Integrations.Calendar.SyncSchedule
   alias Tymeslot.Integrations.CalendarManagement
@@ -400,6 +401,24 @@ defmodule Tymeslot.CalendarGrid do
   """
   @spec series_start(map()) :: Date.t() | DateTime.t() | nil
   defdelegate series_start(event), to: SeriesStart, as: :of
+
+  @doc """
+  Where the series put `event`, which a change of it and the following
+  occurrences splits the series at (see `SeriesStart.slot/1`).
+  """
+  @spec occurrence_slot(map()) :: Date.t() | DateTime.t() | nil
+  defdelegate occurrence_slot(event), to: SeriesStart, as: :slot
+
+  @doc """
+  How many occurrences `rule` makes from `first` up to, but not including,
+  `boundary`, as a split of the series counts them off its `COUNT` (see
+  `RecurrenceExpander.count_before/3`).
+  """
+  @spec occurrences_before(String.t(), Date.t() | DateTime.t(), Date.t() | DateTime.t()) ::
+          non_neg_integer()
+  defdelegate occurrences_before(rule, first, boundary),
+    to: RecurrenceExpander,
+    as: :count_before
 
   @doc """
   Why a calendar of `provider` would refuse `rule` for a series starting on
