@@ -289,6 +289,9 @@ defmodule TymeslotWeb.Live.Scheduling.EmbedPaidBookingTest do
       _drain = :sys.get_state(view.pid)
       assert has_element?(view, "[data-testid='awaiting-payment']")
 
+      # Nor does the page offer a step a click would not take.
+      refute has_element?(view, "[phx-click='navigate_to_step']")
+
       for step <- ["3", "2", "1"] do
         render_hook(view, "navigate_to_step", %{"step" => step})
 

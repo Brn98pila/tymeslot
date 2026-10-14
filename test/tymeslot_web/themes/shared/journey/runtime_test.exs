@@ -303,4 +303,25 @@ defmodule TymeslotWeb.Themes.Shared.Journey.RuntimeTest do
       assert {:noreply, ^socket} = Runtime.navigate_to_step(socket, %{"step" => "1"})
     end
   end
+
+  describe "navigable_steps/1" do
+    test "is the steps behind the current one the navigator would move to" do
+      via_overview = %{current_state: :booking, meeting_type: nil, entered_via_overview: true}
+      direct = %{via_overview | entered_via_overview: false}
+
+      assert Runtime.navigable_steps(socket(via_overview).assigns) == [1, 2]
+      assert Runtime.navigable_steps(socket(direct).assigns) == [2]
+    end
+
+    test "is none while the booker waits on an open checkout" do
+      assigns =
+        socket(%{current_state: :awaiting_payment, meeting_type: nil, entered_via_overview: true}).assigns
+
+      assert Runtime.navigable_steps(assigns) == []
+    end
+
+    test "is none on a page without a journey" do
+      assert Runtime.navigable_steps(%{current_state: :schedule}) == []
+    end
+  end
 end

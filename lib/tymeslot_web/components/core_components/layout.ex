@@ -15,6 +15,10 @@ defmodule TymeslotWeb.Components.CoreComponents.Layout do
   attr :current_step, :integer, default: 1
   attr :slug, :string, default: nil
 
+  attr :navigable_steps, :list,
+    default: [],
+    doc: "the step numbers the step indicator may offer as clickable"
+
   attr :username_context, :string,
     default: nil,
     doc: "optional username shown in the page header for profile context"
@@ -30,6 +34,7 @@ defmodule TymeslotWeb.Components.CoreComponents.Layout do
               <StepNavigation.step_indicator
                 current_step={@current_step}
                 slug={@slug}
+                navigable_steps={@navigable_steps}
                 username_context={@username_context}
               />
             </div>

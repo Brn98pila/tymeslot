@@ -204,6 +204,20 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
 
   def navigate_to_step(socket, _params), do: {:noreply, socket}
 
+  @doc """
+  The step numbers the step indicator may offer as clickable: those its
+  `navigate_to_step` would move to (`Navigator.can_go_to?/3`). None on a
+  page without a journey, or whose navigator has no numbered steps.
+  """
+  @spec navigable_steps(map()) :: [pos_integer()]
+  def navigable_steps(%{journey: %Journey{navigator: navigator} = journey} = assigns) do
+    if Code.ensure_loaded?(navigator) and function_exported?(navigator, :can_go_to?, 3),
+      do: Enum.filter(1..length(journey.moments)//1, &navigator.can_go_to?(journey, assigns, &1)),
+      else: []
+  end
+
+  def navigable_steps(_assigns), do: []
+
   defp navigation?(journey, assigns, moment_key, event) do
     event in [:next_step, :back_step] and moment_key == assigns[:current_state] and
       Journey.moment(journey, moment_key) != nil
