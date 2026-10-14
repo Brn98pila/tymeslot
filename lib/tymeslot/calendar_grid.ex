@@ -20,7 +20,9 @@ defmodule Tymeslot.CalendarGrid do
   alias Tymeslot.CalendarGrid.EventVideoRoomSchema
   alias Tymeslot.CalendarGrid.Freshness
   alias Tymeslot.CalendarGrid.IcsImport
+  alias Tymeslot.CalendarGrid.RepeatRefusal
   alias Tymeslot.CalendarGrid.SeriesCarry
+  alias Tymeslot.CalendarGrid.SeriesStart
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.Appearance
   alias Tymeslot.Integrations.Calendar.CalendarAppearanceSchema
@@ -391,6 +393,23 @@ defmodule Tymeslot.CalendarGrid do
   """
   @spec repeatable_provider?(atom() | String.t() | nil) :: boolean()
   defdelegate repeatable_provider?(provider), to: ProviderConfig, as: :writes_repeat_rules?
+
+  @doc """
+  The first start of the series `event` belongs to, which a whole-series
+  repeat pattern is written against (see `SeriesStart.of/1`).
+  """
+  @spec series_start(map()) :: Date.t() | DateTime.t() | nil
+  defdelegate series_start(event), to: SeriesStart, as: :of
+
+  @doc """
+  Why a calendar of `provider` would refuse `rule` for a series starting on
+  `start_date`, or `nil` (see `RepeatRefusal.reason/4`).
+  """
+  @spec repeat_refusal(atom() | String.t() | nil, String.t() | nil, Date.t(), String.t() | nil) ::
+          RepeatRefusal.reason() | nil
+  defdelegate repeat_refusal(provider, rule, start_date, timezone),
+    to: RepeatRefusal,
+    as: :reason
 
   @doc "Fetches a single cached event by integration ID and UID."
   @spec get_cached_event(integer(), String.t()) ::
