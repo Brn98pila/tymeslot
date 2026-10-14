@@ -105,7 +105,7 @@ assets/css/scheduling/themes/[theme_name]/
 | `BookingFlow` | Form validation and submission |
 | `LocalizationHelpers` | Date/time/duration formatting: `format_date/1`, `format_duration/1`, `format_booking_datetime/3`, `format_time_by_locale/1` (respects locale 12h/24h setting — always use this for time slot display), `day_name_short/1` (localized weekday abbreviations), `get_week_display/1` (formatted week range string). Meeting types arrive pre-ordered by the user's configured `sort_order` — never re-sort them in theme components. |
 | `Tymeslot.Timezones` | Human-readable timezone display: `Timezones.format/1` — use this in confirmation and booking components instead of string-splitting the IANA timezone identifier |
-| `TymeslotWeb.Live.Scheduling.CalendarHelpers` | Calendar/week day generation (`get_week_days/4` — pass `@user_timezone`), week navigation (`handle_week_navigation/2`), availability fetching, slot parsing, `display_range/2` for visible date boundaries. **Note:** this lives under `live/scheduling/`, not `themes/shared/`. |
+| `TymeslotWeb.Live.Scheduling.CalendarHelpers` | Calendar/week day generation (`get_week_days/4` — pass `@user_timezone`), week navigation (`handle_week_navigation/2`), availability fetching, slot parsing. Visible date boundaries come from `Tymeslot.Availability.Calculate.display_range/3`, which takes the `:week_start` assign. **Note:** this lives under `live/scheduling/`, not `themes/shared/`. |
 | `TymeslotWeb.Live.Scheduling.CalendarNavigation` | Navigation boundary checks: `prev_month_disabled?/3`, `next_month_disabled?/4` (pass `@organizer_profile.advance_booking_days`), `prev_week_disabled?/2`, `next_week_disabled?/3` (pass `advance_booking_days`) — wire these to nav button `disabled` attributes. Also under `live/scheduling/`. |
 | `StateMachineHelpers` | Shared state model and transition logic — `default_states/0`, `states_for/1` (5-step flow when the meeting type has custom fields, 4-step otherwise), `determine_initial_state/1`, `can_navigate_to_step?/3`, `validate_state_transition/3`. Replaces the deleted per-theme state machines. |
 | `PathHandlers` | Navigation with locale preservation; `organizer_scheduling_path/1` for back-to-calendar links in cancel/reschedule pages |
@@ -771,7 +771,8 @@ end
 - `:theme_id` - Active theme ID
 - `:duration`, `:meeting_type` - nil until selected
 - `:current_year`, `:current_month` - today's values (UTC)
-- `:current_week_start` - start of the current week (Monday-anchored, UTC)
+- `:week_start` - `:monday` or `:sunday`: the visitor's week start (from the region in their `Accept-Language` header), falling back to the organiser's Calendar Settings. Render month-grid headings with `LocalizationHelpers.weekday_headings(@week_start)`; never hardcode them
+- `:current_week_start` - start of the current week, anchored on `:week_start` (UTC)
 - `:month_availability_map`, `:availability_status`, `:availability_task`, `:availability_task_ref`
 - `:form`, `:touched_fields`, `:validation_errors`, `:saving` - booking form state
 - `:client_ip`, `:submission_token`, `:meeting_types`
