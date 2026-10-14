@@ -29,6 +29,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookAPI
   alias Tymeslot.Integrations.Calendar.Recurrence.Pattern
   alias Tymeslot.Security.Encryption
+  alias TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceSummary
 
   setup do: freeze_clock_midweek()
 
@@ -166,6 +167,117 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
     end
   end
 
+  describe "editing a CalDAV weekly series" do
+    setup %{user: user} do
+      integration =
+        insert(:calendar_integration,
+          user: user,
+          provider: "caldav",
+          base_url: "https://caldav.example.com",
+          calendar_paths: ["/cal/"]
+        )
+
+      rule = "FREQ=WEEKLY;BYDAY=#{String.upcase(today_token())}"
+      %{event: caldav_series(integration, rule)}
+    end
+
+    test "shows its pattern, and every other week on one more day reaches the server", %{
+      conn: conn,
+      event: event
+    } do
+      lv = open(conn, event)
+      other = Enum.find(@tokens, &(&1 != today_token()))
+
+      assert render(lv) =~ "Repeats weekly on #{weekday_label(today_token())}"
+
+      expect_puts(1)
+      html = pick(lv, %{"interval" => "2", "by_day" => [other]})
+      confirm_scope(lv, "all")
+
+      assert html =~ "Repeats every 2 weeks on"
+      assert [{_url, body}] = await_puts(1)
+
+      assert rrule(body) ==
+               "FREQ=WEEKLY;INTERVAL=2;BYDAY=" <>
+                 (@tokens
+                  |> Enum.filter(&(&1 in [today_token(), other]))
+                  |> Enum.map_join(",", &String.upcase/1))
+    end
+
+    # The number field appears only once the end is picked, so the pick
+    # starts from ten rather than reading back as "Never ends".
+    test "picking an end after a number of times starts from ten", %{
+      conn: conn,
+      event: event
+    } do
+      lv = open(conn, event)
+
+      expect_puts(1)
+      html = pick(lv, %{"end_type" => "count"})
+
+      assert html =~ "for 10 occurrences"
+
+      assert has_element?(
+               lv,
+               "#recurrence-editor-form-update_event_recurrence [name='count'][value='10']"
+             )
+
+      confirm_scope(lv, "all")
+      assert [{_url, body}] = await_puts(1)
+      assert rrule(body) =~ ";COUNT=10"
+    end
+
+    test "picking an end on a date starts from the tenth occurrence's day", %{
+      conn: conn,
+      event: event
+    } do
+      lv = open(conn, event)
+
+      tenth = Date.add(today(), 9 * 7)
+
+      expect_puts(1)
+      pick(lv, %{"end_type" => "until"})
+
+      assert has_element?(
+               lv,
+               "#recurrence-editor-form-update_event_recurrence [name='until'][value='#{Date.to_iso8601(tenth)}']"
+             )
+
+      confirm_scope(lv, "all")
+      assert [{_url, body}] = await_puts(1)
+      assert rrule(body) =~ ";UNTIL=#{Calendar.strftime(tenth, "%Y%m%d")}T235959Z"
+    end
+  end
+
+  describe "editing a CalDAV series that ends after a number of times" do
+    setup %{user: user} do
+      integration =
+        insert(:calendar_integration,
+          user: user,
+          provider: "caldav",
+          base_url: "https://caldav.example.com",
+          calendar_paths: ["/cal/"]
+        )
+
+      rule = "FREQ=WEEKLY;BYDAY=#{String.upcase(today_token())};COUNT=10"
+      %{event: caldav_series(integration, rule)}
+    end
+
+    test "takes the number typed", %{conn: conn, event: event} do
+      lv = open(conn, event)
+
+      assert render(lv) =~ "for 10 occurrences"
+
+      expect_puts(1)
+      html = pick(lv, %{"count" => "6"})
+      assert html =~ "for 6 occurrences"
+      confirm_scope(lv, "all")
+
+      assert [{_url, body}] = await_puts(1)
+      assert rrule(body) == "FREQ=WEEKLY;BYDAY=#{String.upcase(today_token())};COUNT=6"
+    end
+  end
+
   describe "an Exchange event" do
     setup %{user: user} do
       integration = insert(:calendar_integration, user: user, provider: "exchange")
@@ -251,6 +363,32 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
       lines = LineFolder.unfold_lines(body)
       assert "SUMMARY:Renamed standup" in lines
       assert ("RRULE:" <> rule) in lines
+    end
+
+    # "Replace repeat rule" reveals the controls on the client; they are in
+    # the page, hidden, from the start, and picking a pattern in them
+    # replaces the rule.
+    test "with a rule the editor cannot build is replaced by the pattern picked", %{
+      conn: conn,
+      integration: integration
+    } do
+      {ordinal, _kind} = today_position()
+      other = if ordinal == 1, do: 3, else: 1
+      rule = "FREQ=MONTHLY;BYDAY=#{ordinal}#{today_token()},#{other}#{today_token()}"
+      event = caldav_series(integration, rule)
+      lv = open(conn, event)
+
+      expect_puts(1)
+      pick(lv, %{"freq" => "weekly"})
+      confirm_scope(lv, "all")
+
+      assert [{_url, body}] = await_puts(1)
+      # The weekday boxes appear once the pattern is weekly, so none was
+      # sent: a weekly rule with no day repeats on its start's weekday.
+      assert rrule(body) == "FREQ=WEEKLY"
+
+      refute has_element?(lv, "#recurrence-custom-update_event_recurrence")
+      assert render(lv) =~ "Repeats weekly on #{weekday_label(today_token())}"
     end
 
     # Its rule is one the editor wrote: it reads back as the pattern it is.
@@ -375,6 +513,26 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
 
     lv
   end
+
+  defp pick(lv, fields) do
+    lv
+    |> form("#recurrence-editor-form-update_event_recurrence", fields)
+    |> render_change()
+  end
+
+  defp rrule(ical_body) do
+    ical_body
+    |> LineFolder.unfold_lines()
+    |> Enum.find_value(fn line ->
+      case line do
+        "RRULE:" <> rule -> rule
+        _other -> nil
+      end
+    end)
+  end
+
+  defp weekday_label(token),
+    do: RecurrenceSummary.weekday_label(String.to_existing_atom(token))
 
   defp change_recurrence(lv, params) do
     lv
