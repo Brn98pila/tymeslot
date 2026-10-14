@@ -196,7 +196,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatEditorCreateLiveViewTest do
     end
 
     # The choices follow the start: a date that is not the second Tuesday
-    # cannot repeat on it, so the pattern falls back to the date's own day.
+    # cannot repeat on it, so the pattern takes the date's own weekday at
+    # its position, the second Wednesday.
     test "moving the start to another day re-anchors a monthly position", %{conn: conn} do
       lv = open_create(conn, @second_tuesday)
 
@@ -211,11 +212,11 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatEditorCreateLiveViewTest do
           "end-date" => "2026-11-11"
         })
 
-      assert html =~ "Repeats monthly on day 11"
+      assert html =~ "Repeats monthly on the second Wednesday"
       refute has_element?(lv, "#{@form} option[value='2:tu']")
-      assert has_element?(lv, "#{@form} option[value='2:we']")
+      assert has_element?(lv, "#{@form} option[value='2:we'][selected]")
 
-      assert %RRule{freq: :monthly, by_day: nil} = save_to_google(lv)
+      assert %RRule{freq: :monthly, by_day: [{2, 3}]} = save_to_google(lv)
     end
 
     test "back to Does not repeat saves a single event", %{conn: conn} do

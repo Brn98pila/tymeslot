@@ -86,20 +86,33 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.Pattern do
 
   @doc """
   `on` for a series starting on `start_date`: as it is when the date is
-  that day, else the same kind of day at the position the date is counted
+  that day; else the same kind of day at the position the date is counted
   at from the month's start (the first Wednesday, moved to a second
-  Wednesday, is the second Wednesday), else the date's own day of the
-  month.
+  Wednesday, is the second Wednesday); else, for a weekday moved to
+  another weekday, the date's own weekday at the date's position (the
+  second Monday, moved to a Tuesday, is the second Tuesday, and the last
+  stays the last where the date is); else the date's own day of the month.
   """
   @spec reanchor(on(), Date.t()) :: on()
   def reanchor(:day, _start_date), do: :day
 
-  def reanchor({_ordinal, kind} = on, %Date{} = start_date) do
+  def reanchor({ordinal, kind} = on, %Date{} = start_date) do
     choices = choices(start_date)
 
-    if on in choices,
-      do: on,
-      else: Enum.find(choices, :day, &match?({position, ^kind} when position > 0, &1))
+    cond do
+      on in choices -> on
+      same = Enum.find(choices, &match?({position, ^kind} when position > 0, &1)) -> same
+      kind in @weekdays -> weekday_position(choices, ordinal)
+      true -> :day
+    end
+  end
+
+  defp weekday_position(choices, ordinal) do
+    weekday = for {position, day} <- choices, day in @weekdays, do: {position, day}
+    last = Enum.find(weekday, &match?({-1, _day}, &1))
+    counted = Enum.find(weekday, &match?({position, _day} when position > 0, &1))
+
+    if ordinal == -1 and last, do: last, else: counted || last || :day
   end
 
   # The ordinals among the month's days of `kind` (`matches?` says which
