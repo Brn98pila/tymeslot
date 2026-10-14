@@ -202,6 +202,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
                  (@tokens
                   |> Enum.filter(&(&1 in [today_token(), other]))
                   |> Enum.map_join(",", &String.upcase/1))
+
+      settle(lv)
     end
 
     # The number field appears only once the end is picked, so the pick
@@ -225,6 +227,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
       confirm_scope(lv, "all")
       assert [{_url, body}] = await_puts(1)
       assert rrule(body) =~ ";COUNT=10"
+      settle(lv)
     end
 
     test "picking an end on a date starts from the tenth occurrence's day", %{
@@ -246,6 +249,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
       confirm_scope(lv, "all")
       assert [{_url, body}] = await_puts(1)
       assert rrule(body) =~ ";UNTIL=#{Calendar.strftime(tenth, "%Y%m%d")}T235959Z"
+      settle(lv)
     end
   end
 
@@ -275,6 +279,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
 
       assert [{_url, body}] = await_puts(1)
       assert rrule(body) == "FREQ=WEEKLY;BYDAY=#{String.upcase(today_token())};COUNT=6"
+      settle(lv)
     end
   end
 
@@ -379,16 +384,18 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
       lv = open(conn, event)
 
       expect_puts(1)
-      pick(lv, %{"freq" => "weekly"})
+      html = pick(lv, %{"freq" => "weekly"})
+
+      assert html =~ "Repeats weekly on #{weekday_label(today_token())}"
+      refute has_element?(lv, "#recurrence-custom-update_event_recurrence")
+
       confirm_scope(lv, "all")
 
       assert [{_url, body}] = await_puts(1)
       # The weekday boxes appear once the pattern is weekly, so none was
       # sent: a weekly rule with no day repeats on its start's weekday.
       assert rrule(body) == "FREQ=WEEKLY"
-
-      refute has_element?(lv, "#recurrence-custom-update_event_recurrence")
-      assert render(lv) =~ "Repeats weekly on #{weekday_label(today_token())}"
+      settle(lv)
     end
 
     # Its rule is one the editor wrote: it reads back as the pattern it is.
@@ -518,6 +525,15 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
     lv
     |> form("#recurrence-editor-form-update_event_recurrence", fields)
     |> render_change()
+  end
+
+  # A write to a whole series closes the event once it has answered; wait
+  # for it, so the write does not outlive the test's database sandbox.
+  defp settle(lv) do
+    eventually(
+      fn -> not has_element?(lv, "#recurrence-editor-form-update_event_recurrence") end,
+      timeout: @task_timeout
+    )
   end
 
   defp rrule(ical_body) do
