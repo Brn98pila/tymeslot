@@ -65,10 +65,13 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_save_event_recurrence(_params, socket) do
     event = socket.assigns.selected_event
+    edit = socket.assigns[:recurrence_edit]
+    draft = event && Shared.recurrence_draft(event, edit)
 
-    case event && Shared.recurrence_draft(event, socket.assigns[:recurrence_edit]) do
-      %{} = draft -> save(socket, event, draft)
+    case draft && draft_rule(event, draft, edit, socket.assigns.user_timezone) do
       nil -> {:noreply, socket}
+      {:error, :until_before_start} = error -> Shared.flash_guard_error(socket, error)
+      {:ok, rule} -> save(socket, event, draft, rule)
     end
   end
 
@@ -89,19 +92,90 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
 
   @doc """
   The rule the pattern staged for `event` makes from the start the editor
-  builds it from now (`Shared.series_anchor/3`), or `nil` for "Does not
+  builds it from now (`Shared.series_anchor/3`), `{:ok, nil}` for "Does not
   repeat". The fields are composed again rather than the rule kept, since
-  the start may have moved since they were picked; fields that no longer
-  make a rule (an end before the new start) keep the rule they made.
+  the start may have moved since they were picked: fields that no longer
+  make a rule, an end now before the start, are
+  `{:error, :until_before_start}`, and are not saved until the end is
+  changed.
   """
-  @spec draft_rule(map(), map(), map() | nil, String.t()) :: String.t() | nil
+  @spec draft_rule(map(), map(), map() | nil, String.t()) ::
+          {:ok, String.t() | nil} | {:error, :until_before_start}
   def draft_rule(event, draft, edit, user_timezone) do
     {anchor, _known?} = Shared.series_anchor(event, edit, user_timezone)
 
     case compose(draft.params, event, anchor, user_timezone) do
-      {:error, :until_before_start} -> draft.rule
-      rule -> rule
+      {:error, :until_before_start} = error -> error
+      rule -> {:ok, rule}
     end
+  end
+
+  @doc """
+  What the repeat editor in `event`'s details shows (`RecurrenceEditor`'s
+  `recurrence_rule`, `timezone`, `start`, `pending`, `notice` and
+  `save_blocked`): the staged pattern, else the event's own, from the start
+  it is built from, and what stands in the way of saving it.
+
+    * An end the start has moved past blocks the save until it is changed.
+    * A series whose first start was never read cannot count what is left
+      of a `COUNT` from an occurrence on, so it says so before the save.
+    * A single event is told its calendar would refuse the rule; a series
+      edit says so per scope in the prompt.
+  """
+  @spec editor(map(), map() | nil, String.t()) :: map()
+  def editor(event, edit, user_timezone) do
+    {start, known?} = Shared.series_anchor(event, edit, user_timezone)
+    timezone = Shared.recurrence_timezone(event, user_timezone)
+    draft = Shared.recurrence_draft(event, edit)
+
+    {rule, notice, blocked?} =
+      case draft && draft_rule(event, draft, edit, user_timezone) do
+        nil ->
+          {Map.get(event, :recurrence_rule), nil, false}
+
+        # Shown as the fields make it from the start it has now, the end
+        # left where it is, for the organiser to change.
+        {:error, :until_before_start} ->
+          shown = compose(draft.params, event, start, user_timezone, check_until: false)
+          {shown, Shared.until_before_start_message(), true}
+
+        {:ok, rule} ->
+          {rule, staged_notice(event, rule, {start, known?}, timezone), false}
+      end
+
+    %{
+      recurrence_rule: rule,
+      timezone: timezone,
+      start: start,
+      pending: draft != nil,
+      notice: notice,
+      save_blocked: blocked?
+    }
+  end
+
+  defp staged_notice(event, rule, {start, known?}, timezone) do
+    cond do
+      not EditWorkflow.series_edit?(event) ->
+        case CalendarGrid.repeat_refusal(
+               Map.get(event, :provider),
+               rule,
+               date_of(start),
+               timezone
+             ) do
+          nil -> nil
+          reason -> refusal_message(reason)
+        end
+
+      not known? and counted?(rule) ->
+        start_unknown_message()
+
+      true ->
+        nil
+    end
+  end
+
+  defp counted?(rule) do
+    match?({:ok, %RRule{count: count}} when is_integer(count), RRule.parse(rule || ""))
   end
 
   # The editor is shown only for a calendar the grid writes rules to, whose
@@ -133,22 +207,25 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
     end
   end
 
-  defp compose(params, event, start, user_timezone) do
+  defp compose(params, event, start, user_timezone, opts \\ []) do
     Shared.compose_recurrence_rule(params, %{
       all_day: Map.get(event, :all_day, false),
       start_date: date_of(start),
       timezone: Shared.recurrence_timezone(event, user_timezone),
-      rule: event.recurrence_rule
+      rule: event.recurrence_rule,
+      check_until: Keyword.get(opts, :check_until, true)
     })
   end
 
-  defp save(socket, event, draft) do
+  defp save(socket, event, draft, rule) do
     with :ok <- EditWorkflow.assert_event_writable(socket, event),
          :ok <- Shared.check_seat_lock(socket, event),
          :ok <- Shared.check_edit_rate_limit(socket) do
-      if EditWorkflow.series_edit?(event),
-        do: prompt_series(socket, event, draft),
-        else: write_single(socket, event, draft)
+      cond do
+        not EditWorkflow.series_edit?(event) -> write_single(socket, event, rule)
+        is_nil(rule) -> refuse_rule_removal(socket)
+        true -> prompt_scopes(socket, event, draft)
+      end
     else
       {:error, reason} = error when reason in [:unauthorized, :read_only, :group_booking] ->
         Shared.flash_guard_error(socket, error)
@@ -160,11 +237,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
 
   # A single event given a rule becomes a series, which a CalDAV calendar
   # stores in the event's own zone so it keeps its local time across DST.
-  defp write_single(socket, event, draft) do
+  defp write_single(socket, event, rule) do
     tz = socket.assigns.user_timezone
     timezone = Shared.recurrence_timezone(event, tz)
     start = Shared.recurrence_start(event, tz)
-    rule = draft_rule(event, draft, socket.assigns[:recurrence_edit], tz)
 
     case CalendarGrid.repeat_refusal(Map.get(event, :provider), rule, date_of(start), timezone) do
       nil ->
@@ -181,15 +257,6 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
         send(self(), {:flash, {:error, refusal_message(reason)}})
         {:noreply, socket}
     end
-  end
-
-  defp prompt_series(socket, event, draft) do
-    rule =
-      draft_rule(event, draft, socket.assigns[:recurrence_edit], socket.assigns.user_timezone)
-
-    if is_nil(rule),
-      do: refuse_rule_removal(socket),
-      else: prompt_scopes(socket, event, draft)
   end
 
   # A series' repeat rule can be changed, never removed, from the grid: the
@@ -240,15 +307,21 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
 
   @doc "Whether the prompt offers the scope `rule` describes (`scope_rules/3`)."
   @spec offered?(map()) :: boolean()
-  def offered?(%{rule: rule, refusal: nil, ends_before: false}) when is_binary(rule), do: true
+  def offered?(%{rule: rule, refusal: nil, unavailable: nil}) when is_binary(rule), do: true
   def offered?(_scope_rule), do: false
 
   defp unavailable_message(scopes) do
-    case Enum.find_value(scopes, & &1.refusal) do
-      nil -> ends_before_message()
-      reason -> refusal_message(reason)
+    case {Enum.find_value(scopes, & &1.refusal), Enum.find_value(scopes, & &1.unavailable)} do
+      {nil, nil} -> start_unknown_message()
+      {nil, reason} -> unavailable_message_for(reason)
+      {reason, _unavailable} -> refusal_message(reason)
     end
   end
+
+  @doc "Why the prompt offers no button for a scope: its `:unavailable` reason."
+  @spec unavailable_message_for(:ends_before | :start_unknown) :: String.t()
+  def unavailable_message_for(:ends_before), do: ends_before_message()
+  def unavailable_message_for(:start_unknown), do: start_unknown_message()
 
   # What each scope writes, in the order the prompt lists them: from where
   # the series put the opened occurrence on, then the whole series, from its
@@ -280,9 +353,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
          {:ok, rule} <- remaining_count(rule, event, series, slot) do
       scope_rule(:following, rule, slot, event, tz)
     else
-      {:error, :until_before_start} -> ends_before(:following)
-      :ends_before -> ends_before(:following)
-      _unknown -> nil
+      {:error, :until_before_start} -> unavailable(:following, :ends_before)
+      :ends_before -> unavailable(:following, :ends_before)
+      :start_unknown -> unavailable(:following, :start_unknown)
+      _no_slot -> nil
     end
   end
 
@@ -292,14 +366,20 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
     case RRule.parse(rule) do
       {:ok, %RRule{count: count} = parsed}
       when is_integer(count) and known? and is_binary(event.recurrence_rule) ->
-        before = CalendarGrid.occurrences_before(event.recurrence_rule, series_start, slot)
+        before =
+          CalendarGrid.occurrences_before(
+            Map.get(event, :provider),
+            event.recurrence_rule,
+            series_start,
+            slot
+          )
 
         if count > before,
           do: {:ok, RRule.format(%{parsed | count: count - before})},
           else: :ends_before
 
       {:ok, %RRule{count: count}} when is_integer(count) ->
-        :unknown
+        :start_unknown
 
       _no_count ->
         {:ok, rule}
@@ -315,12 +395,12 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
       summary: RecurrenceEditor.summary(rule, start),
       refusal:
         CalendarGrid.repeat_refusal(Map.get(event, :provider), rule, date_of(start), timezone),
-      ends_before: false
+      unavailable: nil
     }
   end
 
-  defp ends_before(scope),
-    do: %{scope: scope, rule: nil, summary: nil, refusal: nil, ends_before: true}
+  defp unavailable(scope, reason),
+    do: %{scope: scope, rule: nil, summary: nil, refusal: nil, unavailable: reason}
 
   defp following_notes(event, scopes) do
     case Enum.find(scopes, &(&1.scope == :following and is_binary(&1.rule))) do
@@ -352,6 +432,18 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
     dgettext(
       "dashboard_calendar_repeat",
       "Not available: the new end comes before this event, so there are no following events to change."
+    )
+  end
+
+  @doc """
+  What the organiser is told when what is left of a series' `COUNT` cannot
+  be counted, its first start never having been read from the calendar.
+  """
+  @spec start_unknown_message() :: String.t()
+  def start_unknown_message do
+    dgettext(
+      "dashboard_calendar_repeat",
+      "This series' first event hasn't been read from your calendar yet, so the events left in it can't be counted. Refresh the calendar and try again."
     )
   end
 

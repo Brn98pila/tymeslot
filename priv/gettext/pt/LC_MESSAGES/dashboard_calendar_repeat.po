@@ -585,3 +585,8 @@ msgstr "Salvar repetição"
 #, elixir-autogen, elixir-format
 msgid "Not available: the new end comes before this event, so there are no following events to change."
 msgstr "Indisponível: o novo término é anterior a este evento, então não há eventos seguintes para alterar."
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/recurrence_edit.ex
+#, elixir-autogen, elixir-format
+msgid "This series' first event hasn't been read from your calendar yet, so the events left in it can't be counted. Refresh the calendar and try again."
+msgstr "O primeiro evento desta série ainda não foi lido do seu calendário, então não é possível contar os eventos restantes. Atualize o calendário e tente novamente."

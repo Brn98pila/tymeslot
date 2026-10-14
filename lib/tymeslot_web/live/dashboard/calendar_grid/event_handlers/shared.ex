@@ -366,7 +366,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
         opts =
           %{freq: freq}
           |> put_interval(params["interval"])
-          |> put_by_day(freq, params["by_day"])
+          |> put_by_day(freq, params["by_day"], start_date)
           |> put_start_day(freq, start_date)
           |> put_on(freq, params["on"], start_date)
           |> put_end_condition(params["end_type"], params, start_date)
@@ -407,16 +407,22 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
     end
   end
 
-  defp put_by_day(opts, :weekly, days) when is_list(days) do
+  # "start" names the start's weekday, as the editor sends it.
+  defp put_by_day(opts, :weekly, days, start_date) when is_list(days) do
     by_day =
       days
-      |> Enum.map(&Map.get(@weekday_atoms, &1))
+      |> Enum.map(&weekday_atom(&1, start_date))
       |> Enum.reject(&is_nil/1)
 
     if by_day == [], do: opts, else: Map.put(opts, :by_day, by_day)
   end
 
-  defp put_by_day(opts, _freq, _days), do: opts
+  defp put_by_day(opts, _freq, _days, _start_date), do: opts
+
+  defp weekday_atom("start", %Date{} = start_date),
+    do: Enum.at(~w(mo tu we th fr sa su)a, Date.day_of_week(start_date) - 1)
+
+  defp weekday_atom(day, _start_date), do: Map.get(@weekday_atoms, day)
 
   # A weekly series repeats on its start's weekday whatever else is ticked,
   # and its days are written in the week's order. With nothing ticked the
@@ -588,18 +594,19 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
   end
 
   def flash_guard(socket, {:error, :until_before_start}) do
-    send(
-      self(),
-      {:flash,
-       {:error,
-        dgettext(
-          "dashboard_calendar_events",
-          "The recurrence end date must be on or after the event start."
-        )}}
-    )
+    send(self(), {:flash, {:error, until_before_start_message()}})
 
     socket
   end
+
+  @doc "What the organiser is told when a repeat rule would end before the event starts."
+  @spec until_before_start_message() :: String.t()
+  def until_before_start_message,
+    do:
+      dgettext(
+        "dashboard_calendar_events",
+        "The recurrence end date must be on or after the event start."
+      )
 
   # ---------------------------------------------------------------------------
   # Refactor 3 — optional int parsing and reminder-list helpers

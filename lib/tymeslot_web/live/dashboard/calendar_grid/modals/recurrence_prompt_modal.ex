@@ -70,8 +70,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrencePromptModal do
           <p :if={rule && rule.refusal} class="mt-0.5 text-red-700" data-role="scope-refusal">
             {RecurrenceEdit.refusal_message(rule.refusal)}
           </p>
-          <p :if={rule && rule.ends_before} class="mt-0.5 text-red-700" data-role="scope-refusal">
-            {RecurrenceEdit.ends_before_message()}
+          <p :if={rule && rule.unavailable} class="mt-0.5 text-red-700" data-role="scope-refusal">
+            {RecurrenceEdit.unavailable_message_for(rule.unavailable)}
           </p>
           <ul
             :if={scope == :following and @following_notes != []}

@@ -28,6 +28,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatSeriesStagingLiveViewTest do
   alias Tymeslot.Integrations.Calendar.ICalBuilder.LineFolder
   alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookAPI
+  alias Tymeslot.Integrations.Calendar.SeriesRuleQueries
 
   setup :set_mox_global
   setup :verify_on_exit!
@@ -187,6 +188,146 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatSeriesStagingLiveViewTest do
 
       assert_receive {:request, _method, _url, body}, @task_timeout
       assert Jason.decode!(body)["recurrence"] == ["RRULE:FREQ=MONTHLY;BYDAY=2TU"]
+    end
+  end
+
+  describe "a series whose first event was never read, with a count" do
+    # What is left of the count after the occurrence cannot be counted
+    # without the series' first start: the editor says so before the save,
+    # and the save says so again rather than claim an end before the event.
+    test "says its start is not known yet, before and on saving", %{conn: conn, user: user} do
+      integration = oauth_integration(user, "google", "https://www.googleapis.com/auth/calendar")
+
+      event =
+        occurrence(integration, %{
+          provider: "google",
+          uid: "weekly_20261014T090000Z",
+          provider_event_id: "series1_20261014T090000Z",
+          recurring_event_id: "series1",
+          recurrence_rule: "FREQ=WEEKLY;BYDAY=WE;COUNT=10"
+        })
+
+      lv = open(conn, event)
+      pick(lv, %{"interval" => "2"})
+
+      assert has_element?(
+               lv,
+               "#{@form} ~ [role='alert']",
+               "hasn't been read from your calendar yet"
+             )
+
+      save(lv)
+      refute has_element?(lv, "#recurrence-prompt-modal")
+      assert render(lv) =~ "hasn&#39;t been read from your calendar yet"
+      refute render(lv) =~ "the new end comes before this event"
+    end
+  end
+
+  describe "a staged end the start moves past" do
+    test "blocks the save until the end is changed", %{conn: conn, user: user} do
+      integration = oauth_integration(user, "google", "https://www.googleapis.com/auth/calendar")
+
+      event =
+        occurrence(integration, %{
+          provider: "google",
+          uid: "one-off",
+          provider_event_id: "one-off",
+          start_at: ~U[2026-10-12 09:00:00Z],
+          end_at: ~U[2026-10-12 10:00:00Z],
+          recurrence_rule: nil
+        })
+
+      serve(%{"id" => "one-off", "status" => "confirmed"})
+      lv = open(conn, event, "2026-10-12")
+
+      pick(lv, %{"freq" => "weekly"})
+      pick(lv, %{"end_type" => "until"})
+      pick(lv, %{"until" => "2026-10-14"})
+
+      lv
+      |> element("#calendar-grid")
+      |> render_hook("update_event_time", %{
+        "start-date" => "2026-10-20",
+        "start-time" => "09:00",
+        "end-date" => "2026-10-20",
+        "end-time" => "10:00"
+      })
+
+      assert_receive {:request, _method, _url, _time_write}, @task_timeout
+
+      assert has_element?(lv, "#{@form} ~ [role='alert']", "must be on or after the event start")
+      assert has_element?(lv, "button[phx-click='save_event_recurrence'][disabled]")
+
+      lv |> element("#calendar-grid") |> render_hook("save_event_recurrence", %{})
+      refute_receive {:request, _method, _url, _body}, 200
+
+      # A later end lifts the block, and the pattern is saved.
+      pick(lv, %{"until" => "2026-12-31"})
+      refute has_element?(lv, "button[phx-click='save_event_recurrence'][disabled]")
+      save(lv)
+
+      assert_receive {:request, _method, _url, body}, @task_timeout
+      assert ["RRULE:FREQ=WEEKLY;BYDAY=TU;UNTIL=" <> _end] = Jason.decode!(body)["recurrence"]
+    end
+  end
+
+  # Graph puts a series on the 31st on the last day of a shorter month, so
+  # by 30 April it has been on 31 January, 28 February and 31 March: three,
+  # where RFC 5545, skipping February, would count two.
+  describe "an Outlook monthly series on the 31st" do
+    test "counts what is left as Outlook does", %{conn: conn, user: user} do
+      integration =
+        oauth_integration(user, "outlook", "https://graph.microsoft.com/Calendars.ReadWrite")
+
+      {:ok, _row} =
+        SeriesRuleQueries.put(integration.id, "master-1", %{
+          rule: "FREQ=MONTHLY;COUNT=12",
+          master_start: ~U[2026-01-31 09:00:00Z],
+          fetched_at: DateTime.utc_now()
+        })
+
+      event =
+        occurrence(integration, %{
+          provider: "outlook",
+          uid: "monthly-occurrence-20260430",
+          provider_event_id: "occurrence-30-april",
+          recurring_event_id: "master-1",
+          provider_metadata: %{"type" => "occurrence"},
+          start_at: ~U[2026-04-30 09:00:00Z],
+          end_at: ~U[2026-04-30 10:00:00Z],
+          recurrence_rule: "FREQ=MONTHLY;COUNT=12"
+        })
+
+      serve(%{
+        "id" => "master-1",
+        "type" => "seriesMaster",
+        "subject" => "Month end",
+        "isAllDay" => false,
+        "start" => %{"dateTime" => "2026-01-31T09:00:00.0000000", "timeZone" => "UTC"},
+        "end" => %{"dateTime" => "2026-01-31T10:00:00.0000000", "timeZone" => "UTC"},
+        "originalStartTimeZone" => "UTC",
+        "recurrence" => %{
+          "pattern" => %{"type" => "absoluteMonthly", "interval" => 1, "dayOfMonth" => 31},
+          "range" => %{
+            "type" => "numbered",
+            "numberOfOccurrences" => 12,
+            "startDate" => "2026-01-31"
+          }
+        }
+      })
+
+      lv = open(conn, event, "2026-04-30")
+      pick(lv, %{"freq" => "weekly"})
+      save(lv)
+
+      assert prompt_summary(lv, :following) =~ "for 9 occurrences"
+      confirm_scope(lv, "following")
+
+      requests = await_requests(5)
+      assert {:post, _url, tail} = Enum.find(requests, &match?({:post, _url, _body}, &1))
+
+      assert %{"range" => %{"type" => "numbered", "numberOfOccurrences" => 9}} =
+               Jason.decode!(tail)["recurrence"]
     end
   end
 

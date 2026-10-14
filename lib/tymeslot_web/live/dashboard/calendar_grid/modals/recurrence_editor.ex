@@ -63,6 +63,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
   attr :save_event, :string, default: nil
   attr :discard_event, :string, default: nil
 
+  attr :save_blocked, :boolean,
+    default: false,
+    doc: "whether the staged rule cannot be saved as it is (`notice` says why)"
+
   attr :notice, :string,
     default: nil,
     doc: "why the calendar would refuse the rule shown, if it would"
@@ -160,9 +164,11 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
 
           <div :if={@freq == :weekly} class="flex flex-wrap gap-1">
             <%!-- The start's weekday is always one of a weekly pattern's
-                 days (`Pattern`), so it cannot be unticked, and is sent
-                 beside its disabled box. --%>
-            <input type="hidden" name="by_day[]" value={@start_weekday} />
+                 days (`Pattern`), so it cannot be unticked. It is sent
+                 beside its disabled box as "start", the start's weekday
+                 whichever day that is when the rule is composed, so a
+                 start that moves takes it along. --%>
+            <input type="hidden" name="by_day[]" value="start" />
             <label
               :for={{day, label} <- @weekdays}
               class={[
@@ -266,7 +272,12 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
       <p :if={@notice} class="text-token-xs text-red-700 mt-1.5" role="alert">{@notice}</p>
 
       <div :if={@pending} class="flex flex-wrap gap-2 mt-2">
-        <.action_button size={:sm} phx-click={@save_event} phx-target={@myself}>
+        <.action_button
+          size={:sm}
+          phx-click={@save_event}
+          phx-target={@myself}
+          disabled={@save_blocked}
+        >
           {dgettext("dashboard_calendar_repeat", "Save repeat")}
         </.action_button>
         <.action_button
