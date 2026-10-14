@@ -134,6 +134,26 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.PatternTest do
     end
   end
 
+  describe "default_until/2" do
+    test "is the day of the tenth occurrence, as ending after the default count" do
+      assert Pattern.default_count() == 10
+      assert Pattern.default_until(%{freq: :weekly}, ~D[2026-10-13]) == ~D[2026-12-15]
+      assert Pattern.default_until(%{freq: :daily, interval: 3}, ~D[2026-10-13]) == ~D[2026-11-09]
+    end
+
+    test "follows a position, and ignores an end already set" do
+      pattern = %{freq: :monthly, on: {2, :tu}, until: ~D[2026-11-01]}
+      assert Pattern.default_until(pattern, ~D[2026-10-13]) == ~D[2027-07-13]
+    end
+
+    # 999 years apart, the tenth occurrence would fall past the last date a
+    # calendar holds: the series ends on the last one it can.
+    test "stops at the last date a calendar holds" do
+      assert Pattern.default_until(%{freq: :yearly, interval: 999}, ~D[2026-10-13]) ==
+               ~D[9019-10-13]
+    end
+  end
+
   describe "equivalent?/3" do
     test "an UNTIL written as a date or as the instant ending that day is the same end" do
       assert Pattern.equivalent?(

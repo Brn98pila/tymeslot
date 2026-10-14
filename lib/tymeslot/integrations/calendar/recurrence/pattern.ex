@@ -57,6 +57,16 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.Pattern do
   # in a month (a fifth weekday, a leap day) more than once.
   @horizon_days %{daily: 366, weekly: 2 * 366, monthly: 6 * 366, yearly: 60 * 366}
 
+  # How many times a series picked to end "after" a number of times repeats
+  # before the organiser types one, and so where one picked to end "on" a
+  # date ends before they pick one.
+  @default_count 10
+
+  # The longest a period of each frequency can be, in days, and the last
+  # date a series can end on.
+  @period_days %{daily: 1, weekly: 7, monthly: 31, yearly: 366}
+  @last_date ~D[9999-12-31]
+
   @doc """
   The monthly and yearly choices a series starting on `start_date` can take:
   `:day`, then each `{ordinal, kind}` the date is (the second Tuesday, the
@@ -107,6 +117,40 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.Pattern do
     |> put_on(pattern[:freq], Map.get(pattern, :on, :day), start_date)
     |> Map.put(:week_start, week_start(Keyword.get(opts, :keep)))
     |> RRule.format()
+  end
+
+  @doc """
+  How many times a series ending "after" a number of times repeats until the
+  organiser says.
+  """
+  @spec default_count() :: pos_integer()
+  def default_count, do: @default_count
+
+  @doc """
+  The date a series ending "on" a date ends until the organiser picks one:
+  the day of the `default_count/0`th occurrence of `pattern` from
+  `start_date`, so both kinds of end start from the same series.
+  """
+  @spec default_until(t(), Date.t()) :: Date.t()
+  def default_until(pattern, %Date{} = start_date) do
+    rule =
+      pattern
+      |> Map.drop([:until])
+      |> Map.put(:count, @default_count)
+      |> build(start_date, all_day: true)
+
+    periods = Map.get(pattern, :interval, 1) * (@default_count + 1)
+    days = Map.fetch!(@period_days, pattern.freq) * periods
+
+    horizon =
+      if Date.diff(@last_date, start_date) > days,
+        do: Date.add(start_date, days),
+        else: @last_date
+
+    %{start_time: start_date, end_time: start_date, recurrence_rule: rule}
+    |> RecurrenceExpander.expand(start_date, horizon)
+    |> List.last(%{start_time: start_date})
+    |> Map.fetch!(:start_time)
   end
 
   defp put_on(rule, freq, :day, _start_date) when freq in [:monthly, :yearly], do: rule

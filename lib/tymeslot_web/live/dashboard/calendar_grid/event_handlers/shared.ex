@@ -27,6 +27,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
     "su" => :su
   }
 
+  # The largest interval or count the editor takes, as its inputs' `max`.
+  @max_number 999
+
   # What an `on` field's kind may name (`Pattern.kind/0`).
   @on_kinds Map.merge(@weekday_atoms, %{
               "day" => :day,
@@ -309,7 +312,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
           |> put_by_day(freq, params["by_day"])
           |> put_start_day(freq, start_date)
           |> put_on(freq, params["on"], start_date)
-          |> put_end_condition(params["end_type"], params)
+          |> put_end_condition(params["end_type"], params, start_date)
 
         # `build/2` and `retarget/2` are handed the same value-type options, so
         # the rule composed here and the rule read back agree on how UNTIL is
@@ -342,7 +345,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
 
   defp put_interval(opts, value) do
     case parse_int(value || "") do
-      {:ok, n} when n > 1 -> Map.put(opts, :interval, n)
+      {:ok, n} when n > 1 -> Map.put(opts, :interval, min(n, @max_number))
       _other -> opts
     end
   end
@@ -358,11 +361,13 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
 
   defp put_by_day(opts, _freq, _days), do: opts
 
-  # A weekly series repeats on its start's weekday whatever else is ticked.
-  # With nothing ticked the rule names no day, which means that one.
+  # A weekly series repeats on its start's weekday whatever else is ticked,
+  # and its days are written in the week's order. With nothing ticked the
+  # rule names no day, which means that one.
   defp put_start_day(%{by_day: [_first | _rest] = days} = opts, :weekly, %Date{} = start_date) do
-    day = Enum.at(~w(mo tu we th fr sa su)a, Date.day_of_week(start_date) - 1)
-    if day in days, do: opts, else: Map.put(opts, :by_day, days ++ [day])
+    weekdays = ~w(mo tu we th fr sa su)a
+    start_day = Enum.at(weekdays, Date.day_of_week(start_date) - 1)
+    Map.put(opts, :by_day, Enum.filter(weekdays, &(&1 in [start_day | days])))
   end
 
   defp put_start_day(opts, _freq, _start_date), do: opts
@@ -386,21 +391,30 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
 
   defp parse_on(_value), do: :day
 
-  defp put_end_condition(opts, "count", params) do
+  # An end picked before its number or date is given (the field appears only
+  # once the end is picked) starts from the editor's default, so the pick
+  # holds rather than reading back as "Never ends".
+  defp put_end_condition(opts, "count", params, _start_date) do
     case parse_int(params["count"] || "") do
-      {:ok, n} when n > 0 -> Map.put(opts, :count, n)
-      _other -> opts
+      {:ok, n} when n > 0 -> Map.put(opts, :count, min(n, @max_number))
+      _other -> Map.put(opts, :count, Pattern.default_count())
     end
   end
 
-  defp put_end_condition(opts, "until", params) do
-    case Date.from_iso8601(params["until"] || "") do
-      {:ok, date} -> Map.put(opts, :until, date)
-      {:error, _reason} -> opts
+  defp put_end_condition(opts, "until", params, start_date) do
+    case {Date.from_iso8601(params["until"] || ""), start_date} do
+      {{:ok, date}, _start_date} ->
+        Map.put(opts, :until, date)
+
+      {{:error, _reason}, %Date{}} ->
+        Map.put(opts, :until, Pattern.default_until(opts, start_date))
+
+      {{:error, _reason}, nil} ->
+        opts
     end
   end
 
-  defp put_end_condition(opts, _never_or_other, _params), do: opts
+  defp put_end_condition(opts, _never_or_other, _params, _start_date), do: opts
 
   # ---------------------------------------------------------------------------
   # Refactor 1 — optimistic-update plumbing
