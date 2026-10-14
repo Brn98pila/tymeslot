@@ -24,6 +24,7 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
     - user_timezone: Timezone of the user viewing
     - year: Year to display
     - month: Month to display (1-12)
+    - week_start: `:monday` or `:sunday`, the grid's first column
     - organizer_profile: Profile with booking settings
     - availability_map: Optional real availability data. Can be:
       - nil: Use business hours only (fast)
@@ -34,6 +35,7 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
           String.t(),
           integer(),
           integer(),
+          :monday | :sunday,
           map() | nil,
           map() | atom() | nil,
           map() | nil
@@ -42,6 +44,7 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
         user_timezone,
         year,
         month,
+        week_start,
         organizer_profile,
         availability_map,
         meeting_type \\ nil
@@ -49,12 +52,26 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
     if organizer_profile do
       if Demo.demo_profile?(organizer_profile) do
         # Delegate to demo provider for calendar days
-        Demo.get_calendar_days(user_timezone, year, month, organizer_profile, availability_map)
+        Demo.get_calendar_days(
+          user_timezone,
+          year,
+          month,
+          week_start,
+          organizer_profile,
+          availability_map
+        )
       else
         schedule = Schedules.resolve_for(meeting_type, organizer_profile)
         config = availability_config(schedule, organizer_profile, meeting_type)
 
-        Calculate.get_calendar_days(user_timezone, year, month, config, availability_map)
+        Calculate.get_calendar_days(
+          user_timezone,
+          year,
+          month,
+          week_start,
+          config,
+          availability_map
+        )
       end
     else
       # Return empty calendar days when profile is nil
@@ -165,7 +182,7 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
         # Demo profiles answer the fallback question with the same demo
         # generator the month grid uses, not Core's hard-coded business
         # hours. `Demo.demo_profile?/1` also matches on username, which
-        # `Demo.get_calendar_days/5` does not — for such a profile the
+        # `Demo.get_calendar_days/6` does not — for such a profile the
         # generator returns an empty grid, so fall back to business hours
         # rather than render every day of the week as unavailable.
         demo_days =
@@ -196,14 +213,12 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
 
   # A day the map does not carry is *unknown*, not unavailable.
   #
-  # The map is folded over `Calculate.display_range/2` — a Sunday-anchored
-  # 42-day block around a month — while the strip renders a Monday-anchored
-  # week. `handle_week_navigation/2` refetches whenever the arrows move the
-  # week's midpoint into another month, so no arrow-driven week escapes the
-  # block; a week positioned by a *date* can, because nothing refetches for
-  # it. `SchedulingInit` seeds one from today and `NextAvailable.align_to/2`
-  # from the day it lands on. August 2026 is the shape: the block covers
-  # 2026-07-26..2026-09-05 and the week of the 31st runs to 2026-09-06.
+  # The map is folded over `Calculate.display_range/3` — a 42-day block
+  # around a month — while the strip renders a week. Both are anchored on
+  # the same `:week_start`, so a week touching the loaded month sits inside
+  # the block, and `handle_week_navigation/2` refetches whenever the arrows
+  # move the week's midpoint into another month. A day the map still lacks
+  # is answered below rather than guessed.
   #
   # Reading the absent day as `false` painted it exactly like a fully booked
   # one — greyed out and unclickable — on the strength of a question nobody
@@ -298,13 +313,22 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
 
   # A week can straddle a month boundary, so build the lookup from every
   # month it touches rather than assuming `week_start`'s month covers it.
+  # Each month's grid holds all of that month's days whichever weekday it
+  # starts on, so the grid's own anchoring is immaterial here.
   defp demo_calendar_days(week_start, organizer_profile, availability_map, user_timezone) do
     0..6
     |> Enum.map(&Date.add(week_start, &1))
     |> Enum.map(&{&1.year, &1.month})
     |> Enum.uniq()
     |> Enum.flat_map(fn {year, month} ->
-      Demo.get_calendar_days(user_timezone, year, month, organizer_profile, availability_map)
+      Demo.get_calendar_days(
+        user_timezone,
+        year,
+        month,
+        :monday,
+        organizer_profile,
+        availability_map
+      )
     end)
     |> Map.new(&{&1.date, &1.available})
   end

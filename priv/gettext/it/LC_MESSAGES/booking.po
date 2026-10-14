@@ -247,7 +247,7 @@ msgstr "Sera"
 msgid "FRI"
 msgstr "VEN"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Fri"
 msgstr "Ven"
@@ -319,7 +319,7 @@ msgstr "Riunione riprogrammata!"
 msgid "Meeting with"
 msgstr "Riunione con"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Mon"
 msgstr "Lun"
@@ -449,7 +449,7 @@ msgstr "SAB"
 msgid "SUN"
 msgstr "DOM"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Sat"
 msgstr "Sab"
@@ -519,7 +519,7 @@ msgstr "Servizio lento"
 msgid "Successfully Rescheduled!"
 msgstr "Riprogrammato con successo!"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Sun"
 msgstr "Dom"
@@ -561,7 +561,7 @@ msgstr "Questa data è al completo"
 msgid "This site is protected by reCAPTCHA and the Google %{privacy_link} and %{terms_link} apply."
 msgstr "Questo sito è protetto da reCAPTCHA e si applicano l'%{privacy_link} e i %{terms_link} di Google."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Thu"
 msgstr "Gio"
@@ -581,7 +581,7 @@ msgstr "Orario"
 msgid "Timezone"
 msgstr "Fuso orario"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Tue"
 msgstr "Mar"
@@ -617,7 +617,7 @@ msgstr "MER"
 msgid "We opened Stripe Checkout in a new browser tab. Once your payment is confirmed, this page updates automatically."
 msgstr "Abbiamo aperto Stripe Checkout in una nuova scheda del browser. Una volta confermato il pagamento, questa pagina si aggiornerà automaticamente."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Wed"
 msgstr "Mer"

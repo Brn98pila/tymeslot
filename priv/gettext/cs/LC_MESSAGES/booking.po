@@ -247,7 +247,7 @@ msgstr "Večer"
 msgid "FRI"
 msgstr "PÁ"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Fri"
 msgstr "Pá"
@@ -319,7 +319,7 @@ msgstr "Schůzka byla přesunuta!"
 msgid "Meeting with"
 msgstr "Schůzka s hostitelem"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Mon"
 msgstr "Po"
@@ -449,7 +449,7 @@ msgstr "SO"
 msgid "SUN"
 msgstr "NE"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Sat"
 msgstr "So"
@@ -519,7 +519,7 @@ msgstr "Pomalá odezva"
 msgid "Successfully Rescheduled!"
 msgstr "Schůzka byla přesunuta!"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Sun"
 msgstr "Ne"
@@ -561,7 +561,7 @@ msgstr "Tento den je plně obsazen"
 msgid "This site is protected by reCAPTCHA and the Google %{privacy_link} and %{terms_link} apply."
 msgstr "Tento web je chráněn službou reCAPTCHA a platí %{privacy_link} a %{terms_link} společnosti Google."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Thu"
 msgstr "Čt"
@@ -581,7 +581,7 @@ msgstr "Čas"
 msgid "Timezone"
 msgstr "Časové pásmo"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Tue"
 msgstr "Út"
@@ -617,7 +617,7 @@ msgstr "ST"
 msgid "We opened Stripe Checkout in a new browser tab. Once your payment is confirmed, this page updates automatically."
 msgstr "Stripe Checkout jsme otevřeli na nové kartě prohlížeče. Jakmile bude platba potvrzena, tato stránka se automaticky aktualizuje."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Wed"
 msgstr "St"

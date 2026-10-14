@@ -6,6 +6,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingInit do
   import Phoenix.Component, only: [assign: 3, assign_new: 3]
 
   alias Phoenix.LiveView
+  alias Tymeslot.Integrations.CalendarManagement
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
   alias TymeslotWeb.Themes.Shared.BookingLocation
   alias TymeslotWeb.Themes.Shared.CustomQuestions.Engine, as: QEngine
@@ -21,8 +22,6 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingInit do
         _other -> Date.utc_today()
       end
 
-    week_start = Date.beginning_of_week(today, :monday)
-
     socket
     |> assign_base_state()
     |> assign(:theme_id, theme_id)
@@ -31,7 +30,8 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingInit do
     |> assign(:meeting_type_pinned, false)
     |> assign(:current_year, today.year)
     |> assign(:current_month, today.month)
-    |> assign(:current_week_start, week_start)
+    |> assign(:week_start, :monday)
+    |> assign(:current_week_start, Date.beginning_of_week(today, :monday))
     |> assign(:month_availability_map, nil)
     |> assign(:availability_status, :not_loaded)
     |> assign(:availability_task, nil)
@@ -43,6 +43,26 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingInit do
     # Engine starts empty; it is re-initialised with the meeting type's custom
     # field snapshot in maybe_assign_meeting_type/2 once the organiser is resolved.
     |> assign(:engine, QEngine.init([]))
+  end
+
+  @doc """
+  Settles which day the booking calendar's weeks start on, once the
+  organiser is resolved: the visitor's own (`:visitor_week_start`, read from
+  their `Accept-Language` by `LocalePlug`), else the organiser's calendar
+  setting. Re-anchors `:current_week_start` on it.
+  """
+  @spec assign_week_start(LiveView.Socket.t()) :: LiveView.Socket.t()
+  def assign_week_start(socket) do
+    week_start =
+      socket.assigns[:visitor_week_start] ||
+        CalendarManagement.get_week_start(socket.assigns[:organizer_user_id])
+
+    socket
+    |> assign(:week_start, week_start)
+    |> assign(
+      :current_week_start,
+      Date.beginning_of_week(socket.assigns.current_week_start, week_start)
+    )
   end
 
   # The organizer context (username_context, organizer_profile,

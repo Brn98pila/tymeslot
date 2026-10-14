@@ -247,7 +247,7 @@ msgstr "Abend"
 msgid "FRI"
 msgstr "FR"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Fri"
 msgstr "Fr"
@@ -319,7 +319,7 @@ msgstr "Termin verschoben!"
 msgid "Meeting with"
 msgstr "Termin mit"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Mon"
 msgstr "Mo"
@@ -449,7 +449,7 @@ msgstr "SA"
 msgid "SUN"
 msgstr "SO"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Sat"
 msgstr "Sa"
@@ -519,7 +519,7 @@ msgstr "Dienst reagiert langsam"
 msgid "Successfully Rescheduled!"
 msgstr "Erfolgreich verschoben!"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Sun"
 msgstr "So"
@@ -561,7 +561,7 @@ msgstr "Dieser Tag ist ausgebucht"
 msgid "This site is protected by reCAPTCHA and the Google %{privacy_link} and %{terms_link} apply."
 msgstr "Diese Seite ist durch reCAPTCHA geschützt und es gelten die %{privacy_link} und %{terms_link} von Google."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Thu"
 msgstr "Do"
@@ -581,7 +581,7 @@ msgstr "Uhrzeit"
 msgid "Timezone"
 msgstr "Zeitzone"
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Tue"
 msgstr "Di"
@@ -617,7 +617,7 @@ msgstr "MI"
 msgid "We opened Stripe Checkout in a new browser tab. Once your payment is confirmed, this page updates automatically."
 msgstr "Wir haben Stripe Checkout in einem neuen Browser-Tab geöffnet. Sobald Ihre Zahlung bestätigt wurde, aktualisiert sich diese Seite automatisch."
 
-#: lib/tymeslot_web/themes/quill/scheduling/components/schedule_component.ex
+#: lib/tymeslot_web/themes/shared/localization_helpers.ex
 #, elixir-autogen, elixir-format
 msgid "Wed"
 msgstr "Mi"

@@ -351,24 +351,14 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.ScheduleComponent do
                         <div class="calendar-grid-container flex-1">
                           <div class="grid grid-cols-7 gap-0.5 text-center mb-1">
                             <div
-                              :for={
-                                day <- [
-                                  dgettext("booking", "Sun"),
-                                  dgettext("booking", "Mon"),
-                                  dgettext("booking", "Tue"),
-                                  dgettext("booking", "Wed"),
-                                  dgettext("booking", "Thu"),
-                                  dgettext("booking", "Fri"),
-                                  dgettext("booking", "Sat")
-                                ]
-                              }
+                              :for={day <- LocalizationHelpers.weekday_headings(@week_start)}
                               class="calendar-weekday text-xs font-medium"
                             >
                               {String.slice(day, 0, 3)}
                             </div>
                           </div>
                           <div class="grid grid-cols-7 gap-0.5">
-                            <%= for day <- CalendarHelpers.get_calendar_days(@user_timezone, @current_year, @current_month, @organizer_profile, @month_availability_map, @meeting_type) do %>
+                            <%= for day <- CalendarHelpers.get_calendar_days(@user_timezone, @current_year, @current_month, @week_start, @organizer_profile, @month_availability_map, @meeting_type) do %>
                               <.calendar_day
                                 phx-click="select_date"
                                 phx-target={@myself}
