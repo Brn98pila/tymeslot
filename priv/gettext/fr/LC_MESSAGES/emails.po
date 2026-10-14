@@ -536,3 +536,8 @@ msgstr "se termine à %{time} le %{date}"
 #, elixir-autogen, elixir-format
 msgid "Duration:"
 msgstr "Durée :"
+
+#: lib/tymeslot/integrations/calendar/utils/ics_generator.ex
+#, elixir-autogen, elixir-format
+msgid "Scheduled with %{brand}: %{url}"
+msgstr "Planifié avec %{brand} : %{url}"

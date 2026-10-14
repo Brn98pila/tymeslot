@@ -16,6 +16,11 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPIBehaviour do
            # A list read followed more next links than the page cap allows.
            | :too_many_pages, String.t()}
 
+  # A repeat rule Graph has no pattern for, or cannot hold with the
+  # organiser's dates, refused before anything is sent (see
+  # `Outlook.RecurrenceConverter`).
+  @type write_refusal :: {:error, :rule_not_supported_by_outlook | :day_missing_in_some_months}
+
   @callback list_calendars(CalendarIntegrationSchema.t()) ::
               {:ok, [map()]} | api_error()
   @callback list_events(CalendarIntegrationSchema.t(), String.t(), DateTime.t(), DateTime.t()) ::
@@ -23,13 +28,13 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPIBehaviour do
   @callback list_primary_events(CalendarIntegrationSchema.t(), DateTime.t(), DateTime.t()) ::
               {:ok, [map()]} | api_error()
   @callback create_event(CalendarIntegrationSchema.t(), map()) ::
-              {:ok, map()} | api_error()
+              {:ok, map()} | api_error() | write_refusal()
   @callback create_event(CalendarIntegrationSchema.t(), String.t(), map()) ::
-              {:ok, map()} | api_error()
+              {:ok, map()} | api_error() | write_refusal()
   @callback update_event(CalendarIntegrationSchema.t(), String.t(), map()) ::
-              {:ok, map()} | api_error()
+              {:ok, map()} | api_error() | write_refusal()
   @callback update_event(CalendarIntegrationSchema.t(), String.t(), String.t(), map()) ::
-              {:ok, map()} | api_error()
+              {:ok, map()} | api_error() | write_refusal()
   @callback get_event(CalendarIntegrationSchema.t(), String.t()) :: {:ok, map()} | api_error()
   @callback get_event(CalendarIntegrationSchema.t(), String.t(), keyword()) ::
               {:ok, map()} | api_error()

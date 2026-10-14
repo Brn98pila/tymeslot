@@ -273,6 +273,17 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.EventMapperTest do
 
       refute Map.has_key?(result, "recurrence")
     end
+
+    test "refuses a monthly rule from the 31st instead of writing a single event" do
+      event_data = %{
+        summary: "Month end",
+        start_time: ~U[2026-01-31 10:00:00Z],
+        end_time: ~U[2026-01-31 11:00:00Z],
+        recurrence_rule: "FREQ=MONTHLY"
+      }
+
+      assert EventMapper.format_event_data(event_data) == {:error, :day_missing_in_some_months}
+    end
   end
 
   # Graph's PATCH replaces the attendee collection with the one it is sent and

@@ -388,12 +388,12 @@ msgstr "Ignora l'avviso sui calendari non più presenti sul server"
 msgid "“%{calendar}” is no longer on your calendar server, so Tymeslot has stopped using it."
 msgstr "Il calendario «%{calendar}» non è più presente sul tuo server di calendario, quindi Tymeslot ha smesso di usarlo."
 
-#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#: lib/tymeslot_web/live/dashboard/calendar_settings/feed_controls.ex
 #, elixir-autogen, elixir-format
 msgid "Block"
 msgstr "Blocca"
 
-#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#: lib/tymeslot_web/live/dashboard/calendar_settings/feed_controls.ex
 #, elixir-autogen, elixir-format
 msgid "Don't block"
 msgstr "Non bloccare"
@@ -403,7 +403,35 @@ msgstr "Non bloccare"
 msgid "Your booking calendar always blocks your availability."
 msgstr "Il tuo calendario di prenotazione blocca sempre la tua disponibilità."
 
-#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#: lib/tymeslot_web/live/dashboard/calendar_settings/feed_controls.ex
 #, elixir-autogen, elixir-format
 msgid "Busy times of %{calendar}"
 msgstr "Orari occupati di %{calendar}"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/feed_controls.ex
+#, elixir-autogen, elixir-format
+msgid "Block the time of every event in this feed, also those it marks as free"
+msgstr ""
+"Blocca l'orario di ogni evento di questo feed, anche di quelli segnati come liberi"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid "Events this calendar marks as free no longer block time"
+msgstr ""
+"Gli eventi che questo calendario segna come liberi non bloccano più l'orario"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/feed_controls.ex
+#, elixir-autogen, elixir-format
+msgid "Every event busy"
+msgstr "Ogni evento occupato"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings_component.ex
+#, elixir-autogen, elixir-format
+msgid "Every event in this calendar now blocks time"
+msgstr "Ogni evento di questo calendario ora blocca l'orario"
+
+#: lib/tymeslot_web/live/dashboard/calendar_settings/components.ex
+#, elixir-autogen, elixir-format
+msgid "read-only, every event blocks time, also those marked free"
+msgstr ""
+"di sola lettura, ogni evento blocca l'orario, anche quelli segnati come liberi"

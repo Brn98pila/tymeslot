@@ -156,8 +156,19 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.CreateExecution do
       calendar_id: creating[:calendar_id],
       video_integration_id: creating[:video_integration_id],
       organizer_note: creating[:organizer_note],
-      attendee_locale: creating[:locale]
+      attendee_locale: creating[:locale],
+      reminders: reminders_of(creating)
     }
+  end
+
+  # What the reminder picker holds, or nothing at all. Nothing is an answer
+  # here: a quick-added meeting sends the reminders the host picked and no
+  # others, so an untouched picker means no reminder email.
+  defp reminders_of(creating) do
+    case creating[:meeting_reminders] do
+      %{reminders: reminders} -> reminders
+      _unset -> []
+    end
   end
 
   # All-day events round-trip start/end as Dates (and `all_day: true`) so the
@@ -318,6 +329,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.CreateExecution do
 
   defp create_failed_message(%{reason: :rule_not_supported_by_outlook}),
     do: EditWorkflow.rule_not_supported_by_outlook_message()
+
+  defp create_failed_message(%{reason: :day_missing_in_some_months}),
+    do: EditWorkflow.month_end_refused_message()
 
   defp create_failed_message(_failure),
     do: dgettext("dashboard_calendar_events", "Failed to create event")

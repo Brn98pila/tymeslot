@@ -2,7 +2,8 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   @moduledoc """
   The changes an organiser makes to one of their own connected calendars from
   the dashboard: switching it on or off, renaming it, recolouring it, ticking
-  its calendars and choosing which of them block availability, refreshing
+  its calendars and choosing which of them block availability, letting a
+  subscription count every event as busy, refreshing
   it, retrying the changes its server kept refusing, dismissing the notice
   about calendars its server stopped listing, and deleting it.
 
@@ -113,6 +114,23 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
           | {:error, refusal() | :booking_calendar | :free_busy_only | term()}
   def set_calendar_state(user_id, integration_id, calendar_id, state) do
     with_owned(user_id, integration_id, :write, &Blocking.set_state(&1, calendar_id, state))
+  end
+
+  @doc """
+  Sets whether a subscription counts every event in its feed as busy, also
+  those the feed marks free (see `CalendarManagement.put_all_events_busy/2`).
+  Any other connection is refused with `{:error, :not_a_subscription}`.
+  """
+  @spec set_all_events_busy(pos_integer(), pos_integer(), boolean()) ::
+          {:ok, integration()}
+          | {:error, refusal() | :not_a_subscription | Ecto.Changeset.t()}
+  def set_all_events_busy(user_id, integration_id, busy?) when is_boolean(busy?) do
+    with_owned(
+      user_id,
+      integration_id,
+      :write,
+      &CalendarManagement.put_all_events_busy(&1, busy?)
+    )
   end
 
   @doc """

@@ -21,6 +21,8 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
       verifiers they hold
   12. Slack OAuth installs never finished by picking a channel, a day after
       they were started, with the workspace bot token they hold
+  13. What invitees gave on meetings and polls that ended two years ago,
+      anonymised rather than deleted (see `Tymeslot.InviteeData`)
 
   Ensures the database doesn't grow indefinitely by removing
   old records based on configured retention periods.
@@ -39,6 +41,7 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.HealthCheck.AvailabilityRefusalQueries
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
+  alias Tymeslot.InviteeData
   alias Tymeslot.Payments.Webhooks.StripeEventQueries
   alias Tymeslot.Slack
   alias Tymeslot.Telegram
@@ -101,6 +104,13 @@ defmodule Tymeslot.Workers.DataRetentionWorker do
       config_key: :unverified_account_days,
       default_days: 30,
       prune: {Auth, :purge_unverified_accounts}
+    },
+    %{
+      name: "invitee data",
+      args_key: "invitee_data_retention_days",
+      config_key: :invitee_data_days,
+      default_days: 730,
+      prune: {InviteeData, :anonymise_expired}
     }
   ]
 

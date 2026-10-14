@@ -9,6 +9,7 @@ defmodule Tymeslot.Integrations.Calendar.IcsGenerator do
   alias Tymeslot.Integrations.Calendar.ICalBuilder.ContentLines
   alias Tymeslot.Integrations.Calendar.ICalBuilder.Format
   alias Tymeslot.Locales
+  alias Tymeslot.Payments
 
   @doc """
   Generates an ICS file content for a meeting/appointment.
@@ -261,7 +262,8 @@ defmodule Tymeslot.Integrations.Calendar.IcsGenerator do
       build_organizer_note_section(meeting_details),
       build_attendee_message_section(meeting_details),
       build_video_url_section(meeting_details),
-      build_custom_answers_section(meeting_details)
+      build_custom_answers_section(meeting_details),
+      build_branding_section(meeting_details)
     ]
 
     parts
@@ -300,6 +302,19 @@ defmodule Tymeslot.Integrations.Calendar.IcsGenerator do
 
       _other ->
         nil
+    end
+  end
+
+  # The free-tier footer: the description is the one field every calendar
+  # client shows, so it is where the event says how it was scheduled. Read the
+  # URL first so an instance without one never consults the subscription
+  # manager.
+  defp build_branding_section(meeting_details) do
+    with url when is_binary(url) <- Application.get_env(:tymeslot, :ics_branding_url),
+         true <- Payments.show_branding?(Map.get(meeting_details, :organizer_user_id)) do
+      dgettext("emails", "Scheduled with %{brand}: %{url}", brand: "Tymeslot", url: url)
+    else
+      _no_branding -> nil
     end
   end
 

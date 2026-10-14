@@ -31,6 +31,16 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverter do
   Absolute monthly and yearly patterns read back without a `BYMONTHDAY` or
   `BYMONTH` part, since the event's start date anchors them.
 
+  ## Days some months lack
+
+  The two calendars read a monthly day the month lacks differently: RFC 5545
+  skips the month, so a series on the 31st has no occurrence in April, while
+  Graph moves it to the month's last day. Graph has no pattern that skips, so
+  an absolute series that would reach such a month is refused
+  (`{:error, :day_missing_in_some_months}`) rather than written with dates the
+  organiser never chose. A yearly series on 29 February is refused the same
+  way, unless it ends before a common year.
+
   ## Week start
 
   An every-other-week series on several days fires in alternate weeks, and
@@ -65,7 +75,9 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverter do
   @doc """
   Converts an RRULE string into a Microsoft Graph `recurrence` object, or
   `nil` for no rule or one without a readable `FREQ`, as before; a rule
-  Graph has no pattern for is refused (see "Patterns").
+  Graph has no pattern for is refused (see "Patterns"), and so is a monthly
+  or yearly series Graph would move onto a month's last day
+  (`{:error, :day_missing_in_some_months}`; see "Days some months lack").
 
   The `start_date` supplies the range `startDate` and anchors monthly/yearly
   patterns (and a weekly pattern that omits `BYDAY`).
@@ -78,19 +90,22 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverter do
   had the series written one day late and Graph generated an extra occurrence.
   """
   @spec rrule_to_outlook(String.t() | nil, Date.t(), String.t() | nil) ::
-          {:ok, map() | nil} | {:error, :rule_not_supported_by_outlook}
+          {:ok, map() | nil}
+          | {:error, :rule_not_supported_by_outlook | :day_missing_in_some_months}
   def rrule_to_outlook(rrule, start_date, timezone \\ nil)
   def rrule_to_outlook(nil, _start_date, _timezone), do: {:ok, nil}
   def rrule_to_outlook("", _start_date, _timezone), do: {:ok, nil}
 
   def rrule_to_outlook(rrule, %Date{} = start_date, timezone) when is_binary(rrule) do
     with {:ok, rule} <- RRule.parse(rrule),
-         {:ok, pattern} <- pattern(rule, start_date) do
+         {:ok, pattern} <- pattern(rule, start_date),
+         options = RRule.options(rule, timezone: timezone),
+         :ok <- refuse_moved_days(pattern, rule.interval, options, start_date) do
       {:ok,
        %{
          "pattern" =>
            pattern |> Map.put("interval", rule.interval) |> put_first_day_of_week(rule),
-         "range" => build_range(RRule.options(rule, timezone: timezone), start_date)
+         "range" => build_range(options, start_date)
        }}
     else
       :error -> {:ok, nil}
@@ -220,6 +235,51 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.RecurrenceConverter do
     do: Enum.map(by_day, fn {_ordinal, iso} -> weekday_index_to_graph(iso) end)
 
   defp refused, do: {:error, :rule_not_supported_by_outlook}
+
+  # Graph places an absolute series on its day in every period, moved to the
+  # month's last day where the month lacks it; RFC 5545 skips that period
+  # instead. So the series is refused exactly when one of the periods it
+  # reaches lacks its day. An open-ended series is walked over a full
+  # Gregorian cycle, which also finds the common year that a 29 February
+  # series every fourth year reaches.
+  @gregorian_cycle_months 400 * 12
+
+  defp refuse_moved_days(
+         %{"type" => type, "dayOfMonth" => day} = pattern,
+         interval,
+         options,
+         start
+       )
+       when type in ["absoluteMonthly", "absoluteYearly"] and day > 28 do
+    {first_month, step} =
+      if type == "absoluteYearly",
+        do: {Date.new!(start.year, pattern["month"], 1), interval * 12},
+        else: {Date.beginning_of_month(start), interval}
+
+    until = Map.get(options, :until)
+
+    moved? =
+      first_month
+      |> Stream.iterate(&Date.shift(&1, month: step))
+      |> Stream.map(&graph_occurrence(&1, day))
+      |> Stream.drop_while(fn {date, _moved?} -> Date.before?(date, start) end)
+      |> Stream.take(Map.get(options, :count, div(@gregorian_cycle_months, step) + 1))
+      |> Stream.take_while(fn {date, _moved?} ->
+        is_nil(until) or not Date.after?(date, until)
+      end)
+      |> Enum.any?(fn {_date, moved?} -> moved? end)
+
+    if moved?, do: {:error, :day_missing_in_some_months}, else: :ok
+  end
+
+  defp refuse_moved_days(_pattern, _interval, _options, _start), do: :ok
+
+  defp graph_occurrence(month_start, day) do
+    case Date.new(month_start.year, month_start.month, day) do
+      {:ok, date} -> {date, false}
+      {:error, _invalid} -> {Date.end_of_month(month_start), true}
+    end
+  end
 
   defp put_first_day_of_week(%{"type" => "weekly"} = pattern, rule),
     do: Map.put(pattern, "firstDayOfWeek", weekday_index_to_graph(rule.week_start || 1))

@@ -99,6 +99,10 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
 
       MjmlEmail.base_email()
       |> to({appointment_details.attendee_name, attendee_email})
+      |> MjmlEmail.put_reply_to(
+        appointment_details.organizer_name,
+        appointment_details.organizer_email
+      )
       |> subject(attendee_subject(appointment_details, meeting_details.date, locale))
       |> html_body(html_body)
       |> text_body(build_attendee_text_body(appointment_details, meeting_details, locale))
@@ -150,6 +154,10 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
 
       MjmlEmail.base_email()
       |> to({guest_name, guest_email})
+      |> MjmlEmail.put_reply_to(
+        appointment_details.organizer_name,
+        appointment_details.organizer_email
+      )
       |> subject(
         dgettext("emails_booking", "Meeting Rescheduled - %{date} with %{name}",
           date: date_short,
@@ -219,6 +227,10 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
       # top of that as a second event.
       MjmlEmail.base_email()
       |> to({appointment_details.organizer_name, organizer_email})
+      |> MjmlEmail.put_reply_to(
+        appointment_details.attendee_name,
+        appointment_details.attendee_email
+      )
       |> subject(
         dgettext("emails_booking", "Rescheduled: %{name} - %{date}",
           name: appointment_details.attendee_name,

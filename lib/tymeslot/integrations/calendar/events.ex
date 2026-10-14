@@ -36,14 +36,15 @@ defmodule Tymeslot.Integrations.Calendar.Events do
   # connecting one, and a meeting booked before then never had an event.
   @no_calendar_errors [:no_calendar_client, :no_calendar_integration]
 
-  # A repeat rule the provider has no pattern for is refused the same way
-  # every time.
+  # A repeat rule the provider has no pattern for, or one it would move onto
+  # days the organiser never chose, is refused the same way every time.
   @non_queueable_errors [
                           :unauthorized,
                           :not_found,
                           :meeting_not_found,
                           :rate_limited,
-                          :rule_not_supported_by_outlook
+                          :rule_not_supported_by_outlook,
+                          :day_missing_in_some_months
                         ] ++
                           @no_calendar_errors
 

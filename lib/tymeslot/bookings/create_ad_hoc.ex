@@ -32,7 +32,8 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
           optional(:video_integration_id) => pos_integer() | nil,
           optional(:guest_emails) => [String.t()],
           optional(:organizer_note) => String.t() | nil,
-          optional(:attendee_locale) => String.t() | nil
+          optional(:attendee_locale) => String.t() | nil,
+          optional(:reminders) => [%{value: pos_integer(), unit: String.t()}]
         }
 
   @type error ::
@@ -161,12 +162,12 @@ defmodule Tymeslot.Bookings.CreateAdHoc do
       # is theirs; `attendee_message` stays for words the attendee wrote.
       attendee_message: nil,
       organizer_note: blank_to_nil(params[:organizer_note]),
-      # Explicitly none, not "unset". A nil here is read by
-      # `Notifications.Orchestrator` as a meeting from before the reminders
-      # column existed, and answered with the legacy default of 30 minutes —
-      # so a booking whose own confirmation says no reminders are scheduled
-      # sends one anyway. An empty list is honoured as the answer it is.
-      reminders: [],
+      # What the organiser picked, and explicitly none when they picked none,
+      # not "unset". A nil here is read by `Notifications.Orchestrator` as a
+      # meeting from before the reminders column existed, and answered with the
+      # legacy default of 30 minutes, so a booking whose own confirmation says
+      # no reminders are scheduled would send one anyway.
+      reminders: params[:reminders] || [],
       attendee_timezone: params[:attendee_timezone] || "Etc/UTC",
       # The organiser chooses which language the guests are written to; a
       # missing or unsupported choice falls back to the booking default.

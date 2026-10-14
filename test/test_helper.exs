@@ -52,6 +52,7 @@ ExUnit.start()
 base_config = [
   capture_log: true,
   exclude: Tymeslot.Test.SuiteConfig.default_exclude_tags(),
+  formatters: Tymeslot.Test.SuiteConfig.formatters(),
   assert_receive_timeout: 1_000
 ]
 

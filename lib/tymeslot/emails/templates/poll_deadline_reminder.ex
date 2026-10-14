@@ -62,6 +62,7 @@ defmodule Tymeslot.Emails.Templates.PollDeadlineReminder do
       MjmlEmail.base_email()
       |> to({participant.name, participant.email})
       |> from({host_name, MjmlEmail.fetch_from_email()})
+      |> MjmlEmail.put_reply_to(host_name, host_email(poll))
       |> subject(dgettext("emails_polls", "Reminder: vote on \"%{title}\"", title: poll.title))
       |> html_body(html_body)
       |> text_body(build_text_body(poll, host_name, deadline, voting_url))
@@ -126,4 +127,7 @@ defmodule Tymeslot.Emails.Templates.PollDeadlineReminder do
     do: name
 
   defp host_display_name(_poll), do: MjmlEmail.fetch_from_name()
+
+  defp host_email(%PollSchema{user: %{email: email}}), do: email
+  defp host_email(_poll), do: nil
 end

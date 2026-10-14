@@ -103,6 +103,10 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
 
       MjmlEmail.base_email()
       |> to({appointment_details.attendee_name, attendee_email})
+      |> MjmlEmail.put_reply_to(
+        appointment_details.organizer_name,
+        appointment_details.organizer_email
+      )
       |> subject(
         dgettext("emails_booking", "Appointment Confirmed - %{date} with %{name}",
           date: date_short,
@@ -168,6 +172,10 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
 
       MjmlEmail.base_email()
       |> to({guest_name, guest_email})
+      |> MjmlEmail.put_reply_to(
+        appointment_details.organizer_name,
+        appointment_details.organizer_email
+      )
       |> subject(
         dgettext("emails_booking", "You're invited - %{date} with %{name}",
           date: date_short,
@@ -241,6 +249,10 @@ defmodule Tymeslot.Emails.Templates.AppointmentConfirmation do
       # producing a duplicate event and re-sending invites to the attendee.
       MjmlEmail.base_email()
       |> to({appointment_details.organizer_name, organizer_email})
+      |> MjmlEmail.put_reply_to(
+        appointment_details.attendee_name,
+        appointment_details.attendee_email
+      )
       |> subject(
         dgettext("emails_booking", "New Appointment: %{name} - %{date}",
           name: appointment_details.attendee_name,
