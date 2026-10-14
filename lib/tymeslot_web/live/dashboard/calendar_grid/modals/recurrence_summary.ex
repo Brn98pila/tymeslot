@@ -61,7 +61,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceSummary do
   """
   @spec on_phrase(Pattern.on(), :monthly | :yearly, Date.t()) :: String.t()
   def on_phrase(:day, :monthly, start_date),
-    do: dgettext("dashboard_calendar_repeat", "on day %{day}", day: start_date.day)
+    do: dgettext("dashboard_calendar_repeat", "on day %{day}", day: day_number(start_date.day))
 
   def on_phrase(:day, :yearly, start_date), do: on_date(start_date.month, start_date.day)
 
@@ -92,7 +92,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceSummary do
 
   for {name, month} <- Enum.with_index(@months, 1) do
     defp on_date(unquote(month), day),
-      do: dgettext("dashboard_calendar_repeat", unquote("on %{day} #{name}"), day: day)
+      do:
+        dgettext("dashboard_calendar_repeat", unquote("on %{day} #{name}"), day: day_number(day))
 
     defp of_month(unquote(month)),
       do: dgettext("dashboard_calendar_repeat", unquote("of #{name}"))
@@ -152,9 +153,19 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceSummary do
       )
 
   defp end_phrase(%{until: %Date{} = until}) do
-    date = LocaleFormat.format_date(until, Gettext.get_locale(TymeslotWeb.Gettext))
+    locale = Gettext.get_locale(TymeslotWeb.Gettext)
+    month = LocaleFormat.format_month_name(until.month, locale)
+    date = LocaleFormat.order_date_parts(day_number(until.day), month, until.year, locale)
     dgettext("dashboard_calendar_repeat", "until %{date}", date: date)
   end
+
+  # French writes the first of a month as an ordinal, "le 1er octobre"; every
+  # other day, and every day in the other languages, is a plain number.
+  defp day_number(1) do
+    if Gettext.get_locale(TymeslotWeb.Gettext) == "fr", do: "1er", else: "1"
+  end
+
+  defp day_number(day), do: Integer.to_string(day)
 
   defp end_phrase(_pattern), do: nil
 

@@ -162,6 +162,23 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditorTest do
       end)
     end
 
+    test "writes the first of a month as French writes it, and only in French" do
+      Gettext.with_locale(TymeslotWeb.Gettext, "fr", fn ->
+        assert RecurrenceEditor.summary("FREQ=MONTHLY;UNTIL=20270101", ~D[2026-10-01]) =~
+                 "le 1er du mois jusqu’au 1er janvier 2027"
+
+        assert RecurrenceEditor.summary("FREQ=YEARLY", ~D[2026-10-01]) =~ "le 1er octobre"
+        assert RecurrenceEditor.summary("FREQ=MONTHLY", ~D[2026-10-02]) =~ "le 2 du mois"
+      end)
+
+      Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+        assert RecurrenceEditor.summary("FREQ=YEARLY;UNTIL=20270101", ~D[2026-10-01]) =~
+                 "1. Oktober"
+      end)
+
+      assert RecurrenceEditor.summary("FREQ=YEARLY", ~D[2026-10-01]) =~ "on 1 October"
+    end
+
     test "returns nil for a non-recurring rule" do
       assert RecurrenceEditor.summary(nil, @monday) == nil
     end
