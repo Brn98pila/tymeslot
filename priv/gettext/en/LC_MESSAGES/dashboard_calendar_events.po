@@ -105,11 +105,6 @@ msgstr ""
 msgid "Add title"
 msgstr ""
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "After"
-msgstr ""
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/shortcuts_help_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Agenda view"
@@ -163,6 +158,7 @@ msgstr ""
 #: lib/tymeslot_web/live/dashboard/calendar_grid/edit_workflow.ex
 #: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/inline_edit.ex
 #: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/notification_flows.ex
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/recurrence_edit.ex
 #, elixir-autogen, elixir-format
 msgid "Changes saved."
 msgstr ""
@@ -211,11 +207,6 @@ msgstr ""
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/create_event_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Creating..."
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Daily"
 msgstr ""
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/settings_modal.ex
@@ -267,11 +258,6 @@ msgstr ""
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/settings_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Display Saturday and Sunday in week view"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Does not repeat"
 msgstr ""
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/attendee_editor.ex
@@ -334,11 +320,6 @@ msgstr ""
 msgid "Event details"
 msgstr ""
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Every"
-msgstr ""
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/create_execution.ex
 #, elixir-autogen, elixir-format
 msgid "Failed to create event"
@@ -363,11 +344,6 @@ msgstr ""
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/shortcuts_help_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Focus search"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Fri"
 msgstr ""
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/confirm_discard_attendees_modal.ex
@@ -426,7 +402,6 @@ msgstr ""
 msgid "Meeting created and invitation sent"
 msgstr ""
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/settings_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Mon"
@@ -442,19 +417,9 @@ msgstr ""
 msgid "Month view"
 msgstr ""
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Monthly"
-msgstr ""
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/shortcuts_help_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Navigation"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Never ends"
 msgstr ""
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/create_event_modal.ex
@@ -498,11 +463,6 @@ msgid "Notify %{count} attendee of this change?"
 msgid_plural "Notify %{count} attendees of this change?"
 msgstr[0] ""
 msgstr[1] ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "On date"
-msgstr ""
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/notification_flows.ex
 #, elixir-autogen, elixir-format
@@ -567,64 +527,6 @@ msgstr ""
 msgid "Remove reminder %{label}"
 msgstr ""
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeat"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats daily"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats every %{count} day"
-msgid_plural "Repeats every %{count} days"
-msgstr[0] ""
-msgstr[1] ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats every %{count} month"
-msgid_plural "Repeats every %{count} months"
-msgstr[0] ""
-msgstr[1] ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats every %{count} week"
-msgid_plural "Repeats every %{count} weeks"
-msgstr[0] ""
-msgstr[1] ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats every %{count} year"
-msgid_plural "Repeats every %{count} years"
-msgstr[0] ""
-msgstr[1] ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats monthly"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats weekly"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats yearly"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Sat"
-msgstr ""
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/notify_prompt_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Send cancellation to %{count} attendee?"
@@ -652,7 +554,6 @@ msgstr ""
 msgid "Start weeks on Monday or Sunday"
 msgstr ""
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/settings_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Sun"
@@ -676,11 +577,6 @@ msgstr ""
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/confirm_delete_modal.ex
 #, elixir-autogen, elixir-format
 msgid "This will also remove it from your calendar provider."
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Thu"
 msgstr ""
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/inline_edit.ex
@@ -719,11 +615,6 @@ msgstr ""
 msgid "Too many refreshes. Please wait a moment."
 msgstr ""
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Tue"
-msgstr ""
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/confirm_discard_attendees_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Unsent invitations"
@@ -745,11 +636,6 @@ msgstr ""
 msgid "W%{week}"
 msgstr ""
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Wed"
-msgstr ""
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/settings_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Week"
@@ -765,19 +651,9 @@ msgstr ""
 msgid "Week view"
 msgstr ""
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Weekly"
-msgstr ""
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/mini_month_popover.ex
 #, elixir-autogen, elixir-format
 msgid "Wk"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Yearly"
 msgstr ""
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/notify_prompt_modal.ex
@@ -803,50 +679,6 @@ msgstr ""
 #: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/inline_edit.ex
 #, elixir-autogen, elixir-format
 msgid "You don't have permission to move this event"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "day(s)"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "for %{count} occurrence"
-msgid_plural "for %{count} occurrences"
-msgstr[0] ""
-msgstr[1] ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "month(s)"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "occurrence"
-msgid_plural "occurrences"
-msgstr[0] ""
-msgstr[1] ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "on %{days}"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "until %{date}"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "week(s)"
-msgstr ""
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "year(s)"
 msgstr ""
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/confirm_delete_modal.ex
@@ -1065,7 +897,7 @@ msgid "Events of a repeating series cannot be switched between all-day and timed
 msgstr ""
 
 #: lib/tymeslot_web/live/dashboard/calendar_event_handlers.ex
-#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/inline_edit.ex
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/recurrence_edit.ex
 #, elixir-autogen, elixir-format
 msgid "That change cannot be made to the events you chose. A repeat rule can only be changed for all events, or this and following events, and cannot be removed here."
 msgstr ""

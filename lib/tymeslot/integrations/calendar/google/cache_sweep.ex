@@ -56,6 +56,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CacheSweep do
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.ProviderCalendarSweepQueries
+  alias Tymeslot.Integrations.Calendar.SeriesRules
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Meetings
@@ -81,6 +82,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.CacheSweep do
     swept = Enum.flat_map(listed, &sweep_calendar(integration, &1, run_started_at))
 
     if swept != [] do
+      SeriesRules.forget_orphans(integration.id)
       Sync.invalidate_cache_for_user(integration)
       SyncBroadcast.broadcast_cache_update(integration.user_id, swept)
     end

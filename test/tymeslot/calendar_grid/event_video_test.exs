@@ -96,7 +96,8 @@ defmodule Tymeslot.CalendarGrid.EventVideoTest do
       assert_received {:provider_update, uid, payload}
       assert uid == event.uid
       assert payload.description == "Agenda\n\nJoin video call: #{@new_url}"
-      assert payload.recurrence_rule == @rrule
+      # One occurrence of the series is written, which carries no rule.
+      refute Map.has_key?(payload, :recurrence_rule)
       assert reload(event).description == payload.description
     end
 

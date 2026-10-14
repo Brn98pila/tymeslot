@@ -12,6 +12,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.EventNormaliser do
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.EventColour
   alias Tymeslot.Integrations.Calendar.InvalidEventReport
+  alias Tymeslot.Integrations.Calendar.Recurrence.RRule
   alias Tymeslot.Timezones
 
   @spec normalise_events(list(map()), map()) :: {:ok, list(CalendarEvent.t())}
@@ -99,7 +100,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.EventNormaliser do
         reminders: map_reminders(raw["reminders"]),
         colour: EventColour.from_google_color_id(raw["colorId"]),
         etag: raw["etag"],
-        recurrence_rule: map_recurrence_rule(raw["recurrence"]),
+        recurrence_rule: RRule.from_lines(raw["recurrence"]),
         provider_metadata: Map.put(raw, "recurringEventId", raw["recurringEventId"]),
         created_by_tymeslot:
           get_in(raw, ["extendedProperties", "private", "createdBy"]) == "tymeslot"
@@ -182,9 +183,6 @@ defmodule Tymeslot.Integrations.Calendar.Google.EventNormaliser do
   defp map_reminder_method("popup"), do: :popup
   defp map_reminder_method("sms"), do: :sms
   defp map_reminder_method(_other), do: :popup
-
-  defp map_recurrence_rule([first | _rest]), do: first
-  defp map_recurrence_rule(_other), do: nil
 
   defp parse_timing(%{"start" => %{"date" => start_date}, "end" => %{"date" => end_date}}) do
     with {:ok, sd} <- Date.from_iso8601(start_date),

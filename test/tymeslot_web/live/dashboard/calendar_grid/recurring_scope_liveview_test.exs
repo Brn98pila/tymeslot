@@ -26,6 +26,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeLiveViewTest do
   @moduletag :live
   @moduletag :integration
 
+  import TymeslotWeb.RepeatEditorHelpers
   import Mox
   import Phoenix.LiveViewTest
   import Tymeslot.AuthTestHelpers
@@ -291,7 +292,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeLiveViewTest do
 
       lv
       |> element("#calendar-grid")
-      |> render_hook("update_event_recurrence", %{
+      |> render_repeat_save(%{
         "freq" => "weekly",
         "interval" => "1",
         "end_type" => "never"
@@ -428,7 +429,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeLiveViewTest do
 
     lv
     |> element("#calendar-grid")
-    |> render_hook("update_event_recurrence", %{
+    |> render_repeat_save(%{
       "freq" => "daily",
       "interval" => "1",
       "end_type" => "never"

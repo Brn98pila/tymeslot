@@ -151,6 +151,21 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRule do
   end
 
   @doc """
+  The rule among a series' recurrence lines (`RRULE:`, `EXDATE`, `RDATE`, in
+  any order, as Google lists them), without its prefix; nil when none is a
+  rule.
+  """
+  @spec from_lines([String.t()] | nil) :: String.t() | nil
+  def from_lines(lines) when is_list(lines) do
+    Enum.find_value(lines, fn
+      "RRULE:" <> rule -> rule
+      _other_line -> nil
+    end)
+  end
+
+  def from_lines(_lines), do: nil
+
+  @doc """
   Writes a rule back as an `RRULE` value without its prefix. Parts come in a
   stable order, `FREQ`, `INTERVAL` (only when above 1), `BYMONTH`,
   `BYMONTHDAY`, `BYDAY`, `BYSETPOS`, `WKST`, the parts under `:other` as
@@ -501,8 +516,8 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.RRule do
 
   Used by the iCal builder and Google event mapper to ensure exactly one
   `RRULE:` prefix is emitted regardless of whether the stored rule already
-  carries one (Google's normaliser keeps the prefix on read; CalDAV and Outlook
-  store the bare rule body).
+  carries one (every provider now stores the bare rule body, but rows cached
+  from Google before that carry the prefix).
   """
   @spec strip_prefix(String.t()) :: String.t()
   def strip_prefix("RRULE:" <> rest), do: rest

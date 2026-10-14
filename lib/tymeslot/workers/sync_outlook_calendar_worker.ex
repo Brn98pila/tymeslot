@@ -43,6 +43,8 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookCalendarAPI
   alias Tymeslot.Integrations.Calendar.Outlook.Provider, as: OutlookProvider
+  alias Tymeslot.Integrations.Calendar.Outlook.SeriesMaster
+  alias Tymeslot.Integrations.Calendar.SeriesRules
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.Tokens
   alias Tymeslot.Integrations.CalendarManagement
@@ -206,6 +208,11 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
 
     case OutlookProvider.normalise_events([event], context) do
       {:ok, [_cal_event | _rest] = calendar_events} ->
+        :ok =
+          SeriesRules.refresh(integration.id, calendar_events, SeriesMaster.reader(integration),
+            changed: true
+          )
+
         # A cache write that failed is a cycle that did not sync: the job
         # retries and health state counts it, rather than the sync being
         # stamped as done over an event the cache never received.

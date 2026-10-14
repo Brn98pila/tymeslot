@@ -109,11 +109,6 @@ msgstr "Přidat připomínku"
 msgid "Add title"
 msgstr "Přidat název"
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "After"
-msgstr "Skončí po"
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/shortcuts_help_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Agenda view"
@@ -167,6 +162,7 @@ msgstr "Zrušit"
 #: lib/tymeslot_web/live/dashboard/calendar_grid/edit_workflow.ex
 #: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/inline_edit.ex
 #: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/notification_flows.ex
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/recurrence_edit.ex
 #, elixir-autogen, elixir-format
 msgid "Changes saved."
 msgstr "Změny byly uloženy."
@@ -216,11 +212,6 @@ msgstr "Vytvořeno ve službě Tymeslot"
 #, elixir-autogen, elixir-format
 msgid "Creating..."
 msgstr "Vytváření…"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Daily"
-msgstr "Denně"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/settings_modal.ex
 #, elixir-autogen, elixir-format
@@ -272,11 +263,6 @@ msgstr "Zahodit"
 #, elixir-autogen, elixir-format
 msgid "Display Saturday and Sunday in week view"
 msgstr "Zobrazit sobotu a neděli v týdenním zobrazení"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Does not repeat"
-msgstr "Neopakuje se"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/attendee_editor.ex
 #, elixir-autogen, elixir-format
@@ -338,11 +324,6 @@ msgstr "Událost byla smazána. Účastníci byli informováni."
 msgid "Event details"
 msgstr "Podrobnosti události"
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Every"
-msgstr "Opakovat po"
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/create_execution.ex
 #, elixir-autogen, elixir-format
 msgid "Failed to create event"
@@ -368,11 +349,6 @@ msgstr "První den týdne"
 #, elixir-autogen, elixir-format
 msgid "Focus search"
 msgstr "Přejít na vyhledávání"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Fri"
-msgstr "Pá"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/confirm_discard_attendees_modal.ex
 #, elixir-autogen, elixir-format
@@ -430,7 +406,6 @@ msgstr "Klávesové zkratky"
 msgid "Meeting created and invitation sent"
 msgstr "Schůzka byla vytvořena a pozvánka odeslána"
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/settings_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Mon"
@@ -446,20 +421,10 @@ msgstr "Měsíc"
 msgid "Month view"
 msgstr "Měsíční zobrazení"
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Monthly"
-msgstr "Měsíčně"
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/shortcuts_help_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Navigation"
 msgstr "Navigace"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Never ends"
-msgstr "Nikdy nekončí"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/create_event_modal.ex
 #, elixir-autogen, elixir-format
@@ -503,11 +468,6 @@ msgid_plural "Notify %{count} attendees of this change?"
 msgstr[0] "Informovat o této změně %{count} účastníka?"
 msgstr[1] "Informovat o této změně %{count} účastníky?"
 msgstr[2] "Informovat o této změně %{count} účastníků?"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "On date"
-msgstr "Skončí dne"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/notification_flows.ex
 #, elixir-autogen, elixir-format
@@ -573,68 +533,6 @@ msgstr "Odebrat účastníka"
 msgid "Remove reminder %{label}"
 msgstr "Odebrat připomínku %{label}"
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeat"
-msgstr "Opakování"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats daily"
-msgstr "Opakuje se denně"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats every %{count} day"
-msgid_plural "Repeats every %{count} days"
-msgstr[0] "Opakuje se každý %{count} den"
-msgstr[1] "Opakuje se každé %{count} dny"
-msgstr[2] "Opakuje se každých %{count} dní"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats every %{count} month"
-msgid_plural "Repeats every %{count} months"
-msgstr[0] "Opakuje se každý %{count} měsíc"
-msgstr[1] "Opakuje se každé %{count} měsíce"
-msgstr[2] "Opakuje se každých %{count} měsíců"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats every %{count} week"
-msgid_plural "Repeats every %{count} weeks"
-msgstr[0] "Opakuje se každý %{count} týden"
-msgstr[1] "Opakuje se každé %{count} týdny"
-msgstr[2] "Opakuje se každých %{count} týdnů"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats every %{count} year"
-msgid_plural "Repeats every %{count} years"
-msgstr[0] "Opakuje se každý %{count} rok"
-msgstr[1] "Opakuje se každé %{count} roky"
-msgstr[2] "Opakuje se každých %{count} let"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats monthly"
-msgstr "Opakuje se měsíčně"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats weekly"
-msgstr "Opakuje se týdně"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Repeats yearly"
-msgstr "Opakuje se ročně"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Sat"
-msgstr "So"
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/notify_prompt_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Send cancellation to %{count} attendee?"
@@ -663,7 +561,6 @@ msgstr "Zobrazit víkendy"
 msgid "Start weeks on Monday or Sunday"
 msgstr "Začínat týden v pondělí nebo v neděli"
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/settings_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Sun"
@@ -688,11 +585,6 @@ msgstr "Tato osoba obdrží od vašeho poskytovatele kalendáře oznámení o z
 #, elixir-autogen, elixir-format
 msgid "This will also remove it from your calendar provider."
 msgstr "Událost bude odstraněna i u vašeho poskytovatele kalendáře."
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Thu"
-msgstr "Čt"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/inline_edit.ex
 #, elixir-autogen, elixir-format
@@ -730,11 +622,6 @@ msgstr "Příliš mnoho přesunů. Počkejte prosím chvíli."
 msgid "Too many refreshes. Please wait a moment."
 msgstr "Příliš mnoho obnovení. Počkejte prosím chvíli."
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Tue"
-msgstr "Út"
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/confirm_discard_attendees_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Unsent invitations"
@@ -756,11 +643,6 @@ msgstr "Zobrazení"
 msgid "W%{week}"
 msgstr "T%{week}"
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Wed"
-msgstr "St"
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/settings_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Week"
@@ -776,20 +658,10 @@ msgstr "Čísla týdnů"
 msgid "Week view"
 msgstr "Týdenní zobrazení"
 
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Weekly"
-msgstr "Týdně"
-
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/mini_month_popover.ex
 #, elixir-autogen, elixir-format
 msgid "Wk"
 msgstr "Týd."
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "Yearly"
-msgstr "Ročně"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/notify_prompt_modal.ex
 #, elixir-autogen, elixir-format
@@ -815,52 +687,6 @@ msgstr "Nemáte oprávnění tuto událost upravit"
 #, elixir-autogen, elixir-format
 msgid "You don't have permission to move this event"
 msgstr "Nemáte oprávnění tuto událost přesunout"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "day(s)"
-msgstr "dnech"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "for %{count} occurrence"
-msgid_plural "for %{count} occurrences"
-msgstr[0] "celkem %{count} opakování"
-msgstr[1] "celkem %{count} opakování"
-msgstr[2] "celkem %{count} opakování"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "month(s)"
-msgstr "měsících"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "occurrence"
-msgid_plural "occurrences"
-msgstr[0] "opakování"
-msgstr[1] "opakováních"
-msgstr[2] "opakováních"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "on %{days}"
-msgstr "v %{days}"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "until %{date}"
-msgstr "do %{date}"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "week(s)"
-msgstr "týdnech"
-
-#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
-#, elixir-autogen, elixir-format
-msgid "year(s)"
-msgstr "letech"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/confirm_delete_modal.ex
 #, elixir-autogen, elixir-format
@@ -1078,7 +904,7 @@ msgid "Events of a repeating series cannot be switched between all-day and timed
 msgstr "Události opakující se série zde nelze přepnout mezi celodenní a časovanou. Proveďte prosím tuto změnu ve své kalendářové aplikaci."
 
 #: lib/tymeslot_web/live/dashboard/calendar_event_handlers.ex
-#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/inline_edit.ex
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/recurrence_edit.ex
 #, elixir-autogen, elixir-format
 msgid "That change cannot be made to the events you chose. A repeat rule can only be changed for all events, or this and following events, and cannot be removed here."
 msgstr "Tuto změnu nelze u zvolených událostí provést. Pravidlo opakování lze změnit jen pro všechny události, nebo pro tuto a následující, a zde jej nelze odstranit."

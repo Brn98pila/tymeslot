@@ -36,6 +36,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesSplit do
 
   alias Tymeslot.Integrations.Calendar.Outlook.CreatableEvent
   alias Tymeslot.Integrations.Calendar.Outlook.SeriesPatch
+  alias Tymeslot.Integrations.Calendar.Recurrence.RRule
   alias Tymeslot.Integrations.Calendar.Recurrence.SeriesMove
   alias Tymeslot.Integrations.Calendar.Recurrence.SeriesSplit
 
@@ -71,6 +72,56 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.SeriesSplit do
     do: {:ok, recurrence}
 
   defp find_recurrence(_master), do: {:error, :not_recurring}
+
+  @doc """
+  How many occurrences an Outlook series repeating by `rule` from
+  `start_date` has before `slot_date`, when its pattern is an absolute
+  monthly or yearly one, counted as Graph counts it: one date in every
+  period, a day the month lacks on its last day (see `count_before/4`
+  below). `:not_absolute` for any other rule, which RFC 5545 counts as
+  Graph does.
+
+  A series on the 31st read from Outlook carries a rule with no
+  `BYMONTHDAY` (`RecurrenceConverter.outlook_to_rrule/1`), which RFC 5545
+  would step on the 31st alone, skipping every shorter month that Graph
+  gives an occurrence on its last day.
+  """
+  @spec absolute_count_before(String.t(), Date.t(), Date.t()) ::
+          {:ok, non_neg_integer()} | :not_absolute
+  def absolute_count_before(rule, %Date{} = start_date, %Date{} = slot_date) do
+    with {:ok, parsed} <- RRule.parse(rule),
+         {:ok, pattern} <- absolute_pattern(parsed, start_date),
+         {:ok, nth_date} <- absolute_dates(pattern) do
+      {:ok, count_dates_before(nth_date, start_date, slot_date)}
+    else
+      _other -> :not_absolute
+    end
+  end
+
+  defp absolute_pattern(%RRule{by_day: nil, by_set_pos: nil, other: []} = rule, start) do
+    case {rule.freq, rule.by_month, rule.by_month_day} do
+      {:monthly, nil, day} ->
+        {:ok, absolute("absoluteMonthly", rule, %{"dayOfMonth" => day_of(day, start)})}
+
+      {:yearly, month, day} when month == nil or length(month) == 1 ->
+        month = if month, do: hd(month), else: start.month
+
+        {:ok,
+         absolute("absoluteYearly", rule, %{"dayOfMonth" => day_of(day, start), "month" => month})}
+
+      _other ->
+        :not_absolute
+    end
+  end
+
+  defp absolute_pattern(_rule, _start), do: :not_absolute
+
+  defp absolute(type, rule, fields),
+    do: Map.merge(%{"type" => type, "interval" => rule.interval}, fields)
+
+  defp day_of(nil, start), do: start.day
+  defp day_of([day], _start) when day > 0, do: day
+  defp day_of(_days, _start), do: nil
 
   # --- The ranges ---
 

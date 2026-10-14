@@ -13,6 +13,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrencePromptModal do
   occurrences, so its prompt leaves out "This event" (see
   `offered_scopes/1`).
 
+  For a change of repeat rule the prompt shows, under each scope, the
+  pattern that scope writes (`:scope_rules`, built by `RecurrenceEdit`),
+  and why a calendar refuses one, in place of its button.
+
   The prompt's `:following_notes`, when it has any, say under "This and
   following events" what that choice will not carry
   (`Tymeslot.CalendarGrid.SeriesEdit.following_notes/2`).
@@ -23,6 +27,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrencePromptModal do
 
   alias Phoenix.LiveView.JS
   alias Tymeslot.CalendarGrid.RecurrenceScope
+  alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit
   alias TymeslotWeb.Dashboard.CalendarGrid.SeriesNotes
 
   attr :recurrence_prompt, :map, required: true
@@ -35,6 +40,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrencePromptModal do
     assigns =
       assign(assigns,
         scopes: offered_scopes(prompt),
+        listed: listed_scopes(prompt),
         following_notes: Map.get(prompt, :following_notes, [])
       )
 
@@ -55,9 +61,18 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrencePromptModal do
       </p>
 
       <ul class="space-y-2 text-token-sm text-tymeslot-600">
-        <li :for={scope <- @scopes}>
+        <li :for={{scope, rule} <- @listed} id={"recurrence-scope-#{scope}"}>
           <span class="font-semibold text-tymeslot-800">{scope_label(scope)}:</span>
           {scope_description(scope)}
+          <p :if={rule} class="mt-0.5 text-tymeslot-800" data-role="scope-summary">
+            {rule.summary}
+          </p>
+          <p :if={rule && rule.refusal} class="mt-0.5 text-red-700" data-role="scope-refusal">
+            {RecurrenceEdit.refusal_message(rule.refusal)}
+          </p>
+          <p :if={rule && rule.unavailable} class="mt-0.5 text-red-700" data-role="scope-refusal">
+            {RecurrenceEdit.unavailable_message_for(rule.unavailable)}
+          </p>
           <ul
             :if={scope == :following and @following_notes != []}
             id="recurrence-following-notes"
@@ -96,8 +111,19 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrencePromptModal do
   of its own.
   """
   @spec offered_scopes(map()) :: [RecurrenceScope.t()]
+  def offered_scopes(%{kind: :recurrence_rule, scope_rules: scope_rules}),
+    do: for(rule <- scope_rules, RecurrenceEdit.offered?(rule), do: rule.scope)
+
   def offered_scopes(%{kind: :recurrence_rule}), do: RecurrenceScope.values() -- [:this_only]
   def offered_scopes(_prompt), do: RecurrenceScope.values()
+
+  # Every scope the prompt describes, with what a change of repeat rule
+  # writes in it (`RecurrenceEdit`): a scope its calendar refuses is listed
+  # with the reason, and has no button.
+  defp listed_scopes(%{kind: :recurrence_rule, scope_rules: scope_rules}),
+    do: for(rule <- scope_rules, do: {rule.scope, rule})
+
+  defp listed_scopes(prompt), do: for(scope <- offered_scopes(prompt), do: {scope, nil})
 
   defp scope_label(:this_only), do: dgettext("dashboard_calendar_events", "This event")
 

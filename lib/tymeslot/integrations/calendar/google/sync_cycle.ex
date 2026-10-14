@@ -23,7 +23,9 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
   alias Tymeslot.Integrations.Calendar.Defaults
   alias Tymeslot.Integrations.Calendar.Google.CacheSweep
   alias Tymeslot.Integrations.Calendar.Google.Provider, as: GoogleProvider
+  alias Tymeslot.Integrations.Calendar.Google.SeriesMaster
   alias Tymeslot.Integrations.Calendar.Selection
+  alias Tymeslot.Integrations.Calendar.SeriesRules
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
 
@@ -168,7 +170,8 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
   # complete listing, or for a delta what is read of it besides
   # (`relist_booking_calendar/2`).
   defp process_incremental_sync(integration, events, next_sync_token, {started_at, listed}) do
-    with :ok <- safe_process_events(integration, events),
+    # A listing (the bootstrap's) changed nothing; a delta did.
+    with :ok <- safe_process_events(integration, events, nil, not is_list(listed)),
          :ok <- persist_sync_state(integration, next_sync_token),
          {:ok, booking_listed} <- relist_booking_calendar(integration, listed),
          {:ok, secondary_listed} <- sync_secondary_calendars(integration) do
@@ -365,7 +368,9 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
   # Best-effort: normalise all events via the provider, then delegate to
   # the shared persistence pipeline in `Sync`. Cancelled events are handled
   # separately — they are deleted from the cache and reconciled as deletions.
-  defp safe_process_events(integration, raw_events, calendar_id \\ nil) do
+  # `changed?` says the events are changes rather than a listing, so their
+  # series' rules are read again however fresh (`SeriesRules.refresh/4`).
+  defp safe_process_events(integration, raw_events, calendar_id, changed? \\ false) do
     {cancelled, active} =
       Enum.split_with(raw_events, fn event -> event["status"] == "cancelled" end)
 
@@ -374,6 +379,11 @@ defmodule Tymeslot.Integrations.Calendar.Google.SyncCycle do
     context = normalisation_context(integration, calendar_id)
 
     with {:ok, calendar_events} <- GoogleProvider.normalise_events(active, context) do
+      :ok =
+        SeriesRules.refresh(integration.id, calendar_events, SeriesMaster.reader(integration),
+          changed: changed?
+        )
+
       Sync.persist_normalised_events(integration, calendar_events)
     end
   rescue

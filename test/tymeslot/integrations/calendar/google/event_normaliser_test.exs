@@ -84,7 +84,7 @@ defmodule Tymeslot.Integrations.Calendar.Google.EventNormaliserTest do
 
       assert event.colour == "banana"
       assert event.etag == "\"etag-abc\""
-      assert event.recurrence_rule == "RRULE:FREQ=DAILY"
+      assert event.recurrence_rule == "FREQ=DAILY"
       assert event.provider_metadata["recurringEventId"] == "recurring-123"
     end
 
@@ -322,6 +322,31 @@ defmodule Tymeslot.Integrations.Calendar.Google.EventNormaliserTest do
 
       assert {:ok, [event]} = EventNormaliser.normalise_events(raw_events, @context)
       assert event.colour == nil
+    end
+  end
+
+  describe "normalise_events/2 - a series' recurrence lines" do
+    # Google lists EXDATE and RDATE lines beside the rule, in any order.
+    for {lines, rule} <- [
+          {["RRULE:FREQ=WEEKLY;BYDAY=MO"], "FREQ=WEEKLY;BYDAY=MO"},
+          {["EXDATE;TZID=Europe/Berlin:20261012T090000", "RRULE:FREQ=WEEKLY;BYDAY=MO"],
+           "FREQ=WEEKLY;BYDAY=MO"},
+          {["EXDATE;VALUE=DATE:20261012"], nil},
+          {[], nil}
+        ] do
+      test "reads #{inspect(lines)} as #{inspect(rule)}" do
+        raw = %{
+          "id" => "master1",
+          "iCalUID" => "master1@google.com",
+          "status" => "confirmed",
+          "start" => %{"dateTime" => "2026-10-05T09:00:00+02:00"},
+          "end" => %{"dateTime" => "2026-10-05T09:30:00+02:00"},
+          "recurrence" => unquote(lines)
+        }
+
+        assert {:ok, [event]} = EventNormaliser.normalise_events([raw], @context)
+        assert event.recurrence_rule == unquote(rule)
+      end
     end
   end
 

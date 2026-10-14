@@ -305,6 +305,17 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
       operation: "calendar push",
       log: false
     ],
+    # Reads of a Google or Outlook series' master by the sync, one GET each
+    # (`Tymeslot.Integrations.Calendar.SeriesRules`), charged before every
+    # read whatever it answers, so a run of failures spends the budget too.
+    series_rule_read: [
+      prefix: "series_rule_read",
+      scope: :id,
+      limit: 50,
+      window_ms: 10 * @minute,
+      operation: "series rule read",
+      log: false
+    ],
     calendar_webhook: [
       prefix: "calendar_webhook",
       scope: :id,

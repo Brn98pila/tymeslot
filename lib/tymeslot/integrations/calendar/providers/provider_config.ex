@@ -281,6 +281,14 @@ defmodule Tymeslot.Integrations.Calendar.ProviderConfig do
   def caldav_based?(provider), do: in_family?(provider, :caldav)
 
   @doc """
+  Whether the calendar grid writes a repeat rule to the provider's events:
+  Google, Outlook and the CalDAV family. Exchange's writes carry none, so an
+  Exchange event is never given one from the grid.
+  """
+  @spec writes_repeat_rules?(atom() | String.t() | any()) :: boolean()
+  def writes_repeat_rules?(provider), do: oauth_provider?(provider) or caldav_based?(provider)
+
+  @doc """
   Returns the fixed CalDAV server URL for a provider, or `nil` if the user
   is free to choose their own.
 

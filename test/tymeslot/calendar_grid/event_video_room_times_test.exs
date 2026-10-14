@@ -136,8 +136,46 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomTimesTest do
       assert {:series, _lobby, %DateTime{}} = EventVideoRoomTimes.for_event(event)
     end
 
-    # Google and Outlook cache each occurrence under its parent, without the
-    # series' rule.
+    # Google and Outlook occurrences carry their series' rule, but start
+    # where they fall in it: the count runs from the series' first start, so
+    # the second Monday's room ends where the first Monday's does.
+    test "an occurrence counts its series' COUNT from the series' first start" do
+      occurrence = %{
+        timed("FREQ=WEEKLY;BYDAY=MO,WE;COUNT=3")
+        | start_at: ~U[2026-10-12 09:00:00Z],
+          end_at: ~U[2026-10-12 10:00:00Z]
+      }
+
+      occurrence = Map.put(occurrence, :recurring_event_id, "parent-event")
+
+      assert {:series, _lobby, ~U[2026-11-17 10:00:00Z]} =
+               occurrence
+               |> Map.put(:series_start, ~U[2026-10-05 09:00:00Z])
+               |> EventVideoRoomTimes.for_event()
+
+      # Without it, its own start: a week later, never earlier.
+      assert {:series, _lobby, ~U[2026-11-24 10:00:00Z]} =
+               EventVideoRoomTimes.for_event(occurrence)
+    end
+
+    # Its series' rule bounds the series at 17 November, but this occurrence
+    # was moved on its own to 1 December.
+    test "an occurrence moved past its series' last start keeps its room until it ends" do
+      occurrence =
+        "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=3"
+        |> timed()
+        |> Map.merge(%{
+          start_at: ~U[2026-12-01 09:00:00Z],
+          end_at: ~U[2026-12-01 10:00:00Z],
+          recurring_event_id: "parent-event",
+          series_start: ~U[2026-10-05 09:00:00Z]
+        })
+
+      assert {:series, _lobby, ~U[2026-12-01 10:00:00Z]} =
+               EventVideoRoomTimes.for_event(occurrence)
+    end
+
+    # An occurrence of a series whose rule is not cached.
     test "an occurrence row naming its parent is a series with no known end" do
       event = Map.put(timed(nil), :recurring_event_id, "parent-event")
 

@@ -26,6 +26,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
   @moduletag :live
   @moduletag :integration
 
+  import TymeslotWeb.RepeatEditorHelpers
   import Mox
   import Phoenix.LiveViewTest
   import Tymeslot.AuthTestHelpers
@@ -53,6 +54,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
 
   # The provider write runs in a Task; allow for a busy test machine.
   @task_timeout 5_000
+  @second_monday ~D[2026-10-12]
 
   defp swap_env(key, module) do
     previous = Application.get_env(:tymeslot, key)
@@ -215,7 +217,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
 
       lv
       |> element("#calendar-grid")
-      |> render_hook("update_event_recurrence", %{
+      |> render_repeat_save(%{
         "freq" => "daily",
         "interval" => "1",
         "end_type" => "never"
@@ -245,7 +247,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
 
       lv
       |> element("#calendar-grid")
-      |> render_hook("update_event_recurrence", %{"freq" => "", "end_type" => "never"})
+      |> render_repeat_save(%{"freq" => "", "end_type" => "never"})
 
       # The flash is relayed to the parent LiveView, so it lands on the next
       # render rather than in the hook's own reply.
@@ -319,35 +321,11 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
           calendar_paths: ["/cal/"]
         )
 
-      key = Calendar.strftime(today(), "%Y%m%dT090000")
-
-      start_at =
-        today()
-        |> DateTime.new!(~T[09:00:00], "Europe/Berlin")
-        |> DateTime.shift_zone!("Etc/UTC")
-
-      event =
-        insert(:provider_calendar_event,
-          calendar_integration: integration,
-          uid: "pinned-standup_#{key}",
-          provider: "caldav",
-          provider_calendar_id: "/cal/",
-          provider_event_id: "/cal/pinned-standup.ics",
-          summary: "Pinned standup",
-          start_at: start_at,
-          end_at: DateTime.add(start_at, 1, :hour),
-          all_day: false,
-          timezone: "Europe/Berlin",
-          # A COUNT over an ordinal BYDAY (the second Monday) is outside what
-          # `RecurrenceExpander.countable?/1` follows, so a "this and
-          # following" split of it is refused (`:unsupported_rule`)
-          # before anything is written.
-          recurrence_rule: "FREQ=MONTHLY;BYDAY=2MO;COUNT=24",
-          provider_metadata: %{"uid" => "pinned-standup"},
-          etag: "\"etag-1\"",
-          raw_ical: pinned_caldav_series("FREQ=MONTHLY;BYDAY=2MO;COUNT=24"),
-          sync_state: "synced"
-        )
+      # A COUNT over an ordinal BYDAY (the second Monday) is outside what
+      # `RecurrenceExpander.countable?/1` follows, so a "this and following"
+      # split of it is refused (`:unsupported_rule`) before anything is
+      # written.
+      event = pinned_occurrence(integration, "FREQ=MONTHLY;BYDAY=2MO;COUNT=24")
 
       %{event: event}
     end
@@ -356,7 +334,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
     # rule change can now hit, and would otherwise contradict the refusal's
     # own flash once the write answers.
     test "is refused without ever flashing that it saved", %{conn: conn, event: event} do
-      lv = change_rule(conn, event)
+      lv = change_rule(conn, event, @second_monday)
       confirm_scope(lv, "following")
 
       eventually(
@@ -369,8 +347,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
   end
 
   describe "a rule change to a series with parts the editor does not show" do
-    # An imported "second Monday" rule with a BYHOUR the expander does not
-    # follow: the editor shows only its frequency, interval and end.
+    # An imported "second Monday" rule with a BYHOUR the editor cannot build:
+    # it is shown, not edited, until the organiser replaces it.
     @imported_rule "FREQ=MONTHLY;BYDAY=2MO;BYHOUR=9"
 
     setup %{user: user} do
@@ -382,46 +360,21 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
           calendar_paths: ["/cal/"]
         )
 
-      key = Calendar.strftime(today(), "%Y%m%dT090000")
-
-      start_at =
-        today()
-        |> DateTime.new!(~T[09:00:00], "Europe/Berlin")
-        |> DateTime.shift_zone!("Etc/UTC")
-
-      event =
-        insert(:provider_calendar_event,
-          calendar_integration: integration,
-          uid: "pinned-standup_#{key}",
-          provider: "caldav",
-          provider_calendar_id: "/cal/",
-          provider_event_id: "/cal/pinned-standup.ics",
-          summary: "Pinned standup",
-          start_at: start_at,
-          end_at: DateTime.add(start_at, 1, :hour),
-          all_day: false,
-          timezone: "Europe/Berlin",
-          recurrence_rule: @imported_rule,
-          provider_metadata: %{"uid" => "pinned-standup"},
-          etag: "\"etag-1\"",
-          raw_ical: pinned_caldav_series(@imported_rule),
-          sync_state: "synced"
-        )
+      event = pinned_occurrence(integration, @imported_rule)
 
       %{event: event}
     end
 
-    test "a new interval for all events keeps them", %{conn: conn, event: event} do
+    test "replacing it for all events writes the rule the editor built", %{
+      conn: conn,
+      event: event
+    } do
       expect_puts(1)
-      {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+      lv = open_on(conn, event, @second_monday)
 
       lv
       |> element("#calendar-grid")
-      |> render_hook("show_event", %{"event-id" => to_string(event.id)})
-
-      lv
-      |> element("#calendar-grid")
-      |> render_hook("update_event_recurrence", %{
+      |> render_repeat_save(%{
         "freq" => "monthly",
         "interval" => "2",
         "end_type" => "never"
@@ -430,7 +383,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
       confirm_scope(lv, "all")
 
       assert [{_url, body, _headers}] = await_puts(1)
-      assert "RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=2MO;BYHOUR=9" in LineFolder.unfold_lines(body)
+      assert "RRULE:FREQ=MONTHLY;INTERVAL=2" in LineFolder.unfold_lines(body)
     end
   end
 
@@ -503,7 +456,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
 
       lv
       |> element("#calendar-grid")
-      |> render_hook("update_event_recurrence", %{
+      |> render_repeat_save(%{
         "freq" => "weekly",
         "interval" => "1",
         "end_type" => "never"
@@ -542,9 +495,31 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
     ) <> "\r\n"
   end
 
-  defp pinned_caldav_series(rule) do
-    first = Calendar.strftime(first_day(), "%Y%m%d")
+  # A "second Monday" series from Monday 14 September 2026, opened on its
+  # 12 October occurrence, the second Monday of that month.
+  defp pinned_occurrence(integration, rule) do
+    start_at = DateTime.new!(@second_monday, ~T[09:00:00], "Europe/Berlin")
 
+    insert(:provider_calendar_event,
+      calendar_integration: integration,
+      uid: "pinned-standup_#{Calendar.strftime(@second_monday, "%Y%m%dT090000")}",
+      provider: "caldav",
+      provider_calendar_id: "/cal/",
+      provider_event_id: "/cal/pinned-standup.ics",
+      summary: "Pinned standup",
+      start_at: DateTime.shift_zone!(start_at, "Etc/UTC"),
+      end_at: start_at |> DateTime.add(1, :hour) |> DateTime.shift_zone!("Etc/UTC"),
+      all_day: false,
+      timezone: "Europe/Berlin",
+      recurrence_rule: rule,
+      provider_metadata: %{"uid" => "pinned-standup"},
+      etag: "\"etag-1\"",
+      raw_ical: pinned_caldav_series(rule),
+      sync_state: "synced"
+    )
+  end
+
+  defp pinned_caldav_series(rule) do
     Enum.join(
       [
         "BEGIN:VCALENDAR",
@@ -552,8 +527,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
         "BEGIN:VEVENT",
         "UID:pinned-standup",
         "DTSTAMP:20260901T090000Z",
-        first_start_line(),
-        "DTEND;TZID=Europe/Berlin:#{first}T100000",
+        "DTSTART;TZID=Europe/Berlin:20260914T090000",
+        "DTEND;TZID=Europe/Berlin:20260914T100000",
         "RRULE:" <> rule,
         "SUMMARY:Pinned standup",
         "END:VEVENT",
@@ -602,22 +577,33 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
 
   # Opens `event` and changes its repeat rule to daily, which asks for a
   # scope.
-  defp change_rule(conn, event) do
-    {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+  defp change_rule(conn, event, date) do
+    lv = open_on(conn, event, date)
 
     lv
     |> element("#calendar-grid")
-    |> render_hook("show_event", %{"event-id" => to_string(event.id)})
-
-    lv
-    |> element("#calendar-grid")
-    |> render_hook("update_event_recurrence", %{
+    |> render_repeat_save(%{
       "freq" => "daily",
       "interval" => "1",
       "end_type" => "never"
     })
 
     assert has_element?(lv, "#recurrence-prompt-modal [phx-value-scope='following']")
+    lv
+  end
+
+  # Opens `event` on the grid, on `date` when it is not this week.
+  defp open_on(conn, event, date) do
+    {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
+
+    if date,
+      do:
+        lv |> element("#calendar-grid") |> render_hook("navigate_to_day", %{"date" => "#{date}"})
+
+    lv
+    |> element("#calendar-grid")
+    |> render_hook("show_event", %{"event-id" => to_string(event.id)})
+
     lv
   end
 

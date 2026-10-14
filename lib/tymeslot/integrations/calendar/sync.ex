@@ -32,6 +32,7 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Integrations.Calendar.ProviderCalendarSeriesQueries
+  alias Tymeslot.Integrations.Calendar.SeriesRules
   alias Tymeslot.Integrations.Calendar.SyncBroadcast
   alias Tymeslot.Meetings
   alias Tymeslot.Profiles
@@ -283,6 +284,10 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
 
   The cost is one meeting lookup per batch; `flag_tymeslot_owned/2` reads
   only, so it is safe inside the caller's transaction.
+
+  A Google or Outlook occurrence is given its series' stored rule here too,
+  read under the same lock (`SeriesRules.stamp/2`), since this write replaces
+  a row's rule with whatever the event carries.
   """
   @spec upsert_cache(CalendarIntegrationSchema.t(), [CalendarEvent.t()]) ::
           {:ok, non_neg_integer()} | {:error, term()}
@@ -290,12 +295,12 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
 
   def upsert_cache(%CalendarIntegrationSchema{} = integration, calendar_events)
       when is_list(calendar_events) do
-    attrs_list =
-      integration
-      |> flag_tymeslot_owned(calendar_events)
-      |> Enum.map(&ProviderCalendarEventSchema.from_calendar_event/1)
-
     IntegrationCacheQueries.under_lock(integration.id, fn ->
+      attrs_list =
+        integration
+        |> flag_tymeslot_owned(SeriesRules.stamp(integration.id, calendar_events))
+        |> Enum.map(&ProviderCalendarEventSchema.from_calendar_event/1)
+
       {:ok, count} = ProviderCalendarEventQueries.upsert_batch(attrs_list)
       drop_replaced_masters(integration.id, calendar_events)
       count
@@ -522,7 +527,10 @@ defmodule Tymeslot.Integrations.Calendar.Sync do
       when is_list(refs) do
     refs = Enum.uniq_by(refs, &{Map.get(&1, :provider_event_id), Map.get(&1, :uid)})
 
-    if Keyword.get(opts, :delete_cache, true), do: delete_cached_events(integration.id, refs)
+    if Keyword.get(opts, :delete_cache, true) do
+      delete_cached_events(integration.id, refs)
+      SeriesRules.forget_orphans(integration.id)
+    end
 
     reconcile_deleted_meetings(integration, refs)
   end

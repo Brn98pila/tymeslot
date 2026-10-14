@@ -6,6 +6,7 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
 
   @behaviour Tymeslot.Integrations.Calendar.Outlook.CalendarAPIBehaviour
 
+  alias Tymeslot.Infrastructure.CalendarCircuitBreaker
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.HTTP
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPIBehaviour
@@ -237,6 +238,26 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.CalendarAPI do
   def get_event(%CalendarIntegrationSchema{} = integration, event_id, opts \\ []) do
     Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
       make_request(:get, event_path(event_id), token, %{}, opts)
+    end)
+  end
+
+  @doc """
+  The series master `master_id`, with only what its repeat rule is read
+  from: its type, `recurrence` and first start. Through the circuit breaker,
+  which counts only failures that say Graph is unwell, so a master that is
+  gone (404) does not trip it; an open breaker answers `{:error,
+  :circuit_open}`.
+  """
+  @impl CalendarAPIBehaviour
+  @spec get_series_master(CalendarIntegrationSchema.t(), String.t()) ::
+          {:ok, map()} | api_error() | {:error, term()}
+  def get_series_master(%CalendarIntegrationSchema{} = integration, master_id) do
+    params = %{"$select" => "id,type,recurrence,start"}
+
+    Tokens.with_access_token(integration, &__MODULE__.refresh_token/1, fn token ->
+      CalendarCircuitBreaker.call(:outlook, fn ->
+        make_request(:get, event_path(master_id), token, params)
+      end)
     end)
   end
 

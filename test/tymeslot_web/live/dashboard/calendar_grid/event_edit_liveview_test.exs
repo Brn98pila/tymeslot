@@ -14,6 +14,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
   @moduletag :calendar
   @moduletag :live
 
+  import TymeslotWeb.RepeatEditorHelpers
   import Mox
   import Tymeslot.AuthTestHelpers
   import Tymeslot.Factory
@@ -70,7 +71,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
       conn: conn,
       integration: integration
     } do
-      event = insert_timed_event(integration)
+      event = insert_timed_event(integration, %{recurring_event_id: "series-1"})
       expect_provider_update(:ok)
 
       {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
@@ -185,17 +186,22 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
 
       lv = open_event(conn, event)
 
+      # A weekly pattern repeats on its start's weekday: today's, and one more.
+      today = Date.day_of_week(DateTime.to_date(event.start_at)) - 1
+      days = Enum.sort([today, rem(today + 2, 7)])
+
       html =
         lv
         |> element("#calendar-grid")
-        |> render_hook("update_event_recurrence", %{
+        |> render_repeat_save(%{
           "freq" => "weekly",
           "interval" => "1",
-          "by_day" => ["mo", "we"],
+          "by_day" => Enum.map(days, &Enum.at(~w(mo tu we th fr sa su), &1)),
           "end_type" => "never"
         })
 
-      assert html =~ "Repeats weekly on Mon, Wed"
+      assert html =~
+               "Repeats weekly on #{Enum.map_join(days, ", ", &Enum.at(~w(Mon Tue Wed Thu Fri Sat Sun), &1))}"
     end
   end
 
@@ -509,6 +515,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
     end
   end
 
+  # A series master's own row, which a write sends with its rule.
   defp insert_timed_event(integration, attrs \\ %{}) do
     today = Clock.utc_today()
 
@@ -522,7 +529,6 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
       reminders: [%{"method" => "popup", "minutes_before" => 15}],
       recurrence_rule: @rrule,
       colour: "tomato",
-      recurring_event_id: "series-1",
       etag: "\"etag-1\"",
       sync_state: "synced"
     }

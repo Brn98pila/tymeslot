@@ -35,6 +35,8 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
   alias Tymeslot.Integrations.Calendar.Outlook.FeedCalendar
   alias Tymeslot.Integrations.Calendar.Outlook.Paging
   alias Tymeslot.Integrations.Calendar.Outlook.Provider, as: OutlookProvider
+  alias Tymeslot.Integrations.Calendar.Outlook.SeriesMaster
+  alias Tymeslot.Integrations.Calendar.SeriesRules
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.Tokens
 
@@ -55,6 +57,12 @@ defmodule Tymeslot.Integrations.Calendar.Outlook.GraphSubscription do
     Tokens.with_access_token(integration, &CalendarAPI.refresh_token/1, fn token ->
       with {:ok, {events, delta_link}} <- fetch_initial_delta(token),
            {:ok, calendar_events} <- normalise_delta_events(events, integration),
+           :ok <-
+             SeriesRules.refresh(
+               integration.id,
+               calendar_events,
+               SeriesMaster.reader(integration)
+             ),
            # Through `Sync.upsert_cache/2` for the ownership flagging it adds;
            # see the note in `DeltaSync.apply_delta/3`.
            {:ok, _count} <- Sync.upsert_cache(integration, calendar_events) do

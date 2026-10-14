@@ -111,8 +111,13 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.CreateExecution do
   # saved: a date-only UNTIL for an all-day event, and no series that ends
   # before it starts. A timed event's UNTIL is an instant, so it ends its day
   # in the organiser's timezone rather than in UTC.
+  #
+  # A calendar the grid writes no repeat rule to (Exchange) is given none:
+  # its editor is hidden, but a rule picked for another calendar first stays.
   defp save_with_fitted_recurrence(creating, start_date, end_date, socket) do
-    case RRule.retarget(Map.get(creating, :recurrence_rule),
+    rule = if repeatable_destination?(creating, socket), do: Map.get(creating, :recurrence_rule)
+
+    case RRule.retarget(rule,
            all_day: Map.get(creating, :all_day, false),
            start_date: start_date,
            timezone: socket.assigns.user_timezone
@@ -337,6 +342,13 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.CreateExecution do
 
   defp authorize_optional_integration(socket, integration_id),
     do: EditWorkflow.assert_owns_integration(socket, integration_id)
+
+  defp repeatable_destination?(creating, socket) do
+    case Enum.find(socket.assigns[:integrations] || [], &(&1.id == creating[:integration_id])) do
+      nil -> true
+      integration -> CalendarGrid.repeatable_provider?(integration.provider)
+    end
+  end
 
   defp resolve_timed_range(creating, socket) do
     tz = socket.assigns.user_timezone

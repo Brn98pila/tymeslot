@@ -20,7 +20,9 @@ defmodule Tymeslot.CalendarGrid do
   alias Tymeslot.CalendarGrid.EventVideoRoomSchema
   alias Tymeslot.CalendarGrid.Freshness
   alias Tymeslot.CalendarGrid.IcsImport
+  alias Tymeslot.CalendarGrid.RepeatRefusal
   alias Tymeslot.CalendarGrid.SeriesCarry
+  alias Tymeslot.CalendarGrid.SeriesStart
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.Appearance
   alias Tymeslot.Integrations.Calendar.CalendarAppearanceSchema
@@ -29,6 +31,7 @@ defmodule Tymeslot.CalendarGrid do
   alias Tymeslot.Integrations.Calendar.EventColour
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
+  alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Reminder
   alias Tymeslot.Integrations.Calendar.SyncSchedule
   alias Tymeslot.Integrations.CalendarManagement
@@ -383,6 +386,52 @@ defmodule Tymeslot.CalendarGrid do
   """
   @spec edit_scopes(map()) :: {:ok, :single | :this_only | :series}
   defdelegate edit_scopes(event), to: EventEdit
+
+  @doc """
+  Whether the grid can give an event of `provider` a repeat rule, or change
+  the one it has (see `ProviderConfig.writes_repeat_rules?/1`).
+  """
+  @spec repeatable_provider?(atom() | String.t() | nil) :: boolean()
+  defdelegate repeatable_provider?(provider), to: ProviderConfig, as: :writes_repeat_rules?
+
+  @doc """
+  The first start of the series `event` belongs to, which a whole-series
+  repeat pattern is written against (see `SeriesStart.of/1`).
+  """
+  @spec series_start(map()) :: Date.t() | DateTime.t() | nil
+  defdelegate series_start(event), to: SeriesStart, as: :of
+
+  @doc """
+  Where the series put `event`, which a change of it and the following
+  occurrences splits the series at (see `SeriesStart.slot/1`).
+  """
+  @spec occurrence_slot(map()) :: Date.t() | DateTime.t() | nil
+  defdelegate occurrence_slot(event), to: SeriesStart, as: :slot
+
+  @doc """
+  How many occurrences `rule` makes from `first` up to, but not including,
+  `boundary`, as a split of a series on a calendar of `provider` counts
+  them off its `COUNT` (see `SeriesStart.count_before/4`).
+  """
+  @spec occurrences_before(
+          atom() | String.t() | nil,
+          String.t(),
+          Date.t() | DateTime.t(),
+          Date.t() | DateTime.t()
+        ) :: non_neg_integer()
+  defdelegate occurrences_before(provider, rule, first, boundary),
+    to: SeriesStart,
+    as: :count_before
+
+  @doc """
+  Why a calendar of `provider` would refuse `rule` for a series starting on
+  `start_date`, or `nil` (see `RepeatRefusal.reason/4`).
+  """
+  @spec repeat_refusal(atom() | String.t() | nil, String.t() | nil, Date.t(), String.t() | nil) ::
+          RepeatRefusal.reason() | nil
+  defdelegate repeat_refusal(provider, rule, start_date, timezone),
+    to: RepeatRefusal,
+    as: :reason
 
   @doc "Fetches a single cached event by integration ID and UID."
   @spec get_cached_event(integer(), String.t()) ::

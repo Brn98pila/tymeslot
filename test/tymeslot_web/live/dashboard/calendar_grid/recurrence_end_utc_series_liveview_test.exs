@@ -19,6 +19,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurrenceEndUtcSeriesLiveViewTest 
   @moduletag :live
   @moduletag :integration
 
+  import TymeslotWeb.RepeatEditorHelpers
   import Mox
   import Phoenix.LiveViewTest
   import Tymeslot.AuthTestHelpers
@@ -32,6 +33,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurrenceEndUtcSeriesLiveViewTest 
   alias Tymeslot.Integrations.Calendar.ICalBuilder.LineFolder
   alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookAPI
+  alias Tymeslot.Integrations.Calendar.SeriesRuleQueries
   alias Tymeslot.Repo
   alias Tymeslot.Security.Encryption
 
@@ -103,7 +105,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurrenceEndUtcSeriesLiveViewTest 
 
     lv
     |> element("#calendar-grid")
-    |> render_hook("update_event_recurrence", %{
+    |> render_repeat_save(%{
       "freq" => "weekly",
       "interval" => "1",
       "end_type" => "until",
@@ -182,7 +184,17 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurrenceEndUtcSeriesLiveViewTest 
 
   # A Google or Outlook row is one occurrence the sync expanded: it names its
   # master and carries no rule.
+  # An occurrence as the sync caches it: stamped with its series' rule, read
+  # from the master with the master's start, which a rule for the whole
+  # series is written against.
   defp provider_occurrence(integration, attrs) do
+    {:ok, _rule} =
+      SeriesRuleQueries.put(integration.id, "master-1", %{
+        rule: "FREQ=WEEKLY",
+        master_start: DateTime.new!(first_day(), ~T[18:00:00], "Etc/UTC"),
+        fetched_at: DateTime.utc_now()
+      })
+
     utc_row(
       integration,
       Map.merge(
@@ -191,7 +203,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurrenceEndUtcSeriesLiveViewTest 
           provider_calendar_id: "team-calendar",
           provider_event_id: "occurrence-1",
           recurring_event_id: "master-1",
-          recurrence_rule: nil
+          recurrence_rule: "FREQ=WEEKLY"
         },
         attrs
       )

@@ -102,6 +102,36 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.SharedToUtcTest do
     end
   end
 
+  # The editor shows the number or date field only once its end is picked,
+  # so the pick arrives without one.
+  describe "compose_recurrence_rule with an end picked before its value" do
+    test "ends after the default count" do
+      params = %{"freq" => "weekly", "end_type" => "count"}
+      context = %{start_date: ~D[2026-06-01], all_day: true}
+      assert Shared.compose_recurrence_rule(params, context) == "FREQ=WEEKLY;COUNT=10"
+    end
+
+    test "ends on the day of the tenth occurrence" do
+      params = %{"freq" => "weekly", "end_type" => "until", "until" => ""}
+      context = %{start_date: ~D[2026-06-01], all_day: true}
+      assert Shared.compose_recurrence_rule(params, context) == "FREQ=WEEKLY;UNTIL=20260803"
+    end
+
+    test "takes an interval and a count no larger than the editor's fields allow" do
+      params = %{
+        "freq" => "daily",
+        "interval" => "5000",
+        "end_type" => "count",
+        "count" => "5000"
+      }
+
+      context = %{start_date: ~D[2026-06-01], all_day: true}
+
+      assert Shared.compose_recurrence_rule(params, context) ==
+               "FREQ=DAILY;INTERVAL=999;COUNT=999"
+    end
+  end
+
   describe "compose_recurrence_rule all-day UNTIL (#5)" do
     test "emits UNTIL as YYYYMMDD (no time) for all-day events" do
       params = %{"freq" => "weekly", "end_type" => "until", "until" => "2026-12-31"}
