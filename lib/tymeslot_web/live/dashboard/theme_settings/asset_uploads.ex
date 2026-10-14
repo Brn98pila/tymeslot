@@ -31,6 +31,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.AssetUploads do
 
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.ThemeCustomizations
+  alias TymeslotWeb.Helpers.ImageUploadErrors
   alias TymeslotWeb.Helpers.UploadConstraints
   alias TymeslotWeb.Live.Shared.Flash
 
@@ -147,8 +148,15 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.AssetUploads do
         Flash.info(success_message(field))
         assign(socket, :customization, customization)
 
-      [{:error, message}] ->
+      [{:error, message}] when is_binary(message) ->
         Flash.error(message)
+        socket
+
+      [{:error, reason}] ->
+        Flash.error(
+          ImageUploadErrors.message(reason) || dgettext("dashboard_appearance", "Upload failed")
+        )
+
         socket
 
       [] ->

@@ -19,7 +19,7 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent do
   alias TymeslotWeb.Themes.Shared.LocalizationHelpers
   alias TymeslotWeb.Themes.Shared.StepEvents
 
-  import TymeslotWeb.Components.CoreComponents
+  use TymeslotWeb.Components.CoreComponents
 
   @impl Phoenix.LiveComponent
   defdelegate update(assigns, socket), to: StepEvents
@@ -29,6 +29,8 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent do
 
   @impl Phoenix.LiveComponent
   def render(assigns) do
+    assigns = assign(assigns, :next_day_end, LocalizationHelpers.booking_next_day_end(assigns))
+
     ~H"""
     <div class="container quill-container flex-1" data-locale={@locale}>
       <.page_layout
@@ -42,13 +44,9 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent do
             <div class="w-full">
               <.glass_morphism_card class="booker-card booking-form-card">
                 <div class="booking-card-body">
-                  <.section_header
-                    level={2}
-                    class="booking-heading-wrapper"
-                    title_class="section-header booking-heading"
-                  >
+                  <h1 class="section-header booking-heading booking-heading-wrapper">
                     {dgettext("booking", "Enter Your Details")}
-                  </.section_header>
+                  </h1>
 
                   <p class="booking-subtitle text-quill-primary">
                     <%= if @organizer_profile do %>
@@ -70,6 +68,13 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent do
                       @user_timezone
                     )}
                   </p>
+                  <p
+                    :if={@next_day_end}
+                    class="booking-datetime text-quill-secondary"
+                    data-testid="booking-next-day-end"
+                  >
+                    {@next_day_end}
+                  </p>
 
                   <LocationField.location_field
                     :if={BookingLocation.choice_required?(assigns)}
@@ -77,10 +82,19 @@ defmodule TymeslotWeb.Themes.Quill.Scheduling.Components.BookingComponent do
                     selected_location_id={@selected_location_id}
                     video_choices={BookingLocation.video_choices(assigns)}
                     selected_video_id={@selected_video_id}
+                    venue_choices={BookingLocation.venue_choices(assigns)}
+                    selected_venue_id={@selected_venue_id}
+                    kept_location={BookingLocation.kept_location(assigns)}
                     location_phone={@location_phone}
                     location_error={@location_error}
                     phone_required={BookingLocation.phone_required?(assigns)}
                     target={@myself}
+                  />
+
+                  <LocationField.stated_location
+                    :if={BookingLocation.stated_location?(assigns)}
+                    option={BookingLocation.selected(assigns)}
+                    venue_choices={BookingLocation.venue_choices(assigns)}
                   />
 
                   <BookingForm.booking_form

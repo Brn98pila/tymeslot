@@ -637,7 +637,7 @@ The calendar window is not set here. `LiveHelpers.Mount` sets `:current_year`, `
 - `:selected_duration`, `:selected_date`, `:selected_time`
 - `:available_slots`, `:loading_slots`, `:calendar_error`
 - `:timezone_dropdown_open`, `:timezone_search`
-- `:reschedule_meeting_uid`, `:is_rescheduling`, `:meeting_uid`
+- `:reschedule_meeting_uid`, `:is_rescheduling`, `:meeting_uid`, `:seat_calendar_url` (a booked group seat's own calendar file; `Shared.CalendarDownload.href/1` picks the confirmation step's link from these)
 - `:name`, `:email`, `:submitting`, `:submission_processed`
 
 ### A week of slots
@@ -1072,11 +1072,14 @@ end
 | `location_video_choices` | booking | mount | the video providers per location |
 | `selected_location_id` | booking | mount | the chosen location |
 | `selected_video_id` | booking | mount | the chosen video provider |
+| `selected_venue_id` | booking | optional | the chosen venue of an in-person location offering several |
 | `location_phone` | booking | mount | the phone number typed for a phone location |
 | `location_error` | booking | mount | why the location answer was refused |
 | `name` | confirmation | mount | the booker's name (from the confirmation route) |
 | `email` | confirmation | mount | the address the confirmation went to |
-| `meeting_uid` | confirmation | mount | the booked meeting's id (for the calendar file link) |
+| `meeting_uid` | confirmation | mount | the booked meeting's id (for the calendar file link); nil for a seat on a group meeting, whose uid names the shared slot |
+| `seat_calendar_url` | confirmation | mount | a group seat's own calendar file link, which the confirmation's link takes instead (`PathHandlers.calendar_ics_path/1`) |
+| `reschedule_seat_from` | schedule | mount | on a seat move, the start of the group spot being moved (`GroupSession.seat_move_notice/1`), else nil |
 | `owner_preview` | confirmation | mount | whether the organiser is previewing their own page |
 | `custom_fields_snapshot` | confirmation | mount | the custom questions as they were when booked |
 | `custom_field_answers` | confirmation | mount | the booker's answers |
@@ -1230,7 +1233,7 @@ The step appears only when the meeting type has custom questions. The engine ren
 | Hook | Must be on | Provided by | Read by |
 |---|---|---|---|
 | `[data-testid="confirmation-heading"]` | the heading shown once the booking is made (and not shown while a preview or a failed booking blocks it) | theme | booking flow and guest suites, visual harness |
-| `[data-testid="add-to-calendar"]` | an `<a>` to `PathHandlers.calendar_ics_path/1`, rendered only when a `meeting_uid` is known | theme | `custom_fields_booking_flow_test.exs`, visual harness (`confirmationCta`) |
+| `[data-testid="add-to-calendar"]` | an `<a>` to `PathHandlers.calendar_ics_path/1`, rendered only when a `meeting_uid` (or a group seat's `seat_calendar_url`) is known | theme | `custom_fields_booking_flow_test.exs`, visual harness (`confirmationCta`) |
 | `[data-testid="schedule-another"]` | a `<button>` with `phx-click="schedule_another"` | theme | `reschedule_completion_test.exs`, visual harness (`confirmationCta`); `BookingDriver.book/2` waits for its `data-intent="restart"` |
 | `.custom-answers`, `.custom-answers__value` | the booker's answers | shared (`CustomAnswers`) | `long_single_select_flow_test.exs` |
 | `[data-testid="approval-notice"]` | when the booking awaits approval (`ApprovalDisplay.awaiting_approval?/1`) | shared (`ApprovalNotice.block/1`), placed by the theme | `theme_approval_disclosure_test.exs` |
@@ -1367,6 +1370,7 @@ Tymeslot booking pages support internationalization (i18n) with automatic browse
 - 🇮🇹 Italian (`it`)
 - 🇨🇿 Czech (`cs`)
 - 🇵🇱 Polish (`pl`)
+- 🇧🇷 Brazilian Portuguese (`pt`)
 
 ### Language Switcher Integration
 

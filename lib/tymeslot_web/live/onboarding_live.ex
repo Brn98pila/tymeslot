@@ -101,7 +101,8 @@ defmodule TymeslotWeb.OnboardingLive do
           username={Map.get(@form_data, "username", "")}
           avatar_url={Profiles.avatar_url(@profile, :thumb)}
           theme_customization={@theme_customization}
-          buffer_minutes={policy_value(@availability_schedule, :buffer_minutes)}
+          buffer_before_minutes={policy_value(@availability_schedule, :buffer_before_minutes)}
+          buffer_after_minutes={policy_value(@availability_schedule, :buffer_after_minutes)}
           advance_booking_days={policy_value(@availability_schedule, :advance_booking_days)}
           min_advance_hours={policy_value(@availability_schedule, :min_advance_hours)}
           calendar_connected={@connected_calendars != [] or @calendar_choice not in [nil, "skip"]}
@@ -142,8 +143,11 @@ defmodule TymeslotWeb.OnboardingLive do
           />
         <% :buffer_time -> %>
           <PreferencesStep.buffer_time_step
-            buffer_minutes={policy_value(@availability_schedule, :buffer_minutes)}
+            buffer_before_minutes={policy_value(@availability_schedule, :buffer_before_minutes)}
+            buffer_after_minutes={policy_value(@availability_schedule, :buffer_after_minutes)}
+            time_format={@time_format}
             form_errors={@form_errors}
+            rejected_inputs={@rejected_inputs}
             custom_input_mode={@custom_input_mode}
           />
         <% :booking_window -> %>

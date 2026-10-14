@@ -100,7 +100,7 @@ defmodule Tymeslot.ThemeCustomizations do
   the profile's customisation. See `Tymeslot.ThemeCustomizations.Assets`.
   """
   @spec attach_asset(profile_id(), theme_id(), atom(), upload_attrs()) ::
-          {:ok, ThemeCustomizationSchema.t()} | {:error, String.t()}
+          Assets.result()
   defdelegate attach_asset(profile_id, theme_id, field, upload), to: Assets
 
   @doc """

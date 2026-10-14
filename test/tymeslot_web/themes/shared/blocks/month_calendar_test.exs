@@ -109,7 +109,7 @@ defmodule TymeslotWeb.Themes.Shared.Blocks.MonthCalendarTest do
     assert Floki.attribute(doc, "[data-value='2027-03-10']", "aria-pressed") == ["false"]
 
     assert Floki.attribute(doc, "[data-value='2027-03-12']", "aria-label") == [
-             "Friday, March 12, 2027"
+             "Friday, 12 March 2027"
            ]
   end
 

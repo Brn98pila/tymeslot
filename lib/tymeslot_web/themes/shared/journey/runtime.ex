@@ -156,11 +156,14 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
   # the booking just made: kept, the schedule step would reopen the calendar
   # on them, with a time that is no longer free. The answers are the last
   # booker's, and the booking's `meeting_uid` would leave the attendee
-  # known, so the next booking's details moment would open as done.
+  # known, so the next booking's details moment would open as done. A
+  # reschedule still named in the URL is patched out of it, to the route the
+  # booking starts again on, so a reload does not start the move over.
   @spec restart(Socket.t()) :: Socket.t()
   def restart(socket) do
     journey = socket.assigns.journey
-    opening = journey.navigator.entry(journey, restart_route(socket.assigns), socket.assigns)
+    route = restart_route(socket.assigns)
+    opening = journey.navigator.entry(journey, route, socket.assigns)
 
     socket
     |> clear(Progress.dependents(:meeting_type, socket.assigns) -- [:meeting_type])
@@ -170,6 +173,7 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
     |> assign(selected_date: nil, selected_time: nil)
     |> assign(:journey_opened, MapSet.new())
     |> transition_to(opening, %{})
+    |> ReschedulePin.drop_from_url(route)
   end
 
   @doc """
