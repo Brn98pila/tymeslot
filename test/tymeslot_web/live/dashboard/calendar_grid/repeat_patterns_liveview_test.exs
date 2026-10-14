@@ -28,6 +28,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
   alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookAPI
   alias Tymeslot.Integrations.Calendar.Recurrence.Pattern
+  alias Tymeslot.Integrations.Calendar.SeriesRuleQueries
   alias Tymeslot.Security.Encryption
   alias TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceSummary
 
@@ -72,9 +73,15 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
 
   # The weekday position today is in its month: the second Tuesday, or the
   # last Friday when it is a fifth.
-  defp today_position do
+  defp today_position, do: position(today())
+
+  # The same, for the series' first start: a rule for a whole series is
+  # built from it.
+  defp first_day_position, do: position(first_day())
+
+  defp position(date) do
     Enum.find(
-      Pattern.choices(today()),
+      Pattern.choices(date),
       &match?({_ordinal, kind} when is_atom(kind) and kind in ~w(mo tu we th fr sa su)a, &1)
     )
   end
@@ -113,15 +120,24 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
           sync_state: "synced"
         )
 
+      # Read with the master's start, which a rule for the whole series is
+      # written against.
+      {:ok, _row} =
+        SeriesRuleQueries.put(integration.id, "master-1", %{
+          rule: event.recurrence_rule,
+          master_start: DateTime.new!(first_day(), ~T[09:00:00], "Etc/UTC"),
+          fetched_at: DateTime.utc_now()
+        })
+
       serve(outlook_master())
       %{event: event, until: Date.add(today(), 60)}
     end
 
-    test "a monthly pattern on today's weekday position reaches Outlook as a relative one", %{
+    test "a monthly pattern on the series' weekday position reaches Outlook as a relative one", %{
       conn: conn,
       event: event
     } do
-      {ordinal, kind} = today_position()
+      {ordinal, kind} = first_day_position()
       lv = open(conn, event)
 
       change_recurrence(lv, %{
@@ -236,7 +252,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
     } do
       lv = open(conn, event)
 
-      tenth = Date.add(today(), 9 * 7)
+      # Ten weekly occurrences from the series' first start.
+      tenth = Date.add(first_day(), 9 * 7)
 
       expect_puts(1)
       pick(lv, %{"end_type" => "until"})
@@ -403,8 +420,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
       conn: conn,
       integration: integration
     } do
-      {ordinal, kind} = today_position()
-      rule = Pattern.build(%{freq: :monthly, on: {ordinal, kind}}, today())
+      # Built from the series' first start, which it is read from.
+      {ordinal, kind} = first_day_position()
+      rule = Pattern.build(%{freq: :monthly, on: {ordinal, kind}}, first_day())
       event = caldav_series(integration, rule)
       lv = open(conn, event)
 
@@ -556,7 +574,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
     |> render_hook("update_event_recurrence", params)
   end
 
+  # The editor stages a pattern; saving it asks for the scope.
   defp confirm_scope(lv, scope) do
+    unless has_element?(lv, "#recurrence-prompt-modal") do
+      lv
+      |> element("button[phx-click='save_event_recurrence']")
+      |> render_click()
+    end
+
     lv
     |> element("#recurrence-prompt-modal [phx-value-scope='#{scope}']")
     |> render_click()

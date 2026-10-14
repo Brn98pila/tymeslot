@@ -291,6 +291,34 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatEditorCreateLiveViewTest do
     end
   end
 
+  describe "a new event on an Outlook calendar, on a day some months lack" do
+    setup %{user: user} do
+      oauth_calendar(user, "outlook", "https://graph.microsoft.com/Calendars.ReadWrite")
+      serve(%{"id" => "created-1"})
+      :ok
+    end
+
+    # Graph would move the 31st of a shorter month to its last day, which is
+    # not the pattern picked: the editor says so before the save refuses it.
+    test "says why Outlook refuses the pattern, and the save writes nothing", %{conn: conn} do
+      lv = open_create(conn, "2026-12-31")
+
+      html = pick(lv, %{"freq" => "monthly"})
+      assert html =~ "Repeats monthly on day 31"
+      assert has_element?(lv, "#{@form} ~ [role='alert']", "Outlook can't skip the months")
+
+      lv |> element("#calendar-grid") |> render_hook("save_event", %{})
+      refute_receive {:request, :post, _url, _body}, 300
+    end
+
+    test "says nothing for a pattern Outlook takes", %{conn: conn} do
+      lv = open_create(conn, "2026-12-31")
+      pick(lv, %{"freq" => "weekly"})
+
+      refute has_element?(lv, "[role='alert']", "Outlook can't skip the months")
+    end
+  end
+
   defp open_create(conn, date) do
     {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")
 

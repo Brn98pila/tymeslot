@@ -14,6 +14,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
   @moduletag :calendar
   @moduletag :live
 
+  import TymeslotWeb.RepeatEditorHelpers
   import Mox
   import Tymeslot.AuthTestHelpers
   import Tymeslot.Factory
@@ -192,7 +193,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventEditLiveViewTest do
       html =
         lv
         |> element("#calendar-grid")
-        |> render_hook("update_event_recurrence", %{
+        |> render_repeat_save(%{
           "freq" => "weekly",
           "interval" => "1",
           "by_day" => Enum.map(days, &Enum.at(~w(mo tu we th fr sa su), &1)),

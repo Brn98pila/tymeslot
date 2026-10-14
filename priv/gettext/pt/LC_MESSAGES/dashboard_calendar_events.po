@@ -158,6 +158,7 @@ msgstr "Cancelar"
 #: lib/tymeslot_web/live/dashboard/calendar_grid/edit_workflow.ex
 #: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/inline_edit.ex
 #: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/notification_flows.ex
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/recurrence_edit.ex
 #, elixir-autogen, elixir-format
 msgid "Changes saved."
 msgstr "Alterações salvas."
@@ -896,7 +897,7 @@ msgid "Events of a repeating series cannot be switched between all-day and timed
 msgstr "Aqui não é possível trocar os eventos de uma série entre dia todo e com horário. Faça essa mudança no seu app de calendário."
 
 #: lib/tymeslot_web/live/dashboard/calendar_event_handlers.ex
-#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/inline_edit.ex
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/recurrence_edit.ex
 #, elixir-autogen, elixir-format
 msgid "That change cannot be made to the events you chose. A repeat rule can only be changed for all events, or this and following events, and cannot be removed here."
 msgstr "Não é possível fazer essa mudança nos eventos que você escolheu. A regra de repetição só pode ser mudada para todos os eventos, ou para este e os seguintes, e não pode ser removida aqui."

@@ -31,6 +31,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.SeatLockedEventsTest do
 
   @locked_message "This is a group booking. Move it, cancel it or change who attends from the meeting instead."
 
+  import TymeslotWeb.RepeatEditorHelpers
   import Tymeslot.DashboardTestHelpers
   import Tymeslot.Factory
   import Tymeslot.Test.ClockHelpers, only: [freeze_clock_midweek: 0]
@@ -197,7 +198,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.SeatLockedEventsTest do
 
       lv
       |> element("#calendar-grid")
-      |> render_hook("update_event_recurrence", %{
+      |> render_repeat_save(%{
         "freq" => "weekly",
         "interval" => "1",
         "by_day" => ["mo"],

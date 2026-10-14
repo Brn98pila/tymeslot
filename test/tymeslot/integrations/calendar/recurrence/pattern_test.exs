@@ -134,6 +134,20 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.PatternTest do
     end
   end
 
+  describe "reanchor/2" do
+    test "keeps a position the date is, and the start's day" do
+      assert Pattern.reanchor({2, :tu}, ~D[2026-10-13]) == {2, :tu}
+      assert Pattern.reanchor(:day, ~D[2026-10-14]) == :day
+    end
+
+    # 30 September 2026 is the last Wednesday of its month, 14 October the
+    # second of its own.
+    test "moves a position to the one of its kind the date is" do
+      assert Pattern.reanchor({-1, :we}, ~D[2026-10-14]) == {2, :we}
+      assert Pattern.reanchor({1, :weekday}, ~D[2026-10-14]) == :day
+    end
+  end
+
   describe "default_until/2" do
     test "is the day of the tenth occurrence, as ending after the default count" do
       assert Pattern.default_count() == 10

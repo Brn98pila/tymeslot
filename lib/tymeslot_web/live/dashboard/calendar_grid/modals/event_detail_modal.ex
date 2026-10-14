@@ -9,6 +9,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.EventDetailModal do
   alias Tymeslot.Integrations.Calendar.Attendee
   alias TymeslotWeb.Components.Dashboard.ColourSwatches
   alias TymeslotWeb.Components.UI.StatusSwitch
+  alias TymeslotWeb.Dashboard.CalendarGrid.EditWorkflow
+  alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit
   alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared
   alias TymeslotWeb.Dashboard.CalendarGrid.Helpers
   alias TymeslotWeb.Dashboard.CalendarGrid.Modals.AttendeeEditor
@@ -36,6 +38,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.EventDetailModal do
   attr :pending_attendees, :list, default: []
   attr :video_integrations, :list, default: []
   attr :pending_notification, :boolean, default: false
+
+  attr :recurrence_edit, :map,
+    default: nil,
+    doc: "the repeat editor's series start and staged pattern (`Shared.recurrence_edit/1`)"
 
   @spec event_detail_modal(map()) :: Phoenix.LiveView.Rendered.t()
   def event_detail_modal(assigns) do
@@ -317,24 +323,24 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.EventDetailModal do
       <%!-- Repeat: a rule is edited only where the grid can write one. --%>
       <div :if={@editable and not @time_locked and repeatable?(@selected_event)} class="mb-3">
         <RecurrenceEditor.recurrence_editor
-          recurrence_rule={Map.get(@selected_event, :recurrence_rule)}
-          timezone={Shared.recurrence_timezone(@selected_event, @user_timezone)}
-          start={Shared.recurrence_start(@selected_event, @user_timezone)}
+          {repeat_editor(@selected_event, @recurrence_edit, @user_timezone)}
           myself={@myself}
           change_event="update_event_recurrence"
+          save_event="save_event_recurrence"
+          discard_event="discard_event_recurrence"
         />
       </div>
       <.detail_line
         :if={
           (!@editable or @time_locked or not repeatable?(@selected_event)) and
-            recurrence_summary(@selected_event, @user_timezone) != nil
+            recurrence_summary(@selected_event, @recurrence_edit, @user_timezone) != nil
         }
         variant={:compact}
         icon="hero-arrow-path"
         class="mb-3"
       >
         <p class="text-token-sm text-tymeslot-600 leading-snug">
-          {recurrence_summary(@selected_event, @user_timezone)}
+          {recurrence_summary(@selected_event, @recurrence_edit, @user_timezone)}
         </p>
       </.detail_line>
 
@@ -415,10 +421,11 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.EventDetailModal do
   # Read-only human-readable summary of an event's recurrence rule, or nil when
   # the event does not repeat. The rule's UNTIL is an instant written in UTC, so
   # it is read back in the zone it was written against, the event's own.
-  defp recurrence_summary(event, user_timezone) do
+  defp recurrence_summary(event, recurrence_edit, user_timezone) do
     case Map.get(event, :recurrence_rule) do
       rule when is_binary(rule) and rule != "" ->
-        RecurrenceEditor.summary(rule, Shared.recurrence_start(event, user_timezone))
+        {start, _known?} = Shared.series_anchor(event, recurrence_edit, user_timezone)
+        RecurrenceEditor.summary(rule, start)
 
       _none ->
         nil
@@ -426,6 +433,36 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.EventDetailModal do
   end
 
   defp repeatable?(event), do: CalendarGrid.repeatable_provider?(Map.get(event, :provider))
+
+  # The rule the repeat editor shows: one staged and not yet saved, else the
+  # event's own, both read from the series' first start, which is what a
+  # rule written to the whole series is read from (see `RecurrenceEdit`).
+  # A series edit says what each scope writes when it is saved, so only a
+  # single event is told here that its calendar would refuse the rule.
+  defp repeat_editor(event, recurrence_edit, user_timezone) do
+    {start, _known?} = Shared.series_anchor(event, recurrence_edit, user_timezone)
+    timezone = Shared.recurrence_timezone(event, user_timezone)
+    draft = Shared.recurrence_draft(event, recurrence_edit)
+    rule = if draft, do: draft.rule, else: Map.get(event, :recurrence_rule)
+
+    notice =
+      if draft && not EditWorkflow.series_edit?(event) do
+        start_date = if is_struct(start, DateTime), do: DateTime.to_date(start), else: start
+
+        case CalendarGrid.repeat_refusal(Map.get(event, :provider), rule, start_date, timezone) do
+          nil -> nil
+          reason -> RecurrenceEdit.refusal_message(reason)
+        end
+      end
+
+    %{
+      recurrence_rule: rule,
+      timezone: timezone,
+      start: start,
+      pending: draft != nil,
+      notice: notice
+    }
+  end
 
   # Cached attendees come back from JSONB string-keyed, while one the organiser
   # has just added is still atom-keyed in memory, so the editor reads them all

@@ -17,6 +17,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.CreateEventModal do
   alias TymeslotWeb.Components.Shared.ReminderPickerState
   alias TymeslotWeb.Components.UI.StatusSwitch
   alias TymeslotWeb.Dashboard.CalendarGrid.EditWorkflow
+  alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit
   alias TymeslotWeb.Dashboard.CalendarGrid.Helpers
   alias TymeslotWeb.Dashboard.CalendarGrid.Modals.CalendarPicker
   alias TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor
@@ -352,6 +353,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.CreateEventModal do
           recurrence_rule={@creating_event[:recurrence_rule]}
           timezone={@user_timezone}
           start={recurrence_start(@creating_event, @user_timezone)}
+          notice={repeat_notice(@creating_event, @integrations, @user_timezone)}
           myself={@myself}
           change_event="update_create_recurrence"
         />
@@ -493,6 +495,24 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.CreateEventModal do
       integration -> CalendarGrid.repeatable_provider?(integration.provider)
     end
   end
+
+  # Why the calendar picked would refuse the repeat rule (Outlook's
+  # patterns), said while the pattern is chosen; the save refuses it too.
+  defp repeat_notice(creating_event, integrations, timezone) do
+    with rule when is_binary(rule) <- creating_event[:recurrence_rule],
+         %{provider: provider} <-
+           Enum.find(integrations, &(&1.id == creating_event[:integration_id])),
+         start_date = creating_event |> recurrence_start(timezone) |> start_date(),
+         reason when is_atom(reason) and reason != nil <-
+           CalendarGrid.repeat_refusal(provider, rule, start_date, timezone) do
+      RecurrenceEdit.refusal_message(reason)
+    else
+      _accepted -> nil
+    end
+  end
+
+  defp start_date(%DateTime{} = start), do: DateTime.to_date(start)
+  defp start_date(%Date{} = start), do: start
 
   # The start a repeat pattern is anchored to: the form's date, at its start
   # time in the organiser's zone for a timed event.

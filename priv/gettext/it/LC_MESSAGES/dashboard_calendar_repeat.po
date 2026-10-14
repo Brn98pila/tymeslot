@@ -570,3 +570,13 @@ msgid "year"
 msgid_plural "years"
 msgstr[0] "anno"
 msgstr[1] "anni"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "Discard changes"
+msgstr "Annulla modifiche"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "Save repeat"
+msgstr "Salva ripetizione"

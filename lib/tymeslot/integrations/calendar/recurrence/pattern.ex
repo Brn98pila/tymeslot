@@ -84,6 +84,24 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.Pattern do
       positions(start_date, &(&1 in Map.fetch!(@kind_days, kind)), kind)
   end
 
+  @doc """
+  `on` for a series starting on `start_date`: as it is when the date is
+  that day, else the same kind of day at the position the date is counted
+  at from the month's start (the first Wednesday, moved to a second
+  Wednesday, is the second Wednesday), else the date's own day of the
+  month.
+  """
+  @spec reanchor(on(), Date.t()) :: on()
+  def reanchor(:day, _start_date), do: :day
+
+  def reanchor({_ordinal, kind} = on, %Date{} = start_date) do
+    choices = choices(start_date)
+
+    if on in choices,
+      do: on,
+      else: Enum.find(choices, :day, &match?({position, ^kind} when position > 0, &1))
+  end
+
   # The ordinals among the month's days of `kind` (`matches?` says which
   # weekdays are of it) that the start is: its count from the month's start
   # when up to four, and last when no later day of the kind follows.

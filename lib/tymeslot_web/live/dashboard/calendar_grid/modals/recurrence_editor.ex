@@ -29,7 +29,11 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
   Every control change dispatches `change_event` back to the owning
   LiveComponent via `phx-target`, carrying the raw form fields (`freq`,
   `interval`, `by_day[]`, `on`, `end_type`, `count`, `until`). The owner
-  composes the rule from them (`Shared.compose_recurrence_rule/2`).
+  composes the rule from them (`Shared.compose_recurrence_rule/2`). An
+  owner that stages the rule rather than writing it at once (an existing
+  event's details, `RecurrenceEdit`) passes `pending` while one is staged,
+  and the editor offers "Save repeat" (`save_event`) and "Discard changes"
+  (`discard_event`). `notice` says why the calendar would refuse the rule.
 
   `timezone` reads a timed rule's `UNTIL`, an instant, as the date the
   organiser sees.
@@ -51,6 +55,17 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
 
   attr :myself, :any, required: true
   attr :change_event, :string, required: true
+
+  attr :pending, :boolean,
+    default: false,
+    doc: "whether the rule shown is staged and not yet saved, which offers to save or discard it"
+
+  attr :save_event, :string, default: nil
+  attr :discard_event, :string, default: nil
+
+  attr :notice, :string,
+    default: nil,
+    doc: "why the calendar would refuse the rule shown, if it would"
 
   @spec recurrence_editor(map()) :: Phoenix.LiveView.Rendered.t()
   def recurrence_editor(assigns) do
@@ -247,6 +262,22 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
       <p :if={@summary != nil and not @custom} class="text-token-xs text-tymeslot-400 mt-1.5">
         {@summary}
       </p>
+
+      <p :if={@notice} class="text-token-xs text-red-700 mt-1.5" role="alert">{@notice}</p>
+
+      <div :if={@pending} class="flex flex-wrap gap-2 mt-2">
+        <.action_button size={:sm} phx-click={@save_event} phx-target={@myself}>
+          {dgettext("dashboard_calendar_repeat", "Save repeat")}
+        </.action_button>
+        <.action_button
+          variant={:secondary}
+          size={:sm}
+          phx-click={@discard_event}
+          phx-target={@myself}
+        >
+          {dgettext("dashboard_calendar_repeat", "Discard changes")}
+        </.action_button>
+      </div>
     </.detail_line>
     """
   end

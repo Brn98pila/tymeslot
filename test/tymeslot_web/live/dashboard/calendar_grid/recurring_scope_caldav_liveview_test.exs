@@ -26,6 +26,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
   @moduletag :live
   @moduletag :integration
 
+  import TymeslotWeb.RepeatEditorHelpers
   import Mox
   import Phoenix.LiveViewTest
   import Tymeslot.AuthTestHelpers
@@ -215,7 +216,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
 
       lv
       |> element("#calendar-grid")
-      |> render_hook("update_event_recurrence", %{
+      |> render_repeat_save(%{
         "freq" => "daily",
         "interval" => "1",
         "end_type" => "never"
@@ -245,7 +246,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
 
       lv
       |> element("#calendar-grid")
-      |> render_hook("update_event_recurrence", %{"freq" => "", "end_type" => "never"})
+      |> render_repeat_save(%{"freq" => "", "end_type" => "never"})
 
       # The flash is relayed to the parent LiveView, so it lands on the next
       # render rather than in the hook's own reply.
@@ -424,7 +425,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
 
       lv
       |> element("#calendar-grid")
-      |> render_hook("update_event_recurrence", %{
+      |> render_repeat_save(%{
         "freq" => "monthly",
         "interval" => "2",
         "end_type" => "never"
@@ -506,7 +507,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
 
       lv
       |> element("#calendar-grid")
-      |> render_hook("update_event_recurrence", %{
+      |> render_repeat_save(%{
         "freq" => "weekly",
         "interval" => "1",
         "end_type" => "never"
@@ -614,7 +615,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RecurringScopeCalDavLiveViewTest do
 
     lv
     |> element("#calendar-grid")
-    |> render_hook("update_event_recurrence", %{
+    |> render_repeat_save(%{
       "freq" => "daily",
       "interval" => "1",
       "end_type" => "never"

@@ -580,3 +580,13 @@ msgid_plural "years"
 msgstr[0] "roce"
 msgstr[1] "letech"
 msgstr[2] "letech"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "Discard changes"
+msgstr "Zahodit změny"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "Save repeat"
+msgstr "Uložit opakování"

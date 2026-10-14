@@ -580,3 +580,13 @@ msgid_plural "years"
 msgstr[0] "рік"
 msgstr[1] "роки"
 msgstr[2] "років"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "Discard changes"
+msgstr "Скасувати зміни"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
+#, elixir-autogen, elixir-format
+msgid "Save repeat"
+msgstr "Зберегти повторення"

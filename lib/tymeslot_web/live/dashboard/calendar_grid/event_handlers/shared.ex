@@ -5,6 +5,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
 
   import Phoenix.Component, only: [assign: 3]
 
+  alias Tymeslot.CalendarGrid
   alias Tymeslot.Integrations.Calendar.EventColour
   alias Tymeslot.Integrations.Calendar.ICalBuilder.TimeZoneComponent
   alias Tymeslot.Integrations.Calendar.Recurrence.Pattern
@@ -251,6 +252,46 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
   end
 
   @doc """
+  What the repeat editor keeps for the event open in the details: the first
+  start of its series (`CalendarGrid.series_start/1`), read once when the
+  event is opened, and the pattern staged in the editor and not yet saved
+  (`:draft`, `%{params: fields, rule: rule}`, or `nil`).
+
+  Answers `nil` for an event whose calendar takes no repeat rule.
+  """
+  @spec recurrence_edit(map() | nil) :: map() | nil
+  def recurrence_edit(%{id: id} = event) do
+    if CalendarGrid.repeatable_provider?(Map.get(event, :provider)),
+      do: %{event_id: id, series_start: CalendarGrid.series_start(event), draft: nil}
+  end
+
+  def recurrence_edit(_no_event), do: nil
+
+  @doc """
+  The start a repeat pattern of `event` is shown and built against: the
+  first start of its series (see `recurrence_edit/1`), on the wall clock of
+  the zone it repeats in, which is what a rule written to the whole series
+  is read from. The second element says whether that start is known: a
+  series whose first start was never read falls back to the event's own
+  start, which only an edit of this and the following events is written
+  against.
+  """
+  @spec series_anchor(map(), map() | nil, String.t()) :: {Date.t() | DateTime.t(), boolean()}
+  def series_anchor(%{id: id}, %{event_id: id, series_start: %Date{} = date}, _user_timezone),
+    do: {date, true}
+
+  def series_anchor(%{id: id} = event, %{event_id: id, series_start: %DateTime{} = at}, tz),
+    do: {DateTime.shift_zone!(at, recurrence_timezone(event, tz)), true}
+
+  def series_anchor(event, _edit, user_timezone),
+    do: {recurrence_start(event, user_timezone), not Series.member?(event)}
+
+  @doc "The pattern staged in the repeat editor for `event`, or `nil` (see `recurrence_edit/1`)."
+  @spec recurrence_draft(map(), map() | nil) :: %{params: map(), rule: String.t() | nil} | nil
+  def recurrence_draft(%{id: id}, %{event_id: id, draft: draft}), do: draft
+  def recurrence_draft(_event, _edit), do: nil
+
+  @doc """
   The zone an event's days are read in when it is toggled to or from all-day:
   for a series, the zone it repeats in (`recurrence_timezone/2`), so its
   first occurrence keeps its calendar's day; for a one-off, the viewer's, so
@@ -372,10 +413,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
 
   defp put_start_day(opts, _freq, _start_date), do: opts
 
-  defp put_on(opts, freq, value, %Date{} = start_date) when freq in [:monthly, :yearly] do
-    on = parse_on(value)
-    if on in Pattern.choices(start_date), do: Map.put(opts, :on, on), else: opts
-  end
+  # A position the start is not (it is the second Wednesday, not the first)
+  # becomes the nearest one it is (`Pattern.reanchor/2`).
+  defp put_on(opts, freq, value, %Date{} = start_date) when freq in [:monthly, :yearly],
+    do: Map.put(opts, :on, value |> parse_on() |> Pattern.reanchor(start_date))
 
   defp put_on(opts, _freq, _value, _start_date), do: opts
 
