@@ -159,6 +159,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceSummary do
     dgettext("dashboard_calendar_repeat", "until %{date}", date: date)
   end
 
+  defp end_phrase(_pattern), do: nil
+
   # French writes the first of a month as an ordinal, "le 1er octobre"; every
   # other day, and every day in the other languages, is a plain number.
   defp day_number(1) do
@@ -166,8 +168,6 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceSummary do
   end
 
   defp day_number(day), do: Integer.to_string(day)
-
-  defp end_phrase(_pattern), do: nil
 
   @doc "The short label of a weekday atom (`:mo` .. `:su`)."
   @spec weekday_label(atom()) :: String.t()
