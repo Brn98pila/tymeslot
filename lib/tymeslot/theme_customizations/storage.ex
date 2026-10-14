@@ -7,10 +7,10 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
 
   require Logger
   alias Tymeslot.Media.ImageMetadata
+  alias Tymeslot.Media.UploadConstraints
   alias Tymeslot.Media.VideoMetadata
   alias Tymeslot.ThemeCustomizations.Spec
   alias Tymeslot.Utils.MediaValidator
-  alias TymeslotWeb.Helpers.UploadConstraints
   alias TymeslotWeb.Helpers.UploadHandler
 
   @type file_upload :: %{required(:path) => Path.t(), required(:filename) => String.t()}

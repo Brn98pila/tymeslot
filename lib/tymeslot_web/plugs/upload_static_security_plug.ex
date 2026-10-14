@@ -24,7 +24,7 @@ defmodule TymeslotWeb.Plugs.UploadStaticSecurity do
 
   import Plug.Conn
 
-  alias TymeslotWeb.Helpers.UploadConstraints
+  alias Tymeslot.Media.UploadConstraints
 
   @uploads_prefix "uploads"
 

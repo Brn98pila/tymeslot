@@ -1,10 +1,10 @@
-defmodule TymeslotWeb.Helpers.UploadConstraintsTest do
+defmodule Tymeslot.Media.UploadConstraintsTest do
   use TymeslotWeb.ConnCase, async: true
 
   @moduletag :utils
 
+  alias Tymeslot.Media.UploadConstraints
   alias Tymeslot.Profiles.Avatars
-  alias TymeslotWeb.Helpers.UploadConstraints
 
   describe "allowed_extensions/1" do
     test "avatars accept the animated and still image formats" do

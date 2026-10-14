@@ -7,11 +7,11 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
   import Tymeslot.DashboardTestHelpers
 
   alias Ecto.Changeset
+  alias Tymeslot.Media.UploadConstraints
   alias Tymeslot.Repo
   alias Tymeslot.Test.MediaFixtures
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
-  alias TymeslotWeb.Helpers.UploadConstraints
   alias TymeslotWeb.Live.Scheduling.PreviewToken
 
   setup :setup_dashboard_user_with_theme

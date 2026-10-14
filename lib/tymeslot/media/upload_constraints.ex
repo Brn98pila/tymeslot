@@ -1,4 +1,4 @@
-defmodule TymeslotWeb.Helpers.UploadConstraints do
+defmodule Tymeslot.Media.UploadConstraints do
   @moduledoc """
   Centralized upload constraints for allowed file extensions and maximum sizes.
   Use these helpers in LiveView allow_upload, file validation, and storage layers

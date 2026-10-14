@@ -29,10 +29,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.AssetUploads do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [allow_upload: 3, consume_uploaded_entries: 3, send_update: 3]
 
+  alias Tymeslot.Media.UploadConstraints
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.ThemeCustomizations
   alias TymeslotWeb.Helpers.ImageUploadErrors
-  alias TymeslotWeb.Helpers.UploadConstraints
   alias TymeslotWeb.Live.Shared.Flash
 
   # Five uploads per ten minutes, shared across every field: video encoding is

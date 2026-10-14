@@ -11,7 +11,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImageUp
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias TymeslotWeb.Helpers.UploadConstraints
+  alias Tymeslot.Media.UploadConstraints
 
   attr :id, :string, required: true, doc: "the form's DOM id"
   attr :field, :atom, required: true, doc: "the image asset field the upload saves into"

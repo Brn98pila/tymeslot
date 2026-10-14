@@ -5,7 +5,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.VideoPi
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
 
-  alias TymeslotWeb.Helpers.UploadConstraints
+  alias Tymeslot.Media.UploadConstraints
 
   @doc """
   Renders the video picker.
