@@ -277,14 +277,30 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
   against.
   """
   @spec series_anchor(map(), map() | nil, String.t()) :: {Date.t() | DateTime.t(), boolean()}
-  def series_anchor(%{id: id}, %{event_id: id, series_start: %Date{} = date}, _user_timezone),
-    do: {date, true}
+  def series_anchor(event, edit, user_timezone) do
+    cond do
+      # An event of no series begins where it starts now, whatever it was
+      # opened at.
+      not Series.member?(event) ->
+        {recurrence_start(event, user_timezone), true}
 
-  def series_anchor(%{id: id} = event, %{event_id: id, series_start: %DateTime{} = at}, tz),
-    do: {DateTime.shift_zone!(at, recurrence_timezone(event, tz)), true}
+      match?(%{event_id: id, series_start: %{}} when id == event.id, edit) ->
+        {in_recurrence_zone(edit.series_start, event, user_timezone), true}
 
-  def series_anchor(event, _edit, user_timezone),
-    do: {recurrence_start(event, user_timezone), not Series.member?(event)}
+      true ->
+        {recurrence_start(event, user_timezone), false}
+    end
+  end
+
+  @doc """
+  `start`, a `Date` or an instant, as a repeat pattern of `event` is built
+  from it: a day, or a wall clock in the zone the series repeats in.
+  """
+  @spec in_recurrence_zone(Date.t() | DateTime.t(), map(), String.t()) :: Date.t() | DateTime.t()
+  def in_recurrence_zone(%Date{} = date, _event, _user_timezone), do: date
+
+  def in_recurrence_zone(%DateTime{} = at, event, user_timezone),
+    do: DateTime.shift_zone!(at, recurrence_timezone(event, user_timezone))
 
   @doc "The pattern staged in the repeat editor for `event`, or `nil` (see `recurrence_edit/1`)."
   @spec recurrence_draft(map(), map() | nil) :: %{params: map(), rule: String.t() | nil} | nil

@@ -317,7 +317,7 @@ msgstr "%{day}. září"
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
 msgid "on day %{day}"
-msgstr "%{day}. den v měsíci"
+msgstr "%{day}. dne v měsíci"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
@@ -590,3 +590,8 @@ msgstr "Zahodit změny"
 #, elixir-autogen, elixir-format
 msgid "Save repeat"
 msgstr "Uložit opakování"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/recurrence_edit.ex
+#, elixir-autogen, elixir-format
+msgid "Not available: the new end comes before this event, so there are no following events to change."
+msgstr "Není k dispozici: nový konec je před touto událostí, takže nejsou žádné následující události ke změně."

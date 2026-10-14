@@ -443,7 +443,11 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.EventDetailModal do
     {start, _known?} = Shared.series_anchor(event, recurrence_edit, user_timezone)
     timezone = Shared.recurrence_timezone(event, user_timezone)
     draft = Shared.recurrence_draft(event, recurrence_edit)
-    rule = if draft, do: draft.rule, else: Map.get(event, :recurrence_rule)
+
+    rule =
+      if draft,
+        do: RecurrenceEdit.draft_rule(event, draft, recurrence_edit, user_timezone),
+        else: Map.get(event, :recurrence_rule)
 
     notice =
       if draft && not EditWorkflow.series_edit?(event) do

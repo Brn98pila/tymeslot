@@ -590,3 +590,8 @@ msgstr "Odrzuć zmiany"
 #, elixir-autogen, elixir-format
 msgid "Save repeat"
 msgstr "Zapisz powtarzanie"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/recurrence_edit.ex
+#, elixir-autogen, elixir-format
+msgid "Not available: the new end comes before this event, so there are no following events to change."
+msgstr "Niedostępne: nowy koniec przypada przed tym wydarzeniem, więc nie ma kolejnych wydarzeń do zmiany."

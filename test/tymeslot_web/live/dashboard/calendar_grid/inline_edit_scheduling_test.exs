@@ -259,7 +259,10 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.InlineEditSchedulingTest do
           end_at: DateTime.new!(today, ~T[09:15:00], "Etc/UTC"),
           all_day: false,
           recurrence_rule: "FREQ=DAILY",
-          recurring_event_id: "series-1"
+          recurring_event_id: "series-1",
+          # Google ends an occurrence's uid in its original start, where a
+          # change of it and the following ones splits the series.
+          uid: "series-1_#{Calendar.strftime(today, "%Y%m%d")}T090000Z"
         })
 
       {:ok, lv, _html} = live(conn, ~p"/dashboard/calendar")

@@ -148,8 +148,8 @@ msgstr "Anualmente"
 #, elixir-autogen, elixir-format
 msgid "for %{count} occurrence"
 msgid_plural "for %{count} occurrences"
-msgstr[0] "por %{count} ocorrência"
-msgstr[1] "por %{count} ocorrências"
+msgstr[0] "%{count} vez"
+msgstr[1] "%{count} vezes"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #, elixir-autogen, elixir-format
@@ -580,3 +580,8 @@ msgstr "Descartar alterações"
 #, elixir-autogen, elixir-format
 msgid "Save repeat"
 msgstr "Salvar repetição"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/recurrence_edit.ex
+#, elixir-autogen, elixir-format
+msgid "Not available: the new end comes before this event, so there are no following events to change."
+msgstr "Indisponível: o novo término é anterior a este evento, então não há eventos seguintes para alterar."

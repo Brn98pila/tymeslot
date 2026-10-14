@@ -59,7 +59,7 @@ msgstr "У визначену дату"
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #, elixir-autogen, elixir-format
 msgid "Repeat"
-msgstr "Повторювати"
+msgstr "Повторення"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
@@ -590,3 +590,8 @@ msgstr "Скасувати зміни"
 #, elixir-autogen, elixir-format
 msgid "Save repeat"
 msgstr "Зберегти повторення"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/recurrence_edit.ex
+#, elixir-autogen, elixir-format
+msgid "Not available: the new end comes before this event, so there are no following events to change."
+msgstr "Недоступно: нове завершення припадає на час до цієї події, тож наступних подій для зміни немає."

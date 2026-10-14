@@ -144,6 +144,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditorTest do
       assert RecurrenceEditor.summary(rule, ~D[2026-06-15]) ==
                "Repeats weekly on Mon until 31 December 2026"
 
+      Gettext.with_locale(TymeslotWeb.Gettext, "it", fn ->
+        assert RecurrenceEditor.summary("FREQ=YEARLY", ~D[2026-10-01]) =~ "il giorno 1° ottobre"
+      end)
+
+      Gettext.with_locale(TymeslotWeb.Gettext, "pt", fn ->
+        assert RecurrenceEditor.summary("FREQ=YEARLY", ~D[2026-10-01]) =~ "no dia 1º de outubro"
+      end)
+
       Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
         assert RecurrenceEditor.summary(rule, ~D[2026-06-15]) ==
                  "Wiederholt sich wöchentlich jeweils Mo bis 31. Dezember 2026"
@@ -162,7 +170,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditorTest do
       end)
     end
 
-    test "writes the first of a month as French writes it, and only in French" do
+    test "writes the first of a month as an ordinal in French, Italian and Portuguese only" do
       Gettext.with_locale(TymeslotWeb.Gettext, "fr", fn ->
         assert RecurrenceEditor.summary("FREQ=MONTHLY;UNTIL=20270101", ~D[2026-10-01]) =~
                  "le 1er du mois jusqu’au 1er janvier 2027"

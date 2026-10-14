@@ -59,7 +59,7 @@ msgstr "In data"
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #, elixir-autogen, elixir-format
 msgid "Repeat"
-msgstr "Ripeti"
+msgstr "Ripetizione"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_summary.ex
 #, elixir-autogen, elixir-format
@@ -148,8 +148,8 @@ msgstr "Annuale"
 #, elixir-autogen, elixir-format
 msgid "for %{count} occurrence"
 msgid_plural "for %{count} occurrences"
-msgstr[0] "per %{count} occorrenza"
-msgstr[1] "per %{count} occorrenze"
+msgstr[0] "%{count} volta"
+msgstr[1] "%{count} volte"
 
 #: lib/tymeslot_web/live/dashboard/calendar_grid/modals/recurrence_editor.ex
 #, elixir-autogen, elixir-format
@@ -580,3 +580,8 @@ msgstr "Annulla modifiche"
 #, elixir-autogen, elixir-format
 msgid "Save repeat"
 msgstr "Salva ripetizione"
+
+#: lib/tymeslot_web/live/dashboard/calendar_grid/event_handlers/recurrence_edit.ex
+#, elixir-autogen, elixir-format
+msgid "Not available: the new end comes before this event, so there are no following events to change."
+msgstr "Non disponibile: la nuova fine è prima di questo evento, quindi non ci sono eventi successivi da modificare."

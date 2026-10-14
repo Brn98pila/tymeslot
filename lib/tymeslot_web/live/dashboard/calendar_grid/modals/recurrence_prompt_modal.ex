@@ -70,6 +70,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrencePromptModal do
           <p :if={rule && rule.refusal} class="mt-0.5 text-red-700" data-role="scope-refusal">
             {RecurrenceEdit.refusal_message(rule.refusal)}
           </p>
+          <p :if={rule && rule.ends_before} class="mt-0.5 text-red-700" data-role="scope-refusal">
+            {RecurrenceEdit.ends_before_message()}
+          </p>
           <ul
             :if={scope == :following and @following_notes != []}
             id="recurrence-following-notes"
@@ -109,7 +112,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrencePromptModal do
   """
   @spec offered_scopes(map()) :: [RecurrenceScope.t()]
   def offered_scopes(%{kind: :recurrence_rule, scope_rules: scope_rules}),
-    do: for(%{scope: scope, refusal: nil} <- scope_rules, do: scope)
+    do: for(rule <- scope_rules, RecurrenceEdit.offered?(rule), do: rule.scope)
 
   def offered_scopes(%{kind: :recurrence_rule}), do: RecurrenceScope.values() -- [:this_only]
   def offered_scopes(_prompt), do: RecurrenceScope.values()
