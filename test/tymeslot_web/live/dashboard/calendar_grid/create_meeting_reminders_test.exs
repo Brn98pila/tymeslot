@@ -6,6 +6,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.CreateMeetingRemindersTest do
   """
 
   use TymeslotWeb.LiveCase, async: true
+  use Oban.Testing, repo: Tymeslot.Repo
 
   @moduletag :calendar
   @moduletag :live
@@ -16,6 +17,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.CreateMeetingRemindersTest do
   alias Plug.Test
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Repo
+  alias Tymeslot.Workers.EmailWorker
 
   setup %{conn: conn} do
     user = insert(:user, onboarding_completed_at: DateTime.utc_now(), locale: "en")
@@ -129,13 +131,34 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.CreateMeetingRemindersTest do
 
     test "what the host picked is what the meeting reminds with", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/dashboard")
-      open_form(lv)
+
+      # Tomorrow morning rather than the next whole hour the form defaults to:
+      # a reminder whose lead time has already passed is rightly never sent.
+      hook(lv, "show_create_form", %{
+        "date" => Date.utc_today() |> Date.add(1) |> Date.to_iso8601(),
+        "start-hour" => "10",
+        "start-minute" => "0",
+        "end-hour" => "11",
+        "end-minute" => "0"
+      })
+
       fill_guest(lv)
 
       click_preset(lv, "reminder-preset-60-minutes")
       hook(lv, "save_event", %{})
 
-      assert created_meeting().reminders == [%{"value" => 60, "unit" => "minutes"}]
+      meeting = created_meeting()
+      assert meeting.reminders == [%{"value" => 60, "unit" => "minutes"}]
+
+      assert_enqueued(
+        worker: EmailWorker,
+        args: %{
+          "action" => "send_reminder_emails",
+          "meeting_id" => meeting.id,
+          "reminder_value" => 60,
+          "reminder_unit" => "minutes"
+        }
+      )
     end
 
     test "picking none means none, not the legacy default", %{conn: conn} do
