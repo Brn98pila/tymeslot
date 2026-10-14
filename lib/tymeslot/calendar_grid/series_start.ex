@@ -23,6 +23,8 @@ defmodule Tymeslot.CalendarGrid.SeriesStart do
 
   alias Tymeslot.CalendarGrid.Occurrence
   alias Tymeslot.Integrations.Calendar.ICalParser
+  alias Tymeslot.Integrations.Calendar.Outlook.SeriesSplit, as: OutlookSeriesSplit
+  alias Tymeslot.Integrations.Calendar.RecurrenceExpander
   alias Tymeslot.Integrations.Calendar.SeriesRules
 
   @doc """
@@ -110,6 +112,33 @@ defmodule Tymeslot.CalendarGrid.SeriesStart do
       {:error, _reason} -> DateTime.from_naive!(naive, "Etc/UTC")
     end
   end
+
+  @doc """
+  How many occurrences `rule` makes from `first` up to, but not including,
+  `boundary`, for a series on a calendar of `provider`, as a split of the
+  series counts them off its `COUNT`. Outlook counts an absolute monthly
+  or yearly series its own way (`Outlook.SeriesSplit.absolute_count_before/3`);
+  every other calendar as RFC 5545 does (`RecurrenceExpander.count_before/3`).
+  """
+  @spec count_before(
+          atom() | String.t() | nil,
+          String.t(),
+          Date.t() | DateTime.t(),
+          Date.t() | DateTime.t()
+        ) ::
+          non_neg_integer()
+  def count_before(provider, rule, first, boundary) do
+    with "outlook" <- to_string(provider),
+         {:ok, count} <-
+           OutlookSeriesSplit.absolute_count_before(rule, date_of(first), date_of(boundary)) do
+      count
+    else
+      _rfc_5545 -> RecurrenceExpander.count_before(rule, first, boundary)
+    end
+  end
+
+  defp date_of(%DateTime{} = at), do: DateTime.to_date(at)
+  defp date_of(%Date{} = date), do: date
 
   # A Google or Outlook master's own row carries the rule and is its first
   # start; an occurrence names its master in `recurring_event_id`.

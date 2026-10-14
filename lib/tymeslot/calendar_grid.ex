@@ -32,7 +32,6 @@ defmodule Tymeslot.CalendarGrid do
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Integrations.Calendar.ProviderConfig
-  alias Tymeslot.Integrations.Calendar.RecurrenceExpander
   alias Tymeslot.Integrations.Calendar.Reminder
   alias Tymeslot.Integrations.Calendar.SyncSchedule
   alias Tymeslot.Integrations.CalendarManagement
@@ -411,13 +410,17 @@ defmodule Tymeslot.CalendarGrid do
 
   @doc """
   How many occurrences `rule` makes from `first` up to, but not including,
-  `boundary`, as a split of the series counts them off its `COUNT` (see
-  `RecurrenceExpander.count_before/3`).
+  `boundary`, as a split of a series on a calendar of `provider` counts
+  them off its `COUNT` (see `SeriesStart.count_before/4`).
   """
-  @spec occurrences_before(String.t(), Date.t() | DateTime.t(), Date.t() | DateTime.t()) ::
-          non_neg_integer()
-  defdelegate occurrences_before(rule, first, boundary),
-    to: RecurrenceExpander,
+  @spec occurrences_before(
+          atom() | String.t() | nil,
+          String.t(),
+          Date.t() | DateTime.t(),
+          Date.t() | DateTime.t()
+        ) :: non_neg_integer()
+  defdelegate occurrences_before(provider, rule, first, boundary),
+    to: SeriesStart,
     as: :count_before
 
   @doc """

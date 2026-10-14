@@ -100,6 +100,16 @@ defmodule Tymeslot.CalendarGrid.SeriesStartTest do
     assert DateTime.compare(CalendarGrid.series_start(one_off), ~U[2026-10-14 09:00:00Z]) == :eq
   end
 
+  # By 30 April a series on the 31st has been on 31 January, 28 February and
+  # 31 March in Outlook, which puts it on a shorter month's last day; RFC
+  # 5545 skips February.
+  test "Outlook counts an absolute monthly series on the 31st as Graph does" do
+    count = &CalendarGrid.occurrences_before(&1, "FREQ=MONTHLY", ~D[2026-01-31], ~D[2026-04-30])
+
+    assert count.("outlook") == 3
+    assert count.("google") == 2
+  end
+
   test "only Outlook refuses a rule, for a day some months lack" do
     assert CalendarGrid.repeat_refusal("outlook", "FREQ=MONTHLY", ~D[2026-12-31], "Etc/UTC") ==
              :day_missing_in_some_months
