@@ -576,3 +576,13 @@ msgstr "Der Termin konnte nicht abgesagt werden. Bitte versuchen Sie es erneut."
 #, elixir-autogen, elixir-format
 msgid "This is a group session, so it cannot be changed from this link. To cancel or move your spot, use the links in your confirmation email."
 msgstr "Dies ist ein Gruppentermin, daher kann er über diesen Link nicht geändert werden. Um Ihren Platz zu stornieren oder zu verschieben, verwenden Sie die Links in Ihrer Bestätigungs-E-Mail."
+
+#: lib/tymeslot_web/controllers/guest_rsvp_html.ex
+#, elixir-autogen, elixir-format
+msgid "This meeting is now fully booked"
+msgstr "Dieser Termin ist inzwischen ausgebucht"
+
+#: lib/tymeslot_web/controllers/guest_rsvp_html.ex
+#, elixir-autogen, elixir-format
+msgid "Your seat was given to someone else after you declined. Your answer stays as it was; please contact the person who invited you or the meeting host."
+msgstr "Ihr Platz wurde nach Ihrer Absage an jemand anderen vergeben. Ihre Antwort bleibt unverändert; wenden Sie sich bitte an die Person, die Sie eingeladen hat, oder an den Gastgeber."

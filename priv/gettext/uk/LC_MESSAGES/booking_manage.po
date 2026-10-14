@@ -576,3 +576,13 @@ msgstr "Не вдалося скасувати зустріч. Спробуйт�
 #, elixir-autogen, elixir-format
 msgid "This is a group session, so it cannot be changed from this link. To cancel or move your spot, use the links in your confirmation email."
 msgstr "Це групова зустріч, тому її не можна змінити за цим посиланням. Щоб скасувати або перенести своє місце, скористайтеся посиланнями з листа-підтвердження."
+
+#: lib/tymeslot_web/controllers/guest_rsvp_html.ex
+#, elixir-autogen, elixir-format
+msgid "This meeting is now fully booked"
+msgstr "На цю зустріч уже немає вільних місць"
+
+#: lib/tymeslot_web/controllers/guest_rsvp_html.ex
+#, elixir-autogen, elixir-format
+msgid "Your seat was given to someone else after you declined. Your answer stays as it was; please contact the person who invited you or the meeting host."
+msgstr "Після вашої відмови ваше місце віддали іншій людині. Ваша відповідь залишається без змін; зверніться до того, хто вас запросив, або до організатора."

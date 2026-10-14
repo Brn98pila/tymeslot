@@ -576,3 +576,13 @@ msgstr "La réunion n'a pas pu être annulée. Veuillez réessayer."
 #, elixir-autogen, elixir-format
 msgid "This is a group session, so it cannot be changed from this link. To cancel or move your spot, use the links in your confirmation email."
 msgstr "Il s'agit d'une session de groupe : elle ne peut donc pas être modifiée depuis ce lien. Pour annuler ou déplacer votre place, utilisez les liens de votre e-mail de confirmation."
+
+#: lib/tymeslot_web/controllers/guest_rsvp_html.ex
+#, elixir-autogen, elixir-format
+msgid "This meeting is now fully booked"
+msgstr "Cette réunion est désormais complète"
+
+#: lib/tymeslot_web/controllers/guest_rsvp_html.ex
+#, elixir-autogen, elixir-format
+msgid "Your seat was given to someone else after you declined. Your answer stays as it was; please contact the person who invited you or the meeting host."
+msgstr "Votre place a été attribuée à quelqu’un d’autre après votre refus. Votre réponse reste inchangée ; veuillez contacter la personne qui vous a invité ou l’organisateur."
