@@ -27,8 +27,12 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
   whatever the page showed, so offering another type's slots would only
   promise times the move is not checked against.
 
-  A type the host has deleted since the booking resolves to `nil`, and then the
-  choice is a real one: the page falls back to the full list, as before.
+  A whole booking whose type the host has deleted since resolves to `nil`, and
+  then the choice is a real one: the page falls back to the full list, as
+  before. A seat whose type is gone cannot move at all, and never reaches the
+  pin (`SeatMoveLink` turns it away); a seat on another organiser's meeting
+  (a hand-edited username) has no type either and is not pinned, and its
+  submit is refused.
   """
 
   import Phoenix.Component, only: [assign: 2, assign: 3]
@@ -83,7 +87,8 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
 
   @doc """
   The meeting type a reschedule is committed to, or `nil` when this is not a
-  reschedule or its type no longer exists.
+  reschedule, a whole booking's type no longer exists, or a seat is on
+  another organiser's meeting.
 
   Always read from the seat or the booking the page loaded from its link
   (`:seat_move_context`, `:reschedule_context`). It deliberately does not read `:meeting_type` back

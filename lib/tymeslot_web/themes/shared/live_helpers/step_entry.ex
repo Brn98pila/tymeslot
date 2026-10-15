@@ -125,8 +125,9 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry do
   # resolves it exactly once, in `ReschedulePin`. The slug in the URL is not
   # consulted for one: two types can share a duration, and a stale reschedule
   # link can name a different type outright. Only when the pin comes back empty
-  # — not a reschedule, or its type has since been deleted — does the slug
-  # decide, which is what a fresh booking uses.
+  # (not a reschedule, a whole booking whose type has since been deleted, or a
+  # seat on another organiser's meeting) does the slug decide, which is what
+  # a fresh booking uses.
   defp resolve_entry_meeting_type(socket, params) do
     if ReschedulePin.pinned?(socket) do
       {:ok, socket}
