@@ -235,7 +235,10 @@
   --poll-option-line: rgba(255, 255, 255, 0.22);
   --poll-option-selected-surface: var(--theme-primary-tint);
 
-  /* Payment return pages (shared/components/payment-pages.css) */
+  /* Payment return pages (shared/components/payment-pages.css). They have
+     no video background container, so the page itself carries the
+     background the container shows behind its media. */
+  --payment-page-background: var(--theme-background);
   --payment-page-max-width: 36rem;
   --payment-card-surface: rgba(0, 0, 0, var(--box-opacity));
   --payment-card-line: var(--border-subtle);
