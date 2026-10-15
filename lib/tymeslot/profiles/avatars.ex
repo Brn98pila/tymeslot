@@ -21,6 +21,10 @@ defmodule Tymeslot.Profiles.Avatars do
         }
   @type result(t) :: {:ok, t} | {:error, any()}
 
+  @typedoc "Why `validate_upload/1` refuses an upload."
+  @type validation_error ::
+          :invalid_file_type | {:file_too_large, pos_integer()} | :unreadable_file
+
   @accepted_extensions Uploads.allowed_extensions(:avatar)
   @max_file_size Uploads.max_file_size(:avatar)
 
@@ -37,9 +41,10 @@ defmodule Tymeslot.Profiles.Avatars do
 
   Expects a map with string keys: `"client_name"` and `"path"`. The size is
   read from the uploaded file itself, not from what the client reported.
-  Returns `{:ok, file_params}` on success or `{:error, reason}` on failure.
+  Returns `{:ok, file_params}`, or `{:error, reason}` with a reason the web
+  layer words for the user (`TymeslotWeb.Helpers.ImageUploadErrors`).
   """
-  @spec validate_upload(map()) :: {:ok, map()} | {:error, String.t()}
+  @spec validate_upload(map()) :: {:ok, map()} | {:error, validation_error()}
   def validate_upload(file_params) do
     with :ok <- validate_file_type(file_params),
          :ok <- validate_file_size(file_params) do
@@ -48,33 +53,26 @@ defmodule Tymeslot.Profiles.Avatars do
   end
 
   # Validates the file extension against accepted avatar types.
-  @spec validate_file_type(map()) :: :ok | {:error, String.t()}
-  defp validate_file_type(file_params) do
-    case Map.get(file_params, "client_name") do
-      nil ->
-        {:error, "No file name provided"}
+  @spec validate_file_type(map()) :: :ok | {:error, :invalid_file_type}
+  defp validate_file_type(%{"client_name" => filename}) when is_binary(filename) do
+    extension = filename |> Path.extname() |> String.downcase()
 
-      filename ->
-        extension = filename |> Path.extname() |> String.downcase()
-
-        if extension in @accepted_extensions do
-          :ok
-        else
-          {:error, "Invalid file type. Only JPG, PNG, GIF, and WebP files are allowed"}
-        end
-    end
+    if extension in @accepted_extensions, do: :ok, else: {:error, :invalid_file_type}
   end
 
-  @spec validate_file_size(map()) :: :ok | {:error, String.t()}
+  defp validate_file_type(_file_params), do: {:error, :invalid_file_type}
+
+  @spec validate_file_size(map()) ::
+          :ok | {:error, {:file_too_large, pos_integer()} | :unreadable_file}
   defp validate_file_size(%{"path" => path}) when is_binary(path) do
     case File.stat(path) do
       {:ok, %File.Stat{size: size}} when size <= @max_file_size -> :ok
-      {:ok, %File.Stat{}} -> {:error, "File too large. Maximum size is 10MB"}
-      {:error, _reason} -> {:error, "Invalid file size"}
+      {:ok, %File.Stat{}} -> {:error, {:file_too_large, Uploads.max_file_size_mb(:avatar)}}
+      {:error, _reason} -> {:error, :unreadable_file}
     end
   end
 
-  defp validate_file_size(_file_params), do: {:error, "Invalid file size"}
+  defp validate_file_size(_file_params), do: {:error, :unreadable_file}
 
   @doc """
   Updates a user's avatar file and database record.

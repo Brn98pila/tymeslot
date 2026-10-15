@@ -1226,3 +1226,23 @@ msgstr "doit être une image prédéfinie valide"
 #, elixir-autogen, elixir-format
 msgid "must be a valid video preset"
 msgstr "doit être une vidéo prédéfinie valide"
+
+#: lib/tymeslot_web/helpers/image_upload_errors.ex
+#, elixir-autogen, elixir-format
+msgid "The file could not be read. Please upload it again."
+msgstr "Le fichier n’a pas pu être lu. Veuillez le téléverser à nouveau."
+
+#: lib/tymeslot_web/helpers/image_upload_errors.ex
+#, elixir-autogen, elixir-format
+msgid "This file is not an image we can read. Please upload a different image."
+msgstr "Ce fichier n’est pas une image que nous pouvons lire. Veuillez téléverser une autre image."
+
+#: lib/tymeslot_web/helpers/image_upload_errors.ex
+#, elixir-autogen, elixir-format
+msgid "This file is too large. Please upload a file of at most %{size} MB."
+msgstr "Ce fichier est trop volumineux. Veuillez téléverser un fichier de %{size} Mo au maximum."
+
+#: lib/tymeslot_web/helpers/image_upload_errors.ex
+#, elixir-autogen, elixir-format
+msgid "This file type is not accepted. Please upload a JPG, PNG, GIF or WebP image."
+msgstr "Ce type de fichier n’est pas accepté. Veuillez téléverser une image JPG, PNG, GIF ou WebP."

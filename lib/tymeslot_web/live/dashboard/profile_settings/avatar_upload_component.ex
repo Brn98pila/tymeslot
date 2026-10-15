@@ -119,8 +119,7 @@ defmodule TymeslotWeb.Dashboard.ProfileSettings.AvatarUploadComponent do
 
   defp handle_avatar_upload_error({:error, reason}, socket) do
     Flash.error(
-      ImageUploadErrors.message(reason) ||
-        dgettext("dashboard_profile", "Upload failed: %{reason}", reason: inspect(reason))
+      ImageUploadErrors.message(reason) || dgettext("dashboard_profile", "Upload failed")
     )
 
     socket

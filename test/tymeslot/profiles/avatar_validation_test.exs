@@ -20,35 +20,35 @@ defmodule Tymeslot.Profiles.AvatarValidationTest do
 
       # The extension passes, so the call runs on to the size check, which
       # fails because the stub path names no real file. A rejected extension
-      # would surface the file type message instead.
-      assert result == {:ok, {:error, "Invalid file size"}}
+      # would surface :invalid_file_type instead.
+      assert result == {:ok, {:error, :unreadable_file}}
     end
 
     test "rejects .exe extension" do
       profile = insert(:profile)
 
-      assert {:ok, {:error, "Invalid file type. Only JPG, PNG, GIF, and WebP files are allowed"}} =
+      assert {:ok, {:error, :invalid_file_type}} =
                Profiles.consume_avatar_upload(profile, upload_stub(), entry("virus.exe"), %{})
     end
 
     test "rejects .svg extension" do
       profile = insert(:profile)
 
-      assert {:ok, {:error, "Invalid file type. Only JPG, PNG, GIF, and WebP files are allowed"}} =
+      assert {:ok, {:error, :invalid_file_type}} =
                Profiles.consume_avatar_upload(profile, upload_stub(), entry("image.svg"), %{})
     end
 
     test "rejects .php extension" do
       profile = insert(:profile)
 
-      assert {:ok, {:error, "Invalid file type. Only JPG, PNG, GIF, and WebP files are allowed"}} =
+      assert {:ok, {:error, :invalid_file_type}} =
                Profiles.consume_avatar_upload(profile, upload_stub(), entry("script.php"), %{})
     end
 
     test "rejects file without extension" do
       profile = insert(:profile)
 
-      assert {:ok, {:error, "Invalid file type. Only JPG, PNG, GIF, and WebP files are allowed"}} =
+      assert {:ok, {:error, :invalid_file_type}} =
                Profiles.consume_avatar_upload(profile, upload_stub(), entry("noextension"), %{})
     end
   end
@@ -60,7 +60,7 @@ defmodule Tymeslot.Profiles.AvatarValidationTest do
       profile = insert(:profile)
       path = sized_file(tmp_dir, 10_000_001)
 
-      assert {:ok, {:error, "File too large. Maximum size is 10MB"}} =
+      assert {:ok, {:error, {:file_too_large, 10}}} =
                Profiles.consume_avatar_upload(
                  profile,
                  upload_stub(path),
@@ -76,7 +76,7 @@ defmodule Tymeslot.Profiles.AvatarValidationTest do
 
       # At the limit validation passes, so the call runs on to the content
       # check, which refuses the zero bytes. An off-by-one in the size check
-      # would surface the "File too large" message instead.
+      # would surface {:file_too_large, 10} instead.
       assert Profiles.consume_avatar_upload(profile, upload_stub(path), entry("photo.jpg"), %{}) ==
                {:ok, {:error, :invalid_image_format}}
     end
@@ -85,7 +85,7 @@ defmodule Tymeslot.Profiles.AvatarValidationTest do
       profile = insert(:profile)
 
       assert Profiles.consume_avatar_upload(profile, upload_stub(), entry("photo.jpg"), %{}) ==
-               {:ok, {:error, "Invalid file size"}}
+               {:ok, {:error, :unreadable_file}}
     end
   end
 
