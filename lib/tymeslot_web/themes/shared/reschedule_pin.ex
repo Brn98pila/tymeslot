@@ -31,7 +31,7 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
   choice is a real one: the page falls back to the full list, as before.
   """
 
-  import Phoenix.Component, only: [assign: 3]
+  import Phoenix.Component, only: [assign: 2, assign: 3]
   import Phoenix.LiveView, only: [push_navigate: 2, push_patch: 2, put_flash: 3]
 
   alias Tymeslot.Bookings.Refusal
@@ -140,6 +140,40 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
   def clear(socket), do: assign(socket, :meeting_type_pinned, false)
 
   @doc """
+  Marks a page that stops being pinned as offering a real choice again: the
+  organiser's catalogue, which the pin had replaced with the one type being
+  moved, is re-resolved the way the mount resolves it, which is also what
+  keeps a demo organiser whole (its types are synthesised by the overlay
+  rather than stored, so no query could rebuild them).
+
+  On a page that opens on the overview (`on_overview?`), the pinned type
+  stays selected only if the catalogue offers it: one it no longer lists
+  (deactivated since, or private) would leave a selection no card matches,
+  and a "next" that books it. A page on a type's own link keeps it, as that
+  link is how such a type is reached. A page that was not pinned is only
+  marked so.
+  """
+  @spec unpin(Phoenix.LiveView.Socket.t(), boolean()) :: Phoenix.LiveView.Socket.t()
+  def unpin(socket, on_overview?) do
+    if pinned?(socket) do
+      socket
+      |> clear()
+      |> OrganizerHelpers.handle_username_resolution(socket.assigns[:username_context])
+      |> then(&if(on_overview?, do: drop_selection_off_catalogue(&1), else: &1))
+    else
+      clear(socket)
+    end
+  end
+
+  defp drop_selection_off_catalogue(socket) do
+    offered = Enum.map(socket.assigns[:meeting_types] || [], &MeetingTypes.effective_slug/1)
+
+    if socket.assigns[:selected_duration] in offered,
+      do: socket,
+      else: assign(socket, selected_duration: nil, duration: nil, meeting_type: nil)
+  end
+
+  @doc """
   Leaves the reschedule behind: the page is booking afresh again.
 
   "Schedule Another Meeting" restarts the flow in place, without navigating, so
@@ -155,9 +189,8 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
 
   Clearing `:is_rescheduling` is not enough on its own: the uid is what the
   orchestrator receives, and the pin has replaced `:meeting_types` with the one
-  type being moved. The organiser's catalogue is re-resolved the way the mount
-  resolves it, which is also what keeps a demo organiser whole: its types are
-  synthesised by the overlay rather than stored, so no query could rebuild them.
+  type being moved, which `unpin/2` puts right for the route the booking
+  starts again on.
   """
   @spec abandon(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def abandon(socket) do
@@ -166,8 +199,7 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
     |> assign_context(nil, nil)
     |> SeatMoveLink.clear()
     |> assign(:is_rescheduling, false)
-    |> clear()
-    |> OrganizerHelpers.handle_username_resolution(socket.assigns[:username_context])
+    |> unpin(socket.assigns[:entered_via_overview] == true)
   end
 
   @doc """

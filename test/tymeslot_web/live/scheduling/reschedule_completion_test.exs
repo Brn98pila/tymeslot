@@ -486,6 +486,34 @@ defmodule TymeslotWeb.Live.Scheduling.RescheduleCompletionTest do
       assert assigns.reschedule_context == nil
       refute render(view) =~ ~s(value="Test Attendee")
     end
+
+    # The pin had made the meeting's own type the selection; once it is gone
+    # from the catalogue the overview offers, no card matches it, and "next"
+    # would book a type the page no longer shows.
+    @tag :capture_log
+    test "drops the meeting's type from the selection when the overview no longer offers it", %{
+      conn: conn,
+      user: user,
+      profile: profile,
+      meeting_type: meeting_type,
+      meeting: meeting
+    } do
+      insert(:meeting_type, user: user, duration_minutes: 45, name: "Deep Dive", is_active: true)
+
+      {:ok, view, _html} =
+        live(conn, "/#{profile.username}?timezone=UTC&reschedule_meeting_uid=#{meeting.uid}")
+
+      assert :sys.get_state(view.pid).socket.assigns.selected_duration == "quick-chat"
+
+      meeting_type |> Changeset.change(%{is_active: false}) |> Repo.update!()
+      render_patch(view, "/#{profile.username}?timezone=UTC")
+
+      assert BookingDriver.meeting_types(view) == ["deep-dive"]
+
+      assigns = :sys.get_state(view.pid).socket.assigns
+      assert assigns.selected_duration == nil
+      assert assigns.meeting_type == nil
+    end
   end
 
   describe "without the reschedule context" do

@@ -247,23 +247,10 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
   defp pin_reschedule_meeting_type(socket) do
     case ReschedulePin.meeting_type(socket) do
       nil ->
-        unpin(socket)
+        ReschedulePin.unpin(socket, socket.assigns[:live_action] == :overview)
 
       meeting_type ->
         socket |> StepEntry.assign_meeting_type(meeting_type) |> ReschedulePin.pin(meeting_type)
-    end
-  end
-
-  # A page no longer pinned (its URL dropped the reschedule) offers the
-  # organiser's whole catalogue again, which the pin had replaced, resolved as
-  # `ReschedulePin.abandon/1` resolves it.
-  defp unpin(socket) do
-    if ReschedulePin.pinned?(socket) do
-      socket
-      |> ReschedulePin.clear()
-      |> OrganizerHelpers.handle_username_resolution(socket.assigns[:username_context])
-    else
-      ReschedulePin.clear(socket)
     end
   end
 
