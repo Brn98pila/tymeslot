@@ -313,6 +313,35 @@ defmodule TymeslotWeb.Themes.Shared.LocalizationHelpers do
   end
 
   @doc """
+  The month grid's column headings, abbreviated and translated, starting on
+  `week_start` (`:monday` or `:sunday`), as
+  `Tymeslot.Availability.Calculate.display_range/3` lays the window out. A
+  translation longer than three characters is cut so it cannot widen its
+  column.
+  """
+  @spec weekday_headings(:monday | :sunday) :: [String.t()]
+  def weekday_headings(week_start) do
+    headings =
+      Enum.map(
+        [
+          dgettext("booking", "Mon"),
+          dgettext("booking", "Tue"),
+          dgettext("booking", "Wed"),
+          dgettext("booking", "Thu"),
+          dgettext("booking", "Fri"),
+          dgettext("booking", "Sat"),
+          dgettext("booking", "Sun")
+        ],
+        &String.slice(&1, 0, 3)
+      )
+
+    case week_start do
+      :monday -> headings
+      :sunday -> [List.last(headings) | Enum.drop(headings, -1)]
+    end
+  end
+
+  @doc """
   Gets short weekday name translated.
   """
   @spec day_name_short(integer()) :: String.t()
@@ -356,28 +385,6 @@ defmodule TymeslotWeb.Themes.Shared.LocalizationHelpers do
   def format_advance_booking_days(365), do: dgettext("booking", "1 year in advance")
   def format_advance_booking_days(days) when is_integer(days), do: format_years_advance(days)
   def format_advance_booking_days(_arg), do: dgettext("booking", "90 days in advance")
-
-  @doc """
-  Translated three-character weekday headers for a month grid, Sunday first,
-  matching the 42-day window `Tymeslot.Availability.Calculate.display_range/2`
-  lays out. A translation longer than three characters is cut so it cannot
-  widen its column.
-  """
-  @spec weekday_headers() :: [String.t()]
-  def weekday_headers do
-    Enum.map(
-      [
-        dgettext("booking", "Sun"),
-        dgettext("booking", "Mon"),
-        dgettext("booking", "Tue"),
-        dgettext("booking", "Wed"),
-        dgettext("booking", "Thu"),
-        dgettext("booking", "Fri"),
-        dgettext("booking", "Sat")
-      ],
-      &String.slice(&1, 0, 3)
-    )
-  end
 
   @doc """
   Formats a time on the clock the visitor's language uses.

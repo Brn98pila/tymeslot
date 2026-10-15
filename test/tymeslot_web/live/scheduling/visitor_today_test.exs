@@ -166,8 +166,8 @@ defmodule TymeslotWeb.Live.Scheduling.VisitorTodayTest do
   # is cached per display range and timezone, and a failed computation is never
   # cached, so this probe cannot add an entry of its own.
   defp month_cached?(view, profile, meeting_type, timezone) do
-    %{current_year: year, current_month: month} = live_assigns(view)
-    {start_date, end_date} = Calculate.display_range(year, month)
+    %{current_year: year, current_month: month, week_start: week_start} = live_assigns(view)
+    {start_date, end_date} = Calculate.display_range(year, month, week_start)
 
     key =
       AvailabilityCache.availability_range_key(

@@ -44,8 +44,6 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
       |> SchedulingInit.assign_theme_state()
       |> TimezoneHelpers.assign_user_timezone(params)
       |> ThemeUtils.assign_attendee_prefill()
-      # After the timezone, so the calendar opens on the booker's today.
-      |> CalendarHelpers.anchor_on_today()
       |> ThemeUtils.assign_theme_with_preview(params)
 
     # Resolve the username context (which sets meeting_types) unless the
@@ -56,6 +54,14 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
       else
         OrganizerHelpers.handle_username_resolution(socket, params["username"])
       end
+
+    # The week start falls back to the organiser's own, so it needs them
+    # resolved; the calendar then opens on the booker's today (after the
+    # timezone) in a week that starts on it.
+    socket =
+      socket
+      |> SchedulingInit.assign_week_start()
+      |> CalendarHelpers.anchor_on_today()
 
     # Verify an owner-preview token now that the organiser (and so the page
     # owner's user id) is resolved. Gates simulate-vs-persist downstream.

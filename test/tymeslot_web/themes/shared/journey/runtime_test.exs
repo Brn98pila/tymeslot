@@ -33,7 +33,13 @@ defmodule TymeslotWeb.Themes.Shared.Journey.RuntimeTest do
   end
 
   defp socket(assigns),
-    do: %Socket{assigns: Map.merge(%{__changed__: %{}, flash: %{}, journey: classic()}, assigns)}
+    do: %Socket{
+      assigns:
+        Map.merge(
+          %{__changed__: %{}, flash: %{}, journey: classic(), week_start: :monday},
+          assigns
+        )
+    }
 
   defp question(id), do: %{"id" => id, "type" => "short_text", "label" => id, "required" => true}
 

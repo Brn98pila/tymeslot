@@ -254,9 +254,10 @@ defmodule TymeslotWeb.Themes.Shared.LocalizationHelpersTest do
     end
   end
 
-  describe "weekday_headers/0" do
-    test "starts on Sunday, the day the month grid starts on" do
-      assert LocalizationHelpers.weekday_headers() == ~w(Sun Mon Tue Wed Thu Fri Sat)
+  describe "weekday_headings/1" do
+    test "starts on the week start it is given" do
+      assert LocalizationHelpers.weekday_headings(:monday) == ~w(Mon Tue Wed Thu Fri Sat Sun)
+      assert LocalizationHelpers.weekday_headings(:sunday) == ~w(Sun Mon Tue Wed Thu Fri Sat)
     end
 
     test "cuts a longer translation to three characters so it cannot widen a column" do
@@ -264,7 +265,7 @@ defmodule TymeslotWeb.Themes.Shared.LocalizationHelpersTest do
       # more than the grid's header cell is sized for.
       Gettext.put_locale(TymeslotWeb.Gettext, "fr")
 
-      assert LocalizationHelpers.weekday_headers() == ~w(Dim Lun Mar Mer Jeu Ven Sam)
+      assert LocalizationHelpers.weekday_headings(:sunday) == ~w(Dim Lun Mar Mer Jeu Ven Sam)
     end
   end
 
