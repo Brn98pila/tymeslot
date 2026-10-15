@@ -60,21 +60,22 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationQueriesTest do
                ThemeCustomizationQueries.get_by_profile_and_theme(profile.id, "2")
     end
 
-    test "prevents duplicate theme customizations for same profile and theme" do
+    test "writes nothing when the profile already has a customization of the theme" do
       profile = insert(:profile)
 
-      insert(:theme_customization, profile: profile, theme_id: "1")
+      existing = insert(:theme_customization, profile: profile, theme_id: "1")
 
-      {:error, changeset} =
-        ThemeCustomizationQueries.create(%{
-          profile_id: profile.id,
-          theme_id: "1",
-          color_scheme: "default",
-          background_type: "gradient",
-          background_value: "gradient_1"
-        })
+      assert {:ok, :exists} =
+               ThemeCustomizationQueries.create(%{
+                 profile_id: profile.id,
+                 theme_id: "1",
+                 color_scheme: "purple",
+                 background_type: "gradient",
+                 background_value: "gradient_1"
+               })
 
-      assert "has already been taken" in errors_on(changeset).profile_id
+      assert ThemeCustomizationQueries.get_by_profile_and_theme(profile.id, "1").settings ==
+               existing.settings
     end
 
     test "allows same theme customization for different profiles" do

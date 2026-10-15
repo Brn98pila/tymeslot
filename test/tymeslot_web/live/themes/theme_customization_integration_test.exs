@@ -37,7 +37,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
       primary_color = scheme_def.colors.primary
 
       {:ok, _customization} =
-        ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+        ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
           "color_scheme" => color_scheme,
           "background_type" => "color",
           "background_value" => "#123456"
@@ -67,7 +67,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
       gradient_val = Presets.get_gradient_presets()[gradient_id].value
 
       {:ok, _customization} =
-        ThemeCustomizations.create_theme_customization(profile.id, "2", %{
+        ThemeCustomizations.upsert_theme_customization(profile.id, "2", %{
           "color_scheme" => "default",
           "background_type" => "gradient",
           "background_value" => gradient_id
@@ -85,7 +85,7 @@ defmodule TymeslotWeb.Live.Themes.ThemeCustomizationIntegrationTest do
 
       # Create customization with a video
       {:ok, _customization} =
-        ThemeCustomizations.create_theme_customization(profile.id, "2", %{
+        ThemeCustomizations.upsert_theme_customization(profile.id, "2", %{
           "color_scheme" => "default",
           "background_type" => "video",
           "background_value" => "preset:rhythm-default"

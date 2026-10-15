@@ -146,7 +146,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.LogoPanelTest d
     background = stored_file(profile, "a-background.png")
 
     {:ok, before} =
-      ThemeCustomizations.create_theme_customization(profile.id, @theme_id, %{
+      ThemeCustomizations.upsert_theme_customization(profile.id, @theme_id, %{
         "color_scheme" => "neutral",
         "background_type" => "image",
         "background_value" => "custom",
@@ -167,7 +167,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.LogoPanelTest d
     background = stored_file(profile, "a-background.png")
 
     {:ok, _before} =
-      ThemeCustomizations.create_theme_customization(profile.id, @theme_id, %{
+      ThemeCustomizations.upsert_theme_customization(profile.id, @theme_id, %{
         "color_scheme" => "neutral",
         "background_type" => "image",
         "background_value" => "custom",

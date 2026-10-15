@@ -162,7 +162,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       File.write!(video_abs, "data")
 
       {:ok, _customization} =
-        ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+        ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
           "color_scheme" => "default",
           "background_type" => "video",
           "background_value" => "custom",
@@ -261,7 +261,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
         {video, video_file} = stored_file(profile, theme_id, "videos/old.mp4")
 
         {:ok, _customization} =
-          ThemeCustomizations.create_theme_customization(profile.id, theme_id, %{
+          ThemeCustomizations.upsert_theme_customization(profile.id, theme_id, %{
             "background_type" => "image",
             "background_value" => "custom",
             "background_image_path" => image,
@@ -295,7 +295,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
         {video, video_file} = stored_file(profile, theme_id, "videos/old.mp4")
 
         {:ok, _customization} =
-          ThemeCustomizations.create_theme_customization(profile.id, theme_id, %{
+          ThemeCustomizations.upsert_theme_customization(profile.id, theme_id, %{
             "background_type" => "video",
             "background_value" => "custom",
             "background_video_path" => video

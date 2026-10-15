@@ -17,17 +17,42 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationQueries do
   end
 
   @doc """
-  Creates a theme customization.
+  The customisation of `theme_id` for `profile_id`, locked `FOR UPDATE` until
+  the surrounding transaction ends; `nil` when there is none.
   """
-  @spec create(map()) :: {:ok, ThemeCustomizationSchema.t()} | {:error, Ecto.Changeset.t()}
-  def create(attrs) do
-    %ThemeCustomizationSchema{}
-    |> ThemeCustomizationSchema.changeset(attrs)
-    |> Repo.insert()
+  @spec lock_by_profile_and_theme(integer(), String.t()) :: ThemeCustomizationSchema.t() | nil
+  def lock_by_profile_and_theme(profile_id, theme_id) do
+    Repo.one(
+      from(c in ThemeCustomizationSchema,
+        where: c.profile_id == ^profile_id and c.theme_id == ^theme_id,
+        lock: "FOR UPDATE"
+      )
+    )
   end
 
   @doc """
-  Updates a theme customization.
+  Creates a theme customization, or returns `{:ok, :exists}` without writing
+  anything when the profile already has one for the theme (another request
+  created it first).
+  """
+  @spec create(map()) ::
+          {:ok, ThemeCustomizationSchema.t() | :exists} | {:error, Ecto.Changeset.t()}
+  def create(attrs) do
+    inserted =
+      %ThemeCustomizationSchema{}
+      |> ThemeCustomizationSchema.changeset(attrs)
+      |> Repo.insert(on_conflict: :nothing, conflict_target: [:profile_id, :theme_id])
+
+    case inserted do
+      {:ok, %ThemeCustomizationSchema{id: nil}} -> {:ok, :exists}
+      result -> result
+    end
+  end
+
+  @doc """
+  Updates a theme customization. Callers hold the row's lock
+  (`lock_by_profile_and_theme/2`), since the changeset rebuilds the whole
+  settings map from `customization`.
   """
   @spec update(ThemeCustomizationSchema.t(), map()) ::
           {:ok, ThemeCustomizationSchema.t()} | {:error, Ecto.Changeset.t()}

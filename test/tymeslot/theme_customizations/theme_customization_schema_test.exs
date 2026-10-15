@@ -126,7 +126,7 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchemaTest do
         |> Repo.insert()
 
       # The error must be on :profile_id with constraint: :unique so that
-      # ThemeCustomizations.create_theme_customization/3 can detect and recover from it
+      # ThemeCustomizations.upsert_theme_customization/3 can detect and recover from it
       assert Enum.any?(changeset.errors, fn {field, {_msg, opts}} ->
                field == :profile_id and Keyword.get(opts, :constraint) == :unique
              end)

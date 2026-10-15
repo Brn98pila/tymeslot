@@ -160,7 +160,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.CoverPanelTest 
     File.write!(absolute, @png)
 
     {:ok, _row} =
-      ThemeCustomizations.create_theme_customization(profile.id, @theme_id, %{
+      ThemeCustomizations.upsert_theme_customization(profile.id, @theme_id, %{
         "color_scheme" => "neutral",
         "background_type" => "image",
         "background_value" => "custom",

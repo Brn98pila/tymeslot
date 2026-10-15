@@ -34,7 +34,7 @@ defmodule Tymeslot.ThemeCustomizationsLifecycleTest do
         "background_value" => "gradient_2"
       }
 
-      {:ok, _saved} = ThemeCustomizations.create_theme_customization(profile.id, "1", attrs)
+      {:ok, _saved} = ThemeCustomizations.upsert_theme_customization(profile.id, "1", attrs)
 
       result = ThemeCustomizations.initialize_customization(profile.id, "1")
 
@@ -44,7 +44,7 @@ defmodule Tymeslot.ThemeCustomizationsLifecycleTest do
 
     test "get_for_user/2 returns customization by user_id", %{user: user, profile: profile} do
       {:ok, _result} =
-        ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+        ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
           "color_scheme" => "forest",
           "background_type" => "gradient",
           "background_value" => "gradient_4"
