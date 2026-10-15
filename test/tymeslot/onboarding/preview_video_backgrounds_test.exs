@@ -36,7 +36,9 @@ defmodule Tymeslot.Onboarding.PreviewVideoBackgroundsTest do
     {relative, full}
   end
 
-  test "replaces an uploaded image background and deletes its file", %{profile: profile} do
+  test "shows a preset video, keeping an uploaded image stored to switch back to", %{
+    profile: profile
+  } do
     {relative, full} = stored_image(profile)
 
     {:ok, _existing} =
@@ -51,8 +53,8 @@ defmodule Tymeslot.Onboarding.PreviewVideoBackgroundsTest do
     saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
     assert saved.settings["background_type"] == "video"
     assert saved.settings["background_value"] in ThemeCustomizations.video_preset_keys("1")
-    refute Map.has_key?(saved.settings, "background_image_path")
-    refute File.exists?(full)
+    assert saved.settings["background_image_path"] == relative
+    assert File.exists?(full)
   end
 
   test "keeps the organiser's other choices", %{profile: profile} do

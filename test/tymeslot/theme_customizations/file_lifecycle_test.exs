@@ -243,19 +243,21 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
       assert File.exists?(ctx.video_abs)
     end
 
-    test "choosing a gradient clears both paths and deletes both files", ctx do
+    test "choosing a gradient keeps both uploads and their files", ctx do
       assert {:ok, updated} =
                ThemeCustomizations.apply_option(ctx.profile.id, "1", :background, %{
                  "field" => "gradient",
                  "value" => "gradient_2"
                })
 
-      assert {updated.settings["background_image_path"],
-              updated.settings["background_video_path"]} == {nil, nil}
+      assert updated.settings["background_type"] == "gradient"
 
-      refute File.exists?(ctx.image_abs)
-      refute File.exists?(ctx.video_abs)
-      refute Enum.any?(ctx.variant_abs, &File.exists?/1)
+      assert {updated.settings["background_image_path"],
+              updated.settings["background_video_path"]} == {ctx.image_rel, ctx.video_rel}
+
+      assert File.exists?(ctx.image_abs)
+      assert File.exists?(ctx.video_abs)
+      assert Enum.all?(ctx.variant_abs, &File.exists?/1)
     end
   end
 

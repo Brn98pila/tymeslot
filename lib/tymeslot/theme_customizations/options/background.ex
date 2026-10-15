@@ -102,43 +102,33 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
 
   @doc """
   The changes choosing a background makes, or `:error` for a kind the group
-  does not offer. An upload survives only when the new background is that
-  same kind chosen as `"custom"`; every other choice (a preset of either kind,
-  a gradient, or a colour) drops both uploads, so a stored file is never
-  orphaned by a change that stops naming it.
+  does not offer. Choosing never touches the uploads: an uploaded image and
+  an uploaded video both stay stored, whatever is shown, until the organiser
+  replaces that same upload (`upload_changes/3`). Choosing `"custom"` of a
+  kind shows its upload, which must then be stored.
   """
   @impl OptionGroup
   def changes(kind, value, %{kinds: kinds}) do
-    if kind in Enum.map(kinds, &Atom.to_string/1) do
-      {:ok,
-       Map.merge(
-         %{"background_type" => kind, "background_value" => value},
-         cleared_uploads(kind, value)
-       )}
-    else
-      :error
-    end
+    if kind in Enum.map(kinds, &Atom.to_string/1),
+      do: {:ok, %{"background_type" => kind, "background_value" => value}},
+      else: :error
   end
 
   @doc """
   The changes an upload into one of the background's asset fields makes: the
-  upload becomes the custom background of its kind, and the background's
-  other upload is dropped, so the save deletes its file.
+  upload becomes the custom background of its kind, replacing (and so
+  deleting) the previous upload of that kind only.
   """
   @impl OptionGroup
   @spec upload_changes(atom(), String.t(), group()) :: map()
   def upload_changes(field, path, group) do
-    fields = asset_fields(group)
-    kind = Keyword.fetch!(fields, field)
+    kind = group |> asset_fields() |> Keyword.fetch!(field)
 
-    fields
-    |> Keyword.delete(field)
-    |> Map.new(fn {other, _kind} -> {Atom.to_string(other), nil} end)
-    |> Map.merge(%{
+    %{
       "background_type" => Atom.to_string(kind),
       "background_value" => "custom",
       Atom.to_string(field) => path
-    })
+    }
   end
 
   @doc "The group's presets of one kind as `{id, preset}`, in the group's order."
@@ -230,12 +220,6 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
     do: %{"--theme-background" => "var(--theme-canvas)"}
 
   def vars(_media_or_nil, _palette_vars), do: %{}
-
-  defp cleared_uploads("image", "custom"), do: %{"background_video_path" => nil}
-  defp cleared_uploads("video", "custom"), do: %{"background_image_path" => nil}
-
-  defp cleared_uploads(_kind, _value),
-    do: %{"background_image_path" => nil, "background_video_path" => nil}
 
   defp video_sources(%{"background_video_path" => path}) when is_binary(path) and path != "" do
     sanitized = Validation.sanitize_path(path)

@@ -105,29 +105,20 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
                Background.changes("color", "#ff5500", group(@all_kinds))
     end
 
-    test "a preset of another kind, a gradient or a colour nils both uploads" do
+    test "never names an upload, whatever is chosen" do
       for {kind, value} <- [
             {"gradient", "gradient_1"},
             {"color", "#ff5500"},
             {"image", "preset:artistic-studio"},
-            {"video", "preset:blue-wave"}
+            {"video", "preset:blue-wave"},
+            {"image", "custom"},
+            {"video", "custom"}
           ] do
         assert {:ok, changes} = Background.changes(kind, value, group(@all_kinds))
 
-        assert Map.take(changes, ["background_image_path", "background_video_path"]) ==
-                 %{"background_image_path" => nil, "background_video_path" => nil},
+        assert changes == %{"background_type" => kind, "background_value" => value},
                "#{kind}/#{value}"
       end
-    end
-
-    test "custom of the same kind keeps its own path and clears the other" do
-      assert {:ok, image_changes} = Background.changes("image", "custom", group(@all_kinds))
-      refute Map.has_key?(image_changes, "background_image_path")
-      assert Map.fetch(image_changes, "background_video_path") == {:ok, nil}
-
-      assert {:ok, video_changes} = Background.changes("video", "custom", group(@all_kinds))
-      refute Map.has_key?(video_changes, "background_video_path")
-      assert Map.fetch(video_changes, "background_image_path") == {:ok, nil}
     end
 
     test "refuses a kind the group does not offer" do
@@ -295,7 +286,7 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
   end
 
   describe "upload_changes/3" do
-    test "an image upload becomes the custom image background and drops the video" do
+    test "an image upload becomes the custom image background and leaves the video alone" do
       assert Background.upload_changes(
                :background_image_path,
                "themes/1/1/images/a.png",
@@ -304,12 +295,11 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
                %{
                  "background_type" => "image",
                  "background_value" => "custom",
-                 "background_image_path" => "themes/1/1/images/a.png",
-                 "background_video_path" => nil
+                 "background_image_path" => "themes/1/1/images/a.png"
                }
     end
 
-    test "a video upload becomes the custom video background and drops the image" do
+    test "a video upload becomes the custom video background and leaves the image alone" do
       assert Background.upload_changes(
                :background_video_path,
                "themes/1/1/videos/a.mp4",
@@ -318,21 +308,7 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
                %{
                  "background_type" => "video",
                  "background_value" => "custom",
-                 "background_video_path" => "themes/1/1/videos/a.mp4",
-                 "background_image_path" => nil
-               }
-    end
-
-    test "names no upload of a kind the group does not offer" do
-      assert Background.upload_changes(
-               :background_image_path,
-               "themes/1/1/images/a.png",
-               group([:gradient, :image])
-             ) ==
-               %{
-                 "background_type" => "image",
-                 "background_value" => "custom",
-                 "background_image_path" => "themes/1/1/images/a.png"
+                 "background_video_path" => "themes/1/1/videos/a.mp4"
                }
     end
   end

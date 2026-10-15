@@ -85,7 +85,7 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
              )
     end
 
-    test "replaces an uploaded video, deleting its file", %{profile: profile} do
+    test "keeps an uploaded video stored beside it", %{profile: profile} do
       {video, video_file} = stored_file(profile, "1", "videos/old.mp4")
 
       {:ok, _existing} =
@@ -103,8 +103,31 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
                  temp_file("bg.png", @png)
                )
 
-      assert customization.settings["background_video_path"] == nil
-      refute File.exists?(video_file)
+      assert customization.settings["background_type"] == "image"
+      assert customization.settings["background_video_path"] == video
+      assert File.exists?(video_file)
+    end
+
+    test "replaces the previous uploaded image, deleting its file", %{profile: profile} do
+      {image, image_file} = stored_file(profile, "1", "images/old.png")
+
+      {:ok, _existing} =
+        ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
+          "background_type" => "gradient",
+          "background_value" => "gradient_1",
+          "background_image_path" => image
+        })
+
+      assert {:ok, customization} =
+               ThemeCustomizations.attach_asset(
+                 profile.id,
+                 "1",
+                 :background_image_path,
+                 temp_file("bg.png", @png)
+               )
+
+      assert customization.settings["background_image_path"] not in [nil, image]
+      refute File.exists?(image_file)
     end
 
     test "refuses a file that is not an image, saving nothing", %{profile: profile} do
@@ -150,7 +173,7 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
       )
     end
 
-    test "replaces an uploaded image, deleting its file", %{profile: profile} do
+    test "keeps an uploaded image stored beside it", %{profile: profile} do
       stub(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
       {image, image_file} = stored_file(profile, "2", "images/old.png")
 
@@ -169,8 +192,9 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
                  temp_file("clip.mp4", @mp4)
                )
 
-      assert customization.settings["background_image_path"] == nil
-      refute File.exists?(image_file)
+      assert customization.settings["background_type"] == "video"
+      assert customization.settings["background_image_path"] == image
+      assert File.exists?(image_file)
     end
 
     test "when the job cannot be queued, changes nothing and deletes the new file",

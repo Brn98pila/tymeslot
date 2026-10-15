@@ -2,7 +2,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   @moduledoc """
   Background choices that store or clear files, made through the theme
   customisation panel: uploading an image or a video, and picking a preset
-  image or video, which drops any upload the previous background named.
+  image or video. An uploaded image and an uploaded video both stay stored,
+  whatever is shown, until that same upload is replaced or removed.
 
   A successful upload pushes "upload-complete" so the `AutoUpload` hook clears
   the file picker, mirroring the avatar upload fixes (dashboard and
@@ -134,19 +135,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       assert_push_event(view, "upload-complete", %{})
     end
 
-    test "an image upload replaces an uploaded video and removes its file",
+    test "an image upload becomes the background and keeps the uploaded video stored",
          %{conn: conn, profile: profile} do
-      upload_root =
-        Path.join(System.tmp_dir!(), "tymeslot_uploads_#{System.unique_integer([:positive])}")
-
-      original_root = Application.get_env(:tymeslot, :upload_directory)
-      Application.put_env(:tymeslot, :upload_directory, upload_root)
-
-      on_exit(fn ->
-        Application.put_env(:tymeslot, :upload_directory, original_root)
-        File.rm_rf(upload_root)
-      end)
-
       video_rel = "themes/#{profile.id}/1/videos/old.mp4"
       video_abs = Storage.build_theme_file_path(video_rel)
       File.mkdir_p!(Path.dirname(video_abs))
@@ -186,8 +176,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
       assert saved.settings["background_type"] == "image"
       assert saved.settings["background_image_path"] =~ "themes/#{profile.id}/1/images/"
-      assert saved.settings["background_video_path"] == nil
-      refute File.exists?(video_abs)
+      assert saved.settings["background_video_path"] == video_rel
+      assert File.exists?(video_abs)
     end
 
     test "publishes a WebP background without its EXIF location", %{
@@ -245,7 +235,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
     setup :isolated_upload_root
 
     for theme <- @image_themes do
-      test "#{theme.name}: a preset image card saves it and clears the uploaded files",
+      test "#{theme.name}: a preset image card saves it and keeps both uploads stored",
            %{conn: conn, profile: profile} do
         theme_id = unquote(theme.id)
         {image, image_file} = stored_file(profile, theme_id, "images/old.png")
@@ -270,17 +260,17 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
                  %{
                    "background_type" => "image",
                    "background_value" => choice,
-                   "background_image_path" => nil,
-                   "background_video_path" => nil
+                   "background_image_path" => image,
+                   "background_video_path" => video
                  }
 
-        refute File.exists?(image_file)
-        refute File.exists?(video_file)
+        assert File.exists?(image_file)
+        assert File.exists?(video_file)
       end
     end
 
     for theme <- @video_themes do
-      test "#{theme.name}: a preset video card saves it and clears the uploaded files",
+      test "#{theme.name}: a preset video card saves it and keeps the uploaded video stored",
            %{conn: conn, profile: profile} do
         theme_id = unquote(theme.id)
         {video, video_file} = stored_file(profile, theme_id, "videos/old.mp4")
@@ -310,10 +300,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
                    "background_type" => "video",
                    "background_value" => choice,
                    "background_image_path" => nil,
-                   "background_video_path" => nil
+                   "background_video_path" => video
                  }
 
-        refute File.exists?(video_file)
+        assert File.exists?(video_file)
       end
     end
   end
