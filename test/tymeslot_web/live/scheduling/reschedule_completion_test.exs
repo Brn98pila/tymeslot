@@ -47,6 +47,7 @@ defmodule TymeslotWeb.Live.Scheduling.RescheduleCompletionTest do
   alias Tymeslot.Repo
   alias Tymeslot.RescheduleTestSetup
   alias Tymeslot.Workers.CalendarEventWorker
+  alias TymeslotWeb.BookingDriver
 
   setup :verify_on_exit!
 
@@ -452,6 +453,38 @@ defmodule TymeslotWeb.Live.Scheduling.RescheduleCompletionTest do
       assert {:error, {:live_redirect, %{to: to}}} = render_patch(view, path)
       assert to == "/#{profile.username}?timezone=UTC"
       assert assert_redirect(view, to)["error"] == "Cannot reschedule a cancelled meeting"
+    end
+  end
+
+  describe "a URL that no longer names the reschedule" do
+    # The URL decides whether the page is a reschedule (`is_rescheduling` is
+    # read from it), so the booking it names has to follow it too. Kept from
+    # an earlier URL (browser history across "Schedule another meeting"), it
+    # left a fresh booking pinned to the old meeting's type and prefilled
+    # with its attendee's details.
+    @tag :capture_log
+    test "leaves the reschedule behind", %{
+      conn: conn,
+      user: user,
+      profile: profile,
+      meeting: meeting
+    } do
+      insert(:meeting_type, user: user, duration_minutes: 45, name: "Deep Dive", is_active: true)
+
+      {:ok, view, _html} =
+        live(conn, "/#{profile.username}?timezone=UTC&reschedule_meeting_uid=#{meeting.uid}")
+
+      render_patch(view, "/#{profile.username}?timezone=UTC")
+
+      # The pin had narrowed the overview to the meeting's own type.
+      assert Enum.sort(BookingDriver.meeting_types(view)) == ["deep-dive", "quick-chat"]
+
+      view = walk_to_booking_form(view, "UTC", "quick-chat")
+
+      assigns = :sys.get_state(view.pid).socket.assigns
+      assert assigns.reschedule_meeting_uid == nil
+      assert assigns.reschedule_context == nil
+      refute render(view) =~ ~s(value="Test Attendee")
     end
   end
 
