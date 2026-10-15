@@ -33,6 +33,7 @@ defmodule TymeslotWeb.Live.Scheduling.AvailabilityHelpers do
       reschedule_uid: socket.assigns[:reschedule_meeting_uid],
       reschedule: socket.assigns[:reschedule_context],
       reschedule_seat_token: socket.assigns[:reschedule_seat_token],
+      seat_move: socket.assigns[:seat_move_context],
       demo_mode?: Demo.demo_mode?(socket)
     }
   end

@@ -35,7 +35,7 @@ defmodule Tymeslot.Availability.Offer do
   alias Tymeslot.Meetings.BookingLimits.Checker
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
   alias Tymeslot.Profiles
-  alias Tymeslot.Scheduling.RescheduleContext
+  alias Tymeslot.Scheduling.{RescheduleContext, SeatMoveContext}
 
   @default_duration_minutes 30
 
@@ -80,6 +80,11 @@ defmodule Tymeslot.Availability.Offer do
       cancels it with the move and leaves it out on submit; with other seats
       on it, the meeting keeps its time and stays busy. Wins over
       `:reschedule_uid`, as it does on submit.
+    * `:seat_move` - the same seat, already loaded by
+      `Tymeslot.Scheduling.ThemeFlow.seat_move_context/2` when the page
+      applied its link. Used in place of looking the token up again on every
+      fetch, provided it is the seat that token names; whether the move
+      vacates its meeting is still decided afresh.
     * `:demo_mode?` - whether the page is running as a demo.
   """
   @type request :: %{
@@ -89,6 +94,7 @@ defmodule Tymeslot.Availability.Offer do
           optional(:reschedule_uid) => String.t() | nil,
           optional(:reschedule) => RescheduleContext.t() | nil,
           optional(:reschedule_seat_token) => String.t() | nil,
+          optional(:seat_move) => SeatMoveContext.t() | nil,
           optional(:demo_mode?) => boolean() | nil
         }
 
@@ -498,9 +504,13 @@ defmodule Tymeslot.Availability.Offer do
   #
   # A seat move vacates its meeting only when the mover is its last seat;
   # `RescheduleSeat.vacated_meeting/2` is the submit's own rule for that.
-  defp moving_meeting(%{reschedule_seat_token: token, profile: %{user_id: user_id}})
-       when is_binary(token) and is_integer(user_id),
-       do: RescheduleSeat.vacated_meeting(token, user_id)
+  defp moving_meeting(%{reschedule_seat_token: token, profile: %{user_id: user_id}} = request)
+       when is_binary(token) and is_integer(user_id) do
+    case request[:seat_move] do
+      %SeatMoveContext{token: ^token, seat: seat} -> RescheduleSeat.vacated_meeting(seat, user_id)
+      _not_loaded -> RescheduleSeat.vacated_meeting(token, user_id)
+    end
+  end
 
   # The page's own load of the meeting, when it names the same meeting for
   # the same organiser; a fetch then needs no lookup of its own.

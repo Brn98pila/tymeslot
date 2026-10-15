@@ -351,19 +351,14 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.StepEntry do
     submission_token = SubmissionToken.generate()
 
     # Pre-fill form if rescheduling, from the booking the organiser-scoped
-    # lookup loaded; otherwise from the booking link's fragment, if it carried
-    # one. A reschedule link whose booking could not be loaded starts blank.
+    # lookup loaded, or for a seat move from the participant's own seat;
+    # otherwise from the booking link's fragment, if it carried one. A
+    # reschedule link whose booking could not be loaded starts blank.
     form_data =
-      case socket.assigns[:reschedule_seat_token] do
-        nil ->
-          ThemeFlow.build_booking_form_data(
-            socket.assigns[:reschedule_context],
-            fragment_prefill(socket)
-          )
-
-        seat_token ->
-          ThemeFlow.build_seat_booking_form_data(seat_token)
-      end
+      ThemeFlow.build_booking_form_data(
+        socket.assigns[:seat_move_context] || socket.assigns[:reschedule_context],
+        fragment_prefill(socket)
+      )
 
     socket
     |> OrganizerHelpers.setup_form_state(form_data, as: :booking)

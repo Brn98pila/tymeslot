@@ -20,19 +20,34 @@ defmodule TymeslotWeb.Themes.Shared.SeatMoveLink do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [push_navigate: 2, put_flash: 3]
 
+  alias Tymeslot.Scheduling.SeatMoveContext
   alias Tymeslot.Scheduling.ThemeFlow
   alias TymeslotWeb.Themes.Shared.PathHandlers
 
   @doc """
-  Assigns `:reschedule_seat_token` and `:reschedule_seat_from` from the
-  token in the URL: both `nil` when there is none or it is spent.
+  Loads the seat the token in the URL names, once, into `:seat_move_context`
+  (`Tymeslot.Scheduling.ThemeFlow.seat_move_context/2`), and assigns
+  `:reschedule_seat_token` and `:reschedule_seat_from` from it: all three
+  `nil` when there is no token or it is spent. The meeting type, form values
+  and offered times of a seat move read the context rather than looking the
+  seat up again.
   """
   @spec assign_from_url(Phoenix.LiveView.Socket.t(), term()) :: Phoenix.LiveView.Socket.t()
   def assign_from_url(socket, requested_token) do
-    seat_move_from = ThemeFlow.seat_move_start(requested_token)
+    case ThemeFlow.seat_move_context(requested_token, socket.assigns[:organizer_user_id]) do
+      {:ok, %SeatMoveContext{} = context} -> assign_seat(socket, context, context.start)
+      {:error, _spent_or_missing} -> assign_seat(socket, nil, nil)
+    end
+  end
 
+  @doc "Forgets the seat move: the page books afresh."
+  @spec clear(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def clear(socket), do: assign_seat(socket, nil, nil)
+
+  defp assign_seat(socket, context, seat_move_from) do
     socket
-    |> assign(:reschedule_seat_token, if(seat_move_from, do: requested_token))
+    |> assign(:seat_move_context, context)
+    |> assign(:reschedule_seat_token, context && context.token)
     |> assign(:reschedule_seat_from, seat_move_from)
   end
 

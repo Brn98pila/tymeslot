@@ -71,6 +71,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.ParticipantQueries
+  alias Tymeslot.Meetings.SeatLookup
   alias Tymeslot.MeetingTypes
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
   alias Tymeslot.Notifications.Events
@@ -122,13 +123,24 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
   can take: a lone participant sees their own hour as free, while a seat
   sharing its meeting with others sees it busy. An unlocked read, for
   display only; the submit decides again under the old meeting's row lock.
+
+  Takes the token, or the live seat a page has already loaded for it
+  (`Tymeslot.Meetings.fetch_live_seat/1`), whose liveness and count are
+  then read again here.
   """
-  @spec vacated_meeting(String.t() | nil, integer() | nil) :: struct() | nil
+  @spec vacated_meeting(String.t() | SeatLookup.seat() | nil, integer() | nil) ::
+          struct() | nil
   def vacated_meeting(management_token, organizer_user_id)
       when is_binary(management_token) and is_integer(organizer_user_id) do
-    with {:ok, %{participant: participant, meeting: meeting}} <-
-           Meetings.fetch_live_seat(management_token),
-         :ok <- ensure_same_organizer(meeting, organizer_user_id),
+    case Meetings.fetch_live_seat(management_token) do
+      {:ok, seat} -> vacated_meeting(seat, organizer_user_id)
+      {:error, _dead_end} -> nil
+    end
+  end
+
+  def vacated_meeting(%{participant: participant, meeting: meeting}, organizer_user_id)
+      when is_integer(organizer_user_id) do
+    with :ok <- ensure_same_organizer(meeting, organizer_user_id),
          true <- last_live_seat?(meeting, participant) do
       meeting
     else
@@ -136,7 +148,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
     end
   end
 
-  def vacated_meeting(_management_token, _organizer_user_id), do: nil
+  def vacated_meeting(_seat, _organizer_user_id), do: nil
 
   defp ensure_live(%{cancelled_at: nil}), do: :ok
   defp ensure_live(_participant), do: {:error, :already_cancelled}

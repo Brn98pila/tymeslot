@@ -37,10 +37,12 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
   alias Tymeslot.Bookings.Refusal
   alias Tymeslot.MeetingTypes
   alias Tymeslot.Scheduling.RescheduleContext
+  alias Tymeslot.Scheduling.SeatMoveContext
   alias Tymeslot.Scheduling.ThemeFlow
   alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
   alias TymeslotWeb.Themes.Shared.PathHandlers
+  alias TymeslotWeb.Themes.Shared.SeatMoveLink
 
   require Refusal
 
@@ -105,8 +107,8 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
   The meeting type a reschedule is committed to, or `nil` when this is not a
   reschedule or its type no longer exists.
 
-  Always resolved from the seat token or the booking the uid names
-  (`:reschedule_context`). It deliberately does not read `:meeting_type` back
+  Always read from the seat or the booking the page loaded from its link
+  (`:seat_move_context`, `:reschedule_context`). It deliberately does not read `:meeting_type` back
   off the socket: the schedule entry assigns that from the URL slug, so
   trusting it would let a stale link pin the page to a type the meeting is
   not, and then present it as the one being moved. A seat token wins over a
@@ -114,15 +116,10 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
   """
   @spec meeting_type(Phoenix.LiveView.Socket.t()) :: map() | nil
   def meeting_type(socket) do
-    case socket.assigns[:reschedule_seat_token] do
-      token when is_binary(token) ->
-        ThemeFlow.resolve_meeting_type_for_seat(token, socket.assigns[:organizer_user_id])
-
-      _not_a_seat_move ->
-        case socket.assigns[:reschedule_context] do
-          %RescheduleContext{meeting_type: meeting_type} -> meeting_type
-          nil -> nil
-        end
+    case socket.assigns do
+      %{seat_move_context: %SeatMoveContext{meeting_type: meeting_type}} -> meeting_type
+      %{reschedule_context: %RescheduleContext{meeting_type: meeting_type}} -> meeting_type
+      _neither -> nil
     end
   end
 
@@ -189,8 +186,7 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
     socket
     |> assign(:reschedule_meeting_uid, nil)
     |> assign_context(nil, nil)
-    |> assign(:reschedule_seat_token, nil)
-    |> assign(:reschedule_seat_from, nil)
+    |> SeatMoveLink.clear()
     |> assign(:is_rescheduling, false)
     |> clear()
     |> OrganizerHelpers.handle_username_resolution(socket.assigns[:username_context])

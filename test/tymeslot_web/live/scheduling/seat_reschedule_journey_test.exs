@@ -298,4 +298,58 @@ defmodule TymeslotWeb.Live.Scheduling.SeatRescheduleJourneyTest do
       assert Floki.attribute(cards, "phx-value-duration") == ["group-session"]
     end
   end
+
+  describe "the seat a move is loaded from" do
+    # Loaded once each time the page applies its URL (the static render, the
+    # connected one), and read from there by the pin, the date step's notice,
+    # the form and the times offered. Counted at the lookup by token, which
+    # filters on the token's hash.
+    @tag :capture_log
+    test "is looked up once per render, however far the move goes", %{
+      conn: conn,
+      profile: profile,
+      seat: seat
+    } do
+      ref = count_seat_lookups()
+
+      {:ok, view, _html} =
+        live(
+          conn,
+          "/#{profile.username}/group-session?reschedule_seat_token=#{seat.management_token}&timezone=UTC"
+        )
+
+      assert has_element?(view, "[data-testid='seat-move-notice']")
+      view = walk_from_schedule_to_booking_form(view, "UTC")
+
+      assert render(view) =~ ~s(value="Moving Participant")
+      assert seat_lookups(ref) == 2
+    end
+  end
+
+  defp count_seat_lookups do
+    parent = self()
+    ref = make_ref()
+    handler_id = "seat-lookup-#{inspect(ref)}"
+
+    :telemetry.attach(
+      handler_id,
+      [:tymeslot, :repo, :query],
+      fn _event, _measurements, %{source: source, query: query}, _config ->
+        if source == "meeting_participants" and query =~ ~r/WHERE .*"management_token_hash" = /,
+          do: send(parent, {:seat_lookup, ref})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+    ref
+  end
+
+  defp seat_lookups(ref, count \\ 0) do
+    receive do
+      {:seat_lookup, ^ref} -> seat_lookups(ref, count + 1)
+    after
+      0 -> count
+    end
+  end
 end

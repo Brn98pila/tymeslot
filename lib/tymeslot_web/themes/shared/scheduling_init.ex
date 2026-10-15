@@ -100,6 +100,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingInit do
     |> assign(:reschedule_context, nil)
     |> assign(:reschedule_refusal, nil)
     |> assign(:reschedule_loaded_at_mount, false)
+    |> assign(:seat_move_context, nil)
     |> assign(:reschedule_seat_token, nil)
     |> assign(:reschedule_seat_from, nil)
     |> assign(:page_query_params, %{})
