@@ -55,7 +55,7 @@ defmodule TymeslotWeb.Live.Scheduling.RescheduleLoadOnceTest do
     meeting: meeting,
     ref: ref
   } do
-    {:ok, view, _html} = live(conn, page_path(profile, meeting))
+    {:ok, _view, _html} = live(conn, page_path(profile, meeting))
 
     assert loads(ref) == 2
   end
