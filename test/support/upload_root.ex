@@ -10,9 +10,13 @@ defmodule Tymeslot.Test.UploadRoot do
   that exist. `isolate/1` forgets the endpoint's options on the way in and
   on the way out, so `/uploads` follows the root of whichever test is
   running.
+
+  Like every global setting, it is for `async: false` modules only.
   """
 
   import ExUnit.Callbacks, only: [on_exit: 1]
+
+  alias Tymeslot.Media.Uploads
 
   @static_opts_key {TymeslotWeb.Endpoint, :upload_static_opts}
 
@@ -24,6 +28,17 @@ defmodule Tymeslot.Test.UploadRoot do
   @spec isolate(String.t()) :: Path.t()
   def isolate(prefix \\ "tymeslot_uploads") do
     root = Path.join(System.tmp_dir!(), "#{prefix}_#{System.unique_integer([:positive])}")
+    point_at(root)
+    on_exit(fn -> File.rm_rf(root) end)
+    root
+  end
+
+  @doc """
+  Points `:upload_directory` at `root`, a directory the test owns (an
+  ExUnit `tmp_dir`, say), until the test exits, and returns it.
+  """
+  @spec point_at(Path.t()) :: Path.t()
+  def point_at(root) do
     original = Application.get_env(:tymeslot, :upload_directory)
 
     Application.put_env(:tymeslot, :upload_directory, root)
@@ -32,11 +47,19 @@ defmodule Tymeslot.Test.UploadRoot do
     on_exit(fn ->
       Application.put_env(:tymeslot, :upload_directory, original)
       forget_endpoint_options()
-      File.rm_rf(root)
     end)
 
     root
   end
+
+  @doc """
+  Where a stored relative path (as a customisation's settings hold it)
+  lies on disk under the current root, for writing a fixture or checking
+  a file directly. Tests of what a visitor gets should fetch
+  `/uploads/<path>` instead.
+  """
+  @spec path(String.t()) :: Path.t()
+  def path(relative), do: Path.join(Uploads.root(), relative)
 
   defp forget_endpoint_options do
     :persistent_term.erase(@static_opts_key)

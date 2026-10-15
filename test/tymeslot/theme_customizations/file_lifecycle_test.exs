@@ -12,23 +12,14 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
   alias Tymeslot.Media.Transcoder
   alias Tymeslot.Profiles
   alias Tymeslot.Test.ShowcaseThemeSpec
+  alias Tymeslot.Test.UploadRoot
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.FileLifecycle
-  alias Tymeslot.ThemeCustomizations.Storage
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationQueries
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   setup do
-    upload_root =
-      Path.join(System.tmp_dir!(), "tymeslot_uploads_#{System.unique_integer([:positive])}")
-
-    original_root = Application.get_env(:tymeslot, :upload_directory)
-    Application.put_env(:tymeslot, :upload_directory, upload_root)
-
-    on_exit(fn ->
-      Application.put_env(:tymeslot, :upload_directory, original_root)
-      File.rm_rf(upload_root)
-    end)
+    upload_root = UploadRoot.isolate("tymeslot_uploads")
 
     user = insert(:user)
     {:ok, profile} = Profiles.get_or_create_profile(user.id)
@@ -38,7 +29,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
   # Writes a file at the given stored relative path and returns its absolute path.
   defp touch_stored(relative_path) do
-    absolute = Storage.build_theme_file_path(relative_path)
+    absolute = UploadRoot.path(relative_path)
     File.mkdir_p!(Path.dirname(absolute))
     File.write!(absolute, "data")
     absolute

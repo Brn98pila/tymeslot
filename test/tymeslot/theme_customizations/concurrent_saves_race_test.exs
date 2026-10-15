@@ -27,17 +27,14 @@ defmodule Tymeslot.ThemeCustomizations.ConcurrentSavesRaceTest do
   alias Tymeslot.Repo
   alias Tymeslot.Test.MediaFixtures
   alias Tymeslot.Test.RaceConductor
+  alias Tymeslot.Test.UploadRoot
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   @theme_id "1"
 
   setup do
-    upload_root =
-      Path.join(System.tmp_dir!(), "tymeslot_race_#{System.unique_integer([:positive])}")
-
-    original_root = Application.get_env(:tymeslot, :upload_directory)
-    Application.put_env(:tymeslot, :upload_directory, upload_root)
+    UploadRoot.isolate("tymeslot_race")
 
     # Committed for real, so its email must not depend on the factory's
     # sequence, which restarts with every run.
@@ -54,9 +51,6 @@ defmodule Tymeslot.ThemeCustomizations.ConcurrentSavesRaceTest do
         Repo.delete_all(from(p in ProfileSchema, where: p.id == ^profile.id))
         Repo.delete_all(from(u in UserSchema, where: u.id == ^profile.user_id))
       end)
-
-      Application.put_env(:tymeslot, :upload_directory, original_root)
-      File.rm_rf(upload_root)
     end)
 
     RaceConductor.attach_parking()

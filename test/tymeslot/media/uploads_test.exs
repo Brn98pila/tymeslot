@@ -11,15 +11,14 @@ defmodule Tymeslot.Media.UploadsTest do
 
   alias Ecto.UUID
   alias Tymeslot.Media.Uploads
+  alias Tymeslot.Test.UploadRoot
 
   setup :capture_admin_alerts
 
   setup %{tmp_dir: tmp_dir} do
     root = Path.join(tmp_dir, "uploads")
     File.mkdir_p!(root)
-    original = Application.get_env(:tymeslot, :upload_directory)
-    Application.put_env(:tymeslot, :upload_directory, root)
-    on_exit(fn -> Application.put_env(:tymeslot, :upload_directory, original) end)
+    UploadRoot.point_at(root)
 
     %{root: Path.expand(root), outside: Path.join(tmp_dir, "outside")}
   end

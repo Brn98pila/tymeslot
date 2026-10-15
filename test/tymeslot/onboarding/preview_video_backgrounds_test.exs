@@ -11,27 +11,18 @@ defmodule Tymeslot.Onboarding.PreviewVideoBackgroundsTest do
   @moduletag :themes
 
   alias Tymeslot.Onboarding
+  alias Tymeslot.Test.UploadRoot
   alias Tymeslot.ThemeCustomizations
-  alias Tymeslot.ThemeCustomizations.Storage
 
   setup do
-    upload_root =
-      Path.join(System.tmp_dir!(), "tymeslot_preview_video_#{System.unique_integer([:positive])}")
-
-    original_root = Application.get_env(:tymeslot, :upload_directory)
-    Application.put_env(:tymeslot, :upload_directory, upload_root)
-
-    on_exit(fn ->
-      Application.put_env(:tymeslot, :upload_directory, original_root)
-      File.rm_rf(upload_root)
-    end)
+    UploadRoot.isolate("tymeslot_preview_video")
 
     %{profile: insert(:profile)}
   end
 
   defp stored_image(profile) do
     relative = "themes/#{profile.id}/1/images/mine.png"
-    full = Storage.build_theme_file_path(relative)
+    full = UploadRoot.path(relative)
     File.mkdir_p!(Path.dirname(full))
     File.write!(full, "png")
     {relative, full}

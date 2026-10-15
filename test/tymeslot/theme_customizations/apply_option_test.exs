@@ -4,23 +4,14 @@ defmodule Tymeslot.ThemeCustomizations.ApplyOptionTest do
   @moduletag :themes
   @moduletag :integration
 
+  alias Tymeslot.Test.UploadRoot
   alias Tymeslot.ThemeCustomizations
-  alias Tymeslot.ThemeCustomizations.Storage
 
   @unavailable "This option is not available for this theme."
   @not_saved "Could not save your theme customisation. Please try again."
 
   setup do
-    upload_root =
-      Path.join(System.tmp_dir!(), "tymeslot_apply_option_#{System.unique_integer([:positive])}")
-
-    original_root = Application.get_env(:tymeslot, :upload_directory)
-    Application.put_env(:tymeslot, :upload_directory, upload_root)
-
-    on_exit(fn ->
-      Application.put_env(:tymeslot, :upload_directory, original_root)
-      File.rm_rf(upload_root)
-    end)
+    UploadRoot.isolate("tymeslot_apply_option")
 
     %{profile: insert(:profile)}
   end
@@ -34,7 +25,7 @@ defmodule Tymeslot.ThemeCustomizations.ApplyOptionTest do
 
   defp stored_image(profile) do
     relative = "themes/#{profile.id}/1/images/old.png"
-    full = Storage.build_theme_file_path(relative)
+    full = UploadRoot.path(relative)
     File.mkdir_p!(Path.dirname(full))
     File.write!(full, "png")
     {relative, full}
@@ -42,7 +33,7 @@ defmodule Tymeslot.ThemeCustomizations.ApplyOptionTest do
 
   defp stored_video(profile) do
     relative = "themes/#{profile.id}/1/videos/old.mp4"
-    full = Storage.build_theme_file_path(relative)
+    full = UploadRoot.path(relative)
     File.mkdir_p!(Path.dirname(full))
     File.write!(full, "mp4")
     {relative, full}

@@ -31,7 +31,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.Specs
-  alias Tymeslot.ThemeCustomizations.Storage
   alias Tymeslot.Workers.VideoTranscoder
   alias TymeslotWeb.ThemeTestMatrix
 
@@ -66,7 +65,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
 
   defp stored_file(profile, theme_id, relative) do
     path = "themes/#{profile.id}/#{theme_id}/#{relative}"
-    full = Storage.build_theme_file_path(path)
+    full = UploadRoot.path(path)
     File.mkdir_p!(Path.dirname(full))
     File.write!(full, "old")
     {path, full}
@@ -151,7 +150,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
     test "an image upload becomes the background and keeps the uploaded video stored",
          %{conn: conn, profile: profile} do
       video_rel = "themes/#{profile.id}/1/videos/old.mp4"
-      video_abs = Storage.build_theme_file_path(video_rel)
+      video_abs = UploadRoot.path(video_rel)
       File.mkdir_p!(Path.dirname(video_abs))
       File.write!(video_abs, "data")
 
@@ -343,7 +342,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
         assert saved.settings["background_type"] == "video"
         assert saved.settings["background_value"] == "custom"
         assert path =~ ~r"\Athemes/#{profile.id}/#{theme_id}/videos/[^/]+\.mp4\z"
-        assert File.exists?(Storage.build_theme_file_path(path))
+        assert served?(path)
 
         assert_enqueued(
           worker: VideoTranscoder,
@@ -423,7 +422,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       # What the first video's transcode wrote beside it.
       first_variants =
         for variant <- Transcoder.derive_variant_paths(first_path) do
-          path = Storage.build_theme_file_path(variant)
+          path = UploadRoot.path(variant)
           File.write!(path, "variant")
           path
         end
@@ -437,7 +436,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       second = ThemeCustomizations.get_by_profile_and_theme(profile.id, theme_id)
       second_path = second.settings["background_video_path"]
       assert Path.extname(second_path) == ".mp4"
-      refute File.exists?(Storage.build_theme_file_path(first_path))
+      refute served?(first_path)
       refute Enum.any?(first_variants, &File.exists?/1)
 
       args = %{

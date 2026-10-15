@@ -1,8 +1,7 @@
 defmodule Tymeslot.ThemeCustomizations.Storage do
   @moduledoc """
   Handles filesystem-related operations for theme customization assets.
-  Owns path building and file storage; `store_asset/4` is the one way an
-  upload is written.
+  `store_asset/4` is the one way an upload is written.
   """
 
   alias Tymeslot.Media.ImageMetadata
@@ -16,31 +15,12 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
   @kind_directories %{image: "images", video: "videos", captions: "captions"}
 
   @doc """
-  Builds an absolute file system path from a stored relative path.
-  """
-  @spec build_theme_file_path(String.t()) :: String.t()
-  def build_theme_file_path(relative_path) do
-    base_dir = get_upload_base_directory()
-    Path.join(base_dir, relative_path)
-  end
-
-  @doc """
-  Returns the base directory used for uploads.
-  """
-  @spec get_upload_base_directory() :: String.t()
-  def get_upload_base_directory do
-    Uploads.root()
-  end
-
-  @doc """
   Removes a profile's whole theme upload directory: every theme's images,
   videos and transcoded variants, whether or not a row still references them.
   """
   @spec delete_profile_directory(pos_integer()) :: :ok | {:error, File.posix(), Path.t()}
   def delete_profile_directory(profile_id) when is_integer(profile_id) do
-    case File.rm_rf(
-           Path.join([get_upload_base_directory(), "themes", Integer.to_string(profile_id)])
-         ) do
+    case File.rm_rf(Path.join([Uploads.root(), "themes", Integer.to_string(profile_id)])) do
       {:ok, _removed} -> :ok
       {:error, reason, failed_path} -> {:error, reason, failed_path}
     end
