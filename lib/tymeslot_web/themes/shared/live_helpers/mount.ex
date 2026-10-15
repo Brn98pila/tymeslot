@@ -86,16 +86,18 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
     # (which always runs immediately after mount, on both the static and
     # connected passes) calls the same entry handler, so doing it here too on
     # the static pass would throw the result away and query twice for nothing.
-    # The booking being rescheduled is loaded for that entry, and the
-    # `handle_params` straight after keeps the load (`ReschedulePin`). The
-    # entry is pinned to the booking's type as `handle_params` pins it:
-    # resolved from the slug instead, a slug naming no type turned the
-    # reschedule away, and one naming another type seeded the location and
-    # the carried answers from the wrong type until `handle_params` pinned it.
+    # The booking or seat being moved is loaded for that entry, and the
+    # `handle_params` straight after keeps the load (`reload_reschedule/2`).
+    # The entry is pinned to its type as `handle_params` pins it: resolved
+    # from the slug instead, a slug naming no type turned a reschedule away,
+    # and a seat move with it, dropping the token; one naming another type
+    # seeded the location and the carried answers from the wrong type until
+    # `handle_params` pinned it.
     socket =
       if connected?(socket) do
         socket
-        |> ReschedulePin.load_at_mount()
+        |> load_reschedule(params["reschedule_seat_token"])
+        |> assign(:reschedule_loaded_at_mount, true)
         |> pin_reschedule_meeting_type()
         |> Runtime.transition_to(initial_state, params)
       else
@@ -201,14 +203,29 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
       :reschedule_meeting_uid,
       params["reschedule_meeting_uid"]
     )
-    |> ReschedulePin.load_for_params()
-    |> SeatMoveLink.assign_from_url(seat_token)
+    |> reload_reschedule(seat_token)
     |> assign_rescheduling(params)
     |> pin_reschedule_meeting_type()
     |> handle_confirmation_params(params)
     |> SeatMoveLink.leave_if_spent(seat_token)
     |> ReschedulePin.leave_if_refused()
   end
+
+  # The booking (`ReschedulePin`) and the seat (`SeatMoveLink`) the URL names,
+  # loaded once each time the page applies it. The connected mount loads them
+  # for its own first entry, and the `handle_params` straight after applies
+  # the same URL, so it keeps that load; every later one loads afresh, so a
+  # booking cancelled or a seat given up since is caught as on arrival.
+  defp load_reschedule(socket, seat_token) do
+    socket
+    |> ReschedulePin.load_context()
+    |> SeatMoveLink.assign_from_url(seat_token)
+  end
+
+  defp reload_reschedule(%{assigns: %{reschedule_loaded_at_mount: true}} = socket, _seat_token),
+    do: assign(socket, :reschedule_loaded_at_mount, false)
+
+  defp reload_reschedule(socket, seat_token), do: load_reschedule(socket, seat_token)
 
   # A whole-meeting reschedule names the meeting; a group participant moving
   # their own seat carries a live seat token instead.

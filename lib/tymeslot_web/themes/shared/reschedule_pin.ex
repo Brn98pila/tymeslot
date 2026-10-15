@@ -75,28 +75,6 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
 
   def load_context(socket), do: assign_context(socket, nil, nil)
 
-  @doc """
-  `load_context/1` for the connected mount, which enters the first step
-  before `handle_params/3` runs and so needs the booking first. The
-  `handle_params/3` that follows straight after applies the same URL, so
-  `load_for_params/1` keeps this load rather than repeating it.
-  """
-  @spec load_at_mount(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
-  def load_at_mount(socket) do
-    socket |> load_context() |> assign(:reschedule_loaded_at_mount, true)
-  end
-
-  @doc """
-  `load_context/1` for `handle_params/3`, except straight after a connected
-  mount that has just loaded it for the same URL (`load_at_mount/1`). Every
-  later call loads afresh.
-  """
-  @spec load_for_params(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
-  def load_for_params(%{assigns: %{reschedule_loaded_at_mount: true}} = socket),
-    do: assign(socket, :reschedule_loaded_at_mount, false)
-
-  def load_for_params(socket), do: load_context(socket)
-
   defp assign_context(socket, context, refusal) do
     socket
     |> assign(:reschedule_context, context)

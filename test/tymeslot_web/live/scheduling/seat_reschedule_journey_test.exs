@@ -211,6 +211,27 @@ defmodule TymeslotWeb.Live.Scheduling.SeatRescheduleJourneyTest do
       refute has_element?(view, "[data-testid='seat-move-notice']")
     end
 
+    # The page loads the seat when it applies its URL and keeps it between
+    # steps; applying the URL again (a patch, back and forward in the
+    # browser) loads it afresh, so a seat given up meanwhile is caught as on
+    # arrival.
+    @tag :capture_log
+    test "used while the page is open, is caught when the page applies its URL again", %{
+      conn: conn,
+      profile: profile,
+      seat: seat
+    } do
+      path =
+        "/#{profile.username}/group-session?timezone=UTC&reschedule_seat_token=#{seat.management_token}"
+
+      {:ok, view, _html} = live(conn, path)
+      {:ok, _cancelled} = ParticipantQueries.cancel(seat)
+
+      assert {:error, {:live_redirect, %{to: to}}} = render_patch(view, path)
+      assert to == "/#{profile.username}?timezone=UTC"
+      assert assert_redirect(view, to)["info"] =~ "already been used"
+    end
+
     @tag :capture_log
     test "picking the spot's own time says it is the current time", %{
       conn: conn,
@@ -275,6 +296,33 @@ defmodule TymeslotWeb.Live.Scheduling.SeatRescheduleJourneyTest do
       assert assigns.meeting_type.id == group_type.id
       assert assigns.selected_duration == "group-session"
       assert Enum.map(assigns.meeting_types, & &1.id) == [group_type.id]
+    end
+
+    # The connected mount enters the first step before `handle_params` runs,
+    # so the seat has to be loaded and pinned by then too. Without it that
+    # entry fell back on the slug, and a slug naming no type (one renamed
+    # since the email went out) sent the participant on to the host's page
+    # without the token, to book a second seat beside the one they meant to
+    # move.
+    @tag :capture_log
+    test "a slug naming no type keeps the seat move", %{
+      conn: conn,
+      profile: profile,
+      group_type: group_type,
+      seat: seat
+    } do
+      token = seat.management_token
+
+      assert {:ok, view, _html} =
+               live(
+                 conn,
+                 "/#{profile.username}/renamed-since?timezone=UTC&reschedule_seat_token=#{token}"
+               )
+
+      assigns = :sys.get_state(view.pid).socket.assigns
+
+      assert assigns.reschedule_seat_token == token
+      assert assigns.meeting_type.id == group_type.id
     end
 
     @tag :capture_log
