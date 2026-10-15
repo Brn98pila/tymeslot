@@ -7,6 +7,7 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   import Phoenix.LiveView, only: [put_flash: 3, redirect: 2]
 
   require Logger
+  require Tymeslot.Bookings.Refusal
 
   alias Tymeslot.Bookings.Policy
   alias Tymeslot.Bookings.Refusal
@@ -18,7 +19,6 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
   alias TymeslotWeb.Themes.Shared.TimezoneHelpers
 
-  require Refusal
 
   @doc """
   Loads and validates a meeting by UID for the given action.

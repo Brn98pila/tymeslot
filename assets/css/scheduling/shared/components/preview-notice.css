@@ -12,11 +12,11 @@
    Unlike .approval-notice, which sits inside the card, this one sits on the
    page background itself: a video, an image or a colour the organiser chose,
    which a tint alone cannot be read against. Its ground is a near-opaque dark
-   scrim, so the amber text keeps its contrast whatever lies beneath.
+   scrim (--preview-notice-ground, shared/tokens.css), so the amber text keeps
+   its contrast whatever lies beneath.
    ========================================================================== */
 
 .preview-notice {
-  --preview-notice-ground: rgb(15 23 42 / 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
