@@ -5,10 +5,12 @@ defmodule Tymeslot.Scheduling.ThemeFlow do
   This module keeps domain logic in the core so LiveViews only orchestrate UI state.
   """
 
+  alias Tymeslot.Bookings.Errors
   alias Tymeslot.Bookings.Orchestrator
   alias Tymeslot.Demo
   alias Tymeslot.Meetings
   alias Tymeslot.MeetingTypes
+  alias Tymeslot.Scheduling.RescheduleContext
   alias Tymeslot.Security.FieldValidators.EmailValidator
   alias Tymeslot.Security.FieldValidators.NameValidator
 
@@ -26,31 +28,37 @@ defmodule Tymeslot.Scheduling.ThemeFlow do
   end
 
   @doc """
-  The meeting type a reschedule is already committed to.
+  The booking a reschedule page is moving, loaded once, with what the page
+  starts from (`Tymeslot.Scheduling.RescheduleContext`).
 
-  Matching by duration is right while a visitor is still choosing what to book,
-  but a reschedule is not a choice: the rules enforced on submit come from the
-  original meeting's type, and two types sharing a duration may sit on
-  different availability schedules. Resolving by duration could therefore offer
-  slots from one schedule and reject the booking against another's.
+  The lookup is scoped to the organiser, so a uid cannot reveal another
+  organiser's attendee, and refuses a booking the rules no longer let move
+  with the reason `Tymeslot.Bookings.Orchestrator.get_meeting_for_reschedule/2`
+  gives.
 
-  Returns `nil` when this is not a reschedule, when the meeting is not the
-  organiser's, or when it predates meeting types; the caller then falls back to
-  the duration match.
+  The meeting type is the one the reschedule is already committed to.
+  Matching by duration is right while a visitor is still choosing what to
+  book, but a reschedule is not a choice: the rules enforced on submit come
+  from the original meeting's type, and two types sharing a duration may sit
+  on different availability schedules. Resolving by duration could therefore
+  offer slots from one schedule and reject the booking against another's. It
+  is `nil` when the meeting predates meeting types or its type has since been
+  deleted; the caller then falls back to the duration match.
   """
-  @spec resolve_meeting_type_for_reschedule(String.t() | nil, integer() | nil) :: map() | nil
-  def resolve_meeting_type_for_reschedule(meeting_uid, organizer_user_id)
+  @spec reschedule_context(String.t(), integer()) ::
+          {:ok, RescheduleContext.t()} | {:error, Errors.classified_error()}
+  def reschedule_context(meeting_uid, organizer_user_id)
       when is_binary(meeting_uid) and is_integer(organizer_user_id) do
-    with {:ok, %{meeting_type_id: id}} when is_integer(id) <-
-           Orchestrator.get_meeting_for_reschedule(meeting_uid, organizer_user_id),
-         %{} = meeting_type <- MeetingTypes.get_meeting_type(id, organizer_user_id) do
-      meeting_type
-    else
-      _not_resolvable -> nil
+    with {:ok, meeting} <-
+           Orchestrator.get_meeting_for_reschedule(meeting_uid, organizer_user_id) do
+      {:ok, RescheduleContext.new(meeting, meeting_type_of(meeting, organizer_user_id))}
     end
   end
 
-  def resolve_meeting_type_for_reschedule(_meeting_uid, _organizer_user_id), do: nil
+  defp meeting_type_of(%{meeting_type_id: id}, organizer_user_id) when is_integer(id),
+    do: MeetingTypes.get_meeting_type(id, organizer_user_id)
+
+  defp meeting_type_of(_meeting, _organizer_user_id), do: nil
 
   @doc """
   The meeting type a group participant's seat move is committed to: the type
@@ -59,7 +67,7 @@ defmodule Tymeslot.Scheduling.ThemeFlow do
 
   `nil` for a spent token, a seat on another organiser's meeting (a
   hand-edited username), or a type that has since been deleted, the same
-  cases in which `resolve_meeting_type_for_reschedule/2` gives up on a uid.
+  cases in which `reschedule_context/2` finds no type for a uid.
   """
   @spec resolve_meeting_type_for_seat(String.t() | nil, integer() | nil) :: map() | nil
   def resolve_meeting_type_for_seat(seat_token, organizer_user_id)
@@ -83,38 +91,13 @@ defmodule Tymeslot.Scheduling.ThemeFlow do
   `address_to_arrange`), which a time-only reschedule keeps and the page
   states.
 
-  Returns `nil` when this is not a reschedule or the meeting is not the
-  organiser's, which leaves the picker opening on the host's first option.
+  `nil` when the page is not moving a booking, which leaves the picker
+  opening on the host's first option.
   """
-  @spec reschedule_location_choice(String.t() | nil, integer() | nil) ::
-          %{
-            option_id: String.t() | nil,
-            phone: String.t() | nil,
-            video_integration_id: integer() | nil,
-            venue_id: integer() | nil,
-            location: String.t() | nil,
-            address_to_arrange: boolean()
-          }
-          | nil
-  def reschedule_location_choice(meeting_uid, organizer_user_id)
-      when is_binary(meeting_uid) and is_integer(organizer_user_id) do
-    case Orchestrator.get_meeting_for_reschedule(meeting_uid, organizer_user_id) do
-      {:ok, meeting} ->
-        %{
-          option_id: meeting.location_option_id,
-          phone: meeting.attendee_phone,
-          video_integration_id: meeting.video_integration_id,
-          venue_id: meeting.venue_id,
-          location: meeting.location,
-          address_to_arrange: meeting.address_to_arrange == true
-        }
-
-      {:error, _reason} ->
-        nil
-    end
-  end
-
-  def reschedule_location_choice(_meeting_uid, _organizer_user_id), do: nil
+  @spec reschedule_location_choice(RescheduleContext.t() | nil) ::
+          RescheduleContext.location_choice() | nil
+  def reschedule_location_choice(%RescheduleContext{location_choice: choice}), do: choice
+  def reschedule_location_choice(nil), do: nil
 
   @doc """
   The attendee details a booking link carried in its URL fragment
@@ -147,38 +130,22 @@ defmodule Tymeslot.Scheduling.ThemeFlow do
   @doc """
   The booking form's starting values.
 
-  A reschedule starts from the details of the booking being moved, looked up
-  scoped to the organiser so a uid cannot reveal another organiser's attendee.
-  Any other booking starts blank, overlaid with `prefill` (see
-  `attendee_prefill/1`); a reschedule ignores it, since the attendee is
-  already known.
+  A reschedule starts from the details of the booking being moved (the
+  context's `form_data`). Any other booking starts blank, overlaid with
+  `prefill` (see `attendee_prefill/1`); a reschedule ignores it, since the
+  attendee is already known.
   """
-  @spec build_booking_form_data(String.t() | nil, integer() | nil, map()) :: map()
-  def build_booking_form_data(reschedule_uid, organizer_user_id, prefill \\ %{})
+  @spec build_booking_form_data(RescheduleContext.t() | nil, map()) :: map()
+  def build_booking_form_data(context, prefill \\ %{})
 
-  def build_booking_form_data(nil, _organizer_user_id, prefill),
-    do: Map.merge(default_booking_form_data(), prefill)
+  def build_booking_form_data(%RescheduleContext{form_data: form_data}, _prefill), do: form_data
 
-  def build_booking_form_data(_reschedule_uid, nil, _prefill), do: default_booking_form_data()
-
-  def build_booking_form_data(reschedule_uid, organizer_user_id, _prefill)
-      when is_binary(reschedule_uid) and is_integer(organizer_user_id) do
-    case Orchestrator.get_meeting_for_reschedule(reschedule_uid, organizer_user_id) do
-      {:ok, meeting} ->
-        %{
-          "name" => meeting.attendee_name,
-          "email" => meeting.attendee_email,
-          "message" => meeting.attendee_message || ""
-        }
-
-      _error ->
-        default_booking_form_data()
-    end
-  end
+  def build_booking_form_data(nil, prefill), do: Map.merge(default_booking_form_data(), prefill)
 
   @doc """
   The custom field answers a reschedule carries over from the booking being
-  moved, for the definitions the meeting type offers *now*.
+  moved, for the definitions the meeting type offers *now*. Nothing when the
+  page is not moving a booking.
 
   The booking stores both the answers and `custom_fields_snapshot`, the
   definitions as the booker saw them. An answer is carried over only where the
@@ -188,7 +155,7 @@ defmodule Tymeslot.Scheduling.ThemeFlow do
   be put in the booker's mouth. Such a question is left blank, to be answered
   again.
 
-  A question's `position` is excluded from that comparison — reordering the
+  A question's `position` is excluded from that comparison: reordering the
   form does not change what any one question asks.
 
   Answers whose question has been removed are dropped, and questions added
@@ -196,30 +163,22 @@ defmodule Tymeslot.Scheduling.ThemeFlow do
   carried: it records that the booker actively confirmed the text, and the
   submit stamps the confirmation time afresh, so a pre-ticked card would
   record consent the booker never gave for the moved booking.
+
+  The definitions are passed in rather than read off the context's meeting
+  type: when that type has been deleted, the page books against the type it
+  fell back to, and those are the questions it asks.
   """
-  @spec reschedule_answers(String.t() | nil, integer() | nil, [map()]) :: %{
-          String.t() => any()
-        }
-  def reschedule_answers(reschedule_uid, organizer_user_id, definitions)
-
-  def reschedule_answers(_reschedule_uid, _organizer_user_id, []), do: %{}
-  def reschedule_answers(nil, _organizer_user_id, _definitions), do: %{}
-  def reschedule_answers(_reschedule_uid, nil, _definitions), do: %{}
-
-  def reschedule_answers(reschedule_uid, organizer_user_id, definitions)
-      when is_binary(reschedule_uid) and is_integer(organizer_user_id) and is_list(definitions) do
-    case Orchestrator.get_meeting_for_reschedule(reschedule_uid, organizer_user_id) do
-      {:ok, meeting} ->
-        carry_over_answers(
-          definitions,
-          meeting.custom_fields_snapshot,
-          meeting.custom_field_answers
-        )
-
-      _error ->
-        %{}
-    end
+  @spec reschedule_answers(RescheduleContext.t() | nil, [map()]) :: %{String.t() => any()}
+  def reschedule_answers(%RescheduleContext{meeting: meeting}, definitions)
+      when is_list(definitions) do
+    carry_over_answers(
+      definitions,
+      meeting.custom_fields_snapshot || [],
+      meeting.custom_field_answers || %{}
+    )
   end
+
+  def reschedule_answers(nil, _definitions), do: %{}
 
   defp carry_over_answers(definitions, booked_snapshot, booked_answers) do
     booked_by_id = Map.new(booked_snapshot, &{&1["id"], comparable(&1)})

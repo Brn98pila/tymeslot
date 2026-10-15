@@ -86,9 +86,13 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
     # (which always runs immediately after mount, on both the static and
     # connected passes) calls the same entry handler, so doing it here too on
     # the static pass would throw the result away and query twice for nothing.
+    # The booking being rescheduled is loaded for that entry, and the
+    # `handle_params` straight after keeps the load (`ReschedulePin`).
     socket =
       if connected?(socket) do
-        Runtime.transition_to(socket, initial_state, params)
+        socket
+        |> ReschedulePin.load_at_mount()
+        |> Runtime.transition_to(initial_state, params)
       else
         socket
       end
@@ -192,6 +196,7 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
       :reschedule_meeting_uid,
       params["reschedule_meeting_uid"]
     )
+    |> ReschedulePin.load_for_params()
     |> SeatMoveLink.assign_from_url(seat_token)
     |> assign_rescheduling(params)
     |> pin_reschedule_meeting_type()

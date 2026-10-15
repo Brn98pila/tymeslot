@@ -34,9 +34,9 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [push_navigate: 2, push_patch: 2, put_flash: 3]
 
-  alias Tymeslot.Bookings.Orchestrator
   alias Tymeslot.Bookings.Refusal
   alias Tymeslot.MeetingTypes
+  alias Tymeslot.Scheduling.RescheduleContext
   alias Tymeslot.Scheduling.ThemeFlow
   alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
@@ -45,29 +45,84 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
   require Refusal
 
   @doc """
+  Loads the booking the page's `:reschedule_meeting_uid` names, once, into
+  `:reschedule_context` (`Tymeslot.Scheduling.ThemeFlow.reschedule_context/2`):
+  the meeting type, location, form values and answers the page starts from all
+  read it rather than looking the meeting up again.
+
+  A booking the rules refuse leaves no context and its reason in
+  `:reschedule_refusal`, for `leave_if_refused/1`; a uid naming no meeting of
+  this organiser leaves neither, and the page books afresh. A page with no uid
+  is cleared of both.
+
+  Run whenever the page applies its URL, so a booking cancelled or moved on
+  since is caught there, as on arrival. Between URL changes the page keeps
+  what it loaded; the submit asks the rules again whatever the page holds.
+  """
+  @spec load_context(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def load_context(
+        %{assigns: %{reschedule_meeting_uid: uid, organizer_user_id: user_id}} = socket
+      )
+      when is_binary(uid) and is_integer(user_id) do
+    case ThemeFlow.reschedule_context(uid, user_id) do
+      {:ok, context} -> assign_context(socket, context, nil)
+      {:error, reason} when Refusal.is_refusal(reason) -> assign_context(socket, nil, reason)
+      {:error, _not_the_organisers} -> assign_context(socket, nil, nil)
+    end
+  end
+
+  def load_context(socket), do: assign_context(socket, nil, nil)
+
+  @doc """
+  `load_context/1` for the connected mount, which enters the first step
+  before `handle_params/3` runs and so needs the booking first. The
+  `handle_params/3` that follows straight after applies the same URL, so
+  `load_for_params/1` keeps this load rather than repeating it.
+  """
+  @spec load_at_mount(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def load_at_mount(socket) do
+    socket |> load_context() |> assign(:reschedule_loaded_at_mount, true)
+  end
+
+  @doc """
+  `load_context/1` for `handle_params/3`, except straight after a connected
+  mount that has just loaded it for the same URL (`load_at_mount/1`). Every
+  later call loads afresh.
+  """
+  @spec load_for_params(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def load_for_params(%{assigns: %{reschedule_loaded_at_mount: true}} = socket),
+    do: assign(socket, :reschedule_loaded_at_mount, false)
+
+  def load_for_params(socket), do: load_context(socket)
+
+  defp assign_context(socket, context, refusal) do
+    socket
+    |> assign(:reschedule_context, context)
+    |> assign(:reschedule_refusal, refusal)
+  end
+
+  @doc """
   The meeting type a reschedule is committed to, or `nil` when this is not a
   reschedule or its type no longer exists.
 
-  Always resolved from the seat token or the uid. It deliberately does not
-  read `:meeting_type` back off the socket to save the query: the schedule
-  entry assigns that from the URL slug, so trusting it would let a stale link
-  pin the page to a type the meeting is not, and then present it as the one
-  being moved. A seat token wins over a uid, as it does on submit
-  (`Tymeslot.Bookings.Orchestrator`).
+  Always resolved from the seat token or the booking the uid names
+  (`:reschedule_context`). It deliberately does not read `:meeting_type` back
+  off the socket: the schedule entry assigns that from the URL slug, so
+  trusting it would let a stale link pin the page to a type the meeting is
+  not, and then present it as the one being moved. A seat token wins over a
+  uid, as it does on submit (`Tymeslot.Bookings.Orchestrator`).
   """
   @spec meeting_type(Phoenix.LiveView.Socket.t()) :: map() | nil
   def meeting_type(socket) do
-    user_id = socket.assigns[:organizer_user_id]
-
     case socket.assigns[:reschedule_seat_token] do
       token when is_binary(token) ->
-        ThemeFlow.resolve_meeting_type_for_seat(token, user_id)
+        ThemeFlow.resolve_meeting_type_for_seat(token, socket.assigns[:organizer_user_id])
 
       _not_a_seat_move ->
-        ThemeFlow.resolve_meeting_type_for_reschedule(
-          socket.assigns[:reschedule_meeting_uid],
-          user_id
-        )
+        case socket.assigns[:reschedule_context] do
+          %RescheduleContext{meeting_type: meeting_type} -> meeting_type
+          nil -> nil
+        end
     end
   end
 
@@ -76,23 +131,16 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
   (cancelled, completed, expired, under way or over) on to a fresh booking,
   telling the visitor why, rather than letting them fill in a form whose
   submit can only be refused. The manage page's reschedule link refuses the
-  same bookings at mount. A page with no reschedule uid, or one naming a
-  booking that can still move, is left as it is.
+  same bookings at mount. Reads the refusal `load_context/1` found; a page
+  with no reschedule uid, or one naming a booking that can still move, is
+  left as it is.
   """
   @spec leave_if_refused(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
-  def leave_if_refused(
-        %{assigns: %{reschedule_meeting_uid: uid, organizer_user_id: user_id}} = socket
-      )
-      when is_binary(uid) and is_integer(user_id) do
-    case Orchestrator.get_meeting_for_reschedule(uid, user_id) do
-      {:error, reason} when Refusal.is_refusal(reason) ->
-        socket
-        |> put_flash(:error, BookingErrorMessage.message(reason))
-        |> push_navigate(to: PathHandlers.restart_path(socket))
-
-      _movable_or_unknown ->
-        socket
-    end
+  def leave_if_refused(%{assigns: %{reschedule_refusal: reason}} = socket)
+      when Refusal.is_refusal(reason) do
+    socket
+    |> put_flash(:error, BookingErrorMessage.message(reason))
+    |> push_navigate(to: PathHandlers.restart_path(socket))
   end
 
   def leave_if_refused(socket), do: socket
@@ -140,6 +188,7 @@ defmodule TymeslotWeb.Themes.Shared.ReschedulePin do
   def abandon(socket) do
     socket
     |> assign(:reschedule_meeting_uid, nil)
+    |> assign_context(nil, nil)
     |> assign(:reschedule_seat_token, nil)
     |> assign(:reschedule_seat_from, nil)
     |> assign(:is_rescheduling, false)

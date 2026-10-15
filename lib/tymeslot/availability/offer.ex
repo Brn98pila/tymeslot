@@ -35,6 +35,7 @@ defmodule Tymeslot.Availability.Offer do
   alias Tymeslot.Meetings.BookingLimits.Checker
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
   alias Tymeslot.Profiles
+  alias Tymeslot.Scheduling.RescheduleContext
 
   @default_duration_minutes 30
 
@@ -68,6 +69,11 @@ defmodule Tymeslot.Availability.Offer do
       `Tymeslot.Bookings.Reschedule` leaves it out of both when the move is
       submitted, but only once it is proven to be a movable meeting of this
       organiser; any other value is ignored.
+    * `:reschedule` - the same meeting, already loaded by
+      `Tymeslot.Scheduling.ThemeFlow.reschedule_context/2`, which proved it
+      the organiser's and movable when the page applied its link. Used in
+      place of looking `:reschedule_uid` up again on every fetch, provided it
+      is the meeting that uid names and this organiser's.
     * `:reschedule_seat_token` - the group seat a seat-move page is moving.
       Its meeting is left out the same way, but only when the seat is that
       meeting's last live one, which is when `Tymeslot.Bookings.RescheduleSeat`
@@ -81,6 +87,7 @@ defmodule Tymeslot.Availability.Offer do
           required(:user_timezone) => String.t(),
           optional(:meeting_type) => map() | nil,
           optional(:reschedule_uid) => String.t() | nil,
+          optional(:reschedule) => RescheduleContext.t() | nil,
           optional(:reschedule_seat_token) => String.t() | nil,
           optional(:demo_mode?) => boolean() | nil
         }
@@ -494,6 +501,19 @@ defmodule Tymeslot.Availability.Offer do
   defp moving_meeting(%{reschedule_seat_token: token, profile: %{user_id: user_id}})
        when is_binary(token) and is_integer(user_id),
        do: RescheduleSeat.vacated_meeting(token, user_id)
+
+  # The page's own load of the meeting, when it names the same meeting for
+  # the same organiser; a fetch then needs no lookup of its own.
+  defp moving_meeting(%{
+         reschedule_uid: uid,
+         reschedule: %RescheduleContext{
+           uid: uid,
+           meeting: %{organizer_user_id: user_id} = meeting
+         },
+         profile: %{user_id: user_id}
+       })
+       when is_binary(uid) and is_integer(user_id),
+       do: meeting
 
   defp moving_meeting(%{reschedule_uid: uid, profile: %{user_id: user_id}})
        when is_binary(uid) and is_integer(user_id) do
