@@ -392,27 +392,35 @@ defmodule TymeslotWeb.Themes.Shared.InfoHandlers do
   When the Stripe Checkout session expires (attendee closed the tab,
   30 minutes elapsed, etc.) we send the booker back to the moment
   collecting the attendee (the classic booking step) with a flash so they
-  can try again.
+  can try again, and stop listening for that meeting's payment broadcasts.
   """
   @spec handle_payment_expired(Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_payment_expired(socket) do
-    socket =
-      socket
-      |> assign(:awaiting_payment_meeting, nil)
-      |> assign(:awaiting_payment_checkout_url, nil)
-      |> assign(:submission_processed, false)
-      |> put_flash(
-        :error,
-        dgettext("booking", "Payment was cancelled. Please try booking again.")
-      )
+    case socket.assigns do
+      %{current_state: :awaiting_payment, awaiting_payment_meeting: %{}} ->
+        socket =
+          socket
+          |> Runtime.forget_payment_wait()
+          |> assign(:submission_processed, false)
+          |> put_flash(
+            :error,
+            dgettext("booking", "Payment was cancelled. Please try booking again.")
+          )
 
-    {:noreply,
-     Runtime.transition_to(
-       socket,
-       Progress.moment_for(socket.assigns.journey, :attendee),
-       %{}
-     )}
+        {:noreply,
+         Runtime.transition_to(
+           socket,
+           Progress.moment_for(socket.assigns.journey, :attendee),
+           %{}
+         )}
+
+      # As with `:paid`, only the wait ends on an expiry: a broadcast repeated
+      # once the page has moved on (a later booking, its confirmation) moves
+      # nothing.
+      _not_waiting ->
+        {:noreply, socket}
+    end
   end
 
   @doc """
