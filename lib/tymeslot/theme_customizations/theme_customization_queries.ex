@@ -63,15 +63,6 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationQueries do
   end
 
   @doc """
-  Deletes a theme customization.
-  """
-  @spec delete(ThemeCustomizationSchema.t()) ::
-          {:ok, ThemeCustomizationSchema.t()} | {:error, Ecto.Changeset.t()}
-  def delete(%ThemeCustomizationSchema{} = customization) do
-    Repo.delete(customization)
-  end
-
-  @doc """
   Gets a profile by user_id.
   Used for finding profile when given a user_id.
   """

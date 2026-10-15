@@ -143,23 +143,6 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationQueriesTest do
     end
   end
 
-  describe "delete/1" do
-    test "deletes a customization" do
-      customization = insert(:theme_customization)
-
-      assert {:ok, deleted} = ThemeCustomizationQueries.delete(customization)
-      assert deleted.id == customization.id
-
-      result =
-        ThemeCustomizationQueries.get_by_profile_and_theme(
-          customization.profile_id,
-          customization.theme_id
-        )
-
-      assert result == nil
-    end
-  end
-
   describe "update_video_processing_status/3" do
     test "answers not found for a customisation that no longer exists" do
       profile = insert(:profile)

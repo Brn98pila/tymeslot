@@ -4,8 +4,9 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
 
   Orchestrates `Tymeslot.Media.Uploads` and `Transcoder` to delete stale
   uploaded images, captions, videos, and the videos' transcoded variants
-  when a customisation is updated, deleted, or has its background replaced,
-  and removes an upload whose save was refused. Which fields hold stored
+  when a customisation is updated, and removes an upload whose save was
+  refused. A deleted account's files go with its whole directory
+  (`Storage.delete_profile_directory/1`). Which fields hold stored
   files, and of which kind, comes from the customisation spec the caller
   passes (`asset_fields/0`, every option group's `asset_fields/1`), so a
   group's files are cleaned up without this module knowing the group.
@@ -44,23 +45,6 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycle do
       if old_path && old_path != setting(updated, field) do
         delete_asset(old_path, kind, context, "old_#{kind}")
       end
-    end)
-  end
-
-  @doc """
-  Deletes every stored file of a deleted customisation, including transcoded
-  video variants.
-  """
-  @spec cleanup_all_files(module(), ThemeCustomizationSchema.t()) :: :ok
-  def cleanup_all_files(spec, %ThemeCustomizationSchema{} = customization) do
-    context = %{
-      profile_id: customization.profile_id,
-      theme_id: customization.theme_id,
-      operation: "theme_delete"
-    }
-
-    Enum.each(spec.asset_fields(), fn {field, kind} ->
-      if path = setting(customization, field), do: delete_asset(path, kind, context, "#{kind}")
     end)
   end
 

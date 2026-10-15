@@ -261,43 +261,6 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
     end
   end
 
-  describe "delete_theme_customization/1 file cleanup" do
-    test "removes the image file on delete", %{profile: profile} do
-      rel = "themes/#{profile.id}/1/images/bg.jpg"
-      abs = touch_stored(rel)
-
-      {:ok, customization} =
-        ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
-          "color_scheme" => "default",
-          "background_type" => "image",
-          "background_value" => "uploaded",
-          "background_image_path" => rel
-        })
-
-      assert {:ok, _deleted} = ThemeCustomizations.delete_theme_customization(customization)
-      refute File.exists?(abs)
-    end
-
-    test "removes the video file and its transcoded variants on delete", %{profile: profile} do
-      rel = "themes/#{profile.id}/1/videos/bg.mp4"
-      abs = touch_stored(rel)
-      variant_abs = rel |> Transcoder.derive_variant_paths() |> Enum.map(&touch_stored/1)
-
-      {:ok, customization} =
-        ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
-          "color_scheme" => "default",
-          "background_type" => "video",
-          "background_value" => "uploaded",
-          "background_video_path" => rel
-        })
-
-      assert {:ok, _deleted} = ThemeCustomizations.delete_theme_customization(customization)
-
-      refute File.exists?(abs)
-      Enum.each(variant_abs, fn path -> refute File.exists?(path) end)
-    end
-  end
-
   describe "asset fields of any option group" do
     setup %{profile: profile} do
       background = "themes/#{profile.id}/1/images/a-bg.png"
@@ -351,14 +314,6 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       refute File.exists?(background)
       assert File.exists?(logo)
-    end
-
-    test "deleting the customisation deletes every group's files",
-         %{row: row, background: background, logo: logo} do
-      FileLifecycle.cleanup_all_files(ShowcaseThemeSpec, row)
-
-      refute File.exists?(background)
-      refute File.exists?(logo)
     end
   end
 end

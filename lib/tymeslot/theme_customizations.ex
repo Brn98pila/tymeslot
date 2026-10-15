@@ -258,23 +258,6 @@ defmodule Tymeslot.ThemeCustomizations do
   def delete_profile_files(profile_id), do: Storage.delete_profile_directory(profile_id)
 
   @doc """
-  Deletes a theme customization.
-  """
-  @spec delete_theme_customization(ThemeCustomizationSchema.t()) ::
-          {:ok, ThemeCustomizationSchema.t()} | {:error, Changeset.t()}
-  def delete_theme_customization(%ThemeCustomizationSchema{} = customization) do
-    # Delete database record first, then cleanup files on success
-    case ThemeCustomizationQueries.delete(customization) do
-      {:ok, deleted} ->
-        FileLifecycle.cleanup_all_files(Specs.for_theme(customization.theme_id), customization)
-        {:ok, deleted}
-
-      error ->
-        error
-    end
-  end
-
-  @doc """
   The stored settings of a customisation as a string-keyed map, the shape specs
   and tokens work on. Empty for `nil`.
   """

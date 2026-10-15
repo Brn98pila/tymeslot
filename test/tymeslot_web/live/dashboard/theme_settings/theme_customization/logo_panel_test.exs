@@ -161,27 +161,4 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.LogoPanelTest d
     assert stored?(background)
     assert stored?(after_upload.settings["logo_path"])
   end
-
-  test "deleting the customisation deletes the logo and the background image",
-       %{conn: conn, profile: profile} do
-    background = stored_file(profile, "a-background.png")
-
-    {:ok, _before} =
-      ThemeCustomizations.upsert_theme_customization(profile.id, @theme_id, %{
-        "color_scheme" => "neutral",
-        "background_type" => "image",
-        "background_value" => "custom",
-        "background_image_path" => background
-      })
-
-    {view, _html} = open(conn)
-    upload(view, "#theme-logo-form", :logo_path, "logo.png")
-    customization = saved(profile)
-    logo = customization.settings["logo_path"]
-
-    assert {:ok, _deleted} = ThemeCustomizations.delete_theme_customization(customization)
-
-    refute stored?(logo)
-    refute stored?(background)
-  end
 end

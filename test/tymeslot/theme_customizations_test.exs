@@ -89,22 +89,6 @@ defmodule Tymeslot.ThemeCustomizationsTest do
       assert updated.settings["background_value"] == "gradient_3"
     end
 
-    test "delete_theme_customization/1 removes customization", %{profile: profile} do
-      attrs = %{
-        "color_scheme" => "forest",
-        "background_type" => "gradient",
-        "background_value" => "gradient_4"
-      }
-
-      {:ok, customization} =
-        ThemeCustomizations.upsert_theme_customization(profile.id, "2", attrs)
-
-      assert {:ok, _result} = ThemeCustomizations.delete_theme_customization(customization)
-
-      # Check customization is deleted
-      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "2") == nil
-    end
-
     test "supports_background?/2 answers from the theme's spec" do
       assert ThemeCustomizations.supports_background?("2", :video)
       refute ThemeCustomizations.supports_background?("9", :video)

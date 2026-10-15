@@ -151,37 +151,4 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.CoverPanelTest 
     assert stored?(second_cover)
     refute stored?(logo)
   end
-
-  test "deleting the customisation deletes the logo, the cover and the background image",
-       %{conn: conn, profile: profile} do
-    background = "themes/#{profile.id}/#{@theme_id}/images/a-background.png"
-    absolute = Storage.build_theme_file_path(background)
-    File.mkdir_p!(Path.dirname(absolute))
-    File.write!(absolute, @png)
-
-    {:ok, _row} =
-      ThemeCustomizations.upsert_theme_customization(profile.id, @theme_id, %{
-        "color_scheme" => "neutral",
-        "background_type" => "image",
-        "background_value" => "custom",
-        "background_image_path" => background
-      })
-
-    view = open(conn)
-    upload_logo(view, "logo.png")
-    upload_cover(view, "cover.png")
-    customization = saved(profile)
-
-    files = [
-      background,
-      customization.settings["logo_path"],
-      customization.settings["cover_path"]
-    ]
-
-    assert Enum.all?(files, &stored?/1)
-
-    assert {:ok, _deleted} = ThemeCustomizations.delete_theme_customization(customization)
-
-    assert Enum.filter(files, &stored?/1) == []
-  end
 end
