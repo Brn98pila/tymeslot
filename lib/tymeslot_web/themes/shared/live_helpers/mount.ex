@@ -87,11 +87,16 @@ defmodule TymeslotWeb.Themes.Shared.LiveHelpers.Mount do
     # connected passes) calls the same entry handler, so doing it here too on
     # the static pass would throw the result away and query twice for nothing.
     # The booking being rescheduled is loaded for that entry, and the
-    # `handle_params` straight after keeps the load (`ReschedulePin`).
+    # `handle_params` straight after keeps the load (`ReschedulePin`). The
+    # entry is pinned to the booking's type as `handle_params` pins it:
+    # resolved from the slug instead, a slug naming no type turned the
+    # reschedule away, and one naming another type seeded the location and
+    # the carried answers from the wrong type until `handle_params` pinned it.
     socket =
       if connected?(socket) do
         socket
         |> ReschedulePin.load_at_mount()
+        |> pin_reschedule_meeting_type()
         |> Runtime.transition_to(initial_state, params)
       else
         socket

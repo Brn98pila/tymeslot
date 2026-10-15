@@ -204,6 +204,31 @@ defmodule TymeslotWeb.Live.Scheduling.RescheduleEntryTest do
       assert assigns.duration == "pinned-chat"
     end
 
+    # The connected mount enters the first step before `handle_params` runs,
+    # so the pin has to be in place by then too. Without it that entry fell
+    # back on the slug, and a slug naming no type (one renamed since the link
+    # was made) turned the reschedule away as an invalid meeting type.
+    @tag :capture_log
+    test "a slug naming no type does not turn the reschedule away", %{
+      conn: conn,
+      user: user,
+      profile: profile,
+      meeting: meeting
+    } do
+      pinned_type = pin_meeting_to_its_own_type(user, profile, meeting)
+
+      assert {:ok, view, _html} =
+               live(
+                 conn,
+                 "/#{profile.username}/renamed-since?timezone=UTC&reschedule_meeting_uid=#{meeting.uid}"
+               )
+
+      assigns = :sys.get_state(view.pid).socket.assigns
+
+      assert assigns.meeting_type.id == pinned_type.id
+      assert assigns.selected_duration == "pinned-chat"
+    end
+
     # Each theme marks the selected card its own way (Rhythm on a wrapper
     # around the button carrying the testid), so the selector comes from the
     # matrix: one written for another theme matches nothing and would pass on
