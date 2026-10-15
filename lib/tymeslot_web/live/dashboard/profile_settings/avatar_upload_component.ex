@@ -95,12 +95,8 @@ defmodule TymeslotWeb.Dashboard.ProfileSettings.AvatarUploadComponent do
       [] ->
         socket
 
-      [error_message] when is_binary(error_message) ->
-        Flash.error(error_message)
-        socket
-
-      error_messages when is_list(error_messages) ->
-        Flash.error(List.first(error_messages) || dgettext("dashboard_profile", "Upload failed"))
+      _several ->
+        Flash.error(dgettext("dashboard_profile", "Upload failed"))
         socket
     end
   end
