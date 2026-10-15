@@ -45,11 +45,16 @@ body.rhythm-theme {
   min-height: 100dvh;
 }
 
+/* A column at every width: what sits beside the box is positioned out of the
+   flow, and what shares the flow with it (the owner-preview notice, the
+   language switcher's own row below 1024px) belongs above it, never in a lane
+   beside it. */
 .video-background-theme.theme-grid .content-area {
   display: flex;
-  align-items: flex-start;   /* fallback: top-align */
-  align-items: safe center;  /* center when fits, fall back to start when overflows */
-  justify-content: center;
+  flex-direction: column;
+  justify-content: flex-start;  /* fallback: top-align */
+  justify-content: safe center; /* center when fits, fall back to start when overflows */
+  align-items: center;
   padding: var(--space-lg);
   min-height: 0;
   /* Scroll when the box exceeds the viewport row (short screens / confirmation
@@ -59,6 +64,12 @@ body.rhythm-theme {
      `overflow: visible` (iframe.css) so the auto-resize loop still drives height. */
   overflow-y: auto;
   position: relative;
+}
+
+/* A column item may shrink along the main axis; the box keeps its content
+   height and the content area scrolls instead. */
+.video-background-theme.theme-grid .content-area > .scheduling-box {
+  flex-shrink: 0;
 }
 
 /* Scheduling Box */
