@@ -230,6 +230,7 @@ msgid_plural "%{count} minutes"
 msgstr[0] "1 minute"
 msgstr[1] "%{count} minutes"
 
+#: lib/tymeslot/profiles.ex
 #: lib/tymeslot/security/field_validators/username_validator.ex
 #, elixir-autogen, elixir-format
 msgid "This username is reserved"

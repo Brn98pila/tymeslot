@@ -417,7 +417,8 @@ defmodule Tymeslot.Profiles do
     do: {:ok, profile}
 
   def change_username(%ProfileSchema{} = profile, username, opts) do
-    with :ok <- UsernameValidator.validate(username, reserved_words: ReservedPaths.list()),
+    with :ok <- UsernameValidator.validate(username),
+         :ok <- refuse_reserved_username(username),
          :ok <- username_rate_limit(profile, opts),
          {:ok, updated_profile} <- ProfileQueries.update_username(profile, username) do
       Publication.maybe_publish(updated_profile.user_id)
@@ -432,6 +433,15 @@ defmodule Tymeslot.Profiles do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  # Every reserved username, the demo provider's included, is refused here,
+  # before the rate limit, so a refused choice costs no change attempt.
+  defp refuse_reserved_username(username) do
+    case username_reserved_status(String.trim(username)) do
+      :ok -> :ok
+      :reserved -> {:error, dgettext("errors", "This username is reserved")}
     end
   end
 

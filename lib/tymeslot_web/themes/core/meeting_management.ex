@@ -19,7 +19,6 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
   alias TymeslotWeb.Themes.Shared.TimezoneHelpers
 
-
   @doc """
   Loads and validates a meeting by UID for the given action.
 
