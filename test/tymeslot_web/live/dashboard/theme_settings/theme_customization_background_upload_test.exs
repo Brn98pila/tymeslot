@@ -535,12 +535,17 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       assert served?(video_path)
       refute has_element?(view, "[data-testid='uploaded-image']")
 
+      # The organiser stays on the tab they removed it from, though the
+      # background on show is a video.
+      assert has_element?(view, "#theme-background-image-form")
+
       # Removing the video on show falls back to the theme's default background.
       view |> element(tab_button("video")) |> render_click()
       view |> element("[data-testid='remove-uploaded-video']") |> render_click()
 
       assert shown(profile) == {"gradient", "gradient_1"}
       refute served?(video_path)
+      assert has_element?(view, "#theme-background-video-form")
 
       assert Map.take(saved_settings(profile), ["background_image_path", "background_video_path"]) ==
                %{}
